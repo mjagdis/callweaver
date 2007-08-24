@@ -280,7 +280,7 @@ static int careful_write(int fd, unsigned char *data, int len)
         {
             if (errno != EAGAIN)
             {
-                opbx_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
                 return -1;
             }
             return 0;
@@ -464,11 +464,11 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
             }
             else
             {
-                opbx_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
+                opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel - trying device\n");
                 cnf->fd = open("/dev/zap/pseudo", O_RDWR);
                 if (cnf->fd < 0)
                 {
-                    opbx_log(LOG_WARNING, "Unable to open pseudo device\n");
+                    opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo device\n");
                     free(cnf);
                     cnf = NULL;
                     goto cnfout;
@@ -481,7 +481,7 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
             ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
             if (ioctl(cnf->fd, ZT_SETCONF, &ztc))
             {
-                opbx_log(LOG_WARNING, "Error setting conference\n");
+                opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                 if (cnf->chan)
                     opbx_hangup(cnf->chan);
                 else
@@ -503,7 +503,7 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
             confs = cnf;
         }
         else
-            opbx_log(LOG_WARNING, "Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
 cnfout:
     opbx_mutex_unlock(&conflock);
@@ -786,7 +786,7 @@ static void conf_flush(int fd)
     int x;
     x = ZT_FLUSH_ALL;
     if (ioctl(fd, ZT_FLUSH, &x))
-        opbx_log(LOG_WARNING, "Error flushing channel\n");
+        opbx_log(OPBX_LOG_WARNING, "Error flushing channel\n");
 }
 
 /* Remove the conference from the list and free it.
@@ -810,7 +810,7 @@ static int conf_free(struct opbx_conference *conf)
     }
 
     if (!cur)
-        opbx_log(LOG_WARNING, "Conference not found\n");
+        opbx_log(OPBX_LOG_WARNING, "Conference not found\n");
 
     if (conf->recording == MEETME_RECORD_ACTIVE)
     {
@@ -876,7 +876,7 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 
     if (!user)
     {
-        opbx_log(LOG_ERROR, "Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
         return(ret);
     }
     memset(user, 0, sizeof(struct opbx_conf_user));
@@ -934,7 +934,7 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         user->nextuser = NULL;
         if (conf->lastuser->nextuser != NULL)
         {
-            opbx_log(LOG_WARNING, "Error in User Management!\n");
+            opbx_log(OPBX_LOG_WARNING, "Error in User Management!\n");
             opbx_mutex_unlock(&conflock);
             goto outrun;
         }
@@ -1025,14 +1025,14 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     /* Set it into linear mode (write) */
     if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
         goto outrun;
     }
 
     /* Set it into linear mode (read) */
     if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
         goto outrun;
     }
     opbx_indicate(chan, -1);
@@ -1045,7 +1045,7 @@ zapretry:
         fd = open("/dev/zap/pseudo", O_RDWR);
         if (fd < 0)
         {
-            opbx_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
             goto outrun;
         }
         using_pseudo = 1;
@@ -1053,13 +1053,13 @@ zapretry:
         flags = fcntl(fd, F_GETFL);
         if (flags < 0)
         {
-            opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
         if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
         {
-            opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
@@ -1071,14 +1071,14 @@ zapretry:
         bi.numbufs = 4;
         if (ioctl(fd, ZT_SET_BUFINFO, &bi))
         {
-            opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
         x = 1;
         if (ioctl(fd, ZT_SETLINEAR, &x))
         {
-            opbx_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
@@ -1096,7 +1096,7 @@ zapretry:
     ztc.chan = 0;
     if (ioctl(fd, ZT_GETCONF, &ztc))
     {
-        opbx_log(LOG_WARNING, "Error getting conference\n");
+        opbx_log(OPBX_LOG_WARNING, "Error getting conference\n");
         close(fd);
         goto outrun;
     }
@@ -1105,7 +1105,7 @@ zapretry:
         /* Whoa, already in a conference...  Retry... */
         if (!retryzap)
         {
-            opbx_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+            opbx_log(OPBX_LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
             retryzap = 1;
             goto zapretry;
         }
@@ -1135,12 +1135,12 @@ zapretry:
 
     if (ioctl(fd, ZT_SETCONF, &ztc))
     {
-        opbx_log(LOG_WARNING, "Error setting conference\n");
+        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
         close(fd);
         opbx_mutex_unlock(&conflock);
         goto outrun;
     }
-    opbx_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+    opbx_log(OPBX_LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
     manager_event(EVENT_FLAG_CALL, "MeetmeJoin",
                   "Channel: %s\r\n"
@@ -1190,7 +1190,7 @@ zapretry:
         }
         if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = opbx_dsp_new()))
         {
-            opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
             res = -1;
         }
         for(;;)
@@ -1251,7 +1251,7 @@ zapretry:
                             ztc.confmode = ZT_CONF_CONF;
                             if (ioctl(fd, ZT_SETCONF, &ztc))
                             {
-                                opbx_log(LOG_WARNING, "Error setting conference\n");
+                                opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                                 close(fd);
                                 goto outrun;
                             }
@@ -1267,7 +1267,7 @@ zapretry:
                         ztc.confmode = ZT_CONF_CONF;
                         if (ioctl(fd, ZT_SETCONF, &ztc))
                         {
-                            opbx_log(LOG_WARNING, "Error setting conference\n");
+                            opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                             close(fd);
                             goto outrun;
                         }
@@ -1283,7 +1283,7 @@ zapretry:
                         ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(LOG_WARNING, "Error setting conference\n");
+                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                         close(fd);
                         goto outrun;
                     }
@@ -1338,7 +1338,7 @@ zapretry:
                     ztc.confmode ^= ZT_CONF_TALKER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+                        opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
                         break;
                     }
@@ -1348,7 +1348,7 @@ zapretry:
                     ztc.confmode |= ZT_CONF_TALKER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+                        opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
                         break;
                     }
@@ -1367,7 +1367,7 @@ zapretry:
                 ztc.confmode |= ZT_CONF_TALKER;
                 if (ioctl(fd, ZT_SETCONF, &ztc))
                 {
-                    opbx_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
                     ret = -1;
                     break;
                 }
@@ -1383,7 +1383,7 @@ zapretry:
                         close(fd);
                         using_pseudo = 0;
                     }
-                    opbx_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+                    opbx_log(OPBX_LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
                     retryzap = strcasecmp(c->type, "Zap");
                     user->zapchannel = !retryzap;
                     goto zapretry;
@@ -1442,7 +1442,7 @@ zapretry:
                         break;
                     }
                     else if (option_debug > 1)
-                        opbx_log(LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
+                        opbx_log(OPBX_LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
                 }
                 else if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT))
                 {
@@ -1453,7 +1453,7 @@ zapretry:
                 {
                     if (ioctl(fd, ZT_SETCONF, &ztc_empty))
                     {
-                        opbx_log(LOG_WARNING, "Error setting conference\n");
+                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                         close(fd);
                         opbx_mutex_unlock(&conflock);
                         goto outrun;
@@ -1501,7 +1501,7 @@ zapretry:
                                 }
                                 if (ioctl(fd, ZT_SETCONF, &ztc))
                                 {
-                                    opbx_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+                                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
@@ -1601,7 +1601,7 @@ zapretry:
                                 }
                                 if (ioctl(fd, ZT_SETCONF, &ztc))
                                 {
-                                    opbx_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+                                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
@@ -1645,7 +1645,7 @@ zapretry:
 
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(LOG_WARNING, "Error setting conference\n");
+                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
                         close(fd);
                         opbx_mutex_unlock(&conflock);
                         goto outrun;
@@ -1654,7 +1654,7 @@ zapretry:
                 }
                 else if (option_debug)
                 {
-                    opbx_log(LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
+                    opbx_log(OPBX_LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
                 }
                 opbx_fr_free(f);
             }
@@ -1672,13 +1672,13 @@ zapretry:
                         opbx_frame_adjust_volume(&fr, user->listen.actual);
                     if (opbx_write(chan, &fr) < 0)
                     {
-                        opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+                        opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                         /* break; */
                     }
                 }
                 else
                 {
-                    opbx_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+                    opbx_log(OPBX_LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
                 }
             }
             lastmarked = currentmarked;
@@ -1694,7 +1694,7 @@ zapretry:
         ztc.confmode = 0;
         if (ioctl(fd, ZT_SETCONF, &ztc))
         {
-            opbx_log(LOG_WARNING, "Error setting conference\n");
+            opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
         }
     }
 
@@ -1765,7 +1765,7 @@ outrun:
                 if (user->prevuser)
                     user->prevuser->nextuser = NULL;
                 else
-                    opbx_log(LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
+                    opbx_log(OPBX_LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
                 conf->lastuser = user->prevuser;
             }
             else
@@ -1773,11 +1773,11 @@ outrun:
                 if (user->nextuser)
                     user->nextuser->prevuser = user->prevuser;
                 else
-                    opbx_log(LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
+                    opbx_log(OPBX_LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
                 if (user->prevuser)
                     user->prevuser->nextuser = user->nextuser;
                 else
-                    opbx_log(LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
+                    opbx_log(OPBX_LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
             }
         }
         /* Return the number of seconds the user was in the conf */
@@ -1811,7 +1811,7 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
         if (dynamic)
         {
             /* No need to parse meetme.conf */
-            opbx_log(LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
+            opbx_log(OPBX_LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
             if (dynamic_pin)
             {
                 if (dynamic_pin[0] == 'q')
@@ -1832,7 +1832,7 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
             cfg = opbx_config_load("meetme.conf");
             if (!cfg)
             {
-                opbx_log(LOG_WARNING, "No meetme.conf file :(\n");
+                opbx_log(OPBX_LOG_WARNING, "No meetme.conf file :(\n");
                 return NULL;
             }
             var = opbx_variable_browse(cfg, "rooms");
@@ -1866,7 +1866,7 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
             }
             if (!var)
             {
-                opbx_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+                opbx_log(OPBX_LOG_DEBUG, "%s isn't a valid conference\n", confno);
             }
             opbx_config_destroy(cfg);
         }
@@ -1911,7 +1911,7 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
     {
         if (!deprecated_var)
         {
-            opbx_log(LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", name2);
+            opbx_log(OPBX_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", name2);
             deprecated_var = 1;
         }
         snprintf(val, sizeof(val), "%d",count);
@@ -2094,7 +2094,7 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                 }
                 else
                 {
-                    opbx_log(LOG_ERROR, "Could not scan confno '%s'\n", confno);
+                    opbx_log(OPBX_LOG_ERROR, "Could not scan confno '%s'\n", confno);
                 }
             }
         }
@@ -2285,14 +2285,14 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
                 user->adminflags |= ADMINFLAG_KICKME;
                 break;
             }
-            opbx_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+            opbx_log(OPBX_LOG_NOTICE, "Not kicking last user, is an Admin!\n");
             break;
         case 'M':
             /* M: Mute */
             if (user)
                 user->adminflags |= ADMINFLAG_MUTED;
             else
-                opbx_log(LOG_NOTICE, "Specified User not found!\n");
+                opbx_log(OPBX_LOG_NOTICE, "Specified User not found!\n");
             break;
         case 'N':
             /* N: Mute all users */
@@ -2312,7 +2312,7 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
             if (user && (user->adminflags & ADMINFLAG_MUTED))
                 user->adminflags ^= ADMINFLAG_MUTED;
             else
-                opbx_log(LOG_NOTICE, "Specified User not found or he muted himself!");
+                opbx_log(OPBX_LOG_NOTICE, "Specified User not found or he muted himself!");
             break;
         case 'n':
             /* n: Unmute all users */
@@ -2332,13 +2332,13 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
             if (user)
                 user->adminflags |= ADMINFLAG_KICKME;
             else
-                opbx_log(LOG_NOTICE, "Specified User not found!");
+                opbx_log(OPBX_LOG_NOTICE, "Specified User not found!");
             break;
         }
     }
     else
     {
-        opbx_log(LOG_NOTICE, "Conference Number not found\n");
+        opbx_log(OPBX_LOG_NOTICE, "Conference Number not found\n");
     }
 
     opbx_mutex_unlock(&conflock);

@@ -138,14 +138,14 @@ db_reconnect:
 		mysql_init(&mysql);
 		/* Add option to quickly timeout the connection */
 		if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
-			opbx_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			opbx_log(OPBX_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 		}
 		if (mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
 			connected = 1;
 			connect_time = time(NULL);
 			records = 0;
 		} else {
-			opbx_log(LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", hostname);
+			opbx_log(OPBX_LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", hostname);
 			connected = 0;
 		}
 	} else {
@@ -157,16 +157,16 @@ db_reconnect:
 			switch (error) {
 				case CR_SERVER_GONE_ERROR:
 				case CR_SERVER_LOST:
-					opbx_log(LOG_ERROR, "cdr_mysql: Server has gone away. Attempting to reconnect.\n");
+					opbx_log(OPBX_LOG_ERROR, "cdr_mysql: Server has gone away. Attempting to reconnect.\n");
 					break;
 				default:
-					opbx_log(LOG_ERROR, "cdr_mysql: Unknown connection error: (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+					opbx_log(OPBX_LOG_ERROR, "cdr_mysql: Unknown connection error: (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			}
 			retries--;
 			if (retries)
 				goto db_reconnect;
 			else
-				opbx_log(LOG_ERROR, "cdr_mysql: Retried to connect fives times, giving up.\n");
+				opbx_log(OPBX_LOG_ERROR, "cdr_mysql: Retried to connect fives times, giving up.\n");
 		}
 	}
 
@@ -198,7 +198,7 @@ db_reconnect:
 		mysql_escape_string(userfielddata, cdr->userfield, strlen(cdr->userfield));
 	}
 
-	opbx_log(LOG_DEBUG, "cdr_mysql: inserting a CDR record.\n");
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: inserting a CDR record.\n");
 
 	if (userfield && userfielddata) {
 #ifdef MYSQL_LOGUNIQUEID
@@ -214,11 +214,11 @@ db_reconnect:
 #endif
 	}
 	
-	opbx_log(LOG_DEBUG, "cdr_mysql: SQL command as follows: %s\n", sqlcmd);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: SQL command as follows: %s\n", sqlcmd);
 	
 	if (connected) {
 		if (mysql_real_query(&mysql, sqlcmd, strlen(sqlcmd))) {
-			opbx_log(LOG_ERROR, "mysql_cdr: Failed to insert into database: (%d) %s", mysql_errno(&mysql), mysql_error(&mysql));
+			opbx_log(OPBX_LOG_ERROR, "mysql_cdr: Failed to insert into database: (%d) %s", mysql_errno(&mysql), mysql_error(&mysql));
 			mysql_close(&mysql);
 			connected = 0;
 		} else {
@@ -295,7 +295,7 @@ static int load_module(void)
 
 	cfg = opbx_config_load(config);
 	if (!cfg) {
-		opbx_log(LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
+		opbx_log(OPBX_LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
 		return -1;
 	}
 	
@@ -312,11 +312,11 @@ static int load_module(void)
 			hostname_alloc = 1;
 			strcpy(hostname, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL server hostname not specified.  Assuming localhost\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL server hostname not specified.  Assuming localhost\n");
 		hostname = "localhost";
 	}
 
@@ -327,11 +327,11 @@ static int load_module(void)
 			dbname_alloc = 1;
 			strcpy(dbname, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL database not specified.  Assuming callweavercdrdb\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL database not specified.  Assuming callweavercdrdb\n");
 		dbname = "callweavercdrdb";
 	}
 
@@ -342,11 +342,11 @@ static int load_module(void)
 			dbuser_alloc = 1;
 			strcpy(dbuser, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL database user not specified.  Assuming root\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL database user not specified.  Assuming root\n");
 		dbuser = "root";
 	}
 
@@ -357,11 +357,11 @@ static int load_module(void)
 			dbsock_alloc = 1;
 			strcpy(dbsock, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL database sock file not specified.  Using default\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL database sock file not specified.  Using default\n");
 		dbsock = NULL;
 	}
 
@@ -372,11 +372,11 @@ static int load_module(void)
 			dbtable_alloc = 1;
 			strcpy(dbtable, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_NOTICE, "MySQL database table not specified.  Assuming \"cdr\"\n");
+		opbx_log(OPBX_LOG_NOTICE, "MySQL database table not specified.  Assuming \"cdr\"\n");
 		dbtable = "cdr";
 	}
 
@@ -387,18 +387,18 @@ static int load_module(void)
 			password_alloc = 1;
 			strcpy(password, tmp);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL database password not specified.  Assuming blank\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL database password not specified.  Assuming blank\n");
 		password = "";
 	}
 
 	tmp = opbx_variable_retrieve(cfg, "global", "port");
 	if (tmp) {
 		if (sscanf(tmp, "%d", &dbport) < 1) {
-			opbx_log(LOG_WARNING, "Invalid MySQL port number.  Using default\n");
+			opbx_log(OPBX_LOG_WARNING, "Invalid MySQL port number.  Using default\n");
 			dbport = 0;
 		}
 	}
@@ -406,7 +406,7 @@ static int load_module(void)
 	tmp = opbx_variable_retrieve(cfg, "global", "timeout");
 	if (tmp) {
 		if (sscanf(tmp,"%d", &timeout) < 1) {
-			opbx_log(LOG_WARNING, "Invalid MySQL timeout number.  Using default\n");
+			opbx_log(OPBX_LOG_WARNING, "Invalid MySQL timeout number.  Using default\n");
 			timeout = 0;
 		}
 	}
@@ -414,34 +414,34 @@ static int load_module(void)
 	tmp = opbx_variable_retrieve(cfg, "global", "userfield");
 	if (tmp) {
 		if (sscanf(tmp, "%d", &userfield) < 1) {
-			opbx_log(LOG_WARNING, "Invalid MySQL configurtation file\n");
+			opbx_log(OPBX_LOG_WARNING, "Invalid MySQL configurtation file\n");
 			userfield = 0;
 		}
 	}
 	
 	opbx_config_destroy(cfg);
 
-	opbx_log(LOG_DEBUG, "cdr_mysql: got hostname of %s\n", hostname);
-	opbx_log(LOG_DEBUG, "cdr_mysql: got port of %d\n", dbport);
-	opbx_log(LOG_DEBUG, "cdr_mysql: got a timeout of %d\n", timeout);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got hostname of %s\n", hostname);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got port of %d\n", dbport);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got a timeout of %d\n", timeout);
 	if (dbsock)
-		opbx_log(LOG_DEBUG, "cdr_mysql: got sock file of %s\n", dbsock);
-	opbx_log(LOG_DEBUG, "cdr_mysql: got user of %s\n", dbuser);
-	opbx_log(LOG_DEBUG, "cdr_mysql: got dbname of %s\n", dbname);
-	opbx_log(LOG_DEBUG, "cdr_mysql: got password of %s\n", password);
+		opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got sock file of %s\n", dbsock);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got user of %s\n", dbuser);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got dbname of %s\n", dbname);
+	opbx_log(OPBX_LOG_DEBUG, "cdr_mysql: got password of %s\n", password);
 
 	mysql_init(&mysql);
 
 	if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
-		opbx_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+		opbx_log(OPBX_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 	}
 
 	if (!mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
-		opbx_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", dbname, hostname);
+		opbx_log(OPBX_LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", dbname, hostname);
 		connected = 0;
 		records = 0;
 	} else {
-		opbx_log(LOG_DEBUG, "Successfully connected to MySQL database.\n");
+		opbx_log(OPBX_LOG_DEBUG, "Successfully connected to MySQL database.\n");
 		connected = 1;
 		records = 0;
 		connect_time = time(NULL);

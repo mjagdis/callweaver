@@ -1186,7 +1186,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
         return 0;
 
     if (option_debug > 2 && sipdebug)
-        opbx_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
+        opbx_log(OPBX_LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
 
     next = temp;
     while (next)
@@ -1201,7 +1201,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
         while (*next == ' ')    /* Skip spaces */
             next++;
         if (option_debug > 2 && sipdebug)
-            opbx_log(LOG_DEBUG, "Found SIP option: -%s-\n", next);
+            opbx_log(OPBX_LOG_DEBUG, "Found SIP option: -%s-\n", next);
         for (i = 0;  (i < (sizeof(sip_options) / sizeof(sip_options[0])))  &&  !res;  i++)
         {
             if (!strcasecmp(next, sip_options[i].text))
@@ -1209,19 +1209,19 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
                 profile |= sip_options[i].id;
                 res = 1;
                 if (option_debug > 2  &&  sipdebug)
-                    opbx_log(LOG_DEBUG, "Matched SIP option: %s\n", next);
+                    opbx_log(OPBX_LOG_DEBUG, "Matched SIP option: %s\n", next);
             }
         }
         if (!res) 
             if (option_debug > 2 && sipdebug)
-                opbx_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
+                opbx_log(OPBX_LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
         next = sep;
     }
     if (pvt)
     {
         pvt->sipoptions = profile;
         if (option_debug)
-            opbx_log(LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
+            opbx_log(OPBX_LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
     }
     return profile;
 }
@@ -1293,7 +1293,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
     }
     
     if (res != len)
-        opbx_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, ntohs(p->sa.sin_port), strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, ntohs(p->sa.sin_port), strerror(errno));
     return res;
 }
 
@@ -1340,18 +1340,18 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
             if ((hp = opbx_gethostbyname(externhost, &ahp)))
                 memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
             else
-                opbx_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+                opbx_log(OPBX_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
         }
         memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
         opbx_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
         if (!stun_active)
         {
-            opbx_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
+            opbx_log(OPBX_LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
             p->stun_needed = 0;
         }
         else
         {
-            opbx_log(LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", iabuf);
+            opbx_log(OPBX_LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", iabuf);
             p->stun_needed = 1;
         }
     }
@@ -1374,7 +1374,7 @@ static int append_history(struct sip_pvt *p, const char *event, const char *data
         return 0;
     if(!(hist = malloc(sizeof(struct sip_history))))
     {
-        opbx_log(LOG_WARNING, "Can't allocate memory for history\n");
+        opbx_log(OPBX_LOG_WARNING, "Can't allocate memory for history\n");
         return 0;
     }
     memset(hist, 0, sizeof(struct sip_history));
@@ -1424,14 +1424,14 @@ static int retrans_pkt(void *data)
         {
             /* Re-schedule using timer_a and timer_t1 */
             if (sipdebug && option_debug > 3)
-                opbx_log(LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+                opbx_log(OPBX_LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
         }
         else
         {
             int siptimer_a;
 
             if (sipdebug && option_debug > 3)
-                opbx_log(LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
+                opbx_log(OPBX_LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
             if (!pkt->timer_a)
                 pkt->timer_a = 2 ;
             else
@@ -1445,7 +1445,7 @@ static int retrans_pkt(void *data)
             /* Reschedule re-transmit */
             reschedule = siptimer_a;
             if (option_debug > 3)
-                opbx_log(LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
+                opbx_log(OPBX_LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
          } 
 
         if (pkt->owner  &&  sip_debug_test_pvt(pkt->owner))
@@ -1466,12 +1466,12 @@ static int retrans_pkt(void *data)
     if (pkt->owner && pkt->method != SIP_OPTIONS)
     {
         if (opbx_test_flag(pkt, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-            opbx_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (opbx_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (opbx_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+            opbx_log(OPBX_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (opbx_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (opbx_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
     }
     else
     {
         if (pkt->method == SIP_OPTIONS && sipdebug)
-            opbx_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
+            opbx_log(OPBX_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
     }
     append_history(pkt->owner, "MaxRetries", (opbx_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
          
@@ -1488,7 +1488,7 @@ static int retrans_pkt(void *data)
         if (pkt->owner->owner)
         {
             opbx_set_flag(pkt->owner, SIP_ALREADYGONE);
-            opbx_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
+            opbx_log(OPBX_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
             opbx_queue_hangup(pkt->owner->owner);
             opbx_mutex_unlock(&pkt->owner->owner->lock);
         }
@@ -1521,7 +1521,7 @@ static int retrans_pkt(void *data)
         pkt = NULL;
     }
     else
-        opbx_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
+        opbx_log(OPBX_LOG_WARNING, "Weird, couldn't find packet owner!\n");
     if (pkt  &&  pkt->owner)
         opbx_mutex_unlock(&pkt->owner->lock);
     return 0;
@@ -1556,7 +1556,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
     pkt->retransid = opbx_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 
     if (option_debug > 3 && sipdebug)
-        opbx_log(LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
+        opbx_log(OPBX_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
     pkt->next = p->packets;
     p->packets = pkt;
 
@@ -1586,11 +1586,11 @@ static int __sip_autodestruct(void *data)
     /* This scheduled event is now considered done. */
     p->autokillid = -1;
 
-    opbx_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
+    opbx_log(OPBX_LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
     append_history(p, "AutoDestroy", "");
     if (p->owner)
     {
-        opbx_log(LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
+        opbx_log(OPBX_LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
         opbx_queue_hangup(p->owner);
     }
     else
@@ -1650,7 +1650,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
         {
             if (!resp  &&  (seqno == p->pendinginvite))
             {
-                opbx_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
+                opbx_log(OPBX_LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
                 p->pendinginvite = 0;
                 resetinvite = 1;
             }
@@ -1662,7 +1662,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
             if (cur->retransid > -1)
             {
                 if (sipdebug && option_debug > 3)
-                    opbx_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
+                    opbx_log(OPBX_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
                 opbx_sched_del(sched, cur->retransid);
         	cur->retransid = -1;
             }
@@ -1674,7 +1674,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
         cur = cur->next;
     }
     opbx_mutex_unlock(&p->lock);
-    opbx_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+    opbx_log(OPBX_LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
     return res;
 }
 
@@ -1687,7 +1687,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
     {
         if (cur == p->packets)
         {
-            opbx_log(LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
+            opbx_log(OPBX_LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
             return -1;
         }
         cur = p->packets;
@@ -1727,7 +1727,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
             if (cur->retransid > -1)
             {
                 if (option_debug > 3 && sipdebug)
-                    opbx_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
+                    opbx_log(OPBX_LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
                 opbx_sched_del(sched, cur->retransid);
         	cur->retransid = -1;
             }
@@ -1736,7 +1736,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
         }
         cur = cur->next;
     }
-    opbx_log(LOG_DEBUG, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+    opbx_log(OPBX_LOG_DEBUG, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
     return res;
 }
 
@@ -1834,7 +1834,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
         }
 #if STUN_DEV_DEBUG
         if (stundebug)
-            opbx_log(LOG_DEBUG,"(*) joining header[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+            opbx_log(OPBX_LOG_DEBUG,"(*) joining header[%d]: %s\n",tmpsdl->type, tmpsdl->content);
 #endif
         strcat(req->data, tmpsdl->content);
         strcat(req->data, "\r\n");
@@ -1847,7 +1847,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 
 #if STUN_DEV_DEBUG
     if (stundebug)
-        opbx_log(LOG_DEBUG,"STUN_NEEDED: %d - HAVE_STUN: %d\n",p->stun_needed, have_stun);
+        opbx_log(OPBX_LOG_DEBUG,"STUN_NEEDED: %d - HAVE_STUN: %d\n",p->stun_needed, have_stun);
 #endif
     while (tmpsdl)
     {
@@ -1873,8 +1873,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 #if STUN_DEV_DEBUG
                 if (stundebug)
                 {
-                    opbx_log(LOG_DEBUG,"M_AUDIO was: %s\n",tmpsdl->content);
-                    opbx_log(LOG_DEBUG,"M_AUDIO is : %s\n",buf);
+                    opbx_log(OPBX_LOG_DEBUG,"M_AUDIO was: %s\n",tmpsdl->content);
+                    opbx_log(OPBX_LOG_DEBUG,"M_AUDIO is : %s\n",buf);
                 }
 #endif
                 strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN-1);
@@ -1905,7 +1905,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 
 #if STUN_DEV_DEBUG
         if (stundebug)
-            opbx_log(LOG_DEBUG,"(*) joining sdp[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+            opbx_log(OPBX_LOG_DEBUG,"(*) joining sdp[%d]: %s\n",tmpsdl->type, tmpsdl->content);
 #endif
         strcat(req->data, tmpsdl->content);
         strcat(req->data, "\r\n");
@@ -1938,7 +1938,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 
     if (stun_active  &&  p->stun_needed == 1)
     {
-        opbx_log(LOG_DEBUG,"This call response %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+        opbx_log(OPBX_LOG_DEBUG,"This call response %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
 
         struct sip_reqresp *rr;
         rr = malloc(sizeof(struct sip_reqresp));
@@ -1956,41 +1956,41 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 
         if (p->rtp  &&  !opbx_rtp_get_stunstate(p->rtp))
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
         }
         if (p->vrtp  &&  !opbx_rtp_get_stunstate(p->vrtp))
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
         if (p->udptl  &&  !opbx_udptl_get_stunstate(p->udptl))
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
         if (rr->streq)
         {
             if (stundebug)
-                opbx_log(LOG_DEBUG,"** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
+                opbx_log(OPBX_LOG_DEBUG,"** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
             rr->p->stun_resreq_id = opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);     
             return 0;   
         }
         else
         {
-            opbx_log(LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
+            opbx_log(OPBX_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
         }
     }
     else if (p->stun_needed == 2)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"This transmit response has already a stun %d\n",p->stun_needed);
+            opbx_log(OPBX_LOG_DEBUG,"This transmit response has already a stun %d\n",p->stun_needed);
         sip_rebuild_payload(p, req, 1);
     }
     else
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"This transmit response has stun at %d\n",p->stun_needed);
+            opbx_log(OPBX_LOG_DEBUG,"This transmit response has stun at %d\n",p->stun_needed);
         sip_rebuild_payload(p, req, 0);
     }
 
@@ -2040,7 +2040,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 
     if (stun_active  &&  p->stun_needed == 1)
     {
-        opbx_log(LOG_DEBUG,"This call request %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+        opbx_log(OPBX_LOG_DEBUG,"This call request %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
 
         struct sip_reqresp *rr;
         
@@ -2059,40 +2059,40 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 
         if (p->rtp  &&  opbx_rtp_get_stunstate(p->rtp) == 0)
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
         }
         if (p->vrtp  &&  opbx_rtp_get_stunstate(p->vrtp) == 0)
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
         if (p->udptl  &&  opbx_udptl_get_stunstate(p->udptl) == 0)
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
         if (rr->streq)
         {
             if (stundebug)
-                opbx_log(LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
+                opbx_log(OPBX_LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
                         rr->p->stun_resreq_id=opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);     
             return 0;   
         }
         else
         {
-            opbx_log(LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
+            opbx_log(OPBX_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
         }
     }
     else if (p->stun_needed == 2)
     {
         if (stundebug)
-        opbx_log(LOG_DEBUG,"This transmit request has already a stun %d\n",p->stun_needed);
+        opbx_log(OPBX_LOG_DEBUG,"This transmit request has already a stun %d\n",p->stun_needed);
         sip_rebuild_payload(p,req,1);
     }
     else
     {
-        if (stundebug) opbx_log(LOG_DEBUG,"This transmit request has stun at %d\n",p->stun_needed);
+        if (stundebug) opbx_log(OPBX_LOG_DEBUG,"This transmit request has stun at %d\n",p->stun_needed);
         sip_rebuild_payload(p,req,0);
     }
 
@@ -2142,7 +2142,7 @@ static int sip_resend_reqresp(void *data)
 
     if (!if_callid_exists(rr->callid))
     {
-        opbx_log(LOG_DEBUG, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);    
+        opbx_log(OPBX_LOG_DEBUG, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);    
             sip_dealloc_headsdp_lines(&rr->req);
         free(data);
         return 0;
@@ -2150,12 +2150,12 @@ static int sip_resend_reqresp(void *data)
     if (rr->streq)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
+            opbx_log(OPBX_LOG_DEBUG,"** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
     }
     else
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** deleting transmission retrial 'cause stun request is not set\n");
+            opbx_log(OPBX_LOG_DEBUG,"** deleting transmission retrial 'cause stun request is not set\n");
         rr->p->stun_needed=0;
         sip_dealloc_headsdp_lines(&rr->req);
         free(data);
@@ -2166,7 +2166,7 @@ static int sip_resend_reqresp(void *data)
     if (rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
+            opbx_log(OPBX_LOG_DEBUG,"Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
         p->stun_needed = 0;
         sip_dealloc_headsdp_lines(&rr->req);
         free(data);
@@ -2174,7 +2174,7 @@ static int sip_resend_reqresp(void *data)
     };
 
     if (stundebug)
-        opbx_log(LOG_DEBUG,"** Trying to resend a packet after stun request. "
+        opbx_log(OPBX_LOG_DEBUG,"** Trying to resend a packet after stun request. "
                  "Type %d, seqno %d sched %d, callid %s\n",rr->type,rr->seqno,rr->p->stun_resreq_id, rr->callid);
 
     if (p->rtp  &&  opbx_rtp_get_stunstate(p->rtp) == 1)
@@ -2190,7 +2190,7 @@ static int sip_resend_reqresp(void *data)
 
     if (stundebug)
     {
-        opbx_log(LOG_DEBUG,"** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
+        opbx_log(OPBX_LOG_DEBUG,"** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
                  (!map) ? 1 : 2,
                  opbx_rtp_get_stunstate(p->rtp),
                  opbx_rtp_get_stunstate(p->vrtp),
@@ -2208,12 +2208,12 @@ static int sip_resend_reqresp(void *data)
         stun_addr2sockaddr(&msin,map);
         memcpy(&p->stun_transid,&rr->streq->req_head.id, sizeof(stun_trans_id) );
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
+            opbx_log(OPBX_LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
     }
     else
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** SIP port stun mapped address not found. STUN state on sdp ports is: rtp:%d vrtp:%d udptl:%d \n",
+            opbx_log(OPBX_LOG_DEBUG,"** SIP port stun mapped address not found. STUN state on sdp ports is: rtp:%d vrtp:%d udptl:%d \n",
                      opbx_rtp_get_stunstate(p->rtp),
                      opbx_rtp_get_stunstate(p->vrtp),
                      opbx_udptl_get_stunstate(p->udptl));
@@ -2226,7 +2226,7 @@ static int sip_resend_reqresp(void *data)
 
 #if STUN_DEV_DEBUG
     if (stundebug)
-        opbx_log(LOG_DEBUG,"** STUN rebuilding payload before sending reqresp\n");
+        opbx_log(OPBX_LOG_DEBUG,"** STUN rebuilding payload before sending reqresp\n");
 #endif
     sip_rebuild_payload(rr->p, &rr->req, 1);
     parse_copy(&tmp,&rr->req);
@@ -2234,7 +2234,7 @@ static int sip_resend_reqresp(void *data)
     if (rr->type == 1)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** STUN Sending response after acquiring STUN\n");
+            opbx_log(OPBX_LOG_DEBUG,"** STUN Sending response after acquiring STUN\n");
         /* This is a send_response*/
         rr->p->stun_needed = 2;
         send_response(rr->p, &rr->req, rr->reliable, rr->seqno);
@@ -2242,7 +2242,7 @@ static int sip_resend_reqresp(void *data)
     else if (rr->type == 2)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG,"** STUN Sending request after acquiring STUN\n");
+            opbx_log(OPBX_LOG_DEBUG,"** STUN Sending request after acquiring STUN\n");
         /* This is a send_request*/
         rr->p->stun_needed = 2;
         send_request(rr->p, &rr->req, rr->reliable, rr->seqno);
@@ -2250,7 +2250,7 @@ static int sip_resend_reqresp(void *data)
     else
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG, "deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
+            opbx_log(OPBX_LOG_DEBUG, "deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
     }
 
     sip_dealloc_headsdp_lines(&rr->req);
@@ -2288,7 +2288,7 @@ static char *get_in_brackets(char *tmp)
             }
             if (!*parse)
             {
-                opbx_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
+                opbx_log(OPBX_LOG_WARNING, "No closing quote found in '%s'\n", tmp);
                 return tmp;
             }
             parse++;
@@ -2304,7 +2304,7 @@ static char *get_in_brackets(char *tmp)
             }
             else
             {
-                opbx_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
+                opbx_log(OPBX_LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
                 return tmp;
             }
         }
@@ -2494,7 +2494,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     if (!newpeername)
     {
         /* Did not find peer in realtime */
-        opbx_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
+        opbx_log(OPBX_LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
         opbx_variables_destroy(var);
         return (struct sip_peer *) NULL;
     }
@@ -2681,23 +2681,23 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
         else if (opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
             r->t38capability |= T38FAX_UDP_EC_REDUNDANCY;            
         r->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
-        opbx_log(LOG_DEBUG,"Our T38 capability (%d)\n", r->t38capability);
+        opbx_log(OPBX_LOG_DEBUG,"Our T38 capability (%d)\n", r->t38capability);
     }
     r->t38jointcapability = r->t38capability;
 
     if (r->rtp)
     {
-        opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(r)  );
+        opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(r)  );
         opbx_rtp_setnat(r->rtp, sip_is_nat_needed(r)  );
     }
     if (r->vrtp)
     {
-        opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(r)  );
+        opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(r)  );
         opbx_rtp_setnat(r->vrtp, sip_is_nat_needed(r) );
     }
     if (r->udptl)
     {
-        opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(r) );
+        opbx_log(OPBX_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(r) );
         opbx_udptl_setnat(r->udptl, sip_is_nat_needed(r) );
     }
     opbx_copy_string(r->peername, peer->username, sizeof(r->peername));
@@ -2807,7 +2807,7 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
         }
         else
         {
-            opbx_log(LOG_WARNING, "No such host: %s\n", peer);
+            opbx_log(OPBX_LOG_WARNING, "No such host: %s\n", peer);
             return -1;
         }
     }
@@ -2828,7 +2828,7 @@ static int auto_congest(void *nothing)
     {
         if (!opbx_mutex_trylock(&p->owner->lock))
         {
-            opbx_log(LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
+            opbx_log(OPBX_LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
             opbx_queue_control(p->owner, OPBX_CONTROL_CONGESTION);
             opbx_mutex_unlock(&p->owner->lock);
         }
@@ -2857,7 +2857,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
     p = ast->tech_pvt;
     if ((ast->_state != OPBX_STATE_DOWN) && (ast->_state != OPBX_STATE_RESERVED))
     {
-        opbx_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
+        opbx_log(OPBX_LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
         return -1;
     }
 
@@ -2895,7 +2895,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
         {
             /* Check whether there is a variable with a name starting with T38CALL */
             p->t38state = SIP_T38_OFFER_SENT_DIRECT;
-            opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
+            opbx_log(OPBX_LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
         }
         
 #ifdef OSP_SUPPORT
@@ -2916,20 +2916,20 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
     if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1))
     {
         /* Force Disable OSP support */
-        opbx_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
+        opbx_log(OPBX_LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
         p->options->osptoken = NULL;
         osphandle = NULL;
         p->osphandle = -1;
     }
 #endif
-    opbx_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
+    opbx_log(OPBX_LOG_DEBUG, "Outgoing Call for %s\n", p->username);
     res = update_call_counter(p, INC_CALL_LIMIT);
     if (res != -1)
     {
         p->callingpres = ast->cid.cid_pres;
         p->jointcapability = p->capability;
         p->t38jointcapability = p->t38capability;
-        opbx_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38capability, p->t38jointcapability);
+        opbx_log(OPBX_LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38capability, p->t38jointcapability);
         transmit_invite(p, SIP_INVITE, 1, 2);
         if (p->maxtime)
         {
@@ -3017,7 +3017,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
     {
         if (lockowner)
             opbx_mutex_lock(&p->owner->lock);
-        opbx_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
+        opbx_log(OPBX_LOG_DEBUG, "Detaching from %s\n", p->owner->name);
         p->owner->tech_pvt = NULL;
         if (lockowner)
             opbx_mutex_unlock(&p->owner->lock);
@@ -3046,7 +3046,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
     }
     if (!cur)
     {
-        opbx_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
+        opbx_log(OPBX_LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
         return;
     } 
     while ((cp = p->packets))
@@ -3078,7 +3078,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
     struct sip_peer *p = NULL;
 
     if (option_debug > 2)
-        opbx_log(LOG_DEBUG, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
+        opbx_log(OPBX_LOG_DEBUG, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
     /* Test if we need to check call limits, in order to avoid 
        realtime lookups if we do not need it */
     if (!opbx_test_flag(fup, SIP_CALL_LIMIT))
@@ -3108,7 +3108,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
         else
         {
             if (option_debug > 1)
-                opbx_log(LOG_DEBUG, "%s is not a local user, no call limit\n", name);
+                opbx_log(OPBX_LOG_DEBUG, "%s is not a local user, no call limit\n", name);
             return 0;
         }
     }
@@ -3125,14 +3125,14 @@ static int update_call_counter(struct sip_pvt *fup, int event)
         else
             *inuse = 0;
         if (option_debug > 1  ||  sipdebug)
-            opbx_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+            opbx_log(OPBX_LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
         break;
     case INC_CALL_LIMIT:
         if (*call_limit > 0 )
         {
             if (*inuse >= *call_limit)
             {
-                opbx_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+                opbx_log(OPBX_LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
                 if (u)
                     ASTOBJ_UNREF(u,sip_destroy_user);
                 else
@@ -3143,10 +3143,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
         (*inuse)++;
 	opbx_set_flag(fup,SIP_INC_COUNT);
         if (option_debug > 1  ||  sipdebug)
-            opbx_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
+            opbx_log(OPBX_LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
         break;
     default:
-        opbx_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
+        opbx_log(OPBX_LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
     }
     if (u)
         ASTOBJ_UNREF(u,sip_destroy_user);
@@ -3274,7 +3274,7 @@ static char *hangup_cause2sip(int cause)
             
         case OPBX_CAUSE_NOTDEFINED:
         default:
-            opbx_log(LOG_DEBUG, "AST hangup cause %d (no match found in SIP)\n", cause);
+            opbx_log(OPBX_LOG_DEBUG, "AST hangup cause %d (no match found in SIP)\n", cause);
             return NULL;
     }
 
@@ -3294,11 +3294,11 @@ static int sip_hangup(struct opbx_channel *ast)
 
     if (!p)
     {
-        opbx_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
+        opbx_log(OPBX_LOG_DEBUG, "Asked to hangup channel not connected\n");
         return 0;
     }
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
+        opbx_log(OPBX_LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
     opbx_mutex_lock(&p->lock);
 #ifdef OSP_SUPPORT
@@ -3307,12 +3307,12 @@ static int sip_hangup(struct opbx_channel *ast)
         opbx_osp_terminate(p->osphandle, OPBX_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
     }
 #endif    
-    opbx_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter\n", p->username);
+    opbx_log(OPBX_LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter\n", p->username);
     update_call_counter(p, DEC_CALL_LIMIT);
     /* Determine how to disconnect */
     if (p->owner != ast)
     {
-        opbx_log(LOG_WARNING, "Huh?  We aren't the owner? Can't hangup call.\n");
+        opbx_log(OPBX_LOG_WARNING, "Huh?  We aren't the owner? Can't hangup call.\n");
         opbx_mutex_unlock(&p->lock);
         return 0;
     }
@@ -3420,14 +3420,14 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 
 	fmt = opbx_getformatbyname(codec);
 	if (fmt) {
-		opbx_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
+		opbx_log(OPBX_LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
 		if (p->jointcapability & fmt) {
 			p->jointcapability &= fmt;
 			p->capability &= fmt;
 		} else
-			opbx_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
+			opbx_log(OPBX_LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
 	} else
-		opbx_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
+		opbx_log(OPBX_LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
 	return;	
 }
 
@@ -3449,13 +3449,13 @@ static int sip_answer(struct opbx_channel *ast)
 
         opbx_setstate(ast, OPBX_STATE_UP);
         if (option_debug)
-            opbx_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
+            opbx_log(OPBX_LOG_DEBUG, "sip_answer(%s)\n", ast->name);
 
         if (p->t38state == SIP_T38_OFFER_RECEIVED_DIRECT)
         {
             p->t38state = SIP_T38_NEGOTIATED;
-            opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
-            opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", ast->name);
+            opbx_log(OPBX_LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
+            opbx_log(OPBX_LOG_DEBUG,"T38mode enabled for channel %s\n", ast->name);
             res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 2);
             opbx_channel_set_t38_status(ast, T38_NEGOTIATED);
         }
@@ -3479,7 +3479,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
     case OPBX_FRAME_VOICE:
         if (!(frame->subclass & ast->nativeformats))
         {
-            opbx_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+            opbx_log(OPBX_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
                 frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
             return 0;
         }
@@ -3539,7 +3539,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
         }
         break;
     default: 
-        opbx_log(LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
+        opbx_log(OPBX_LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
         return 0;
     }
 
@@ -3564,14 +3564,14 @@ static int sip_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan)
     struct sip_pvt *p = newchan->tech_pvt;
 
     if (!p) {
-	opbx_log(LOG_WARNING, "No pvt after masquerade. Strange things may happen\n");
+	opbx_log(OPBX_LOG_WARNING, "No pvt after masquerade. Strange things may happen\n");
 	return -1;
     }
 
     opbx_mutex_lock(&p->lock);
     if (p->owner != oldchan)
     {
-        opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
+        opbx_log(OPBX_LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
         opbx_mutex_unlock(&p->lock);
         return -1;
     }
@@ -3691,12 +3691,12 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
         break;
     case OPBX_CONTROL_HOLD:    /* The other part of the bridge are put on hold */
         if (sipdebug)
-            opbx_log(LOG_DEBUG, "Bridged channel now on hold%s\n", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "Bridged channel now on hold%s\n", p->callid);
         res = -1;
         break;
     case OPBX_CONTROL_UNHOLD:    /* The other part of the bridge are back from hold */
         if (sipdebug)
-            opbx_log(LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
         res = -1;
         break;
     case OPBX_CONTROL_VIDUPDATE:    /* Request a video frame update */
@@ -3712,7 +3712,7 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
         res = -1;
         break;
     default:
-        opbx_log(LOG_WARNING, "Don't know how to indicate condition %d\n", condition);
+        opbx_log(OPBX_LOG_WARNING, "Don't know how to indicate condition %d\n", condition);
         res = -1;
         break;
     }
@@ -3729,14 +3729,14 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     if (c0->tech->bridge == sip_bridge)
     {
         res1 = opbx_channel_get_t38_status(c0);
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c0->name, ( res1 == T38_NEGOTIATED )  ?  "enabled\n"  :  "not enabled\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38 on channel %s is: %s", c0->name, ( res1 == T38_NEGOTIATED )  ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c0->lock);
     opbx_mutex_lock(&c1->lock);
     if (c1->tech->bridge == sip_bridge)
     {
         res2 = opbx_channel_get_t38_status(c1);
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c1->name, ( res2 == T38_NEGOTIATED ) ?  "enabled\n"  :  "not enabled\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38 on channel %s is: %s", c1->name, ( res2 == T38_NEGOTIATED ) ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c1->lock);
 
@@ -3755,7 +3755,7 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     */
     if (t38udptlsupport)
     {
-        opbx_log(LOG_WARNING, "T38 support is enabled - DISABLING native RTP bridging !\n" );
+        opbx_log(OPBX_LOG_WARNING, "T38 support is enabled - DISABLING native RTP bridging !\n" );
         return OPBX_BRIDGE_FAILED_NOWARN;
     } 
     return opbx_rtp_bridge(c0, c1, flag, fo, rc, 0);
@@ -3779,7 +3779,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     opbx_mutex_lock(&i->lock);
     if (tmp == NULL)
     {
-        opbx_log(LOG_WARNING, "Unable to allocate SIP channel structure\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to allocate SIP channel structure\n");
         return NULL;
     }
     tmp->tech = &sip_tech;
@@ -3879,7 +3879,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     {
         if (opbx_pbx_start(tmp))
         {
-            opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+            opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
             opbx_hangup(tmp);
             tmp = NULL;
         }
@@ -4072,11 +4072,11 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
             if (f->subclass != p->owner->nativeformats)
             {
 		if (!(f->subclass & p->jointcapability)) {
-		    opbx_log(LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
+		    opbx_log(OPBX_LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
 		    opbx_getformatname(f->subclass), p->owner->name);
 		    return &null_frame;
 		}
-                opbx_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
                 p->owner->nativeformats = f->subclass;
                 opbx_set_read_format(p->owner, p->owner->readformat);
                 opbx_set_write_format(p->owner, p->owner->writeformat);
@@ -4180,7 +4180,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
         if (!p->rtp  ||  (videosupport  &&  !p->vrtp))
         {
-            opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
             opbx_mutex_destroy(&p->lock);
             if (p->chanvars)
             {
@@ -4258,7 +4258,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     iflist = p;
     opbx_mutex_unlock(&iflock);
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
+        opbx_log(OPBX_LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
     return p;
 }
 
@@ -4293,7 +4293,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
             
 
         if (option_debug > 4)
-            opbx_log(LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
+            opbx_log(OPBX_LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
     }
 
     opbx_mutex_lock(&iflock);
@@ -4311,7 +4311,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
                     (!pedanticsipchecking  ||  !tag  ||  opbx_strlen_zero(p->theirtag)  ||  !strcmp(p->theirtag, tag)));
 
         if (option_debug > 4)
-            opbx_log(LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
+            opbx_log(OPBX_LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
 
         /* If we get a new request within an existing to-tag - check the to tag as well */
         if (pedanticsipchecking  &&  found  &&  req->method != SIP_RESPONSE)
@@ -4329,7 +4329,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
                     found = 0;        /* This is not our packet */
             }
             if (!found && option_debug > 4)
-                opbx_log(LOG_DEBUG, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, totag, sip_methods[req->method].text);
+                opbx_log(OPBX_LOG_DEBUG, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, totag, sip_methods[req->method].text);
         }
 
 
@@ -4375,7 +4375,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	    */
 	    transmit_response_using_temp(callid, sin, 1, intended_method, req, "500 Server internal error");
 	    if (option_debug > 3)
-		opbx_log(LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+		opbx_log(OPBX_LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
 	}
     }
 
@@ -4408,7 +4408,7 @@ static int sip_register(char *value, int lineno)
     }
     if (opbx_strlen_zero(username) || opbx_strlen_zero(hostname))
     {
-        opbx_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
+        opbx_log(OPBX_LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
         return -1;
     }
     stringp=username;
@@ -4431,13 +4431,13 @@ static int sip_register(char *value, int lineno)
     
     if (porta  &&  !atoi(porta))
     {
-        opbx_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+        opbx_log(OPBX_LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
         return -1;
     }
     reg = malloc(sizeof(struct sip_registry));
     if (!reg)
     {
-        opbx_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
+        opbx_log(OPBX_LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
         return -1;
     }
     memset(reg, 0, sizeof(struct sip_registry));
@@ -4534,7 +4534,7 @@ static void parse_request(struct sip_request *req)
             *c = 0;
 
             if (sipdebug && option_debug > 3)
-                opbx_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
+                opbx_log(OPBX_LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
             if (opbx_strlen_zero(req->header[f]))
             {
                 /* Line by itself means we're now in content */
@@ -4543,7 +4543,7 @@ static void parse_request(struct sip_request *req)
             }
             if (f >= SIP_MAX_HEADERS - 1)
             {
-                opbx_log(LOG_WARNING, "Too many SIP headers. Ignoring.\n");
+                opbx_log(OPBX_LOG_WARNING, "Too many SIP headers. Ignoring.\n");
             }
             else
             {
@@ -4562,7 +4562,7 @@ static void parse_request(struct sip_request *req)
     if (!opbx_strlen_zero(req->header[f]))
     {
         if (sipdebug && option_debug > 3)
-            opbx_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
+            opbx_log(OPBX_LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
         f++;
     }
     req->headers = f;
@@ -4576,10 +4576,10 @@ static void parse_request(struct sip_request *req)
             /* We've got a new line */
             *c = 0;
             if (sipdebug && option_debug > 3)
-                opbx_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
+                opbx_log(OPBX_LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
             if (f >= SIP_MAX_LINES - 1)
             {
-                opbx_log(LOG_WARNING, "Too many SDP lines. Ignoring.\n");
+                opbx_log(OPBX_LOG_WARNING, "Too many SDP lines. Ignoring.\n");
             }
             else
             {
@@ -4599,7 +4599,7 @@ static void parse_request(struct sip_request *req)
         f++;
     req->lines = f;
     if (*c) 
-        opbx_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
     /* Split up the first line parts */
     determine_firstline_parts(req);
 }
@@ -4692,7 +4692,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
     if (!p->rtp)
     {
-        opbx_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
+        opbx_log(OPBX_LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
         return -1;
     }
 
@@ -4705,18 +4705,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     c = get_sdp_iterate(&destiterator, req, "c");
     if (opbx_strlen_zero(m)  ||  opbx_strlen_zero(c))
     {
-        opbx_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
+        opbx_log(OPBX_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
         return -1;
     }
     if (sscanf(c, "IN IP4 %256s", host) != 1)
     {
-        opbx_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
         return -1;
     }
     /* XXX This could block for a long time, and block the main thread! XXX */
     if ((hp = opbx_gethostbyname(host, &ahp)) == NULL)
     {
-        opbx_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
         return -1;
     }
     sdpLineNum_iterator_init(&iterator, req);
@@ -4738,7 +4738,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             {
                 if (sscanf(codecs, "%d%n", &codec, &len) != 1)
                 {
-                    opbx_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+                    opbx_log(OPBX_LOG_WARNING, "Error in codec string '%s'\n", codecs);
                     return -1;
                 }
                 if (debug)
@@ -4761,7 +4761,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             found = 1;
             udptlportno = x;
 
-            opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 0);
     	    if (t38udptlsupport && p->udptl && (t38_disabled == NULL) ) {
         	opbx_udptl_set_active(p->udptl, 1);
@@ -4772,17 +4772,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (p->owner  &&  p->lastinvite)
             {
                 p->t38state = SIP_T38_OFFER_RECEIVED_REINVITE; /* T38 Offered in re-invite from remote party */
-                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>" );
+                opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>" );
             }
             else
             {
                 p->t38state = SIP_T38_OFFER_RECEIVED_DIRECT; /* T38 Offered directly from peer in first invite */
-                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
+                opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
             }                
         }
         else
         {
-            opbx_log(LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 1);
     	    if (t38udptlsupport &&p->udptl )
         	opbx_udptl_set_active(p->udptl, 0);
@@ -4802,7 +4802,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             {
                 if (sscanf(codecs, "%d%n", &codec, &len) != 1)
                 {
-                    opbx_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+                    opbx_log(OPBX_LOG_WARNING, "Error in codec string '%s'\n", codecs);
                     return -1;
                 }
                 if (debug)
@@ -4812,7 +4812,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
         if (!found )
-            opbx_log(LOG_WARNING, "Unknown or ignored SDP media type in offer: %s\n", m);
+            opbx_log(OPBX_LOG_WARNING, "Unknown or ignored SDP media type in offer: %s\n", m);
     }
     if (portno == -1  &&  vportno == -1  &&  udptlportno == -1)
     {
@@ -4827,13 +4827,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             if (sscanf(c, "IN IP4 %256s", host) != 1)
             {
-                opbx_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+                opbx_log(OPBX_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
             }
             else
             {
                 /* XXX This could block for a long time, and block the main thread! XXX */
                 if ((hp = opbx_gethostbyname(host, &ahp)) == NULL){
-                    opbx_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+                    opbx_log(OPBX_LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
 		    return -1;
 		}
             }
@@ -4853,7 +4853,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (debug)
             {
                 opbx_verbose("Peer audio RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                opbx_log(LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                opbx_log(OPBX_LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -4865,13 +4865,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             if (sscanf(c, "IN IP4 %256s", host) != 1)
             {
-                opbx_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+                opbx_log(OPBX_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
             }
             else
             {
                 /* XXX This could block for a long time, and block the main thread! XXX */
                 if ((hp = opbx_gethostbyname(host, &ahp)) == NULL) {
-                    opbx_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+                    opbx_log(OPBX_LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
 		    return -1;
 		}
             }
@@ -4887,7 +4887,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (debug)
             {
                 opbx_verbose("Peer video RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                opbx_log(LOG_DEBUG,"Peer video RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                opbx_log(OPBX_LOG_DEBUG,"Peer video RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -4902,7 +4902,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (debug)
             {
                 opbx_verbose("Peer T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                opbx_log(LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                opbx_log(OPBX_LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -4947,12 +4947,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if ((sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"MaxBufferSize:%d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"MaxBufferSize:%d\n",x);
             }
             else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"T38MaxBitRate: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"T38MaxBitRate: %d\n",x);
                 switch (x)
                 {
                 case 33600:
@@ -4981,7 +4981,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"FaxVersion: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"FaxVersion: %d\n",x);
                 if (x == 0)
                     peert38capability |= T38FAX_VERSION_0;
                 else if (x == 1)
@@ -4990,35 +4990,35 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"FaxMaxDatagram: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"FaxMaxDatagram: %d\n",x);
                 opbx_udptl_set_far_max_datagram(p->udptl, x);
                 opbx_udptl_set_local_max_datagram(p->udptl, x);
             }
             else if ((sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"FillBitRemoval: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"FillBitRemoval: %d\n",x);
                 if (x == 1)
                     peert38capability |= T38FAX_FILL_BIT_REMOVAL;
             }
             else if ((sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"Transcoding MMR: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"Transcoding MMR: %d\n",x);
                 if (x == 1)
                     peert38capability |= T38FAX_TRANSCODING_MMR;
             }
             else if ((sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"Transcoding JBIG: %d\n",x);
+                opbx_log(OPBX_LOG_DEBUG,"Transcoding JBIG: %d\n",x);
                 if (x == 1)
                     peert38capability |= T38FAX_TRANSCODING_JBIG;
             }
             else if ((sscanf(a, "T38FaxRateManagement:%s", s) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"RateMangement: %s\n", s);
+                opbx_log(OPBX_LOG_DEBUG,"RateMangement: %s\n", s);
                 if (!strcasecmp(s, "localTCF"))
                     peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
                 else if (!strcasecmp(s, "transferredTCF"))
@@ -5027,7 +5027,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             else if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"UDP EC: %s\n", s);
+                opbx_log(OPBX_LOG_DEBUG,"UDP EC: %s\n", s);
                 if (strcasecmp(s, "t38UDPFEC") == 0)
                 {
                     peert38capability |= T38FAX_UDP_EC_FEC;
@@ -5053,7 +5053,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             p->t38jointcapability |= (peert38capability & p->t38capability); /* Put the lower of our's and peer's speed */
         }
         if (debug)
-            opbx_log(LOG_DEBUG,"Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
+            opbx_log(OPBX_LOG_DEBUG,"Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
                     p->t38capability, 
                     p->t38peercapability,
                     p->t38jointcapability);
@@ -5061,7 +5061,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     else
     {
         p->t38state = SIP_T38_STATUS_UNKNOWN;
-        opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
+        opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
     }
 
     /* Now gather all of the codecs that were asked for: */
@@ -5107,7 +5107,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     }
     if (!p->jointcapability)
     {
-        opbx_log(LOG_NOTICE, "No compatible codecs!\n");
+        opbx_log(OPBX_LOG_NOTICE, "No compatible codecs!\n");
         return -1;
     }
 
@@ -5120,7 +5120,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         char s1[slen];
         char s2[slen];
 
-        opbx_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
+        opbx_log(OPBX_LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
                  opbx_getformatname_multiple(s1, slen, p->jointcapability),
                  opbx_getformatname_multiple(s2, slen, p->owner->nativeformats));
         p->owner->nativeformats = opbx_codec_choose(&p->prefs, p->jointcapability, 1);
@@ -5193,19 +5193,19 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 
     if (req->headers == SIP_MAX_HEADERS)
     {
-        opbx_log(LOG_WARNING, "Out of SIP header space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of SIP header space\n");
         return -1;
     }
 
     if (req->lines)
     {
-        opbx_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
+        opbx_log(OPBX_LOG_WARNING, "Can't add more headers when lines have been added\n");
         return -1;
     }
 
     if (req->len >= sizeof(req->data) - 4)
     {
-        opbx_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
+        opbx_log(OPBX_LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
         return -1;
     }
 
@@ -5276,17 +5276,17 @@ static int add_blank_header(struct sip_request *req)
 {
     if (req->headers == SIP_MAX_HEADERS)
     {
-        opbx_log(LOG_WARNING, "Out of SIP header space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of SIP header space\n");
         return -1;
     }
     if (req->lines)
     {
-        opbx_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
+        opbx_log(OPBX_LOG_WARNING, "Can't add more headers when lines have been added\n");
         return -1;
     }
     if (req->len >= sizeof(req->data) - 4)
     {
-        opbx_log(LOG_WARNING, "Out of space, can't add anymore\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of space, can't add anymore\n");
         return -1;
     }
     req->header[req->headers] = req->data + req->len;
@@ -5302,7 +5302,7 @@ static int add_line(struct sip_request *req, const char *dline, short int type)
 {
     if (req->lines == SIP_MAX_LINES)
     {
-        opbx_log(LOG_WARNING, "Out of SIP line space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of SIP line space\n");
         return -1;
     }
     if (!req->lines)
@@ -5313,7 +5313,7 @@ static int add_line(struct sip_request *req, const char *dline, short int type)
     }
     if (req->len >= sizeof(req->data) - 4)
     {
-        opbx_log(LOG_WARNING, "Out of space, can't add anymore\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of space, can't add anymore\n");
         return -1;
     }
     req->line[req->lines] = req->data + req->len;
@@ -5358,7 +5358,7 @@ static int copy_header(struct sip_request *req, struct sip_request *orig, char *
         /* Add what we're responding to */
         return add_header(req, field, tmp, SIP_DL_DONTCARE);
     }
-    opbx_log(LOG_NOTICE, "No field '%s' present to copy\n", field);
+    opbx_log(OPBX_LOG_NOTICE, "No field '%s' present to copy\n", field);
     return -1;
 }
 
@@ -5451,7 +5451,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
     }
     if (!copied)
     {
-        opbx_log(LOG_NOTICE, "No header field '%s' present to copy\n", field);
+        opbx_log(OPBX_LOG_NOTICE, "No header field '%s' present to copy\n", field);
         return -1;
     }
     return 0;
@@ -5543,7 +5543,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
     
     if ((hp = opbx_gethostbyname(hostname, &ahp)) == NULL)
     {
-        opbx_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
+        opbx_log(OPBX_LOG_WARNING, "Can't find address for host '%s'\n", hostname);
         return;
     }
     p->sa.sin_family = AF_INET;
@@ -5561,7 +5561,7 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
     /* Initialize a response */
     if (req->headers || req->len)
     {
-        opbx_log(LOG_WARNING, "Request already initialized?!?\n");
+        opbx_log(OPBX_LOG_WARNING, "Request already initialized?!?\n");
         return -1;
     }
     req->method = SIP_RESPONSE;
@@ -5583,7 +5583,7 @@ static int init_req(struct sip_request *req, int sipmethod, char *recip)
     /* Initialize a response */
     if (req->headers || req->len)
     {
-        opbx_log(LOG_WARNING, "Request already initialized?!?\n");
+        opbx_log(OPBX_LOG_WARNING, "Request already initialized?!?\n");
         return -1;
     }
     req->method = sipmethod;
@@ -5779,7 +5779,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 
     if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1))
     {
-        opbx_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
+        opbx_log(OPBX_LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -5905,7 +5905,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 
     if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1))
     {
-        opbx_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
+        opbx_log(OPBX_LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
         return -1;
     }
     /* Stale means that they sent us correct authentication, but 
@@ -6018,37 +6018,37 @@ static int t38_get_rate(int t38cap)
 
     if (maxrate & T38FAX_RATE_14400)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 14400 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 14400 found\n");
         return 14400;
     }
     else if (maxrate & T38FAX_RATE_12000)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 12000 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 12000 found\n");
         return 12000;
     }
     else if (maxrate & T38FAX_RATE_9600)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 9600 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 9600 found\n");
         return 9600;
     }
     else if (maxrate & T38FAX_RATE_7200)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 7200 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 7200 found\n");
         return 7200;
     }
     else if (maxrate & T38FAX_RATE_4800)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 4800 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 4800 found\n");
         return 4800;
     }
     else if (maxrate & T38FAX_RATE_2400)
     {
-        opbx_log(LOG_DEBUG, "T38MaxFaxRate 2400 found\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38MaxFaxRate 2400 found\n");
         return 2400;
     }
     else
     {
-        opbx_log(LOG_DEBUG, "Strange, T38MaxFaxRate NOT found in peers T38 SDP.\n");
+        opbx_log(OPBX_LOG_DEBUG, "Strange, T38MaxFaxRate NOT found in peers T38 SDP.\n");
         return 0;
     }
 }
@@ -6074,7 +6074,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
     len = 0;
     if (!p->udptl)
     {
-        opbx_log(LOG_WARNING, "No way to add SDP without an UDPTL structure\n");
+        opbx_log(OPBX_LOG_WARNING, "No way to add SDP without an UDPTL structure\n");
         return -1;
     }
 
@@ -6117,7 +6117,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     if (debug)
     {
-        opbx_log(LOG_DEBUG, "Our T38 capability (%d), peer T38 capability (%d), joint capability (%d)\n",
+        opbx_log(OPBX_LOG_DEBUG, "Our T38 capability (%d), peer T38 capability (%d), joint capability (%d)\n",
             p->t38capability,
             p->t38peercapability,
             p->t38jointcapability);    
@@ -6211,7 +6211,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     len = 0;
     if (!p->rtp)
     {
-        opbx_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
+        opbx_log(OPBX_LOG_WARNING, "No way to add SDP without an RTP structure\n");
         return -1;
     }
     capability = p->capability;
@@ -6453,7 +6453,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 
     if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)
     {
-        opbx_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
+        opbx_log(OPBX_LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -6465,7 +6465,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
     }
     else
     {
-        opbx_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
+        opbx_log(OPBX_LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
     }
     return send_response(p, &resp, retrans, seqno);
 }
@@ -6478,7 +6478,7 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 
     if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)
     {
-        opbx_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
+        opbx_log(OPBX_LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -6489,7 +6489,7 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
     }
     else
     {
-        opbx_log(LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
+        opbx_log(OPBX_LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
     }
     return send_response(p, &resp, retrans, seqno);
 }
@@ -6576,7 +6576,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
     p->lastinvite = p->ocseq;
     opbx_set_flag(p, SIP_OUTGOING);
 
-    opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
+    opbx_log(OPBX_LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
     if (t38udptlsupport  &&  p->udptl )
     {
         opbx_rtp_set_active(p->rtp, 0);
@@ -6714,7 +6714,7 @@ static void build_rpid(struct sip_pvt *p)
         send_pres_tags = 0;
         break;
     default:
-        opbx_log(LOG_WARNING, "Unsupported callingpres (%d)\n", p->callingpres);
+        opbx_log(OPBX_LOG_WARNING, "Unsupported callingpres (%d)\n", p->callingpres);
         if ((p->callingpres & OPBX_PRES_RESTRICTION) != OPBX_PRES_ALLOWED)
             privacy = "full";
         else
@@ -6932,7 +6932,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 #ifdef OSP_SUPPORT
     if ((req.method != SIP_OPTIONS) && p->options && !opbx_strlen_zero(p->options->osptoken))
     {
-        opbx_log(LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
+        opbx_log(OPBX_LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
         add_header(&req, "P-OSP-Auth-Token", p->options->osptoken, SIP_DL_DONTCARE);
     }
 #endif
@@ -6957,7 +6957,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 
             headp = &ast->varshead;
             if (!headp)
-                opbx_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
+                opbx_log(OPBX_LOG_WARNING,"No Headp for the channel...ooops!\n");
             else
             {
                 OPBX_LIST_TRAVERSE(headp, current, entries)
@@ -6984,7 +6984,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
                         
                             add_header(&req, headdup, content, SIP_DL_DONTCARE);
                             if (sipdebug)
-                                opbx_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
+                                opbx_log(OPBX_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
                         }
                     }
                 }
@@ -6994,7 +6994,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
     if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
     {
         opbx_udptl_offered_from_local(p->udptl, 1);
-        opbx_log(LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+        opbx_log(OPBX_LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
         add_t38_sdp(&req, p);
     }
     else if (sdp  &&  p->rtp)
@@ -7097,7 +7097,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
     c = get_in_brackets(from);
     if (strncmp(c, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
         return -1;
     }
     if ((a = strchr(c, ';')))
@@ -7108,7 +7108,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
     c = get_in_brackets(to);
     if (strncmp(c, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
         return -1;
     }
     if ((a = strchr(c, ';')))
@@ -7188,7 +7188,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
     }
 
     if (t > tmp + sizeof(tmp))
-        opbx_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
+        opbx_log(OPBX_LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
     add_header_contentLength(&req, strlen(tmp));
     add_line(&req, tmp, SIP_DL_DONTCARE);
@@ -7330,7 +7330,7 @@ static int sip_reregister(void *data)
     /* Since registry's are only added/removed by the the monitor thread, this
        may be overkill to reference/dereference at all here */
     if (sipdebug)
-        opbx_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
+        opbx_log(OPBX_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
     r->expire = -1;
     __sip_do_register(r);
@@ -7360,7 +7360,7 @@ static int sip_reg_timeout(void *data)
     if (!r)
         return 0;
 
-    opbx_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
+    opbx_log(OPBX_LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
     if (r->call)
     {
         /* Unlink us, destroy old call.  Locking is not relevant here because all this happens
@@ -7379,7 +7379,7 @@ static int sip_reg_timeout(void *data)
         /* Ok, enough is enough. Don't try any more */
         /* We could add an external notification here... 
             steal it from app_voicemail :-) */
-        opbx_log(LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
+        opbx_log(OPBX_LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
         r->regstate=REG_STATE_FAILED;
     }
     else
@@ -7407,7 +7407,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
     /* exit if we are already in process with this registrar ?*/
     if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT)))
     {
-        opbx_log(LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
+        opbx_log(OPBX_LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
         return 0;
     }
 
@@ -7416,7 +7416,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
         /* We have a registration */
         if (!auth)
         {
-            opbx_log(LOG_WARNING, "Already have a REGISTER going on to %s@%s?? \n", r->username, r->hostname);
+            opbx_log(OPBX_LOG_WARNING, "Already have a REGISTER going on to %s@%s?? \n", r->username, r->hostname);
             return 0;
         }
         p = r->call;
@@ -7435,7 +7435,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
         p = sip_alloc(r->callid, NULL, 0, SIP_REGISTER);
         if (!p)
         {
-            opbx_log(LOG_WARNING, "Unable to allocate registration call\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to allocate registration call\n");
             return 0;
         }
         if (recordhistory)
@@ -7454,12 +7454,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
             {
                 opbx_sched_del(sched, r->timeout);
                 r->timeout = opbx_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
-                opbx_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
+                opbx_log(OPBX_LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
             }
             else
             {
                 r->timeout = opbx_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
-                opbx_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
+                opbx_log(OPBX_LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
             }
             r->regattempts++;
             return 0;
@@ -7515,11 +7515,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
     {
         if (r->timeout > -1)
         {
-            opbx_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
+            opbx_log(OPBX_LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
             opbx_sched_del(sched, r->timeout);
         }
         r->timeout = opbx_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
-        opbx_log(LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
+        opbx_log(OPBX_LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
     }
 
     if (strchr(r->username, '@'))
@@ -7582,7 +7582,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 
         /* We have auth data to reuse, build a digest header! */
         if (sipdebug)
-            opbx_log(LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
+            opbx_log(OPBX_LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
         opbx_copy_string(p->realm, r->realm, sizeof(p->realm));
         opbx_copy_string(p->nonce, r->nonce, sizeof(p->nonce));
         opbx_copy_string(p->domain, r->domain, sizeof(p->domain));
@@ -7594,7 +7594,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
         if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
             add_header(&req, "Authorization", digest, SIP_DL_DONTCARE);
         else
-            opbx_log(LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
+            opbx_log(OPBX_LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
     
     }
 
@@ -7644,7 +7644,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
     opbx_copy_string(p->from,of,sizeof(p->from));
     if (strncmp(of, "sip:", 4))
     {
-        opbx_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+        opbx_log(OPBX_LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
     }
     else
         of += 4;
@@ -7729,7 +7729,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
                 add_header(&resp, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
         }
         else
-            opbx_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
+            opbx_log(OPBX_LOG_WARNING, "No authentication available for call %s\n", p->callid);
     }
     /* If we are hanging up and know a cause for that, send it in clear text to make
         debugging easier. */
@@ -7882,7 +7882,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
     
     /* Make sure it's a SIP URL */
     if (strncasecmp(c, "sip:", 4))
-        opbx_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+        opbx_log(OPBX_LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
     else
         c += 4;
 
@@ -7921,7 +7921,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
         /* We should only do this if it's a name, not an IP */
         if ((hp = opbx_gethostbyname(n, &ahp)) == NULL)
         {
-            opbx_log(LOG_WARNING, "Invalid host '%s'\n", n);
+            opbx_log(OPBX_LOG_WARNING, "Invalid host '%s'\n", n);
             return -1;
         }
         pvt->sa.sin_family = AF_INET;
@@ -8030,7 +8030,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
     /* Make sure it's a SIP URL */
     if (strncasecmp(c, "sip:", 4))
-        opbx_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+        opbx_log(OPBX_LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
     else
         c += 4;
     /* Ditch q */
@@ -8066,7 +8066,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         /* XXX This could block for a long time XXX */
         if ((hp = opbx_gethostbyname(n, &ahp)) == NULL)
         {
-            opbx_log(LOG_WARNING, "Invalid host '%s'\n", n);
+            opbx_log(OPBX_LOG_WARNING, "Invalid host '%s'\n", n);
             return PARSE_REGISTER_FAILED;
         }
         p->addr.sin_family = AF_INET;
@@ -8162,7 +8162,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
     /* Once a persistant route is set, don't fool with it */
     if (p->route && p->route_persistant)
     {
-        opbx_log(LOG_DEBUG, "build_route: Retaining previous route: <%s>\n", p->route->hop);
+        opbx_log(OPBX_LOG_DEBUG, "build_route: Retaining previous route: <%s>\n", p->route->hop);
         return;
     }
 
@@ -8197,7 +8197,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
             if (thishop)
             {
                 opbx_copy_string(thishop->hop, rr, len);
-                opbx_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
+                opbx_log(OPBX_LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
                 /* Link in */
                 if (backwards)
                 {
@@ -8230,7 +8230,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
         contact = get_header(req, "Contact");
         if (!opbx_strlen_zero(contact))
         {
-            opbx_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
+            opbx_log(OPBX_LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
             /* Look for <: delimited address */
             c = strchr(contact, '<');
             if (c)
@@ -8313,7 +8313,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
     }
 #ifdef OSP_SUPPORT
     else {
-        opbx_log (LOG_DEBUG, "Checking OSP Authentication!\n");
+        opbx_log(OPBX_LOG_DEBUG, "Checking OSP Authentication!\n");
         osptoken = get_header (req, "P-OSP-Auth-Token");
         switch (opbx_test_flag (p, SIP_OSPAUTH))
         {
@@ -8521,7 +8521,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
             if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash)))
             {
                 if (sipdebug)
-                    opbx_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
+                    opbx_log(OPBX_LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
                 /* We got working auth token, based on stale nonce . */
                 transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 1);
             }
@@ -8529,7 +8529,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
             {
                 /* Everything was wrong, so give the device one more try with a new challenge */
                 if (sipdebug)
-                    opbx_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
+                    opbx_log(OPBX_LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
                 transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
             }
 
@@ -8600,7 +8600,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     char *domain;
 
     if (uri == NULL) {
-        opbx_log(LOG_WARNING, "register_verify: URI is NULL!\n");
+        opbx_log(OPBX_LOG_WARNING, "register_verify: URI is NULL!\n");
         transmit_response_with_date(p, "503 Bad Request", req);
         return -3;
     }
@@ -8628,7 +8628,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     else
     {
         name = c;
-        opbx_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+        opbx_log(OPBX_LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
     }
 
     /* Strip off the domain name */
@@ -8662,7 +8662,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     {
         if (!opbx_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
         {
-            opbx_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
+            opbx_log(OPBX_LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
         }
         else
         {
@@ -8674,7 +8674,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
                 switch (parse_register_contact(p, peer, req))
                 {
                 case PARSE_REGISTER_FAILED:
-                    opbx_log(LOG_WARNING, "Failed to parse contact info\n");
+                    opbx_log(OPBX_LOG_WARNING, "Failed to parse contact info\n");
                     transmit_response_with_date(p, "400 Bad Request", req);
 		    peer->lastmsgssent = -1;
 		    res = 0;
@@ -8706,7 +8706,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
             switch (parse_register_contact(p, peer, req))
             {
             case PARSE_REGISTER_FAILED:
-                opbx_log(LOG_WARNING, "Failed to parse contact info\n");
+                opbx_log(OPBX_LOG_WARNING, "Failed to parse contact info\n");
                 peer->lastmsgssent = -1;
                 res = 0;
                 break;
@@ -8756,7 +8756,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
         }
         if (option_debug > 1)
         {
-            opbx_log(LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
+            opbx_log(OPBX_LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
                 peer->name,
                 (res == -1) ? "Bad password" : ((res == -2 ) ? "Bad digest user" : "Peer not found"));
         }
@@ -8782,7 +8782,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
     c = get_in_brackets(tmp);
     if (strncmp(c, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
         return -1;
     }
     c += 4;
@@ -8818,7 +8818,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
     
     if (strncmp(uri, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
         return -1;
     }
     uri += 4;
@@ -8826,7 +8826,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
     {
         if (strncmp(from, "sip:", 4))
         {
-            opbx_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
+            opbx_log(OPBX_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
             return -1;
         }
         from += 4;
@@ -8871,7 +8871,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
         {
             if (!allow_external_domains && (req->method == SIP_INVITE || req->method == SIP_REFER))
             {
-                opbx_log(LOG_DEBUG, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
+                opbx_log(OPBX_LOG_DEBUG, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
                 return -2;
             }
         }
@@ -8968,7 +8968,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
     
     if (!((p_refer_to = get_header(req, "Refer-To")) && (h_refer_to = opbx_strdupa(p_refer_to))))
     {
-        opbx_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
+        opbx_log(OPBX_LOG_WARNING, "No Refer-To Header That's illegal\n");
         return -1;
     }
 
@@ -8976,7 +8976,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 
     if (!((p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = opbx_strdupa(p_referred_by))))
     {
-        opbx_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
+        opbx_log(OPBX_LOG_WARNING, "No Referrred-By Header That's not illegal\n");
         return -1;
     }
     else
@@ -8991,13 +8991,13 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
     
     if (strncmp(refer_to, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Refer-to: Huh?  Not a SIP header (%s)?\n", refer_to);
+        opbx_log(OPBX_LOG_WARNING, "Refer-to: Huh?  Not a SIP header (%s)?\n", refer_to);
         return -1;
     }
 
     if (strncmp(referred_by, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Referred-by: Huh?  Not a SIP header (%s) Ignoring?\n", referred_by);
+        opbx_log(OPBX_LOG_WARNING, "Referred-by: Huh?  Not a SIP header (%s) Ignoring?\n", referred_by);
         referred_by = NULL;
     }
 
@@ -9058,7 +9058,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
     if (!opbx_strlen_zero(replace_callid))
     {    
         /* This is a supervised transfer */
-        opbx_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",replace_callid);
+        opbx_log(OPBX_LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",replace_callid);
         
         opbx_copy_string(sip_pvt->refer_to, "", sizeof(sip_pvt->refer_to));
         opbx_copy_string(sip_pvt->referred_by, "", sizeof(sip_pvt->referred_by));
@@ -9069,7 +9069,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
             sip_pvt->refer_call = sip_pvt_ptr;
             if (sip_pvt->refer_call == sip_pvt)
             {
-                opbx_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
+                opbx_log(OPBX_LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
                 sip_pvt->refer_call = NULL;
             }
             else
@@ -9081,7 +9081,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
         }
         else
         {
-            opbx_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on CallWeaver box to transfer at this time.\n", replace_callid);
+            opbx_log(OPBX_LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on CallWeaver box to transfer at this time.\n", replace_callid);
             /* XXX The refer_to could contain a call on an entirely different machine, requiring an 
                   INVITE with a replaces header -anthm XXX */
             /* The only way to find out is to use the dialplan - oej */
@@ -9091,10 +9091,10 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
     {
         /* This is an unsupervised transfer (blind transfer) */
         
-        opbx_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
+        opbx_log(OPBX_LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
         if (referred_by)
-            opbx_log(LOG_DEBUG,"Transferred by  (Referred-by: ) %s \n", referred_by);
-        opbx_log(LOG_DEBUG,"Transfer Contact Info %s (REFER_CONTACT)\n", h_contact);
+            opbx_log(OPBX_LOG_DEBUG,"Transferred by  (Referred-by: ) %s \n", referred_by);
+        opbx_log(OPBX_LOG_DEBUG,"Transfer Contact Info %s (REFER_CONTACT)\n", h_contact);
         opbx_copy_string(sip_pvt->refer_to, refer_to, sizeof(sip_pvt->refer_to));
         if (referred_by)
             opbx_copy_string(sip_pvt->referred_by, referred_by, sizeof(sip_pvt->referred_by));
@@ -9136,7 +9136,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
         
     if (strncmp(c, "sip:", 4))
     {
-        opbx_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
         return -1;
     }
     c += 4;
@@ -9152,7 +9152,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
     if (opbx_exists_extension(NULL, p->context, c, 1, NULL))
     {
         /* This is an unsupervised transfer */
-        opbx_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
+        opbx_log(OPBX_LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
         opbx_copy_string(p->refer_to, c, sizeof(p->refer_to));
         opbx_copy_string(p->referred_by, "", sizeof(p->referred_by));
         opbx_copy_string(p->refer_contact, "", sizeof(p->refer_contact));
@@ -9193,7 +9193,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
         c = opbx_skip_blanks(c+1);
         if (strcasecmp(via, "SIP/2.0/UDP"))
         {
-            opbx_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
+            opbx_log(OPBX_LOG_WARNING, "Don't know how to respond via '%s'\n", via);
             return -1;
         }
         pt = strchr(c, ':');
@@ -9201,7 +9201,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
             *pt++ = '\0';    /* remember port pointer */
         if ((hp = opbx_gethostbyname(c, &ahp)) == NULL)
         {
-            opbx_log(LOG_WARNING, "'%s' is not a valid host\n", c);
+            opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid host\n", c);
             return -1;
         }
         memset(&p->sa, 0, sizeof(p->sa));
@@ -9352,7 +9352,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
     /* save the URI part of the From header */
     opbx_copy_string(p->from, of, sizeof(p->from));
     if (strncmp(of, "sip:", 4))
-        opbx_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+        opbx_log(OPBX_LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
     else
         of += 4;
     /* Get just the username part */
@@ -9396,17 +9396,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
         if (p->rtp)
         {
-            opbx_log(LOG_DEBUG, "*** Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "*** Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
         }
         if (p->vrtp)
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
         if (p->udptl)
         {
-            opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
     	    //To be checked.
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
@@ -9501,17 +9501,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
             }
             if (p->rtp)
             {
-                opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+                opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
                 opbx_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
             }
             if (p->vrtp)
             {
-                opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+                opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
                 opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
             }
             if (p->udptl)
             {
-                opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+                opbx_log(OPBX_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
                 opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
             }
             opbx_copy_string(p->peersecret, peer->secret, sizeof(p->peersecret));
@@ -9660,7 +9660,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 
     if (get_msg_text(buf, sizeof(buf), req))
     {
-        opbx_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
+        opbx_log(OPBX_LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
         transmit_response(p, "202 Accepted", req);
         opbx_set_flag(p, SIP_NEEDDESTROY);
         return;
@@ -9681,7 +9681,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
     }
     else
     { /* Message outside of a call, we do not support that */
-        opbx_log(LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req,"To"), get_header(req,"From"), content_type, buf);
+        opbx_log(OPBX_LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req,"To"), get_header(req,"From"), content_type, buf);
         transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
     }
     opbx_set_flag(p, SIP_NEEDDESTROY);
@@ -11106,22 +11106,22 @@ void sip_dump_history(struct sip_pvt *dialog)
     if (!dialog)
         return;
 
-    opbx_log(LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
+    opbx_log(OPBX_LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
     if (dialog->subscribed)
-        opbx_log(LOG_DEBUG, "  * Subscription\n");
+        opbx_log(OPBX_LOG_DEBUG, "  * Subscription\n");
     else
-        opbx_log(LOG_DEBUG, "  * SIP Call\n");
+        opbx_log(OPBX_LOG_DEBUG, "  * SIP Call\n");
     x = 0;
     hist = dialog->history;
     while (hist)
     {
         x++;
-        opbx_log(LOG_DEBUG, "  %d. %s\n", x, hist->event);
+        opbx_log(OPBX_LOG_DEBUG, "  %d. %s\n", x, hist->event);
         hist = hist->next;
     }
     if (!x)
-        opbx_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
-    opbx_log(LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
+        opbx_log(OPBX_LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
+    opbx_log(OPBX_LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
     
 }
 
@@ -11141,7 +11141,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         /* Try getting the "signal=" part */
         if (opbx_strlen_zero(c = get_sdp(req, "Signal")) && opbx_strlen_zero(c = get_body(req, "d")))
         {
-            opbx_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
+            opbx_log(OPBX_LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
             transmit_response(p, "200 OK", req); /* Should return error */
             return;
         }
@@ -11235,7 +11235,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         return;
     }
     /* Other type of INFO message, not really understood by CallWeaver */
-    opbx_log(LOG_WARNING, "Unable to parse INFO message from %s. Content %s\n", p->callid, buf);
+    opbx_log(OPBX_LOG_WARNING, "Unable to parse INFO message from %s. Content %s\n", p->callid, buf);
     transmit_response(p, "415 Unsupported media type", req);
     return;
 }
@@ -11354,7 +11354,7 @@ static int sip_notify(int fd, int argc, char *argv[])
         p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
         if (!p)
         {
-            opbx_log(LOG_WARNING, "Unable to build sip pvt data for notify\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to build sip pvt data for notify\n");
             return RESULT_FAILURE;
         }
 
@@ -11458,14 +11458,14 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
         p->options = calloc(1, sizeof(struct sip_invite_param));
         if (!p->options)
         {
-            opbx_log(LOG_ERROR, "Out of memory\n");
+            opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
             return -2;
         }
     }
 
     p->authtries++;
     if (option_debug > 1)
-        opbx_log(LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
+        opbx_log(OPBX_LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
     memset(digest, 0, sizeof(digest));
     if (reply_digest(p, req, header, sipmethod, digest, sizeof(digest) ))
     {
@@ -11508,7 +11508,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
         return -1;
     if (strncasecmp(tmp, "Digest ", strlen("Digest ")))
     {
-        opbx_log(LOG_WARNING, "missing Digest.\n");
+        opbx_log(OPBX_LOG_WARNING, "missing Digest.\n");
         return -1;
     }
     c = tmp + strlen("Digest ");
@@ -11600,7 +11600,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
          secret = auth->secret;
          md5secret = auth->md5secret;
         if (sipdebug)
-             opbx_log(LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
+             opbx_log(OPBX_LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
      }
      else
      {
@@ -11746,7 +11746,7 @@ static int func_header_read(struct opbx_channel *chan, int argc, char **argv, ch
 
     if (chan->type != channeltype)
     {
-        opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+        opbx_log(OPBX_LOG_WARNING, "This function can only be used on SIP channels.\n");
         opbx_mutex_unlock(&chan->lock);
         return -1;
     }
@@ -11903,7 +11903,7 @@ static int function_sipchaninfo_read(struct opbx_channel *chan, int argc, char *
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
-        opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+        opbx_log(OPBX_LOG_WARNING, "This function can only be used on SIP channels.\n");
         opbx_mutex_unlock(&chan->lock);
         return -1;
     }
@@ -11975,7 +11975,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
         e = strchr(s, '/');
         if (e)
             *e = '\0';
-        opbx_log(LOG_DEBUG, "Found promiscuous redirection to 'SIP/%s'\n", s);
+        opbx_log(OPBX_LOG_DEBUG, "Found promiscuous redirection to 'SIP/%s'\n", s);
         if (p->owner)
             snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "SIP/%s", s);
     }
@@ -11989,7 +11989,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
             *e = '\0';
         if (!strncasecmp(s, "sip:", 4))
             s += 4;
-        opbx_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
+        opbx_log(OPBX_LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
         if (p->owner)
             opbx_copy_string(p->owner->call_forward, s, sizeof(p->owner->call_forward));
     }
@@ -12016,7 +12016,7 @@ static void check_pendings(struct sip_pvt *p)
     }
     else if (opbx_test_flag(p, SIP_NEEDREINVITE))
     {
-        opbx_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
+        opbx_log(OPBX_LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
         /* Didn't get to reinvite yet, so do it now */
         transmit_reinvite_with_sdp(p);
         opbx_clear_flag(p, SIP_NEEDREINVITE);    
@@ -12032,15 +12032,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
     {
         int reinvite = (p->owner && p->owner->_state == OPBX_STATE_UP);
         if (reinvite)
-            opbx_log(LOG_DEBUG, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
         else
-            opbx_log(LOG_DEBUG, "SIP response %d to standard invite\n", resp);
+            opbx_log(OPBX_LOG_DEBUG, "SIP response %d to standard invite\n", resp);
     }
 
     if (opbx_test_flag(p, SIP_ALREADYGONE))
     {
         /* This call is already gone */
-        opbx_log(LOG_DEBUG, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
+        opbx_log(OPBX_LOG_DEBUG, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
         return;
     }
 
@@ -12143,44 +12143,44 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                         }
                         else if (p->t38state == SIP_T38_STATUS_UNKNOWN  &&  bridgepeer  &&  (bridgepvt->t38state == SIP_T38_NEGOTIATED))
                         { /* This is case of RTP re-invite after T38 session */
-                            opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
+                            opbx_log(OPBX_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
                             opbx_set_flag(p, SIP_NEEDDESTROY);
                         }
                     }
                     else
                     {
-                            opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+                            opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
                             opbx_mutex_lock(&bridgepvt->lock);
                             bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
                             opbx_mutex_unlock(&bridgepvt->lock);
-                            opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+                            opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
                             p->t38state = SIP_T38_STATUS_UNKNOWN;
-                            opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                            opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                     }
                 }
                 else
                 {
                         /* Other side is not a SIP channel */ 
-                        opbx_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
+                        opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
                         p->t38state = SIP_T38_STATUS_UNKNOWN;
-                        opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                        opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                 }
             }
             else
             {
-                opbx_log(LOG_DEBUG, "Channel Bridge information is non-existant. T38 Termination requested.\n");
+                opbx_log(OPBX_LOG_DEBUG, "Channel Bridge information is non-existant. T38 Termination requested.\n");
             }
         }
         if ((p->t38state == SIP_T38_OFFER_SENT_REINVITE)  ||  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
         {
             /* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
             p->t38state = SIP_T38_NEGOTIATED;
-            opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, p->owner ? p->owner->name : "<none>");
+            opbx_log(OPBX_LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, p->owner ? p->owner->name : "<none>");
             if (p->owner)
             {
                 opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
-                opbx_log(LOG_DEBUG, "T38mode enabled for channel %s\n", p->owner->name);
+                opbx_log(OPBX_LOG_DEBUG, "T38mode enabled for channel %s\n", p->owner->name);
             }
         }        
         if (!ignore  &&  p->owner)
@@ -12228,7 +12228,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         
             if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1))
             {
-                opbx_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+                opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
                 opbx_set_flag(p, SIP_NEEDDESTROY);    
                 opbx_set_flag(p, SIP_ALREADYGONE);    
                 if (p->owner)
@@ -12239,7 +12239,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
     case 403: /* Forbidden */
         /* First we ACK */
         transmit_request(p, SIP_ACK, seqno, 0, 0);
-        opbx_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
+        opbx_log(OPBX_LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
         if (!ignore && p->owner)
             opbx_queue_control(p->owner, OPBX_CONTROL_CONGESTION);
         opbx_set_flag(p, SIP_NEEDDESTROY);    
@@ -12253,7 +12253,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         break;
     case 481: /* Call leg does not exist */
         /* Could be REFER or INVITE */
-        opbx_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
+        opbx_log(OPBX_LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
         transmit_request(p, SIP_ACK, seqno, 0, 0);
         break;
     case 487: /* Cancelled transaction */
@@ -12292,13 +12292,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         /* Unauthorized */
         if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "WWW-Authenticate", "Authorization"))
         {
-            opbx_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
+            opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
             opbx_set_flag(p, SIP_NEEDDESTROY);    
         }
         break;
     case 403:
         /* Forbidden */
-        opbx_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
+        opbx_log(OPBX_LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
         opbx_sched_del(sched, r->timeout);
@@ -12307,7 +12307,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         break;
     case 404:
         /* Not found */
-        opbx_log(LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
+        opbx_log(OPBX_LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
         opbx_set_flag(p, SIP_NEEDDESTROY);    
@@ -12319,13 +12319,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         /* Proxy auth */
         if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization"))
         {
-            opbx_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
+            opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
             opbx_set_flag(p, SIP_NEEDDESTROY);    
         }
         break;
     case 479:
         /* SER: Not able to process the URI - address is wrong in register*/
-        opbx_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
+        opbx_log(OPBX_LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
         opbx_set_flag(p, SIP_NEEDDESTROY);    
@@ -12337,7 +12337,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         /* 200 OK */
         if (!r)
         {
-            opbx_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
+            opbx_log(OPBX_LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
             opbx_set_flag(p, SIP_NEEDDESTROY);    
             return 0;
         }
@@ -12345,10 +12345,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         r->regstate=REG_STATE_REGISTERED;
         manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
         r->regattempts = 0;
-        opbx_log(LOG_DEBUG, "Registration successful\n");
+        opbx_log(OPBX_LOG_DEBUG, "Registration successful\n");
         if (r->timeout > -1)
         {
-            opbx_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
+            opbx_log(OPBX_LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
             opbx_sched_del(sched, r->timeout);
         }
         r->timeout=-1;
@@ -12407,7 +12407,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         else
             expires_ms -= EXPIRY_GUARD_SECS * 1000;
         if (sipdebug)
-            opbx_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d s)\n", r->hostname, expires, expires_ms/1000); 
+            opbx_log(OPBX_LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d s)\n", r->hostname, expires, expires_ms/1000); 
 
         r->refresh= (int) expires_ms / 1000;
 
@@ -12439,7 +12439,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
             if (pingtime <= peer->maxms)
             {
 		if (option_verbose > 3)
-			opbx_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+			opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
                 statechanged = 1;
                 newstate = 1;
             }
@@ -12449,7 +12449,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
             if (pingtime > peer->maxms)
             {
 		if (option_verbose > 3)
-			opbx_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+			opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
                 statechanged = 1;
                 newstate = 2;
             }
@@ -12561,7 +12561,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 /* They got the notify, this is the end */
                 if (p->owner)
                 {
-                    opbx_log(LOG_WARNING, "Notify answer on an owned channel?\n");
+                    opbx_log(OPBX_LOG_WARNING, "Notify answer on an owned channel?\n");
                     opbx_queue_hangup(p->owner);
                 }
                 else
@@ -12595,7 +12595,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else
             {
-                opbx_log(LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
+                opbx_log(OPBX_LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
                 opbx_set_flag(p, SIP_NEEDDESTROY);    
             }
             break;
@@ -12610,7 +12610,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else
             {
-                opbx_log(LOG_WARNING, "Forbidden - wrong password on authentication for %s\n", msg);
+                opbx_log(OPBX_LOG_WARNING, "Forbidden - wrong password on authentication for %s\n", msg);
             }
             break;
         case 404: /* Not found */
@@ -12633,12 +12633,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER)
             {
                 if (opbx_strlen_zero(p->authname))
-                    opbx_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
+                    opbx_log(OPBX_LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
                             msg, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
                     opbx_set_flag(p, SIP_NEEDDESTROY);    
                 if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0))
                 {
-                    opbx_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
+                    opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
                     opbx_set_flag(p, SIP_NEEDDESTROY);    
                 }
             }
@@ -12660,13 +12660,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             if (sipmethod == SIP_INVITE)
                 handle_response_invite(p, resp, rest, req, ignore, seqno);
             else
-                opbx_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
+                opbx_log(OPBX_LOG_WARNING, "Host '%s' does not implement '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
         case 501: /* Not Implemented */
             if (sipmethod == SIP_INVITE)
                 handle_response_invite(p, resp, rest, req, ignore, seqno);
             else
-                opbx_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
+                opbx_log(OPBX_LOG_WARNING, "Host '%s' does not implement '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
         default:
             if ((resp >= 300) && (resp < 700))
@@ -12707,7 +12707,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                              is yet another failure of not having a layer 2 (again, YAY
                              IETF for thinking ahead).  So we treat this as a call
                              forward and hope we end up at the right place... */
-                    opbx_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
+                    opbx_log(OPBX_LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
                     if (p->owner)
                         snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
                     /* Fall through */
@@ -12749,7 +12749,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 }
             }
             else
-                opbx_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                opbx_log(OPBX_LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         }
     }
     else
@@ -12774,7 +12774,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else if (sipmethod == SIP_CANCEL)
             {
-                opbx_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
+                opbx_log(OPBX_LOG_DEBUG, "Got 200 OK on CANCEL\n");
             }
             else if (sipmethod == SIP_MESSAGE)
                 /* We successfully transmitted a message */
@@ -12801,7 +12801,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 }
                 if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, auth, auth2, sipmethod, 0))
                 {
-                    opbx_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
+                    opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
                     opbx_set_flag(p, SIP_NEEDDESTROY);    
                 }
             }
@@ -12874,7 +12874,7 @@ static void *sip_park_thread(void *stuff)
     res = opbx_park_call(chan1, chan2, 0, &ext);
     /* Then hangup */
     opbx_hangup(chan2);
-    opbx_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+    opbx_log(OPBX_LOG_DEBUG, "Parked on extension '%d'\n", ext);
     return NULL;
 }
 
@@ -12918,7 +12918,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
     opbx_mutex_lock(&chan2m->lock);
     if (opbx_do_masquerade(chan2m))
     {
-        opbx_log(LOG_WARNING, "Masquerade failed :(\n");
+        opbx_log(OPBX_LOG_WARNING, "Masquerade failed :(\n");
         opbx_mutex_unlock(&chan2m->lock);
         opbx_hangup(chan2m);
         return -1;
@@ -12945,7 +12945,7 @@ static void opbx_quiet_chan(struct opbx_channel *chan)
     if (chan)
         opbx_generator_deactivate(chan);
     else
-        opbx_log(LOG_WARNING, "Aiiiee. Tried to quit_chan non-existing Channel!\n");
+        opbx_log(OPBX_LOG_WARNING, "Aiiiee. Tried to quit_chan non-existing Channel!\n");
 }
 
 /*! \brief  attempt_transfer: Attempt transfer of SIP call */
@@ -12964,7 +12964,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 
     if (!p1->owner || !p2->owner)
     {
-        opbx_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
+        opbx_log(OPBX_LOG_WARNING, "Transfer attempted without dual ownership?\n");
         return -1;
     }
     chana = p1->owner;
@@ -12991,7 +12991,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Neither bridgea nor bridgeb?\n");
+        opbx_log(OPBX_LOG_WARNING, "Neither bridgea nor bridgeb?\n");
     }
 
     if (peera && peerb && peerc && (peerb != peerc))
@@ -13024,14 +13024,14 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
         
         if (opbx_channel_masquerade(peerb, peerc))
         {
-            opbx_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
+            opbx_log(OPBX_LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
             res = -1;
         }
         return res;
     }
     else
     {
-        opbx_log(LOG_NOTICE, "Transfer attempted with no appropriate bridged calls to transfer\n");
+        opbx_log(OPBX_LOG_NOTICE, "Transfer attempted with no appropriate bridged calls to transfer\n");
         if (chana)
             opbx_softhangup_nolock(chana, OPBX_SOFTHANGUP_DEV);
         if (chanb)
@@ -13163,7 +13163,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             else
             {
                 p->jointcapability = p->capability;
-                opbx_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+                opbx_log(OPBX_LOG_DEBUG, "Hm....  No sdp for the moment\n");
             }
         }
     }
@@ -13181,10 +13181,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         if (res < 0)
         {
 	    if (res == -4) {
-		opbx_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+		opbx_log(OPBX_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
 		transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
 	    } else {
-		opbx_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
+		opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 		transmit_response_reliable(p, "403 Forbidden", req, 1);
 	    }
 	    opbx_set_flag(p, SIP_NEEDDESTROY);	
@@ -13204,7 +13204,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         else
         {
             p->jointcapability = p->capability;
-            opbx_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+            opbx_log(OPBX_LOG_DEBUG, "Hm....  No sdp for the moment\n");
         }
         /* Queue NULL frame to prod opbx_rtp_bridge if appropriate */
         if (p->owner)
@@ -13213,13 +13213,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         if (opbx_strlen_zero(p->context))
             strcpy(p->context, default_context);
         /* Check number of concurrent calls -vs- incoming limit HERE */
-        opbx_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
+        opbx_log(OPBX_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
         res = update_call_counter(p, INC_CALL_LIMIT);
         if (res)
         {
             if (res < 0)
             {
-                opbx_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
+                opbx_log(OPBX_LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
                 transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
                 opbx_set_flag(p, SIP_NEEDDESTROY);    
             }
@@ -13268,7 +13268,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     else
     {
         if (option_debug > 1  &&  sipdebug)
-            opbx_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
+            opbx_log(OPBX_LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
         c = p->owner;
     }
     if (!ignore  &&  p)
@@ -13291,14 +13291,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 switch (res)
                 {
                 case OPBX_PBX_FAILED:
-                    opbx_log(LOG_WARNING, "Failed to start PBX :(\n");
+                    opbx_log(OPBX_LOG_WARNING, "Failed to start PBX :(\n");
                     if (ignore)
                         transmit_response(p, "503 Unavailable", req);
                     else
                         transmit_response_reliable(p, "503 Unavailable", req, 1);
                     break;
                 case OPBX_PBX_CALL_LIMIT:
-                    opbx_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+                    opbx_log(OPBX_LOG_WARNING, "Failed to start PBX (call limit reached) \n");
                     if (ignore)
                         transmit_response(p, "480 Temporarily Unavailable", req);
                     else
@@ -13311,7 +13311,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
                 if (res)
                 {
-                    opbx_log(LOG_WARNING, "Failed to start PBX :(\n");
+                    opbx_log(OPBX_LOG_WARNING, "Failed to start PBX :(\n");
                     /* Unlock locks so opbx_hangup can do its magic */
                     opbx_mutex_unlock(&c->lock);
                     opbx_mutex_unlock(&p->lock);
@@ -13325,7 +13325,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 opbx_mutex_unlock(&c->lock);
                 if (opbx_pickup_call(c))
                 {
-                    opbx_log(LOG_NOTICE, "Nothing to pick up\n");
+                    opbx_log(OPBX_LOG_NOTICE, "Nothing to pick up\n");
                     if (ignore)
                         transmit_response(p, "503 Unavailable", req);
                     else
@@ -13379,13 +13379,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                             else
                             {
                                 /* Something is wrong with peers udptl struct */
-                                opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+                                opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
                                 opbx_mutex_lock(&bridgepvt->lock);
                                 bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
                                 opbx_mutex_unlock(&bridgepvt->lock);
-                                opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+                                opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
                                 p->t38state = SIP_T38_STATUS_UNKNOWN;
-                                opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                                opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                                     if (ignore)
                                     transmit_response(p, "415 Unsupported Media Type", req);
                                 else
@@ -13402,7 +13402,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                         else 
                                 transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
                         p->t38state = SIP_T38_STATUS_UNKNOWN;
-                        opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                        opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                         opbx_set_flag(p, SIP_NEEDDESTROY);        
                     }    
                 }
@@ -13411,11 +13411,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     /* we are not bridged in a call */ 
                     transmit_response_with_t38_sdp(p, "200 OK", req, 1);
                     p->t38state = SIP_T38_NEGOTIATED;
-                    opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                    opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                     if (p->owner)
                     {
                         opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
-                        opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+                        opbx_log(OPBX_LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
                     }
                 }
             }
@@ -13433,7 +13433,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
                         if (bridgepvt->t38state == SIP_T38_NEGOTIATED)
                         {
-                            opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
+                            opbx_log(OPBX_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
                             if (ignore)
                                 transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
@@ -13453,7 +13453,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             } 
             break;
         default:
-            opbx_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
+            opbx_log(OPBX_LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
             transmit_response(p, "100 Trying", req);
         }
     }
@@ -13467,7 +13467,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             }
             else
             {
-                opbx_log(LOG_NOTICE, "Unable to create/find channel\n");
+                opbx_log(OPBX_LOG_NOTICE, "Unable to create/find channel\n");
                 transmit_response_reliable(p, "503 Unavailable", req, 1);
             }
             opbx_set_flag(p, SIP_NEEDDESTROY);    
@@ -13485,7 +13485,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
     char *transfercontext = NULL;
 
     if (option_debug > 2)
-        opbx_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
+        opbx_log(OPBX_LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
     res = get_refer_info(p, req, &transfercontext);
     if (opbx_strlen_zero(p->context))
         strcpy(p->context, default_context);
@@ -13503,7 +13503,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
         {
             if (p->refer_call)
             {
-                opbx_log(LOG_DEBUG,"202 Accepted (supervised)\n");
+                opbx_log(OPBX_LOG_DEBUG,"202 Accepted (supervised)\n");
                 attempt_transfer(p, p->refer_call);
                 if (p->refer_call->owner)
                     opbx_mutex_unlock(&p->refer_call->owner->lock);
@@ -13513,14 +13513,14 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
             }
             else
             {
-                opbx_log(LOG_DEBUG,"202 Accepted (blind)\n");
+                opbx_log(OPBX_LOG_DEBUG,"202 Accepted (blind)\n");
                 c = p->owner;
                 if (c)
                 {
                     transfer_to = opbx_bridged_channel(c);
                     if (transfer_to)
                     {
-                        opbx_log(LOG_DEBUG, "Got SIP blind transfer, applying to '%s'\n", transfer_to->name);
+                        opbx_log(OPBX_LOG_DEBUG, "Got SIP blind transfer, applying to '%s'\n", transfer_to->name);
                         opbx_moh_stop(transfer_to);
                         if (!strcmp(p->refer_to, opbx_parking_ext()))
                         {
@@ -13542,7 +13542,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                     }
                     else
                     {
-                        opbx_log(LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
+                        opbx_log(OPBX_LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
                         opbx_queue_hangup(p->owner);
                     }
                 }
@@ -13630,7 +13630,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
     }
     if (!opbx_strlen_zero(get_header(req, "Also")))
     {
-        opbx_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
+        opbx_log(OPBX_LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
             opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
         if (opbx_strlen_zero(p->context))
             strcpy(p->context, default_context);
@@ -13653,7 +13653,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
         }
         else
         {
-            opbx_log(LOG_WARNING, "Invalid transfer information from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+            opbx_log(OPBX_LOG_WARNING, "Invalid transfer information from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
             opbx_queue_hangup(p->owner);
         }
     }
@@ -13697,13 +13697,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
             /* For transfers, this could happen, but since we haven't seen it happening, let us just refuse this */
              transmit_response(p, "403 Forbidden (within dialog)", req);
             /* Do not destroy session, since we will break the call if we do */
-            opbx_log(LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
+            opbx_log(OPBX_LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
             return 0;
         }
         else
         {
             if (debug)
-                opbx_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
+                opbx_log(OPBX_LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
         }
     }
     if (!ignore && !p->initreq.headers)
@@ -13750,10 +13750,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         if (res<0)
         {
 		if (res == -4) {
-			opbx_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+			opbx_log(OPBX_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
 			transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
 		} else {
-			opbx_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
+			opbx_log(OPBX_LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
 			if (ignore)
 				transmit_response(p, "403 Forbidden", req);
 			else
@@ -13821,7 +13821,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		    if (p->subscribed == NONE) { 
 			/* if the subscribed field is not already set, and there is no accept header... */
 			transmit_response(p, "489 Bad Event", req);
-			opbx_log(LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s'\n",
+			opbx_log(OPBX_LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s'\n",
 					p->stateid, p->laststate, p->dialogver, p->subscribecontext);
 			opbx_set_flag(p, SIP_NEEDDESTROY);
 			return 0;
@@ -13841,7 +13841,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (option_debug > 2) {
 		    const struct cfsubscription_types *st = find_subscription_type(p->subscribed);
 		    if ( st != NULL )
-			opbx_log(LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  st->event, st->mediatype);
+			opbx_log(OPBX_LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  st->event, st->mediatype);
 		}		    
 		    
             }
@@ -13883,7 +13883,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 /* At this point, CallWeaver does not understand the specified event */
                 transmit_response(p, "489 Bad Event", req);
                 if (option_debug > 1)
-                    opbx_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+                    opbx_log(OPBX_LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
                 opbx_set_flag(p, SIP_NEEDDESTROY);    
                 return 0;
             }
@@ -13904,14 +13904,14 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 p->expiry = max_expiry;
         }
         if (sipdebug  ||  option_debug > 1)
-            opbx_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
+            opbx_log(OPBX_LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
         if (p->autokillid > -1)
             sip_cancel_destroy(p);    /* Remove subscription expiry for renewals */
         sip_scheddestroy(p, (p->expiry + 10) * 1000);    /* Set timer for destruction of call at expiration */
 
         if ((firststate = opbx_extension_state(NULL, p->context, p->exten)) < 0)
         {
-            opbx_log(LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
+            opbx_log(OPBX_LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
             transmit_response(p, "404 Not found", req);
             opbx_set_flag(p, SIP_NEEDDESTROY);    
             return 0;
@@ -13970,7 +13970,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
     copy_request(&p->initreq, req);
     check_via(p, req);
     if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
-        opbx_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
+        opbx_log(OPBX_LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
     if (res < 1)
     {
         /* Destroy the session, but keep us around for just a bit in case they don't
@@ -14010,12 +14010,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     /* Must have Cseq */
     if (opbx_strlen_zero(cmd) || opbx_strlen_zero(cseq))
     {
-        opbx_log(LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
+        opbx_log(OPBX_LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
         error = 1;
     }
     if (!error && sscanf(cseq, "%d%n", &seqno, &len) != 1)
     {
-        opbx_log(LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
+        opbx_log(OPBX_LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
         error = 1;
     }
     if (error)
@@ -14041,14 +14041,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         /* Response to our request -- Do some sanity checks */    
         if (!p->initreq.headers)
         {
-            opbx_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
+            opbx_log(OPBX_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
             if (stun_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
             opbx_set_flag(p, SIP_NEEDDESTROY);    
             return 0;
         }
         else if (p->ocseq && (p->ocseq < seqno))
         {
-            opbx_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
+            opbx_log(OPBX_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
             return -1;
         }
         else if (p->ocseq && (p->ocseq != seqno))
@@ -14061,7 +14061,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         e = opbx_skip_blanks(e);
         if (sscanf(e, "%d %n", &respid, &len) != 1)
         {
-            opbx_log(LOG_WARNING, "Invalid response: '%s'\n", e);
+            opbx_log(OPBX_LOG_WARNING, "Invalid response: '%s'\n", e);
         }
         else
         {
@@ -14079,12 +14079,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     
     p->method = req->method;    /* Find out which SIP method they are using */
     if (option_debug > 2)
-        opbx_log(LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
+        opbx_log(OPBX_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
     if (p->icseq && (p->icseq > seqno))
     {
 	if (option_debug)
-    	    opbx_log(LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
+    	    opbx_log(OPBX_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
         if (req->method != SIP_ACK) 
     	    transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
         return -1;
@@ -14096,7 +14096,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
            the last sequence number  */
         ignore = 2;
         if (option_debug > 2)
-            opbx_log(LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
+            opbx_log(OPBX_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
     }
         
     if (seqno >= p->icseq)
@@ -14205,7 +14205,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         break;
     default:
         transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
-        opbx_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
+        opbx_log(OPBX_LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
                  cmd, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         /* If this is some new method, and we don't have a call, destroy it now */
         if (!p->initreq.headers)
@@ -14237,16 +14237,16 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     {
 #if !defined(__FreeBSD__)
         if (errno == EAGAIN)
-            opbx_log(LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
+            opbx_log(OPBX_LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
         else 
 #endif
         if (errno != ECONNREFUSED)
-            opbx_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Recv error: %s\n", strerror(errno));
         return 1;
     }
     if (res == sizeof(req.data))
     {
-        opbx_log(LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
+        opbx_log(OPBX_LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
 	req.data[sizeof(req.data) - 1] = '\0';
     }
     else
@@ -14277,18 +14277,18 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
             struct sockaddr_in msin;
 
             if (stundebug) 
-                opbx_log(LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
+                opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
             stun_addr2sockaddr(&msin, stun_me.mapped_addr);
 
             memset(&empty, 0, sizeof(empty));
             if (!memcmp(&externip.sin_addr, &empty, sizeof(externip.sin_addr)))
             {
-                opbx_log(LOG_NOTICE, "STUN: externip not set. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
+                opbx_log(OPBX_LOG_NOTICE, "STUN: externip not set. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
                 externip = msin;
             }
             else if (memcmp(&externip.sin_addr,&msin.sin_addr,sizeof(externip.sin_addr)))
             {
-                opbx_log(LOG_NOTICE, "STUN: externip changed. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
+                opbx_log(OPBX_LOG_NOTICE, "STUN: externip changed. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
                 externip = msin;
             }
             return 1;
@@ -14321,7 +14321,7 @@ retrylock:
         /* Go ahead and lock the owner if it has one -- we may need it */
         if (p->owner && opbx_mutex_trylock(&p->owner->lock))
         {
-            opbx_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
+            opbx_log(OPBX_LOG_DEBUG, "Failed to grab lock, trying again...\n");
             opbx_mutex_unlock(&p->lock);
             opbx_mutex_unlock(&netlock);
             /* Sleep infintismly short amount of time */
@@ -14330,8 +14330,8 @@ retrylock:
 		goto retrylock;
         }
 	if (!lockretry) {
-	    opbx_log(LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
-	    opbx_log(LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
+	    opbx_log(OPBX_LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
+	    opbx_log(OPBX_LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
 	    return 1;
 	}
         memcpy(&p->recv, &sin, sizeof(p->recv));
@@ -14346,7 +14346,7 @@ retrylock:
         if (handle_request(p, &req, &sin, &recount, &nounlock) == -1)
         {
             /* Request failed */
-            opbx_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+            opbx_log(OPBX_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
         }
         
         if (p->owner && !nounlock)
@@ -14378,7 +14378,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
     if (!p)
     {
-        opbx_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to build sip pvt data for MWI\n");
         return -1;
     }
     peer->lastmsgssent = ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs));
@@ -14473,7 +14473,7 @@ restartsearch:
                             }
                             if (sip->owner)
                             {
-                                opbx_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
+                                opbx_log(OPBX_LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
                                 /* Issue a softhangup */
                                 opbx_softhangup(sip->owner, OPBX_SOFTHANGUP_DEV);
                                 opbx_mutex_unlock(&sip->owner->lock);
@@ -14501,7 +14501,7 @@ restartsearch:
                     goto restartsearch;
                 }
                 else
-                    opbx_log(LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", sip->callid,sip->stun_needed);
+                    opbx_log(OPBX_LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", sip->callid,sip->stun_needed);
             }
             opbx_mutex_unlock(&sip->lock);
             sip = sip->next;
@@ -14530,12 +14530,12 @@ restartsearch:
             res = 1;
         res = opbx_io_wait(io, res);
         if (res > 20)
-            opbx_log(LOG_DEBUG, "chan_sip: opbx_io_wait ran %d all at once\n", res);
+            opbx_log(OPBX_LOG_DEBUG, "chan_sip: opbx_io_wait ran %d all at once\n", res);
         opbx_mutex_lock(&monlock);
 	if (res >= 0)  {
 		res = opbx_sched_runq(sched);
 		if (res >= 20)
-			opbx_log(LOG_DEBUG, "chan_sip: opbx_sched_runq ran %d all at once\n", res);
+			opbx_log(OPBX_LOG_DEBUG, "chan_sip: opbx_sched_runq ran %d all at once\n", res);
 	}
 
         /* needs work to send mwi to realtime peers */
@@ -14581,13 +14581,13 @@ static int restart_monitor(void)
         return 0;
     if (opbx_mutex_lock(&monlock))
     {
-        opbx_log(LOG_WARNING, "Unable to lock monitor\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
         return -1;
     }
     if (monitor_thread == pthread_self())
     {
         opbx_mutex_unlock(&monlock);
-        opbx_log(LOG_WARNING, "Cannot kill myself\n");
+        opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
         return -1;
     }
     if (monitor_thread != OPBX_PTHREADT_NULL)
@@ -14603,7 +14603,7 @@ static int restart_monitor(void)
         if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
-            opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
+            opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
             return -1;
         }
     }
@@ -14620,7 +14620,7 @@ static int sip_poke_noanswer(void *data)
     if (peer->lastms > -1)
     {
 	if (option_verbose > 3)
-		opbx_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
+		opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
     }
     if (peer->call)
@@ -14654,13 +14654,13 @@ static int sip_poke_peer(struct sip_peer *peer)
     if (peer->call > 0)
     {
         if (sipdebug)
-            opbx_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
+            opbx_log(OPBX_LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
         sip_destroy(peer->call);
     }
     p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
     if (!peer->call)
     {
-        opbx_log(LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
+        opbx_log(OPBX_LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
         return -1;
     }
     memcpy(&p->sa, &peer->addr, sizeof(p->sa));
@@ -14731,7 +14731,7 @@ static int sip_devicestate(void *data)
         host = tmp + 1;
 
     if (option_debug > 2) 
-        opbx_log(LOG_DEBUG, "Checking device state for peer %s\n", host);
+        opbx_log(OPBX_LOG_DEBUG, "Checking device state for peer %s\n", host);
 
     if ((p = find_peer(host, NULL, 1)))
     {
@@ -14788,13 +14788,13 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
     format &= ((OPBX_FORMAT_MAX_AUDIO << 1) - 1);
     if (!format)
     {
-        opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", opbx_getformatname(oldformat), opbx_getformatname(global_capability));
+        opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", opbx_getformatname(oldformat), opbx_getformatname(global_capability));
         return NULL;
     }
     p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
     if (!p)
     {
-        opbx_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
+        opbx_log(OPBX_LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
         return NULL;
     }
 
@@ -14802,7 +14802,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
     if (!p->options)
     {
 	sip_destroy(p);
-	opbx_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
+	opbx_log(OPBX_LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
 	*cause = OPBX_CAUSE_SWITCH_CONGESTION;
         return NULL;
     }
@@ -14904,7 +14904,7 @@ static int handle_common_options(struct opbx_flags *flags, struct opbx_flags *ma
             opbx_set_flag(flags, SIP_DTMF_AUTO);
         else
         {
-            opbx_log(LOG_WARNING, "Unknown dtmf mode '%s' on line %d, using rfc2833\n", v->value, v->lineno);
+            opbx_log(OPBX_LOG_WARNING, "Unknown dtmf mode '%s' on line %d, using rfc2833\n", v->value, v->lineno);
             opbx_set_flag(flags, SIP_DTMF_RFC2833);
         }
     }
@@ -14952,7 +14952,7 @@ static int handle_common_options(struct opbx_flags *flags, struct opbx_flags *ma
                 else if (!strcasecmp(word, "invite"))
                     opbx_set_flag(flags, SIP_INSECURE_INVITE);
                 else
-                    opbx_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
+                    opbx_log(OPBX_LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
             }
         }
     }
@@ -15007,14 +15007,14 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 
     if (opbx_strlen_zero(domain))
     {
-        opbx_log(LOG_WARNING, "Zero length domain.\n");
+        opbx_log(OPBX_LOG_WARNING, "Zero length domain.\n");
         return 1;
     }
 
     d = calloc(1, sizeof(struct domain));
     if (!d)
     {
-        opbx_log(LOG_ERROR, "Allocation of domain structure failed, Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Allocation of domain structure failed, Out of memory\n");
         return 0;
     }
 
@@ -15030,7 +15030,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
     OPBX_LIST_UNLOCK(&domain_list);
 
      if (sipdebug)    
-        opbx_log(LOG_DEBUG, "Added local SIP domain '%s'\n", domain);
+        opbx_log(OPBX_LOG_DEBUG, "Added local SIP domain '%s'\n", domain);
 
     return 1;
 }
@@ -15082,7 +15082,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
     if (opbx_strlen_zero(configuration))
         return authlist;
 
-    opbx_log(LOG_DEBUG, "Auth config ::  %s\n", configuration);
+    opbx_log(OPBX_LOG_DEBUG, "Auth config ::  %s\n", configuration);
 
     opbx_copy_string(authcopy, configuration, sizeof(authcopy));
     stringp = authcopy;
@@ -15096,7 +15096,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
     }
     if (opbx_strlen_zero(username) || opbx_strlen_zero(realm))
     {
-        opbx_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
+        opbx_log(OPBX_LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
         return authlist;
     }
     stringp = username;
@@ -15123,7 +15123,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
     }
     else
     {
-        opbx_log(LOG_ERROR, "Allocation of auth structure failed, Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Allocation of auth structure failed, Out of memory\n");
         return authlist;
     }
 
@@ -15281,7 +15281,7 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
             format = opbx_cdr_amaflags2int(v->value);
             if (format < 0)
             {
-                opbx_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
             }
             else
             {
@@ -15303,7 +15303,7 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
                 user->callingpres = atoi(v->value);
         }
         /*else if (strcasecmp(v->name,"type"))
-         *    opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);
+         *    opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name);
          */
         v = v->next;
     }
@@ -15392,7 +15392,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
         }
         else
         {
-            opbx_log(LOG_WARNING, "Can't allocate SIP peer memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Can't allocate SIP peer memory\n");
         }
     }
     /* Note that our peer HAS had its reference count incrased */
@@ -15494,7 +15494,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
             {
                 if (!strcasecmp(v->name, "outboundproxy") || obproxyfound)
                 {
-                    opbx_log(LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
+                    opbx_log(OPBX_LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
                 }
                 else
                 {
@@ -15586,7 +15586,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
             format = opbx_cdr_amaflags2int(v->value);
             if (format < 0)
             {
-                opbx_log(LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
             }
             else
             {
@@ -15629,7 +15629,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
         {
             if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
                 peer->rtptimeout = global_rtptimeout;
             }
         }
@@ -15637,7 +15637,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
         {
             if ((sscanf(v->value, "%d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
                 peer->rtpholdtimeout = global_rtpholdtimeout;
             }
         }
@@ -15645,7 +15645,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
         {
             if ((sscanf(v->value, "%d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
                 peer->rtpkeepalive = global_rtpkeepalive;
             }
         }
@@ -15676,12 +15676,12 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
             }
             else if (sscanf(v->value, "%d", &peer->maxms) != 1)
             {
-                opbx_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
                 peer->maxms = 0;
             }
         }
         /* else if (strcasecmp(v->name,"type"))
-         *    opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);
+         *    opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name);
          */
         v = v->next;
     }
@@ -15695,7 +15695,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
             destroy_association(peer);
             memset(&peer->addr, 0, sizeof(peer->addr));
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+                opbx_log(OPBX_LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
         }
     }
     opbx_copy_flags(peer, &peerflags, mask.flags);
@@ -15733,7 +15733,7 @@ static int reload_config(void)
     /* We *must* have a config file otherwise stop immediately */
     if (!cfg)
     {
-        opbx_log(LOG_NOTICE, "Unable to load config %s\n", config);
+        opbx_log(OPBX_LOG_NOTICE, "Unable to load config %s\n", config);
         return -1;
     }
     
@@ -15833,7 +15833,7 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "useragent"))
         {
             opbx_copy_string(default_useragent, v->value, sizeof(default_useragent));
-            opbx_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
+            opbx_log(OPBX_LOG_DEBUG, "Setting User Agent Name to %s\n",
                 default_useragent);
         }
         else if (!strcasecmp(v->name, "rtcachefriends"))
@@ -15869,7 +15869,7 @@ static int reload_config(void)
         {
             if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
                 global_mwitime = DEFAULT_MWITIME;
             }
         }
@@ -15881,7 +15881,7 @@ static int reload_config(void)
         {
             if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
                 global_rtptimeout = 0;
             }
         }
@@ -15889,7 +15889,7 @@ static int reload_config(void)
         {
             if ((sscanf(v->value, "%d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
                 global_rtpholdtimeout = 0;
             }
         }
@@ -15897,7 +15897,7 @@ static int reload_config(void)
         {
             if ((sscanf(v->value, "%d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0))
             {
-                opbx_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
                 global_rtpkeepalive = 0;
             }
         }
@@ -15958,7 +15958,7 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "outboundproxy"))
         {
             if (opbx_get_ip_or_srv(&outboundproxyip, v->value, "_sip._udp") < 0)
-                opbx_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
+                opbx_log(OPBX_LOG_WARNING, "Unable to locate host '%s'\n", v->value);
         }
         else if (!strcasecmp(v->name, "outboundproxyport"))
         {
@@ -16016,7 +16016,7 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "bindaddr"))
         {
             if ((hp = opbx_gethostbyname(v->value, &ahp)) == NULL)
-                opbx_log(LOG_WARNING, "Invalid address: %s\n", v->value);
+                opbx_log(OPBX_LOG_WARNING, "Invalid address: %s\n", v->value);
             else
                 memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
         }
@@ -16025,18 +16025,18 @@ static int reload_config(void)
             struct opbx_ha *na;
 
             if (!(na = opbx_append_ha("d", v->value, localaddr)))
-                opbx_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
+                opbx_log(OPBX_LOG_WARNING, "Invalid localnet value: %s\n", v->value);
             else
                 localaddr = na;
         }
         else if (!strcasecmp(v->name, "localmask"))
         {
-            opbx_log(LOG_WARNING, "Use of localmask is no long supported -- use localnet with mask syntax\n");
+            opbx_log(OPBX_LOG_WARNING, "Use of localmask is no long supported -- use localnet with mask syntax\n");
         }
         else if (!strcasecmp(v->name, "externip"))
         {
             if ((hp = opbx_gethostbyname(v->value, &ahp)) == NULL)
-                opbx_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
+                opbx_log(OPBX_LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
             else
                 memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
             externexpire = 0;
@@ -16045,7 +16045,7 @@ static int reload_config(void)
         {
             opbx_copy_string(externhost, v->value, sizeof(externhost));
             if ((hp = opbx_gethostbyname(externhost, &ahp)) == NULL)
-                opbx_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
+                opbx_log(OPBX_LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
             else
                 memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
             time(&externexpire);
@@ -16054,7 +16054,7 @@ static int reload_config(void)
         {
             if (sscanf(v->value, "%d", &externrefresh) != 1)
             {
-                opbx_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
                 externrefresh = 10;
             }
         }
@@ -16063,12 +16063,12 @@ static int reload_config(void)
             opbx_copy_string(stunserver_host, v->value, sizeof(stunserver_host));
             if ((hp = opbx_gethostbyname(stunserver_host, &ahp)) == NULL)
             {
-                opbx_log(LOG_NOTICE, "Invalid address for stunserver_host keyword: %s\n", stunserver_host);
+                opbx_log(OPBX_LOG_NOTICE, "Invalid address for stunserver_host keyword: %s\n", stunserver_host);
             }
             else
             {
                 memcpy(&stunserver_ip.sin_addr, hp->h_addr, sizeof(stunserver_ip.sin_addr));
-                opbx_log(LOG_NOTICE, "STUN: stunserver_host is: %s\n", stunserver_host);
+                opbx_log(OPBX_LOG_NOTICE, "STUN: stunserver_host is: %s\n", stunserver_host);
                 stun_active=1;
             }
         }
@@ -16078,12 +16078,12 @@ static int reload_config(void)
             {
                 stunserver_ip.sin_port = htons(stunserver_portno);
                 if (stundebug) 
-                    opbx_log(LOG_WARNING, "STUN: stunserver_portno is: %d\n", stunserver_portno);
+                    opbx_log(OPBX_LOG_WARNING, "STUN: stunserver_portno is: %d\n", stunserver_portno);
             }
             else
             {
                 if (stundebug) 
-                    opbx_log(LOG_WARNING, "Invalid stun port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+                    opbx_log(OPBX_LOG_WARNING, "Invalid stun port number '%s' at line %d of %s\n", v->value, v->lineno, config);
             }
         }
         else if (!strcasecmp(v->name, "allow"))
@@ -16111,9 +16111,9 @@ static int reload_config(void)
                 *context++ = '\0';
 
             if (opbx_strlen_zero(domain))
-                opbx_log(LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
             else if (opbx_strlen_zero(context))
-                opbx_log(LOG_WARNING, "Empty context specified at line %d for domain '%s'\n", v->lineno, domain);
+                opbx_log(OPBX_LOG_WARNING, "Empty context specified at line %d for domain '%s'\n", v->lineno, domain);
             else
                 add_sip_domain(opbx_strip(domain), SIP_DOMAIN_CONFIG, context ? opbx_strip(context) : "");
         }
@@ -16124,14 +16124,14 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "tos"))
         {
             if (opbx_str2tos(v->value, &tos))
-                opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
         }
         else if (!strcasecmp(v->name, "bindport"))
         {
             if (sscanf(v->value, "%d", &ourport) == 1)
                 bindaddr.sin_port = htons(ourport);
             else
-                opbx_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+                opbx_log(OPBX_LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
         }
         else if (!strcasecmp(v->name, "qualify"))
         {
@@ -16145,7 +16145,7 @@ static int reload_config(void)
             }
             else if (sscanf(v->value, "%d", &default_qualify) != 1)
             {
-                opbx_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
                 default_qualify = 0;
             }
         }
@@ -16154,7 +16154,7 @@ static int reload_config(void)
             callevents = opbx_true(v->value);
         }
         /* else if (strcasecmp(v->name,"type"))
-         *    opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);
+         *    opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name);
          */
          v = v->next;
     }
@@ -16163,13 +16163,13 @@ static int reload_config(void)
     if (stun_active)
     {
         if (stundebug)
-        opbx_log(LOG_DEBUG,"Sending initial STUN discovery packet\n");
+        opbx_log(OPBX_LOG_DEBUG,"Sending initial STUN discovery packet\n");
         opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
     }
 
     if (!allow_external_domains && OPBX_LIST_EMPTY(&domain_list))
     {
-        opbx_log(LOG_WARNING, "To disallow external domains, you need to configure local SIP domains.\n");
+        opbx_log(OPBX_LOG_WARNING, "To disallow external domains, you need to configure local SIP domains.\n");
         allow_external_domains = 1;
     }
     
@@ -16214,17 +16214,17 @@ static int reload_config(void)
                 }
                 else if (strcasecmp(utype, "user"))
                 {
-                    opbx_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, "sip.conf");
+                    opbx_log(OPBX_LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, "sip.conf");
                 }
             }
             else
-                opbx_log(LOG_WARNING, "Section '%s' lacks type\n", cat);
+                opbx_log(OPBX_LOG_WARNING, "Section '%s' lacks type\n", cat);
         }
         cat = opbx_category_browse(cfg, cat);
     }
     if (opbx_find_ourip(&__ourip, bindaddr))
     {
-        opbx_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
         return 0;
     }
     if (!ntohs(bindaddr.sin_port))
@@ -16241,7 +16241,7 @@ static int reload_config(void)
         sipsock = socket(AF_INET, SOCK_DGRAM, 0);
         if (sipsock < 0)
         {
-            opbx_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
         }
         else
         {
@@ -16255,13 +16255,13 @@ static int reload_config(void)
 
             if (opbx_udpfromto_init(sipsock) < 0)
             {
-                opbx_log(LOG_ERROR, "Failed to set socket parameters");
+                opbx_log(OPBX_LOG_ERROR, "Failed to set socket parameters");
                 close(sipsock);
                 sipsock = -1;
             }
             if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0)
             {
-                opbx_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
+                opbx_log(OPBX_LOG_WARNING, "Failed to bind to %s:%d: %s\n",
                 opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
                 strerror(errno));
                 close(sipsock);
@@ -16276,7 +16276,7 @@ static int reload_config(void)
                     opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
                 }
                 if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-                    opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+                    opbx_log(OPBX_LOG_WARNING, "Unable to set TOS to %d\n", tos);
             }
         }
     }
@@ -16298,7 +16298,7 @@ static int reload_config(void)
         }
         else
         {
-            opbx_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
+            opbx_log(OPBX_LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
         }
 
         /* Our extern IP address, if configured */
@@ -16386,7 +16386,7 @@ static int sip_set_rtp_peer(struct opbx_channel *chan, struct opbx_rtp *rtp, str
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                opbx_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+                opbx_log(OPBX_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
             }
             transmit_reinvite_with_sdp(p);
         }
@@ -16395,7 +16395,7 @@ static int sip_set_rtp_peer(struct opbx_channel *chan, struct opbx_rtp *rtp, str
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                opbx_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+                opbx_log(OPBX_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
             }
             opbx_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -16442,7 +16442,7 @@ static int sip_set_udptl_peer(struct opbx_channel *chan, struct opbx_udptl *udpt
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                opbx_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                opbx_log(OPBX_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             transmit_reinvite_with_t38_sdp(p);
         }
@@ -16451,7 +16451,7 @@ static int sip_set_udptl_peer(struct opbx_channel *chan, struct opbx_udptl *udpt
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                opbx_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                opbx_log(OPBX_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             opbx_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -16500,7 +16500,7 @@ static int sip_set_tpkt_peer(struct opbx_channel *chan, struct opbx_tpkt *tpkt)
             {
                 char iabuf[INET_ADDRSTRLEN];
 
-                opbx_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
+                opbx_log(OPBX_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
             }
             transmit_reinvite_with_t38_sdp(p);
         }
@@ -16510,7 +16510,7 @@ static int sip_set_tpkt_peer(struct opbx_channel *chan, struct opbx_tpkt *tpkt)
             {
                 char iabuf[INET_ADDRSTRLEN];
 
-                opbx_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
+                opbx_log(OPBX_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %s\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
             }
             opbx_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -16563,9 +16563,9 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
                 {
                     char iabuf[INET_ADDRSTRLEN];
                     if (flag)
-                        opbx_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                        opbx_log(OPBX_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
-                        opbx_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                        opbx_log(OPBX_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
                 }
                 transmit_reinvite_with_t38_sdp(p);
             }
@@ -16575,9 +16575,9 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
                 {
                     char iabuf[INET_ADDRSTRLEN];
                     if (flag)
-                        opbx_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                        opbx_log(OPBX_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
-                        opbx_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                        opbx_log(OPBX_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
                 }
                 opbx_set_flag(p, SIP_NEEDREINVITE);    
             }
@@ -16604,16 +16604,16 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
         {
             char iabuf[INET_ADDRSTRLEN];
             if (flag)
-                opbx_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                opbx_log(OPBX_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
             else
-                opbx_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                opbx_log(OPBX_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
         }
         pvt->t38state = SIP_T38_NEGOTIATED;
         p->t38state = SIP_T38_NEGOTIATED;
-        opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
-        opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
+        opbx_log(OPBX_LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
+        opbx_log(OPBX_LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
         opbx_channel_set_t38_status(chan, T38_NEGOTIATED);
-        opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
+        opbx_log(OPBX_LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
         transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
         time(&p->lastrtprx);
         time(&p->lastrtptx);
@@ -16665,7 +16665,7 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv, c
     opbx_mutex_lock(&chan->lock);
     if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
         opbx_mutex_unlock(&chan->lock);
-        opbx_log(LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
+        opbx_log(OPBX_LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         return 0;
     }
 /*
@@ -16675,7 +16675,7 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv, c
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
-        opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+        opbx_log(OPBX_LOG_WARNING, "This function can only be used on SIP channels.\n");
         opbx_mutex_unlock(&chan->lock);
         return 0;
     }
@@ -16700,23 +16700,23 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv, c
             if (!p->pendinginvite)
             {
                 if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Forcing reinvite on SIP (%s) for T.38 negotiation.\n",chan->name);
+                    opbx_log(OPBX_LOG_DEBUG, "Forcing reinvite on SIP (%s) for T.38 negotiation.\n",chan->name);
                 p->t38state = SIP_T38_OFFER_SENT_REINVITE;
 		opbx_channel_set_t38_status(p->owner, T38_NEGOTIATING);
                 transmit_reinvite_with_t38_sdp(p);
-                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,chan->name);
+                opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,chan->name);
             }
         }
         else if (!opbx_test_flag(p, SIP_PENDINGBYE))
         {
             if (option_debug > 2)
-                opbx_log(LOG_DEBUG, "Deferring forced reinvite on SIP (%s) - it will be re-negotiated for T.38\n",chan->name);
+                opbx_log(OPBX_LOG_DEBUG, "Deferring forced reinvite on SIP (%s) - it will be re-negotiated for T.38\n",chan->name);
             opbx_set_flag(p, SIP_NEEDREINVITE);
         }
     }
     else {
 	if ( ! t38udptlsupport ) /* Don't warn if it's disabled */
-	opbx_log(LOG_WARNING,
+	opbx_log(OPBX_LOG_WARNING,
 		    "Cannot execute T38 reinvite [ t38udptlsupport: %d, p->t38state %d, bridged %d ]\n",
 		    t38udptlsupport,
 		    p->t38state, 
@@ -16746,7 +16746,7 @@ static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv, char *
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
-        opbx_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
+        opbx_log(OPBX_LOG_WARNING, "Call this application only on SIP incoming calls\n");
         opbx_mutex_unlock(&chan->lock);
         return 0;
     }
@@ -16773,7 +16773,7 @@ static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv, char *
         opbx_set_flag(p, SIP_DTMF_INBAND);
     }
     else
-        opbx_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n", argv[0]);
+        opbx_log(OPBX_LOG_WARNING, "I don't know about this dtmf mode: %s\n", argv[0]);
     if (opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND)
     {
         if (!p->vad)
@@ -16822,11 +16822,11 @@ static int sip_addheader(struct opbx_channel *chan, int argc, char **argv, char 
     {
         pbx_builtin_setvar_helper (chan, varbuf, argv[0]);
         if (sipdebug)
-            opbx_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", argv[0], varbuf);
+            opbx_log(OPBX_LOG_DEBUG,"SIP Header added \"%s\" as %s\n", argv[0], varbuf);
     }
     else
     {
-        opbx_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
+        opbx_log(OPBX_LOG_WARNING, "Too many SIP headers added, max 50\n");
     }
     opbx_mutex_unlock(&chan->lock);
     return 0;
@@ -16841,7 +16841,7 @@ static int sip_getheader(struct opbx_channel *chan, int argc, char **argv, char 
     
     if (!dep_warning)
     {
-        opbx_log(LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
         dep_warning = 1;
     }
 
@@ -16853,7 +16853,7 @@ static int sip_getheader(struct opbx_channel *chan, int argc, char **argv, char 
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
-        opbx_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
+        opbx_log(OPBX_LOG_WARNING, "Call this application only on incoming SIP calls\n");
         opbx_mutex_unlock(&chan->lock);
         return 0;
     }
@@ -16866,7 +16866,7 @@ static int sip_getheader(struct opbx_channel *chan, int argc, char **argv, char 
     }
     else
     {
-        opbx_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, argv[0]);
+        opbx_log(OPBX_LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, argv[0]);
         opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
     }
     
@@ -16890,7 +16890,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     port = strsep(&cdest, ":");
     if (!extension)
     {
-        opbx_log(LOG_ERROR, "Missing mandatory argument: extension\n");
+        opbx_log(OPBX_LOG_ERROR, "Missing mandatory argument: extension\n");
         return -1;
     }
 
@@ -16911,7 +16911,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
         opbx_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
         if (!strlen(tmp))
         {
-            opbx_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
+            opbx_log(OPBX_LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
             return -1;
         }
         if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@')))
@@ -16926,7 +16926,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
             sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
             if (!strlen(lhost))
             {
-                opbx_log(LOG_ERROR, "Can't find the host address\n");
+                opbx_log(OPBX_LOG_ERROR, "Can't find the host address\n");
                 return -1;
             }
             host = opbx_strdupa(lhost);
@@ -17026,7 +17026,7 @@ static int sip_do_reload(void)
 	ASTOBJ_RDLOCK(iterator);
 	if (iterator->call) {
 		if (option_debug > 2)
-			opbx_log(LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
+			opbx_log(OPBX_LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 		/* This will also remove references to the registry */
 		sip_destroy(iterator->call);
 	}
@@ -17234,14 +17234,14 @@ static int load_module(void)
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
 
     if ((sched = sched_context_create()) == NULL)
-        opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
 
     if ((io = io_context_create()) == NULL)
-        opbx_log(LOG_WARNING, "Unable to create I/O context\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to create I/O context\n");
 
     char *test = opbx_pickup_ext();
     if ( test == NULL ) {
-        opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", channeltype);
+        opbx_log(OPBX_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", channeltype);
         return 0;
     }
 
@@ -17250,7 +17250,7 @@ static int load_module(void)
     /* Make sure we can register our sip channel type */
     if (opbx_channel_register(&sip_tech))
     {
-        opbx_log(LOG_ERROR, "Unable to register channel type %s\n", channeltype);
+        opbx_log(OPBX_LOG_ERROR, "Unable to register channel type %s\n", channeltype);
         return -1;
     }
 
@@ -17300,7 +17300,7 @@ static int unload_module(void)
     int res = 0;
 
 	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
-		opbx_log(LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
 		return -1;
 	}
     
@@ -17342,7 +17342,7 @@ static int unload_module(void)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Unable to lock the interface list\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock the interface list\n");
         return -1;
     }
 
@@ -17359,7 +17359,7 @@ static int unload_module(void)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
         return -1;
     }
 
@@ -17378,7 +17378,7 @@ static int unload_module(void)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Unable to lock the interface list\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock the interface list\n");
         return -1;
     }
 

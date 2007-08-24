@@ -183,7 +183,7 @@ static enum q931_interface_network_role
 	else if (!strcasecmp(str, "international"))
 		return Q931_INTF_NET_INTERNATIONAL;
 	else {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Unknown network_role '%s'\n",
 			str);
 
@@ -203,7 +203,7 @@ static enum visdn_clir_mode
 	else if (!strcasecmp(str, "restricted"))
 		return VISDN_CLIR_MODE_RESTRICTED;
 	else {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Unknown clir_mode '%s'\n",
 			str);
 
@@ -404,7 +404,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	intf->q931_intf = q931_intf_open(intf->name, 0, ic->tei);
 	if (!intf->q931_intf) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot open interface %s, skipping\n",
 			intf->name);
 
@@ -418,7 +418,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	intf->mgmt_fd = socket(PF_LAPD, SOCK_SEQPACKET, LAPD_SAPI_MGMT);
 	if (intf->mgmt_fd < 0) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot open management socket: %s\n",
 			strerror(errno));
 
@@ -428,7 +428,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	if (setsockopt(intf->mgmt_fd, SOL_LAPD, SO_BINDTODEVICE, intf->name,
 					strlen(intf->name) + 1) < 0) {
 
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot bind management socket to %s: %s, skipping\n",
 			strerror(errno),
 			intf->name);
@@ -439,7 +439,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	int oldflags;
 	oldflags = fcntl(intf->mgmt_fd, F_GETFL, 0);
 	if (oldflags < 0) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"%s: fcntl(GETFL): %s\n",
 			intf->name,
 			strerror(errno));
@@ -447,7 +447,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	}
 
 	if (fcntl(intf->mgmt_fd, F_SETFL, oldflags | O_NONBLOCK) < 0) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"fcntl(F_SETFL): %s\n",
 			strerror(errno));
 
@@ -486,7 +486,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 			if (errno == ENOENT)
 				break;
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"cannot stat(%s): %s\n",
 				path,
 				strerror(errno));
@@ -502,7 +502,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	strncat(goodpath, "../..", sizeof(goodpath));
 
 	if (realpath(goodpath, intf->remote_port) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"cannot find realpath(%s): %s\n",
 			goodpath,
 			strerror(errno));
@@ -514,19 +514,19 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	if (intf->q931_intf->role == LAPD_INTF_ROLE_NT) {
 		if (list_empty(&ic->clip_numbers_list)) {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"Interface '%s' is configured in network"
 				" mode but clip_numbers is empty\n",
 				intf->name);
 		} else if (!strlen(ic->clip_default_number)) {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"Interface '%s' is configured in network"
 				" mode but clip_default_number is empty\n",
 				intf->name);
 		} else if (!visdn_numbers_list_match(&ic->clip_numbers_list,
 					ic->clip_default_number)) {
 
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"Interface '%s' clip_numbers should contain "
 				"clip_default_number (%s)\n",
 				intf->name,
@@ -612,7 +612,7 @@ static void visdn_intf_reconfigure(
 	var = opbx_variable_browse(cfg, (char *)name);
 	while (var) {
 		if (visdn_ic_from_var(ic, var) < 0) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Unknown configuration "
 				"variable %s\n",
 				var->name);
@@ -660,7 +660,7 @@ void visdn_intf_reload(struct opbx_config *cfg)
 	var = opbx_variable_browse(cfg, "global");
 	while (var) {
 		if (visdn_ic_from_var(visdn.default_ic, var) < 0) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Unknown configuration variable %s\n",
 				var->name);
 		}

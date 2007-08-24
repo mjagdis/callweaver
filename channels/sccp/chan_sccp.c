@@ -63,13 +63,13 @@ struct opbx_channel *sccp_request(const char *type, int format, void *data, int 
 	*cause = OPBX_CAUSE_NOTDEFINED;
 
 	if (!type) {
-		opbx_log(LOG_NOTICE, "Attempt to call the wrong type of channel\n");
+		opbx_log(OPBX_LOG_NOTICE, "Attempt to call the wrong type of channel\n");
 		*cause = OPBX_CAUSE_REQUESTED_CHAN_UNAVAIL;
 		goto OUT;
 	}
 
 	if (!data) {
-		opbx_log(LOG_NOTICE, "Attempt to call SCCP/ failed\n");
+		opbx_log(OPBX_LOG_NOTICE, "Attempt to call SCCP/ failed\n");
 		*cause = OPBX_CAUSE_REQUESTED_CHAN_UNAVAIL;
 		goto OUT;
 	}
@@ -109,7 +109,7 @@ struct opbx_channel *sccp_request(const char *type, int format, void *data, int 
 		format = oldformat;
 		res = opbx_translator_best_choice(&format, &l->device->capability);
 		if (res < 0) {
-			opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
+			opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
 			*cause = OPBX_CAUSE_CHANNEL_UNACCEPTABLE;
 			goto OUT;
 		}
@@ -192,7 +192,7 @@ struct opbx_channel *sccp_request(const char *type, int format, void *data, int 
 				else
 					c->ringermode = SKINNY_STATION_OUTSIDERING;
 			} else {
-				opbx_log(LOG_WARNING, "%s: Wrong option %s\n", l->device->id, optv[opti]);
+				opbx_log(OPBX_LOG_WARNING, "%s: Wrong option %s\n", l->device->id, optv[opti]);
 			}
 		}
 	}
@@ -488,7 +488,7 @@ uint8_t sccp_handle_message(sccp_moo_t * r, sccp_session_t * s) {
   s->lastKeepAlive = time(0); /* always update keepalive */
 
   if ( (!s->device) && (mid != RegisterMessage && mid != UnregisterMessage && mid != RegisterTokenReq && mid != AlarmMessage && mid != KeepAliveMessage && mid != IpPortMessage)) {
-	opbx_log(LOG_WARNING, "Client sent %s without first registering.\n", sccpmsg2str(mid));
+	opbx_log(OPBX_LOG_WARNING, "Client sent %s without first registering.\n", sccpmsg2str(mid));
 	free(r);
 	return 0;
   }
@@ -590,7 +590,7 @@ uint8_t sccp_handle_message(sccp_moo_t * r, sccp_session_t * s) {
 	break;
   default:
 	if (GLOB(debug))
-		opbx_log(LOG_WARNING, "Unhandled SCCP Message: %d - %s with length %d\n", mid, sccpmsg2str(mid), r->length);
+		opbx_log(OPBX_LOG_WARNING, "Unhandled SCCP Message: %d - %s with length %d\n", mid, sccpmsg2str(mid), r->length);
   }
 
   free(r);
@@ -697,13 +697,13 @@ static int reload_config(void) {
 
 	cfg = opbx_config_load("sccp.conf");
 	if (!cfg) {
-		opbx_log(LOG_WARNING, "Unable to load config file sccp.conf, SCCP disabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to load config file sccp.conf, SCCP disabled\n");
 		return 0;
 	}
 	/* read the general section */
 	v = opbx_variable_browse(cfg, "general");
 	if (!v) {
-		opbx_log(LOG_WARNING, "Missing [general] section, SCCP disabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Missing [general] section, SCCP disabled\n");
 		return 0;
 	}
 
@@ -715,13 +715,13 @@ static int reload_config(void) {
 				else
 					GLOB(protocolversion) = protocolversion;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid protocolversion number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid protocolversion number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "servername")) {
 			opbx_copy_string(GLOB(servername), v->value, sizeof(GLOB(servername)));
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = opbx_gethostbyname(v->value, &ahp))) {
-				opbx_log(LOG_WARNING, "Invalid address: %s. SCCP disabled\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Invalid address: %s. SCCP disabled\n", v->value);
 				return 0;
 			} else {
 				memcpy(&GLOB(bindaddr.sin_addr), hp->h_addr, sizeof(GLOB(bindaddr.sin_addr)));
@@ -730,25 +730,25 @@ static int reload_config(void) {
 			GLOB(ha) = opbx_append_ha(v->name, v->value, GLOB(ha));
 		} else if (!strcasecmp(v->name, "localnet")) {
 			if (!(na = opbx_append_ha("d", v->value, GLOB(localaddr))))
-				opbx_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Invalid localnet value: %s\n", v->value);
 			else
 				GLOB(localaddr) = na;
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = opbx_gethostbyname(v->value, &ahp)))
-				opbx_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
 			else
 				memcpy(&GLOB(externip.sin_addr), hp->h_addr, sizeof(GLOB(externip.sin_addr)));
 			GLOB(externexpire) = 0;
 		} else if (!strcasecmp(v->name, "externhost")) {
 			opbx_copy_string(GLOB(externhost), v->value, sizeof(GLOB(externhost)));
 			if (!(hp = opbx_gethostbyname(GLOB(externhost), &ahp)))
-				opbx_log(LOG_WARNING, "Invalid address resolution for externhost keyword: %s\n", GLOB(externhost));
+				opbx_log(OPBX_LOG_WARNING, "Invalid address resolution for externhost keyword: %s\n", GLOB(externhost));
 			else
 				memcpy(&GLOB(externip.sin_addr), hp->h_addr, sizeof(GLOB(externip.sin_addr)));
 			time(&GLOB(externexpire));
 		} else if (!strcasecmp(v->name, "externrefresh")) {
 			if (sscanf(v->value, "%d", &GLOB(externrefresh)) != 1) {
-				opbx_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				GLOB(externrefresh) = 10;
 			}
 		} else if (!strcasecmp(v->name, "keepalive")) {
@@ -762,7 +762,7 @@ static int reload_config(void) {
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			amaflags = opbx_cdr_amaflags2int(v->value);
 			if (amaflags < 0) {
-				opbx_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 			} else {
 				GLOB(amaflags) = amaflags;
 			}
@@ -780,21 +780,21 @@ static int reload_config(void) {
 			if (sscanf(v->value, "%i", &GLOB(ourport)) == 1) {
 				GLOB(bindaddr.sin_port) = htons(GLOB(ourport));
 			} else {
-				opbx_log(LOG_WARNING, "Invalid port number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid port number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "firstdigittimeout")) {
 			if (sscanf(v->value, "%i", &firstdigittimeout) == 1) {
 				if (firstdigittimeout > 0 && firstdigittimeout < 255)
 					GLOB(firstdigittimeout) = firstdigittimeout;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid firstdigittimeout number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid firstdigittimeout number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "digittimeout")) {
 			if (sscanf(v->value, "%i", &digittimeout) == 1) {
 				if (digittimeout > 0 && digittimeout < 255)
 					GLOB(digittimeout) = digittimeout;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid firstdigittimeout number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid firstdigittimeout number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "digittimeoutchar")) {
 			GLOB(digittimeoutchar) = v->value[0];
@@ -831,7 +831,7 @@ static int reload_config(void) {
 			else if (!strcasecmp(v->value, "ringout"))
 				GLOB(earlyrtp) = SCCP_CHANNELSTATE_RINGOUT;
 			else
-				opbx_log(LOG_WARNING, "Invalid earlyrtp state value at line %d, should be 'none', 'offhook', 'dial', 'ringout'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid earlyrtp state value at line %d, should be 'none', 'offhook', 'dial', 'ringout'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%d", &tos) == 1)
 				GLOB(tos) = tos & 0xff;
@@ -849,9 +849,9 @@ static int reload_config(void) {
 				GLOB(tos) = 0;
 			else
 			#if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 			#else
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
 			#endif
 		} else if (!strcasecmp(v->name, "rtptos")) {
 			if (sscanf(v->value, "%d", &GLOB(rtptos)) == 1)
@@ -861,35 +861,35 @@ static int reload_config(void) {
 				if (autoanswer_ring_time >= 0 && autoanswer_ring_time <= 255)
 					GLOB(autoanswer_ring_time) = autoanswer_ring_time;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid autoanswer_ring_time value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid autoanswer_ring_time value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "autoanswer_tone")) {
 			if (sscanf(v->value, "%i", &autoanswer_tone) == 1) {
 				if (autoanswer_tone >= 0 && autoanswer_tone <= 255)
 					GLOB(autoanswer_tone) = autoanswer_tone;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid autoanswer_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid autoanswer_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "remotehangup_tone")) {
 			if (sscanf(v->value, "%i", &remotehangup_tone) == 1) {
 				if (remotehangup_tone >= 0 && remotehangup_tone <= 255)
 					GLOB(remotehangup_tone) = remotehangup_tone;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid remotehangup_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid remotehangup_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "transfer_tone")) {
 			if (sscanf(v->value, "%i", &transfer_tone) == 1) {
 				if (transfer_tone >= 0 && transfer_tone <= 255)
 					GLOB(transfer_tone) = transfer_tone;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid transfer_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid transfer_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "callwaiting_tone")) {
 			if (sscanf(v->value, "%i", &callwaiting_tone) == 1) {
 				if (callwaiting_tone >= 0 && callwaiting_tone <= 255)
 					GLOB(callwaiting_tone) = callwaiting_tone;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid callwaiting_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid callwaiting_tone value '%s' at line %d of SCCP.CONF. Default is 0\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "mwilamp")) {
 			if (!strcasecmp(v->value, "off"))
@@ -903,7 +903,7 @@ static int reload_config(void) {
 			else if (!strcasecmp(v->value, "blink"))
 				GLOB(mwilamp) = SKINNY_LAMP_BLINK;
 			else
-				opbx_log(LOG_WARNING, "Invalid mwilamp value at line %d, should be 'off', 'on', 'wink', 'flash' or 'blink'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid mwilamp value at line %d, should be 'off', 'on', 'wink', 'flash' or 'blink'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "mwioncall")) {
 				GLOB(mwioncall) = sccp_true(v->value);
 		} else if (!strcasecmp(v->name, "blindtransferindication")) {
@@ -912,9 +912,9 @@ static int reload_config(void) {
 			else if (!strcasecmp(v->value, "ring"))
 				GLOB(blindtransferindication) = SCCP_BLINDTRANSFER_RING;
 			else
-				opbx_log(LOG_WARNING, "Invalid blindtransferindication value at line %d, should be 'moh' or 'ring'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid blindtransferindication value at line %d, should be 'moh' or 'ring'\n", v->lineno);
 		} else {
-			opbx_log(LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
+			opbx_log(OPBX_LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
 		}
 		v = v->next;
 	}
@@ -929,7 +929,7 @@ static int reload_config(void) {
 
 	v = opbx_variable_browse(cfg, "devices");
 	if (!v) {
-		opbx_log(LOG_WARNING, "Missing [devices] section, SCCP disabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Missing [devices] section, SCCP disabled\n");
 		return 0;
 	}
 	d = build_device();
@@ -944,7 +944,7 @@ static int reload_config(void) {
 				GLOB(devices) = d;
 				opbx_mutex_unlock(&GLOB(devices_lock));
 			} else {
-				opbx_log(LOG_WARNING, "Wrong device param: %s => %s\n", v->name, v->value);
+				opbx_log(OPBX_LOG_WARNING, "Wrong device param: %s => %s\n", v->name, v->value);
 				sccp_dev_clean(d);
 				free(d);
 			}
@@ -959,7 +959,7 @@ static int reload_config(void) {
 				permithost->next = d->permithost;
 				d->permithost = permithost;
 			} else {
-				opbx_log(LOG_WARNING, "Error adding the permithost = %s to the list\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Error adding the permithost = %s to the list\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "type")) {
 			opbx_copy_string(d->config_type, v->value, sizeof(d->config_type));
@@ -1005,7 +1005,7 @@ static int reload_config(void) {
 			else if (!strcasecmp(v->value, "ringout"))
 				d->earlyrtp = SCCP_CHANNELSTATE_RINGOUT;
 			else
-				opbx_log(LOG_WARNING, "Invalid earlyrtp state value at line %d, should be 'none', 'offhook', 'dial', 'ringout'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid earlyrtp state value at line %d, should be 'none', 'offhook', 'dial', 'ringout'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "outofband"))
 				d->dtmfmode = SCCP_DTMFMODE_OUTOFBAND;
@@ -1034,7 +1034,7 @@ static int reload_config(void) {
 						k_name = k_exten;
 					k = malloc(sizeof(sccp_speed_t));
 					if (!k)
-						opbx_log(LOG_WARNING, "Error allocating speedial %s => %s\n", v->name, v->value);
+						opbx_log(OPBX_LOG_WARNING, "Error allocating speedial %s => %s\n", v->name, v->value);
 					else {
 						memset(k, 0, sizeof(sccp_speed_t));
 						opbx_copy_string(k->name, k_name, sizeof(k->name));
@@ -1053,7 +1053,7 @@ static int reload_config(void) {
 						opbx_verbose(VERBOSE_PREFIX_3 "Added speeddial %d: %s (%s)\n", k->config_instance, k->name, k->ext);
 					}
 				} else
-					opbx_log(LOG_WARNING, "Wrong speedial syntax: %s => %s\n", v->name, v->value);
+					opbx_log(OPBX_LOG_WARNING, "Wrong speedial syntax: %s => %s\n", v->name, v->value);
 			}
 		} else if (!strcasecmp(v->name, "mwilamp")) {
 			if (!strcasecmp(v->value, "off"))
@@ -1067,11 +1067,11 @@ static int reload_config(void) {
 			else if (!strcasecmp(v->value, "blink"))
 				d->mwilamp = SKINNY_LAMP_BLINK;
 			else
-				opbx_log(LOG_WARNING, "Invalid mwilamp value at line %d, should be 'off', 'on', 'wink', 'flash' or 'blink'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid mwilamp value at line %d, should be 'off', 'on', 'wink', 'flash' or 'blink'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "mwioncall")) {
 				d->mwioncall = sccp_true(v->value);
 		} else {
-			opbx_log(LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
+			opbx_log(OPBX_LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
 		}
 		v = v->next;
 	}
@@ -1084,7 +1084,7 @@ static int reload_config(void) {
 
 	v = opbx_variable_browse(cfg, "lines");
 	if (!v) {
-		opbx_log(LOG_WARNING, "Missing [lines] section, SCCP disabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Missing [lines] section, SCCP disabled\n");
 		return 0;
 	}
 
@@ -1094,7 +1094,7 @@ static int reload_config(void) {
 			if ( !opbx_strlen_zero(v->value) ) {
 				opbx_copy_string(l->name, opbx_strip(v->value), sizeof(l->name));
 				if (sccp_line_find_byname(v->value)) {
-					opbx_log(LOG_WARNING, "The line %s already exists\n", l->name);
+					opbx_log(OPBX_LOG_WARNING, "The line %s already exists\n", l->name);
 					free(l);
 				} else {
 					opbx_verbose(VERBOSE_PREFIX_3 "Added line '%s'\n", l->name);
@@ -1106,7 +1106,7 @@ static int reload_config(void) {
 					opbx_mutex_unlock(&GLOB(lines_lock));
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Wrong line param: %s => %s\n", v->name, v->value);
+				opbx_log(OPBX_LOG_WARNING, "Wrong line param: %s => %s\n", v->name, v->value);
 				free(l);
 			}
 			l = build_line();
@@ -1125,7 +1125,7 @@ static int reload_config(void) {
 		} else if (!strcasecmp(v->name, "cid_num")) {
 			opbx_copy_string(l->cid_num, v->value, sizeof(l->cid_num));
 		} else if (!strcasecmp(v->name, "callerid")) {
-			opbx_log(LOG_WARNING, "obsolete callerid param. Use cid_num and cid_name\n");
+			opbx_log(OPBX_LOG_WARNING, "obsolete callerid param. Use cid_num and cid_name\n");
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			opbx_copy_string(l->mailbox, v->value, sizeof(l->mailbox));
 		} else if (!strcasecmp(v->name, "vmnum")) {
@@ -1155,7 +1155,7 @@ static int reload_config(void) {
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			amaflags = opbx_cdr_amaflags2int(v->value);
 			if (amaflags < 0) {
-				opbx_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 			} else {
 				l->amaflags = amaflags;
 			}
@@ -1170,12 +1170,12 @@ static int reload_config(void) {
 				if (opbx_exists_extension(NULL, l->context, v->value, 1, l->cid_num)) {
 					l->trnsfvm = strdup(v->value);
 				} else {
-					opbx_log(LOG_WARNING, "trnsfvm: %s is not a valid extension. Disabled!\n", v->value);
+					opbx_log(OPBX_LOG_WARNING, "trnsfvm: %s is not a valid extension. Disabled!\n", v->value);
 				}
 			}
 		} else if (!strcasecmp(v->name, "secondary_dialtone_digits")) {
 			if (strlen(v->value) > 9)
-				opbx_log(LOG_WARNING, "secondary_dialtone_digits value '%s' is too long at line %d of SCCP.CONF. Max 9 digits\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "secondary_dialtone_digits value '%s' is too long at line %d of SCCP.CONF. Max 9 digits\n", v->value, v->lineno);
 			opbx_copy_string(l->secondary_dialtone_digits, v->value, sizeof(l->secondary_dialtone_digits));
 		} else if (!strcasecmp(v->name, "secondary_dialtone_tone")) {
 			if (sscanf(v->value, "%i", &secondary_dialtone_tone) == 1) {
@@ -1184,10 +1184,10 @@ static int reload_config(void) {
 				else
 					l->secondary_dialtone_tone = SKINNY_TONE_OUTSIDEDIALTONE;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid secondary_dialtone_tone value '%s' at line %d of SCCP.CONF. Default is OutsideDialtone (0x22)\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid secondary_dialtone_tone value '%s' at line %d of SCCP.CONF. Default is OutsideDialtone (0x22)\n", v->value, v->lineno);
 			}
 		} else {
-			opbx_log(LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
+			opbx_log(OPBX_LOG_WARNING, "Unknown param at line %d: %s = %s\n", v->lineno, v->name, v->value);
 		}
 		v = v->next;
 	}
@@ -1209,19 +1209,19 @@ static int reload_config(void) {
 
 	on = 1;
 	if (setsockopt(GLOB(descriptor), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket to SO_REUSEADDR mode: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket to SO_REUSEADDR mode: %s\n", strerror(errno));
 	if (setsockopt(GLOB(descriptor), IPPROTO_IP, IP_TOS, &GLOB(tos), sizeof(GLOB(tos))) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket TOS to IPTOS_LOWDELAY: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket TOS to IPTOS_LOWDELAY: %s\n", strerror(errno));
 	if (setsockopt(GLOB(descriptor), IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket to TCP_NODELAY: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket to TCP_NODELAY: %s\n", strerror(errno));
 
 	if (GLOB(descriptor) < 0) {
 
-		opbx_log(LOG_WARNING, "Unable to create SCCP socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create SCCP socket: %s\n", strerror(errno));
 
 	} else {
 		if (bind(GLOB(descriptor), (struct sockaddr *)&GLOB(bindaddr), sizeof(GLOB(bindaddr))) < 0) {
-			opbx_log(LOG_WARNING, "Failed to bind to %s:%d: %s!\n",
+			opbx_log(OPBX_LOG_WARNING, "Failed to bind to %s:%d: %s!\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)),
 			strerror(errno));
 			close(GLOB(descriptor));
@@ -1232,7 +1232,7 @@ static int reload_config(void) {
 		opbx_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)));
 
 		if (listen(GLOB(descriptor), DEFAULT_SCCP_BACKLOG)) {
-			opbx_log(LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)),
 			strerror(errno));
 			close(GLOB(descriptor));
@@ -1274,13 +1274,13 @@ static int sccp_setcalledparty_exec(struct opbx_channel *chan, int argc, char **
 static int load_module(void) {
 
        if ((sched = sched_context_create()) == NULL)
-               opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+               opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
        if ((io = io_context_create()) == NULL)
-               opbx_log(LOG_WARNING, "Unable to create I/O context\n");
+               opbx_log(OPBX_LOG_WARNING, "Unable to create I/O context\n");
 
         char *test = opbx_pickup_ext();
 	if ( test == NULL ) {
-    	    opbx_log(LOG_ERROR, "Unable to register channel type SCCP. res_features is not loaded.\n");
+    	    opbx_log(OPBX_LOG_ERROR, "Unable to register channel type SCCP. res_features is not loaded.\n");
     	    return 0;
 	}
 
@@ -1288,7 +1288,7 @@ static int load_module(void) {
 	/* make globals */
 	sccp_globals = malloc(sizeof(struct sccp_global_vars));
 	if (!sccp_globals) {
-		opbx_log(LOG_ERROR, "No free mamory for SCCP global vars. SCCP channel type disabled\n");
+		opbx_log(OPBX_LOG_ERROR, "No free mamory for SCCP global vars. SCCP channel type disabled\n");
 		return -1;
 	}
 	memset(sccp_globals,0,sizeof(struct sccp_global_vars));
@@ -1331,7 +1331,7 @@ static int load_module(void) {
 
 	if (!reload_config()) {
 		if (opbx_channel_register(&sccp_tech)) {
-			opbx_log(LOG_ERROR, "Unable to register channel class SCCP\n");
+			opbx_log(OPBX_LOG_ERROR, "Unable to register channel class SCCP\n");
 			return -1;
 		}
 	}
@@ -1408,7 +1408,7 @@ static int unload_module(void) {
 		socket_thread = OPBX_PTHREADT_STOP;
 		opbx_mutex_unlock(&GLOB(socket_lock));
 	} else {
-		opbx_log(LOG_WARNING, "SCCP: Unable to lock the socket\n");
+		opbx_log(OPBX_LOG_WARNING, "SCCP: Unable to lock the socket\n");
 		return -1;
 	}
 

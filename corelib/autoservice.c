@@ -82,7 +82,7 @@ static void *autoservice_run(void *ign)
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
 				else
-					opbx_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
+					opbx_log(OPBX_LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
 			as = as->next;
 		}
@@ -126,7 +126,7 @@ int opbx_autoservice_start(struct opbx_channel *chan)
 			res = 0;
 			if (needstart) {
 				if (opbx_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
-					opbx_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
+					opbx_log(OPBX_LOG_WARNING, "Unable to create autoservice thread :(\n");
 					free(aslist);
 					aslist = NULL;
 					res = -1;

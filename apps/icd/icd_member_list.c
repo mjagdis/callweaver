@@ -81,7 +81,7 @@ icd_member_list *create_icd_member_list(char *name, icd_config * data)
     ICD_MALLOC(list, sizeof(icd_member_list));
 
     if (list == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Member List\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Member List\n");
         return NULL;
     }
     list->allocated = 1;
@@ -117,7 +117,7 @@ icd_status destroy_icd_member_list(icd_member_list ** listp)
     that = (icd_list *) (*listp);
     vetoed = icd_event__notify(ICD_EVENT_DESTROY, NULL, that->dstry_fn, that->dstry_fn_extra);
     if (vetoed == ICD_EVETO) {
-        opbx_log(LOG_NOTICE, "Destruction of ICD Member List %s has been vetoed\n",
+        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Member List %s has been vetoed\n",
             icd_member_list__get_name(*listp));
         return ICD_EVETO;
     }
@@ -216,7 +216,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
         icd_event_factory__notify(event_factory, that, icd_member_list__get_name(that), module_id,
         ICD_EVENT_PUSHBACK, NULL, list->listeners, new_member, list->add_fn, list->add_fn_extra);
     if (vetoed == ICD_EVETO) {
-        opbx_log(LOG_NOTICE, "Pushing Back to ICD Member List %s has been vetoed\n",
+        opbx_log(OPBX_LOG_NOTICE, "Pushing Back to ICD Member List %s has been vetoed\n",
             icd_member_list__get_name(that));
         return ICD_EVETO;
     }
@@ -224,7 +224,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
     if (icd_member_list__lock(that) == ICD_SUCCESS) {
         new_node = icd_list__get_node(list);
         if (new_node == NULL) {
-            opbx_log(LOG_WARNING, "No room in ICD Member List %s to push back an element\n",
+            opbx_log(OPBX_LOG_WARNING, "No room in ICD Member List %s to push back an element\n",
                 icd_member_list__get_name(that));
             icd_member_list__unlock(that);
             return ICD_ERESOURCE;
@@ -241,7 +241,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
         icd_member_list__unlock(that);
         return ICD_SUCCESS;
     }
-    opbx_log(LOG_WARNING, "Unable to get a lock on ICD Member List %s in order to push onto it\n",
+    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Member List %s in order to push onto it\n",
         icd_member_list__get_name(that));
     return ICD_ELOCK;
 }

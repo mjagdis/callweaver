@@ -146,18 +146,18 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	}
 	
 	if (opbx_set_write_format(chan,OPBX_FORMAT_ULAW)) {
-		opbx_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	if (opbx_set_read_format(chan,OPBX_FORMAT_ULAW)) {
-		opbx_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
-	opbx_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
-	opbx_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
+	opbx_log(OPBX_LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
+	opbx_log(OPBX_LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
 
 	ourcontext = (argc > 1 && argv[1][0] ? argv[1] : "disa");
 	ourcallerid = (argc > 2 && argv[2][0] ? argv[2] : NULL);
@@ -174,12 +174,12 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 
-	opbx_log(LOG_DEBUG, "Context: %s\n",ourcontext);
+	opbx_log(OPBX_LOG_DEBUG, "Context: %s\n",ourcontext);
 
 	if (!strcasecmp(argv[0], "no-password"))
     {
 		k |= 1; /* We have the password */
-		opbx_log(LOG_DEBUG, "DISA no-password login success\n");
+		opbx_log(OPBX_LOG_DEBUG, "DISA no-password login success\n");
 	}
 	lastdigittime = opbx_tvnow();
 
@@ -191,13 +191,13 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		if (opbx_tvdiff_ms(opbx_tvnow(), lastdigittime) > 
 		    ((k & 2) ? digittimeout : firstdigittimeout))
 		{
-			opbx_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
+			opbx_log(OPBX_LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
 				((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
 		if ((res = opbx_waitfor(chan, -1) < 0))
         {
-			opbx_log(LOG_DEBUG, "Waitfor returned %d\n", res);
+			opbx_log(OPBX_LOG_DEBUG, "Waitfor returned %d\n", res);
 			continue;
 		}
 			
@@ -248,7 +248,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
                         /* nope, it must be a filename */
 						if ((fp = fopen(argv[0],"r")) == NULL)
 						{
-							opbx_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",argv[0],chan->name);
+							opbx_log(OPBX_LOG_WARNING,"DISA password file %s not found on chan %s\n",argv[0],chan->name);
 							LOCAL_USER_REMOVE(u);
 							return -1;
 						}
@@ -295,11 +295,11 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 					/* compare the two */
 					if (strcmp(exten,inbuf))
 					{
-						opbx_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
+						opbx_log(OPBX_LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
 					}
 					/* password good, set to dial state */
-					opbx_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
+					opbx_log(OPBX_LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
 					play_dialtone(chan, mailbox);
 
 					k |= 1; /* In number mode */
@@ -307,7 +307,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 					exten[sizeof(acctcode)] = 0;
 					opbx_copy_string(acctcode, exten, sizeof(acctcode));
 					exten[0] = 0;
-					opbx_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
+					opbx_log(OPBX_LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
 					continue;
 				}
 			}

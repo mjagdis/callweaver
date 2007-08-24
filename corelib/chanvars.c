@@ -68,7 +68,7 @@ struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
 	var = calloc(sizeof(struct opbx_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
 
 	if (var == NULL) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 

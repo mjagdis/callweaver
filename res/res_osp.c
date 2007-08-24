@@ -125,7 +125,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 		mallocd = 1;
 		osp = malloc(sizeof(struct osp_provider));
 		if (!osp) {
-			opbx_log(LOG_WARNING, "Out of memory!\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 			return -1;
 		}
 		memset(osp, 0, sizeof(struct osp_provider));
@@ -139,7 +139,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 	osp->retrylimit = OSP_DEFAULT_RETRY_LIMIT;
 	osp->timeout = OSP_DEFAULT_TIMEOUT;
 	osp->source[0] = '\0';
-	opbx_log(LOG_DEBUG, "Building OSP Provider '%s'\n", cat);
+	opbx_log(OPBX_LOG_DEBUG, "Building OSP Provider '%s'\n", cat);
 	v = opbx_variable_browse(cfg, cat);
 	while(v) {
 		if (!strcasecmp(v->name, "privatekey")) {
@@ -160,33 +160,33 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", opbx_config_OPBX_KEY_DIR, v->value);
 				osp->cacount++;
 			} else
-				opbx_log(LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "servicepoint")) {
 			if (osp->spcount < MAX_SERVICEPOINTS) {
 				opbx_copy_string(osp->servicepoints[osp->spcount], v->value, sizeof(osp->servicepoints[0]));
 				osp->spcount++;
 			} else
-				opbx_log(LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "maxconnections")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x <= 1000)) {
 				osp->maxconnections = x;
 			} else
-				opbx_log(LOG_WARNING, "maxconnections should be an integer from 1 to 1000, not '%s' at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "maxconnections should be an integer from 1 to 1000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrydelay")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 10)) {
 				osp->retrydelay = x;
 			} else
-				opbx_log(LOG_WARNING, "retrydelay should be an integer from 0 to 10, not '%s' at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "retrydelay should be an integer from 0 to 10, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrylimit")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 100)) {
 				osp->retrylimit = x;
 			} else
-				opbx_log(LOG_WARNING, "retrylimit should be an integer from 0 to 100, not '%s' at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "retrylimit should be an integer from 0 to 100, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "timeout")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 200) && (x <= 10000)) {
 				osp->timeout = x;
 			} else
-				opbx_log(LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "source")) {
 			opbx_copy_string(osp->source, v->value, sizeof(osp->source));
 		}
@@ -204,13 +204,13 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 	opbx_mutex_lock(&osplock);
 	osp->dead = 0;
 	if (osp->handle > -1) {
-		opbx_log(LOG_DEBUG, "Deleting old handle for '%s'\n", osp->name);
+		opbx_log(OPBX_LOG_DEBUG, "Deleting old handle for '%s'\n", osp->name);
 		OSPPProviderDelete(osp->handle, 0);
 	}
 		
 
     length = 0;
-	opbx_log(LOG_DEBUG, "Loading private key for '%s' (%s)\n", osp->name, osp->localpvtkey);
+	opbx_log(OPBX_LOG_DEBUG, "Loading private key for '%s' (%s)\n", osp->name, osp->localpvtkey);
     errorcode = loadPemPrivateKey(osp->localpvtkey,Reqbuf,&length);
     if (errorcode == 0)
     {
@@ -223,7 +223,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
     }
 
     length = 0;
-	opbx_log(LOG_DEBUG, "Loading local cert for '%s' (%s)\n", osp->name, osp->localcert);
+	opbx_log(OPBX_LOG_DEBUG, "Loading local cert for '%s' (%s)\n", osp->name, osp->localcert);
     errorcode = loadPemCert(osp->localcert,LocalBuf,&length);
     if (errorcode == 0)
     {
@@ -238,7 +238,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
     for (i=0;i<osp->cacount;i++)
     {
         length = 0;
-		opbx_log(LOG_DEBUG, "Loading CA cert %d for '%s' (%s)\n", i + 1, osp->name, osp->cacerts[i]);
+		opbx_log(OPBX_LOG_DEBUG, "Loading CA cert %d for '%s' (%s)\n", i + 1, osp->name, osp->cacerts[i]);
         errorcode = loadPemCert(osp->cacerts[i],AuthBuf[i],&length);
         if (errorcode == 0)
         {
@@ -252,9 +252,9 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 		}
     }
 	
-	opbx_log(LOG_DEBUG, "Creating provider handle for '%s'\n", osp->name);
+	opbx_log(OPBX_LOG_DEBUG, "Creating provider handle for '%s'\n", osp->name);
 	
-	opbx_log(LOG_DEBUG, "Service point '%s %d'\n", servicepoints[0], osp->spcount);
+	opbx_log(OPBX_LOG_DEBUG, "Service point '%s %d'\n", servicepoints[0], osp->spcount);
 	
 	if (OSPPProviderNew(osp->spcount, 
 					    servicepoints, 
@@ -274,7 +274,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 					   "", 
 					   "", 
 					   &osp->handle)) {
-		opbx_log(LOG_WARNING, "Unable to initialize provider '%s'\n", cat);
+		opbx_log(OPBX_LOG_WARNING, "Unable to initialize provider '%s'\n", cat);
 		osp->dead = 1;
 	}
 	
@@ -363,7 +363,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
     bioIn = BIO_new_file((const char*)FileName,"r");
     if (bioIn == NULL)
     {
-		opbx_log(LOG_WARNING,"Failed to find the File - %s \n",FileName);
+		opbx_log(OPBX_LOG_WARNING,"Failed to find the File - %s \n",FileName);
 		return -1;
     }
     else
@@ -371,7 +371,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
         cert = PEM_read_bio_X509(bioIn,NULL,NULL,NULL);
         if (cert == NULL)
         {
-			opbx_log(LOG_WARNING,"Failed to parse the Certificate from the File - %s \n",FileName);
+			opbx_log(OPBX_LOG_WARNING,"Failed to parse the Certificate from the File - %s \n",FileName);
 			return -1;
         }
         else
@@ -379,7 +379,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
             length = i2d_X509(cert,&temp);
             if (cert == 0)
             {
-				opbx_log(LOG_WARNING,"Failed to parse the Certificate from the File - %s, Length=0 \n",FileName);
+				opbx_log(OPBX_LOG_WARNING,"Failed to parse the Certificate from the File - %s, Length=0 \n",FileName);
 				return -1;
             }
             else
@@ -417,7 +417,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
     bioIn = BIO_new_file((const char*)FileName,"r");
     if (bioIn == NULL)
     {
-		opbx_log(LOG_WARNING,"Failed to find the File - %s \n",FileName);
+		opbx_log(OPBX_LOG_WARNING,"Failed to find the File - %s \n",FileName);
 		return -1;
     }
     else
@@ -425,7 +425,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
         pKey = PEM_read_bio_RSAPrivateKey(bioIn,NULL,NULL,NULL);
         if (pKey == NULL)
         {
-			opbx_log(LOG_WARNING,"Failed to parse the Private Key from the File - %s \n",FileName);
+			opbx_log(OPBX_LOG_WARNING,"Failed to parse the Private Key from the File - %s \n",FileName);
 			return -1;
         }
         else
@@ -433,7 +433,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
             length = i2d_RSAPrivateKey(pKey,&temp);
             if (length == 0)
             {
-				opbx_log(LOG_WARNING,"Failed to parse the Private Key from the File - %s, Length=0 \n",FileName);
+				opbx_log(OPBX_LOG_WARNING,"Failed to parse the Private Key from the File - %s, Length=0 \n",FileName);
 				return -1;
             }
             else
@@ -489,7 +489,7 @@ int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *ti
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {
 			if (OSPPTransactionNew(osp->handle, handle)) {
-				opbx_log(LOG_WARNING, "Unable to create OSP Transaction handle!\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
 				opbx_copy_string(source, osp->source, sizeof(source));
 				res = 1;
@@ -505,7 +505,7 @@ int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *ti
 		if (!OSPPTransactionValidateAuthorisation(*handle, iabuf, source, NULL, NULL, 
 			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, tokenformat)) {
 			if (authorised) {
-				opbx_log(LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
+				opbx_log(OPBX_LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
 				res = 1;
 			}
 		}
@@ -566,7 +566,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {
 			if (OSPPTransactionNew(osp->handle, &result->handle)) {
-				opbx_log(LOG_WARNING, "Unable to create OSP Transaction handle!\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
 				opbx_copy_string(source, osp->source, sizeof(source));
 				res = 1;
@@ -593,7 +593,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 				callidlen = sizeof(callidstr);
 				if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 					sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-					opbx_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
+					opbx_log(OPBX_LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
 						destination, callednum, callingnum, extension, provider);
 					/* Only support OSP server with only one duration limit */
 					if (opbx_channel_cmpwhentohangup (chan, timelimit) < 0) {
@@ -624,7 +624,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 								break;
 							default:
-								opbx_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+								opbx_log(OPBX_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
 								res = 0;
 							}
 							if (!res && result->numresults) {
@@ -636,7 +636,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 								}
 							}
 						} else {
-							opbx_log(LOG_DEBUG, "Missing destination protocol\n");
+							opbx_log(OPBX_LOG_DEBUG, "Missing destination protocol\n");
 							break;
 						}
 					} while(!res && result->numresults);
@@ -651,7 +651,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 		
 	}
 	if (!osp) 
-		opbx_log(LOG_NOTICE, "OSP Provider '%s' does not exist!\n", provider);
+		opbx_log(OPBX_LOG_NOTICE, "OSP Provider '%s' does not exist!\n", provider);
 	if (chan) {
 		cres = opbx_autoservice_stop(chan);
 		if (cres < 0)
@@ -712,11 +712,11 @@ int opbx_osp_next(struct opbx_osp_result *result, int cause)
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						default:
-							opbx_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+							opbx_log(OPBX_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
 							res = 0;
 						}
 					} else {
-						opbx_log(LOG_DEBUG, "Missing destination protocol\n");
+						opbx_log(OPBX_LOG_DEBUG, "Missing destination protocol\n");
 						break;
 					}
 				}
@@ -767,13 +767,13 @@ int opbx_osp_terminate(int handle, int cause, time_t start, time_t duration)
 	
 	reason = cause2reason(cause);
 	if (OSPPTransactionRecordFailure(handle, reason))
-		opbx_log(LOG_WARNING, "Failed to record call termination for handle %d\n", handle);
+		opbx_log(OPBX_LOG_WARNING, "Failed to record call termination for handle %d\n", handle);
 	else if (OSPPTransactionReportUsage(handle, duration, start,
 			       endTime,alertTime,connectTime,isPddInfoPresent,pdd,releaseSource,confId,
 		       	       0, 0, 0, 0, &dummy, NULL))
-		opbx_log(LOG_WARNING, "Failed to report duration for handle %d\n", handle);
+		opbx_log(OPBX_LOG_WARNING, "Failed to report duration for handle %d\n", handle);
 	else {
-		opbx_log(LOG_DEBUG, "Completed recording handle %d\n", handle);
+		opbx_log(OPBX_LOG_DEBUG, "Completed recording handle %d\n", handle);
 		OSPPTransactionDelete(handle);
 		res = 0;
 	}
@@ -798,7 +798,7 @@ static int config_load(void)
 			cat = opbx_variable_retrieve(cfg, "general", "accelerate");
 			if (cat && opbx_true(cat))
 				if (OSPPInit(1)) {
-					opbx_log(LOG_WARNING, "Failed to enable hardware accelleration, falling back to software mode\n");
+					opbx_log(OPBX_LOG_WARNING, "Failed to enable hardware accelleration, falling back to software mode\n");
 					OSPPInit(0);
 				} else
 					hardware = 1;
@@ -810,7 +810,7 @@ static int config_load(void)
 		if (cat) {
 			if ((sscanf(cat, "%d", &tokenformat) != 1) || (tokenformat < TOKEN_ALGO_SIGNED) || (tokenformat > TOKEN_ALGO_BOTH)) {
 				tokenformat = TOKEN_ALGO_SIGNED;
-				opbx_log(LOG_WARNING, "tokenformat should be an integer from 0 to 2, not '%s'\n", cat);
+				opbx_log(OPBX_LOG_WARNING, "tokenformat should be an integer from 0 to 2, not '%s'\n", cat);
 			}
 		}
 		cat = opbx_category_browse(cfg, NULL);
@@ -821,7 +821,7 @@ static int config_load(void)
 		}
 		opbx_config_destroy(cfg);
 	} else
-		opbx_log(LOG_NOTICE, "No OSP configuration found.  OSP support disabled\n");
+		opbx_log(OPBX_LOG_NOTICE, "No OSP configuration found.  OSP support disabled\n");
 	opbx_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
@@ -855,7 +855,7 @@ static struct opbx_clicmd cli_show_osp = {
 static int reload_module(void)
 {
 	config_load();
-	opbx_log(LOG_NOTICE, "XXX Should reload OSP config XXX\n");
+	opbx_log(OPBX_LOG_NOTICE, "XXX Should reload OSP config XXX\n");
 	return 0;
 }
 

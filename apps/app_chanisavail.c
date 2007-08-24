@@ -95,7 +95,7 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 			tech = cur;
 			number = strchr(tech, '/');
 			if (!number) {
-				opbx_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				opbx_log(OPBX_LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}

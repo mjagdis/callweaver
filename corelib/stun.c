@@ -403,7 +403,7 @@ int stun_handle_packet(int s,
     if (len < sizeof(struct stun_header))
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(struct stun_header));
+            opbx_log(OPBX_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(struct stun_header));
         return -1;
     }
     if (stundebug)
@@ -412,7 +412,7 @@ int stun_handle_packet(int s,
     if (ntohs(hdr->msglen) > len - sizeof(struct stun_header))
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
+            opbx_log(OPBX_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
     }
     else
         len = ntohs(hdr->msglen);
@@ -423,21 +423,21 @@ int stun_handle_packet(int s,
         if (len < sizeof(struct stun_attr))
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(struct stun_attr));
+                opbx_log(OPBX_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(struct stun_attr));
             break;
         }
         attr = (struct stun_attr *) data;
         if (ntohs(attr->len) > len)
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+                opbx_log(OPBX_LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
             break;
         }
 
         if (stun_process_attr(st, attr))
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
+                opbx_log(OPBX_LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
             break;
         }
         /* Clear attribute in case previous entry was a string */

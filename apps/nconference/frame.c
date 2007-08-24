@@ -98,20 +98,20 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
     // check on conf
     if ( conf == NULL ) 
     {
-        opbx_log( LOG_ERROR, "unable to queue null conference\n" ) ;
+        opbx_log(OPBX_LOG_ERROR, "unable to queue null conference\n" ) ;
         return NULL ;
     }
 
     if ( conf->memberlist == NULL ) 
     {
-        opbx_log( LOG_ERROR, "unable to queue for a null memberlist\n" ) ;
+        opbx_log(OPBX_LOG_ERROR, "unable to queue for a null memberlist\n" ) ;
         return NULL ;
     }
 
     // check on member
     if ( member == NULL )
     {
-        opbx_log( LOG_ERROR, "unable to queue frame for null member\n" ) ;
+        opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null member\n" ) ;
         return NULL ;
     }
 
@@ -234,21 +234,21 @@ int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr
     // check on frame
     if ( fr == NULL ) 
     {
-            opbx_log( LOG_ERROR, "unable to queue null frame\n" ) ;
+            opbx_log(OPBX_LOG_ERROR, "unable to queue null frame\n" ) ;
             return -1 ;
     }
         
     // check on member
     if ( member == NULL )
     {
-            opbx_log( LOG_ERROR, "unable to queue frame for null member\n" ) ;
+            opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null member\n" ) ;
             return -1 ;
     }
 
     // check on circular buffer
     if ( member->cbuf == NULL )
     {
-            opbx_log( LOG_ERROR, "unable to queue frame for null circular buffer\n" ) ;
+            opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null circular buffer\n" ) ;
             return -1 ;
     }
 

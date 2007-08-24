@@ -83,7 +83,7 @@ static int group_count_function_read(struct opbx_channel *chan, int argc, char *
 			if ((grp = pbx_builtin_getvar_helper(chan, category)))
 				opbx_copy_string(group, grp, sizeof(group));
 			else
-				opbx_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
+				opbx_log(OPBX_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 		}
 
 		count = opbx_app_group_get_count(group, category);
@@ -125,7 +125,7 @@ static int group_function_rw(struct opbx_channel *chan, int argc, char **argv, c
 		}
 
         	if (opbx_app_group_set_channel(chan, tmp)) {
-                	opbx_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
+                	opbx_log(OPBX_LOG_WARNING, "Setting a group requires an argument (group name)\n");
 			return -1;
 		}
 	}

@@ -82,12 +82,12 @@ static int function_db_rw(struct opbx_channel *chan, int argc, char **argv, char
 
 	if (argc > 1) {
 		if (opbx_db_put(argv[0], key, argv[1]))
-			opbx_log(LOG_WARNING, "DB: Error setting %s/%s to %s\n", argv[0], key, argv[1]);
+			opbx_log(OPBX_LOG_WARNING, "DB: Error setting %s/%s to %s\n", argv[0], key, argv[1]);
 	}
 
 	if (buf) {
 		if (opbx_db_get(argv[0], key, buf, len))
-			opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
+			opbx_log(OPBX_LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
 		else {
 			/* FIXME: Why do we set a variable as well as fill the result buffer?
 			 * Why do we leave the variable unchanged if the key does not exist?
@@ -108,7 +108,7 @@ static int function_db_exists(struct opbx_channel *chan, int argc, char **argv, 
 		return opbx_function_syntax(db_exists_func_syntax);
 
 	if (len < 2) {
-		opbx_log(LOG_ERROR, "Out of space in return buffer\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of space in return buffer\n");
 		return -1;
 	}
 

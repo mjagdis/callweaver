@@ -79,7 +79,7 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
 	if (ts && ts->data[0])
 		res = opbx_playtones_start(chan, 0, ts->data, 0);
 	else 
-		opbx_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
+		opbx_log(OPBX_LOG_NOTICE,"Huh....? no dial for indications?\n");
 	
 	for (x = strlen(collect); strlen(collect) < maxlen; ) {
 		res = opbx_waitfordigit(chan, timeout);
@@ -167,29 +167,29 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 	rfmt = c->readformat;
 	res = opbx_set_read_format(c, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
-		opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 		return -1;
 	}
 	sildet = opbx_dsp_new();
 	if (!sildet) {
-		opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	writer = opbx_writefile(dest, dstfmt, "Voice file", 0, 0, 0666);
 	if (!writer) {
-		opbx_log(LOG_WARNING, "Unable to open file '%s' in format '%s' for writing\n", dest, dstfmt);
+		opbx_log(OPBX_LOG_WARNING, "Unable to open file '%s' in format '%s' for writing\n", dest, dstfmt);
 		opbx_dsp_free(sildet);
 		return -1;
 	}
 	for(;;) {
 		if ((res = opbx_waitfor(c, 2000)) < 0) {
-			opbx_log(LOG_NOTICE, "Waitfor failed while recording file '%s' format '%s'\n", dest, dstfmt);
+			opbx_log(OPBX_LOG_NOTICE, "Waitfor failed while recording file '%s' format '%s'\n", dest, dstfmt);
 			break;
 		}
 		if (res) {
 			f = opbx_read(c);
 			if (!f) {
-				opbx_log(LOG_NOTICE, "Hungup while recording file '%s' format '%s'\n", dest, dstfmt);
+				opbx_log(OPBX_LOG_NOTICE, "Hungup while recording file '%s' format '%s'\n", dest, dstfmt);
 				break;
 			}
 			if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '#')) {
@@ -206,13 +206,13 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 				totalms += f->samples / 8;
 				if (totalms > maxsec * 1000) {
 					/* Ended happily with too much stuff */
-					opbx_log(LOG_NOTICE, "Constraining voice on '%s' to %d seconds\n", c->name, maxsec);
+					opbx_log(OPBX_LOG_NOTICE, "Constraining voice on '%s' to %d seconds\n", c->name, maxsec);
 					opbx_fr_free(f);
 					break;
 				}
 				res = opbx_writestream(writer, f);
 				if (res < 0) {
-					opbx_log(LOG_WARNING, "Failed to write to stream at %s!\n", dest);
+					opbx_log(OPBX_LOG_WARNING, "Failed to write to stream at %s!\n", dest);
 					opbx_fr_free(f);
 					break;
 				}
@@ -223,7 +223,7 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 	}
 	res = opbx_set_read_format(c, rfmt);
 	if (res)
-		opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", c->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", c->name);
 	opbx_dsp_free(sildet);
 	opbx_closestream(writer);
 	return 0;
@@ -323,7 +323,7 @@ int opbx_dtmf_stream(struct opbx_channel *chan,struct opbx_channel *peer,char *d
 				f.src = "opbx_dtmf_stream";
 				if (strchr("0123456789*#abcdABCD",*ptr) == NULL)
                 {
-					opbx_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
+					opbx_log(OPBX_LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
 				}
                 else
                 {
@@ -356,7 +356,7 @@ static void linear_release(struct opbx_channel *chan, void *params)
 	
     if (ls->origwfmt && opbx_set_write_format(chan, ls->origwfmt))
     {
-		opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
+		opbx_log(OPBX_LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
 	}
 	if (ls->autoclose)
 		close(ls->fd);
@@ -373,7 +373,7 @@ static int linear_generator(struct opbx_channel *chan, void *data, int samples)
 	len = samples*sizeof(int16_t);
 	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET)
     {
-		opbx_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
+		opbx_log(OPBX_LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
 		len = sizeof(buf) - OPBX_FRIENDLY_OFFSET;
 	}
 	memset(&f, 0, sizeof(f));
@@ -404,7 +404,7 @@ static void *linear_alloc(struct opbx_channel *chan, void *params)
 			opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
 		ls->origwfmt = chan->writeformat;
 		if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
-			opbx_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 			free(ls);
 			ls = params = NULL;
 		}
@@ -435,7 +435,7 @@ int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, 
 			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", (char *)opbx_config_OPBX_VAR_DIR, "sounds", filename);
 		fd = open(tmpf, O_RDONLY);
 		if (fd < 0){
-			opbx_log(LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));
 			return -1;
 		}
 	}
@@ -520,7 +520,7 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 
 		/* We go at next loop if we got the restart char */
 		if (restart && strchr(restart, res)) {
-			opbx_log(LOG_DEBUG, "we'll restart the stream here at next loop\n");
+			opbx_log(OPBX_LOG_DEBUG, "we'll restart the stream here at next loop\n");
 			elapsed=0; /* To make sure the next stream will start at beginning */
 			continue;
 		}
@@ -595,11 +595,11 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(LOG_WARNING, "Error play_and_record called without duration pointer\n");
+		opbx_log(OPBX_LOG_WARNING, "Error play_and_record called without duration pointer\n");
 		return -1;
 	}
 
-	opbx_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	opbx_log(OPBX_LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile) {
@@ -616,12 +616,12 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 
 	stringp=fmts;
 	strsep(&stringp, "|,");
-	opbx_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
+	opbx_log(OPBX_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = opbx_strdupa(fmts);
 
 	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			opbx_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			opbx_log(OPBX_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
 		}
 		sfmt[fmtcnt++] = opbx_strdupa(fmt);
@@ -646,14 +646,14 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 	if (maxsilence > 0) {
 		sildet = opbx_dsp_new(); /* Create the silence detector */
 		if (!sildet) {
-			opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
 			return -1;
 		}
 		opbx_dsp_set_threshold(sildet, silencethreshold);
 		rfmt = chan->readformat;
 		res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			opbx_dsp_free(sildet);
 			return -1;
 		}
@@ -668,11 +668,11 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 		for(;;) {
 		 	res = opbx_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(LOG_DEBUG, "One waitfor failed, trying another\n");
+				opbx_log(OPBX_LOG_DEBUG, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
 			 	res = opbx_waitfor(chan, 2000);
 				if (!res) {
-					opbx_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+					opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
 					res = -1;
 				}
 			}
@@ -711,7 +711,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 				}
 				/* Exit on any error */
 				if (res) {
-					opbx_log(LOG_WARNING, "Error writing frame\n");
+					opbx_log(OPBX_LOG_WARNING, "Error writing frame\n");
 					opbx_fr_free(f);
 					break;
 				}
@@ -758,7 +758,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 			outmsg=1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
+		opbx_log(OPBX_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
 
 	*duration = end - start;
@@ -777,7 +777,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 	}
 	if (rfmt) {
 		if (opbx_set_read_format(chan, rfmt)) {
-			opbx_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
 		}
 	}
 	if (outmsg > 1) {
@@ -817,11 +817,11 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
+		opbx_log(OPBX_LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
 		return -1;
 	}
 
-	opbx_log(LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	opbx_log(OPBX_LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile || beep) {	
@@ -841,12 +841,12 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 	
 	stringp=fmts;
 	strsep(&stringp, "|,");
-	opbx_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
+	opbx_log(OPBX_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
 	sfmt[0] = opbx_strdupa(fmts);
 	
 	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			opbx_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			opbx_log(OPBX_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
 		}
 		sfmt[fmtcnt++] = opbx_strdupa(fmt);
@@ -864,7 +864,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 	
 	sildet = opbx_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
-		opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	opbx_dsp_set_threshold(sildet, silencethreshold);
@@ -873,7 +873,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 		rfmt = chan->readformat;
 		res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			return -1;
 		}
 	}
@@ -885,11 +885,11 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 		for(;;) {
 		 	res = opbx_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(LOG_DEBUG, "One waitfor failed, trying another\n");
+				opbx_log(OPBX_LOG_DEBUG, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
 			 	res = opbx_waitfor(chan, 2000);
 				if (!res) {
-					opbx_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+					opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
 					res = -1;
 				}
 			}
@@ -930,7 +930,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 				}
 				/* Exit on any error */
 				if (res) {
-					opbx_log(LOG_WARNING, "Error writing frame\n");
+					opbx_log(OPBX_LOG_WARNING, "Error writing frame\n");
 					opbx_fr_free(f);
 					break;
 				}
@@ -977,7 +977,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 #endif
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
+		opbx_log(OPBX_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
 	}
 	*duration = end - start;
 #if 0
@@ -1011,7 +1011,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 	}
 	if (rfmt) {
 		if (opbx_set_read_format(chan, rfmt)) {
-			opbx_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
 		}
 	}
 	if (outmsg) {
@@ -1133,7 +1133,7 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 	char c;
 
 	if (option_debug && option_verbose > 6)
-		opbx_log(LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
+		opbx_log(OPBX_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
 
 	/* The last argv is reserved for NULL. This is required if you want
 	 * to hand off an argv to exec(2) for example.
@@ -1202,9 +1202,9 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 
 	if (option_debug && option_verbose > 5) {
 		int i;
-		opbx_log(LOG_DEBUG, "argc: %d\n", argc);
+		opbx_log(OPBX_LOG_DEBUG, "argc: %d\n", argc);
 		for (i=0; i<argc; i++)
-			opbx_log(LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
+			opbx_log(OPBX_LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
 	}
 
 	return argc;
@@ -1225,7 +1225,7 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, opbx_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		opbx_log(LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
@@ -1238,11 +1238,11 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	unlink(fs);
 
 	if (res) {
-		opbx_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_TIMEOUT;
 	} else {
 		unlink(fs);
-		opbx_log(LOG_DEBUG, "Locked path '%s'\n", path);
+		opbx_log(OPBX_LOG_DEBUG, "Locked path '%s'\n", path);
 		return OPBX_LOCK_SUCCESS;
 	}
 }
@@ -1256,9 +1256,9 @@ int opbx_unlock_path(const char *path)
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 
 	if ((res = unlink(s)))
-		opbx_log(LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
 	else
-		opbx_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+		opbx_log(OPBX_LOG_DEBUG, "Unlocked path '%s'\n", path);
 
 	return res;
 }
@@ -1277,7 +1277,7 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(LOG_WARNING, "Error opbx_record_review called without duration pointer\n");
+		opbx_log(OPBX_LOG_WARNING, "Error opbx_record_review called without duration pointer\n");
 		return -1;
 	}
 
@@ -1390,7 +1390,7 @@ static int ivr_dispatch(struct opbx_channel *chan, struct opbx_ivr_option *optio
 		if (!res) {
 			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
 		} else {
-			opbx_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
+			opbx_log(OPBX_LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
 			res = 0;
 		}
 		return res;
@@ -1399,7 +1399,7 @@ static int ivr_dispatch(struct opbx_channel *chan, struct opbx_ivr_option *optio
 		if (!res) {
 			res = opbx_waitstream(chan, "");
 		} else {
-			opbx_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
+			opbx_log(OPBX_LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
 			res = 0;
 		}
 		return res;
@@ -1431,7 +1431,7 @@ static int ivr_dispatch(struct opbx_channel *chan, struct opbx_ivr_option *optio
 		opbx_stopstream(chan);
 		return res;
 	default:
-		opbx_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
+		opbx_log(OPBX_LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
 		return 0;
 	};
 	return -1;
@@ -1483,7 +1483,7 @@ static int opbx_ivr_menu_run_internal(struct opbx_channel *chan, struct opbx_ivr
 	if (option_exists(menu, "s") < 0) {
 		strcpy(exten, "g");
 		if (option_exists(menu, "g") < 0) {
-			opbx_log(LOG_WARNING, "No 's' nor 'g' extension in menu '%s'!\n", menu->title);
+			opbx_log(OPBX_LOG_WARNING, "No 's' nor 'g' extension in menu '%s'!\n", menu->title);
 			return -1;
 		}
 	}
@@ -1491,7 +1491,7 @@ static int opbx_ivr_menu_run_internal(struct opbx_channel *chan, struct opbx_ivr
 		while(menu->options[pos].option) {
 			if (!strcasecmp(menu->options[pos].option, exten)) {
 				res = ivr_dispatch(chan, menu->options + pos, exten, cbdata);
-				opbx_log(LOG_DEBUG, "IVR Dispatch of '%s' (pos %d) yields %d\n", exten, pos, res);
+				opbx_log(OPBX_LOG_DEBUG, "IVR Dispatch of '%s' (pos %d) yields %d\n", exten, pos, res);
 				if (res < 0)
 					break;
 				else if (res & RES_UPONE)
@@ -1507,7 +1507,7 @@ static int opbx_ivr_menu_run_internal(struct opbx_channel *chan, struct opbx_ivr
 					if (!maxretries)
 						maxretries = 3;
 					if ((maxretries > 0) && (retries >= maxretries)) {
-						opbx_log(LOG_DEBUG, "Max retries %d exceeded\n", maxretries);
+						opbx_log(OPBX_LOG_DEBUG, "Max retries %d exceeded\n", maxretries);
 						return -2;
 					} else {
 						if (option_exists(menu, "g") > -1) 
@@ -1518,24 +1518,24 @@ static int opbx_ivr_menu_run_internal(struct opbx_channel *chan, struct opbx_ivr
 					pos=0;
 					continue;
 				} else if (res && strchr(OPBX_DIGIT_ANY, res)) {
-					opbx_log(LOG_DEBUG, "Got start of extension, %c\n", res);
+					opbx_log(OPBX_LOG_DEBUG, "Got start of extension, %c\n", res);
 					exten[1] = '\0';
 					exten[0] = res;
 					if ((res = read_newoption(chan, menu, exten, sizeof(exten))))
 						break;
 					if (option_exists(menu, exten) < 0) {
 						if (option_exists(menu, "i")) {
-							opbx_log(LOG_DEBUG, "Invalid extension entered, going to 'i'!\n");
+							opbx_log(OPBX_LOG_DEBUG, "Invalid extension entered, going to 'i'!\n");
 							strcpy(exten, "i");
 							pos = 0;
 							continue;
 						} else {
-							opbx_log(LOG_DEBUG, "Aborting on invalid entry, with no 'i' option!\n");
+							opbx_log(OPBX_LOG_DEBUG, "Aborting on invalid entry, with no 'i' option!\n");
 							res = -2;
 							break;
 						}
 					} else {
-						opbx_log(LOG_DEBUG, "New existing extension: %s\n", exten);
+						opbx_log(OPBX_LOG_DEBUG, "New existing extension: %s\n", exten);
 						pos = 0;
 						continue;
 					}
@@ -1543,7 +1543,7 @@ static int opbx_ivr_menu_run_internal(struct opbx_channel *chan, struct opbx_ivr
 			}
 			pos++;
 		}
-		opbx_log(LOG_DEBUG, "Stopping option '%s', res is %d\n", exten, res);
+		opbx_log(OPBX_LOG_DEBUG, "Stopping option '%s', res is %d\n", exten, res);
 		pos = 0;
 		if (!strcasecmp(exten, "s"))
 			strcpy(exten, "g");
@@ -1571,13 +1571,13 @@ char *opbx_read_textfile(const char *filename)
 	int count=0;
 	int res;
 	if(stat(filename,&filesize)== -1){
-		opbx_log(LOG_WARNING,"Error can't stat %s\n", filename);
+		opbx_log(OPBX_LOG_WARNING,"Error can't stat %s\n", filename);
 		return NULL;
 	}
 	count=filesize.st_size + 1;
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		opbx_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
 		return NULL;
 	}
 	output=(char *)malloc(count);
@@ -1586,12 +1586,12 @@ char *opbx_read_textfile(const char *filename)
 		if (res == count - 1) {
 			output[res] = '\0';
 		} else {
-			opbx_log(LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count -  1, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count -  1, strerror(errno));
 			free(output);
 			output = NULL;
 		}
 	} else 
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 	close(fd);
 	return output;
 }
@@ -1626,7 +1626,7 @@ int opbx_parseoptions(const struct opbx_option *options, struct opbx_flags *flag
 				*s = '\0';
 				s++;
 			} else {
-				opbx_log(LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
+				opbx_log(OPBX_LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
 				res = -1;
 			}
 		} else if (argloc)

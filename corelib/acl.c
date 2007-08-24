@@ -176,12 +176,12 @@ struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
 				ha->netmask.s_addr = htonl(y);
 			}
 		} else if (!inet_aton(nm, &ha->netmask)) {
-			opbx_log(LOG_WARNING, "%s is not a valid netmask\n", nm);
+			opbx_log(OPBX_LOG_WARNING, "%s is not a valid netmask\n", nm);
 			free(ha);
 			return ret;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
-			opbx_log(LOG_WARNING, "%s is not a valid IP\n", tmp);
+			opbx_log(OPBX_LOG_WARNING, "%s is not a valid IP\n", tmp);
 			free(ha);
 			return ret;
 		}
@@ -198,7 +198,7 @@ struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
 			ret = ha;
 		}
 	}
-	opbx_log(LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
+	opbx_log(OPBX_LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
 	return ret;
 }
 
@@ -215,7 +215,7 @@ int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
 			res = ha->sense;
 		/* DEBUG */
-		opbx_log(LOG_DEBUG,
+		opbx_log(OPBX_LOG_DEBUG,
 			"##### Testing %s with %s. Result %d\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
 			opbx_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr),
@@ -246,7 +246,7 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lookup '%s'\n", value);
+		opbx_log(OPBX_LOG_WARNING, "Unable to lookup '%s'\n", value);
 		return -1;
 	}
 	return 0;
@@ -291,7 +291,7 @@ int opbx_lookup_iface(char *iface, struct in_addr *address)
 
 	close(mysock);
 	if (res < 0) {
-		opbx_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
 		memcpy((char *)address, (char *)&__ourip, sizeof(__ourip));
 		return -1;
 	} else {
@@ -308,20 +308,20 @@ int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us)
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		opbx_log(LOG_WARNING, "Cannot create socket\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot create socket\n");
 		return -1;
 	}
 	sin.sin_family = AF_INET;
 	sin.sin_port = 5060;
 	sin.sin_addr = *them;
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin))) {
-		opbx_log(LOG_WARNING, "Cannot connect\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot connect\n");
 		close(s);
 		return -1;
 	}
 	slen = sizeof(sin);
 	if (getsockname(s, (struct sockaddr *)&sin, &slen)) {
-		opbx_log(LOG_WARNING, "Cannot get socket name\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot get socket name\n");
 		close(s);
 		return -1;
 	}
@@ -344,7 +344,7 @@ int opbx_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	}
 	/* try to use our hostname */
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
-		opbx_log(LOG_WARNING, "Unable to get hostname\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to get hostname\n");
 	} else {
 		hp = opbx_gethostbyname(ourhost, &ahp);
 		if (hp) {

@@ -390,11 +390,11 @@ int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 	printf("opbx_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #else
-	opbx_log(LOG_WARNING,"opbx_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
+	opbx_log(OPBX_LOG_WARNING,"opbx_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
+	opbx_log(OPBX_LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
 #endif
 	free(s2);
 	return(0);

@@ -228,7 +228,7 @@ static inline void opbx_module_user_add(struct modinfo *modinfo, struct opbx_cha
  */
 #define LOCAL_USER_ADD(u) { \
 	if (!(u = malloc(sizeof(*u)))) { \
-		opbx_log(LOG_WARNING, "Out of memory\n"); \
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n"); \
 		return -1; \
 	} \
 	opbx_module_user_add(get_modinfo(), chan, u); \

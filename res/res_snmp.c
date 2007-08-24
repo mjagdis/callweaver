@@ -47,7 +47,7 @@ static int load_config(void)
 	res_snmp_agentx_subagent = 1;
 	cfg = opbx_config_load("res_snmp.conf");
 	if (!cfg) {
-		opbx_log(LOG_WARNING, "Could not load res_snmp.conf\n");
+		opbx_log(OPBX_LOG_WARNING, "Could not load res_snmp.conf\n");
 		return 0;
 	}
 	cat = opbx_category_browse(cfg, NULL);
@@ -62,21 +62,21 @@ static int load_config(void)
 					else if (opbx_false(var->value))
 						res_snmp_agentx_subagent = 0;
 					else {
-						opbx_log(LOG_ERROR, "Value '%s' does not evaluate to true or false.\n", var->value);
+						opbx_log(OPBX_LOG_ERROR, "Value '%s' does not evaluate to true or false.\n", var->value);
 						opbx_config_destroy(cfg);
 						return 1;
 					}
 				} else if (strcasecmp(var->name, "enabled") == 0) {
 					res_snmp_enabled = opbx_true(var->value);
 				} else {
-					opbx_log(LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n", var->name, cat);
+					opbx_log(OPBX_LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n", var->name, cat);
 					opbx_config_destroy(cfg);
 					return 1;
 				}
 				var = var->next;
 			}
 		} else {
-			opbx_log(LOG_ERROR, "Unrecognized category '%s'\n", cat);
+			opbx_log(OPBX_LOG_ERROR, "Unrecognized category '%s'\n", cat);
 			opbx_config_destroy(cfg);
 			return 1;
 		}

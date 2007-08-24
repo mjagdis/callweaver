@@ -35,6 +35,16 @@
 extern "C" {
 #endif
 
+typedef enum {
+	__OPBX_LOG_DEBUG   = 0,
+	__OPBX_LOG_EVENT   = 1,
+	__OPBX_LOG_NOTICE  = 2,
+	__OPBX_LOG_WARNING = 3,
+	__OPBX_LOG_ERROR   = 4,
+	__OPBX_LOG_VERBOSE = 5,
+	__OPBX_LOG_DTMF    = 6
+} opbx_log_level;
+
 #define EVENTLOG "event_log"
 
 #define DEBUG_M(a) { \
@@ -44,7 +54,7 @@ extern "C" {
 /*! Used for sending a log message */
 /*!
 	\brief This is the standard logger function.  Probably the only way you will invoke it would be something like this:
-	opbx_log(LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
+	opbx_log(OPBX_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
 	where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending
 	on which log you wish to output to. These are implemented as macros, that
 	will provide the function with the needed arguments.
@@ -55,7 +65,7 @@ extern "C" {
 	\param function	Will be provided by the LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
-extern void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+extern void opbx_log(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
 extern void opbx_backtrace(int levels);
@@ -80,47 +90,13 @@ extern void opbx_console_puts(const char *string);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
-#ifdef LOG_DEBUG
-#undef LOG_DEBUG
-#endif
-#define __LOG_DEBUG    0
-#define LOG_DEBUG      __LOG_DEBUG, _A_
-
-#ifdef LOG_EVENT
-#undef LOG_EVENT
-#endif
-#define __LOG_EVENT    1
-#define LOG_EVENT      __LOG_EVENT, _A_
-
-#ifdef LOG_NOTICE
-#undef LOG_NOTICE
-#endif
-#define __LOG_NOTICE   2
-#define LOG_NOTICE     __LOG_NOTICE, _A_
-
-#ifdef LOG_WARNING
-#undef LOG_WARNING
-#endif
-#define __LOG_WARNING  3
-#define LOG_WARNING    __LOG_WARNING, _A_
-
-#ifdef LOG_ERROR
-#undef LOG_ERROR
-#endif
-#define __LOG_ERROR    4
-#define LOG_ERROR      __LOG_ERROR, _A_
-
-#ifdef LOG_VERBOSE
-#undef LOG_VERBOSE
-#endif
-#define __LOG_VERBOSE  5
-#define LOG_VERBOSE    __LOG_VERBOSE, _A_
-
-#ifdef LOG_DTMF
-#undef LOG_DTMF
-#endif
-#define __LOG_DTMF  6
-#define LOG_DTMF    __LOG_DTMF, _A_
+#define OPBX_LOG_DEBUG      __OPBX_LOG_DEBUG,   _A_
+#define OPBX_LOG_EVENT      __OPBX_LOG_EVENT,   _A_
+#define OPBX_LOG_NOTICE     __OPBX_LOG_NOTICE,  _A_
+#define OPBX_LOG_WARNING    __OPBX_LOG_WARNING, _A_
+#define OPBX_LOG_ERROR      __OPBX_LOG_ERROR,   _A_
+#define OPBX_LOG_VERBOSE    __OPBX_LOG_VERBOSE, _A_
+#define OPBX_LOG_DTMF       __OPBX_LOG_DTMF,    _A_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

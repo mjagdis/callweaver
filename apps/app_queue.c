@@ -510,7 +510,7 @@ static void *changethread(void *data)
         return NULL;
     }
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
+        opbx_log(OPBX_LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
     opbx_mutex_lock(&qlock);
     for (q = queues; q; q = q->next)
     {
@@ -564,7 +564,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if (opbx_pthread_create(&t, &attr, changethread, sc))
         {
-            opbx_log(LOG_WARNING, "Failed to create update thread!\n");
+            opbx_log(OPBX_LOG_WARNING, "Failed to create update thread!\n");
             free(sc);
         }
     }
@@ -584,7 +584,7 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
         cur->paused = paused;
         opbx_copy_string(cur->interface, interface, sizeof(cur->interface));
         if (!strchr(cur->interface, '/'))
-            opbx_log(LOG_WARNING, "No location at interface '%s'\n", interface);
+            opbx_log(OPBX_LOG_WARNING, "No location at interface '%s'\n", interface);
         cur->status = opbx_device_state(interface);
         cur->added = time(NULL);
     }
@@ -734,13 +734,13 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
         {
             if (linenum >= 0)
             {
-                opbx_log(LOG_WARNING, "'%s' isn't a valid value for %s "
+                opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid value for %s "
                          "using 0 instead for queue '%s' at line %d of queues.conf\n",
                          val, param, q->name, linenum);
             }
             else
             {
-                opbx_log(LOG_WARNING, "'%s' isn't a valid value for %s "
+                opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid value for %s "
                          "using 0 instead for queue '%s'\n", val, param, q->name);
             }
             q->roundingseconds=0;
@@ -788,7 +788,7 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
         q->strategy = strat2int(val);
         if (q->strategy < 0)
         {
-            opbx_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+            opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
                      val, q->name);
             q->strategy = 0;
         }
@@ -843,12 +843,12 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     {
         if (linenum >= 0)
         {
-            opbx_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
+            opbx_log(OPBX_LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
                      q->name, param, linenum);
         }
         else
         {
-            opbx_log(LOG_WARNING, "Unknown keyword in queue '%s': %s\n", q->name, param);
+            opbx_log(OPBX_LOG_WARNING, "Unknown keyword in queue '%s': %s\n", q->name, param);
         }
     }
 }
@@ -954,7 +954,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
             /*! \note Hmm, can't seem to distinguish a DB failure from a not
                found condition... So we might delete an in-core queue
                in case of DB failure. */
-            opbx_log(LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
+            opbx_log(OPBX_LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
 
             q->dead = 1;
             /* Delete if unused (else will be deleted when last caller leaves). */
@@ -1077,7 +1077,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
         member_config = opbx_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
         if (!member_config)
         {
-            opbx_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
+            opbx_log(OPBX_LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
             return res;
         }
     }
@@ -1141,7 +1141,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
                       qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
                       q->name, qe->pos, q->count );
 #if 0
-        opbx_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
+        opbx_log(OPBX_LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
 
     }
@@ -1425,7 +1425,7 @@ static void leave_queue(struct queue_ent *qe)
                           "Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
                           qe->chan->name, q->name,  q->count);
 #if 0
-            opbx_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
+            opbx_log(OPBX_LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 #endif
             /* Take us out of the queue */
             if (prev)
@@ -1534,10 +1534,10 @@ static int compare_weight(struct opbx_call_queue *rq, struct member *member)
             {
                 if (!strcmp(mem->interface, member->interface))
                 {
-                    opbx_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
+                    opbx_log(OPBX_LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
                     if (q->weight > rq->weight)
                     {
-                        opbx_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
+                        opbx_log(OPBX_LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
                         found = 1;
                         break;
                     }
@@ -1561,7 +1561,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
+            opbx_log(OPBX_LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
         if (qe->chan->cdr)
             opbx_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
@@ -1572,7 +1572,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     if (tmp->member->paused)
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "%s paused, can't receive call\n", tmp->interface);
+            opbx_log(OPBX_LOG_DEBUG, "%s paused, can't receive call\n", tmp->interface);
         if (qe->chan->cdr)
             opbx_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
@@ -1580,7 +1580,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     }
     if (use_weight && compare_weight(qe->parent,tmp->member))
     {
-        opbx_log(LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
+        opbx_log(OPBX_LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
         if (qe->chan->cdr)
             opbx_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
@@ -1599,7 +1599,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     if (!tmp->chan)
     {           /* If we can't, just go on to the next call */
 #if 0
-        opbx_log(LOG_NOTICE, "Unable to create channel of type '%s' for Queue\n", cur->tech);
+        opbx_log(OPBX_LOG_NOTICE, "Unable to create channel of type '%s' for Queue\n", cur->tech);
 #endif
 
         if (qe->chan->cdr)
@@ -1647,7 +1647,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     {
         /* Again, keep going even if there's an error */
         if (option_debug)
-            opbx_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
+            opbx_log(OPBX_LOG_DEBUG, "ast call on peer returned %d\n", res);
         else if (option_verbose > 2)
             opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
         opbx_hangup(tmp->chan);
@@ -1711,7 +1711,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
                     if (cur->stillgoing && !cur->chan && (cur->metric <= bestmetric))
                     {
                         if (option_debug)
-                            opbx_log(LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
+                            opbx_log(OPBX_LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
                         ring_entry(qe, cur, busies);
                     }
                     cur = cur->next;
@@ -1721,7 +1721,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
             {
                 /* Ring just the best channel */
                 if (option_debug)
-                    opbx_log(LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
+                    opbx_log(OPBX_LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
                 ring_entry(qe, best, busies);
             }
         }
@@ -1730,7 +1730,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
     if (!best)
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
+            opbx_log(OPBX_LOG_DEBUG, "Nobody left to try ringing in queue\n");
         return 0;
     }
     return 1;
@@ -1759,7 +1759,7 @@ static int store_next(struct queue_ent *qe, struct outchan *outgoing)
     {
         /* Ring just the best channel */
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Next is '%s' with metric %d\n", best->interface, best->metric);
+            opbx_log(OPBX_LOG_DEBUG, "Next is '%s' with metric %d\n", best->interface, best->metric);
         qe->parent->rrpos = best->metric % 1000;
     }
     else
@@ -1803,7 +1803,7 @@ static int background_file(struct queue_ent *qe, struct opbx_channel *chan, char
     }
 
     /*if (res) {
-       opbx_log(LOG_WARNING, "opbx_streamfile failed on %s \n", chan->name);
+       opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s \n", chan->name);
        res = 0;
     }*/
 
@@ -1903,13 +1903,13 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
         {
             if (numlines == (numbusies + numnochan))
             {
-                opbx_log(LOG_DEBUG, "Everyone is busy at this time\n");
+                opbx_log(OPBX_LOG_DEBUG, "Everyone is busy at this time\n");
                 /* Make sure it doesn't loop too fast */
                 usleep(1000000);
             }
             else
             {
-                opbx_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
+                opbx_log(OPBX_LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
             }
             *to = 0;
             return NULL;
@@ -1956,7 +1956,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                         update_dial_status(qe->parent, o->member, status);
                     if (!o->chan)
                     {
-                        opbx_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+                        opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
                         o->stillgoing = 0;
                         numnochan++;
                     }
@@ -1974,13 +1974,13 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                         {
                             o->chan->cid.cid_num = strdup(in->cid.cid_num);
                             if (!o->chan->cid.cid_num)
-                                opbx_log(LOG_WARNING, "Out of memory\n");
+                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                         }
                         if (in->cid.cid_name)
                         {
                             o->chan->cid.cid_name = strdup(in->cid.cid_name);
                             if (!o->chan->cid.cid_name)
-                                opbx_log(LOG_WARNING, "Out of memory\n");
+                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                         }
                         opbx_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
                         o->chan->cdrflags = in->cdrflags;
@@ -1993,7 +1993,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             if (o->chan->cid.cid_ani)
                                 strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
                             else
-                                opbx_log(LOG_WARNING, "Out of memory\n");
+                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                         }
                         if (o->chan->cid.cid_rdnis)
                             free(o->chan->cid.cid_rdnis);
@@ -2003,7 +2003,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             o->chan->cid.cid_rdnis = strdup(in->exten);
                         if (opbx_call(o->chan, tmpchan, 0))
                         {
-                            opbx_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+                            opbx_log(OPBX_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
                             o->stillgoing = 0;
                             opbx_hangup(o->chan);
                             o->chan = NULL;
@@ -2078,7 +2078,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             /* Ignore going off hook */
                             break;
                         default:
-                            opbx_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+                            opbx_log(OPBX_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
                         }
                     }
                     opbx_fr_free(f);
@@ -2169,7 +2169,7 @@ static int is_our_turn(struct queue_ent *qe)
        if (found !=1)
        {
            if (option_debug)
-               opbx_log(LOG_DEBUG, "Not any available agent .\n");
+               opbx_log(OPBX_LOG_DEBUG, "Not any available agent .\n");
            return 0;
        }
     */
@@ -2183,7 +2183,7 @@ static int is_our_turn(struct queue_ent *qe)
         qe->trying_agent = 1;
         res = 1;
         if (option_debug)
-            opbx_log(LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
+            opbx_log(OPBX_LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
     }
     else
     {
@@ -2200,14 +2200,14 @@ static int is_our_turn(struct queue_ent *qe)
         {
             qe->trying_agent = 1;
             if (option_debug)
-                opbx_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+                opbx_log(OPBX_LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
             res = 1;
         }
         else
         {
             qe->trying_agent = 0;
             if (option_debug)
-                opbx_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+                opbx_log(OPBX_LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
             res = 0;
         }
     }
@@ -2354,7 +2354,7 @@ static int calc_metric(struct opbx_call_queue *q, struct member *mem, int pos, s
         tmp->metric += mem->penalty * 1000000;
         break;
     default:
-        opbx_log(LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
+        opbx_log(OPBX_LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
         break;
     }
     return 0;
@@ -2426,7 +2426,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
     opbx_mutex_lock(&qe->parent->lock);
     if (option_debug)
     {
-        opbx_log(LOG_DEBUG, "%s is trying to call a queue member.\n",
+        opbx_log(OPBX_LOG_DEBUG, "%s is trying to call a queue member.\n",
                  qe->chan->name);
     }
     opbx_copy_string(queuename, qe->parent->name, sizeof(queuename));
@@ -2444,7 +2444,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             opbx_mutex_unlock(&qe->parent->lock);
             if (use_weight)
                 opbx_mutex_unlock(&qlock);
-            opbx_log(LOG_WARNING, "Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
             goto out;
         }
         memset(tmp, 0, sizeof(*tmp));
@@ -2452,9 +2452,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         if (option_debug)
         {
             if (url)
-                opbx_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
+                opbx_log(OPBX_LOG_DEBUG, "Queue with URL=%s_\n", url);
             else
-                opbx_log(LOG_DEBUG, "Simple queue (no URL)\n");
+                opbx_log(OPBX_LOG_DEBUG, "Simple queue (no URL)\n");
         }
 
         tmp->member = cur;      /* Never directly dereference!  Could change on reload */
@@ -2468,7 +2468,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit) - 1);
             snprintf(newnum, sizeof(tmp->interface) - (newnum - tmp->interface), "%s%s", qe->chan->exten, restofit);
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Dialing by extension %s\n", tmp->interface);
+                opbx_log(OPBX_LOG_DEBUG, "Dialing by extension %s\n", tmp->interface);
         }
         /* Special case: If we ring everyone, go ahead and ring them, otherwise
            just calculate their metric for the appropriate strategy */
@@ -2514,7 +2514,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             res = digit;
         }
         if (option_debug)
-            opbx_log(LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
+            opbx_log(OPBX_LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
         goto out;
     }
     if (peer)
@@ -2541,13 +2541,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             {
                 if (qe->parent->memberdelay)
                 {
-                    opbx_log(LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
+                    opbx_log(OPBX_LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
                     res2 |= opbx_safe_sleep(peer, qe->parent->memberdelay * 1000);
                 }
                 if (!res2 && announce)
                 {
                     if (play_file(peer, announce))
-                        opbx_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
+                        opbx_log(OPBX_LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
                 }
                 if (!res2 && qe->parent->reportholdtime)
                 {
@@ -2574,7 +2574,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             if (peer->_softhangup)
             {
                 /* Agent must have hung up */
-                opbx_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
+                opbx_log(OPBX_LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
                 opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
                 record_abandoned(qe);
                 if (qe->parent->eventwhencalled)
@@ -2592,7 +2592,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             else if (res2)
             {
                 /* Caller must have hung up just before being connected*/
-                opbx_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
+                opbx_log(OPBX_LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
                 opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
                 record_abandoned(qe);
                 opbx_hangup(peer);
@@ -2609,7 +2609,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         if (res < 0)
         {
             opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
-            opbx_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
+            opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
             record_abandoned(qe);
             opbx_hangup(peer);
             return -1;
@@ -2641,7 +2641,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         if (!opbx_strlen_zero(url) && opbx_channel_supports_html(peer))
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
+                opbx_log(OPBX_LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
             opbx_channel_sendurl(peer, url);
         }
         opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
@@ -2763,7 +2763,7 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
                        cur_member->next ? "," : "");
         if (res != strlen(value + value_len))
         {
-            opbx_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
+            opbx_log(OPBX_LOG_WARNING, "Could not create persistent member string, out of space\n");
             break;
         }
         value_len += res;
@@ -2772,7 +2772,7 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
     if (value_len && !cur_member)
     {
         if (opbx_db_put(pm_family, pm_queue->name, value))
-            opbx_log(LOG_WARNING, "failed to create persistent dynamic entry!\n");
+            opbx_log(OPBX_LOG_WARNING, "failed to create persistent dynamic entry!\n");
     }
     else
     {
@@ -2914,7 +2914,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
             {
                 found++;
                 if (mem->paused == paused)
-                    opbx_log(LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
+                    opbx_log(OPBX_LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
                 mem->paused = paused;
 
                 if (queue_persistent_members)
@@ -2999,34 +2999,34 @@ static void reload_queue_members(void)
 
             if (!penalty_tok)
             {
-                opbx_log(LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
+                opbx_log(OPBX_LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
                 break;
             }
             penalty = strtol(penalty_tok, NULL, 10);
             if (errno == ERANGE)
             {
-                opbx_log(LOG_WARNING, "Error converting penalty: %s: Out of range.\n", penalty_tok);
+                opbx_log(OPBX_LOG_WARNING, "Error converting penalty: %s: Out of range.\n", penalty_tok);
                 break;
             }
 
             if (!paused_tok)
             {
-                opbx_log(LOG_WARNING, "Error parsing persistent member string for '%s' (paused)\n", queue_name);
+                opbx_log(OPBX_LOG_WARNING, "Error parsing persistent member string for '%s' (paused)\n", queue_name);
                 break;
             }
             paused = strtol(paused_tok, NULL, 10);
             if ((errno == ERANGE) || paused < 0 || paused > 1)
             {
-                opbx_log(LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", paused_tok);
+                opbx_log(OPBX_LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", paused_tok);
                 break;
             }
 
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", queue_name, interface, penalty, paused);
+                opbx_log(OPBX_LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", queue_name, interface, penalty, paused);
 
             if (add_to_queue(queue_name, interface, penalty, paused, 0) == RES_OUTOFMEMORY)
             {
-                opbx_log(LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
+                opbx_log(OPBX_LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
                 break;
             }
         }
@@ -3035,7 +3035,7 @@ static void reload_queue_members(void)
     opbx_mutex_unlock(&qlock);
     if (db_tree)
     {
-        opbx_log(LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
+        opbx_log(OPBX_LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
         opbx_db_freetree(db_tree);
     }
 }
@@ -3058,7 +3058,7 @@ static int pqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
 
     if (set_member_paused(argv[0], argv[1], 1))
     {
-        opbx_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", argv[1]);
+        opbx_log(OPBX_LOG_WARNING, "Attempt to pause interface %s, not found\n", argv[1]);
         if (priority_jump || option_priority_jumping)
         {
             if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
@@ -3096,7 +3096,7 @@ static int upqm_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 
     if (set_member_paused(argv[0], argv[1], 0))
     {
-        opbx_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", argv[1]);
+        opbx_log(OPBX_LOG_WARNING, "Attempt to unpause interface %s, not found\n", argv[1]);
         if (priority_jump || option_priority_jumping)
         {
             if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
@@ -3145,24 +3145,24 @@ static int rqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     switch (remove_from_queue(argv[0], argv[1], &added))
     {
     case RES_OKAY:
-        opbx_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", argv[1], argv[0]);
+        opbx_log(OPBX_LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", argv[1], argv[0]);
         opbx_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGOFF", "%s|%ld", argv[1], time(NULL) - added);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
         res = 0;
         break;
     case RES_EXISTS:
-        opbx_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", argv[1], argv[0]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", argv[1], argv[0]);
         opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
         res = 0;
         break;
     case RES_NOSUCHQUEUE:
-        opbx_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", argv[0]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", argv[0]);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOSUCHQUEUE");
         res = 0;
         break;
     case RES_OUTOFMEMORY:
-        opbx_log(LOG_ERROR, "Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
         break;
     }
 
@@ -3203,25 +3203,25 @@ static int aqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     switch (add_to_queue(argv[0], argv[1], penalty, 0, queue_persistent_members))
     {
     case RES_OKAY:
-        opbx_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", argv[1], argv[0]);
+        opbx_log(OPBX_LOG_NOTICE, "Added interface '%s' to queue '%s'\n", argv[1], argv[0]);
         opbx_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGIN", "%s", argv[1]);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "ADDED");
         res = 0;
         break;
     case RES_EXISTS:
-        opbx_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", argv[1], argv[0]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", argv[1], argv[0]);
         if (priority_jump || option_priority_jumping) 
             opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "MEMBERALREADY");
         res = 0;
         break;
     case RES_NOSUCHQUEUE:
-        opbx_log(LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", argv[0]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", argv[0]);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "NOSUCHQUEUE");
         res = 0;
         break;
     case RES_OUTOFMEMORY:
-        opbx_log(LOG_ERROR, "Out of memory adding member %s to queue %s\n", argv[1], argv[0]);
+        opbx_log(OPBX_LOG_ERROR, "Out of memory adding member %s to queue %s\n", argv[1], argv[0]);
         break;
     }
 
@@ -3263,12 +3263,12 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         if (sscanf(user_priority, "%d", &prio) == 1)
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
+                opbx_log(OPBX_LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
                     chan->name, prio);
         }
         else
         {
-            opbx_log(LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
+            opbx_log(OPBX_LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
                 user_priority, chan->name);
             prio = 0;
         }
@@ -3276,7 +3276,7 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     else
     {
         if (option_debug > 2)
-            opbx_log(LOG_DEBUG, "NO QUEUE_PRIO variable found. Using default.\n");
+            opbx_log(OPBX_LOG_DEBUG, "NO QUEUE_PRIO variable found. Using default.\n");
         prio = 0;
     }
 
@@ -3284,7 +3284,7 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         ringing = 1;
 
     if (option_debug)  
-        opbx_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
+        opbx_log(OPBX_LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
             argv[0], argv[1], argv[2], argv[3], (long)qe.expire, (int)prio);
 
     qe.chan = chan;
@@ -3466,7 +3466,7 @@ check_turns:
                 if (!is_our_turn(&qe))
                 {
                     if (option_debug)
-                        opbx_log(LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
+                        opbx_log(OPBX_LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
                                 qe.chan->name);
                     goto check_turns;
                 }
@@ -3493,7 +3493,7 @@ check_turns:
     }
     else
     {
-        opbx_log(LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], reason);
+        opbx_log(OPBX_LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], reason);
         set_queue_result(chan, reason);
         res = 0;
     }
@@ -3562,7 +3562,7 @@ static void reload_queues(void)
     cfg = opbx_config_load("queues.conf");
     if (!cfg)
     {
-        opbx_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
+        opbx_log(OPBX_LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
         return;
     }
     memset(interface, 0, sizeof(interface));
@@ -3682,7 +3682,7 @@ static void reload_queues(void)
                 free(q);
             }
             else
-                opbx_log(LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
+                opbx_log(OPBX_LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
         }
         else
         {

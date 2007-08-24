@@ -90,10 +90,10 @@ static int system_exec_helper(struct opbx_channel *chan, int argc, char **argv)
 	/* Do our thing here */
 	res = opbx_safe_system(argv[0]);
 	if ((res < 0) && (errno != ECHILD)) {
-		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 	} else if (res == 127) {
-		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 	} else {
 		if (res < 0) 
@@ -117,7 +117,7 @@ static int system_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 
 static int trysystem_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	opbx_log(LOG_WARNING, "TrySystem is depricated. Please use System - it's the same thing!");
+	opbx_log(OPBX_LOG_WARNING, "TrySystem is depricated. Please use System - it's the same thing!");
 	return system_exec_helper(chan, argc, argv);
 }
 

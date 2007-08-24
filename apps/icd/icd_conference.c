@@ -70,7 +70,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 	if (count > 1000) {
 		struct opbx_frame *freef, *headf;
 
-		opbx_log(LOG_ERROR, "Too Many frames queued at once, flushing cache.\n");
+		opbx_log(OPBX_LOG_ERROR, "Too Many frames queued at once, flushing cache.\n");
 		headf = spy->queue[pos];
 		/* deref the queue right away so it looks empty */
 		spy->queue[pos] = NULL;
@@ -105,7 +105,7 @@ static int careful_write(int fd, unsigned char *data, int len)
         res = write(fd, data, len);
         if (res < 1) {
             if (errno != EAGAIN) {
-                opbx_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
                 return -1;
             } else
                 return 0;
@@ -126,7 +126,7 @@ static int activate_conference(int fd, int confno, int flags)
     ztc.confmode = flags;
 
     if (ioctl(fd, ZT_SETCONF, &ztc)) {
-        opbx_log(LOG_WARNING, "Error setting conference\n");
+        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
         close(fd);
         return 0;
     }
@@ -142,7 +142,7 @@ static int wipe_conference(int fd)
     ztc.confno = 0;
     ztc.confmode = 0;
     if (ioctl(fd, ZT_SETCONF, &ztc)) {
-        opbx_log(LOG_WARNING, "Error setting conference\n");
+        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
         return 0;
     }
     return 1;
@@ -177,21 +177,21 @@ static int open_pseudo_zap()
     int fd = 0, flags = 0;
     ZT_BUFFERINFO bi;
 
-    opbx_log(LOG_WARNING, "gonna open pseudo channel:\n");
+    opbx_log(OPBX_LOG_WARNING, "gonna open pseudo channel:\n");
     fd = open("/dev/zap/pseudo", O_RDWR);
     if (fd < 0) {
-        opbx_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
         return 0;
     }
     /* Make non-blocking */
     flags = fcntl(fd, F_GETFL);
     if (flags < 0) {
-        opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
         close(fd);
         return 0;
     }
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-        opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
         close(fd);
         return 0;
     }
@@ -202,7 +202,7 @@ static int open_pseudo_zap()
     bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
     bi.numbufs = 4;
     if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
-        opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
         close(fd);
         return 0;
     }
@@ -269,7 +269,7 @@ icd_conference *icd_conference__new(char *name)
     new->is_agent_conf = 0;
     new->fd = open("/dev/zap/pseudo", O_RDWR);
     if (new->fd < 0) {
-        opbx_log(LOG_WARNING, "Unable to open pseudo channel\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel\n");
         ICD_STD_FREE(new);
         new = NULL;
     } else {
@@ -278,7 +278,7 @@ icd_conference *icd_conference__new(char *name)
         new->ztc.confno = -1;
         new->ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
         if (ioctl(new->fd, ZT_SETCONF, &new->ztc)) {
-            opbx_log(LOG_WARNING, "Error setting conference\n");
+            opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
             close(new->fd);
             ICD_STD_FREE(new);
             new = NULL;
@@ -308,7 +308,7 @@ icd_status icd_conference__clear(icd_caller * that)
 
     if (conf) {
         if (conf->owner && (conf->owner == that)) {
-            opbx_log(LOG_NOTICE, "Goodbye Conf %d\n", conf->ztc.confno);
+            opbx_log(OPBX_LOG_NOTICE, "Goodbye Conf %d\n", conf->ztc.confno);
             close(conf->fd);
             ICD_STD_FREE(conf);
             conf = NULL;
@@ -332,7 +332,7 @@ icd_status icd_conference__associate(icd_caller * that, icd_conference * conf, i
 
     if (owner) {
         if (conf->owner) {
-            opbx_log(LOG_WARNING, "Error setting conference owner, one already exists...\n");
+            opbx_log(OPBX_LOG_WARNING, "Error setting conference owner, one already exists...\n");
         } else {
             conf->owner = that;
             conf->is_agent_conf = 1;
@@ -366,7 +366,7 @@ icd_status icd_conference__join(icd_caller * that)
     chan = that->chan;
 
     if (!conf || !chan || !conf->ztc.confno) {
-        opbx_log(LOG_ERROR, "Invalid conference....\n");
+        opbx_log(OPBX_LOG_ERROR, "Invalid conference....\n");
         if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
 	}
@@ -380,7 +380,7 @@ icd_status icd_conference__join(icd_caller * that)
 
     /* Set it into linear mode (write) */
     if (opbx_set_write_format(chan, icd_conf_format) < 0) {
-        opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
@@ -399,12 +399,12 @@ icd_status icd_conference__join(icd_caller * that)
 	else {
 	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 	}
-        opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
     }
 
-    opbx_log(LOG_NOTICE, "Joining conference....%d\n", conf->ztc.confno);
+    opbx_log(OPBX_LOG_NOTICE, "Joining conference....%d\n", conf->ztc.confno);
 
     origfd = chan->fds[0];
 
@@ -415,7 +415,7 @@ icd_status icd_conference__join(icd_caller * that)
         if (strcasecmp(chan->type, "Zap")) {
             fd = open_pseudo_zap();
             if (!fd) {
-                opbx_log(LOG_ERROR, "Can't create pseudo channel...\n");
+                opbx_log(OPBX_LOG_ERROR, "Can't create pseudo channel...\n");
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
 		}
@@ -429,7 +429,7 @@ icd_status icd_conference__join(icd_caller * that)
             /* Make non-blocking */
             flags = fcntl(fd, F_GETFL);
             if (flags < 0) {
-                opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
@@ -440,7 +440,7 @@ icd_status icd_conference__join(icd_caller * that)
                 return ICD_STDERR;
             }
             if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-                opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
@@ -457,7 +457,7 @@ icd_status icd_conference__join(icd_caller * that)
             bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
             bi.numbufs = 4;
             if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
-                opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
@@ -469,7 +469,7 @@ icd_status icd_conference__join(icd_caller * that)
             }
 
             if (ioctl(fd, ZT_SETLINEAR, &x)) {
-                opbx_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
@@ -507,7 +507,7 @@ icd_status icd_conference__join(icd_caller * that)
 //PF Once more linear format
     /* Set it into linear mode (write) */
     if (opbx_set_write_format(chan, icd_conf_format) < 0) {
-        opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         if (pseudo_fd) close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
@@ -521,7 +521,7 @@ icd_status icd_conference__join(icd_caller * that)
 
     /* Set it into linear mode (read) */
     if (opbx_set_read_format(chan, icd_conf_format) < 0) {
-        opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
+        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         if (pseudo_fd) close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
@@ -573,17 +573,17 @@ icd_status icd_conference__join(icd_caller * that)
                 flags = (flags == CONF_MODE_MUTE) ? CONF_MODE_REGULAR : CONF_MODE_MUTE;
                 activate_conference(fd, confno, flags);
             } else if ((read_frame->frametype == OPBX_FRAME_DTMF)) {     /* infomative echo */
-                opbx_log(LOG_NOTICE, "%d->[%c]\n", read_frame->frametype, read_frame->subclass);
+                opbx_log(OPBX_LOG_NOTICE, "%d->[%c]\n", read_frame->frametype, read_frame->subclass);
             } else if (fd != chan->fds[0]) {
                 if (read_frame->frametype == OPBX_FRAME_VOICE) {
                     if (read_frame->subclass == icd_conf_format) {
                         /* Carefully write */
                    if (icd_debug)
-                        opbx_log(LOG_DEBUG, "ICD Write voice frame from channel[%s] to fd[%d] len[%d]\n", active_channel->name, fd, read_frame->datalen); 
+                        opbx_log(OPBX_LOG_DEBUG, "ICD Write voice frame from channel[%s] to fd[%d] len[%d]\n", active_channel->name, fd, read_frame->datalen); 
 			  
                         careful_write(fd, read_frame->data, read_frame->datalen);
                     } else
-                        opbx_log(LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n",
+                        opbx_log(OPBX_LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n",
                             read_frame->subclass);
                 }
             }
@@ -600,13 +600,13 @@ icd_status icd_conference__join(icd_caller * that)
                 write_frame.offset = OPBX_FRIENDLY_OFFSET;
                 if (opbx_write(chan, &write_frame) < 0)
                 {
-                    opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+                    opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                     /* break; */
                 }
             }
             else
             {
-                opbx_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
             }
         }
 
@@ -641,7 +641,7 @@ icd_status icd_conference__join(icd_caller * that)
             	usleep(100000);
             }
             if(tstep >= maxsteps){
-                opbx_log(LOG_WARNING, "This is not supposed to happen. Conference owner name[%s] callerid[%s] leaves before members waiting over 10s for members lo leave.\n", 
+                opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen. Conference owner name[%s] callerid[%s] leaves before members waiting over 10s for members lo leave.\n", 
                 icd_caller__get_name(that), icd_caller__get_caller_id(that));
             	icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_CALL_END);
             	usleep(100000);

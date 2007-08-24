@@ -80,7 +80,7 @@ static const char tdesc[] = "Loopback Switch";
 	char *newpattern=NULL; \
 	loopback_helper(buf, sizeof(buf), exten, context, priority, data); \
 	loopback_subst(&newexten, &newcontext, &newpriority, &newpattern, buf); \
-	opbx_log(LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
+	opbx_log(OPBX_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
 	if (!strcasecmp(newcontext, context)) return -1
 
 

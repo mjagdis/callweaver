@@ -79,7 +79,7 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 		return opbx_function_syntax(timeout_func_syntax);
 
         if (!chan) {
-                opbx_log(LOG_ERROR, "No channel! Timeout only works on channels\n");
+                opbx_log(OPBX_LOG_ERROR, "No channel! Timeout only works on channels\n");
                 return -1;
         }
 

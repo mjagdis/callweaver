@@ -72,12 +72,12 @@ static int userevent_exec(struct opbx_channel *chan, int argc, char **argv, char
 	snprintf(eventname, sizeof(eventname), "UserEvent%s", argv[0]);
 
 	if (argc > 1 && argv[1][0]) {
-            opbx_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, argv[1]);
+            opbx_log(OPBX_LOG_DEBUG, "Sending user event: %s, %s\n", eventname, argv[1]);
             manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n%s\r\n",
 			chan->name, chan->uniqueid, argv[1]);
 	} else {
-            opbx_log(LOG_DEBUG, "Sending user event: %s\n", eventname);
+            opbx_log(OPBX_LOG_DEBUG, "Sending user event: %s\n", eventname);
             manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n", chan->name, chan->uniqueid);
 	}

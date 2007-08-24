@@ -128,7 +128,7 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	}
 
 	if (depth >= 7) {
-		opbx_log(LOG_ERROR, "Proc():  possible infinite loop detected.  Returning early.\n");
+		opbx_log(OPBX_LOG_ERROR, "Proc():  possible infinite loop detected.  Returning early.\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -137,16 +137,16 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 
 	proc = argv[0];
 	if (opbx_strlen_zero(proc)) {
-		opbx_log(LOG_WARNING, "Invalid proc name specified\n");
+		opbx_log(OPBX_LOG_WARNING, "Invalid proc name specified\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	snprintf(fullproc, sizeof(fullproc), "proc-%s", proc);
 	if (!opbx_exists_extension(chan, fullproc, "s", 1, chan->cid.cid_num)) {
   		if (!opbx_context_find(fullproc)) 
-			opbx_log(LOG_WARNING, "No such context '%s' for proc '%s'\n", fullproc, proc);
+			opbx_log(OPBX_LOG_WARNING, "No such context '%s' for proc '%s'\n", fullproc, proc);
 		else
-	  		opbx_log(LOG_WARNING, "Context '%s' for proc '%s' lacks 's' extension, priority 1\n", fullproc, proc);
+	  		opbx_log(OPBX_LOG_WARNING, "Context '%s' for proc '%s' lacks 's' extension, priority 1\n", fullproc, proc);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -208,7 +208,7 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 		    	(res == '*') || (res == '#')) {
 				/* Just return result as to the previous application as if it had been dialed */
-				opbx_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+				opbx_log(OPBX_LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 				break;
 			}
 			switch(res) {
@@ -217,14 +217,14 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 				goto out;
 			case OPBX_PBX_KEEPALIVE:
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in proc %s on '%s'\n", chan->context, chan->exten, chan->priority, proc, chan->name);
+					opbx_log(OPBX_LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in proc %s on '%s'\n", chan->context, chan->exten, chan->priority, proc, chan->name);
 				if (option_verbose > 1)
 					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in proc '%s' on '%s'\n", chan->context, chan->exten, chan->priority, proc, chan->name);
 				goto out;
 				break;
 			default:
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, proc);
+					opbx_log(OPBX_LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, proc);
 				if (option_verbose > 1)
 					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, proc);
 				goto out;
@@ -237,7 +237,7 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		}
 		/* don't stop executing extensions when we're in "h" */
 		if (chan->_softhangup && strcasecmp(oldexten,"h")) {
-			opbx_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
+			opbx_log(OPBX_LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 				chan->exten, chan->priority);
 			goto out;
 		}

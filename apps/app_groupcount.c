@@ -112,7 +112,7 @@ static int group_count_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int count;
 
 	if (!deprecation_warning) {
-	        opbx_log(LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
+	        opbx_log(OPBX_LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -148,7 +148,7 @@ static int group_match_count_exec(struct opbx_channel *chan, int argc, char **ar
 	int count;
 
 	if (!deprecation_warning) {
-	        opbx_log(LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
+	        opbx_log(OPBX_LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -177,7 +177,7 @@ static int group_set_exec(struct opbx_channel *chan, int argc, char **argv, char
 	int res = 0;
 
 	if (!deprecation_warning) {
-	        opbx_log(LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
+	        opbx_log(OPBX_LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -187,7 +187,7 @@ static int group_set_exec(struct opbx_channel *chan, int argc, char **argv, char
 	LOCAL_USER_ADD(u);
 	
 	if (opbx_app_group_set_channel(chan, argv[0]))
-		opbx_log(LOG_WARNING, "SetGroup requires an argument (group name)\n");
+		opbx_log(OPBX_LOG_WARNING, "SetGroup requires an argument (group name)\n");
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -203,7 +203,7 @@ static int group_check_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int max, count;
 
 	if (!deprecation_warning) {
-	        opbx_log(LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
+	        opbx_log(OPBX_LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -222,7 +222,7 @@ static int group_check_exec(struct opbx_channel *chan, int argc, char **argv, ch
 			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "MAX_EXCEEDED");
 		}
 	} else
-		opbx_log(LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
+		opbx_log(OPBX_LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
 
 	LOCAL_USER_REMOVE(u);
 	return res;

@@ -170,7 +170,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
 	maxdur = (argc > 5 ? atoi(argv[5]) : -1);
 	if (maxdur <= 0) maxdur = -1;
 
-    opbx_log(LOG_DEBUG, "Preparing detect of fax (waitdur=%dms, sildur=%dms, mindur=%dms, maxdur=%dms)\n", 
+    opbx_log(OPBX_LOG_DEBUG, "Preparing detect of fax (waitdur=%dms, sildur=%dms, mindur=%dms, maxdur=%dms)\n", 
                         waitdur, sildur, mindur, maxdur);
                         
     LOCAL_USER_ADD(u);
@@ -183,14 +183,14 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
     {
         origrformat = chan->readformat;
         if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR))) 
-            opbx_log(LOG_WARNING, "Unable to set read format to linear!\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to set read format to linear!\n");
         origwformat = chan->writeformat;
         if ((res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))) 
-            opbx_log(LOG_WARNING, "Unable to set write format to linear!\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to set write format to linear!\n");
     }
     if (!(dsp = opbx_dsp_new()))
     {
-        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
         res = -1;
     }
     
@@ -218,7 +218,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
         else
             res = opbx_playtones_start(chan, 0, tonestr, 0);
         if (res)
-            opbx_log(LOG_NOTICE,"Unable to start playtones\n");
+            opbx_log(OPBX_LOG_NOTICE,"Unable to start playtones\n");
     }
 
     if (!res)
@@ -236,7 +236,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
 
             fr = opbx_read(chan);
             if (!fr) {
-                opbx_log(LOG_DEBUG, "Got hangup\n");
+                opbx_log(OPBX_LOG_DEBUG, "Got hangup\n");
                 res = -1;
                 break;
             }
@@ -244,14 +244,14 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
             /* Check for a T38 switchover */
             if (chan->t38_status == T38_NEGOTIATED  &&  !ignorefax)
             {
-                opbx_log(LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
+                opbx_log(OPBX_LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
                 pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
                 pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
                 if (!ignorejump)
                 {
                     if (strcmp(chan->exten, "fax"))
                     {
-                        opbx_log(LOG_NOTICE, "Redirecting %s to fax extension [T38]\n", chan->name);
+                        opbx_log(OPBX_LOG_NOTICE, "Redirecting %s to fax extension [T38]\n", chan->name);
                         if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD))
                         {
                             /* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
@@ -259,10 +259,10 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                             chan->priority = 0;                                    
                         }
                         else
-                            opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
+                            opbx_log(OPBX_LOG_WARNING, "Fax detected, but no fax extension\n");
                     }
                     else
-                        opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
+                        opbx_log(OPBX_LOG_WARNING, "Already in a fax extension, not redirecting\n");
                 }
                 res = 0;
                 opbx_fr_free(fr);
@@ -273,7 +273,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
             fr2 = opbx_dsp_process(chan, dsp, fr);
             if (!fr2)
             {
-                opbx_log(LOG_WARNING, "Bad DSP received (what happened?)\n");
+                opbx_log(OPBX_LOG_WARNING, "Bad DSP received (what happened?)\n");
                 fr2 = fr;
             } 
 
@@ -282,14 +282,14 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                 if (fr2->subclass == 'f'  &&  !ignorefax)
                 {
                     // Fax tone -- Handle and return NULL 
-                    opbx_log(LOG_DEBUG, "Fax detected on %s\n", chan->name);
+                    opbx_log(OPBX_LOG_DEBUG, "Fax detected on %s\n", chan->name);
                     pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
                     pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
                     if (!ignorejump)
                     {
                         if (strcmp(chan->exten, "fax"))
                         {
-                            opbx_log(LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
+                            opbx_log(OPBX_LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
                             if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD))
                             {
                                 // Save the DID/DNIS when we transfer the fax call to a "fax" extension
@@ -297,10 +297,10 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                                 chan->priority = 0;
                             }
                             else
-                                opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
+                                opbx_log(OPBX_LOG_WARNING, "Fax detected, but no fax extension\n");
                         }
                         else
-                            opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
+                            opbx_log(OPBX_LOG_WARNING, "Already in a fax extension, not redirecting\n");
                     }
                     res = 0;
                     opbx_fr_free(fr);
@@ -312,7 +312,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
 
                     t[0] = fr2->subclass;
                     t[1] = '\0';
-                    opbx_log(LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
+                    opbx_log(OPBX_LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
                     if ((noextneeded || opbx_canmatch_extension(chan, chan->context, t, 1, chan->CALLERID_FIELD))
                         && !longdtmf)
                     {
@@ -320,12 +320,12 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                         pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
                         if (noextneeded)
                         {
-                            opbx_log(LOG_NOTICE, "DTMF received (not matching to exten)\n");
+                            opbx_log(OPBX_LOG_NOTICE, "DTMF received (not matching to exten)\n");
                             res = 0;
                         }
                         else
                         {
-                            opbx_log(LOG_NOTICE, "DTMF received (matching to exten)\n");
+                            opbx_log(OPBX_LOG_NOTICE, "DTMF received (matching to exten)\n");
                             res = fr2->subclass;
                         }
                         opbx_fr_free(fr);
@@ -350,7 +350,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                             opbx_fr_free(fr);
                             break;
                         }
-                        opbx_log(LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
+                        opbx_log(OPBX_LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
                     }
                 }
             }
@@ -391,7 +391,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                     ms_silence =  (now.tv_sec  - start_silence.tv_sec ) * 1000;
                     ms_silence += (now.tv_usec - start_silence.tv_usec) / 1000;
 
-                    //opbx_log(LOG_WARNING,"[%5d,%5d,%5d] MS_TALK: %6d MS_SILENCE %6d\n", 
+                    //opbx_log(OPBX_LOG_WARNING,"[%5d,%5d,%5d] MS_TALK: %6d MS_SILENCE %6d\n", 
                     //    mindur,maxdur,sildur, ms_talk, ms_silence);
                     speaking=0;
 
@@ -406,18 +406,18 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                             pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
                             if (!ignorejump)
                             {
-                                opbx_log(LOG_NOTICE, "Redirecting %s to talk extension\n", chan->name);
+                                opbx_log(OPBX_LOG_NOTICE, "Redirecting %s to talk extension\n", chan->name);
                                 if (opbx_exists_extension(chan, chan->context, "talk", 1, chan->CALLERID_FIELD))
                                 {
                                     strncpy(chan->exten, "talk", sizeof(chan->exten) - 1);
                                     chan->priority = 0;
                                 }
                                 else
-                                    opbx_log(LOG_WARNING, "Talk detected, but no talk extension\n");
+                                    opbx_log(OPBX_LOG_WARNING, "Talk detected, but no talk extension\n");
                             }
                             else
                             {
-                                opbx_log(LOG_NOTICE, "Talk detected.\n");
+                                opbx_log(OPBX_LOG_NOTICE, "Talk detected.\n");
                             }
                             res = 0;
                             opbx_fr_free(fr);
@@ -432,7 +432,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
                     if (!speaking)
                     {
                         gettimeofday(&start_talk, NULL);
-                        opbx_log(LOG_DEBUG,"Start of voice token\n");
+                        opbx_log(OPBX_LOG_DEBUG,"Start of voice token\n");
                     }
                     speaking = 1;
                 }
@@ -441,18 +441,18 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char
         }
     }
     else
-        opbx_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+        opbx_log(OPBX_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
     
     if (res > -1)
     {
         if (origrformat && opbx_set_read_format(chan, origrformat))
         {
-            opbx_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
+            opbx_log(OPBX_LOG_WARNING, "Failed to restore read format for %s to %s\n", 
                      chan->name, opbx_getformatname(origrformat));
         }
         if (origwformat && opbx_set_write_format(chan, origwformat))
         {
-            opbx_log(LOG_WARNING, "Failed to restore write format for %s to %s\n", 
+            opbx_log(OPBX_LOG_WARNING, "Failed to restore write format for %s to %s\n", 
                      chan->name, opbx_getformatname(origwformat));
         }
     }

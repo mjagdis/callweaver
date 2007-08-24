@@ -113,7 +113,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 
 	if (need_lock) {
 		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock channel\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
@@ -125,7 +125,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 		/* Create monitoring directory if needed */
 		if (mkdir(opbx_config_OPBX_MONITOR_DIR, 0770) < 0) {
 			if (errno != EEXIST) {
-				opbx_log(LOG_WARNING, "Unable to create audio monitor directory: %s\n",
+				opbx_log(OPBX_LOG_WARNING, "Unable to create audio monitor directory: %s\n",
 					strerror(errno));
 			}
 		}
@@ -170,7 +170,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 						 opbx_config_OPBX_MONITOR_DIR, time(NULL),channel_name);
 				monitor->filename_changed = 1;
 			} else {
-				opbx_log(LOG_ERROR,"Failed to allocate Memory\n");
+				opbx_log(OPBX_LOG_ERROR,"Failed to allocate Memory\n");
 				return -1;
 			}
 		}
@@ -191,7 +191,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 		if (!(monitor->read_stream = opbx_writefile(monitor->read_filename,
 						monitor->format, NULL,
 						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
-			opbx_log(LOG_WARNING, "Could not create file %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
 			opbx_mutex_unlock(&chan->lock);
@@ -203,7 +203,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 		if (!(monitor->write_stream = opbx_writefile(monitor->write_filename,
 						monitor->format, NULL,
 						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
-			opbx_log(LOG_WARNING, "Could not create file %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n",
 						monitor->write_filename);
 			opbx_closestream(monitor->read_stream);
 			free(monitor);
@@ -214,7 +214,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 	} else {
-		opbx_log(LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
+		opbx_log(OPBX_LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
 					chan->name);
 		res = -1;
 	}
@@ -235,7 +235,7 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 
 	if (need_lock) {
 		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock channel\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
@@ -258,7 +258,7 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 				}
 				opbx_filerename(chan->monitor->read_filename, filename, chan->monitor->format);
 			} else {
-				opbx_log(LOG_WARNING, "File %s not found\n", chan->monitor->read_filename);
+				opbx_log(OPBX_LOG_WARNING, "File %s not found\n", chan->monitor->read_filename);
 			}
 
 			if (opbx_fileexists(chan->monitor->write_filename,NULL,NULL)) {
@@ -268,7 +268,7 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 				}
 				opbx_filerename(chan->monitor->write_filename, filename, chan->monitor->format);
 			} else {
-				opbx_log(LOG_WARNING, "File %s not found\n", chan->monitor->write_filename);
+				opbx_log(OPBX_LOG_WARNING, "File %s not found\n", chan->monitor->write_filename);
 			}
 		}
 
@@ -316,9 +316,9 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 				snprintf(tmp2, sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &", tmp, dir ,name);
 				opbx_copy_string(tmp, tmp2, sizeof(tmp));
 			}
-			opbx_log(LOG_DEBUG,"monitor executing %s\n",tmp);
+			opbx_log(OPBX_LOG_DEBUG,"monitor executing %s\n",tmp);
 			if (opbx_safe_system(tmp) == -1)
-				opbx_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
+				opbx_log(OPBX_LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
 		
 		free(chan->monitor->format);
@@ -336,13 +336,13 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 {
 	char tmp[256];
 	if ((!fname_base) || (opbx_strlen_zero(fname_base))) {
-		opbx_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
 		return -1;
 	}
 	
 	if (need_lock) {
 		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock channel\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
@@ -359,7 +359,7 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 
 		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : opbx_config_OPBX_MONITOR_DIR, fname_base);
 	} else {
-		opbx_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
+		opbx_log(OPBX_LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}
 
 	if (need_lock)

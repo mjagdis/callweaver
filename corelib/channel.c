@@ -184,7 +184,7 @@ struct opbx_variable *opbx_channeltype_list(void)
 	struct opbx_variable *prev = NULL;
 #endif
 
-	opbx_log(LOG_WARNING, "opbx_channeltype_list() called (probably by res_snmp.so). This is not implemented yet.\n");
+	opbx_log(OPBX_LOG_WARNING, "opbx_channeltype_list() called (probably by res_snmp.so). This is not implemented yet.\n");
 	return NULL;
 
 /*	OPBX_LIST_TRAVERSE(&backends, cl, list) {  <-- original line from asterisk */
@@ -214,7 +214,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 	opbx_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	opbx_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 	if (opbx_mutex_lock(&chlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock channel list\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
 	cl = backends;
@@ -371,7 +371,7 @@ int opbx_channel_register(const struct opbx_channel_tech *tech)
 	chan = backends;
 	while (chan) {
 		if (!strcasecmp(tech->type, chan->tech->type)) {
-			opbx_log(LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
+			opbx_log(OPBX_LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
 			opbx_mutex_unlock(&chlock);
 			return -1;
 		}
@@ -380,7 +380,7 @@ int opbx_channel_register(const struct opbx_channel_tech *tech)
 
 	chan = malloc(sizeof(*chan));
 	if (!chan) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 		opbx_mutex_unlock(&chlock);
 		return -1;
 	}
@@ -389,7 +389,7 @@ int opbx_channel_register(const struct opbx_channel_tech *tech)
 	backends = chan;
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
+		opbx_log(OPBX_LOG_DEBUG, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
 	if (option_verbose > 1)
 		opbx_verbose(VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->tech->type,
@@ -404,7 +404,7 @@ void opbx_channel_unregister(const struct opbx_channel_tech *tech)
 	struct chanlist *chan, *last=NULL;
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
+		opbx_log(OPBX_LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
 
 	opbx_mutex_lock(&chlock);
 
@@ -435,7 +435,7 @@ const struct opbx_channel_tech *opbx_get_channel_tech(const char *name)
 	struct chanlist *chanls;
 
 	if (opbx_mutex_lock(&chlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock channel tech list\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock channel tech list\n");
 		return NULL;
 	}
 
@@ -565,7 +565,7 @@ int opbx_best_codec(int fmts)
 		if (fmts & prefs[x])
 			return prefs[x];
 	}
-	opbx_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
+	opbx_log(OPBX_LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
 	return 0;
 }
 
@@ -586,20 +586,20 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
         {
-		opbx_log(LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
+		opbx_log(OPBX_LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
 		return NULL;
 	}
 
 	if ((tmp = malloc(sizeof(*tmp))) == NULL)
 	{
-		opbx_log(LOG_ERROR, "Channel allocation failed: Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel allocation failed: Out of memory\n");
 		return NULL;
 	}
 	memset(tmp, 0, sizeof(*tmp));
 
 	if ((tmp->sched = sched_manual_context_create()) == NULL)
         {
-		opbx_log(LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
 	}
@@ -611,7 +611,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
         {
 		if (pipe(tmp->alertpipe))
                 {
-			opbx_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+			opbx_log(OPBX_LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 			free(tmp);
 			return NULL;
 		}
@@ -684,10 +684,10 @@ void opbx_channel_set_generator_samples( struct opbx_channel *tmp, int samp )
 void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t status, const char *file, int line )
 {
     if ( !tmp ) {
-	opbx_log(LOG_NOTICE,"opbx_channel_set_t38_status called with NULL channel at %s:%d\n", file, line);
+	opbx_log(OPBX_LOG_NOTICE,"opbx_channel_set_t38_status called with NULL channel at %s:%d\n", file, line);
 	return;
     }
-    opbx_log(LOG_NOTICE,"Setting t38 status to %d at %s:%d\n", status, file, line);
+    opbx_log(OPBX_LOG_NOTICE,"Setting t38 status to %d at %s:%d\n", status, file, line);
     tmp->t38_status = status;
 }
 
@@ -713,7 +713,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	/* Build us a copy and free the original one */
 	if ((f = opbx_frdup(fin)) == NULL)
 	{
-		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to duplicate frame\n");
 		return -1;
 	}
 	opbx_mutex_lock(&chan->lock);
@@ -735,12 +735,12 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	{
 		if (fin->frametype != OPBX_FRAME_VOICE)
     		{
-			opbx_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 			CRASH;
 		}
     		else
     		{	
-			opbx_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
 			return 0;
@@ -754,7 +754,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	if (chan->alertpipe[1] > -1)
 	{
 	    if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
-		opbx_log(LOG_WARNING, 
+		opbx_log(OPBX_LOG_WARNING, 
 			    "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 			    chan->name, 
 			    f->frametype, 
@@ -877,7 +877,7 @@ static struct opbx_channel *channel_find_locked(const struct opbx_channel *prev,
 		done = (c == NULL) || (opbx_mutex_trylock(&c->lock) == 0);
 		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
 		if (!done && c)
-			opbx_log(LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
+			opbx_log(OPBX_LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
 		opbx_mutex_unlock(&chlock);
 		if (done)
 			return c;
@@ -887,7 +887,7 @@ static struct opbx_channel *channel_find_locked(const struct opbx_channel *prev,
  	 * c is surely not null, but we don't have the lock so cannot
 	 * access c->name
 	 */
-	opbx_log(LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
+	opbx_log(OPBX_LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
 		msg, c, retries);
 
 	return NULL;
@@ -1010,7 +1010,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 		cur = cur->next;
 	}
 	if (!cur)
-		opbx_log(LOG_WARNING, "Unable to find channel in list\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to find channel in list\n");
 	else {
 		/* Lock and unlock the channel just to be sure nobody
 		   has it locked still */
@@ -1019,7 +1019,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	}
 	if (chan->tech_pvt)
 	{
-		opbx_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 		free(chan->tech_pvt);
 	}
 
@@ -1042,7 +1042,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	if (chan->writetrans)
 		opbx_translator_free_path(chan->writetrans);
 	if (chan->pbx) 
-		opbx_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
 	free_cid(&chan->cid);
 	opbx_mutex_destroy(&chan->lock);
 	/* Close pipes if appropriate */
@@ -1098,7 +1098,7 @@ int opbx_softhangup_nolock(struct opbx_channel *chan, int cause)
 	struct opbx_frame f = { OPBX_FRAME_NULL };
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
 	/* Inform channel driver that we need to be hung up, if it cares */
 	chan->_softhangup |= cause;
 	opbx_queue_frame(chan, &f);
@@ -1133,7 +1133,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 		struct opbx_frame *freef;
 		struct opbx_frame *headf;
 
-		opbx_log(LOG_ERROR, "Too many frames queued at once, flushing cache.\n");
+		opbx_log(OPBX_LOG_ERROR, "Too many frames queued at once, flushing cache.\n");
 		headf = spy->queue[pos];
 		/* deref the queue right away so it looks empty */
 		spy->queue[pos] = NULL;
@@ -1152,12 +1152,12 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 	if (tmpf)
 	{
 		if ((tmpf->next = opbx_frdup(f)) == NULL)
-    		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+    		opbx_log(OPBX_LOG_WARNING, "Unable to duplicate frame\n");
 	}
 	else
 	{
     	if ((spy->queue[pos] = opbx_frdup(f)) == NULL)
-    		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+    		opbx_log(OPBX_LOG_WARNING, "Unable to duplicate frame\n");
 	}
 	opbx_mutex_unlock(&spy->lock);
 }
@@ -1188,12 +1188,12 @@ int opbx_hangup(struct opbx_channel *chan)
 	if (chan->masq)
 	{
 		if (opbx_do_masquerade(chan)) 
-			opbx_log(LOG_WARNING, "Failed to perform masquerade\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to perform masquerade\n");
 	}
 
 	if (chan->masq)
 	{
-		opbx_log(LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
 	}
@@ -1222,7 +1222,7 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 	if (opbx_test_flag(chan, OPBX_FLAG_BLOCKING))
 	{
-		opbx_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
+		opbx_log(OPBX_LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
 					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
 		CRASH;
@@ -1230,21 +1230,21 @@ int opbx_hangup(struct opbx_channel *chan)
 	if (!opbx_test_flag(chan, OPBX_FLAG_ZOMBIE))
 	{
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Hanging up channel '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Hanging up channel '%s'\n", chan->name);
 		if (chan->tech->hangup)
 			res = chan->tech->hangup(chan);
 	}
 	else
 	{
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 	}
 			
 	opbx_mutex_unlock(&chan->lock);
 	
 	/** opbx_generator_deactivate after mutex_unlock*/
 	if (option_debug)
-	    opbx_log(LOG_DEBUG, "Generator : deactivate after channel unlock (hangup function)\n");
+	    opbx_log(OPBX_LOG_DEBUG, "Generator : deactivate after channel unlock (hangup function)\n");
 	opbx_generator_deactivate(chan);
 
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
@@ -1388,7 +1388,7 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
     		{
 			if (opbx_do_masquerade(c[x]))
         		{
-				opbx_log(LOG_WARNING, "Masquerade failed\n");
+				opbx_log(OPBX_LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
 				opbx_mutex_unlock(&c[x]->lock);
 				return NULL;
@@ -1609,7 +1609,7 @@ int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdf
     		{ 
 			if (errno == 0 || errno == EINTR)
 				continue;
-			opbx_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		}
     		else if (outfd > -1)
@@ -1638,7 +1638,7 @@ int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdf
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
+					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
 				}
 			    case OPBX_FRAME_VOICE:
 				/* Write audio if appropriate */
@@ -1667,7 +1667,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	{
 		if (opbx_do_masquerade(chan))
     		{
-			opbx_log(LOG_WARNING, "Failed to perform masquerade\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		}
     		else
@@ -1725,7 +1725,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 			}
         		else
         		{
-				opbx_log(LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
+				opbx_log(OPBX_LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
 				f = &null_frame;
 			}
 			/* Clear the exception flag */
@@ -1736,7 +1736,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 			if (chan->tech->read)
 				f = chan->tech->read(chan);
 			else
-				opbx_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
+				opbx_log(OPBX_LOG_WARNING, "No read routine on channel %s\n", chan->name);
 		}
 	}
 
@@ -1756,7 +1756,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
     		if (!(f->subclass & chan->nativeformats))
         	{
     			/* This frame can't be from the current native formats -- drop it on the floor */
-    			opbx_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
+    			opbx_log(OPBX_LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
     			opbx_fr_free(f);
     			f = &null_frame;
     		}
@@ -1777,7 +1777,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
     				if (jump >= 0)
                 		{
     					if (opbx_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
-    						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+    						opbx_log(OPBX_LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
     					chan->insmpl += jump + 2 * f->samples;
     				}
                 		else
@@ -1790,7 +1790,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	    			if (jump - MONITOR_DELAY >= 0)
                 		{
 			    		if (opbx_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-    						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+    						opbx_log(OPBX_LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
 	    				chan->insmpl += jump;
 		    		}
                 		else
@@ -1799,7 +1799,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
                 		}
 #endif
 		    		if (opbx_writestream(chan->monitor->read_stream, f) < 0)
-			    		opbx_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+			    		opbx_log(OPBX_LOG_WARNING, "Failed to write data to channel monitor read stream\n");
     			}
 			
 	    		if (chan->readtrans)
@@ -1825,14 +1825,14 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
 			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 		else
-			opbx_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
     }
     else if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_ANSWER))
     {
 		if (prestate == OPBX_STATE_UP)
     		{
-			opbx_log(LOG_DEBUG, "Dropping duplicate answer!\n");
+			opbx_log(OPBX_LOG_DEBUG, "Dropping duplicate answer!\n");
 			f = &null_frame;
 		}
 		/* Answer the CDR */
@@ -1855,7 +1855,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	if (f == NULL  &&  opbx_generator_is_active(chan))
 	{
 	    if (option_debug)
-	    	opbx_log(LOG_DEBUG, "Generator not finished in previous deactivate attempt - trying deactivate after channel unlock (opbx_read function)\n");
+	    	opbx_log(OPBX_LOG_DEBUG, "Generator not finished in previous deactivate attempt - trying deactivate after channel unlock (opbx_read function)\n");
 	    opbx_generator_deactivate(chan);
 	}	
 	
@@ -1896,7 +1896,7 @@ int opbx_indicate(struct opbx_channel *chan, int condition)
 	    }
 	    if (ts  &&  ts->data[0])
     	    {
-			opbx_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+			opbx_log(OPBX_LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
 			opbx_playtones_start(chan,0,ts->data, 1);
 			res = 0;
 	    }
@@ -1923,7 +1923,7 @@ int opbx_indicate(struct opbx_channel *chan, int condition)
             else
             {
 				/* not handled */
-				opbx_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
+				opbx_log(OPBX_LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
 				res = -1;
 	    }
 	}
@@ -2034,7 +2034,7 @@ static int do_senddigit(struct opbx_channel *chan, char digit)
 		else
         {
 			/* not handled */
-			opbx_log(LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
 		}
 	}
 	return 0;
@@ -2053,12 +2053,12 @@ int opbx_prod(struct opbx_channel *chan)
 	/* Send an empty audio frame to get things moving */
 	if (chan->_state != OPBX_STATE_UP)
     {
-		opbx_log(LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->rawwriteformat;
 		a.data = nothing + OPBX_FRIENDLY_OFFSET;
 		a.src = "opbx_prod";
 		if (opbx_write(chan, &a))
-			opbx_log(LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}
 	return 0;
 }
@@ -2091,7 +2091,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
     {
 		if (opbx_do_masquerade(chan))
         {
-			opbx_log(LOG_WARNING, "Failed to perform masquerade\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to perform masquerade\n");
 			opbx_mutex_unlock(&chan->lock);
 			return -1;
 		}
@@ -2118,7 +2118,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 			/** unlock & lock added - testing if this caused crashes*/
 			opbx_mutex_unlock(&chan->lock);
 			if (option_debug)
-			    opbx_log(LOG_DEBUG, "trying deactivate generator with unlock/lock channel (opbx_write function)\n");
+			    opbx_log(OPBX_LOG_DEBUG, "trying deactivate generator with unlock/lock channel (opbx_write function)\n");
 			opbx_generator_deactivate(chan);
 			opbx_mutex_lock(&chan->lock);
 		}
@@ -2145,7 +2145,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
     {
 	case OPBX_FRAME_CONTROL:
 		/* XXX Interpret control frames XXX */
-		opbx_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
+		opbx_log(OPBX_LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case OPBX_FRAME_DTMF:
 		opbx_clear_flag(chan, OPBX_FLAG_BLOCKING);
@@ -2208,7 +2208,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 					if (jump >= 0)
                     {
 						if (opbx_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
-							opbx_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+							opbx_log(OPBX_LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 						chan->outsmpl += jump + 2 * f->samples;
 					}
                     else
@@ -2218,14 +2218,14 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 					if (jump - MONITOR_DELAY >= 0)
                     {
 						if (opbx_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-							opbx_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+							opbx_log(OPBX_LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 						chan->outsmpl += jump;
 					}
                     else
 						chan->outsmpl += f->samples;
 #endif
 					if (opbx_writestream(chan->monitor->write_stream, f) < 0)
-						opbx_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+						opbx_log(OPBX_LOG_WARNING, "Failed to write data to channel monitor write stream\n");
 				}
 
 				res = chan->tech->write(chan, f);
@@ -2239,9 +2239,9 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 
 	/* It's possible this is a translated frame */
 	if (f && f->frametype == OPBX_FRAME_DTMF)
-		opbx_log(LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
+		opbx_log(OPBX_LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
     else if (fr->frametype == OPBX_FRAME_DTMF)
-		opbx_log(LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
+		opbx_log(OPBX_LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
 
 	if (f && (f != fr))
 		opbx_fr_free(f);
@@ -2283,7 +2283,7 @@ static int set_format(
 
 	if (res < 0)
 	{
-		opbx_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
+		opbx_log(OPBX_LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
 			opbx_getformatname(native), opbx_getformatname(fmt));
 		return -1;
 	}
@@ -2313,7 +2313,7 @@ static int set_format(
 	opbx_mutex_unlock(&chan->lock);
 	if (option_debug)
     {
-		opbx_log(LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
+		opbx_log(OPBX_LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
 			direction ? "write" : "read", opbx_getformatname(fmt));
 	}
     return 0;
@@ -2397,18 +2397,18 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
 					}
                     else
                     {
-						opbx_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
+						opbx_log(OPBX_LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 					}
 				}
 				opbx_fr_free(f);
 			}
 		}
         else
-			opbx_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+			opbx_log(OPBX_LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	}
     else
     {
-		opbx_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		opbx_log(OPBX_LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 		switch(cause)
         {
 		case OPBX_CAUSE_BUSY:
@@ -2458,7 +2458,7 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
 		}
         else 
 		{
-        	opbx_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+        	opbx_log(OPBX_LOG_WARNING, "Unable to create Call Detail Record\n");
 		}
         opbx_hangup(chan);
 		chan = NULL;
@@ -2485,7 +2485,7 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 	*cause = OPBX_CAUSE_NOTDEFINED;
 	if (opbx_mutex_lock(&chlock))
 	{
-		opbx_log(LOG_WARNING, "Unable to lock channel list\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
 
@@ -2499,7 +2499,7 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 			res = opbx_translator_best_choice(&fmt, &capabilities);
 			if (res < 0)
         		{
-				opbx_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
+				opbx_log(OPBX_LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
 				opbx_mutex_unlock(&chlock);
 				return NULL;
 			}
@@ -2527,7 +2527,7 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 	}
 	if (!chan)
 	{
-		opbx_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
+		opbx_log(OPBX_LOG_WARNING, "No channel type registered for '%s'\n", type);
 		*cause = OPBX_CAUSE_NOSUCHDRIVER;
 	}
 	opbx_mutex_unlock(&chlock);
@@ -2704,7 +2704,7 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 	dst = peer->nativeformats;
 	if (opbx_translator_best_choice(&dst, &src) < 0)
     {
-		opbx_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, src, peer->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, src, peer->name, dst);
 		return -1;
 	}
 
@@ -2715,12 +2715,12 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 		dst = OPBX_FORMAT_SLINEAR;
 	if (opbx_set_read_format(chan, src) < 0)
     {
-		opbx_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
 	if (opbx_set_write_format(peer, src) < 0)
     {
-		opbx_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
 
@@ -2729,7 +2729,7 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 	dst = chan->nativeformats;
 	if (opbx_translator_best_choice(&dst, &src) < 0)
     {
-		opbx_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, src, chan->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, src, chan->name, dst);
 		return -1;
 	}
 	/* if the best path is not 'pass through', then
@@ -2739,12 +2739,12 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 		dst = OPBX_FORMAT_SLINEAR;
 	if (opbx_set_read_format(peer, dst) < 0)
     {
-		opbx_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
 	if (opbx_set_write_format(chan, dst) < 0)
     {
-		opbx_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, dst);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
 	return 0;
@@ -2766,7 +2766,7 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
 
     if (original == clone)
     {
-		opbx_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
+		opbx_log(OPBX_LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
 		return -1;
     }
 
@@ -2777,17 +2777,17 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
 		usleep(1);
 		opbx_mutex_lock(&original->lock);
     }
-    opbx_log(LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
+    opbx_log(OPBX_LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
     	clone->name, original->name);
 
     if (original->masq)
     {
-	opbx_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
+	opbx_log(OPBX_LOG_WARNING, "%s is already going to masquerade as %s\n", 
     	original->masq->name, original->name);
     }
     else if (clone->masqr)
     {
-		opbx_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
+		opbx_log(OPBX_LOG_WARNING, "%s is already going to masquerade as %s\n", 
 			clone->name, clone->masqr->name);
     }
     else
@@ -2796,7 +2796,7 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
 		clone->masqr = original;
 		opbx_queue_frame(original, &null);
 		opbx_queue_frame(clone, &null);
-		opbx_log(LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
+		opbx_log(OPBX_LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
 		res = 0;
     }
     opbx_mutex_unlock(&clone->lock);
@@ -2840,7 +2840,7 @@ void opbx_channel_inherit_variables(const struct opbx_channel *parent, struct op
             {
 				OPBX_LIST_INSERT_TAIL(&child->varshead, newvar, entries);
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Copying soft-transferable variable %s.\n", opbx_var_name(newvar));
+					opbx_log(OPBX_LOG_DEBUG, "Copying soft-transferable variable %s.\n", opbx_var_name(newvar));
 			}
 			break;
 		case 2:
@@ -2849,12 +2849,12 @@ void opbx_channel_inherit_variables(const struct opbx_channel *parent, struct op
             {
 				OPBX_LIST_INSERT_TAIL(&child->varshead, newvar, entries);
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Copying hard-transferable variable %s.\n", opbx_var_name(newvar));
+					opbx_log(OPBX_LOG_DEBUG, "Copying hard-transferable variable %s.\n", opbx_var_name(newvar));
 			}
 			break;
 		default:
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Not copying variable %s.\n", opbx_var_name(current));
+				opbx_log(OPBX_LOG_DEBUG, "Not copying variable %s.\n", opbx_var_name(current));
 			break;
 		}
 	}
@@ -2913,7 +2913,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	char zombn[100];
 
 	if (option_debug > 3)
-		opbx_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
+		opbx_log(OPBX_LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 			clone->name, clone->_state, original->name, original->_state);
 
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
@@ -2924,7 +2924,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	/* We need the clone's lock, too */
 	opbx_mutex_lock(&clone->lock);
 
-	opbx_log(LOG_DEBUG, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock);
+	opbx_log(OPBX_LOG_DEBUG, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
@@ -3021,7 +3021,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	if (clone->tech->fixup)
     {
 		if ((res = clone->tech->fixup(original, clone)))
-			opbx_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
+			opbx_log(OPBX_LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
 	}
 
 	/* Start by disconnecting the original's physical side */
@@ -3029,7 +3029,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 		res = clone->tech->hangup(clone);
 	if (res)
     {
-		opbx_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
+		opbx_log(OPBX_LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
 		opbx_mutex_unlock(&clone->lock);
 		return -1;
 	}
@@ -3086,7 +3086,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	/* Copy the music class */
 	opbx_copy_string(original->musicclass, clone->musicclass, sizeof(original->musicclass));
 
-	opbx_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
+	opbx_log(OPBX_LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
@@ -3095,7 +3095,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 		res = original->tech->fixup(clone, original);
 		if (res)
         {
-			opbx_log(LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
 				original->type, original->name);
 			opbx_mutex_unlock(&clone->lock);
 			return -1;
@@ -3103,7 +3103,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	}
     else
     {
-		opbx_log(LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
+		opbx_log(OPBX_LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
                  original->type, original->name);
 	}
 
@@ -3112,7 +3112,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	   zombie, then free it now (since it already is considered invalid). */
 	if (opbx_test_flag(clone, OPBX_FLAG_ZOMBIE))
     {
-		opbx_log(LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
+		opbx_log(OPBX_LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
 		opbx_mutex_unlock(&clone->lock);
 		opbx_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", 
@@ -3129,7 +3129,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
     else
     {
 		struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
-		opbx_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
+		opbx_log(OPBX_LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		opbx_set_flag(clone, OPBX_FLAG_ZOMBIE);
 		opbx_queue_frame(clone, &null_frame);
 		opbx_mutex_unlock(&clone->lock);
@@ -3138,7 +3138,7 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	/* Signal any blocker */
 	if (opbx_test_flag(original, OPBX_FLAG_BLOCKING))
 		pthread_kill(original->blocker, SIGURG);
-	opbx_log(LOG_DEBUG, "Done Masquerading %s (%d)\n", original->name, original->_state);
+	opbx_log(OPBX_LOG_DEBUG, "Done Masquerading %s (%d)\n", original->name, original->_state);
 	return 0;
 }
 
@@ -3326,7 +3326,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 			 * check if we have to deliver now */
 			opbx_jb_get_and_deliver(c0, c1);
 
-			opbx_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
+			opbx_log(OPBX_LOG_DEBUG, "Nobody there, continuing...\n"); 
 			if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE || c1->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE) {
 				if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE)
 					c0->_softhangup = 0;
@@ -3342,7 +3342,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 			*fo = NULL;
 			*rc = who;
 			res = OPBX_BRIDGE_COMPLETE;
-			opbx_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
+			opbx_log(OPBX_LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
 			break;
 		}
 
@@ -3357,7 +3357,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 				*fo = f;
 				*rc = who;
 				res =  OPBX_BRIDGE_COMPLETE;
-				opbx_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+				opbx_log(OPBX_LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 				break;
 			}
 		}
@@ -3374,16 +3374,16 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 					*rc = who;
 					*fo = f;
 					res = OPBX_BRIDGE_COMPLETE;
-					opbx_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
+					opbx_log(OPBX_LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
 					break;
 				} else {
 					goto tackygoto;
 				}
 			} else {
 #if 0
-				opbx_log(LOG_DEBUG, "Read from %s\n", who->name);
+				opbx_log(OPBX_LOG_DEBUG, "Read from %s\n", who->name);
 				if (who == last) 
-					opbx_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
+					opbx_log(OPBX_LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
 				last = who;
 #endif
 tackygoto:
@@ -3421,12 +3421,12 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 	int to;
 
 	if (c0->_bridge) {
-		opbx_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
+		opbx_log(OPBX_LOG_WARNING, "%s is already in a bridge with %s\n", 
 			c0->name, c0->_bridge->name);
 		return -1;
 	}
 	if (c1->_bridge) {
-		opbx_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
+		opbx_log(OPBX_LOG_WARNING, "%s is already in a bridge with %s\n", 
 			c1->name, c1->_bridge->name);
 		return -1;
 	}
@@ -3521,7 +3521,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 				c1->_softhangup = 0;
 			c0->_bridge = c1;
 			c1->_bridge = c0;
-			opbx_log(LOG_DEBUG, "Unbridge signal received. Ending native bridge.\n");
+			opbx_log(OPBX_LOG_DEBUG, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
 		
@@ -3533,7 +3533,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 			if (who)
 				*rc = who;
 			res = 0;
-			opbx_log(LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
+			opbx_log(OPBX_LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
 				c0->name, c1->name,
 				opbx_test_flag(c0, OPBX_FLAG_ZOMBIE) ? "Yes" : "No",
 				opbx_check_hangup(c0) ? "Yes" : "No",
@@ -3562,7 +3562,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 					      "CallerID1: %s\r\n"
 					      "CallerID2: %s\r\n",
 					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-				opbx_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
+				opbx_log(OPBX_LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
 
 				opbx_clear_flag(c0, OPBX_FLAG_NBRIDGE);
 				opbx_clear_flag(c1, OPBX_FLAG_NBRIDGE);
@@ -3589,7 +3589,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 /*				continue; */
 				break;
 			default:
-				opbx_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
+				opbx_log(OPBX_LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
 				/* fallthrough */
 			case OPBX_BRIDGE_FAILED_NOWARN:
 				nativefailed++;
@@ -3603,7 +3603,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
     		{
 			if (opbx_channel_make_compatible(c0, c1))
         		{
-				opbx_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
+				opbx_log(OPBX_LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3633,7 +3633,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		      "CallerID1: %s\r\n"
 		      "CallerID2: %s\r\n",
 		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-	opbx_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
+	opbx_log(OPBX_LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	return res;
 }
@@ -3658,7 +3658,7 @@ int opbx_channel_setoption(struct opbx_channel *chan, int option, void *data, in
 	{
 		/* XXX Implement blocking -- just wait for our option frame reply, discarding
 		   intermediate packets. XXX */
-		opbx_log(LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
+		opbx_log(OPBX_LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
 		return -1;
 	}
 	return 0;
@@ -3698,7 +3698,7 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	ts->origwfmt = chan->writeformat;
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
 	{
-		opbx_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		tonepair_release(NULL, ts);
 		return NULL;
 	}
@@ -3716,7 +3716,7 @@ static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 	len = samples*sizeof(int16_t);
 	if (len > sizeof(ts->data)/sizeof(int16_t) - 1)
 	{
-		opbx_log(LOG_WARNING, "Can't generate that much data!\n");
+		opbx_log(OPBX_LOG_WARNING, "Can't generate that much data!\n");
 		return -1;
 	}
 	memset(&ts->f, 0, sizeof(ts->f));
@@ -3820,13 +3820,13 @@ opbx_group_t opbx_get_group(char *s)
 	}
         else
         {
-			opbx_log(LOG_ERROR, "Syntax error parsing group configuration '%s' at '%s'. Ignoring.\n", s, piece);
+			opbx_log(OPBX_LOG_ERROR, "Syntax error parsing group configuration '%s' at '%s'. Ignoring.\n", s, piece);
 			continue;
 	}
 	for (x = start;  x <= finish;  x++)
         {
 			if ((x > 63)  ||  (x < 0))
-				opbx_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
+				opbx_log(OPBX_LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
         		else
 				group |= ((opbx_group_t) 1 << x);
 	}
@@ -3955,12 +3955,12 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 	int res = 0;
 
 	if (option_debug > 2) 
-		opbx_log(LOG_DEBUG, "::::==== Unlocking OPBX channel %s\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "::::==== Unlocking OPBX channel %s\n", chan->name);
 	
 	if (!chan)
 	{
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
+			opbx_log(OPBX_LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
 		return 0;
 	}
 
@@ -3972,24 +3972,24 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 		int count = 0;
 		
         if ((count = chan->lock.reentrancy))
-			opbx_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
+			opbx_log(OPBX_LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
     		{
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
 		}
         if (res == EINVAL)
     		{
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
 	}
 	if (res == EPERM)
 	{
 		/* We had no lock, so okay any way*/
 		if (option_debug > 3)
-			opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
 		res = 0;
 	}
 	return res;
@@ -4000,7 +4000,7 @@ int opbx_channel_lock(struct opbx_channel *chan)
 	int res;
 
 	if (option_debug > 3)
-		opbx_log(LOG_DEBUG, "====:::: Locking OPBX channel %s\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "====:::: Locking OPBX channel %s\n", chan->name);
 
 	res = opbx_mutex_lock(&chan->lock);
 
@@ -4010,20 +4010,20 @@ int opbx_channel_lock(struct opbx_channel *chan)
 		int count = 0;
 	
     	if ((count = chan->lock.reentrancy))
-			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+			opbx_log(OPBX_LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
-			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EDEADLK)
     		{
 		    /* We had no lock, so okey any way */
 		    if (option_debug > 3)
-			    opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
+			    opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
 		}
 		if (res == EINVAL)
     		{
 			if (option_debug > 3)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 		}
 	}
 	return res;
@@ -4034,7 +4034,7 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 	int res;
 
 	if (option_debug > 2)
-		opbx_log(LOG_DEBUG, "====:::: Trying to lock OPBX channel %s\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "====:::: Trying to lock OPBX channel %s\n", chan->name);
 
 	res = opbx_mutex_trylock(&chan->lock);
 
@@ -4044,24 +4044,24 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 		int count = 0;
 
 		if ((count = chan->lock.reentrancy))
-			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+			opbx_log(OPBX_LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
-			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EBUSY)
     		{
 			/* We failed to lock */
 			if (option_debug > 2)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
 		}
 		if (res == EDEADLK)
     		{
 			/* We had no lock, so okey any way*/
 			if (option_debug > 2)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
 		}
 		if (res == EINVAL && option_debug > 2)
-			opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 	}
 	return res;
 }

@@ -227,7 +227,7 @@ static int extract_audio(short *buf, size_t len, struct opbx_trans_pvt *trans, s
         else
         {
             /* your guess is as good as mine why this will happen but it seems to only happen on iax and appears harmless */
-            opbx_log(LOG_DEBUG, "Failed to translate frame from %s\n", opbx_getformatname(fr->subclass));
+            opbx_log(OPBX_LOG_DEBUG, "Failed to translate frame from %s\n", opbx_getformatname(fr->subclass));
         }
     }
     else
@@ -384,7 +384,7 @@ static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan
     struct opbx_channel_spy *cptr=NULL;
     struct opbx_channel *peer;
 
-    opbx_log(LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
+    opbx_log(OPBX_LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
 
     opbx_mutex_lock(&chan->lock);
     if (chan->spiers)
@@ -581,14 +581,14 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     oldwf = chan->writeformat;
     if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(LOG_ERROR, "Could Not Set Read Format.\n");
+        opbx_log(OPBX_LOG_ERROR, "Could Not Set Read Format.\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
 
     if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(LOG_ERROR, "Could Not Set Write Format.\n");
+        opbx_log(OPBX_LOG_ERROR, "Could Not Set Write Format.\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
@@ -618,7 +618,7 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
             int vol;
 
             if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 24)  ||  (vol < -24))
-                opbx_log(LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
+                opbx_log(OPBX_LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
             else
                 volfactor = vol;
         }
@@ -630,7 +630,7 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
         snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",opbx_config_OPBX_MONITOR_DIR, recbase, time(NULL));
         if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
         {
-            opbx_log(LOG_WARNING, "Cannot open %s for recording\n", filename);
+            opbx_log(OPBX_LOG_WARNING, "Cannot open %s for recording\n", filename);
             fd = 0;
         }
     }
@@ -744,10 +744,10 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
         close(fd);
 
     if (oldrf  &&  opbx_set_read_format(chan, oldrf) < 0)
-        opbx_log(LOG_ERROR, "Could Not Set Read Format.\n");
+        opbx_log(OPBX_LOG_ERROR, "Could Not Set Read Format.\n");
 
     if (oldwf  &&  opbx_set_write_format(chan, oldwf) < 0)
-        opbx_log(LOG_ERROR, "Could Not Set Write Format.\n");
+        opbx_log(OPBX_LOG_ERROR, "Could Not Set Write Format.\n");
 
     opbx_clear_flag(chan, OPBX_FLAG_SPYING);
 

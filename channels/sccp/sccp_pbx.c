@@ -89,7 +89,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	c = CS_OPBX_CHANNEL_PVT(ast);
 
 	if (!c) {
-		opbx_log(LOG_WARNING, "SCCP: CallWeaver request to call %s channel: %s, but we don't have this channel!\n", dest, ast->name);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: CallWeaver request to call %s channel: %s, but we don't have this channel!\n", dest, ast->name);
 		return -1;
 	}
 
@@ -98,7 +98,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	s = d->session;
 
 	if (!l || !d || !s) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel %d has no line or device or session\n", (c ? c->callid : 0) );
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel %d has no line or device or session\n", (c ? c->callid : 0) );
 		return -1;
 	}
 
@@ -192,7 +192,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			if (opbx_pthread_create(&t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
-				opbx_log(LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 			}
 		}
 	}
@@ -269,7 +269,7 @@ static int sccp_pbx_answer(struct opbx_channel *ast) {
 	sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(ast);
 
 	if (!c || !c->device || !c->line) {
-		opbx_log(LOG_ERROR, "SCCP: Answered %s but no SCCP channel\n", ast->name);
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Answered %s but no SCCP channel\n", ast->name);
 		return -1;
 	}
 
@@ -301,12 +301,12 @@ static int sccp_pbx_write(struct opbx_channel *ast, struct opbx_frame *frame) {
 		if (frame->frametype == OPBX_FRAME_IMAGE)
 			return 0;
 		else {
-			opbx_log(LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", DEV_ID_LOG(c->device), frame->frametype, (c) ? c->callid : 0);
+			opbx_log(OPBX_LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", DEV_ID_LOG(c->device), frame->frametype, (c) ? c->callid : 0);
 			return 0;
 		}
 	} else {
 		if (!(frame->subclass & ast->nativeformats)) {
-			opbx_log(LOG_WARNING, "%s: Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+			opbx_log(OPBX_LOG_WARNING, "%s: Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
 			DEV_ID_LOG(c->device), frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
 			return -1;
 		}
@@ -413,7 +413,7 @@ static int sccp_pbx_indicate(struct opbx_channel *ast, int ind) {
 		break;
 
 	default:
-	  opbx_log(LOG_WARNING, "SCCP: Don't know how to indicate condition %d\n", ind);
+	  opbx_log(OPBX_LOG_WARNING, "SCCP: Don't know how to indicate condition %d\n", ind);
 	  res = -1;
 	}
 
@@ -424,12 +424,12 @@ static int sccp_pbx_indicate(struct opbx_channel *ast, int ind) {
 static int sccp_pbx_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan) {
 	sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(newchan);
 	if (!c) {
-		opbx_log(LOG_WARNING, "sccp_pbx_fixup(old: %s(%p), new: %s(%p)). no SCCP channel to fix\n", oldchan->name, oldchan, newchan->name, newchan);
+		opbx_log(OPBX_LOG_WARNING, "sccp_pbx_fixup(old: %s(%p), new: %s(%p)). no SCCP channel to fix\n", oldchan->name, oldchan, newchan->name, newchan);
 		return -1;
 	}
 	opbx_mutex_lock(&c->lock);
 	if (c->owner != oldchan) {
-		opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, c->owner);
+		opbx_log(OPBX_LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, c->owner);
 		opbx_mutex_unlock(&c->lock);
 		return -1;
 	}
@@ -516,13 +516,13 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	int fmt;
 
 	if (!l || !d || !d->session) {
-		opbx_log(LOG_ERROR, "SCCP: Unable to allocate asterisk channel\n");
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Unable to allocate asterisk channel\n");
 		return 0;
 	}
 
 	tmp = opbx_channel_alloc(1);
 	if (!tmp) {
-		opbx_log(LOG_ERROR, "%s: Unable to allocate callweaver channel on line %s\n", d->id, l->name);
+		opbx_log(OPBX_LOG_ERROR, "%s: Unable to allocate callweaver channel on line %s\n", d->id, l->name);
 		return 0;
 	}
 

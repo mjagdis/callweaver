@@ -480,7 +480,7 @@ int opbx_safe_system(const char *s)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Fork failed: %s\n", strerror(errno));
         res = -1;
     }
 
@@ -565,7 +565,7 @@ static void *netconsole(void *vconsole)
 		res = poll(fds, 2, -1);
 		if (res < 0) {
 			if (errno != EINTR)
-				opbx_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
 			continue;
 		}
 		if (fds[0].revents) {
@@ -579,7 +579,7 @@ static void *netconsole(void *vconsole)
 		if (fds[1].revents) {
 			res = read(con->p[0], tmp, sizeof(tmp));
 			if (res < 1) {
-				opbx_log(LOG_ERROR, "read returned %d\n", res);
+				opbx_log(OPBX_LOG_ERROR, "read returned %d\n", res);
 				break;
 			}
 			res = write(con->fd, tmp, res);
@@ -629,15 +629,15 @@ static void *listener(void *unused)
 
 		if (n <= 0) {
 			if (x != EINTR)
-				opbx_log(LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
+				opbx_log(OPBX_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
 		} else if (s < 0) {
 			if (x != EINTR)
-				opbx_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
+				opbx_log(OPBX_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
 		} else {
 			for (x=0;x<OPBX_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
 					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
-						opbx_log(LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
+						opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to create pipe\n");
 						close(s);
@@ -647,7 +647,7 @@ static void *listener(void *unused)
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					if (opbx_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
-						opbx_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
+						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
 						close(s);
@@ -657,7 +657,7 @@ static void *listener(void *unused)
 			}
 			if (x >= OPBX_MAX_CONNECTS) {
 				fdprint(s, "No more connections allowed\n");
-				opbx_log(LOG_WARNING, "No more connections allowed\n");
+				opbx_log(OPBX_LOG_WARNING, "No more connections allowed\n");
 				close(s);
 			} else if (consoles[x].fd > -1) {
 				if (option_verbose > 2) 
@@ -681,7 +681,7 @@ static int opbx_makesocket(void)
 	unlink(opbx_config_OPBX_SOCKET);
 	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (opbx_socket < 0) {
-		opbx_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
 		return -1;
 	}		
 	memset(&sunaddr, 0, sizeof(sunaddr));
@@ -689,14 +689,14 @@ static int opbx_makesocket(void)
 	opbx_copy_string(sunaddr.sun_path, opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
 	res = bind(opbx_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
-		opbx_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 		close(opbx_socket);
 		opbx_socket = -1;
 		return -1;
 	}
 	res = listen(opbx_socket, 2);
 	if (res < 0) {
-		opbx_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 		close(opbx_socket);
 		opbx_socket = -1;
 		return -1;
@@ -707,7 +707,7 @@ static int opbx_makesocket(void)
 	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
 		struct passwd *pw;
 		if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL) {
-			opbx_log(LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
+			opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
 		} else {
 			uid = pw->pw_uid;
 		}
@@ -716,20 +716,20 @@ static int opbx_makesocket(void)
 	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
 		struct group *grp;
 		if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL) {
-			opbx_log(LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
+			opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
 		} else {
 			gid = grp->gr_gid;
 		}
 	}
 
 	if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
-		opbx_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 
 	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
 		mode_t p;
 		sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
 		if ((chmod(opbx_config_OPBX_SOCKET, p)) < 0)
-			opbx_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 	}
 
 	return 0;
@@ -741,7 +741,7 @@ static int opbx_tryconnect(void)
 	int res;
 	opbx_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (opbx_consock < 0) {
-		opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return 0;
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
@@ -817,7 +817,7 @@ int opbx_set_priority(int pri)
 	if (pri) {  
 		sched.sched_priority = 10;
 		if (sched_setscheduler(0, SCHED_RR, &sched)) {
-			opbx_log(LOG_WARNING, "Unable to set high priority\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
@@ -825,21 +825,21 @@ int opbx_set_priority(int pri)
 	} else {
 		sched.sched_priority = 0;
 		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			opbx_log(LOG_WARNING, "Unable to set normal priority\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
 #else
 	if (pri) {
 		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
-			opbx_log(LOG_WARNING, "Unable to set high priority\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
 				opbx_verbose("Set to high priority\n");
 	} else {
 		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			opbx_log(LOG_WARNING, "Unable to set normal priority\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
@@ -911,7 +911,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	if (option_verbose && option_console)
 		opbx_verbose("CallWeaver %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "CallWeaver ending (%d).\n", num);
+		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", opbx_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (opbx_socket > -1) {
 		pthread_cancel(lthread);
@@ -1252,7 +1252,7 @@ static int opbx_rl_read_char(FILE *cp)
 		if (res < 0) {
 			if (errno == EINTR)
 				continue;
-			opbx_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "poll failed: %s\n", strerror(errno));
 			break;
 		}
 
@@ -1722,7 +1722,7 @@ static void opbx_remotecontrol(char * data)
 			if (!remoteconsolehandler(ebuf)) {
 				res = write(opbx_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
-					opbx_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					break;
 				}
 			}
@@ -1787,7 +1787,7 @@ static void opbx_readconfig(void) {
 	if (option_overrideconfig == 1) {
 		cfg = opbx_config_load(opbx_config_OPBX_CONFIG_FILE);
 		if (!cfg)
-			opbx_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", opbx_config_OPBX_CONFIG_FILE);
+			opbx_log(OPBX_LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", opbx_config_OPBX_CONFIG_FILE);
 	} else {
 		cfg = opbx_config_load(config);
 	}
@@ -1925,7 +1925,7 @@ static void opbx_readconfig(void) {
 			double test[1];
 
 			if (getloadavg(test, 1) == -1) {
-				opbx_log(LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
+				opbx_log(OPBX_LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
 				option_maxload = 0.0;
 			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
@@ -2097,7 +2097,7 @@ int callweaver_main(int argc, char *argv[])
 		l.rlim_cur = RLIM_INFINITY;
 		l.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &l)) {
-			opbx_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
 
@@ -2118,29 +2118,29 @@ int callweaver_main(int argc, char *argv[])
 
 		/* inherit our capabilities */
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
-			opbx_log(LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
 		}
 #endif
 
 		gr = getgrnam(rungroup);
 		if (!gr) {
-			opbx_log(LOG_ERROR, "No such group '%s'!\n", rungroup);
+			opbx_log(OPBX_LOG_ERROR, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
 		pw = getpwnam(runuser);
 		if (!pw) {
-			opbx_log(LOG_ERROR, "No such user '%s'!\n", runuser);
+			opbx_log(OPBX_LOG_ERROR, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
 		
 		if (gr->gr_gid != getegid() )
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
-			opbx_log(LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
+			opbx_log(OPBX_LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(1);
 		}
 
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-			opbx_log(LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
+			opbx_log(OPBX_LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
 		if (option_verbose) {
@@ -2172,7 +2172,7 @@ int callweaver_main(int argc, char *argv[])
 #else
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 #endif
-			opbx_log(LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
+			opbx_log(OPBX_LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(1);
 		}
 		setenv("CALLWEAVER_ALREADY_NONROOT","yes",1);
@@ -2199,7 +2199,7 @@ int callweaver_main(int argc, char *argv[])
 
 		if (gr->gr_gid != getegid() )
 		    if (capset(cap_header, cap_data) == -1) {
-			opbx_log(LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
+			opbx_log(OPBX_LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
 			exit(1);
 		    }
 #endif
@@ -2208,10 +2208,10 @@ int callweaver_main(int argc, char *argv[])
 	/* Check if we're root */
 	if (!geteuid()) {
 #ifdef VERY_SECURE
-        opbx_log(LOG_ERROR, "Running as root has been disabled\n");
+        opbx_log(OPBX_LOG_ERROR, "Running as root has been disabled\n");
         exit(1);
 #else
-		opbx_log(LOG_ERROR, "Running as root has been enabled\n");
+		opbx_log(OPBX_LOG_ERROR, "Running as root has been enabled\n");
 #endif /* VERY_SECURE */
 	}
 
@@ -2222,7 +2222,7 @@ int callweaver_main(int argc, char *argv[])
 	   so we set it again to get core dumps */
 	if (option_dumpcore) {
 		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) == -1) {
-			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
 #endif
@@ -2262,14 +2262,14 @@ int callweaver_main(int argc, char *argv[])
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			opbx_log(LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
+			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(opbx_term_quit());
 			if(rl_init)
 			    rl_deprep_terminal();
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
-		opbx_log(LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
+		opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
 		printf(opbx_term_quit());
 		if(rl_init)
 		    rl_deprep_terminal();
@@ -2283,7 +2283,7 @@ int callweaver_main(int argc, char *argv[])
 		fprintf(f, "%d\n", getpid());
 		fclose(f);
 	} else
-		opbx_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
 		daemon(1,0);
@@ -2294,7 +2294,7 @@ int callweaver_main(int argc, char *argv[])
 			fprintf(f, "%d\n", getpid());
 			fclose(f);
 		} else
-			opbx_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 	}
 
 	/* Test recursive mutex locking. */
@@ -2445,7 +2445,7 @@ int callweaver_main(int argc, char *argv[])
 						dup2(fd, STDOUT_FILENO);
 						dup2(fd, STDIN_FILENO);
 					} else
-						opbx_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
+						opbx_log(OPBX_LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
 					
 					printf(opbx_term_quit());
 					break;

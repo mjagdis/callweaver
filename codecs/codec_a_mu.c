@@ -140,7 +140,7 @@ static int alawtoulaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
 
     if ((tmp->tail + f->datalen)> sizeof(tmp->outbuf))
     {
-          opbx_log(LOG_WARNING, "Out of buffer space\n");
+          opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
@@ -178,7 +178,7 @@ static int ulawtoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
 
     if (tmp->tail + f->datalen >= sizeof(tmp->outbuf))
     {
-        opbx_log (LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     s = f->data;

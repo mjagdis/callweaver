@@ -241,7 +241,7 @@ void sccp_dev_dbput(sccp_device_t * d) {
 	snprintf(tmp, sizeof(tmp), "dnd=%d,cfwdall=%s,cfwdbusy=%s", d->dnd, cfwdall, cfwdbusy);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Storing device status (dnd, cfwd*) in the callweaver db\n", d->id);
 	if (opbx_db_put("SCCP", d->id, tmp))
-		opbx_log(LOG_NOTICE, "%s: Unable to store device status (dnd, cfwd*) in the callweaver db\n", d->id);
+		opbx_log(OPBX_LOG_NOTICE, "%s: Unable to store device status (dnd, cfwd*) in the callweaver db\n", d->id);
 	opbx_mutex_unlock(&d->lock);
 }
 

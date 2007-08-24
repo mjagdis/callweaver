@@ -61,7 +61,7 @@ int add_command_to_queue (
 	
     if ( cq == NULL ) 
     {
-    	opbx_log( LOG_ERROR, "unable to malloc opbx_conf_command_queue\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to malloc opbx_conf_command_queue\n" ) ;
     	return 1 ;
     }
 
@@ -82,7 +82,7 @@ int add_command_to_queue (
 	cq_last->next = cq;
     }
 
-    opbx_log( OPBX_CONF_DEBUG, "Conference, name => %s - Added command %d params: '%d/%s'\n", 
+    opbx_log(OPBX_CONF_DEBUG, "Conference, name => %s - Added command %d params: '%d/%s'\n", 
 	      conf->name, cq->command, cq->param_number, cq->param_text );
 
     opbx_mutex_unlock( &conf->lock ) ;
@@ -232,7 +232,7 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    } 
 	    break;
 	default:
-	    opbx_log( LOG_WARNING, "Conference %s : don't know how to execute command %d\n", conf->name, cq->command) ;	
+	    opbx_log(OPBX_LOG_WARNING, "Conference %s : don't know how to execute command %d\n", conf->name, cq->command) ;	
 	    break;
     }
 
@@ -250,7 +250,7 @@ static void add_member( struct opbx_conference *conf, struct opbx_conf_member *m
 
     if ( conf == NULL ) 
     {
-    	opbx_log( LOG_ERROR, "unable to add member to NULL conference\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to add member to NULL conference\n" ) ;
     	return ;
     }
 
@@ -291,14 +291,14 @@ static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* 
     // check for member
     if ( member == NULL )
     {
-	opbx_log( LOG_WARNING, "unable to remove NULL member\n" ) ;
+	opbx_log(OPBX_LOG_WARNING, "unable to remove NULL member\n" ) ;
 	return -1 ;
     }
 
     // check for conference
     if ( conf == NULL )
     {
-    	opbx_log( LOG_WARNING, "unable to remove member from NULL conference\n" ) ;
+    	opbx_log(OPBX_LOG_WARNING, "unable to remove member from NULL conference\n" ) ;
     	return -1 ;
     }
 
@@ -527,7 +527,7 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
 	
     if ( conf == NULL ) 
     {
-    	opbx_log( LOG_ERROR, "unable to malloc opbx_conference\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to malloc opbx_conference\n" ) ;
     	return NULL ;
     }
 
@@ -585,7 +585,7 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     }
     else
     {
-    	opbx_log( LOG_ERROR, "unable to start conference thread for conference %s\n", conf->name ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to start conference thread for conference %s\n", conf->name ) ;
 	conf->conference_thread = OPBX_PTHREADT_NULL ;
 
 	// release conference mutexes
@@ -693,7 +693,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
     // check input
     if ( member == NULL )
     {
-    	opbx_log( LOG_WARNING, "unable to handle null member\n" ) ;
+    	opbx_log(OPBX_LOG_WARNING, "unable to handle null member\n" ) ;
     	return NULL ;
     }
 
@@ -717,7 +717,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
 	// return an error if create_conf() failed
 	if ( conf == NULL ) 
 	{
-	    opbx_log( LOG_ERROR, "unable to find or create requested conference\n" ) ;
+	    opbx_log(OPBX_LOG_ERROR, "unable to find or create requested conference\n" ) ;
 	    opbx_mutex_unlock( &start_stop_conf_lock ) ;
 	    return NULL ;
 	}

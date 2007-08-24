@@ -98,7 +98,7 @@ udp_socket_info_t *udp_socket_create(int nochecksums)
     
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
-        opbx_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
         return NULL;
     }
     flags = fcntl(fd, F_GETFL);
@@ -109,7 +109,7 @@ udp_socket_info_t *udp_socket_create(int nochecksums)
 #endif
     if ((info = malloc(sizeof(*info))) == NULL)
     {
-        opbx_log(LOG_ERROR, "Unable to allocate socket data: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_ERROR, "Unable to allocate socket data: %s\n", strerror(errno));
         close(fd);
         return NULL;
     }
@@ -202,7 +202,7 @@ udp_socket_info_t *udp_socket_create_group_with_bindaddr(int nochecksums, int gr
         }
         if (errno != EADDRINUSE)
         {
-            opbx_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
             udp_socket_destroy_group(info);
             return NULL;
         }
@@ -212,7 +212,7 @@ udp_socket_info_t *udp_socket_create_group_with_bindaddr(int nochecksums, int gr
         if (x == startplace)
             break;
     }
-    opbx_log(LOG_ERROR, "No ports available within the range %d to %d. Can't setup media stream.\n", startport, endport);
+    opbx_log(OPBX_LOG_ERROR, "No ports available within the range %d to %d. Can't setup media stream.\n", startport, endport);
     /* Unravel what we did so far, and give up */
     udp_socket_destroy_group(info);
     return NULL;
@@ -245,7 +245,7 @@ int udp_socket_set_us(udp_socket_info_t *info, const struct sockaddr_in *us)
         close(info->fd);
         if ((info->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         {
-            opbx_log(LOG_ERROR, "Unable to re-allocate socket: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_ERROR, "Unable to re-allocate socket: %s\n", strerror(errno));
             return -1;
         }
         flags = fcntl(info->fd, F_GETFL);
@@ -278,7 +278,7 @@ int udp_socket_set_tos(udp_socket_info_t *info, int tos)
     if (info == NULL)
         return -1;
     if ((res = setsockopt(info->fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-        opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+        opbx_log(OPBX_LOG_WARNING, "Unable to set TOS to %d\n", tos);
     return res;
 }
 
@@ -290,7 +290,7 @@ void udp_socket_set_nat(udp_socket_info_t *info, int nat_mode)
     if (nat_mode  &&  info->stun_state == STUN_STATE_IDLE  &&  stun_active)
     {
         if (stundebug)
-            opbx_log(LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(info->us.sin_port) );
+            opbx_log(OPBX_LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(info->us.sin_port) );
         opbx_udp_stun_bindrequest(info->fd, &stunserver_ip, NULL, NULL);
         info->stun_state = STUN_STATE_REQUEST_PENDING;
     }
@@ -402,13 +402,13 @@ int udp_socket_recvfrom(udp_socket_info_t *info,
         if (info->stun_state == STUN_STATE_REQUEST_PENDING)
         {
             if (stundebug)
-                opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE\n");
+                opbx_log(OPBX_LOG_DEBUG, "Checking if payload it is a stun RESPONSE\n");
             memset(&stun_me, 0, sizeof(struct stun_state));
             stun_handle_packet(info->stun_state, (struct sockaddr_in *) sa, buf, res, &stun_me);
             if (stun_me.msgtype == STUN_BINDRESP)
             {
                 if (stundebug)
-                    opbx_log(LOG_DEBUG, "Got STUN bind response\n");
+                    opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response\n");
                 info->stun_state = STUN_STATE_RESPONSE_RECEIVED;
                 if (stun_addr2sockaddr(&stun_sin, stun_me.mapped_addr))
                 {
@@ -417,7 +417,7 @@ int udp_socket_recvfrom(udp_socket_info_t *info,
                 else
                 {
                     if (stundebug)
-                        opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+                        opbx_log(OPBX_LOG_DEBUG, "Stun response did not contain mapped address\n");
                 }
                 stun_remove_request(&stun_me.id);
                 return -1;

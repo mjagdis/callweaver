@@ -75,7 +75,7 @@ static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **arg
 		if (!opbx_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
 		{
 			if (option_verbose > 2)
-				opbx_log(LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
+				opbx_log(OPBX_LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
 			bl = 1;
 		}
 	}
@@ -83,7 +83,7 @@ static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **arg
 		if (!opbx_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
 		{
 			if (option_verbose > 2)
-				opbx_log (LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
+				opbx_log(OPBX_LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
 			bl = 1;
 		}
 	}

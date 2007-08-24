@@ -64,7 +64,7 @@ static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 	
 	if (argc == 0) {
 		if (chan){
-			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Soft hanging %s up.\n",chan->name);
 			opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
 			/* To allow other possible threads finish their work */
 			/*usleep(50000);*/
@@ -92,7 +92,7 @@ static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 		}
 		opbx_mutex_unlock(&c->lock);
 		if (!strcasecmp(name, argv[0])) {
-			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",c->name);
+			opbx_log(OPBX_LOG_WARNING, "Soft hanging %s up.\n",c->name);
 			opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
 			if(!all)
 				break;

@@ -118,7 +118,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 	
 	if (argc < 1 || argc > 5)
 	{
-		opbx_log(LOG_ERROR, "Syntax: %s\n", waitfordigits_syntax);
+		opbx_log(OPBX_LOG_ERROR, "Syntax: %s\n", waitfordigits_syntax);
 		return -1;
 	}
 
@@ -136,7 +136,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 	}
 	else
 	{
-		opbx_log(LOG_WARNING, "WaitForDigits was passed invalid data '%s'. The timeout must be a positive integer.\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "WaitForDigits was passed invalid data '%s'. The timeout must be a positive integer.\n", argv[0]);
 	}
 	if (argv[0] == NULL || timeout <= 0)
 
@@ -184,11 +184,11 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 		{
 			if (dig ==-1)
 			{
-				opbx_log(LOG_NOTICE, "Timeout reached.\n ");
+				opbx_log(OPBX_LOG_NOTICE, "Timeout reached.\n ");
 			}
 			else
 			{
-				opbx_log(LOG_NOTICE, "Error at adding dig: %c!\n",dig);
+				opbx_log(OPBX_LOG_NOTICE, "Error at adding dig: %c!\n",dig);
 				res=-1;
 			}
 			break;
@@ -200,7 +200,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 		  
 		numsubst[l]=dig;
 		numsubst[l+1]=0;
-		//opbx_log(LOG_NOTICE, "Adding Dig to Chan: %c\n",dig);
+		//opbx_log(OPBX_LOG_NOTICE, "Adding Dig to Chan: %c\n",dig);
 	}
 	  
 	/** Restoring Extension if requested **/

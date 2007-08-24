@@ -83,13 +83,13 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 	rfmt = chan->readformat; /* Set to linear mode */
 	res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
-		opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 		return -1;
 	}
 
 	sildet = opbx_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
-		opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	opbx_dsp_set_threshold(sildet, silencethreshold);
@@ -99,11 +99,11 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 	for(;;) {
 		res = opbx_waitfor(chan, 2000);
 		if (!res) {
-			opbx_log(LOG_WARNING, "One waitfor failed, trying another\n");
+			opbx_log(OPBX_LOG_WARNING, "One waitfor failed, trying another\n");
 			/* Try one more time in case of masq */
 			res = opbx_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+				opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
 				res = -1;
 			}
 		}
@@ -131,12 +131,12 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 				/* Ended happily with silence */
 				gotsilence = 1;
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
-				opbx_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
+				opbx_log(OPBX_LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
 				opbx_fr_free(f);
 				break;
 			} else if ( difftime(time(&now),start) >= maxsilence/1000 ) {
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
-				opbx_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+				opbx_log(OPBX_LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
 				opbx_fr_free(f);
 				break;
 			}
@@ -144,7 +144,7 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 		opbx_fr_free(f);
 	}
 	if (rfmt && opbx_set_read_format(chan, rfmt)) {
-		opbx_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
 	}
 	opbx_dsp_free(sildet);
 	return gotsilence;

@@ -79,7 +79,7 @@ static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **arg
 	pres = opbx_parse_caller_presentation(argv[0]);
 
 	if (pres < 0) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", argv[0]);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}

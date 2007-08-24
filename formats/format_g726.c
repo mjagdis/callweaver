@@ -168,7 +168,7 @@ static struct opbx_filestream *g726_40_rewrite(FILE *f, const char *comment)
         tmp->f = f;
         tmp->rate = RATE_40;
     } else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -183,7 +183,7 @@ static struct opbx_filestream *g726_32_rewrite(FILE *f, const char *comment)
         tmp->f = f;
         tmp->rate = RATE_32;
     } else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -198,7 +198,7 @@ static struct opbx_filestream *g726_24_rewrite(FILE *f, const char *comment)
         tmp->f = f;
         tmp->rate = RATE_24;
     } else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -213,7 +213,7 @@ static struct opbx_filestream *g726_16_rewrite(FILE *f, const char *comment)
         tmp->f = f;
         tmp->rate = RATE_16;
     } else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -240,7 +240,7 @@ static struct opbx_frame *g726_read(struct opbx_filestream *s, int *whennext)
     if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen)
     {
         if (res)
-            opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     *whennext = s->fr.samples;
@@ -251,21 +251,21 @@ static int g726_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
     if (f->frametype != OPBX_FRAME_VOICE) {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_G726) {
-        opbx_log(LOG_WARNING, "Asked to write non-G726 frame (%d)!\n", 
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-G726 frame (%d)!\n", 
                         f->subclass);
         return -1;
     }
     if (f->datalen % frame_size[fs->rate]) {
-        opbx_log(LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
+        opbx_log(OPBX_LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
                         f->datalen, frame_size[fs->rate]);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-            opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
+            opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", 
                             res, frame_size[fs->rate], strerror(errno));
             return -1;
     }

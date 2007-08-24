@@ -59,9 +59,9 @@ extern opbx_mutex_t conflist_lock;
 #define APP_NCONFERENCE_DEBUG	0
 
 #if (APP_NCONFERENCE_DEBUG == 0)
-#define OPBX_CONF_DEBUG 	LOG_NOTICE
+#define OPBX_CONF_DEBUG 	OPBX_LOG_NOTICE
 #else
-#define OPBX_CONF_DEBUG 	LOG_NOTICE
+#define OPBX_CONF_DEBUG 	OPBX_LOG_NOTICE
 #endif
 
 

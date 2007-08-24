@@ -141,10 +141,10 @@ static int read_image_try(struct opbx_object *obj, void *data)
 						lseek(fd, 0, SEEK_SET);
 						args->frame = img->read_image(fd, len); 
 					} else
-						opbx_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
+						opbx_log(OPBX_LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
 					close(fd);
 				} else
-					opbx_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
 				return 1;
 			}
 		}
@@ -160,7 +160,7 @@ struct opbx_frame *opbx_read_image(char *filename, char *lang, int format)
 	if (!opbx_registry_iterate(&imager_registry, read_image_try, &args)) {
 		args.lang = NULL;
 		if (!opbx_registry_iterate(&imager_registry, read_image_try, &args))
-			opbx_log(LOG_WARNING, "Image file '%s' not found\n", filename);
+			opbx_log(OPBX_LOG_WARNING, "Image file '%s' not found\n", filename);
 	}
 	return args.frame;
 }

@@ -66,7 +66,7 @@ static int eval_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int res = 0;
 
 	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
+		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
 		dep_warning = 1;
 	}
 

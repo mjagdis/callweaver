@@ -92,11 +92,11 @@ static int function_config_rw(struct opbx_channel *chan, int argc, char **argv, 
 				return 0;
 			}
 		}
-		opbx_log(LOG_ERROR, "Config setting '%s' not known.\n", argv[0]);
+		opbx_log(OPBX_LOG_ERROR, "Config setting '%s' not known.\n", argv[0]);
 		return -1;
 	}
 
-	opbx_log(LOG_ERROR, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
+	opbx_log(OPBX_LOG_ERROR, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 	return -1;
 }
 /* function_config_read() }}} */

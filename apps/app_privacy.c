@@ -111,14 +111,14 @@ static int privacy_exec (struct opbx_channel *chan, int argc, char **argv, char 
                 if (sscanf(s, "%d", &x) == 1) {
                         maxretries = x;
                 } else {
-                        opbx_log(LOG_WARNING, "Invalid max retries argument\n");
+                        opbx_log(OPBX_LOG_WARNING, "Invalid max retries argument\n");
                 }
         }
         if (cfg && (s = opbx_variable_retrieve(cfg, "general", "minlength"))) {
                 if (sscanf(s, "%d", &x) == 1) {
                         minlength = x;
                 } else {
-                        opbx_log(LOG_WARNING, "Invalid min length argument\n");
+                        opbx_log(OPBX_LOG_WARNING, "Invalid min length argument\n");
                 }
         }
 			

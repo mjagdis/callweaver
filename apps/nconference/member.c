@@ -75,7 +75,7 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
     opbx_mutex_unlock(&member->lock);
 
 /*
-    opbx_log(LOG_WARNING,
+    opbx_log(OPBX_LOG_WARNING,
 	    "OURGen: samples %d - conf %s - speak: %d - format: %d\n", 
 	    samples, member->chan->name, member->is_speaking , cf->frametype
     );
@@ -83,7 +83,7 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
 
     // if there's no frames exit the loop.
     if( cf == NULL ) {
-        opbx_log( LOG_ERROR, "Nothing to write to the conference, channel => %s\n", member->channel_name ) ;
+        opbx_log(OPBX_LOG_ERROR, "Nothing to write to the conference, channel => %s\n", member->channel_name ) ;
 	return 0;
     }
 
@@ -93,7 +93,7 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
     if ( ( res != 0) )
     {
         // log 'dropped' outgoing frame
-        opbx_log( LOG_ERROR, "unable to write voice frame to channel, channel => %s, samples %d \n", member->channel_name, samples ) ;
+        opbx_log(OPBX_LOG_ERROR, "unable to write voice frame to channel, channel => %s, samples %d \n", member->channel_name, samples ) ;
     }
 
     // clean up frame
@@ -269,7 +269,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
     {
 	// Unmanaged frame
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
-	opbx_log(LOG_WARNING,"Freeing unknown frame: type %d  member %s \n", f->frametype, member->chan->name );
+	opbx_log(OPBX_LOG_WARNING,"Freeing unknown frame: type %d  member %s \n", f->frametype, member->chan->name );
 #endif
 	opbx_fr_free( f ) ;
     }
@@ -337,7 +337,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
     if (chan->_state != OPBX_STATE_UP)
 	if ( (res = opbx_answer( chan )) )
 	{
-    	    opbx_log( LOG_ERROR, "unable to answer call\n" ) ;
+    	    opbx_log(OPBX_LOG_ERROR, "unable to answer call\n" ) ;
     	    return -1 ;
 	}
 
@@ -346,7 +346,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
     // unable to create member, return an error
     if ( member == NULL ) 
     {
-	opbx_log( LOG_ERROR, "unable to create member\n" ) ;
+	opbx_log(OPBX_LOG_ERROR, "unable to create member\n" ) ;
 	return -1 ;
     }
 
@@ -369,7 +369,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
 
     if ( opbx_set_read_format( chan, member->read_format ) < 0 )
     {
-    	opbx_log( LOG_ERROR, "unable to set read format.\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to set read format.\n" ) ;
     	delete_member( member ) ;
     	return -1 ;
     } 
@@ -377,7 +377,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
     // for right now, we'll send everything as slinear
     if ( opbx_set_write_format( chan, member->write_format ) < 0 )
     {
-    	opbx_log( LOG_ERROR, "unable to set write format.\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to set write format.\n" ) ;
     	delete_member( member ) ;
     	return -1 ;
     }
@@ -390,7 +390,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
 	
     if ( conf == NULL )
     {
-	opbx_log( LOG_ERROR, "unable to setup member conference\n" ) ;
+	opbx_log(OPBX_LOG_ERROR, "unable to setup member conference\n" ) ;
 	delete_member( member) ;
 	return -1 ;
     } else {
@@ -447,7 +447,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
 	// make sure we have a channel to process
 	if ( chan == NULL )
 	{
-	    opbx_log( LOG_NOTICE, "member channel has closed\n" ) ;
+	    opbx_log(OPBX_LOG_NOTICE, "member channel has closed\n" ) ;
 	    break ;
 	}
 
@@ -471,7 +471,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
 	{
 	    // an error occured	
 	    opbx_log( 
-		LOG_NOTICE, 
+		OPBX_LOG_NOTICE, 
 		"an error occured waiting for a frame, channel => %s, error => %d\n", 
 		chan->name, left
 		) ;
@@ -609,13 +609,13 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 
     if ( chan == NULL )
     {
-    	opbx_log( LOG_ERROR, "unable to create member with null channel\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to create member with null channel\n" ) ;
     	return NULL ;
     }
 	
     if ( chan->name == NULL )
     {
-    	opbx_log( LOG_ERROR, "unable to create member with null channel name\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to create member with null channel name\n" ) ;
     	return NULL ;
     }
 	
@@ -623,7 +623,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 	
     if ( member == NULL ) 
     {
-    	opbx_log( LOG_ERROR, "unable to malloc opbx_conf_member\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to malloc opbx_conf_member\n" ) ;
     	return NULL ;
     }
 
@@ -653,7 +653,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
     }
     else
     {
-    	opbx_log( LOG_ERROR, "unable to parse member id\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to parse member id\n" ) ;
     	free( member ) ;
     	return NULL ;
     }
@@ -795,10 +795,10 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 		    } else { 
 			member->enable_vad_allowed = 0;
 			member->enable_vad = 0 ;
-			opbx_log( LOG_WARNING, "VAD Not supported on outgoing channels.\n"); 
+			opbx_log(OPBX_LOG_WARNING, "VAD Not supported on outgoing channels.\n"); 
 		    }
 #else
-		    opbx_log( LOG_WARNING, "VAD Support is not compiled in. Disabling.\n"); 
+		    opbx_log(OPBX_LOG_WARNING, "VAD Support is not compiled in. Disabling.\n"); 
 #endif	
 		    break ;
 
@@ -818,7 +818,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 		    break;
 
 		default:
-		    opbx_log( LOG_WARNING, "received invalid flag, chan => %s, flag => %c\n", 
+		    opbx_log(OPBX_LOG_WARNING, "received invalid flag, chan => %s, flag => %c\n", 
 			    chan->name, flags[i] ) ;			
 		    break ;
 	}
@@ -829,7 +829,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 	
     if ( member->cbuf == NULL ) 
     {
-    	opbx_log( LOG_ERROR, "unable to malloc member_cbuffer\n" ) ;
+    	opbx_log(OPBX_LOG_ERROR, "unable to malloc member_cbuffer\n" ) ;
     	return NULL ;
     } else {
 	// initialize it
@@ -872,7 +872,7 @@ int opbx_conf_member_genactivate( struct opbx_conf_member *member ) {
 
     if (res < 0)
     {
-    	opbx_log(LOG_WARNING,"Failed to activate generator on conference '%s'\n",member->chan->name);
+    	opbx_log(OPBX_LOG_WARNING,"Failed to activate generator on conference '%s'\n",member->chan->name);
     	res = 0;
     }
     else
@@ -888,7 +888,7 @@ struct opbx_conf_member* delete_member( struct opbx_conf_member* member )
 
     if ( member == NULL )
     {
-	opbx_log( LOG_WARNING, "unable to the delete null member\n" ) ;
+	opbx_log(OPBX_LOG_WARNING, "unable to the delete null member\n" ) ;
 	return NULL ;
     }
 

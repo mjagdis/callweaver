@@ -146,7 +146,7 @@ uint32_t opbx_resample_execute(
     int pool_err;
 
     if ( !resampler && !resampler->pool ) {
-        opbx_log(LOG_ERROR, "Cannot resample without a memory pool.\n");
+        opbx_log(OPBX_LOG_ERROR, "Cannot resample without a memory pool.\n");
         return 0;                
     }
     
@@ -156,7 +156,7 @@ uint32_t opbx_resample_execute(
      */
 
     if ( resampler->buffer_in && ( resampler->buffer_in_len < from_len ) ) {
-        opbx_log(LOG_ERROR, "Resizing the input buffer.\n");
+        opbx_log(OPBX_LOG_ERROR, "Resizing the input buffer.\n");
 
         resampler->buffer_in = opbx_mpool_resize( 
                                     resampler->pool, 
@@ -164,7 +164,7 @@ uint32_t opbx_resample_execute(
                                     resampler->buffer_in_len, from_len * sizeof(float),
                                     &pool_err );
         if ( !resampler->buffer_in ) {
-            opbx_log(LOG_ERROR,"Cannot resample input buffer.\n");
+            opbx_log(OPBX_LOG_ERROR,"Cannot resample input buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);
@@ -174,7 +174,7 @@ uint32_t opbx_resample_execute(
         // create it
         resampler->buffer_in = opbx_mpool_alloc( resampler->pool, from_len * sizeof(float), &pool_err );
         if ( !resampler->buffer_in ) {
-            opbx_log(LOG_ERROR,"Cannot create input buffer.\n");
+            opbx_log(OPBX_LOG_ERROR,"Cannot create input buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);        
@@ -183,7 +183,7 @@ uint32_t opbx_resample_execute(
     /* The same applies to our output buffer */
 
     if ( resampler->buffer_out && ( resampler->buffer_out_len < to_len ) ) {
-        opbx_log(LOG_ERROR, "Resizing the output buffer.\n");
+        opbx_log(OPBX_LOG_ERROR, "Resizing the output buffer.\n");
 
         resampler->buffer_out = opbx_mpool_resize( 
                                     resampler->pool, 
@@ -191,7 +191,7 @@ uint32_t opbx_resample_execute(
                                     resampler->buffer_out_len, to_len * sizeof(float),
                                     &pool_err );
         if ( !resampler->buffer_out ) {
-            opbx_log(LOG_ERROR,"Cannot resample output buffer.\n");
+            opbx_log(OPBX_LOG_ERROR,"Cannot resample output buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);
@@ -201,7 +201,7 @@ uint32_t opbx_resample_execute(
         // create it
         resampler->buffer_out = opbx_mpool_alloc( resampler->pool, to_len * sizeof(float), &pool_err );
         if ( !resampler->buffer_out ) {
-            opbx_log(LOG_ERROR,"Cannot create output buffer.\n");
+            opbx_log(OPBX_LOG_ERROR,"Cannot create output buffer.\n");
             return 0;
         }
         resampler->buffer_out_len = to_len * sizeof(float);        
@@ -231,7 +231,7 @@ uint32_t opbx_resample_execute(
     float_to_int16t ( MIN(tot,to_len), resampler->buffer_out, to);
 
     if ( tot!=to_len ) {
-        opbx_log(LOG_WARNING,"Uh... weird... resampling buffer != to buffer ( %d != %d )\n", tot,to_len);
+        opbx_log(OPBX_LOG_WARNING,"Uh... weird... resampling buffer != to buffer ( %d != %d )\n", tot,to_len);
     }
 
     return MIN(tot,to_len);

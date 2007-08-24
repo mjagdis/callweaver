@@ -640,7 +640,7 @@ static void iax_debug_output(const char *data)
 
 static void iax_error_output(const char *data)
 {
-	opbx_log(LOG_WARNING, "%s", data);
+	opbx_log(OPBX_LOG_WARNING, "%s", data);
 }
 
 
@@ -758,7 +758,7 @@ static unsigned char compress_subclass(int subclass)
 	for (x = 0; x < IAX_MAX_SHIFT; x++) {
 		if (subclass & (1 << x)) {
 			if (power > -1) {
-				opbx_log(LOG_WARNING, "Can't compress subclass %d\n", subclass);
+				opbx_log(OPBX_LOG_WARNING, "Can't compress subclass %d\n", subclass);
 				return 0;
 			} else
 				power = x;
@@ -902,7 +902,7 @@ static void update_max_trunk(void)
 	}
 	maxtrunkcall = max;
 	if (option_debug && iaxdebug)
-		opbx_log(LOG_DEBUG, "New max trunk callno is %d\n", max);
+		opbx_log(OPBX_LOG_DEBUG, "New max trunk callno is %d\n", max);
 }
 
 static void update_max_nontrunk(void)
@@ -916,7 +916,7 @@ static void update_max_nontrunk(void)
 	}
 	maxnontrunkcall = max;
 	if (option_debug && iaxdebug)
-		opbx_log(LOG_DEBUG, "New max nontrunk callno is %d\n", max);
+		opbx_log(OPBX_LOG_DEBUG, "New max nontrunk callno is %d\n", max);
 }
 
 static int make_trunk(unsigned short callno, int locked)
@@ -925,11 +925,11 @@ static int make_trunk(unsigned short callno, int locked)
 	int res= 0;
 	struct timeval now;
 	if (iaxs[callno]->oseqno) {
-		opbx_log(LOG_WARNING, "Can't make trunk once a call has started!\n");
+		opbx_log(OPBX_LOG_WARNING, "Can't make trunk once a call has started!\n");
 		return -1;
 	}
 	if (callno & TRUNK_CALL_START) {
-		opbx_log(LOG_WARNING, "Call %d is already a trunk\n", callno);
+		opbx_log(OPBX_LOG_WARNING, "Call %d is already a trunk\n", callno);
 		return -1;
 	}
 	gettimeofday(&now, NULL);
@@ -956,10 +956,10 @@ static int make_trunk(unsigned short callno, int locked)
 		opbx_mutex_unlock(&iaxsl[x]);
 	}
 	if (x >= IAX_MAX_CALLS - 1) {
-		opbx_log(LOG_WARNING, "Unable to trunk call: Insufficient space\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to trunk call: Insufficient space\n");
 		return -1;
 	}
-	opbx_log(LOG_DEBUG, "Made call %d into trunk call %d\n", callno, x);
+	opbx_log(OPBX_LOG_DEBUG, "Made call %d into trunk call %d\n", callno, x);
 	/* We move this call from a non-trunked to a trunked call */
 	update_max_trunk();
 	update_max_nontrunk();
@@ -1008,14 +1008,14 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		}
 		/* We've still got lock held if we found a spot */
 		if (x >= TRUNK_CALL_START) {
-			opbx_log(LOG_WARNING, "No more space\n");
+			opbx_log(OPBX_LOG_WARNING, "No more space\n");
 			return 0;
 		}
 		iaxs[x] = new_iax(sin, lockpeer, host);
 		update_max_nontrunk();
 		if (iaxs[x]) {
 			if (option_debug && iaxdebug)
-				opbx_log(LOG_DEBUG, "Creating new call structure %d\n", x);
+				opbx_log(OPBX_LOG_DEBUG, "Creating new call structure %d\n", x);
 			iaxs[x]->sockfd = sockfd;
 			iaxs[x]->addr.sin_port = sin->sin_port;
 			iaxs[x]->addr.sin_family = sin->sin_family;
@@ -1030,7 +1030,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			opbx_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 			opbx_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
 		} else {
-			opbx_log(LOG_WARNING, "Out of resources\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of resources\n");
 			opbx_mutex_unlock(&iaxsl[x]);
 			return 0;
 		}
@@ -1115,16 +1115,16 @@ static int handle_error(void)
 	m.msg_flags = 0;
 	res = recvmsg(netsocket, &m, MSG_ERRQUEUE);
 	if (res < 0)
-		opbx_log(LOG_WARNING, "Error detected, but unable to read error: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Error detected, but unable to read error: %s\n", strerror(errno));
 	else {
 		if (m.msg_controllen) {
 			sin = (struct sockaddr_in *)SO_EE_OFFENDER(&e);
 			if (sin) 
-				opbx_log(LOG_WARNING, "Receive error from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+				opbx_log(OPBX_LOG_WARNING, "Receive error from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 			else
-				opbx_log(LOG_WARNING, "No address detected??\n");
+				opbx_log(OPBX_LOG_WARNING, "No address detected??\n");
 		} else {
-			opbx_log(LOG_WARNING, "Local error: %s\n", strerror(e.ee_errno));
+			opbx_log(OPBX_LOG_WARNING, "Local error: %s\n", strerror(e.ee_errno));
 		}
 	}
 #endif
@@ -1138,7 +1138,7 @@ static int transmit_trunk(struct iax_frame *f, struct sockaddr_in *sin, int sock
 					sizeof(*sin));
 	if (res < 0) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_DEBUG, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else
 		res = 0;
@@ -1151,10 +1151,10 @@ static int send_packet(struct iax_frame *f)
 	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
 	if (option_debug > 2 && iaxdebug)
-		opbx_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
+		opbx_log(OPBX_LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
 	if (!f->callno) {
-		opbx_log(LOG_WARNING, "Call number = %d\n", f->callno);
+		opbx_log(OPBX_LOG_WARNING, "Call number = %d\n", f->callno);
 		return -1;
 	}
 	if (!iaxs[f->callno])
@@ -1174,7 +1174,7 @@ static int send_packet(struct iax_frame *f)
 	}
 	if (res < 0) {
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_DEBUG, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else
 		res = 0;
@@ -1235,7 +1235,7 @@ static int iax2_predestroy(int callno)
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt--;
 		if (usecnt < 0) 
-			opbx_log(LOG_WARNING, "Usecnt < 0???\n");
+			opbx_log(OPBX_LOG_WARNING, "Usecnt < 0???\n");
 		opbx_mutex_unlock(&usecnt_lock);
 	}
 	opbx_mutex_unlock(&iaxsl[callno]);
@@ -1269,7 +1269,7 @@ retry:
 		owner = NULL;
 	if (owner) {
 		if (opbx_mutex_trylock(&owner->lock)) {
-			opbx_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
+			opbx_log(OPBX_LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
 			opbx_mutex_unlock(&iaxsl[callno]);
 			usleep(1);
 			goto retry;
@@ -1388,7 +1388,7 @@ static int attempt_transmit(void *data)
 							iax2_destroy_nolock(f->callno);
 					} else {
 						if (iaxs[f->callno]->owner)
-							opbx_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
+							opbx_log(OPBX_LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
 						iaxs[f->callno]->error = ETIMEDOUT;
 						if (iaxs[f->callno]->owner) {
 							struct opbx_frame fr;
@@ -1693,7 +1693,7 @@ static int forward_delivery(struct iax_frame *fr)
 		return -1;
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "forward_delivery: Forwarding ts=%d on %d/%d to %d/%d on %s:%d\n",
+		opbx_log(OPBX_LOG_DEBUG, "forward_delivery: Forwarding ts=%d on %d/%d to %d/%d on %s:%d\n",
 				fr->ts,
 				p1->callno, p1->peercallno,
 				p2->callno, p2->peercallno,
@@ -1708,7 +1708,7 @@ static int forward_delivery(struct iax_frame *fr)
 	if (fr->ts + 50000 <= p1->last) {
 		fr->ts = ( (p1->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "forward_delivery: pushed forward timestamp to %u\n", fr->ts);
+			opbx_log(OPBX_LOG_DEBUG, "forward_delivery: pushed forward timestamp to %u\n", fr->ts);
 	}
 
 	/* Send with timestamp adjusted to the origin of the outbound leg */
@@ -1734,7 +1734,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   update the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
 			if (option_debug && iaxdebug)
-				opbx_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
+				opbx_log(OPBX_LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
 		}
 		if (x > 50000) {
 			/* Sudden apparent big jump forwards in timestamp:
@@ -1743,7 +1743,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   Adjust the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
 			if (option_debug && iaxdebug)
-				opbx_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
+				opbx_log(OPBX_LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
 		}
 	}
 }
@@ -1753,7 +1753,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 #if 0
 	if (option_debug && iaxdebug)
-		opbx_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, update=%d\n",
+		opbx_log(OPBX_LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, update=%d\n",
 				fr->ts, iaxs[fr->callno]->last, updatehistory);
 #endif
 
@@ -1777,7 +1777,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		fr->af.delivery = opbx_tvadd(iaxs[fr->callno]->rxcore, opbx_samp2tv(fr->ts, 1000));
 	else {
 #if 0
-		opbx_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
+		opbx_log(OPBX_LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
 		fr->af.delivery = opbx_tv(0,0);
 	}
@@ -1844,7 +1844,7 @@ static int iax2_fixup(struct opbx_channel *oldchannel, struct opbx_channel *newc
 	if (iaxs[callno])
 		iaxs[callno]->owner = newchan;
 	else
-		opbx_log(LOG_WARNING, "Uh, this isn't a good sign...\n");
+		opbx_log(OPBX_LOG_WARNING, "Uh, this isn't a good sign...\n");
 	opbx_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
@@ -1941,12 +1941,12 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 			memset(&peer->addr, 0, sizeof(peer->addr));
 			realtime_update_peer(peer->name, &peer->addr, nowtime);
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "realtime_peer: Bah, '%s' is expired (%ld/%ld/%ld)!\n",
+				opbx_log(OPBX_LOG_DEBUG, "realtime_peer: Bah, '%s' is expired (%ld/%ld/%ld)!\n",
 						peername, nowtime - regseconds, regseconds, nowtime);
 		}
 		else {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "realtime_peer: Registration for '%s' still active (%ld/%ld/%ld)!\n",
+				opbx_log(OPBX_LOG_DEBUG, "realtime_peer: Registration for '%s' still active (%ld/%ld/%ld)!\n",
 						peername, nowtime - regseconds, regseconds, nowtime);
 		}
 	}
@@ -2046,7 +2046,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 			opbx_codec_pref_convert(&prefs, cai->prefs, sizeof(cai->prefs), 1);
 			return 0;
 		} else {
-			opbx_log(LOG_WARNING, "No such host: %s\n", peername);
+			opbx_log(OPBX_LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
 	}
@@ -2089,7 +2089,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		if (key)
 			*key++ = '\0';
 		if (!key || opbx_db_get(family, key, cai->secret, sizeof(cai->secret))) {
-			opbx_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
+			opbx_log(OPBX_LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
 			if (opbx_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
 			return -1;
@@ -2118,7 +2118,7 @@ static int auto_congest(void *nothing)
 	if (iaxs[callno]) {
 		iaxs[callno]->initid = -1;
 		iax2_queue_frame(callno, &f);
-		opbx_log(LOG_NOTICE, "Auto-congesting call due to slow response\n");
+		opbx_log(OPBX_LOG_NOTICE, "Auto-congesting call due to slow response\n");
 	}
 	opbx_mutex_unlock(&iaxsl[callno]);
 	return 0;
@@ -2226,7 +2226,7 @@ static int iax2_call(struct opbx_channel *c, char *dest, int timeout)
 	struct create_addr_info cai;
 
 	if ((c->_state != OPBX_STATE_DOWN) && (c->_state != OPBX_STATE_RESERVED)) {
-		opbx_log(LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
+		opbx_log(OPBX_LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
 		return -1;
 	}
 
@@ -2241,7 +2241,7 @@ static int iax2_call(struct opbx_channel *c, char *dest, int timeout)
 		pds.exten = defaultrdest;
 
 	if (create_addr(pds.peer, &sin, &cai)) {
-		opbx_log(LOG_WARNING, "No address associated with '%s'\n", pds.peer);
+		opbx_log(OPBX_LOG_WARNING, "No address associated with '%s'\n", pds.peer);
 		return -1;
 	}
 
@@ -2357,7 +2357,7 @@ static int iax2_hangup(struct opbx_channel *c)
  	memset(&ied, 0, sizeof(ied));
 	opbx_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
-		opbx_log(LOG_DEBUG, "We're hanging up %s now...\n", c->name);
+		opbx_log(OPBX_LOG_DEBUG, "We're hanging up %s now...\n", c->name);
 		alreadygone = opbx_test_flag(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
  		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, (unsigned char)c->hangupcause);
@@ -2367,7 +2367,7 @@ static int iax2_hangup(struct opbx_channel *c)
 		iax2_predestroy_nolock(callno);
 		/* If we were already gone to begin with, destroy us now */
 		if (alreadygone) {
-			opbx_log(LOG_DEBUG, "Really destroying %s now...\n", c->name);
+			opbx_log(OPBX_LOG_DEBUG, "Really destroying %s now...\n", c->name);
 			iax2_destroy_nolock(callno);
 		}
 	}
@@ -2400,7 +2400,7 @@ static int iax2_setoption(struct opbx_channel *c, int option, void *data, int da
 			free(h);
 			return res;
 		} else {
-			opbx_log(LOG_WARNING, "Out of memory\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 			return -1;
 		}
 	}
@@ -2409,7 +2409,7 @@ static int iax2_setoption(struct opbx_channel *c, int option, void *data, int da
 static struct opbx_frame *iax2_read(struct opbx_channel *c) 
 {
 	static struct opbx_frame f = { OPBX_FRAME_NULL, };
-	opbx_log(LOG_NOTICE, "I should never be called!\n");
+	opbx_log(OPBX_LOG_NOTICE, "I should never be called!\n");
 	return &f;
 }
 
@@ -2517,7 +2517,7 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 		!(flags & (OPBX_BRIDGE_DTMF_CHANNEL_0 | OPBX_BRIDGE_DTMF_CHANNEL_1))) {
 			/* Try the transfer */
 			if (iax2_start_transfer(callno0, callno1))
-				opbx_log(LOG_WARNING, "Unable to start the transfer\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to start the transfer\n");
 			transferstarted = 1;
 		}
 		if ((iaxs[callno0]->transferring == TRANSFER_RELEASED) && (iaxs[callno1]->transferring == TRANSFER_RELEASED)) {
@@ -2594,9 +2594,9 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 			} else {
 #if 0
 				if (iaxdebug && option_debug)
-					opbx_log(LOG_DEBUG, "Read from %s\n", who->name);
+					opbx_log(OPBX_LOG_DEBUG, "Read from %s\n", who->name);
 				if (who == last) 
-					opbx_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
+					opbx_log(OPBX_LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
 				last = who;
 #endif
 tackygoto:
@@ -2626,7 +2626,7 @@ static int iax2_answer(struct opbx_channel *c)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Answering IAX2 call\n");
+		opbx_log(OPBX_LOG_DEBUG, "Answering IAX2 call\n");
 	return send_command_locked(callno, OPBX_FRAME_CONTROL, OPBX_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
@@ -2634,7 +2634,7 @@ static int iax2_indicate(struct opbx_channel *c, int condition)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug && iaxdebug)
-		opbx_log(LOG_DEBUG, "Indicating condition %d\n", condition);
+		opbx_log(OPBX_LOG_DEBUG, "Indicating condition %d\n", condition);
 	return send_command_locked(callno, OPBX_FRAME_CONTROL, condition, 0, NULL, 0, -1);
 }
 	
@@ -2654,7 +2654,7 @@ static int iax2_transfer(struct opbx_channel *c, const char *dest)
 	if (context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Transferring '%s' to '%s'\n", c->name, dest);
+		opbx_log(OPBX_LOG_DEBUG, "Transferring '%s' to '%s'\n", c->name, dest);
 	return send_command_locked(callno, OPBX_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
 }
 	
@@ -2729,7 +2729,7 @@ static struct opbx_channel *opbx_iax2_new(int callno, int state, int capability)
 		opbx_setstate(tmp, state);
 		if (state != OPBX_STATE_DOWN) {
 			if (opbx_pbx_start(tmp)) {
-				opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				opbx_hangup(tmp);
 				tmp = NULL;
 			}
@@ -2831,7 +2831,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	if (delivery && !opbx_tvzero(*delivery)) {
 		ms = opbx_tvdiff_ms(*delivery, p->offset);
 		if (option_debug > 2 && iaxdebug)
-			opbx_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
+			opbx_log(OPBX_LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
 		ms = opbx_tvdiff_ms(opbx_tvnow(), p->offset);
 		if (ms < 0)
@@ -2880,7 +2880,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* frame size too) */
 
 				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
-					opbx_log(LOG_DEBUG, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
+					opbx_log(OPBX_LOG_DEBUG, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= 8) /* check to make sure we dont core dump */
@@ -2950,12 +2950,12 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 /* 	if (opbx_tvzero(p->rxcore)) { */
 /* 		p->rxcore = opbx_tvnow(); */
 /* 		if (option_debug && iaxdebug) */
-/* 			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n", */
+/* 			opbx_log(OPBX_LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n", */
 /* 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset); */
 /* 		p->rxcore = opbx_tvsub(p->rxcore, opbx_samp2tv(offset, 1000)); */
 /* #if 1 */
 /* 		if (option_debug && iaxdebug) */
-/* 			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n", */
+/* 			opbx_log(OPBX_LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n", */
 /* 					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec)); */
 /* #endif */
 /* 	} */
@@ -3008,7 +3008,7 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 #ifdef SO_NO_CHECK
 			setsockopt(tpeer->sockfd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
-			opbx_log(LOG_DEBUG, "Created trunk peer for '%s:%d'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+			opbx_log(OPBX_LOG_DEBUG, "Created trunk peer for '%s:%d'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 		}
 	}
 	opbx_mutex_unlock(&tpeerlock);
@@ -3034,14 +3034,14 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 				if (tmp) {
 					tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
 					tpeer->trunkdata = tmp;
-					opbx_log(LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
+					opbx_log(OPBX_LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
 				} else {
-					opbx_log(LOG_WARNING, "Insufficient memory to expand trunk data to %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+					opbx_log(OPBX_LOG_WARNING, "Insufficient memory to expand trunk data to %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 					opbx_mutex_unlock(&tpeer->lock);
 					return -1;
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Maximum trunk data space exceeded to %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+				opbx_log(OPBX_LOG_WARNING, "Maximum trunk data space exceeded to %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 				opbx_mutex_unlock(&tpeer->lock);
 				return -1;
 			}
@@ -3087,7 +3087,7 @@ static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len
 	/* Debug with "fake encryption" */
 	int x;
 	if (len % 16)
-		opbx_log(LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
+		opbx_log(OPBX_LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
 	for (x=0;x<len;x++)
 		dst[x] = src[x] ^ 0xff;
 #else	
@@ -3111,7 +3111,7 @@ static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len
 	/* Debug with "fake encryption" */
 	int x;
 	if (len % 16)
-		opbx_log(LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
+		opbx_log(OPBX_LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
 	for (x=0;x<len;x++)
 		dst[x] = src[x] ^ 0xff;
 #else
@@ -3145,7 +3145,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct opbx_iax2_full_hdr *fh, str
 
 		padding = 16 + (workspace[15] & 0xf);
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
+			opbx_log(OPBX_LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct opbx_iax2_full_hdr))
 			return -1;
 
@@ -3160,7 +3160,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct opbx_iax2_full_hdr *fh, str
 	} else {
 		struct opbx_iax2_mini_enc_hdr *efh = (struct opbx_iax2_mini_enc_hdr *)fh;
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
+			opbx_log(OPBX_LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct opbx_iax2_mini_hdr))
 			return -1;
 		/* Decrypt */
@@ -3182,7 +3182,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct opbx_iax2_full_hdr *fh, un
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct opbx_iax2_full_enc_hdr *efh = (struct opbx_iax2_full_enc_hdr *)fh;
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
+			opbx_log(OPBX_LOG_DEBUG, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
 		padding = 16 - ((*datalen - sizeof(struct opbx_iax2_full_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
@@ -3190,7 +3190,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct opbx_iax2_full_hdr *fh, un
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
+			opbx_log(OPBX_LOG_DEBUG, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
 		*datalen += padding;
 		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct opbx_iax2_full_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct opbx_iax2_full_enc_hdr))
@@ -3198,7 +3198,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct opbx_iax2_full_hdr *fh, un
 	} else {
 		struct opbx_iax2_mini_enc_hdr *efh = (struct opbx_iax2_mini_enc_hdr *)fh;
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
+			opbx_log(OPBX_LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
 		padding = 16 - ((*datalen - sizeof(struct opbx_iax2_mini_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
@@ -3264,7 +3264,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 	unsigned int fts;
 		
 	if (!pvt) {
-		opbx_log(LOG_WARNING, "No private structure for packet?\n");
+		opbx_log(OPBX_LOG_WARNING, "No private structure for packet?\n");
 		return -1;
 	}
 	
@@ -3304,7 +3304,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 	} else
 		fr = iax_frame_new(DIRECTION_OUTGRESS, opbx_test_flag(pvt, IAX_ENCRYPTED) ? f->datalen + 32 : f->datalen);
 	if (!fr) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	/* Copy our prospective frame into our immediate or retransmitted wrapper */
@@ -3373,7 +3373,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
 			}
             else
-				opbx_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
+				opbx_log(OPBX_LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 		}
 	
 		if (now)
@@ -3419,7 +3419,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 				if (opbx_test_flag(pvt, IAX_KEYPOPULATED))
 					encrypt_frame(&pvt->ecx, (struct opbx_iax2_full_hdr *)mh, pvt->semirand, &fr->datalen);
 				else
-					opbx_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
+					opbx_log(OPBX_LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 			}
 			res = send_packet(fr);
 		}
@@ -3877,7 +3877,7 @@ static int iax2_write(struct opbx_channel *c, struct opbx_frame *f)
 				res = iax2_send(iaxs[callno], f, ts, -1, 0, 0, 0);
 			}
 		} else {
-			opbx_log(LOG_DEBUG, "Write error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_DEBUG, "Write error: %s\n", strerror(errno));
 		}
 	}
 	/* If it's already gone, just return */
@@ -3999,7 +3999,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	if (!gotcapability) 
 		iaxs[callno]->peercapability = iaxs[callno]->peerformat;
 	if (version > IAX_PROTO_VERSION) {
-		opbx_log(LOG_WARNING, "Peer '%s' has too new a protocol version (%d) for me\n", 
+		opbx_log(OPBX_LOG_WARNING, "Peer '%s' has too new a protocol version (%d) for me\n", 
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), version);
 		return res;
 	}
@@ -4123,7 +4123,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				key++;
 			}
 			if (!key || opbx_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
-				opbx_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
+				opbx_log(OPBX_LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (opbx_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
 					user = NULL;
@@ -4151,7 +4151,7 @@ static int raw_hangup(struct sockaddr_in *sin, unsigned short src, unsigned shor
 #if 0
 	if (option_debug)
 #endif	
-		opbx_log(LOG_DEBUG, "Raw Hangup %s:%d, src=%d, dst=%d\n",
+		opbx_log(OPBX_LOG_DEBUG, "Raw Hangup %s:%d, src=%d, dst=%d\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), src, dst);
 	return sendto(sockfd, &fh, sizeof(fh), 0, (struct sockaddr *)sin, sizeof(*sin));
 }
@@ -4262,7 +4262,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 				res = 0;
 				break;
 			} else if (!key)
-				opbx_log(LOG_WARNING, "requested inkey '%s' for RSA authentication does not exist\n", keyn);
+				opbx_log(OPBX_LOG_WARNING, "requested inkey '%s' for RSA authentication does not exist\n", keyn);
 			keyn = strsep(&stringp, ":");
 		}
 	} else if (p->authmethods & IAX_AUTH_MD5) {
@@ -4313,7 +4313,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		expire = ies->refresh;
 
 	if (opbx_strlen_zero(peer)) {
-		opbx_log(LOG_NOTICE, "Empty registration from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		opbx_log(OPBX_LOG_NOTICE, "Empty registration from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		return -1;
 	}
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
@@ -4325,13 +4325,13 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 
 	if (!p) {
 		if (authdebug)
-			opbx_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+			opbx_log(OPBX_LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		return -1;
 	}
 
 	if (!opbx_test_flag(p, IAX_DYNAMIC)) {
 		if (authdebug)
-			opbx_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+			opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		if (opbx_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
@@ -4339,7 +4339,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 
 	if (!opbx_apply_ha(p->ha, sin)) {
 		if (authdebug)
-			opbx_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
+			opbx_log(OPBX_LOG_NOTICE, "Host %s denied access to register peer '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 		if (opbx_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
@@ -4360,19 +4360,19 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 					iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 					break;
 				} else if (!key) 
-					opbx_log(LOG_WARNING, "requested inkey '%s' does not exist\n", keyn);
+					opbx_log(OPBX_LOG_WARNING, "requested inkey '%s' does not exist\n", keyn);
 				keyn = strsep(&stringp, ":");
 			}
 			if (!keyn) {
 				if (authdebug)
-					opbx_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
+					opbx_log(OPBX_LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
 				if (opbx_test_flag(p, IAX_TEMPONLY))
 					destroy_peer(p);
 				return -1;
 			}
 		} else {
 			if (authdebug)
-				opbx_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
+				opbx_log(OPBX_LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
 			if (opbx_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
@@ -4381,7 +4381,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		/* They've provided a plain text password and we support that */
 		if (strcmp(secret, p->secret)) {
 			if (authdebug)
-				opbx_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
+				opbx_log(OPBX_LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 			if (opbx_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
@@ -4401,14 +4401,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 		} else {
 			if (authdebug)
-				opbx_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
+				opbx_log(OPBX_LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
 			if (opbx_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
 		}
 	} else if (!opbx_strlen_zero(md5secret) || !opbx_strlen_zero(secret)) {
 		if (authdebug)
-			opbx_log(LOG_NOTICE, "Inappropriate authentication received\n");
+			opbx_log(OPBX_LOG_NOTICE, "Inappropriate authentication received\n");
 		if (opbx_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
@@ -4435,18 +4435,18 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 	if (!opbx_strlen_zero(keyn)) {
 		if (!(authmethods & IAX_AUTH_RSA)) {
 			if (opbx_strlen_zero(secret)) 
-				opbx_log(LOG_NOTICE, "Asked to authenticate to %s with an RSA key, but they don't allow RSA authentication\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+				opbx_log(OPBX_LOG_NOTICE, "Asked to authenticate to %s with an RSA key, but they don't allow RSA authentication\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		} else if (opbx_strlen_zero(challenge)) {
-			opbx_log(LOG_NOTICE, "No challenge provided for RSA authentication to %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+			opbx_log(OPBX_LOG_NOTICE, "No challenge provided for RSA authentication to %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		} else {
 			char sig[256];
 			struct opbx_key *key;
 			key = opbx_key_get(keyn, OPBX_KEY_PRIVATE);
 			if (!key) {
-				opbx_log(LOG_NOTICE, "Unable to find private key '%s'\n", keyn);
+				opbx_log(OPBX_LOG_NOTICE, "Unable to find private key '%s'\n", keyn);
 			} else {
 				if (opbx_sign(key, challenge, sig)) {
-					opbx_log(LOG_NOTICE, "Unable to sign challenge withy key\n");
+					opbx_log(OPBX_LOG_NOTICE, "Unable to sign challenge withy key\n");
 					res = -1;
 				} else {
 					iax_ie_append_str(ied, IAX_IE_RSA_RESULT, sig);
@@ -4476,7 +4476,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 			iax_ie_append_str(ied, IAX_IE_PASSWORD, secret);
 			res = 0;
 		} else
-			opbx_log(LOG_NOTICE, "No way to send secret to peer '%s' (their methods: %d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), authmethods);
+			opbx_log(OPBX_LOG_NOTICE, "No way to send secret to peer '%s' (their methods: %d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), authmethods);
 	}
 	return res;
 }
@@ -4565,7 +4565,7 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	if (ies->callno)
 		newcall = ies->callno;
 	if (!newcall || !new.sin_addr.s_addr || !new.sin_port) {
-		opbx_log(LOG_WARNING, "Invalid transfer request\n");
+		opbx_log(OPBX_LOG_WARNING, "Invalid transfer request\n");
 		return -1;
 	}
 	pvt->transfercallno = newcall;
@@ -4646,7 +4646,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 		peercallno = ies->callno;
 
 	if (peercallno < 1) {
-		opbx_log(LOG_WARNING, "Invalid transfer request\n");
+		opbx_log(OPBX_LOG_WARNING, "Invalid transfer request\n");
 		return -1;
 	}
 	memcpy(&pvt->addr, &pvt->transfer, sizeof(pvt->addr));
@@ -4707,13 +4707,13 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	reg = iaxs[callno]->reg;
 	if (!reg) {
-		opbx_log(LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
+		opbx_log(OPBX_LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
 		return -1;
 	}
 	memcpy(&oldus, &reg->us, sizeof(oldus));
 	oldmsgs = reg->messages;
 	if (inaddrcmp(&reg->addr, sin)) {
-		opbx_log(LOG_WARNING, "Received unsolicited registry ack from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		opbx_log(OPBX_LOG_WARNING, "Received unsolicited registry ack from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		return -1;
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
@@ -4758,7 +4758,7 @@ static int iax2_register(char *value, int lineno)
 	username = strsep(&stringp, "@");
 	hostname = strsep(&stringp, "@");
 	if (!hostname) {
-		opbx_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
+		opbx_log(OPBX_LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
 		return -1;
 	}
 	stringp=username;
@@ -4769,12 +4769,12 @@ static int iax2_register(char *value, int lineno)
 	porta = strsep(&stringp, ":");
 	
 	if (porta && !atoi(porta)) {
-		opbx_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+		opbx_log(OPBX_LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
 	hp = opbx_gethostbyname(hostname, &ahp);
 	if (!hp) {
-		opbx_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
+		opbx_log(OPBX_LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
 		return -1;
 	}
 	reg = malloc(sizeof(struct iax2_registry));
@@ -4792,7 +4792,7 @@ static int iax2_register(char *value, int lineno)
 		reg->callno = 0;
 		registrations = reg;
 	} else {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 	return 0;
@@ -4820,7 +4820,7 @@ static int expire_registry(void *data)
 {
 	struct iax2_peer *p = data;
 
-	opbx_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
+	opbx_log(OPBX_LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
 	if ( opbx_test_flag((&globalflags), IAX_RTUPDATE) && 
 	     (opbx_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS))
 	   )
@@ -4904,7 +4904,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 
 	/* SLD: Another find_peer call during registration - this time when we are really updating our registration */
 	if (!(p = find_peer(name, 1))) {
-		opbx_log(LOG_WARNING, "No such peer '%s'\n", name);
+		opbx_log(OPBX_LOG_WARNING, "No such peer '%s'\n", name);
 		return -1;
 	}
 
@@ -4953,11 +4953,11 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	if (p->expire > -1)
 		opbx_sched_del(sched, p->expire);
 	if (refresh > max_reg_expire) {
-		opbx_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+		opbx_log(OPBX_LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
 			p->name, max_reg_expire, refresh);
 		p->expiry = max_reg_expire;
 	} else if (refresh < min_reg_expire) {
-		opbx_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+		opbx_log(OPBX_LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
 			p->name, min_reg_expire, refresh);
 		p->expiry = min_reg_expire;
 	} else {
@@ -5015,7 +5015,7 @@ static int registry_authrequest(char *name, int callno)
 			destroy_peer(p);
 		return send_command(iaxs[callno], OPBX_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 	} 
-	opbx_log(LOG_WARNING, "No such peer '%s'\n", name);
+	opbx_log(OPBX_LOG_WARNING, "No such peer '%s'\n", name);
 	return 0;
 }
 
@@ -5039,11 +5039,11 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 	reg = iaxs[callno]->reg;
 	if (reg) {
 			if (inaddrcmp(&reg->addr, sin)) {
-				opbx_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+				opbx_log(OPBX_LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 				return -1;
 			}
 			if (opbx_strlen_zero(reg->secret)) {
-				opbx_log(LOG_NOTICE, "No secret associated with peer '%s'\n", reg->username);
+				opbx_log(OPBX_LOG_NOTICE, "No secret associated with peer '%s'\n", reg->username);
 				reg->regstate = REG_STATE_NOAUTH;
 				return -1;
 			}
@@ -5061,9 +5061,9 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 				return send_command(iaxs[callno], OPBX_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 			} else
 				return -1;
-			opbx_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+			opbx_log(OPBX_LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
 	} else	
-		opbx_log(LOG_NOTICE, "Can't reregister without a reg\n");
+		opbx_log(OPBX_LOG_NOTICE, "Can't reregister without a reg\n");
 	return -1;
 }
 
@@ -5219,7 +5219,7 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		res = transmit_trunk(fr, &tpeer->addr, tpeer->sockfd);
 		calls = tpeer->calls;
 #if 0
-		opbx_log(LOG_DEBUG, "Trunking %d call chunks in %d bytes to %s:%d, ts=%d\n", calls, fr->datalen, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), ntohl(mth->ts));
+		opbx_log(OPBX_LOG_DEBUG, "Trunking %d call chunks in %d bytes to %s:%d, ts=%d\n", calls, fr->datalen, opbx_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), ntohl(mth->ts));
 #endif		
 		/* Reset transmit trunk side data */
 		tpeer->trunkdatalen = 0;
@@ -5286,7 +5286,7 @@ static void timing_read(opbx_timer_t *t, void *user_data)
 		opbx_mutex_lock(&drop->lock);
 		/* Once we have this lock, we're sure nobody else is using it or could use it once we release it, 
 		   because by the time they could get tpeerlock, we've already grabbed it */
-		opbx_log(LOG_DEBUG, "Dropping unused iax2 trunk peer '%s:%d'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), drop->addr.sin_addr), ntohs(drop->addr.sin_port));
+		opbx_log(OPBX_LOG_DEBUG, "Dropping unused iax2 trunk peer '%s:%d'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), drop->addr.sin_addr), ntohs(drop->addr.sin_port));
 		free(drop->trunkdata);
 		opbx_mutex_unlock(&drop->lock);
 		opbx_mutex_destroy(&drop->lock);
@@ -5364,10 +5364,10 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		if (callerid)
 			dpr->callerid = strdup(callerid);
 		if (opbx_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
-			opbx_log(LOG_WARNING, "Unable to start lookup thread!\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 }
 
 struct iax_dual {
@@ -5391,7 +5391,7 @@ static void *iax_park_thread(void *stuff)
 		opbx_fr_free(f);
 	res = opbx_park_call(chan1, chan2, 0, &ext);
 	opbx_hangup(chan2);
-	opbx_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
+	opbx_log(OPBX_LOG_NOTICE, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
@@ -5425,7 +5425,7 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 		opbx_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
 		chan2m->priority = chan2->priority;
 		if (opbx_do_masquerade(chan2m)) {
-			opbx_log(LOG_WARNING, "Masquerade failed :(\n");
+			opbx_log(OPBX_LOG_WARNING, "Masquerade failed :(\n");
 			opbx_hangup(chan2m);
 			return -1;
 		}
@@ -5533,7 +5533,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	res = recvfrom(fd, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
-			opbx_log(LOG_WARNING, "Error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Error: %s\n", strerror(errno));
 		handle_error();
 		return 1;
 	}
@@ -5543,13 +5543,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
  
 	}
 	if (res < sizeof(*mh)) {
-		opbx_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", 
+		opbx_log(OPBX_LOG_WARNING, "midget packet received (%d of %zd min)\n", 
 		    res, (int)sizeof(*mh));
 		return 1;
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
 		if (res < sizeof(*vh)) {
-			opbx_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a video frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(OPBX_LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a video frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			return 1;
 		}
 
@@ -5560,7 +5560,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		unsigned char metatype;
 
 		if (res < sizeof(*meta)) {
-			opbx_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a meta frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(OPBX_LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a meta frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			return 1;
 		}
 
@@ -5568,7 +5568,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
 			if (res < (sizeof(*meta) + sizeof(*mth))) {
-				opbx_log(LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", res,
+				opbx_log(OPBX_LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", res,
 					sizeof(*meta) + sizeof(*mth));
 				return 1;
 			}
@@ -5579,7 +5579,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ptr = mth->data;
 			tpeer = find_tpeer(&sin, fd);
 			if (!tpeer) {
-				opbx_log(LOG_WARNING, "Unable to accept trunked packet from '%s:%d': No matching peer\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+				opbx_log(OPBX_LOG_WARNING, "Unable to accept trunked packet from '%s:%d': No matching peer\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 				return 1;
 			}
 			tpeer->trunkact = opbx_tvnow();
@@ -5606,7 +5606,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					callno = ntohs(mte->callno);
 					trunked_ts = 0;
 				} else {
-					opbx_log(LOG_WARNING, "Unknown meta trunk cmd from '%s:%d': dropping\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+					opbx_log(OPBX_LOG_WARNING, "Unknown meta trunk cmd from '%s:%d': dropping\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 					break;
 				}
 				/* Stop if we don't have enough data */
@@ -5668,15 +5668,15 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 										iaxs[fr.callno]->last = fr.ts;
 #if 1
 										if (option_debug)
-											opbx_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+											opbx_log(OPBX_LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 #endif
 									}
 								}
 							} else {
-								opbx_log(LOG_WARNING, "Datalen < 0?\n");
+								opbx_log(OPBX_LOG_WARNING, "Datalen < 0?\n");
 							}
 						} else {
-							opbx_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
+							opbx_log(OPBX_LOG_WARNING, "Received trunked frame before first full voice frame\n ");
 							iax2_vnak(fr.callno);
 						}
 					}
@@ -5696,7 +5696,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 #endif
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (res < sizeof(*fh)) {
-			opbx_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a full frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(OPBX_LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a full frame but is too short\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			return 1;
 		}
 
@@ -5744,7 +5744,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 	if (opbx_test_flag(iaxs[fr.callno], IAX_ENCRYPTED)) {
 		if (decrypt_frame(fr.callno, fh, &f, &res)) {
-			opbx_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			opbx_log(OPBX_LOG_NOTICE, "Packet Decrypt Failed!\n");
 			opbx_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
 		}
@@ -5763,7 +5763,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug  && iaxdebug)
-			opbx_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
+			opbx_log(OPBX_LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
 		fr.oseqno = fh->oseqno;
 		fr.iseqno = fh->iseqno;
@@ -5771,7 +5771,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 #ifdef IAXTESTS
 		if (test_resync) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr.ts, fr.ts + test_resync);
+				opbx_log(OPBX_LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr.ts, fr.ts + test_resync);
 			fr.ts += test_resync;
 		}
 #endif /* IAXTESTS */
@@ -5805,14 +5805,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			  (f.frametype != OPBX_FRAME_IAX)) {
 			 	/* If it's not an ACK packet, it's out of order. */
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
+					opbx_log(OPBX_LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
 					iaxs[fr.callno]->iseqno, fr.oseqno, f.frametype, f.subclass);
 				if (iaxs[fr.callno]->iseqno > fr.oseqno) {
 					/* If we've already seen it, ack it XXX There's a border condition here XXX */
 					if ((f.frametype != OPBX_FRAME_IAX) || 
 							((f.subclass != IAX_COMMAND_ACK) && (f.subclass != IAX_COMMAND_INVAL))) {
 						if (option_debug)
-							opbx_log(LOG_DEBUG, "Acking anyway\n");
+							opbx_log(OPBX_LOG_DEBUG, "Acking anyway\n");
 						/* XXX Maybe we should handle its ack to us, but then again, it's probably outdated anyway, and if
 						   we have anything to send, we'll retransmit and get an ACK back anyway XXX */
 						send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -5836,7 +5836,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 		/* A full frame */
 		if (res < sizeof(*fh)) {
-			opbx_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*fh));
+			opbx_log(OPBX_LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*fh));
 			opbx_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
 		}
@@ -5869,7 +5869,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				for (x=iaxs[fr.callno]->rseqno; x != fr.iseqno; x++) {
 					/* Ack the packet with the given timestamp */
 					if (option_debug && iaxdebug)
-						opbx_log(LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
+						opbx_log(OPBX_LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
 					opbx_mutex_lock(&iaxq.lock);
 					for (cur = iaxq.head; cur ; cur = cur->next) {
 						/* If it's our call, and our timestamp, mark -1 retries */
@@ -5878,7 +5878,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 							/* Destroy call if this is the end */
 							if (cur->final) { 
 								if (iaxdebug && option_debug)
-									opbx_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr.callno);
+									opbx_log(OPBX_LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr.callno);
 								iax2_destroy_nolock(fr.callno);
 							}
 						}
@@ -5894,7 +5894,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					return 1;
 				}
 			} else
-				opbx_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
+				opbx_log(OPBX_LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
 		}
 		if (inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
 			((f.frametype != OPBX_FRAME_IAX) || 
@@ -5908,7 +5908,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (f.datalen) {
 			if (f.frametype == OPBX_FRAME_IAX) {
 				if (iax_parse_ies(&ies, buf + sizeof(*fh), f.datalen)) {
-					opbx_log(LOG_WARNING, "Undecodable frame received from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+					opbx_log(OPBX_LOG_WARNING, "Undecodable frame received from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 					opbx_mutex_unlock(&iaxsl[fr.callno]);
 					return 1;
 				}
@@ -5925,7 +5925,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (f.frametype == OPBX_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr.callno]->voiceformat) {
 					iaxs[fr.callno]->voiceformat = f.subclass;
-					opbx_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
+					opbx_log(OPBX_LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
 					if (iaxs[fr.callno]->owner) {
 						int orignative;
 retryowner:
@@ -5945,7 +5945,7 @@ retryowner:
 								opbx_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 							}
 						} else {
-							opbx_log(LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
+							opbx_log(OPBX_LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
 							opbx_mutex_unlock(&iaxsl[fr.callno]);
 							return 1;
 						}
@@ -5954,7 +5954,7 @@ retryowner:
 		}
 		if (f.frametype == OPBX_FRAME_VIDEO) {
 			if (f.subclass != iaxs[fr.callno]->videoformat) {
-				opbx_log(LOG_DEBUG, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
+				opbx_log(OPBX_LOG_DEBUG, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
 				iaxs[fr.callno]->videoformat = f.subclass & ~0x1;
 			}
 		}
@@ -5966,7 +5966,7 @@ retryowner:
 			}
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug && iaxdebug)
-				opbx_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
+				opbx_log(OPBX_LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
 
                         /* Update last ts unless the frame's timestamp originated with us. */
 			if (iaxs[fr.callno]->last < fr.ts &&
@@ -5975,7 +5975,7 @@ retryowner:
                             f.subclass != IAX_COMMAND_LAGRP) {
 				iaxs[fr.callno]->last = fr.ts;
 				if (option_debug && iaxdebug)
-					opbx_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+					opbx_log(OPBX_LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 			}
 
 			switch(f.subclass) {
@@ -6045,7 +6045,7 @@ retryowner:
 					/* They're not allowed on */
 					auth_fail(fr.callno, IAX_COMMAND_REJECT);
 					if (authdebug)
-						opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+						opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					break;
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
@@ -6066,7 +6066,7 @@ retryowner:
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, OPBX_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						if (authdebug)
-							opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+							opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					} else {
 						/* Select an appropriate format */
 
@@ -6108,9 +6108,9 @@ retryowner:
 								send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 								if (authdebug) {
 									if(opbx_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
-										opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+										opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
 									else 
-										opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 								}
 							} else {
 								/* Pick one... */
@@ -6145,10 +6145,10 @@ retryowner:
 									memset(&ied0, 0, sizeof(ied0));
 									iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 									iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, OPBX_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-									opbx_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+									opbx_log(OPBX_LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 									send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 									if (authdebug)
-										opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 									opbx_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);	
 									break;
 								}
@@ -6219,7 +6219,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_HANGUP:
 				opbx_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
-				opbx_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
+				opbx_log(OPBX_LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr.callno]->owner)
 					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
@@ -6244,9 +6244,9 @@ retryowner:
 					}
 					if (iaxs[fr.callno]->owner) {
 						if (authdebug)
-							opbx_log(LOG_WARNING, "Call rejected by %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
+							opbx_log(OPBX_LOG_WARNING, "Call rejected by %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
 					}
-					opbx_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
+					opbx_log(OPBX_LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 					iaxs[fr.callno]->error = EPERM;
@@ -6257,19 +6257,19 @@ retryowner:
 				if (iaxs[fr.callno]->owner && opbx_bridged_channel(iaxs[fr.callno]->owner) && ies.called_number) {
 					if (!strcmp(ies.called_number, opbx_parking_ext())) {
 						if (iax_park(opbx_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->owner)) {
-							opbx_log(LOG_WARNING, "Failed to park call on '%s'\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name);
+							opbx_log(OPBX_LOG_WARNING, "Failed to park call on '%s'\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name);
 						} else
-							opbx_log(LOG_DEBUG, "Parked call on '%s'\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name);
+							opbx_log(OPBX_LOG_DEBUG, "Parked call on '%s'\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name);
 					} else {
 						if (opbx_async_goto(opbx_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->context, ies.called_number, 1))
-							opbx_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name, 
+							opbx_log(OPBX_LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 						else
-							opbx_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name, 
+							opbx_log(OPBX_LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", opbx_bridged_channel(iaxs[fr.callno]->owner)->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 					}
 				} else
-						opbx_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr.callno);
+						opbx_log(OPBX_LOG_DEBUG, "Async goto not applicable on call %d\n", fr.callno);
 				break;
 			case IAX_COMMAND_ACCEPT:
 				/* Ignore if call is already up or needs authentication or is a TBD */
@@ -6297,7 +6297,7 @@ retryowner:
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, OPBX_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 					send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					if (authdebug)
-						opbx_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+						opbx_log(OPBX_LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
 				} else {
 					iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 					if (iaxs[fr.callno]->owner) {
@@ -6377,13 +6377,13 @@ retryowner2:
 					peer = iaxs[fr.callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
-							opbx_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
+							opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
 							opbx_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime > peer->maxms) {
-							opbx_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
+							opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
 							opbx_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
@@ -6402,7 +6402,7 @@ retryowner2:
 					iax2_destroy_nolock(fr.callno);
 					peer->callno = 0;
 					/* Try again eventually */
-						opbx_log(LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
+						opbx_log(OPBX_LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
 						peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 					else
@@ -6432,7 +6432,7 @@ retryowner2:
 					    ts = calc_timestamp(iaxs[fr.callno], 0, &fr.af);
 					    iaxs[fr.callno]->lag = ts - fr.ts;
 					    if (option_debug && iaxdebug)
-						opbx_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
+						opbx_log(OPBX_LOG_DEBUG, "Peer %s lag measured as %dms\n",
 								opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->lag);
 					}
 #ifdef BRIDGE_OPTIMIZATION
@@ -6441,11 +6441,11 @@ retryowner2:
 				break;
 			case IAX_COMMAND_AUTHREQ:
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					opbx_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
+					opbx_log(OPBX_LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
 					break;
 				}
 				if (authenticate_reply(iaxs[fr.callno], &iaxs[fr.callno]->addr, &ies, iaxs[fr.callno]->secret, iaxs[fr.callno]->outkey)) {
-					opbx_log(LOG_WARNING, 
+					opbx_log(OPBX_LOG_WARNING, 
 						"I don't know how to authenticate %s to %s\n", 
 						ies.username ? ies.username : "<unknown>", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr));
 				}
@@ -6456,12 +6456,12 @@ retryowner2:
 					send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				/* Ignore once we've started */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					opbx_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
+					opbx_log(OPBX_LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
 					break;
 				}
 				if (authenticate_verify(iaxs[fr.callno], &ies)) {
 					if (authdebug)
-						opbx_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->username);
+						opbx_log(OPBX_LOG_NOTICE, "Host %s failed to authenticate as %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->username);
 					memset(&ied0, 0, sizeof(ied0));
 					auth_fail(fr.callno, IAX_COMMAND_REJECT);
 					break;
@@ -6473,7 +6473,7 @@ retryowner2:
 					exists = 0;
 				if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
 					if (authdebug)
-						opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+						opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, OPBX_CAUSE_NO_ROUTE_DESTINATION);
@@ -6510,15 +6510,15 @@ retryowner2:
 					}
 					if (!format) {
 						if(!opbx_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
-							opbx_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", opbx_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
+							opbx_log(OPBX_LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", opbx_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
 							format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
 						}
 						if (!format) {
 							if (authdebug) {
 								if(opbx_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) 
-									opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+									opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
 								else
-									opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+									opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 							}
 							memset(&ied0, 0, sizeof(ied0));
 							iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
@@ -6553,12 +6553,12 @@ retryowner2:
 								}
 							}
 							if (!format) {
-								opbx_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+								opbx_log(OPBX_LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 								if (authdebug) {
 									if(opbx_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
-										opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+										opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
 									else
-										opbx_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										opbx_log(OPBX_LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 								}
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
@@ -6611,7 +6611,7 @@ retryowner2:
 					opbx_copy_string(iaxs[fr.callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr.callno]->exten));	
 					if (!opbx_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num)) {
 						if (authdebug)
-							opbx_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+							opbx_log(OPBX_LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 						memset(&ied0, 0, sizeof(ied0));
 						iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, OPBX_CAUSE_NO_ROUTE_DESTINATION);
@@ -6629,13 +6629,13 @@ retryowner2:
 				break;
 			case IAX_COMMAND_INVAL:
 				iaxs[fr.callno]->error = ENOTCONN;
-				opbx_log(LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr.callno);
+				opbx_log(OPBX_LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr.callno);
 				iax2_destroy_nolock(fr.callno);
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Destroying call %d\n", fr.callno);
+					opbx_log(OPBX_LOG_DEBUG, "Destroying call %d\n", fr.callno);
 				break;
 			case IAX_COMMAND_VNAK:
-				opbx_log(LOG_DEBUG, "Received VNAK: resending outstanding frames\n");
+				opbx_log(OPBX_LOG_DEBUG, "Received VNAK: resending outstanding frames\n");
 				/* Force retransmission */
 				vnak_retransmit(fr.callno, fr.iseqno);
 				break;
@@ -6653,14 +6653,14 @@ retryowner2:
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
-						opbx_log(LOG_WARNING, "Registry error\n");
+						opbx_log(OPBX_LOG_WARNING, "Registry error\n");
 					break;
 				}
 				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
 				break;
 			case IAX_COMMAND_REGACK:
 				if (iax2_ack_registry(&ies, &sin, fr.callno)) 
-					opbx_log(LOG_WARNING, "Registration failure\n");
+					opbx_log(OPBX_LOG_WARNING, "Registration failure\n");
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
@@ -6668,7 +6668,7 @@ retryowner2:
 			case IAX_COMMAND_REGREJ:
 				if (iaxs[fr.callno]->reg) {
 					if (authdebug) {
-						opbx_log(LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+						opbx_log(OPBX_LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
 					}
 					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
@@ -6747,16 +6747,16 @@ retryowner2:
 				complete_dpreply(iaxs[fr.callno], &ies);
 				break;
 			case IAX_COMMAND_UNSUPPORT:
-				opbx_log(LOG_NOTICE, "Peer did not understand our iax command '%d'\n", ies.iax_unknown);
+				opbx_log(OPBX_LOG_NOTICE, "Peer did not understand our iax command '%d'\n", ies.iax_unknown);
 				break;
 			case IAX_COMMAND_FWDOWNL:
 				/* Firmware download */
-				opbx_log(LOG_DEBUG, "Rejecting firmware download request.");
+				opbx_log(OPBX_LOG_DEBUG, "Rejecting firmware download request.");
 				memset(&ied0, 0, sizeof(ied0));
 				send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				break;
 			default:
-				opbx_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
+				opbx_log(OPBX_LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
 				memset(&ied0, 0, sizeof(ied0));
 				iax_ie_append_byte(&ied0, IAX_IE_IAX_UNKNOWN, f.subclass);
 				send_command(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
@@ -6781,7 +6781,7 @@ retryowner2:
 		if (iaxs[fr.callno]->videoformat > 0) 
 			f.subclass = iaxs[fr.callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
-			opbx_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
+			opbx_log(OPBX_LOG_WARNING, "Received mini frame before first full video frame\n ");
 			iax2_vnak(fr.callno);
 			opbx_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
@@ -6803,14 +6803,14 @@ retryowner2:
 		if (iaxs[fr.callno]->voiceformat > 0)
 			f.subclass = iaxs[fr.callno]->voiceformat;
 		else {
-			opbx_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
+			opbx_log(OPBX_LOG_WARNING, "Received mini frame before first full voice frame\n ");
 			iax2_vnak(fr.callno);
 			opbx_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct opbx_iax2_mini_hdr);
 		if (f.datalen < 0) {
-			opbx_log(LOG_WARNING, "Datalen < 0?\n");
+			opbx_log(OPBX_LOG_WARNING, "Datalen < 0?\n");
 			opbx_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
 		}
@@ -6850,7 +6850,7 @@ retryowner2:
 		fr.outoforder = 0;
 	} else {
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
+			opbx_log(OPBX_LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
 		fr.outoforder = -1;
 	}
 #ifdef BRIDGE_OPTIMIZATION
@@ -6877,7 +6877,7 @@ retryowner2:
 		iaxs[fr.callno]->last = fr.ts;
 #if 1
 		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+			opbx_log(OPBX_LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 #endif
 	}
 
@@ -6890,16 +6890,16 @@ static int iax2_do_register(struct iax2_registry *reg)
 {
 	struct iax_ie_data ied;
 	if (option_debug && iaxdebug)
-		opbx_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
+		opbx_log(OPBX_LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
 	if (!reg->callno) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Allocate call number\n");
+			opbx_log(OPBX_LOG_DEBUG, "Allocate call number\n");
 		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
 		if (reg->callno < 1) {
-			opbx_log(LOG_WARNING, "Unable to create call for registration\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
 		} else if (option_debug)
-			opbx_log(LOG_DEBUG, "Registration created on call %d\n", reg->callno);
+			opbx_log(OPBX_LOG_DEBUG, "Registration created on call %d\n", reg->callno);
 		iaxs[reg->callno]->reg = reg;
 	}
 	/* Schedule the next registration attempt */
@@ -6921,7 +6921,7 @@ static int iax2_poke_noanswer(void *data)
 	struct iax2_peer *peer = data;
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
-		opbx_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
+		opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
 		opbx_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
@@ -6946,7 +6946,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		return 0;
 	}
 	if (peer->callno > 0) {
-		opbx_log(LOG_NOTICE, "Still have a callno...\n");
+		opbx_log(OPBX_LOG_NOTICE, "Still have a callno...\n");
 		iax2_destroy(peer->callno);
 	}
 	if (heldcall)
@@ -6955,7 +6955,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	if (heldcall)
 		opbx_mutex_lock(&iaxsl[heldcall]);
 	if (peer->callno < 1) {
-		opbx_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
 	}
 	if (peer->pokeexpire > -1)
@@ -7005,7 +7005,7 @@ static struct opbx_channel *iax2_request(const char *type, int format, void *dat
 	opbx_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 
 	if (!pds.peer) {
-		opbx_log(LOG_WARNING, "No peer given\n");
+		opbx_log(OPBX_LOG_WARNING, "No peer given\n");
 		return NULL;
 	}
 	       
@@ -7021,7 +7021,7 @@ static struct opbx_channel *iax2_request(const char *type, int format, void *dat
 
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (callno < 1) {
-		opbx_log(LOG_WARNING, "Unable to create call\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create call\n");
 		*cause = OPBX_CAUSE_CONGESTION;
 		return NULL;
 	}
@@ -7049,7 +7049,7 @@ static struct opbx_channel *iax2_request(const char *type, int format, void *dat
 			fmt = format;
 			res = opbx_translator_best_choice(&fmt, &native);
 			if (res < 0) {
-				opbx_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
+				opbx_log(OPBX_LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
 					opbx_getformatname(c->nativeformats), opbx_getformatname(fmt), c->name);
 				opbx_hangup(c);
 				return NULL;
@@ -7114,13 +7114,13 @@ static void *network_thread(void *ignore)
 		}
 		opbx_mutex_unlock(&iaxq.lock);
 		if (count >= 20)
-			opbx_log(LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
+			opbx_log(OPBX_LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
 		/* Now do the IO */
 		res = opbx_io_wait(io, 1000);
 		if (res >= 0) {
 			if (res >= 20)
-				opbx_log(LOG_WARNING, "chan_iax2: opbx_io_wait ran %d I/Os all at once\n", res);
+				opbx_log(OPBX_LOG_WARNING, "chan_iax2: opbx_io_wait ran %d I/Os all at once\n", res);
 		}
 	}
 	return NULL;
@@ -7167,13 +7167,13 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 	
 	sd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sd < 0) {
-		opbx_log(LOG_ERROR, "Socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Socket: %s\n", strerror(errno));
 		return -1;
 	}
 
 	res = bind(sd, sa, salen);
 	if (res < 0) {
-		opbx_log(LOG_DEBUG, "Can't bind: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_DEBUG, "Can't bind: %s\n", strerror(errno));
 		close(sd);
 		return 1;
 	}
@@ -7225,11 +7225,11 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	peer->sockfd = sockfd;
 
 	if (nonlocal) {
-		opbx_log(LOG_WARNING, "Non-local or unbound address specified (%s) in sourceaddress for '%s', reverting to default\n",
+		opbx_log(OPBX_LOG_WARNING, "Non-local or unbound address specified (%s) in sourceaddress for '%s', reverting to default\n",
 			srcaddr, peer->name);
 		return -1;
 	} else {
-		opbx_log(LOG_DEBUG, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
+		opbx_log(OPBX_LOG_DEBUG, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
 		return 0;
 	}
 }
@@ -7311,7 +7311,7 @@ static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, i
 				opbx_set2_flag(peer, opbx_true(v->value), IAX_TRUNK);	
 #ifndef IAX_TRUNKING
 				if (opbx_test_flag(peer, IAX_TRUNK)) {
-					opbx_log(LOG_WARNING, "Unable to support trunking on peer '%s'Trunking support is not compiled!\n", peer->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to support trunking on peer '%s'Trunking support is not compiled!\n", peer->name);
 					opbx_clear_flag(peer, IAX_TRUNK);
 				}
 #endif
@@ -7396,23 +7396,23 @@ static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, i
 				} else if (!strcasecmp(v->value, "yes")) {
 					peer->maxms = DEFAULT_MAXMS;
 				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
-					opbx_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
 			} else if (!strcasecmp(v->name, "qualifysmoothing")) {
 				peer->smoothing = opbx_true(v->value);
 			} else if (!strcasecmp(v->name, "qualifyfreqok")) {
 				if (sscanf(v->value, "%d", &peer->pokefreqok) != 1) {
-					opbx_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when OK should a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Qualification testing frequency of peer '%s' when OK should a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "qualifyfreqnotok")) {
 				if (sscanf(v->value, "%d", &peer->pokefreqnotok) != 1) {
-					opbx_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
-				} else opbx_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
+					opbx_log(OPBX_LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+				} else opbx_log(OPBX_LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
 				opbx_copy_string(peer->zonetag, v->value, sizeof(peer->zonetag));
 			}/* else if (strcasecmp(v->name,"type")) */
-			/*	opbx_log(LOG_WARNING, "Ignoring %s\n", v->name); */
+			/*	opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name); */
 			v=v->next;
 		}
 		if (!peer->authmethods)
@@ -7513,7 +7513,7 @@ static struct iax2_user *build_user(const char *name, struct opbx_variable *v, i
 				opbx_set2_flag(user, opbx_true(v->value), IAX_TRUNK);	
 #ifndef IAX_TRUNKING
 				if (opbx_test_flag(user, IAX_TRUNK)) {
-					opbx_log(LOG_WARNING, "Unable to support trunking on user '%s': Trunking support is not compiled!\n", user->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to support trunking on user '%s': Trunking support is not compiled!\n", user->name);
 					opbx_clear_flag(user, IAX_TRUNK);
 				}
 #endif
@@ -7550,7 +7550,7 @@ static struct iax2_user *build_user(const char *name, struct opbx_variable *v, i
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = opbx_cdr_amaflags2int(v->value);
 				if (format < 0) {
-					opbx_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 				} else {
 					user->amaflags = format;
 				}
@@ -7561,7 +7561,7 @@ static struct iax2_user *build_user(const char *name, struct opbx_variable *v, i
 				if (user->maxauthreq < 0)
 					user->maxauthreq = 0;
 			}/* else if (strcasecmp(v->name,"type")) */
-			/*	opbx_log(LOG_WARNING, "Ignoring %s\n", v->name); */
+			/*	opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
 		}
 		if (!user->authmethods) {
@@ -7739,7 +7739,7 @@ static int set_config(char *config_file, int reload)
 	cfg = opbx_config_load(config_file);
 	
 	if (!cfg) {
-		opbx_log(LOG_ERROR, "Unable to load config %s\n", config_file);
+		opbx_log(OPBX_LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
 	}
 
@@ -7768,7 +7768,7 @@ static int set_config(char *config_file, int reload)
 	tosval = opbx_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
 		if (opbx_str2tos(tosval, &tos))
-			opbx_log(LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
+			opbx_log(OPBX_LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
 	}
 	while(v) {
 		/* handle jb conf */
@@ -7780,7 +7780,7 @@ static int set_config(char *config_file, int reload)
 
 		if (!strcasecmp(v->name, "bindport")){ 
 			if (reload)
-				opbx_log(LOG_NOTICE, "Ignoring bindport on reload\n");
+				opbx_log(OPBX_LOG_NOTICE, "Ignoring bindport on reload\n");
 			else
 				listen_port = portno = atoi(v->value);
 		} else if (!strcasecmp(v->name, "pingtime")) 
@@ -7793,7 +7793,7 @@ static int set_config(char *config_file, int reload)
 				nochecksums = 0;
 #else
 			if (opbx_true(v->value))
-				opbx_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
+				opbx_log(OPBX_LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
 		}
 		else if (!strcasecmp(v->name, "lagrqtime")) 
@@ -7806,10 +7806,10 @@ static int set_config(char *config_file, int reload)
 			min_reg_expire = atoi(v->value);
 		else if (!strcasecmp(v->name, "bindaddr")) {
 			if (reload) {
-				opbx_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
+				opbx_log(OPBX_LOG_NOTICE, "Ignoring bindaddr on reload\n");
 			} else {
 				if (!(ns = opbx_netsock_bind(netsock, io, v->value, portno, tos, socket_read, NULL))) {
-					opbx_log(LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
 				} else {
 					if (option_verbose > 1) {
 						if (strchr(v->value, ':'))
@@ -7865,7 +7865,7 @@ static int set_config(char *config_file, int reload)
 				if (x >= 0)
 					autokill = x;
 				else
-					opbx_log(LOG_NOTICE, "Nice try, but autokill has to be >0 or 'yes' or 'no' at line %d\n", v->lineno);
+					opbx_log(OPBX_LOG_NOTICE, "Nice try, but autokill has to be >0 or 'yes' or 'no' at line %d\n", v->lineno);
 			} else if (opbx_true(v->value)) {
 				autokill = DEFAULT_MAXMS;
 			} else {
@@ -7879,7 +7879,7 @@ static int set_config(char *config_file, int reload)
 			} else if (!strcasecmp(v->value, "high")) {
 				capability = IAX_CAPABILITY_FULLBANDWIDTH;
 			} else
-				opbx_log(LOG_WARNING, "bandwidth must be either low, medium, or high\n");
+				opbx_log(OPBX_LOG_WARNING, "bandwidth must be either low, medium, or high\n");
 		} else if (!strcasecmp(v->name, "allow")) {
 			opbx_parse_allow_disallow(&prefs, &capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
@@ -7895,13 +7895,13 @@ static int set_config(char *config_file, int reload)
 				opbx_context_create(NULL, regcontext, channeltype);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (opbx_str2tos(v->value, &tos))
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			opbx_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = opbx_cdr_amaflags2int(v->value);
 			if (format < 0) {
-				opbx_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 			} else {
 				amaflags = format;
 			}
@@ -7912,11 +7912,11 @@ static int set_config(char *config_file, int reload)
 			if (maxauthreq < 0)
 				maxauthreq = 0;
 		} /*else if (strcasecmp(v->name,"type")) */
-		/*	opbx_log(LOG_WARNING, "Ignoring %s\n", v->name); */
+		/*	opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
 	}
 	if (min_reg_expire > max_reg_expire) {
-		opbx_log(LOG_WARNING, "Minimum registration interval of %d is more than maximum of %d, resetting minimum to %d\n",
+		opbx_log(OPBX_LOG_WARNING, "Minimum registration interval of %d is more than maximum of %d, resetting minimum to %d\n",
 			min_reg_expire, max_reg_expire, max_reg_expire);
 		min_reg_expire = max_reg_expire;
 	}
@@ -7946,10 +7946,10 @@ static int set_config(char *config_file, int reload)
 							reg_source_db(peer);
 					}
 				} else if (strcasecmp(utype, "user")) {
-					opbx_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config_file);
+					opbx_log(OPBX_LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config_file);
 				}
 			} else
-				opbx_log(LOG_WARNING, "Section '%s' lacks type\n", cat);
+				opbx_log(OPBX_LOG_WARNING, "Section '%s' lacks type\n", cat);
 		}
 		cat = opbx_category_browse(cfg, cat);
     }
@@ -8022,12 +8022,12 @@ static int cache_get_callno_locked(const char *data)
 	if (create_addr(pds.peer, &sin, &cai))
 		return -1;
 
-	opbx_log(LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
+	opbx_log(OPBX_LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
 		pds.peer, pds.username, pds.password, pds.context);
 
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (callno < 1) {
-		opbx_log(LOG_WARNING, "Unable to create call\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create call\n");
 		return -1;
 	}
 
@@ -8085,7 +8085,7 @@ static struct iax2_dpcache *find_cache(struct opbx_channel *chan, const char *da
 					/* Free memory and go again */
 					free(dp);
 				} else {
-					opbx_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = %p callno = %d)\n", dp->flags, dp->peer, dp->callno);
+					opbx_log(OPBX_LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = %p callno = %d)\n", dp->flags, dp->peer, dp->callno);
 				}
 				dp = next;
 				continue;
@@ -8101,7 +8101,7 @@ static struct iax2_dpcache *find_cache(struct opbx_channel *chan, const char *da
 		/* First, can we make a callno? */
 		callno = cache_get_callno_locked(data);
 		if (callno < 0) {
-			opbx_log(LOG_WARNING, "Unable to generate call for '%s'\n", data);
+			opbx_log(OPBX_LOG_WARNING, "Unable to generate call for '%s'\n", data);
 			return NULL;
 		}
 		dp = malloc(sizeof(struct iax2_dpcache));
@@ -8138,11 +8138,11 @@ static struct iax2_dpcache *find_cache(struct opbx_channel *chan, const char *da
 				break;
 		}
 		if (x >= sizeof(dp->waiters) / sizeof(dp->waiters[0])) {
-			opbx_log(LOG_WARNING, "No more waiter positions available\n");
+			opbx_log(OPBX_LOG_WARNING, "No more waiter positions available\n");
 			return NULL;
 		}
 		if (pipe(com)) {
-			opbx_log(LOG_WARNING, "Unable to create pipe for comm\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create pipe for comm\n");
 			return NULL;
 		}
 		dp->waiters[x] = com[1];
@@ -8171,7 +8171,7 @@ static struct iax2_dpcache *find_cache(struct opbx_channel *chan, const char *da
 			}
 		}
 		if (!timeout) {
-			opbx_log(LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
+			opbx_log(OPBX_LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
 		}
 		opbx_mutex_lock(&dpcache_lock);
 		dp->waiters[x] = -1;
@@ -8212,7 +8212,7 @@ static int iax2_exists(struct opbx_channel *chan, const char *context, const cha
 	struct iax2_dpcache *dp;
 	int res = 0;
 #if 0
-	opbx_log(LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
+	opbx_log(OPBX_LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
@@ -8224,7 +8224,7 @@ static int iax2_exists(struct opbx_channel *chan, const char *context, const cha
 	}
 	opbx_mutex_unlock(&dpcache_lock);
 	if (!dp) {
-		opbx_log(LOG_WARNING, "Unable to make DP cache\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to make DP cache\n");
 	}
 	return res;
 }
@@ -8235,7 +8235,7 @@ static int iax2_canmatch(struct opbx_channel *chan, const char *context, const c
 	int res = 0;
 	struct iax2_dpcache *dp;
 #if 0
-	opbx_log(LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
+	opbx_log(OPBX_LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
@@ -8247,7 +8247,7 @@ static int iax2_canmatch(struct opbx_channel *chan, const char *context, const c
 	}
 	opbx_mutex_unlock(&dpcache_lock);
 	if (!dp) {
-		opbx_log(LOG_WARNING, "Unable to make DP cache\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to make DP cache\n");
 	}
 	return res;
 }
@@ -8258,7 +8258,7 @@ static int iax2_matchmore(struct opbx_channel *chan, const char *context, const 
 	int res = 0;
 	struct iax2_dpcache *dp;
 #if 0
-	opbx_log(LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
+	opbx_log(OPBX_LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
@@ -8270,7 +8270,7 @@ static int iax2_matchmore(struct opbx_channel *chan, const char *context, const 
 	}
 	opbx_mutex_unlock(&dpcache_lock);
 	if (!dp) {
-		opbx_log(LOG_WARNING, "Unable to make DP cache\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to make DP cache\n");
 	}
 	return res;
 }
@@ -8284,7 +8284,7 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 	char *dialstatus;
 	struct iax2_dpcache *dp;
 #if 0
-	opbx_log(LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
+	opbx_log(OPBX_LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
@@ -8311,7 +8311,7 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 				opbx_verbose(VERBOSE_PREFIX_3 "Executing Dial('%s')\n", req);
 		} else {
 			opbx_mutex_unlock(&dpcache_lock);
-			opbx_log(LOG_WARNING, "Can't execute nonexistent extension '%s[@%s]' in data '%s'\n", exten, context, data);
+			opbx_log(OPBX_LOG_WARNING, "Can't execute nonexistent extension '%s[@%s]' in data '%s'\n", exten, context, data);
 			return -1;
 		}
 	}
@@ -8404,7 +8404,7 @@ static int iax2_devicestate(void *data)
 	}
 
 	if (option_debug > 2)
-		opbx_log(LOG_DEBUG, "Checking device state for device %s\n", dest);
+		opbx_log(OPBX_LOG_DEBUG, "Checking device state for device %s\n", dest);
 
 	/* SLD: FIXME: second call to find_peer during registration */
 	p = find_peer(host, 1);
@@ -8412,7 +8412,7 @@ static int iax2_devicestate(void *data)
 		found++;
 		res = OPBX_DEVICE_UNAVAILABLE;
 		if (option_debug > 2) 
-			opbx_log(LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+			opbx_log(OPBX_LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
 				host, dest, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
@@ -8425,7 +8425,7 @@ static int iax2_devicestate(void *data)
 		}
 	} else {
 		if (option_debug > 2) 
-			opbx_log(LOG_DEBUG, "Devicestate: Can't find peer %s.\n", host);
+			opbx_log(OPBX_LOG_DEBUG, "Devicestate: Can't find peer %s.\n", host);
 	}
 	
 	if (p && opbx_test_flag(p, IAX_TEMPONLY))
@@ -8656,7 +8656,7 @@ static int __unload_module(void)
 static int unload_module(void)
 {
 	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
-		opbx_log(LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
 		return -1;
 	}
 
@@ -8695,13 +8695,13 @@ static int load_module(void)
 	sched = sched_context_create();
 	
 	if (!io || !sched) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
 	netsock = opbx_netsock_list_alloc();
 	if (!netsock) {
-		opbx_log(LOG_ERROR, "Could not allocate netsock list.\n");
+		opbx_log(OPBX_LOG_ERROR, "Could not allocate netsock list.\n");
 		return -1;
 	}
 	opbx_netsock_init(netsock);
@@ -8722,7 +8722,7 @@ static int load_module(void)
 	opbx_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
 
  	if (opbx_channel_register(&iax2_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		__unload_module();
 		return -1;
 	}
@@ -8731,7 +8731,7 @@ static int load_module(void)
 
 	if (defaultsockfd < 0) {
 		if (!(ns = opbx_netsock_bindaddr(netsock, io, &sin, tos, socket_read, NULL))) {
-			opbx_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 			return -1;
 		} else {
 			if (option_verbose > 1)
@@ -8745,7 +8745,7 @@ static int load_module(void)
 		if (option_verbose > 1) 
 			opbx_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
 	} else {
-		opbx_log(LOG_ERROR, "Unable to start network thread\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to start network thread\n");
 		opbx_netsock_release(netsock);
 	}
 

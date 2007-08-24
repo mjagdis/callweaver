@@ -176,7 +176,7 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
         /* Perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160) > sizeof(tmp->buf)/sizeof(int16_t))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -189,7 +189,7 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 
     if ((f->datalen%33)  &&  (f->datalen%65))
     {
-        opbx_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
+        opbx_log(OPBX_LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
         return -1;
     }
     
@@ -206,20 +206,20 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
             {    
                 if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data, 1) != 160)
                 {
-                    opbx_log(LOG_WARNING, "Invalid GSM data (1)\n");
+                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data (1)\n");
                     return -1;
                 }
                 tmp->tail += 160;
                 if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data + 33, 1) != 160)
                 {
-                    opbx_log(LOG_WARNING, "Invalid GSM data (2)\n");
+                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data (2)\n");
                     return -1;
                 }
                 tmp->tail += 160;
             }
             else
             {
-                opbx_log(LOG_WARNING, "Out of (MS) buffer space\n");
+                opbx_log(OPBX_LOG_WARNING, "Out of (MS) buffer space\n");
                 return -1;
             }
         }
@@ -229,14 +229,14 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
             {
                 if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, 1) != 160)
                 {
-                    opbx_log(LOG_WARNING, "Invalid GSM data\n");
+                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data\n");
                     return -1;
                 }
                 tmp->tail += 160;
             }
             else
             {
-                opbx_log(LOG_WARNING, "Out of buffer space\n");
+                opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
                 return -1;
             }
         }
@@ -257,7 +257,7 @@ static int lintogsm_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
        get artifacts of earlier talk that do not belong */
     if (tmp->tail + f->datalen/sizeof(int16_t) >= sizeof(tmp->buf)/sizeof(int16_t))
     {
-        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
@@ -280,7 +280,7 @@ static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
     {
         if ((x + 1)*33 >= sizeof(tmp->outbuf))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             break;
         }
         /* Encode a frame of data */

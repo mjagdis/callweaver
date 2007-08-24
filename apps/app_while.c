@@ -170,7 +170,7 @@ static int find_matching_endwhile(struct opbx_channel *chan)
 
 	if (opbx_lock_contexts())
     {
-		opbx_log(LOG_ERROR, "Failed to lock contexts list\n");
+		opbx_log(OPBX_LOG_ERROR, "Failed to lock contexts list\n");
 		return -1;
 	}
 
@@ -282,7 +282,7 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 					opbx_verbose(VERBOSE_PREFIX_3 "Jumping to priority %d\n", pri);
 				chan->priority = pri;
 			} else {
-				opbx_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
+				opbx_log(OPBX_LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
 			}
 		}
 		ALL_DONE(u,res);

@@ -266,7 +266,7 @@ static int load_module(void)
 
 	cfg = opbx_config_load(config);
 	if (!cfg) {
-		opbx_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
+		opbx_log(OPBX_LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
 		goto out;
 	}
 	
@@ -278,12 +278,12 @@ static int load_module(void)
 
 	tmp = opbx_variable_retrieve(cfg,"global","dsn");
 	if (tmp == NULL) {
-		opbx_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming callweaverdb\n");
+		opbx_log(OPBX_LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming callweaverdb\n");
 		tmp = "callweaverdb";
 	}
 	dsn = strdup(tmp);
 	if (dsn == NULL) {
-		opbx_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		opbx_log(OPBX_LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 		res = -1;
 		goto out;
 	}
@@ -299,7 +299,7 @@ static int load_module(void)
 	if (tmp) {
 		username = strdup(tmp);
 		if (username == NULL) {
-			opbx_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 			res = -1;
 			goto out;
 		}
@@ -309,7 +309,7 @@ static int load_module(void)
 	if (tmp) {
 		password = strdup(tmp);
 		if (password == NULL) {
-			opbx_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+			opbx_log(OPBX_LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 			res = -1;
 			goto out;
 		}
@@ -319,12 +319,12 @@ static int load_module(void)
 	if (tmp) {
 		loguniqueid = opbx_true(tmp);
 		if (loguniqueid) {
-			opbx_log(LOG_DEBUG,"cdr_odbc: Logging uniqueid\n");
+			opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Logging uniqueid\n");
 		} else {
-			opbx_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
+			opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
 		}
 	} else {
-		opbx_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
+		opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
 		loguniqueid = 0;
 	}
 
@@ -332,23 +332,23 @@ static int load_module(void)
 	if (tmp) {
 		usegmtime = opbx_true(tmp);
 		if (usegmtime) {
-			opbx_log(LOG_DEBUG,"cdr_odbc: Logging in GMT\n");
+			opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Logging in GMT\n");
 		} else {
-			opbx_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+			opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
 		}
 	} else {
-		opbx_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+		opbx_log(OPBX_LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
 		usegmtime = 0;
 	}
 
 	tmp = opbx_variable_retrieve(cfg,"global","table");
 	if (tmp == NULL) {
-		opbx_log(LOG_WARNING,"cdr_odbc: table not specified.  Assuming cdr\n");
+		opbx_log(OPBX_LOG_WARNING,"cdr_odbc: table not specified.  Assuming cdr\n");
 		tmp = "cdr";
 	}
 	table = strdup(tmp);
 	if (table == NULL) {
-		opbx_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		opbx_log(OPBX_LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 		res = -1;
 		goto out;
 	}
@@ -368,7 +368,7 @@ static int load_module(void)
 	
 	res = odbc_init();
 	if (res < 0) {
-		opbx_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+		opbx_log(OPBX_LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
 		if (option_verbose > 2) {
 			opbx_verbose( VERBOSE_PREFIX_3 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
 		}

@@ -88,7 +88,7 @@ static int function_enum(struct opbx_channel *chan, int argc, char **argv, char 
 	*/
 	if (argc >= 4) {
 		if ((!argv[2][0] && isdigit(argv[3][0])) || (argv[2][0] && !argv[3][0])) {
-			opbx_log(LOG_WARNING, "options and record# are the same argument!\n");
+			opbx_log(OPBX_LOG_WARNING, "options and record# are the same argument!\n");
 			if (!argv[2][0])
 				argv[2] = argv[3];
 			argv[3] = argv[4];

@@ -210,13 +210,13 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
     if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0)
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+            opbx_log(OPBX_LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
         rtp->resp = 0;
         rtp->dtmfduration = 0;
         return &null_frame;
     }
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+        opbx_log(OPBX_LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
     opbx_fr_init(&rtp->f);
     if (rtp->resp == 'X')
     {
@@ -295,7 +295,7 @@ static struct opbx_frame *process_rfc2833(struct opbx_rtp *rtp, unsigned char *d
     event_end >>= 24;
     duration = ntohl(*((uint32_t *) data)) & 0xFFFF;
     if (rtpdebug)
-        opbx_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
+        opbx_log(OPBX_LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
     if (event < 10)
         resp = '0' + event;
     else if (event < 11)
@@ -346,13 +346,13 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
        totally help us out becuase we don't have an engine to keep it going and we are not
        guaranteed to have it every 20ms or anything */
     if (rtpdebug)
-        opbx_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
+        opbx_log(OPBX_LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 
     if (!(opbx_test_flag(rtp, FLAG_3389_WARNING)))
     {
         char iabuf[INET_ADDRSTRLEN];
 
-        opbx_log(LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
+        opbx_log(OPBX_LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
                  opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr));
         opbx_set_flag(rtp, FLAG_3389_WARNING);
     }
@@ -433,22 +433,22 @@ static void srtp_event_cb(srtp_event_data_t *data)
     case event_ssrc_collision:
         if (option_debug  ||  rtpdebug)
         {
-            opbx_log(LOG_DEBUG, "SSRC collision ssrc:%u dir:%d\n",
+            opbx_log(OPBX_LOG_DEBUG, "SSRC collision ssrc:%u dir:%d\n",
                      ntohl(data->stream->ssrc),
                      data->stream->direction);
         }
         break;
     case event_key_soft_limit:
         if (option_debug  ||  rtpdebug)
-            opbx_log(LOG_DEBUG, "event_key_soft_limit\n");
+            opbx_log(OPBX_LOG_DEBUG, "event_key_soft_limit\n");
         break;
     case event_key_hard_limit:
         if (option_debug  ||  rtpdebug)
-            opbx_log(LOG_DEBUG, "event_key_hard_limit\n");
+            opbx_log(OPBX_LOG_DEBUG, "event_key_hard_limit\n");
         break;
     case event_packet_index_limit:
         if (option_debug  ||  rtpdebug)
-            opbx_log(LOG_DEBUG, "event_packet_index_limit\n");
+            opbx_log(OPBX_LOG_DEBUG, "event_packet_index_limit\n");
         break;
     }
 }
@@ -487,7 +487,7 @@ int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy)
 {
     int res = 0;
 
-    opbx_log(LOG_NOTICE, "Adding SRTP policy: %d %d %d %d %d %d\n",
+    opbx_log(OPBX_LOG_NOTICE, "Adding SRTP policy: %d %d %d %d %d %d\n",
            policy->sp.rtp.cipher_type,
            policy->sp.rtp.cipher_key_len,
            policy->sp.rtp.auth_type,
@@ -502,7 +502,7 @@ int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy)
 
     if (res != err_status_ok)
     {
-        opbx_log(LOG_WARNING, "SRTP policy: %s\n", srtp_errstr(res));
+        opbx_log(OPBX_LOG_WARNING, "SRTP policy: %s\n", srtp_errstr(res));
         return -1;
     }
 
@@ -550,7 +550,7 @@ static int policy_set_suite(crypto_policy_t *p, int suite)
         p->sec_serv = sec_serv_conf_and_auth;
         return 0;
     default:
-        opbx_log(LOG_ERROR, "Invalid crypto suite: %d\n", suite);
+        opbx_log(OPBX_LOG_ERROR, "Invalid crypto suite: %d\n", suite);
         return -1;
     }
 }
@@ -712,7 +712,7 @@ static int rtp_recvfrom(struct opbx_rtp *rtp, void *buf, size_t size,
         if (res != err_status_ok)
         {
             if (option_debug  ||  rtpdebug)
-                opbx_log(LOG_DEBUG, "SRTP unprotect: %s\n", srtp_errstr(res));
+                opbx_log(OPBX_LOG_DEBUG, "SRTP unprotect: %s\n", srtp_errstr(res));
             return -1;
         }
     }
@@ -733,7 +733,7 @@ static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size, int flags)
         if (res != err_status_ok)
         {
             if (option_debug  ||  rtpdebug)
-                opbx_log(LOG_DEBUG, "SRTP protect: %s\n", srtp_errstr(res));
+                opbx_log(OPBX_LOG_DEBUG, "SRTP protect: %s\n", srtp_errstr(res));
             return -1;
         }
     }
@@ -775,7 +775,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     if (res < 0)
     {
         if (errno != EAGAIN)
-            opbx_log(LOG_DEBUG, "RTP Read error: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_DEBUG, "RTP Read error: %s\n", strerror(errno));
         if (errno == EBADF)
             CRASH;
         return &null_frame;
@@ -783,16 +783,16 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     if ((actions & 1))
     {
         if (option_debug  ||  rtpdebug)
-            opbx_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtcp_sock_info)->sin_port));
+            opbx_log(OPBX_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtcp_sock_info)->sin_port));
     }
 
     if (res < hdrlen)
     {
-        opbx_log(LOG_DEBUG, "RTP Read too short\n");
+        opbx_log(OPBX_LOG_DEBUG, "RTP Read too short\n");
         return &null_frame;
     }
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
+        opbx_log(OPBX_LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
     return &null_frame;
 }
 
@@ -811,7 +811,7 @@ int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
 		return 0;
 
 	if (!(p = strchr(digitcodes, toupper(digit)))) {
-		opbx_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		opbx_log(OPBX_LOG_WARNING, "Don't know how to represent '%c'\n", digit);
 		return -1;
 	}
 
@@ -827,7 +827,7 @@ int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
 	pkt[3] = htonl(rtp->senddtmf_payload);
 
 	if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
-		opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
 			ntohs(them->sin_port),
 			strerror(errno));
@@ -886,7 +886,7 @@ static int opbx_rtp_senddigit_continue(struct opbx_rtp * const rtp)
 
 	while (repeat--) {
 		if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
-			opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+			opbx_log(OPBX_LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
 				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
 				ntohs(them->sin_port),
 				strerror(errno));
@@ -959,7 +959,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     if (res < 0)
     {
         if (errno != EAGAIN)
-            opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
         if (errno == EBADF)
             CRASH;
         return &null_frame;
@@ -968,7 +968,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     if (res < 3*sizeof(uint32_t))
     {
         /* Too short for an RTP packet. */
-        opbx_log(LOG_DEBUG, "RTP Read too short\n");
+        opbx_log(OPBX_LOG_DEBUG, "RTP Read too short\n");
         return &null_frame;
     }
 
@@ -985,7 +985,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
             opbx_set_flag(rtp, FLAG_NAT_ACTIVE);
             if (option_debug  ||  rtpdebug)
             {
-                opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n",
+                opbx_log(OPBX_LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n",
                          opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr),
                          ntohs(udp_socket_get_them(rtp->rtp_sock_info)->sin_port));
             }
@@ -1023,7 +1023,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
             hdrlen += ((ntohl(rtpheader[hdrlen >> 2]) & 0xFFFF)*sizeof(uint32_t));
         if (len < hdrlen)
         {
-            opbx_log(LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
+            opbx_log(OPBX_LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
             return &null_frame;
         }
     }
@@ -1105,7 +1105,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
         }
         else
         {
-            opbx_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+            opbx_log(OPBX_LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
             return &null_frame;
         }
     }
@@ -1140,7 +1140,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     if (rtp->resp && !rtp->dtmfcount)
     {
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Sending pending DTMF\n");
+            opbx_log(OPBX_LOG_DEBUG, "Sending pending DTMF\n");
         return send_dtmf(rtp);
     }
     rtp->f.mallocd = 0;
@@ -1335,7 +1335,7 @@ void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local)
     if (rtp)
         rtp->rtp_offered_from_local = local;
     else
-        opbx_log(LOG_WARNING, "rtp structure is null\n");
+        opbx_log(OPBX_LOG_WARNING, "rtp structure is null\n");
 }
 
 struct rtpPayloadType opbx_rtp_lookup_pt(struct opbx_rtp* rtp, int pt) 
@@ -1632,7 +1632,7 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
     {
         res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 1, 0);
         if (res <0) 
-            opbx_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+            opbx_log(OPBX_LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
         if (rtp_debug_test_addr(them))
         {
             opbx_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
@@ -1678,7 +1678,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
             else
             {
                 if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+                    opbx_log(OPBX_LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
                 mark = 1;
             }
         }
@@ -1700,7 +1700,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
             else
             {
                 if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+                    opbx_log(OPBX_LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
                 rtp->lastovidtimestamp = rtp->lastts;
             }
         }
@@ -1728,13 +1728,13 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
         {
             if (!rtp->nat  ||  (rtp->nat && (opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE)))
             {
-                opbx_log(LOG_WARNING, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
             }
             else if ((opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)
             {
                 /* Only give this error message once if we are not RTP debugging */
                 if (option_debug  ||  rtpdebug)
-                    opbx_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
+                    opbx_log(OPBX_LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
                 opbx_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
             }
         }
@@ -1772,7 +1772,7 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
     /* Make sure we have enough space for RTP header */
     if ((_f->frametype != OPBX_FRAME_VOICE)  &&  (_f->frametype != OPBX_FRAME_VIDEO))
     {
-        opbx_log(LOG_WARNING, "RTP can only send voice\n");
+        opbx_log(OPBX_LOG_WARNING, "RTP can only send voice\n");
         return -1;
     }
 
@@ -1782,7 +1782,7 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
 
     if ((codec = opbx_rtp_lookup_code(rtp, 1, subclass)) < 0)
     {
-        opbx_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", opbx_getformatname(_f->subclass));
+        opbx_log(OPBX_LOG_WARNING, "Don't know how to send format %s packets with RTP\n", opbx_getformatname(_f->subclass));
         return -1;
     }
 
@@ -1790,7 +1790,7 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
     {
         /* New format, reset the smoother */
         if (option_debug)
-            opbx_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", opbx_getformatname(rtp->lasttxformat), opbx_getformatname(subclass));
+            opbx_log(OPBX_LOG_DEBUG, "Ooh, format changed from %s to %s\n", opbx_getformatname(rtp->lasttxformat), opbx_getformatname(subclass));
         rtp->lasttxformat = subclass;
         if (rtp->smoother)
             opbx_smoother_free(rtp->smoother);
@@ -1806,16 +1806,16 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
         if ((ent = lookup_rtp_smoother_codec(subclass, &rtp->framems, &len)))
         {
             if (rtp->framems != ms)
-                opbx_log(LOG_DEBUG, "Had to change frame MS from %d to %d\n", ms, rtp->framems);
+                opbx_log(OPBX_LOG_DEBUG, "Had to change frame MS from %d to %d\n", ms, rtp->framems);
             if (!(rtp->smoother = opbx_smoother_new(len)))
             {
-                opbx_log(LOG_WARNING, "Unable to create smoother ms: %d len: %d:(\n", rtp->framems, len);
+                opbx_log(OPBX_LOG_WARNING, "Unable to create smoother ms: %d len: %d:(\n", rtp->framems, len);
                 return -1;
             }
 
             if (ent->flags)
                 opbx_smoother_set_flags(rtp->smoother, ent->flags);            
-            opbx_log(LOG_DEBUG, "Able to create smoother :) ms: %d len %d\n", rtp->framems, len);
+            opbx_log(OPBX_LOG_DEBUG, "Able to create smoother :) ms: %d len %d\n", rtp->framems, len);
         }
     }
 
@@ -1880,7 +1880,7 @@ int opbx_rtp_proto_register(struct opbx_rtp_protocol *proto)
     {
         if (cur->type == proto->type)
         {
-            opbx_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+            opbx_log(OPBX_LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
             return -1;
         }
         cur = cur->next;
@@ -1958,14 +1958,14 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
     pr1 = get_proto(c1);
     if (!pr0)
     {
-        opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
         opbx_mutex_unlock(&c0->lock);
         opbx_mutex_unlock(&c1->lock);
         return OPBX_BRIDGE_FAILED;
     }
     if (!pr1)
     {
-        opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
         opbx_mutex_unlock(&c0->lock);
         opbx_mutex_unlock(&c1->lock);
         return OPBX_BRIDGE_FAILED;
@@ -1999,7 +1999,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 #ifdef ENABLE_SRTP
     if (p0->srtp  ||  p1->srtp)
     {
-        opbx_log(LOG_NOTICE, "Cannot native bridge in SRTP.\n");
+        opbx_log(OPBX_LOG_NOTICE, "Cannot native bridge in SRTP.\n");
         opbx_mutex_unlock(&c0->lock);
         opbx_mutex_unlock(&c1->lock);
         return OPBX_BRIDGE_FAILED_NOWARN;
@@ -2020,7 +2020,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
         if (!(codec0 & codec1))
         {
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
+                opbx_log(OPBX_LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
             opbx_mutex_unlock(&c0->lock);
             opbx_mutex_unlock(&c1->lock);
             return OPBX_BRIDGE_FAILED_NOWARN;
@@ -2030,7 +2030,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
     /* Ok, we should be able to redirect the media. Start with one channel */
     if (pr0->set_rtp_peer(c0, p1, vp1, codec1, opbx_test_flag(p1, FLAG_NAT_ACTIVE)))
     {
-        opbx_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
     }
     else
     {
@@ -2042,7 +2042,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
     /* Then test the other channel */
     if (pr1->set_rtp_peer(c1, p0, vp0, codec0, opbx_test_flag(p0, FLAG_NAT_ACTIVE)))
     {
-        opbx_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
     }
     else
     {
@@ -2069,16 +2069,16 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
             ||
             (c0->masq  ||  c0->masqr  ||  c1->masq  ||  c1->masqr))
         {
-            opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, something is weird, backing out\n");
             if (c0->tech_pvt == pvt0)
             {
                 if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
-                    opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
             }
             if (c1->tech_pvt == pvt1)
             {
                 if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
-                    opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
             }
             return OPBX_BRIDGE_RETRY;
         }
@@ -2097,17 +2097,17 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
         {
             if (option_debug > 1)
             {
-                opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
                     c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
-                opbx_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
                     c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-                opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
                     c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-                opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
                     c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
             }
             if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, opbx_test_flag(p1, FLAG_NAT_ACTIVE))) 
-                opbx_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
+                opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
             memcpy(&ac1, &t1, sizeof(ac1));
             memcpy(&vac1, &vt1, sizeof(vac1));
             oldcodec1 = codec1;
@@ -2116,13 +2116,13 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
         {
             if (option_debug)
             {
-                opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
                     c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
-                opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
                     c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
             }
             if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, opbx_test_flag(p0, FLAG_NAT_ACTIVE)))
-                opbx_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
+                opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
             memcpy(&ac0, &t0, sizeof(ac0));
             memcpy(&vac0, &vt0, sizeof(vac0));
             oldcodec0 = codec0;
@@ -2132,7 +2132,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
             if (!timeoutms) 
                 return OPBX_BRIDGE_RETRY;
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
+                opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
             /* check for hangup / whentohangup */
             if (opbx_check_hangup(c0) || opbx_check_hangup(c1))
                 break;
@@ -2150,16 +2150,16 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
             *fo = f;
             *rc = who;
             if (option_debug)
-                opbx_log(LOG_DEBUG, "Oooh, got a %s\n", f  ?  "digit"  :  "hangup");
+                opbx_log(OPBX_LOG_DEBUG, "Oooh, got a %s\n", f  ?  "digit"  :  "hangup");
             if ((c0->tech_pvt == pvt0)  &&  (!c0->_softhangup))
             {
                 if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
-                    opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
             }
             if ((c1->tech_pvt == pvt1)  &&  (!c1->_softhangup))
             {
                 if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
-                    opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
             }
             return OPBX_BRIDGE_COMPLETE;
         }
@@ -2178,7 +2178,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
             {
                 *fo = f;
                 *rc = who;
-                opbx_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+                opbx_log(OPBX_LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
                 return OPBX_BRIDGE_COMPLETE;
             }
         }
@@ -2323,7 +2323,7 @@ void opbx_rtp_reload(void)
             dtmftimeout = atoi(s);
             if (dtmftimeout <= 1)
             {
-                opbx_log(LOG_WARNING, "Invalid dtmftimeout given: %d, using default value %d", dtmftimeout, DEFAULT_DTMFTIMEOUT);
+                opbx_log(OPBX_LOG_WARNING, "Invalid dtmftimeout given: %d, using default value %d", dtmftimeout, DEFAULT_DTMFTIMEOUT);
                 dtmftimeout = DEFAULT_DTMFTIMEOUT;
             }
         }
@@ -2336,14 +2336,14 @@ void opbx_rtp_reload(void)
                 nochecksums = 0;
 #else
             if (opbx_false(s))
-                opbx_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
+                opbx_log(OPBX_LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
         }
         opbx_config_destroy(cfg);
     }
     if (rtpstart >= rtpend)
     {
-        opbx_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
+        opbx_log(OPBX_LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
         rtpstart = 5000;
         rtpend = 31000;
     }
@@ -2358,7 +2358,7 @@ void opbx_rtp_init(void)
     opbx_cli_register(&cli_no_debug);
     opbx_rtp_reload();
 #ifdef ENABLE_SRTP
-    opbx_log(LOG_NOTICE, "srtp_init\n");
+    opbx_log(OPBX_LOG_NOTICE, "srtp_init\n");
     srtp_init();
     srtp_install_event_handler(srtp_event_cb);
 #endif

@@ -141,7 +141,7 @@ static int pbx_builtin_setlanguage(struct opbx_channel *chan, int argc, char **a
 
     if (!deprecation_warning)
     {
-        opbx_log(LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
         deprecation_warning = 1;
     }
 
@@ -267,7 +267,7 @@ static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **ar
     }
 
     if (!s || !*s || argc > 6) {
-        opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
+        opbx_log(OPBX_LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
         return -1;
     }
 
@@ -297,7 +297,7 @@ static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **ar
     }
 
     if (!s || !*s) {
-        opbx_log(LOG_WARNING, "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<funcname>[(<args>)]\n");
+        opbx_log(OPBX_LOG_WARNING, "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<funcname>[(<args>)]\n");
         return -1;
     }
 
@@ -365,7 +365,7 @@ static int pbx_builtin_waitexten(struct opbx_channel *chan, int argc, char **arg
         }
         else
         {
-            opbx_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
+            opbx_log(OPBX_LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
             res = -1;
         }
     }
@@ -400,7 +400,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, int argc, char **ar
         filename = argv[0];
         break;
     default:
-        opbx_log(LOG_WARNING, "Background requires an argument (filename)\n");
+        opbx_log(OPBX_LOG_WARNING, "Background requires an argument (filename)\n");
         return -1;
     }
 
@@ -460,7 +460,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, int argc, char **ar
             }
             else
             {
-                opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s, %s, %s, %s\n", chan->name, argv[0], argv[1], argv[2], argv[3]);
+                opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s for %s, %s, %s, %s\n", chan->name, argv[0], argv[1], argv[2], argv[3]);
                 res = 0;
                 break;
             }
@@ -484,7 +484,7 @@ static int pbx_builtin_atimeout(struct opbx_channel *chan, int argc, char **argv
 
     if (!deprecation_warning)
     {
-        opbx_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
         deprecation_warning = 1;
     }
             
@@ -501,7 +501,7 @@ static int pbx_builtin_rtimeout(struct opbx_channel *chan, int argc, char **argv
 
     if (!deprecation_warning)
     {
-        opbx_log(LOG_WARNING, "ResponseTimeout is deprecated, please use Set(TIMEOUT(response)=timeout) instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "ResponseTimeout is deprecated, please use Set(TIMEOUT(response)=timeout) instead.\n");
         deprecation_warning = 1;
     }
 
@@ -522,7 +522,7 @@ static int pbx_builtin_dtimeout(struct opbx_channel *chan, int argc, char **argv
 
     if (!deprecation_warning)
     {
-        opbx_log(LOG_WARNING, "DigitTimeout is deprecated, please use Set(TIMEOUT(digit)=timeout) instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "DigitTimeout is deprecated, please use Set(TIMEOUT(digit)=timeout) instead.\n");
         deprecation_warning = 1;
     }
 
@@ -542,7 +542,7 @@ static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv, 
 	char *value;
 
 	if (argc < 1) {
-		opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
+		opbx_log(OPBX_LOG_WARNING, "Set requires at least one variable name/value pair.\n");
 		return 0;
 	}
 
@@ -568,7 +568,7 @@ static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv, 
 				 */
 				static int deprecated = 0;
 				if (!deprecated) {
-					opbx_log(LOG_WARNING, "Set(FUNC(args)=value) is deprecated. Use FUNC(args, value) instead\n");
+					opbx_log(OPBX_LOG_WARNING, "Set(FUNC(args)=value) is deprecated. Use FUNC(args, value) instead\n");
 					deprecated = 1;
 				}
 				*(args++) = '\0';
@@ -580,7 +580,7 @@ static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv, 
 				pbx_builtin_setvar_helper(chan, argv[0], value);
 			}
 		} else {
-			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '=' (and not last 'options' entry)\n", argv[0]);
+			opbx_log(OPBX_LOG_WARNING, "Ignoring entry '%s' with no '=' (and not last 'options' entry)\n", argv[0]);
 		}
 	}
 
@@ -595,7 +595,7 @@ static int pbx_builtin_setvar_old(struct opbx_channel *chan, int argc, char **ar
     static int deprecation_warning = 0;
 
     if (!deprecation_warning) {
-        opbx_log(LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
+        opbx_log(OPBX_LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
         deprecation_warning = 1;
     }
 
@@ -637,7 +637,7 @@ static int pbx_builtin_setglobalvar(struct opbx_channel *chan, int argc, char **
 			*(value++) = '\0';
 			pbx_builtin_setvar_helper(NULL, argv[0], value);
 		} else {
-			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '='\n", argv[0]);
+			opbx_log(OPBX_LOG_WARNING, "Ignoring entry '%s' with no '='\n", argv[0]);
 		}
 	}
 
@@ -704,13 +704,13 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, 
 static int pbx_builtin_saynumber(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     if (argc < 1) {
-        opbx_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
+        opbx_log(OPBX_LOG_WARNING, "SayNumber requires an argument (number)\n");
         return -1;
     }
     if (argc > 1) { 
         argv[1][0] = tolower(argv[1][0]);
         if (!strchr("fmcn", argv[1][0])) {
-            opbx_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
+            opbx_log(OPBX_LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
             return -1;
         }
     }

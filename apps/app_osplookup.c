@@ -107,7 +107,7 @@ static int str2cause(char *cause)
 		return OPBX_CAUSE_NOANSWER;
 	if (!strcasecmp(cause, "NOCHANAVAIL"))
 		return OPBX_CAUSE_CONGESTION;
-	opbx_log(LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
+	opbx_log(OPBX_LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
 	return OPBX_CAUSE_NORMAL;
 }
 
@@ -126,7 +126,7 @@ static int osplookup_exec(struct opbx_channel *chan, int argc, char **argv, char
 	provider = (argc > 1 && argv[1][0] ? argv[1] : NULL);
 	/* There are no options supported?!? */
 
-	opbx_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", argv[0], provider ? provider : "<default>");
+	opbx_log(OPBX_LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", argv[0], provider ? provider : "<default>");
 	if ((res = opbx_osp_lookup(chan, provider, argv[0], chan->cid.cid_num, &ospres)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", ospres.handle);
@@ -139,9 +139,9 @@ static int osplookup_exec(struct opbx_channel *chan, int argc, char **argv, char
 
 	} else {
 		if (!res)
-			opbx_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", argv[0], provider ? provider : "<default>");
+			opbx_log(OPBX_LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", argv[0], provider ? provider : "<default>");
 		else
-			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, argv[0], provider ? provider : "<default>" );
+			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, argv[0], provider ? provider : "<default>" );
 	}
 	if (!res) {
 		/* Look for a "busy" place */
@@ -182,11 +182,11 @@ static int ospnext_exec(struct opbx_channel *chan, int argc, char **argv, char *
 	} else {
 		if (!res) {
 			if (ospres.handle < 0)
-				opbx_log(LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
+				opbx_log(OPBX_LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
 			else
-				opbx_log(LOG_DEBUG, "No OSP handle specified\n");
+				opbx_log(OPBX_LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
@@ -218,7 +218,7 @@ static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv, ch
 		else
 			duration = 0;
 	} else
-		opbx_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
 	cause = str2cause(argv[0]);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
@@ -231,11 +231,11 @@ static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	} else {
 		if (!res) {
 			if (ospres.handle > -1)
-				opbx_log(LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
+				opbx_log(OPBX_LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
 			else
-				opbx_log(LOG_DEBUG, "No OSP handle specified\n");
+				opbx_log(OPBX_LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */

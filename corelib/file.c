@@ -105,7 +105,7 @@ int opbx_stopstream(struct opbx_channel *tmp)
 		opbx_closestream(tmp->stream);
 		tmp->stream = NULL;
 		if (tmp->oldwriteformat && opbx_set_write_format(tmp, tmp->oldwriteformat))
-			opbx_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
 	return 0;
 }
@@ -122,7 +122,7 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
 				/* XXX Support other video formats XXX */
 				const char *type = "h263";
 				fs->vfs = opbx_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
-				opbx_log(LOG_DEBUG, "Opened video output file\n");
+				opbx_log(OPBX_LOG_DEBUG, "Opened video output file\n");
 			}
 			if (fs->vfs)
 				return opbx_writestream(fs->vfs, f);
@@ -133,15 +133,15 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
 			alt = 1;
 		}
 	} else if (f->frametype != OPBX_FRAME_VOICE) {
-		opbx_log(LOG_WARNING, "Tried to write non-voice frame\n");
+		opbx_log(OPBX_LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
 	}
 	if (((fs->fmt->format | alt) & f->subclass) == f->subclass) {
 		res =  fs->fmt->write(fs, f);
 		if (res < 0) 
-			opbx_log(LOG_WARNING, "Natural write failed\n");
+			opbx_log(OPBX_LOG_WARNING, "Natural write failed\n");
 		if (res > 0)
-			opbx_log(LOG_WARNING, "Huh??\n");
+			opbx_log(OPBX_LOG_WARNING, "Huh??\n");
 		return res;
 	} else {
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
@@ -153,7 +153,7 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
 		if (!fs->trans) 
 			fs->trans = opbx_translator_build_path(fs->fmt->format, 8000, f->subclass, 8000);
 		if (!fs->trans)
-			opbx_log(LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, opbx_getformatname(f->subclass));
+			opbx_log(OPBX_LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, opbx_getformatname(f->subclass));
 		else {
 			fs->lastwriteformat = f->subclass;
 			res = 0;
@@ -162,7 +162,7 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
 			if (trf) {
 				res = fs->fmt->write(fs, trf);
 				if (res) 
-					opbx_log(LOG_WARNING, "Translated frame write failed\n");
+					opbx_log(OPBX_LOG_WARNING, "Translated frame write failed\n");
 			} else
 				res = 0;
 		}
@@ -179,18 +179,18 @@ static int copy(const char *infile, const char *outfile)
 	char buf[4096];
 
 	if ((ifd = open(infile, O_RDONLY)) < 0) {
-		opbx_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+		opbx_log(OPBX_LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
 		return -1;
 	}
 	if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
-		opbx_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+		opbx_log(OPBX_LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
 		close(ifd);
 		return -1;
 	}
 	do {
 		len = read(ifd, buf, sizeof(buf));
 		if (len < 0) {
-			opbx_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
 			close(ifd);
 			close(ofd);
 			unlink(outfile);
@@ -198,7 +198,7 @@ static int copy(const char *infile, const char *outfile)
 		if (len) {
 			res = write(ofd, buf, len);
 			if (res != len) {
-				opbx_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
 				close(ifd);
 				close(ofd);
 				unlink(outfile);
@@ -291,31 +291,31 @@ static int filehelper_one(struct opbx_object *obj, void *data)
 					case ACTION_DELETE:
 						if (unlink(fn)) {
 							args->res = -1;
-							opbx_log(LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
+							opbx_log(OPBX_LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
 						}
 						break;
 					case ACTION_RENAME:
 						if ((nfn = build_filename(args->filename2, ext))) {
 							if (rename(fn, nfn)) {
 								args->res = -1;
-								opbx_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+								opbx_log(OPBX_LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 							}
 							free(nfn);
 						} else {
 							args->res = -1;
-							opbx_log(LOG_WARNING, "Out of memory\n");
+							opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 						}
 						break;
 					case ACTION_COPY:
 						if ((nfn = build_filename(args->filename2, ext))) {
 							if (copy(fn, nfn)) {
 								args->res = -1;
-								opbx_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+								opbx_log(OPBX_LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 							}
 							free(nfn);
 						} else {
 							args->res = -1;
-							opbx_log(LOG_WARNING, "Out of memory\n");
+							opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 						}
 						break;
 					case ACTION_OPEN: {
@@ -336,16 +336,16 @@ static int filehelper_one(struct opbx_object *obj, void *data)
 									return 1;
 								} else {
 									fclose(bfile);
-									opbx_log(LOG_WARNING, "Unable to open file on %s\n", fn);
+									opbx_log(OPBX_LOG_WARNING, "Unable to open file on %s\n", fn);
 								}
 							} else {
-								opbx_log(LOG_WARNING, "Couldn't open file %s\n", fn);
+								opbx_log(OPBX_LOG_WARNING, "Couldn't open file %s\n", fn);
 							}
 						}
 						break;
 					}
 					default:
-						opbx_log(LOG_WARNING, "Unknown helper %d\n", args->action);
+						opbx_log(OPBX_LOG_WARNING, "Unknown helper %d\n", args->action);
 						break;
 					}
 				}
@@ -426,7 +426,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
 	if (!fmts) {
-		opbx_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
+		opbx_log(OPBX_LOG_WARNING, "File %s does not exist in any format\n", filename);
 		return NULL;
 	}
 	chan->oldwriteformat = chan->writeformat;
@@ -479,7 +479,7 @@ struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *
  	fd = opbx_filehelper(filename2, (char *)chan, fmt, ACTION_OPEN);
 	if (fd)
 		return chan->vstream;
-	opbx_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
+	opbx_log(OPBX_LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
 }
 
@@ -502,7 +502,7 @@ static int opbx_readaudio_callback(void *data)
 		fr = s->fmt->read(s, &whennext);
 		if (fr) {
 			if (opbx_write(s->owner, fr)) {
-				opbx_log(LOG_WARNING, "Failed to write frame\n");
+				opbx_log(OPBX_LOG_WARNING, "Failed to write frame\n");
 				s->owner->streamid = -1;
 				return 0;
 			}
@@ -530,7 +530,7 @@ static int opbx_readvideo_callback(void *data)
 		fr = s->fmt->read(s, &whennext);
 		if (fr) {
 			if (opbx_write(s->owner, fr)) {
-				opbx_log(LOG_WARNING, "Failed to write frame\n");
+				opbx_log(OPBX_LOG_WARNING, "Failed to write frame\n");
 				s->owner->vstreamid = -1;
 				return 0;
 			}
@@ -715,7 +715,7 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 	fs = opbx_openstream(chan, filename, preflang);
 	vfs = opbx_openvstream(chan, filename, preflang);
 	if (vfs)
-		opbx_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ooh, found a video stream, too\n");
 	if (fs){
 		if (opbx_applystream(chan, fs))
 			return -1;
@@ -731,7 +731,7 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 #endif
 		return 0;
 	}
-	opbx_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, opbx_getformatname(chan->nativeformats), strerror(errno));
+	opbx_log(OPBX_LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, opbx_getformatname(chan->nativeformats), strerror(errno));
 	return -1;
 }
 
@@ -757,13 +757,13 @@ static int readfile_one(struct opbx_object *obj, void *data)
 					args->fs->fmt = opbx_object_get(f);
 					return 1;
 				} else {
-					opbx_log(LOG_WARNING, "Unable to open %s\n", fn);
+					opbx_log(OPBX_LOG_WARNING, "Unable to open %s\n", fn);
 					fclose(bfile);
 				}
 			} else if (errno != EEXIST)
-				opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
 		} else
-			opbx_log(LOG_ERROR, "Out of memory");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory");
 	}
 
 	return 0;
@@ -784,7 +784,7 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *type, co
 		args.fs->filename = strdup(filename);
 		args.fs->vfs = NULL;
 	} else
-		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
+		opbx_log(OPBX_LOG_WARNING, "No such format '%s'\n", type);
 
 	return args.fs;
 }
@@ -816,7 +816,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 				/* fdopen() the resulting file stream */
 				bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
 				if (!bfile) {
-					opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
 					close(fd);
 					fd = -1;
 				}
@@ -847,7 +847,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					/* fdopen() the resulting file stream */
 					bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
 					if (!bfile) {
-						opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+						opbx_log(OPBX_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
 						close(fd);
 						fd = -1;
 					}
@@ -868,7 +868,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					}
 					args->fs->vfs = NULL;
 				} else {
-					opbx_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
+					opbx_log(OPBX_LOG_WARNING, "Unable to rewrite %s\n", fn);
 					close(fd);
 					if (orig_fn) {
 						unlink(fn);
@@ -876,7 +876,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					}
 				}
 			} else if (errno != EEXIST) {
-				opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
 				if (orig_fn)
 					unlink(orig_fn);
 			}
@@ -884,7 +884,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 			if (!buf)
 				free(fn);
 		} else
-			opbx_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return 1;
 	}
 
@@ -910,7 +910,7 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	if (args.fs) {
 		args.fs->trans = NULL;
 	} else
-		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
+		opbx_log(OPBX_LOG_WARNING, "No such format '%s'\n", type);
 
 	return args.fs;
 }
@@ -930,13 +930,13 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 		}
 		res = opbx_waitfor(c, res);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else if (res > 0) {
 			fr = opbx_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(LOG_DEBUG, "Got hung up\n");
+				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
@@ -962,7 +962,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */
@@ -993,14 +993,14 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 		}
 		res = opbx_waitfor(c, res);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else
 		if (res > 0) {
 			fr = opbx_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(LOG_DEBUG, "Got hung up\n");
+				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
@@ -1029,7 +1029,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */
@@ -1064,7 +1064,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			/* Continue */
 			if (errno == EINTR)
 				continue;
-			opbx_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		} else if (outfd > -1) {
 			/* The FD we were watching has something waiting */
@@ -1073,7 +1073,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			fr = opbx_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(LOG_DEBUG, "Got hung up\n");
+				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
@@ -1098,7 +1098,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			case OPBX_FRAME_VOICE:
 				/* Write audio if appropriate */
@@ -1131,13 +1131,13 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 		}
 		res = opbx_waitfor(c, res);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else if (res > 0) {
 			fr = opbx_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(LOG_DEBUG, "Got hung up\n");
+				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
@@ -1163,7 +1163,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */

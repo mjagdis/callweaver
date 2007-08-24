@@ -38,18 +38,18 @@ void sccp_indicate_nolock(sccp_channel_t * c, uint8_t state) {
 	uint8_t oldstate;
 
 	if (!c) {
-		opbx_log(LOG_ERROR, "SCCP: No channel, nothing to indicate?\n");
+		opbx_log(OPBX_LOG_ERROR, "SCCP: No channel, nothing to indicate?\n");
 		return;
 	}
 	if (!c->device) {
-		opbx_log(LOG_ERROR, "SCCP: The channel %d does not have a device\n",c->callid);
+		opbx_log(OPBX_LOG_ERROR, "SCCP: The channel %d does not have a device\n",c->callid);
 		return;
 	}
 
 	d = c->device;
 
 	if (!c->line) {
-		opbx_log(LOG_ERROR, "SCCP: The channel %d does not have a line\n",c->callid);
+		opbx_log(OPBX_LOG_ERROR, "SCCP: The channel %d does not have a line\n",c->callid);
 		return;
 	}
 

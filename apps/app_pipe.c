@@ -61,7 +61,7 @@ static int pipeencode(char *filename, char *argument, int fdin, int fdout)
 	int x;
 	res = fork();
 	if (res < 0) 
-		opbx_log(LOG_WARNING, "Fork failed\n");
+		opbx_log(OPBX_LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
 	dup2(fdin, STDIN_FILENO);
@@ -70,9 +70,9 @@ static int pipeencode(char *filename, char *argument, int fdin, int fdout)
 		if ((x != STDIN_FILENO && x != STDOUT_FILENO) || STDERR_FILENO == x)
 			close(x);
 	}
-	opbx_log(LOG_WARNING, "Launching '%s' '%s'\n", filename, argument);
+	opbx_log(OPBX_LOG_WARNING, "Launching '%s' '%s'\n", filename, argument);
 	execlp(filename, "TEST", argument, (char *)NULL);
-	opbx_log(LOG_WARNING, "Execute of %s failed\n", filename);
+	opbx_log(OPBX_LOG_WARNING, "Execute of %s failed\n", filename);
 	return -1;
 }
 
@@ -84,7 +84,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 	fds[0].events = POLLIN;
 	res = poll(fds, 1, timeout);
 	if (res < 1) {
-		opbx_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
+		opbx_log(OPBX_LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
 		return -1;
 	}
 	return read(fd, data, datalen);
@@ -118,7 +118,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	LOCAL_USER_ADD(u);
 
 	if (pipe(fds)) {
-		opbx_log(LOG_WARNING, "Unable to create pipe\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create pipe\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -138,7 +138,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	if (res) {
 		close(fds[0]);
 		close(fds[1]);
-		opbx_log(LOG_WARNING, "Answer failed!\n");
+		opbx_log(OPBX_LOG_WARNING, "Answer failed!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -152,7 +152,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	if (res < 0) {
 		close(fds[0]);
 		close(fds[1]);
-		opbx_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to set write format to signed linear\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -170,18 +170,18 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 				/* START WRITE TO FD */
 				ms = opbx_waitfor(chan, 10);
 				if (ms < 0) {
-					opbx_log(LOG_DEBUG, "Hangup detected\n");
+					opbx_log(OPBX_LOG_DEBUG, "Hangup detected\n");
 					res = -1;
 					break;
 				} else if (ms > 0) {
 					f = opbx_read(chan);
 					if (!f) {
-						opbx_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+						opbx_log(OPBX_LOG_DEBUG, "Null frame == hangup() detected\n");
 						res = -1;
 						break;
 					}
 					if (f->frametype == OPBX_FRAME_DTMF) {
-						opbx_log(LOG_DEBUG, "User pressed a key\n");
+						opbx_log(OPBX_LOG_DEBUG, "User pressed a key\n");
 						opbx_fr_free(f);
 						res = 0;
 						break;
@@ -190,7 +190,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 						res = write(fds[1], f->data, f->datalen);
 						if (res < 0) {
 							if (errno != EAGAIN) {
-								opbx_log(LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
+								opbx_log(OPBX_LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
 								res = -1;
 								break;
 							}
@@ -215,7 +215,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 							break;
 						}
 					} else {
-						opbx_log(LOG_DEBUG, "No more stream\n");
+						opbx_log(OPBX_LOG_DEBUG, "No more stream\n");
 						res = 0;
 						break;
 					}
@@ -223,19 +223,19 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 				} else {
 					ms = opbx_waitfor(chan, ms);
 					if (ms < 0) {
-						opbx_log(LOG_DEBUG, "Hangup detected\n");
+						opbx_log(OPBX_LOG_DEBUG, "Hangup detected\n");
 						res = -1;
 						break;
 					}
 					if (ms) {
 						f = opbx_read(chan);
 						if (!f) {
-							opbx_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+							opbx_log(OPBX_LOG_DEBUG, "Null frame == hangup() detected\n");
 							res = -1;
 							break;
 						}
 						if (f->frametype == OPBX_FRAME_DTMF) {
-							opbx_log(LOG_DEBUG, "User pressed a key\n");
+							opbx_log(OPBX_LOG_DEBUG, "User pressed a key\n");
 							opbx_fr_free(f);
 							res = 0;
 							break;

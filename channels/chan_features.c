@@ -133,7 +133,7 @@ static inline int indexof(struct feature_pvt *p, struct opbx_channel *owner, int
 {
 	int x;
 	if (!owner) {
-		opbx_log(LOG_WARNING, "indexof called on NULL owner??\n");
+		opbx_log(OPBX_LOG_WARNING, "indexof called on NULL owner??\n");
 		return -1;
 	}
 	for (x=0; x<3; x++) {
@@ -205,7 +205,7 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 	int tinthreeway;
 	struct opbx_channel *towner;
 
-	opbx_log(LOG_DEBUG, "Swapping %d and %d\n", a, b);
+	opbx_log(OPBX_LOG_DEBUG, "Swapping %d and %d\n", a, b);
 
 	towner = p->subs[a].owner;
 	tinthreeway = p->subs[a].inthreeway;
@@ -353,7 +353,7 @@ static int features_call(struct opbx_channel *ast, char *dest, int timeout)
 			res = opbx_call(p->subchan, dest2, timeout);
 			update_features(p, x);
 		} else
-			opbx_log(LOG_NOTICE, "Uhm yah, not quite there with the call waiting...\n");
+			opbx_log(OPBX_LOG_NOTICE, "Uhm yah, not quite there with the call waiting...\n");
 		opbx_mutex_unlock(&p->lock);
 	}
 	return res;
@@ -421,7 +421,7 @@ static struct feature_pvt *features_alloc(char *data, int format)
 		dest++;
 	}
 	if (!dest) {
-		opbx_log(LOG_NOTICE, "Format for feature channel is Feature/Tech/Dest ('%s' not valid)!\n", 
+		opbx_log(OPBX_LOG_NOTICE, "Format for feature channel is Feature/Tech/Dest ('%s' not valid)!\n", 
 			data);
 		return NULL;
 	}
@@ -436,7 +436,7 @@ static struct feature_pvt *features_alloc(char *data, int format)
 	if (!tmp) {
 		chan = opbx_request(tech, format, dest, &status);
 		if (!chan) {
-			opbx_log(LOG_NOTICE, "Unable to allocate subchannel '%s/%s'\n", tech, dest);
+			opbx_log(OPBX_LOG_NOTICE, "Unable to allocate subchannel '%s/%s'\n", tech, dest);
 			return NULL;
 		}
 		tmp = malloc(sizeof(struct feature_pvt));
@@ -462,16 +462,16 @@ static struct opbx_channel *features_new(struct feature_pvt *p, int state, int i
 	struct opbx_channel *tmp;
 	int x,y;
 	if (!p->subchan) {
-		opbx_log(LOG_WARNING, "Called upon channel with no subchan:(\n");
+		opbx_log(OPBX_LOG_WARNING, "Called upon channel with no subchan:(\n");
 		return NULL;
 	}
 	if (p->subs[index].owner) {
-		opbx_log(LOG_WARNING, "Called to put index %d already there!\n", index);
+		opbx_log(OPBX_LOG_WARNING, "Called to put index %d already there!\n", index);
 		return NULL;
 	}
 	tmp = opbx_channel_alloc(0);
 	if (!tmp) {
-		opbx_log(LOG_WARNING, "Unable to allocate channel structure\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
 	}
 	tmp->tech = &features_tech;
@@ -552,7 +552,7 @@ static int load_module(void)
 {
 	/* Make sure we can register our sip channel type */
 	if (opbx_channel_register(&features_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
 	opbx_cli_register(&cli_show_features);
@@ -576,7 +576,7 @@ static int unload_module(void)
 		features = NULL;
 		opbx_mutex_unlock(&featurelock);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}		
 	return 0;

@@ -192,7 +192,7 @@ static int g722tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
         /* Perform PLC with nominal framesize of 20ms/320 samples */
         if ((tmp->tail + 320) > BUFFER_SIZE)
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -205,7 +205,7 @@ static int g722tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
     {
         if ((tmp->tail + f->datalen*2) > BUFFER_SIZE)
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         tmp->tail += g722_decode(&(tmp->g722_state),
@@ -262,7 +262,7 @@ static int lintog722_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
   
     if ((tmp->tail + f->datalen/(2*sizeof(int16_t)) + 1) > BUFFER_SIZE)
     {
-        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     tmp->tail += g722_encode(&(tmp->g722_state),

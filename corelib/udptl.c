@@ -723,7 +723,7 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
     if (res < 0)
     {
         if (errno != EAGAIN)
-            opbx_log(LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
         if (errno == EBADF)
             CRASH;
         return &null_frame;
@@ -731,7 +731,7 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
-            opbx_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_them(udptl->udptl_sock_info)->sin_port));
+            opbx_log(OPBX_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_them(udptl->udptl_sock_info)->sin_port));
     }
 
     if (udptl_debug_test_addr(&sin))
@@ -752,14 +752,14 @@ void opbx_udptl_offered_from_local(struct opbx_udptl *udptl, int local)
     if (udptl)
         udptl->udptl_offered_from_local = local;
     else
-        opbx_log(LOG_WARNING, "udptl structure is null\n");
+        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
 }
 
 int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl)
 {
     if (udptl)
         return udptl->error_correction_scheme;
-    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
@@ -779,13 +779,13 @@ void opbx_udptl_set_error_correction_scheme(struct opbx_udptl *udptl, int ec)
             udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
             break;
         default:
-            opbx_log(LOG_WARNING, "error correction parameter invalid");
+            opbx_log(OPBX_LOG_WARNING, "error correction parameter invalid");
             break;
         }
     }
     else
     {
-        opbx_log(LOG_WARNING, "udptl structure is null\n");
+        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
     }
 }
 
@@ -793,7 +793,7 @@ int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
         return udptl->local_max_datagram_size;
-    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
@@ -801,7 +801,7 @@ int opbx_udptl_get_far_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
         return udptl->far_max_datagram_size;
-    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
@@ -810,7 +810,7 @@ void opbx_udptl_set_local_max_datagram(struct opbx_udptl *udptl, int max_datagra
     if (udptl)
         udptl->local_max_datagram_size = max_datagram;
     else
-        opbx_log(LOG_WARNING, "udptl structure is null\n");
+        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
 }
 
 void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
@@ -818,7 +818,7 @@ void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
     if (udptl)
         udptl->far_max_datagram_size = max_datagram;
     else
-        opbx_log(LOG_WARNING, "udptl structure is null\n");
+        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
 }
 
 struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
@@ -949,7 +949,7 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
     
     if (f->frametype != OPBX_FRAME_MODEM)
     {
-        opbx_log(LOG_WARNING, "UDPTL can only send T.38 data\n");
+        opbx_log(OPBX_LOG_WARNING, "UDPTL can only send T.38 data\n");
         return -1;
     }
     /* Cook up the UDPTL packet, with the relevant EC info. */
@@ -964,7 +964,7 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
         for (i = 0;  i < copies;  i++)
         {
             if ((res = udp_socket_sendto(s->udptl_sock_info, buf, len, 0)) < 0)
-                opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                opbx_log(OPBX_LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
         }
 #if 0
         printf("Sent %d bytes of UDPTL data to %s:%d\n", res, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
@@ -1005,7 +1005,7 @@ int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto)
     {
         if (cur->type == proto->type)
         {
-            opbx_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+            opbx_log(OPBX_LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
             return -1;
         }
     }
@@ -1055,14 +1055,14 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
     pr1 = get_proto(c1);
     if (!pr0)
     {
-        opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
         opbx_mutex_unlock(&c0->lock);
         opbx_mutex_unlock(&c1->lock);
         return OPBX_BRIDGE_FAILED;
     }
     if (!pr1)
     {
-        opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
         opbx_mutex_unlock(&c0->lock);
         opbx_mutex_unlock(&c1->lock);
         return OPBX_BRIDGE_FAILED;
@@ -1080,7 +1080,7 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
     }
     if (pr0->set_udptl_peer(c0, p1))
     {
-        opbx_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
     }
     else
     {
@@ -1089,7 +1089,7 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
     }
     if (pr1->set_udptl_peer(c1, p0))
     {
-        opbx_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
     }
     else
     {
@@ -1109,7 +1109,7 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
             ||
             (c0->masq  ||  c0->masqr  ||  c1->masq  ||  c1->masqr))
         {
-            opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, something is weird, backing out\n");
             /* Tell it to try again later */
             return OPBX_BRIDGE_RETRY;
         }
@@ -1118,23 +1118,23 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
         opbx_udptl_get_peer(p0, &t0);
         if (inaddrcmp(&t1, &ac1))
         {
-            opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
                 c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
-            opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
                 c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
             memcpy(&ac1, &t1, sizeof(ac1));
         }
         if (inaddrcmp(&t0, &ac0))
         {
-            opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
                 c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
-            opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
                 c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
             memcpy(&ac0, &t0, sizeof(ac0));
         }
         if ((who = opbx_waitfor_n(cs, 2, &to)) == 0)
         {
-            opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
+            opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
             /* Check for hangup / whentohangup */
             if (opbx_check_hangup(c0)  ||  opbx_check_hangup(c1))
                 break;
@@ -1144,7 +1144,7 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
         {
             *fo = f;
             *rc = who;
-            opbx_log(LOG_DEBUG, "Oooh, got a %s\n", (f)  ?  "digit"  :  "hangup");
+            opbx_log(OPBX_LOG_DEBUG, "Oooh, got a %s\n", (f)  ?  "digit"  :  "hangup");
             /* That's all we needed */
             return OPBX_BRIDGE_COMPLETE;
         }
@@ -1272,7 +1272,7 @@ void opbx_udptl_reload(void)
                 nochecksums = 0;
 #else
             if (opbx_false(s))
-                opbx_log(LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
+                opbx_log(OPBX_LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
 #endif
         }
         if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC")))

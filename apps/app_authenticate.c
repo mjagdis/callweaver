@@ -107,7 +107,7 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		else if (i > 0)
 			trylimit = i;
 		else
-			opbx_log(LOG_ERROR,"Can't set a negative limit.\n");
+			opbx_log(OPBX_LOG_ERROR,"Can't set a negative limit.\n");
 	}
 	
 	/* Start asking for password */
@@ -176,7 +176,7 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 						}
 					}
 				} else 
-					opbx_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", argv[0], strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", argv[0], strerror(errno));
 			}
 		} else {
 			/* Compare against a fixed password */

@@ -100,7 +100,7 @@ static int builtin_function_iftime(struct opbx_channel *chan, int argc, char **a
 	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
 	if (!opbx_build_timing(&timing, argv[0])) {
-		opbx_log(LOG_ERROR, "Invalid time specification\n");
+		opbx_log(OPBX_LOG_ERROR, "Invalid time specification\n");
 		return -1;
 	}
 

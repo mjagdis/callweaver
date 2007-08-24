@@ -108,7 +108,7 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv, c
 	int vmcount = 0;
 
 	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "The applications HasVoicemail and HasNewVoicemail have been deprecated.  Please use the VMCOUNT() function instead.\n");
+		opbx_log(OPBX_LOG_WARNING, "The applications HasVoicemail and HasNewVoicemail have been deprecated.  Please use the VMCOUNT() function instead.\n");
 		dep_warning = 1;
 	}
 	
@@ -142,7 +142,7 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv, c
 	if (vmcount > 0) {
 		/* Branch to the next extension */
 		if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-			opbx_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
+			opbx_log(OPBX_LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
 	}
 
 	LOCAL_USER_REMOVE(u);

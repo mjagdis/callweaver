@@ -295,7 +295,7 @@ static void dundi_debug_output(const char *data)
 
 static void dundi_error_output(const char *data)
 {
-	opbx_log(LOG_WARNING, "%s", data);
+	opbx_log(OPBX_LOG_WARNING, "%s", data);
 }
 
 static int has_permission(struct permission *ps, char *cont)
@@ -370,7 +370,7 @@ static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct 
 					memcpy(&trans->addr, sin, sizeof(trans->addr));
 					trans->dtrans = ntohs(hdr->strans) & 32767;
 				} else
-					opbx_log(LOG_WARNING, "Out of memory!\n");
+					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 			}
 			break;
 		default:
@@ -426,7 +426,7 @@ static void reset_global_eid(void)
 			snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
 			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
 				memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
-				opbx_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
+				opbx_log(OPBX_LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
 				close(s);
 				return;
 			}
@@ -446,7 +446,7 @@ static void reset_global_eid(void)
 				memcpy(
 					&(global_eid.eid),
 					sdp->sdl_data + sdp->sdl_nlen, 6);
-				opbx_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifap->ifa_name);
+				opbx_log(OPBX_LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifap->ifa_name);
 				freeifaddrs(ifap);
 				return;
 			}
@@ -455,7 +455,7 @@ static void reset_global_eid(void)
 	}
 #endif
 #endif
-	opbx_log(LOG_NOTICE, "No ethernet interface found for seeding global EID  You will have to set it manually.\n");
+	opbx_log(OPBX_LOG_NOTICE, "No ethernet interface found for seeding global EID  You will have to set it manually.\n");
 }
 
 static int get_trans_id(void)
@@ -620,7 +620,7 @@ static void *dundi_lookup_thread(void *data)
 	int max = 999999;
 	int expiration = dundi_cache_time;
 
-	opbx_log(LOG_DEBUG, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
+	opbx_log(OPBX_LOG_DEBUG, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
 		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 	memset(&dr, 0, sizeof(dr));
@@ -652,7 +652,7 @@ static void *dundi_lookup_thread(void *data)
 	if (!opbx_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
 	if (opbx_test_flag(st->trans, FLAG_DEAD)) {
-		opbx_log(LOG_DEBUG, "Our transaction went away!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
 	} else {
@@ -679,7 +679,7 @@ static void *dundi_precache_thread(void *data)
 	struct dundi_hint_metadata hmd;
 	char eid_str[20];
 
-	opbx_log(LOG_DEBUG, "Whee, precaching '%s@%s' for '%s'\n", st->called_number, st->called_context, 
+	opbx_log(OPBX_LOG_DEBUG, "Whee, precaching '%s@%s' for '%s'\n", st->called_number, st->called_context, 
 		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 
@@ -691,7 +691,7 @@ static void *dundi_precache_thread(void *data)
 	if (!opbx_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
 	if (opbx_test_flag(st->trans, FLAG_DEAD)) {
-		opbx_log(LOG_DEBUG, "Our transaction went away!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
 	} else {
@@ -713,14 +713,14 @@ static void *dundi_query_thread(void *data)
 	struct dundi_hint_metadata hmd;
 	char eid_str[20];
 	int res;
-	opbx_log(LOG_DEBUG, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
+	opbx_log(OPBX_LOG_DEBUG, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
 		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 	memset(&dei, 0, sizeof(dei));
 	memset(&hmd, 0, sizeof(hmd));
 	if (!dundi_eid_cmp(&st->trans->us_eid, &st->reqeid)) {
 		/* Ooh, it's us! */
-		opbx_log(LOG_DEBUG, "Neat, someone look for us!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Neat, someone look for us!\n");
 		opbx_copy_string(dei.orgunit, dept, sizeof(dei.orgunit));
 		opbx_copy_string(dei.org, org, sizeof(dei.org));
 		opbx_copy_string(dei.locality, locality, sizeof(dei.locality));
@@ -735,7 +735,7 @@ static void *dundi_query_thread(void *data)
 	}
 	opbx_mutex_lock(&peerlock);
 	if (opbx_test_flag(st->trans, FLAG_DEAD)) {
-		opbx_log(LOG_DEBUG, "Our transaction went away!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
 	} else {
@@ -795,13 +795,13 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			*st->eids[x-skipfirst] = *ies->eids[x];
 			s += sizeof(dundi_eid);
 		}
-		opbx_log(LOG_DEBUG, "Answering EID query for '%s@%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
+		opbx_log(OPBX_LOG_DEBUG, "Answering EID query for '%s@%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
 		if (opbx_pthread_create(&lookupthread, &attr, dundi_query_thread, st)) {
 			trans->thread = 0;
-			opbx_log(LOG_WARNING, "Unable to create thread!\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
@@ -809,7 +809,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
@@ -847,9 +847,9 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 	snprintf(data, sizeof(data), "%ld,", (long)(timeout));
 	
 	opbx_db_put("dundi/cache", key1, data);
-	opbx_log(LOG_DEBUG, "Caching hint at '%s'\n", key1);
+	opbx_log(OPBX_LOG_DEBUG, "Caching hint at '%s'\n", key1);
 	opbx_db_put("dundi/cache", key2, data);
-	opbx_log(LOG_DEBUG, "Caching hint at '%s'\n", key2);
+	opbx_log(OPBX_LOG_DEBUG, "Caching hint at '%s'\n", key2);
 	return 0;
 }
 
@@ -959,7 +959,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				trans->parent->dr[z].weight = ies->answers[x]->weight;
 			}
 		} else
-			opbx_log(LOG_NOTICE, "Dropping excessive answers in precache for %s@%s\n",
+			opbx_log(OPBX_LOG_NOTICE, "Dropping excessive answers in precache for %s@%s\n",
 				trans->parent->number, trans->parent->dcontext);
 
 	}
@@ -1026,13 +1026,13 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			cur = cur->next;
 		}
 		st->nummaps = mapcount;
-		opbx_log(LOG_DEBUG, "Forwarding precache for '%s@%s'!\n", ies->called_number, ies->called_context);
+		opbx_log(OPBX_LOG_DEBUG, "Forwarding precache for '%s@%s'!\n", ies->called_number, ies->called_context);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
 		if (opbx_pthread_create(&lookupthread, &attr, dundi_precache_thread, st)) {
 			trans->thread = 0;
-			opbx_log(LOG_WARNING, "Unable to create thread!\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
@@ -1040,7 +1040,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
@@ -1118,13 +1118,13 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 			cur = cur->next;
 		}
 		st->nummaps = mapcount;
-		opbx_log(LOG_DEBUG, "Answering query for '%s@%s'!\n", ies->called_number, ies->called_context);
+		opbx_log(OPBX_LOG_DEBUG, "Answering query for '%s@%s'!\n", ies->called_number, ies->called_context);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
 		if (opbx_pthread_create(&lookupthread, &attr, dundi_lookup_thread, st)) {
 			trans->thread = 0;
-			opbx_log(LOG_WARNING, "Unable to create thread!\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
@@ -1132,7 +1132,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);
@@ -1159,7 +1159,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 		if (sscanf(ptr, "%ld,%n", &timeout, &length) == 1) {
 			expiration = timeout - now;
 			if (expiration > 0) {
-				opbx_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
+				opbx_log(OPBX_LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
 				ptr += length;
 				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
@@ -1172,7 +1172,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							src++;
 						} else
 							src = "";
-						opbx_log(LOG_DEBUG, "Found cached answer '%s/%s' originally from '%s' with flags '%s' on behalf of '%s'\n", 
+						opbx_log(OPBX_LOG_DEBUG, "Found cached answer '%s/%s' originally from '%s' with flags '%s' on behalf of '%s'\n", 
 							tech2str(tech), ptr, src, dundi_flags2str(fs, sizeof(fs), flags.flags), eid_str_full);
 						/* Make sure it's not already there */
 						for (z=0;z<req->respcount;z++) {
@@ -1296,7 +1296,7 @@ static int do_register_expire(void *data)
 
 	opbx_mutex_lock(&peerlock);
 
-	opbx_log(LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+	opbx_log(OPBX_LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	peer->registerexpire = -1;
 	peer->lastms = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
@@ -1318,22 +1318,22 @@ static int update_key(struct dundi_peer *peer)
 		aes_decrypt_key128(key, &peer->us_dcx);
 		ekey = opbx_key_get(peer->inkey, OPBX_KEY_PUBLIC);
 		if (!ekey) {
-			opbx_log(LOG_NOTICE, "No such key '%s' for creating RSA encrypted shared key for '%s'!\n",
+			opbx_log(OPBX_LOG_NOTICE, "No such key '%s' for creating RSA encrypted shared key for '%s'!\n",
 				peer->inkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			return -1;
 		}
 		skey = opbx_key_get(peer->outkey, OPBX_KEY_PRIVATE);
 		if (!skey) {
-			opbx_log(LOG_NOTICE, "No such key '%s' for signing RSA encrypted shared key for '%s'!\n",
+			opbx_log(OPBX_LOG_NOTICE, "No such key '%s' for signing RSA encrypted shared key for '%s'!\n",
 				peer->outkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			return -1;
 		}
 		if ((res = opbx_encrypt_bin(peer->txenckey, key, sizeof(key), ekey)) != 128) {
-			opbx_log(LOG_NOTICE, "Whoa, got a weird encrypt size (%d != %d)!\n", res, 128);
+			opbx_log(OPBX_LOG_NOTICE, "Whoa, got a weird encrypt size (%d != %d)!\n", res, 128);
 			return -1;
 		}
 		if ((res = opbx_sign_bin(skey, (char *)peer->txenckey, 128, peer->txenckey + 128))) {
-			opbx_log(LOG_NOTICE, "Failed to sign key (%d)!\n", res);
+			opbx_log(OPBX_LOG_NOTICE, "Failed to sign key (%d)!\n", res);
 			return -1;
 		}
 		peer->us_keycrc32 = crc32(0L, peer->txenckey, 128);
@@ -1391,7 +1391,7 @@ static struct dundi_hdr *dundi_decrypt(struct dundi_transaction *trans, unsigned
 	*h = *ohdr;
 	bytes = space - 6;
 	if (uncompress(dst + 6, &bytes, decrypt_space, srclen) != Z_OK) {
-		opbx_log(LOG_DEBUG, "Ouch, uncompress failed :(\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ouch, uncompress failed :(\n");
 		return NULL;
 	}
 	/* Update length */
@@ -1416,7 +1416,7 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	bytes = len;
 	res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
 	if (res != Z_OK) {
-		opbx_log(LOG_DEBUG, "Ouch, compression failed!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ouch, compression failed!\n");
 		return -1;
 	}
 	memset(&ied, 0, sizeof(ied));
@@ -1450,7 +1450,7 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, iv, NULL, ((bytes + 15) / 16) * 16);
 	/* Copy the data */
 	if ((ied.pos + bytes) >= sizeof(ied.buf)) {
-		opbx_log(LOG_NOTICE, "Final packet too large!\n");
+		opbx_log(OPBX_LOG_NOTICE, "Final packet too large!\n");
 		return -1;
 	}
 	encrypt_memcpy(ied.buf + ied.pos, compress_space, bytes, iv, &trans->ecx);
@@ -1472,7 +1472,7 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	struct opbx_key *key, *skey;
 	char eid_str[20];
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Expected '%08lx' got '%08lx'\n", peer->them_keycrc32, keycrc32);
+		opbx_log(OPBX_LOG_DEBUG, "Expected '%08lx' got '%08lx'\n", peer->them_keycrc32, keycrc32);
 	if (peer->them_keycrc32 && (peer->them_keycrc32 == keycrc32)) {
 		/* A match */
 		return 1;
@@ -1486,14 +1486,14 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	/* Decrypt key */
 	key = opbx_key_get(peer->outkey, OPBX_KEY_PRIVATE);
 	if (!key) {
-		opbx_log(LOG_NOTICE, "Unable to find key '%s' to decode shared key from '%s'\n",
+		opbx_log(OPBX_LOG_NOTICE, "Unable to find key '%s' to decode shared key from '%s'\n",
 			peer->outkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		return -1;
 	}
 
 	skey = opbx_key_get(peer->inkey, OPBX_KEY_PUBLIC);
 	if (!skey) {
-		opbx_log(LOG_NOTICE, "Unable to find key '%s' to verify shared key from '%s'\n",
+		opbx_log(OPBX_LOG_NOTICE, "Unable to find key '%s' to verify shared key from '%s'\n",
 			peer->inkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		return -1;
 	}
@@ -1506,11 +1506,11 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	res = opbx_decrypt_bin(dst, newkey, sizeof(dst), key);
 	if (res != 16) {
 		if (res >= 0)
-			opbx_log(LOG_NOTICE, "Weird, key decoded to the wrong size (%d)\n", res);
+			opbx_log(OPBX_LOG_NOTICE, "Weird, key decoded to the wrong size (%d)\n", res);
 		return 0;
 	}
 	/* Decrypted, passes signature */
-	opbx_log(LOG_DEBUG, "Wow, new key combo passed signature and decrypt!\n");
+	opbx_log(OPBX_LOG_DEBUG, "Wow, new key combo passed signature and decrypt!\n");
 	memcpy(peer->rxenckey, newkey, 128);
 	memcpy(peer->rxenckey + 128, newsig, 128);
 	peer->them_keycrc32 = crc32(0L, peer->rxenckey, 128);
@@ -1540,9 +1540,9 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		bufcpy = alloca(datalen);
 		/* Make a copy for parsing */
 		memcpy(bufcpy, hdr->ies, datalen);
-		opbx_log(LOG_DEBUG, "Got canonical message %d (%d), %d bytes data%s\n", cmd, hdr->oseqno, datalen, final ? " (Final)" : "");
+		opbx_log(OPBX_LOG_DEBUG, "Got canonical message %d (%d), %d bytes data%s\n", cmd, hdr->oseqno, datalen, final ? " (Final)" : "");
 		if (dundi_parse_ies(&ies, bufcpy, datalen) < 0) {
-			opbx_log(LOG_WARNING, "Failed to parse DUNDI information elements!\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to parse DUNDI information elements!\n");
 			return -1;
 		}
 	}
@@ -1652,7 +1652,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		/* A dialplan response, lets see what we got... */
 		if (ies.cause < 1) {
 			/* Success of some sort */
-			opbx_log(LOG_DEBUG, "Looks like success of some sort (%d), %d answers\n", ies.cause, ies.anscount);
+			opbx_log(OPBX_LOG_DEBUG, "Looks like success of some sort (%d), %d answers\n", ies.cause, ies.anscount);
 			if (opbx_test_flag(trans, FLAG_ENCRYPT)) {
 				authpass = encrypted;
 			} else 
@@ -1693,7 +1693,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								trans->parent->dr[z].weight = ies.answers[x]->weight;
 							}
 						} else
-							opbx_log(LOG_NOTICE, "Dropping excessive answers to request for %s@%s\n",
+							opbx_log(OPBX_LOG_NOTICE, "Dropping excessive answers to request for %s@%s\n",
 								trans->parent->number, trans->parent->dcontext);
 					}
 					/* Save all the results (if any) we had.  Even if no results, still cache lookup.  Let
@@ -1736,7 +1736,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		/* A dialplan response, lets see what we got... */
 		if (ies.cause < 1) {
 			/* Success of some sort */
-			opbx_log(LOG_DEBUG, "Looks like success of some sort (%d)\n", ies.cause);
+			opbx_log(OPBX_LOG_DEBUG, "Looks like success of some sort (%d)\n", ies.cause);
 			if (opbx_test_flag(trans, FLAG_ENCRYPT)) {
 				authpass = encrypted;
 			} else 
@@ -1797,13 +1797,13 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				hasauth = 1;
 			
 			if (!hasauth) {
-				opbx_log(LOG_NOTICE, "Reponse to register not authorized!\n");
+				opbx_log(OPBX_LOG_NOTICE, "Reponse to register not authorized!\n");
 				if (!final) {
 					dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Improper signature in answer");
 					dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, &ied);
 				}
 			} else {
-				opbx_log(LOG_DEBUG, "Yay, we've registered as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->us_eid),
+				opbx_log(OPBX_LOG_DEBUG, "Yay, we've registered as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->us_eid),
 							dundi_eid_to_str(eid_str2, sizeof(eid_str2), &trans->them_eid));
 				/* Close connection if not final */
 				if (!final) 
@@ -1887,7 +1887,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					hdr->cmdresp |= dhdr->cmdresp & 0x80;
 					break;
 				} else
-					opbx_log(LOG_DEBUG, "Ouch, decrypt failed :(\n");
+					opbx_log(OPBX_LOG_DEBUG, "Ouch, decrypt failed :(\n");
 			}
 		}
 		if (!final) {
@@ -1930,7 +1930,7 @@ static int ack_trans(struct dundi_transaction *trans, int iseqno)
 		if ((pack->h->oseqno + 1) % 255 == iseqno) {
 			destroy_packet(pack, 0);
 			if (trans->lasttrans) {
-				opbx_log(LOG_WARNING, "Whoa, there was still a last trans?\n");
+				opbx_log(OPBX_LOG_WARNING, "Whoa, there was still a last trans?\n");
 				destroy_packets(trans->lasttrans);
 			}
 			trans->lasttrans = pack;
@@ -1981,7 +1981,7 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datale
 		dundi_ack(trans, 0);
 	} else {
 		/* Out of window -- simply drop */
-		opbx_log(LOG_DEBUG, "Dropping packet out of window!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Dropping packet out of window!\n");
 	}
 	return 0;
 }
@@ -1997,11 +1997,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
-			opbx_log(LOG_WARNING, "Error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Error: %s\n", strerror(errno));
 		return 1;
 	}
 	if (res < sizeof(struct dundi_hdr)) {
-		opbx_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct dundi_hdr));
+		opbx_log(OPBX_LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct dundi_hdr));
 		return 1;
 	}
 	buf[res] = '\0';
@@ -2134,7 +2134,7 @@ static void *network_thread(void *ignore)
 		opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
-		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
 	/* Establish I/O callback for socket read */
 	netsocket_io_id = opbx_io_add(io, netsocket, socket_read, OPBX_IO_IN, NULL);
@@ -2912,7 +2912,7 @@ static int dundi_xmit(struct dundi_packet *pack)
 		dundi_showframe(pack->h, 0, &pack->parent->addr, pack->datalen - sizeof(struct dundi_hdr));
 	res = sendto(netsocket, pack->data, pack->datalen, 0, (struct sockaddr *)&pack->parent->addr, sizeof(pack->parent->addr));
 	if (res < 0) {
-		opbx_log(LOG_WARNING, "Failed to transmit to '%s:%d': %s\n", 
+		opbx_log(OPBX_LOG_WARNING, "Failed to transmit to '%s:%d': %s\n", 
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr),
 			ntohs(pack->parent->addr.sin_port), strerror(errno));
 	}
@@ -2967,7 +2967,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 			if (peer->qualtrans == trans) {
 				if (fromtimeout) {
 					if (peer->lastms > -1)
-						opbx_log(LOG_NOTICE, "Peer '%s' has become UNREACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+						opbx_log(OPBX_LOG_NOTICE, "Peer '%s' has become UNREACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 					peer->lastms = -1;
 				} else {
 					ms = opbx_tvdiff_ms(opbx_tvnow(), peer->qualtx);
@@ -2975,9 +2975,9 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 						ms = 1;
 					if (ms < peer->maxms) {
 						if ((peer->lastms >= peer->maxms) || (peer->lastms < 0))
-							opbx_log(LOG_NOTICE, "Peer '%s' has become REACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+							opbx_log(OPBX_LOG_NOTICE, "Peer '%s' has become REACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 					} else if (peer->lastms < peer->maxms) {
-						opbx_log(LOG_NOTICE, "Peer '%s' has become TOO LAGGED (%d ms)\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), ms);
+						opbx_log(OPBX_LOG_NOTICE, "Peer '%s' has become TOO LAGGED (%d ms)\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), ms);
 					}
 					peer->lastms = ms;
 				}
@@ -3073,7 +3073,7 @@ static int dundi_rexmit(void *data)
 	if (pack->retrans < 1) {
 		pack->retransid = -1;
 		if (!opbx_test_flag(pack->parent, FLAG_ISQUAL))
-			opbx_log(LOG_NOTICE, "Max retries exceeded to host '%s:%d' msg %d on call %d\n", 
+			opbx_log(OPBX_LOG_NOTICE, "Max retries exceeded to host '%s:%d' msg %d on call %d\n", 
 				opbx_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr), 
 				ntohs(pack->parent->addr.sin_port), pack->h->oseqno, ntohs(pack->h->strans));
 		destroy_trans(pack->parent, 1);
@@ -3152,7 +3152,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		if (!res) 
 			res = dundi_xmit(pack);
 		if (res)
-			opbx_log(LOG_NOTICE, "Failed to send packet to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
+			opbx_log(OPBX_LOG_NOTICE, "Failed to send packet to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 				
 		if (cmdresp == DUNDI_COMMAND_ACK)
 			free(pack);
@@ -3165,7 +3165,7 @@ static int do_autokill(void *data)
 {
 	struct dundi_transaction *trans = data;
 	char eid_str[20];
-	opbx_log(LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
+	opbx_log(OPBX_LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
 		dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 	opbx_mutex_lock(&peerlock);
 	trans->autokillid = -1;
@@ -3203,7 +3203,7 @@ static int dundi_discover(struct dundi_transaction *trans)
 	struct dundi_ie_data ied;
 	int x;
 	if (!trans->parent) {
-		opbx_log(LOG_WARNING, "Tried to discover a transaction with no parent?!?\n");
+		opbx_log(OPBX_LOG_WARNING, "Tried to discover a transaction with no parent?!?\n");
 		return -1;
 	}
 	memset(&ied, 0, sizeof(ied));
@@ -3234,7 +3234,7 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 	struct dundi_result dr[MAX_RESULTS];
 	struct dundi_hint_metadata hmd;
 	if (!trans->parent) {
-		opbx_log(LOG_WARNING, "Tried to discover a transaction with no parent?!?\n");
+		opbx_log(OPBX_LOG_WARNING, "Tried to discover a transaction with no parent?!?\n");
 		return -1;
 	}
 	memset(&hmd, 0, sizeof(hmd));
@@ -3293,7 +3293,7 @@ static int dundi_query(struct dundi_transaction *trans)
 	struct dundi_ie_data ied;
 	int x;
 	if (!trans->parent) {
-		opbx_log(LOG_WARNING, "Tried to query a transaction with no parent?!?\n");
+		opbx_log(OPBX_LOG_WARNING, "Tried to query a transaction with no parent?!?\n");
 		return -1;
 	}
 	memset(&ied, 0, sizeof(ied));
@@ -3331,7 +3331,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 	trans = dr->trans;
 	while(trans) {
 		if (trans->thread)
-			opbx_log(LOG_WARNING, "This shouldn't happen, really...\n");
+			opbx_log(OPBX_LOG_WARNING, "This shouldn't happen, really...\n");
 		trans->thread = 1;
 		trans = trans->next;
 	}
@@ -3351,7 +3351,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 		transn = trans->next;
 		trans->thread = 0;
 		if (opbx_test_flag(trans, FLAG_DEAD)) {
-			opbx_log(LOG_DEBUG, "Our transaction went away!\n");
+			opbx_log(OPBX_LOG_DEBUG, "Our transaction went away!\n");
 			destroy_trans(trans, 0);
 		}
 		trans = transn;
@@ -3443,9 +3443,9 @@ static int append_transaction(struct dundi_request *dr, struct dundi_peer *p, in
 	if (p->maxms && ((p->lastms < 0) || (p->lastms >= p->maxms)))
 		return 0;
 	if (opbx_strlen_zero(dr->number))
-		opbx_log(LOG_DEBUG, "Will query peer '%s' for '%s' (context '%s')\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &dr->query_eid), dr->dcontext);
+		opbx_log(OPBX_LOG_DEBUG, "Will query peer '%s' for '%s' (context '%s')\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &dr->query_eid), dr->dcontext);
 	else
-		opbx_log(LOG_DEBUG, "Will query peer '%s' for '%s@%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dr->number, dr->dcontext);
+		opbx_log(OPBX_LOG_DEBUG, "Will query peer '%s' for '%s@%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dr->number, dr->dcontext);
 	trans = create_transaction(p);
 	if (!trans)
 		return -1;
@@ -3533,7 +3533,7 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 							/* Check for a matching or 0 cache entry */
 							append_transaction(dr, p, ttl, avoid);
 						} else
-							opbx_log(LOG_DEBUG, "Avoiding '%s' in transaction\n", dundi_eid_to_str(eid_str, sizeof(eid_str), avoid[x]));
+							opbx_log(OPBX_LOG_DEBUG, "Avoiding '%s' in transaction\n", dundi_eid_to_str(eid_str, sizeof(eid_str), avoid[x]));
 					}
 				}
 				*foundcache |= res;
@@ -3554,12 +3554,12 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 	cur = requests;
 	while(cur) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Checking '%s@%s' vs '%s@%s'\n", cur->dcontext, cur->number,
+			opbx_log(OPBX_LOG_DEBUG, "Checking '%s@%s' vs '%s@%s'\n", cur->dcontext, cur->number,
 				dr->dcontext, dr->number);
 		if (!strcasecmp(cur->dcontext, dr->dcontext) &&
 		    !strcasecmp(cur->number, dr->number) &&
 			(!dundi_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
-				opbx_log(LOG_DEBUG, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
+				opbx_log(OPBX_LOG_DEBUG, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
 					cur->dcontext, cur->number, dundi_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
 				*pending = cur;
 			res = 1;
@@ -3568,7 +3568,7 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 		cur = cur->next;
 	}
 	if (!res) {
-		opbx_log(LOG_DEBUG, "Registering request for '%s@%s' on behalf of '%s' crc '%08lx'\n", 
+		opbx_log(OPBX_LOG_DEBUG, "Registering request for '%s@%s' on behalf of '%s' crc '%08lx'\n", 
 				dr->number, dr->dcontext, dundi_eid_to_str(eid_str, sizeof(eid_str), &dr->root_eid), dr->crc32);
 		/* Go ahead and link us in since nobody else is searching for this */
 		dr->next = requests;
@@ -3656,7 +3656,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	/* Now perform real check */
 	memset(&dr, 0, sizeof(dr));
 	if (pipe(dr.pfds)) {
-		opbx_log(LOG_WARNING, "pipe failed: %s\n" , strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "pipe failed: %s\n" , strerror(errno));
 		return -1;
 	}
 	dr.dr = result;
@@ -3675,14 +3675,14 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 		if (rooteid && !dundi_eid_cmp(&dr.root_eid, &pending->root_eid)) {
 			/* This is on behalf of someone else.  Go ahead and close this out since
 			   they'll get their answer anyway. */
-			opbx_log(LOG_DEBUG, "Oooh, duplicate request for '%s@%s' for '%s'\n",
+			opbx_log(OPBX_LOG_DEBUG, "Oooh, duplicate request for '%s@%s' for '%s'\n",
 				dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &dr.root_eid));
 			close(dr.pfds[0]);
 			close(dr.pfds[1]);
 			return -2;
 		} else {
 			/* Wait for the cache to populate */
-			opbx_log(LOG_DEBUG, "Waiting for similar request for '%s@%s' for '%s'\n",
+			opbx_log(OPBX_LOG_DEBUG, "Waiting for similar request for '%s@%s' for '%s'\n",
 				dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &pending->root_eid));
 			start = opbx_tvnow();
 			while(check_request(pending) && (opbx_tvdiff_ms(opbx_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
@@ -3723,7 +3723,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 		opbx_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
 	}
 	if (chan && chan->_softhangup)
-		opbx_log(LOG_DEBUG, "Hrm, '%s' hungup before their query for %s@%s finished\n", chan->name, dr.number, dr.dcontext);
+		opbx_log(OPBX_LOG_DEBUG, "Hrm, '%s' hungup before their query for %s@%s finished\n", chan->name, dr.number, dr.dcontext);
 	cancel_request(&dr);
 	unregister_request(&dr);
 	res = dr.respcount;
@@ -3795,7 +3795,7 @@ static void dundi_precache_full(void)
 	struct opbx_exten *e;
 	cur = mappings;
 	while(cur) {
-		opbx_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
+		opbx_log(OPBX_LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
 		opbx_lock_contexts();
 		con = opbx_walk_contexts(NULL);
 		while(con) {
@@ -3828,7 +3828,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	int foundcache, skipped, ttlms, ms;
 	if (!context)
 		context = "e164";
-	opbx_log(LOG_DEBUG, "Precache internal (%s@%s)!\n", number, context);
+	opbx_log(OPBX_LOG_DEBUG, "Precache internal (%s@%s)!\n", number, context);
 
 	opbx_mutex_lock(&peerlock);
 	nummaps = 0;
@@ -3871,7 +3871,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 		if (dr.expiration > 0) 
 			reschedule_precache(dr.number, dr.dcontext, dr.expiration);
 		else
-			opbx_log(LOG_NOTICE, "Weird, expiration = %d, but need to precache for %s@%s?!\n", dr.expiration, dr.number, dr.dcontext);
+			opbx_log(OPBX_LOG_NOTICE, "Weird, expiration = %d, but need to precache for %s@%s?!\n", dr.expiration, dr.number, dr.dcontext);
 	}
 	start = opbx_tvnow();
 	while(dr.trans && (opbx_tvdiff_ms(opbx_tvnow(), start) < ttlms)) {
@@ -3994,7 +3994,7 @@ static int dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char
 					 */
 					if (!deprecated_app) {
 						deprecated_app = 1;
-						opbx_log(LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
+						opbx_log(OPBX_LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
 					}
 					pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
 					pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
@@ -4009,7 +4009,7 @@ static int dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char
 		 */
 		if (!deprecated_app) {
 			deprecated_app = 1;
-			opbx_log(LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
+			opbx_log(OPBX_LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
 		}
 		/* DEPRECATED
 		 * When used as an app rather than a func we use
@@ -4017,7 +4017,7 @@ static int dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char
 		 */
 		if (!deprecated_jump) {
 			deprecated_jump = 1;
-			opbx_log(LOG_WARNING, "Priority jumping is deprecated. Use Set(varname=${%s(args)}) and test ${varname} instead\n", dundifunc_name);
+			opbx_log(OPBX_LOG_WARNING, "Priority jumping is deprecated. Use Set(varname=${%s(args)}) and test ${varname} instead\n", dundifunc_name);
 		}
 		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	}
@@ -4197,7 +4197,7 @@ static void build_mapping(char *name, char *value)
 					map->dead = 0;
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
+				opbx_log(OPBX_LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
 			}
 			for (y=4;y<x;y++) {
 				if (!strcasecmp(fields[y], "nounsolicited"))
@@ -4213,10 +4213,10 @@ static void build_mapping(char *name, char *value)
 				else if (!strcasecmp(fields[y], "nopartial"))
 					map->options |= DUNDI_FLAG_INTERNAL_NOPARTIAL;
 				else
-					opbx_log(LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
+					opbx_log(OPBX_LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
 			}
 		} else 
-			opbx_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
+			opbx_log(OPBX_LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
 	}
 }
 
@@ -4229,7 +4229,7 @@ static int do_register(void *data)
 
 	opbx_mutex_lock(&peerlock);
 
-	opbx_log(LOG_DEBUG, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
+	opbx_log(OPBX_LOG_DEBUG, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
 	peer->registerid = opbx_sched_add(sched, default_expiration * 1000, do_register, data);
 	/* Destroy old transaction if there is one */
 	if (peer->regtrans)
@@ -4244,7 +4244,7 @@ static int do_register(void *data)
 		dundi_send(peer->regtrans, DUNDI_COMMAND_REGREQ, 0, 0, &ied);
 		
 	} else
-		opbx_log(LOG_NOTICE, "Unable to create new transaction for registering to '%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		opbx_log(OPBX_LOG_NOTICE, "Unable to create new transaction for registering to '%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 
 	opbx_mutex_unlock(&peerlock);
 
@@ -4374,7 +4374,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 						memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
 						peer->dynamic = 0;
 					} else {
-						opbx_log(LOG_WARNING, "Unable to find host '%s' at line %d\n", v->value, v->lineno);
+						opbx_log(OPBX_LOG_WARNING, "Unable to find host '%s' at line %d\n", v->value, v->lineno);
 						peer->dead = 1;
 					}
 				}
@@ -4382,7 +4382,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 				if (!dundi_str_to_eid(&testeid, v->value))
 					peer->us_eid = testeid;
 				else
-					opbx_log(LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "include")) {
 				peer->include = append_permission(peer->include, v->value, 1);
 			} else if (!strcasecmp(v->name, "permit")) {
@@ -4403,7 +4403,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 				else if (!strcasecmp(v->value, "quartiary"))
 					peer->order = 3;
 				else {
-					opbx_log(LOG_WARNING, "'%s' is not a valid order, should be primary, secondary, tertiary or quartiary at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid order, should be primary, secondary, tertiary or quartiary at line %d\n", v->value, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
@@ -4411,7 +4411,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 				} else if (!strcasecmp(v->value, "yes")) {
 					peer->maxms = DEFAULT_MAXMS;
 				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
-					opbx_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
+					opbx_log(OPBX_LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
 						dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
 					peer->maxms = 0;
 				}
@@ -4425,7 +4425,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 				else if (!strcasecmp(v->value, "none"))
 					peer->model = 0;
 				else {
-					opbx_log(LOG_WARNING, "Unknown model '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
+					opbx_log(OPBX_LOG_WARNING, "Unknown model '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
 						v->value, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "precache")) {
@@ -4438,7 +4438,7 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 				else if (!strcasecmp(v->value, "none"))
 					peer->pcmodel = 0;
 				else {
-					opbx_log(LOG_WARNING, "Unknown pcmodel '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
+					opbx_log(OPBX_LOG_WARNING, "Unknown pcmodel '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
 						v->value, v->lineno);
 				}
 			}
@@ -4446,22 +4446,22 @@ static void build_peer(dundi_eid *eid, struct opbx_variable *v, int *globalpcmod
 		}
 		(*globalpcmode) |= peer->pcmodel;
 		if (!peer->model && !peer->pcmodel) {
-			opbx_log(LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
+			opbx_log(OPBX_LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			peer->dead = 1;
 		} else if ((peer->model & DUNDI_MODEL_INBOUND) && (peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
-			opbx_log(LOG_WARNING, "Peer '%s' may not be both inbound/symmetric model and outbound/symmetric precache model, discarding!\n", 
+			opbx_log(OPBX_LOG_WARNING, "Peer '%s' may not be both inbound/symmetric model and outbound/symmetric precache model, discarding!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			peer->dead = 1;
 		} else if ((peer->model & DUNDI_MODEL_OUTBOUND) && (peer->pcmodel & DUNDI_MODEL_INBOUND)) {
-			opbx_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
+			opbx_log(OPBX_LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			peer->dead = 1;
 		} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
-			opbx_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
+			opbx_log(OPBX_LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
-			opbx_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
+			opbx_log(OPBX_LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		} else { 
 			if (needregister) {
@@ -4481,7 +4481,7 @@ static int dundi_helper(struct opbx_channel *chan, const char *context, const ch
 	int found = 0;
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
-			opbx_log(LOG_NOTICE, "Can't use Proc mode without a channel!\n");
+			opbx_log(OPBX_LOG_NOTICE, "Can't use Proc mode without a channel!\n");
 			return -1;
 		}
 		/* If done as a proc, use proc extension */
@@ -4492,7 +4492,7 @@ static int dundi_helper(struct opbx_channel *chan, const char *context, const ch
 			if (!exten || opbx_strlen_zero(exten))
 				exten = chan->exten;
 			if (!exten || opbx_strlen_zero(exten)) {	
-				opbx_log(LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
+				opbx_log(OPBX_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
 				return -1;
 			}
 		}
@@ -4531,7 +4531,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
-			opbx_log(LOG_NOTICE, "Can't use Proc mode without a channel!\n");
+			opbx_log(OPBX_LOG_NOTICE, "Can't use Proc mode without a channel!\n");
 			return -1;
 		}
 		/* If done as a proc, use proc extension */
@@ -4542,7 +4542,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 			if (!exten || opbx_strlen_zero(exten))
 				exten = chan->exten;
 			if (!exten || opbx_strlen_zero(exten)) {	
-				opbx_log(LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
+				opbx_log(OPBX_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
 				return -1;
 			}
 		}
@@ -4607,7 +4607,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	
 	
 	if (!cfg) {
-		opbx_log(LOG_ERROR, "Unable to load config %s\n", config_file);
+		opbx_log(OPBX_LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
 	}
 	ipaddr[0] = '\0';
@@ -4617,9 +4617,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			memcpy(&sin2.sin_addr, hp->h_addr, sizeof(sin2.sin_addr));
 			opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin2.sin_addr);
 		} else
-			opbx_log(LOG_WARNING, "Unable to look up host '%s'\n", hn);
+			opbx_log(OPBX_LOG_WARNING, "Unable to look up host '%s'\n", hn);
 	} else
-		opbx_log(LOG_WARNING, "Unable to get host name!\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to get host name!\n");
 	opbx_mutex_lock(&peerlock);
 	reset_global_eid();
 	global_storehistory = 0;
@@ -4631,7 +4631,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if(last_port==0){
 				last_port=sin->sin_port;
 			} else if(sin->sin_port != last_port)
-				opbx_log(LOG_WARNING, "change to port ignored until next callweaver re-start\n");
+				opbx_log(OPBX_LOG_WARNING, "change to port ignored until next callweaver re-start\n");
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			struct hostent *hp;
 			struct opbx_hostent he;
@@ -4639,14 +4639,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if (hp) {
 				memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 			} else
-				opbx_log(LOG_WARNING, "Invalid host/IP '%s'\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Invalid host/IP '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "ttl")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
 				dundi_ttl = x;
 			} else {
-				opbx_log(LOG_WARNING, "'%s' is not a valid TTL at line %d, must be number from 1 to %d\n",
+				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid TTL at line %d, must be number from 1 to %d\n",
 					v->value, v->lineno, DUNDI_DEFAULT_TTL);
 			}
 		} else if (!strcasecmp(v->name, "autokill")) {
@@ -4654,7 +4654,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				if (x >= 0)
 					global_autokilltimeout = x;
 				else
-					opbx_log(LOG_NOTICE, "Nice try, but autokill has to be >0 or 'yes' or 'no' at line %d\n", v->lineno);
+					opbx_log(OPBX_LOG_NOTICE, "Nice try, but autokill has to be >0 or 'yes' or 'no' at line %d\n", v->lineno);
 			} else if (opbx_true(v->value)) {
 				global_autokilltimeout = DEFAULT_MAXMS;
 			} else {
@@ -4664,7 +4664,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if (!dundi_str_to_eid(&testeid, v->value))
 				global_eid = testeid;
 			else
-				opbx_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%d", &format) == 1)
 				tos = format & 0xff;
@@ -4682,9 +4682,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				tos = 0;
 			else
 #if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 #else
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
 #endif
 		} else if (!strcasecmp(v->name, "department")) {
 			opbx_copy_string(dept, v->value, sizeof(dept));
@@ -4706,7 +4706,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if ((sscanf(v->value, "%d", &x) == 1)) {
 				dundi_cache_time = x;
 			} else {
-				opbx_log(LOG_WARNING, "'%s' is not a valid cache time at line %d. Using default value '%d'.\n",
+				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid cache time at line %d. Using default value '%d'.\n",
 					v->value, v->lineno, DUNDI_DEFAULT_CACHE_TIME);
 			}
 		}
@@ -4728,7 +4728,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if (!dundi_str_to_eid(&testeid, cat))
 				build_peer(&testeid, opbx_variable_browse(cfg, cat), &globalpcmodel);
 			else
-				opbx_log(LOG_NOTICE, "Ignoring invalid EID entry '%s'\n", cat);
+				opbx_log(OPBX_LOG_NOTICE, "Ignoring invalid EID entry '%s'\n", cat);
 		}
 		cat = opbx_category_browse(cfg, cat);
 	}
@@ -4794,7 +4794,7 @@ static int reload_module(void)
 
 	if (opbx_pthread_create(&netthreadid, NULL, network_thread, NULL)
 	|| opbx_pthread_create(&precachethreadid, NULL, process_precache, NULL)) {
-		opbx_log(LOG_ERROR, "Unable to start network threads\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to start network threads\n");
 		stop_threads();
 		return -1;
 	}
@@ -4817,7 +4817,7 @@ static int load_module(void)
 	sched = sched_context_create();
 	
 	if (!io || !sched) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 

@@ -433,7 +433,7 @@ statement : LC statements RC {
 		strcat(bufx,")");
 #ifdef AAL_ARGCHECK
 		if ( !ael_is_funcname($1->u1.str) )
-			opbx_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
+			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
 				my_file, @1.first_line, @1.first_column, @1.last_column, $1->u1.str);
 #endif
 		$$->u1.str = bufx;
@@ -510,7 +510,7 @@ application_call_head: word LP {reset_argcount(parseio->scanner);} {
 		if (strcasecmp($1,"goto") == 0) {
 			$$ = npval2(PV_GOTO, &@1, &@2);
 			free($1); /* won't be using this */
-			opbx_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
+			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
 		} else {
 			$$= npval2(PV_APPLICATION_CALL, &@1, &@2);
 			$$->u1.str = $1;
@@ -737,9 +737,9 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 {
 	char *s2 = ael_token_subst((char *)s);
 	if (locp->first_line == locp->last_line) {
-		opbx_log(LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
+		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
 	} else {
-		opbx_log(LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
+		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
 	}
 	free(s2);
 	parseio->syntax_error_count++;

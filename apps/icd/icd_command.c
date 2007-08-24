@@ -989,7 +989,7 @@ int icd_command_ack (int fd, int argc, char **argv)
      opbx_cli(fd, "icd ack for agent[%s] - OK\n", agent_id);
      return 0;
   }
-  opbx_log(LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
+  opbx_log(OPBX_LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
   manager_event(EVENT_FLAG_USER, "icd_command",
        "Command: Ack\r\nResult: Fail\r\nCause: Not correct state\r\nCallerID: %s\r\nState: %s\r\n", 
        agent_id, icd_caller__get_state_string((icd_caller *)agent));
@@ -1031,7 +1031,7 @@ int icd_command_hang_up (int fd, int argc, char **argv)
             agent_id, icd_caller__get_state_string(agent));
     	return -1;
     }
-    opbx_log(LOG_NOTICE, "Function Hang up for agent [%s] executed OK.\n", agent_id);
+    opbx_log(OPBX_LOG_NOTICE, "Function Hang up for agent [%s] executed OK.\n", agent_id);
     manager_event(EVENT_FLAG_USER, "icd_command",
         "Command: Hangup\r\nResult: OK\r\nCallerID: %s\r\n", 
          agent_id);
@@ -1053,7 +1053,7 @@ static void *icd_command_login_thread(void *arg) {
     res = icd_bridge_dial_callweaver_channel(agent, channelstring, 20000);
     icd_caller__set_channel(agent, NULL);
     if (res != OPBX_CONTROL_ANSWER){
-        opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
+        opbx_log(OPBX_LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Login\r\nResult: Fail\r\nCause: No channel answer\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelString: %s\r\n",
                 icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
@@ -1072,7 +1072,7 @@ static void *icd_command_login_thread(void *arg) {
     app_icd__agent_exec(chan, buf);
 #endif
     icd_caller__del_param(agent, "LogInProgress");
-    opbx_log(LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
+    opbx_log(OPBX_LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
 /*    icd_bridge__safe_hangup(agent);*/
     chan = icd_caller__get_channel(agent);
     if(chan){
@@ -1106,7 +1106,7 @@ int icd_command_login (int fd, int argc, char **argv)
       	 
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
     if (!agent) {
-        opbx_log(LOG_WARNING,
+        opbx_log(OPBX_LOG_WARNING,
                     "AGENT LOGIN Fail!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agent_id);        
         manager_event(EVENT_FLAG_USER, "icd_command",
@@ -1115,7 +1115,7 @@ int icd_command_login (int fd, int argc, char **argv)
     }       
     if (icd_caller__get_state(agent) != ICD_CALLER_STATE_SUSPEND &&
       icd_caller__get_state(agent) != ICD_CALLER_STATE_INITIALIZED) {
-        opbx_log(LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
+        opbx_log(OPBX_LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Login\r\nResult: Fail\r\nCause: Already logged\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
                 icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
@@ -1123,7 +1123,7 @@ int icd_command_login (int fd, int argc, char **argv)
          	    return ICD_EGENERAL;
     }
 	if(icd_caller__get_param(agent, "LogInProgress")){ 
-	    opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
+	    opbx_log(OPBX_LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Login\r\nResult: Fail\r\nCause: Previouv login try not finished\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
                 icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
@@ -1134,7 +1134,7 @@ int icd_command_login (int fd, int argc, char **argv)
     icd_caller__set_channel_string(agent, channelstring);
     icd_caller__set_param_string(agent, "channel", channelstring);
     if(!icd_caller__create_channel(agent) ) {
-        opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
+        opbx_log(OPBX_LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Login\r\nResult: Fail\r\nCause: Channel not avaliable\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
                 icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
@@ -1174,7 +1174,7 @@ int icd_command_logout (int fd, int argc, char **argv)
     passwd_to_check = argv[2];
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);   
     if (agent == NULL) {
-        opbx_log(LOG_WARNING,
+        opbx_log(OPBX_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agent_id);
           manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Logout\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
@@ -1184,7 +1184,7 @@ int icd_command_logout (int fd, int argc, char **argv)
     passwd = icd_caller__get_param(agent, "passwd");
     if (passwd) 
           if(strcmp(passwd, passwd_to_check)){
-          opbx_log(LOG_WARNING,
+          opbx_log(OPBX_LOG_WARNING,
                  "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agent_id);
           manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Logout\r\nResult: Fail\r\nCause: Wrong password\r\nID: %d\r\nCallerID: %s\r\nAgentName: %s\r\nAgentState: %s\r\n",
@@ -1193,14 +1193,14 @@ int icd_command_logout (int fd, int argc, char **argv)
           return ICD_EGENERAL;
     }     
     
-    opbx_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agent_id);
+    opbx_log(OPBX_LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agent_id);
     /* TBD - Implement state change to ICD_CALLER_STATE_WAIT. We can't just pause the thread
      * because the caller's members would still be in the distributors. We need to go into a
      * caller state that is actually different, a paused/waiting/down state.
      */
     
      if (icd_caller__set_state(agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
-        opbx_log(LOG_WARNING,
+        opbx_log(OPBX_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string(agent));
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Logout\r\nResult: Fail\r\nCause: Unable to change state\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
@@ -1209,7 +1209,7 @@ int icd_command_logout (int fd, int argc, char **argv)
 	    return ICD_EGENERAL;
 	} 
 	else {	    
-        opbx_log(LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
+        opbx_log(OPBX_LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Logout\r\nResult: OK\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
                 icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
@@ -1349,7 +1349,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
     	    res = write(conf->fd, data, len);
 
     	    if (res < 1) {      
-                opbx_log(LOG_WARNING, "Failed to write audio data to conference: \n");
+                opbx_log(OPBX_LOG_WARNING, "Failed to write audio data to conference: \n");
                 return 0;
     	    }
     	    len -= res;
@@ -1443,7 +1443,7 @@ int icd_command_record(int fd, int argc, char **argv)
    }
    strncpy(buf + strlen(buf), chan->name, sizeof(buf) - strlen(buf));
    if (!record_start){
-   		opbx_log(LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
+   		opbx_log(OPBX_LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
     	manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Record\r\nSubCommand: Stop\r\nResult: OK\r\nCallerID: %s\r\n", 
                 customer_source);
@@ -1455,7 +1455,7 @@ int icd_command_record(int fd, int argc, char **argv)
         return 0;
    }
    if(chan->spiers !=NULL){
-   	opbx_log(LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
+   	opbx_log(OPBX_LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Record\r\nSubCommand: Start\r\nResult: Fail\r\nCause: Already recording\r\nCallerID: %s\r\n", 
                 customer_source);
@@ -1486,7 +1486,7 @@ int icd_command_record(int fd, int argc, char **argv)
 //   muxmon <start|stop> <chan_name> <args>opbx_cli_command(fd, command);fd can be like fileno(stderr)
    fd = fileno(stderr);
    opbx_cli_command(fd, buf);
-   opbx_log(LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
+   opbx_log(OPBX_LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
    manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Record\r\nSubCommand: Start\r\nResult: OK\r\nCallerID: %s\r\nFileName: %s\r\n", 
                 customer_source, RecFile);
@@ -1543,7 +1543,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	        	return 1;
 	      } 
 	    }  	 
-	    opbx_log(LOG_NOTICE, "Agent [%s] will %s the queue [%s]\n", agent_id, remove?"leave":"join", queuename); 
+	    opbx_log(OPBX_LOG_NOTICE, "Agent [%s] will %s the queue [%s]\n", agent_id, remove?"leave":"join", queuename); 
             if(!remove){ 
               icd_list__lock((icd_list *) (agent->memberships));
  	        if(icd_caller__add_to_queue(agent, queue) == ICD_SUCCESS){
@@ -1654,7 +1654,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     for (i = 0;  i < count;  i++)
     {
         if (opbx_write(associated_caller->chan, &write_frame) < 0) {
-            opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", "strerror(errno)");
+            opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel: %s\n", "strerror(errno)");
         }
     }
 

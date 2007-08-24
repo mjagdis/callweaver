@@ -162,7 +162,7 @@ static sqlite3 *open_db(char *filename) {
 	
 	pick_path(filename,path,ARRAY_SIZE);
 	if (sqlite3_open(path,&db)) {
-		opbx_log(LOG_WARNING,"SQL ERR [%s]\n",sqlite3_errmsg(db));
+		opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n",sqlite3_errmsg(db));
 		sqlite3_close(db);
 		db=NULL;
 	}
@@ -189,7 +189,7 @@ static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc, char
 	int res=0;
 
 	if (argc < 1 || !argv[0][0]) {
-		opbx_log(LOG_WARNING, "sql requires an argument (sql)\n");
+		opbx_log(OPBX_LOG_WARNING, "sql requires an argument (sql)\n");
 		return -1;
 	}
 
@@ -210,7 +210,7 @@ static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc, char
 				);
 
 	if (errmsg) {
-		opbx_log(LOG_WARNING,"SQL ERR [%s]\n",errmsg);
+		opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n",errmsg);
 		sqlite3_free(errmsg);
 		errmsg = NULL;
 	}
@@ -340,7 +340,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 							 &errmsg
 							 );
 				if (errmsg) {
-					opbx_log(LOG_WARNING,"SQL ERR [%s]\n",errmsg);
+					opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n",errmsg);
 					sqlite3_free(errmsg);
 					errmsg = NULL;
 				}
@@ -562,7 +562,7 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 		filename = switch_dbfile;
 
 
-	//opbx_log(LOG_NOTICE, "SQLiteSwitch_exists %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
+	//opbx_log(OPBX_LOG_NOTICE, "SQLiteSwitch_exists %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 	time(&now);
 	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
 
@@ -593,12 +593,12 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 							 &errmsg
 							 );
 				if (errmsg) {
-					opbx_log(LOG_WARNING,"SQL ERR [%s]\n",errmsg);
+					opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n",errmsg);
 					sqlite3_free(errmsg);
 					errmsg = NULL;
 				}
 			} else {
-				opbx_log(LOG_WARNING,"malloc failed, good luck!\n");
+				opbx_log(OPBX_LOG_WARNING,"malloc failed, good luck!\n");
 			}
 			sqlite3_close(db);
 			if (sql) {
@@ -608,7 +608,7 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 			//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
                         opbx_core_hash_get ( &extens, key, (void*)cache );
 		}  else {
-			opbx_log(LOG_WARNING,"ERROR OPEINING DB.\n");
+			opbx_log(OPBX_LOG_WARNING,"ERROR OPEINING DB.\n");
 			return -1;
 		}
 
@@ -628,7 +628,7 @@ static int SQLiteSwitch_canmatch(struct opbx_channel *chan, const char *context,
 
 	int res = 1; 
 
-	//opbx_log(LOG_NOTICE, "SQLiteSwitch_canmatch %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
+	//opbx_log(OPBX_LOG_NOTICE, "SQLiteSwitch_canmatch %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 
 
 	return res;
@@ -646,7 +646,7 @@ static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, con
 	
 
 	time(&now);
-	//opbx_log(LOG_NOTICE, "SQLiteSwitch_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
+	//opbx_log(OPBX_LOG_NOTICE, "SQLiteSwitch_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 
 	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
 
@@ -671,7 +671,7 @@ static int SQLiteSwitch_matchmore(struct opbx_channel *chan, const char *context
 
 	int res = 0; 
 
-	//opbx_log(LOG_NOTICE, "SQLiteSwitch_matchmore %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
+	//opbx_log(OPBX_LOG_NOTICE, "SQLiteSwitch_matchmore %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 
 	return res;
 
@@ -807,7 +807,7 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
 	res = sqlite3_prepare(db,sql,0,&stmt,0);
 
 	if (res) {
-		opbx_log (LOG_WARNING, "SQL select error [%s]!\n[%s]\n\n",sqlite3_errmsg(db), sql);
+		opbx_log(OPBX_LOG_WARNING, "SQL select error [%s]!\n[%s]\n\n",sqlite3_errmsg(db), sql);
 		return NULL;
 	}
 
@@ -855,7 +855,7 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
                 {
 			cur_cat = opbx_category_new((char *)sqlite3_column_text(stmt,5));
 			if (!cur_cat) {
-				opbx_log(LOG_WARNING, "Out of memory!\n");
+				opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 				break;
 			}
 			strcpy (last, (const char*) sqlite3_column_text(stmt,5));
@@ -867,7 +867,7 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
 	}
 	
 	if ((sqlite3_finalize(stmt))) 
-		opbx_log(LOG_ERROR,"ERROR: %s\n",sqlite3_errmsg(db));
+		opbx_log(OPBX_LOG_ERROR,"ERROR: %s\n",sqlite3_errmsg(db));
 
 	return cfg;
 }
@@ -947,7 +947,7 @@ static int sqlite_log(struct opbx_cdr *cdr)
 							   &zErr
 							   );
 		} else {
-			opbx_log(LOG_ERROR, "malloc failed, good luck!\n");
+			opbx_log(OPBX_LOG_ERROR, "malloc failed, good luck!\n");
 			break;
 		}
 
@@ -961,9 +961,9 @@ static int sqlite_log(struct opbx_cdr *cdr)
 		sql = NULL;
 	}
 	if (zErr) {
-		opbx_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		opbx_log(OPBX_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 				"INSERT INTO %s ("
 				"clid,src,dst,dcontext,"
 				"channel,dstchannel,lastapp,lastdata, "
@@ -1026,7 +1026,7 @@ static void check_table_exists(char *dbfile, char *test_sql, char *create_sql) {
 						 );
 
 			if (errmsg) {
-				opbx_log(LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
+				opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
 				sqlite3_free(errmsg);
 				errmsg = NULL;
 				sqlite3_exec(
@@ -1037,7 +1037,7 @@ static void check_table_exists(char *dbfile, char *test_sql, char *create_sql) {
 							 &errmsg
 							 );
 				if (errmsg) {
-					opbx_log(LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
+					opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
 					sqlite3_free(errmsg);
 					errmsg = NULL;
 				}

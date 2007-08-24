@@ -223,7 +223,7 @@ extern "C" {
 		if (__builtin_expect((object)->refcount > 0, 1)) \
 			newcount = --((object)->refcount); \
 		else \
-			opbx_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
+			opbx_log(OPBX_LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
 		ASTOBJ_UNLOCK(object); \
 		if (newcount == 0) { \
 			opbx_mutex_destroy(&(object)->_lock); \

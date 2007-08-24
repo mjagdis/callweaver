@@ -65,21 +65,21 @@ int direngine_engine_add( direngine_t *de, char *conf ) {
     int new;
     hash_entry_t *x;
     
-    opbx_log(LOG_DEBUG,"Adding directory engine '%s' to hashtable\n", de->name);
+    opbx_log(OPBX_LOG_DEBUG,"Adding directory engine '%s' to hashtable\n", de->name);
 
     if (!conf) {
-	opbx_log(LOG_ERROR,"Adding directory engine '%s' not possible: no conf.\n", de->name);    
+	opbx_log(OPBX_LOG_ERROR,"Adding directory engine '%s' not possible: no conf.\n", de->name);    
         return 0;
     }
     if (!de) {
-    	opbx_log(LOG_ERROR,"Adding directory engine '%s' not possible: no engine.\n", de->name);    
+    	opbx_log(OPBX_LOG_ERROR,"Adding directory engine '%s' not possible: no engine.\n", de->name);    
         return 0;
     }
     
     x = hash_create_entry(&direngine_hash, de->name, &new);
     
     if (!new) {
-    	opbx_log(LOG_ERROR,"Adding directory engine '%s' not possible: not new.\n", de->name);    
+    	opbx_log(OPBX_LOG_ERROR,"Adding directory engine '%s' not possible: not new.\n", de->name);    
 	return 0;
     } else {
         if ( de->init ) {
@@ -88,7 +88,7 @@ int direngine_engine_add( direngine_t *de, char *conf ) {
 	        return 1;
             } 
             else {
-    		opbx_log(LOG_ERROR,"Adding directory engine '%s' not possible: initialization failed.\n", de->name);    
+    		opbx_log(OPBX_LOG_ERROR,"Adding directory engine '%s' not possible: initialization failed.\n", de->name);    
                 return 0;
 	    }
         }
@@ -105,11 +105,11 @@ int direngine_engine_release( char *name ) {
     
     if ( entry == NULL )
     {
-        opbx_log(LOG_ERROR,"Hashtable can't find directory engine '%s' marked for deletion.\n", name);
+        opbx_log(OPBX_LOG_ERROR,"Hashtable can't find directory engine '%s' marked for deletion.\n", name);
         return 0;
     }
 
-    opbx_log(LOG_NOTICE,"Hashtable releasing directory engine '%s'\n", name);
+    opbx_log(OPBX_LOG_NOTICE,"Hashtable releasing directory engine '%s'\n", name);
 
     de = hash_get_value(entry);
 
@@ -144,10 +144,10 @@ directory_domain_t *direngine_domain_search(  char *domain ) {
         value = (direngine_t *) hash_get_value(entry);
 	if (value) {
 	    totengines++;
-	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
+	    opbx_log(OPBX_LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
 	    item = value->search_domain( domain );
 	    if ( item ) {
-		opbx_log(LOG_DEBUG," FOUND DOMAIN '%s'\n", item->name );
+		opbx_log(OPBX_LOG_DEBUG," FOUND DOMAIN '%s'\n", item->name );
 		goto done;
 	    }
 	}
@@ -156,7 +156,7 @@ done:
 //    opbx_mutex_unlock(&direngine_mutex);
 
     if ( !totengines )
-	opbx_log(LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
+	opbx_log(OPBX_LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
 
     return item;
 }
@@ -184,10 +184,10 @@ directory_entry_t *direngine_user_search( char *domain, char *user ) {
         value = (direngine_t *) hash_get_value(entry);
 	if (value) {
 	    totengines++;
-	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
+	    opbx_log(OPBX_LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
 	    item = value->search_user( user, domain );
 	    if ( item ) {
-		opbx_log(LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
+		opbx_log(OPBX_LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
 		goto done;
 	    }
 	}
@@ -196,7 +196,7 @@ done:
 //    opbx_mutex_unlock(&direngine_mutex);
 
     if ( !totengines )
-	opbx_log(LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
+	opbx_log(OPBX_LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
 
     return item;
 }
@@ -296,10 +296,10 @@ int __direngine_user_add_attribute( char *domain, char *user, char *name, char *
         engine = (direngine_t *) hash_get_value(entry);
 	if (engine) {
 	    totengines++;
-	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
+	    opbx_log(OPBX_LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
 	    item = engine->search_user( user, domain );
 	    if ( item ) {
-		opbx_log(LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
+		opbx_log(OPBX_LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
                 int tot = engine->attribute_add(domain, user, name, value, persistant);
                 direngine_release_user_result(item);
 		return tot;
@@ -310,7 +310,7 @@ int __direngine_user_add_attribute( char *domain, char *user, char *name, char *
 //    opbx_mutex_unlock(&direngine_mutex);
 
     if ( !totengines )
-	opbx_log(LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
+	opbx_log(OPBX_LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
 
     return 0;
 }
@@ -339,10 +339,10 @@ int direngine_user_del_attribute( char *domain, char *user, char *name, char *va
         engine = (direngine_t *) hash_get_value(entry);
 	if (engine) {
 	    totengines++;
-	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
+	    opbx_log(OPBX_LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
 	    item = engine->search_user( user, domain );
 	    if ( item ) {
-		opbx_log(LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
+		opbx_log(OPBX_LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
                 int tot = engine->attribute_delete(domain, user, name, value, partial_compare);
                 direngine_release_user_result(item);
 		return tot;
@@ -353,7 +353,7 @@ int direngine_user_del_attribute( char *domain, char *user, char *name, char *va
 //    opbx_mutex_unlock(&direngine_mutex);
 
     if ( !totengines )
-	opbx_log(LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
+	opbx_log(OPBX_LOG_ERROR,"Didnt' perform a search as no engines are avalaible.\n");
 
     return 0;
 }

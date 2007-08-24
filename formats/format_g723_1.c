@@ -94,7 +94,7 @@ static struct opbx_filestream *g723_rewrite(FILE *f, const char *comment)
         tmp->f = f;
     }
     else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -119,7 +119,7 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
     size = ntohs(size);
     if (size > G723_MAX_SIZE - sizeof(struct opbx_frame))
     {
-        opbx_log(LOG_WARNING, "Size %d is invalid\n", size);
+        opbx_log(OPBX_LOG_WARNING, "Size %d is invalid\n", size);
         /* The file is apparently no longer any good, as we
            shouldn't ever get frames even close to this 
            size.  */
@@ -131,7 +131,7 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
     s->fr->data = s->buf + sizeof(struct opbx_frame) + OPBX_FRIENDLY_OFFSET;
     if ((res = fread(s->fr->data, 1, size, s->f)) != size)
     {
-        opbx_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
         return NULL;
     }
 #if 0
@@ -162,34 +162,34 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
     int res;
 
     if (fs->fr) {
-        opbx_log(LOG_WARNING, "Asked to write on a read stream??\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write on a read stream??\n");
         return -1;
     }
     if (f->frametype != OPBX_FRAME_VOICE) {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_G723_1) {
-        opbx_log(LOG_WARNING, "Asked to write non-g723 frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-g723 frame!\n");
         return -1;
     }
     delay = 0;
     if (f->datalen <= 0) {
-        opbx_log(LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
+        opbx_log(OPBX_LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
         return 0;
     }
     if ((res = fwrite(&delay, 1, 4, fs->f)) != 4) {
-        opbx_log(LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
     size = htons(f->datalen);
     if ((res = fwrite(&size, 1, 2, fs->f)) != 2) {
-        opbx_log(LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
     {
-        opbx_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
     return 0;

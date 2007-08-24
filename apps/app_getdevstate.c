@@ -73,9 +73,9 @@ static int get_devstate(struct opbx_channel *chan, int argc, char **argv, char *
 	if (argc > 0 && argv[0][0])
 		res = opbx_device_state(argv[0]);	
 	else
-		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
 
-        opbx_log(LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
+        opbx_log(OPBX_LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
                res, argv[0]);
 
 	snprintf(resc,sizeof(resc),"%d",res);

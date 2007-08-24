@@ -48,26 +48,26 @@ sccp_channel_t * sccp_channel_allocate(sccp_line_t * l) {
 
   /* If there is no current line, then we can't make a call in, or out. */
 	if (!l) {
-		opbx_log(LOG_ERROR, "SCCP: Tried to open channel on a device with no lines\n");
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on a device with no lines\n");
 	return NULL;
 	}
 
 	if (!l->device) {
-		opbx_log(LOG_ERROR, "SCCP: Tried to open channel on NULL device\n");
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on NULL device\n");
 		return NULL;
 	}
 	
 	d = l->device;
 
 	if (!d->session) {
-		opbx_log(LOG_ERROR, "SCCP: Tried to open channel on device %s without a session\n", d->id);
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on device %s without a session\n", d->id);
 		return NULL;
 	}
 
 	c = malloc(sizeof(sccp_channel_t));
 	if (!c) {
 		/* error allocating memory */
-		opbx_log(LOG_ERROR, "%s: No memory to allocate channel on line %s\n",d->id, l->name);
+		opbx_log(OPBX_LOG_ERROR, "%s: No memory to allocate channel on line %s\n",d->id, l->name);
 		return NULL;
 	}
 	memset(c, 0, sizeof(sccp_channel_t));
@@ -284,7 +284,7 @@ void sccp_channel_openreceivechannel(sccp_channel_t * c) {
 		sccp_channel_start_rtp(c);
 	}
 	if (!c->rtp) {
-		opbx_log(LOG_WARNING, "%s: Error opening RTP for channel %s-%d\n", DEV_ID_LOG(c->device), c->line->name, c->callid);
+		opbx_log(OPBX_LOG_WARNING, "%s: Error opening RTP for channel %s-%d\n", DEV_ID_LOG(c->device), c->line->name, c->callid);
 		sccp_dev_starttone(c->line->device, SKINNY_TONE_REORDERTONE, c->line->instance, c->callid, 0);
 	}
 }
@@ -317,7 +317,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 				if ((hp = opbx_gethostbyname(GLOB(externhost), &ahp))) {
 					memcpy(&GLOB(externip.sin_addr), hp->h_addr, sizeof(GLOB(externip.sin_addr)));
 				} else
-					opbx_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
+					opbx_log(OPBX_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
 			}
 			memcpy(&sin.sin_addr, &GLOB(externip.sin_addr), 4);
 		}
@@ -407,7 +407,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	pthread_t t;
 
 	if (!l || !l->device) {
-		opbx_log(LOG_ERROR, "SCCP: Can't allocate SCCP channel if line or device are not defined!\n");
+		opbx_log(OPBX_LOG_ERROR, "SCCP: Can't allocate SCCP channel if line or device are not defined!\n");
 		return NULL;
 	}
 
@@ -423,7 +423,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	c = sccp_channel_allocate(l);
 
 	if (!c) {
-		opbx_log(LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n", d->id, l->name);
+		opbx_log(OPBX_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n", d->id, l->name);
 		return NULL;
 	}
 	c->calltype = SKINNY_CALLTYPE_OUTBOUND;
@@ -432,7 +432,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 
 	/* ok the number exist. allocate the callweaver channel */
 	if (!sccp_pbx_channel_allocate(c)) {
-		opbx_log(LOG_WARNING, "%s: Unable to allocate a new channel for line %s\n", d->id, l->name);
+		opbx_log(OPBX_LOG_WARNING, "%s: Unable to allocate a new channel for line %s\n", d->id, l->name);
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 		return c;
 	}
@@ -451,7 +451,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   /* let's call it */
 	if (opbx_pthread_create(&t, &attr, sccp_pbx_startchannel, c->owner)) {
-		opbx_log(LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 	}
 	return c;
@@ -464,7 +464,7 @@ void sccp_channel_answer(sccp_channel_t * c) {
 	struct opbx_channel * bridged;
 
 	if (!c || !c->line || !c->line->device) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", (c ? c->callid : 0) );
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", (c ? c->callid : 0) );
 		return;
 	}
 	l = c->line;
@@ -500,7 +500,7 @@ int sccp_channel_hold(sccp_channel_t * c) {
 		return 0;
 		
 	if (!c->line || !c->line->device) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return 0;
 	}
 
@@ -512,7 +512,7 @@ int sccp_channel_hold(sccp_channel_t * c) {
 	/* put on hold an active call */
 	if (sccp_channel_get_active(d) != c || c->state != SCCP_CHANNELSTATE_CONNECTED) {
 		/* something wrong on the code let's notify it for a fix */
-		opbx_log(LOG_ERROR, "%s can't put on hold an inactive channel %s-%d\n", d->id, l->name, c->callid);
+		opbx_log(OPBX_LOG_ERROR, "%s can't put on hold an inactive channel %s-%d\n", d->id, l->name, c->callid);
 		/* hard button phones need it */
 		sccp_dev_displayprompt(d, l->instance, c->callid, "No active call to put on hold.",5);
 		return 0;
@@ -543,7 +543,7 @@ int sccp_channel_resume(sccp_channel_t * c) {
 		return 0;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return 0;
 	}
 
@@ -560,7 +560,7 @@ int sccp_channel_resume(sccp_channel_t * c) {
 	/* resume an active call */
 	if (c->state != SCCP_CHANNELSTATE_HOLD && c->state != SCCP_CHANNELSTATE_CALLTRANSFER) {
 		/* something wrong on the code let's notify it for a fix */
-		opbx_log(LOG_ERROR, "%s can't resume the channel %s-%d. Not on hold\n", d->id, l->name, c->callid);
+		opbx_log(OPBX_LOG_ERROR, "%s can't resume the channel %s-%d. Not on hold\n", d->id, l->name, c->callid);
 		sccp_dev_displayprompt(d, l->instance, c->callid, "No active call to put on hold",5);
 		return 0;
 	}
@@ -707,7 +707,7 @@ void sccp_channel_transfer(sccp_channel_t * c) {
 		return;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return;
 	}
 
@@ -777,7 +777,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		return;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return;
 	}
 	
@@ -789,7 +789,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Complete transfer from %s-%d\n", d->id, c->line->name, c->callid);
 
 	if (c->state != SCCP_CHANNELSTATE_RINGOUT && c->state != SCCP_CHANNELSTATE_CONNECTED) {
-		opbx_log(LOG_WARNING, "Failed to complete transfer. The channel is not ringing or connected\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to complete transfer. The channel is not ringing or connected\n");
 		sccp_dev_starttone(d, SKINNY_TONE_BEEPBONK, c->line->instance, c->callid, 0);
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
@@ -812,7 +812,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	c->owner->name, c->owner);
 
 	if (!transferred || !transferee) {
-		opbx_log(LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
 	}
@@ -826,7 +826,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (opbx_pthread_create(&t, &attr, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
-			opbx_log(LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
 		}
 	}
 
@@ -838,7 +838,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	transferred->cdr = NULL;
 
 	if (opbx_channel_masquerade(transferee, transferred)) {
-		opbx_log(LOG_WARNING, "Failed to masquerade %s into %s\n", transferee->name, transferred->name);
+		opbx_log(OPBX_LOG_WARNING, "Failed to masquerade %s into %s\n", transferee->name, transferred->name);
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
 	}
@@ -983,7 +983,7 @@ void sccp_channel_park(sccp_channel_t * c) {
 	opbx_copy_string(chan2m->exten, c->owner->exten, sizeof(chan2m->exten));
 	chan2m->priority = c->owner->priority;
 	if (opbx_do_masquerade(chan2m)) {
-		opbx_log(LOG_WARNING, "SCCP: Masquerade failed :(\n");
+		opbx_log(OPBX_LOG_WARNING, "SCCP: Masquerade failed :(\n");
 		opbx_hangup(chan2m);
 		return;
 	}

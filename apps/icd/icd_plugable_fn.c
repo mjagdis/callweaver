@@ -173,7 +173,7 @@ void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config *
     queuelist = icd_config__get_value(data, "queues");
     if (queuelist == NULL)
         queuelist = icd_config__get_value(data, "queue");
-    opbx_log(LOG_NOTICE, "QueueLIST[%s]\n", queuelist);
+    opbx_log(OPBX_LOG_NOTICE, "QueueLIST[%s]\n", queuelist);
     while (queuelist != NULL) {
         /* This has been normalized to use only a '|' or ',' to separate queue names */
         currqueue = strsep(&queuelist, "|,");
@@ -181,18 +181,18 @@ void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config *
             queue = icd_fieldset__get_value(queues, currqueue);
             if (queue != NULL) {
                 dist_name = vh_read(icd_distributor__get_params(icd_queue__get_distributor(queue)), "dist");
-                opbx_log(LOG_NOTICE, "CurrQueue-distname[%s]\n", dist_name);
+                opbx_log(OPBX_LOG_NOTICE, "CurrQueue-distname[%s]\n", dist_name);
                 plugable_fns = icd_plugable_fn_list__fetch_fns(that, dist_name);
                 if (plugable_fns == NULL) {
                     plugable_fns = create_icd_plugable_fns(data, dist_name);
                     if (plugable_fns != NULL) {
                         icd_plugable_fn_list__add_fns(that, plugable_fns);
-                        opbx_log(LOG_NOTICE, "Add Plugable funcs for Callers dist[%s]\n", dist_name);
+                        opbx_log(OPBX_LOG_NOTICE, "Add Plugable funcs for Callers dist[%s]\n", dist_name);
                     } else {
-                        opbx_log(LOG_NOTICE, "Create_icd_plugable_fns returned null [%s]\n", dist_name);
+                        opbx_log(OPBX_LOG_NOTICE, "Create_icd_plugable_fns returned null [%s]\n", dist_name);
                     }
                 } else {
-                    opbx_log(LOG_NOTICE, "icd_plugable_fn_list__fetch_fns think it found [%s]\n", dist_name);
+                    opbx_log(OPBX_LOG_NOTICE, "icd_plugable_fn_list__fetch_fns think it found [%s]\n", dist_name);
                 }
             }
         }
@@ -202,7 +202,7 @@ void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config *
         plugable_fns = create_icd_plugable_fns(data, "default");
         if (plugable_fns != NULL) {
             icd_plugable_fn_list__add_fns(that, plugable_fns);
-            opbx_log(LOG_NOTICE, "No Dists found Adding Plugable funcs for Callers dist[Default]\n");
+            opbx_log(OPBX_LOG_NOTICE, "No Dists found Adding Plugable funcs for Callers dist[Default]\n");
         }
     }
 
@@ -215,7 +215,7 @@ icd_plugable_fn *create_icd_plugable_fns(icd_config * data, char *name)
     /* make a new plugable_fns from scratch */
     ICD_MALLOC(plugable_fns, sizeof(icd_plugable_fn));
     if (plugable_fns == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD plugable fns\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD plugable fns\n");
         return NULL;
     }
     result = init_icd_plugable_fns(plugable_fns, name, data);

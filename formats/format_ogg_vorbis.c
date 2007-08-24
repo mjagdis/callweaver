@@ -125,9 +125,9 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         if (result != 1)
         {
             if (bytes < BLOCK_SIZE)
-                opbx_log(LOG_ERROR, "Run out of data... %d %s\n", errno, strerror(errno));
+                opbx_log(OPBX_LOG_ERROR, "Run out of data... %d %s\n", errno, strerror(errno));
             else
-                opbx_log(LOG_ERROR, "Input does not appear to be an Ogg bitstream.\n");
+                opbx_log(OPBX_LOG_ERROR, "Input does not appear to be an Ogg bitstream.\n");
             fclose(fp);
             ogg_sync_clear(&tmp->oy);
             free(tmp);
@@ -140,7 +140,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
 
         if (ogg_stream_pagein(&tmp->os, &tmp->og) < 0)
         { 
-            opbx_log(LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
+            opbx_log(OPBX_LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
             fclose(fp);
             ogg_stream_clear(&tmp->os);
             vorbis_comment_clear(&tmp->vc);
@@ -152,7 +152,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         
         if (ogg_stream_packetout(&tmp->os, &tmp->op) != 1)
         { 
-            opbx_log(LOG_ERROR, "Error reading initial header packet.\n");
+            opbx_log(OPBX_LOG_ERROR, "Error reading initial header packet.\n");
             fclose(fp);
             ogg_stream_clear(&tmp->os);
             vorbis_comment_clear(&tmp->vc);
@@ -164,7 +164,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         
         if (vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0)
         { 
-            opbx_log(LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
+            opbx_log(OPBX_LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
             fclose(fp);
             ogg_stream_clear(&tmp->os);
             vorbis_comment_clear(&tmp->vc);
@@ -192,7 +192,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
                             break;
                         if (result < 0)
                         {
-                            opbx_log(LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
+                            opbx_log(OPBX_LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
                             fclose(fp);
                             ogg_stream_clear(&tmp->os);
                             vorbis_comment_clear(&tmp->vc);
@@ -211,7 +211,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
             bytes = fread(buffer, 1, BLOCK_SIZE, tmp->fp);
             if (bytes == 0  &&  i < 2)
             {
-                opbx_log(LOG_ERROR, "End of file before finding all Vorbis headers!\n");
+                opbx_log(OPBX_LOG_ERROR, "End of file before finding all Vorbis headers!\n");
                 fclose(fp);
                 ogg_stream_clear(&tmp->os);
                 vorbis_comment_clear(&tmp->vc);
@@ -226,15 +226,15 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         ptr = tmp->vc.user_comments;
         while (*ptr)
         {
-            opbx_log(LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
+            opbx_log(OPBX_LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
             ++ptr;
         }
-        opbx_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
-        opbx_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
+        opbx_log(OPBX_LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
+        opbx_log(OPBX_LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
 
         if (tmp->vi.channels != 1)
         {
-            opbx_log(LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");
+            opbx_log(OPBX_LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");
             ogg_stream_clear(&tmp->os);
             vorbis_comment_clear(&tmp->vc);
             vorbis_info_clear(&tmp->vi);
@@ -246,7 +246,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
 
         if (tmp->vi.rate != 8000)
         {
-            opbx_log(LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
+            opbx_log(OPBX_LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
             fclose(fp);
             ogg_stream_clear(&tmp->os);
             vorbis_block_clear(&tmp->vb);
@@ -289,7 +289,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
 
         if (vorbis_encode_init_vbr(&tmp->vi, 1, 8000, 0.4))
         {
-            opbx_log(LOG_ERROR, "Unable to initialize Vorbis encoder!\n");
+            opbx_log(OPBX_LOG_ERROR, "Unable to initialize Vorbis encoder!\n");
             free(tmp);
             return NULL;
         }
@@ -363,18 +363,18 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
 
     if (!s->writing)
     {
-        opbx_log(LOG_ERROR, "This stream is not set up for writing!\n");
+        opbx_log(OPBX_LOG_ERROR, "This stream is not set up for writing!\n");
         return -1;
     }
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_SLINEAR)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
         return -1;
     }
     if (!f->datalen)
@@ -453,7 +453,7 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
         }
 
         if (result < 0)
-            opbx_log(LOG_WARNING, "Corrupt or missing data at this page position; continuing...\n");
+            opbx_log(OPBX_LOG_WARNING, "Corrupt or missing data at this page position; continuing...\n");
         
         /* No more packets left in the current page... */
 
@@ -476,11 +476,11 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
                     }
                     break;
                 }
-                opbx_log(LOG_WARNING, "Invalid page in the bitstream; continuing...\n");
+                opbx_log(OPBX_LOG_WARNING, "Invalid page in the bitstream; continuing...\n");
             }
             
             if (result < 0)
-                opbx_log(LOG_WARNING, "Corrupt or missing data in bitstream; continuing...\n");
+                opbx_log(OPBX_LOG_WARNING, "Corrupt or missing data in bitstream; continuing...\n");
 
             /* No, we need to read more data from the file descrptor */
             /* get a buffer from OGG to read the data into */
@@ -557,7 +557,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
         }
             
         if (clipflag)
-            opbx_log(LOG_WARNING, "Clipping in frame %ld\n", (long)(s->vd.sequence));
+            opbx_log(OPBX_LOG_WARNING, "Clipping in frame %ld\n", (long)(s->vd.sequence));
         
         /* Tell the Vorbis decoder how many samples we actually used. */
         vorbis_synthesis_read(&s->vd, samples_in);
@@ -586,7 +586,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
 
 static int ogg_vorbis_trunc(struct opbx_filestream *s)
 {
-    opbx_log(LOG_WARNING, "Truncation is not supported on OGG/Vorbis streams!\n");
+    opbx_log(OPBX_LOG_WARNING, "Truncation is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
@@ -600,19 +600,19 @@ static int ogg_vorbis_trunc(struct opbx_filestream *s)
 
 static int ogg_vorbis_seek(struct opbx_filestream *s, long sample_offset, int whence)
 {
-    opbx_log(LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
+    opbx_log(OPBX_LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
 static long ogg_vorbis_tell(struct opbx_filestream *s)
 {
-    opbx_log(LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
+    opbx_log(OPBX_LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
 static char *ogg_vorbis_getcomment(struct opbx_filestream *s)
 {
-    opbx_log(LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
+    opbx_log(OPBX_LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
     return NULL;
 }
 

@@ -94,5 +94,5 @@ if (OPBX_LIST_LOCK(headp)) {
 	...do all list operations here...
 	OPBX_LIST_UNLOCK(headp);
 } else {
-	opbx_log(LOG_WARNING,"List locked bla bla bla\n");
+	opbx_log(OPBX_LOG_WARNING,"List locked bla bla bla\n");
 }

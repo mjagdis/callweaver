@@ -122,7 +122,7 @@ static enum visdn_huntgroup_mode
 	else if (!strcasecmp(str, "cyclic"))
 		return VISDN_HUNTGROUP_MODE_CYCLIC;
 	else {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Unknown huntgroup mode '%s'\n",
 			str);
 
@@ -164,7 +164,7 @@ static void visdn_hg_parse_members(
 		struct visdn_intf *intf;
 		intf = visdn_intf_get_by_name(tok);
 		if (!intf) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Huntgroup member %s not found\n",
 				tok);
 
@@ -217,7 +217,7 @@ static void visdn_hg_reconfigure(
 	var = opbx_variable_browse(cfg, (char *)cat);
 	while (var) {
 		if (visdn_hg_from_var(hg, var) < 0) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Unknown configuration variable %s\n",
 				var->name);
 		}
@@ -264,7 +264,7 @@ void visdn_hg_reload(struct opbx_config *cfg)
 			continue;
 
 		if (strlen(cat) <= strlen(VISDN_HUNTGROUP_PREFIX)) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Empty huntgroup name in configuration\n");
 
 			continue;

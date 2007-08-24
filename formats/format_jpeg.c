@@ -57,12 +57,12 @@ static struct opbx_frame *jpeg_read_image(int fd, int len)
     
     if (len > sizeof(buf)  ||  len < 0)
     {
-        opbx_log(LOG_WARNING, "JPEG image too large to read\n");
+        opbx_log(OPBX_LOG_WARNING, "JPEG image too large to read\n");
         return NULL;
     }
     if ((res = read(fd, buf, len)) < len)
     {
-        opbx_log(LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
     }
     opbx_fr_init_ex(&fr, OPBX_FRAME_IMAGE, OPBX_FORMAT_JPEG, "JPEG Read");
     fr.data = buf;
@@ -89,12 +89,12 @@ static int jpeg_write_image(int fd, struct opbx_frame *fr)
 
     if (fr->frametype != OPBX_FRAME_IMAGE)
     {
-        opbx_log(LOG_WARNING, "Not an image\n");
+        opbx_log(OPBX_LOG_WARNING, "Not an image\n");
         return -1;
     }
     if (fr->subclass != OPBX_FORMAT_JPEG)
     {
-        opbx_log(LOG_WARNING, "Not a jpeg image\n");
+        opbx_log(OPBX_LOG_WARNING, "Not a jpeg image\n");
         return -1;
     }
     if (fr->datalen)
@@ -102,7 +102,7 @@ static int jpeg_write_image(int fd, struct opbx_frame *fr)
         res = write(fd, fr->data, fr->datalen);
         if (res != fr->datalen)
         {
-            opbx_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
             return -1;
         }
     }

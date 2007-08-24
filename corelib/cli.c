@@ -153,7 +153,7 @@ void opbx_cli(int fd, char *fmt, ...)
     res = vasprintf(&stuff, fmt, ap);
     va_end(ap);
     if (res == -1) {
-        opbx_log(LOG_ERROR, "Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
     } else {
         opbx_carefulwrite(fd, stuff, strlen(stuff), 100);
         free(stuff);
@@ -1225,7 +1225,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
             if (quoted & whitespace) {
                 /* If we're starting a quoted string, coming off white space, start a new argument */
                 if (x >= (max - 1)) {
-                    opbx_log(LOG_WARNING, "Too many arguments, truncating\n");
+                    opbx_log(OPBX_LOG_WARNING, "Too many arguments, truncating\n");
                     break;
                 }
                 argv[x++] = cur;
@@ -1247,7 +1247,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
             if (whitespace) {
                 /* If we are coming out of whitespace, start a new argument */
                 if (x >= (max - 1)) {
-                    opbx_log(LOG_WARNING, "Too many arguments, truncating\n");
+                    opbx_log(OPBX_LOG_WARNING, "Too many arguments, truncating\n");
                     break;
                 }
                 argv[x++] = cur;
@@ -1416,7 +1416,7 @@ int opbx_cli_command(int fd, char *s)
         }
         free(dup);
     } else {
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
         return -1;
     }
     return 0;

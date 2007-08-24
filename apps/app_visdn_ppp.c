@@ -101,7 +101,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 	opbx_mutex_lock(&chan->lock);
 
 	if (strcmp(chan->type, "VISDN")) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Only VISDN channels may be connected to"
 			" this application\n");
 
@@ -112,7 +112,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 	visdn_chan = to_visdn_chan(chan);
 
 	if (!visdn_chan->bearer_channel_id) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"vISDN crossconnector channel ID not present\n");
 		opbx_mutex_unlock(&chan->lock);
 		return -1;
@@ -137,7 +137,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 #if 0
 	int i;
 	for (i=0;i<argc;i++) {
-		opbx_log(LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
+		opbx_log(OPBX_LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
 	}
 #endif
 
@@ -145,7 +145,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 
 	pid_t pid = spawn_ppp(chan, nargv);
 	if (pid < 0) {
-		opbx_log(LOG_WARNING, "Failed to spawn pppd\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to spawn pppd\n");
 		return -1;
 	}
 
@@ -153,7 +153,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 
 		f = opbx_read(chan);
 		if (!f) {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"Channel '%s' hungup."
 				" Signalling PPP at %d to die...\n",
 				chan->name, pid);
@@ -168,7 +168,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 		int status;
 		res = wait4(pid, &status, WNOHANG, NULL);
 		if (res < 0) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"wait4 returned %d: %s\n",
 				res, strerror(errno));
 

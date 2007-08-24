@@ -92,7 +92,7 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 	src++;
 	srclen--;
 	if (len > srclen) {
-		opbx_log(LOG_WARNING, "Want %d, got %d\n", len, srclen);
+		opbx_log(OPBX_LOG_WARNING, "Want %d, got %d\n", len, srclen);
 		return -1;
 	}
 	if (len > maxdatalen)
@@ -126,27 +126,27 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 	dst[0] = '\0';
 
 	if (len < sizeof(struct naptr)) {
-		opbx_log(LOG_WARNING, "NAPTR record length too short\n");
+		opbx_log(OPBX_LOG_WARNING, "NAPTR record length too short\n");
 		return -1;
 	}
 	answer += sizeof(struct naptr);
 	len -= sizeof(struct naptr);
 	if ((res = parse_ie(flags, sizeof(flags) - 1, answer, len)) < 0) {
-		opbx_log(LOG_WARNING, "Failed to get flags from NAPTR record\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to get flags from NAPTR record\n");
 		return -1;
 	} else {
 		answer += res;
 		len -= res;
 	}
 	if ((res = parse_ie(services, sizeof(services) - 1, answer, len)) < 0) {
-		opbx_log(LOG_WARNING, "Failed to get services from NAPTR record\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to get services from NAPTR record\n");
 		return -1;
 	} else {
 		answer += res;
 		len -= res;
 	}
 	if ((res = parse_ie(regexp, sizeof(regexp) - 1, answer, len)) < 0) {
-		opbx_log(LOG_WARNING, "Failed to get regexp from NAPTR record\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to get regexp from NAPTR record\n");
 		return -1;
 	} else {
 		answer += res;
@@ -154,16 +154,16 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 	}
 
 	if ((res = dn_expand((unsigned char *)oanswer, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
-		opbx_log(LOG_WARNING, "Failed to expand hostname\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
 
 	if (option_debug > 2)	/* Advanced NAPTR debugging */
-		opbx_log(LOG_DEBUG, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
+		opbx_log(OPBX_LOG_DEBUG, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
 			naptrinput, flags, services, regexp, repl);
 
 	if (tolower(flags[0]) != 'u') {
-		opbx_log(LOG_WARNING, "NAPTR Flag must be 'U' or 'u'.\n");
+		opbx_log(OPBX_LOG_WARNING, "NAPTR Flag must be 'U' or 'u'.\n");
 		return -1;
 	}
 
@@ -196,7 +196,7 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 
 	regexp_len = strlen(regexp);
 	if (regexp_len < 7) {
-		opbx_log(LOG_WARNING, "Regex too short to be meaningful.\n");
+		opbx_log(OPBX_LOG_WARNING, "Regex too short to be meaningful.\n");
 		return -1;
 	}
 
@@ -204,7 +204,7 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 	delim = regexp[0];
 	delim2 = strchr(regexp + 1, delim);
 	if ((delim2 == NULL) || (regexp[regexp_len-1] != delim)) {
-		opbx_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n",regexp);
+		opbx_log(OPBX_LOG_WARNING, "Regex delimiter error (on \"%s\").\n",regexp);
 		return -1;
 	}
 
@@ -218,18 +218,18 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
  */
 
 	if (regcomp(&preg, pattern, REG_EXTENDED | REG_NEWLINE)) {
-		opbx_log(LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n",regexp);
+		opbx_log(OPBX_LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n",regexp);
 		return -1;
 	}
 
 	if (preg.re_nsub > 9) {
-		opbx_log(LOG_WARNING, "NAPTR Regex compilation error: too many subs.\n");
+		opbx_log(OPBX_LOG_WARNING, "NAPTR Regex compilation error: too many subs.\n");
 		regfree(&preg);
 		return -1;
 	}
 
 	if (regexec(&preg, naptrinput, 9, pmatch, 0)) {
-		opbx_log(LOG_WARNING, "NAPTR Regex match failed.\n");
+		opbx_log(OPBX_LOG_WARNING, "NAPTR Regex match failed.\n");
 		regfree(&preg);
 		return -1;
 	}
@@ -242,7 +242,7 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 			backref = subst[1]-'0';
 			size = pmatch[backref].rm_eo - pmatch[backref].rm_so;
 			if (size > d_len) {
-				opbx_log(LOG_WARNING, "Not enough space during NAPTR regex substitution.\n");
+				opbx_log(OPBX_LOG_WARNING, "Not enough space during NAPTR regex substitution.\n");
 				return -1;
 				}
 			memcpy(d, naptrinput + pmatch[backref].rm_so, size);
@@ -253,7 +253,7 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 			*d++ = *subst++;
 			d_len--;
 		} else {
-			opbx_log(LOG_WARNING, "Error during regex substitution.\n");
+			opbx_log(OPBX_LOG_WARNING, "Error during regex substitution.\n");
 			return -1;
 		}
 	}
@@ -347,7 +347,7 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 	res = parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput);
 
 	if(res < 0){
-		opbx_log(LOG_WARNING, "Failed to parse naptr :(\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to parse naptr :(\n");
 		return -1;
 	} else if(res > 0 && !opbx_strlen_zero(c->dst)){ /* ok, we got needed NAPTR */
 		if ((p = realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
@@ -476,7 +476,7 @@ int opbx_get_enum(struct opbx_channel *chan, const char *number, char *dst, int 
 			  break;
 	}
 	if (ret < 0) {
-		opbx_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
+		opbx_log(OPBX_LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
 		ret = 0;
 	}
 
@@ -509,7 +509,7 @@ int opbx_get_enum(struct opbx_channel *chan, const char *number, char *dst, int 
 		if ((context.options & ENUMLOOKUP_OPTIONS_ARRAY)) {
 			for (k = 0; k < context.naptr_rrs_count; k++) {
 				if (snprintf(dst, dstlen, options, context.naptr_rrs[k].sort_pos+1) >= dstlen) {
-					opbx_log(LOG_WARNING, "ENUM buffer too small setting result vars!");
+					opbx_log(OPBX_LOG_WARNING, "ENUM buffer too small setting result vars!");
 					break;
 				} else {
 					pbx_builtin_setvar_helper(chan, dst, context.naptr_rrs[k].result);	
@@ -597,7 +597,7 @@ int opbx_get_txt(struct opbx_channel *chan, const char *number, char *dst, int d
 			break;
 	}
 	if (ret < 0) {
-		opbx_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
+		opbx_log(OPBX_LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
 		ret = 0;
 	}
 	if (chan)

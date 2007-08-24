@@ -16,7 +16,7 @@
 #define assert(cond)							\
 	do {								\
 		if (!(cond)) {						\
-			opbx_log(LOG_ERROR,				\
+			opbx_log(OPBX_LOG_ERROR,				\
 				"assertion (" #cond ") failed\n");	\
 			abort();					\
 		}							\

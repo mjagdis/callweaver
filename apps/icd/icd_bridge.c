@@ -65,12 +65,12 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
     struct opbx_bridge_config bridge_config;
     int res = 0;
 
-    opbx_log(LOG_WARNING, "icd_bridge_call in progress...\n");
+    opbx_log(OPBX_LOG_WARNING, "icd_bridge_call in progress...\n");
     chan = (opbx_channel *) icd_caller__get_channel(bridger);
     peer = (opbx_channel *) icd_caller__get_channel(bridgee);
 
     if (chan == NULL || peer == NULL) {
-        opbx_log(LOG_WARNING, "Bridge failed not enough channels\n");
+        opbx_log(OPBX_LOG_WARNING, "Bridge failed not enough channels\n");
         icd_caller__set_state(bridger, ICD_CALLER_STATE_CHANNEL_FAILED);
         icd_caller__set_state(bridgee, ICD_CALLER_STATE_CHANNEL_FAILED);
         return -1;
@@ -118,7 +118,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
     int result = 0;
 
     if (icd_debug)
-        opbx_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
+        opbx_log(OPBX_LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
 
     icd_caller__start_waiting(that);
     for (;;) {
@@ -129,7 +129,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
             if (!(icd_caller__get_state(that) == ICD_CALLER_STATE_READY)) {
                 /*state change occured, we are just a bridgee waiting to get bridged continue waiting */
             if (icd_debug)
-              opbx_log(LOG_DEBUG, "ICD Agent waiting ID[%d] changed state to [%s] \n", icd_caller__get_id(that), icd_caller__get_state_string(that));
+              opbx_log(OPBX_LOG_DEBUG, "ICD Agent waiting ID[%d] changed state to [%s] \n", icd_caller__get_id(that), icd_caller__get_state_string(that));
                 if (!(icd_caller__has_role(that, ICD_BRIDGEE_ROLE)
                         && icd_caller__get_state(that) == ICD_CALLER_STATE_DISTRIBUTING)) {
                     result = -1;
@@ -193,7 +193,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
        noagent_wait_timeout= atoi(noagent_time);
     }   
     if (icd_debug)
-        opbx_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
+        opbx_log(OPBX_LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
     icd_caller__start_waiting(that);
     start = icd_caller__get_start(that);
     for (;;) {
@@ -292,7 +292,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
         if (res < 0) {
             /* Record this abandoned call */
             if (icd_verbose > 2)
-                opbx_log(LOG_WARNING, "Caller %s [%d] disconnected while waiting their turn\n",
+                opbx_log(OPBX_LOG_WARNING, "Caller %s [%d] disconnected while waiting their turn\n",
                     icd_caller__get_name(that), icd_caller__get_id(that));
                 icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: HANGUP\r\nID: %d\r\n"
                 "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\n",  
@@ -317,7 +317,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
             break;
         }
         if (res == 1){ 
-          opbx_log(LOG_WARNING, "Caller exit while waiting turn in line no agents available customer id[%d] [%s] \n", icd_caller__get_id(that), icd_caller__get_name(that));
+          opbx_log(OPBX_LOG_WARNING, "Caller exit while waiting turn in line no agents available customer id[%d] [%s] \n", icd_caller__get_id(that), icd_caller__get_name(that));
 	  if(ok_exit_noagent(that)){
                 icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: NoAgentTimeout\r\nID: %d\r\n"
                 "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\n",  
@@ -341,7 +341,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
            icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Exit\r\nID: %d\r\n"
                 "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: %d\r\n",  
 	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan",res); 
-            opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
+            opbx_log(OPBX_LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
             icd_caller__stop_waiting(that);
             icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);     /* todo new exit code */
             break;
@@ -353,7 +353,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
            icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Timeout\r\nID: %d\r\n"
                 "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: %d\r\n",  
 	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan",res); 
-            opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
+            opbx_log(OPBX_LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
 	}  
 	else {
         icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Timeout\r\nID: %d\r\n"
@@ -377,7 +377,7 @@ int icd_bridge_wait_ack(icd_caller * that)
 
     assert(chan != NULL);
     if (icd_debug)
-        opbx_log(LOG_DEBUG, "ICD Agent waiting for acknowledgment is ID  %d\n", icd_caller__get_id(that));
+        opbx_log(OPBX_LOG_DEBUG, "ICD Agent waiting for acknowledgment is ID  %d\n", icd_caller__get_id(that));
     
     time(&start_time);	
     max_wait_ack = icd_caller__get_timeout(that)/1000; /*converting from milisec to seconds */	
@@ -488,11 +488,11 @@ struct opbx_channel *icd_bridge_get_callweaver_channel(char *chanstring, char *c
     }
     /* Nope. Figure out why and report. */
     if (type != NULL && data != NULL) {
-        opbx_log(LOG_NOTICE, "ICD REQUEST: Unable to request channel %s/%s\n", type, (char *) data);
+        opbx_log(OPBX_LOG_NOTICE, "ICD REQUEST: Unable to request channel %s/%s\n", type, (char *) data);
     } else if (chanstring != NULL) {
-        opbx_log(LOG_NOTICE, "ICD REQUEST: Channel '%s' not specified in type/data format\n", chanstring);
+        opbx_log(OPBX_LOG_NOTICE, "ICD REQUEST: Channel '%s' not specified in type/data format\n", chanstring);
     } else {
-        opbx_log(LOG_NOTICE, "ICD REQUEST: Local Channel creation not yet supported\n");
+        opbx_log(OPBX_LOG_NOTICE, "ICD REQUEST: Local Channel creation not yet supported\n");
     }
     return NULL;
 }
@@ -542,7 +542,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
         }
     }
     if (addr == NULL) {
-        opbx_log(LOG_WARNING, "ICD REQUEST: Could not identify address in channel [%s]\n", chanstring);
+        opbx_log(OPBX_LOG_WARNING, "ICD REQUEST: Could not identify address in channel [%s]\n", chanstring);
         return state;
     }
 
@@ -551,9 +551,9 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
     result = opbx_call(chan, addr, 0);
     if (result < 0) {
         if (chanstring != NULL) {
-            opbx_log(LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);
+            opbx_log(OPBX_LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);
         } else {
-            opbx_log(LOG_WARNING, "ICD REQUEST: Unable to ring local channel\n");
+            opbx_log(OPBX_LOG_WARNING, "ICD REQUEST: Unable to ring local channel\n");
         }
         return state;
     }
@@ -582,7 +582,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
         /* make sure the guy this is for still is there to take it */
         /* BCA - this has never worked and the algorithm can't. How can we make this check?
            if(peer && req_state >= 0 && (icd_caller__get_state(peer) != req_state)) {
-           opbx_log(LOG_WARNING,"lost my peer while dialing, nevermind!");
+           opbx_log(OPBX_LOG_WARNING,"lost my peer while dialing, nevermind!");
            state = OPBX_CONTROL_HANGUP;
            result = 0;
            if (f != NULL) {
@@ -644,7 +644,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
        opbx_cdr_failed(chan->cdr);
        }
        } else {
-       opbx_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+       opbx_log(OPBX_LOG_WARNING, "Unable to create Call Detail Record\n");
        }
        icd_bridge__safe_hangup(that);
        }
@@ -777,7 +777,7 @@ void icd_bridge__safe_hangup(icd_caller * caller)
         return;
 
     if (icd_debug)
-        opbx_log(LOG_DEBUG, "Caller id[%d] [%s]Hangup called on chan[%s]\n", icd_caller__get_id(caller),
+        opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s]Hangup called on chan[%s]\n", icd_caller__get_id(caller),
             icd_caller__get_name(caller), oldchan->name);
 
     /* 
@@ -828,7 +828,7 @@ int ok_exit_noagent(icd_caller * that)
         && opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
         chan->priority += 100;
         if (icd_verbose > 2)
-            opbx_log(LOG_WARNING, "Caller %s [%d] has no agents to service call exit to busy priority\n",
+            opbx_log(OPBX_LOG_WARNING, "Caller %s [%d] has no agents to service call exit to busy priority\n",
                 icd_caller__get_name(that), icd_caller__get_id(that));
         return 1;
     }
@@ -851,7 +851,7 @@ int ok_exit(icd_caller * that, char digit)
     tmp[1] = '\0';
 
     if (chan != NULL && opbx_exists_extension(chan, context, tmp, 1, chan->cid.cid_num)) {
-        opbx_log(LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
+        opbx_log(OPBX_LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
         /* possible race here caller might hangup while we figure things out */
         if (!opbx_mutex_trylock(&chan->lock)) {
             strncpy(chan->context, context, sizeof(chan->context) - 1);
@@ -913,7 +913,7 @@ static int say_position(icd_caller * that, int override, int waiting)
 
         /*
            if (queue == NULL) {
-           opbx_log(LOG_NOTICE, "Caller %d [%s] asked to say Position but does not have an active Queue \n",
+           opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] asked to say Position but does not have an active Queue \n",
            icd_caller__get_id(that), icd_caller__get_name(that));
            return -1
            }

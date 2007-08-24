@@ -126,14 +126,14 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int s
 
 	while (source != dest) {
 		if (!(t = opbx_object_get(tr_matrix[source][dest].step))) {
-			opbx_log(LOG_WARNING, "No translator path from %s to %s\n", opbx_getformatname(1 << source), opbx_getformatname(1 << dest));
+			opbx_log(OPBX_LOG_WARNING, "No translator path from %s to %s\n", opbx_getformatname(1 << source), opbx_getformatname(1 << dest));
 			opbx_translator_free_path(tmpr);
 			tmpr = NULL;
 			break;
 		}
 
 		if (!(*next = malloc(sizeof(*tmpr)))) {
-			opbx_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 			opbx_object_put(t);
 			opbx_translator_free_path(tmpr);    
 			tmpr = NULL;
@@ -144,7 +144,7 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int s
 		(*next)->nextin = (*next)->nextout = opbx_tv(0, 0);
 		(*next)->step = t;
 		if (!((*next)->state = t->newpvt())) {
-			opbx_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			opbx_log(OPBX_LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
 			opbx_translator_free_path(tmpr);    
 			tmpr = NULL;
 			break;
@@ -254,7 +254,7 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
         }
         p = p->next;
     }
-    opbx_log(LOG_WARNING, "I should never get here...\n");
+    opbx_log(OPBX_LOG_WARNING, "I should never get here...\n");
     return NULL;
 }
 
@@ -273,13 +273,13 @@ static void calc_cost(struct opbx_translator *t, int secs)
     /* If they don't make samples, give them a terrible score */
     if (t->sample == NULL)
     {
-        opbx_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+        opbx_log(OPBX_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
         t->cost = 99999;
         return;
     }
     if ((pvt = t->newpvt()) == NULL)
     {
-        opbx_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
+        opbx_log(OPBX_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
         t->cost = 99999;
         return;
     }
@@ -289,7 +289,7 @@ static void calc_cost(struct opbx_translator *t, int secs)
     {
         if ((f = t->sample()) == NULL)
         {
-            opbx_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+            opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
             t->destroy(pvt);
             t->cost = 99999;
             return;
@@ -334,7 +334,7 @@ static void rebuild_matrix(int samples)
     int z;
 
     if (option_debug)
-        opbx_log(LOG_DEBUG, "Reseting translation matrix\n");
+        opbx_log(OPBX_LOG_DEBUG, "Reseting translation matrix\n");
 
     opbx_mutex_lock(&tr_matrix_lock);
 
@@ -380,7 +380,7 @@ static void rebuild_matrix(int samples)
                                 tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
                                 tr_matrix[x][z].steps = tr_matrix[x][y].steps + tr_matrix[y][z].steps;
                                 if (option_debug)
-                                    opbx_log(LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", opbx_getformatname(1 << x), opbx_getformatname(1 << z), opbx_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
+                                    opbx_log(OPBX_LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", opbx_getformatname(1 << x), opbx_getformatname(1 << z), opbx_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
                                 changed++;
                             }
                         }

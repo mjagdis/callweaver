@@ -79,9 +79,9 @@ static int load_config(int reload)
 
 	if (!(cfg = opbx_config_load(config_file))) {
 		if (reload)
-			opbx_log(LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
+			opbx_log(OPBX_LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
 		else {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 					"%s: Failed to load configuration file. Module not activated.\n",
 					name);
 		}
@@ -102,7 +102,7 @@ static int load_config(int reload)
 	if (!opbx_strlen_zero(tmp))
 		opbx_copy_string(table, tmp, sizeof(table));
 	else {
-		opbx_log(LOG_WARNING, "%s: Table name not specified.  Assuming cdr.\n", name);
+		opbx_log(OPBX_LOG_WARNING, "%s: Table name not specified.  Assuming cdr.\n", name);
 		strcpy(table, "cdr");
 	}
 
@@ -110,7 +110,7 @@ static int load_config(int reload)
 	if (!opbx_strlen_zero(tmp))
 		opbx_copy_string(columns, tmp, sizeof(columns));
 	else {
-		opbx_log(LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
+		opbx_log(OPBX_LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
 				name);
 		opbx_config_destroy(cfg);
 		return -1;
@@ -120,7 +120,7 @@ static int load_config(int reload)
 	if (!opbx_strlen_zero(tmp))
 		opbx_copy_string(values, tmp, sizeof(values));
 	else {
-		opbx_log(LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
+		opbx_log(OPBX_LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
 		opbx_config_destroy(cfg);
 		return -1;
 	}
@@ -177,7 +177,7 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 	}
 
 	if (zErr) {
-		opbx_log(LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
+		opbx_log(OPBX_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
 		sqlite3_free(zErr);
 	}
 
@@ -220,7 +220,7 @@ static int load_module(void)
 	snprintf(fn, sizeof(fn), "%s/master.db", opbx_config_OPBX_LOG_DIR);
 	res = sqlite3_open(fn, &db);
 	if (!db) {
-		opbx_log(LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
+		opbx_log(OPBX_LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
 		sqlite3_free(zErr);
 		return -1;
 	}
@@ -234,13 +234,13 @@ static int load_module(void)
 		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
 		sqlite3_free(sql_cmd);
 		if (zErr) {
-			opbx_log(LOG_WARNING, "%s: %s.\n", name, zErr);
+			opbx_log(OPBX_LOG_WARNING, "%s: %s.\n", name, zErr);
 			sqlite3_free(zErr);
 			return 0;
 		}
 
 		if (res) {
-			opbx_log(LOG_ERROR, "%s: Unable to create table '%s': %s.\n", name, table, zErr);
+			opbx_log(OPBX_LOG_ERROR, "%s: Unable to create table '%s': %s.\n", name, table, zErr);
 			sqlite3_free(zErr);
 			if (db)
 				sqlite3_close(db);

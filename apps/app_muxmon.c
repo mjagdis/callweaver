@@ -135,7 +135,7 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 */            
             if (++count > 10)
             {
-                opbx_log(LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
+                opbx_log(OPBX_LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
                 chan->spiers = NULL;
                 return;
             }
@@ -264,7 +264,7 @@ static void *muxmon_thread(void *obj)
         
         if (!(fs = opbx_writefile(muxmon->filename, ext, NULL, oflags, 0, 0644)))
         {
-            opbx_log(LOG_ERROR, "Cannot open %s\n", muxmon->filename);
+            opbx_log(OPBX_LOG_ERROR, "Cannot open %s\n", muxmon->filename);
             spy.status = CHANSPY_DONE;
         }
         else
@@ -408,7 +408,7 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
 
     if (!(muxmon = malloc(sizeof(struct muxmon))))
     {
-        opbx_log(LOG_ERROR, "Memory Error!\n");
+        opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
         return;
     }
 
@@ -451,7 +451,7 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *r
         if (opbx_test_flag(&flags, MUXFLAG_READVOLUME)  &&  opts[0])
         {
             if (sscanf(opts[0], "%d", &x) != 1)
-                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
                 readvol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
@@ -459,7 +459,7 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *r
         if (opbx_test_flag(&flags, MUXFLAG_WRITEVOLUME)  &&  opts[1])
         {
             if (sscanf(opts[1], "%d", &x) != 1)
-                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
                 writevol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
@@ -468,7 +468,7 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *r
         {
             if (sscanf(opts[2], "%d", &x) != 1)
             {
-                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             }
             else
             {

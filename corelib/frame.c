@@ -122,7 +122,7 @@ int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap
 {
     if (f->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Huh?  Can't smooth a non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Huh?  Can't smooth a non-voice frame!\n");
         return -1;
     }
     if (!s->format)
@@ -132,12 +132,12 @@ int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap
     }
     else if (s->format != f->subclass)
     {
-        opbx_log(LOG_WARNING, "Smoother was working on %d format frames, now trying to feed %d?\n", s->format, f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Smoother was working on %d format frames, now trying to feed %d?\n", s->format, f->subclass);
         return -1;
     }
     if (s->len + f->datalen > SMOOTHER_SIZE)
     {
-        opbx_log(LOG_WARNING, "Out of smoother space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of smoother space\n");
         return -1;
     }
     if (((f->datalen == s->size) || ((f->datalen < 10) && (s->flags & OPBX_SMOOTHER_FLAG_G729)))
@@ -178,7 +178,7 @@ int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap
     {
         if (s->len % 10)
         {
-            opbx_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
+            opbx_log(OPBX_LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
             return 0;
         }
     }
@@ -203,7 +203,7 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
     {
         if (s->opt->offset < OPBX_FRIENDLY_OFFSET)
         {
-            opbx_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).\n",
+            opbx_log(OPBX_LOG_WARNING, "Returning a frame of inappropriate offset (%d).\n",
                      s->opt->offset);
         }
         opt = s->opt;
@@ -373,7 +373,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
         out = opbx_frame_header_new();
         if (!out)
         {
-            opbx_log(LOG_WARNING, "Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
             return NULL;
         }
         opbx_fr_init_ex(out, fr->frametype, fr->subclass, NULL);
@@ -404,7 +404,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
             {
                 if (out != fr)
                     free(out);
-                opbx_log(LOG_WARNING, "Out of memory\n");
+                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                 return NULL;
             }
         }
@@ -420,7 +420,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
         {
             free(out);
 
-            opbx_log(LOG_WARNING, "Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
             return NULL;
         }
         out->data += OPBX_FRIENDLY_OFFSET;
@@ -510,7 +510,7 @@ struct opbx_frame *opbx_fr_fdread(int fd)
         res = read(fd, buf, ttl);
         if (res < 0)
         {
-            opbx_log(LOG_WARNING, "Bad read on %d: %s\n", fd, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Bad read on %d: %s\n", fd, strerror(errno));
             return NULL;
         }
         ttl -= res;
@@ -528,7 +528,7 @@ struct opbx_frame *opbx_fr_fdread(int fd)
     if (f->datalen > sizeof(buf) - sizeof(struct opbx_frame))
     {
         /* Really bad read */
-        opbx_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
+        opbx_log(OPBX_LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
         return NULL;
     }
     if (f->datalen)
@@ -536,7 +536,7 @@ struct opbx_frame *opbx_fr_fdread(int fd)
         if ((res = read(fd, f->data, f->datalen)) != f->datalen)
         {
             /* Bad read */
-            opbx_log(LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
+            opbx_log(OPBX_LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
             return NULL;
         }
     }
@@ -560,12 +560,12 @@ int opbx_fr_fdwrite(int fd, struct opbx_frame *frame)
     /* Write the frame exactly */
     if (write(fd, frame, sizeof(struct opbx_frame)) != sizeof(struct opbx_frame))
     {
-        opbx_log(LOG_WARNING, "Write error: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Write error: %s\n", strerror(errno));
         return -1;
     }
     if (write(fd, frame->data, frame->datalen) != frame->datalen)
     {
-        opbx_log(LOG_WARNING, "Write error: %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Write error: %s\n", strerror(errno));
         return -1;
     }
     return 0;
@@ -1297,7 +1297,7 @@ void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const ch
         }
         else
         {
-            opbx_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
+            opbx_log(OPBX_LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
         }
         last_format = next_format;
     }
@@ -1316,7 +1316,7 @@ static int g723_len(unsigned char buf)
     case TYPE_LOW:
         return 20;
     default:
-        opbx_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+        opbx_log(OPBX_LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
         break;
     }
     return -1;
@@ -1384,7 +1384,7 @@ static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
 
             if (((len * 8 - off) >= 5)  &&  get_n_bits_at(data, 1, off))
             {
-                opbx_log(LOG_WARNING, "Encountered corrupt speex frame; too many wideband frames in a row.\n");
+                opbx_log(OPBX_LOG_WARNING, "Encountered corrupt speex frame; too many wideband frames in a row.\n");
                 return -1;
             }
         }
@@ -1419,14 +1419,14 @@ static int speex_samples(unsigned char *data, int len)
         off = speex_get_wb_sz_at(data, len, bit);
         if (off < 0)
         {
-            opbx_log(LOG_WARNING, "Had error while reading wideband frames for speex samples\n");
+            opbx_log(OPBX_LOG_WARNING, "Had error while reading wideband frames for speex samples\n");
             break;
         }
         bit += off;
 
         if ((len * 8 - bit) < 5)
         {
-            opbx_log(LOG_WARNING, "Not enough bits remaining after wide band for speex samples.\n");
+            opbx_log(OPBX_LOG_WARNING, "Not enough bits remaining after wide band for speex samples.\n");
             break;
         }
 
@@ -1507,7 +1507,7 @@ int opbx_codec_get_samples(struct opbx_frame *f)
         samples = f->datalen * 2;
         break;
     default:
-        opbx_log(LOG_WARNING, "Unable to calculate samples for format %s\n", opbx_getformatname(f->subclass));
+        opbx_log(OPBX_LOG_WARNING, "Unable to calculate samples for format %s\n", opbx_getformatname(f->subclass));
         break;
     }
     return samples;
@@ -1541,7 +1541,7 @@ int opbx_codec_get_len(int format, int samples)
         len = samples/2;
         break;
     default:
-        opbx_log(LOG_WARNING, "Unable to calculate sample length for format %s\n", opbx_getformatname(format));
+        opbx_log(OPBX_LOG_WARNING, "Unable to calculate sample length for format %s\n", opbx_getformatname(format));
         break;
     }
 

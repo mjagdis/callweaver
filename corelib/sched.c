@@ -101,13 +101,13 @@ static void timer_set(struct sched_context *con)
                         ms = 1;
 
 #ifdef DEBUG_SCHED
-		DEBUG_LOG(opbx_log(LOG_DEBUG, "Setting timer 0x%lx to %ld ms\n", 
+		DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "Setting timer 0x%lx to %ld ms\n", 
 			       (unsigned long)&con->timer, ms));
 #endif
 		res = opbx_timer_newtime(&con->timer, ms * 1000);
 
 		if (res == -1)
-			opbx_log(LOG_ERROR, "Failed starting timer!\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed starting timer!\n");
         }
 }
 
@@ -116,7 +116,7 @@ static void timer_func(opbx_timer_t *t, void *user_data)
 	struct sched_context *con = (struct sched_context *) user_data;
 
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "Scheduler timer 0x%lx fired!\n", 
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "Scheduler timer 0x%lx fired!\n", 
 		       (unsigned long)t));
 #endif
 	opbx_sched_runq(con);
@@ -250,7 +250,7 @@ int opbx_sched_wait(struct sched_context *con)
 	 */
 	int ms;
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_wait()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_wait()\n"));
 #endif
 	pthread_cleanup_push((void (*)(void *))opbx_mutex_unlock, &con->lock);
 	opbx_mutex_lock(&con->lock);
@@ -302,12 +302,12 @@ static int sched_settime(struct timeval *tv, int when)
 {
 	struct timeval now = opbx_tvnow();
 
-	/*opbx_log(LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
+	/*opbx_log(OPBX_LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
 	if (opbx_tvzero(*tv))	/* not supplied, default to now */
 		*tv = now;
 	*tv = opbx_tvadd(*tv, opbx_samp2tv(when, 1000));
 	if (opbx_tvcmp(*tv, now) < 0) {
-		opbx_log(LOG_DEBUG, "Request to schedule in the past?!?!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Request to schedule in the past?!?!\n");
 		*tv = now;
 	}
 	return 0;
@@ -323,10 +323,10 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	int res = -1;
 
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_add_variable()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_add_variable()\n"));
 #endif
 	if (!when) {
-		opbx_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
+		opbx_log(OPBX_LOG_NOTICE, "Scheduled event in 0 ms?\n");
 		return -1;
 	}
 	opbx_mutex_lock(&con->lock);
@@ -373,7 +373,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 	struct sched *last=NULL, *s;
 	int deleted = 0;
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_del()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_del()\n"));
 #endif
 	opbx_mutex_lock(&con->lock);
 	s = con->schedq;
@@ -402,7 +402,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 #endif
 	opbx_mutex_unlock(&con->lock);
 	if (!deleted) {
-		opbx_log(LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
+		opbx_log(OPBX_LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
 #ifdef DO_CRASH
 		CRASH;
 #endif
@@ -435,25 +435,25 @@ void opbx_sched_dump(const struct sched_context *con)
 	struct sched *q;
 	struct timeval tv = opbx_tvnow();
 #ifdef SCHED_MAX_CACHE
-	opbx_log(LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
+	opbx_log(OPBX_LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
 #else
-	opbx_log(LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
+	opbx_log(OPBX_LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
 #endif
 
-	opbx_log(LOG_DEBUG, "=============================================================\n");
-	opbx_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
-	opbx_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
+	opbx_log(OPBX_LOG_DEBUG, "=============================================================\n");
+	opbx_log(OPBX_LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
+	opbx_log(OPBX_LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
  	for (q = con->schedq; q; q = q->next) {
  		struct timeval delta =  opbx_tvsub(q->when, tv);
 
-		opbx_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
+		opbx_log(OPBX_LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
 			q->id,
 			q->callback,
 			q->data,
 			delta.tv_sec,
 			(long int)delta.tv_usec);
 	}
-	opbx_log(LOG_DEBUG, "=============================================================\n");
+	opbx_log(OPBX_LOG_DEBUG, "=============================================================\n");
 	
 }
 
@@ -467,7 +467,7 @@ int opbx_sched_runq(struct sched_context *con)
 	int x=0;
 	int res;
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_runq()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_runq()\n"));
 #endif		
 
 	opbx_mutex_lock(&con->del_lock);
@@ -531,7 +531,7 @@ long opbx_sched_when(struct sched_context *con,int id)
 	struct sched *s;
 	long secs;
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_when()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_when()\n"));
 #endif
 	opbx_mutex_lock(&con->lock);
 	s=con->schedq;

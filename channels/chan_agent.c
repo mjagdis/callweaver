@@ -213,10 +213,10 @@ static struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded f
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
 		if (ast->nativeformats != p->chan->nativeformats) { \
-			opbx_log(LOG_DEBUG, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
+			opbx_log(OPBX_LOG_DEBUG, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
 			/* Native formats changed, reset things */ \
 			ast->nativeformats = p->chan->nativeformats; \
-			opbx_log(LOG_DEBUG, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
+			opbx_log(OPBX_LOG_DEBUG, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
 			opbx_set_read_format(ast, ast->readformat); \
 			opbx_set_write_format(ast, ast->writeformat); \
 		} \
@@ -336,7 +336,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 			while (*name && *name < 33) name++;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "A blank agent line!\n");
+		opbx_log(OPBX_LOG_WARNING, "A blank agent line!\n");
 	}
 	
 	// Are we searching for the agent here ? to see if it exists already ?
@@ -427,7 +427,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock);
 
 static int agent_answer(struct opbx_channel *ast)
 {
-	opbx_log(LOG_WARNING, "Huh?  Agent is being asked to answer?\n");
+	opbx_log(OPBX_LOG_WARNING, "Huh?  Agent is being asked to answer?\n");
 	return -1;
 }
 
@@ -455,7 +455,7 @@ static int __agent_start_monitoring(struct opbx_channel *ast, struct agent_pvt *
 		opbx_cdr_setuserfield(ast, tmp2);
 		res = 0;
 	} else
-		opbx_log(LOG_ERROR, "Recording already started on that call.\n");
+		opbx_log(OPBX_LOG_ERROR, "Recording already started on that call.\n");
 	return res;
 }
 
@@ -489,7 +489,7 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
 			   for us when the PBX instance that called login finishes */
 			if (!opbx_strlen_zero(p->loginchan)) {
 				if (p->chan)
-					opbx_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
+					opbx_log(OPBX_LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				opbx_hangup(p->chan);
 				if (p->wrapuptime && p->acknowledged)
 					p->lastdisc = opbx_tvadd(opbx_tvnow(), opbx_samp2tv(p->wrapuptime, 1000));
@@ -548,7 +548,7 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
 		if (strcasecmp(p->chan->type, "Local")) {
 			p->chan->_bridge = ast;
 			if (p->chan)
-				opbx_log(LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
+				opbx_log(OPBX_LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
 		}
 	}
 	opbx_mutex_unlock(&p->lock);
@@ -590,7 +590,7 @@ static int agent_write(struct opbx_channel *ast, struct opbx_frame *f)
 		    (f->subclass == p->chan->writeformat)) {
 			res = opbx_write(p->chan, f);
 		} else {
-			opbx_log(LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
 			res = 0;
 		}
 	} else
@@ -605,7 +605,7 @@ static int agent_fixup(struct opbx_channel *oldchan, struct opbx_channel *newcha
 	struct agent_pvt *p = newchan->tech_pvt;
 	opbx_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
-		opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
+		opbx_log(OPBX_LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 		opbx_mutex_unlock(&p->lock);
 		return -1;
 	}
@@ -649,11 +649,11 @@ static int agent_call(struct opbx_channel *ast, char *dest, int timeout)
 	p->acknowledged = 0;
 	if (!p->chan) {
 		if (p->pending) {
-			opbx_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
+			opbx_log(OPBX_LOG_DEBUG, "Pretending to dial on pending agent\n");
 			newstate = OPBX_STATE_DIALING;
 			res = 0;
 		} else {
-			opbx_log(LOG_NOTICE, "Whoa, they hung up between alloc and call...  what are the odds of that?\n");
+			opbx_log(OPBX_LOG_NOTICE, "Whoa, they hung up between alloc and call...  what are the odds of that?\n");
 			res = -1;
 		}
 		opbx_mutex_unlock(&p->lock);
@@ -673,18 +673,18 @@ static int agent_call(struct opbx_channel *ast, char *dest, int timeout)
 		return res;
 	}
 	opbx_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
-	opbx_log( LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
+	opbx_log(OPBX_LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
 	res = opbx_streamfile(p->chan, beep, p->chan->language);
-	opbx_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+	opbx_log(OPBX_LOG_DEBUG, "Played beep, result '%d'\n", res);
 	if (!res) {
 		res = opbx_waitstream(p->chan, "");
-		opbx_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+		opbx_log(OPBX_LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 	}
 	if (!res) {
 		res = opbx_set_read_format(p->chan, opbx_best_codec(p->chan->nativeformats));
-		opbx_log( LOG_DEBUG, "Set read format, result '%d'\n", res);
+		opbx_log(OPBX_LOG_DEBUG, "Set read format, result '%d'\n", res);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to set read format to %s\n", opbx_getformatname(opbx_best_codec(p->chan->nativeformats)));
+			opbx_log(OPBX_LOG_WARNING, "Unable to set read format to %s\n", opbx_getformatname(opbx_best_codec(p->chan->nativeformats)));
 	} else {
 		/* Agent hung-up */
 		p->chan = NULL;
@@ -692,9 +692,9 @@ static int agent_call(struct opbx_channel *ast, char *dest, int timeout)
 
 	if (!res) {
 		opbx_set_write_format(p->chan, opbx_best_codec(p->chan->nativeformats));
-		opbx_log( LOG_DEBUG, "Set write format, result '%d'\n", res);
+		opbx_log(OPBX_LOG_DEBUG, "Set write format, result '%d'\n", res);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to set write format to %s\n", opbx_getformatname(opbx_best_codec(p->chan->nativeformats)));
+			opbx_log(OPBX_LOG_WARNING, "Unable to set write format to %s\n", opbx_getformatname(opbx_best_codec(p->chan->nativeformats)));
 	}
 	if( !res )
 	{
@@ -750,7 +750,7 @@ static int agent_hangup(struct opbx_channel *ast)
 	usecnt--;
 	opbx_mutex_unlock(&usecnt_lock);
 
-	opbx_log(LOG_DEBUG, "Hangup called for state %s\n", opbx_state2str(ast->_state));
+	opbx_log(OPBX_LOG_DEBUG, "Hangup called for state %s\n", opbx_state2str(ast->_state));
 	if (p->start && (ast->_state != OPBX_STATE_UP)) {
 		howlong = time(NULL) - p->start;
 		p->start = 0;
@@ -772,12 +772,12 @@ static int agent_hangup(struct opbx_channel *ast)
 				opbx_hangup(p->chan);
 				p->chan = NULL;
 			}
-			opbx_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
+			opbx_log(OPBX_LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if (howlong  && p->autologoff && (howlong > p->autologoff)) {
 				char agent[OPBX_MAX_AGENT] = "";
 				long logintime = time(NULL) - p->loginstart;
 				p->loginstart = 0;
-				opbx_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				opbx_log(OPBX_LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
 				manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 					      "Agent: %s\r\n"
 					      "Loginchan: %s\r\n"
@@ -852,7 +852,7 @@ static int agent_cont_sleep( void *data )
 	opbx_mutex_unlock(&p->lock);
 #if 0
 	if( !res )
-		opbx_log( LOG_DEBUG, "agent_cont_sleep() returning %d\n", res );
+		opbx_log(OPBX_LOG_DEBUG, "agent_cont_sleep() returning %d\n", res );
 #endif		
 	return res;
 }
@@ -920,7 +920,7 @@ static struct opbx_channel *agent_bridgedchannel(struct opbx_channel *chan, stru
 	}
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
+		opbx_log(OPBX_LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
 	return ret;
 }
 
@@ -931,7 +931,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 	struct opbx_frame null_frame = { OPBX_FRAME_NULL };
 #if 0
 	if (!p->chan) {
-		opbx_log(LOG_WARNING, "No channel? :(\n");
+		opbx_log(OPBX_LOG_WARNING, "No channel? :(\n");
 		return NULL;
 	}
 #endif	
@@ -985,7 +985,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 			}
 			if( !p->chan )
 			{
-				opbx_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
+				opbx_log(OPBX_LOG_WARNING, "Agent disconnected while we were connecting the call\n");
 				p->owner = NULL;
 				tmp->tech_pvt = NULL;
 				p->app_sleep_cond = 1;
@@ -998,7 +998,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 			if (p->chan)
 				opbx_queue_frame(p->chan, &null_frame);
 			if (!p->chan) {
-				opbx_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
+				opbx_log(OPBX_LOG_WARNING, "Agent disconnected while we were connecting the call\n");
 				p->owner = NULL;
 				tmp->tech_pvt = NULL;
 				p->app_sleep_cond = 1;
@@ -1011,13 +1011,13 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 		/* After the above step, there should not be any blockers. */
 		if (p->chan) {
 			if (opbx_test_flag(p->chan, OPBX_FLAG_BLOCKING)) {
-				opbx_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
+				opbx_log(OPBX_LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
 				CRASH;
 			}
 			opbx_moh_stop(p->chan);
 		}
 	} else
-		opbx_log(LOG_WARNING, "Unable to allocate agent channel structure\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate agent channel structure\n");
 	return tmp;
 }
 
@@ -1040,7 +1040,7 @@ static int read_agent_config(void)
 	ackcall = 0;
 	cfg = opbx_config_load(config);
 	if (!cfg) {
-		opbx_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
+		opbx_log(OPBX_LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
 		return 0;
 	}
 	opbx_mutex_lock(&agentlock);
@@ -1161,7 +1161,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 	int res;
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Checking availability of '%s'\n", newlyavailable->agent);
+		opbx_log(OPBX_LOG_DEBUG, "Checking availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
 		opbx_mutex_lock(&agentlock);
 	p = agents;
@@ -1173,7 +1173,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		opbx_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+				opbx_log(OPBX_LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, OPBX_STATE_DOWN);
 			parent = p->owner;
@@ -1192,13 +1192,13 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			res = 0;
 		} else {
 			if (option_debug > 2)
-				opbx_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+				opbx_log(OPBX_LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 			res = opbx_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
 			if (option_debug > 2)
-				opbx_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+				opbx_log(OPBX_LOG_DEBUG, "Played beep, result '%d'\n", res);
 			if (!res) {
 				res = opbx_waitstream(newlyavailable->chan, "");
-				opbx_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+				opbx_log(OPBX_LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 			}
 		}
 		if (!res) {
@@ -1218,12 +1218,12 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				p->abouttograb = 0;
 			} else {
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Sneaky, parent disappeared in the mean time...\n");
+					opbx_log(OPBX_LOG_DEBUG, "Sneaky, parent disappeared in the mean time...\n");
 				agent_cleanup(newlyavailable);
 			}
 		} else {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Ugh...  Agent hung up at exactly the wrong time\n");
+				opbx_log(OPBX_LOG_DEBUG, "Ugh...  Agent hung up at exactly the wrong time\n");
 			agent_cleanup(newlyavailable);
 		}
 	}
@@ -1235,7 +1235,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	struct agent_pvt *p;
 	int res=0;
 
-	opbx_log(LOG_DEBUG, "Checking beep availability of '%s'\n", newlyavailable->agent);
+	opbx_log(OPBX_LOG_DEBUG, "Checking beep availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
 		opbx_mutex_lock(&agentlock);
 	p = agents;
@@ -1247,7 +1247,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		opbx_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+				opbx_log(OPBX_LOG_DEBUG, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			opbx_mutex_unlock(&p->lock);
 			break;
 		}
@@ -1259,14 +1259,14 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	if (p) {
 		opbx_mutex_unlock(&newlyavailable->lock);
 		if (option_debug > 2)
-			opbx_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+			opbx_log(OPBX_LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 		res = opbx_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
 		if (option_debug > 2)
-			opbx_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+			opbx_log(OPBX_LOG_DEBUG, "Played beep, result '%d'\n", res);
 		if (!res) {
 			res = opbx_waitstream(newlyavailable->chan, "");
 			if (option_debug)
-				opbx_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+				opbx_log(OPBX_LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 		}
 		opbx_mutex_lock(&newlyavailable->lock);
 	}
@@ -1328,7 +1328,7 @@ static struct opbx_channel *agent_request(const char *type, int format, void *da
 					hasagent++;
 				tv = opbx_tvnow();
 #if 0
-				opbx_log(LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", tv.tv_sec, p->lastdisc.tv_sec);
+				opbx_log(OPBX_LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", tv.tv_sec, p->lastdisc.tv_sec);
 #endif
 				if (!p->lastdisc.tv_sec || (tv.tv_sec > p->lastdisc.tv_sec)) {
 					p->lastdisc = opbx_tv(0, 0);
@@ -1358,15 +1358,15 @@ static struct opbx_channel *agent_request(const char *type, int format, void *da
 		   Allocate a place holder */
 		if (hasagent) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Creating place holder for '%s'\n", s);
+				opbx_log(OPBX_LOG_DEBUG, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
 			p->group = groupmatch;
 			chan = agent_new(p, OPBX_STATE_DOWN);
 			if (!chan) {
-				opbx_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
+				opbx_log(OPBX_LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 			}
 		} else
-			opbx_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n", s);
+			opbx_log(OPBX_LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n", s);
 	}
 	if (hasagent)
 		*cause = OPBX_CAUSE_BUSY;
@@ -1777,7 +1777,7 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *
 		errmsg = "agent-incorrect";
 
 #if 0
-		opbx_log(LOG_NOTICE, "user: %s, pass: %s\n", user, pass);
+		opbx_log(OPBX_LOG_NOTICE, "user: %s, pass: %s\n", user, pass);
 #endif		
 
 		/* Check again for accuracy */
@@ -1842,11 +1842,11 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *
 													     1, NULL))
 								break;
 							if (extension) {
-								opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", extension, p->agent);
+								opbx_log(OPBX_LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", extension, p->agent);
 								extension = NULL;
 								pos = 0;
 							} else {
-								opbx_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !opbx_strlen_zero(context) ? context : "default", p->agent);
+								opbx_log(OPBX_LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !opbx_strlen_zero(context) ? context : "default", p->agent);
 								res = opbx_streamfile(chan, "invalid", chan->language);
 								if (!res)
 									res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
@@ -1901,12 +1901,12 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *
 					if (!res) {
 						res = opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
 						if (res)
-							opbx_log(LOG_WARNING, "Unable to set read format to %d\n", opbx_best_codec(chan->nativeformats));
+							opbx_log(OPBX_LOG_WARNING, "Unable to set read format to %d\n", opbx_best_codec(chan->nativeformats));
 					}
 					if (!res) {
 						res = opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
 						if (res)
-							opbx_log(LOG_WARNING, "Unable to set write format to %d\n", opbx_best_codec(chan->nativeformats));
+							opbx_log(OPBX_LOG_WARNING, "Unable to set write format to %d\n", opbx_best_codec(chan->nativeformats));
 					}
 					/* Check once more just in case */
 					if (p->chan)
@@ -1990,7 +1990,7 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *
 							if (p->lastdisc.tv_sec) {
 								if (opbx_tvdiff_ms(opbx_tvnow(), p->lastdisc) > p->wrapuptime) {
 									if (option_debug)
-										opbx_log(LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
+										opbx_log(OPBX_LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
 									p->lastdisc = opbx_tv(0, 0);
 									if (p->ackcall > 1)
 										check_beep(p, 0);
@@ -2023,7 +2023,7 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *
 						}
 						opbx_mutex_lock(&p->lock);
 						if (res && p->owner) 
-							opbx_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
+							opbx_log(OPBX_LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
 						/* Log us off if appropriate */
 						if (p->chan == chan)
 							p->chan = NULL;
@@ -2272,12 +2272,12 @@ static int agentmonitoroutgoing_exec(struct opbx_channel *chan, int argc, char *
 		} else {
 			res = -1;
 			if (!nowarnings)
-				opbx_log(LOG_WARNING, "Couldn't find the global variable %s, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n", agentvar);
+				opbx_log(OPBX_LOG_WARNING, "Couldn't find the global variable %s, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n", agentvar);
 		}
 	} else {
 		res = -1;
 		if (!nowarnings)
-			opbx_log(LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
+			opbx_log(OPBX_LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
 	}
 	/* check if there is n + 101 priority */
 	if (res) {
@@ -2307,9 +2307,9 @@ static void dump_agents(void)
 		if (!opbx_strlen_zero(cur_agent->loginchan)) {
 			snprintf(buf, sizeof(buf), "%s;%s", cur_agent->loginchan, cur_agent->logincallerid);
 			if (opbx_db_put(pa_family, cur_agent->agent, buf))
-				opbx_log(LOG_WARNING, "failed to create persistent entry!\n");
+				opbx_log(OPBX_LOG_WARNING, "failed to create persistent entry!\n");
 			else if (option_debug)
-				opbx_log(LOG_DEBUG, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
+				opbx_log(OPBX_LOG_DEBUG, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
 		} else {
 			/* Delete -  no agent or there is an error */
 			opbx_db_del(pa_family, cur_agent->agent);
@@ -2355,7 +2355,7 @@ static void reload_agents(void)
 			opbx_mutex_unlock(&cur_agent->lock);
 		if (!opbx_db_get(pa_family, agent_num, agent_data, sizeof(agent_data)-1)) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Reload Agent: %s on %s\n", cur_agent->agent, agent_data);
+				opbx_log(OPBX_LOG_DEBUG, "Reload Agent: %s on %s\n", cur_agent->agent, agent_data);
 			parse = agent_data;
 			agent_chan = strsep(&parse, ";");
 			agent_callerid = strsep(&parse, ";");
@@ -2372,7 +2372,7 @@ static void reload_agents(void)
 	}
 	opbx_mutex_unlock(&agentlock);
 	if (db_tree) {
-		opbx_log(LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
+		opbx_log(OPBX_LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
 		opbx_db_freetree(db_tree);
 	}
 }
@@ -2437,7 +2437,7 @@ static int load_module(void)
 {
 	/* Make sure we can register our agent channel type */
 	if (opbx_channel_register(&agent_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		return -1;
 	}
 	/* Dialplan applications */
@@ -2496,7 +2496,7 @@ static int unload_module(void)
 		agents = NULL;
 		opbx_mutex_unlock(&agentlock);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}		
 	return res;

@@ -82,7 +82,7 @@ static int callerid_rw(struct opbx_channel *chan, int argc, char **argv, char *b
                         	free(chan->cid.cid_rdnis);
                 	chan->cid.cid_rdnis = opbx_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
         	} else {
-                	opbx_log(LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
+                	opbx_log(OPBX_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
 			return -1;
         	}
 	}
@@ -102,7 +102,7 @@ static int callerid_rw(struct opbx_channel *chan, int argc, char **argv, char *b
 			} else if (!strncasecmp("rdnis", argv[0], 5)) {
 				p = chan->cid.cid_rdnis;
 			} else {
-				opbx_log(LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
+				opbx_log(OPBX_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
 				return -1;
 			}
 

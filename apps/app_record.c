@@ -115,7 +115,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	}
 
 	if (!ext) {
-		opbx_log(LOG_WARNING, "No extension specified to filename!\n");
+		opbx_log(OPBX_LOG_WARNING, "No extension specified to filename!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -213,7 +213,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 			if (!res) {
 				res = opbx_waitstream(chan, "");
 			} else {
-				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", chan->name);
+				opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s\n", chan->name);
 			}
 			opbx_stopstream(chan);
 		}
@@ -224,13 +224,13 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 			rfmt = chan->readformat;
 			res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 			if (res < 0) {
-				opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
 			sildet = opbx_dsp_new();
 			if (!sildet) {
-				opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
@@ -268,7 +268,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 					res = opbx_writestream(s, f);
 					
 					if (res) {
-						opbx_log(LOG_WARNING, "Problem writing frame\n");
+						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
 						break;
 					}
 					
@@ -292,7 +292,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 					res = opbx_writestream(s, f);
 					
 					if (res) {
-						opbx_log(LOG_WARNING, "Problem writing frame\n");
+						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
 						break;
 					}
 				}
@@ -304,7 +304,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 				opbx_fr_free(f);
 			}
 			if (!f) {
-				opbx_log(LOG_DEBUG, "Got hangup\n");
+				opbx_log(OPBX_LOG_DEBUG, "Got hangup\n");
 				res = -1;
 			}
 			
@@ -318,14 +318,14 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 			}
 			opbx_closestream(s);
 		} else
-			opbx_log(LOG_WARNING, "Could not create file %s\n", tmp);
+			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n", tmp);
 	} else
-		opbx_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 	
 	if ((silence > 0) && rfmt) {
 		res = opbx_set_read_format(chan, rfmt);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
 		if (sildet)
 			opbx_dsp_free(sildet);
 	}

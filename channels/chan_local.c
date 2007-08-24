@@ -144,7 +144,7 @@ retrylock:
 		opbx_mutex_unlock(&p->lock);
 		if (us) {
 			if (opbx_mutex_unlock(&us->lock)) {
-				opbx_log(LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
+				opbx_log(OPBX_LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
 					us->name, f->frametype, f->subclass);
 				us = NULL;
 			}
@@ -176,7 +176,7 @@ static int local_answer(struct opbx_channel *ast)
 		struct opbx_frame answer = { OPBX_FRAME_CONTROL, OPBX_CONTROL_ANSWER };
 		res = local_queue_frame(p, isoutbound, &answer, ast);
 	} else
-		opbx_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
+		opbx_log(OPBX_LOG_WARNING, "Huh?  Local is being asked to answer?\n");
 	opbx_mutex_unlock(&p->lock);
 	return res;
 }
@@ -255,7 +255,7 @@ static int local_write(struct opbx_channel *ast, struct opbx_frame *f)
 	if (!p->alreadymasqed)
 		res = local_queue_frame(p, isoutbound, f, ast);
 	else {
-		opbx_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
+		opbx_log(OPBX_LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
 		res = 0;
 	}
 	opbx_mutex_unlock(&p->lock);
@@ -268,7 +268,7 @@ static int local_fixup(struct opbx_channel *oldchan, struct opbx_channel *newcha
 	opbx_mutex_lock(&p->lock);
 
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
-		opbx_log(LOG_WARNING, "Old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
+		opbx_log(OPBX_LOG_WARNING, "Old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
 		opbx_mutex_unlock(&p->lock);
 		return -1;
 	}
@@ -373,7 +373,7 @@ static int local_call(struct opbx_channel *ast, char *dest, int timeout)
 			new->value = &(new->name[0]) + namelen + 1;
 			OPBX_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
 		} else {
-			opbx_log(LOG_ERROR, "Out of memory!\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
 		}
 	}
 
@@ -408,7 +408,7 @@ static void local_destroy(struct local_pvt *p)
 	}
 	opbx_mutex_unlock(&locallock);
 	if (!cur)
-		opbx_log(LOG_WARNING, "Unable to find local '%s@%s' in local list\n", p->exten, p->context);
+		opbx_log(OPBX_LOG_WARNING, "Unable to find local '%s@%s' in local list\n", p->exten, p->context);
 }
 #endif
 
@@ -507,7 +507,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
 		tmp->reqformat = format;
 		if (!opbx_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
-			opbx_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
+			opbx_log(OPBX_LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
 			opbx_mutex_destroy(&tmp->lock);
 			free(tmp);
 			tmp = NULL;
@@ -537,7 +537,7 @@ static struct opbx_channel *local_new(struct local_pvt *p, int state)
 			opbx_channel_free(tmp);
 		if (tmp2)
 			opbx_channel_free(tmp2);
-		opbx_log(LOG_WARNING, "Unable to allocate channel structure(s)\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel structure(s)\n");
 		return NULL;
 	} 
 
@@ -628,7 +628,7 @@ static int load_module(void)
 {
 	/* Make sure we can register our channel type */
 	if (opbx_channel_register(&local_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
 	opbx_cli_register(&cli_show_locals);
@@ -654,7 +654,7 @@ static int unload_module(void)
 		locals = NULL;
 		opbx_mutex_unlock(&locallock);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}		
 	return 0;

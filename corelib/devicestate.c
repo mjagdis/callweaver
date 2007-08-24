@@ -191,7 +191,7 @@ static inline void do_state_change(const char *device)
 
 	state = opbx_device_state(device);
 	if (option_debug > 2)
-		opbx_log(LOG_DEBUG, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
+		opbx_log(OPBX_LOG_DEBUG, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
 	OPBX_LIST_LOCK(&devstate_cbs);
 	OPBX_LIST_TRAVERSE(&devstate_cbs, devcb, list)
@@ -284,7 +284,7 @@ int opbx_device_state_engine_init(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (opbx_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {
-		opbx_log(LOG_ERROR, "Unable to start device state change thread.\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}
 

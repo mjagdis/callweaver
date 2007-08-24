@@ -62,7 +62,7 @@ static int devstate_cli(int fd, int argc, char *argv[])
 
     if (opbx_db_put("DEVSTATES", argv[1], argv[2]))
     {
-        opbx_log(LOG_DEBUG, "opbx_db_put failed\n");
+        opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
     }
 	opbx_device_state_changed("DS/%s", argv[1]);
     
@@ -79,7 +79,7 @@ static int devstate_exec(struct opbx_channel *chan, int argc, char **argv, char 
     LOCAL_USER_ADD(u);
     
     if (opbx_db_put("DEVSTATES", argv[0], argv[1])) {
-        opbx_log(LOG_DEBUG, "opbx_db_put failed\n");
+        opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
     }
 
     opbx_device_state_changed("DS/%s", argv[0]);
@@ -95,12 +95,12 @@ static int ds_devicestate(void *data)
     char stateStr[16];
     if (opbx_db_get("DEVSTATES", dest, stateStr, sizeof(stateStr)))
     {
-        opbx_log(LOG_DEBUG, "ds_devicestate couldnt get state in opbxdb\n");
+        opbx_log(OPBX_LOG_DEBUG, "ds_devicestate couldnt get state in opbxdb\n");
         return 0;
     }
     else
     {
-        opbx_log(LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n",
+        opbx_log(OPBX_LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n",
                dest, atoi(stateStr));
         return (atoi(stateStr));
     }
@@ -152,7 +152,7 @@ static int action_devstate(struct mansession *s, struct message *m)
 	    opbx_device_state_changed("DS/%s", devstate);
 	    opbx_cli(s->fd, "Response: Success\r\n");
 	} else {
-	    opbx_log(LOG_DEBUG, "opbx_db_put failed\n");
+	    opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
 	    opbx_cli(s->fd, "Response: Failed\r\n");
 	}
 	if (id && !opbx_strlen_zero(id))
@@ -164,7 +164,7 @@ static int action_devstate(struct mansession *s, struct message *m)
 static int load_module(void)
 {
     if (opbx_channel_register(&devstate_tech)) {
-        opbx_log(LOG_DEBUG, "Unable to register channel class %s\n", type);
+        opbx_log(OPBX_LOG_DEBUG, "Unable to register channel class %s\n", type);
         return -1;
     }
     opbx_cli_register(&cli_dev_state);  

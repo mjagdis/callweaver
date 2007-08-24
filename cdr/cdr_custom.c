@@ -82,24 +82,24 @@ static int load_config(int reload)
 			opbx_mutex_lock(&lock);
 			if (!opbx_strlen_zero(var->name) && !opbx_strlen_zero(var->value)) {
 				if (strlen(var->value) > (sizeof(format) - 2))
-					opbx_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				strncpy(format, var->value, sizeof(format) - 2);
 				strcat(format,"\n");
 				snprintf(master, sizeof(master),"%s/%s/%s", opbx_config_OPBX_LOG_DIR, name, var->name);
 				opbx_mutex_unlock(&lock);
 			} else
-				opbx_log(LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
+				opbx_log(OPBX_LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
 			if (var->next)
-				opbx_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+				opbx_log(OPBX_LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
 			var = var->next;
 		}
 		opbx_config_destroy(cfg);
 		res = 0;
 	} else {
 		if (reload)
-			opbx_log(LOG_WARNING, "Failed to reload configuration file.\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to reload configuration file.\n");
 		else
-			opbx_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
 	
 	return res;
@@ -127,7 +127,7 @@ static int custom_log(struct opbx_cdr *cdr)
 	   we open write and close the log file each time */
 	mf = fopen(master, "a");
 	if (!mf) {
-		opbx_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
 	}
 	if (mf) {
 		fputs(buf, mf);

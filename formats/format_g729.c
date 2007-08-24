@@ -94,7 +94,7 @@ static struct opbx_filestream *g729_rewrite(FILE *f, const char *comment)
         memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
     } else
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     return tmp;
 }
 
@@ -119,7 +119,7 @@ static struct opbx_frame *g729_read(struct opbx_filestream *s, int *whennext)
     if ((res = fread(s->g729, 1, 20, s->f)) != 20)
     {
         if (res && (res != 10))
-            opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     *whennext = s->fr.samples;
@@ -130,19 +130,19 @@ static int g729_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
     if (f->frametype != OPBX_FRAME_VOICE) {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_G729A) {
-        opbx_log(LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
         return -1;
     }
     if (f->datalen % 10) {
-        opbx_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
+        opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-            opbx_log(LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
             return -1;
     }
     return 0;

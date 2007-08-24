@@ -136,11 +136,11 @@ struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struc
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	
 	if (netsocket < 0) {
-		opbx_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		return NULL;
 	}
 	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
-		opbx_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Unable to bind to %s port %d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
 		close(netsocket);
 		return NULL;
 	}
@@ -148,7 +148,7 @@ struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struc
 		opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
 	opbx_enable_packet_fragmentation(netsocket);
 
@@ -157,7 +157,7 @@ struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struc
 		/* Establish I/O callback for socket read */
 		ioref = opbx_io_add(ioc, netsocket, callback, OPBX_IO_IN, ns);
 		if (!ioref) {
-			opbx_log(LOG_WARNING, "Out of memory!\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 			close(netsocket);
 			free(ns);
 			return NULL;
@@ -170,7 +170,7 @@ struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struc
 		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
 		ASTOBJ_CONTAINER_LINK(list, ns);
 	} else {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 		close(netsocket);
 	}
 

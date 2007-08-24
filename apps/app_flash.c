@@ -93,13 +93,13 @@ static int flash_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 					if (option_verbose > 2)
 						opbx_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
 				} else
-					opbx_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
 			} else
-				opbx_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
+				opbx_log(OPBX_LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
 		} else
-			opbx_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
 	} else
-		opbx_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "%s is not a Zap channel\n", chan->name);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

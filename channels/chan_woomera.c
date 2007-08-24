@@ -314,7 +314,7 @@ static void woomera_printf(woomera_profile *profile, int fd, char *fmt, ...)
     int res = 0;
 
 	if (fd <= 0) {
-		opbx_log(LOG_ERROR, "Not gonna write to fd %d\n", fd);
+		opbx_log(OPBX_LOG_ERROR, "Not gonna write to fd %d\n", fd);
 		return;
 	}
 	
@@ -328,7 +328,7 @@ static void woomera_printf(woomera_profile *profile, int fd, char *fmt, ...)
 #endif
     va_end(ap);
     if (res == -1) {
-        opbx_log(LOG_ERROR, "Out of memory\n");
+        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
     } else {
 		if (profile && globals.debug) {
 			opbx_verbose(WOOMERA_DEBUG_PREFIX "Send Message: {%s} [%s/%d]\n%s\n%s", profile->name, profile->woomera_host, profile->woomera_port, WOOMERA_DEBUG_LINE, stuff);
@@ -370,7 +370,7 @@ static int woomera_enqueue_event(woomera_event_queue *event_queue, woomera_messa
 		}
 		return 1;
 	} else {
-		opbx_log(LOG_ERROR, "Memory Allocation Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Allocation Error!\n");
 	}
 
 	return 0;
@@ -453,7 +453,7 @@ static int woomera_message_parse(int fd, woomera_message *wmsg, int timeout, woo
 		}
 
 		if (sanity > 1000) {
-			opbx_log(LOG_ERROR, "{%s} Failed Sanity Check! [errors]\n", profile->name);
+			opbx_log(OPBX_LOG_ERROR, "{%s} Failed Sanity Check! [errors]\n", profile->name);
 			globals.panic = 1;
 			return -1;
 		}
@@ -515,14 +515,14 @@ static int woomera_message_parse(int fd, woomera_message *wmsg, int timeout, woo
 					cur++;
 					wmsg->mval = atoi(buf);
 				} else {
-					opbx_log(LOG_WARNING, "Malformed Message!\n");
+					opbx_log(OPBX_LOG_WARNING, "Malformed Message!\n");
 					break;
 				}
 			}
 			if (cur) {
 				strncpy(wmsg->command, cur, WOOMERA_STRLEN);
 			} else {
-				opbx_log(LOG_WARNING, "Malformed Message!\n");
+				opbx_log(OPBX_LOG_WARNING, "Malformed Message!\n");
 				break;
 			}
 		} else {
@@ -598,9 +598,9 @@ static int tech_activate(private_object *tech_pvt)
 
 	if (tech_pvt) {
 		if((connect_woomera(&tech_pvt->command_channel, tech_pvt->profile, 0))) {
-			opbx_log(LOG_NOTICE, "connected to woomera!\n");
+			opbx_log(OPBX_LOG_NOTICE, "connected to woomera!\n");
 		} else {
-			opbx_log(LOG_ERROR, "Can't connect to woomera!\n");
+			opbx_log(OPBX_LOG_ERROR, "Can't connect to woomera!\n");
 			return -1;
 		}
 
@@ -634,13 +634,13 @@ static int tech_activate(private_object *tech_pvt)
 									  tech_pvt->profile,
 									  &tech_pvt->event_queue
 									  ) < 0) {
-				opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+				opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 				opbx_set_flag(tech_pvt, TFLAG_ABORT);
 				globals.panic = 1;
 			}
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Where's my tech_pvt?\n");
+		opbx_log(OPBX_LOG_ERROR, "Where's my tech_pvt?\n");
 	}
 
 	return 0;
@@ -708,7 +708,7 @@ static void tech_destroy(private_object *tech_pvt)
 								 tech_pvt->profile,
 								 &tech_pvt->event_queue
 								 ) < 0) {
-			opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+			opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 			opbx_set_flag(tech_pvt, TFLAG_ABORT);
 			globals.panic = 1;
 		}
@@ -719,7 +719,7 @@ static void tech_destroy(private_object *tech_pvt)
 								 tech_pvt->profile,
 								 &tech_pvt->event_queue
 								 ) < 0) {
-			opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+			opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 			opbx_set_flag(tech_pvt, TFLAG_ABORT);
 			globals.panic = 1;
 		}
@@ -827,7 +827,7 @@ static void *tech_monitor_thread(void *obj)
 									 tech_pvt->profile,
 									 &tech_pvt->event_queue
 									 ) < 0) {
-				opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+				opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 				opbx_set_flag(tech_pvt, TFLAG_ABORT);
 				globals.panic = 1;
 				continue;
@@ -865,7 +865,7 @@ static void *tech_monitor_thread(void *obj)
 
 			if (res < 0 || !strcasecmp(wmsg.command, "HANGUP")) {
 				if (res < 0) {
-					opbx_log(LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", tech_pvt->profile->name);
+					opbx_log(OPBX_LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", tech_pvt->profile->name);
 					opbx_set_flag(tech_pvt, TFLAG_ABORT);
 					globals.panic = 1;
 					continue;
@@ -897,7 +897,7 @@ static void *tech_monitor_thread(void *obj)
 				tech_pvt->call_info = wmsg;
 
 				if (opbx_strlen_zero(tech_pvt->profile->context)) {
-					opbx_log(LOG_WARNING, "No context configured for inbound calls aborting call!\n");
+					opbx_log(OPBX_LOG_WARNING, "No context configured for inbound calls aborting call!\n");
 					opbx_set_flag(tech_pvt, TFLAG_ABORT);
 					continue;
 				}
@@ -927,7 +927,7 @@ static void *tech_monitor_thread(void *obj)
 										  tech_pvt->owner->exten,
 										  1,
 										  tech_pvt->owner->cid.cid_num)) {
-					opbx_log(LOG_DEBUG, "Invalid exten %s@%s called!\n", tech_pvt->owner->exten, tech_pvt->owner->context);
+					opbx_log(OPBX_LOG_DEBUG, "Invalid exten %s@%s called!\n", tech_pvt->owner->exten, tech_pvt->owner->context);
 					woomera_printf(tech_pvt->profile, tech_pvt->command_channel, "hangup %s%s", wmsg.callid, WOOMERA_RECORD_SEPERATOR);
 					if(woomera_message_parse(tech_pvt->command_channel, 
 											 &wmsg,
@@ -935,7 +935,7 @@ static void *tech_monitor_thread(void *obj)
 											 tech_pvt->profile,
 											 &tech_pvt->event_queue
 											 ) < 0) {
-						opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+						opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 						opbx_set_flag(tech_pvt, TFLAG_ABORT);
 						globals.panic = 1;
 					continue;
@@ -963,7 +963,7 @@ static void *tech_monitor_thread(void *obj)
 										 tech_pvt->profile,
 										 &tech_pvt->event_queue
 										 ) < 0) {
-					opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
+					opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", tech_pvt->profile->name);
 					opbx_set_flag(tech_pvt, TFLAG_ABORT);
 					globals.panic = 1;
 					continue;
@@ -998,7 +998,7 @@ static void *tech_monitor_thread(void *obj)
 							opbx_setstate(tech_pvt->owner, OPBX_STATE_RINGING);
 							if (opbx_test_flag(tech_pvt, TFLAG_INBOUND)) {
 								if (opbx_pbx_start(tech_pvt->owner)) {
-									opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tech_pvt->owner->name);
+									opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tech_pvt->owner->name);
 									opbx_hangup(tech_pvt->owner);
 								} else {
 									opbx_set_flag(tech_pvt, TFLAG_PBX);
@@ -1047,7 +1047,7 @@ static int woomera_locate_socket(woomera_profile *profile, int *woomera_socket)
 			if(!woomera_profile_thread_running(profile, 0, 0)) {
 				break;
 			}
-			opbx_log(LOG_WARNING, "{%s} Cannot Reconnect to Woomera! retry in 5 seconds\n", profile->name);
+			opbx_log(OPBX_LOG_WARNING, "{%s} Cannot Reconnect to Woomera! retry in 5 seconds\n", profile->name);
 			sleep(5);
 		}
 
@@ -1060,7 +1060,7 @@ static int woomera_locate_socket(woomera_profile *profile, int *woomera_socket)
 										  profile,
 										  &profile->event_queue
 										  ) < 0) {
-					opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
+					opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
 					globals.panic = 1;
 					if (*woomera_socket) {
 						woomera_close_socket(woomera_socket);
@@ -1096,7 +1096,7 @@ static void *woomera_thread_run(void *obj)
 	woomera_profile *profile;
 
 	profile = obj;
-	opbx_log(LOG_NOTICE, "Started Woomera Thread {%s}.\n", profile->name);
+	opbx_log(OPBX_LOG_NOTICE, "Started Woomera Thread {%s}.\n", profile->name);
  
 	profile->thread_running = 1;
 
@@ -1105,7 +1105,7 @@ static void *woomera_thread_run(void *obj)
 	while(woomera_profile_thread_running(profile, 0, 0)) {
 		/* listen on socket and handle events */
 		if (globals.panic == 2) {
-			opbx_log(LOG_NOTICE, "Woomera is disabled!\n");
+			opbx_log(OPBX_LOG_NOTICE, "Woomera is disabled!\n");
 			sleep(5);
 			continue;
 		}
@@ -1117,13 +1117,13 @@ static void *woomera_thread_run(void *obj)
 			if (!woomera_profile_thread_running(profile, 0, 0)) {
 				break;
 			}
-			opbx_log(LOG_NOTICE, "Woomera Thread Up {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
+			opbx_log(OPBX_LOG_NOTICE, "Woomera Thread Up {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
 
 		}
 
 		if (globals.panic) {
 			if (globals.panic != 2) {
-				opbx_log(LOG_ERROR, "Help I'm in a state of panic!\n");
+				opbx_log(OPBX_LOG_ERROR, "Help I'm in a state of panic!\n");
 			}
 			if (woomera_socket) {
 				woomera_close_socket(&woomera_socket);
@@ -1145,7 +1145,7 @@ static void *woomera_thread_run(void *obj)
 										  NULL
 										  )))) {
 			if (res < 0) {
-				opbx_log(LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", profile->name);
+				opbx_log(OPBX_LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", profile->name);
 				if (woomera_socket) {
 					woomera_close_socket(&woomera_socket);
 				}
@@ -1162,13 +1162,13 @@ static void *woomera_thread_run(void *obj)
 												 profile,
 												 &profile->event_queue
 												 ) < 0) {
-							opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
+							opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
 							globals.panic = 1;
 							woomera_close_socket(&woomera_socket);
 						} 
 					}
 					if (woomera_socket) {
-						opbx_log(LOG_NOTICE, "Woomera Thread Up {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
+						opbx_log(OPBX_LOG_NOTICE, "Woomera Thread Up {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
 					}
 				}
 				continue;
@@ -1188,7 +1188,7 @@ static void *woomera_thread_run(void *obj)
 					tech_pvt = inchan->tech_pvt;
 					tech_init(tech_pvt, profile, TFLAG_INBOUND);
 				} else {
-					opbx_log(LOG_ERROR, "Cannot Create new Inbound Channel!\n");
+					opbx_log(OPBX_LOG_ERROR, "Cannot Create new Inbound Channel!\n");
 				}
 			}
 		}
@@ -1207,13 +1207,13 @@ static void *woomera_thread_run(void *obj)
 								 profile,
 								 &profile->event_queue
 								 ) < 0) {
-			opbx_log(LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
+			opbx_log(OPBX_LOG_ERROR, "{%s} HELP! Woomera is broken!\n", profile->name);
 			globals.panic = 1;
 		}
 		woomera_close_socket(&woomera_socket);
 	}
 
-	opbx_log(LOG_NOTICE, "Ended Woomera Thread {%s}.\n", profile->name);
+	opbx_log(OPBX_LOG_NOTICE, "Ended Woomera Thread {%s}.\n", profile->name);
 	woomera_profile_thread_running(profile, 1, -1);
 	return NULL;
 }
@@ -1302,7 +1302,7 @@ static int config_woomera(void)
 						if((profile = create_woomera_profile(&default_profile))) {
 							new = 1;
 						} else {
-							opbx_log(LOG_ERROR, "Memory Error!\n");
+							opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 						}
 					}
 				}
@@ -1370,7 +1370,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
 				rc = bind(sd, (struct sockaddr *) addr, sizeof(cliAddr));
 			}
 			if(rc < 0) {
-				opbx_log(LOG_ERROR,"Error opening udp socket\n");
+				opbx_log(OPBX_LOG_ERROR,"Error opening udp socket\n");
 				woomera_close_socket(&sd);
 			} else if(globals.debug) {
 				opbx_verbose(WOOMERA_DEBUG_PREFIX "Socket Binded %s to %s/%d\n", client ? "client" : "server", ip, port);
@@ -1397,7 +1397,7 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 			/* create socket */
 			*new_socket = socket(AF_INET, SOCK_STREAM, 0);
 			if (*new_socket < 0) {
-				opbx_log(LOG_ERROR, "cannot open socket to %s/%d\n", profile->woomera_host, profile->woomera_port);
+				opbx_log(OPBX_LOG_ERROR, "cannot open socket to %s/%d\n", profile->woomera_host, profile->woomera_port);
 				res = 0;
 				break;
 			}
@@ -1409,7 +1409,7 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
   
 			res = bind(*new_socket, (struct sockaddr *) &localAddr, sizeof(localAddr));
 			if (res < 0) {
-				opbx_log(LOG_ERROR, "cannot bind to %s/%d\n", profile->woomera_host, profile->woomera_port);
+				opbx_log(OPBX_LOG_ERROR, "cannot bind to %s/%d\n", profile->woomera_host, profile->woomera_port);
 				woomera_close_socket(new_socket);
 				break;
 			}
@@ -1417,7 +1417,7 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 			/* connect to server */
 			res = connect(*new_socket, (struct sockaddr *) &remoteAddr, sizeof(remoteAddr));
 			if (res < 0) {
-				opbx_log(LOG_ERROR, "cannot connect to {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
+				opbx_log(OPBX_LOG_ERROR, "cannot connect to {%s} %s/%d\n", profile->name, profile->woomera_host, profile->woomera_port);
 				res = 0;
 				woomera_close_socket(new_socket);
 				break;
@@ -1447,11 +1447,11 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 											 profile,
 											 NULL
 											 )) < 0) {
-				opbx_log(LOG_ERROR, "{%s} Timed out waiting for a hello from woomera!\n", profile->name);
+				opbx_log(OPBX_LOG_ERROR, "{%s} Timed out waiting for a hello from woomera!\n", profile->name);
 				woomera_close_socket(new_socket);
 			}
 			if (res > 0 && strcasecmp(wmsg.command, "HELLO")) {
-				opbx_log(LOG_ERROR, "{%s} unexpected reply [%s] while waiting for a hello from woomera!\n", profile->name, wmsg.command);
+				opbx_log(OPBX_LOG_ERROR, "{%s} unexpected reply [%s] while waiting for a hello from woomera!\n", profile->name, wmsg.command);
 				woomera_close_socket(new_socket);
 			}
 		}
@@ -1512,7 +1512,7 @@ static struct opbx_channel *woomera_new(const char *type, int format, void *data
 		ASTOBJ_CONTAINER_LINK(&private_object_list, tech_pvt);
 
 	} else {
-		opbx_log(LOG_ERROR, "Can't allocate a channel\n");
+		opbx_log(OPBX_LOG_ERROR, "Can't allocate a channel\n");
 	}
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -1546,7 +1546,7 @@ static struct opbx_channel *tech_requester(const char *type, int format, void *d
 		tech_pvt = chan->tech_pvt;
 		opbx_set_flag(tech_pvt, TFLAG_PBX); /* so we know we dont have to free the channel ourselves */
 	} else {
-		opbx_log(LOG_ERROR, "Can't allocate a channel\n");
+		opbx_log(OPBX_LOG_ERROR, "Can't allocate a channel\n");
 	}
 	if (globals.debug > 1) {
 		opbx_verbose(WOOMERA_DEBUG_PREFIX "+++REQ %s\n", chan->name);
@@ -1631,12 +1631,12 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 	}
 	
 	if (!profile) {
-		opbx_log(LOG_ERROR, "Unable to find profile! Call Aborted!\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to find profile! Call Aborted!\n");
 		return -1;
 	}
 
 	if (!opbx_test_flag(profile, PFLAG_OUTBOUND)) {
-		opbx_log(LOG_ERROR, "This profile is not allowed to make outbound calls! Call Aborted!\n");
+		opbx_log(OPBX_LOG_ERROR, "This profile is not allowed to make outbound calls! Call Aborted!\n");
 		return -1;
 	}
 
@@ -1757,7 +1757,7 @@ static int tech_write(struct opbx_channel *self, struct opbx_frame *frame)
 				opbx_verbose(WOOMERA_DEBUG_PREFIX "+++WRITE %s %d\n",self->name, i);
 			}
 		} else {
-			opbx_log(LOG_WARNING, "Invalid frame type %d sent\n", frame->frametype);
+			opbx_log(OPBX_LOG_WARNING, "Invalid frame type %d sent\n", frame->frametype);
 		}
 	}
 	
@@ -1949,7 +1949,7 @@ static struct opbx_clicmd  cli_woomera = {
 static int load_module(void)
 {
 	if (opbx_channel_register(&technology)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
 	memset(&globals, 0, sizeof(globals));
@@ -1967,7 +1967,7 @@ static int load_module(void)
 	/*
 	sched = sched_context_create();
     if (!sched) {
-        opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
     }
 	*/
 	
@@ -1986,13 +1986,13 @@ static int unload_module(void)
 
 		time(&then);
 		if (!opbx_test_flag(profile, PFLAG_DISABLED)) {
-			opbx_log(LOG_NOTICE, "Shutting Down Thread. {%s}\n", profile->name);
+			opbx_log(OPBX_LOG_NOTICE, "Shutting Down Thread. {%s}\n", profile->name);
 			woomera_profile_thread_running(profile, 1, 0);
 			
 			while (!woomera_profile_thread_running(profile, 0, 0)) {
 				time(&now);
 				if (now - then > 30) {
-					opbx_log(LOG_WARNING, "Timed out waiting for thread to exit\n");
+					opbx_log(OPBX_LOG_WARNING, "Timed out waiting for thread to exit\n");
 					break;
 				}
 				usleep(100);

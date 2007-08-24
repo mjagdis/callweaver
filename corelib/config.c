@@ -410,7 +410,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 		/* A category header */
 		c = strchr(cur, ']');
 		if (!c) {
-			opbx_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
+			opbx_log(OPBX_LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
 			return -1;
 		}
 		*c++ = '\0';
@@ -420,13 +420,13 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 		catname = cur;
 		*cat = newcat = opbx_category_new(catname);
 		if (!newcat) {
-			opbx_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
+			opbx_log(OPBX_LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
 			return -1;
 		}
  		/* If there are options or categories to inherit from, process them now */
  		if (c) {
  			if (!(cur = strchr(c, ')'))) {
- 				opbx_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
+ 				opbx_log(OPBX_LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
  				return -1;
  			}
  			*cur = '\0';
@@ -439,7 +439,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 						opbx_config_destroy(cfg);
 						if (newcat)
 							opbx_category_destroy(newcat);
-						opbx_log(LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
+						opbx_log(OPBX_LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
 						return -1;
 					}
 					if (newcat) {
@@ -452,7 +452,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
  				
 					base = category_get(cfg, cur, 1);
 					if (!base) {
-						opbx_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
+						opbx_log(OPBX_LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
 					inherit_category(*cat, base);
@@ -481,7 +481,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 		else
 			do_exec = 0;
 		if (do_exec && !option_exec_includes) {
-			opbx_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in callweaver.conf (options section)!\n");
+			opbx_log(OPBX_LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in callweaver.conf (options section)!\n");
 			do_exec = 0;
 		}
 		if (do_include || do_exec) {
@@ -514,7 +514,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 					return 0;
 
 			} else {
-				opbx_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
+				opbx_log(OPBX_LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
 						do_exec ? "exec" : "include",
 						do_exec ? "/path/to/executable" : "filename",
 						lineno,
@@ -522,11 +522,11 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 			}
 		}
 		else 
-			opbx_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			opbx_log(OPBX_LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
 	} else {
 		/* Just a line (variable = value) */
 		if (!*cat) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"parse error: No category context for line %d of %s\n", lineno, configfile);
 			return -1;
 		}
@@ -548,11 +548,11 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 				v->blanklines = 0;
 				opbx_variable_append(*cat, v);
 			} else {
-				opbx_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
+				opbx_log(OPBX_LOG_WARNING, "Out of memory, line %d\n", lineno);
 				return -1;
 			}
 		} else {
-			opbx_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
+			opbx_log(OPBX_LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
 		}
 
 	}
@@ -590,10 +590,10 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
 #endif
 		if (glob_ret == GLOB_NOSPACE)
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
 		else if (glob_ret  == GLOB_ABORTED)
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
 		else  {
 			/* loop over expanded files */
@@ -603,11 +603,11 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 #endif
 	do {
 		if (stat(fn, &statbuf)) {
-			opbx_log(LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
+			opbx_log(OPBX_LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
 			continue;
 		}
 		if (!S_ISREG(statbuf.st_mode)) {
-			opbx_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
+			opbx_log(OPBX_LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;
 		}
 		if ((option_verbose > 3) && !option_debug) {
@@ -616,14 +616,14 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		}
 		if (!(f = fopen(fn, "r"))) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "No file to parse: %s\n", fn);
+				opbx_log(OPBX_LOG_DEBUG, "No file to parse: %s\n", fn);
 			if (option_verbose > 1)
 				opbx_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
 		if (option_debug) {
-			opbx_log(LOG_DEBUG, "Parsing %s - Found\n", fn);
+			opbx_log(OPBX_LOG_DEBUG, "Parsing %s - Found\n", fn);
 			if (option_verbose > 3)
 				opbx_verbose( "Parsing %s - Found\n", fn);
 		}
@@ -648,7 +648,7 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 							comment++;
 							nest[comment-1] = lineno;
 						} else {
-							opbx_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+							opbx_log(OPBX_LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
 						}
 					} else if ((comment_p >= new_buf + 2) &&
 						   (*(comment_p - 1) == COMMENT_TAG) &&
@@ -691,7 +691,7 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		fclose(f);		
 	} while(0);
 	if (comment) {
-		opbx_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
+		opbx_log(OPBX_LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
 #ifdef OPBX_INCLUDE_GLOB
 					if (!cfg)
@@ -763,7 +763,7 @@ int config_text_file_save(const char *configfile, const struct opbx_config *cfg,
 		}
 		fclose(f);
 	} else {
-		opbx_log(LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -844,28 +844,28 @@ void read_config_maps(void)
 		table = strsep(&stringp, ",");
 			
 		if (!strcmp(v->name, extconfig_conf)) {
-			opbx_log(LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
+			opbx_log(OPBX_LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
 			continue;
 		}
 
 		if (!strcmp(v->name, "callweaver.conf")) {
-			opbx_log(LOG_WARNING, "Cannot bind 'callweaver.conf'!\n");
+			opbx_log(OPBX_LOG_WARNING, "Cannot bind 'callweaver.conf'!\n");
 			continue;
 		}
 
 		if (!strcmp(v->name, "logger.conf")) {
-			opbx_log(LOG_WARNING, "Cannot bind 'logger.conf'!\n");
+			opbx_log(OPBX_LOG_WARNING, "Cannot bind 'logger.conf'!\n");
 			continue;
 		}
 
 		if (!driver || !database)
 			continue;
 		if (!strcasecmp(v->name, "sipfriends")) {
-			opbx_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
+			opbx_log(OPBX_LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
 			append_mapping("sipusers", driver, database, table ? table : "sipfriends");
 			append_mapping("sippeers", driver, database, table ? table : "sipfriends");
 		} else if (!strcasecmp(v->name, "iaxfriends")) {
-			opbx_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
+			opbx_log(OPBX_LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
 			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends");
 			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends");
 		} else 
@@ -903,7 +903,7 @@ static struct opbx_config_engine *find_engine(const char *family, char *database
 		if (obj)
 			eng = container_of(obj, struct opbx_config_engine, obj);
 		else
-			opbx_log(LOG_WARNING, "Realtime mapping for '%s' requires engine '%s', but the engine is not available\n", map->name, map->driver);
+			opbx_log(OPBX_LOG_WARNING, "Realtime mapping for '%s' requires engine '%s', but the engine is not available\n", map->name, map->driver);
 	}
 
 	return eng;
@@ -918,7 +918,7 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 	struct opbx_config *result;
 
 	if (cfg->include_level == cfg->max_include_level) {
-		opbx_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
+		opbx_log(OPBX_LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
 		return NULL;
 	}
 

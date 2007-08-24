@@ -207,7 +207,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 
 	if (adsi->standard == ADSI_STANDARD_CLIP_DTMF) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, msg);
+			opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, msg);
 
 		/* Spandsp only handles the Dutch/Danish system.
 		 * For Finland/Denmark/Iceland/Netherlands/India/Belgium/Sweden/Brazil/Saudi Arabia/Uruguay/?
@@ -246,7 +246,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 			}
 
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, field_body);
+				opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, field_body);
 			switch (field_type) {
 				case 'D':
 					if (field_len == 1) {
@@ -280,11 +280,11 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 		while (l > 0) {
 			if (!field_body) {
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "%s: CID-IN: %s: Message Type: 0x%02x\n", chan->name, adsi_standard_to_str(adsi->standard), field_type);
+					opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: %s: Message Type: 0x%02x\n", chan->name, adsi_standard_to_str(adsi->standard), field_type);
 				message_type = field_type;
 			} else {
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, field_body);
+					opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, field_body);
 				/* CLASS, CLIP, and ACLIP use identical message codes.
 				 * JCLIP is different but MDMF CALLERID and ABSENCE match the rest
 				 * and there is nothing that conflicts with the standard DIALLED_NUMBER.
@@ -327,7 +327,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 										break;
 									}
 								}
-								opbx_log(LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
+								opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
 								name = (uint8_t *) "Unknown";
 								break;
 							case MCLASS_CALLER_NAME:
@@ -376,7 +376,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 		/* The last argument should be ANI. If we have ANI (unlikely but technically
 		 * possible) we should use it, no?
 		 */
-		opbx_log(LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
+		opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
 		opbx_set_callerid(chan, (char *) number, (char *) name, (char *) number);
 	}
 }
@@ -453,7 +453,7 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 			}
             break;
 		default:
-			opbx_log(LOG_ERROR, "Bad signalling type %d\n", sig);
+			opbx_log(OPBX_LOG_ERROR, "Bad signalling type %d\n", sig);
 			break;
 	}
 
@@ -555,7 +555,7 @@ struct tdd_state *tdd_new(void)
 		memset(tdd, 0, sizeof(struct tdd_state));
 		adsi_rx_init(&tdd->rx, ADSI_STANDARD_TDD, put_tdd_msg, tdd);
 	} else
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 	return tdd;
 }
 

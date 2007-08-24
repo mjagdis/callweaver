@@ -67,7 +67,7 @@ static filestream_result_value my_file_exists ( int codec_format, int codec_rate
               codec_rate, opbx_getformatname(codec_format), filename );
 
     res = stat(file, &st);  // This throws 0 on success.    
-    opbx_log(LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+    opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
 
     if ( res ) {
         ret = FS_RESULT_FILE_EXISTS_NON_NATIVE;
@@ -76,13 +76,13 @@ static filestream_result_value my_file_exists ( int codec_format, int codec_rate
                   "default", opbx_getformatname(codec_format), filename );
         res = stat(file, &st);  // This throws 0 on success.
 
-        opbx_log(LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+        opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
 
         if ( res ) {
             snprintf( file, sizeof(file), "%s/sndfile/%s/%s/%s.wav", opbx_config_OPBX_SOUNDS_DIR, 
                       "default", "default", filename );
             res = stat(file, &st);  // This throws 0 on success.
-            opbx_log(LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+            opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
             if ( res ) 
                 ret = FS_RESULT_FILE_NOT_FOUND;
         }
@@ -130,11 +130,11 @@ static filestream_result_value   fsi_findsuitablefile( opbx_filestream_implement
     filestream_result_value ret = FS_RESULT_FILE_NOT_FOUND;
     char *name = NULL;
 
-    opbx_log(LOG_DEBUG,"fsi_findsuitablefile\n");
+    opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile\n");
 
     if ( !strcmp(type,"file") ) {
         if ( (ret=my_file_exists( impl->codec_format, impl->codec_rate, filename, &name ))!=FS_RESULT_FILE_NOT_FOUND ) {
-            opbx_log(LOG_DEBUG,"fsi_findsuitablefile: found file with path %s\n", name);
+            opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: found file with path %s\n", name);
             free(name);
         }
     }

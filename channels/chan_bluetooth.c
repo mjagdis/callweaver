@@ -191,7 +191,7 @@ static void
 set_cind(blt_dev_t * dev, int indicator, int val)
 {
 
-  opbx_log(LOG_DEBUG, "CIND %d set to %d\n", indicator, val);
+  opbx_log(OPBX_LOG_DEBUG, "CIND %d set to %d\n", indicator, val);
 
   if (indicator == dev->callsetup_pos) {
 
@@ -219,9 +219,9 @@ set_cind(blt_dev_t * dev, int indicator, int val)
     // Signal
 
     if (val == 0)
-      opbx_log(LOG_NOTICE, "Audio Gateway %s lost signal\n", dev->name);
+      opbx_log(OPBX_LOG_NOTICE, "Audio Gateway %s lost signal\n", dev->name);
     else if (dev->service == 0 && val > 0)
-      opbx_log(LOG_NOTICE, "Audio Gateway %s got signal\n", dev->name);
+      opbx_log(OPBX_LOG_NOTICE, "Audio Gateway %s got signal\n", dev->name);
 
     dev->service = val;
 
@@ -338,10 +338,10 @@ sco_thread(void * data)
 
   // Avoid deadlock in odd circumstances
 
-  opbx_log(LOG_WARNING, "SCO thread started on fd %d, pid %d\n", dev->sco, getpid());
+  opbx_log(OPBX_LOG_WARNING, "SCO thread started on fd %d, pid %d\n", dev->sco, getpid());
 
   if (fcntl(dev->sco_pipe[1], F_SETFL, O_RDWR|O_NONBLOCK)) {
-	  opbx_log(LOG_WARNING, "fcntl failed on sco_pipe\n");
+	  opbx_log(OPBX_LOG_WARNING, "fcntl failed on sco_pipe\n");
   }
 
   // dev->status = BLT_STATUS_IN_CALL;
@@ -365,7 +365,7 @@ sco_thread(void * data)
     opbx_mutex_lock(&(dev->sco_lock));
 
     if (dev->sco_running != 1) {
-      opbx_log(LOG_DEBUG, "SCO stopped.\n");
+      opbx_log(OPBX_LOG_DEBUG, "SCO stopped.\n");
       break;
     }
 
@@ -380,7 +380,7 @@ sco_thread(void * data)
     res = poll(pfd, 2, 50);
 
     if (res == -1 && errno != EINTR) {
-      opbx_log(LOG_DEBUG, "SCO poll() error\n");
+      opbx_log(OPBX_LOG_DEBUG, "SCO poll() error\n");
       break;
     }
 
@@ -402,13 +402,13 @@ sco_thread(void * data)
 
 		get_buffer(buf, dev->sco_buf_out, BUFLEN, &out_pos, len);
 		if (write(dev->sco, buf, len) != len)
-			opbx_log(LOG_WARNING, "Wrote <48 to sco\n");
+			opbx_log(OPBX_LOG_WARNING, "Wrote <48 to sco\n");
 
 		if (dev->wakeread) {
 			/* blt_read has caught up. Kick it */
 			dev->wakeread = 0;
 			if(write(dev->sco_pipe[1], &c, 1) != 1)
-				opbx_log(LOG_WARNING, "write to kick sco_pipe failed\n");
+				opbx_log(OPBX_LOG_WARNING, "write to kick sco_pipe failed\n");
 		}
 		opbx_mutex_unlock(&(dev->sco_lock));
 	}
@@ -418,7 +418,7 @@ sco_thread(void * data)
     } else if (pfd[0].revents) {
 
       int e = sock_err(pfd[0].fd);
-      opbx_log(LOG_ERROR, "SCO connection error: %s (errno %d)\n", strerror(e), e);
+      opbx_log(OPBX_LOG_ERROR, "SCO connection error: %s (errno %d)\n", strerror(e), e);
       break;
 
     } else if (pfd[1].revents & POLLIN) {
@@ -433,11 +433,11 @@ sco_thread(void * data)
     } else if (pfd[1].revents) {
 
       int e = sock_err(pfd[1].fd);
-      opbx_log(LOG_ERROR, "SCO pipe connection event %d on pipe[1]=%d: %s (errno %d)\n", pfd[1].revents, pfd[1].fd, strerror(e), e);
+      opbx_log(OPBX_LOG_ERROR, "SCO pipe connection event %d on pipe[1]=%d: %s (errno %d)\n", pfd[1].revents, pfd[1].fd, strerror(e), e);
       break;
 
     } else {
-      opbx_log(LOG_NOTICE, "Unhandled poll output\n");
+      opbx_log(OPBX_LOG_NOTICE, "Unhandled poll output\n");
       opbx_mutex_unlock(&(dev->sco_lock));
     }
 
@@ -459,7 +459,7 @@ sco_thread(void * data)
   if (dev->owner)
     opbx_queue_control(dev->owner, OPBX_CONTROL_HANGUP);
   opbx_mutex_unlock(&(dev->lock));
-  opbx_log(LOG_DEBUG, "SCO thread stopped\n");
+  opbx_log(OPBX_LOG_DEBUG, "SCO thread stopped\n");
   return NULL;
 }
 
@@ -469,14 +469,14 @@ sco_start(blt_dev_t * dev, int fd)
 {
 
   if (dev->sco_pipe[1] <= 0) {
-    opbx_log(LOG_ERROR, "SCO pipe[1] == %d\n", dev->sco_pipe[1]);
+    opbx_log(OPBX_LOG_ERROR, "SCO pipe[1] == %d\n", dev->sco_pipe[1]);
     return -1;
   }
 
   opbx_mutex_lock(&(dev->sco_lock));
 
   if (dev->sco_running != -1) {
-    opbx_log(LOG_ERROR, "Tried to start SCO thread while already running\n");
+    opbx_log(OPBX_LOG_ERROR, "Tried to start SCO thread while already running\n");
     opbx_mutex_unlock(&(dev->sco_lock));
     return -1;
   }
@@ -485,7 +485,7 @@ sco_start(blt_dev_t * dev, int fd)
     if (fd > 0) {
       dev->sco = fd;
     } else if (sco_connect(dev) != 0) {
-      opbx_log(LOG_ERROR, "SCO fd invalid\n");
+      opbx_log(OPBX_LOG_ERROR, "SCO fd invalid\n");
       opbx_mutex_unlock(&(dev->sco_lock));
       return -1;
     }
@@ -494,7 +494,7 @@ sco_start(blt_dev_t * dev, int fd)
   dev->sco_running = 1;
 
   if (opbx_pthread_create(&(dev->sco_thread), NULL, sco_thread, dev) < 0) {
-    opbx_log(LOG_ERROR, "Unable to start SCO thread.\n");
+    opbx_log(OPBX_LOG_ERROR, "Unable to start SCO thread.\n");
     dev->sco_running = -1;
     opbx_mutex_unlock(&(dev->sco_lock));
     return -1;
@@ -528,7 +528,7 @@ answer(blt_dev_t * dev)
     (!dev->owner) || (dev->ready != 1) || 
     (dev->status != BLT_STATUS_READY && dev->status != BLT_STATUS_RINGING)
   ) {
-    opbx_log(LOG_ERROR, 
+    opbx_log(OPBX_LOG_ERROR, 
       "Attempt to answer() in invalid state (owner=%p, ready=%d, status=%s)\n", 
       dev->owner, dev->ready, status2str(dev->status));
     return -1;
@@ -559,7 +559,7 @@ blt_write(struct opbx_channel *chan, struct opbx_frame * frame)
 
   /* We do want Voice data only */
   if (frame->frametype != OPBX_FRAME_VOICE) {
-    opbx_log(LOG_WARNING, 
+    opbx_log(OPBX_LOG_WARNING, 
         "Don't know what to do with frame type '%d'\n", frame->frametype);
     return 0;
   }
@@ -568,7 +568,7 @@ blt_write(struct opbx_channel *chan, struct opbx_frame * frame)
   if (!(frame->subclass & BLUETOOTH_FORMAT)) {
     static int fish = 5;
     if (fish) {
-      opbx_log(LOG_WARNING, 
+      opbx_log(OPBX_LOG_WARNING, 
           "Cannot handle frames in format %d\n", frame->subclass);
       fish--;
     }
@@ -626,7 +626,7 @@ blt_read(struct opbx_channel *chan)
   opbx_mutex_unlock(&(dev->sco_lock));
   if (fish) {
     unsigned char *x = dev->fr.data;
-    opbx_log(LOG_WARNING, "blt_read  %d: %02x %02x %02x %02x %02x %02x\n",
+    opbx_log(OPBX_LOG_WARNING, "blt_read  %d: %02x %02x %02x %02x %02x %02x\n",
     dev->fr.datalen, x[0], x[1], x[2], x[3], x[4], x[5]);
     fish--;
   }
@@ -719,22 +719,22 @@ blt_call(struct opbx_channel *chan, char * dest, int timeout)
     (chan->_state != OPBX_STATE_DOWN) && 
     (chan->_state != OPBX_STATE_RESERVED)
   ) {
-    opbx_log(LOG_WARNING, 
+    opbx_log(OPBX_LOG_WARNING, 
         "blt_call called on %s, neither down nor reserved\n", chan->name);
     return -1;
   }
 
-  opbx_log(LOG_DEBUG, "Calling %s on %s [t: %d]\n", dest, chan->name, timeout);
+  opbx_log(OPBX_LOG_DEBUG, "Calling %s on %s [t: %d]\n", dest, chan->name, timeout);
 
   /* interface is already locked (wtf?) */
   if (opbx_mutex_lock(&iface_lock)) {
-    opbx_log(LOG_ERROR, "Failed to get iface_lock.\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock.\n");
     return -1;
   }
 
   /* the device isnt there */
   if (dev->ready == 0) {
-    opbx_log(LOG_WARNING, "Tried to call a device not ready/connected.\n");
+    opbx_log(OPBX_LOG_WARNING, "Tried to call a device not ready/connected.\n");
     opbx_setstate(chan, OPBX_CONTROL_CONGESTION);
     opbx_mutex_unlock(&iface_lock);
     return 0;
@@ -756,7 +756,7 @@ blt_call(struct opbx_channel *chan, char * dest, int timeout)
   /* ... or unknown device.  Aiiiieee! Abort! */
   } else {
     opbx_setstate(chan, OPBX_CONTROL_CONGESTION);
-    opbx_log(LOG_ERROR, "Unknown device role\n");
+    opbx_log(OPBX_LOG_ERROR, "Unknown device role\n");
 
   }
 
@@ -772,15 +772,15 @@ blt_hangup(struct opbx_channel *chan)
 {
   blt_dev_t * dev = chan->tech_pvt;
 
-  opbx_log(LOG_DEBUG, "blt_hangup(%s)\n", chan->name);
+  opbx_log(OPBX_LOG_DEBUG, "blt_hangup(%s)\n", chan->name);
 
   if (!chan->tech_pvt) {
-    opbx_log(LOG_WARNING, "Asked to hangup channel not connected\n");
+    opbx_log(OPBX_LOG_WARNING, "Asked to hangup channel not connected\n");
     return 0;
   }
 
   if (opbx_mutex_lock(&iface_lock)) {
-    opbx_log(LOG_ERROR, "Failed to get iface_lock\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock\n");
     return 0;
   }
 
@@ -831,13 +831,13 @@ blt_hangup(struct opbx_channel *chan)
 static int 
 blt_indicate(struct opbx_channel *c, int condition)
 {
-  opbx_log(LOG_DEBUG, "blt_indicate (%d)\n", condition);
+  opbx_log(OPBX_LOG_DEBUG, "blt_indicate (%d)\n", condition);
 
   switch(condition) {
     case OPBX_CONTROL_RINGING:
       return -1;
     default:
-      opbx_log(LOG_WARNING, "Don't know how to condition %d\n", condition);
+      opbx_log(OPBX_LOG_WARNING, "Don't know how to condition %d\n", condition);
       break;
   }
   return -1;
@@ -851,7 +851,7 @@ blt_answer(struct opbx_channel *chan)
 
   opbx_mutex_lock(&dev->lock);
 
-  opbx_log(LOG_DEBUG, "Answering interface\n");
+  opbx_log(OPBX_LOG_DEBUG, "Answering interface\n");
 
   if (chan->_state != OPBX_STATE_UP) {
     send_atcmd(dev, "+CIEV: 2,1");
@@ -873,7 +873,7 @@ blt_new(blt_dev_t *dev, int state, const char *context, const char *number)
   char c = 0;
 
   if ((chan = opbx_channel_alloc(1)) == NULL) {
-    opbx_log(LOG_WARNING, "Unable to allocate channel structure\n");
+    opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel structure\n");
     return NULL;
   }
 
@@ -910,7 +910,7 @@ blt_new(blt_dev_t *dev, int state, const char *context, const char *number)
 
   if (state != OPBX_STATE_DOWN) {
     if (opbx_pbx_start(chan)) {
-      opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+      opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
       opbx_hangup(chan);
     }
   }
@@ -934,14 +934,14 @@ blt_request(const char * type, int format, void * local_data, int *cause)
   format &= BLUETOOTH_FORMAT;
 
   if (!format) {
-    opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
+    opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
     return NULL;
   }
 
-  opbx_log(LOG_DEBUG, "Dialing '%s' via '%s'\n", number, dname);
+  opbx_log(OPBX_LOG_DEBUG, "Dialing '%s' via '%s'\n", number, dname);
 
   if (opbx_mutex_lock(&iface_lock)) {
-    opbx_log(LOG_ERROR, "Unable to lock iface_list\n");
+    opbx_log(OPBX_LOG_ERROR, "Unable to lock iface_list\n");
     return NULL;
   }
 
@@ -951,7 +951,7 @@ blt_request(const char * type, int format, void * local_data, int *cause)
     if (strcmp(dev->name, dname) == 0) {
       opbx_mutex_lock(&(dev->lock));
       if (!dev->ready) {
-        opbx_log(LOG_ERROR, "Device %s is not connected\n", dev->name);
+        opbx_log(OPBX_LOG_ERROR, "Device %s is not connected\n", dev->name);
         opbx_mutex_unlock(&(dev->lock));
         opbx_mutex_unlock(&iface_lock);
         return NULL;
@@ -964,12 +964,12 @@ blt_request(const char * type, int format, void * local_data, int *cause)
   opbx_mutex_unlock(&iface_lock);
 
   if (!dev) {
-    opbx_log(LOG_WARNING, "Failed to find device named '%s'\n", dname);
+    opbx_log(OPBX_LOG_WARNING, "Failed to find device named '%s'\n", dname);
     return NULL;
   }
 
   if (number && dev->role != BLT_ROLE_AG) {
-    opbx_log(LOG_WARNING, "Tried to send a call out on non AG\n");
+    opbx_log(OPBX_LOG_WARNING, "Tried to send a call out on non AG\n");
     opbx_mutex_unlock(&(dev->lock));
     return NULL;
   }
@@ -1040,7 +1040,7 @@ send_atcmd_error(blt_dev_t * dev)
 static int
 atcmd_brsf_set(blt_dev_t * dev, const char * arg, int len)
 {
-  opbx_log(LOG_DEBUG, "Device Supports: %s\n", arg);
+  opbx_log(OPBX_LOG_DEBUG, "Device Supports: %s\n", arg);
   dev->brsf = atoi(arg);
   send_atcmd(dev, "+BRSF: %d", 23);
   return 0;
@@ -1051,7 +1051,7 @@ atcmd_brsf_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_bvra_set(blt_dev_t * dev, const char * arg, int len)
 {
-  opbx_log(LOG_WARNING, "+BVRA Not Yet Supported\n");
+  opbx_log(OPBX_LOG_WARNING, "+BVRA Not Yet Supported\n");
   // Do not do anything further
   return -1;
 }
@@ -1074,10 +1074,10 @@ static int
 atcmd_chup_execute(blt_dev_t * dev, const char * data)
 {
   if (!dev->owner) {
-    opbx_log(LOG_ERROR, "Request to hangup call when none in progress\n");
+    opbx_log(OPBX_LOG_ERROR, "Request to hangup call when none in progress\n");
     return -1;
   }
-  opbx_log(LOG_DEBUG, "Hangup Call\n");
+  opbx_log(OPBX_LOG_DEBUG, "Hangup Call\n");
   opbx_queue_control(dev->owner, OPBX_CONTROL_HANGUP);
   return 0;
 }
@@ -1189,7 +1189,7 @@ atcmd_cscs_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_eips_set(blt_dev_t * dev, const char * arg, int len)
 {
-  opbx_log(LOG_DEBUG, "Identify Presentation Set: %s=%s\n",
+  opbx_log(OPBX_LOG_DEBUG, "Identify Presentation Set: %s=%s\n",
                          (*(arg) == 49) ? "ELIP" : "EOLP",
                          (*(arg+2) == 49) ? "ON" : "OFF");
 
@@ -1217,12 +1217,12 @@ atcmd_dial_execute(blt_dev_t * dev, const char * data)
 
   /* Make sure there is a ';' at the end of the line */
   if (*(data + (strlen(data) - 1)) != ';') {
-    opbx_log(LOG_WARNING, "Can't dial non-voice right now: %s\n", data);
+    opbx_log(OPBX_LOG_WARNING, "Can't dial non-voice right now: %s\n", data);
     return -1;
   }
 
   number = strndup(data, strlen(data) - 1);
-  opbx_log(LOG_NOTICE, "Dial: [%s]\n", number);
+  opbx_log(OPBX_LOG_NOTICE, "Dial: [%s]\n", number);
 
   send_atcmd(dev, "+CIEV: 2,1");
   send_atcmd(dev, "+CIEV: 3,0");
@@ -1249,7 +1249,7 @@ atcmd_answer_execute(blt_dev_t * dev, const char * data)
 {
 
   if (!dev->ringing || !dev->owner) {
-    opbx_log(LOG_WARNING, "Can't answer non existant call\n");
+    opbx_log(OPBX_LOG_WARNING, "Can't answer non existant call\n");
     return -1;
   }
 
@@ -1277,19 +1277,19 @@ ag_unsol_ciev(blt_dev_t * dev, const char * data)
     data++;
 
   if (*(data) == 0) {
-    opbx_log(LOG_WARNING, "Invalid value[1] for '+CIEV:%s'\n", orig);
+    opbx_log(OPBX_LOG_WARNING, "Invalid value[1] for '+CIEV:%s'\n", orig);
     return -1;
   }
 
   indicator = *(data++) - 48;
 
   if (*(data++) != ',') {
-    opbx_log(LOG_WARNING, "Invalid value[2] for '+CIEV:%s'\n", orig);
+    opbx_log(OPBX_LOG_WARNING, "Invalid value[2] for '+CIEV:%s'\n", orig);
     return -1;
   }
 
   if (*(data) == 0) {
-    opbx_log(LOG_WARNING, "Invalid value[3] for '+CIEV:%s'\n", orig);
+    opbx_log(OPBX_LOG_WARNING, "Invalid value[3] for '+CIEV:%s'\n", orig);
     return -1;
   }
 
@@ -1314,7 +1314,7 @@ ag_unsol_cind(blt_dev_t * dev, const char * data)
     char name[1024];
 
     while ((data = parse_cind(data, name, 1023)) != NULL) {
-      opbx_log(LOG_DEBUG, "CIND: %d=%s\n", pos, name);
+      opbx_log(OPBX_LOG_DEBUG, "CIND: %d=%s\n", pos, name);
       if (strcmp(name, "call") == 0)
         dev->call_pos = pos;
       else if (strcmp(name, "service") == 0)
@@ -1324,7 +1324,7 @@ ag_unsol_cind(blt_dev_t * dev, const char * data)
       pos++;
     }
 
-    opbx_log(LOG_DEBUG, "CIND: %d=%s\n", pos, name);
+    opbx_log(OPBX_LOG_DEBUG, "CIND: %d=%s\n", pos, name);
 
   } else {
 
@@ -1349,7 +1349,7 @@ ag_unsol_cind(blt_dev_t * dev, const char * data)
 
     memset(val, 0, 128);
     strncpy(val, start, len);
-    opbx_log(LOG_DEBUG, "CIND IND %d set to %d [%s]\n", pos, atoi(val), val);
+    opbx_log(OPBX_LOG_DEBUG, "CIND IND %d set to %d [%s]\n", pos, atoi(val), val);
   }
 
   return 0;
@@ -1370,12 +1370,12 @@ ag_unsol_clip(blt_dev_t * dev, const char * data)
     data++;
 
   if (*(data) == 0) {
-    opbx_log(LOG_WARNING, "Invalid value[1] for '+CLIP:%s'\n", orig);
+    opbx_log(OPBX_LOG_WARNING, "Invalid value[1] for '+CLIP:%s'\n", orig);
     return -1;
   }
 
   parse_clip(data, number, sizeof(number)-1, name, sizeof(name)-1, &type);
-  opbx_log(LOG_NOTICE, "Parsed '+CLIP: %s' number='%s' type='%d' name='%s'\n", data, number, type, name);
+  opbx_log(OPBX_LOG_NOTICE, "Parsed '+CLIP: %s' number='%s' type='%d' name='%s'\n", data, number, type, name);
 
   blt_new(dev, OPBX_STATE_RING, dev->context, "s");
 
@@ -1386,7 +1386,7 @@ ag_unsol_clip(blt_dev_t * dev, const char * data)
 /* -- Handle negotiation when we're a HS -- */
 static void ag_unknown_response(blt_dev_t * dev, char * cmd)
 {
-  opbx_log(LOG_DEBUG, "Got UNKN response: %s\n", cmd);
+  opbx_log(OPBX_LOG_DEBUG, "Got UNKN response: %s\n", cmd);
 
   // DELAYED
   // NO CARRIER
@@ -1459,7 +1459,7 @@ static void ag_cind_response(blt_dev_t * dev, char * cmd)
 static void ag_brsf_response(blt_dev_t * dev, char * cmd)
 {
   dev->cb = ag_cind_response;
-  opbx_log(LOG_DEBUG, "Bluetooth features: %s\n", cmd);
+  opbx_log(OPBX_LOG_DEBUG, "Bluetooth features: %s\n", cmd);
   dev->cind = 0;
   send_atcmd(dev, "AT+CIND=?");
 }
@@ -1515,14 +1515,14 @@ sdp_register(sdp_session_t * session)
   sdp_set_info_attr(&record, "Voice Gateway", 0, 0);
 
   if (sdp_record_register(session, &record, SDP_RECORD_PERSIST) < 0) {
-    opbx_log(LOG_ERROR, "Service Record registration failed\n");
+    opbx_log(OPBX_LOG_ERROR, "Service Record registration failed\n");
     ret = -1;
     goto end;
   }
 
   sdp_record_ag = record.handle;
 
-  opbx_log(LOG_NOTICE, "HeadsetAudioGateway service registered\n");
+  opbx_log(OPBX_LOG_NOTICE, "HeadsetAudioGateway service registered\n");
 
   sdp_data_free(channel);
   sdp_list_free(proto[0], 0);
@@ -1565,14 +1565,14 @@ sdp_register(sdp_session_t * session)
   sdp_set_info_attr(&record, "Voice Gateway", 0, 0);
 
   if (sdp_record_register(session, &record, SDP_RECORD_PERSIST) < 0) {
-    opbx_log(LOG_ERROR, "Service Record registration failed\n");
+    opbx_log(OPBX_LOG_ERROR, "Service Record registration failed\n");
     ret = -1;
     goto end;
   }
 
   sdp_record_hs = record.handle;
 
-  opbx_log(LOG_NOTICE, "HeadsetAudioGateway service registered\n");
+  opbx_log(OPBX_LOG_NOTICE, "HeadsetAudioGateway service registered\n");
 
 end:
   sdp_data_free(channel);
@@ -1593,7 +1593,7 @@ rfcomm_listen(bdaddr_t * bdaddr, int channel)
   int on = 1;
 
   if ((sock = socket(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
-    opbx_log(LOG_ERROR, "Can't create socket: %s (errno: %d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR, "Can't create socket: %s (errno: %d)\n", strerror(errno), errno);
     return -1;
   }
 
@@ -1606,27 +1606,27 @@ rfcomm_listen(bdaddr_t * bdaddr, int channel)
   loc_addr.rc_channel = channel;
 
   if (bind(sock, (struct sockaddr *)&loc_addr, sizeof(loc_addr)) < 0) {
-    opbx_log(LOG_ERROR, "Can't bind socket: %s (errno: %d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR, "Can't bind socket: %s (errno: %d)\n", strerror(errno), errno);
     close(sock);
     return -1;
   }
 
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
-    opbx_log(LOG_ERROR, "Set socket SO_REUSEADDR option on failed: errno %d, %s", errno, strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Set socket SO_REUSEADDR option on failed: errno %d, %s", errno, strerror(errno));
     close(sock);
     return -1;
   }
 
   if (fcntl(sock, F_SETFL, O_RDWR|O_NONBLOCK) != 0)
-    opbx_log(LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
+    opbx_log(OPBX_LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
 
   if (listen(sock, 10) < 0) {
-    opbx_log(LOG_ERROR,"Can not listen on the socket. %s(%d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR,"Can not listen on the socket. %s(%d)\n", strerror(errno), errno);
     close(sock);
     return -1;
   }
 
-  opbx_log(LOG_NOTICE, "Listening for RFCOMM channel %d connections on FD %d\n", channel, sock);
+  opbx_log(OPBX_LOG_NOTICE, "Listening for RFCOMM channel %d connections on FD %d\n", channel, sock);
 
   return sock;
 }
@@ -1642,7 +1642,7 @@ sco_listen(bdaddr_t * bdaddr)
   memset(&loc_addr, 0, sizeof(loc_addr));
 
   if ((sock = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
-    opbx_log(LOG_ERROR, "Can't create SCO socket: %s (errno: %d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR, "Can't create SCO socket: %s (errno: %d)\n", strerror(errno), errno);
     return -1;
   }
 
@@ -1650,27 +1650,27 @@ sco_listen(bdaddr_t * bdaddr)
   bacpy(&loc_addr.sco_bdaddr, BDADDR_ANY);
 
   if (bind(sock, (struct sockaddr *)&loc_addr, sizeof(loc_addr)) < 0) {
-    opbx_log(LOG_ERROR, "Can't bind SCO socket: %s (errno: %d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR, "Can't bind SCO socket: %s (errno: %d)\n", strerror(errno), errno);
     close(sock);
     return -1;
   }
 
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
-    opbx_log(LOG_ERROR, "Set SCO socket SO_REUSEADDR option on failed: errno %d, %s", errno, strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Set SCO socket SO_REUSEADDR option on failed: errno %d, %s", errno, strerror(errno));
     close(sock);
     return -1;
   }
 
   if (fcntl(sock, F_SETFL, O_RDWR|O_NONBLOCK) != 0)
-    opbx_log(LOG_ERROR, "Can't set SCO socket to NBIO\n");
+    opbx_log(OPBX_LOG_ERROR, "Can't set SCO socket to NBIO\n");
 
   if (listen(sock, 10) < 0) {
-    opbx_log(LOG_ERROR,"Can not listen on SCO socket: %s(%d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR,"Can not listen on SCO socket: %s(%d)\n", strerror(errno), errno);
     close(sock);
     return -1;
   }
 
-  opbx_log(LOG_NOTICE, "Listening for SCO connections on FD %d\n", sock);
+  opbx_log(OPBX_LOG_NOTICE, "Listening for SCO connections on FD %d\n", sock);
 
   return sock;
 }
@@ -1702,7 +1702,7 @@ rfcomm_connect(bdaddr_t * src, bdaddr_t * dst, int channel, int nbio)
 
   if (nbio) {
     if (fcntl(s, F_SETFL, O_RDWR|O_NONBLOCK) != 0)
-      opbx_log(LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
+      opbx_log(OPBX_LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
   }
 
   if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0 && (nbio != 1 || (errno != EAGAIN))) {
@@ -1727,12 +1727,12 @@ sco_connect(blt_dev_t * dev)
   bdaddr_t * dst = &(dev->bdaddr);
 
   if (dev->sco != -1) {
-    opbx_log(LOG_ERROR, "SCO fd already open.\n");
+    opbx_log(OPBX_LOG_ERROR, "SCO fd already open.\n");
     return -1;
   }
 
   if ((s = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
-    opbx_log(LOG_ERROR, "Can't create SCO socket(): %s\n", strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Can't create SCO socket(): %s\n", strerror(errno));
     return -1;
   }
 
@@ -1742,7 +1742,7 @@ sco_connect(blt_dev_t * dev)
   bacpy(&addr.sco_bdaddr, BDADDR_ANY);
 
   if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    opbx_log(LOG_ERROR, "Can't bind() SCO socket: %s\n", strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Can't bind() SCO socket: %s\n", strerror(errno));
     close(s);
     return -1;
   }
@@ -1752,15 +1752,15 @@ sco_connect(blt_dev_t * dev)
   bacpy(&addr.sco_bdaddr, dst);
 
   if (fcntl(s, F_SETFL, O_RDWR|O_NONBLOCK) != 0)
-    opbx_log(LOG_ERROR, "Can't set SCO socket to NBIO\n");
+    opbx_log(OPBX_LOG_ERROR, "Can't set SCO socket to NBIO\n");
 
   if ((connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) && (errno != EAGAIN)) {
-    opbx_log(LOG_ERROR, "Can't connect() SCO socket: %s (errno %d)\n", strerror(errno), errno);
+    opbx_log(OPBX_LOG_ERROR, "Can't connect() SCO socket: %s (errno %d)\n", strerror(errno), errno);
     close(s);
     return -1;
   }
 
-  opbx_log(LOG_DEBUG, "SCO: %d\n", s);
+  opbx_log(OPBX_LOG_DEBUG, "SCO: %d\n", s);
   dev->sco = s;
 
   return 0;
@@ -1813,7 +1813,7 @@ try_connect(blt_dev_t * dev)
 
       if (ret == 0) {
 
-        opbx_log(LOG_NOTICE, "Initialised bluetooth link to device %s\n", dev->name); 
+        opbx_log(OPBX_LOG_NOTICE, "Initialised bluetooth link to device %s\n", dev->name); 
 
         dev->status = BLT_STATUS_NEGOTIATING;
 
@@ -1831,7 +1831,7 @@ try_connect(blt_dev_t * dev)
       } else {
 
         if (ret != EHOSTDOWN)
-          opbx_log(LOG_NOTICE, "Connect to device %s failed: %s (errno %d)\n", dev->name, strerror(ret), ret);
+          opbx_log(OPBX_LOG_NOTICE, "Connect to device %s failed: %s (errno %d)\n", dev->name, strerror(ret), ret);
 
         close(dev->rd);
         dev->rd = -1;
@@ -1852,7 +1852,7 @@ try_connect(blt_dev_t * dev)
   fd = rfcomm_connect(&local_bdaddr, &(dev->bdaddr), dev->channel, 1);
 
   if (fd == -1) {
-    opbx_log(LOG_WARNING, "NBIO connect() to %s returned %d: %s\n", dev->name, errno, strerror(errno));
+    opbx_log(OPBX_LOG_WARNING, "NBIO connect() to %s returned %d: %s\n", dev->name, errno, strerror(errno));
     dev->outgoing_id = opbx_sched_add(sched, 5000, OPBX_SCHED_CB(try_connect), dev);
     opbx_mutex_unlock(&(dev->lock));
     return 0;
@@ -1880,7 +1880,7 @@ process_rfcomm_cmd(blt_dev_t * dev, char * cmd)
 
   /* Read the 'AT' from the start of the string */
   if (strncmp(cmd, "AT", 2)) {
-    opbx_log(LOG_WARNING, "Unknown command without 'AT': %s\n", cmd);
+    opbx_log(OPBX_LOG_WARNING, "Unknown command without 'AT': %s\n", cmd);
     send_atcmd_error(dev);
     return 0;
   }
@@ -1915,7 +1915,7 @@ process_rfcomm_cmd(blt_dev_t * dev, char * cmd)
           else
             send_atcmd_error(dev);
         } else {
-          opbx_log(LOG_WARNING, "AT Command: '%s' missing READ function\n", fullcmd);
+          opbx_log(OPBX_LOG_WARNING, "AT Command: '%s' missing READ function\n", fullcmd);
           send_atcmd_error(dev);
         }
       } else if (strncmp(pos, "=", 1) == 0) {
@@ -1926,7 +1926,7 @@ process_rfcomm_cmd(blt_dev_t * dev, char * cmd)
           else
             send_atcmd_error(dev);
         } else {
-          opbx_log(LOG_WARNING, "AT Command: '%s' missing SET function\n", fullcmd);
+          opbx_log(OPBX_LOG_WARNING, "AT Command: '%s' missing SET function\n", fullcmd);
           send_atcmd_error(dev);
         }
       } else {
@@ -1937,7 +1937,7 @@ process_rfcomm_cmd(blt_dev_t * dev, char * cmd)
           else
             send_atcmd_error(dev);
         } else {
-          opbx_log(LOG_WARNING, "AT Command: '%s' missing EXECUTE function\n", fullcmd);
+          opbx_log(OPBX_LOG_WARNING, "AT Command: '%s' missing EXECUTE function\n", fullcmd);
           send_atcmd_error(dev);
         }
       }
@@ -1945,7 +1945,7 @@ process_rfcomm_cmd(blt_dev_t * dev, char * cmd)
     }
   }
 
-  opbx_log(LOG_WARNING, "Unknown AT Command: '%s' (%s)\n", fullcmd, cmd);
+  opbx_log(OPBX_LOG_WARNING, "Unknown AT Command: '%s' (%s)\n", fullcmd, cmd);
   send_atcmd_error(dev);
 
   return 0;
@@ -1960,7 +1960,7 @@ handle_incoming(int fd, blt_role_t role)
   socklen_t len = (socklen_t) sizeof(addr);
 
   // Got a new incoming socket.
-  opbx_log(LOG_DEBUG, "Incoming RFCOMM socket\n");
+  opbx_log(OPBX_LOG_DEBUG, "Incoming RFCOMM socket\n");
 
   opbx_mutex_lock(&iface_lock);
 
@@ -1969,7 +1969,7 @@ handle_incoming(int fd, blt_role_t role)
   dev = iface_head;
   while (dev) {
     if (bacmp(&(dev->bdaddr), &addr.rc_bdaddr) == 0) {
-      opbx_log(LOG_DEBUG, "Connect from %s\n", dev->name);
+      opbx_log(OPBX_LOG_DEBUG, "Connect from %s\n", dev->name);
       opbx_mutex_lock(&(dev->lock));
       /* Kill any outstanding connect attempt. */
       if (dev->outgoing_id > -1) {
@@ -1994,7 +1994,7 @@ handle_incoming(int fd, blt_role_t role)
   }
 
   if (dev == NULL) {
-    opbx_log(LOG_WARNING, "Connect from unknown device\n");
+    opbx_log(OPBX_LOG_WARNING, "Connect from unknown device\n");
     close(fd);
   }
   opbx_mutex_unlock(&iface_lock);
@@ -2013,12 +2013,12 @@ handle_incoming_sco(int master)
   socklen_t len = (socklen_t) sizeof(addr);
   int fd;
 
-  opbx_log(LOG_DEBUG, "Incoming SCO socket\n");
+  opbx_log(OPBX_LOG_DEBUG, "Incoming SCO socket\n");
 
   fd = accept(master, (struct sockaddr*)&addr, &len);
 
   if (fcntl(fd, F_SETFL, O_RDWR|O_NONBLOCK) != 0) {
-    opbx_log(LOG_ERROR, "Can't set SCO socket to NBIO\n");
+    opbx_log(OPBX_LOG_ERROR, "Can't set SCO socket to NBIO\n");
     close(fd);
     return;
   }
@@ -2026,7 +2026,7 @@ handle_incoming_sco(int master)
   len = sizeof(conn);
 
   if (getsockopt(fd, SOL_SCO, SCO_CONNINFO, &conn, &len) < 0) {
-    opbx_log(LOG_ERROR, "Can't getsockopt SCO_CONNINFO on SCO socket: %s\n", strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Can't getsockopt SCO_CONNINFO on SCO socket: %s\n", strerror(errno));
     close(fd);
     return;
   }
@@ -2034,7 +2034,7 @@ handle_incoming_sco(int master)
   len = sizeof(opts);
 
   if (getsockopt(fd, SOL_SCO, SCO_OPTIONS, &opts, &len) < 0) {
-    opbx_log(LOG_ERROR, "Can't getsockopt SCO_OPTIONS on SCO socket: %s\n", strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Can't getsockopt SCO_OPTIONS on SCO socket: %s\n", strerror(errno));
     close(fd);
     return;
   }
@@ -2043,10 +2043,10 @@ handle_incoming_sco(int master)
   dev = iface_head;
   while (dev) {
     if (bacmp(&(dev->bdaddr), &addr.sco_bdaddr) == 0) {
-      opbx_log(LOG_DEBUG, "SCO Connect from %s\n", dev->name);
+      opbx_log(OPBX_LOG_DEBUG, "SCO Connect from %s\n", dev->name);
       opbx_mutex_lock(&(dev->lock));
       if (dev->sco_running != -1) {
-        opbx_log(LOG_ERROR, "Incoming SCO socket, but SCO thread already running.\n");
+        opbx_log(OPBX_LOG_ERROR, "Incoming SCO socket, but SCO thread already running.\n");
       } else {
         sco_start(dev, fd);
       }
@@ -2059,11 +2059,11 @@ handle_incoming_sco(int master)
   opbx_mutex_unlock(&iface_lock);
 
   if (dev == NULL) {
-    opbx_log(LOG_WARNING, "SCO Connect from unknown device\n");
+    opbx_log(OPBX_LOG_WARNING, "SCO Connect from unknown device\n");
     close(fd);
   } else {
     // XXX:T: We need to handle the fact we might have an outgoing connection attempt in progress.
-    opbx_log(LOG_DEBUG, "SCO: %d, HCIHandle=%d, MUT=%d\n", fd, conn.hci_handle, opts.mtu);
+    opbx_log(OPBX_LOG_DEBUG, "SCO: %d, HCIHandle=%d, MUT=%d\n", fd, conn.hci_handle, opts.mtu);
   }
 
   return;
@@ -2105,7 +2105,7 @@ handle_rd_data(blt_dev_t * dev)
             dev->state = BLT_STATE_WANT_CMD;
             dev->rd_buff[dev->rd_buff_pos++] = '+';
           } else {
-            opbx_log(LOG_ERROR, "Device %s: Expected '\\r', got %d. state=BLT_STATE_WANT_R\n", dev->name, c);
+            opbx_log(OPBX_LOG_ERROR, "Device %s: Expected '\\r', got %d. state=BLT_STATE_WANT_R\n", dev->name, c);
             return -1;
           }
           break;
@@ -2114,7 +2114,7 @@ handle_rd_data(blt_dev_t * dev)
           if (c == '\n')
             dev->state = BLT_STATE_WANT_CMD;
           else {
-            opbx_log(LOG_ERROR, "Device %s: Expected '\\n', got %d. state=BLT_STATE_WANT_N\n", dev->name, c);
+            opbx_log(OPBX_LOG_ERROR, "Device %s: Expected '\\n', got %d. state=BLT_STATE_WANT_N\n", dev->name, c);
             return -1;
           }
           break;
@@ -2124,7 +2124,7 @@ handle_rd_data(blt_dev_t * dev)
             dev->state = BLT_STATE_WANT_N2;
           else {
             if (dev->rd_buff_pos >= BLT_RDBUFF_MAX) {
-              opbx_log(LOG_ERROR, "Device %s: Buffer exceeded\n", dev->name);
+              opbx_log(OPBX_LOG_ERROR, "Device %s: Buffer exceeded\n", dev->name);
               return -1;
             }
             dev->rd_buff[dev->rd_buff_pos++] = c;
@@ -2144,7 +2144,7 @@ handle_rd_data(blt_dev_t * dev)
                   if (atcmd_list[i].unsolicited)
                     atcmd_list[i].unsolicited(dev, dev->rd_buff + strlen(atcmd_list[i].str) + 1);
                   else
-                    opbx_log(LOG_WARNING, "Device %s: Unhandled Unsolicited: %s\n", dev->name, dev->rd_buff);
+                    opbx_log(OPBX_LOG_WARNING, "Device %s: Unhandled Unsolicited: %s\n", dev->name, dev->rd_buff);
                   break;
                 }
               }
@@ -2153,7 +2153,7 @@ handle_rd_data(blt_dev_t * dev)
                 opbx_verbose(VERBOSE_PREFIX_1 "[%s] %*s > %s\n", role2str(dev->role), 10, dev->name, dev->rd_buff);
 
               if (i == ATCMD_LIST_LEN)
-                opbx_log(LOG_DEBUG, "Device %s: Got unsolicited message: %s\n", dev->name, dev->rd_buff);
+                opbx_log(OPBX_LOG_DEBUG, "Device %s: Got unsolicited message: %s\n", dev->name, dev->rd_buff);
 
             } else {
 
@@ -2177,7 +2177,7 @@ handle_rd_data(blt_dev_t * dev)
                   opbx_verbose(VERBOSE_PREFIX_1 "[%s] %*s > %s\n", role2str(dev->role), 10, dev->name, dev->rd_buff);
                 dev->cb(dev, dev->rd_buff);
               } else {
-                opbx_log(LOG_ERROR, "Device %s: Data on socket in HS mode, but no callback\n", dev->name);
+                opbx_log(OPBX_LOG_ERROR, "Device %s: Data on socket in HS mode, but no callback\n", dev->name);
               }
 
             }
@@ -2187,7 +2187,7 @@ handle_rd_data(blt_dev_t * dev)
 
           } else {
 
-            opbx_log(LOG_ERROR, "Device %s: Expected '\\n' got %d. state = BLT_STATE_WANT_N2:\n", dev->name, c);
+            opbx_log(OPBX_LOG_ERROR, "Device %s: Expected '\\n' got %d. state = BLT_STATE_WANT_N2:\n", dev->name, c);
             return -1;
 
           }
@@ -2195,7 +2195,7 @@ handle_rd_data(blt_dev_t * dev)
           break;
 
         default:
-          opbx_log(LOG_ERROR, "Device %s: Unknown device state %d\n", dev->name, dev->state);
+          opbx_log(OPBX_LOG_ERROR, "Device %s: Unknown device state %d\n", dev->name, dev->state);
           return -1;
       }
     }
@@ -2231,9 +2231,9 @@ rd_close(blt_dev_t * dev, int reconnect, int e)
     }
 
     if (e)
-      opbx_log(LOG_NOTICE, "Device %s disconnected, scheduled reconnect in 5 seconds: %s (errno %d)\n", dev->name, strerror(e), e);
+      opbx_log(OPBX_LOG_NOTICE, "Device %s disconnected, scheduled reconnect in 5 seconds: %s (errno %d)\n", dev->name, strerror(e), e);
   } else if (e) {
-    opbx_log(LOG_NOTICE, "Device %s disconnected: %s (errno %d)\n", dev->name, strerror(e), e);
+    opbx_log(OPBX_LOG_NOTICE, "Device %s disconnected: %s (errno %d)\n", dev->name, strerror(e), e);
   }
 
   return;
@@ -2268,7 +2268,7 @@ do_monitor(void * data)
   monitor_pid = getpid();
 
   if (opbx_mutex_lock(&iface_lock)) {
-    opbx_log(LOG_ERROR, "Failed to get iface_lock.\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock.\n");
     return NULL;
   }
 
@@ -2276,7 +2276,7 @@ do_monitor(void * data)
   while (dev) {
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, dev->sco_pipe) != 0) {
-      opbx_log(LOG_ERROR, "Failed to create socket pair: %s (errno %d)\n", strerror(errno), errno);
+      opbx_log(OPBX_LOG_ERROR, "Failed to create socket pair: %s (errno %d)\n", strerror(errno), errno);
       opbx_mutex_unlock(&iface_lock);
       return NULL;
     }
@@ -2305,7 +2305,7 @@ do_monitor(void * data)
     /* -- Build pfds -- */
 
     if (opbx_mutex_lock(&iface_lock)) {
-      opbx_log(LOG_ERROR, "Failed to get iface_lock.\n");
+      opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock.\n");
       return NULL;
     }
     dev = iface_head;
@@ -2355,7 +2355,7 @@ do_monitor(void * data)
       /* -- Find the socket that has activity -- */
 
       if (opbx_mutex_lock(&iface_lock)) {
-        opbx_log(LOG_ERROR, "Failed to get iface_lock.\n");
+        opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock.\n");
         return NULL;
       }
 
@@ -2379,7 +2379,7 @@ do_monitor(void * data)
       }
 
       if (dev == NULL) {
-        opbx_log(LOG_ERROR, "Unhandled fd from poll()\n");
+        opbx_log(OPBX_LOG_ERROR, "Unhandled fd from poll()\n");
         close(pfds[i].fd);
       }
 
@@ -2399,13 +2399,13 @@ restart_monitor(void)
     return 0;
 
   if (opbx_mutex_lock(&monitor_lock)) {
-    opbx_log(LOG_WARNING, "Unable to lock monitor\n");
+    opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
     return -1;
   }
 
   if (monitor_thread == pthread_self()) {
     opbx_mutex_unlock(&monitor_lock);
-    opbx_log(LOG_WARNING, "Cannot kill myself\n");
+    opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
     return -1;
   }
 
@@ -2414,16 +2414,16 @@ restart_monitor(void)
     /* Just signal it to be sure it wakes up */
     pthread_cancel(monitor_thread);
     pthread_kill(monitor_thread, SIGURG);
-    opbx_log(LOG_DEBUG, "Waiting for monitor thread to join...\n");
+    opbx_log(OPBX_LOG_DEBUG, "Waiting for monitor thread to join...\n");
     pthread_join(monitor_thread, NULL);
-    opbx_log(LOG_DEBUG, "joined\n");
+    opbx_log(OPBX_LOG_DEBUG, "joined\n");
 
   } else {
 
     /* Start a new monitor */
     if (opbx_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
       opbx_mutex_unlock(&monitor_lock);
-      opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
+      opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
       return -1;
     }
   }
@@ -2441,7 +2441,7 @@ blt_parse_config(void)
   cfg = opbx_config_load(BLT_CONFIG_FILE);
 
   if (!cfg) {
-    opbx_log(LOG_NOTICE, "Unable to load Bluetooth config: %s.  Bluetooth disabled\n", BLT_CONFIG_FILE);
+    opbx_log(OPBX_LOG_NOTICE, "Unable to load Bluetooth config: %s.  Bluetooth disabled\n", BLT_CONFIG_FILE);
     return -1;
   }
 
@@ -2455,7 +2455,7 @@ blt_parse_config(void)
     } else if (!strcasecmp(v->name, "interface")) {
       hcidev_id = atoi(v->value);
     } else {
-      opbx_log(LOG_WARNING, "Unknown config key '%s' in section [general]\n", v->name);
+      opbx_log(OPBX_LOG_WARNING, "Unknown config key '%s' in section [general]\n", v->name);
     }
     v = v->next;
   }
@@ -2479,14 +2479,14 @@ blt_parse_config(void)
       str = opbx_variable_retrieve(cfg, cat, "type");
 
       if (str == NULL) {
-        opbx_log(LOG_ERROR, "Device [%s] has no role.  Specify type=<HS/AG>\n", cat);
+        opbx_log(OPBX_LOG_ERROR, "Device [%s] has no role.  Specify type=<HS/AG>\n", cat);
         return -1;
       } else if (strcasecmp(str, "HS") == 0)
         device->role = BLT_ROLE_HS;
       else if (strcasecmp(str, "AG") == 0) {
         device->role = BLT_ROLE_AG;
       } else {
-        opbx_log(LOG_ERROR, "Device [%s] has invalid role '%s'\n", cat, str);
+        opbx_log(OPBX_LOG_ERROR, "Device [%s] has invalid role '%s'\n", cat, str);
         return -1;
       }
 
@@ -2525,7 +2525,7 @@ blt_show_peers(int fd, int argc, char *argv[])
   blt_dev_t * dev;
 
   if (opbx_mutex_lock(&iface_lock)) {
-    opbx_log(LOG_ERROR, "Failed to get Iface lock\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to get Iface lock\n");
     opbx_cli(fd, "Failed to get iface lock\n");
     return RESULT_FAILURE;
   }
@@ -2662,7 +2662,7 @@ static void remove_sdp_records(void)
   if (sdp_record_ag == -1 || sdp_record_hs == -1)
     return;
 
-  opbx_log(LOG_DEBUG, "Removing SDP records\n");
+  opbx_log(OPBX_LOG_DEBUG, "Removing SDP records\n");
 
   sdp = sdp_connect(BDADDR_ANY, BDADDR_LOCAL, SDP_RETRY_IF_BUSY);
 
@@ -2688,9 +2688,9 @@ static void remove_sdp_records(void)
   sdp_close(sdp);
 
   if (res == 0)
-    opbx_log(LOG_NOTICE, "Removed SDP records\n");
+    opbx_log(OPBX_LOG_NOTICE, "Removed SDP records\n");
   else
-    opbx_log(LOG_ERROR, "Failed to remove SDP records\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to remove SDP records\n");
 
 }
 
@@ -2709,7 +2709,7 @@ __unload_module(void)
   if (monitor_thread != OPBX_PTHREADT_NULL) {
 
     if (opbx_mutex_lock(&monitor_lock)) {
-        opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
         return -1;
     }
     if (monitor_thread && (monitor_thread != OPBX_PTHREADT_STOP) && (monitor_thread != OPBX_PTHREADT_NULL)) {
@@ -2755,13 +2755,13 @@ static load_module(void)
   hcidev_id = BLT_DEFAULT_HCI_DEV;
 
   if (blt_parse_config() != 0) {
-    opbx_log(LOG_ERROR, "Bluetooth configuration error.  Bluetooth Disabled\n");
+    opbx_log(OPBX_LOG_ERROR, "Bluetooth configuration error.  Bluetooth Disabled\n");
     return -1;
   }
 
   dd  = hci_open_dev(hcidev_id);
   if (dd == -1) {
-    opbx_log(LOG_ERROR, "Unable to open interface hci%d: %s.\n", hcidev_id, strerror(errno));
+    opbx_log(OPBX_LOG_ERROR, "Unable to open interface hci%d: %s.\n", hcidev_id, strerror(errno));
     return -1;
   }
 
@@ -2770,12 +2770,12 @@ static load_module(void)
   close(dd);
 
   if (vs != 0x0060) {
-    opbx_log(LOG_ERROR, "Bluetooth voice setting must be 0x0060, not 0x%04x\n", vs);
+    opbx_log(OPBX_LOG_ERROR, "Bluetooth voice setting must be 0x0060, not 0x%04x\n", vs);
     return -1;
   }
 
   if ((sched = sched_context_create()) == NULL) {
-    opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+    opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
     return -1;
   }
 
@@ -2797,13 +2797,13 @@ static load_module(void)
     return -1;
 
   if (!sess) {
-    opbx_log(LOG_ERROR, "Failed to connect to SDP server: %s\n", 
+    opbx_log(OPBX_LOG_ERROR, "Failed to connect to SDP server: %s\n", 
       strerror(errno));
     return -1;
   }
 
   if (sdp_register(sess) != 0) {
-    opbx_log(LOG_ERROR, "Failed to register HeadsetAudioGateway in SDP\n");
+    opbx_log(OPBX_LOG_ERROR, "Failed to register HeadsetAudioGateway in SDP\n");
     return -1;
   }
 
@@ -2814,7 +2814,7 @@ static load_module(void)
   }
 
   if (opbx_channel_register(&blt_tech)) {
-    opbx_log(LOG_ERROR, "Unable to register channel class BLT\n");
+    opbx_log(OPBX_LOG_ERROR, "Unable to register channel class BLT\n");
     return -1;
   }
 
@@ -2824,7 +2824,7 @@ static load_module(void)
 
   opbx_atexit_register(&bluetooth_atexit);
 
-  opbx_log(LOG_NOTICE, "Loaded Bluetooth support\n");
+  opbx_log(OPBX_LOG_NOTICE, "Loaded Bluetooth support\n");
 
   return 0;
 }

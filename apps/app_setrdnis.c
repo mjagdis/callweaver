@@ -65,7 +65,7 @@ static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		opbx_log(LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
+		opbx_log(OPBX_LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 

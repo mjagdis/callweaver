@@ -266,7 +266,7 @@ static void visdn_reload_config(void)
 	struct opbx_config *cfg;
 	cfg = opbx_config_load(VISDN_CONFIG_FILE);
 	if (!cfg) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Unable to load config %s, VISDN disabled\n",
 			VISDN_CONFIG_FILE);
 
@@ -353,7 +353,7 @@ void q931_send_primitive(
 	opbx_mutex_unlock(&visdn.ccb_q931_queue_lock);
 
 	if (write(visdn.ccb_q931_queue_pipe_write, " ", 1) < 0) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot write on ccb_q931_pipe_write\n");
 	}
 }
@@ -389,7 +389,7 @@ void visdn_queue_primitive(
 	opbx_mutex_unlock(&visdn.q931_ccb_queue_lock);
 
 	if (write(visdn.q931_ccb_queue_pipe_write, " ", 1) < 0) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot write on q931_ccb_pipe_write\n");
 	}
 }
@@ -548,7 +548,7 @@ static void visdn_queue_dtmf(
 	int len = strlen(visdn_chan->dtmf_queue);
 
 	if (len >= sizeof(visdn_chan->dtmf_queue) - 1) {
-		opbx_log(LOG_WARNING, "DTMF queue is full, dropping digit\n");
+		opbx_log(OPBX_LOG_WARNING, "DTMF queue is full, dropping digit\n");
 		opbx_mutex_unlock(&visdn_chan->opbx_chan->lock);
 		return;
 	}
@@ -615,14 +615,14 @@ static int visdn_request_call(
 		char buf[20];
 
 		if (strlen(raw_bc) % 2) {
-			opbx_log(LOG_WARNING, "BEARERCAP_RAW is invalid\n");
+			opbx_log(OPBX_LOG_WARNING, "BEARERCAP_RAW is invalid\n");
 			goto hlc_failure;
 		}
 
 		int len = strlen(raw_bc) / 2;
 
 		if (len > sizeof(buf)) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"BEARERCAP_RAW is too long\n");
 			goto bc_failure;
 		}
@@ -631,7 +631,7 @@ static int visdn_request_call(
 		for (i=0; i<len; i++) {
 			if (char_to_hexdigit(raw_bc[i * 2]) < 0 ||
 			    char_to_hexdigit(raw_bc[i * 2 + 1]) < 0) {
-				opbx_log(LOG_WARNING,
+				opbx_log(OPBX_LOG_WARNING,
 					"BEARERCAP_RAW is invalid\n");
 				goto bc_failure;
 			}
@@ -644,7 +644,7 @@ static int visdn_request_call(
 
 		if (!q931_ie_bearer_capability_read_from_buf(&bc->ie,
 					buf, len, NULL, NULL)) {
-			opbx_log(LOG_WARNING, "BEARERCAP_RAW is not valid\n");
+			opbx_log(OPBX_LOG_WARNING, "BEARERCAP_RAW is not valid\n");
 			goto bc_failure;
 		}
 
@@ -700,14 +700,14 @@ bc_failure:;
 		char buf[20];
 
 		if (strlen(raw_hlc) % 2) {
-			opbx_log(LOG_WARNING, "HLC_RAW is invalid\n");
+			opbx_log(OPBX_LOG_WARNING, "HLC_RAW is invalid\n");
 			goto hlc_failure;
 		}
 
 		int len = strlen(raw_hlc) / 2;
 
 		if (len > sizeof(buf)) {
-			opbx_log(LOG_WARNING, "HLC_RAW is too long\n");
+			opbx_log(OPBX_LOG_WARNING, "HLC_RAW is too long\n");
 			goto hlc_failure;
 		}
 
@@ -715,7 +715,7 @@ bc_failure:;
 		for (i=0; i<len; i++) {
 			if (char_to_hexdigit(raw_hlc[i * 2]) < 0 ||
 			    char_to_hexdigit(raw_hlc[i * 2 + 1]) < 0) {
-				opbx_log(LOG_WARNING, "HLC_RAW is invalid\n");
+				opbx_log(OPBX_LOG_WARNING, "HLC_RAW is invalid\n");
 				goto hlc_failure;
 			}
 
@@ -727,7 +727,7 @@ bc_failure:;
 
 		if (!q931_ie_high_layer_compatibility_read_from_buf(&hlc->ie,
 					buf, len, NULL, NULL)) {
-			opbx_log(LOG_WARNING, "HLC_RAW is not valid\n");
+			opbx_log(OPBX_LOG_WARNING, "HLC_RAW is not valid\n");
 			goto hlc_failure;
 		}
 
@@ -757,14 +757,14 @@ hlc_failure:;
 		char buf[20];
 
 		if (strlen(raw_llc) % 2) {
-			opbx_log(LOG_WARNING, "LLC_RAW is invalid\n");
+			opbx_log(OPBX_LOG_WARNING, "LLC_RAW is invalid\n");
 			goto llc_failure;
 		}
 
 		int len = strlen(raw_llc) / 2;
 
 		if (len > sizeof(buf)) {
-			opbx_log(LOG_WARNING, "LLC_RAW is too long\n");
+			opbx_log(OPBX_LOG_WARNING, "LLC_RAW is too long\n");
 			goto llc_failure;
 		}
 
@@ -772,7 +772,7 @@ hlc_failure:;
 		for (i=0; i<len; i++) {
 			if (char_to_hexdigit(raw_llc[i * 2]) < 0 ||
 			    char_to_hexdigit(raw_llc[i * 2 + 1]) < 0) {
-				opbx_log(LOG_WARNING, "LLC_RAW is invalid\n");
+				opbx_log(OPBX_LOG_WARNING, "LLC_RAW is invalid\n");
 				goto llc_failure;
 			}
 
@@ -784,7 +784,7 @@ hlc_failure:;
 
 		if (!q931_ie_low_layer_compatibility_read_from_buf(&llc->ie,
 					buf, len, NULL, NULL)) {
-			opbx_log(LOG_WARNING, "LLC_RAW is not valid\n");
+			opbx_log(OPBX_LOG_WARNING, "LLC_RAW is not valid\n");
 			goto llc_failure;
 		}
 
@@ -798,7 +798,7 @@ llc_failure:;
 	struct q931_call *q931_call;
 	q931_call = q931_call_alloc_out(intf->q931_intf);
 	if (!q931_call) {
-		opbx_log(LOG_WARNING, "Cannot allocate outbound call\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot allocate outbound call\n");
 		err = -1;
 		goto err_call_alloc;
 	}
@@ -836,7 +836,7 @@ llc_failure:;
 
 	if (visdn_chan->sent_digits < strlen(number)) {
 		if (!ic->overlap_sending) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Number too big and overlap sending "
 				"disabled\n");
 			err = -1;
@@ -974,7 +974,7 @@ static int visdn_resume_call(
 	struct q931_call *q931_call;
 	q931_call = q931_call_alloc_out(intf->q931_intf);
 	if (!q931_call) {
-		opbx_log(LOG_WARNING, "Cannot allocate outbound call\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot allocate outbound call\n");
 		err = -1;
 		goto err_call_alloc;
 	}
@@ -1022,7 +1022,7 @@ static int visdn_call(
 
 	if ((opbx_chan->_state != OPBX_STATE_DOWN) &&
 	    (opbx_chan->_state != OPBX_STATE_RESERVED)) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"visdn_call called on %s,"
 			" neither down nor reserved\n",
 			opbx_chan->name);
@@ -1040,7 +1040,7 @@ static int visdn_call(
 
 	const char *intf_name = strsep(&dest_pos, "/");
 	if (!intf_name) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Invalid destination '%s' format (interface/number)\n",
 			dest);
 
@@ -1050,7 +1050,7 @@ static int visdn_call(
 
 	token = strsep(&dest_pos, "/");
 	if (!token) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Invalid destination '%s' format (interface/number)\n",
 			dest);
 
@@ -1073,7 +1073,7 @@ static int visdn_call(
 			strlen(VISDN_HUNTGROUP_PREFIX))) {
 
 		if (strchr(visdn_chan->options, 'R')) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Resume on huntgroup not supported\n");
 			err = -1;
 			goto err_resume_in_huntgroup;
@@ -1086,7 +1086,7 @@ static int visdn_call(
 		struct visdn_huntgroup *hg;
 		hg = visdn_hg_get_by_name(hg_name);
 		if (!hg) {
-			opbx_log(LOG_ERROR, "Cannot find huntgroup '%s'\n",
+			opbx_log(OPBX_LOG_ERROR, "Cannot find huntgroup '%s'\n",
 				hg_name);
 
 			opbx_chan->hangupcause = OPBX_CAUSE_BUSY;
@@ -1113,7 +1113,7 @@ static int visdn_call(
 		intf = visdn_intf_get_by_name(intf_name);
 
 		if (!intf) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Interface %s not found\n",
 				intf_name);
 			err = -1;
@@ -1121,7 +1121,7 @@ static int visdn_call(
 		}
 
 		if (intf->status != VISDN_INTF_STATUS_ONLINE) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"Interface %s is not online\n",
 				intf_name);
 			err = -1;
@@ -1167,7 +1167,7 @@ static int visdn_answer(struct opbx_channel *opbx_chan)
 	opbx_indicate(opbx_chan, -1);
 
 	if (!visdn_chan) {
-		opbx_log(LOG_ERROR, "NO VISDN_CHAN!!\n");
+		opbx_log(OPBX_LOG_ERROR, "NO VISDN_CHAN!!\n");
 		return -1;
 	}
 
@@ -1215,13 +1215,13 @@ static int visdn_bridge(
 
 	memset(dest1, 0, sizeof(dest1));
 	if (readlink(pipeline, dest1, sizeof(dest1) - 1) < 0) {
-		opbx_log(LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
 		return OPBX_BRIDGE_FAILED;
 	}
 
 	char *chanid1 = strrchr(dest1, '/');
 	if (!chanid1 || !strlen(chanid1 + 1)) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Invalid chanid found in symlink %s\n",
 			dest1);
 		return OPBX_BRIDGE_FAILED;
@@ -1236,13 +1236,13 @@ static int visdn_bridge(
 
 	memset(dest2, 0, sizeof(dest2));
 	if (readlink(pipeline, dest2, sizeof(dest2) - 1) < 0) {
-		opbx_log(LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
 		return OPBX_BRIDGE_FAILED;
 	}
 
 	char *chanid2 = strrchr(dest2, '/');
 	if (!chanid2 || !strlen(chanid2 + 1)) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Invalid chanid found in symlink %s\n",
 			dest2);
 		return OPBX_BRIDGE_FAILED;
@@ -1254,7 +1254,7 @@ static int visdn_bridge(
 
 	int fd = open("/sys/visdn_tdm/internal-cxc/connect", O_WRONLY);
 	if (fd < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Cannot open /sys/visdn_tdm/internal-cxc/connect: %s\n",
 			strerror(errno));
 		return OPBX_BRIDGE_FAILED;
@@ -1262,7 +1262,7 @@ static int visdn_bridge(
 
 	if (ioctl(visdn_chan1->sp_fd,
 			VISDN_IOC_DISCONNECT, NULL) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_IOC_DISCONNECT): %s\n",
 			strerror(errno));
 	}
@@ -1272,7 +1272,7 @@ static int visdn_bridge(
 
 	if (ioctl(visdn_chan2->sp_fd,
 			VISDN_IOC_DISCONNECT, NULL) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_IOC_DISCONNECT): %s\n",
 			strerror(errno));
 	}
@@ -1287,7 +1287,7 @@ static int visdn_bridge(
 		chanid2);
 
 	if (write(fd, command, strlen(command)) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Cannot write to /sys/visdn_tdm/internal-cxc/connect: %s\n",
 			strerror(errno));
 
@@ -1307,7 +1307,7 @@ static int visdn_bridge(
 		int to = -1;
 		who = opbx_waitfor_n(cs, 2, &to);
 		if (!who) {
-			opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
+			opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
 			continue;
 		}
 
@@ -1353,7 +1353,7 @@ static int visdn_bridge(
 
 struct opbx_frame *visdn_exception(struct opbx_channel *opbx_chan)
 {
-	opbx_log(LOG_WARNING, "visdn_exception\n");
+	opbx_log(OPBX_LOG_WARNING, "visdn_exception\n");
 
 	return NULL;
 }
@@ -1591,7 +1591,7 @@ static int visdn_fixup(
 	struct visdn_chan *chan = to_visdn_chan(newchan);
 
 	if (chan->opbx_chan != oldchan) {
-		opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n",
+		opbx_log(OPBX_LOG_WARNING, "old channel wasn't %p but was %p\n",
 				oldchan, chan->opbx_chan);
 		return -1;
 	}
@@ -1607,7 +1607,7 @@ static int visdn_setoption(
 	void *data,
 	int datalen)
 {
-	opbx_log(LOG_ERROR, "%s\n", __FUNCTION__);
+	opbx_log(OPBX_LOG_ERROR, "%s\n", __FUNCTION__);
 
 	return -1;
 }
@@ -1616,7 +1616,7 @@ static int visdn_transfer(
 	struct opbx_channel *opbx_chan,
 	const char *dest)
 {
-	opbx_log(LOG_ERROR, "%s\n", __FUNCTION__);
+	opbx_log(OPBX_LOG_ERROR, "%s\n", __FUNCTION__);
 
 	return -1;
 }
@@ -1680,7 +1680,7 @@ static int visdn_send_digit(struct opbx_channel *opbx_chan, char digit)
 
 static int visdn_sendtext(struct opbx_channel *ast, const char *text)
 {
-	opbx_log(LOG_WARNING, "%s\n", __FUNCTION__);
+	opbx_log(OPBX_LOG_WARNING, "%s\n", __FUNCTION__);
 
 	return -1;
 }
@@ -1722,7 +1722,7 @@ static void visdn_disconnect_chan_from_visdn(
 				VISDN_IOC_DISCONNECT,
 				(caddr_t)&vc) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VISDN_IOC_DISCONNECT):"
 				" %s\n",
 				strerror(errno));
@@ -1738,7 +1738,7 @@ static void visdn_disconnect_chan_from_visdn(
 				VISDN_IOC_DISCONNECT,
 				(caddr_t)&vc) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VISDN_IOC_DISCONNECT):"
 				" %s\n",
 				strerror(errno));
@@ -1746,7 +1746,7 @@ static void visdn_disconnect_chan_from_visdn(
 	}
 
 	if (close(visdn_chan->sp_fd) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"close(visdn_chan->sp_fd): %s\n",
 			strerror(errno));
 	}
@@ -1755,7 +1755,7 @@ static void visdn_disconnect_chan_from_visdn(
 
 	if (visdn_chan->ec_fd >= 0) {
 		if (close(visdn_chan->ec_fd) < 0) {
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"close(visdn_chan->ec_fd): %s\n",
 				strerror(errno));
 		}
@@ -1927,7 +1927,7 @@ static struct opbx_frame *visdn_read(struct opbx_channel *opbx_chan)
 	int nread = read(visdn_chan->sp_fd, visdn_chan->buf,
 					sizeof(visdn_chan->buf));
 	if (nread < 0) {
-		opbx_log(LOG_WARNING, "read error: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "read error: %s\n", strerror(errno));
 		return &f;
 	}
 
@@ -1966,7 +1966,7 @@ static int visdn_write(
 	struct visdn_chan *visdn_chan = to_visdn_chan(opbx_chan);
 
 	if (frame->frametype != OPBX_FRAME_VOICE) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Don't know what to do with frame type '%d'\n",
 			frame->frametype);
 
@@ -1974,14 +1974,14 @@ static int visdn_write(
 	}
 
 	if (frame->subclass != OPBX_FORMAT_ALAW) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Cannot handle frames in %d format\n",
 			frame->subclass);
 		return 0;
 	}
 
 	if (visdn_chan->sp_fd < 0) {
-//		opbx_log(LOG_WARNING,
+//		opbx_log(OPBX_LOG_WARNING,
 //			"Attempting to write on unconnected channel\n");
 		return 0;
 	}
@@ -2017,13 +2017,13 @@ static struct opbx_channel *visdn_new(
 	struct opbx_channel *opbx_chan;
 	opbx_chan = opbx_channel_alloc(1);
 	if (!opbx_chan) {
-		opbx_log(LOG_WARNING, "Unable to allocate channel\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel\n");
 		goto err_channel_alloc;
 	}
 
 	opbx_chan->fds[0] = open("/dev/visdn/timer", O_RDONLY);
 	if (opbx_chan->fds[0] < 0) {
-		opbx_log(LOG_ERROR, "Unable to open timer: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to open timer: %s\n",
 			strerror(errno));
 		goto err_open_timer;
 	}
@@ -2071,7 +2071,7 @@ static struct opbx_channel *visdn_request(
 	struct visdn_chan *visdn_chan;
 
 	if (!(format & OPBX_FORMAT_ALAW)) {
-		opbx_log(LOG_NOTICE,
+		opbx_log(OPBX_LOG_NOTICE,
 			"Asked to get a channel of unsupported format '%d'\n",
 			format);
 		goto err_unsupported_format;
@@ -2079,7 +2079,7 @@ static struct opbx_channel *visdn_request(
 
 	visdn_chan = visdn_alloc();
 	if (!visdn_chan) {
-		opbx_log(LOG_ERROR, "Cannot allocate visdn_chan\n");
+		opbx_log(OPBX_LOG_ERROR, "Cannot allocate visdn_chan\n");
 		goto err_visdn_alloc;
 	}
 
@@ -2155,7 +2155,7 @@ static void visdn_netlink_receive()
 	skmsg.msg_flags = 0;
 
 	if(recvmsg(visdn.netlink_socket, &skmsg, 0) < 0) {
-		opbx_log(LOG_WARNING, "recvmsg: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "recvmsg: %s\n", strerror(errno));
 		return;
 	}
 
@@ -2259,7 +2259,7 @@ static int visdn_mgmt_receive(struct visdn_intf *visdn_intf)
 
 	len = recvmsg(visdn_intf->mgmt_fd, &skmsg, 0);
 	if(len < 0) {
-		opbx_log(LOG_ERROR, "recvmsg error: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "recvmsg error: %s\n",
 			strerror(errno));
 
 		return len;
@@ -2290,7 +2290,7 @@ static int visdn_mgmt_receive(struct visdn_intf *visdn_intf)
 	break;
 
 	default:
-		opbx_log(LOG_NOTICE, "Unexpected primitive %d\n",
+		opbx_log(OPBX_LOG_NOTICE, "Unexpected primitive %d\n",
 			prim.prim.primitive_type);
 		return -EBADMSG;
 	}
@@ -2322,7 +2322,7 @@ static int visdn_q931_thread_do_poll()
 		if (errno == EINTR)
 			return TRUE;
 
-		opbx_log(LOG_WARNING, "poll error: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "poll error: %s\n", strerror(errno));
 		exit(1);
 	}
 
@@ -2383,7 +2383,7 @@ static int visdn_q931_thread_do_poll()
 
 				if (err < 0) {
 
-					opbx_log(LOG_ERROR,
+					opbx_log(OPBX_LOG_ERROR,
 						"Interface '%s' has been put "
 						"in FAILED mode\n",
 						visdn.poll_infos[i].
@@ -2427,7 +2427,7 @@ static int visdn_q931_thread_do_poll()
 				err = q931_receive(visdn.poll_infos[i].dlc);
 				if (err < 0 && err != -EBADMSG) {
 
-					opbx_log(LOG_ERROR,
+					opbx_log(OPBX_LOG_ERROR,
 						"Interface '%s' has been put "
 						"in FAILED mode\n",
 						visdn.poll_infos[i].intf->name);
@@ -2465,7 +2465,7 @@ static int visdn_q931_thread_do_poll()
 			}
 		}
 
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"There are still %d active calls, waiting...\n",
 			active_calls_cnt);
 	}
@@ -2558,7 +2558,7 @@ static void visdn_q931_connect_indication(
 		if (ioctl(visdn_chan->ec_fd, VEC_START,
 			(caddr_t)&visdn_chan->ec_ne_channel_id) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VEC_START): %s\n",
 				strerror(errno));
 		}
@@ -2875,7 +2875,7 @@ static void visdn_q931_resume_indication(
 	enum q931_ie_cause_value cause;
 
 	if (callpvt_to_opbxchan(q931_call)) {
-		opbx_log(LOG_WARNING, "Unexpexted opbx_chan\n");
+		opbx_log(OPBX_LOG_WARNING, "Unexpexted opbx_chan\n");
 		cause = Q931_IE_C_CV_RESOURCES_UNAVAILABLE;
 		goto err_ast_chan;
 	}
@@ -2907,7 +2907,7 @@ static void visdn_q931_resume_indication(
 	}
 
 	if (!found) {
-		opbx_log(LOG_NOTICE, "Unable to find suspended call\n");
+		opbx_log(OPBX_LOG_NOTICE, "Unable to find suspended call\n");
 
 		if (list_empty(&intf->suspended_calls))
 			cause = Q931_IE_C_CV_SUSPENDED_CALL_EXISTS_BUT_NOT_THIS;
@@ -3035,7 +3035,7 @@ static void visdn_q931_setup_confirm(
 		if (ioctl(visdn_chan->ec_fd, VEC_START,
 			(caddr_t)&visdn_chan->ec_ne_channel_id) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VEC_START): %s\n",
 				strerror(errno));
 		}
@@ -3213,7 +3213,7 @@ static void visdn_q931_setup_indication(
 	struct visdn_chan *visdn_chan;
 	visdn_chan = visdn_alloc();
 	if (!visdn_chan) {
-		opbx_log(LOG_ERROR, "Cannot allocate visdn_chan\n");
+		opbx_log(OPBX_LOG_ERROR, "Cannot allocate visdn_chan\n");
 		goto err_visdn_alloc;
 	}
 
@@ -3510,7 +3510,7 @@ no_cgpn:;
 			opbx_mutex_lock(&opbx_chan->lock);
 
 			if (opbx_pbx_start(opbx_chan)) {
-				opbx_log(LOG_ERROR,
+				opbx_log(OPBX_LOG_ERROR,
 					"Unable to start PBX on %s\n",
 					opbx_chan->name);
 				opbx_mutex_unlock(&opbx_chan->lock);
@@ -3545,7 +3545,7 @@ no_cgpn:;
 				opbx_mutex_unlock(&opbx_chan->lock);
 			}
 		} else {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"No extension '%s' in context '%s',"
 				" rejecting call\n",
 				called_number,
@@ -3575,7 +3575,7 @@ no_cgpn:;
 		opbx_mutex_lock(&opbx_chan->lock);
 
 		if (opbx_pbx_start(opbx_chan)) {
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"Unable to start PBX on %s\n",
 				opbx_chan->name);
 			opbx_mutex_unlock(&opbx_chan->lock);
@@ -3683,7 +3683,7 @@ static void visdn_q931_suspend_indication(
 	enum q931_ie_cause_value cause;
 
 	if (!opbx_chan) {
-		opbx_log(LOG_WARNING, "Unexpexted opbx_chan\n");
+		opbx_log(OPBX_LOG_WARNING, "Unexpexted opbx_chan\n");
 		cause = Q931_IE_C_CV_RESOURCES_UNAVAILABLE;
 		goto err_ast_chan;
 	}
@@ -3813,7 +3813,7 @@ static int visdn_connect_channels(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_CONNECT,
 						(caddr_t) &vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_CONNECT, sp, isdn): %s\n",
 			strerror(errno));
 		goto err_ioctl_connect;
@@ -3827,7 +3827,7 @@ static int visdn_connect_channels(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_OPEN,
 						(caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_OPEN, isdn): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable;
@@ -3835,7 +3835,7 @@ static int visdn_connect_channels(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_START,
 						(caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_START, isdn): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable;
@@ -3861,7 +3861,7 @@ static int visdn_connect_channels_with_ec(
 
 	visdn_chan->ec_fd = open("/dev/visdn/ec-control", O_RDWR);
 	if (visdn_chan->ec_fd < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Cannot open ec-control: %s\n",
 			strerror(errno));
 		goto err_open;
@@ -3870,7 +3870,7 @@ static int visdn_connect_channels_with_ec(
 /*	if (ioctl(visdn_chan->ec_fd, VEC_SET_TAPS,
 		intf->echocancel_taps) < 0) {
 
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VEC_SET_TAPS): %s\n",
 			strerror(errno));
 		goto err_ioctl;
@@ -3879,7 +3879,7 @@ static int visdn_connect_channels_with_ec(
 	if (ioctl(visdn_chan->ec_fd, VEC_GET_NEAREND_CHANID,
 		(caddr_t)&visdn_chan->ec_ne_channel_id) < 0) {
 
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VEC_GET_NEAREND_ID): %s\n",
 			strerror(errno));
 		goto err_ioctl;
@@ -3888,7 +3888,7 @@ static int visdn_connect_channels_with_ec(
 	if (ioctl(visdn_chan->ec_fd, VEC_GET_FAREND_CHANID,
 		(caddr_t)&visdn_chan->ec_fe_channel_id) < 0) {
 
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VEC_GET_FAREND_ID): %s\n",
 			strerror(errno));
 		goto err_ioctl;
@@ -3905,7 +3905,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_CONNECT,
 	    (caddr_t) &vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_CONNECT, sp, ec_fe): %s\n",
 			strerror(errno));
 		goto err_ioctl_connect_sp_ec;
@@ -3919,7 +3919,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_CONNECT,
 	    (caddr_t) &vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_CONNECT, ec_ne, bearer): %s\n",
 			strerror(errno));
 		goto err_ioctl_connect_ec_b;
@@ -3932,7 +3932,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_OPEN,
 						 (caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_OPEN, sp): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable_sp;
@@ -3943,7 +3943,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_OPEN,
 						 (caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_OPEN, bearer): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable_b;
@@ -3956,7 +3956,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_START,
 						 (caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_START, sp): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable_sp;
@@ -3967,7 +3967,7 @@ static int visdn_connect_channels_with_ec(
 
 	if (ioctl(visdn.router_control_fd, VISDN_IOC_PIPELINE_START,
 						 (caddr_t)&vc) < 0) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"ioctl(VISDN_PIPELINE_START, bearer): %s\n",
 			strerror(errno));
 		goto err_ioctl_enable_b;
@@ -3980,7 +3980,7 @@ static int visdn_connect_channels_with_ec(
 		if (ioctl(visdn_chan->ec_fd, VEC_START,
 			(caddr_t)&visdn_chan->ec_ne_channel_id) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VEC_START): %s\n",
 				strerror(errno));
 		}
@@ -4026,13 +4026,13 @@ static void visdn_q931_connect_channel(
 
 	memset(dest, 0, sizeof(dest));
 	if (readlink(pipeline, dest, sizeof(dest) - 1) < 0) {
-		opbx_log(LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "readlink(%s): %s\n", pipeline, strerror(errno));
 		goto err_readlink;
 	}
 
 	char *chanid = strrchr(dest, '/');
 	if (!chanid || !strlen(chanid + 1)) {
-		opbx_log(LOG_ERROR,
+		opbx_log(OPBX_LOG_ERROR,
 			"Invalid chanid found in symlink %s\n",
 			dest);
 		goto err_invalid_chanid;
@@ -4043,7 +4043,7 @@ static void visdn_q931_connect_channel(
 	if (visdn_chan->handle_stream) {
 		visdn_chan->sp_fd = open("/dev/visdn/streamport", O_RDWR);
 		if (visdn_chan->sp_fd < 0) {
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"Cannot open streamport: %s\n",
 				strerror(errno));
 			goto err_open;
@@ -4052,7 +4052,7 @@ static void visdn_q931_connect_channel(
 		if (ioctl(visdn_chan->sp_fd, VISDN_SP_GET_CHANID,
 			(caddr_t)&visdn_chan->sp_channel_id) < 0) {
 
-			opbx_log(LOG_ERROR,
+			opbx_log(OPBX_LOG_ERROR,
 				"ioctl(VISDN_IOC_GET_CHANID): %s\n",
 				strerror(errno));
 			goto err_ioctl;
@@ -4354,7 +4354,7 @@ static void visdn_q931_ccb_receive()
 		break;
 
 		default:
-			opbx_log(LOG_WARNING, "Unexpected primitive %d\n",
+			opbx_log(OPBX_LOG_WARNING, "Unexpected primitive %d\n",
 				msg->primitive);
 		}
 
@@ -4882,7 +4882,7 @@ static int load_module()
 
 	int filedes[2];
 	if (pipe(filedes) < 0) {
-		opbx_log(LOG_ERROR, "Unable to create pipe: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n",
 			strerror(errno));
 		goto err_pipe_ccb_q931;
 	}
@@ -4891,7 +4891,7 @@ static int load_module()
 	visdn.ccb_q931_queue_pipe_write = filedes[1];
 
 	if (pipe(filedes) < 0) {
-		opbx_log(LOG_ERROR, "Unable to create pipe: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n",
 			strerror(errno));
 		goto err_pipe_q931_ccb;
 	}
@@ -4912,7 +4912,7 @@ static int load_module()
 
 	visdn.netlink_socket = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if(visdn.netlink_socket < 0) {
-		opbx_log(LOG_ERROR, "Unable to open netlink socket: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to open netlink socket: %s\n",
 			strerror(errno));
 		goto err_socket_netlink;
 	}
@@ -4925,7 +4925,7 @@ static int load_module()
 	if (bind(visdn.netlink_socket,
 			(struct sockaddr *)&snl,
 			sizeof(snl)) < 0) {
-		opbx_log(LOG_ERROR, "Unable to bind netlink socket: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to bind netlink socket: %s\n",
 			strerror(errno));
 		goto err_bind_netlink;
 	}
@@ -4936,14 +4936,14 @@ static int load_module()
 	struct ifaddrs *ifaddr;
 
 	if (getifaddrs(&ifaddrs) < 0) {
-		opbx_log(LOG_ERROR, "getifaddr: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "getifaddr: %s\n", strerror(errno));
 		goto err_getifaddrs;
 	}
 
 	int fd;
 	fd = socket(PF_LAPD, SOCK_SEQPACKET, 0);
 	if (fd < 0) {
-		opbx_log(LOG_ERROR, "socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "socket: %s\n", strerror(errno));
 		goto err_socket_lapd;
 	}
 
@@ -4957,7 +4957,7 @@ static int load_module()
 			sizeof(ifreq.ifr_name));
 
 		if (ioctl(fd, SIOCGIFHWADDR, &ifreq) < 0) {
-			opbx_log(LOG_ERROR, "ioctl (%s): %s\n",
+			opbx_log(OPBX_LOG_ERROR, "ioctl (%s): %s\n",
 				ifaddr->ifa_name, strerror(errno));
 			continue;
 		}
@@ -4977,7 +4977,7 @@ static int load_module()
 
 	visdn.router_control_fd = open("/dev/visdn/router-control", O_RDWR);
 	if (visdn.router_control_fd < 0) {
-		opbx_log(LOG_ERROR, "Unable to open timer: %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to open timer: %s\n",
 			strerror(errno));
 		goto err_open_router_control;
 	}
@@ -4988,12 +4988,12 @@ static int load_module()
 
 	if (opbx_pthread_create(&visdn_q931_thread, &attr,
 					visdn_q931_thread_main, NULL) < 0) {
-		opbx_log(LOG_ERROR, "Unable to start q931 thread.\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to start q931 thread.\n");
 		goto err_thread_create;
 	}
 
 	if (opbx_channel_register(&visdn_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n",
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n",
 			VISDN_CHAN_TYPE);
 		goto err_channel_register;
 	}

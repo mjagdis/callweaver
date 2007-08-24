@@ -2355,7 +2355,7 @@ static void *sound_thread(void *unused)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (res < 1) {
-			opbx_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "select failed: %s\n", strerror(errno));
 			continue;
 		}
 #ifdef ALSA_MONITOR
@@ -2372,14 +2372,14 @@ static void *sound_thread(void *unused)
 			r = snd_pcm_readi(alsa.icard, buf, FRAME_SIZE);
 			if (r == -EPIPE) {
 #if DEBUG
-				opbx_log(LOG_ERROR, "XRUN read\n");
+				opbx_log(OPBX_LOG_ERROR, "XRUN read\n");
 #endif
 				snd_pcm_prepare(alsa.icard);
 			} else if (r == -ESTRPIPE) {
-				opbx_log(LOG_ERROR, "-ESTRPIPE\n");
+				opbx_log(OPBX_LOG_ERROR, "-ESTRPIPE\n");
 				snd_pcm_prepare(alsa.icard);
 			} else if (r < 0) {
-				opbx_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
+				opbx_log(OPBX_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 			} else
 				alsa_monitor_read((char *)buf, r * 2);
 		}		
@@ -2392,7 +2392,7 @@ static void *sound_thread(void *unused)
 		}
 		if (FD_ISSET(writedev, &wfds))
 			if (send_sound())
-				opbx_log(LOG_WARNING, "Failed to write sound\n");
+				opbx_log(OPBX_LOG_WARNING, "Failed to write sound\n");
 	}
 	/* Never reached */
 	return NULL;
@@ -2419,10 +2419,10 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_open(&handle, dev, stream, O_NONBLOCK);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
 		return NULL;
 	} else {
-		opbx_log(LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+		opbx_log(OPBX_LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
 	}
 
 	snd_pcm_hw_params_alloca(&hwparams);
@@ -2430,57 +2430,57 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "set_access failed: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "set_access failed: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_format(handle, hwparams, format);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "set_format failed: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "set_format failed: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_channels(handle, hwparams, 1);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
 	}
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
 	if (rate != DESIRED_RATE) {
-		opbx_log(LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
+		opbx_log(OPBX_LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
 	}
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
 	} else {
-		opbx_log(LOG_DEBUG, "Period size is %d\n", err);
+		opbx_log(OPBX_LOG_DEBUG, "Period size is %d\n", err);
 	}
 
 	buffer_size = 4096 * 2; /* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0) {
-		opbx_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
+		opbx_log(OPBX_LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
 	} else {
-		opbx_log(LOG_DEBUG, "Buffer size is set to %d frames\n", err);
+		opbx_log(OPBX_LOG_DEBUG, "Buffer size is set to %d frames\n", err);
 	}
 
 #if 0
 	direction = 0;
 	err = snd_pcm_hw_params_set_periods_min(handle, hwparams, &per_min, &direction);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_periods_max(handle, hwparams, &per_max, 0);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "periods_max: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "periods_max: %s\n", snd_strerror(err));
 	}
 #endif
 
 	err = snd_pcm_hw_params(handle, hwparams);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
 	}
 
 	snd_pcm_sw_params_alloca(&swparams);
@@ -2495,7 +2495,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "start threshold: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "start threshold: %s\n", snd_strerror(err));
 	}
 #endif
 
@@ -2507,38 +2507,38 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 	err = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "stop threshold: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "stop threshold: %s\n", snd_strerror(err));
 	}
 #endif
 #if 0
 	err = snd_pcm_sw_params_set_xfer_align(handle, swparams, PERIOD_FRAMES);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "Unable to set xfer alignment: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "Unable to set xfer alignment: %s\n", snd_strerror(err));
 	}
 #endif
 
 #if 0
 	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, silencethreshold);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
 	}
 #endif
 	err = snd_pcm_sw_params(handle, swparams);
 	if (err < 0) {
-		opbx_log(LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_poll_descriptors_count(handle);
 	if (err <= 0) {
-		opbx_log(LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
+		opbx_log(OPBX_LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
 	}
 
 	if (err != 1) {
-		opbx_log(LOG_DEBUG, "Can't handle more than one device\n");
+		opbx_log(OPBX_LOG_DEBUG, "Can't handle more than one device\n");
 	}
 
 	snd_pcm_poll_descriptors(handle, &pfd, err);
-	opbx_log(LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
+	opbx_log(OPBX_LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
 
 	if (stream == SND_PCM_STREAM_CAPTURE)
 		readdev = pfd.fd;
@@ -2554,7 +2554,7 @@ static int soundcard_init(void)
 	alsa.ocard = alsa_card_init(outdevname, SND_PCM_STREAM_PLAYBACK);
 
 	if (!alsa.icard || !alsa.ocard) {
-		opbx_log(LOG_ERROR, "Problem opening alsa I/O devices\n");
+		opbx_log(OPBX_LOG_ERROR, "Problem opening alsa I/O devices\n");
 		return -1;
 	}
 
@@ -2687,7 +2687,7 @@ static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
 
 	/* We have to digest the frame in 160-byte portions */
 	if (f->datalen > sizeof(sizbuf) - sizpos) {
-		opbx_log(LOG_WARNING, "Frame too large\n");
+		opbx_log(OPBX_LOG_WARNING, "Frame too large\n");
 		res = -1;
 	} else {
 		memcpy(sizbuf + sizpos, f->data, f->datalen);
@@ -2703,22 +2703,22 @@ static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
 		res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
 		if (res == -EPIPE) {
 #if DEBUG
-			opbx_log(LOG_DEBUG, "XRUN write\n");
+			opbx_log(OPBX_LOG_DEBUG, "XRUN write\n");
 #endif
 			snd_pcm_prepare(alsa.ocard);
 			res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
 			if (res != len/2) {
-				opbx_log(LOG_ERROR, "Write error: %s\n", snd_strerror(res));
+				opbx_log(OPBX_LOG_ERROR, "Write error: %s\n", snd_strerror(res));
 				res = -1;
 			} else if (res < 0) {
-				opbx_log(LOG_ERROR, "Write error %s\n", snd_strerror(res));
+				opbx_log(OPBX_LOG_ERROR, "Write error %s\n", snd_strerror(res));
 				res = -1;
 			}
 		} else {
 			if (res == -ESTRPIPE) {
-				opbx_log(LOG_ERROR, "You've got some big problems\n");
+				opbx_log(OPBX_LOG_ERROR, "You've got some big problems\n");
 			} else if (res < 0)
-				opbx_log(LOG_NOTICE, "Error %d on write\n", res);
+				opbx_log(OPBX_LOG_NOTICE, "Error %d on write\n", res);
 		}
 	}
 	opbx_mutex_unlock(&alsalock);
@@ -2754,14 +2754,14 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 	r = snd_pcm_readi(alsa.icard, buf + readpos, left);
 	if (r == -EPIPE) {
 #if DEBUG
-		opbx_log(LOG_ERROR, "XRUN read\n");
+		opbx_log(OPBX_LOG_ERROR, "XRUN read\n");
 #endif
 		snd_pcm_prepare(alsa.icard);
 	} else if (r == -ESTRPIPE) {
-		opbx_log(LOG_ERROR, "-ESTRPIPE\n");
+		opbx_log(OPBX_LOG_ERROR, "-ESTRPIPE\n");
 		snd_pcm_prepare(alsa.icard);
 	} else if (r < 0) {
-		opbx_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
+		opbx_log(OPBX_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 	} else if (r >= 0) {
 		off -= r;
 	}
@@ -2822,7 +2822,7 @@ static int alsa_indicate(struct opbx_channel *chan, int cond)
 		res = -1;
 		break;
 	default:
-		opbx_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
 		res = -1;
 	}
 	if (res > -1) {
@@ -2858,7 +2858,7 @@ static struct opbx_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		opbx_mutex_unlock(&usecnt_lock);
 		if (state != OPBX_STATE_DOWN) {
 			if (opbx_pbx_start(tmp)) {
-				opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				opbx_hangup(tmp);
 				tmp = NULL;
 			}
@@ -2873,17 +2873,17 @@ static struct opbx_channel *alsa_request(const char *type, int format, void *dat
 	struct opbx_channel *tmp=NULL;
 	format &= OPBX_FORMAT_SLINEAR;
 	if (!format) {
-		opbx_log(LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
+		opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
 		return NULL;
 	}
 	opbx_mutex_lock(&alsalock);
 	if (alsa.owner) {
-		opbx_log(LOG_NOTICE, "Already have a call on the ALSA channel\n");
+		opbx_log(OPBX_LOG_NOTICE, "Already have a call on the ALSA channel\n");
 		*cause = OPBX_CAUSE_BUSY;
 	} else {
 		tmp= alsa_new(&alsa, OPBX_STATE_DOWN);
 		if (!tmp) {
-			opbx_log(LOG_WARNING, "Unable to create new ALSA channel\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create new ALSA channel\n");
 		}
 	}
 	opbx_mutex_unlock(&alsalock);
@@ -3153,7 +3153,7 @@ static int load_module(void)
 	}
 	res = pipe(sndcmd);
 	if (res) {
-		opbx_log(LOG_ERROR, "Unable to create pipe\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to create pipe\n");
 		return -1;
 	}
 	res = soundcard_init();
@@ -3167,14 +3167,14 @@ static int load_module(void)
 
 	res = opbx_channel_register(&alsa_tech);
 	if (res < 0) {
-		opbx_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class '%s'\n", type);
 		return -1;
 	}
 	opbx_cli_register_multiple(myclis, arraysize(myclis));
 	opbx_pthread_create(&sthread, NULL, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
-		opbx_log(LOG_ERROR, "Problem starting Monitoring\n");
+		opbx_log(OPBX_LOG_ERROR, "Problem starting Monitoring\n");
 	}
 #endif	 
 	return 0;

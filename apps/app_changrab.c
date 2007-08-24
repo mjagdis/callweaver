@@ -80,7 +80,7 @@ static int changrab_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	if ((oldchan = my_opbx_get_channel_by_name_locked(argv[0]))) {
 		opbx_mutex_unlock(&oldchan->lock);
 	} else {
-		opbx_log(LOG_WARNING, "No Such Channel: %s\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n", argv[0]);
 		return -1;
 	}
 	
@@ -234,7 +234,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1);
 
 	if(!xferchan_1) {
-		opbx_log(LOG_WARNING, "No Such Channel: %s\n",chan_name_1);
+		opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n",chan_name_1);
 		return -1;
 	} 
 
@@ -250,7 +250,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		struct opbx_channel *newchan_1, *newchan_2;
 		
 		if (!(newchan_1 = opbx_channel_alloc(0))) {
-			opbx_log(LOG_WARNING, "Memory Error!\n");
+			opbx_log(OPBX_LOG_WARNING, "Memory Error!\n");
 			opbx_hangup(newchan_1);
 			return -1;
 		} else {
@@ -267,7 +267,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		}
 
 		if(!(xferchan_2 = my_opbx_get_channel_by_name_locked(chan_name_2))) {
-			opbx_log(LOG_WARNING, "No Such Channel: %s\n",chan_name_2);
+			opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n",chan_name_2);
 			opbx_hangup(newchan_1);
 			return -1;
 		}
@@ -281,7 +281,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		}
 
 		if(!(newchan_2 = opbx_channel_alloc(0))) {
-			opbx_log(LOG_WARNING, "Memory Error!\n");
+			opbx_log(OPBX_LOG_WARNING, "Memory Error!\n");
 			opbx_hangup(newchan_1);
 			return -1;
 		} else {
@@ -453,7 +453,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 	 * free *word when you want to return from this function ...
 	 */
 	if (fix_complete_args(line, &word, &pos)) {
-		opbx_log(LOG_ERROR, "Out of free memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
 #endif
@@ -488,7 +488,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 #endif
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			free(context); free(exten);
 			return NULL;
 		}
@@ -600,7 +600,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 		free(dupline);
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 #ifdef BROKEN_READLINE
 			free(word);
 #endif

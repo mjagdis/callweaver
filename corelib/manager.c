@@ -311,7 +311,7 @@ static void destroy_session(struct mansession *s)
 	}
     else
 	{
-    	opbx_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
+    	opbx_log(OPBX_LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	}
     opbx_mutex_unlock(&sessionlock);
 }
@@ -549,7 +549,7 @@ static int authenticate(struct mansession *s, struct message *m)
 						int val = atoi(v->value);
 
 						if (val < 100)
-							opbx_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+							opbx_log(OPBX_LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
 						else
 							s->writetimeout = val;
 					}
@@ -558,7 +558,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				}
 				if (ha && !opbx_apply_ha(ha, &(s->sin)))
                 {
-					opbx_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					opbx_log(OPBX_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 					opbx_free_ha(ha);
 					opbx_config_destroy(cfg);
 					return -1;
@@ -585,7 +585,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				}
                 else
                 {
-					opbx_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					opbx_log(OPBX_LOG_NOTICE, "%s failed to authenticate as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 					opbx_config_destroy(cfg);
 					return -1;
 				}	
@@ -603,7 +603,7 @@ static int authenticate(struct mansession *s, struct message *m)
 			set_eventmask(s, events);
 		return 0;
 	}
-	opbx_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+	opbx_log(OPBX_LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 	opbx_config_destroy(cfg);
 	return -1;
 }
@@ -1314,7 +1314,7 @@ static int process_message(struct mansession *s, struct message *m)
 	char iabuf[INET_ADDRSTRLEN];
 
 	opbx_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	opbx_log(LOG_DEBUG, "Manager received command '%s'\n", action);
+	opbx_log(OPBX_LOG_DEBUG, "Manager received command '%s'\n", action);
 
 	if (opbx_strlen_zero(action))
     {
@@ -1363,7 +1363,7 @@ static int process_message(struct mansession *s, struct message *m)
 					if (displayconnects)
 						opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				}
-				opbx_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				opbx_log(OPBX_LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		}
@@ -1445,7 +1445,7 @@ static int get_input(struct mansession *s, char *output)
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1)
     {
-		opbx_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
+		opbx_log(OPBX_LOG_WARNING, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
@@ -1461,7 +1461,7 @@ static int get_input(struct mansession *s, char *output)
 					return -1;
 				continue;
 			}
-			opbx_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	 		return -1;
 		}
         else if (res > 0)
@@ -1522,7 +1522,7 @@ static void *session_do(void *data)
 			if (displayconnects) 
 				opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
 		}
-		opbx_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		opbx_log(OPBX_LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	}
     else
     {
@@ -1531,7 +1531,7 @@ static void *session_do(void *data)
 			if (displayconnects)
 				opbx_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
-		opbx_log(LOG_EVENT, "Failed attempt from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		opbx_log(OPBX_LOG_EVENT, "Failed attempt from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	}
 	destroy_session(s);
 	return NULL;
@@ -1557,18 +1557,18 @@ static void *accept_thread(void *ignore)
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0)
         {
-			opbx_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
 		p = getprotobyname("tcp");
 		if (p)
         {
 			if (setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg)) < 0)
-				opbx_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 		}
 		if ((s = malloc(sizeof(struct mansession))) == NULL)
 		{
-			opbx_log(LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
 			continue;
 		} 
 		memset(s, 0, sizeof(struct mansession));
@@ -1655,7 +1655,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 		}
         else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0)
         {
-			opbx_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+			opbx_log(OPBX_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);
 		}
@@ -1725,7 +1725,7 @@ static int opbx_manager_register_struct(struct manager_action *act)
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0)
         {
-			opbx_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
+			opbx_log(OPBX_LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
 			opbx_mutex_unlock(&actionlock);
 			return -1;
 		}
@@ -1769,7 +1769,7 @@ int opbx_manager_register2(const char *action, int auth, int (*func)(struct mans
 
 	if ((cur = malloc(sizeof(struct manager_action))) == NULL)
     {
-		opbx_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
+		opbx_log(OPBX_LOG_WARNING, "Manager: out of memory trying to register action\n");
 		opbx_mutex_unlock(&actionlock);
 		return -1;
 	}
@@ -1825,7 +1825,7 @@ int init_manager(void)
 	cfg = opbx_config_load("manager.conf");
 	if (!cfg)
     {
-		opbx_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
+		opbx_log(OPBX_LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
 	}
 	memset(&ba, 0, sizeof(ba));
@@ -1841,7 +1841,7 @@ int init_manager(void)
     {
 		if (sscanf(val, "%d", &portno) != 1)
         {
-			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
+			opbx_log(OPBX_LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
 	}
@@ -1849,10 +1849,10 @@ int init_manager(void)
     {
 		if (sscanf(val, "%d", &portno) != 1)
         {
-			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
+			opbx_log(OPBX_LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
-		opbx_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
+		opbx_log(OPBX_LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
 	/* Parsing the displayconnects */
 	if ((val = opbx_variable_retrieve(cfg, "general", "displayconnects")))
@@ -1866,7 +1866,7 @@ int init_manager(void)
 	if ((val = opbx_variable_retrieve(cfg, "general", "bindaddr")))
     {
 		if (!inet_aton(val, &ba.sin_addr)) { 
-			opbx_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
+			opbx_log(OPBX_LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
@@ -1878,7 +1878,7 @@ int init_manager(void)
 		close(asock);
 		asock = -1;
 #else
-		opbx_log(LOG_WARNING, "Unable to change management port / enabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to change management port / enabled\n");
 #endif
 	}
 	opbx_config_destroy(cfg);
@@ -1890,20 +1890,20 @@ int init_manager(void)
     {
 		if ((asock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         {
-			opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 			return -1;
 		}
 		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 		if (bind(asock, (struct sockaddr *) &ba, sizeof(ba)))
         {
-			opbx_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
 			return -1;
 		}
 		if (listen(asock, 2))
         {
-			opbx_log(LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
 			return -1;

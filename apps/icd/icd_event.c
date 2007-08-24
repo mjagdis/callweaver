@@ -174,7 +174,7 @@ icd_event_factory *create_icd_event_factory(char *name)
 
     ICD_MALLOC(factory, sizeof(icd_event_factory));
     if (factory == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Event Factory\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Event Factory\n");
         return NULL;
     }
     factory->allocated = 1;
@@ -274,7 +274,7 @@ icd_event *icd_event_factory__make(icd_event_factory * that, void *src, char *sr
 
     ICD_MALLOC(event, sizeof(icd_event));
     if (event == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Event\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Event\n");
         return NULL;
     }
     event->allocated = 1;

@@ -112,7 +112,7 @@ static struct opbx_filestream *gsm_rewrite(FILE *f, const char *comment)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }
@@ -135,7 +135,7 @@ static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)
     if ((res = fread(s->gsm, 1, 33, s->f)) != 33)
     {
         if (res)
-            opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     *whennext = 160;
@@ -149,12 +149,12 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     
     if (f->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_GSM)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
         return -1;
     }
     if (!(f->datalen % 65))
@@ -167,7 +167,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
             conv65(f->data + len, gsm);
             if ((res = fwrite(gsm, 1, 66, fs->f)) != 66)
             {
-                opbx_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
+                opbx_log(OPBX_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
                 return -1;
             }
             len += 65;
@@ -177,12 +177,12 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     {
         if (f->datalen % 33)
         {
-            opbx_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
+            opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
             return -1;
         }
         if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
         {
-            opbx_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
             return -1;
         }
     }

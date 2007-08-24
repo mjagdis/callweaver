@@ -83,7 +83,7 @@ static int settransfercapability_exec(struct opbx_channel *chan, int argc, char 
 		}
 	}
 	if (transfercapability < 0) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", argv[0]);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}

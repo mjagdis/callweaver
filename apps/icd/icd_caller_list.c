@@ -89,7 +89,7 @@ icd_caller_list *create_icd_caller_list(char *name, icd_config * data)
     assert(data != NULL);
     ICD_MALLOC(list, sizeof(icd_caller_list));
     if (list == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Caller List\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Caller List\n");
         return NULL;
     }
     list->allocated = 1;
@@ -124,7 +124,7 @@ icd_status destroy_icd_caller_list(icd_caller_list ** listp)
     that = (icd_list *) (*listp);
     vetoed = icd_event__notify(ICD_EVENT_DESTROY, NULL, that->dstry_fn, that->dstry_fn_extra);
     if (vetoed == ICD_EVETO) {
-        opbx_log(LOG_NOTICE, "Destruction of ICD Caller List %s has been vetoed\n",
+        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Caller List %s has been vetoed\n",
             icd_caller_list__get_name(*listp));
         return ICD_EVETO;
     }

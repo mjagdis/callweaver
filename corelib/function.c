@@ -91,7 +91,7 @@ struct opbx_registry func_registry = {
  */
 int opbx_function_syntax(const char *syntax)
 {
-	opbx_log(LOG_ERROR, "Syntax: %s\n", syntax);
+	opbx_log(OPBX_LOG_ERROR, "Syntax: %s\n", syntax);
 	return -1;
 }
 
@@ -119,7 +119,7 @@ static struct opbx_func* opbx_find_function(unsigned int hash, const char *name)
 	struct opbx_object *obj = opbx_registry_find(&func_registry, name);
 
 	if (!obj)
-		opbx_log(LOG_ERROR, "No such function \"%s\"\n", name);
+		opbx_log(OPBX_LOG_ERROR, "No such function \"%s\"\n", name);
 
 	if (obj)
 		return container_of(obj, struct opbx_func, obj);
@@ -221,7 +221,7 @@ int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const c
 		out[outlen] = '\0';
 
 	if (option_debug && option_verbose > 5)
-               	opbx_log(LOG_DEBUG, "%s:  ret %d: %s\n",
+               	opbx_log(OPBX_LOG_DEBUG, "%s:  ret %d: %s\n",
 			(chan ? chan->name : "[no channel]"), ret, (out ? out : ""));
 
 	return ret;

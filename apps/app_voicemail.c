@@ -454,7 +454,7 @@ static void apply_option(struct opbx_vm_user *vmu, const char *var, const char *
 		if (sscanf(value, "%d", &x) == 1) {
 			vmu->saydurationm = x;
 		} else {
-			opbx_log(LOG_WARNING, "Invalid min duration for say duration\n");
+			opbx_log(OPBX_LOG_WARNING, "Invalid min duration for say duration\n");
 		}
 	} else if (!strcasecmp(var, "forcename")){
 		opbx_set2_flag(vmu, opbx_true(value), VM_FORCENAME);	
@@ -469,10 +469,10 @@ static void apply_option(struct opbx_vm_user *vmu, const char *var, const char *
 	} else if (!strcasecmp(var, "maxmsg")) {
 		vmu->maxmsg = atoi(value);
  		if (vmu->maxmsg <= 0) {
-			opbx_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", value, MAXMSG);
+			opbx_log(OPBX_LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", value, MAXMSG);
 			vmu->maxmsg = MAXMSG;
 		} else if (vmu->maxmsg > MAXMSGLIMIT) {
-			opbx_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
+			opbx_log(OPBX_LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
 			vmu->maxmsg = MAXMSGLIMIT;
 		}
 	} else if (!strcasecmp(var, "options")) {
@@ -640,11 +640,11 @@ static void vm_change_password(struct opbx_vm_user *vmu, const char *newpassword
 		if (configin)
 			fclose(configin);
 		else
-			opbx_log(LOG_WARNING, "Warning: Unable to open '%s' for reading: %s\n", tmpin, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Warning: Unable to open '%s' for reading: %s\n", tmpin, strerror(errno));
 		if (configout)
 			fclose(configout);
 		else
-			opbx_log(LOG_WARNING, "Warning: Unable to open '%s' for writing: %s\n", tmpout, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Warning: Unable to open '%s' for writing: %s\n", tmpout, strerror(errno));
 			return;
 	}
 
@@ -805,13 +805,13 @@ static int retrieve_file(char *dir, int msgnum)
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -819,7 +819,7 @@ static int retrieve_file(char *dir, int msgnum)
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -829,19 +829,19 @@ static int retrieve_file(char *dir, int msgnum)
 			goto yuck;
 		}
 		else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC);
 		if (fd < 0) {
-			opbx_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLNumResultCols(stmt, &colcount);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
-			opbx_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -853,7 +853,7 @@ static int retrieve_file(char *dir, int msgnum)
 			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
 						&datatype, &colsize, &decimaldigits, &nullable);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				opbx_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+				opbx_log(OPBX_LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 				goto yuck;
 			}
@@ -875,7 +875,7 @@ static int retrieve_file(char *dir, int msgnum)
 					memset(fdm, 0, fdlen);
 					res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
 					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+						opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 						goto yuck;
 					}
@@ -883,7 +883,7 @@ static int retrieve_file(char *dir, int msgnum)
 			} else {
 				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 					goto yuck;
 				}
@@ -893,7 +893,7 @@ static int retrieve_file(char *dir, int msgnum)
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:	
 	if (f)
 		fclose(f);
@@ -934,40 +934,40 @@ static int last_message_index(struct opbx_vm_user *vmu, char *dir)
 	if (obj) {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		if (sscanf(rowdata, "%d", &x) != 1)
-			opbx_log(LOG_WARNING, "Failed to read message count!\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:	
 	return x - 1;
 }
@@ -987,13 +987,13 @@ static int message_exists(char *dir, int msgnum)
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1001,27 +1001,27 @@ static int message_exists(char *dir, int msgnum)
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		if (sscanf(rowdata, "%d", &x) != 1)
-			opbx_log(LOG_WARNING, "Failed to read message count!\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:	
 	return x;
 }
@@ -1044,13 +1044,13 @@ static void delete_file(char *sdir, int smsg)
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1058,13 +1058,13 @@ static void delete_file(char *sdir, int smsg)
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:
 	return;	
 }
@@ -1085,7 +1085,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 #ifdef EXTENDED_ODBC_STORAGE
@@ -1095,7 +1095,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 #endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1112,13 +1112,13 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 #endif		 
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:
 	return;	
 }
@@ -1164,7 +1164,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
 		fd = open(full_fn, O_RDWR);
 		if (fd < 0) {
-			opbx_log(LOG_WARNING, "Open of sound file '%s' failed: %s\n", full_fn, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Open of sound file '%s' failed: %s\n", full_fn, strerror(errno));
 			goto yuck;
 		}
 		if (cfg) {
@@ -1185,12 +1185,12 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		lseek(fd, 0, SEEK_SET);
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
 		if (!fdm) {
-			opbx_log(LOG_WARNING, "Memory map failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "Memory map failed!\n");
 			goto yuck;
 		} 
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
  		if (!opbx_strlen_zero(category)) 
@@ -1207,7 +1207,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 #endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1231,13 +1231,13 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 #endif
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:	
 	if (cfg)
 		opbx_config_destroy(cfg);
@@ -1264,7 +1264,7 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 #ifdef EXTENDED_ODBC_STORAGE
@@ -1274,7 +1274,7 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 #endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1291,13 +1291,13 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 #endif		 
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:
 	return;	
 }
@@ -1350,18 +1350,18 @@ static int copy(char *infile, char *outfile)
 	if (link(infile, outfile)) {
 #endif
 		if ((ifd = open(infile, O_RDONLY)) < 0) {
-			opbx_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+			opbx_log(OPBX_LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
 			return -1;
 		}
 		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
-			opbx_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+			opbx_log(OPBX_LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
 			close(ifd);
 			return -1;
 		}
 		do {
 			len = read(ifd, buf, sizeof(buf));
 			if (len < 0) {
-				opbx_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
 				close(ifd);
 				close(ofd);
 				unlink(outfile);
@@ -1369,7 +1369,7 @@ static int copy(char *infile, char *outfile)
 			if (len) {
 				res = write(ofd, buf, len);
 				if (errno == ENOMEM || errno == ENOSPC || res != len) {
-					opbx_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+					opbx_log(OPBX_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
 					close(ifd);
 					close(ofd);
 					unlink(outfile);
@@ -1496,7 +1496,7 @@ static int base_encode(char *filename, FILE *so)
 	bio.iocp = BASEMAXINLINE;
 
 	if (!(fi = fopen(filename, "rb"))) {
-		opbx_log(LOG_WARNING, "Failed to open log file: %s: %s\n", filename, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to open log file: %s: %s\n", filename, strerror(errno));
 		return -1;
 	}
 
@@ -1589,12 +1589,12 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
 	if (vmu && opbx_strlen_zero(vmu->email)) {
-		opbx_log(LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
+		opbx_log(OPBX_LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	opbx_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, opbx_test_flag((&globalflags), VM_ATTACH));
+	opbx_log(OPBX_LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, opbx_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	pfd = mkstemp(tmp);
@@ -1649,7 +1649,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
 				fprintf(p, "From: %s <%s>\n",passdata,who);
 				opbx_channel_free(ast);
-			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
@@ -1664,7 +1664,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
 				fprintf(p, "Subject: %s\n",passdata);
 				opbx_channel_free(ast);
-			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 		if (*emailtitle) {
 			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
@@ -1694,7 +1694,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 				fprintf(p, "%s\n",passdata);
 				opbx_channel_free(ast);
-			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else {
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
@@ -1721,9 +1721,9 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		opbx_safe_system(tmp2);
-		opbx_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
+		opbx_log(OPBX_LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+		opbx_log(OPBX_LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
 	}
 	return 0;
@@ -1794,7 +1794,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
 				fprintf(p, "From: %s <%s>\n",passdata,who);
 				opbx_channel_free(ast);
-			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
@@ -1808,7 +1808,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
                                fprintf(p, "Subject: %s\n\n",passdata);
                                opbx_channel_free(ast);
-                       } else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+                       } else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
                } else
                        fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
@@ -1822,7 +1822,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
                                fprintf(p, "%s\n",passdata);
                                opbx_channel_free(ast);
-                       } else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+                       } else opbx_log(OPBX_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
                } else {
                        fprintf(p, "New %s long msg in box %s\n"
                                        "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
@@ -1830,9 +1830,9 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		opbx_safe_system(tmp2);
-		opbx_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
+		opbx_log(OPBX_LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+		opbx_log(OPBX_LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
 	}
 	return 0;
@@ -1959,31 +1959,31 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	if (obj) {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "INBOX", '\0');
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1992,31 +1992,31 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "Old", '\0');
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
 		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -2024,7 +2024,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		*oldmsgs = atoi(rowdata);
 		x = 1;
 	} else
-		opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 		
 yuck:	
 	return x;
@@ -2059,38 +2059,38 @@ static int has_voicemail(const char *mailbox, const char *folder)
         if (obj) {
                 res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        opbx_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+                        opbx_log(OPBX_LOG_WARNING, "SQL Alloc Handle failed!\n");
                         goto yuck;
                 }
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "INBOX", '\0');
                 res = SQLPrepare(stmt, sql, SQL_NTS);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
-                        opbx_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+                        opbx_log(OPBX_LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
                         SQLFreeHandle (SQL_HANDLE_STMT, stmt);
                         goto yuck;
                 }
                 res = odbc_smart_execute(obj, stmt);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        opbx_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+                        opbx_log(OPBX_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
                         SQLFreeHandle (SQL_HANDLE_STMT, stmt);
                         goto yuck;
                 }
                 res = SQLFetch(stmt);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+                        opbx_log(OPBX_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
                         SQLFreeHandle (SQL_HANDLE_STMT, stmt);
                         goto yuck;
                 }
                 res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+                        opbx_log(OPBX_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
                         SQLFreeHandle (SQL_HANDLE_STMT, stmt);
                         goto yuck;
                 }
                 nummsgs = atoi(rowdata);
                 SQLFreeHandle (SQL_HANDLE_STMT, stmt);
        } else
-                opbx_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+                opbx_log(OPBX_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 
 yuck:
 	if (nummsgs>=1)
@@ -2230,19 +2230,19 @@ static int copy_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, int
 	char *frombox = mbox(imbox);
 	int recipmsgnum;
 
-	opbx_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
+	opbx_log(OPBX_LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
 	make_dir(todir, sizeof(todir), recip->context, "", "");
 	/* It's easier just to try to make it than to check for its existence */
 	if (mkdir(todir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
 	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "");
 	/* It's easier just to try to make it than to check for its existence */
 	if (mkdir(todir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
 	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
 	if (mkdir(todir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
 
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
@@ -2260,7 +2260,7 @@ static int copy_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, int
 	if (recipmsgnum < recip->maxmsg) {
 		COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 	} else {
-		opbx_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
+		opbx_log(OPBX_LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
 	opbx_unlock_path(topath);
 	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
@@ -2281,10 +2281,10 @@ static void run_externnotify(char *context, char *extension)
 
 	if (!opbx_strlen_zero(externnotify)) {
 		if (messagecount(ext_context, &newvoicemails, &oldvoicemails)) {
-			opbx_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
+			opbx_log(OPBX_LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
 			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
-			opbx_log(LOG_DEBUG, "Executing %s\n", arguments);
+			opbx_log(OPBX_LOG_DEBUG, "Executing %s\n", arguments);
 	  		opbx_safe_system(arguments);
 		}
 	}
@@ -2338,7 +2338,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
 	if (!(vmu = find_user(&svm, context, ext))) {
-		opbx_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
+		opbx_log(OPBX_LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		return res;
 	}
@@ -2360,14 +2360,14 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 	make_dir(dir, sizeof(dir), vmu->context, "", "");
 	/* It's easier just to try to make it than to check for its existence */
 	if (mkdir(dir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 	make_dir(dir, sizeof(dir), vmu->context, ext, "");
 	/* It's easier just to try to make it than to check for its existence */
 	if (mkdir(dir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 	make_dir(dir, sizeof(dir), vmu->context, ext, "INBOX");
 	if (mkdir(dir, 0700) && (errno != EEXIST))
-		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 
 	/* Check current or proc-calling context for special extensions */
 	if (!opbx_strlen_zero(vmu->exit)) {
@@ -2397,12 +2397,12 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			if (opbx_streamfile(chan, prefile, chan->language) > -1) 
 				res = opbx_waitstream(chan, ecodes);
 		} else {
-			opbx_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
+			opbx_log(OPBX_LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
 			res = invent_message(chan, vmu->context, ext, opbx_test_flag(options, OPT_BUSY_GREETING), ecodes);
 		}
 		DISPOSE(prefile, -1);
 		if (res < 0) {
-			opbx_log(LOG_DEBUG, "Hang up during prefile playback\n");
+			opbx_log(OPBX_LOG_DEBUG, "Hang up during prefile playback\n");
 			free_user(vmu);
 			return -1;
 		}
@@ -2524,7 +2524,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 					date, (long)time(NULL),
 					category ? category : ""); 
 			} else
-				opbx_log(LOG_WARNING, "Error opening text file for output\n");
+				opbx_log(OPBX_LOG_WARNING, "Error opening text file for output\n");
 			res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir, options->record_gain);
 			if (res == '0') {
 				if (txt)
@@ -2571,10 +2571,10 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			res = opbx_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
 				res = opbx_waitstream(chan, "");
-			opbx_log(LOG_WARNING, "No more messages possible\n");
+			opbx_log(OPBX_LOG_WARNING, "No more messages possible\n");
 		}
 	} else
-		opbx_log(LOG_WARNING, "No format for saving voicemail?\n");
+		opbx_log(OPBX_LOG_WARNING, "No format for saving voicemail?\n");
  leave_vm_out:
 	free_user(vmu);
 
@@ -2763,7 +2763,7 @@ static int adsi_load_vmail(struct opbx_channel *chan, int *useadsi)
 	bytes += adsi_voice_mode(buf + bytes, 0);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
 
-	opbx_log(LOG_DEBUG, "Done downloading scripts...\n");
+	opbx_log(OPBX_LOG_DEBUG, "Done downloading scripts...\n");
 
 #ifdef DISPLAY
 	/* Add last dot */
@@ -2771,7 +2771,7 @@ static int adsi_load_vmail(struct opbx_channel *chan, int *useadsi)
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "   ......", "");
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 #endif
-	opbx_log(LOG_DEBUG, "Restarting session...\n");
+	opbx_log(OPBX_LOG_DEBUG, "Restarting session...\n");
 
 	bytes = 0;
 	/* Load the session now */
@@ -2795,7 +2795,7 @@ static void adsi_begin(struct opbx_channel *chan, int *useadsi)
 		return;
 	if (!x) {
 		if (adsi_load_vmail(chan, useadsi)) {
-			opbx_log(LOG_WARNING, "Unable to upload voicemail scripts\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to upload voicemail scripts\n");
 			return;
 		}
 	} else
@@ -3349,7 +3349,7 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 
 				res = opbx_function_exec_str(chan, hash_directory, "Directory", s, NULL, 0);
 				if (res < 0) {
-					opbx_log(LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
+					opbx_log(OPBX_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 					opbx_clear_flag((&globalflags), VM_DIRECFORWARD);	
 				} else {
 					opbx_copy_string(username, chan->exten, sizeof(username));
@@ -3360,7 +3360,7 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 				}
 				free(s);
 			} else {
-				opbx_log(LOG_WARNING, "Could not call Directory application - insufficient memory\n");
+				opbx_log(OPBX_LOG_WARNING, "Could not call Directory application - insufficient memory\n");
 			}
 		} else 	{
 			/* Ask for an extension */
@@ -3423,7 +3423,7 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 				snprintf(todir, sizeof(todir), "%s%s/%s/INBOX",  VM_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
 				snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
 				snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
-				opbx_log(LOG_DEBUG, "%s", sys);
+				opbx_log(OPBX_LOG_DEBUG, "%s", sys);
 				opbx_safe_system(sys);
 		
 				if ( (res = count_messages(receiver, todir)) )
@@ -3437,11 +3437,11 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 					if (!strcasecmp(s, "wav49"))
 						s = "WAV";
 					snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
-					opbx_log(LOG_DEBUG, "%s", sys);
+					opbx_log(OPBX_LOG_DEBUG, "%s", sys);
 					opbx_safe_system(sys);
 				}
 				snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
-				opbx_log(LOG_DEBUG, "%s", sys);
+				opbx_log(OPBX_LOG_DEBUG, "%s", sys);
 				opbx_safe_system(sys);
 				snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
 	
@@ -3506,7 +3506,7 @@ static int wait_file2(struct opbx_channel *chan, struct vm_state *vms, char *fil
 {
 	int res;
 	if ((res = opbx_streamfile(chan, file, chan->language))) 
-		opbx_log(LOG_WARNING, "Unable to play message %s\n", file); 
+		opbx_log(OPBX_LOG_WARNING, "Unable to play message %s\n", file); 
 	if (!res)
 		res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
 	return res;
@@ -3535,7 +3535,7 @@ static int play_message_datetime(struct opbx_channel *chan, struct opbx_vm_user 
 	long tin;
 
 	if (sscanf(origtime,"%ld",&tin) < 1) {
-		opbx_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
+		opbx_log(OPBX_LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}
 	t = tin;
@@ -3609,13 +3609,13 @@ static int play_message_callerid(struct opbx_channel *chan, struct vm_state *vms
 		return res;
 
 	/* Strip off caller ID number from name */
-	opbx_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
+	opbx_log(OPBX_LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
 	opbx_callerid_parse(cid, &name, &callerid);
 	if ((callerid != NULL)&&(!res)&&(!opbx_strlen_zero(callerid))){
 		/* Check for internal contexts and only */
 		/* say extension when the call didn't come from an internal context in the list */
 		for (i = 0 ; i < MAX_NUM_CID_CONTEXTS ; i++){
-			opbx_log(LOG_DEBUG, "VM-CID: comparing internalcontext: %s\n", cidinternalcontexts[i]);
+			opbx_log(OPBX_LOG_DEBUG, "VM-CID: comparing internalcontext: %s\n", cidinternalcontexts[i]);
 			if ((strcmp(cidinternalcontexts[i], context) == 0))
 				break;
 		}
@@ -3642,7 +3642,7 @@ static int play_message_callerid(struct opbx_channel *chan, struct vm_state *vms
 		}
 
 		else if (!res){
-			opbx_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
+			opbx_log(OPBX_LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
 			/* BB: Since this is all nicely figured out, why not say "from phone number" in this case" */
 			if (!callback)
 				res = wait_file2(chan, vms, "vm-from-phonenumber");
@@ -3650,7 +3650,7 @@ static int play_message_callerid(struct opbx_channel *chan, struct vm_state *vms
 		}
 	} else {
 		/* Number unknown */
-		opbx_log(LOG_DEBUG, "VM-CID: From an unknown number\n");
+		opbx_log(OPBX_LOG_DEBUG, "VM-CID: From an unknown number\n");
 		if (!res)
 			/* BB: Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
 			res = wait_file2(chan, vms, "vm-unknown-caller");
@@ -3671,7 +3671,7 @@ static int play_message_duration(struct opbx_channel *chan, struct vm_state *vms
 	durations=atoi(duration);
 	durationm=(durations / 60);
 
-	opbx_log(LOG_DEBUG, "VM-Duration: duration is: %d seconds converted to: %d minutes\n", durations, durationm);
+	opbx_log(OPBX_LOG_DEBUG, "VM-Duration: duration is: %d seconds converted to: %d minutes\n", durations, durationm);
 
 	if((!res)&&(durationm>=minduration)) {
 		res = opbx_say_number(chan, durationm, OPBX_DIGIT_ANY, chan->language, (char *) NULL);
@@ -3713,12 +3713,12 @@ static int play_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, str
 	RETRIEVE(vms->curdir, vms->curmsg);
 	msg_cfg = opbx_config_load(filename);
 	if (!msg_cfg) {
-		opbx_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+		opbx_log(OPBX_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
 																									
 	if (!(origtime = opbx_variable_retrieve(msg_cfg, "message", "origtime"))) {
-		opbx_log(LOG_WARNING, "No origtime?!\n");
+		opbx_log(OPBX_LOG_WARNING, "No origtime?!\n");
 		DISPOSE(vms->curdir, vms->curmsg);
 		opbx_config_destroy(msg_cfg);
 		return 0;
@@ -3785,7 +3785,7 @@ static int open_mailbox(struct vm_state *vms, struct opbx_vm_user *vmu,int box)
 		return last_msg;
 	else if(vms->lastmsg != last_msg)
 	{
-		opbx_log(LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
+		opbx_log(OPBX_LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
 		res = resequence_mailbox(vmu, vms->curdir);
 		if (res)
 			return res;
@@ -4543,14 +4543,14 @@ static int vm_newuser(struct opbx_channel *chan, struct opbx_vm_user *vmu, struc
 	if (cmd < 0 || cmd == 't' || cmd == '#')
 		return cmd;
 	if (strcmp(newpassword, newpassword2)) {
-		opbx_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
+		opbx_log(OPBX_LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 		cmd = opbx_play_and_wait(chan, "vm-mismatch");
 	}
 	if (opbx_strlen_zero(ext_pass_cmd)) 
 		vm_change_password(vmu,newpassword);
 	else 
 		vm_change_password_shell(vmu,newpassword);
-	opbx_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
+	opbx_log(OPBX_LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 	cmd = opbx_play_and_wait(chan,"vm-passchanged");
 
 	/* If forcename is set, have the user record their name */	
@@ -4644,7 +4644,7 @@ static int vm_options(struct opbx_channel *chan, struct opbx_vm_user *vmu, struc
 				}
 			}
 			if (strcmp(newpassword, newpassword2)) {
-				opbx_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
+				opbx_log(OPBX_LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 				cmd = opbx_play_and_wait(chan, "vm-mismatch");
 				break;
 			}
@@ -4652,7 +4652,7 @@ static int vm_options(struct opbx_channel *chan, struct opbx_vm_user *vmu, struc
 				vm_change_password(vmu,newpassword);
 			else 
 				vm_change_password_shell(vmu,newpassword);
-			opbx_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
+			opbx_log(OPBX_LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = opbx_play_and_wait(chan,"vm-passchanged");
 			break;
 		case '*': 
@@ -4866,7 +4866,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 	if (!skipuser && useadsi)
 		adsi_login(chan);
 	if (!silent && !skipuser && opbx_streamfile(chan, "vm-login", chan->language)) {
-		opbx_log(LOG_WARNING, "Couldn't stream login file\n");
+		opbx_log(OPBX_LOG_WARNING, "Couldn't stream login file\n");
 		return -1;
 	}
 	
@@ -4875,7 +4875,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 	while (!valid && (logretries < maxlogins)) {
 		/* Prompt for, and read in the username */
 		if (!skipuser && opbx_readstring(chan, mailbox, mailbox_size - 1, 2000, 10000, "#") < 0) {
-			opbx_log(LOG_WARNING, "Couldn't read username\n");
+			opbx_log(OPBX_LOG_WARNING, "Couldn't read username\n");
 			return -1;
 		}
 		if (opbx_strlen_zero(mailbox)) {
@@ -4903,11 +4903,11 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 			password[0] = '\0';
 		} else {
 			if (opbx_streamfile(chan, "vm-password", chan->language)) {
-				opbx_log(LOG_WARNING, "Unable to stream password file\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to stream password file\n");
 				return -1;
 			}
 			if (opbx_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
-				opbx_log(LOG_WARNING, "Unable to read password\n");
+				opbx_log(OPBX_LOG_WARNING, "Unable to read password\n");
 				return -1;
 			}
 		}
@@ -4928,14 +4928,14 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 		if (!valid) {
 			if (skipuser || logretries >= maxlogins) {
 				if (opbx_streamfile(chan, "vm-incorrect", chan->language)) {
-					opbx_log(LOG_WARNING, "Unable to stream incorrect message\n");
+					opbx_log(OPBX_LOG_WARNING, "Unable to stream incorrect message\n");
 					return -1;
 				}
 			} else {
 				if (useadsi)
 					adsi_login(chan);
 				if (opbx_streamfile(chan, "vm-incorrect-mailbox", chan->language)) {
-					opbx_log(LOG_WARNING, "Unable to stream incorrect mailbox message\n");
+					opbx_log(OPBX_LOG_WARNING, "Unable to stream incorrect mailbox message\n");
 					return -1;
 				}
 			}
@@ -4997,7 +4997,7 @@ static int vm_execmain(struct opbx_channel *chan, int argc, char **argv, char *r
 				int gain;
 
 				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
-					opbx_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
+					opbx_log(OPBX_LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					LOCAL_USER_REMOVE(u);
 					return -1;
 				} else {
@@ -5033,7 +5033,7 @@ static int vm_execmain(struct opbx_channel *chan, int argc, char **argv, char *r
 			skipuser++;
 		else {
 			if (!opbx_strlen_zero(vms.username))
-				opbx_log(LOG_NOTICE, "Specified user '%s%s%s' not found (check voicemail.conf and/or realtime config).  Falling back to authentication mode.\n", vms.username, context ? "@" : "", context ? context : "");
+				opbx_log(OPBX_LOG_NOTICE, "Specified user '%s%s%s' not found (check voicemail.conf and/or realtime config).  Falling back to authentication mode.\n", vms.username, context ? "@" : "", context ? context : "");
 			valid = 0;
 		}
 	}
@@ -5092,7 +5092,7 @@ static int vm_execmain(struct opbx_channel *chan, int argc, char **argv, char *r
 	if (!strcasecmp(vmu->mailbox, vmu->password) && 
 	    (opbx_test_flag(vmu, VM_FORCENAME | VM_FORCEGREET))) {
 		if (opbx_play_and_wait(chan, "vm-newuser") == -1)
-			opbx_log(LOG_WARNING, "Couldn't stream new user file\n");
+			opbx_log(OPBX_LOG_WARNING, "Couldn't stream new user file\n");
 		cmd = vm_newuser(chan, vmu, &vms, vmfmts, record_gain);
 		if ((cmd == 't') || (cmd == '#')) {
 			/* Timeout */
@@ -5424,7 +5424,7 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 				int gain;
 
 				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
-					opbx_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
+					opbx_log(OPBX_LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					LOCAL_USER_REMOVE(u);
 					return -1;
 				} else {
@@ -5462,10 +5462,10 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	res = leave_voicemail(chan, argv[0], &leave_options);
 
 	if (res == ERROR_LOCK_PATH) {
-		opbx_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
+		opbx_log(OPBX_LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
 		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-			opbx_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
+			opbx_log(OPBX_LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
 		res = 0;
 	}
 	
@@ -5537,7 +5537,7 @@ static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv, char 
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
 		if (priority_jump || option_priority_jumping)
 			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", argv[0], context, chan->exten, chan->priority + 101);
+				opbx_log(OPBX_LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", argv[0], context, chan->exten, chan->priority + 101);
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
 
@@ -5787,10 +5787,10 @@ static int load_config(void)
 		} else {
 			maxmsg = atoi(maxmsgstr);
 			if (maxmsg <= 0) {
-				opbx_log(LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", maxmsgstr, MAXMSG);
+				opbx_log(OPBX_LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", maxmsgstr, MAXMSG);
 				maxmsg = MAXMSG;
 			} else if (maxmsg > MAXMSGLIMIT) {
-				opbx_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
+				opbx_log(OPBX_LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
 				maxmsg = MAXMSGLIMIT;
 			}
 		}
@@ -5809,7 +5809,7 @@ static int load_config(void)
 		
 		if ((notifystr = opbx_variable_retrieve(cfg, "general", "externnotify"))) {
 			opbx_copy_string(externnotify, notifystr, sizeof(externnotify));
-			opbx_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
+			opbx_log(OPBX_LOG_DEBUG, "found externnotify: %s\n", externnotify);
 		} else {
 			externnotify[0] = '\0';
 		}
@@ -5828,7 +5828,7 @@ static int load_config(void)
 			if (sscanf(s, "%d", &x) == 1) {
 				vmmaxmessage = x;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid max message time length\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid max message time length\n");
 			}
 		}
 
@@ -5837,9 +5837,9 @@ static int load_config(void)
 			if (sscanf(s, "%d", &x) == 1) {
 				vmminmessage = x;
 				if (maxsilence <= vmminmessage)
-					opbx_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
+					opbx_log(OPBX_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 			} else {
-				opbx_log(LOG_WARNING, "Invalid min message time length\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid min message time length\n");
 			}
 		}
 		fmt = opbx_variable_retrieve(cfg, "general", "format");
@@ -5852,7 +5852,7 @@ static int load_config(void)
 			if (sscanf(s, "%d", &x) == 1) {
 				maxgreet = x;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid max message greeting length\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid max message greeting length\n");
 			}
 		}
 
@@ -5860,7 +5860,7 @@ static int load_config(void)
 			if (sscanf(s, "%d", &x) == 1) {
 				skipms = x;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid skipms value\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid skipms value\n");
 			}
 		}
 
@@ -5869,7 +5869,7 @@ static int load_config(void)
 			if (sscanf(s, "%d", &x) == 1) {
 				maxlogins = x;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid max failed login attempts\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid max failed login attempts\n");
 			}
 		}
 
@@ -5884,7 +5884,7 @@ static int load_config(void)
 		opbx_set2_flag((&globalflags), opbx_true(astattach), VM_FORCEGREET);
 
 		if ((s = opbx_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
-			opbx_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
+			opbx_log(OPBX_LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
 			stringp = opbx_strdupa(s);
 			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
 				if (!opbx_strlen_zero(stringp)) {
@@ -5892,44 +5892,44 @@ static int load_config(void)
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;
 					opbx_copy_string(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]));
-					opbx_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
+					opbx_log(OPBX_LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
 				} else {
 					cidinternalcontexts[x][0] = '\0';
 				}
 			}
 		}
 		if (!(astreview = opbx_variable_retrieve(cfg, "general", "review"))){
-			opbx_log(LOG_DEBUG,"VM Review Option disabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"VM Review Option disabled globally\n");
 			astreview = "no";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(astreview), VM_REVIEW);	
 
 		if (!(astcallop = opbx_variable_retrieve(cfg, "general", "operator"))){
-			opbx_log(LOG_DEBUG,"VM Operator break disabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"VM Operator break disabled globally\n");
 			astcallop = "no";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(astcallop), VM_OPERATOR);	
 
 		if (!(astsaycid = opbx_variable_retrieve(cfg, "general", "saycid"))) {
-			opbx_log(LOG_DEBUG,"VM CID Info before msg disabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"VM CID Info before msg disabled globally\n");
 			astsaycid = "no";
 		} 
 		opbx_set2_flag((&globalflags), opbx_true(astsaycid), VM_SAYCID);	
 
 		if (!(send_voicemail = opbx_variable_retrieve(cfg,"general", "sendvoicemail"))){
-			opbx_log(LOG_DEBUG,"Send Voicemail msg disabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"Send Voicemail msg disabled globally\n");
 			send_voicemail = "no";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(send_voicemail), VM_SVMAIL);
 	
 		if (!(asthearenv = opbx_variable_retrieve(cfg, "general", "envelope"))) {
-			opbx_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
 			asthearenv = "yes";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(asthearenv), VM_ENVELOPE);	
 
 		if (!(astsaydurationinfo = opbx_variable_retrieve(cfg, "general", "sayduration"))) {
-			opbx_log(LOG_DEBUG,"Duration info before msg enabled globally\n");
+			opbx_log(OPBX_LOG_DEBUG,"Duration info before msg enabled globally\n");
 			astsaydurationinfo = "yes";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(astsaydurationinfo), VM_SAYDURATION);	
@@ -5939,33 +5939,33 @@ static int load_config(void)
 			if (sscanf(astsaydurationminfo, "%d", &x) == 1) {
 				saydurationminfo = x;
 			} else {
-				opbx_log(LOG_WARNING, "Invalid min duration for say duration\n");
+				opbx_log(OPBX_LOG_WARNING, "Invalid min duration for say duration\n");
 			}
 		}
 
 		if (!(astskipcmd = opbx_variable_retrieve(cfg, "general", "nextaftercmd"))) {
-			opbx_log(LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
+			opbx_log(OPBX_LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
 			astskipcmd = "no";
 		}
 		opbx_set2_flag((&globalflags), opbx_true(astskipcmd), VM_SKIPAFTERCMD);
 
 		if ((dialoutcxt = opbx_variable_retrieve(cfg, "general", "dialout"))) {
 			opbx_copy_string(dialcontext, dialoutcxt, sizeof(dialcontext));
-			opbx_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
+			opbx_log(OPBX_LOG_DEBUG, "found dialout context: %s\n", dialcontext);
 		} else {
 			dialcontext[0] = '\0';	
 		}
 		
 		if ((callbackcxt = opbx_variable_retrieve(cfg, "general", "callback"))) {
 			opbx_copy_string(callcontext, callbackcxt, sizeof(callcontext));
-			opbx_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
+			opbx_log(OPBX_LOG_DEBUG, "found callback context: %s\n", callcontext);
 		} else {
 			callcontext[0] = '\0';
 		}
 
 		if ((exitcxt = opbx_variable_retrieve(cfg, "general", "exitcontext"))) {
 			opbx_copy_string(exitcontext, exitcxt, sizeof(exitcontext));
-			opbx_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
+			opbx_log(OPBX_LOG_DEBUG, "found operator context: %s\n", exitcontext);
 		} else {
 			exitcontext[0] = '\0';
 		}
@@ -6005,11 +6005,11 @@ static int load_config(void)
 									zonesl = z;
 								}
 							} else {
-								opbx_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
+								opbx_log(OPBX_LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 								free(z);
 							}
 						} else {
-							opbx_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+							opbx_log(OPBX_LOG_WARNING, "Out of memory while reading voicemail config\n");
 							return -1;
 						}
 						var = var->next;
@@ -6063,7 +6063,7 @@ static int load_config(void)
 				adsiver = atoi(s);
 			}
 		if ((s=opbx_variable_retrieve(cfg, "general", "emailtitle"))) {
-			opbx_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
+			opbx_log(OPBX_LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
 			opbx_copy_string(emailtitle,s,sizeof(emailtitle));
 		}
 		if ((s=opbx_variable_retrieve(cfg, "general", "emailsubject")))
@@ -6086,7 +6086,7 @@ static int load_config(void)
                                                strncpy(tmpwrite,"\t",len);
                                                break;
                                        default:
-                                               opbx_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
+                                               opbx_log(OPBX_LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
                                }
                                tmpread = tmpwrite+len;
                        }
@@ -6111,7 +6111,7 @@ static int load_config(void)
 						strncpy(tmpwrite,"\t",len);
 						break;
 					default:
-						opbx_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
+						opbx_log(OPBX_LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
 				}
 				tmpread = tmpwrite+len;
 			}
@@ -6121,7 +6121,7 @@ static int load_config(void)
 		return 0;
 	} else {
 		opbx_mutex_unlock(&vmlock);
-		opbx_log(LOG_WARNING, "Error reading voicemail config\n");
+		opbx_log(OPBX_LOG_WARNING, "Error reading voicemail config\n");
 		return -1;
 	}
 }
@@ -6136,7 +6136,7 @@ static int unload_module(void)
 	int res = 0;
 
 	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
-		opbx_log(LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
 		return -1;
 	}
     
@@ -6174,7 +6174,7 @@ static int load_module(void)
 	opbx_install_vm_functions(has_voicemail, messagecount);
 
 #if defined(USE_ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
-	opbx_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."
+	opbx_log(OPBX_LOG_WARNING, "The current ODBC storage table format will be changed soon."
 				"Please update your tables as per the README and edit the apps/Makefile "
 				"and uncomment the line containing EXTENDED_ODBC_STORAGE to enable the "
 				"new table format.\n");
@@ -6259,7 +6259,7 @@ static int advanced_options(struct opbx_channel *chan, struct opbx_vm_user *vmu,
 	msg_cfg = opbx_config_load(filename);
 	DISPOSE(vms->curdir, vms->curmsg);
 	if (!msg_cfg) {
-		opbx_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+		opbx_log(OPBX_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
 
@@ -6419,7 +6419,7 @@ static int play_record_review(struct opbx_channel *chan, char *playfile, char *r
  
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(LOG_WARNING, "Error play_record_review called without duration pointer\n");
+		opbx_log(OPBX_LOG_WARNING, "Error play_record_review called without duration pointer\n");
 		return -1;
 	}
 

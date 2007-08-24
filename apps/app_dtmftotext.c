@@ -176,7 +176,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 
     res = fork();
     if (res < 0)
-        opbx_log(LOG_WARNING, "Fork failed\n");
+        opbx_log(OPBX_LOG_WARNING, "Fork failed\n");
     if (res)
         return res;
     for (x = 0;  x < 256;  x++)
@@ -208,7 +208,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 	
     if (pipe(fds))
     {
-        opbx_log(LOG_WARNING, "Unable to create pipe\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to create pipe\n");
         return -1;
     }
 	                                                
@@ -218,7 +218,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 	res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0)
     {
-		opbx_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
 	
@@ -238,13 +238,13 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 			f = opbx_read(chan);
 			if (!f)
             {
-				opbx_log(LOG_WARNING, "Null frame == hangup() detected\n");
+				opbx_log(OPBX_LOG_WARNING, "Null frame == hangup() detected\n");
 				res = -1;
 				break;
 			}
 			if (f->frametype == OPBX_FRAME_DTMF)
             {
-				opbx_log(LOG_DEBUG, "User pressed a key\n");
+				opbx_log(OPBX_LOG_DEBUG, "User pressed a key\n");
 				if (intkeys && strchr(intkeys, f->subclass))
                 {
 					res = f->subclass;
@@ -258,7 +258,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 				needed = f->samples * 2;
 				if (needed > sizeof(myf.frdata))
                 {
-					opbx_log(LOG_WARNING,
+					opbx_log(OPBX_LOG_WARNING,
                             "Only able to deliver %d of %d requested samples\n",
                             sizeof(myf.frdata)/2,
                             needed/2);
@@ -283,14 +283,14 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 					if (res < needed)
                     {
                         // last frame
-						opbx_log(LOG_DEBUG, "Last frame\n");
+						opbx_log(OPBX_LOG_DEBUG, "Last frame\n");
 						res = 0;
 						break;
 					}
 				}
                 else
                 {
-					opbx_log(LOG_DEBUG, "No more waveform\n");
+					opbx_log(OPBX_LOG_DEBUG, "No more waveform\n");
 					res = 0;
 				}
 			}
@@ -348,7 +348,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 	cfg = opbx_load(FESTIVAL_CONFIG);
 	if (!cfg)
     {
-		opbx_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
+		opbx_log(OPBX_LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return -1;
 	}
 	if (!(host = opbx_variable_retrieve(cfg, "general", "host")))
@@ -389,13 +389,13 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 			intstr = OPBX_DIGIT_ANY;
 	}
 	LOCAL_USER_ADD(u);
-	opbx_log(LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
+	opbx_log(OPBX_LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
 	/* Connect to local festival server */
 	
     fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
     {
-		opbx_log(LOG_WARNING,"festival_client: can't get socket\n");
+		opbx_log(OPBX_LOG_WARNING,"festival_client: can't get socket\n");
         return -1;
 	}
     memset(&serv_addr, 0, sizeof(serv_addr));
@@ -405,7 +405,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
         serverhost = gethostbyname(host);
         if (serverhost == (struct hostent *) 0)
         {
-            opbx_log(LOG_WARNING, "festival_client: gethostbyname failed\n");
+            opbx_log(OPBX_LOG_WARNING, "festival_client: gethostbyname failed\n");
             return -1;
         }
         memmove(&serv_addr.sin_addr, serverhost->h_addr, serverhost->h_length);
@@ -415,7 +415,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 
 	if (connect(fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0)
     {
-		opbx_log(LOG_WARNING,"festival_client: connect to server failed\n");
+		opbx_log(OPBX_LOG_WARNING,"festival_client: connect to server failed\n");
         return -1;
     }
     	
@@ -445,20 +445,20 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
             {
                 writecache = 1;
                 strln = strlen((char *) data);
-                opbx_log(LOG_DEBUG, "line length : %d\n", strln);
+                opbx_log(OPBX_LOG_DEBUG, "line length : %d\n", strln);
                 write(fdesc, &strln, sizeof(int));
                 write(fdesc, data, strln);
                 seekpos = lseek(fdesc, 0, SEEK_CUR);
-                opbx_log(LOG_DEBUG, "Seek position : %d\n", seekpos);
+                opbx_log(OPBX_LOG_DEBUG, "Seek position : %d\n", seekpos);
             }
         }
         else
         {
             read(fdesc,&strln,sizeof(int));
-            opbx_log(LOG_DEBUG, "Cache file exists, strln=%d, strlen=%d\n", strln, strlen((char *) data));
+            opbx_log(OPBX_LOG_DEBUG, "Cache file exists, strln=%d, strlen=%d\n", strln, strlen((char *) data));
             if (strlen((char *) data) == strln)
             {
-                opbx_log(LOG_DEBUG,"Size OK\n");
+                opbx_log(OPBX_LOG_DEBUG,"Size OK\n");
                 read(fdesc,&bigstring,strln);
                 if (strcmp(bigstring, data) == 0)
                 { 
@@ -466,12 +466,12 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
                 }
                 else
                 {
-                    opbx_log(LOG_WARNING, "Strings do not match\n");
+                    opbx_log(OPBX_LOG_WARNING, "Strings do not match\n");
                 }
             }
             else
             {
-                opbx_log(LOG_WARNING, "Size mismatch\n");
+                opbx_log(OPBX_LOG_WARNING, "Size mismatch\n");
             }
         }
 	}
@@ -480,11 +480,11 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
     {
 		close(fd);
 		fd=fdesc;
-		opbx_log(LOG_DEBUG, "Reading from cache...\n");
+		opbx_log(OPBX_LOG_DEBUG, "Reading from cache...\n");
 	}
     else
     {
-		opbx_log(LOG_DEBUG, "Passing text to festival...\n");
+		opbx_log(OPBX_LOG_DEBUG, "Passing text to festival...\n");
         fs = fdopen(dup(fd), "wb");
 		fprintf(fs, festivalcommand, (char *) data);
 		fflush(fs);
@@ -494,7 +494,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 	/* Write to cache and then pass it down */
 	if (writecache == 1)
     {
-		opbx_log(LOG_DEBUG, "Writing result to cache...\n");
+		opbx_log(OPBX_LOG_DEBUG, "Writing result to cache...\n");
 		while ((strln = read(fd, buffer, 16384))!=0)
 			write(fdesc, buffer, strln);
 		close(fd);
@@ -503,7 +503,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 		lseek(fd,seekpos,SEEK_SET);
 	}
 	
-	opbx_log(LOG_DEBUG,"Passing data to channel...\n");
+	opbx_log(OPBX_LOG_DEBUG,"Passing data to channel...\n");
 	
 	/* Read back info from server */
 	/* This assumes only one waveform will come back, also LP is unlikely */
@@ -516,7 +516,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 		if (strcmp(ack, "WV\n") == 0)
         {
             /* Receive a waveform */
-			opbx_log(LOG_DEBUG, "Festival WV command\n");
+			opbx_log(OPBX_LOG_DEBUG, "Festival WV command\n");
 			waveform = socket_receive_file_to_buff(fd, &filesize);
 			res = send_waveform_to_channel(chan, waveform, filesize, intstr);
 			free(waveform);
@@ -525,16 +525,16 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 		else if (strcmp(ack, "LP\n") == 0)
         {
             /* Receive an s-expr */
-			opbx_log(LOG_DEBUG, "Festival LP command\n");
+			opbx_log(OPBX_LOG_DEBUG, "Festival LP command\n");
 			waveform = socket_receive_file_to_buff(fd, &filesize);
 			waveform[filesize] = '\0';
-			opbx_log(LOG_WARNING, "Festival returned LP : %s\n", waveform);
+			opbx_log(OPBX_LOG_WARNING, "Festival returned LP : %s\n", waveform);
 			free(waveform);
 		}
         else if (strcmp(ack,"ER\n") == 0)
         {
             /* Server got an error */
-			opbx_log(LOG_WARNING, "Festival returned ER\n");
+			opbx_log(OPBX_LOG_WARNING, "Festival returned ER\n");
 			res = -1;
 			break;
         }
@@ -668,7 +668,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
         if (res < 0)
         {
-            opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
             return -1;
         }
         /*endif*/
@@ -680,7 +680,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         f = opbx_read(chan);
         if (f == NULL)
         {
-            opbx_log(LOG_WARNING, "Null frame == hangup() detected\n");
+            opbx_log(OPBX_LOG_WARNING, "Null frame == hangup() detected\n");
             res = -1;
             opbx_fr_free(f);
             break;
@@ -688,7 +688,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         /*endif*/
         if (f->frametype == OPBX_FRAME_DTMF)
         {
-            opbx_log(LOG_DEBUG, "User pressed '%c'\n", f->subclass);
+            opbx_log(OPBX_LOG_DEBUG, "User pressed '%c'\n", f->subclass);
             digval[digits++] = f->subclass;
             digval[digits] = '\0';
             if (f->subclass != '#')
@@ -735,13 +735,13 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
                 continue;
             }
             /*endif*/
-            //opbx_log(LOG_DEBUG, "Break\n");
+            //opbx_log(OPBX_LOG_DEBUG, "Break\n");
         }
         /*endif*/
         timer = PRE_DIGIT_TIMEOUT;
         opbx_fr_free(f);
 
-        opbx_log(LOG_WARNING, "Fresh digits '%s'\n", digval);
+        opbx_log(OPBX_LOG_WARNING, "Fresh digits '%s'\n", digval);
         if (digval[0] == '\0')
             break;
         /*endif*/
@@ -749,7 +749,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         /* Even if the caller hung up we may still have a valid input, as it
            is often valid to enter a string of digits at the last phase of a
            call and just drop the line */
-        opbx_log(LOG_DEBUG, "Current text %d/%d\n", t - entered_text, max_chars);
+        opbx_log(OPBX_LOG_DEBUG, "Current text %d/%d\n", t - entered_text, max_chars);
         s = digval;
         ul =
         u = talk_back;
@@ -763,19 +763,19 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
                 hits++;
             }
             /*endwhile*/
-            //opbx_log(LOG_DEBUG, "%d of %c\n", hits, x);
+            //opbx_log(OPBX_LOG_DEBUG, "%d of %c\n", hits, x);
             if (x == '*')
             {
                 switch (hits)
                 {
                 case 1:
                     /* This is just a break marker, so ignore it */
-                    //opbx_log(LOG_DEBUG, "Marker - ignore\n");
+                    //opbx_log(OPBX_LOG_DEBUG, "Marker - ignore\n");
                     break;
                 case 2:
                     /* The next character should define a new mode or
                        a delete operation */
-                    //opbx_log(LOG_DEBUG, "Selector - '%c'\n", *s);
+                    //opbx_log(OPBX_LOG_DEBUG, "Selector - '%c'\n", *s);
                     switch (*s)
                     {
                     case '2':
@@ -841,7 +841,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
                     break;
                 default:
                     /* Too many stars - treat this as a marker, like 1 star */
-                    //opbx_log(LOG_DEBUG, "Marker(like) - ignore\n");
+                    //opbx_log(OPBX_LOG_DEBUG, "Marker(like) - ignore\n");
                     break;
                 }
                 /*endswitch*/
@@ -849,14 +849,14 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
             else if (x == '#')
             {
                 /* Terminate text entry */
-                //opbx_log(LOG_DEBUG, "Hash\n");
+                //opbx_log(OPBX_LOG_DEBUG, "Hash\n");
                 *u = '\0';
                 *t = '\0';
                 done = 1;
             }
             else if (isdigit(x))
             {
-                //opbx_log(LOG_DEBUG, "Digit - %d of %c\n", hits, x);
+                //opbx_log(OPBX_LOG_DEBUG, "Digit - %d of %c\n", hits, x);
                 switch (mode)
                 {
                 case TEXT_ENTRY_MODE_LOWER_CASE:
@@ -947,8 +947,8 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         }
         /*endif*/
 
-        opbx_log(LOG_WARNING, "Text so far '%s'\n", entered_text);
-        opbx_log(LOG_WARNING, "Entered '%s'\n", talk_back);
+        opbx_log(OPBX_LOG_WARNING, "Text so far '%s'\n", entered_text);
+        opbx_log(OPBX_LOG_WARNING, "Entered '%s'\n", talk_back);
         digval[0] = '\0';
         digits = 0;
         timer = PRE_DIGIT_TIMEOUT;
@@ -966,13 +966,13 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
 #endif
     }
     /*endwhile*/
-    opbx_log(LOG_WARNING, "Entered text: \"%s\"\n", entered_text);
+    opbx_log(OPBX_LOG_WARNING, "Entered text: \"%s\"\n", entered_text);
     pbx_builtin_setvar_helper(chan, (char *) variable_name, entered_text);
     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
     {
         res = opbx_set_read_format(chan, original_read_fmt);
         if (res)
-            opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+            opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
         /*endif*/
     }
     /*endif*/

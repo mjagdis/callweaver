@@ -35,7 +35,7 @@
 #include "callweaver/app.h"
 
 //#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(lev, fmt, __VA_ARGS__ )
-#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(LOG_WARNING,"Filestream Engine: " fmt, __VA_ARGS__ )
+#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(OPBX_LOG_WARNING,"Filestream Engine: " fmt, __VA_ARGS__ )
 
 /*
     !\brief opaque structure that holds what's needed to stream/record a file
@@ -94,12 +94,12 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
     opbx_filestream_implementation_t *tmp;
 
     if ( !implementation ) {
-	opbx_log(LOG_ERROR, "Unable to register a NULL implementation\n");
+	opbx_log(OPBX_LOG_ERROR, "Unable to register a NULL implementation\n");
 	return res;
     }
 
     if (opbx_mutex_lock(&implementation_lock)) {
-	opbx_log(LOG_ERROR, "Unable to lock format list\n");
+	opbx_log(OPBX_LOG_ERROR, "Unable to lock format list\n");
 	return res;
     }
 
@@ -107,7 +107,7 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
 
     while ( tmp ) {
 	if (!strcasecmp(implementation->engine_name, tmp->engine_name)) {
-	    opbx_log(LOG_WARNING, "Tried to register filestream '%s' but it's already registered\n", implementation->engine_name);
+	    opbx_log(OPBX_LOG_WARNING, "Tried to register filestream '%s' but it's already registered\n", implementation->engine_name);
             goto done;
 	}
         tmp = tmp->next;
@@ -116,7 +116,7 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
     implementation->next=implementations;
     implementations = implementation;
     res = 0;
-    opbx_log( LOG_DEBUG, "Registered filestream %s\n", implementation->engine_name );
+    opbx_log(OPBX_LOG_DEBUG, "Registered filestream %s\n", implementation->engine_name );
 
 done:
     opbx_mutex_unlock(&implementation_lock);
@@ -130,12 +130,12 @@ int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation
     opbx_filestream_implementation_t *tmp = NULL, *prev = NULL;
 
     if ( !implementation ) {
-	opbx_log(LOG_ERROR, "Unable to register a NULL implementation\n");
+	opbx_log(OPBX_LOG_ERROR, "Unable to register a NULL implementation\n");
 	return res;
     }
 
     if (opbx_mutex_lock(&implementation_lock)) {
-	opbx_log(LOG_ERROR, "Unable to lock format list\n");
+	opbx_log(OPBX_LOG_ERROR, "Unable to lock format list\n");
 	return res;
     }
 
@@ -278,13 +278,13 @@ static opbx_filestream_implementation_t *find_suitable_implementation( opbx_file
 
     switch ( ret_weight ) {
         case FS_RESULT_FILE_EXISTS_NATIVE:
-            opbx_log(LOG_DEBUG,"found suitable file native.\n");
+            opbx_log(OPBX_LOG_DEBUG,"found suitable file native.\n");
             break;
         case FS_RESULT_FILE_EXISTS_NON_NATIVE:
-            opbx_log(LOG_DEBUG,"found suitable file non native.\n");
+            opbx_log(OPBX_LOG_DEBUG,"found suitable file non native.\n");
             break;
         case FS_RESULT_FILE_NOT_FOUND:
-            opbx_log(LOG_DEBUG,"not found suitable file\n");
+            opbx_log(OPBX_LOG_DEBUG,"not found suitable file\n");
             // do nothing
             break;
         default:
@@ -325,13 +325,13 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
     impl = find_suitable_implementation( fs, uri, NULL, &mode );
 
     if ( !impl ) {
-        opbx_log(LOG_ERROR,"Cannot find any suitable filestream to play requested uri: %s \n", uri);
+        opbx_log(OPBX_LOG_ERROR,"Cannot find any suitable filestream to play requested uri: %s \n", uri);
         opbx_mpool_close( pool );
         return NULL;
     }
 
     if (  ( impl->init( fs, impl ) != FS_RESULT_SUCCESS ) ) {
-        opbx_log(LOG_ERROR,"Cannot initialize filestream engine '%s' to play requested uri: %s \n", impl->engine_name ,uri);
+        opbx_log(OPBX_LOG_ERROR,"Cannot initialize filestream engine '%s' to play requested uri: %s \n", impl->engine_name ,uri);
         opbx_mpool_close( pool );
         return NULL;
     }
@@ -348,7 +348,7 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
     fse_log(LOG_DEBUG,"Closing filestream session.%s","\n" );
 
     if ( !fs ) {
-        opbx_log(LOG_WARNING,"Cannot destroy NULL filestream.\n");
+        opbx_log(OPBX_LOG_WARNING,"Cannot destroy NULL filestream.\n");
         return FS_RESULT_FAILURE_GENERIC;
     }
 

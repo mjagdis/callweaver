@@ -197,7 +197,7 @@ static int play_mailbox_owner(struct opbx_channel *chan, char *context, char *di
 					/* Name selected */
 					loop = 0;
 					if (opbx_goto_if_exists(chan, dialcontext, ext, 1)) {
-						opbx_log(LOG_WARNING,
+						opbx_log(OPBX_LOG_WARNING,
 							"Can't find extension '%s' in context '%s'.  "
 							"Did you pass the wrong context to Directory?\n",
 							ext, dialcontext);
@@ -242,7 +242,7 @@ static struct opbx_config *realtime_directory(char *context)
 
 	if (!cfg) {
 		/* Loading config failed. */
-		opbx_log(LOG_WARNING, "Loading config failed.\n");
+		opbx_log(OPBX_LOG_WARNING, "Loading config failed.\n");
 		return NULL;
 	}
 
@@ -259,7 +259,7 @@ static struct opbx_config *realtime_directory(char *context)
 	if (!cat) {
 		cat = opbx_category_new(context);
 		if (!cat) {
-			opbx_log(LOG_WARNING, "Out of memory\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 			opbx_config_destroy(cfg);
 			return NULL;
 		}
@@ -277,7 +277,7 @@ static struct opbx_config *realtime_directory(char *context)
 		if (var)
 			opbx_variable_append(cat, var);
 		else
-			opbx_log(LOG_WARNING, "Out of memory adding mailbox '%s'\n", mailbox);
+			opbx_log(OPBX_LOG_WARNING, "Out of memory adding mailbox '%s'\n", mailbox);
 		mailbox = opbx_category_browse(rtdata, mailbox);
 	}
 	opbx_config_destroy(rtdata);
@@ -297,7 +297,7 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	char *start, *pos, *conv,*stringp=NULL;
 
 	if (opbx_strlen_zero(context)) {
-		opbx_log(LOG_WARNING,
+		opbx_log(OPBX_LOG_WARNING,
 			"Directory must be called with an argument "
 			"(context in which to interpret extensions)\n");
 		return -1;
@@ -308,7 +308,7 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 		     !opbx_goto_if_exists(chan, chan->proc_context, "o", 1))) {
 			return 0;
 		} else {
-			opbx_log(LOG_WARNING, "Can't find extension 'o' in current context.  "
+			opbx_log(OPBX_LOG_WARNING, "Can't find extension 'o' in current context.  "
 				"Not Exiting the Directory!\n");
 			res = 0;
 		}
@@ -319,7 +319,7 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 		     !opbx_goto_if_exists(chan, chan->proc_context, "a", 1))) {
 			return 0;
 		} else {
-			opbx_log(LOG_WARNING, "Can't find extension 'a' in current context.  "
+			opbx_log(OPBX_LOG_WARNING, "Can't find extension 'a' in current context.  "
 				"Not Exiting the Directory!\n");
 			res = 0;
 		}

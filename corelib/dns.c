@@ -128,20 +128,20 @@ static int dns_parse_answer(void *context,
 
 	for (x = 0; x < ntohs(h->qdcount); x++) {
 		if ((res = skip_name(answer, len)) < 0) {
-			opbx_log(LOG_WARNING, "Couldn't skip over name\n");
+			opbx_log(OPBX_LOG_WARNING, "Couldn't skip over name\n");
 			return -1;
 		}
 		answer += res + 4;	/* Skip name and QCODE / QCLASS */
 		len -= res + 4;
 		if (len < 0) {
-			opbx_log(LOG_WARNING, "Strange query size\n");
+			opbx_log(OPBX_LOG_WARNING, "Strange query size\n");
 			return -1;
 		}
 	}
 
 	for (x = 0; x < ntohs(h->ancount); x++) {
 		if ((res = skip_name(answer, len)) < 0) {
-			opbx_log(LOG_WARNING, "Failed skipping name\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed skipping name\n");
 			return -1;
 		}
 		answer += res;
@@ -150,18 +150,18 @@ static int dns_parse_answer(void *context,
 		answer += sizeof(struct dn_answer);
 		len -= sizeof(struct dn_answer);
 		if (len < 0) {
-			opbx_log(LOG_WARNING, "Strange result size\n");
+			opbx_log(OPBX_LOG_WARNING, "Strange result size\n");
 			return -1;
 		}
 		if (len < 0) {
-			opbx_log(LOG_WARNING, "Length exceeds frame\n");
+			opbx_log(OPBX_LOG_WARNING, "Length exceeds frame\n");
 			return -1;
 		}
 
 		if (ntohs(ans->class) == class && ntohs(ans->rtype) == type) {
 			if (callback) {
 				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0) {
-					opbx_log(LOG_WARNING, "Failed to parse result\n");
+					opbx_log(OPBX_LOG_WARNING, "Failed to parse result\n");
 					return -1;
 				}
 				if (res > 0)
@@ -206,11 +206,11 @@ int opbx_search_dns(void *context,
 #endif
 	if (res > 0) {
 		if ((res = dns_parse_answer(context, class, type, answer, res, callback)) < 0) {
-			opbx_log(LOG_WARNING, "DNS Parse error for %s\n", dname);
+			opbx_log(OPBX_LOG_WARNING, "DNS Parse error for %s\n", dname);
 			ret = -1;
 		}
 		else if (ret == 0) {
-			opbx_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
+			opbx_log(OPBX_LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
 		else

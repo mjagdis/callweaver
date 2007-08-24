@@ -146,7 +146,7 @@ void sccp_dev_build_buttontemplate(sccp_device_t *d, btnlist * btn) {
 sccp_moo_t * sccp_build_packet(sccp_message_t t, size_t pkt_len) {
 	sccp_moo_t * r = malloc(sizeof(sccp_moo_t));
 	if (!r) {
-		opbx_log(LOG_WARNING, "SCCP: Packet memory allocation error\n");
+		opbx_log(OPBX_LOG_WARNING, "SCCP: Packet memory allocation error\n");
 		return NULL;
 	}
 	memset(r, 0,  pkt_len + 12);
@@ -184,7 +184,7 @@ int sccp_session_send(sccp_session_t * s, sccp_moo_t * r) {
 	res = write(s->fd, r, (size_t)(r->length + 8));
 	opbx_mutex_unlock(&s->lock);
 	if (res != (ssize_t)(r->length+8)) {
-/*		opbx_log(LOG_WARNING, "SCCP: Only managed to send %d bytes (out of %d): %s\n", res, r->length+8, strerror(errno)); */
+/*		opbx_log(OPBX_LOG_WARNING, "SCCP: Only managed to send %d bytes (out of %d): %s\n", res, r->length+8, strerror(errno)); */
 		res = 0;
 	}
 
@@ -674,7 +674,7 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 
 		chan = sccp_channel_allocate(wanted);
 		if (!chan) {
-			opbx_log(LOG_ERROR, "%s: Failed to allocate SCCP channel.\n", d->id);
+			opbx_log(OPBX_LOG_ERROR, "%s: Failed to allocate SCCP channel.\n", d->id);
 			return;
 		}
 
@@ -689,7 +689,7 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 	} else {
 
 	// Otherwise, just select the callplane
-	opbx_log(LOG_WARNING, "%s: Unknown status while trying to select line %s.  Current line is %s\n", d->id, wanted->name, current->name);
+	opbx_log(OPBX_LOG_WARNING, "%s: Unknown status while trying to select line %s.  Current line is %s\n", d->id, wanted->name, current->name);
 	}
 }
 

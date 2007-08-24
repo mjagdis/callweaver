@@ -107,7 +107,7 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char 
 				res = opbx_waitstream(chan, "");	
 				opbx_stopstream(chan);
 			} else {
-				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
+				opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
 				res = 0;
 				mres = 1;
 			}

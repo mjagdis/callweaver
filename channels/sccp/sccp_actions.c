@@ -159,7 +159,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Auto logging into %s\n", d->id, cur);
 		l = sccp_line_find_byname(cur);
 		if (!l) {
-			opbx_log(LOG_ERROR, "%s: Failed to autolog into %s: Couldn't find line %s\n", d->id, cur, cur);
+			opbx_log(OPBX_LOG_ERROR, "%s: Failed to autolog into %s: Couldn't find line %s\n", d->id, cur, cur);
 			i++;
 			continue;
 		}
@@ -172,7 +172,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Attaching line %s to this device\n", d->id, l->name);
 		if (i == line_count) {
-			opbx_log(LOG_WARNING, "%s: Failed to autolog into %s: Max available lines phone limit reached %s\n", d->id, cur, cur);
+			opbx_log(OPBX_LOG_WARNING, "%s: Failed to autolog into %s: Max available lines phone limit reached %s\n", d->id, cur, cur);
 			continue;
 		}
 
@@ -228,7 +228,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (opbx_pthread_create(&t, &attr, sccp_dev_postregistration, d)) {
-		opbx_log(LOG_WARNING, "%s: Unable to create thread for monitored status line poll. %s\n", d->id, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "%s: Unable to create thread for monitored status line poll. %s\n", d->id, strerror(errno));
 	}
 }
 
@@ -478,14 +478,14 @@ void sccp_handle_button_template_req(sccp_session_t * s, sccp_moo_t * r) {
 		return;
 
 	if (d->registrationState != SKINNY_DEVICE_RS_OK) {
-		opbx_log(LOG_WARNING, "%s: Received a button template request from unregistered device\n", d->id);
+		opbx_log(OPBX_LOG_WARNING, "%s: Received a button template request from unregistered device\n", d->id);
 		sccp_session_close(s);
 		return;
 	}
 
 		btn = sccp_make_button_template(d);
 		if (!btn) {
-			opbx_log(LOG_ERROR, "%s: No memory allocated for button template\n", d->id);
+			opbx_log(OPBX_LOG_ERROR, "%s: No memory allocated for button template\n", d->id);
 			sccp_session_close(s);
 			return;
 		}
@@ -537,7 +537,7 @@ void sccp_handle_line_number(sccp_session_t * s, sccp_moo_t * r) {
 		k = sccp_dev_speed_find_byindex(d, lineNumber, SKINNY_BUTTONTYPE_LINE);
 	REQ(r1, LineStatMessage);
 	if (!l && !k) {
-		opbx_log(LOG_ERROR, "%s: requested a line configuration for unknown line %d\n", s->device->id, lineNumber);
+		opbx_log(OPBX_LOG_ERROR, "%s: requested a line configuration for unknown line %d\n", s->device->id, lineNumber);
 		r1->msg.LineStatMessage.lel_lineNumber = htolel(lineNumber);
 		sccp_dev_send(s->device, r1);
 		return;
@@ -703,7 +703,7 @@ void sccp_handle_stimulus(sccp_session_t * s, sccp_moo_t * r) {
 					sccp_indicate_nolock(c, SCCP_CHANNELSTATE_DIALING);
 				} else {
 					sccp_pbx_senddigits(c, c->line->vmnum);
-//					opbx_log(LOG_NOTICE, "Cannot send voicemail number. Call in progress with no rtp stream\n", c->callid);
+//					opbx_log(OPBX_LOG_NOTICE, "Cannot send voicemail number. Call in progress with no rtp stream\n", c->callid);
 				}
 				opbx_mutex_unlock(&c->lock);
 				return;
@@ -724,7 +724,7 @@ void sccp_handle_stimulus(sccp_session_t * s, sccp_moo_t * r) {
 			break;
 
 		case SKINNY_BUTTONTYPE_CONFERENCE:
-			opbx_log(LOG_NOTICE, "%s: Conference Button is not yet handled. working on implementation\n", d->id);
+			opbx_log(OPBX_LOG_NOTICE, "%s: Conference Button is not yet handled. working on implementation\n", d->id);
 			break;
 
 		case SKINNY_BUTTONTYPE_FORWARDALL: // Call forward all
@@ -759,7 +759,7 @@ void sccp_handle_stimulus(sccp_session_t * s, sccp_moo_t * r) {
 			break;
 
 		default:
-			opbx_log(LOG_NOTICE, "%s: Don't know how to deal with stimulus %d with Phonetype %s(%d) \n", d->id, stimulus, skinny_devicetype2str(d->skinny_type), d->skinny_type);
+			opbx_log(OPBX_LOG_NOTICE, "%s: Don't know how to deal with stimulus %d with Phonetype %s(%d) \n", d->id, stimulus, skinny_devicetype2str(d->skinny_type), d->skinny_type);
 			break;
 	}
 }
@@ -815,7 +815,7 @@ void sccp_handle_offhook(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Taken Offhook\n", d->id);
 
 	if (!d->lines) {
-    	opbx_log(LOG_NOTICE, "No lines registered on %s for take OffHook\n", s->device->id);
+    	opbx_log(OPBX_LOG_NOTICE, "No lines registered on %s for take OffHook\n", s->device->id);
     	sccp_dev_displayprompt(d, 0, 0, "No lines registered!", 0);
     	sccp_dev_starttone(d, SKINNY_TONE_BEEPBONK, 0, 0, 0);
     	return;
@@ -840,7 +840,7 @@ void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_device_t * d = s->device;
 
 	if (!s || !d) {
-		opbx_log(LOG_NOTICE, "No device to put OnHook\n");
+		opbx_log(OPBX_LOG_NOTICE, "No device to put OnHook\n");
 		return;
 	}
 
@@ -852,7 +852,7 @@ void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s is Onhook\n", s->device->id);
 
 	if (!d->lines) {
-		opbx_log(LOG_NOTICE, "No lines registered on %s to put OnHook\n", s->device->id);
+		opbx_log(OPBX_LOG_NOTICE, "No lines registered on %s to put OnHook\n", s->device->id);
 	return;
 	}
 
@@ -1028,7 +1028,7 @@ void sccp_handle_time_date_req(sccp_session_t * s, sccp_moo_t * req) {
   REQ(r1, DefineTimeDate);
 
   if (!s || !s->device) {
-       opbx_log(LOG_WARNING,"Session no longer valid\n");
+       opbx_log(OPBX_LOG_WARNING,"Session no longer valid\n");
        return;
   }
 
@@ -1078,7 +1078,7 @@ void sccp_handle_keypad_button(sccp_session_t * s, sccp_moo_t * r) {
 		c = sccp_channel_get_active(d);
 
 	if (!c) {
-		opbx_log(LOG_NOTICE, "Device %s sent a Keypress, but there is no active channel!\n", d->id);
+		opbx_log(OPBX_LOG_NOTICE, "Device %s sent a Keypress, but there is no active channel!\n", d->id);
 		return;
 	}
 
@@ -1158,7 +1158,7 @@ void sccp_handle_soft_key_event(sccp_session_t * s, sccp_moo_t * r) {
 
 		/*
 	if ( event > sizeof(softkeysmap) )
-		opbx_log(LOG_ERROR, "%s: Out of range for Softkey: %s (%d) line=%d callid=%d\n", d->id, skinny_lbl2str(event), event, line, callid);
+		opbx_log(OPBX_LOG_ERROR, "%s: Out of range for Softkey: %s (%d) line=%d callid=%d\n", d->id, skinny_lbl2str(event), event, line, callid);
 	*/
 	event = softkeysmap[event-1];
 
@@ -1235,7 +1235,7 @@ void sccp_handle_soft_key_event(sccp_session_t * s, sccp_moo_t * r) {
 		break;
 #endif
 	default:
-		opbx_log(LOG_WARNING, "Don't know how to handle keypress %d\n", event);
+		opbx_log(OPBX_LOG_WARNING, "Don't know how to handle keypress %d\n", event);
 	}
 }
 
@@ -1269,7 +1269,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 
 	if (status) {
 		/* rtp error from the phone */
-		opbx_log(LOG_ERROR, "%s: OpenReceiveChannelAck error from the phone! No rtp media available\n", d->id);
+		opbx_log(OPBX_LOG_ERROR, "%s: OpenReceiveChannelAck error from the phone! No rtp media available\n", d->id);
 		return;
 	}
 	c = sccp_channel_find_byid_on_device(d, letohl(r->msg.OpenReceiveChannelAck.lel_passThruPartyId));
@@ -1282,11 +1282,11 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the RTP media address to %s:%d\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			opbx_rtp_set_peer(c->rtp, &sin);
 		} else {
-			opbx_log(LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no callweaver rtp channel!\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(OPBX_LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no callweaver rtp channel!\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 		}
 		opbx_mutex_unlock(&c->lock);
 	} else {
-		opbx_log(LOG_ERROR, "%s: No channel with this PassThruId!\n", d->id);
+		opbx_log(OPBX_LOG_ERROR, "%s: No channel with this PassThruId!\n", d->id);
 	}
 }
 

@@ -99,7 +99,7 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 			line = nextline;
 		}
 	} else 
-		opbx_log(LOG_ERROR, "Memory Allocation Failed.\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Allocation Failed.\n");
 	
 	if (config_data->fd)
 		close(config_data->fd);

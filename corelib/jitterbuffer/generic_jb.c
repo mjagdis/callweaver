@@ -385,7 +385,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 	frr = opbx_frdup(f);
 	if(frr == NULL)
 	{
-		opbx_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);
 		return -1;
 	}
 	
@@ -501,14 +501,14 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 			break;
 		case JB_IMPL_NOFRAME:
 #ifdef DEBUG			
-			opbx_log(LOG_DEBUG,
+			opbx_log(OPBX_LOG_DEBUG,
 				"JB_IMPL_NOFRAME is retuned from the %s jb when now=%ld >= next=%ld, jbnext=%ld!\n",
 				jbimpl->name, now, jb->next, jbimpl->next(jbobj));
 #endif
 			jb_framelog("\tJB_GET {now=%ld}: No frame for now!?\n", now);
 			return;
 		default:
-			opbx_log(LOG_ERROR, "This should never happen!\n");
+			opbx_log(OPBX_LOG_ERROR, "This should never happen!\n");
 			CRASH;
 			break;
 		}
@@ -535,7 +535,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 		jbimpl = jb->impl;
 		jbconf = &jb->conf;
 	} else {
-		opbx_log(LOG_ERROR, "No channel provided!\n");
+		opbx_log(OPBX_LOG_ERROR, "No channel provided!\n");
 		return 0;
 	}
 
@@ -543,7 +543,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 	jbobj = jb->jbobj = jbimpl->create(jbconf, jbconf->resync_threshold);
 	if(jbobj == NULL)
 	{
-		opbx_log(LOG_WARNING, "Failed to create jitterbuffer on channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Failed to create jitterbuffer on channel '%s'\n", chan->name);
 		return -1;
 	}
 	
@@ -554,7 +554,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 	   some implementations (i.e. stevek's when resynch_threshold is specified) to drop it. */
 	if(res != JB_IMPL_OK)
 	{
-		opbx_log(LOG_WARNING, "Failed to put first frame in the jitterbuffer on channel '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Failed to put first frame in the jitterbuffer on channel '%s'\n", chan->name);
 		/*
 		jbimpl->destroy(jbobj);
 		return -1;
@@ -594,7 +594,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 		
 		if(jb->logfile == NULL)
 		{
-			opbx_log(LOG_WARNING, "Failed to create frame log file with pathname '%s'\n", logfile_pathname);
+			opbx_log(OPBX_LOG_WARNING, "Failed to create frame log file with pathname '%s'\n", logfile_pathname);
 		}
 		
 		if(res == JB_IMPL_OK)
@@ -633,7 +633,7 @@ void opbx_jb_destroy(struct opbx_channel *chan)
 		jbimpl = jb->impl;
 		jbobj = jb->jbobj;
 	} else {
-		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 		return;
 	}
 
@@ -763,7 +763,7 @@ void opbx_jb_default_config(struct opbx_jb_conf *conf)
 		conf->timing_compensation = 5;
 		conf->impl[0] = 0;
 	} else
-		opbx_log(LOG_ERROR, "No jitterbuffer conf struct provided!\n");
+		opbx_log(OPBX_LOG_ERROR, "No jitterbuffer conf struct provided!\n");
 }
 
 void opbx_jb_configure(struct opbx_channel *chan, struct opbx_jb_conf *conf)
@@ -776,7 +776,7 @@ void opbx_jb_configure(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 		jbconf = &jb->conf;
 		memcpy(jbconf, conf, sizeof(struct opbx_jb_conf));
 	} else 
-		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 }
 
 
@@ -790,7 +790,7 @@ void opbx_jb_get_config(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 		jbconf = &jb->conf;
 		memcpy(conf, jbconf, sizeof(struct opbx_jb_conf));
 	} else 
-		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 }
 
 void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info)
@@ -805,7 +805,7 @@ void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info)
 		jbobj = jb->jbobj;
 	        jbimpl->info(jbobj, info);
 	} else 
-		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
+		opbx_log(OPBX_LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 
 }
 
@@ -817,7 +817,7 @@ int opbx_jb_is_active(struct opbx_channel *chan)
 		jb = &chan->jb;
 		return opbx_test_flag(jb, JB_CREATED);
 	} else {
-		opbx_log(LOG_ERROR, "Trying to retreive flag but structs are freed");	
+		opbx_log(OPBX_LOG_ERROR, "Trying to retreive flag but structs are freed");	
 		return 0;
 	}
 }
@@ -927,7 +927,7 @@ static void stevek_error_output(const char *fmt, ...)
 	vsnprintf(buf, 1024, fmt, args);
 	va_end(args);
 
-	opbx_log(LOG_ERROR, buf);
+	opbx_log(OPBX_LOG_ERROR, buf);
 }
 
 static void stevek_warning_output(const char *fmt, ...)
@@ -939,7 +939,7 @@ static void stevek_warning_output(const char *fmt, ...)
 	vsnprintf(buf, 1024, fmt, args);
 	va_end(args);
 
-	opbx_log(LOG_WARNING, buf);
+	opbx_log(OPBX_LOG_WARNING, buf);
 }
 
 static void * jb_create_stevek(struct opbx_jb_conf *general_config, long resynch_threshold)

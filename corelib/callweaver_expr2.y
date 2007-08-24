@@ -271,7 +271,7 @@ make_integer (quad_t i)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		opbx_log(LOG_WARNING, "malloc() failed\n");
+		opbx_log(OPBX_LOG_WARNING, "malloc() failed\n");
 		return(NULL);
 	}
 
@@ -289,7 +289,7 @@ make_str (const char *s)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		opbx_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(OPBX_LOG_WARNING,"malloc() failed\n");
 		return(NULL);
 	}
 
@@ -328,7 +328,7 @@ to_integer (struct val *vp)
 	quad_t i;
 	
 	if (vp == NULL) {
-		opbx_log(LOG_WARNING,"vp==NULL in to_integer()\n");
+		opbx_log(OPBX_LOG_WARNING,"vp==NULL in to_integer()\n");
 		return(0);
 	}
 
@@ -342,7 +342,7 @@ to_integer (struct val *vp)
 	errno = 0;
 	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
-		opbx_log(LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
+		opbx_log(OPBX_LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
 		free(vp->u.s);
 		vp->u.s = 0;
 		return(0);
@@ -386,7 +386,7 @@ to_string (struct val *vp)
 
 	tmp = malloc ((size_t)25);
 	if (tmp == NULL) {
-		opbx_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(OPBX_LOG_WARNING,"malloc() failed\n");
 		return;
 	}
 
@@ -521,7 +521,7 @@ op_eq (struct val *a, struct val *b)
 		(void)to_integer(a);
 		(void)to_integer(b);
 #ifdef DEBUG_FOR_CONVERSIONS
-		opbx_log(LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
+		opbx_log(OPBX_LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
 #endif
 		r = make_integer ((quad_t)(a->u.i == b->u.i));
 	}
@@ -690,7 +690,7 @@ op_plus (struct val *a, struct val *b)
 
 	if (!to_integer (a)) {
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING,"non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING,"non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -706,7 +706,7 @@ op_plus (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(LOG_WARNING,"overflow\n");
+		opbx_log(OPBX_LOG_WARNING,"overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -734,7 +734,7 @@ op_minus (struct val *a, struct val *b)
 
 	if (!to_integer (a)) {
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -747,14 +747,14 @@ op_minus (struct val *a, struct val *b)
 		}
 	} else if (!to_integer(b)) {
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(LOG_WARNING, "overflow\n");
+		opbx_log(OPBX_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -769,13 +769,13 @@ op_negate (struct val *a)
 	if (!to_integer (a) ) {
 		free_value(a);
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	}
 
 	r = make_integer (/*(quad_t)*/(- a->u.i));
 	if (chk_minus (0, a->u.i, r->u.i)) {
-		opbx_log(LOG_WARNING, "overflow\n");
+		opbx_log(OPBX_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	return r;
@@ -852,13 +852,13 @@ op_times (struct val *a, struct val *b)
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		return(make_integer(0));
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(LOG_WARNING, "overflow\n");
+		opbx_log(OPBX_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -885,18 +885,18 @@ op_div (struct val *a, struct val *b)
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	} else if (!to_integer (b)) {
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
-		opbx_log(LOG_WARNING, "division by zero\n");		
+		opbx_log(OPBX_LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
 		return make_integer(INT_MAX);
@@ -904,7 +904,7 @@ op_div (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
-		opbx_log(LOG_WARNING, "overflow\n");
+		opbx_log(OPBX_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -918,14 +918,14 @@ op_rem (struct val *a, struct val *b)
 
 	if (!to_integer (a) || !to_integer (b)) {
 		if( !extra_error_message_supplied )
-			opbx_log(LOG_WARNING, "non-numeric argument\n");
+			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
 		return make_integer(0);
 	}
 
 	if (b->u.i == 0) {
-		opbx_log(LOG_WARNING, "div by zero\n");
+		opbx_log(OPBX_LOG_WARNING, "div by zero\n");
 		free_value(a);
 		return(b);
 	}
@@ -956,7 +956,7 @@ op_colon (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		opbx_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		opbx_log(OPBX_LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
@@ -1007,7 +1007,7 @@ op_eqtilde (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		opbx_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		opbx_log(OPBX_LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		

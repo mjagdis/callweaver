@@ -100,18 +100,18 @@ static int handle_add_indication(int fd, int argc, char *argv[])
     tz = opbx_get_indication_zone(argv[2]);
     if (!tz) {
         /* country does not exist, create it */
-        opbx_log(LOG_NOTICE, "Country '%s' does not exist, creating it.\n",argv[2]);
+        opbx_log(OPBX_LOG_NOTICE, "Country '%s' does not exist, creating it.\n",argv[2]);
 
         if ((tz = malloc(sizeof(struct tone_zone))) == NULL)
         {
-            opbx_log(LOG_WARNING, "Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
             return -1;
         }
         memset(tz,0,sizeof(struct tone_zone));
         opbx_copy_string(tz->country,argv[2],sizeof(tz->country));
         if (opbx_register_indication_country(tz))
         {
-            opbx_log(LOG_WARNING, "Unable to register new country\n");
+            opbx_log(OPBX_LOG_WARNING, "Unable to register new country\n");
             free(tz);
             return -1;
         }
@@ -119,7 +119,7 @@ static int handle_add_indication(int fd, int argc, char *argv[])
     }
     if (opbx_register_indication(tz,argv[3],argv[4]))
     {
-        opbx_log(LOG_WARNING, "Unable to register indication %s/%s\n",argv[2],argv[3]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to register indication %s/%s\n",argv[2],argv[3]);
         if (created_country)
             opbx_unregister_indication_country(argv[2]);
         return -1;
@@ -142,7 +142,7 @@ static int handle_remove_indication(int fd, int argc, char *argv[])
         /* remove entiry country */
         if (opbx_unregister_indication_country(argv[2]))
         {
-            opbx_log(LOG_WARNING, "Unable to unregister indication country %s\n",argv[2]);
+            opbx_log(OPBX_LOG_WARNING, "Unable to unregister indication country %s\n",argv[2]);
             return -1;
         }
         return 0;
@@ -150,11 +150,11 @@ static int handle_remove_indication(int fd, int argc, char *argv[])
 
     tz = opbx_get_indication_zone(argv[2]);
     if (!tz) {
-        opbx_log(LOG_WARNING, "Unable to unregister indication %s/%s, country does not exists\n",argv[2],argv[3]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to unregister indication %s/%s, country does not exists\n",argv[2],argv[3]);
         return -1;
     }
     if (opbx_unregister_indication(tz,argv[3])) {
-        opbx_log(LOG_WARNING, "Unable to unregister indication %s/%s\n",argv[2],argv[3]);
+        opbx_log(OPBX_LOG_WARNING, "Unable to unregister indication %s/%s\n",argv[2],argv[3]);
         return -1;
     }
     return 0;
@@ -170,7 +170,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
     int found_country = 0;
 
     if (opbx_mutex_lock(&tzlock)) {
-        opbx_log(LOG_WARNING, "Unable to lock tone_zones list\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock tone_zones list\n");
         return 0;
     }
     if (argc == 2) {
@@ -229,7 +229,7 @@ static int handle_playtones(struct opbx_channel *chan, int argc, char **argv, ch
 
     if (argc < 1 || !argv[0][0])
     {
-        opbx_log(LOG_NOTICE,"Nothing to play\n");
+        opbx_log(OPBX_LOG_NOTICE,"Nothing to play\n");
         return -1;
     }
     ts = opbx_get_indication_tone(chan->zone, argv[0]);
@@ -238,7 +238,7 @@ static int handle_playtones(struct opbx_channel *chan, int argc, char **argv, ch
     else
         res = opbx_playtones_start(chan, 0, argv[0], 0);
     if (res)
-        opbx_log(LOG_NOTICE,"Unable to start playtones\n");
+        opbx_log(OPBX_LOG_NOTICE,"Unable to start playtones\n");
     return res;
 }
 
@@ -281,7 +281,7 @@ static int ind_load_module(void)
         }
         if ((tones = malloc(sizeof(struct tone_zone))) == NULL)
         {
-            opbx_log(LOG_WARNING,"Out of memory\n");
+            opbx_log(OPBX_LOG_WARNING,"Out of memory\n");
             opbx_config_destroy(cfg);
             return -1;
         }
@@ -305,13 +305,13 @@ static int ind_load_module(void)
                     int *tmp, val;
                     if (!isdigit(ring[0]) || (val=atoi(ring))==-1)
                     {
-                        opbx_log(LOG_WARNING,"Invalid ringcadence given '%s' at line %d.\n",ring,v->lineno);
+                        opbx_log(OPBX_LOG_WARNING,"Invalid ringcadence given '%s' at line %d.\n",ring,v->lineno);
                         ring = strsep(&c,",");
                         continue;
                     }
                     if ((tmp = realloc(tones->ringcadence,(tones->nrringcadence+1)*sizeof(int))) == NULL)
                     {
-                        opbx_log(LOG_WARNING, "Out of memory\n");
+                        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                         opbx_config_destroy(cfg);
                         return -1;
                     }
@@ -332,7 +332,7 @@ static int ind_load_module(void)
                     struct tone_zone* azone = malloc(sizeof(struct tone_zone));
                     if (!azone)
                     {
-                        opbx_log(LOG_WARNING,"Out of memory\n");
+                        opbx_log(OPBX_LOG_WARNING,"Out of memory\n");
                         opbx_config_destroy(cfg);
                         return -1;
                     }
@@ -341,7 +341,7 @@ static int ind_load_module(void)
                     opbx_copy_string(azone->alias, cxt, sizeof(azone->alias));
                     if (opbx_register_indication_country(azone))
                     {
-                        opbx_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
+                        opbx_log(OPBX_LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
                         free(tones);
                     }
                     /* next item */
@@ -357,14 +357,14 @@ static int ind_load_module(void)
                     if (strcasecmp(v->name,ts->name) == 0)
                     {
                         /* already there */
-                        opbx_log(LOG_NOTICE,"Duplicate entry '%s', skipped.\n",v->name);
+                        opbx_log(OPBX_LOG_NOTICE,"Duplicate entry '%s', skipped.\n",v->name);
                         goto out;
                     }
                 }
                 /* not there, add it to the back */
                 if ((ts = malloc(sizeof(struct tone_zone_sound))) == NULL)
                 {
-                    opbx_log(LOG_WARNING, "Out of memory\n");
+                    opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
                     opbx_config_destroy(cfg);
                     return -1;
                 }
@@ -380,7 +380,7 @@ out:            v = v->next;
         }
         if (tones->description[0] || tones->alias[0] || tones->tones) {
             if (opbx_register_indication_country(tones)) {
-                opbx_log(LOG_WARNING, "Unable to register indication at line %d.\n",v->lineno);
+                opbx_log(OPBX_LOG_WARNING, "Unable to register indication at line %d.\n",v->lineno);
                 free(tones);
             }
         } else free(tones);
@@ -391,7 +391,7 @@ out:            v = v->next;
     /* determine which country is the default */
     country = opbx_variable_retrieve(cfg,"general","country");
     if (!country || !*country || opbx_set_indication_country(country))
-        opbx_log(LOG_WARNING,"Unable to set the default country (for indication tones)\n");
+        opbx_log(OPBX_LOG_WARNING,"Unable to set the default country (for indication tones)\n");
 
     opbx_config_destroy(cfg);
     return 0;

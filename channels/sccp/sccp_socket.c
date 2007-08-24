@@ -39,7 +39,7 @@ static void sccp_read_data(sccp_session_t * s) {
 
 	if (ioctl(s->fd, FIONREAD, &length) == -1) {
 		opbx_mutex_unlock(&s->lock);
-		opbx_log(LOG_WARNING, "SCCP: FIONREAD ioctl failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "SCCP: FIONREAD ioctl failed: %s\n", strerror(errno));
 		sccp_session_close(s);
 		return;
 	}
@@ -55,7 +55,7 @@ static void sccp_read_data(sccp_session_t * s) {
 /*	memset(input, 0, length+1); */
 
 	if ((readlen = read(s->fd, input, length)) < 0) {
-		opbx_log(LOG_WARNING, "SCCP: read() returned %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "SCCP: read() returned %s\n", strerror(errno));
 		free(input);
 		opbx_mutex_unlock(&s->lock);
 		sccp_session_close(s);
@@ -63,7 +63,7 @@ static void sccp_read_data(sccp_session_t * s) {
 	}
 
 	if (readlen != length) {
-		opbx_log(LOG_WARNING, "SCCP: read() returned %zd, wanted %zd: %s\n", readlen, length, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "SCCP: read() returned %zd, wanted %zd: %s\n", readlen, length, strerror(errno));
 		free(input);
 		opbx_mutex_unlock(&s->lock);
 		sccp_session_close(s);
@@ -77,7 +77,7 @@ static void sccp_read_data(sccp_session_t * s) {
 			memcpy(s->buffer + s->buffer_size, input, length);
 			s->buffer_size += length;
 	} else {
-		opbx_log(LOG_WARNING, "SCCP: unable to reallocate %zd bytes for skinny a packet\n", s->buffer_size + length);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: unable to reallocate %zd bytes for skinny a packet\n", s->buffer_size + length);
 		free(s->buffer);
 		s->buffer_size = 0;
 	}
@@ -160,25 +160,25 @@ static void sccp_accept_connection(void) {
 	int on = 1;
 
 	if ((new_socket = accept(GLOB(descriptor), (struct sockaddr *)&incoming, &length)) < 0) {
-		opbx_log(LOG_ERROR, "Error accepting new socket %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "Error accepting new socket %s\n", strerror(errno));
 		return;
 	}
 
 	if (ioctl(new_socket, FIONBIO, &dummy) < 0) {
-		opbx_log(LOG_ERROR, "Couldn't set socket to non-blocking\n");
+		opbx_log(OPBX_LOG_ERROR, "Couldn't set socket to non-blocking\n");
 		close(new_socket);
 		return;
 	}
 
 	if (setsockopt(new_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket to SO_REUSEADDR mode: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket to SO_REUSEADDR mode: %s\n", strerror(errno));
 	if (setsockopt(new_socket, IPPROTO_IP, IP_TOS, &GLOB(tos), sizeof(GLOB(tos))) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket TOS to IPTOS_LOWDELAY: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket TOS to IPTOS_LOWDELAY: %s\n", strerror(errno));
 	if (setsockopt(new_socket, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket to TCP_NODELAY: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket to TCP_NODELAY: %s\n", strerror(errno));
 /*
 	if (setsockopt(new_socket, IPPROTO_TCP, TCP_CORK, &on, sizeof(on)) < 0)
-		opbx_log(LOG_WARNING, "Failed to set SCCP socket to TCP_CORK: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to set SCCP socket to TCP_CORK: %s\n", strerror(errno));
 */
 	s = malloc(sizeof(struct sccp_session));
 	memset(s, 0, sizeof(sccp_session_t));
@@ -225,14 +225,14 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 
 	m = malloc(SCCP_MAX_PACKET);
 	if (!m) {
-		opbx_log(LOG_WARNING, "SCCP: unable to allocate %zd bytes for skinny packet\n", SCCP_MAX_PACKET);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: unable to allocate %zd bytes for skinny packet\n", SCCP_MAX_PACKET);
 		return NULL;
 	}
 	
 	memset(m, 0, SCCP_MAX_PACKET);
 	
 	if (packSize > SCCP_MAX_PACKET)
-		opbx_log(LOG_WARNING, "SCCP: Oversize packet mid: %d, our packet size: %zd, phone packet size: %d\n", letohl(m->lel_messageId), SCCP_MAX_PACKET, packSize);
+		opbx_log(OPBX_LOG_WARNING, "SCCP: Oversize packet mid: %d, our packet size: %zd, phone packet size: %d\n", letohl(m->lel_messageId), SCCP_MAX_PACKET, packSize);
 
 	memcpy(m, s->buffer, (packSize < SCCP_MAX_PACKET ? packSize : SCCP_MAX_PACKET) );
 
@@ -243,7 +243,7 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 		if (newptr)
 			memcpy(newptr, (s->buffer + packSize), s->buffer_size);
 		else
-			opbx_log(LOG_WARNING, "SCCP: unable to allocate %zd bytes for packets buffer\n", SCCP_MAX_PACKET);
+			opbx_log(OPBX_LOG_WARNING, "SCCP: unable to allocate %zd bytes for packets buffer\n", SCCP_MAX_PACKET);
 	}
 
 	if (s->buffer)
@@ -294,7 +294,7 @@ void * sccp_socket_thread(void * ignore) {
 
 		maxfd = GLOB(descriptor);
 		if (res == -1) {
-			opbx_log(LOG_ERROR, "SCCP select() returned -1. errno: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "SCCP select() returned -1. errno: %s\n", strerror(errno));
 			continue;
 		}
 
@@ -318,7 +318,7 @@ void * sccp_socket_thread(void * ignore) {
 			}
 			if (s->fd > 0) {
 				if (now > (s->lastKeepAlive + GLOB(keepalive) + 10) ) {
-					opbx_log(LOG_WARNING, "%s: Dead device does not send a keepalive message in %d seconds. Will be removed\n", (s->device) ? s->device->id : "SCCP", GLOB(keepalive));
+					opbx_log(OPBX_LOG_WARNING, "%s: Dead device does not send a keepalive message in %d seconds. Will be removed\n", (s->device) ? s->device->id : "SCCP", GLOB(keepalive));
 					sccp_session_close(s);
 				} else if (s->device) {
 					if (s->needcheckringback) {

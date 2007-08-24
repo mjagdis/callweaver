@@ -88,7 +88,7 @@ icd_listeners *create_icd_listeners(void)
     ICD_MALLOC(listeners, sizeof(icd_listeners));
 
     if (listeners == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Listeners collection\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Listeners collection\n");
         return NULL;
     }
     listeners->allocated = 1;
@@ -242,7 +242,7 @@ static icd_listener_node *create_icd_listener_node(void *listener, int (*lstn_fn
     /* make a new list from scratch */
     ICD_MALLOC(newnode, sizeof(icd_listener_node));
     if (newnode == NULL) {
-        opbx_log(LOG_ERROR, "No memory available to create a new ICD Listener Node\n");
+        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Listener Node\n");
         return NULL;
     }
 

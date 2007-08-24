@@ -179,7 +179,7 @@ static int dviadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
         /* perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160) > sizeof(tmp->outbuf)/sizeof(int16_t))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -192,7 +192,7 @@ static int dviadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
 
     if (f->datalen*4 + tmp->tail*2 > sizeof(tmp->outbuf))
     {
-          opbx_log(LOG_WARNING, "Out of buffer space\n");
+          opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
@@ -253,7 +253,7 @@ static int lintodviadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
     }
     else
     {
-        opbx_log (LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     return 0;

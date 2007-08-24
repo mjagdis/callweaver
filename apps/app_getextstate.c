@@ -89,7 +89,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 			rest++;
 		}
 	    opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, argv[1], cur);
-	    //opbx_log(LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
+	    //opbx_log(OPBX_LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
 	    if (!opbx_strlen_zero(hint)) {
 		//let's concat hints!
 		if ( strlen(hint)+strlen(hints)+2<sizeof(hints) ) {
@@ -97,7 +97,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 		    strcat(hints,hint);
 		}
 	    }
-	    //opbx_log(LOG_DEBUG,"HINTS: %s \n",hints);
+	    //opbx_log(OPBX_LOG_DEBUG,"HINTS: %s \n",hints);
 	    cur=rest;
 	} while (cur);
 	//res=opbx_device_state(hint);
@@ -112,7 +112,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 		}
 	
 		res = opbx_device_state(cur);
-		//opbx_log(LOG_DEBUG,"Ext: %s State: %d \n",cur,res);
+		//opbx_log(OPBX_LOG_DEBUG,"Ext: %s State: %d \n",cur,res);
 		switch (res) {
 		case OPBX_DEVICE_NOT_INUSE:
 			allunavailable = 0;
@@ -147,7 +147,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 	} while (cur);
 
         // 0-idle; 1-inuse; 2-busy; 4-unavail 8-ringing
-	//opbx_log(LOG_VERBOSE, "allunavailable %d, allbusy %d, allfree %d, busy %d, inuse %d, ring %d \n", allunavailable, allbusy, allfree, busy, inuse, ring );
+	//opbx_log(OPBX_LOG_VERBOSE, "allunavailable %d, allbusy %d, allfree %d, busy %d, inuse %d, ring %d \n", allunavailable, allbusy, allfree, busy, inuse, ring );
 	if      (!inuse && ring)
 		res=8;
 	else if (inuse && ring)
@@ -169,7 +169,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 	} else {
 		char resc[8];
 		if (!deprecated_var) {
-			opbx_log(LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
+			opbx_log(OPBX_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
 			deprecated_var = 1;
 		}
 		snprintf(resc, sizeof(resc), "%d", res);

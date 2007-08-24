@@ -79,7 +79,7 @@ static int milliwatt_generate(struct opbx_channel *chan, void *data, int samples
 
 	if (samples > sizeof(buf))
 	{
-		opbx_log(LOG_WARNING,"Only doing %d samples (%d requested)\n",(int)sizeof(buf),samples);
+		opbx_log(OPBX_LOG_WARNING,"Only doing %d samples (%d requested)\n",(int)sizeof(buf),samples);
 		samples = sizeof(buf);
 	}
 	waste[0] = 0; /* make compiler happy */
@@ -118,7 +118,7 @@ static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv, char
 	}
 	if (opbx_generator_activate(chan,&milliwattgen,"milliwatt") < 0)
 	{
-		opbx_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		opbx_log(OPBX_LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

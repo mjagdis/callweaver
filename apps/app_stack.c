@@ -100,7 +100,7 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	label = pbx_builtin_getvar_helper(chan, STACKVAR);
 
 	if (opbx_strlen_zero(label)) {
-		opbx_log(LOG_ERROR, "Return without Gosub: stack is empty\n");
+		opbx_log(OPBX_LOG_ERROR, "Return without Gosub: stack is empty\n");
 		return -1;
 	}
 
@@ -116,7 +116,7 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
 	if (opbx_explicit_goto(chan, argv[0], argv[1], atoi(argv[2]))) {
-		opbx_log(LOG_WARNING, "No statement after Gosub to return to?\n");
+		opbx_log(OPBX_LOG_WARNING, "No statement after Gosub to return to?\n");
 		return -1;
 	}
 

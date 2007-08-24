@@ -69,7 +69,7 @@
 
 #ifdef DEBUG_THREADS
 
-#define __opbx_mutex_logger(...) { if (canlog) opbx_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); }
+#define __opbx_mutex_logger(...) { if (canlog) opbx_log(OPBX_LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); }
 
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)

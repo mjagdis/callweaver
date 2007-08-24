@@ -202,7 +202,7 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
         /* Perform PLC with nominal framesize of LPC10_SAMPLES_PER_FRAME */
         if ((tmp->tail + LPC10_SAMPLES_PER_FRAME) > sizeof(tmp->buf)/sizeof(int16_t))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -217,13 +217,13 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     {
         if (tmp->tail + LPC10_SAMPLES_PER_FRAME >= sizeof(tmp->buf)/sizeof(int16_t))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         sd = tmp->buf + tmp->tail;
         if (lpc10_decode(tmp->lpc10.dec, sd, f->data + len, 1) < LPC10_SAMPLES_PER_FRAME)
         {
-            opbx_log(LOG_WARNING, "Invalid lpc10 data\n");
+            opbx_log(OPBX_LOG_WARNING, "Invalid lpc10 data\n");
             return -1;
         }
         if (useplc)
@@ -233,7 +233,7 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
         len += LPC10_BYTES_IN_COMPRESSED_FRAME;
     }
     if (len != f->datalen) 
-        opbx_log(LOG_WARNING, "Decoded %d, expected %d\n", len, f->datalen);
+        opbx_log(OPBX_LOG_WARNING, "Decoded %d, expected %d\n", len, f->datalen);
     return 0;
 }
 
@@ -245,7 +245,7 @@ static int lintolpc10_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
        get artifacts of earlier talk that do not belong */
     if (tmp->tail + f->datalen > sizeof(tmp->buf)/sizeof(int16_t))
     {
-        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
@@ -266,7 +266,7 @@ static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
     {
         if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf))
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return NULL;
         }
         /* Encode a frame of data */

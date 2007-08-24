@@ -88,7 +88,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 			/* Whoops! */
 			gen->release(chan, gen_data);
 			opbx_mutex_unlock(&pgcd->lock);
-			opbx_log(LOG_ERROR, "Generator activation failed: unable to start generator thread\n");
+			opbx_log(OPBX_LOG_ERROR, "Generator activation failed: unable to start generator thread\n");
 			return -1;
 		}
 
@@ -116,7 +116,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 		return 0;
 	} else {
 		/* Whoops! */
-		opbx_log(LOG_ERROR, "Generator activation failed\n");
+		opbx_log(OPBX_LOG_ERROR, "Generator activation failed\n");
 		return -1;
 	}
 }
@@ -127,7 +127,7 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
         int i;
 	struct opbx_generator_channel_data *pgcd = &chan->gcd;
 
-	opbx_log(LOG_DEBUG, "Trying to deactivate generator in %s\n", 
+	opbx_log(OPBX_LOG_DEBUG, "Trying to deactivate generator in %s\n", 
 		 chan->name);
 
 	/* In case the generator thread hasn't yet processed a
@@ -154,11 +154,11 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	    usleep(10000);
 	}
 	if (pgcd->gen_is_active) {
-	    opbx_log(LOG_ERROR, "Generator still active on %s!!!\n", 
+	    opbx_log(OPBX_LOG_ERROR, "Generator still active on %s!!!\n", 
 		     chan->name);
 	}
 
-	opbx_log(LOG_DEBUG, "Generator on %s stopped after %d iterations\n",
+	opbx_log(OPBX_LOG_DEBUG, "Generator on %s stopped after %d iterations\n",
 		 chan->name, i);
 }
 
@@ -209,7 +209,7 @@ static void *opbx_generator_thread(void *data)
 
 	/* Loop continuously until shutdown request is received */
 	opbx_mutex_lock(&pgcd->lock);
-	opbx_log(LOG_DEBUG, "Generator thread started on %s\n",
+	opbx_log(OPBX_LOG_DEBUG, "Generator thread started on %s\n",
 		 chan->name);
 	cur_gen_data = NULL;
 	cur_gen_samp = 0;
@@ -248,7 +248,7 @@ static void *opbx_generator_thread(void *data)
 						 * request. Deactivate current
 						 * generator */
 						if (!pgcd->gen_req) {
-							opbx_log(LOG_DEBUG, "Generator self-deactivating\n");
+							opbx_log(OPBX_LOG_DEBUG, "Generator self-deactivating\n");
 							pgcd->gen_req = gen_req_deactivate;
 						}
 						break;
@@ -293,7 +293,7 @@ static void *opbx_generator_thread(void *data)
 			/* Just break the loop */
 			break;
 		} else if (pgcd->gen_req != gen_req_deactivate) {
-			opbx_log(LOG_DEBUG, "Unexpected generator request (%d).\n", pgcd->gen_req);
+			opbx_log(OPBX_LOG_DEBUG, "Unexpected generator request (%d).\n", pgcd->gen_req);
 		}
 
 		/* Reset request */
@@ -301,7 +301,7 @@ static void *opbx_generator_thread(void *data)
 	}
 
 	/* Got request to shutdown. */
-	opbx_log(LOG_DEBUG, "Generator thread shut down on %s\n", chan->name);
+	opbx_log(OPBX_LOG_DEBUG, "Generator thread shut down on %s\n", chan->name);
 	opbx_mutex_unlock(&pgcd->lock);
 	return NULL;
 }

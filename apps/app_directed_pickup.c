@@ -84,41 +84,41 @@ static int pickup_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 			if (target)
 			  locked = 1;
 		} else {
-			opbx_log(LOG_DEBUG, "No target channel found.\n");
+			opbx_log(OPBX_LOG_DEBUG, "No target channel found.\n");
 			res = -1;
 		}
 		opbx_mutex_unlock(&origin->lock);
 	} else {
-		opbx_log(LOG_DEBUG, "No originating channel found.\n");
+		opbx_log(OPBX_LOG_DEBUG, "No originating channel found.\n");
 	}
 	
 	if (res)
 		goto out;
 
 	if (target && (!target->pbx) && ((target->_state == OPBX_STATE_RINGING) || (target->_state == OPBX_STATE_RING))) {
-		opbx_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
+		opbx_log(OPBX_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
 			chan->name);
 		res = opbx_answer(chan);
 		if (res) {
-			opbx_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 			res = -1;
 			goto out;
 		}
 		res = opbx_queue_control(chan, OPBX_CONTROL_ANSWER);
 		if (res) {
-			opbx_log(LOG_WARNING, "Unable to queue answer on '%s'\n",
+			opbx_log(OPBX_LOG_WARNING, "Unable to queue answer on '%s'\n",
 				chan->name);
 			res = -1;
 			goto out;
 		}
 		res = opbx_channel_masquerade(target, chan);
 		if (res) {
-			opbx_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
 			res = -1;
 			goto out;
 		}
 	} else {
-		opbx_log(LOG_DEBUG, "No call pickup possible...\n");
+		opbx_log(OPBX_LOG_DEBUG, "No call pickup possible...\n");
 		res = -1;
 	}
 	

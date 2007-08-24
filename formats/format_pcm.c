@@ -96,7 +96,7 @@ static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }
@@ -120,7 +120,7 @@ static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)
     if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
     {
         if (res)
-            opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     s->fr.samples = res;
@@ -136,17 +136,17 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
     if (f->subclass != OPBX_FORMAT_ULAW)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
     {
-        opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
     return 0;

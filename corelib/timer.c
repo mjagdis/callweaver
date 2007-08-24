@@ -97,7 +97,7 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 	if (st == -1)
 		st = clock_getres(CLOCK_REALTIME, &res);
 	if (st == -1) {
-		opbx_log(LOG_WARNING, "Couldn't get resolution of "
+		opbx_log(OPBX_LOG_WARNING, "Couldn't get resolution of "
 			 "timer. Timer could be unreliable!\n");
 	} else {
 	    /* Calculate the time in seconds and nanoseconds
@@ -109,7 +109,7 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 		static long complained = 1000000000L;
 		if (nano < complained) {
 			complained = nano;
-			opbx_log(LOG_WARNING, "Requested a timer with %ld "
+			opbx_log(OPBX_LOG_WARNING, "Requested a timer with %ld "
 				 "nanosecond interval, but system timer "
 				 "reports a resolution of %ld nanosec. "
 				 "Timing may be unreliable!\n", nano, 
@@ -171,24 +171,24 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 
     /* We REALLY prefer monotonic, but you can't have it all! */
     if (timer_create(CLOCK_MONOTONIC, &evp, &t->timer_id) == -1) {
-	opbx_log(LOG_DEBUG, "CLOCK_MONOTONIC didn't work, trying "
+	opbx_log(OPBX_LOG_DEBUG, "CLOCK_MONOTONIC didn't work, trying "
 		"CLOCK_REALTIME\n");
 	if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 #if defined(HAVE_STRERROR_R)
             char buf[128];
 #if defined(STRERROR_R_CHAR_P)
-	    opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+	    opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
 			 "%s\n", strerror_r(errno, buf, 128));
 #else
 	    if(strerror_r(errno, buf, 128) == 0) {
-	    	opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+	    	opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", buf);
 	    } else {
-		opbx_log(LOG_ERROR, "Error starting timer\n");
+		opbx_log(OPBX_LOG_ERROR, "Error starting timer\n");
 	    }
 #endif
 #else
-	    opbx_log(LOG_ERROR, "Error creating monotonic timer"
+	    opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer"
 			 "\n");
 #endif
 	    return -1;
@@ -199,11 +199,11 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #ifdef USE_GENERIC_TIMERS
     if ((ret = opbx_pthread_create(&t->opbx_timer_thread, NULL, _timer_thread, t))) {
     	if(t->type == OPBX_TIMER_REPEATING)
-	    opbx_log(LOG_WARNING, "Failed to create thread for OPBX_TIMER_REPEATING: %s\n", strerror(ret));
+	    opbx_log(OPBX_LOG_WARNING, "Failed to create thread for OPBX_TIMER_REPEATING: %s\n", strerror(ret));
 	else if(t->type == OPBX_TIMER_ONESHOT)
-	    opbx_log(LOG_WARNING, "Failed to create thread for OPBX_TIMER_ONESHOT: %s\n", strerror(ret));
+	    opbx_log(OPBX_LOG_WARNING, "Failed to create thread for OPBX_TIMER_ONESHOT: %s\n", strerror(ret));
 	else 
-	    opbx_log(LOG_WARNING, "Failed to create thread for OPBX_TIMER_SIMPLE: %s\n", strerror(ret));		
+	    opbx_log(OPBX_LOG_WARNING, "Failed to create thread for OPBX_TIMER_SIMPLE: %s\n", strerror(ret));		
 	free(t->opbx_timer_thread);
 	t->opbx_timer_thread = NULL;
 	return -1;
@@ -211,7 +211,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #endif /* USE_GENERIC_TIMERS */
 
 #ifdef TIMER_DEBUG
-    opbx_log(LOG_DEBUG, "Created timer 0x%lx\n", (unsigned long)t);
+    opbx_log(OPBX_LOG_DEBUG, "Created timer 0x%lx\n", (unsigned long)t);
 #endif		 
     return 0;
 }
@@ -249,7 +249,7 @@ void opbx_timer_destroy(opbx_timer_t *t)
 #ifdef USE_GENERIC_TIMERS
     if(t->active && t->opbx_timer_thread) {
 #endif
-	opbx_log(LOG_DEBUG, "Destroying timer 0x%lx!\n", 
+	opbx_log(OPBX_LOG_DEBUG, "Destroying timer 0x%lx!\n", 
 	    (unsigned long)t);
 	    
 #ifdef USE_GENERIC_TIMERS
@@ -257,7 +257,7 @@ void opbx_timer_destroy(opbx_timer_t *t)
 	pthread_cancel(t->opbx_timer_thread);
 #endif /* USE_GENERIC_TIMERS */
     } else
-	opbx_log(LOG_DEBUG, "Attempted to destroy inactive timer "
+	opbx_log(OPBX_LOG_DEBUG, "Attempted to destroy inactive timer "
 		    "0x%lx!\n", (unsigned long)t);
 #ifdef HAVE_POSIX_TIMERS
     t->active = 0;
@@ -278,7 +278,7 @@ int opbx_timer_start(opbx_timer_t *t)
     /* Create joinable thread */
     if(!t->opbx_timer_thread) {
 #endif /* USE_GENERIC_TIMERS */
-	opbx_log(LOG_ERROR, "Attempted to start nonexistent timer!\n");
+	opbx_log(OPBX_LOG_ERROR, "Attempted to start nonexistent timer!\n");
 	return -1;
     }
 
@@ -299,7 +299,7 @@ int opbx_timer_start(opbx_timer_t *t)
 	spec.it_interval.tv_nsec = nano;
     }
 #ifdef TIMER_DEBUG
-    opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
+    opbx_log(OPBX_LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
 	 "%ld.%ld\n", (unsigned long)t,
 	 spec.it_value.tv_sec, spec.it_value.tv_nsec, 
 	 spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
@@ -310,18 +310,18 @@ int opbx_timer_start(opbx_timer_t *t)
 #if defined(HAVE_STRERROR_R)
             char buf[128];
 #if defined(STRERROR_R_CHAR_P)
-            opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+            opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", strerror_r(errno, buf, 128));
 #else
             if(strerror_r(errno, buf, 128) == 0) {
-                opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", buf);
             } else {
-		opbx_log(LOG_ERROR, "Error starting timer\n");
+		opbx_log(OPBX_LOG_ERROR, "Error starting timer\n");
 	    }
 #endif
 #else
-	opbx_log(LOG_ERROR, "Error starting timer\n");
+	opbx_log(OPBX_LOG_ERROR, "Error starting timer\n");
 #endif
 	return -1;
     }	
@@ -347,18 +347,18 @@ int opbx_timer_stop(opbx_timer_t *t)
 #if defined(HAVE_STRERROR_R)
             char buf[128];
 #if defined(STRERROR_R_CHAR_P)
-            opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+            opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", strerror_r(errno, buf, 128));
 #else
             if(strerror_r(errno, buf, 128) == 0) {
-                opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", buf);
             } else {
-		opbx_log(LOG_ERROR, "Error starting timer\n");
+		opbx_log(OPBX_LOG_ERROR, "Error starting timer\n");
 	    }
 #endif
 #else
-	opbx_log(LOG_ERROR, "Error stopping timer\n");
+	opbx_log(OPBX_LOG_ERROR, "Error stopping timer\n");
 #endif
 	return -1;
     }
@@ -367,7 +367,7 @@ int opbx_timer_stop(opbx_timer_t *t)
     /* Disable timer */
     t->active = 0;
 #ifdef TIMER_DEBUG
-    opbx_log(LOG_DEBUG, "Timer 0x%lx set to inactive\n", 
+    opbx_log(OPBX_LOG_DEBUG, "Timer 0x%lx set to inactive\n", 
 	(unsigned long)t);
 #endif /* TIMER_DEBUG */
 #endif /* USE_GENERIC_TIMERS */
@@ -381,7 +381,7 @@ int opbx_simple_timer(opbx_timer_t *t, unsigned long interval,
 
     /* Don't bother creating timer for 0-length interval */
     if (interval == 0) {
-	opbx_log(LOG_DEBUG, "Not creating 0-interval timer\n");
+	opbx_log(OPBX_LOG_DEBUG, "Not creating 0-interval timer\n");
 	return -1;
     }
 #ifdef HAVE_POSIX_TIMERS
@@ -436,7 +436,7 @@ void * _timer_thread(void *parg)
 	    if (nanosleep(&ts, NULL)) {
 	        if (errno != EINTR ) {
 		    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	            opbx_log(LOG_WARNING, "Requested a timer with %ld "
+	            opbx_log(OPBX_LOG_WARNING, "Requested a timer with %ld "
 	        	"nanosecond interval, but system timer "
 	    		"couldn't handled!\n"
 			"Timing may be unreliable!\n", 
@@ -456,7 +456,7 @@ void * _timer_thread(void *parg)
 	    }
 	    
 #ifdef TIMER_DEBUG
-	    opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld\n",
+	    opbx_log(OPBX_LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld\n",
 	        (unsigned long)t, 
 	        t->type, 
 	        (long int)ts.tv_sec, ts.tv_nsec);
@@ -471,7 +471,7 @@ void * _timer_thread(void *parg)
 
     pthead_cleanup_pop(1);
 #ifdef TIMER_DEBUG
-    opbx_log(LOG_DEBUG, "OPBX timer thread shut down on 0x%lx\n", (unsigned long)t);
+    opbx_log(OPBX_LOG_DEBUG, "OPBX timer thread shut down on 0x%lx\n", (unsigned long)t);
 #endif
     return 0;
 }

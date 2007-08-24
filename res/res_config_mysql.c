@@ -106,7 +106,7 @@ static struct opbx_variable *realtime_mysql(const char *database, const char *ta
 	struct opbx_variable *var=NULL, *prev=NULL;
 
 	if(!table) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: No table specified.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No table specified.\n");
 		return NULL;
 	}
 
@@ -114,7 +114,7 @@ static struct opbx_variable *realtime_mysql(const char *database, const char *ta
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if(!newparam || !newval)  {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		mysql_close(&mysql);
 		return NULL;
 	}
@@ -145,13 +145,13 @@ static struct opbx_variable *realtime_mysql(const char *database, const char *ta
 	}
 	va_end(ap);
 
-	opbx_log(LOG_DEBUG, "MySQL RealTime: Retrieve SQL: %s\n", sql);
+	opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Retrieve SQL: %s\n", sql);
 
 	/* Execution. */
 	if(mysql_real_query(&mysql, sql, strlen(sql))) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
 		opbx_mutex_unlock(&mysql_lock);
 		return NULL;
 	}
@@ -179,7 +179,7 @@ static struct opbx_variable *realtime_mysql(const char *database, const char *ta
 			}
 		}
 	} else {                                
-		opbx_log(LOG_WARNING, "MySQL RealTime: Could not find any rows in table %s.\n", table);
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	opbx_mutex_unlock(&mysql_lock);
@@ -207,7 +207,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 	struct opbx_category *cat = NULL;
 
 	if(!table) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: No table specified.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No table specified.\n");
 		return NULL;
 	}
 	
@@ -216,7 +216,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 	cfg = opbx_config_new();
 	if (!cfg) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */
-		opbx_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 		return NULL;
 	}
 
@@ -224,7 +224,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if(!newparam || !newval)  {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		mysql_close(&mysql);
 		return NULL;
 	}
@@ -265,13 +265,13 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 
 	va_end(ap);
 
-	opbx_log(LOG_DEBUG, "MySQL RealTime: Retrieve SQL: %s\n", sql);
+	opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Retrieve SQL: %s\n", sql);
 
 	/* Execution. */
 	if(mysql_real_query(&mysql, sql, strlen(sql))) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
 		opbx_mutex_unlock(&mysql_lock);
 		return NULL;
 	}
@@ -284,7 +284,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 			var = NULL;
 			cat = opbx_category_new("");
 			if(!cat) {
-				opbx_log(LOG_WARNING, "Out of memory!\n");
+				opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 				continue;
 			}
 			for(i = 0; i < numFields; i++) {
@@ -303,7 +303,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 			opbx_category_append(cfg, cat);
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Could not find any rows in table %s.\n", table);
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	opbx_mutex_unlock(&mysql_lock);
@@ -321,7 +321,7 @@ static int update_mysql(const char *database, const char *table, const char *key
 	const char *newparam, *newval;
 
 	if(!table) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: No table specified.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No table specified.\n");
                return -1;
 	}
 
@@ -329,7 +329,7 @@ static int update_mysql(const char *database, const char *table, const char *key
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if(!newparam || !newval)  {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		mysql_close(&mysql);
                return -1;
 	}
@@ -361,13 +361,13 @@ static int update_mysql(const char *database, const char *table, const char *key
 	mysql_real_escape_string(&mysql, buf, lookup, valsz);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s = '%s'", keyfield, buf);
 
-	opbx_log(LOG_DEBUG,"MySQL RealTime: Update SQL: %s\n", sql);
+	opbx_log(OPBX_LOG_DEBUG,"MySQL RealTime: Update SQL: %s\n", sql);
 
 	/* Execution. */
 	if(mysql_real_query(&mysql, sql, strlen(sql))) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
 		opbx_mutex_unlock(&mysql_lock);
 		return -1;
 	}
@@ -375,7 +375,7 @@ static int update_mysql(const char *database, const char *table, const char *key
 	numrows = mysql_affected_rows(&mysql);
 	opbx_mutex_unlock(&mysql_lock);
 
-	opbx_log(LOG_DEBUG,"MySQL RealTime: Updated %llu rows on table: %s\n", numrows, table);
+	opbx_log(OPBX_LOG_DEBUG,"MySQL RealTime: Updated %llu rows on table: %s\n", numrows, table);
 
 	/* From http://dev.mysql.com/doc/mysql/en/mysql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -403,13 +403,13 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 	last[0] = '\0';
 
 	if(!file || !strcmp(file, RES_CONFIG_MYSQL_CONF)) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Cannot configure myself.\n");
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Cannot configure myself.\n");
 		return NULL;
 	}
 
 	snprintf(sql, sizeof(sql), "SELECT category, var_name, var_val, cat_metric FROM %s WHERE filename='%s' and commented=0 ORDER BY filename, cat_metric desc, var_metric asc, category, var_name, var_val, id", table, file);
 
-	opbx_log(LOG_DEBUG, "MySQL RealTime: Static SQL: %s\n", sql);
+	opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Static SQL: %s\n", sql);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	opbx_mutex_lock(&mysql_lock);
@@ -419,16 +419,16 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 	}
 
 	if(mysql_real_query(&mysql, sql, strlen(sql))) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query: %s\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&mysql));
 		opbx_mutex_unlock(&mysql_lock);
 		return NULL;
 	}
 
 	if((result = mysql_store_result(&mysql))) {
 		num_rows = mysql_num_rows(result);
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Found %llu rows.\n", num_rows);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Found %llu rows.\n", num_rows);
 
 		/* There might exist a better way to access the column names other than counting,
                    but I believe that would require another loop that we don't need. */
@@ -446,7 +446,7 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 			if(strcmp(last, row[0]) || last_cat_metric != atoi(row[3])) {
 				cur_cat = opbx_category_new(row[0]);
 				if (!cur_cat) {
-					opbx_log(LOG_WARNING, "Out of memory!\n");
+					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 					break;
 				}
 				strcpy(last, row[0]);
@@ -457,7 +457,7 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 			opbx_variable_append(cur_cat, new_v);
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Could not find config '%s' in database.\n", file);
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Could not find config '%s' in database.\n", file);
 	}
 
 	mysql_free_result(result);
@@ -490,8 +490,8 @@ static int load_module(void)
 	opbx_mutex_lock(&mysql_lock);
 
 	if(!mysql_reconnect(NULL)) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Couldn't establish connection. Check debug.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Cannot Connect: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Couldn't establish connection. Check debug.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Cannot Connect: %s\n", mysql_error(&mysql));
 	}
 
 	if(option_verbose) {
@@ -532,8 +532,8 @@ static int reload_module(void)
 	parse_config();
 
 	if(!mysql_reconnect(NULL)) {
-		opbx_log(LOG_WARNING, "MySQL RealTime: Couldn't establish connection. Check debug.\n");
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Cannot Connect: %s\n", mysql_error(&mysql));
+		opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Couldn't establish connection. Check debug.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Cannot Connect: %s\n", mysql_error(&mysql));
 	}
 
 	opbx_verbose(VERBOSE_PREFIX_2 "MySQL RealTime reloaded.\n");
@@ -553,42 +553,42 @@ static int parse_config (void)
 
 	if(config) {
 		if(!(s=opbx_variable_retrieve(config, "general", "dbuser"))) {
-			opbx_log(LOG_WARNING, "MySQL RealTime: No database user found, using 'callweaver' as default.\n");
+			opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database user found, using 'callweaver' as default.\n");
 			strncpy(dbuser, "callweaver", sizeof(dbuser) - 1);
 		} else {
 			strncpy(dbuser, s, sizeof(dbuser) - 1);
 		}
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbpass"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database password found, using 'callweaver' as default.\n");
+                        opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database password found, using 'callweaver' as default.\n");
                         strncpy(dbpass, "callweaver", sizeof(dbpass) - 1);
                 } else {
                         strncpy(dbpass, s, sizeof(dbpass) - 1);
                 }
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbhost"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database host found, using localhost via socket.\n");
+                        opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database host found, using localhost via socket.\n");
 			dbhost[0] = '\0';
                 } else {
                         strncpy(dbhost, s, sizeof(dbhost) - 1);
                 }
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbname"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database name found, using 'callweaver' as default.\n");
+                        opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database name found, using 'callweaver' as default.\n");
 			strncpy(dbname, "callweaver", sizeof(dbname) - 1);
                 } else {
                         strncpy(dbname, s, sizeof(dbname) - 1);
                 }
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbport"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database port found, using 3306 as default.\n");
+                        opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database port found, using 3306 as default.\n");
 			dbport = 3306;
                 } else {
 			dbport = atoi(s);
                 }
 
 		if(dbhost && !(s=opbx_variable_retrieve(config, "general", "dbsock"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database socket found, using '/tmp/mysql.sock' as default.\n");
+                        opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: No database socket found, using '/tmp/mysql.sock' as default.\n");
                         strncpy(dbsock, "/tmp/mysql.sock", sizeof(dbsock) - 1);
                 } else {
                         strncpy(dbsock, s, sizeof(dbsock) - 1);
@@ -597,13 +597,13 @@ static int parse_config (void)
 	opbx_config_destroy(config);
 
 	if(dbhost) {
-		opbx_log(LOG_DEBUG, "MySQL RealTime Host: %s\n", dbhost);
-		opbx_log(LOG_DEBUG, "MySQL RealTime Port: %i\n", dbport);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime Host: %s\n", dbhost);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime Port: %i\n", dbport);
 	} else {
-		opbx_log(LOG_DEBUG, "MySQL RealTime Socket: %s\n", dbsock);
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime Socket: %s\n", dbsock);
 	}
-	opbx_log(LOG_DEBUG, "MySQL RealTime User: %s\n", dbuser);
-	opbx_log(LOG_DEBUG, "MySQL RealTime Password: %s\n", dbpass);
+	opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime User: %s\n", dbuser);
+	opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime Password: %s\n", dbpass);
 
 	return 1;
 }
@@ -625,7 +625,7 @@ static int mysql_reconnect(const char *database)
 reconnect_tryagain:
 	if((!connected) && (dbhost || dbsock) && dbuser && dbpass && my_database) {
 		if(!mysql_init(&mysql)) {
-			opbx_log(LOG_WARNING, "MySQL RealTime: Insufficient memory to allocate MySQL resource.\n");
+			opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Insufficient memory to allocate MySQL resource.\n");
 			connected = 0;
 			return 0;
 		}
@@ -635,13 +635,13 @@ reconnect_tryagain:
 			 * (as of 5.0.3) so we have to set that option here. */
 			mysql_options(&mysql, MYSQL_OPT_RECONNECT, &trueval);
 #endif
-			opbx_log(LOG_DEBUG, "MySQL RealTime: Successfully connected to database.\n");
+			opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Successfully connected to database.\n");
 			connected = 1;
 			connect_time = time(NULL);
 			return 1;
 		} else {
-			opbx_log(LOG_ERROR, "MySQL RealTime: Failed to connect database server %s on %s (err %d). Check debug for more info.\n", dbname, dbhost, mysql_errno(&mysql));
-			opbx_log(LOG_DEBUG, "MySQL RealTime: Cannot Connect (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			opbx_log(OPBX_LOG_ERROR, "MySQL RealTime: Failed to connect database server %s on %s (err %d). Check debug for more info.\n", dbname, dbhost, mysql_errno(&mysql));
+			opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Cannot Connect (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			connected = 0;
 			return 0;
 		}
@@ -650,20 +650,20 @@ reconnect_tryagain:
 		 * So the postman pings twice. */
 		if (mysql_ping(&mysql) != 0 && mysql_ping(&mysql) != 0) {
 			connected = 0;
-			opbx_log(LOG_ERROR, "MySQL RealTime: Ping failed (%d).  Trying an explicit reconnect.\n", mysql_errno(&mysql));
-			opbx_log(LOG_DEBUG, "MySQL RealTime: Server Error (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			opbx_log(OPBX_LOG_ERROR, "MySQL RealTime: Ping failed (%d).  Trying an explicit reconnect.\n", mysql_errno(&mysql));
+			opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Server Error (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			goto reconnect_tryagain;
 		}
 
 		connected = 1;
 
 		if(mysql_select_db(&mysql, my_database) != 0) {
-			opbx_log(LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%d).\n", my_database, mysql_errno(&mysql));
-			opbx_log(LOG_DEBUG, "MySQL RealTime: Database Select Failed (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			opbx_log(OPBX_LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%d).\n", my_database, mysql_errno(&mysql));
+			opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Database Select Failed (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			return 0;
 		}
 
-		opbx_log(LOG_DEBUG, "MySQL RealTime: Everything is fine.\n");
+		opbx_log(OPBX_LOG_DEBUG, "MySQL RealTime: Everything is fine.\n");
 		return 1;
 	}
 }

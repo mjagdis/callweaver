@@ -49,9 +49,9 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
 	    res = opbx_waitstream(member->chan, OPBX_DIGIT_ANY);	
 	    opbx_stopstream(member->chan);
 	}
-	//opbx_log(LOG_DEBUG, "Soundfile found %s - %d\n", file, opbx_fileexists(file, NULL,  member->chan->language) );
+	//opbx_log(OPBX_LOG_DEBUG, "Soundfile found %s - %d\n", file, opbx_fileexists(file, NULL,  member->chan->language) );
     } else 
-	opbx_log(LOG_DEBUG, "Soundfile not found %s - lang: %s\n", file, member->chan->language );
+	opbx_log(OPBX_LOG_DEBUG, "Soundfile not found %s - lang: %s\n", file, member->chan->language );
 
 
     opbx_set_write_format( member->chan, OPBX_FORMAT_SLINEAR );
@@ -111,12 +111,12 @@ int conference_queue_sound( struct opbx_conf_member *member, char *soundfile )
 	struct opbx_conf_soundq **q;
 
 	if( member == NULL ) {
-	    opbx_log(LOG_WARNING, "Member is null. Cannot play\n");
+	    opbx_log(OPBX_LOG_WARNING, "Member is null. Cannot play\n");
 	    return 0;
 	}
 
 	if( soundfile == NULL ) {
-	    opbx_log(LOG_WARNING, "Soundfile is null. Cannot play\n");
+	    opbx_log(OPBX_LOG_WARNING, "Soundfile is null. Cannot play\n");
 	    return 0;
 	}
 
@@ -151,12 +151,12 @@ int conference_queue_number( struct opbx_conf_member *member, char *str )
 	struct opbx_conf_soundq **q;
 
 	if( member == NULL ) {
-	    opbx_log(LOG_WARNING, "Member is null. Cannot play\n");
+	    opbx_log(OPBX_LOG_WARNING, "Member is null. Cannot play\n");
 	    return 0;
 	}
 
 	if( str == NULL ) {
-	    opbx_log(LOG_WARNING, "STRING is null. Cannot play\n");
+	    opbx_log(OPBX_LOG_WARNING, "STRING is null. Cannot play\n");
 	    return 0;
 	}
 
@@ -228,7 +228,7 @@ int conference_stop_sounds( struct opbx_conf_member *member )
 
 
 	if( member == NULL ) {
-	    opbx_log(LOG_WARNING, "Member is null. Cannot play\n");
+	    opbx_log(OPBX_LOG_WARNING, "Member is null. Cannot play\n");
 	    return 0;
 	}
 

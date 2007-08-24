@@ -314,14 +314,14 @@ static volatile struct faxmodem *acquire_modem(int index)
 	}
 	
 	if (fm && fm->state != FAXMODEM_STATE_ONHOOK) {
-		opbx_log(LOG_ERROR, "Modem %s In Use!\n", fm->devlink);
+		opbx_log(OPBX_LOG_ERROR, "Modem %s In Use!\n", fm->devlink);
 		fm = NULL;
 	} 
 
 	if (fm) {
 		fm->state = FAXMODEM_STATE_ACQUIRED;
 	} else {
-		opbx_log(LOG_ERROR, "No Modems Available!\n");
+		opbx_log(OPBX_LOG_ERROR, "No Modems Available!\n");
 	}
 
 	opbx_mutex_unlock(&control_lock);
@@ -376,12 +376,12 @@ static struct opbx_channel *channel_new(const char *type, int format, void *data
 
 
 	if (!(tech_pvt = malloc(sizeof(struct private_object)))) {
-		opbx_log(LOG_ERROR, "Can't allocate a private structure.\n");
+		opbx_log(OPBX_LOG_ERROR, "Can't allocate a private structure.\n");
 	} else {
 		memset(tech_pvt, 0, sizeof(struct private_object));
 		if (!(chan = opbx_channel_alloc(1))) {
 			free(tech_pvt);
-			opbx_log(LOG_ERROR, "Can't allocate a channel.\n");
+			opbx_log(OPBX_LOG_ERROR, "Can't allocate a channel.\n");
 		} else {
 			opbx_cond_init(&tech_pvt->data_cond, 0);
 			chan->tech_pvt = tech_pvt;	
@@ -436,7 +436,7 @@ static struct opbx_channel *tech_requester(const char *type, int format, void *d
 	struct opbx_channel *chan = NULL;
 
 	if (!(chan = channel_new(type, format, data, cause))) {
-		opbx_log(LOG_ERROR, "Can't allocate a channel\n");
+		opbx_log(OPBX_LOG_ERROR, "Can't allocate a channel\n");
 	} else {
 		char *mydata = opbx_strdupa(data);
 		int index = 0;
@@ -465,7 +465,7 @@ static struct opbx_channel *tech_requester(const char *type, int format, void *d
 			opbx_copy_string((char*)fm->digits, did, 
 					 sizeof(fm->digits));
 		} else {
-			opbx_log(LOG_ERROR, "FAILURE ACQUIRING MODEM!\n");
+			opbx_log(OPBX_LOG_ERROR, "FAILURE ACQUIRING MODEM!\n");
 			channel_destroy(chan);
 			return NULL;
 		}
@@ -1014,12 +1014,12 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 		    int cause;
 		    
 		    if (fm->state != FAXMODEM_STATE_ONHOOK) {
-			opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+			opbx_log(OPBX_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
 			res = -1;
 			break;
 		    }
 		    if (!(chan = channel_new(type, OPBX_FORMAT_SLINEAR, (char *) num, &cause))) {
-			opbx_log(LOG_ERROR, "Can't allocate a channel\n");
+			opbx_log(OPBX_LOG_ERROR, "Can't allocate a channel\n");
 			res = -1;
 			break;
 		    } else {
@@ -1037,7 +1037,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			fm->psock = tech_pvt->pipe[1];
 			fm->state = FAXMODEM_STATE_CALLING;
 			if (opbx_pbx_start(chan)) {
-			    opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+			    opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
 			    opbx_hangup(chan);
 			}
 #ifdef DOTRACE
@@ -1050,7 +1050,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 		    }
 	    } else if (op == AT_MODEM_CONTROL_ANSWER) { 
 		if (fm->state != FAXMODEM_STATE_RINGING) {
-		    opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+		    opbx_log(OPBX_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
 		    res = -1;
 		    break;
 		}
@@ -1098,7 +1098,7 @@ static void *faxmodem_thread(void *obj)
 		    /* Timeout occured, so we try again */
 		    continue;
 		} else if (res < 0) {
-			opbx_log(LOG_WARNING, "Bad Read on master [%s]\n", fm->devlink);
+			opbx_log(OPBX_LOG_WARNING, "Bad Read on master [%s]\n", fm->devlink);
 			break;
 		} else if (!faxmodem_test_flag(fm, FAXMODEM_FLAG_RUNNING))
 		    break;
@@ -1313,7 +1313,7 @@ static int load_module(void)
 	}
 
 	if (VBLEVEL > 1) {
-		faxmodem_set_logger((faxmodem_logger_t) opbx_log, __LOG_ERROR, __LOG_WARNING, __LOG_NOTICE);
+		faxmodem_set_logger((faxmodem_logger_t) opbx_log, __OPBX_LOG_ERROR, __OPBX_LOG_WARNING, __OPBX_LOG_NOTICE);
 	}
 
 	opbx_atexit_register(&fax_atexit);
@@ -1321,7 +1321,7 @@ static int load_module(void)
 	activate_fax_modems();
 
 	if (opbx_channel_register(&technology)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
 	opbx_cli_register(&cli_chan_fax);

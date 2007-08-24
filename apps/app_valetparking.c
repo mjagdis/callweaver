@@ -326,13 +326,13 @@ static int opbx_valetpark_call(struct opbx_channel *chan, int timeout, int *exto
 
 			return 0;
 		} else {
-			opbx_log(LOG_WARNING, "No more valetparking spaces\n");
+			opbx_log(OPBX_LOG_WARNING, "No more valetparking spaces\n");
 			free(pu);
 			opbx_mutex_unlock(&valetparking_lock);
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	return 0;
@@ -361,7 +361,7 @@ static int opbx_masq_valetpark_call(struct opbx_channel *rchan,int timeout, int 
 			opbx_fr_free(f);
 		opbx_valetpark_call(chan, timeout, extout, lotname);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to create Valet Parked channel\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create Valet Parked channel\n");
 		return -1;
 	}
 	return 0;
@@ -409,7 +409,7 @@ static void *do_valetparking_thread(void *ignore)
 				opbx_moh_stop(pu->chan);
 				/* Start up the PBX, or hang them up */
 				if (opbx_pbx_start(pu->chan))  {
-					opbx_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
 					opbx_hangup(pu->chan);
 				}
 				/* And take them out of the valetparking lot */
@@ -501,7 +501,7 @@ static int valetpark_call(struct opbx_channel *chan, int argc, char **argv, char
 	timeout = (argc > 2 && argv[2][0] ? atoi(argv[2]) : DEFAULT_VALETPARK_TIME);
 
 	if (opbx_is_valetparked(argv[0], argv[1])) {
-		opbx_log(LOG_WARNING,"Call is already Valet Parked Here [%s]\n", argv[0]);
+		opbx_log(OPBX_LOG_WARNING,"Call is already Valet Parked Here [%s]\n", argv[0]);
 
 		if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			opbx_explicit_goto(chan, chan->context, chan->exten, chan->priority + 100);
@@ -584,7 +584,7 @@ static struct opbx_channel *do_valetunpark(struct opbx_channel *chan, char *exte
 		}
 
 		if(valetpark == 0) {
-			opbx_log(LOG_WARNING, "Nobody Valet Parked in %s",lotname);
+			opbx_log(OPBX_LOG_WARNING, "Nobody Valet Parked in %s",lotname);
 			return NULL;
 		}
 		
@@ -626,7 +626,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
         lotname++;
     }
 	if(!lotname) {
-        opbx_log(LOG_WARNING,"Please specify a lotname in the dialplan.");
+        opbx_log(OPBX_LOG_WARNING,"Please specify a lotname in the dialplan.");
 		*cause = OPBX_CAUSE_UNALLOCATED;
         return NULL;
     }
@@ -636,7 +636,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
 		}
 		if(opbx_set_read_format(peer, format) ||
 		   opbx_set_write_format(peer, format)) {
-			opbx_log(LOG_WARNING,"Hanging up on %s because I cant make it the requested format.\n",peer->name);
+			opbx_log(OPBX_LOG_WARNING,"Hanging up on %s because I cant make it the requested format.\n",peer->name);
 			opbx_hangup(peer);
 			*cause = OPBX_CAUSE_UNALLOCATED;
 			return NULL;
@@ -674,7 +674,7 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv, ch
 		opbx_moh_stop(peer);
 		res = opbx_channel_make_compatible(chan, peer);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
+			opbx_log(OPBX_LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
 			opbx_hangup(peer);
 			LOCAL_USER_REMOVE(u);
 			return -1;
@@ -700,7 +700,7 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv, ch
 		if (!dres) {
 			dres = opbx_waitstream(chan, "");
 	 	} else {
-			opbx_log(LOG_WARNING, "opbx_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "opbx_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
 			res = 0;
 		}
 		if (option_verbose > 2) 
@@ -721,7 +721,7 @@ static int opbx_valetparking(struct opbx_channel *chan, int argc, char **argv, c
 		return opbx_function_syntax(vpsyntax);
 
 	if (!isdigit(argv[0][0])) {
-		opbx_log(LOG_WARNING, "ValetParking requires a numeric extension.\n");
+		opbx_log(OPBX_LOG_WARNING, "ValetParking requires a numeric extension.\n");
 		return -1;
 	}
 
@@ -801,7 +801,7 @@ static int valetparked_devicestate(void *data)
 	slotnum = atoi(slot);
 	
 	if (option_debug > 2)
-		opbx_log(LOG_DEBUG, "Checking device state for lot %s, slot %s\n", lot, slot);
+		opbx_log(OPBX_LOG_DEBUG, "Checking device state for lot %s, slot %s\n", lot, slot);
 
 	opbx_mutex_lock(&valetparking_lock);
 
@@ -894,7 +894,7 @@ static int unload_module(void)
         valetparking_thread = OPBX_PTHREADT_STOP;
         opbx_mutex_unlock(&valetparking_lock);
     } else {
-        opbx_log(LOG_WARNING, "Unable to lock the valet\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to lock the valet\n");
         return -1;
     }
 

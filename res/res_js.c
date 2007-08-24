@@ -103,7 +103,7 @@ static void
 js_error(JSContext *cx, const char *message, JSErrorReport *report)
 {
     if (message) {
-        opbx_log(LOG_ERROR, "%s\n", message);
+        opbx_log(OPBX_LOG_ERROR, "%s\n", message);
     }
 	
 }
@@ -182,7 +182,7 @@ static int process_config(void) {
 		}
 		opbx_config_destroy(cfg);
 	} else {
-		opbx_log(LOG_WARNING, "Cannot open %s\n", global_config_file);
+		opbx_log(OPBX_LOG_WARNING, "Cannot open %s\n", global_config_file);
 		return -1;
 	}
 
@@ -253,7 +253,7 @@ chan_waitfordigit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *
 		return JS_TRUE;
 	}
 
-	opbx_log(LOG_ERROR, "Invalid Arguements.\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
     return JS_FALSE;
 
 }
@@ -301,7 +301,7 @@ chan_wait(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		return JS_TRUE;
 	}
 
-	opbx_log(LOG_ERROR, "Invalid Arguements.\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
     return JS_FALSE;
 
 }
@@ -375,7 +375,7 @@ chan_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 					if (option_verbose > 2)
 						opbx_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
 					if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-						opbx_log(LOG_WARNING, "Execution Halted by security measures.\n");
+						opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
 						opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
 						return JS_FALSE;
 					} else 
@@ -425,7 +425,7 @@ chan_setvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 					if (option_verbose > 2)
 						opbx_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
 					if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-						opbx_log(LOG_WARNING, "Execution Halted by security measures.\n");
+						opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
 						opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
 						return JS_FALSE;
 					} else 
@@ -474,7 +474,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", app);
 				if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-					opbx_log(LOG_WARNING, "Execution Halted by security measures.\n");
+					opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
 					opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
 					return JS_FALSE;
 				} else 
@@ -491,7 +491,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		return JS_TRUE;
 	}
 
-	opbx_log(LOG_ERROR, "Invalid Arguements.\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
 	return JS_FALSE;
 }
 
@@ -531,7 +531,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", fdata);
 				if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-					opbx_log(LOG_WARNING, "Execution Halted by security measures.\n");
+					opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
 					opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
 					return JS_FALSE;
 				} else 
@@ -547,7 +547,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 		return JS_TRUE;
 	}
 
-	opbx_log(LOG_ERROR, "Invalid Arguements.\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
 	return JS_FALSE;
 }
 
@@ -594,7 +594,7 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 	} else if (filename) {
 		snprintf(path_info, sizeof(path_info), "%s,%s,%s,%s", filename, silence, maxduration, options);
 	} else {
-		opbx_log(LOG_ERROR, "Invalid Arguements.\n");
+		opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
 		return JS_FALSE;
 	}
 	
@@ -931,7 +931,7 @@ js_fetchurl(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		curl_easy_perform(curl_handle);
 		curl_easy_cleanup(curl_handle);
     } else {
-		opbx_log(LOG_ERROR, "Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Error!\n");
 		return JS_FALSE;
 	}
 
@@ -1187,7 +1187,7 @@ js_include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		eval_some_js(code, cx, obj, rval);
 		return JS_TRUE;
 	}
-	opbx_log(LOG_ERROR, "Invalid Arguements\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements\n");
 	return JS_FALSE;
 }
 
@@ -1201,21 +1201,21 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		   (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[1])))) {
 
 			if (!strcasecmp(log, "LOG_EVENT"))
-				opbx_log(LOG_EVENT, msg);
+				opbx_log(OPBX_LOG_EVENT, msg);
 			else if (!strcasecmp(log, "LOG_NOTICE"))
-				opbx_log(LOG_NOTICE, msg);
+				opbx_log(OPBX_LOG_NOTICE, msg);
 			else if (!strcasecmp(log, "LOG_WARNING"))
-				opbx_log(LOG_WARNING, msg);
+				opbx_log(OPBX_LOG_WARNING, msg);
 			else if (!strcasecmp(log, "LOG_ERROR"))
-				opbx_log(LOG_ERROR, msg);
+				opbx_log(OPBX_LOG_ERROR, msg);
 			else if (!strcasecmp(log, "LOG_VERBOSE"))
-				opbx_log(LOG_VERBOSE, msg);
+				opbx_log(OPBX_LOG_VERBOSE, msg);
 			else
-				opbx_log(LOG_EVENT, msg);
+				opbx_log(OPBX_LOG_EVENT, msg);
 			return JS_TRUE;
 		} 
 	} 
-	opbx_log(LOG_ERROR, "Invalid Arguements\n");
+	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements\n");
 	return JS_FALSE;
 
 }
@@ -1282,7 +1282,7 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	int flags = 0;
 
 	if (argc < 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "js requires an argument (filename|code)\n");
+		opbx_log(OPBX_LOG_ERROR, "js requires an argument (filename|code)\n");
 		return -1;
 	}
 

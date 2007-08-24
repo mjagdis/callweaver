@@ -299,7 +299,7 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 
 	pu = malloc(sizeof(struct parkeduser));
 	if (!pu) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	memset(pu, 0, sizeof(struct parkeduser));
@@ -318,7 +318,7 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 	}
 
 	if (!(i < parking_range)) {
-		opbx_log(LOG_WARNING, "No more parking spaces\n");
+		opbx_log(OPBX_LOG_WARNING, "No more parking spaces\n");
 		free(pu);
 		opbx_mutex_unlock(&parking_lock);
 		return -1;
@@ -394,7 +394,7 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 	if (!con) {
 		con = opbx_context_create(NULL, parking_con, registrar);
 		if (!con) {
-			opbx_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+			opbx_log(OPBX_LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 		}
 	}
 	if (con) {
@@ -439,7 +439,7 @@ static int __opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel
 			opbx_fr_free(f);
 		__opbx_park_call(chan, peer, timeout, extout);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to create parked channel\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
 	return 0;
@@ -475,7 +475,7 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 	}
 	
 	if (!monitor_ok) {
-		opbx_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
+		opbx_log(OPBX_LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
 		return -1;
 	}
 
@@ -484,7 +484,7 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 			return -1;
 		if (!opbx_streamfile(caller_chan, courtesytone, caller_chan->language)) {
 			if (opbx_waitstream(caller_chan, "") < 0) {
-				opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+				opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 				opbx_autoservice_stop(callee_chan);
 				return -1;
 			}
@@ -530,7 +530,7 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 		return FEATURE_RETURN_SUCCESS;
 	}
 	
-	opbx_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
+	opbx_log(OPBX_LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
 	return -1;
 }
 
@@ -615,7 +615,7 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 				res = OPBX_PBX_NO_HANGUP_PEER;
 			return res;
 		} else {
-			opbx_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
 		/* XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (opbx_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
@@ -630,7 +630,7 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 				opbx_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
 							 ,transferee->name, newext, transferer_real_context);
 			if (opbx_async_goto(transferee, transferer_real_context, newext, 1))
-				opbx_log(LOG_WARNING, "Async goto failed :-(\n");
+				opbx_log(OPBX_LOG_WARNING, "Async goto failed :-(\n");
 			res = -1;
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
@@ -682,7 +682,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 	struct opbx_frame *f = NULL;
 	struct opbx_bridge_thread_obj *tobj;
 
-	opbx_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
+	opbx_log(OPBX_LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
 	if (sense == FEATURE_SENSE_PEER) {
 		transferer = peer;
 		transferee = chan;
@@ -730,7 +730,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 			if (newchan) {
 				res = opbx_channel_make_compatible(transferer, newchan);
 				if (res < 0) {
-					opbx_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
+					opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
 					opbx_hangup(newchan);
 					return -1;
 				}
@@ -746,7 +746,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 					}
 					if (!opbx_strlen_zero(xfersound) && !opbx_streamfile(transferer, xfersound, transferer->language)) {
 						if (opbx_waitstream(transferer, "") < 0) {
-							opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
 					opbx_moh_stop(transferee);
@@ -758,7 +758,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 				
 				res = opbx_channel_make_compatible(transferee, newchan);
 				if (res < 0) {
-					opbx_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferee->name, newchan->name);
+					opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferee->name, newchan->name);
 					opbx_hangup(newchan);
 					return -1;
 				}
@@ -810,12 +810,12 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 	
 					if (!opbx_strlen_zero(xfersound) && !opbx_streamfile(newchan, xfersound, newchan->language)) {
 						if (opbx_waitstream(newchan, "") < 0) {
-							opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
 					__opbx_bridge_call_thread_launch(tobj);
 				} else {
-					opbx_log(LOG_WARNING, "Out of memory!\n");
+					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 					opbx_hangup(xferchan);
 					opbx_hangup(newchan);
 				}
@@ -835,7 +835,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 				return FEATURE_RETURN_SUCCESS;
 			}
 		} else {
-			opbx_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
+			opbx_log(OPBX_LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 			opbx_moh_stop(transferee);
 			opbx_autoservice_stop(transferee);
 			opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
@@ -845,7 +845,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 			}
 		}
 	}  else {
-		opbx_log(LOG_WARNING, "Did not read data.\n");
+		opbx_log(OPBX_LOG_WARNING, "Did not read data.\n");
 		res = opbx_streamfile(transferer, "beeperr", transferer->language);
 		if (opbx_waitstream(transferer, "") < 0) {
 			return -1;
@@ -876,7 +876,7 @@ static OPBX_LIST_HEAD(feature_list,opbx_call_feature) feature_list;
 static void __opbx_register_feature(struct opbx_call_feature *feature)
 {
 	if (!feature) {
-		opbx_log(LOG_NOTICE,"You didn't pass a feature!\n");
+		opbx_log(OPBX_LOG_NOTICE,"You didn't pass a feature!\n");
 		return;
 	}
   
@@ -939,7 +939,7 @@ static int feature_exec_app(struct opbx_channel *chan, struct opbx_channel *peer
 	OPBX_LIST_UNLOCK(&feature_list);
 
 	if (!feature) { /* shouldn't ever happen! */
-		opbx_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
+		opbx_log(OPBX_LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
 		return -1; 
 	}
 	
@@ -973,7 +973,7 @@ static int remap_feature(const char *name, const char *value)
 				opbx_verbose(VERBOSE_PREFIX_2 "Remapping feature %s (%s) to sequence '%s'\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
 			res = 0;
 		} else if (!strcmp(value, builtin_features[x].exten)) 
-			opbx_log(LOG_WARNING, "Sequence '%s' already mapped to function %s (%s) while assigning to %s\n", value, builtin_features[x].fname, builtin_features[x].sname, name);
+			opbx_log(OPBX_LOG_WARNING, "Sequence '%s' already mapped to function %s (%s) while assigning to %s\n", value, builtin_features[x].fname, builtin_features[x].sname, name);
 	}
 	return res;
 }
@@ -990,7 +990,7 @@ static int opbx_feature_interpret(struct opbx_channel *chan, struct opbx_channel
 		opbx_copy_flags(&features, &(config->features_caller), OPBX_FLAGS_ALL);	
 	else
 		opbx_copy_flags(&features, &(config->features_callee), OPBX_FLAGS_ALL);	
-	opbx_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+	opbx_log(OPBX_LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 
 	for (x=0; x < FEATURES_COUNT; x++) {
 		if ((opbx_test_flag(&features, builtin_features[x].feature_mask)) &&
@@ -1114,7 +1114,7 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 				/* see if the timeout has been violated */
 				if(opbx_tvdiff_ms(opbx_tvnow(), started) > timeout) {
 					state = OPBX_CONTROL_UNHOLD;
-					opbx_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
+					opbx_log(OPBX_LOG_NOTICE, "We exceeded our AT-timeout\n");
 					break; /*doh! timeout*/
 				}
 
@@ -1149,7 +1149,7 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 							ready=1;
 							break;
 						} else {
-							opbx_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
+							opbx_log(OPBX_LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
 						}
 						/* else who cares */
 					}
@@ -1190,9 +1190,9 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 				}
 			}
 		} else
-			opbx_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+			opbx_log(OPBX_LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	} else {
-		opbx_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		opbx_log(OPBX_LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 		switch(cause) {
 		case OPBX_CAUSE_BUSY:
 			state = OPBX_CONTROL_BUSY;
@@ -1235,7 +1235,7 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 			if (opbx_cdr_disposition(chan->cdr,chan->hangupcause))
 				opbx_cdr_failed(chan->cdr);
 		} else {
-			opbx_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to create Call Detail Record\n");
 		}
 	}
 	
@@ -1328,7 +1328,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 				   activated, but that's no excuse to keep things going 
 				   indefinitely! */
 				if (backup_config.feature_timer && ((backup_config.feature_timer -= diff) <= 0)) {
-					opbx_log(LOG_DEBUG, "Timed out, realtime this time!\n");
+					opbx_log(OPBX_LOG_DEBUG, "Timed out, realtime this time!\n");
 					config->feature_timer = 0;
 					who = chan;
 					if (f)
@@ -1338,7 +1338,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 				} else if (config->feature_timer <= 0) {
 					/* Not *really* out of time, just out of time for
 					   digits to come in for features. */
-					opbx_log(LOG_DEBUG, "Timed out for feature!\n");
+					opbx_log(OPBX_LOG_DEBUG, "Timed out for feature!\n");
 					if (!opbx_strlen_zero(peer_featurecode)) {
 						opbx_dtmf_stream(chan, peer, peer_featurecode, 0);
 						memset(peer_featurecode, 0, sizeof(peer_featurecode));
@@ -1372,7 +1372,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 			}
 		}
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
+			opbx_log(OPBX_LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
 		}
 		
@@ -1463,7 +1463,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 					config->firstpass = 0;
 				}
 				config->feature_timer = featuredigittimeout;
-				opbx_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
+				opbx_log(OPBX_LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
 			}
 		}
 		if (f)
@@ -1518,7 +1518,7 @@ static void *do_parking_thread(void *ignore)
 					if (!con) {
 						con = opbx_context_create(NULL, parking_con_dial, registrar);
 						if (!con) {
-							opbx_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
+							opbx_log(OPBX_LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
 						}
 					}
 					if (con) {
@@ -1551,7 +1551,7 @@ static void *do_parking_thread(void *ignore)
 					opbx_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
 				/* Start up the PBX, or hang them up */
 				if (opbx_pbx_start(pu->chan))  {
-					opbx_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
 					opbx_hangup(pu->chan);
 				}
 				/* And take them out of the parking lot */
@@ -1565,9 +1565,9 @@ static void *do_parking_thread(void *ignore)
 				if (con) {
 					snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
 					if (opbx_context_remove_extension2(con, exten, 1, NULL))
-						opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+						opbx_log(OPBX_LOG_WARNING, "Whoa, failed to remove the extension!\n");
 				} else
-					opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+					opbx_log(OPBX_LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
 			} else {
 				for (x = 0; x < OPBX_MAX_FDS; x++) {
@@ -1606,16 +1606,16 @@ static void *do_parking_thread(void *ignore)
 							if (con) {
 								snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
 								if (opbx_context_remove_extension2(con, exten, 1, NULL))
-									opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+									opbx_log(OPBX_LOG_WARNING, "Whoa, failed to remove the extension!\n");
 							} else
-								opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+								opbx_log(OPBX_LOG_WARNING, "Whoa, no parking context?\n");
 							free(pt);
 							break;
 						} else {
 							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 							opbx_fr_free(f);
 							if (pu->moh_trys < 3 && !opbx_generator_is_active(pu->chan)) {
-								opbx_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+								opbx_log(OPBX_LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
 								opbx_moh_start(pu->chan, NULL);
 								pu->moh_trys++;
 							}
@@ -1719,9 +1719,9 @@ static int park_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		if (con) {
 			snprintf(exten, sizeof(exten), "%d", pu->parkingnum);
 			if (opbx_context_remove_extension2(con, exten, 1, NULL))
-				opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+				opbx_log(OPBX_LOG_WARNING, "Whoa, failed to remove the extension!\n");
 		} else
-			opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+			opbx_log(OPBX_LOG_WARNING, "Whoa, no parking context?\n");
 
 		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
 			"Exten: %d\r\n"
@@ -1746,7 +1746,7 @@ static int park_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		if (!opbx_strlen_zero(courtesytone)) {
 			if (!opbx_streamfile(chan, courtesytone, chan->language)) {
 				if (opbx_waitstream(chan, "") < 0) {
-					opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+					opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 					opbx_hangup(peer);
 					return -1;
 				}
@@ -1757,7 +1757,7 @@ static int park_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		opbx_indicate(peer, OPBX_CONTROL_UNHOLD);
 		res = opbx_channel_make_compatible(chan, peer);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
+			opbx_log(OPBX_LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
 			opbx_hangup(peer);
 			return -1;
 		}
@@ -1785,7 +1785,7 @@ static int park_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		if (!dres)
 	    		dres = opbx_waitstream(chan, "");
 		else {
-			opbx_log(LOG_WARNING, "opbx_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "opbx_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
 			dres = 0;
 		}
 		if (option_verbose > 2) 
@@ -1946,20 +1946,20 @@ static int __opbx_pickup_call(struct opbx_channel *chan)
 	}
 	if (cur) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+			opbx_log(OPBX_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
 		res = opbx_answer(chan);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 		res = opbx_queue_control(chan, OPBX_CONTROL_ANSWER);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
 		res = opbx_channel_masquerade(cur, chan);
 		if (res)
-			opbx_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+			opbx_log(OPBX_LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
 		opbx_mutex_unlock(&cur->lock);
 	} else	{
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "No call pickup possible...\n");
+			opbx_log(OPBX_LOG_DEBUG, "No call pickup possible...\n");
 	}
 	return res;
 }
@@ -1997,7 +1997,7 @@ static int load_config(void)
 	if (!cfg) {
 		cfg = opbx_config_load("parking.conf");
 		if (cfg)
-			opbx_log(LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
+			opbx_log(OPBX_LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
 	}
 	if (cfg) {
 		var = opbx_variable_browse(cfg, "general");
@@ -2008,13 +2008,13 @@ static int load_config(void)
 				opbx_copy_string(parking_con, var->value, sizeof(parking_con));
 			} else if (!strcasecmp(var->name, "parkingtime")) {
 				if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
-					opbx_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
+					opbx_log(OPBX_LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
 					parkingtime = DEFAULT_PARK_TIME;
 				} else
 					parkingtime = parkingtime * 1000;
 			} else if (!strcasecmp(var->name, "parkpos")) {
 				if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
-					opbx_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
 				} else {
 					parking_start = start;
 					parking_stop = end;
@@ -2025,13 +2025,13 @@ static int load_config(void)
 				adsipark = opbx_true(var->value);
 			} else if (!strcasecmp(var->name, "transferdigittimeout")) {
 				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
-					opbx_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
+					opbx_log(OPBX_LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
 			} else if (!strcasecmp(var->name, "featuredigittimeout")) {
 				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
-					opbx_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
+					opbx_log(OPBX_LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}
 			} else if (!strcasecmp(var->name, "courtesytone")) {
@@ -2050,7 +2050,7 @@ static int load_config(void)
 		var = opbx_variable_browse(cfg, "featuremap");
 		while(var) {
 			if (remap_feature(var->name, var->value))
-				opbx_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
+				opbx_log(OPBX_LOG_NOTICE, "Unknown feature '%s'\n", var->name);
 			var = var->next;
 		}
 
@@ -2062,7 +2062,7 @@ static int load_config(void)
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				opbx_log(LOG_ERROR, "res_features: strdup failed\n");
+				opbx_log(OPBX_LOG_ERROR, "res_features: strdup failed\n");
 				continue;
 			}
 			
@@ -2074,7 +2074,7 @@ static int load_config(void)
 			if (app) app_args=strsep(&tmp_val,",");
 
 			if (!(app && strlen(app)) || !(exten && strlen(exten)) || !(party && strlen(party)) || !(var->name && strlen(var->name))) {
-				opbx_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
+				opbx_log(OPBX_LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
 				free(tmp_val);
 				var = var->next;
 				continue;
@@ -2089,7 +2089,7 @@ static int load_config(void)
 					mallocd=1;
 				}
 				if (!feature) {
-					opbx_log(LOG_NOTICE, "Malloc failed at feature mapping\n");
+					opbx_log(OPBX_LOG_NOTICE, "Malloc failed at feature mapping\n");
 					free(tmp_val);
 					var = var->next;
 					continue;
@@ -2113,7 +2113,7 @@ static int load_config(void)
 				else if (!strcasecmp(party, "callee"))
 					opbx_set_flag(feature,OPBX_FEATURE_FLAG_CALLEE);
 				else {
-					opbx_log(LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
+					opbx_log(OPBX_LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
 					var = var->next;
 					continue;
 				}
@@ -2130,12 +2130,12 @@ static int load_config(void)
 	/* Remove the old parking extension */
 	if (!opbx_strlen_zero(old_parking_con) && (con = opbx_context_find(old_parking_con)))   {
 		opbx_context_remove_extension2(con, old_parking_ext, 1, registrar);
-		opbx_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
+		opbx_log(OPBX_LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 
 	if (!(con = opbx_context_find(parking_con))) {
 		if (!(con = opbx_context_create(NULL, parking_con, registrar))) {
-			opbx_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+			opbx_log(OPBX_LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 			return -1;
 		}
 	}

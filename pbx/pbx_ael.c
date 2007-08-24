@@ -418,7 +418,7 @@ static void ael2_print(char *fname, pval *tree)
 {
 	FILE *fin = fopen(fname,"w");
 	if ( !fin ) {
-		opbx_log(LOG_ERROR, "Couldn't open %s for writing.\n", fname);
+		opbx_log(OPBX_LOG_ERROR, "Couldn't open %s for writing.\n", fname);
 		return;
 	}
 	print_pval_list(fin, tree, 0);
@@ -698,7 +698,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 		char *r = reg1;
 		
 		if ( strlen(pattern)*5 >= 2000 ) /* safety valve */ {
-			opbx_log(LOG_ERROR,"Error: The pattern %s is way too big. Pattern matching cancelled.\n",
+			opbx_log(OPBX_LOG_ERROR,"Error: The pattern %s is way too big. Pattern matching cancelled.\n",
 					pattern);
 			return 0;
 		}
@@ -740,7 +740,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 					*r++ = *p++;
 				}
 				if ( *p != ']') {
-					opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The extension pattern '%s' is missing a closing bracket \n",
+					opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The extension pattern '%s' is missing a closing bracket \n",
 							here->filename, here->startline, here->endline, pattern);
 				}
 				break;
@@ -767,7 +767,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 			char errmess[500];
 			regerror(err1,&preg,errmess,sizeof(errmess));
 			regfree(&preg);
-			opbx_log(LOG_WARNING, "Regcomp of %s failed, error code %d\n",
+			opbx_log(OPBX_LOG_WARNING, "Regcomp of %s failed, error code %d\n",
 					reg1, err1);
 			return 0;
 		}
@@ -775,11 +775,11 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 		regfree(&preg);
 		
 		if ( err1 ) {
-			/* opbx_log(LOG_NOTICE,"*****************************[%d]Extension %s did not match %s(%s)\n",
+			/* opbx_log(OPBX_LOG_NOTICE,"*****************************[%d]Extension %s did not match %s(%s)\n",
 			   err1,exten, pattern, reg1); */
 			return 0; /* no match */
 		} else {
-			/* opbx_log(LOG_NOTICE,"*****************************Extension %s matched %s\n",
+			/* opbx_log(OPBX_LOG_NOTICE,"*****************************Extension %s matched %s\n",
 			   exten, pattern); */
 			return 1;
 		}
@@ -798,7 +798,7 @@ static void check_expr2_input(pval *expr, char *str)
 {
 	int spaces = strspn(str,"\t \n");
 	if ( !strncmp(str+spaces,"$[",2) ) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The expression '%s' is redundantly wrapped in '$[ ]'. \n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The expression '%s' is redundantly wrapped in '$[ ]'. \n",
 				expr->filename, expr->startline, expr->endline, str);
 		warns++;
 	}
@@ -820,7 +820,7 @@ static void check_timerange(pval *p)
 	/* Otherwise expect a range */
 	e = strchr(times, '-');
 	if (!e) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The time range format (%s) requires a '-' surrounded by two 24-hour times of day!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The time range format (%s) requires a '-' surrounded by two 24-hour times of day!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
 		return;
@@ -830,30 +830,30 @@ static void check_timerange(pval *p)
 	while (*e && !isdigit(*e)) 
 		e++;
 	if (!*e) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The time range format (%s) is missing the end time!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The time range format (%s) is missing the end time!\n",
 				p->filename, p->startline, p->endline, p->u1.str);
 		warns++;
 	}
 	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start time (%s) isn't quite right!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The start time (%s) isn't quite right!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
 	}
 	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end time (%s) isn't quite right!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end time (%s) isn't quite right!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
 	}
 
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start time (%s) is out of range!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The start time (%s) is out of range!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
 	}
 	e1 = e1 * 30 + e2/2;
 	if ((e1 < 0) || (e1 >= 24*30)) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end time (%s) is out of range!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end time (%s) is out of range!\n",
 				p->filename, p->startline, p->endline, e);
 		warns++;
 	}
@@ -895,7 +895,7 @@ static void check_dow(pval *DOW)
 	s = 0;
 	while ((s < 7) && strcasecmp(dow, days[s])) s++;
 	if (s >= 7) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The day (%s) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The day (%s) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!\n",
 				DOW->filename, DOW->startline, DOW->endline, dow);
 		warns++;
 	}
@@ -903,7 +903,7 @@ static void check_dow(pval *DOW)
 		e = 0;
 		while ((e < 7) && strcasecmp(c, days[e])) e++;
 		if (e >= 7) {
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end day (%s) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end day (%s) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!\n",
 					DOW->filename, DOW->startline, DOW->endline, c);
 			warns++;
 		}
@@ -931,24 +931,24 @@ static void check_day(pval *DAY)
 	}
 	/* Find the start */
 	if (sscanf(day, "%d", &s) != 1) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start day of month (%s) must be a number!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The start day of month (%s) must be a number!\n",
 				DAY->filename, DAY->startline, DAY->endline, day);
 		warns++;
 	}
 	else if ((s < 1) || (s > 31)) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start day of month (%s) must be a number in the range [1-31]!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The start day of month (%s) must be a number in the range [1-31]!\n",
 				DAY->filename, DAY->startline, DAY->endline, day);
 		warns++;
 	}
 	s--;
 	if (c) {
 		if (sscanf(c, "%d", &e) != 1) {
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end day of month (%s) must be a number!\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end day of month (%s) must be a number!\n",
 					DAY->filename, DAY->startline, DAY->endline, c);
 			warns++;
 		}
 		else if ((e < 1) || (e > 31)) {
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end day of month (%s) must be a number in the range [1-31]!\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end day of month (%s) must be a number in the range [1-31]!\n",
 					DAY->filename, DAY->startline, DAY->endline, day);
 			warns++;
 		}
@@ -994,7 +994,7 @@ static void check_month(pval *MON)
 	s = 0;
 	while ((s < 12) && strcasecmp(mon, months[s])) s++;
 	if (s >= 12) {
-		opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start month (%s) must be a one of: 'jan', 'feb', ..., 'dec'!\n",
+		opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The start month (%s) must be a one of: 'jan', 'feb', ..., 'dec'!\n",
 				MON->filename, MON->startline, MON->endline, mon);
 		warns++;
 	}
@@ -1002,7 +1002,7 @@ static void check_month(pval *MON)
 		e = 0;
 		while ((e < 12) && strcasecmp(mon, months[e])) e++;
 		if (e >= 12) {
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end month (%s) must be a one of: 'jan', 'feb', ..., 'dec'!\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The end month (%s) must be a one of: 'jan', 'feb', ..., 'dec'!\n",
 					MON->filename, MON->startline, MON->endline, c);
 			warns++;
 		}
@@ -1017,7 +1017,7 @@ static void check_goto(pval *item)
 {
 	/* check for the target of the goto-- does it exist? */
 	if ( !(item->u1.list)->next && !(item->u1.list)->u1.str ) {
-		opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  empty label reference found!\n",
+		opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: goto:  empty label reference found!\n",
 				item->filename, item->startline, item->endline);
 		errs++;
 	}
@@ -1029,7 +1029,7 @@ static void check_goto(pval *item)
 		/* printf("Calling find_label_in_current_extension with args %s\n",
 		   (char*)((item->u1.list)->u1.str)); */
 		if (!x) {
-			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s exists in the current extension!\n",
+			opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s exists in the current extension!\n",
 					item->filename, item->startline, item->endline, item->u1.list->u1.str);
 			errs++;
 		}
@@ -1046,7 +1046,7 @@ static void check_goto(pval *item)
 			&& !strstr(item->u1.list->next->u1.str,"${") ) /* Don't try to match variables */ {
 			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str);
 			if (!x) {
-				opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the current context, or any of its inclusions!\n",
+				opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the current context, or any of its inclusions!\n",
 						item->filename, item->startline, item->endline, item->u1.list->u1.str, item->u1.list->next->u1.str );
 				errs++;
 			}
@@ -1100,12 +1100,12 @@ static void check_goto(pval *item)
 						}
 					}
 					if (!found) {
-						opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the context %s or its inclusions!\n",
+						opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the context %s or its inclusions!\n",
 								item->filename, item->startline, item->endline, item->u1.list->next->u1.str, item->u1.list->next->next->u1.str, item->u1.list->u1.str );
 						errs++;
 					}
 				} else {
-					opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no context %s could be found that matches the goto target!\n",
+					opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: goto:  no context %s could be found that matches the goto target!\n",
 							item->filename, item->startline, item->endline, item->u1.list->u1.str);
 					errs++;
 				}
@@ -1119,7 +1119,7 @@ static void find_pval_goto_item(pval *item, int lev)
 {
 	struct pval *p4;
 	if (lev>100) {
-		opbx_log(LOG_ERROR,"find_pval_goto in infinite loop!\n\n");
+		opbx_log(OPBX_LOG_ERROR,"find_pval_goto in infinite loop!\n\n");
 		return;
 	}
 	
@@ -1682,7 +1682,7 @@ int option_matches_j( struct argdesc *should, pval *is, struct argapp *app)
 				char *p = strchr(opcop,ac->name[0]);  /* wipe out all matched options in the user-supplied string */
 				
 				if (p && *p == 'j') {
-					opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: The j option in the %s application call is not appropriate for AEL!\n",
+					opbx_log(OPBX_LOG_ERROR, "Error: file %s, line %d-%d: The j option in the %s application call is not appropriate for AEL!\n",
 							is->filename, is->startline, is->endline, app->name);
 					errs++;
 				}
@@ -1691,7 +1691,7 @@ int option_matches_j( struct argdesc *should, pval *is, struct argapp *app)
 					*p = '+';
 					if (ac->name[1] == '(') {
 						if (*(p+1) != '(') {
-							opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The %c option in the %s application call should have an (argument), but doesn't!\n",
+							opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The %c option in the %s application call should have an (argument), but doesn't!\n",
 									is->filename, is->startline, is->endline, ac->name[0], app->name);
 							warns++;
 						}
@@ -1701,7 +1701,7 @@ int option_matches_j( struct argdesc *should, pval *is, struct argapp *app)
 		}
 		for (q=opcop; *q; q++) {
 			if ( *q != '+' && *q != '(' && *q != ')') {
-				opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: The %c option in the %s application call is not available as an option!\n",
+				opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: The %c option in the %s application call is not available as an option!\n",
 						is->filename, is->startline, is->endline, *q, app->name);
 				warns++;
 			}
@@ -1795,7 +1795,7 @@ int check_app_args(pval* appcall, pval *arglist, struct argapp *app)
 	
 	for (pa = arglist; pa; pa=pa->next) {
 		if (!ad) {
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: Extra argument %s not in application call to %s !\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: Extra argument %s not in application call to %s !\n",
 					arglist->filename, arglist->startline, arglist->endline, pa->u1.str, app->name);
 			warns++;
 			return 1;
@@ -1811,7 +1811,7 @@ int check_app_args(pval* appcall, pval *arglist, struct argapp *app)
 						arglist=appcall;
 					
 					if (ad->type == ARGD_REQUIRED) {
-						opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: Required argument %s not in application call to %s !\n",
+						opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: Required argument %s not in application call to %s !\n",
 								arglist->filename, arglist->startline, arglist->endline, ad->dtype==ARGD_OPTIONSET?"options":ad->name, app->name);
 						warns++;
 						return 1;
@@ -1828,7 +1828,7 @@ int check_app_args(pval* appcall, pval *arglist, struct argapp *app)
 		if (ad->type == ARGD_REQUIRED && ad->dtype != ARGD_VARARG) {
 			if ( !arglist ) 
 				arglist=appcall;
-			opbx_log(LOG_WARNING, "Warning: file %s, line %d-%d: Required argument %s not in application call to %s !\n",
+			opbx_log(OPBX_LOG_WARNING, "Warning: file %s, line %d-%d: Required argument %s not in application call to %s !\n",
 					arglist->filename, arglist->startline, arglist->endline, ad->dtype==ARGD_OPTIONSET?"options":ad->name, app->name);
 			warns++;
 			return 1;
@@ -1897,7 +1897,7 @@ void check_switch_expr(pval *item, struct argapp *apps)
 				}
 			}
 			if (!f1) {
-				opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: switch with expression(%s) does not handle the case of %s !\n",
+				opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: switch with expression(%s) does not handle the case of %s !\n",
 						item->filename, item->startline, item->endline, item->u1.str, c->name);
 				warns++;
 			}
@@ -1930,7 +1930,7 @@ void check_switch_expr(pval *item, struct argapp *apps)
 				
 		/* see if it sets the var */
 		if (!f1) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: Couldn't find an application call in this extension that sets the  expression (%s) value!\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: Couldn't find an application call in this extension that sets the  expression (%s) value!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -1947,7 +1947,7 @@ static void check_context_names(void)
 				if ( j->type == PV_CONTEXT || j->type == PV_PROC ) {
 					if ( !strcmp(i->u1.str, j->u1.str) )
 					{
-						opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
+						opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
 								i->filename, i->startline, i->endline, i->u1.str,  j->filename, j->startline, j->endline);
 						warns++;
 					}
@@ -1979,7 +1979,7 @@ static void check_abstract_reference(pval *abstract_context)
 			}
 		}
 	}
-	opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: Couldn't find a reference to this abstract context (%s) in any other context!\n",
+	opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: Couldn't find a reference to this abstract context (%s) in any other context!\n",
 			abstract_context->filename, abstract_context->startline, abstract_context->endline, abstract_context->u1.str);
 	warns++;
 }
@@ -2043,11 +2043,11 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		*/
 		proc_def = find_proc(item->u1.str);
 		if (!proc_def) {
-			opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: proc call to non-existent %s !\n",
+			opbx_log(OPBX_LOG_ERROR, "Error: file %s, line %d-%d: proc call to non-existent %s !\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
 		} else if (proc_def->type != PV_PROC) {
-			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: proc call to %s references a context, not a proc!\n",
+			opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: proc call to %s references a context, not a proc!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
 		} else {
@@ -2062,7 +2062,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 				thereargs++;
 			}
 			if (hereargs != thereargs ) {
-				opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: The proc call to %s has %d arguments, but the proc definition has %d arguments\n",
+				opbx_log(OPBX_LOG_ERROR, "Error: file %s, line %d-%d: The proc call to %s has %d arguments, but the proc definition has %d arguments\n",
 						item->filename, item->startline, item->endline, item->u1.str, hereargs, thereargs);
 				errs++;
 			}
@@ -2078,7 +2078,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		/* Need to check to see if the application is available! */
 		app_def = find_context(item->u1.str);
 		if (app_def && app_def->type == PV_PROC) {
-			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: application call to %s references an existing proc, but had no & preceding it!\n",
+			opbx_log(OPBX_LOG_ERROR,"Error: file %s, line %d-%d: application call to %s references an existing proc, but had no & preceding it!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
 		}
@@ -2088,7 +2088,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			|| strcasecmp(item->u1.str,"endwhile") == 0
 			|| strcasecmp(item->u1.str,"random") == 0
 			|| strcasecmp(item->u1.str,"execIf") == 0 ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: application call to %s needs to be re-written using AEL if, while, goto, etc. keywords instead!\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: application call to %s needs to be re-written using AEL if, while, goto, etc. keywords instead!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -2101,7 +2101,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			}
 		}
 		if (!found) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: application call to %s not listed in applist database!\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: application call to %s not listed in applist database!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		} else
@@ -2194,7 +2194,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			opbx_expr(item->u2.val, expr_output, sizeof(expr_output));
 			opbx_expr_clear_extra_error_info();
 			if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
-				opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
+				opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 						item->filename, item->startline, item->endline, item->u2.val);
 				warns++;
 			}
@@ -2217,7 +2217,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		/* fields: item->u1.str     == label name
 		*/
 		if ( strspn(item->u1.str, "0123456789") == strlen(item->u1.str) ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: label '%s' is numeric, this is bad practice!\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: label '%s' is numeric, this is bad practice!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -2243,12 +2243,12 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			opbx_expr(strp+1, expr_output, sizeof(expr_output));
 		}
 		if ( strpbrk(item->u2.for_test,"~!-+<>=*/&^") && !strstr(item->u2.for_test,"${") ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u2.for_test);
 			warns++;
 		}
 		if ( strpbrk(item->u3.for_inc,"~!-+<>=*/&^") && !strstr(item->u3.for_inc,"${") ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u3.for_inc);
 			warns++;
 		}
@@ -2269,7 +2269,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
 		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -2304,7 +2304,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
 		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: random expression '%s' has operators, but no variables. Interesting...\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: random expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -2347,7 +2347,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
 		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
-			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression '%s' has operators, but no variables. Interesting...\n",
+			opbx_log(OPBX_LOG_WARNING,"Warning: file %s, line %d-%d: expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
@@ -3188,7 +3188,7 @@ void add_extensions(struct ael_extension *exten, struct opbx_context *context)
 		if (exten->hints) {
 			if (opbx_add_extension2(context, 0 /*no replace*/, exten->name, PRIORITY_HINT, NULL, exten->cidmatch, 
 								  exten->hints, NULL, FREE, registrar)) {
-				opbx_log(LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
+				opbx_log(OPBX_LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
 						exten->name);
 			}
 			
@@ -3270,7 +3270,7 @@ void add_extensions(struct ael_extension *exten, struct opbx_context *context)
 			
 			if (opbx_add_extension2(context, 0 /*no replace*/, exten->name, pr->priority_num, (label?label:NULL), exten->cidmatch, 
 								  app, strdup(appargs), FREE, registrar)) {
-				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
+				opbx_log(OPBX_LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
 						exten->name);
 			}
 			last = pr;
@@ -3447,30 +3447,30 @@ static int pbx_load_module(void)
 	struct opbx_context *local_contexts=NULL, *con;
 	struct pval *parse_tree;
 
-	opbx_log(LOG_NOTICE, "Starting AEL load process.\n");
+	opbx_log(OPBX_LOG_NOTICE, "Starting AEL load process.\n");
 	if (config[0] == '/')
 		rfilename = (char *)config;
 	else {
 		rfilename = alloca(strlen(config) + strlen(opbx_config_OPBX_CONFIG_DIR) + 2);
 		sprintf(rfilename, "%s/%s", opbx_config_OPBX_CONFIG_DIR, config);
 	}
-	opbx_log(LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
+	opbx_log(OPBX_LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
 	
 	parse_tree = ael2_parse(rfilename, &errs);
-	opbx_log(LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
+	opbx_log(OPBX_LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errs == 0 && sem_err == 0) {
-		opbx_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
+		opbx_log(OPBX_LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
 		opbx_compile_ael2(&local_contexts, parse_tree);
-		opbx_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
+		opbx_log(OPBX_LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
 		opbx_merge_contexts_and_delete(&local_contexts, registrar);
-		opbx_log(LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
+		opbx_log(OPBX_LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
 		for (con = opbx_walk_contexts(NULL); con; con = opbx_walk_contexts(con))
 			opbx_context_verify_includes(con);
-		opbx_log(LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
+		opbx_log(OPBX_LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
 	} else {
-		opbx_log(LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
+		opbx_log(OPBX_LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
 	}
 	destroy_pval(parse_tree); /* free up the memory */
 	
@@ -3581,7 +3581,7 @@ MODULE_INFO(load_module, reload_module, unload_module, NULL, dtext)
 void destroy_pval_item(pval *item)
 {
 	if (item == NULL) {
-		opbx_log(LOG_WARNING, "null item\n");
+		opbx_log(OPBX_LOG_WARNING, "null item\n");
 		return;
 	}
 

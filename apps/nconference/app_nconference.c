@@ -65,14 +65,14 @@ static const char conference_description[] =
 
 static int unload_module( void ) {
 	int res = 0;
-	opbx_log( LOG_NOTICE, "unloading " APP_CONFERENCE_NAME " module\n" );
+	opbx_log(OPBX_LOG_NOTICE, "unloading " APP_CONFERENCE_NAME " module\n" );
 	unregister_conference_cli();
 	res |= opbx_unregister_function( conference_app ) ;
 	return res;
 }
 
 static int load_module( void ) {
-	opbx_log( LOG_NOTICE, "Loading " APP_CONFERENCE_NAME " module\n" );
+	opbx_log(OPBX_LOG_NOTICE, "Loading " APP_CONFERENCE_NAME " module\n" );
 	init_conference() ;
 	register_conference_cli();
 	conference_app = opbx_register_function( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;

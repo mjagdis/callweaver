@@ -161,13 +161,13 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 	/* FIXME: We can probably do this on all ISDN channels, if we
 	   just fix the MISDN_URATE thing somehow. */
 	if (strcasecmp(chan->tech->type, "mISDN")) {
-		opbx_log(LOG_DEBUG, "V.110: Not mISDN channel\n");
+		opbx_log(OPBX_LOG_DEBUG, "V.110: Not mISDN channel\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 
 	if (chan->transfercapability != OPBX_TRANS_CAP_DIGITAL) {
-		opbx_log(LOG_NOTICE, "V.110: Not an async V.110 call cap[%d]\n",
+		opbx_log(OPBX_LOG_NOTICE, "V.110: Not an async V.110 call cap[%d]\n",
 			chan->transfercapability );
 		LOCAL_USER_REMOVE(u);
 		return 0;
@@ -183,7 +183,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 	
 	vs = malloc(sizeof(*vs));
 	if (!vs) {
-		opbx_log(LOG_NOTICE, "Allocation of v.110 data structure failed\n");
+		opbx_log(OPBX_LOG_NOTICE, "Allocation of v.110 data structure failed\n");
 		LOCAL_USER_REMOVE(u);
 		return -ENOMEM;
 	}
@@ -217,7 +217,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 		break;
 
 	default:
-		opbx_log(LOG_NOTICE, "V.110 call at rate %d not supported\n",
+		opbx_log(OPBX_LOG_NOTICE, "V.110 call at rate %d not supported\n",
 			urate);
 		free(vs);
 		LOCAL_USER_REMOVE(u);
@@ -242,7 +242,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 	}
 	
 	/* Set transparent mode before we answer */
-	opbx_log(LOG_NOTICE, "Accepting V.110 call at rate %d\n", urate);
+	opbx_log(OPBX_LOG_NOTICE, "Accepting V.110 call at rate %d\n", urate);
 	
 	pbx_builtin_setvar_helper(chan,"MISDN_DIGITAL_TRANS","1");
 
@@ -257,7 +257,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 	v110_generate(chan, vs, primelen);
 
 	if (opbx_generator_activate(chan, &v110_gen, vs) < 0) {
-		opbx_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+		opbx_log(OPBX_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -285,7 +285,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 				if (r < 0 && errno == EAGAIN)
 					r = 0;
 				if (r < 0) {
-					opbx_log(LOG_NOTICE, "Error writing to pty: %s\n", strerror(errno));
+					opbx_log(OPBX_LOG_NOTICE, "Error writing to pty: %s\n", strerror(errno));
 					vs->sbit = 0x80;
 					opbx_softhangup(chan, OPBX_SOFTHANGUP_SHUTDOWN);
 					goto out;
@@ -318,7 +318,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 					r = 0;
 				if (r < 0) {
 					/* It's expected that we get -EIO when the user logs out */
-					opbx_log(LOG_DEBUG, "Error reading from pty: %s\n", strerror(errno));
+					opbx_log(OPBX_LOG_DEBUG, "Error reading from pty: %s\n", strerror(errno));
 					vs->sbit = 0x80;
 					opbx_softhangup(chan, OPBX_SOFTHANGUP_SHUTDOWN);
 					goto out;
@@ -329,7 +329,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 				
 				if (0 && r) {
 					vs->obuf[vs->obufend] = 0;
-					opbx_log(LOG_NOTICE, "pty: \"%s\"\n", vs->obuf+vs->obufend-r);
+					opbx_log(OPBX_LOG_NOTICE, "pty: \"%s\"\n", vs->obuf+vs->obufend-r);
 				}
 			}
 
@@ -350,7 +350,7 @@ static void v110_process_frame(struct v110_state *vs)
 	int octet;
 
 
-	if (0) opbx_log(LOG_NOTICE, "frame %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	if (0) opbx_log(OPBX_LOG_NOTICE, "frame %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		vs->vframe_in[0], vs->vframe_in[1], vs->vframe_in[2],
 		vs->vframe_in[3], vs->vframe_in[4], vs->vframe_in[5],
 		vs->vframe_in[6], vs->vframe_in[7], vs->vframe_in[8], 
@@ -369,7 +369,7 @@ static void v110_process_frame(struct v110_state *vs)
 	/* Extract flow control signal from last octet */
 	if (vs->synccount) {
 		if (!--vs->synccount) {
-			opbx_log(LOG_NOTICE, "V.110 synchronisation achieved\n");
+			opbx_log(OPBX_LOG_NOTICE, "V.110 synchronisation achieved\n");
 			vs->sbit = 0;
 			vs->rts = 0;
 		}
@@ -437,13 +437,13 @@ static void v110_process_frame(struct v110_state *vs)
 				   have asserted flow control long ago */
 				if (vs->bufwarning) {
 					vs->bufwarning--;
-					opbx_log(LOG_NOTICE, "incoming buffer full\n");
+					opbx_log(OPBX_LOG_NOTICE, "incoming buffer full\n");
 				}
 				continue;
 			} else
 				vs->ibufend = newend;
 		} else {
-			opbx_log(LOG_NOTICE, "No stop bit\n");
+			opbx_log(OPBX_LOG_NOTICE, "No stop bit\n");
 		}
 		
 		/* Now, scan for next start bit */
@@ -717,18 +717,18 @@ int loginpty(char *source)
 	char **logincmd = logincmdtext;
 
 	if (master < 0) {
-		opbx_log(LOG_NOTICE, "Failed to allocate pty: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_NOTICE, "Failed to allocate pty: %s\n", strerror(errno));
 		return -1;
 	}
 
 	if (grantpt(master)) {
-		opbx_log(LOG_NOTICE, "grantpt() failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_NOTICE, "grantpt() failed: %s\n", strerror(errno));
 		close(master);
 		return -1;
 	}
 
 	if (unlockpt(master)) {
-		opbx_log(LOG_NOTICE, "unlockpt() failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_NOTICE, "unlockpt() failed: %s\n", strerror(errno));
 		close(master);
 		return -1;
 	}
@@ -738,13 +738,13 @@ int loginpty(char *source)
 
 	name = ptsname(master);
 	if (!name) {
-		opbx_log(LOG_NOTICE, "ptsname() failed\n");
+		opbx_log(OPBX_LOG_NOTICE, "ptsname() failed\n");
 		close(master);
 		return -1;
 	}
 	pid = fork();
 	if (pid == -1) {
-		opbx_log(LOG_NOTICE, "fork() failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_NOTICE, "fork() failed: %s\n", strerror(errno));
 		close(master);
 		return -1;
 	}

@@ -47,7 +47,7 @@
      peer->ha = NULL;
      peer->addr.sin_family = AF_INET;
 @@ -15741,6 +15748,21 @@ static struct sip_peer *build_peer(const
-                 opbx_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
+                 opbx_log(OPBX_LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
                  peer->maxms = 0;
              }
 +            else if (!strcasecmp(v->name, "silencesupp")) 
@@ -62,9 +62,9 @@
 +                } 
 +                else
 +                {
-+                    opbx_log(LOG_WARNING, "silencesupp bad param on %s just use: 'show' or 'hide'\n", peer->name);
++                    opbx_log(OPBX_LOG_WARNING, "silencesupp bad param on %s just use: 'show' or 'hide'\n", peer->name);
 +                }
 +            }
          }
          /* else if (strcasecmp(v->name,"type"))
-          *    opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);
+          *    opbx_log(OPBX_LOG_WARNING, "Ignoring %s\n", v->name);

@@ -87,7 +87,7 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 	int res = 0;
 
 	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
+		opbx_log(OPBX_LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
 		dep_warning = 1;
 	}
 
@@ -144,7 +144,7 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 				c += 4;
 
 			if (c[0] != '+') {
-				opbx_log(LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
+				opbx_log(OPBX_LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
 				res = 0;
 			} else {
 /* now copy over the number, skipping all non-digits and stop at ; or NULL */
@@ -156,12 +156,12 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 				}
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-				opbx_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
+				opbx_log(OPBX_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
 				if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
 					res = 0;
 			}
 		} else if (!opbx_strlen_zero(tech)) {
-			opbx_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
+			opbx_log(OPBX_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
 			pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
 			res = 0;
 		}
@@ -188,7 +188,7 @@ static int load_config(void)
 		opbx_config_destroy(cfg);
 		return 0;
 	}
-	opbx_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
+	opbx_log(OPBX_LOG_NOTICE, "No ENUM Config file, using defaults\n");
 	return 0;
 }
 

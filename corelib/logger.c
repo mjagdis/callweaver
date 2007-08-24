@@ -160,19 +160,19 @@ static int make_components(char *s, int lineno)
 		while(*w && (*w < 33))
 			w++;
 		if (!strcasecmp(w, "error")) 
-			res |= (1 << __LOG_ERROR);
+			res |= (1 << __OPBX_LOG_ERROR);
 		else if (!strcasecmp(w, "warning"))
-			res |= (1 << __LOG_WARNING);
+			res |= (1 << __OPBX_LOG_WARNING);
 		else if (!strcasecmp(w, "notice"))
-			res |= (1 << __LOG_NOTICE);
+			res |= (1 << __OPBX_LOG_NOTICE);
 		else if (!strcasecmp(w, "event"))
-			res |= (1 << __LOG_EVENT);
+			res |= (1 << __OPBX_LOG_EVENT);
 		else if (!strcasecmp(w, "debug"))
-			res |= (1 << __LOG_DEBUG);
+			res |= (1 << __OPBX_LOG_DEBUG);
 		else if (!strcasecmp(w, "verbose"))
-			res |= (1 << __LOG_VERBOSE);
+			res |= (1 << __OPBX_LOG_VERBOSE);
 		else if (!strcasecmp(w, "dtmf"))
-			res |= (1 << __LOG_DTMF);
+			res |= (1 << __OPBX_LOG_DTMF);
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
@@ -330,7 +330,7 @@ static void init_logger_chain(void)
 		if(opbx_true(s)) {
 			if(gethostname(hostname, sizeof(hostname)-1)) {
 				opbx_copy_string(hostname, "unknown", sizeof(hostname));
-				opbx_log(LOG_WARNING, "What box has no hostname???\n");
+				opbx_log(OPBX_LOG_WARNING, "What box has no hostname???\n");
 			}
 		} else
 			hostname[0] = '\0';
@@ -478,12 +478,12 @@ int reload_logger(int rotate)
 
 	if (logfiles.event_log) {
 		if (eventlog) {
-			opbx_log(LOG_EVENT, "Restarted CallWeaver Event Logger\n");
+			opbx_log(OPBX_LOG_EVENT, "Restarted CallWeaver Event Logger\n");
 			if (option_verbose)
 				opbx_verbose("CallWeaver Event Logger restarted\n");
 			return 0;
 		} else 
-			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else 
 		return 0;
 	return -1;
@@ -500,7 +500,7 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
-	opbx_log(LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
+	opbx_log(OPBX_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
 		opbx_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
@@ -526,19 +526,19 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 		opbx_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
 		opbx_cli(fd, " - ");
-		if (chan->logmask & (1 << __LOG_DEBUG)) 
+		if (chan->logmask & (1 << __OPBX_LOG_DEBUG)) 
 			opbx_cli(fd, "Debug ");
-		if (chan->logmask & (1 << __LOG_DTMF)) 
+		if (chan->logmask & (1 << __OPBX_LOG_DTMF)) 
 			opbx_cli(fd, "DTMF ");
-		if (chan->logmask & (1 << __LOG_VERBOSE)) 
+		if (chan->logmask & (1 << __OPBX_LOG_VERBOSE)) 
 			opbx_cli(fd, "Verbose ");
-		if (chan->logmask & (1 << __LOG_WARNING)) 
+		if (chan->logmask & (1 << __OPBX_LOG_WARNING)) 
 			opbx_cli(fd, "Warning ");
-		if (chan->logmask & (1 << __LOG_NOTICE)) 
+		if (chan->logmask & (1 << __OPBX_LOG_NOTICE)) 
 			opbx_cli(fd, "Notice ");
-		if (chan->logmask & (1 << __LOG_ERROR)) 
+		if (chan->logmask & (1 << __OPBX_LOG_ERROR)) 
 			opbx_cli(fd, "Error ");
-		if (chan->logmask & (1 << __LOG_EVENT)) 
+		if (chan->logmask & (1 << __OPBX_LOG_EVENT)) 
 			opbx_cli(fd, "Event ");
 		opbx_cli(fd, "\n");
 		chan = chan->next;
@@ -620,12 +620,12 @@ int init_logger(void)
 		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
 		eventlog = fopen((char *)tmp, "a");
 		if (eventlog) {
-			opbx_log(LOG_EVENT, "Started CallWeaver Event Logger\n");
+			opbx_log(OPBX_LOG_EVENT, "Started CallWeaver Event Logger\n");
 			if (option_verbose)
 				opbx_verbose("CallWeaver Event Logger Started %s\n",(char *)tmp);
 			return 0;
 		} else 
-			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else
 		return 0;
 
@@ -681,7 +681,7 @@ static void strip_coloring(char *str)
 	*dest = '\0';
 }
 
-static void opbx_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+static void opbx_log_vsyslog(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
 	char *s;
@@ -691,12 +691,12 @@ static void opbx_log_vsyslog(int level, const char *file, int line, const char *
 		fprintf(stderr, "opbx_log_vsyslog called with bogus level: %d\n", level);
 		return;
 	}
-	if (level == __LOG_VERBOSE) {
+	if (level == __OPBX_LOG_VERBOSE) {
 		snprintf(buf, sizeof(buf), "VERBOSE[" TIDFMT "]: ", GETTID());
-		level = __LOG_DEBUG;
-	} else if (level == __LOG_DTMF) {
+		level = __OPBX_LOG_DEBUG;
+	} else if (level == __OPBX_LOG_DTMF) {
 		snprintf(buf, sizeof(buf), "DTMF[" TIDFMT "]: ", GETTID());
-		level = __LOG_DEBUG;
+		level = __OPBX_LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[" TIDFMT "]: %s:%d in %s: ",
 			 levels[level], GETTID(), file, line, function);
@@ -710,7 +710,7 @@ static void opbx_log_vsyslog(int level, const char *file, int line, const char *
 /*
  * send log messages to syslog and/or the console
  */
-void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void opbx_log(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	struct logchannel *chan;
 	char buf[BUFSIZ];
@@ -726,7 +726,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 	   LOG_DEBUG messages to be displayed, if the logmask on any channel
 	   allows it)
 	*/
-	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
+	if (!option_verbose && !option_debug && (level == __OPBX_LOG_DEBUG)) {
 		return;
 	}
 
@@ -735,7 +735,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 		return;
 	
 	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == __LOG_DEBUG) && !opbx_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
+	if ((level == __OPBX_LOG_DEBUG) && !opbx_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
 	/* begin critical section */
@@ -745,7 +745,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 	localtime_r(&t, &tm);
 	strftime(date, sizeof(date), dateformat, &tm);
 
-	if (logfiles.event_log && level == __LOG_EVENT) {
+	if (logfiles.event_log && level == __OPBX_LOG_EVENT) {
 		va_start(ap, fmt);
 
 		fprintf(eventlog, "%s callweaver[%d]: ", date, getpid());
@@ -770,7 +770,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 				char linestr[128];
 				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
-				if (level != __LOG_VERBOSE) {
+				if (level != __OPBX_LOG_VERBOSE) {
 					sprintf(linestr, "%d", line);
 					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%s %s: " : "%s %s[" TIDFMT "]: %s:%s %s: ",
 						date,
@@ -817,7 +817,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout 
 		*/
-		if (level != __LOG_VERBOSE) {
+		if (level != __OPBX_LOG_VERBOSE) {
 			va_start(ap, fmt);
 			vsnprintf(buf, sizeof(buf), fmt, ap);
 			va_end(ap);
@@ -829,7 +829,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 	/* end critical section */
 	if (filesize_reload_needed) {
 		reload_logger(1);
-		opbx_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+		opbx_log(OPBX_LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
 			opbx_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
@@ -847,20 +847,20 @@ void opbx_backtrace(int levels)
 		count = backtrace(addresses, levels);
 		strings = backtrace_symbols(addresses, count);
 		if (strings) {
-			opbx_log(LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			opbx_log(OPBX_LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
-				opbx_log(LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+				opbx_log(OPBX_LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
 			}
 			free(strings);
 		} else {
-			opbx_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+			opbx_log(OPBX_LOG_WARNING, "Could not allocate memory for backtrace\n");
 		}
 		free(addresses);
 	} else {
-		opbx_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+		opbx_log(OPBX_LOG_WARNING, "Could not allocate memory for backtrace\n");
 	}
 #else
-	opbx_log(LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
+	opbx_log(OPBX_LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
 #endif
 }
 
@@ -939,7 +939,7 @@ void opbx_verbose(const char *fmt, ...)
 				last = m;
 			} else {
 				msgcnt--;
-				opbx_log(LOG_ERROR, "Out of memory\n");
+				opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 				free(m);
 			}
 		}
@@ -948,7 +948,7 @@ void opbx_verbose(const char *fmt, ...)
 	for (v = verboser; v; v = v->next)
 		v->verboser(stuff, olen, replacelast, complete);
 
-	opbx_log(LOG_VERBOSE, "%s", stuff);
+	opbx_log(OPBX_LOG_VERBOSE, "%s", stuff);
 
 	if (len) {
 		if (!complete)

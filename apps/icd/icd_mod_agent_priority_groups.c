@@ -108,7 +108,7 @@ int icd_module_load(icd_config_registry * registry)
 
     module_id = icd_event_factory__add_module(module_name);
     if (module_id == 0)
-        opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
+        opbx_log(OPBX_LOG_WARNING, "Unable to register Module Name[%s]", module_name);
 
     opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n", icd_module_strings[module_id]);
 
@@ -237,11 +237,11 @@ icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that)
     }
 
     if (plugable_fns == NULL) {
-        opbx_log(LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
+        opbx_log(OPBX_LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     } else {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "\nCaller id[%d] [%s] using icd_module_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
+            opbx_log(OPBX_LOG_DEBUG, "\nCaller id[%d] [%s] using icd_module_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
                 icd_caller__get_id(that), icd_caller__get_name(that), icd_plugable__get_name(plugable_fns),
                 plugable_fns->state_ready_fn, dist_name);
     }
@@ -310,7 +310,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     customer_member = icd_member_list__pop(dist->customers);
     customer_caller = icd_member__get_caller(customer_member);
     if (customer_member == NULL || customer_caller == NULL) {
-        opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n",
+        opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n",
             icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
@@ -331,7 +331,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     }
     cust_id = icd_caller__get_id(customer_caller);
     if (icd_debug)
-        opbx_log(LOG_DEBUG, "ICD AgentPriorityDist %s found customer[%s] agent_priority[%d] from list\n",
+        opbx_log(OPBX_LOG_DEBUG, "ICD AgentPriorityDist %s found customer[%s] agent_priority[%d] from list\n",
             icd_distributor__get_name(dist), icd_caller__get_name(customer_caller), agent_priority);
 
     iter = icd_distributor__get_agent_iterator(dist);
@@ -339,13 +339,13 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
         //agent_member = icd_member_list__pop(dist->agents);
         agent_member = (icd_member *) icd_list_iterator__next(iter);
         if (agent_member == NULL) {
-            opbx_log(LOG_ERROR, "ICD Distributor %s could not pop agent member from list\n",
+            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not pop agent member from list\n",
                 icd_distributor__get_name(dist));
             return ICD_ERESOURCE;
         }
         agent_caller = icd_member__get_caller(agent_member);
         if (agent_caller == NULL) {
-            opbx_log(LOG_ERROR, "ICD Distributor %s could not cast agent caller from member\n",
+            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not cast agent caller from member\n",
                 icd_distributor__get_name(dist));
             return ICD_ERESOURCE;
         }
@@ -360,14 +360,14 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
                 /* found no agents to call, stick customer back on list & either timeout or get new agents */
                 icd_distributor__pushback_customer(dist, customer_member);
             }
-            opbx_log(LOG_WARNING, "ICD AgentPriorityDist[%s] need priority[%d] found Agent[%s] WRONG Priority[%d]\n",
+            opbx_log(OPBX_LOG_WARNING, "ICD AgentPriorityDist[%s] need priority[%d] found Agent[%s] WRONG Priority[%d]\n",
                 icd_distributor__get_name(dist), agent_priority, icd_caller__get_name(agent_caller)
                 , icd_caller__get_priority(agent_caller));
             return ICD_EEXISTS;
         }
 
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "ICD AgentPriorityDist %s found Agent Caller[%s] priority[%d] from list\n",
+            opbx_log(OPBX_LOG_DEBUG, "ICD AgentPriorityDist %s found Agent Caller[%s] priority[%d] from list\n",
                 icd_distributor__get_name(dist), icd_caller__get_name(agent_caller),
                 icd_caller__get_priority(agent_caller));
 
@@ -406,7 +406,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
         } else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
             result = icd_caller__bridge(agent_caller);
         } else {
-            opbx_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n",
+            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n",
                 icd_distributor__get_name(dist));
             icd_distributor__pushback_agent(dist, agent_member);
             icd_distributor__pushback_customer(dist, customer_member);
@@ -484,7 +484,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
         break;
 
     case ICD_BRIDGEE_ROLE:
-        opbx_log(LOG_ERROR, "Caller id[%d] [%s] in role[ICD_AGENT_ROLE] cant be bridgee using [%s]  \n",
+        opbx_log(OPBX_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_AGENT_ROLE] cant be bridgee using [%s]  \n",
             icd_caller__get_id(that), icd_caller__get_name(that), module_name);
 
         break;
@@ -514,7 +514,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
 
     switch (icd_caller__get_roles(that)) {
     case ICD_BRIDGER_ROLE:
-        opbx_log(LOG_ERROR, "Caller id[%d] [%s] in role[ICD_CUSTOMER_ROLE] cant be bridger using [%s]  \n",
+        opbx_log(OPBX_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_CUSTOMER_ROLE] cant be bridger using [%s]  \n",
             icd_caller__get_id(that), icd_caller__get_name(that), module_name);
         break;
 

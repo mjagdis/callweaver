@@ -126,7 +126,7 @@ static int io_grow(struct io_context *ioc)
 	 * -1 on failure
 	 */
 	void *tmp;
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "io_grow()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
 	tmp = realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(struct io_rec));
 	if (tmp) {
@@ -162,7 +162,7 @@ int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short even
 	 * data as an argument.  Returns NULL on failure.
 	 */
 	int *ret;
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_io_add()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_io_add()\n"));
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
@@ -239,7 +239,7 @@ int opbx_io_remove(struct io_context *ioc, int *_id)
 {
 	int x;
 	if (!_id) {
-		opbx_log(LOG_WARNING, "Asked to remove NULL?\n");
+		opbx_log(OPBX_LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
 	for (x = 0; x < ioc->fdcnt; x++) {
@@ -256,7 +256,7 @@ int opbx_io_remove(struct io_context *ioc, int *_id)
 		}
 	}
 	
-	opbx_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
+	opbx_log(OPBX_LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
 	return -1;
 }
 
@@ -270,7 +270,7 @@ int opbx_io_wait(struct io_context *ioc, int howlong)
 	int res;
 	int x;
 	int origcnt;
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_io_wait()\n"));
+	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_io_wait()\n"));
 	res = poll(ioc->fds, ioc->fdcnt, howlong);
 	if (res > 0) {
 		/*
@@ -305,19 +305,19 @@ void opbx_io_dump(struct io_context *ioc)
 	 * the logger interface
 	 */
 	int x;
-	opbx_log(LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
-	opbx_log(LOG_DEBUG, "================================================\n");
-	opbx_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
-	opbx_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
+	opbx_log(OPBX_LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	opbx_log(OPBX_LOG_DEBUG, "================================================\n");
+	opbx_log(OPBX_LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
+	opbx_log(OPBX_LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
 	for (x = 0; x < ioc->fdcnt; x++) {
-		opbx_log(LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
+		opbx_log(OPBX_LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,
 				ioc->ior[x].data,
 				ioc->fds[x].events);
 	}
-	opbx_log(LOG_DEBUG, "================================================\n");
+	opbx_log(OPBX_LOG_DEBUG, "================================================\n");
 }
 
 /* Unrelated I/O functions */

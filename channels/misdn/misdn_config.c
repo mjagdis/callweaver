@@ -352,7 +352,7 @@ static int *map;
 static opbx_mutex_t config_mutex; 
 
 #define CLI_ERROR(name, value, section) ({ \
-	opbx_log(LOG_WARNING, "misdn.conf: \"%s=%s\" (section: %s) invalid or out of range. " \
+	opbx_log(OPBX_LOG_WARNING, "misdn.conf: \"%s=%s\" (section: %s) invalid or out of range. " \
 		"Please edit your misdn.conf and then do a \"misdn reload\".\n", name, value, section); \
 })
 
@@ -372,7 +372,7 @@ static int _enum_array_map (void)
 			}
 		}
 		if (!ok) {
-			opbx_log(LOG_WARNING, "Enum element %d in misdn_cfg_elements (port section) has no corresponding element in the config struct!\n", i);
+			opbx_log(OPBX_LOG_WARNING, "Enum element %d in misdn_cfg_elements (port section) has no corresponding element in the config struct!\n", i);
 			return -1;
 		}
 	}
@@ -386,7 +386,7 @@ static int _enum_array_map (void)
 			}
 		}
 		if (!ok) {
-			opbx_log(LOG_WARNING, "Enum element %d in misdn_cfg_elements (general section) has no corresponding element in the config struct!\n", i);
+			opbx_log(OPBX_LOG_WARNING, "Enum element %d in misdn_cfg_elements (general section) has no corresponding element in the config struct!\n", i);
 			return -1;
 		}
 	}
@@ -481,7 +481,7 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 
 	if ((elem < MISDN_CFG_LAST) && !misdn_cfg_is_port_valid(port)) {
 		memset(buf, 0, bufsize);
-		opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_get! Port number %d is not valid.\n", port);
+		opbx_log(OPBX_LOG_WARNING, "Invalid call to misdn_cfg_get! Port number %d is not valid.\n", port);
 		return;
 	}
 
@@ -492,7 +492,7 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 	} else {
 		if ((place = map[elem]) < 0) {
 			memset (buf, 0, bufsize);
-			opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_get! Invalid element (%d) requested.\n", elem);
+			opbx_log(OPBX_LOG_WARNING, "Invalid call to misdn_cfg_get! Invalid element (%d) requested.\n", elem);
 		} else {
 			if (elem < MISDN_CFG_LAST) {
 				switch (port_spec[place].type) {
@@ -619,7 +619,7 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 
 	if (!misdn_cfg_is_port_valid(port))
     {
-		opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_is_msn_valid! Port number %d is not valid.\n", port);
+		opbx_log(OPBX_LOG_WARNING, "Invalid call to misdn_cfg_is_msn_valid! Port number %d is not valid.\n", port);
 		return 0;
 	}
 
@@ -718,7 +718,7 @@ void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* 
 
 	if ((elem < MISDN_CFG_LAST) && !misdn_cfg_is_port_valid(port)) {
 		*buf = 0;
-		opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_get_config_string! Port number %d is not valid.\n", port);
+		opbx_log(OPBX_LOG_WARNING, "Invalid call to misdn_cfg_get_config_string! Port number %d is not valid.\n", port);
 		return;
 	}
 
@@ -807,7 +807,7 @@ void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* 
 		}
 	} else {
 		*buf = 0;
-		opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_get_config_string! Invalid config element (%d) requested.\n", elem);
+		opbx_log(OPBX_LOG_WARNING, "Invalid call to misdn_cfg_get_config_string! Invalid config element (%d) requested.\n", elem);
 	}
 	misdn_cfg_unlock();
 }
@@ -1001,7 +1001,7 @@ void misdn_cfg_update_ptp (void)
 			}
 			fclose(fp);
 		} else {
-			opbx_log(LOG_WARNING,"Couldn't open %s: %s\n", misdn_init, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING,"Couldn't open %s: %s\n", misdn_init, strerror(errno));
 		}
 	}
 }
@@ -1050,7 +1050,7 @@ int misdn_cfg_init (int this_max_ports)
 	struct opbx_variable *v;
 
 	if (!(cfg = OPBX_LOAD_CFG(config))) {
-		opbx_log(LOG_WARNING, "missing file: misdn.conf\n");
+		opbx_log(OPBX_LOG_WARNING, "missing file: misdn.conf\n");
 		return -1;
 	}
 

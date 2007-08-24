@@ -310,7 +310,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         break;
     case OPBXCHANDATA:
-        opbx_log(LOG_WARNING, "OPBXCHANDATA doesn't exist anymore\n");
+        opbx_log(OPBX_LOG_WARNING, "OPBXCHANDATA doesn't exist anymore\n");
         ret = NULL;
         break;
     case OPBXCHANCONTEXT:

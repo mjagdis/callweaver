@@ -120,7 +120,7 @@ static void ogi_debug_cli(int fd, char *fmt, ...)
 	res = vasprintf(&stuff, fmt, ap);
 	va_end(ap);
 	if (res == -1) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 	} else {
 		if (ogidebug)
 			opbx_verbose("OGI Tx >> %s", stuff);
@@ -157,27 +157,27 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 		port = atoi(c);
 	}
 	if (efd) {
-		opbx_log(LOG_WARNING, "OGI URI's don't support Enhanced OGI yet\n");
+		opbx_log(OPBX_LOG_WARNING, "OGI URI's don't support Enhanced OGI yet\n");
 		return -1;
 	}
 	hp = opbx_gethostbyname(host, &ahp);
 	if (!hp) {
-		opbx_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
+		opbx_log(OPBX_LOG_WARNING, "Unable to locate host '%s'\n", host);
 		return -1;
 	}
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0) {
-		opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return -1;
 	}
 	flags = fcntl(s, F_GETFL);
 	if (flags < 0) {
-		opbx_log(LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
 	if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
-		opbx_log(LOG_WARNING, "Fnctl(F_SETFL) failed: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Fnctl(F_SETFL) failed: %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -186,19 +186,19 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 	sin.sin_port = htons(port);
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) && (errno != EINPROGRESS)) {
-		opbx_log(LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
 		close(s);
 		return -1;
 	}
 	pfds[0].fd = s;
 	pfds[0].events = POLLOUT;
 	if (poll(pfds, 1, MAX_OGI_CONNECT) != 1) {
-		opbx_log(LOG_WARNING, "Connect to '%s' failed!\n", ogiurl);
+		opbx_log(OPBX_LOG_WARNING, "Connect to '%s' failed!\n", ogiurl);
 		close(s);
 		return -1;
 	}
 	if (write(s, "ogi_network: yes\n", strlen("ogi_network: yes\n")) < 0) {
-		opbx_log(LOG_WARNING, "Connect to '%s' failed: %s\n", ogiurl, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Connect to '%s' failed: %s\n", ogiurl, strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -208,7 +208,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 		fdprintf(s, "ogi_network_script: %s\n", script);
 
 	if (option_debug > 3)
-		opbx_log(LOG_DEBUG, "Wow, connected!\n");
+		opbx_log(OPBX_LOG_DEBUG, "Wow, connected!\n");
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
@@ -234,18 +234,18 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		script = tmp;
 	}
 	if (pipe(toast)) {
-		opbx_log(LOG_WARNING, "Unable to create toast pipe: %s\n",strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create toast pipe: %s\n",strerror(errno));
 		return -1;
 	}
 	if (pipe(fromast)) {
-		opbx_log(LOG_WARNING, "unable to create fromast pipe: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "unable to create fromast pipe: %s\n", strerror(errno));
 		close(toast[0]);
 		close(toast[1]);
 		return -1;
 	}
 	if (efd) {
 		if (pipe(audio)) {
-			opbx_log(LOG_WARNING, "unable to create audio pipe: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "unable to create audio pipe: %s\n", strerror(errno));
 			close(fromast[0]);
 			close(fromast[1]);
 			close(toast[0]);
@@ -256,7 +256,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		if (res > -1) 
 			res = fcntl(audio[1], F_SETFL, res | O_NONBLOCK);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "unable to set audio pipe parameters: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "unable to set audio pipe parameters: %s\n", strerror(errno));
 			close(fromast[0]);
 			close(fromast[1]);
 			close(toast[0]);
@@ -268,7 +268,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	}
 	pid = fork();
 	if (pid < 0) {
-		opbx_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
 		return -1;
 	}
 	if (!pid) {
@@ -286,7 +286,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		
 		/* unblock important signal handlers */
 		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
-			opbx_log(LOG_WARNING, "unable to unblock signals for OGI script: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "unable to unblock signals for OGI script: %s\n", strerror(errno));
 			exit(1);
 		}
 
@@ -595,7 +595,7 @@ static int handle_getoption(struct opbx_channel *chan, OGI *ogi, int argc, char 
         fs = opbx_openstream(chan, argv[2], chan->language);
         if (!fs){
                 fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
-                opbx_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
+                opbx_log(OPBX_LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
         }
 	if (option_verbose > 2)
@@ -902,12 +902,12 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
         	rfmt = chan->readformat;
                 res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
                 if (res < 0) {
-                	opbx_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+                	opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
                         return -1;
                 }
                	sildet = opbx_dsp_new();
                 if (!sildet) {
-                	opbx_log(LOG_WARNING, "Unable to create silence detector :(\n");
+                	opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
                         return -1;
                 }
                	opbx_dsp_set_threshold(sildet, 256);
@@ -1017,7 +1017,7 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
         if (silence > 0) {
                 res = opbx_set_read_format(chan, rfmt);
                 if (res)
-                        opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+                        opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
                 opbx_dsp_free(sildet);
         }
 	return RESULT_SUCCESS;
@@ -1675,7 +1675,7 @@ int ogi_register(ogi_command *ogi)
 	int x;
 	for (x=0; x<MAX_COMMANDS - 1; x++) {
 		if (commands[x].cmda[0] == ogi->cmda[0]) {
-			opbx_log(LOG_WARNING, "Command already registered!\n");
+			opbx_log(OPBX_LOG_WARNING, "Command already registered!\n");
 			return -1;
 		}
 	}
@@ -1685,7 +1685,7 @@ int ogi_register(ogi_command *ogi)
 			return 0;
 		}
 	}
-	opbx_log(LOG_WARNING, "No more room for new commands!\n");
+	opbx_log(OPBX_LOG_WARNING, "No more room for new commands!\n");
 	return -1;
 }
 
@@ -1780,7 +1780,7 @@ static int parse_args(char *s, int *max, char *argv[])
 normal:
 			if (whitespace) {
 				if (x >= MAX_ARGS -1) {
-					opbx_log(LOG_WARNING, "Too many arguments, truncating\n");
+					opbx_log(OPBX_LOG_WARNING, "Too many arguments, truncating\n");
 					break;
 				}
 				/* Coming off of whitespace, start the next argument */
@@ -1846,7 +1846,7 @@ static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, 
 	int retry = RETRY;
 
 	if (!(readf = fdopen(ogi->ctrl, "r"))) {
-		opbx_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to fdopen file descriptor\n");
 		if (pid > -1)
 			kill(pid, SIGHUP);
 		close(ogi->ctrl);
@@ -1862,7 +1862,7 @@ static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, 
 			/* Idle the channel until we get a command */
 			f = opbx_read(c);
 			if (!f) {
-				opbx_log(LOG_DEBUG, "%s hungup\n", chan->name);
+				opbx_log(OPBX_LOG_DEBUG, "%s hungup\n", chan->name);
 				returnstatus = -1;
 				break;
 			} else {
@@ -1897,7 +1897,7 @@ static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, 
 			}
 		} else {
 			if (--retry <= 0) {
-				opbx_log(LOG_WARNING, "No channel, no fd?\n");
+				opbx_log(OPBX_LOG_WARNING, "No channel, no fd?\n");
 				returnstatus = -1;
 				break;
 			}
@@ -1906,7 +1906,7 @@ static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, 
 	/* Notify process */
 	if (pid > -1) {
 		if (kill(pid, SIGHUP))
-			opbx_log(LOG_WARNING, "unable to send SIGHUP to OGI process %d: %s\n", pid, strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "unable to send SIGHUP to OGI process %d: %s\n", pid, strerror(errno));
 	}
 	fclose(readf);
 	return returnstatus;
@@ -2032,7 +2032,7 @@ static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int e
 static int ogi_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	if (chan->_softhangup)
-		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
+		opbx_log(OPBX_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	return ogi_exec_full(chan, argc, argv, 0, 0);
 }
 
@@ -2042,16 +2042,16 @@ static int eogi_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int res;
 
 	if (chan->_softhangup)
-		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
+		opbx_log(OPBX_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	readformat = chan->readformat;
 	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) {
-		opbx_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
+		opbx_log(OPBX_LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
 		return -1;
 	}
 	res = ogi_exec_full(chan, argc, argv, 1, 0);
 	if (!res) {
 		if (opbx_set_read_format(chan, readformat)) {
-			opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(readformat));
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(readformat));
 		}
 	}
 	return res;

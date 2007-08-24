@@ -69,14 +69,14 @@ static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len
 	char repl[256] = "";
 
 	if (len < sizeof(struct srv)) {
-		opbx_log(LOG_WARNING, "Supplied buffer length too short (%d < %d)\n", len, sizeof(struct srv));
+		opbx_log(OPBX_LOG_WARNING, "Supplied buffer length too short (%d < %d)\n", len, sizeof(struct srv));
 		return -1;
 	}
 	answer += sizeof(struct srv);
 	len -= sizeof(struct srv);
 
 	if ((res = dn_expand((unsigned char *)msg, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
-		opbx_log(LOG_WARNING, "Failed to expand hostname\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
 	if (res && strcmp(repl, ".")) {
@@ -104,7 +104,7 @@ static int srv_callback(void *context, char *answer, int len, char *fullanswer)
 	struct srv_context *c = (struct srv_context *)context;
 
 	if (parse_srv(c->host, c->hostlen, c->port, answer, len, fullanswer)) {
-		opbx_log(LOG_WARNING, "Failed to parse srv\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to parse srv\n");
 		return -1;
 	}
 

@@ -236,7 +236,7 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	if (!c)
 		c = sccp_channel_newcall(l, NULL);
 	if (!c) {
-			opbx_log(LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n",d->id, l->name);
+			opbx_log(OPBX_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n",d->id, l->name);
 			return;
 	}
 

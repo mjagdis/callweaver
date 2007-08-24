@@ -69,13 +69,13 @@ static int supports_overlapping(
 		struct visdn_huntgroup *hg;
 		hg = visdn_hg_get_by_name(hg_name);
 		if (!hg) {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"No huntgroup '%s' in hint\n", hg_name);
 			return FALSE;
 		}
 
 		if (list_empty(&hg->members)) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"No interfaces in huntgroup '%s'\n",
 				hg->name);
 
@@ -93,7 +93,7 @@ static int supports_overlapping(
 	} else {
 		struct visdn_intf *intf = visdn_intf_get_by_name(intf_name);
 		if (!intf) {
-			opbx_log(LOG_WARNING,
+			opbx_log(OPBX_LOG_WARNING,
 				"No interface '%s' in hint\n", intf_name);
 			return FALSE;
 		}
@@ -115,7 +115,7 @@ static int new_digit(
 
 	if (digit) {
 		if(strlen(called_number) >= called_number_size - 1) {
-			opbx_log(LOG_NOTICE,
+			opbx_log(OPBX_LOG_NOTICE,
 				"Maximum number of digits exceeded\n");
 
 			chan->hangupcause =

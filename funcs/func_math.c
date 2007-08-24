@@ -110,7 +110,7 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 		else if (!strcasecmp(argv[1],"char") || !strcasecmp(argv[1],"c"))
 			type_of_result=CHAR_RESULT;
 		else {
-			opbx_log(LOG_ERROR, "Unknown type of result requested '%s'\n", argv[1]);
+			opbx_log(OPBX_LOG_ERROR, "Unknown type of result requested '%s'\n", argv[1]);
 			return opbx_function_syntax(math_func_syntax);
 		}
 
@@ -159,17 +159,17 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			mvalue2 = op + 1;
 
 		if (!mvalue1 || !mvalue2) {
-			opbx_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
+			opbx_log(OPBX_LOG_WARNING, "Supply all the parameters - just this once, please\n");
 			return -1;
 		}
 
 		if (sscanf(mvalue1, "%f", &fnum1) != 1) {
-			opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
+			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 			return -1;
 		}
 
 		if (sscanf(mvalue2, "%f", &fnum2) != 1) {
-			opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
+			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 			return -1;
 		}
 
@@ -214,7 +214,7 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			opbx_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
 			break;
 		default :
-			opbx_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
+			opbx_log(OPBX_LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
 			return -1;
 		}
 

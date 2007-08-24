@@ -78,12 +78,12 @@ static void span_message(int level, const char *msg)
     int opbx_level;
     
     if (level == SPAN_LOG_ERROR)
-        opbx_level = __LOG_ERROR;
+        opbx_level = __OPBX_LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
-        opbx_level = __LOG_WARNING;
+        opbx_level = __OPBX_LOG_WARNING;
     else
-        opbx_level = __LOG_DEBUG;
-    //opbx_level = __LOG_WARNING;
+        opbx_level = __OPBX_LOG_DEBUG;
+    //opbx_level = __OPBX_LOG_WARNING;
     opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
 }
 
@@ -108,7 +108,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 
     if ((dsp_cng = opbx_dsp_new()) == NULL)
     {
-        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
     }
     else
     {
@@ -119,7 +119,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 
     if ((dsp_ced = opbx_dsp_new()) == NULL)
     {
-        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
     }
     else
     {
@@ -133,7 +133,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
 
-//opbx_log(LOG_NOTICE, "br: t38 status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+//opbx_log(OPBX_LOG_NOTICE, "br: t38 status: [%d,%d]\n", chan->t38_status, peer->t38_status);
 
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
@@ -153,7 +153,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 		    This is a very BASIC method to mute a channel. It should be improved
 		    and we should send EMPTY frames (not just avoid sending them) 
 		*/
-		    opbx_log(LOG_NOTICE, "channels are muted.\n");
+		    opbx_log(OPBX_LOG_NOTICE, "channels are muted.\n");
 		}
 		else
             	    opbx_write(inactive, f);
@@ -173,7 +173,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                             {
                                 if (fr2->subclass == 'f')
                                 {
-                                    opbx_log(LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
+                                    opbx_log(OPBX_LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
                                     opbx_app_request_t38(chan);
                                 }
                             }
@@ -191,7 +191,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                             {
                                 if (fr2->subclass == 'F')
                                 {
-                                    opbx_log(LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
+                                    opbx_log(OPBX_LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
                                     opbx_app_request_t38(chan);
                                 }
                             }
@@ -216,7 +216,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 	     && ( peer->t38_status != T38_NEGOTIATING )
 	     && ( chan->t38_status != peer->t38_status) 
 	   ) {
-            opbx_log(LOG_DEBUG, "Stop bridging frames. [ %d,%d]\n", chan->t38_status, peer->t38_status);
+            opbx_log(OPBX_LOG_DEBUG, "Stop bridging frames. [ %d,%d]\n", chan->t38_status, peer->t38_status);
             break;
 	}
     }
@@ -238,10 +238,10 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "T38Gateway");
     outf.datalen = len;
     outf.data = (uint8_t *) buf;
-    opbx_log(LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
+    opbx_log(OPBX_LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
     outf.tx_copies = count;
     if (opbx_write(chan, &outf) < 0)
-        opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
     return 0;
 }
 
@@ -282,7 +282,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         {
             if ((res = opbx_set_read_format(channels[1], OPBX_FORMAT_SLINEAR)) < 0)
             {
-                opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+                opbx_log(OPBX_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
                 return -1;
             }
         }
@@ -290,9 +290,9 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         {
             if ((res = opbx_set_write_format(channels[1], OPBX_FORMAT_SLINEAR)) < 0)
             {
-                opbx_log(LOG_WARNING, "Unable to set to linear write mode, giving up\n");
+                opbx_log(OPBX_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
                 if ((res = opbx_set_read_format(channels[1], original_read_fmt)))
-                    opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
+                    opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
                 return -1;
             }
         }
@@ -300,7 +300,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
 
     if (t38_gateway_init(&t38_state, t38_tx_packet_handler, channels[0]) == NULL)
     {
-        opbx_log(LOG_WARNING, "Unable to start the T.38 gateway\n");
+        opbx_log(OPBX_LOG_WARNING, "Unable to start the T.38 gateway\n");
         return -1;
     }
     t38_gateway_set_transmit_on_idle(&t38_state, TRUE);
@@ -318,7 +318,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
-//opbx_log(LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+//opbx_log(OPBX_LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
 
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
@@ -352,7 +352,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                         outf.offset = OPBX_FRIENDLY_OFFSET;
                         if (opbx_write(channels[1], &outf) < 0)
                         {
-                            opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                            opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                             break;
                         }
                     }
@@ -370,12 +370,12 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
     {
         if ((res = opbx_set_read_format(channels[1], original_read_fmt)))
-            opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
+            opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
     }
     if (original_write_fmt != OPBX_FORMAT_SLINEAR)
     {
         if ((res = opbx_set_write_format(channels[1], original_write_fmt)))
-            opbx_log(LOG_WARNING, "Unable to restore write format on '%s'\n", channels[1]->name);
+            opbx_log(OPBX_LOG_WARNING, "Unable to restore write format on '%s'\n", channels[1]->name);
     }
     return running;
 }
@@ -413,7 +413,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
         if (!(peer = opbx_request(argv[0], format, dest, &cause)))
         {
             strncpy(status, "CHANUNAVAIL", sizeof(status) - 1); /* assume as default */
-            opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", argv[0], dest);
+            opbx_log(OPBX_LOG_ERROR, "Error creating channel %s/%s\n", argv[0], dest);
             ALL_DONE(u, 0);
         }
 
@@ -456,7 +456,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
     }
     else
     {
-        opbx_log(LOG_ERROR, "Error creating channel. Invalid name %s\n", argv[0]);
+        opbx_log(OPBX_LOG_ERROR, "Error creating channel. Invalid name %s\n", argv[0]);
         ALL_DONE(u, 0);
     }
     if ((res = opbx_call(peer, dest, 0)) < 0)
@@ -474,7 +474,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
             if (timeout == 0)
             {
                 strncpy(status, "NOANSWER", sizeof(status) - 1);
-                opbx_log(LOG_NOTICE, "Timeout on peer\n");
+                opbx_log(OPBX_LOG_NOTICE, "Timeout on peer\n");
                 break;
             }
             /* -1 means go forever */
@@ -530,7 +530,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
                 if ((f = opbx_read(active)) == NULL)
                 {
                     state = OPBX_CONTROL_HANGUP;
-                    opbx_log(LOG_DEBUG, "Hangup from remote channel\n");
+                    opbx_log(OPBX_LOG_DEBUG, "Hangup from remote channel\n");
                     res = 0;
                     break;
                 }
@@ -567,7 +567,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
             if ( res && ( chan->t38_status == peer->t38_status ) )
             {
                 // Same on both sides, so just bridge 
-                opbx_log(LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                opbx_log(OPBX_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
                 res = opbx_bridge_frames(chan, peer);
             }
 	    
@@ -576,18 +576,18 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
 		&& ( chan->t38_status != peer->t38_status ) )
             {
                 // Different on each side, so gateway 
-                opbx_log(LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                opbx_log(OPBX_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
                 res = opbx_t38_gateway(chan, peer, verbose);
             }
         }
         else
         {
-            opbx_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
+            opbx_log(OPBX_LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
         }
     }
     else
     {
-        opbx_log(LOG_ERROR, "failed to get remote_channel %s/%s\n", argv[0], dest);
+        opbx_log(OPBX_LOG_ERROR, "failed to get remote_channel %s/%s\n", argv[0], dest);
     }
     if (state == OPBX_CONTROL_ANSWER)
        strncpy(status, "ANSWER", sizeof(status) - 1);
@@ -598,7 +598,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
     if (state == OPBX_CONTROL_HANGUP)
          strncpy(status, "CANCEL", sizeof(status) - 1);
     pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
-    opbx_log(LOG_NOTICE, "T38Gateway exit with %s\n", status);
+    opbx_log(OPBX_LOG_NOTICE, "T38Gateway exit with %s\n", status);
     if (peer)
         opbx_hangup(peer);
 

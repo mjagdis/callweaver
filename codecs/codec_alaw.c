@@ -177,7 +177,7 @@ static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
     if (f->datalen == 0) {
         /* perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc) {
@@ -188,7 +188,7 @@ static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
     }
 
     if ((tmp->tail + f->datalen)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
-        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
@@ -250,7 +250,7 @@ static int lintoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
   
     if (tmp->tail + f->datalen/sizeof(int16_t) >= sizeof(tmp->outbuf))
     {
-        opbx_log (LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     s = f->data;

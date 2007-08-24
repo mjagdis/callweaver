@@ -157,7 +157,7 @@ _cstruct capi_rtp_ncpi(struct capi_pvt *i)
 			ncpi = NCPI_voice_over_ip_g729;
 			break;
 		default:
-			cc_log(LOG_ERROR, "%s: format %s(%d) invalid.\n",
+			cc_log(OPBX_LOG_ERROR, "%s: format %s(%d) invalid.\n",
 				i->vname, opbx_getformatname(i->codec), i->codec);
 			break;
 		}
@@ -181,7 +181,7 @@ int capi_alloc_rtp(struct capi_pvt *i)
 	memcpy(&addr, hp->h_addr, sizeof(addr));
 
 	if (!(i->rtp = opbx_rtp_new_with_bindaddr(NULL, NULL, 0, 0, addr))) {
-		cc_log(LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
+		cc_log(OPBX_LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
 		return 1;
 	}
 	opbx_rtp_get_us(i->rtp, &us);
@@ -210,7 +210,7 @@ int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f)
 	uslen = sizeof(us);
 
 	if (!(i->rtp)) {
-		cc_log(LOG_ERROR, "rtp struct is NULL\n");
+		cc_log(OPBX_LOG_ERROR, "rtp struct is NULL\n");
 		return -1;
 	}
 
@@ -278,7 +278,7 @@ struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len
 		return NULL;
 
 	if (!(i->rtp)) {
-		cc_log(LOG_ERROR, "rtp struct is NULL\n");
+		cc_log(OPBX_LOG_ERROR, "rtp struct is NULL\n");
 		return NULL;
 	}
 
@@ -346,13 +346,13 @@ void voice_over_ip_profile(struct cc_capi_controller *cp)
 		waitcount--;
 	} 
 	if (!info) {
-		cc_log(LOG_WARNING, "did not receive FACILITY_CONF\n");
+		cc_log(OPBX_LOG_WARNING, "did not receive FACILITY_CONF\n");
 		return;
 	}
 
 	/* parse profile */
 	if (FACILITY_CONF_FACILITYSELECTOR(&CMSG) != FACILITYSELECTOR_VOICE_OVER_IP) {
-		cc_log(LOG_WARNING, "unexpected FACILITY_SELECTOR = %#x\n",
+		cc_log(OPBX_LOG_WARNING, "unexpected FACILITY_SELECTOR = %#x\n",
 			FACILITY_CONF_FACILITYSELECTOR(&CMSG));
 		return;
 	}
@@ -363,7 +363,7 @@ void voice_over_ip_profile(struct cc_capi_controller *cp)
 
 	}
 	if (FACILITY_CONF_FACILITYCONFIRMATIONPARAMETER(&CMSG)[0] < 13) {
-		cc_log(LOG_WARNING, "conf parameter too short %d, RTP not used.\n",
+		cc_log(OPBX_LOG_WARNING, "conf parameter too short %d, RTP not used.\n",
 			FACILITY_CONF_FACILITYCONFIRMATIONPARAMETER(&CMSG)[0]);
 		return;
 	}

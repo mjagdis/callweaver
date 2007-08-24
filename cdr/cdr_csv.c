@@ -207,7 +207,7 @@ static int writefile(char *s, char *acc)
 	char tmp[OPBX_CONFIG_MAX_PATH];
 	FILE *f;
 	if (strchr(acc, '/') || (acc[0] == '.')) {
-		opbx_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
+		opbx_log(OPBX_LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
 		return -1;
 	}
 	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)opbx_config_OPBX_LOG_DIR,CSV_LOG_DIR, acc);
@@ -231,14 +231,14 @@ static int csv_log(struct opbx_cdr *cdr)
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, opbx_cdr_disp2str(cdr->disposition), opbx_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif
 	if (build_csv_record(buf, sizeof(buf), cdr)) {
-		opbx_log(LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
 	} else {
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,
 		   we open write and close the log file each time */
 		mf = fopen(csvmaster, "a");
 		if (!mf) {
-			opbx_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
+			opbx_log(OPBX_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 		}
 		if (mf) {
 			fputs(buf, mf);
@@ -248,7 +248,7 @@ static int csv_log(struct opbx_cdr *cdr)
 		}
 		if (!opbx_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
-				opbx_log(LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
+				opbx_log(OPBX_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 		}
 	}
 	return 0;

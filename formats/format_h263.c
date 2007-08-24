@@ -78,7 +78,7 @@ static struct opbx_filestream *h263_open(FILE *f)
     int res;
     if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts))
     {
-        opbx_log(LOG_WARNING, "Empty file!\n");
+        opbx_log(OPBX_LOG_WARNING, "Empty file!\n");
         return NULL;
     }
         
@@ -107,7 +107,7 @@ static struct opbx_filestream *h263_rewrite(FILE *f, const char *comment)
     }
     else
     {
-        opbx_log(LOG_WARNING, "Out of memory\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }
@@ -140,13 +140,13 @@ static struct opbx_frame *h263_read(struct opbx_filestream *s, int *whennext)
     len &= 0x7fff;
     if (len > sizeof(s->h263))
     {
-        opbx_log(LOG_WARNING, "Length %d is too long\n", len);
+        opbx_log(OPBX_LOG_WARNING, "Length %d is too long\n", len);
         return NULL;
     }
     if ((res = fread(s->h263, 1, len, s->f)) != len)
     {
         if (res)
-            opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     s->fr.samples = s->lastts;
@@ -176,7 +176,7 @@ static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
     if (f->frametype != OPBX_FRAME_VIDEO)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-video frame!\n");
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-video frame!\n");
         return -1;
     }
     subclass = f->subclass;
@@ -185,24 +185,24 @@ static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
     subclass &= ~0x1;
     if (subclass != OPBX_FORMAT_H263)
     {
-        opbx_log(LOG_WARNING, "Asked to write non-h263 frame (%d)!\n", f->subclass);
+        opbx_log(OPBX_LOG_WARNING, "Asked to write non-h263 frame (%d)!\n", f->subclass);
         return -1;
     }
     ts = htonl(f->samples);
     if ((res = fwrite(&ts, 1, sizeof(ts), fs->f)) != sizeof(ts))
     {
-        opbx_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
         return -1;
     }
     len = htons(f->datalen | mark);
     if ((res = fwrite(&len, 1, sizeof(len), fs->f)) != sizeof(len))
     {
-        opbx_log(LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
     {
-        opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
     return 0;

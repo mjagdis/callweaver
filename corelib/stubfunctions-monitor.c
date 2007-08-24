@@ -21,25 +21,25 @@
 
 static int stub_opbx_monitor_start( struct opbx_channel *chan, const char *format_spec, const char *fname_base, int need_lock )
 {
-	opbx_log(LOG_NOTICE, "res_monitor not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static int stub_opbx_monitor_stop( struct opbx_channel *chan, int need_lock)
 {
-	opbx_log(LOG_NOTICE, "res_monitor not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static int stub_opbx_monitor_change_fname( struct opbx_channel *chan, const char *fname_base, int need_lock )
 {
-	opbx_log(LOG_NOTICE, "res_monitor not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static void stub_opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
 {
-	opbx_log(LOG_NOTICE, "res_monitor not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_monitor not loaded!\n");
 }
 
 

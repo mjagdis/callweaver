@@ -156,7 +156,7 @@ static int refresh_list(void *data)
 	/* if a refresh or reload is already in progress, exit now */
 	if (opbx_mutex_trylock(&refresh_lock)) {
 		if (info->verbose)
-			opbx_log(LOG_WARNING, "DNS Manager refresh already in progress.\n");
+			opbx_log(OPBX_LOG_WARNING, "DNS Manager refresh already in progress.\n");
 		return -1;
 	}
 
@@ -270,7 +270,7 @@ int dnsmgr_init(void)
 {
 	sched = sched_context_create();
 	if (!sched) {
-		opbx_log(LOG_ERROR, "Unable to create schedule context.\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;
 	}
 	OPBX_LIST_HEAD_INIT(&entry_list);
@@ -310,9 +310,9 @@ static int do_reload(int loading)
 		}
 		if ((interval_value = opbx_variable_retrieve(config, "general", "refreshinterval"))) {
 			if (sscanf(interval_value, "%d", &interval) < 1)
-				opbx_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", interval_value);
+				opbx_log(OPBX_LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", interval_value);
 			else if (interval < 0)
-				opbx_log(LOG_WARNING, "Invalid refresh interval '%d' specified, using default\n", interval);
+				opbx_log(OPBX_LOG_WARNING, "Invalid refresh interval '%d' specified, using default\n", interval);
 			else
 				refresh_interval = interval;
 		}
@@ -321,7 +321,7 @@ static int do_reload(int loading)
 
 	if (enabled && refresh_interval) {
 		refresh_sched = opbx_sched_add(sched, refresh_interval * 1000, refresh_list, &master_refresh_info);
-		opbx_log(LOG_NOTICE, "Managed DNS entries will be refreshed every %d seconds.\n", refresh_interval);
+		opbx_log(OPBX_LOG_NOTICE, "Managed DNS entries will be refreshed every %d seconds.\n", refresh_interval);
 	}
 
 	/* if this reload enabled the manager, create the background thread

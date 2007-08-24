@@ -149,7 +149,7 @@ static int function_filter(struct opbx_channel *chan, int argc, char **argv, cha
 	char *string;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", filter_func_syntax);
+		opbx_log(OPBX_LOG_ERROR, "Syntax: %s\n", filter_func_syntax);
 		return -1;
 	}
 
@@ -176,13 +176,13 @@ static int builtin_function_regex(struct opbx_channel *chan, int argc, char **ar
 		return opbx_function_syntax(regex_func_syntax);
 
 	if (!buf) {
-		opbx_log(LOG_ERROR, "%s should only be used in an expression context\n", regex_func_name);
+		opbx_log(OPBX_LOG_ERROR, "%s should only be used in an expression context\n", regex_func_name);
 		return -1;
 	}
 
 	if ((i = regcomp(&regexbuf, argv[0], REG_EXTENDED | REG_NOSUB))) {
 		regerror(i, &regexbuf, errstr, sizeof(errstr));
-		opbx_log(LOG_ERROR, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
+		opbx_log(OPBX_LOG_ERROR, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
 		return -1;
 	}
 
@@ -227,7 +227,7 @@ static int acf_strftime(struct opbx_channel *chan, int argc, char **argv, char *
 	opbx_localtime(&epochi, &time, (argc > 1 && argv[1][0] ? argv[1] : NULL));
 
 	if (!strftime(buf, len, (argc > 2 && argv[2][0] ? argv[2] : "%c"), &time)) {
-		opbx_log(LOG_DEBUG, "C function strftime() output nothing or needed more than %d bytes\n", len);
+		opbx_log(OPBX_LOG_DEBUG, "C function strftime() output nothing or needed more than %d bytes\n", len);
 		*buf = '\0';
 	}
 
@@ -286,7 +286,7 @@ static int function_cut(struct opbx_channel *chan, int argc, char **argv, char *
 				/* single number */
 				num2 = num1;
 			} else {
-				opbx_log(LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
+				opbx_log(OPBX_LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
 				return -1;
 			}
 
@@ -300,7 +300,7 @@ static int function_cut(struct opbx_channel *chan, int argc, char **argv, char *
 
 			/* Most frequent problem is the expectation of reordering fields */
 			if ((num1 > 0) && (curfieldnum > num1)) {
-				opbx_log(LOG_WARNING, "We're already past the field you wanted?\n");
+				opbx_log(OPBX_LOG_WARNING, "We're already past the field you wanted?\n");
 			}
 
 			/* Re-null tmp2 if we added 1 to NULL */

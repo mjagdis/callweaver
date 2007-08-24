@@ -526,10 +526,10 @@ static int unalloc_sub(struct mgcp_subchannel *sub)
 {
 	struct mgcp_endpoint *p = sub->parent;
 	if (p->sub == sub) {
-		opbx_log(LOG_WARNING, "Trying to unalloc the real channel %s@%s?!?\n", p->name, p->parent->name);
+		opbx_log(OPBX_LOG_WARNING, "Trying to unalloc the real channel %s@%s?!?\n", p->name, p->parent->name);
 		return -1;
 	}
-	opbx_log(LOG_DEBUG, "Released sub %d of channel %s@%s\n", sub->id, p->name, p->parent->name);
+	opbx_log(OPBX_LOG_DEBUG, "Released sub %d of channel %s@%s\n", sub->id, p->name, p->parent->name);
 
 	sub->owner = NULL;
 	if (!opbx_strlen_zero(sub->cxident)) {
@@ -558,7 +558,7 @@ static int __mgcp_xmit(struct mgcp_gateway *gw, char *data, int len)
 	else 
 		res=sendto(mgcpsock, data, len, 0, (struct sockaddr *)&gw->defaddr, sizeof(struct sockaddr_in));
 	if (res != len) {
-		opbx_log(LOG_WARNING, "mgcp_xmit returned %d: %s\n", res, strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "mgcp_xmit returned %d: %s\n", res, strerror(errno));
 	}
 	return res;
 }
@@ -605,7 +605,7 @@ static void dump_queue(struct mgcp_gateway *gw, struct mgcp_endpoint *p)
 			else
 				gw->msgs = cur->next;
 
-			opbx_log(LOG_NOTICE, "Removing message from %s transaction %u\n", 
+			opbx_log(OPBX_LOG_NOTICE, "Removing message from %s transaction %u\n", 
 				gw->name, cur->seqno);
 
 			w = cur;
@@ -700,7 +700,7 @@ static int retrans_pkt(void *data)
 			else
 				gw->msgs = cur->next;
 
-			opbx_log(LOG_WARNING, "Maximum retries exceeded for transaction %u on [%s]\n",
+			opbx_log(OPBX_LOG_WARNING, "Maximum retries exceeded for transaction %u on [%s]\n",
 				cur->seqno, gw->name);
 
 			w = cur;
@@ -754,7 +754,7 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 /* SC
 	time(&t);
 	if (gw->messagepending && (gw->lastouttime + 20 < t)) {
-		opbx_log(LOG_NOTICE, "Timeout waiting for response to message:%d,  lastouttime: %ld, now: %ld.  Dumping pending queue\n",
+		opbx_log(OPBX_LOG_NOTICE, "Timeout waiting for response to message:%d,  lastouttime: %ld, now: %ld.  Dumping pending queue\n",
 			gw->msgs ? gw->msgs->seqno : -1, (long) gw->lastouttime, (long) t);
 		dump_queue(sub->parent);
 	}
@@ -779,7 +779,7 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 
 	if (gettimeofday(&tv, NULL) < 0) {
 		/* This shouldn't ever happen, but let's be sure */
-		opbx_log(LOG_NOTICE, "gettimeofday() failed!\n");
+		opbx_log(OPBX_LOG_NOTICE, "gettimeofday() failed!\n");
 	} else {
 		msg->expire = tv.tv_sec * 1000 + tv.tv_usec / 1000 + DEFAULT_RETRANS;
 
@@ -797,7 +797,7 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 		/* XXX Should schedule retransmission XXX */
 /* SC
 	} else
-		opbx_log(LOG_DEBUG, "Deferring transmission of transaction %d\n", seqno);
+		opbx_log(OPBX_LOG_DEBUG, "Deferring transmission of transaction %d\n", seqno);
 */
 	return 0;
 }
@@ -811,7 +811,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	char iabuf[INET_ADDRSTRLEN];
 	opbx_mutex_t *l;
 
-	opbx_log(LOG_DEBUG, "Slow sequence is %d\n", p->slowsequence);
+	opbx_log(OPBX_LOG_DEBUG, "Slow sequence is %d\n", p->slowsequence);
 	if (p->slowsequence) {
 		queue = &p->cmd_queue;
 		l = &p->cmd_queue_lock;
@@ -855,7 +855,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 
 	r = (struct mgcp_request *) malloc (sizeof(struct mgcp_request));
 	if (!r) {
-		opbx_log(LOG_WARNING, "Cannot post MGCP request: insufficient memory\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot post MGCP request: insufficient memory\n");
 		opbx_mutex_unlock(l);
 		return -1;
 	}
@@ -944,7 +944,7 @@ static int mgcp_call(struct opbx_channel *ast, char *dest, int timeout)
 	}
 
 	if ((ast->_state != OPBX_STATE_DOWN) && (ast->_state != OPBX_STATE_RESERVED)) {
-		opbx_log(LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast->name);
+		opbx_log(OPBX_LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast->name);
 		opbx_mutex_unlock(&sub->lock);
 		return -1;
 	}
@@ -974,7 +974,7 @@ static int mgcp_call(struct opbx_channel *ast, char *dest, int timeout)
 			transmit_modify_request(sub->next);
 		}
 	} else {
-		opbx_log(LOG_NOTICE, "Don't know how to dial on trunks yet\n");
+		opbx_log(OPBX_LOG_NOTICE, "Don't know how to dial on trunks yet\n");
 		res = -1;
 	}
 	opbx_mutex_unlock(&sub->lock);
@@ -988,14 +988,14 @@ static int mgcp_hangup(struct opbx_channel *ast)
 	struct mgcp_endpoint *p = sub->parent;
 
 	if (option_debug) {
-		opbx_log(LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
+		opbx_log(OPBX_LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
 	}
 	if (!ast->tech_pvt) {
-		opbx_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
+		opbx_log(OPBX_LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	if (strcmp(sub->magic, MGCP_SUBCHANNEL_MAGIC)) {
-		opbx_log(LOG_DEBUG, "Invalid magic. MGCP subchannel freed up already.\n");
+		opbx_log(OPBX_LOG_DEBUG, "Invalid magic. MGCP subchannel freed up already.\n");
 		return 0;
 	}
 	opbx_mutex_lock(&sub->lock);
@@ -1214,7 +1214,7 @@ static int mgcp_answer(struct opbx_channel *ast)
 	if (ast->_state != OPBX_STATE_UP) {
 		opbx_setstate(ast, OPBX_STATE_UP);
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "mgcp_answer(%s)\n", ast->name);
+			opbx_log(OPBX_LOG_DEBUG, "mgcp_answer(%s)\n", ast->name);
 		transmit_notify_request(sub, "");
 		transmit_modify_request(sub);
 	}
@@ -1236,7 +1236,7 @@ static struct opbx_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 		/* We already hold the channel lock */
 		if (f->frametype == OPBX_FRAME_VOICE) {
 			if (f->subclass != sub->owner->nativeformats) {
-				opbx_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				opbx_log(OPBX_LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
 				opbx_set_read_format(sub->owner, sub->owner->readformat);
 				opbx_set_write_format(sub->owner, sub->owner->writeformat);
@@ -1244,7 +1244,7 @@ static struct opbx_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 			/* Courtesy fearnor aka alex@pilosoft.com */
 			if ((sub->parent->dtmfmode & MGCP_DTMF_INBAND) && (sub->parent->dsp)) {
 #if 0
-				opbx_log(LOG_NOTICE, "MGCP opbx_dsp_process\n");
+				opbx_log(OPBX_LOG_NOTICE, "MGCP opbx_dsp_process\n");
 #endif
 				f = opbx_dsp_process(sub->owner, sub->parent->dsp, f);
 			}
@@ -1272,12 +1272,12 @@ static int mgcp_write(struct opbx_channel *ast, struct opbx_frame *frame)
 		if (frame->frametype == OPBX_FRAME_IMAGE)
 			return 0;
 		else {
-			opbx_log(LOG_WARNING, "Can't send %d type frames with MGCP write\n", frame->frametype);
+			opbx_log(OPBX_LOG_WARNING, "Can't send %d type frames with MGCP write\n", frame->frametype);
 			return 0;
 		}
 	} else {
 		if (!(frame->subclass & ast->nativeformats)) {
-			opbx_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+			opbx_log(OPBX_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
 				frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
 			return -1;
 		}
@@ -1299,10 +1299,10 @@ static int mgcp_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan
 	struct mgcp_subchannel *sub = newchan->tech_pvt;
 
 	opbx_mutex_lock(&sub->lock);
-	opbx_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
+	opbx_log(OPBX_LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
 	if (sub->owner != oldchan) {
 		opbx_mutex_unlock(&sub->lock);
-		opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
+		opbx_log(OPBX_LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
 	}
 	sub->owner = newchan;
@@ -1385,7 +1385,7 @@ static int mgcp_indicate(struct opbx_channel *ast, int ind)
 		transmit_notify_request(sub, "");
 		break;		
 	default:
-		opbx_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
+		opbx_log(OPBX_LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
 		res = -1;
 	}
 	opbx_mutex_unlock(&sub->lock);
@@ -1449,7 +1449,7 @@ static struct opbx_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		tmp->priority = 1;
 		if (state != OPBX_STATE_DOWN) {
 			if (opbx_pbx_start(tmp)) {
-				opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				opbx_hangup(tmp);
 				tmp = NULL;
 			}
@@ -1460,7 +1460,7 @@ static struct opbx_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 				tmp->name, opbx_state2str(state));
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Unable to allocate channel structure\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel structure\n");
 	}
 	return tmp;
 }
@@ -1564,7 +1564,7 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 		strncpy(tmp, name, sizeof(tmp) - 1);
 		at = strchr(tmp, '@');
 		if (!at) {
-			opbx_log(LOG_NOTICE, "Endpoint '%s' has no at sign!\n", name);
+			opbx_log(OPBX_LOG_NOTICE, "Endpoint '%s' has no at sign!\n", name);
 			return NULL;
 		}
 		*at = '\0';
@@ -1614,18 +1614,18 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 			p = g->endpoints;
 			while(p) {
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Searching on %s@%s for subchannel\n",
+					opbx_log(OPBX_LOG_DEBUG, "Searching on %s@%s for subchannel\n",
 						p->name, g->name);
 				if (msgid) {
 #if 0 /* SC: new transport mech */
 					sub = p->sub;
 					do {
 						if (option_debug)
-							opbx_log(LOG_DEBUG, "Searching on %s@%s-%d for subchannel with lastout: %d\n",
+							opbx_log(OPBX_LOG_DEBUG, "Searching on %s@%s-%d for subchannel with lastout: %d\n",
 								p->name, g->name, sub->id, msgid);
 						if (sub->lastout == msgid) {
 							if (option_debug)
-								opbx_log(LOG_DEBUG, "Found subchannel sub%d to handle request %d sub->lastout: %d\n",
+								opbx_log(OPBX_LOG_DEBUG, "Found subchannel sub%d to handle request %d sub->lastout: %d\n",
 									sub->id, msgid, sub->lastout);
 							found = 1;
 							break;
@@ -1642,7 +1642,7 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 					/* SC */
 					break;
 				} else if (name && !strcasecmp(p->name, tmp)) {
-					opbx_log(LOG_DEBUG, "Coundn't determine subchannel, assuming current master %s@%s-%d\n", 
+					opbx_log(OPBX_LOG_DEBUG, "Coundn't determine subchannel, assuming current master %s@%s-%d\n", 
 						p->name, g->name, p->sub->id);
 					sub = p->sub;
 					found = 1;
@@ -1661,9 +1661,9 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 	if (!sub) {
 		if (name) {
 			if (g)
-				opbx_log(LOG_NOTICE, "Endpoint '%s' not found on gateway '%s'\n", tmp, at);
+				opbx_log(OPBX_LOG_NOTICE, "Endpoint '%s' not found on gateway '%s'\n", tmp, at);
 			else
-				opbx_log(LOG_NOTICE, "Gateway '%s' (and thus its endpoint '%s') does not exist\n", at, tmp);
+				opbx_log(OPBX_LOG_NOTICE, "Gateway '%s' (and thus its endpoint '%s') does not exist\n", at, tmp);
 		} 
 	}
 	return sub;
@@ -1691,7 +1691,7 @@ static void parse(struct mgcp_request *req)
 				break;
 			}
 			if (f >= MGCP_MAX_HEADERS - 1) {
-				opbx_log(LOG_WARNING, "Too many MGCP headers...\n");
+				opbx_log(OPBX_LOG_WARNING, "Too many MGCP headers...\n");
 			} else
 				f++;
 			req->header[f] = c + 1;
@@ -1716,7 +1716,7 @@ static void parse(struct mgcp_request *req)
 			printf("Line: %s (%d)\n", req->line[f], strlen(req->line[f]));
 #endif			
 			if (f >= MGCP_MAX_LINES - 1) {
-				opbx_log(LOG_WARNING, "Too many SDP lines...\n");
+				opbx_log(OPBX_LOG_WARNING, "Too many SDP lines...\n");
 			} else
 				f++;
 			req->line[f] = c + 1;
@@ -1767,7 +1767,7 @@ static void parse(struct mgcp_request *req)
 		opbx_verbose("%d headers, %d lines\n", req->headers, req->lines);
 	}
 	if (*c) 
-		opbx_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
+		opbx_log(OPBX_LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
 }
 
 static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
@@ -1790,21 +1790,21 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	m = get_sdp(req, "m");
 	c = get_sdp(req, "c");
 	if (opbx_strlen_zero(m) || opbx_strlen_zero(c)) {
-		opbx_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
+		opbx_log(OPBX_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
 		return -1;
 	}
 	if (sscanf(c, "IN IP4 %256s", host) != 1) {
-		opbx_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+		opbx_log(OPBX_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
 		return -1;
 	}
 	/* XXX This could block for a long time, and block the main thread! XXX */
 	hp = opbx_gethostbyname(host, &ahp);
 	if (!hp) {
-		opbx_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
+		opbx_log(OPBX_LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
 	if (sscanf(m, "audio %d RTP/AVP %n", &portno, &len) != 1) {
-		opbx_log(LOG_WARNING, "Unable to determine port number for RTP in '%s'\n", m); 
+		opbx_log(OPBX_LOG_WARNING, "Unable to determine port number for RTP in '%s'\n", m); 
 		return -1;
 	}
 	sin.sin_family = AF_INET;
@@ -1821,7 +1821,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 			if (codec_count)
 				break;
-			opbx_log(LOG_WARNING, "Error in codec string '%s' at '%s'\n", m, codecs);
+			opbx_log(OPBX_LOG_WARNING, "Error in codec string '%s' at '%s'\n", m, codecs);
 			return -1;
 		}
 		opbx_rtp_set_m_type(sub->rtp, codec);
@@ -1850,7 +1850,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 			nonCodecCapability, peerNonCodecCapability, p->nonCodecCapability);
 	}
 	if (!p->capability) {
-		opbx_log(LOG_WARNING, "No compatible codecs!\n");
+		opbx_log(OPBX_LOG_WARNING, "No compatible codecs!\n");
 		return -1;
 	}
 	return 0;
@@ -1859,11 +1859,11 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 static int add_header(struct mgcp_request *req, char *var, char *value)
 {
 	if (req->len >= sizeof(req->data) - 4) {
-		opbx_log(LOG_WARNING, "Out of space, can't add anymore\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of space, can't add anymore\n");
 		return -1;
 	}
 	if (req->lines) {
-		opbx_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
+		opbx_log(OPBX_LOG_WARNING, "Can't add more headers when lines have been added\n");
 		return -1;
 	}
 	req->header[req->headers] = req->data + req->len;
@@ -1872,7 +1872,7 @@ static int add_header(struct mgcp_request *req, char *var, char *value)
 	if (req->headers < MGCP_MAX_HEADERS)
 		req->headers++;
 	else {
-		opbx_log(LOG_WARNING, "Out of header space\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of header space\n");
 		return -1;
 	}
 	return 0;	
@@ -1881,7 +1881,7 @@ static int add_header(struct mgcp_request *req, char *var, char *value)
 static int add_line(struct mgcp_request *req, char *line)
 {
 	if (req->len >= sizeof(req->data) - 4) {
-		opbx_log(LOG_WARNING, "Out of space, can't add anymore\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of space, can't add anymore\n");
 		return -1;
 	}
 	if (!req->lines) {
@@ -1895,7 +1895,7 @@ static int add_line(struct mgcp_request *req, char *line)
 	if (req->lines < MGCP_MAX_LINES)
 		req->lines++;
 	else {
-		opbx_log(LOG_WARNING, "Out of line space\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of line space\n");
 		return -1;
 	}
 	return 0;	
@@ -1905,7 +1905,7 @@ static int init_resp(struct mgcp_request *req, char *resp, struct mgcp_request *
 {
 	/* Initialize a response */
 	if (req->headers || req->len) {
-		opbx_log(LOG_WARNING, "Request already initialized?!?\n");
+		opbx_log(OPBX_LOG_WARNING, "Request already initialized?!?\n");
 		return -1;
 	}
 	req->header[req->headers] = req->data + req->len;
@@ -1914,7 +1914,7 @@ static int init_resp(struct mgcp_request *req, char *resp, struct mgcp_request *
 	if (req->headers < MGCP_MAX_HEADERS)
 		req->headers++;
 	else
-		opbx_log(LOG_WARNING, "Out of header space\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of header space\n");
 	return 0;
 }
 
@@ -1922,7 +1922,7 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 {
 	/* Initialize a response */
 	if (req->headers || req->len) {
-		opbx_log(LOG_WARNING, "Request already initialized?!?\n");
+		opbx_log(OPBX_LOG_WARNING, "Request already initialized?!?\n");
 		return -1;
 	}
 	req->header[req->headers] = req->data + req->len;
@@ -1935,7 +1935,7 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 	if (req->headers < MGCP_MAX_HEADERS)
 		req->headers++;
 	else
-		opbx_log(LOG_WARNING, "Out of header space\n");
+		opbx_log(OPBX_LOG_WARNING, "Out of header space\n");
 	return 0;
 }
 
@@ -2001,7 +2001,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	       peer doesn't have to opbx_gethostbyname() us XXX */
 	len = 0;
 	if (!sub->rtp) {
-		opbx_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
+		opbx_log(OPBX_LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
 	opbx_rtp_get_us(sub->rtp, &sin);
@@ -2421,27 +2421,27 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 			p->hookstate = MGCP_ONHOOK;
 			break;
 		case 406:
-			opbx_log(LOG_NOTICE, "Transaction %d timed out\n", ident);
+			opbx_log(OPBX_LOG_NOTICE, "Transaction %d timed out\n", ident);
 			break;
 		case 407:
-			opbx_log(LOG_NOTICE, "Transaction %d aborted\n", ident);
+			opbx_log(OPBX_LOG_NOTICE, "Transaction %d aborted\n", ident);
 			break;
 		}
 		if (sub) {
 			if (sub->owner) {
-				opbx_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
+				opbx_log(OPBX_LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
 					result, p->name, p->parent->name, sub ? sub->id:-1);
 				mgcp_queue_hangup(sub);
 			}
 		} else {
 			if (p->sub->next->owner) {
-				opbx_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
+				opbx_log(OPBX_LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
 					result, p->name, p->parent->name, sub ? sub->id:-1);
 				mgcp_queue_hangup(p->sub);
 			}
 
 			if (p->sub->owner) {
-				opbx_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
+				opbx_log(OPBX_LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
 					result, p->name, p->parent->name, sub ? sub->id:-1);
 				mgcp_queue_hangup(p->sub);
 			}
@@ -2458,7 +2458,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 					if (sub->owner) {
 						if (!opbx_strlen_zero(sub->cxident)) {
 							if (strcasecmp(c, sub->cxident)) {
-								opbx_log(LOG_WARNING, "Subchannel already has a cxident. sub->cxident: %s requested %s\n", sub->cxident, c);
+								opbx_log(OPBX_LOG_WARNING, "Subchannel already has a cxident. sub->cxident: %s requested %s\n", sub->cxident, c);
 							}
 						}
 						strncpy(sub->cxident, c, sizeof(sub->cxident) - 1);
@@ -2590,7 +2590,7 @@ static void *mgcp_ss(void *data)
 		res = opbx_waitfordigit(chan, timeout);
 		timeout = 0;
 		if (res < 0) {
-			opbx_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
+			opbx_log(OPBX_LOG_DEBUG, "waitfordigit returned < 0...\n");
 			/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 			opbx_indicate(chan, -1);
 			opbx_hangup(chan);
@@ -2656,7 +2656,7 @@ static void *mgcp_ss(void *data)
 					}
 					res = opbx_pbx_run(chan);
 					if (res) {
-						opbx_log(LOG_WARNING, "PBX exited non-zero\n");
+						opbx_log(OPBX_LOG_WARNING, "PBX exited non-zero\n");
 						/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
 						/*transmit_notify_request(p, "nbz", 1);*/
 						transmit_notify_request(sub, "G/cg");
@@ -2669,7 +2669,7 @@ static void *mgcp_ss(void *data)
 				timeout = matchdigittimeout;
 			}
 		} else if (res == 0) {
-			opbx_log(LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
+			opbx_log(OPBX_LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
 			transmit_notify_request(sub, "G/cg");
 			/*zt_wait_event(p->subs[index].zfd);*/
@@ -2692,7 +2692,7 @@ static void *mgcp_ss(void *data)
 			 * that equal this channels pickup group  
 			 */
 			if (opbx_pickup_call(chan)) {
-				opbx_log(LOG_WARNING, "No call pickup possible...\n");
+				opbx_log(OPBX_LOG_WARNING, "No call pickup possible...\n");
 				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
 				transmit_notify_request(sub, "G/cg");
 			}
@@ -2804,7 +2804,7 @@ static void *mgcp_ss(void *data)
 		} else if (!opbx_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
 				((exten[0] != '*') || (strlen(exten) > 2))) {
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+				opbx_log(OPBX_LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
 			break;
 		}
 		if (!timeout)
@@ -2817,11 +2817,11 @@ static void *mgcp_ss(void *data)
 	for (;;) {
 		res = opbx_waitfordigit(chan, to);
 		if (!res) {
-			opbx_log(LOG_DEBUG, "Timeout...\n");
+			opbx_log(OPBX_LOG_DEBUG, "Timeout...\n");
 			break;
 		}
 		if (res < 0) {
-			opbx_log(LOG_DEBUG, "Got hangup...\n");
+			opbx_log(OPBX_LOG_DEBUG, "Got hangup...\n");
 			opbx_hangup(chan);
 			break;
 		}
@@ -2844,7 +2844,7 @@ static void *mgcp_ss(void *data)
 		opbx_setstate(chan, OPBX_STATE_RING);
 		chan->rings = 1;
 		if (opbx_pbx_run(chan)) {
-			opbx_log(LOG_WARNING, "Unable to launch PBX on %s\n", chan->name);
+			opbx_log(OPBX_LOG_WARNING, "Unable to launch PBX on %s\n", chan->name);
 		} else
 			return NULL;
 	}
@@ -2873,7 +2873,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 			opbx_indicate(opbx_bridged_channel(p->sub->next->owner), OPBX_CONTROL_RINGING);
 		}
 		if (opbx_channel_masquerade(p->sub->next->owner, opbx_bridged_channel(p->sub->owner))) {
-			opbx_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Unable to masquerade %s as %s\n",
 				opbx_bridged_channel(p->sub->owner)->name, p->sub->next->owner->name);
 			return -1;
 		}
@@ -2885,7 +2885,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		}
 		opbx_moh_stop(opbx_bridged_channel(p->sub->next->owner));
 		if (opbx_channel_masquerade(p->sub->owner, opbx_bridged_channel(p->sub->next->owner))) {
-			opbx_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Unable to masquerade %s as %s\n",
 				opbx_bridged_channel(p->sub->next->owner)->name, p->sub->owner->name);
 			return -1;
 		}
@@ -2898,7 +2898,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		/* Tell the caller not to hangup */
 		return 1;
 	} else {
-		opbx_log(LOG_DEBUG, "Neither %s nor %s are in a bridge, nothing to transfer\n",
+		opbx_log(OPBX_LOG_DEBUG, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 			p->sub->owner->name, p->sub->next->owner->name);
 		p->sub->next->owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
 		if (p->sub->next->owner) {
@@ -2953,7 +2953,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 #endif		
 				c = mgcp_new(sub, OPBX_STATE_RING);
 				if (!c) {
-					opbx_log(LOG_WARNING, "Unable to start PBX on channel %s@%s\n", p->name, p->parent->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on channel %s@%s\n", p->name, p->parent->name);
 					transmit_notify_request(sub, "G/cg");
 					opbx_hangup(c);
 				}
@@ -2966,19 +2966,19 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				c = mgcp_new(sub, OPBX_STATE_DOWN);
 				if (c) {
 					if (opbx_pthread_create(&t, &attr, mgcp_ss, c)) {
-						opbx_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+						opbx_log(OPBX_LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 						opbx_hangup(c);
 					}
 				} else {
-					opbx_log(LOG_WARNING, "Unable to create channel for %s@%s\n", p->name, p->parent->name);
+					opbx_log(OPBX_LOG_WARNING, "Unable to create channel for %s@%s\n", p->name, p->parent->name);
 				}
 			}
 		} else {
 			if (p->hookstate == MGCP_OFFHOOK) {
-				opbx_log(LOG_WARNING, "Off hook, but already have owner on %s@%s\n", p->name, p->parent->name);
+				opbx_log(OPBX_LOG_WARNING, "Off hook, but already have owner on %s@%s\n", p->name, p->parent->name);
 			} else {
-				opbx_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
-				opbx_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
+				opbx_log(OPBX_LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
+				opbx_log(OPBX_LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
 			}
 			if (opbx_bridged_channel(sub->owner)) {
 				opbx_moh_stop(opbx_bridged_channel(sub->owner));
@@ -3068,7 +3068,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 		ev = get_header(req, "O");
 		s = strchr(ev, '/');
 		if (s) ev = s + 1;
-		opbx_log(LOG_DEBUG, "Endpoint '%s@%s-%d' observed '%s'\n", p->name, p->parent->name, sub->id, ev);
+		opbx_log(OPBX_LOG_DEBUG, "Endpoint '%s@%s-%d' observed '%s'\n", p->name, p->parent->name, sub->id, ev);
 		/* Keep looking for events unless this was a hangup */
 		if (strcasecmp(ev, "hu") && strcasecmp(ev, "hd") && strcasecmp(ev, "ping")) {
 			transmit_notify_request(sub, p->curtone);
@@ -3171,14 +3171,14 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					transmit_modify_request(p->sub);
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Callwaiting, call transfer or threeway calling not enabled on endpoint %s@%s\n", 
+				opbx_log(OPBX_LOG_WARNING, "Callwaiting, call transfer or threeway calling not enabled on endpoint %s@%s\n", 
 					p->name, p->parent->name);
 			}
 			/*opbx_moh_stop(sub->owner->bridge);*/
 		} else if (!strcasecmp(ev, "hu")) {
 			p->hookstate = MGCP_ONHOOK;
 			sub->cxmode = MGCP_CX_RECVONLY;
-			opbx_log(LOG_DEBUG, "MGCP %s@%s Went on hook\n", p->name, p->parent->name);
+			opbx_log(OPBX_LOG_DEBUG, "MGCP %s@%s Went on hook\n", p->name, p->parent->name);
 			/* JS: Do we need to send MDCX before a DLCX ?
 			if (sub->rtp) {
 				transmit_modify_request(sub);
@@ -3195,7 +3195,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						mgcp_queue_hangup(sub->next);
 					}
 				} else if (res) {
-					opbx_log(LOG_WARNING, "Transfer attempt failed\n");
+					opbx_log(OPBX_LOG_WARNING, "Transfer attempt failed\n");
 					opbx_mutex_unlock(&p->sub->next->lock);
 					return -1;
 				}
@@ -3263,10 +3263,10 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 		} else if (!strcasecmp(ev, "ping")) {
 			/* ping -- unimportant */
 		} else {
-			opbx_log(LOG_NOTICE, "Received unknown event '%s' from %s@%s\n", ev, p->name, p->parent->name);
+			opbx_log(OPBX_LOG_NOTICE, "Received unknown event '%s' from %s@%s\n", ev, p->name, p->parent->name);
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Unknown verb '%s' received from %s\n", req->verb, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		opbx_log(OPBX_LOG_WARNING, "Unknown verb '%s' received from %s\n", req->verb, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		transmit_response(sub, "510", req, "Unknown verb");
 	}
 	return 0;
@@ -3319,7 +3319,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
-			opbx_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
+			opbx_log(OPBX_LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
 	req.data[res] = '\0';
@@ -3333,7 +3333,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 	if (opbx_strlen_zero(req.identifier)) {
-		opbx_log(LOG_NOTICE, "Message from %s missing identifier\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+		opbx_log(OPBX_LOG_NOTICE, "Message from %s missing identifier\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 		return 1;
 	}
 
@@ -3348,7 +3348,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 			opbx_mutex_lock(&gw->msgs_lock);
 			for (prev = NULL, cur = gw->msgs; cur; prev = cur, cur = cur->next) {
 				if (cur->seqno == ident) {
-					opbx_log(LOG_DEBUG, "Got response back on transaction %d\n", ident);
+					opbx_log(OPBX_LOG_DEBUG, "Got response back on transaction %d\n", ident);
 					if (prev)
 						prev->next = cur->next;
 					else
@@ -3370,14 +3370,14 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 				return 1;
 			}
 
-			opbx_log(LOG_NOTICE, "Got response back on [%s] for transaction %d we aren't sending?\n", 
+			opbx_log(OPBX_LOG_NOTICE, "Got response back on [%s] for transaction %d we aren't sending?\n", 
 				gw->name, ident);
 		}
 	} else {
 		if (opbx_strlen_zero(req.endpoint) || 
 		    	opbx_strlen_zero(req.version) || 
 			opbx_strlen_zero(req.verb)) {
-			opbx_log(LOG_NOTICE, "Message must have a verb, an idenitifier, version, and endpoint\n");
+			opbx_log(OPBX_LOG_NOTICE, "Message must have a verb, an idenitifier, version, and endpoint\n");
 			return 1;
 		}
 		/* Process request, with iflock held */
@@ -3491,12 +3491,12 @@ static int restart_monitor(void)
 	if (monitor_thread == OPBX_PTHREADT_STOP)
 		return 0;
 	if (opbx_mutex_lock(&monlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock monitor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
 		opbx_mutex_unlock(&monlock);
-		opbx_log(LOG_WARNING, "Cannot kill myself\n");
+		opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
 	if (monitor_thread != OPBX_PTHREADT_NULL) {
@@ -3506,7 +3506,7 @@ static int restart_monitor(void)
 		/* Start a new monitor */
 		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
-			opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
+			opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
 		}
 	}
@@ -3525,17 +3525,17 @@ static struct opbx_channel *mgcp_request(const char *type, int format, void *dat
 	oldformat = format;
 	format &= capability;
 	if (!format) {
-		opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
+		opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
 	strncpy(tmp, dest, sizeof(tmp) - 1);
 	if (opbx_strlen_zero(tmp)) {
-		opbx_log(LOG_NOTICE, "MGCP Channels require an endpoint\n");
+		opbx_log(OPBX_LOG_NOTICE, "MGCP Channels require an endpoint\n");
 		return NULL;
 	}
 	sub = find_subchannel_and_lock(tmp, 0, NULL);
 	if (!sub) {
-		opbx_log(LOG_WARNING, "Unable to find MGCP endpoint '%s'\n", tmp);
+		opbx_log(OPBX_LOG_WARNING, "Unable to find MGCP endpoint '%s'\n", tmp);
 		*cause = OPBX_CAUSE_UNREGISTERED;
 		return NULL;
 	}
@@ -3563,7 +3563,7 @@ static struct opbx_channel *mgcp_request(const char *type, int format, void *dat
 	tmpc = mgcp_new(sub->owner ? sub->next : sub, OPBX_STATE_DOWN);
 	opbx_mutex_unlock(&sub->lock);
 	if (!tmpc)
-		opbx_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
+		opbx_log(OPBX_LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	restart_monitor();
 	return tmpc;
 }
@@ -3656,7 +3656,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 				else if (!strcasecmp(v->value, "none")) 
 					dtmfmode = 0;
 				else
-					opbx_log(LOG_WARNING, "'%s' is not a valid DTMF mode at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid DTMF mode at line %d\n", v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = opbx_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -3673,7 +3673,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				y = opbx_cdr_amaflags2int(v->value);
 				if (y < 0) {
-					opbx_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
+					opbx_log(OPBX_LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 				} else {
 					amaflags = y;
 				}
@@ -3787,7 +3787,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 								e->sub = sub;
 							} else {
 								/* XXX Should find a way to clean up our memory */
-								opbx_log(LOG_WARNING, "Out of memory allocating subchannel");
+								opbx_log(OPBX_LOG_WARNING, "Out of memory allocating subchannel");
 								return NULL;
 							}
 	 					}
@@ -3904,7 +3904,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 							sub->nat = nat;
 						} else {
 							/* XXX Should find a way to clean up our memory */
-							opbx_log(LOG_WARNING, "Out of memory allocating subchannel");
+							opbx_log(OPBX_LOG_WARNING, "Out of memory allocating subchannel");
 							return NULL;
 						}
 					}
@@ -3923,12 +3923,12 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 					}
 				}
 			} else
-				opbx_log(LOG_WARNING, "Don't know keyword '%s' at line %d\n", v->name, v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Don't know keyword '%s' at line %d\n", v->name, v->lineno);
 			v = v->next;
 		}
 	}
 	if (!ntohl(gw->addr.sin_addr.s_addr) && !gw->dynamic) {
-		opbx_log(LOG_WARNING, "Gateway '%s' lacks IP address and isn't dynamic\n", gw->name);
+		opbx_log(OPBX_LOG_WARNING, "Gateway '%s' lacks IP address and isn't dynamic\n", gw->name);
 		if (!gw_reload) {
 			opbx_mutex_destroy(&gw->msgs_lock);
 			free(gw);
@@ -4133,14 +4133,14 @@ static int reload_config(void)
 	int format;
 	
 	if (gethostname(ourhost, sizeof(ourhost)-1)) {
-		opbx_log(LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
 		return 0;
 	}
 	cfg = opbx_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
-		opbx_log(LOG_NOTICE, "Unable to load config %s, MGCP disabled\n", config);
+		opbx_log(OPBX_LOG_NOTICE, "Unable to load config %s, MGCP disabled\n", config);
 		return 0;
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
@@ -4150,20 +4150,20 @@ static int reload_config(void)
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = opbx_gethostbyname(v->value, &ahp))) {
-				opbx_log(LOG_WARNING, "Invalid address: %s\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Invalid address: %s\n", v->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			format = opbx_getformatbyname(v->value);
 			if (format < 1) 
-				opbx_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
 			else
 				capability |= format;
 		} else if (!strcasecmp(v->name, "disallow")) {
 			format = opbx_getformatbyname(v->value);
 			if (format < 1) 
-				opbx_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				opbx_log(OPBX_LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
 			else
 				capability &= ~format;
 		} else if (!strcasecmp(v->name, "tos")) {
@@ -4180,12 +4180,12 @@ static int reload_config(void)
 			else if (!strcasecmp(v->value, "none"))
 				tos = 0;
 			else
-				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				opbx_log(OPBX_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
-				opbx_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+				opbx_log(OPBX_LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
 		}
 		v = v->next;
@@ -4235,7 +4235,7 @@ static int reload_config(void)
 	} else {
 		hp = opbx_gethostbyname(ourhost, &ahp);
 		if (!hp) {
-			opbx_log(LOG_WARNING, "Unable to get our IP address, MGCP disabled\n");
+			opbx_log(OPBX_LOG_WARNING, "Unable to get our IP address, MGCP disabled\n");
 			opbx_config_destroy(cfg);
 			return 0;
 		}
@@ -4254,10 +4254,10 @@ static int reload_config(void)
 
 	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (mgcpsock < 0) {
-		opbx_log(LOG_WARNING, "Unable to create MGCP socket: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "Unable to create MGCP socket: %s\n", strerror(errno));
 	} else {
 		if (bind(mgcpsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
-			opbx_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
+			opbx_log(OPBX_LOG_WARNING, "Failed to bind to %s:%d: %s\n",
 				opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 					strerror(errno));
 			close(mgcpsock);
@@ -4269,7 +4269,7 @@ static int reload_config(void)
 				opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 			}
 			if (setsockopt(mgcpsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-				opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+				opbx_log(OPBX_LOG_WARNING, "Unable to set TOS to %d\n", tos);
 		}
 	}
 	opbx_mutex_unlock(&netlock);
@@ -4297,26 +4297,26 @@ static int load_module(void)
 
         char *test = opbx_pickup_ext();
 	if ( test == NULL ) {
-    	    opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
+    	    opbx_log(OPBX_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
     	    return 0;
 	}
 
 
 	sched = sched_context_create();
 	if (!sched) {
-		opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
 		return -1;
 	}
 	io = io_context_create();
 	if (!io) {
-		opbx_log(LOG_WARNING, "Unable to create I/O context\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to create I/O context\n");
 		return -1;
 	}
 
 	if (!(res = reload_config())) {
 		/* Make sure we can register our mgcp channel type */
 		if (opbx_channel_register(&mgcp_tech)) {
-			opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
 			return -1;
 		}
 		opbx_rtp_proto_register(&mgcp_rtp);
@@ -4364,7 +4364,7 @@ static int unload_module(void)
 
 	/* Check to see if we're reloading */
 	if (opbx_mutex_trylock(&mgcp_reload_lock)) {
-		opbx_log(LOG_WARNING, "MGCP is currently reloading.  Unable to remove module.\n");
+		opbx_log(OPBX_LOG_WARNING, "MGCP is currently reloading.  Unable to remove module.\n");
 		return -1;
 	} else {
 		mgcp_reloading = 1;
@@ -4384,7 +4384,7 @@ static int unload_module(void)
 		monitor_thread = OPBX_PTHREADT_STOP;
 		opbx_mutex_unlock(&monlock);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
 		/* We always want to leave this in a consistent state */
 		opbx_channel_register(&mgcp_tech);
 		mgcp_reloading = 0;
@@ -4407,7 +4407,7 @@ static int unload_module(void)
 		prune_gateways();
 		opbx_mutex_unlock(&gatelock);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to lock the gateways list.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to lock the gateways list.\n");
 		/* We always want to leave this in a consistent state */
 		opbx_channel_register(&mgcp_tech);
 		/* Allow the monitor to restart */

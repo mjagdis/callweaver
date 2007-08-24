@@ -23,48 +23,48 @@
 
 static int stub_opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
 static int stub_opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *host, int timeout, int *extout)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
 static char *stub_opbx_parking_ext(void)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return NULL;
 }
 
 static char *stub_opbx_pickup_ext(void)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return NULL;
 }
 
 static int stub_opbx_bridge_call(struct opbx_channel *chan, struct opbx_channel *peer,struct opbx_bridge_config *config)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
 static int stub_opbx_pickup_call(struct opbx_channel *chan)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
 static void stub_opbx_register_feature(struct opbx_call_feature *feature)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 }
 
 static void stub_opbx_unregister_feature(struct opbx_call_feature *feature)
 {
-	opbx_log(LOG_NOTICE, "res_features not loaded!\n");
+	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
 }
 
 

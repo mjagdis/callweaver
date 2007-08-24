@@ -104,7 +104,7 @@ static int database_deltree(int fd, int argc, char *argv[]);
 static int sanity_check(void)
 {
 	if (!loaded) {
-		opbx_log(LOG_ERROR, "NICE RACE CONDITION WE HAVE HERE! PUTTING THE CART BEFORE THE HORSE EH? >=0\n");
+		opbx_log(OPBX_LOG_ERROR, "NICE RACE CONDITION WE HAVE HERE! PUTTING THE CART BEFORE THE HORSE EH? >=0\n");
 		dbinit();
 	}
 	return 0;
@@ -150,7 +150,7 @@ static sqlite3 *sqlite_open_db(char *filename)
 	
 	sqlite_pick_path(filename, path, sizeof(path));
 	if (sqlite3_open(path, &db)) {
-		opbx_log(LOG_WARNING, "SQL ERR [%s]\n", sqlite3_errmsg(db));
+		opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s]\n", sqlite3_errmsg(db));
 		sqlite3_close(db);
 		db=NULL;
 	}
@@ -175,7 +175,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 						 );
 
 			if (errmsg) {
-				opbx_log(LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
+				opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
 				sqlite3_free(errmsg);
 				errmsg = NULL;
 				sqlite3_exec(
@@ -186,7 +186,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 							 &errmsg
 							 );
 				if (errmsg) {
-					opbx_log(LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
+					opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
 					sqlite3_free(errmsg);
 					errmsg = NULL;
 				}
@@ -216,7 +216,7 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 
 	opbx_db_del(family, keys);
 	if ((sql = sqlite3_mprintf("insert into %q values('%q','%q','%q')", globals.tablename, family, keys, value))) {
-		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 
 		res = sqlite3_exec(db,
 						   sql,
@@ -226,14 +226,14 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 						   );
 
 		if (zErr) {
-			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 		res = -1;	/* Return an error */
 	}
 
@@ -279,7 +279,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 
 retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
-		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   get_callback,
@@ -290,9 +290,9 @@ retry_1:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_1;
 			}
@@ -304,7 +304,7 @@ retry_1:
 				res = -1;
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -355,9 +355,9 @@ static int opbx_db_del_main(const char *family, const char *keys, int like, cons
 	if (sql) {
 retry_2:
 		if (retry)
-			opbx_log(LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			opbx_log(OPBX_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
-			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+			opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   NULL,
@@ -368,9 +368,9 @@ retry_2:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_2;
 			}
@@ -382,7 +382,7 @@ retry_2:
 				res = 0;
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -462,16 +462,16 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 	} else if(family) {
 		sql = sqlite3_mprintf("select keys,value from %q where family='%q'", globals.tablename, family);
 	} else {
-		opbx_log(LOG_ERROR, "No parameters supplied.\n");
+		opbx_log(OPBX_LOG_ERROR, "No parameters supplied.\n");
 		return NULL;
 	}
 
 	if (sql) {
 retry_3:
 		if (retry)
-			opbx_log(LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			opbx_log(OPBX_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
-			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+			opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   tree_callback,
@@ -482,9 +482,9 @@ retry_3:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_3;
 			}
@@ -493,7 +493,7 @@ retry_3:
 			res = 0;
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -566,7 +566,7 @@ static int database_show(int fd, int argc, char *argv[])
 	}
 
 	if (sql) {
-		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   show_callback,
@@ -575,14 +575,14 @@ static int database_show(int fd, int argc, char *argv[])
 						   );
 		
 		if (zErr) {
-			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
 	} else {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
+		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 

@@ -108,7 +108,7 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 
 	oldr = chan->readformat;
 	if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0) {
-		opbx_log(LOG_WARNING, "Unable to set to linear mode.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode.\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

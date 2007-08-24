@@ -71,11 +71,11 @@ static int do_backticks(char *command, char *buf, size_t len)
 	int n, ret = -1;
 
         if (pipe(fds)) {
-                opbx_log(LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
+                opbx_log(OPBX_LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
         } else {
                 pid = fork();
                 if (pid < 0) {
-                        opbx_log(LOG_ERROR, "Fork failed: %s\n", strerror(errno));
+                        opbx_log(OPBX_LOG_ERROR, "Fork failed: %s\n", strerror(errno));
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
@@ -100,7 +100,7 @@ static int do_backticks(char *command, char *buf, size_t len)
                         dup2(fds[1], STDOUT_FILENO);
 
                         system(command);
-                        opbx_log(LOG_ERROR, "system(\"%s\") failed\n", command);
+                        opbx_log(OPBX_LOG_ERROR, "system(\"%s\") failed\n", command);
                         _exit(0);
                 }
         }

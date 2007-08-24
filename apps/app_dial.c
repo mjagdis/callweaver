@@ -374,7 +374,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 						/* Setup parameters */
 						o->chan = opbx_request(tech, in->nativeformats, stuff, &cause);
 						if (!o->chan)
-							opbx_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+							opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 					} else {
 						if (option_verbose > 2)
 							opbx_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
@@ -403,17 +403,17 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 							opbx_copy_string(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = winner->cdrflags;
 							if (!o->chan->cid.cid_num)
-								opbx_log(LOG_WARNING, "Out of memory\n");
+								opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 						} else {
 							if (in->cid.cid_num) {
 								o->chan->cid.cid_num = strdup(in->cid.cid_num);
 								if (!o->chan->cid.cid_num)
-									opbx_log(LOG_WARNING, "Out of memory\n");	
+									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");	
 							}
 							if (in->cid.cid_name) {
 								o->chan->cid.cid_name = strdup(in->cid.cid_name);
 								if (!o->chan->cid.cid_name)
-									opbx_log(LOG_WARNING, "Out of memory\n");	
+									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");	
 							}
 							opbx_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = in->cdrflags;
@@ -424,7 +424,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 								free(o->chan->cid.cid_ani);
 								o->chan->cid.cid_ani = strdup(in->cid.cid_ani);
 								if (!o->chan->cid.cid_ani)
-									opbx_log(LOG_WARNING, "Out of memory\n");
+									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
@@ -433,7 +433,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 						else
 							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (opbx_call(o->chan, tmpchan, 0)) {
-							opbx_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+							opbx_log(OPBX_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							opbx_clear_flag(o, DIAL_STILLGOING);	
 							opbx_hangup(o->chan);
 							o->chan = NULL;
@@ -531,20 +531,20 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 							}
 							break;
 						default:
-							opbx_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+							opbx_log(OPBX_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					} else if (single && (f->frametype == OPBX_FRAME_VOICE) && 
 								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (opbx_write(in, f)) 
-							opbx_log(LOG_DEBUG, "Unable to forward frame\n");
+							opbx_log(OPBX_LOG_DEBUG, "Unable to forward frame\n");
 					} else if (single && (f->frametype == OPBX_FRAME_IMAGE) && 
 								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (opbx_write(in, f))
-							opbx_log(LOG_DEBUG, "Unable to forward image\n");
+							opbx_log(OPBX_LOG_DEBUG, "Unable to forward image\n");
 					} else if (single && (f->frametype == OPBX_FRAME_TEXT) && 
 								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (opbx_write(in, f))
-							opbx_log(LOG_DEBUG, "Unable to text\n");
+							opbx_log(OPBX_LOG_DEBUG, "Unable to text\n");
 					} else if (single && (f->frametype == OPBX_FRAME_HTML) && !opbx_test_flag(outgoing, DIAL_NOFORWARDHTML))
 						opbx_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 
@@ -607,7 +607,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 
 			if (single && ((f->frametype == OPBX_FRAME_VOICE) || (f->frametype == OPBX_FRAME_DTMF)))  {
 				if (opbx_write(outgoing->chan, f))
-					opbx_log(LOG_WARNING, "Unable to forward voice\n");
+					opbx_log(OPBX_LOG_WARNING, "Unable to forward voice\n");
 			}
 			if (single && (f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_VIDUPDATE)) {
 				if (option_verbose > 2)
@@ -697,9 +697,9 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 
 	if (option_debug) {
 		if (url)
-			opbx_log(LOG_DEBUG, "DIAL WITH URL=%s\n", url);
+			opbx_log(OPBX_LOG_DEBUG, "DIAL WITH URL=%s\n", url);
 		else
-			opbx_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+			opbx_log(OPBX_LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
 	}
 
 	if (options) {
@@ -728,7 +728,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (*sdtmfptr)
 				*sdtmfptr = 'X';
 			else 
-				opbx_log(LOG_WARNING, "D( Data lacking trailing ')'\n");
+				opbx_log(OPBX_LOG_WARNING, "D( Data lacking trailing ')'\n");
 		}
   
 		/* XXX LIMIT SUPPORT */
@@ -744,7 +744,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (limitptr)
 				*limitptr = '\0';
 			else
-				opbx_log(LOG_WARNING, "Limit Data lacking trailing ')'\n");
+				opbx_log(OPBX_LOG_WARNING, "Limit Data lacking trailing ')'\n");
 
 			var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
 			play_to_caller = var ? opbx_true(var) : 1;
@@ -824,7 +824,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (ann)
 				*ann = '\0';
 			else {
-				opbx_log(LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
+				opbx_log(OPBX_LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
 				announce = 0;
 			}
 		}
@@ -842,11 +842,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(LOG_WARNING, "Goto flag set without trailing ')'\n");
+					opbx_log(OPBX_LOG_WARNING, "Goto flag set without trailing ')'\n");
 					dblgoto = NULL;
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Could not find exten to which we should jump.\n");
+				opbx_log(OPBX_LOG_WARNING, "Could not find exten to which we should jump.\n");
 				dblgoto = NULL;
 			}
 		}
@@ -863,11 +863,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(LOG_WARNING, "Proc flag set without trailing ')'\n");
+					opbx_log(OPBX_LOG_WARNING, "Proc flag set without trailing ')'\n");
 					hasmacro = 0;
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Could not find macro to which we should jump.\n");
+				opbx_log(OPBX_LOG_WARNING, "Could not find macro to which we should jump.\n");
 				hasmacro = 0;
 			}
 		}
@@ -883,11 +883,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(LOG_WARNING, "Music on hold class specified without trailing ')'\n");
+					opbx_log(OPBX_LOG_WARNING, "Music on hold class specified without trailing ')'\n");
 					mohclass = NULL;
 				}
 			} else {
-				opbx_log(LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
+				opbx_log(OPBX_LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
 				mohclass=NULL;
 			}
 		}
@@ -905,7 +905,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (s)
 				*s = '\0';
 			else {
-				opbx_log(LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
+				opbx_log(OPBX_LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
 				privacy = 0;
 			}
 		} else if (strchr(options, 'P')) {
@@ -1009,7 +1009,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 					/* Delete the file regardless since they hung up during recording */
                                         opbx_filedelete(privintro, NULL);
                                         if( opbx_fileexists(privintro,NULL,NULL ) )
-                                                opbx_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+                                                opbx_log(OPBX_LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
                                         else if (option_verbose > 2)
                                                 opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
 					goto out;
@@ -1035,14 +1035,14 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		tech = cur;
 		number = strchr(tech, '/');
 		if (!number) {
-			opbx_log(LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...,optional timeout)\n");
+			opbx_log(OPBX_LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...,optional timeout)\n");
 			goto out;
 		}
 		*number = '\0';
 		number++;
 		tmp = malloc(sizeof(struct outchan));
 		if (!tmp) {
-			opbx_log(LOG_WARNING, "Out of memory\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
 		memset(tmp, 0, sizeof(struct outchan));
@@ -1070,13 +1070,13 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			opbx_copy_string(restofit, newnum + 11, sizeof(restofit));
 			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
+				opbx_log(OPBX_LOG_DEBUG, "Dialing by extension %s\n", numsubst);
 		}
 		/* Request the peer */
 		tmp->chan = opbx_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			opbx_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, opbx_cause2str(cause));
+			opbx_log(OPBX_LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, opbx_cause2str(cause));
 			free(tmp);
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
@@ -1107,7 +1107,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				/* Setup parameters */
 				tmp->chan = opbx_request(tech, chan->nativeformats, stuff, &cause);
 				if (!tmp->chan)
-					opbx_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+					opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 			} else {
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
@@ -1179,7 +1179,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
+				opbx_log(OPBX_LOG_DEBUG, "ast call on peer returned %d\n", res);
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			opbx_hangup(tmp->chan);
@@ -1210,7 +1210,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (to > 0)
 			to *= 1000;
 		else
-			opbx_log(LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
+			opbx_log(OPBX_LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
 	} else
 		to = -1;
 
@@ -1265,7 +1265,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
  		if (!opbx_strlen_zero(url) && opbx_channel_supports_html(peer) ) {
- 			opbx_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
+ 			opbx_log(OPBX_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			opbx_channel_sendurl( peer, url );
  		}
 		if (privacy || screen) {
@@ -1425,7 +1425,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				                  or,... put 'em thru to voicemail. */
 					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
 					if (option_verbose > 2)
-						opbx_log(LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
+						opbx_log(OPBX_LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
 					if ( strchr(options, 'm') ) {
 						opbx_moh_stop(chan);
 					} else if ( strchr(options, 'r') ) {
@@ -1450,7 +1450,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if( strncmp(privcid,"NOCALLERID",10) == 0 || no_save_intros ) {
 					opbx_filedelete(privintro, NULL);
 					if( opbx_fileexists(privintro,NULL,NULL ) )
-						opbx_log(LOG_NOTICE,"privacy: opbx_filedelete didn't do its job on %s\n", privintro);
+						opbx_log(OPBX_LOG_NOTICE,"privacy: opbx_filedelete didn't do its job on %s\n", privintro);
 					else if (option_verbose > 2)
 						opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
 				}
@@ -1493,7 +1493,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (hasmacro && proc_name) {
 			res = opbx_autoservice_start(chan);
 			if (res) {
-				opbx_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
+				opbx_log(OPBX_LOG_ERROR, "Unable to start autoservice on calling channel\n");
 				res = -1;
 			}
 
@@ -1506,7 +1506,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			}
 
 			if (opbx_autoservice_stop(chan) < 0) {
-				opbx_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
+				opbx_log(OPBX_LOG_ERROR, "Could not stop autoservice on calling channel\n");
 				res = -1;
 			}
 
@@ -1611,7 +1611,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			/* Make sure channels are compatible */
 			res = opbx_channel_make_compatible(chan, peer);
 			if (res < 0) {
-				opbx_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
+				opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
 				opbx_hangup(peer);
 				LOCAL_USER_REMOVE(u);
 				return -1;
@@ -1642,7 +1642,7 @@ out:
 	}
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
-	opbx_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
+	opbx_log(OPBX_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
 	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE))
 		res=0;

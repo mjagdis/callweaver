@@ -547,7 +547,7 @@ int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_
 	pthread_attr_t lattr;
 
 	if (!(args = malloc(sizeof(*args)))) {
-		opbx_log(LOG_ERROR, "malloc: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -570,14 +570,14 @@ int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_
 	   the priority afterwards with pthread_setschedparam(). */
 	errno = pthread_attr_setinheritsched(attr, PTHREAD_INHERIT_SCHED);
 	if (errno)
-		opbx_log(LOG_WARNING, "pthread_attr_setinheritsched returned non-zero: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "pthread_attr_setinheritsched returned non-zero: %s\n", strerror(errno));
 #endif
 
 	if (!stacksize)
 		stacksize = OPBX_STACKSIZE;
 	errno = pthread_attr_setstacksize(attr, stacksize);
 	if (errno)
-		opbx_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
+		opbx_log(OPBX_LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
 
 	return pthread_create(thread, attr, opbx_pthread_wrapper, args); /* We're in opbx_pthread_create, so it's okay */
 }
@@ -664,12 +664,12 @@ int opbx_false(const char *s)
 static struct timeval tvfix(struct timeval a)
 {
 	if (a.tv_usec >= ONE_MILLION) {
-		opbx_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
+		opbx_log(OPBX_LOG_WARNING, "warning too large timestamp %ld.%ld\n",
 			a.tv_sec, (long int) a.tv_usec);
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
-		opbx_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
+		opbx_log(OPBX_LOG_WARNING, "warning negative timestamp %ld.%ld\n",
 				a.tv_sec, (long int) a.tv_usec);
 		a.tv_usec = 0;
 	}
@@ -948,7 +948,7 @@ void opbx_enable_packet_fragmentation(int sock)
 	int val = IP_PMTUDISC_DONT;
 	
 	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
-		opbx_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
+		opbx_log(OPBX_LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
 #endif
 }
 

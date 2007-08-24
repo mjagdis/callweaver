@@ -83,18 +83,18 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: varname=%s, config-section=%s\n", varname, config);
     }
     if (!varname || !config) {
-      opbx_log(LOG_WARNING, "Ignoring; Syntax error in argument\n");
+      opbx_log(OPBX_LOG_WARNING, "Ignoring; Syntax error in argument\n");
       return 0;
     }
   } else {
-    opbx_log(LOG_WARNING, "Ignoring, no parameters\n");
+    opbx_log(OPBX_LOG_WARNING, "Ignoring, no parameters\n");
     return 0;
   }
 
   cfg = opbx_config_load(LDAP_CONFIG);
 
   if(!cfg) {
-    opbx_log(LOG_WARNING, "No such configuration file %s\n", LDAP_CONFIG);
+    opbx_log(OPBX_LOG_WARNING, "No such configuration file %s\n", LDAP_CONFIG);
     return -1;
   }
   if(!(host = opbx_variable_retrieve(cfg, config, "host"))) {
@@ -129,7 +129,7 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
       convert_from = strtrim(strsep(&temp, ","));
       convert_to = strtrim(strsep(&temp, "\0"));
     } else {
-      opbx_log(LOG_WARNING, "syntax error: convert = <source-charset>,<destination charset>\n");
+      opbx_log(OPBX_LOG_WARNING, "syntax error: convert = <source-charset>,<destination charset>\n");
     }
   }
 
@@ -216,7 +216,7 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
   //opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: %s\n", filter);
   ld = ldap_init(host, port);
   if(!ld) {
-    opbx_log(LOG_WARNING, "LDAPget: unable to initialize ldap connection to %s:%d\n", host, port);
+    opbx_log(OPBX_LOG_WARNING, "LDAPget: unable to initialize ldap connection to %s:%d\n", host, port);
     return 0;
   }
   ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &timeout);
@@ -231,7 +231,7 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
     ret = ldap_simple_bind_s(ld, NULL, NULL);
   }
   if(ret) {
-    opbx_log(LOG_WARNING, "LDAPget: bind failed: %s\n", ldap_err2string(ret));
+    opbx_log(OPBX_LOG_WARNING, "LDAPget: bind failed: %s\n", ldap_err2string(ret));
     ldap_unbind(ld);
     return 0;
   }
@@ -246,7 +246,7 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
 
   ret = ldap_search_s(ld, base, ldap_scope, filter, attrs, 0, &res);
   if(ret) {
-    opbx_log(LOG_DEBUG, "LDAPget: search failed: %s\n", ldap_err2string(ret));
+    opbx_log(OPBX_LOG_DEBUG, "LDAPget: search failed: %s\n", ldap_err2string(ret));
     ldap_msgfree(res);
     ldap_unbind(ld);
     return 0;
@@ -316,7 +316,7 @@ int strconvert(const char *incharset, const char *outcharset, char *in, char *ou
   size_t incount, outcount, result;
   incount = outcount = strlen(in) * 2;
   if((cd = iconv_open(outcharset, incharset)) == (iconv_t)-1) {
-    if(errno == EINVAL) opbx_log(LOG_DEBUG, "conversion from '%s' to '%s' not available", incharset, outcharset);
+    if(errno == EINVAL) opbx_log(OPBX_LOG_DEBUG, "conversion from '%s' to '%s' not available", incharset, outcharset);
     *out = L'\0';
     return -1;
   }

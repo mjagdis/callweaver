@@ -400,7 +400,7 @@ static int wait_file(struct opbx_channel *chan, const char *ints, const char *fi
 {
 	int res;
 	if ((res = opbx_streamfile(chan, file, lang)))
-		opbx_log(LOG_WARNING, "Unable to play message %s\n", file);
+		opbx_log(OPBX_LOG_WARNING, "Unable to play message %s\n", file);
 	if (!res)
 		res = opbx_waitstream(chan, ints);
 	return res;
@@ -505,7 +505,7 @@ static int opbx_say_number_full_en(struct opbx_channel *chan, int num, const cha
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -605,7 +605,7 @@ static int opbx_say_number_full_br(struct opbx_channel *chan, int num, const cha
 				snprintf(fn, sizeof(fn), "digits/millions");
 			num = num % 1000000;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -828,7 +828,7 @@ static int opbx_say_number_full_da(struct opbx_channel *chan, int num, const cha
 							snprintf(fn, sizeof(fn), "digits/millions");
 						num = num % 1000000;
 					} else {
-						opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -963,7 +963,7 @@ static int opbx_say_number_full_de(struct opbx_channel *chan, int num, const cha
 				snprintf(fn, sizeof(fn), "digits/milliards");
 			}
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -1048,7 +1048,7 @@ static int opbx_say_number_full_en_GB(struct opbx_channel *chan, int num, const 
 				if (num && num < 100)
 					playa++;
 		} else {
-				opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 				res = -1;
 		}
 		
@@ -1149,7 +1149,7 @@ static int opbx_say_number_full_es(struct opbx_channel *chan, int num, const cha
 						}
 						num = num % 1000000;
 					} else {
-						opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -1245,7 +1245,7 @@ static int opbx_say_number_full_fr(struct opbx_channel *chan, int num, const cha
 			snprintf(fn, sizeof(fn), "digits/million");
 			num = num % 1000000;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -1391,7 +1391,7 @@ static int opbx_say_number_full_he(struct opbx_channel *chan, int num,
 			snprintf(fn, sizeof(fn), "digits/million");
 			num = num % 1000000;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -1541,7 +1541,7 @@ static int opbx_say_number_full_it(struct opbx_channel *chan, int num, const cha
 							else
 								snprintf(fn, sizeof(fn), "digits/millions");
 						} else {
-							opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 							res = -1;
 						}
 					}
@@ -1617,7 +1617,7 @@ static int opbx_say_number_full_nl(struct opbx_channel *chan, int num, const cha
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -1712,7 +1712,7 @@ static int opbx_say_number_full_no(struct opbx_channel *chan, int num, const cha
 				if (num && num < 100)
 					playa++;
 		} else {
-				opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 				res = -1;
 		}
 		
@@ -1763,7 +1763,7 @@ static void pl_odtworz_plik(struct opbx_channel *chan, const char *language, int
 {    
 	char file_name[255] = "digits/";
 	strcat(file_name, fn);
-	opbx_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
+	opbx_log(OPBX_LOG_DEBUG, "Trying to play: %s\n", file_name);
 	if (!opbx_streamfile(chan, file_name, language)) {
 		if ((audiofd > -1) && (ctrlfd > -1))
 			opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
@@ -2171,7 +2171,7 @@ static int opbx_say_number_full_se(struct opbx_channel *chan, int num, const cha
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -2236,7 +2236,7 @@ static int opbx_say_number_full_tw(struct opbx_channel *chan, int num, const cha
 							num = num % 1000000;
 							snprintf(fn, sizeof(fn), "digits/million");
 						} else {
-							opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 							res = -1;
 						}
 					}
@@ -2345,7 +2345,7 @@ static int opbx_say_number_full_ru(struct opbx_channel *chan, int num, const cha
 			}
 			num %= 1000000;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 				res = -1;
 		}
 		if (!res) {
@@ -2465,7 +2465,7 @@ static int opbx_say_enumeration_full_en(struct opbx_channel *chan, int num, cons
 			snprintf(fn, sizeof(fn), "digits/h-last");
 			num = 0;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -2618,7 +2618,7 @@ static int opbx_say_enumeration_full_da(struct opbx_channel *chan, int num, cons
 			snprintf(fn, sizeof(fn), "digits/h-last%s", gender);
 			num = 0;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -2781,7 +2781,7 @@ static int opbx_say_enumeration_full_de(struct opbx_channel *chan, int num, cons
 			snprintf(fn, sizeof(fn), "digits/h-last%s", gender);
 			num = 0;
 		} else {
-			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -3078,7 +3078,7 @@ int opbx_say_date_with_format_en(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3293,7 +3293,7 @@ int opbx_say_date_with_format_en(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -3313,7 +3313,7 @@ int opbx_say_date_with_format_da(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3485,7 +3485,7 @@ int opbx_say_date_with_format_da(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -3505,7 +3505,7 @@ int opbx_say_date_with_format_de(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3677,7 +3677,7 @@ int opbx_say_date_with_format_de(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -3724,7 +3724,7 @@ int opbx_say_date_with_format_he(struct opbx_channel *chan, time_t time,
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3878,7 +3878,7 @@ int opbx_say_date_with_format_he(struct opbx_channel *chan, time_t time,
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -3899,7 +3899,7 @@ int opbx_say_date_with_format_es(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4056,7 +4056,7 @@ int opbx_say_date_with_format_es(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -4078,7 +4078,7 @@ int opbx_say_date_with_format_fr(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4251,7 +4251,7 @@ int opbx_say_date_with_format_fr(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -4270,7 +4270,7 @@ int opbx_say_date_with_format_it(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4475,7 +4475,7 @@ int opbx_say_date_with_format_it(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -4495,7 +4495,7 @@ int opbx_say_date_with_format_nl(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4700,7 +4700,7 @@ int opbx_say_date_with_format_nl(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -4720,7 +4720,7 @@ int opbx_say_date_with_format_pt(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4912,7 +4912,7 @@ int opbx_say_date_with_format_pt(struct opbx_channel *chan, time_t time, const c
 				break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -4932,7 +4932,7 @@ int opbx_say_date_with_format_tw(struct opbx_channel *chan, time_t time, const c
 	opbx_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -5173,7 +5173,7 @@ int opbx_say_date_with_format_tw(struct opbx_channel *chan, time_t time, const c
 			break;
 			default:
 				/* Unknown character */
-				opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+				opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {
@@ -5800,7 +5800,7 @@ static int gr_say_number_female(int num, struct opbx_channel *chan, const char *
 	int res;
 	char fn[256] = "";
 
-	/* opbx_log(LOG_DEBUG, "\n\n Saying number female %s %d \n\n",lang, num); */
+	/* opbx_log(OPBX_LOG_DEBUG, "\n\n Saying number female %s %d \n\n",lang, num); */
 	if (num < 5) {
 		snprintf(fn, sizeof(fn), "digits/female-%d", num);
 		res = wait_file(chan, ints, fn, lang);
@@ -5891,7 +5891,7 @@ static int opbx_say_number_full_gr(struct opbx_channel *chan, int num, const cha
 					num = num % 1000000;
 					snprintf(fn, sizeof(fn), "digits/millions");
 				} else {
-					opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+					opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
 					res = -1;
 				}
 			}
@@ -6052,7 +6052,7 @@ static int opbx_say_date_with_format_gr(struct opbx_channel *chan, time_t time, 
 	opbx_localtime(&time,&tm,timezone);
 	
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		opbx_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 		case '\'':
@@ -6196,7 +6196,7 @@ static int opbx_say_date_with_format_gr(struct opbx_channel *chan, time_t time, 
 			break;
 		default:
 			/* Unknown character */
-			opbx_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+			opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
 		}
 		/* Jump out on DTMF */
 		if (res) {

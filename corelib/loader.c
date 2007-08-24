@@ -270,7 +270,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	res = strlen(resource_name) + 1;
 
 	if (!(newmod = mod = malloc(sizeof(struct module) + res))) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
@@ -288,7 +288,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	mod->lib = lt_dlopen(fn);
 	if (!mod->lib) {
 		opbx_mutex_unlock(&module_lock);
-		opbx_log(LOG_ERROR, "%s\n", lt_dlerror());
+		opbx_log(OPBX_LOG_ERROR, "%s\n", lt_dlerror());
 		free(mod);
 		return -1;
 	}
@@ -299,7 +299,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	if (modinfo == NULL) {
 		lt_dlclose(mod->lib);
 		opbx_mutex_unlock(&module_lock);
-		opbx_log(LOG_ERROR, "No get_modinfo in module %s\n", fn);
+		opbx_log(OPBX_LOG_ERROR, "No get_modinfo in module %s\n", fn);
 		free(mod);
 		return -1;
 	}
@@ -351,7 +351,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	}
 
 	if (res) {
-		opbx_log(LOG_WARNING, "%s: register failed, returned %d\n", resource_name, res);
+		opbx_log(OPBX_LOG_WARNING, "%s: register failed, returned %d\n", resource_name, res);
 		opbx_unload_resource(resource_name, 0);
 		return -1;
 	}
@@ -386,7 +386,7 @@ static int opbx_resource_exists(char *resource)
 {
 	struct module *m;
 	if (opbx_mutex_lock(&module_lock))
-		opbx_log(LOG_WARNING, "Failed to lock\n");
+		opbx_log(OPBX_LOG_WARNING, "Failed to lock\n");
 	m = module_list;
 	while(m) {
 		if (!strcasecmp(resource, m->resource))
@@ -435,9 +435,9 @@ int load_modules(const int preload_only)
 
 		       if (doload) {
 				if (option_debug && !option_verbose)
-					opbx_log(LOG_DEBUG, "Loading module %s\n", v->value);
+					opbx_log(OPBX_LOG_DEBUG, "Loading module %s\n", v->value);
 				if (__load_resource(v->value, cfg)) {
-					opbx_log(LOG_WARNING, "Loading module %s failed!\n", v->value);
+					opbx_log(OPBX_LOG_WARNING, "Loading module %s failed!\n", v->value);
 					opbx_config_destroy(cfg);
 					return -1;
 				}
@@ -486,15 +486,15 @@ int load_modules(const int preload_only)
 							
 						}
 						if (option_debug && !option_verbose)
-							opbx_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
+							opbx_log(OPBX_LOG_DEBUG, "Loading module %s\n", d->d_name);
 						if (__load_resource(d->d_name, cfg))
-							opbx_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
+							opbx_log(OPBX_LOG_WARNING, "Loading module %s failed!\n", d->d_name);
 					}
 				}
 				closedir(mods);
 			} else {
 				if (!option_quiet)
-					opbx_log(LOG_WARNING, "Unable to open modules directory %s.\n", (char *)opbx_config_OPBX_MODULE_DIR);
+					opbx_log(OPBX_LOG_WARNING, "Unable to open modules directory %s.\n", (char *)opbx_config_OPBX_MODULE_DIR);
 			}
 		}
 	} 

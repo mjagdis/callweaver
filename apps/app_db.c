@@ -103,7 +103,7 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *
 		family = strsep(&argv[0], "/");
 		keytree = strsep(&argv[0], "\0");
 			if (!family || !keytree) {
-				opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+				opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 				LOCAL_USER_REMOVE(u);
 				return 0;
 			}
@@ -148,7 +148,7 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		family = strsep(&argv[0], "/");
 		key = strsep(&argv[0], "\0");
 		if (!family || !key) {
-			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
@@ -162,7 +162,7 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		}
 	} else {
-		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -177,7 +177,7 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 	struct localuser *u;
 
 	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
@@ -191,7 +191,7 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		key = strsep(&argv[0], "=");
 		val = strsep(&argv[0], "\0");
 		if (!val || !family || !key) {
-			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
@@ -206,7 +206,7 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		}
 
 	} else	{
-		opbx_log (LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -222,7 +222,7 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 	struct localuser *u;
 
 	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 
@@ -236,7 +236,7 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		family = strsep(&argv[0], "/");
 		key = strsep(&argv[0], "\0");
 		if (!varname || !family || !key) {
-			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
@@ -253,7 +253,7 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		}
 	} else {
-		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);

@@ -92,7 +92,7 @@ static int parse_config(void)
 		/* get the PostgreSQL DSN */
 		s = opbx_variable_retrieve(config, "global", "dsn");
 		if (s == NULL) {
-			opbx_log(LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
+			opbx_log(OPBX_LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
 			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
 		} else {
 			strncpy(conninfo, s, sizeof(conninfo));
@@ -101,7 +101,7 @@ static int parse_config(void)
 		/* get the CDR table name */
 		s = opbx_variable_retrieve(config, "global", "table");
 		if (s == NULL) {
-			opbx_log(LOG_WARNING, "No database table found, assuming 'cdr'.\n");
+			opbx_log(OPBX_LOG_WARNING, "No database table found, assuming 'cdr'.\n");
 			strncpy(table, "cdr", sizeof(table));
 		} else {
 			strncpy(table, s, sizeof(table));
@@ -110,7 +110,7 @@ static int parse_config(void)
 		/* get the CDR columns */
                 s = opbx_variable_retrieve(config, "master", "columns");
                 if (s == NULL) {
-                        opbx_log(LOG_WARNING, "Column names not specified. Module not loaded.\n");
+                        opbx_log(OPBX_LOG_WARNING, "Column names not specified. Module not loaded.\n");
 			return -1;
                 } else {
                         strncpy(columns, s, sizeof(columns));
@@ -119,18 +119,18 @@ static int parse_config(void)
 		/* get the CDR column values */
                 s = opbx_variable_retrieve(config, "master", "values");
                 if (s == NULL) {
-                        opbx_log(LOG_WARNING, "Values not specified. Module not loaded.\n");
+                        opbx_log(OPBX_LOG_WARNING, "Values not specified. Module not loaded.\n");
 			return -1;
                 } else {
                         strncpy(values, s, sizeof(values));
                 }
 		
 		if (columns != NULL && values != NULL)
-			opbx_log(LOG_NOTICE, "Using column layout: %s.\n", columns);
+			opbx_log(OPBX_LOG_NOTICE, "Using column layout: %s.\n", columns);
 
 
 	} else {
-		opbx_log(LOG_WARNING, "Config file (%s) not found.\n", CDR_PGSQL_CONF);
+		opbx_log(OPBX_LOG_WARNING, "Config file (%s) not found.\n", CDR_PGSQL_CONF);
 	}
 	opbx_config_destroy(config);
 
@@ -144,7 +144,7 @@ static int pgsql_reconnect(void)
 		if (PQstatus(conn) == CONNECTION_OK) {
 			return 1;
 		} else {
-			opbx_log(LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
+			opbx_log(OPBX_LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
 
 			/* try to reset the connection */
 			if (PQstatus(conn) != CONNECTION_BAD)
@@ -152,11 +152,11 @@ static int pgsql_reconnect(void)
 
 			/* check the connection status again */
 			if (PQstatus(conn) == CONNECTION_OK) {
-				opbx_log(LOG_NOTICE, "Existing database connection reset ok.\n");
+				opbx_log(OPBX_LOG_NOTICE, "Existing database connection reset ok.\n");
 				return 1;
 			} else {
 				/* still no luck, tear down the connection and we'll make a new connection */
-				opbx_log(LOG_NOTICE, "Unable to reset existing database connection.\n");
+				opbx_log(OPBX_LOG_NOTICE, "Unable to reset existing database connection.\n");
 				PQfinish(conn);
 			}
 		}
@@ -165,11 +165,11 @@ static int pgsql_reconnect(void)
 	conn = PQconnectdb(conninfo);
 
 	if (PQstatus(conn) == CONNECTION_OK) {
-		opbx_log(LOG_NOTICE, "Successfully connected to PostgreSQL database.\n");
+		opbx_log(OPBX_LOG_NOTICE, "Successfully connected to PostgreSQL database.\n");
 		return 1;
 	} else {
-		opbx_log(LOG_WARNING, "Couldn't establish DB connection. Check debug.\n");
-		opbx_log(LOG_ERROR, "Reason %s\n", PQerrorMessage(conn));
+		opbx_log(OPBX_LOG_WARNING, "Couldn't establish DB connection. Check debug.\n");
+		opbx_log(OPBX_LOG_ERROR, "Reason %s\n", PQerrorMessage(conn));
 	}		
 
 	return -1;
@@ -184,7 +184,7 @@ static int pgsql_log(struct opbx_cdr *cdr)
 	struct opbx_channel dummy;
 
 
-	opbx_log(LOG_DEBUG,"Inserting a CDR record.\n");
+	opbx_log(OPBX_LOG_DEBUG,"Inserting a CDR record.\n");
 
 	snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
 
@@ -194,11 +194,11 @@ static int pgsql_log(struct opbx_cdr *cdr)
         pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 
 
-	opbx_log(LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
+	opbx_log(OPBX_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
 
 	/* check if database connection is still good */
 	if (!pgsql_reconnect()) {
-		opbx_log(LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+		opbx_log(OPBX_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
 		return -1;
 	}
 
@@ -206,8 +206,8 @@ static int pgsql_log(struct opbx_cdr *cdr)
 	res = PQexec(conn, sql_insert_cmd);
 
 	if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		opbx_log(LOG_ERROR, "Failed to insert call detail record into database!\n");
-		opbx_log(LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+		opbx_log(OPBX_LOG_ERROR, "Failed to insert call detail record into database!\n");
+		opbx_log(OPBX_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
 		opbx_mutex_unlock(&pgsql_lock);
 		return -1;

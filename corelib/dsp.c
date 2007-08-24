@@ -256,7 +256,7 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
                     newstate = DSP_TONE_STATE_HUNGUP;
                 break;
             default:
-                opbx_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+                opbx_log(OPBX_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
             }
             if (newstate == dsp->tstate)
             {
@@ -319,12 +319,12 @@ int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
 {
     if (inf->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
+        opbx_log(OPBX_LOG_WARNING, "Can't check call progress of non-voice frames\n");
         return 0;
     }
     if (inf->subclass != OPBX_FORMAT_SLINEAR)
     {
-        opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
+        opbx_log(OPBX_LOG_WARNING, "Can only check call progress in signed-linear frames\n");
         return 0;
     }
     return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
@@ -460,7 +460,7 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
     }
 #if 1
     if (res)
-        opbx_log(LOG_DEBUG, "opbx_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+        opbx_log(OPBX_LOG_DEBUG, "opbx_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 #endif
     return res;
 }
@@ -507,7 +507,7 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
-        opbx_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
+        opbx_log(OPBX_LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
         return 0;
     }
     data = f->data;
@@ -530,7 +530,7 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
             amp[x] = OPBX_ALAW(data[x]);
         break;
     default:
-        opbx_log(LOG_WARNING, "Silence detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(f->subclass));
+        opbx_log(OPBX_LOG_WARNING, "Silence detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(f->subclass));
         return 0;
     }
     return __opbx_dsp_silence(dsp, amp, len, totalsilence);
@@ -592,7 +592,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             amp[x] = OPBX_ALAW(odata[x]);
         break;
     default:
-        opbx_log(LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
+        opbx_log(OPBX_LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
         return af;
     }
     silence = __opbx_dsp_silence(dsp, amp, len, NULL);
@@ -606,7 +606,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     {
         chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
         opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, OPBX_CONTROL_BUSY, NULL);
-        opbx_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+        opbx_log(OPBX_LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
         return &dsp->f;
     }
     if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
@@ -755,7 +755,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                     opbx_queue_frame(chan, &dsp->f);
                 break;
             default:
-                opbx_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
+                opbx_log(OPBX_LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
                 break;
             }
         }
@@ -841,7 +841,7 @@ void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietle
 {
     dsp->busy_tonelength = tonelength;
     dsp->busy_quietlength = quietlength;
-    opbx_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
+    opbx_log(OPBX_LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
 void opbx_dsp_digitreset(struct opbx_dsp *dsp)

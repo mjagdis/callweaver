@@ -505,7 +505,7 @@ static int speextolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
         /* Native PLC interpolation */
         if (tmp->tail + tmp->framesize > sizeof(tmp->buf) / 2)
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
 #ifdef _SPEEX_TYPES_H
@@ -546,7 +546,7 @@ static int speextolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
         }
         else
         {
-            opbx_log(LOG_WARNING, "Out of buffer space\n");
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         
@@ -567,7 +567,7 @@ static int lintospeex_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     }
     else
     {
-        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     return 0;
@@ -732,7 +732,7 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
-                        opbx_log(LOG_ERROR,"Error Quality must be 0-10\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error Quality must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "complexity"))
                 {
@@ -746,7 +746,7 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
-                        opbx_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! Complexity must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "vbr_quality"))
                 {
@@ -759,11 +759,11 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else
-                        opbx_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! VBR Quality must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "abr_quality"))
                 {
-                    opbx_log(LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
+                    opbx_log(OPBX_LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
                 }
                 else if (!strcasecmp(var->name, "enhancement"))
                 {
@@ -798,7 +798,7 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
-                        opbx_log(LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "vad"))
                 {
@@ -851,7 +851,7 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else
-                        opbx_log(LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "pp_denoise"))
                 {
@@ -879,7 +879,7 @@ static void parse_config(void)
                         pp_dereverb_decay = res_f;
                         opbx_mutex_unlock(&localuser_lock);
                     } else
-                        opbx_log(LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb_level"))
                 {
@@ -892,7 +892,7 @@ static void parse_config(void)
                         opbx_mutex_unlock(&localuser_lock);
                     }
                     else
-                        opbx_log(LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
+                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
                 }
                 var = var->next;
             }

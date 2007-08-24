@@ -156,7 +156,7 @@ static char *complete_context_dont_include(char *line, char *word,
 		struct opbx_context *c;
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
 
@@ -233,7 +233,7 @@ static char *complete_context_dont_include(char *line, char *word,
 
 		/* take 'context' from line ... */
 		if (!(dupline = strdup(line))) {
-			opbx_log(LOG_ERROR, "Out of free memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -248,7 +248,7 @@ static char *complete_context_dont_include(char *line, char *word,
 		}
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_WARNING, "Failed to lock contexts list\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
 			return NULL;
 		}
@@ -293,7 +293,7 @@ static char *complete_context_dont_include(char *line, char *word,
 		char *context, *dupline, *duplinet, *in;
 
 		if (!(dupline = strdup(line))) {
-			opbx_log(LOG_ERROR, "Out of free memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -316,7 +316,7 @@ static char *complete_context_dont_include(char *line, char *word,
 		}
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
 			return NULL;
 		}
@@ -494,7 +494,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 	 * free *word when you want to return from this function ...
 	 */
 	if (fix_complete_args(line, &word, &pos)) {
-		opbx_log(LOG_ERROR, "Out of free memory\n");
+		opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
 #endif
@@ -529,7 +529,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 #endif
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			free(context); free(exten);
 			return NULL;
 		}
@@ -631,7 +631,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		free(dupline);
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 #ifdef BROKEN_READLINE
 			free(word);
 #endif
@@ -756,7 +756,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 	if (pos == 1)
 	{
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
 
@@ -786,7 +786,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 
 		/* parse context from line ... */
 		if (!(dupline = strdup(line))) {
-			opbx_log(LOG_ERROR, "Out of free memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 			if (state == 0) return strdup("in");
 			return NULL;
 		}
@@ -801,7 +801,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 
 			/* check for context existence ... */
 			if (opbx_lock_contexts()) {
-				opbx_log(LOG_ERROR, "Failed to lock context list\n");
+				opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 				free(dupline);
 				/* our fault, we can't check, so complete 'in' ... */
 				return strdup("in");
@@ -837,7 +837,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		int context_existence = 0;
 
 		if (!(dupline = strdup(line))) {
-			opbx_log(LOG_ERROR, "Out of free memory\n");
+			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -854,7 +854,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		}
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock context list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
 			return NULL;
 		}
@@ -1262,7 +1262,7 @@ static char *complete_context_add_extension(char *line, char *word,
 
 		/* try to lock contexts list ... */
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_WARNING, "Failed to lock contexts list\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
@@ -1348,7 +1348,7 @@ static char *complete_context_add_ignorepat(char *line, char *word,
 		}
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_ERROR, "Failed to lock contexts list\n");
+			opbx_log(OPBX_LOG_ERROR, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
@@ -1437,7 +1437,7 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 
 	if (pos == 2) {
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_WARNING, "Failed to lock contexts list\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
@@ -1494,7 +1494,7 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 
 		dupline = strdup(line);
 		if (!dupline) {
-			opbx_log(LOG_WARNING, "Out of free memory\n");
+			opbx_log(OPBX_LOG_WARNING, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -1509,7 +1509,7 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 		}
 
 		if (opbx_lock_contexts()) {
-			opbx_log(LOG_WARNING, "Failed to lock contexts list\n");
+			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
 			return NULL;
 		}
@@ -1700,7 +1700,7 @@ static int pbx_load_module(void)
 								if (end)
 									*end = '\0';
 								else
-									opbx_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+									opbx_log(OPBX_LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 							}
 							plus = strchr(pri, '+');
 							if (plus) {
@@ -1713,16 +1713,16 @@ static int pbx_load_module(void)
 								if (lastpri > -2)
 									ipri = lastpri + 1;
 								else
-									opbx_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+									opbx_log(OPBX_LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
 							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
 								if (lastpri > -2)
 									ipri = lastpri;
 								else
-									opbx_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+									opbx_log(OPBX_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%d", &ipri) != 1) {
 									if ((ipri = opbx_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
-										opbx_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+										opbx_log(OPBX_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;
 									}
 								}
@@ -1749,7 +1749,7 @@ static int pbx_load_module(void)
 								if ((end = strrchr(data, ')'))) {
 									*end = '\0';
 								} else {
-									opbx_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+									opbx_log(OPBX_LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
 								}
 							}
 
@@ -1762,23 +1762,23 @@ static int pbx_load_module(void)
 								lastpri = ipri;
 								if(!option_dontwarn) {
 									if (!strcmp(realext, "_."))
-										opbx_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+										opbx_log(OPBX_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								}
 								if (opbx_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
-									opbx_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+									opbx_log(OPBX_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}
 							free(tc);
 						} else 
-						    opbx_log(LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						    opbx_log(OPBX_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 						if (opbx_context_add_include2(con, realvalue, registrar))
-							opbx_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+							opbx_log(OPBX_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 						if (opbx_context_add_ignorepat2(con, realvalue, registrar))
-							opbx_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+							opbx_log(OPBX_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
 						if (!strcasecmp(v->name, "switch"))
@@ -1792,7 +1792,7 @@ static int pbx_load_module(void)
 						if (!data)
 							data = "";
 						if (opbx_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							opbx_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+							opbx_log(OPBX_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;
 				}
