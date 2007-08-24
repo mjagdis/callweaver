@@ -60,11 +60,11 @@
 #include "confdefs.h"
 #endif
 
+#include "callweaver.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#include "callweaver.h"
 
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"

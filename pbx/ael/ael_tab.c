@@ -185,11 +185,11 @@
  *
  */
 
-#include "callweaver.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "callweaver.h"
 
 #include "callweaver/logger.h"
 
@@ -2570,7 +2570,7 @@ yyreduce:
 		strcat(bufx,")");
 #ifdef AAL_ARGCHECK
 		if ( !ael_is_funcname((yyvsp[(1) - (5)].pval)->u1.str) )
-			opbx_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
+			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
 				my_file, (yylsp[(1) - (5)]).first_line, (yylsp[(1) - (5)]).first_column, (yylsp[(1) - (5)]).last_column, (yyvsp[(1) - (5)].pval)->u1.str);
 #endif
 		(yyval.pval)->u1.str = bufx;
@@ -2725,7 +2725,7 @@ yyreduce:
 		if (strcasecmp((yyvsp[(1) - (3)].str),"goto") == 0) {
 			(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(2) - (3)]));
 			free((yyvsp[(1) - (3)].str)); /* won't be using this */
-			opbx_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, (yylsp[(1) - (3)]).first_line, (yylsp[(1) - (3)]).first_column, (yylsp[(1) - (3)]).last_column );
+			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, (yylsp[(1) - (3)]).first_line, (yylsp[(1) - (3)]).first_column, (yylsp[(1) - (3)]).last_column );
 		} else {
 			(yyval.pval)= npval2(PV_APPLICATION_CALL, &(yylsp[(1) - (3)]), &(yylsp[(2) - (3)]));
 			(yyval.pval)->u1.str = (yyvsp[(1) - (3)].str);
@@ -3263,9 +3263,9 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 {
 	char *s2 = ael_token_subst((char *)s);
 	if (locp->first_line == locp->last_line) {
-		opbx_log(LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
+		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
 	} else {
-		opbx_log(LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
+		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
 	}
 	free(s2);
 	parseio->syntax_error_count++;
