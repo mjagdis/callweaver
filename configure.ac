@@ -2538,5 +2538,20 @@ echo "opbxsoundsdir:    ${opbxsoundsdir}"
 echo "opbximagesdir:    ${opbximagesdir}"
 echo "opbxmohdir:       ${opbxmohdir}"
 echo "opbxincludedir:   ${opbxincludedir}"
+
+echo ""
+echo "*******************************************************"
+echo "                      WARNING"
+echo "*******************************************************"
+echo ""
+echo "Callweaver TRUNK is highly experimental."
+echo "Don't expect it to be ready for production environments."
+echo "At this right moment, it's undergoing major changes in "
+echo "order to be able to accomodate new features and a major "
+echo "core rework."
+echo "Use 1.2 version from SVN or daily snapshots if you need "
+echo "something stable."
+echo ""
+
 #
 # END configure
