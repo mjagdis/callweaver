@@ -123,6 +123,7 @@ extern struct opbx_registry cdrbe_registry;
 	if (!opbx_object_refs(__ptr)) \
 		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
 	__ptr->reg_entry = opbx_registry_add(&cdrbe_registry, &__ptr->obj); \
+	0; \
 })
 #define opbx_cdrbe_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \

@@ -56,6 +56,7 @@ extern struct opbx_registry switch_registry;
 	if (!opbx_object_refs(__ptr)) \
 		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
 	__ptr->reg_entry = opbx_registry_add(&switch_registry, &__ptr->obj); \
+	0; \
 })
 #define opbx_switch_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \

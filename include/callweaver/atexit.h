@@ -54,6 +54,7 @@ extern struct opbx_registry atexit_registry;
 		__ptr->obj.module = get_modinfo()->self; \
 	} \
 	__ptr->reg_entry = opbx_registry_add(&atexit_registry, &__ptr->obj); \
+	0; \
 })
 #define opbx_atexit_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
