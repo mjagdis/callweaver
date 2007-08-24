@@ -48,6 +48,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 
+#include "libltdl/ltdl.h"
+
 /* For rl_filename_completion */
 #include <readline/readline.h>
 
@@ -966,21 +968,59 @@ static char *complete_mod_2(char *line, char *word, int pos, int state)
     return opbx_module_helper(line, word, pos, state, 1, 1);
 }
 
+
+struct complete_fn_args {
+	const char *word;
+	char *ret;
+	int wordlen;
+	int state;
+};
+
+static int complete_fn_one(const char *filename, lt_ptr data)
+{
+    struct complete_fn_args *args = (struct complete_fn_args *)data;
+    char *basename;
+
+    if ((basename = strrchr(filename, '/')) && (basename++, 1)
+    && !strncmp(basename, args->word, args->wordlen)) {
+        if (!args->state) {
+            int l = strlen(basename);
+            if ((args->ret = malloc(l + 3 + 1))) {
+	    	memcpy(args->ret, basename, l);
+		memcpy(args->ret + l, ".so\000", 4);
+            	return 1;
+            }
+	    opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+	    return 1;
+        }
+        args->state--;
+    }
+    return 0;
+}
+
 static char *complete_fn(char *line, char *word, int pos, int state)
 {
-    char *c;
     char filename[256];
-    if (pos != 1)
-        return NULL;
-    if (word[0] == '/')
-        opbx_copy_string(filename, word, sizeof(filename));
-    else
-        snprintf(filename, sizeof(filename), "%s/%s", (char *)opbx_config_OPBX_MODULE_DIR, word);
-    c = (char*)rl_filename_completion_function(filename, state);
-    if (c && word[0] != '/')
-        c += (strlen((char*)opbx_config_OPBX_MODULE_DIR) + 1);
-    return c ? strdup(c) : c;
+    struct complete_fn_args args = {
+	    .ret = NULL,
+    };
+
+    if (pos == 1) {
+        if (word[0] == '/') {
+            opbx_copy_string(filename, word, sizeof(filename));
+            args.ret = (char*)rl_filename_completion_function(filename, state);
+            if (args.ret)
+                args.ret = strdup(args.ret);
+        } else {
+            args.state = state;
+            args.word = word;
+            args.wordlen = strlen(word);
+            lt_dlforeachfile(lt_dlgetsearchpath(), complete_fn_one, &args);
+        }
+    }
+    return args.ret;
 }
+
 
 static int handle_help(int fd, int argc, char *argv[]);
 

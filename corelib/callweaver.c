@@ -125,6 +125,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "core/alaw.h"
 #include "core/term.h"
 
+#include "libltdl/ltdl.h"
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -198,7 +200,6 @@ static int opbx_rl_write_history(char *);
 
 char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_MODULE_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
@@ -1798,7 +1799,7 @@ static void opbx_readconfig(void) {
 	opbx_copy_string(opbx_config_OPBX_RUN_GROUP, opbxrungroup_default, sizeof(opbx_config_OPBX_RUN_GROUP));
 	opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, opbxconfdir_default, sizeof(opbx_config_OPBX_CONFIG_DIR));
 	opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, opbxspooldir_default, sizeof(opbx_config_OPBX_SPOOL_DIR));
-	opbx_copy_string(opbx_config_OPBX_MODULE_DIR, opbxmoddir_default, sizeof(opbx_config_OPBX_MODULE_DIR));
+	lt_dlsetsearchpath(opbxmoddir_default);
  	snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", opbx_config_OPBX_SPOOL_DIR);
 	opbx_copy_string(opbx_config_OPBX_VAR_DIR, opbxvardir_default, sizeof(opbx_config_OPBX_VAR_DIR));
 	opbx_copy_string(opbx_config_OPBX_LOG_DIR, opbxlogdir_default, sizeof(opbx_config_OPBX_LOG_DIR));
@@ -1861,7 +1862,7 @@ static void opbx_readconfig(void) {
 			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
 			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
 		} else if (!strcasecmp(v->name, "cwmoddir")) {
-			opbx_copy_string(opbx_config_OPBX_MODULE_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR));
+			lt_dlsetsearchpath(v->value);
 		} else if (!strcasecmp(v->name, "cwkeydir")) { 
 			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_KEY_DIR)); 
 		}
@@ -2076,6 +2077,8 @@ int callweaver_main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+
+	lt_dlinit();
 
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when

@@ -48,6 +48,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/enum.h"
 #include "callweaver/lock.h"
 #include "callweaver/rtp.h"
+#include "callweaver/utils.h"
+
 #include "libltdl/ltdl.h"
 
 #include "core/term.h"
@@ -259,9 +261,8 @@ int opbx_module_reload(const char *name)
 	return reloaded;
 }
 
-static int __load_resource(const char *resource_name, const struct opbx_config *cfg)
+int opbx_load_resource(const char *resource_name)
 {
-	static char fn[256];
 	char tmp1[80], tmp2[80];
 	struct module *newmod, *mod, **m;
 	struct modinfo *(*modinfo)(void);
@@ -276,16 +277,9 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 
 	memcpy(mod->resource, resource_name, res);
 
-	/* Do we _really_ want to allow loading _anything_? */
-	if (resource_name[0] == '/') {
-		strncpy(fn, resource_name, sizeof(fn)-1);
-	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)opbx_config_OPBX_MODULE_DIR, resource_name);
-	}
-
 	opbx_mutex_lock(&module_lock);
 
-	mod->lib = lt_dlopen(fn);
+	mod->lib = lt_dlopen(resource_name);
 	if (!mod->lib) {
 		opbx_mutex_unlock(&module_lock);
 		opbx_log(OPBX_LOG_ERROR, "%s\n", lt_dlerror());
@@ -299,7 +293,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	if (modinfo == NULL) {
 		lt_dlclose(mod->lib);
 		opbx_mutex_unlock(&module_lock);
-		opbx_log(OPBX_LOG_ERROR, "No get_modinfo in module %s\n", fn);
+		opbx_log(OPBX_LOG_ERROR, "No get_modinfo in module %s\n", resource_name);
 		free(mod);
 		return -1;
 	}
@@ -365,24 +359,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	return 0;
 }
 
-int opbx_load_resource(const char *resource_name)
-{
-	int o;
-	struct opbx_config *cfg = NULL;
-	int res;
-
-	/* Keep the module file parsing silent */
-	o = option_verbose;
-	option_verbose = 0;
-	cfg = opbx_config_load(OPBX_MODULE_CONFIG);
-	option_verbose = o;
-	res = __load_resource(resource_name, cfg);
-	if (cfg)
-		opbx_config_destroy(cfg);
-	return res;
-}	
-
-static int opbx_resource_exists(char *resource)
+static int opbx_resource_exists(const char *resource)
 {
 	struct module *m;
 	if (opbx_mutex_lock(&module_lock))
@@ -407,6 +384,43 @@ static const char *loadorder[] =
 	"pbx_",
 	NULL,
 };
+
+struct load_modules_one_args {
+	struct opbx_config *cfg;
+	int prefix;
+	int prefix_len;
+};
+
+static int load_modules_one(const char *filename, lt_ptr data)
+{
+	char soname[256+1];
+	struct load_modules_one_args *args = (struct load_modules_one_args *)data;
+	char *basename;
+
+	/* Sadly the names produced by lt_dlforeachfile cannot be used as
+	 * arguments to lt_dlopen so we have to fix them up.
+	 * We want: basenames that start with the given prefix, with ".so" added
+	 * and which are not already loaded
+	 */
+	if ((basename = strrchr(filename, '/')) && (basename++, 1)
+	&& (!loadorder[args->prefix] || !strncasecmp(basename, loadorder[args->prefix], args->prefix_len))
+	&& (snprintf(soname, sizeof(soname), "%s.so", basename), !opbx_resource_exists(soname))) {
+		struct opbx_variable *v;
+
+		/* It's a shared library -- Just be sure we're allowed to load it -- kinda
+		   an inefficient way to do it, but oh well. */
+		v = NULL;
+		if (args->cfg) {
+			for (v = opbx_variable_browse(args->cfg, "modules"); v && (strcasecmp(v->name, "noload") || strcasecmp(v->value, basename)); v = v->next);
+			if (option_verbose && v)
+				opbx_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
+		}
+		if (!v)
+			opbx_load_resource(soname);
+	}
+
+	return 0;
+}
 
 int load_modules(const int preload_only)
 {
@@ -436,7 +450,7 @@ int load_modules(const int preload_only)
 		       if (doload) {
 				if (option_debug && !option_verbose)
 					opbx_log(OPBX_LOG_DEBUG, "Loading module %s\n", v->value);
-				if (__load_resource(v->value, cfg)) {
+				if (opbx_load_resource(v->value)) {
 					opbx_log(OPBX_LOG_WARNING, "Loading module %s failed!\n", v->value);
 					opbx_config_destroy(cfg);
 					return -1;
@@ -451,51 +465,12 @@ int load_modules(const int preload_only)
 	}
 
 	if (!cfg || opbx_true(opbx_variable_retrieve(cfg, "modules", "autoload"))) {
-		/* Load all modules */
-		DIR *mods;
-		struct dirent *d;
-		int x;
-
-		/* Loop through each order */
-		for (x=0; x<sizeof(loadorder) / sizeof(loadorder[0]); x++) {
-			mods = opendir((char *)opbx_config_OPBX_MODULE_DIR);
-			if (mods) {
-				while((d = readdir(mods))) {
-					/* Must end in .so to load it.  */
-					if ((strlen(d->d_name) > 3) && 
-					    (!loadorder[x] || !strncasecmp(d->d_name, loadorder[x], strlen(loadorder[x]))) && 
-					    !strcasecmp(d->d_name + strlen(d->d_name) - 3, ".so") &&
-						!opbx_resource_exists(d->d_name)) {
-						/* It's a shared library -- Just be sure we're allowed to load it -- kinda
-						   an inefficient way to do it, but oh well. */
-						if (cfg) {
-							v = opbx_variable_browse(cfg, "modules");
-							while(v) {
-								if (!strcasecmp(v->name, "noload") &&
-								    !strcasecmp(v->value, d->d_name)) 
-									break;
-								v = v->next;
-							}
-							if (v) {
-								if (option_verbose) {
-									opbx_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", d->d_name);
-									fflush(stdout);
-								}
-								continue;
-							}
-							
-						}
-						if (option_debug && !option_verbose)
-							opbx_log(OPBX_LOG_DEBUG, "Loading module %s\n", d->d_name);
-						if (__load_resource(d->d_name, cfg))
-							opbx_log(OPBX_LOG_WARNING, "Loading module %s failed!\n", d->d_name);
-					}
-				}
-				closedir(mods);
-			} else {
-				if (!option_quiet)
-					opbx_log(OPBX_LOG_WARNING, "Unable to open modules directory %s.\n", (char *)opbx_config_OPBX_MODULE_DIR);
-			}
+		struct load_modules_one_args args;
+		args.cfg = cfg;
+		for (args.prefix = 0; args.prefix < arraysize(loadorder); args.prefix++) {
+			if (loadorder[args.prefix])
+				args.prefix_len = strlen(loadorder[args.prefix]);
+			lt_dlforeachfile(lt_dlgetsearchpath(), load_modules_one, &args);
 		}
 	} 
 	opbx_config_destroy(cfg);
@@ -565,10 +540,5 @@ static struct opbx_clicmd clicmds[] = {
 int opbx_loader_init(void)
 {
 	opbx_cli_register_multiple(clicmds, arraysize(clicmds));
-	return lt_dlinit();
-}
-
-int opbx_loader_exit(void)
-{
-	return lt_dlexit();
+	return 0;
 }

@@ -47,7 +47,6 @@
 extern int callweaver_main(int argc, char *argv[]);
 extern char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
-extern char opbx_config_OPBX_MODULE_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
