@@ -1863,7 +1863,7 @@ static void opbx_readconfig(void) {
 		} else if (!strcasecmp(v->name, "cwmoddir")) {
 			opbx_copy_string(opbx_config_OPBX_MODULE_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR));
 		} else if (!strcasecmp(v->name, "cwkeydir")) { 
-			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR)); 
+			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_KEY_DIR)); 
 		}
 		v = v->next;
 	}
