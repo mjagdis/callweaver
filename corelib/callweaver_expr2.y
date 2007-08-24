@@ -20,17 +20,19 @@
 #include <locale.h>
 #include <unistd.h>
 #include <ctype.h>
+
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
 #else
 #define quad_t int64_t
 #endif
+
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
+#include "callweaver/callweaver_expr.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN
