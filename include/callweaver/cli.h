@@ -51,7 +51,7 @@ extern void opbx_cli(int fd, char *fmt, ...)
 /*! \brief A command line entry */ 
 struct opbx_clicmd {
 	struct opbx_object obj;
-	struct opbx_registry_entry clicmd_entry;
+	struct opbx_registry_entry *reg_entry;
 	/*! Null terminated list of the words of the command */
 	char *cmda[OPBX_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
@@ -70,11 +70,20 @@ extern struct opbx_registry clicmd_registry;
 
 #define opbx_cli_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->clicmd_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&clicmd_registry, &__ptr->clicmd_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&clicmd_registry, &__ptr->obj); \
 })
-#define opbx_cli_unregister(ptr)	opbx_registry_del(&clicmd_registry, &(ptr)->clicmd_entry)
+#define opbx_cli_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&clicmd_registry, __ptr->reg_entry); \
+	0; \
+})
 
 #define opbx_cli_register_multiple(array, count) do { \
 	const typeof(&(array)[0]) __aptr = &(array)[0]; \

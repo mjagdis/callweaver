@@ -30,7 +30,7 @@ extern "C" {
 /*! data structure associated with a translator */
 struct opbx_translator {
 	struct opbx_object obj;
-	struct opbx_registry_entry translator_entry;
+	struct opbx_registry_entry *reg_entry;
 	/*! Name of translator */
 	char name[80];
 	/*! Source format */

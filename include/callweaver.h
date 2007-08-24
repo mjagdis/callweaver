@@ -118,7 +118,7 @@ extern void dnsmgr_reload(void);
 #  include "callweaver/registry.h"
 	struct opbx_file_version {
 		struct opbx_object obj;
-		struct opbx_registry_entry file_version_entry;
+		struct opbx_registry_entry *reg_entry;
 		char *file;
 		char *version;
 	};
@@ -129,16 +129,15 @@ extern void dnsmgr_reload(void);
 	static struct opbx_file_version __file_version = { \
 		.file = (scm_file), \
 		.version = (scm_version), \
-		.file_version_entry = { .obj = &__file_version.obj, }, \
 	}; \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		opbx_object_init_obj(&__file_version.obj, NULL); \
-		opbx_registry_add(&file_version_registry, &__file_version.file_version_entry); \
+		opbx_object_init_obj(&__file_version.obj, NULL, 0); \
+		__file_version.reg_entry = opbx_registry_add(&file_version_registry, &__file_version.obj); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		opbx_registry_del(&file_version_registry, &__file_version.file_version_entry); \
+		opbx_registry_del(&file_version_registry, __file_version.reg_entry); \
 	}
 
 #elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/

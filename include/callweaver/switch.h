@@ -34,7 +34,7 @@
 struct opbx_switch
 {
 	struct opbx_object obj;
-	struct opbx_registry_entry switch_entry;
+	struct opbx_registry_entry *reg_entry;
 	const char *name;				
 	const char *description;		
 	int (*exists)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
@@ -49,11 +49,20 @@ extern struct opbx_registry switch_registry;
 
 #define opbx_switch_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->switch_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&switch_registry, &__ptr->switch_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&switch_registry, &__ptr->obj); \
 })
-#define opbx_switch_unregister(ptr)	opbx_registry_del(&switch_registry, &(ptr)->switch_entry)
+#define opbx_switch_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&switch_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 #endif /* _CALLWEAVER_SWITCH_H */

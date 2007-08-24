@@ -45,11 +45,20 @@ extern struct opbx_registry translator_registry;
 
 #define opbx_translator_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->translator_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&translator_registry, &__ptr->translator_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&translator_registry, &__ptr->obj); \
 })
-#define opbx_translator_unregister(ptr)	opbx_registry_del(&translator_registry, &(ptr)->translator_entry)
+#define opbx_translator_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&translator_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 struct opbx_trans_pvt;

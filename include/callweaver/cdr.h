@@ -104,7 +104,7 @@ struct opbx_cdr {
 
 struct opbx_cdrbe {
 	struct opbx_object obj;
-	struct opbx_registry_entry cdrbe_entry;
+	struct opbx_registry_entry *reg_entry;
 	int (*handler)(struct opbx_cdr *cdr);
 	const char *name;
 	const char *description;
@@ -116,11 +116,20 @@ extern struct opbx_registry cdrbe_registry;
 
 #define opbx_cdrbe_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->cdrbe_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&cdrbe_registry, &__ptr->cdrbe_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&cdrbe_registry, &__ptr->obj); \
 })
-#define opbx_cdrbe_unregister(ptr)	opbx_registry_del(&cdrbe_registry, &(ptr)->cdrbe_entry)
+#define opbx_cdrbe_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&cdrbe_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 extern void opbx_cdr_getvar(struct opbx_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur);

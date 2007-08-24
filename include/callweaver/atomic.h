@@ -28,7 +28,14 @@
 #include "callweaver/lock.h"
 
 
-#if defined(__i386__)
+/* It is required that atomic_read() does not require taking a
+ * lock internal to the atomic_t. Specifically, it must be
+ * safe to call atomic_read even if the atomic_t has not yet
+ * been set (in which case a data/bss atomic_t will be 0).
+ */
+
+
+#if defined(__i386__) || defined(x86_64)
 
 /*
  * Make sure gcc doesn't try to be clever and move things around
@@ -49,35 +56,21 @@ static __inline__ void atomic_inc(atomic_t *v)
 		:"m" (v->counter));
 }
 
-static __inline__ int atomic_dec_and_test(atomic_t *v)
+static __inline__ int atomic_inc_and_test(atomic_t *v)
 {
 	unsigned char c;
 
 	__asm__ __volatile__(
-		"lock ; decl %0; sete %1"
+		"lock ; incl %0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"m" (v->counter) : "memory");
 	return c != 0;
 }
 
-
-#elif defined(__x86_64__)
-
-/*
- * Make sure gcc doesn't try to be clever and move things around
- * on us. We need to use _exactly_ the address the user gave us,
- * not some alias that contains the same information.
- */
-typedef struct { volatile int counter; } atomic_t;
-
-#define atomic_set(v,i)		(((v)->counter) = (i))
-#define atomic_destroy(x)	/* No-op */
-#define atomic_read(v)		((v)->counter)
-
-static __inline__ void atomic_inc(atomic_t *v)
+static __inline__ void atomic_dec(atomic_t *v)
 {
 	__asm__ __volatile__(
-		"lock ; incl %0"
+		"lock ; decl %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
@@ -143,6 +136,23 @@ static inline void atomic_inc(atomic_t *v)
 {
 	pthread_spin_lock(&v->lock);
 	v->counter++;
+	pthread_spin_unlock(&v->lock);
+}
+
+static inline int atomic_inc_and_test(atomic_t *v)
+{
+	int ret;
+	pthread_spin_lock(&v->lock);
+	v->counter++;
+	ret = (v->counter == 0);
+	pthread_spin_unlock(&v->lock);
+	return ret;
+}
+
+static inline void atomic_dec(atomic_t *v)
+{
+	pthread_spin_lock(&v->lock);
+	v->counter--;
 	pthread_spin_unlock(&v->lock);
 }
 

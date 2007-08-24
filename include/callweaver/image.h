@@ -31,7 +31,7 @@
 /*! \brief structure associated with registering an image format */
 struct opbx_imager {
 	struct opbx_object obj;
-	struct opbx_registry_entry imager_entry;
+	struct opbx_registry_entry *reg_entry;
 	/*! Name */
 	char *name;						
 	/*! Description */
@@ -54,11 +54,20 @@ extern struct opbx_registry imager_registry;
 
 #define opbx_image_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->imager_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&imager_registry, &__ptr->imager_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&imager_registry, &__ptr->obj); \
 })
-#define opbx_image_unregister(ptr)	opbx_registry_del(&imager_registry, &(ptr)->imager_entry)
+#define opbx_image_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&imager_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 /*! Check for image support on a channel */

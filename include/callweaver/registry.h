@@ -28,15 +28,15 @@
 
 
 struct opbx_list {
-	struct opbx_list *next, *prev;
+	struct opbx_list *next, *prev, *del;
 };
 
-#define LIST_INIT(name) { &(name), &(name) }
+#define LIST_INIT(name) { &(name), &(name), NULL }
 
-#define INIT_LIST(ptr) do { \
-	typeof(ptr) __ptr = (ptr); \
-	(__ptr)->next = (__ptr); (__ptr)->prev = (__ptr); \
-} while (0)
+static inline void opbx_list_init(struct opbx_list *list) {
+	list->next = list->prev = NULL;
+	list->del = NULL;
+}
 
 static inline void __opbx_list_add(struct opbx_list *prev, struct opbx_list *entry, struct opbx_list *next)
 {
@@ -57,11 +57,12 @@ static inline void __opbx_list_del(struct opbx_list *prev, struct opbx_list *nex
 	prev->next = next;
 }
 
-static inline void opbx_list_del(struct opbx_list *entry)
+static inline void opbx_list_del(struct opbx_list *head, struct opbx_list *entry)
 {
-	if (entry->next) {
+	if (!entry->del) {
 		__opbx_list_del(entry->prev, entry->next);
-		entry->prev = NULL;
+		entry->del = head->del;
+		head->del = entry;
 	}
 }
 
@@ -75,14 +76,12 @@ struct opbx_object;
 struct opbx_registry_entry {
 	struct opbx_list list;
 	struct opbx_object *obj;
-	struct opbx_registry_entry *delq;
 };
 
 struct opbx_registry {
 	opbx_mutex_t lock;
 	atomic_t inuse;
 	struct opbx_list list;
-	struct opbx_registry_entry *delq;
 	int (*obj_cmp)(struct opbx_object *a, struct opbx_object *b);
 	int (*obj_match)(struct opbx_object *obj, const void *pattern);
 	char *name;
@@ -91,7 +90,7 @@ struct opbx_registry {
 };
 
 
-extern int opbx_registry_add(struct opbx_registry *registry, struct opbx_registry_entry *entry);
+extern struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *registry, struct opbx_object *obj);
 extern int opbx_registry_del(struct opbx_registry *registry, struct opbx_registry_entry *entry);
 extern int opbx_registry_iterate(struct opbx_registry *registry, int (*func)(struct opbx_object *, void *), void *data);
 extern struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const void *pattern);

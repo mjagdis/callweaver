@@ -324,7 +324,7 @@ static int filehelper_one(struct opbx_object *obj, void *data)
 							if ((bfile = fopen(fn, "r"))) {
 								if ((s = f->open(bfile))) {
 									s->lasttimeout = -1;
-									s->fmt = opbx_object_get(f);
+									s->fmt = opbx_object_dup(f);
 									s->trans = NULL;
 									s->filename = NULL;
 									if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
@@ -754,7 +754,7 @@ static int readfile_one(struct opbx_object *obj, void *data)
 			free(fn);
 			if (bfile) {
 				if ((args->fs = f->open(bfile))) {
-					args->fs->fmt = opbx_object_get(f);
+					args->fs->fmt = opbx_object_dup(f);
 					return 1;
 				} else {
 					opbx_log(OPBX_LOG_WARNING, "Unable to open %s\n", fn);
@@ -856,7 +856,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 			if (fd > -1) {
 				if ((args->fs = f->rewrite(bfile, args->comment))) {
 					args->fs->trans = NULL;
-					args->fs->fmt = opbx_object_get(f);
+					args->fs->fmt = opbx_object_dup(f);
 					args->fs->flags = args->flags;
 					args->fs->mode = args->mode;
 					if (orig_fn) {

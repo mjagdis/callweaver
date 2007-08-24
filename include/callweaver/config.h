@@ -57,7 +57,7 @@ typedef int realtime_update(const char *database, const char *table, const char 
 
 struct opbx_config_engine {
 	struct opbx_object obj;
-	struct opbx_registry_entry config_engine_entry;
+	struct opbx_registry_entry *reg_entry;
 	char *name;
 	config_load_func *load_func;
 	realtime_var_get *realtime_func;
@@ -72,11 +72,20 @@ extern struct opbx_registry config_engine_registry;
 
 #define opbx_config_engine_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->config_engine_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&config_engine_registry, &__ptr->config_engine_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&config_engine_registry, &__ptr->obj); \
 })
-#define opbx_config_engine_unregister(ptr)	opbx_registry_del(&config_engine_registry, &(ptr)->config_engine_entry)
+#define opbx_config_engine_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&config_engine_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 /*! \brief Load a config file 

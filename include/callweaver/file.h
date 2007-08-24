@@ -39,7 +39,7 @@ extern "C" {
 
 struct opbx_format {
 	struct opbx_object obj;
-	struct opbx_registry_entry format_entry;
+	struct opbx_registry_entry *reg_entry;
 	/* Name of format */
 	char *name;
 	/* Extensions (separated by | if more than one) 
@@ -73,11 +73,20 @@ extern struct opbx_registry format_registry;
 
 #define opbx_format_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
-	__ptr->format_entry.obj = &__ptr->obj; \
-	opbx_registry_add(&format_registry, &__ptr->format_entry); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!opbx_object_refs(__ptr)) \
+		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+	__ptr->reg_entry = opbx_registry_add(&format_registry, &__ptr->obj); \
 })
-#define opbx_format_unregister(ptr)	opbx_registry_del(&format_registry, &(ptr)->format_entry)
+#define opbx_format_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		opbx_registry_del(&format_registry, __ptr->reg_entry); \
+	0; \
+})
 
 
 /*! Convenient for waiting */

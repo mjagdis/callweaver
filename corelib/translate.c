@@ -125,7 +125,7 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int s
 	opbx_mutex_lock(&tr_matrix_lock);
 
 	while (source != dest) {
-		if (!(t = opbx_object_get(tr_matrix[source][dest].step))) {
+		if (!(t = opbx_object_dup(tr_matrix[source][dest].step))) {
 			opbx_log(OPBX_LOG_WARNING, "No translator path from %s to %s\n", opbx_getformatname(1 << source), opbx_getformatname(1 << dest));
 			opbx_translator_free_path(tmpr);
 			tmpr = NULL;
@@ -318,7 +318,7 @@ static int rebuild_matrix_one(struct opbx_object *obj, void *data)
 	if (*samples || !t->cost)
 		calc_cost(t, *samples);
 
-	td->step = opbx_object_get(t);
+	td->step = opbx_object_dup(t);
 	td->cost = t->cost;
 	td->steps = 1;
 
@@ -376,7 +376,7 @@ static void rebuild_matrix(int samples)
                                 /* We can get from x to z via y with a cost that
                                    is the sum of the transition from x to y and
                                    from y to z */
-                                tr_matrix[x][z].step = opbx_object_get(tr_matrix[x][y].step);
+                                tr_matrix[x][z].step = opbx_object_dup(tr_matrix[x][y].step);
                                 tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
                                 tr_matrix[x][z].steps = tr_matrix[x][y].steps + tr_matrix[y][z].steps;
                                 if (option_debug)

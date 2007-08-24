@@ -327,7 +327,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 	} else {
 		lt_dlclose(mod->lib);
 		free(mod);
-		mod = *m;
+		mod = opbx_module_get(*m);
 	}
 
 	/* The init has to happen within the lock otherwise we have races

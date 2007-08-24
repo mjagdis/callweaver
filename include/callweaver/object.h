@@ -37,56 +37,75 @@ struct opbx_object {
 };
 
 
-/*! \brief Initialise an object and take a reference to the given module (which may be NULL)
+/*! \brief Initialise an object
  *
  * \param obj		the object to be initialised
  * \param module	the module that owns it
+ * \param refs          number of existing references
  *
  * \return nothing
  */
-static inline void opbx_object_init_obj(struct opbx_object *obj, struct module *module)
+static inline void opbx_object_init_obj(struct opbx_object *obj, struct module *module, int refs)
 {
-	atomic_set(&obj->refs, 1);
-	obj->module = opbx_module_get(module);
+	atomic_set(&obj->refs, refs);
+	obj->module = module;
 }
 
 
-/*! \brief Get a reference to a object
+/*! \brief Get a counted reference to an object using a, possibly uncounted, reference that may be the first use of the object
  *
- * Atomically increments the reference counter for the
- * given object.
+ * Atomically increments the reference counter for the given object.
+ * If there was no previous reference the owning module's reference count is also incremented.
  *
  * \param obj	the object being referenced
  *
- * \return the given object with the reference counter
- * incremented
+ * \return the given object with the reference counter incremented
  */
 static inline struct opbx_object *opbx_object_get_obj(struct opbx_object *obj)
+{
+	if (atomic_inc_and_test(&obj->refs)) {
+		atomic_inc(&obj->refs);
+		opbx_module_get(obj->module);
+	}
+	return obj;
+}
+
+
+/*! \brief Duplicate a counted reference to a object
+ *
+ * Atomically increments the reference counter for the given object.
+ *
+ * \param obj	a counted reference to the object
+ *
+ * \return a new counted reference to the same object as the given reference
+ */
+static inline struct opbx_object *opbx_object_dup_obj(struct opbx_object *obj)
 {
 	atomic_inc(&obj->refs);
 	return obj;
 }
 
 
-/*! \brief Release a reference to a object
+/*! \brief Release a counted reference to a object
  *
  * Atomically decrements the reference counter for the
- * given object. If the counter becomes zero the release
+ * object referenced. If the counter becomes zero the release
  * function (if any) of the object is called and the reference
  * made by the object to the module that registered
  * it is released.
  *
- * \param obj		the object whose reference is
- * 			being released
+ * \param obj		the counted reference to be released
  *
  * \return 1 if the reference counter became zero, 0 otherwise
  */
 static inline int opbx_object_put_obj(struct opbx_object *obj)
 {
 	if (atomic_dec_and_test(&obj->refs)) {
+		struct module *module = obj->module;
+		atomic_dec(&obj->refs);
 		if (obj->release)
 			obj->release(obj);
-		opbx_module_put(obj->module);
+		opbx_module_put(module);
 		return 1;
 	}
 	return 0;
@@ -99,24 +118,29 @@ static inline int opbx_object_refs_obj(struct opbx_object *obj)
 }
 
 
-/*! \brief Initialise a reference counted struct and take
- * a reference to the given module (which may be NULL)
+/*! \brief Initialise a reference counted struct noting the module that owns it and setting an initial count of references
  *
  * \param ptr		the ref counted struct to initialise
- * \param module	the module that owns it
+ * \param module	the module that owns it (NULL if this is owned by the core or is dynmically allocated)
+ * \param refs          the count of references already in existence, -1 if there are none.
+ *                      N.B. If references already exist the module should be a counted reference to the
+ *                      module rather than just a pointer, i.e. instead of get_modinfo()->self you should
+ *                      use opbx_module_get(get_modinfo()->self)
  *
- * \return a pointer to the ref counted struct
+ * \return a pointer to the given object. Note that this is only a counted reference if its existence
+ *         was allowed for in the value of refs passed as the third argument
  */
-#define opbx_object_init(ptr, mod) ({ \
+#define opbx_object_init(ptr, mod, refs) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
-		opbx_object_init_obj(&__ptr->obj,(mod)); \
+		opbx_object_init_obj(&__ptr->obj, (mod), (refs)); \
 	__ptr; \
 })
 
 
 /*! \brief Get a pointer to a struct that is ref counted
- * (i.e. owns (contains) an opbx_object struct)
+ * (i.e. owns (contains) an opbx_object struct) using a,
+ * possibly uncounted, pointer that may be the first reference
  *
  * Atomically increments the reference counter for the
  * given struct.
@@ -129,6 +153,25 @@ static inline int opbx_object_refs_obj(struct opbx_object *obj)
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
 		opbx_object_get_obj(&__ptr->obj); \
+	__ptr; \
+})
+
+
+/*! \brief Get a pointer to a struct that is ref counted
+ * (i.e. owns (contains) an opbx_object struct) using an
+ * existing counted reference
+ *
+ * Atomically increments the reference counter for the
+ * given struct.
+ *
+ * \param ptr	a pointer to the struct we want a new reference to
+ *
+ * \return a pointer to the ref counted struct
+ */
+#define opbx_object_dup(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr) \
+		opbx_object_dup_obj(&__ptr->obj); \
 	__ptr; \
 })
 
