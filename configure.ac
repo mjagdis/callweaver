@@ -749,7 +749,7 @@ AC_CHECK_HEADERS([spandsp/version.h],[HAVE_SPANDSP_VERSION_H=1],[AC_MSG_ERROR(Sp
 #endif
 #include <spandsp/version.h>
 
-#if SPANDSP_RELEASE_DATE < 20070608
+#if SPANDSP_RELEASE_DATE < 20070825
 #error
 #endif
 ])
