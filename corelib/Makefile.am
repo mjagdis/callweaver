@@ -54,7 +54,7 @@ callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
 	$(YACC) -d --name-prefix=opbx_yy -o callweaver_expr2.c callweaver_expr2.y
 
 callweaver_expr2f.c: callweaver_expr2.l
-	$(LEX) --full -t callweaver_expr2.l > callweaver_expr2f.c
+	$(LEX) -f -t callweaver_expr2.l > callweaver_expr2f.c
 
 defaults.h: defaults.h.in Makefile
 	rm -f defaults.h.tmp

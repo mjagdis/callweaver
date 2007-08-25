@@ -49,11 +49,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <spandsp.h>
 #include <pthread.h>
 
-
 extern opbx_mutex_t conflist_lock;
-
 
 // debug logging level
 #define APP_NCONFERENCE_DEBUG	0

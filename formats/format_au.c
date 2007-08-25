@@ -41,29 +41,30 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
 
-#define BUF_SIZE        160
+#define BUF_SIZE                160
 
-#define AU_HEADER_SIZE        24
-#define AU_HEADER(var)        u_int32_t var[6]
+#define AU_HEADER_SIZE          24
+#define AU_HEADER(var)          u_int32_t var[6]
 
-#define AU_HDR_MAGIC_OFF    0
-#define AU_HDR_HDR_SIZE_OFF    1
+#define AU_HDR_MAGIC_OFF        0
+#define AU_HDR_HDR_SIZE_OFF     1
 #define AU_HDR_DATA_SIZE_OFF    2
-#define AU_HDR_ENCODING_OFF    3
-#define AU_HDR_SAMPLE_RATE_OFF    4
-#define AU_HDR_CHANNELS_OFF    5
+#define AU_HDR_ENCODING_OFF     3
+#define AU_HDR_SAMPLE_RATE_OFF  4
+#define AU_HDR_CHANNELS_OFF     5
 
-#define AU_ENC_8BIT_ULAW    1
+#define AU_ENC_8BIT_ULAW        1
 
-struct opbx_filestream {
+struct opbx_filestream
+{
     void *reserved[OPBX_RESERVED_POINTERS];
     /* This is what a filestream means to us */
-    FILE *f;                 /* Descriptor */
+    FILE *f;                            /* Descriptor */
     struct opbx_channel *owner;
-    struct opbx_frame fr;            /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                /* Empty character */
-    short buf[BUF_SIZE];
+    struct opbx_frame fr;               /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];   /* Buffer for sending frames, etc */
+    char empty;                         /* Empty character */
+    int16_t buf[BUF_SIZE];
 };
 
 
@@ -210,7 +211,7 @@ static struct opbx_filestream *au_open(FILE *f)
 {
     struct opbx_filestream *tmp;
 
-    if (!(tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = malloc(sizeof(struct opbx_filestream))) == NULL)
     {
         opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
         return NULL;
@@ -347,34 +348,32 @@ static char *au_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-
-static struct opbx_format format = {
-	.name = "au",
-	.exts = "au",
-	.format = OPBX_FORMAT_ULAW,
-	.open = au_open,
-	.rewrite = au_rewrite,
-	.write = au_write,
-	.seek = au_seek,
-	.trunc = au_trunc,
-	.tell = au_tell,
-	.read = au_read,
-	.close = au_close,
-	.getcomment = au_getcomment,
+static struct opbx_format format =
+{
+    .name = "au",
+    .exts = "au",
+    .format = OPBX_FORMAT_ULAW,
+    .open = au_open,
+    .rewrite = au_rewrite,
+    .write = au_write,
+    .seek = au_seek,
+    .trunc = au_trunc,
+    .tell = au_tell,
+    .read = au_read,
+    .close = au_close,
+    .getcomment = au_getcomment,
 };
-
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
-	return 0;
+    opbx_format_register(&format);
+    return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
-	return 0;
+    opbx_format_unregister(&format);
+    return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

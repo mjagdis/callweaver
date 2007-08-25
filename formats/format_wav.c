@@ -55,9 +55,9 @@ struct opbx_filestream
     FILE *f; /* Descriptor */
     int bytes;
     int needsgain;
-    struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
+    struct opbx_frame fr;                   /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
+    char empty;                             /* Empty character */
     short buf[160];    
     int foffset;
     int lasttimeout;
@@ -353,6 +353,10 @@ static struct opbx_filestream *wav_open(FILE *f)
         /* datalen will vary for each frame */
         tmp->fr.src = format.name;
         tmp->bytes = 0;
+    }
+    else
+    {
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }

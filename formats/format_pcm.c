@@ -50,19 +50,18 @@ struct opbx_filestream
 {
     void *reserved[OPBX_RESERVED_POINTERS];
     /* This is what a filestream means to us */
-    FILE *f; /* Descriptor */
+    FILE *f;                                /* Descriptor */
     struct opbx_channel *owner;
-    struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
-    unsigned char buf[BUF_SIZE];                /* Output Buffer */
+    struct opbx_frame fr;                   /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
+    char empty;                             /* Empty character */
+    uint8_t buf[BUF_SIZE];                  /* Output Buffer */
     struct timeval last;
 };
 
-
 static struct opbx_format format;
 
-static const char desc[] = "Raw uLaw 8khz Audio support (PCM)";
+static const char desc[] = "Raw uLaw 8kHz audio support (PCM)";
 
 static struct opbx_filestream *pcm_open(FILE *f)
 {
@@ -78,6 +77,10 @@ static struct opbx_filestream *pcm_open(FILE *f)
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, format.name);
         tmp->fr.data = tmp->buf;
         /* datalen will vary for each frame */
+    }
+    else
+    {
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }

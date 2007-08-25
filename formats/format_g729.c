@@ -54,11 +54,11 @@ struct opbx_filestream
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
     /* This is what a filestream means to us */
-    FILE *f; /* Descriptor */
-    struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
-    unsigned char g729[20];                /* Two Real G729 Frames */
+    FILE *f;                                /* Descriptor */
+    struct opbx_frame fr;                   /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
+    char empty;                             /* Empty character */
+    uint8_t g729[20];                       /* Two Real G729 Frames */
 };
 
 static struct opbx_format format;
@@ -81,6 +81,10 @@ static struct opbx_filestream *g729_open(FILE *f)
         /* datalen will vary for each frame */
         tmp->fr.src = format.name;
     }
+    else
+    {
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+    }
     return tmp;
 }
 
@@ -90,11 +94,16 @@ static struct opbx_filestream *g729_rewrite(FILE *f, const char *comment)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
+
+    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    {
         memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
-    } else
+    }
+    else
+    {
         opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+    }
     return tmp;
 }
 
@@ -129,21 +138,26 @@ static struct opbx_frame *g729_read(struct opbx_filestream *s, int *whennext)
 static int g729_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
-    if (f->frametype != OPBX_FRAME_VOICE) {
+
+    if (f->frametype != OPBX_FRAME_VOICE)
+    {
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_G729A) {
+    if (f->subclass != OPBX_FORMAT_G729A)
+    {
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
         return -1;
     }
-    if (f->datalen % 10) {
+    if (f->datalen % 10)
+    {
         opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-            opbx_log(OPBX_LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
-            return -1;
+    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    {
+        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
+        return -1;
     }
     return 0;
 }
@@ -169,11 +183,12 @@ static int g729_seek(struct opbx_filestream *fs, long sample_offset, int whence)
         offset = cur + bytes;
     else if (whence == SEEK_END)
         offset = max - bytes;
-    if (whence != SEEK_FORCECUR) {
-        offset = (offset > max)?max:offset;
+    if (whence != SEEK_FORCECUR)
+    {
+        offset = (offset > max)  ?  max:offset;
     }
     /* protect against seeking beyond begining. */
-    offset = (offset < min)?min:offset;
+    offset = (offset < min)  ?  min:offset;
     if (fseek(fs->f, offset, SEEK_SET) < 0)
         return -1;
     return 0;
@@ -194,34 +209,32 @@ static long g729_tell(struct opbx_filestream *fs)
     return (offset/20)*160;
 }
 
-
-static struct opbx_format format = {
-	.name = "g729",
-	.exts = "g729",
-	.format = OPBX_FORMAT_G729A,
-	.open = g729_open,
-	.rewrite = g729_rewrite,
-	.write = g729_write,
-	.seek = g729_seek,
-	.trunc = g729_trunc,
-	.tell = g729_tell,
-	.read = g729_read,
-	.close = g729_close,
-	.getcomment = g729_getcomment,
+static struct opbx_format format =
+{
+    .name = "g729",
+    .exts = "g729",
+    .format = OPBX_FORMAT_G729A,
+    .open = g729_open,
+    .rewrite = g729_rewrite,
+    .write = g729_write,
+    .seek = g729_seek,
+    .trunc = g729_trunc,
+    .tell = g729_tell,
+    .read = g729_read,
+    .close = g729_close,
+    .getcomment = g729_getcomment,
 };
-
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
-	return 0;
+    opbx_format_register(&format);
+    return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
-	return 0;
+    opbx_format_unregister(&format);
+    return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

@@ -6210,8 +6210,10 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		}
 		break;
 	default:
-		if (event == ZT_EVENT_POLARITY || (event & ZT_EVENT_DTMFUP)) {
-			switch(i->sig) {
+		if (event == ZT_EVENT_POLARITY || (event & ZT_EVENT_DTMFUP))
+        {
+			switch (i->sig)
+            {
 			case SIG_FXSLS:
 			case SIG_FXSKS:
 			case SIG_FXSGS:
@@ -6228,6 +6230,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				opbx_log(OPBX_LOG_WARNING, "handle_init_event detected "
 					"polarity reversal or on-hook DTMF on non-FXO (SIG_FXS) "
 					"interface %d\n", i->channel);
+                break;
 			}
 		}
 		break;

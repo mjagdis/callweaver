@@ -51,11 +51,11 @@ struct opbx_filestream
     /* First entry MUST be reserved for the channel type */
     void *reserved[OPBX_RESERVED_POINTERS];
     /* This is what a filestream means to us */
-    FILE *f; /* Descriptor */
+    FILE *f;                                            /* Descriptor */
     struct opbx_filestream *next;
-    struct opbx_frame *fr;    /* Frame representation of buf */
-    struct timeval orig;    /* Original frame time */
-    char buf[G723_MAX_SIZE + OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
+    struct opbx_frame *fr;                              /* Frame representation of buf */
+    struct timeval orig;                                /* Original frame time */
+    uint8_t buf[G723_MAX_SIZE + OPBX_FRIENDLY_OFFSET];  /* Buffer for sending frames, etc */
 };
 
 
@@ -78,6 +78,10 @@ static struct opbx_filestream *g723_open(FILE *f)
         tmp->fr->data = tmp->buf + sizeof(struct opbx_frame);
         /* datalen will vary for each frame */
     }
+    else
+    {
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+    }
     return tmp;
 }
 
@@ -94,7 +98,9 @@ static struct opbx_filestream *g723_rewrite(FILE *f, const char *comment)
         tmp->f = f;
     }
     else
+    {
         opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+    }
     return tmp;
 }
 
@@ -154,36 +160,41 @@ static void g723_close(struct opbx_filestream *s)
     s = NULL;
 }
 
-
 static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     u_int32_t delay;
     u_int16_t size;
     int res;
 
-    if (fs->fr) {
+    if (fs->fr)
+    {
         opbx_log(OPBX_LOG_WARNING, "Asked to write on a read stream??\n");
         return -1;
     }
-    if (f->frametype != OPBX_FRAME_VOICE) {
+    if (f->frametype != OPBX_FRAME_VOICE)
+    {
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_G723_1) {
+    if (f->subclass != OPBX_FORMAT_G723_1)
+    {
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-g723 frame!\n");
         return -1;
     }
     delay = 0;
-    if (f->datalen <= 0) {
+    if (f->datalen <= 0)
+    {
         opbx_log(OPBX_LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
         return 0;
     }
-    if ((res = fwrite(&delay, 1, 4, fs->f)) != 4) {
+    if ((res = fwrite(&delay, 1, 4, fs->f)) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
     size = htons(f->datalen);
-    if ((res = fwrite(&size, 1, 2, fs->f)) != 2) {
+    if ((res = fwrite(&size, 1, 2, fs->f)) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
@@ -218,34 +229,32 @@ static char *g723_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-
-static struct opbx_format format = {
-	.name = "g723.1",
-	.exts = "g723.1|g723",
-	.format = OPBX_FORMAT_G723_1,
-	.open = g723_open,
-	.rewrite = g723_rewrite,
-	.write = g723_write,
-	.seek = g723_seek,
-	.trunc = g723_trunc,
-	.tell = g723_tell,
-	.read = g723_read,
-	.close = g723_close,
-	.getcomment = g723_getcomment,
+static struct opbx_format format =
+{
+    .name = "g723.1",
+    .exts = "g723.1|g723",
+    .format = OPBX_FORMAT_G723_1,
+    .open = g723_open,
+    .rewrite = g723_rewrite,
+    .write = g723_write,
+    .seek = g723_seek,
+    .trunc = g723_trunc,
+    .tell = g723_tell,
+    .read = g723_read,
+    .close = g723_close,
+    .getcomment = g723_getcomment,
 };
-
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
-	return 0;
+    opbx_format_register(&format);
+    return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
-	return 0;
+    opbx_format_unregister(&format);
+    return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

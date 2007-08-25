@@ -60,8 +60,6 @@ static const uint8_t gsm_silence[] = /* 33 */
 struct opbx_filestream
 {
     void *reserved[OPBX_RESERVED_POINTERS];
-    /* Believe it or not, we must decode/recode to account for the
-       weird MS format */
     /* This is what a filestream means to us */
     FILE *f;                                /* Descriptor */
     struct opbx_frame fr;                   /* Frame information */
@@ -111,6 +109,10 @@ static struct opbx_filestream *gsm_open(FILE *f)
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
         tmp->fr.data = tmp->gsm;
         /* datalen will vary for each frame */
+    }
+    else
+    {
+        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
     }
     return tmp;
 }

@@ -384,7 +384,7 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
 
     buffer = vorbis_analysis_buffer(&s->vd, f->samples);
 
-    for (i = 0; i < f->samples; i++)
+    for (i = 0;  i < f->samples;  i++)
         buffer[0][i] = data[i]/32768.f;
 
     vorbis_analysis_wrote(&s->vd, f->samples);
@@ -400,7 +400,8 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
  */
 static void ogg_vorbis_close(struct opbx_filestream *s)
 {
-    if (s->writing) {
+    if (s->writing)
+    {
         /* Tell the Vorbis encoder that the stream is finished
          * and write out the rest of the data */
         vorbis_analysis_wrote(&s->vd, 0);
@@ -413,9 +414,8 @@ static void ogg_vorbis_close(struct opbx_filestream *s)
     vorbis_comment_clear(&s->vc);
     vorbis_info_clear(&s->vi);
 
-    if (s->writing) {
+    if (s->writing)
         ogg_sync_clear(&s->oy);
-    }
     
     fclose(s->fp);
     free(s);
@@ -434,21 +434,20 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
     char *buffer;
     int bytes;
 
-    while (1) {
+    while (1)
+    {
         samples_in = vorbis_synthesis_pcmout(&s->vd, pcm);
-        if (samples_in > 0) {
+        if (samples_in > 0)
             return samples_in;
-        }
         
         /* The Vorbis decoder needs more data... */
         /* See ifOGG has any packets in the current page for the Vorbis decoder. */
         result = ogg_stream_packetout(&s->os, &s->op);
-        if (result > 0) {
+        if (result > 0)
+        {
             /* Yes OGG had some more packets for the Vorbis decoder. */
-            if (vorbis_synthesis(&s->vb, &s->op) == 0) {
+            if (vorbis_synthesis(&s->vb, &s->op) == 0)
                 vorbis_synthesis_blockin(&s->vd, &s->vb);
-            }
-            
             continue;
         }
 
@@ -457,23 +456,26 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
         
         /* No more packets left in the current page... */
 
-        if (s->eos) {
+        if (s->eos)
+        {
             /* No more pages left in the stream */
             return -1;
         }
 
-        while (!s->eos) {
+        while (!s->eos)
+        {
             /* See ifOGG has any pages in it's internal buffers */
             result = ogg_sync_pageout(&s->oy, &s->og);
-            if (result > 0) {
+            if (result > 0)
+            {
                 /* Yes, OGG has more pages in it's internal buffers,
                    add the page to the stream state */
                 result = ogg_stream_pagein(&s->os, &s->og);
-                if (result == 0) {
+                if (result == 0)
+                {
                     /* Yes, got a new,valid page */
-                    if (ogg_page_eos(&s->og)) {
+                    if (ogg_page_eos(&s->og))
                         s->eos = 1;
-                    }
                     break;
                 }
                 opbx_log(OPBX_LOG_WARNING, "Invalid page in the bitstream; continuing...\n");
@@ -616,8 +618,8 @@ static char *ogg_vorbis_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-
-static struct opbx_format format = {
+static struct opbx_format format =
+{
 	.name = "ogg_vorbis",
 	.exts = "ogg",
 	.format = OPBX_FORMAT_SLINEAR,
@@ -644,6 +646,5 @@ static int unload_module(void)
 	opbx_format_unregister(&format);
 	return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
