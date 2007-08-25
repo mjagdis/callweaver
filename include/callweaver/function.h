@@ -79,7 +79,9 @@ extern struct opbx_registry func_registry;
 	&f; \
 })
 #define opbx_unregister_function(ptr) ({ \
-	opbx_function_unregister((struct opbx_func *)(ptr)); \
+	const struct opbx_func *__ptr = (struct opbx_func *)(ptr); \
+	if (__ptr) \
+		opbx_function_unregister(__ptr); \
 	0; \
 })
 
