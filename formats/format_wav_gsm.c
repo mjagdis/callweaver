@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <spandsp.h>
 
 #include "callweaver.h"
 
@@ -44,41 +45,38 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
 
-#include "msgsm.h"
-
 /* Some Ideas for this code came from makewave.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-/* begin binary data: */
-char msgsm_silence[] = /* 65 */
-{0x48,0x17,0xD6,0x84,0x02,0x80,0x24,0x49,0x92,0x24,0x89,0x02,0x80,0x24,0x49
-,0x92,0x24,0x89,0x02,0x80,0x24,0x49,0x92,0x24,0x89,0x02,0x80,0x24,0x49,0x92
-,0x24,0x09,0x82,0x74,0x61,0x4D,0x28,0x00,0x48,0x92,0x24,0x49,0x92,0x28,0x00
-,0x48,0x92,0x24,0x49,0x92,0x28,0x00,0x48,0x92,0x24,0x49,0x92,0x28,0x00,0x48
-,0x92,0x24,0x49,0x92,0x00};
-/* end binary data. size = 65 bytes */
+static const uint8_t wav49_silence[] = /* 65 */
+{
+    0x48,0x17,0xD6,0x84,0x02,0x80,0x24,0x49,0x92,0x24,0x89,0x02,0x80,0x24,0x49,
+    0x92,0x24,0x89,0x02,0x80,0x24,0x49,0x92,0x24,0x89,0x02,0x80,0x24,0x49,0x92,
+    0x24,0x09,0x82,0x74,0x61,0x4D,0x28,0x00,0x48,0x92,0x24,0x49,0x92,0x28,0x00,
+    0x48,0x92,0x24,0x49,0x92,0x28,0x00,0x48,0x92,0x24,0x49,0x92,0x28,0x00,0x48,
+    0x92,0x24,0x49,0x92,0x00
+};
 
-struct opbx_filestream {
+struct opbx_filestream
+{
     void *reserved[OPBX_RESERVED_POINTERS];
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
     /* This is what a filestream means to us */
     FILE *f; /* Descriptor */
-    struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
-    unsigned char gsm[66];                /* Two Real GSM Frames */
+    struct opbx_frame fr;               /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];   /* Buffer for sending frames, etc */
+    char empty;                         /* Empty character */
+    unsigned char gsm[66];              /* Two Real GSM Frames */
     int foffset;
-    int secondhalf;                        /* Are we on the second half */
+    int secondhalf;                     /* Are we on the second half */
     struct timeval last;
 };
-
 
 static struct opbx_format format;
 
 static const char desc[] = "Microsoft WAV format (Proprietary GSM)";
-
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -102,119 +100,171 @@ static const char desc[] = "Microsoft WAV format (Proprietary GSM)";
 #endif
 #endif
 
+static int repack_gsm0610_wav49_to_voip(uint8_t d[], const uint8_t c[])
+{
+    gsm0610_frame_t frame[2];
+    int n[2];
+
+    gsm0610_unpack_wav49(frame, c);
+    n[0] = gsm0610_pack_voip(d, &frame[0]);
+    n[1] = gsm0610_pack_voip(d + n[0], &frame[1]);
+    return n[0] + n[1];
+}
+
+static int repack_gsm0610_voip_to_wav49(uint8_t c[], const uint8_t d[])
+{
+    gsm0610_frame_t frame[2];
+    int n;
+ 
+    n = gsm0610_unpack_voip(&frame[0], d);
+    gsm0610_unpack_voip(&frame[1], d + n);
+    n = gsm0610_pack_wav49(c, frame);
+    return n;
+}
 
 static int check_header(FILE *f)
 {
-    int type, size, formtype;
-    int fmt, hsize, fact;
-    short format, chans;
+    int type;
+    int size;
+    int formtype;
+    int fmt;
+    int hsize;
+    int fact;
+    int16_t format;
+    int16_t chans;
     int freq;
     int data;
-    if (fread(&type, 1, 4, f) != 4) {
+    
+    if (fread(&type, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (type)\n");
         return -1;
     }
-    if (fread(&size, 1, 4, f) != 4) {
+    if (fread(&size, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (size)\n");
         return -1;
     }
     size = ltohl(size);
-    if (fread(&formtype, 1, 4, f) != 4) {
+    if (fread(&formtype, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (formtype)\n");
         return -1;
     }
-    if (memcmp(&type, "RIFF", 4)) {
+    if (memcmp(&type, "RIFF", 4))
+    {
         opbx_log(OPBX_LOG_WARNING, "Does not begin with RIFF\n");
         return -1;
     }
-    if (memcmp(&formtype, "WAVE", 4)) {
+    if (memcmp(&formtype, "WAVE", 4))
+    {
         opbx_log(OPBX_LOG_WARNING, "Does not contain WAVE\n");
         return -1;
     }
-    if (fread(&fmt, 1, 4, f) != 4) {
+    if (fread(&fmt, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (fmt)\n");
         return -1;
     }
-    if (memcmp(&fmt, "fmt ", 4)) {
+    if (memcmp(&fmt, "fmt ", 4))
+    {
         opbx_log(OPBX_LOG_WARNING, "Does not say fmt\n");
         return -1;
     }
-    if (fread(&hsize, 1, 4, f) != 4) {
+    if (fread(&hsize, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (formtype)\n");
         return -1;
     }
-    if (ltohl(hsize) != 20) {
+    if (ltohl(hsize) != 20)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
         return -1;
     }
-    if (fread(&format, 1, 2, f) != 2) {
+    if (fread(&format, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
-    if (ltohs(format) != 49) {
+    if (ltohs(format) != 49)
+    {
         opbx_log(OPBX_LOG_WARNING, "Not a GSM file %d\n", ltohs(format));
         return -1;
     }
-    if (fread(&chans, 1, 2, f) != 2) {
+    if (fread(&chans, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
-    if (ltohs(chans) != 1) {
+    if (ltohs(chans) != 1)
+    {
         opbx_log(OPBX_LOG_WARNING, "Not in mono %d\n", ltohs(chans));
         return -1;
     }
-    if (fread(&freq, 1, 4, f) != 4) {
+    if (fread(&freq, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (freq)\n");
         return -1;
     }
-    if (ltohl(freq) != 8000) {
+    if (ltohl(freq) != 8000)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
         return -1;
     }
     /* Ignore the byte frequency */
-    if (fread(&freq, 1, 4, f) != 4) {
+    if (fread(&freq, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (X_1)\n");
         return -1;
     }
     /* Ignore the two weird fields */
-    if (fread(&freq, 1, 4, f) != 4) {
+    if (fread(&freq, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (X_2/X_3)\n");
         return -1;
     }
     /* Ignore the byte frequency */
-    if (fread(&freq, 1, 4, f) != 4) {
+    if (fread(&freq, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (Y_1)\n");
         return -1;
     }
     /* Check for the word fact */
-    if (fread(&fact, 1, 4, f) != 4) {
+    if (fread(&fact, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (fact)\n");
         return -1;
     }
-    if (memcmp(&fact, "fact", 4)) {
+    if (memcmp(&fact, "fact", 4))
+    {
         opbx_log(OPBX_LOG_WARNING, "Does not say fact\n");
         return -1;
     }
     /* Ignore the "fact value" */
-    if (fread(&fact, 1, 4, f) != 4) {
+    if (fread(&fact, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (fact header)\n");
         return -1;
     }
-    if (fread(&fact, 1, 4, f) != 4) {
+    if (fread(&fact, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (fact value)\n");
         return -1;
     }
     /* Check for the word data */
-    if (fread(&data, 1, 4, f) != 4) {
+    if (fread(&data, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (data)\n");
         return -1;
     }
-    if (memcmp(&data, "data", 4)) {
+    if (memcmp(&data, "data", 4))
+    {
         opbx_log(OPBX_LOG_WARNING, "Does not say data\n");
         return -1;
     }
     /* Ignore the data length */
-    if (fread(&data, 1, 4, f) != 4) {
+    if (fread(&data, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Read failed (data)\n");
         return -1;
     }
@@ -233,27 +283,33 @@ static int update_header(FILE *f)
     bytes = end - 60;
     datalen = htoll((bytes + 1) & ~0x1);
     filelen = htoll(52 + ((bytes + 1) & ~0x1));
-    if (cur < 0) {
+    if (cur < 0)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to find our position\n");
         return -1;
     }
-    if (fseek(f, 4, SEEK_SET)) {
+    if (fseek(f, 4, SEEK_SET))
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to set our position\n");
         return -1;
     }
-    if (fwrite(&filelen, 1, 4, f) != 4) {
+    if (fwrite(&filelen, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to set write file size\n");
         return -1;
     }
-    if (fseek(f, 56, SEEK_SET)) {
+    if (fseek(f, 56, SEEK_SET))
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to set our position\n");
         return -1;
     }
-    if (fwrite(&datalen, 1, 4, f) != 4) {
+    if (fwrite(&datalen, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to set write datalen\n");
         return -1;
     }
-    if (fseek(f, cur, SEEK_SET)) {
+    if (fseek(f, cur, SEEK_SET))
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to return to position\n");
         return -1;
     }
@@ -273,68 +329,85 @@ static int write_header(FILE *f)
     unsigned short x_3 = htols(320);
     unsigned int y_1 = htoll(20160);
     unsigned int size = htoll(0);
+    
     /* Write a GSM header, ignoring sizes which will be filled in later */
-    if (fwrite("RIFF", 1, 4, f) != 4) {
+    if (fwrite("RIFF", 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&size, 1, 4, f) != 4) {
+    if (fwrite(&size, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite("WAVEfmt ", 1, 8, f) != 8) {
+    if (fwrite("WAVEfmt ", 1, 8, f) != 8)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&hs, 1, 4, f) != 4) {
+    if (fwrite(&hs, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&fmt, 1, 2, f) != 2) {
+    if (fwrite(&fmt, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&chans, 1, 2, f) != 2) {
+    if (fwrite(&chans, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&hz, 1, 4, f) != 4) {
+    if (fwrite(&hz, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&bhz, 1, 4, f) != 4) {
+    if (fwrite(&bhz, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&x_1, 1, 4, f) != 4) {
+    if (fwrite(&x_1, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&x_2, 1, 2, f) != 2) {
+    if (fwrite(&x_2, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&x_3, 1, 2, f) != 2) {
+    if (fwrite(&x_3, 1, 2, f) != 2)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite("fact", 1, 4, f) != 4) {
+    if (fwrite("fact", 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&fhs, 1, 4, f) != 4) {
+    if (fwrite(&fhs, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&y_1, 1, 4, f) != 4) {
+    if (fwrite(&y_1, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite("data", 1, 4, f) != 4) {
+    if (fwrite("data", 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
-    if (fwrite(&size, 1, 4, f) != 4) {
+    if (fwrite(&size, 1, 4, f) != 4)
+    {
         opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
@@ -347,9 +420,12 @@ static struct opbx_filestream *wav_open(FILE *f)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
+
+    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (check_header(f)) {
+        if (check_header(f))
+        {
             free(tmp);
             return NULL;
         }
@@ -368,36 +444,42 @@ static struct opbx_filestream *wav_rewrite(FILE *f, const char *comment)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
+
+    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (write_header(f)) {
+        if (write_header(f))
+        {
             free(tmp);
             return NULL;
         }
         tmp->f = f;
-    } else
+    }
+    else
+    {
         opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+    }
     return tmp;
 }
 
 static void wav_close(struct opbx_filestream *s)
 {
     char zero = 0;
+    
     /* Pad to even length */
     fseek(s->f, 0, SEEK_END);
     if (ftell(s->f) & 0x1)
         fwrite(&zero, 1, 1, s->f);
     fclose(s->f);
     free(s);
-    s = NULL;
 }
 
 static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 {
     int res;
-    unsigned char msdata[66];
-    /* Send a frame from the file to the appropriate channel */
+    uint8_t msdata[66];
 
+    /* Send a frame from the file to the appropriate channel */
     opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
     s->fr.offset = OPBX_FRIENDLY_OFFSET;
     s->fr.samples = 160;
@@ -415,8 +497,8 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
                 opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
             return NULL;
         }
-        /* Convert from MS format to two real GSM frames */
-        conv65(msdata, s->gsm);
+        /* Convert from WAV49 format to two VoIP format GSM frames */
+        repack_gsm0610_wav49_to_voip(s->gsm, msdata);
         s->fr.data = s->gsm;
     }
     s->secondhalf = !s->secondhalf;
@@ -427,9 +509,9 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
-    unsigned char msdata[66];
-    int len =0;
-    int alreadyms=0;
+    uint8_t wav49_data[66];
+    int len = 0;
+    int already_wav49;
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
@@ -441,11 +523,10 @@ static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
         return -1;
     }
-    if (!(f->datalen % 65)) 
-        alreadyms = 1;
+    already_wav49 = ((f->datalen % 65) == 0);
     while (len < f->datalen)
     {
-        if (alreadyms)
+        if (already_wav49)
         {
             fs->secondhalf = 0;
             if ((res = fwrite(f->data + len, 1, 65, fs->f)) != 65)
@@ -461,8 +542,9 @@ static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
             if (fs->secondhalf)
             {
                 memcpy(fs->gsm + 33, f->data + len, 33);
-                conv66(fs->gsm, msdata);
-                if ((res = fwrite(msdata, 1, 65, fs->f)) != 65)
+                /* Convert from two VoIP format GSM frames to WAV49 format */
+                repack_gsm0610_voip_to_wav49(wav49_data, fs->gsm);
+                if ((res = fwrite(wav49_data, 1, 65, fs->f)) != 65)
                 {
                     opbx_log(OPBX_LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
                     return -1;
@@ -514,7 +596,7 @@ static int wav_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 
         fseek(fs->f, 0, SEEK_END);
         for (i = 0;  i < (offset - max)/65;  i++)
-            fwrite(msgsm_silence, 1, 65, fs->f);
+            fwrite(wav49_silence, 1, 65, fs->f);
     }
     fs->secondhalf = 0;
     return fseek(fs->f, offset, SEEK_SET);
@@ -542,34 +624,32 @@ static char *wav_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-
-static struct opbx_format format = {
-	.name = "wav49",
-	.exts = "WAV|wav49",
-	.format = OPBX_FORMAT_GSM,
-	.open = wav_open,
-	.rewrite = wav_rewrite,
-	.write = wav_write,
-	.seek = wav_seek,
-	.trunc = wav_trunc,
-	.tell = wav_tell,
-	.read = wav_read,
-	.close = wav_close,
-	.getcomment = wav_getcomment,
+static struct opbx_format format =
+{
+    .name = "wav49",
+    .exts = "WAV|wav49",
+    .format = OPBX_FORMAT_GSM,
+    .open = wav_open,
+    .rewrite = wav_rewrite,
+    .write = wav_write,
+    .seek = wav_seek,
+    .trunc = wav_trunc,
+    .tell = wav_tell,
+    .read = wav_read,
+    .close = wav_close,
+    .getcomment = wav_getcomment,
 };
-
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
-	return 0;
+    opbx_format_register(&format);
+    return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
-	return 0;
+    opbx_format_unregister(&format);
+    return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

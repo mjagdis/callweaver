@@ -56,7 +56,7 @@ format_sln_la_SOURCES 		= format_sln.c
 format_sln_la_LDFLAGS           = -module -avoid-version -no-undefined
 format_sln_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la  
 
-format_wav_gsm_la_SOURCES 	= format_wav_gsm.c msgsm.h
+format_wav_gsm_la_SOURCES 	= format_wav_gsm.c
 format_wav_gsm_la_LDFLAGS       = -module -avoid-version -no-undefined
 format_wav_gsm_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la  
 

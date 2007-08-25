@@ -47,10 +47,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "core/translate.h"
 #include "callweaver/translate.h"
 
-#include "../formats/msgsm.h"
-
 /* Sample 20ms of linear frame data */
-static int16_t slin_ex[] =
+static const int16_t slin_ex[] =
 {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
@@ -71,7 +69,7 @@ static int16_t slin_ex[] =
 };
 
 /* Sample frame of GSM 06.10 data */
-static uint8_t gsm_ex[] =
+static const uint8_t gsm_ex[] =
 {
     0xda, 0xa6, 0xac, 0x2d, 0xa3, 0x50, 0x00, 0x49, 0x24, 0x92, 
     0x49, 0x24, 0x50, 0x40, 0x49, 0x24, 0x92, 0x37, 0x24, 0x52, 
@@ -168,8 +166,8 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
     /* Assuming there's space left, decode into the current buffer at
        the tail location.  Read in as many frames as there are */
     int x;
-    uint8_t data[66];
-    int msgsm = 0;
+    int encoded_chunk;
+    int decoded_chunk;
     
     if (f->datalen == 0)
     {
@@ -193,52 +191,30 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
         return -1;
     }
     
-    if (f->datalen%65 == 0) 
-        msgsm = 1;
-        
-    for (x = 0;  x < f->datalen;  x += (msgsm  ?  65  :  33))
+    if (f->datalen%65 == 0)
     {
-        if (msgsm)
+        gsm0610_set_packing(tmp->gsm, GSM0610_PACKING_WAV49);
+        encoded_chunk = 65;
+        decoded_chunk = 320;
+    }
+    else
+    {
+        gsm0610_set_packing(tmp->gsm, GSM0610_PACKING_VOIP);
+        encoded_chunk = 33;
+        decoded_chunk = 160;
+    }
+    
+    for (x = 0;  x < f->datalen;  x += encoded_chunk, tmp->tail += decoded_chunk)
+    {
+        if (tmp->tail + decoded_chunk >= sizeof(tmp->buf)/sizeof(int16_t))
         {
-            /* Translate MSGSM format to Real GSM format before feeding in */
-            conv65(f->data + x, data);
-            if (tmp->tail + 320 < sizeof(tmp->buf)/sizeof(int16_t))
-            {    
-                if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data, 1) != 160)
-                {
-                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data (1)\n");
-                    return -1;
-                }
-                tmp->tail += 160;
-                if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data + 33, 1) != 160)
-                {
-                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data (2)\n");
-                    return -1;
-                }
-                tmp->tail += 160;
-            }
-            else
-            {
-                opbx_log(OPBX_LOG_WARNING, "Out of (MS) buffer space\n");
-                return -1;
-            }
+            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            return -1;
         }
-        else
+        if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, 1) != decoded_chunk)
         {
-            if (tmp->tail + 160 < sizeof(tmp->buf)/sizeof(int16_t))
-            {
-                if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, 1) != 160)
-                {
-                    opbx_log(OPBX_LOG_WARNING, "Invalid GSM data\n");
-                    return -1;
-                }
-                tmp->tail += 160;
-            }
-            else
-            {
-                opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
-                return -1;
-            }
+            opbx_log(OPBX_LOG_WARNING, "Invalid GSM data (1)\n");
+            return -1;
         }
     }
 
@@ -276,6 +252,7 @@ static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
+    /* This only works with VoIP style packing. It does not allow for WAV49 packing */
     while (tmp->tail >= 160)
     {
         if ((x + 1)*33 >= sizeof(tmp->outbuf))
@@ -384,6 +361,5 @@ static int load_module(void)
     opbx_translator_register(&lintogsm);
     return res;
 }
-
 
 MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

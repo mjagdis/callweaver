@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <spandsp.h>
 
 #include "callweaver.h"
 
@@ -44,22 +45,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
 
-#include "msgsm.h"
-
 /* Some Ideas for this code came from makegsme.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
 /* silent gsm frame */
-/* begin binary data: */
-char gsm_silence[] = /* 33 */
+static const uint8_t gsm_silence[] = /* 33 */
 {
     0xD8,0x20,0xA2,0xE1,0x5A,0x50,0x00,0x49,0x24,0x92,0x49,0x24,0x50,0x00,0x49,
     0x24,0x92,0x49,0x24,0x50,0x00,0x49,0x24,0x92,0x49,0x24,0x50,0x00,0x49,0x24,
     0x92,0x49,0x24
 };
-
-/* end binary data. size = 33 bytes */
 
 struct opbx_filestream
 {
@@ -67,11 +63,11 @@ struct opbx_filestream
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
     /* This is what a filestream means to us */
-    FILE *f; /* Descriptor */
-    struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
-    unsigned char gsm[66];                /* Two Real GSM Frames */
+    FILE *f;                                /* Descriptor */
+    struct opbx_frame fr;                   /* Frame information */
+    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
+    char empty;                             /* Empty character */
+    uint8_t gsm[66];                        /* Two GSM Frames */
 };
 
 
@@ -79,6 +75,27 @@ static struct opbx_format format;
 
 static const char desc[] = "Raw GSM data";
 
+static int repack_gsm0610_wav49_to_voip(uint8_t d[], const uint8_t c[])
+{
+    gsm0610_frame_t frame[2];
+    int n[2];
+
+    gsm0610_unpack_wav49(frame, c);
+    n[0] = gsm0610_pack_voip(d, &frame[0]);
+    n[1] = gsm0610_pack_voip(d + n[0], &frame[1]);
+    return n[0] + n[1];
+}
+
+static int repack_gsm0610_voip_to_wav49(uint8_t c[], const uint8_t d[])
+{
+    gsm0610_frame_t frame[2];
+    int n;
+ 
+    n = gsm0610_unpack_voip(&frame[0], d);
+    gsm0610_unpack_voip(&frame[1], d + n);
+    n = gsm0610_pack_wav49(c, frame);
+    return n;
+}
 
 static struct opbx_filestream *gsm_open(FILE *f)
 {
@@ -146,6 +163,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
     uint8_t gsm[66];
+    int len;
     
     if (f->frametype != OPBX_FRAME_VOICE)
     {
@@ -159,18 +177,16 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     }
     if (!(f->datalen % 65))
     {
-        /* This is in MSGSM format, need to be converted */
-        int len=0;
+        /* This is in WAV49 format, need to be converted */
 
-        while (len < f->datalen)
+        for (len = 0;  len < f->datalen;  len += 65)
         {
-            conv65(f->data + len, gsm);
+            repack_gsm0610_wav49_to_voip(gsm, f->data + len);
             if ((res = fwrite(gsm, 1, 66, fs->f)) != 66)
             {
                 opbx_log(OPBX_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
                 return -1;
             }
-            len += 65;
         }
     }
     else
@@ -203,21 +219,22 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     max = ftell(fs->f);
     /* have to fudge to frame here, so not fully to sample */
     distance = (sample_offset/160) * 33;
-    if(whence == SEEK_SET)
+    if (whence == SEEK_SET)
         offset = distance;
-    else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
+    else if (whence == SEEK_CUR  ||  whence == SEEK_FORCECUR)
         offset = distance + cur;
-    else if(whence == SEEK_END)
+    else if (whence == SEEK_END)
         offset = max - distance;
     /* Always protect against seeking past the begining. */
     offset = (offset < min)  ?  min  :  offset;
     if (whence != SEEK_FORCECUR)
     {
-        offset = (offset > max)?max:offset;
+        offset = (offset > max)  ?  max  :  offset;
     }
     else if (offset > max)
     {
         int i;
+
         fseek(fs->f, 0, SEEK_END);
         for (i = 0;  i < (offset - max)/33;  i++)
             fwrite(gsm_silence, 1, 33, fs->f);
@@ -242,34 +259,32 @@ static char *gsm_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-
-static struct opbx_format format = {
-	.name = "gsm",
-	.exts = "gsm",
-	.format = OPBX_FORMAT_GSM,
-	.open = gsm_open,
-	.rewrite = gsm_rewrite,
-	.write = gsm_write,
-	.seek = gsm_seek,
-	.trunc = gsm_trunc,
-	.tell = gsm_tell,
-	.read = gsm_read,
-	.close = gsm_close,
-	.getcomment = gsm_getcomment,
+static struct opbx_format format =
+{
+    .name = "gsm",
+    .exts = "gsm",
+    .format = OPBX_FORMAT_GSM,
+    .open = gsm_open,
+    .rewrite = gsm_rewrite,
+    .write = gsm_write,
+    .seek = gsm_seek,
+    .trunc = gsm_trunc,
+    .tell = gsm_tell,
+    .read = gsm_read,
+    .close = gsm_close,
+    .getcomment = gsm_getcomment,
 };
-
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
-	return 0;
+    opbx_format_register(&format);
+    return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
-	return 0;
+    opbx_format_unregister(&format);
+    return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
