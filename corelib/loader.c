@@ -411,7 +411,9 @@ static int load_modules_one(const char *filename, lt_ptr data)
 		   an inefficient way to do it, but oh well. */
 		v = NULL;
 		if (args->cfg) {
-			for (v = opbx_variable_browse(args->cfg, "modules"); v && (strcasecmp(v->name, "noload") || strcasecmp(v->value, basename)); v = v->next);
+			for (v = opbx_variable_browse(args->cfg, "modules");
+				v && (strcasecmp(v->name, "noload") || (strcasecmp(v->value, soname) && strcasecmp(v->value, basename)));
+				v = v->next);
 			if (option_verbose && v)
 				opbx_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
 		}
