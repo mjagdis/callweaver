@@ -645,6 +645,8 @@ static struct zt_pvt {
 	uint8_t *cidspill;
 	int cidpos;
 	int cidlen;
+	uint8_t *cidspill2;
+	int cidlen2;
 	int ringt;
 	int ringt_base;
 	int stripmsd;
@@ -1804,11 +1806,24 @@ static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 				p->cidspill = NULL;
 			}
 			if (p->use_callerid) {
+				/* Caller ID before ring uses defined signalling format. Caller ID between
+				 * rings is (nearly) always US style. This is sufficiently compatible with all the
+				 * possibilities we might want that it should "just work".
+				 * Note: India (Bharti) uses DTMF after the first ring apparently. If you want
+				 * that you have to use explicit cidsignalling=dtmf, cidstart=ring and forego
+				 * any pre-ring CID.
+				 */
 				p->cidspill = malloc(MAX_CALLERID_SIZE);
 				p->callwaitcas = 0;
 				if (p->cidspill) {
 					p->cidlen = opbx_callerid_generate(p->cid_signalling, p->cidspill, MAX_CALLERID_SIZE, opbx->cid.cid_pres, opbx->cid.cid_num, opbx->cid.cid_name, 0, OPBX_LAW(p));
 					p->cidpos = 0;
+
+					if (p->cid_start != CID_START_RING || !p->cidrings) {
+						p->cidspill2 = malloc(MAX_CALLERID_SIZE);
+						if (p->cidspill2)
+							p->cidlen2 = opbx_callerid_generate(ADSI_STANDARD_CLASS, p->cidspill2, MAX_CALLERID_SIZE, opbx->cid.cid_pres, opbx->cid.cid_num, opbx->cid.cid_name, 0, OPBX_LAW(p));
+					}
 				} else {
 					/* No memory for caller ID but maybe we can still make the call */
 					opbx_log(OPBX_LOG_WARNING, "Unable to generate CallerID spill\n");
@@ -2673,13 +2688,15 @@ static int zt_hangup(struct opbx_channel *opbx)
 		}
 		if (p->cidspill)
 			free(p->cidspill);
+		if (p->cidspill2)
+			free(p->cidspill2);
 		if (p->sig)
 			zt_disable_ec(p);
 		x = 0;
 		opbx_channel_setoption(opbx, OPBX_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		opbx_channel_setoption(opbx, OPBX_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = FALSE;
-		p->cidspill = NULL;
+		p->cidspill = p->cidspill2 = NULL;
 		p->callwaitcas = 0;
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
@@ -3836,10 +3853,14 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 					/* Make sure it stops ringing */
 					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 					opbx_log(OPBX_LOG_DEBUG, "channel %d answered\n", p->channel);
+					/* Cancel any running CallerID spill */
 					if (p->cidspill) {
-						/* Cancel any running CallerID spill */
 						free(p->cidspill);
 						p->cidspill = NULL;
+					}
+					if (p->cidspill2) {
+						free(p->cidspill2);
+						p->cidspill2 = NULL;
 					}
 					p->dialing = 0;
 					p->callwaitcas = 0;
@@ -4590,14 +4611,11 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 				res = ZT_RING;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &res) && errno != EINPROGRESS)
 					opbx_log(OPBX_LOG_WARNING, "%s: Unable to ring phone: %s\n", opbx->name, strerror(errno));
-				/* Caller ID before ring uses defined signalling format. Caller ID between
-				 * rings is (nearly) always US style. This is sufficiently compatible with all the
-				 * possibilities we might want that it should "just work".
-				 * Note: India (Bharti) uses DTMF after the first ring apparently. If you want
-				 * that you have to use explicit cidsignalling=dtmf, cidstart=ring and forego
-				 * any pre-ring CID.
-				 */
-				p->cidlen = opbx_callerid_generate(ADSI_STANDARD_CLASS, p->cidspill, MAX_CALLERID_SIZE, opbx->cid.cid_pres, opbx->cid.cid_num, opbx->cid.cid_name, 0, OPBX_LAW(p));
+				/* Set up for post-ring caller ID */
+				free(p->cidspill);
+				p->cidspill = p->cidspill2;
+				p->cidspill2 = NULL;
+				p->cidlen = p->cidlen2;
 				p->cidpos = 0;
 				p->cid_send_on = CID_START_RING;
 			} else {
@@ -9814,6 +9832,8 @@ static int __unload_module(void)
 			/* Free any callerid */
 			if (p->cidspill)
 				free(p->cidspill);
+			if (p->cidspill2)
+				free(p->cidspill2);
 			/* Close the zapata thingy */
 			if (p->subs[SUB_REAL].zfd > -1)
 				zt_close(p->subs[SUB_REAL].zfd);
