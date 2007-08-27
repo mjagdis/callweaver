@@ -1,4 +1,4 @@
-# vim:ft=txt:tw=80
+# vim:ft=txt:tw=80:ts=8
 
 The following modules use priority jumping. This should be changed to setting
 variables instead and always returning zero
@@ -9,18 +9,25 @@ modules, we won't fix them.
 
 WILL FIX
   apps/app_hasnewvoicemail.c
+  	removed HasVoicemail and HasNewVoicemail since they're deprecated and
+	the VMCOUNT() should be used instead.
+	them.
   apps/app_lookupblacklist.c
-  apps/app_osplookup.c
+	Removed, but not yet tested
   apps/app_queue.c
   apps/app_sendtext.c
   apps/app_transfer.c
-  apps/app_valetparking.c
   apps/app_voicemail.c
   channels/chan_agent.c
 
 WON'T FIX
-  apps/icd/icd_bridge.c:        ICD is not part of the modules built by default,
-                                and is not officially supported in in 1.2.
-  channels/chan_sip.c:          Priority jumping is only used in the depricated
-                                SipGetHeader application.
+  channels/chan_sip.c
+  	Priority jumping is only used in the depricated SipGetHeader application.
+
+  apps/icd/icd_bridge.c
+  apps/app_osplookup.c
+  apps/app_valetparking.c
+  	These modules are not part of the default build/configure, and are not
+	officially supported in in 1.2, so no change will be made to fix
+	priority jumping.
 

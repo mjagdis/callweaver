@@ -1,4 +1,6 @@
 /*
+ * vim:ts=4:sw=4
+ *
  * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
@@ -52,21 +54,17 @@ static const char lookupblacklist_name[] = "LookupBlacklist";
 static const char lookupblacklist_synopsis[] = "Look up Caller*ID name/number from blacklist database";
 static const char lookupblacklist_syntax[] = "LookupBlacklist()";
 static const char lookupblacklist_descrip[] =
-  "Looks up the Caller*ID number on the active\n"
-  "channel in the CallWeaver database (family 'blacklist').  If the\n"
-  "number is found, and if there exists a priority n + 101,\n"
-  "where 'n' is the priority of the current instance, then  the\n"
-  "channel  will  be  setup  to continue at that priority level.\n"
-  "Otherwise, it returns 0.  Does nothing if no Caller*ID was received on the\n"
-  "channel.\n"
+  "Looks up the Caller*ID number on the active channel in the CallWeaver database\n"
+  "(family 'blacklist'). Sets the variable BLACKLISTED to either TRUE if the\n"
+  "number was found, or FALSE otherwise.\n"
   "Example: database put blacklist <name/number> 1\n";
-
 
 static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char blacklist[1];
 	struct localuser *u;
 	int bl = 0;
+	char var[16] = "FALSE";
 
 	LOCAL_USER_ADD (u);
 
@@ -88,8 +86,11 @@ static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **arg
 		}
 	}
 	
-	if (bl)
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+	if (bl) {
+		strcpy(var, "TRUE");
+	}
+
+	pbx_builtin_setvar_helper(chan, "BLACKLISTED", var);
 
 	LOCAL_USER_REMOVE (u);
 	return 0;
@@ -108,6 +109,5 @@ static int load_module (void)
 	lookupblacklist_app = opbx_register_function(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
 	return 0;
 }
-
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
