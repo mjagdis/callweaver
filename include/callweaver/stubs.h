@@ -1,3 +1,22 @@
+/*
+ * CallWeaver -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2007 - Navynet SRL
+ *
+ * Massimo Cetra <devel@navynet.it>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+// This is not meant to work. It's a request for comments.
 
 enum cw_stubfunction_return {
     CW_RETURN_SUCCESS,
@@ -7,22 +26,27 @@ enum cw_stubfunction_return {
 
 typedef enum cw_stubfunction_return cw_stubfunction_return_t;
 
+
+
 enum cw_stubfunction_types {
     CW_STUNFUNCTION_PRIVATE,            // It's code only. 
-    CW_STUNFUNCTION_PUBLIC,             // It will be exported to the external world (xmlrpc, telnet, whatever you like)
+    CW_STUNFUNCTION_PUBLIC,             // It will be exported to the external world 
+                                        // (xmlrpc, telnet, whatever you like)
 };
 
 typedef enum cw_stubfunction_types cw_stubfunction_types_t;
+
+
 
 struct cw_stubfunction_type_s {
     char                        *function_name;
     char                        *function_api;          // A string like "s/NAME i/timeout d/WHENTOHANGUP" 
                                                         // where s/ stands for string, i/for integer, d/ for date
+                                                        //
     char                        *description;
 
     cw_stubfunction_types_t     type;
     cw_stubfunction_return_t    (*implementation)( int argc, char **argv, char *output );
-
 }
 
 typedef struct cw_stubfunction_type_s cw_stubfunction_type_t;
@@ -54,18 +78,18 @@ cw_stubfunction_type_t *cw_stub_walk_next ( Something );
     ***************************************************************** */
 
 // We write our function
-static cw_stubfunction_return_t  channel_kill( int argc, char **argv, char *output ) {
+static cw_stubfunction_return_t  channel_kill( int argc, char **argv, char **output ) {
     // Here goes the code
     return CW_RETURN_SUCCESS;
 }
 
 // We define our struct
 cw_stubfunction_type_t stub_test {
-    "channel_kill",
-    "s/CHAN_NAME",
-    "This method will kill the channel identified by CHAN_NAME, if exists.",
-    CW_STUNFUNCTION_PUBLIC,
-    channel_kill
+    /* name */          "channel_kill",
+    /* api */           "s/CHAN_NAME",
+    /* desc */          "This method will kill the channel identified by CHAN_NAME, if exists.",
+    /* type*/           CW_STUNFUNCTION_PUBLIC,
+    /* function */      channel_kill
 };
 
 
