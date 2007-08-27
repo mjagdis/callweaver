@@ -73,6 +73,7 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 	struct opbx_channel *tempchan;
 	int status;
 	int res=-1, inuse=-1, option_state=0;
+	int success = 0;
 
 	if (argc < 0 || argc > 1)
 		return opbx_function_syntax(chanisavail_syntax);
@@ -97,7 +98,8 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 			if (!number) {
 				opbx_log(OPBX_LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
 				LOCAL_USER_REMOVE(u);
-				return -1;
+				pbx_builtin_setvar_helper(chan, "AVAILSTATUS", "NONEAVAILABLE");
+				return 0;
 			}
 			*number = '\0';
 			number++;
@@ -129,12 +131,10 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 		} while (cur);
 	}
 	if (res < 1) {
+		pbx_builtin_setvar_helper(chan, "AVAILSTATUS", "NONEAVAILABLE");
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
+		return 0;
 	}
 
 	LOCAL_USER_REMOVE(u);
