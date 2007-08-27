@@ -1,4 +1,6 @@
 /*
+ * vim:ts=4:sw=4
+ *
  * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
@@ -48,14 +50,16 @@ static void *controlplayback_app;
 static const char controlplayback_name[] = "ControlPlayback";
 static const char controlplayback_synopsis[] = "Play a file with fast forward and rewind";
 static const char controlplayback_syntax[] = "ControlPlayback(filename[, skipms[, ffchar[, rewchar[, stopchar[, pausechar[, restartchar]]]]]])";
+static const char controlplayback_chanvar[] = "CPSTATUS";
 static const char controlplayback_descrip[] = 
-"  Plays  back  a  given  filename (do not put extension). Options may also\n"
-"  be included following a pipe symbol.  You can use * and # to rewind and\n"
-"  fast forward the playback specified. If 'stopchar' is added the file will\n"
-"  terminate playback when 'stopchar' is pressed. If 'restartchar' is added, the file\n"
-"  will restart when 'restartchar' is pressed. Returns -1 if the channel\n"
-"  was hung up. if the file does not exist jumps to n+101 if it present.\n\n"
-"  Example:  exten => 1234,1, ControlPlayback(file, 4000, *, #, 1, 0, 5)\n\n";
+"Plays back a given filename (do not put extension). Options may also be\n"
+"included as given in the example. You can use * and # to rewind and fast\n"
+"forward the playback specified. If 'stopchar' is added the file will terminate\n"
+"playback when 'stopchar' is pressed. If 'restartchar' is added, the file will\n"
+"restart when 'restartchar' is pressed. Upon exit, the channel variable CPSTATUS\n"
+"is set to either ERROR or OK giving the app's return status. Always returns 0.\n"
+"\n"
+"Example: exten => 1234,1,ControlPlayback(file, 4000, *, #, 1, 0, 5)\n\n";
 
 
 static int is_on_phonepad(char key)
@@ -93,13 +97,15 @@ static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv
 		res = 0;
 
 	if (res < 0) {
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-			res = 0;
+		pbx_builtin_setvar_helper(chan, controlplayback_chanvar, "ERROR");
+		return 0;
 	}
+
+	pbx_builtin_setvar_helper(chan, controlplayback_chanvar, "OK");
 
 	LOCAL_USER_REMOVE(u);
 
-	return res;
+	return 0;
 }
 
 static int unload_module(void)
