@@ -183,23 +183,6 @@ int opbx_true(const char *val);
  */
 int opbx_false(const char *val);
 
-/* The realloca lets us opbx_restrdupa(), but you can't mix any other opbx_strdup calls! */
-
-struct opbx_realloca {
-	char *ptr;
-	int alloclen;
-};
-
-#define opbx_restrdupa(ra, s) \
-	({ \
-		if ((ra)->ptr && strlen(s) + 1 < (ra)->alloclen) { \
-			strcpy((ra)->ptr, s); \
-		} else { \
-			(ra)->ptr = alloca(strlen(s) + 1 - (ra)->alloclen); \
-			(ra)->alloclen = strlen(s) + 1; \
-		} \
-		(ra)->ptr; \
-	})
 
 #ifndef HAVE_STRCASESTR
 char *strcasestr(const char *, const char *);
