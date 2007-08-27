@@ -8,12 +8,6 @@ are in modules or apps that are depricated, or part of the 1.2 high priority
 modules, we won't fix them.
 
 WILL FIX
-  apps/app_hasnewvoicemail.c
-  	removed HasVoicemail and HasNewVoicemail since they're deprecated and
-	the VMCOUNT() should be used instead.
-	them.
-  apps/app_lookupblacklist.c
-	Removed, but not yet tested
   apps/app_queue.c
   apps/app_sendtext.c
   apps/app_transfer.c

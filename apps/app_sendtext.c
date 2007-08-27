@@ -58,12 +58,7 @@ static const char sendtext_descrip[] =
 "      FAILURE      Transmission failed\n"
 "      UNSUPPORTED  Text transmission not supported by channel\n"
 "\n"
-"At this moment, text is supposed to be 7 bit ASCII in most channels.\n"
-"Old deprecated behavior: \n"
-" SendText only returns 0 if the text was sent correctly or if\n"
-" the channel does not support text transport.\n"
-" If the client does not support text transport, and there exists a\n"
-" step with priority n + 101, then execution will continue at that step.\n";
+"At this moment, text is supposed to be 7 bit ASCII in most channels.\n";
 
 
 static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
@@ -80,8 +75,6 @@ static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	if (!chan->tech->send_text) {
 		opbx_mutex_unlock(&chan->lock);
 		/* Does not support transport */
-		if (option_priority_jumping)
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
