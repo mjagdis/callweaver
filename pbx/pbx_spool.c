@@ -352,12 +352,14 @@ static int scan_service(char *fn, time_t now, time_t atime)
 
 static void *scan_thread(void *unused)
 {
+	char fn[256];
 	struct stat st;
 	DIR *dir;
 	struct dirent *de;
-	char fn[256];
-	int res;
 	time_t last = 0, next = 0, now;
+	int res;
+	int dirstatfailed = 0;
+	int diropenfailed = 0;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -369,35 +371,44 @@ static void *scan_thread(void *unused)
 		pthread_testcancel();
 
 		if (stat(qdir, &st)) {
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			opbx_log(OPBX_LOG_WARNING, "Unable to stat %s\n", qdir);
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			if (!dirstatfailed) {
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				opbx_log(OPBX_LOG_ERROR, "Unable to stat %s\n", qdir);
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				dirstatfailed = 1;
+			}
 			continue;
 		}
+		dirstatfailed = 0;
 
 		if ((st.st_mtime == last) && (!next || (now <= next)))
 			continue;
-#if 0
-		printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
-		printf("Ooh, something changed / timeout\n");
-#endif
 		next = 0;
 		last = st.st_mtime;
+
 		if (!(dir = opendir(qdir))) {
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			opbx_log(OPBX_LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			if (!diropenfailed) {
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				opbx_log(OPBX_LOG_ERROR, "Unable to open directory %s: %s\n", qdir, strerror(errno));
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				diropenfailed = 1;
+			}
 			continue;
 		}
+		diropenfailed = 0;
 
 		pthread_cleanup_push((void (*)(void *))closedir, dir);
 
 		while ((de = readdir(dir))) {
+			if (de->d_name[0] == '.')
+				continue;
+
 			snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
 			if (stat(fn, &st)) {
 				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				opbx_log(OPBX_LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
+				opbx_log(OPBX_LOG_ERROR, "Unable to stat %s: %s, deleting\n", fn, strerror(errno));
 				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				unlink(fn);
 				continue;
 			}
 
@@ -410,7 +421,7 @@ static void *scan_thread(void *unused)
 						if (!next || (res < next))
 							next = res;
 					} else if (res)
-						opbx_log(OPBX_LOG_WARNING, "Failed to scan service '%s'\n", fn);
+						opbx_log(OPBX_LOG_ERROR, "Failed to scan service '%s'\n", fn);
 					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				} else {
 					/* Update "next" update if necessary */
