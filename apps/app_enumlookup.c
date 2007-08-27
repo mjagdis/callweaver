@@ -62,12 +62,7 @@ static const char enumlookup_descrip[] =
 "\nReturns status in the ENUMSTATUS channel variable:\n"
 "    ERROR	Failed to do a lookup\n"
 "    <tech>	Technology of the successful lookup: SIP, H323, IAX, IAX2 or TEL\n"
-"    BADURI	Got URI CallWeaver does not understand.\n"
-"\nOld, depreciated, behaviour:\n"
-"\nA SIP, H323, IAX or IAX2 entry will result in normal priority handling, \n"
-"whereas a TEL entry will increase the priority by 51 (if existing).\n"
-"If the lookup was *not* successful and there exists a priority n + 101,\n"
-"then that priority will be taken next.\n" ;
+"    BADURI	Got URI CallWeaver does not understand.\n";
 
 #define ENUM_CONFIG "enum.conf"
 
@@ -102,7 +97,6 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 	
 	if (!res) {	/* Failed to do a lookup */
 		/* Look for a "busy" place */
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
 		LOCAL_USER_REMOVE(u);
 		return 0;
@@ -157,8 +151,6 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 				opbx_log(OPBX_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-				if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
-					res = 0;
 			}
 		} else if (!opbx_strlen_zero(tech)) {
 			opbx_log(OPBX_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
