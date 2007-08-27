@@ -16,4 +16,3 @@ apps/app_voicemail.c
 apps/icd/icd_bridge.c
 channels/chan_agent.c
 channels/chan_sip.c
-pbx/pbx_dundi.c
