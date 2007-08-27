@@ -53,10 +53,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define BUFFER_SIZE     8096    /* size for the translation buffers */
 #define BUF_SHIFT       5
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
-
-static const char tdesc[] = "ITU G.726-32kbps G726 to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -122,7 +118,7 @@ struct g726_decoder_pvt
  * Side effects:
  *  None.
  */
-static struct opbx_translator_pvt *g726tolin_new(void)
+static void *g726tolin_new(void)
 {
     struct g726_decoder_pvt *tmp;
   
@@ -131,8 +127,7 @@ static struct opbx_translator_pvt *g726tolin_new(void)
     memset(tmp, 0, sizeof(*tmp));
     g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
     plc_init(&tmp->plc);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -145,7 +140,7 @@ static struct opbx_translator_pvt *g726tolin_new(void)
  *  None.
  */
 
-static struct opbx_translator_pvt *lintog726_new(void)
+static void *lintog726_new(void)
 {
     struct g726_encoder_pvt *tmp;
   
@@ -153,8 +148,7 @@ static struct opbx_translator_pvt *lintog726_new(void)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
     g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -167,7 +161,7 @@ static struct opbx_translator_pvt *lintog726_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int g726tolin_framein(void *pvt, struct opbx_frame *f)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
@@ -212,7 +206,7 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  None.
  */
-static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *g726tolin_frameout(void *pvt)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
@@ -238,7 +232,7 @@ static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintog726_framein(void *pvt, struct opbx_frame *f)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
@@ -264,7 +258,7 @@ static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *lintog726_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *lintog726_frameout(void *pvt)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
@@ -304,21 +298,6 @@ static struct opbx_frame *lintog726_sample(void)
 }
 
 /*
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-static void g726_destroy(struct opbx_translator_pvt *pvt)
-{
-    free(pvt);
-    localusecnt--;
-}
-
-/*
  * The complete translator for g726tolin.
  */
 static opbx_translator_t g726tolin =
@@ -331,7 +310,7 @@ static opbx_translator_t g726tolin =
     .newpvt = g726tolin_new,
     .framein = g726tolin_framein,
     .frameout = g726tolin_frameout,
-    .destroy = g726_destroy,
+    .destroy = free,
     .sample = g726tolin_sample
 };
 
@@ -348,7 +327,7 @@ static opbx_translator_t lintog726 =
     .newpvt = lintog726_new,
     .framein = lintog726_framein,
     .frameout = lintog726_frameout,
-    .destroy = g726_destroy,
+    .destroy = free,
     .sample = lintog726_sample
 };
 
@@ -384,26 +363,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-    
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&g726tolin);
     opbx_translator_unregister(&lintog726);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
- 
     parse_config();
     opbx_translator_register(&g726tolin);
     opbx_translator_register(&lintog726);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "ITU G.726-32kbps G726 to/from PCM16 translator");

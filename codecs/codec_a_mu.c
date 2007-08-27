@@ -50,10 +50,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define BUFFER_SIZE   8096    /* size for the translation buffers */
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
-
-static const char tdesc[] = "A-law to/from Mu-law translator";
 
 static unsigned char mu2a[256];
 static unsigned char a2mu[256];
@@ -110,29 +106,27 @@ struct ulaw_encoder_pvt
     int tail;
 };
 
-static struct opbx_translator_pvt *alawtoulaw_new(void)
+static void *alawtoulaw_new(void)
 {
     struct ulaw_encoder_pvt *tmp;
 
     if ((tmp = malloc(sizeof (struct ulaw_encoder_pvt))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
-static struct opbx_translator_pvt *ulawtoalaw_new(void)
+static void *ulawtoalaw_new(void)
 {
     struct alaw_encoder_pvt *tmp;
   
     if ((tmp = malloc(sizeof (struct alaw_encoder_pvt))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
-static int alawtoulaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int alawtoulaw_framein(void *pvt, struct opbx_frame *f)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
     int x;
@@ -153,7 +147,7 @@ static int alawtoulaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
     return 0;
 }
 
-static struct opbx_frame *alawtoulaw_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *alawtoulaw_frameout(void *pvt)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
 
@@ -170,7 +164,7 @@ static struct opbx_frame *alawtoulaw_frameout(struct opbx_translator_pvt *pvt)
     return &tmp->f;
 }
 
-static int ulawtoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int ulawtoalaw_framein(void *pvt, struct opbx_frame *f)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
     int x;
@@ -199,7 +193,7 @@ static int ulawtoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *ulawtoalaw_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *ulawtoalaw_frameout(void *pvt)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
@@ -243,22 +237,6 @@ static struct opbx_frame *ulawtoalaw_sample(void)
 }
 
 /*
- * alawtoulaw_destroy
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
-{
-    free(pvt);
-    localusecnt--;
-}
-
-/*
  * The complete translator for alawtoulaw.
  */
 static opbx_translator_t alawtoulaw =
@@ -271,7 +249,7 @@ static opbx_translator_t alawtoulaw =
     .newpvt = alawtoulaw_new,
     .framein = alawtoulaw_framein,
     .frameout = alawtoulaw_frameout,
-    .destroy = alawtoulaw_destroy,
+    .destroy = free,
     .sample = alawtoulaw_sample
 };
 
@@ -288,26 +266,19 @@ static opbx_translator_t ulawtoalaw =
     .newpvt = ulawtoalaw_new,
     .framein = ulawtoalaw_framein,
     .frameout = ulawtoalaw_frameout,
-    .destroy = alawtoulaw_destroy,
+    .destroy = free,
     .sample = ulawtoalaw_sample
 };
 
 static int unload_module(void)
 {
-    int res = 0;
-  
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&alawtoulaw);
     opbx_translator_unregister(&ulawtoalaw);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
     int x;
 
     for (x = 0;  x < 256;  x++)
@@ -317,8 +288,8 @@ static int load_module(void)
     }
     opbx_translator_register(&alawtoulaw);
     opbx_translator_register(&ulawtoalaw);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, NULL, unload_module, NULL, "A-law to/from Mu-law translator");

@@ -48,7 +48,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 
 /* Sample 20ms of linear frame data */
-static const int16_t slin_ex[] =
+static int16_t slin_ex[] =
 {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
@@ -69,7 +69,7 @@ static const int16_t slin_ex[] =
 };
 
 /* Sample frame of GSM 06.10 data */
-static const uint8_t gsm_ex[] =
+static uint8_t gsm_ex[] =
 {
     0xda, 0xa6, 0xac, 0x2d, 0xa3, 0x50, 0x00, 0x49, 0x24, 0x92, 
     0x49, 0x24, 0x50, 0x40, 0x49, 0x24, 0x92, 0x37, 0x24, 0x52, 
@@ -77,14 +77,10 @@ static const uint8_t gsm_ex[] =
     0x6d, 0xb8, 0xdc
 };
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt=0;
-
-static const char tdesc[] = "GSM06.10/PCM16 (signed linear) codec translator";
 
 static int useplc = 0;
 
-struct opbx_translator_pvt
+struct gsm_coder_pvt
 {
     gsm0610_state_t *gsm;
     struct opbx_frame f;
@@ -98,9 +94,8 @@ struct opbx_translator_pvt
     plc_state_t plc;
 };
 
-#define gsm_coder_pvt opbx_translator_pvt
 
-static struct opbx_translator_pvt *gsm_new(void)
+static void *gsm_new(void)
 {
     struct gsm_coder_pvt *tmp;
 
@@ -113,7 +108,6 @@ static struct opbx_translator_pvt *gsm_new(void)
         return NULL;
     }
     plc_init(&tmp->plc);
-    localusecnt++;
     return tmp;
 }
 
@@ -141,8 +135,10 @@ static struct opbx_frame *gsmtolin_sample(void)
     return &f;
 }
 
-static struct opbx_frame *gsmtolin_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *gsmtolin_frameout(void *pvt)
 {
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
+
     if (tmp->tail == 0)
         return NULL;
 
@@ -161,8 +157,9 @@ static struct opbx_frame *gsmtolin_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int gsmtolin_framein(void *pvt, struct opbx_frame *f)
 {
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
     /* Assuming there's space left, decode into the current buffer at
        the tail location.  Read in as many frames as there are */
     int x;
@@ -225,8 +222,9 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
     return 0;
 }
 
-static int lintogsm_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int lintogsm_framein(void *pvt, struct opbx_frame *f)
 {
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
     /* Just add the frames to our stream */
     /* XXX We should look at how old the rest of our stream is, and if it
        is too old, then we should overwrite it entirely, otherwise we can
@@ -241,8 +239,9 @@ static int lintogsm_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
     return 0;
 }
 
-static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *lintogsm_frameout(void *pvt)
 {
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
     int x = 0;
 
     /* We can't work on anything less than a frame in size */
@@ -274,12 +273,12 @@ static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static void gsm_destroy_stuff(struct opbx_translator_pvt *pvt)
+static void gsm_destroy_stuff(void *pvt)
 {
-    if (pvt->gsm)
-        gsm0610_release(pvt->gsm);
-    free(pvt);
-    localusecnt--;
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
+    if (tmp->gsm)
+        gsm0610_release(tmp->gsm);
+    free(tmp);
 }
 
 static opbx_translator_t gsmtolin =
@@ -342,24 +341,17 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&gsmtolin);
     opbx_translator_unregister(&lintogsm);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
-
     parse_config();
     opbx_translator_register(&gsmtolin);
     opbx_translator_register(&lintogsm);
-    return res;
+    return 0;
 }
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "GSM06.10/PCM16 (signed linear) codec translator");

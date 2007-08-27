@@ -53,11 +53,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define BUFFER_SIZE   8096    /* size for the translation buffers */
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-
-static int localusecnt = 0;
-
-static const char tdesc[] = "Oki 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -123,7 +118,7 @@ struct oki_adpcm_decoder_pvt
  *  None.
  */
 
-static struct opbx_translator_pvt *okiadpcmtolin_new(void)
+static void *okiadpcmtolin_new(void)
 {
     struct oki_adpcm_decoder_pvt *tmp;
   
@@ -133,8 +128,7 @@ static struct opbx_translator_pvt *okiadpcmtolin_new(void)
     oki_adpcm_init(&tmp->oki_state, 32000);
     tmp->tail = 0;
     plc_init(&tmp->plc);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -147,7 +141,7 @@ static struct opbx_translator_pvt *okiadpcmtolin_new(void)
  * Side effects:
  *  None.
  */
-static struct opbx_translator_pvt *lintookiadpcm_new(void)
+static void *lintookiadpcm_new(void)
 {
     struct oki_adpcm_encoder_pvt *tmp;
   
@@ -156,8 +150,7 @@ static struct opbx_translator_pvt *lintookiadpcm_new(void)
     memset(tmp, 0, sizeof(*tmp));
     oki_adpcm_init(&tmp->oki_state, 32000);
     tmp->tail = 0;
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -171,7 +164,7 @@ static struct opbx_translator_pvt *lintookiadpcm_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-static int okiadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int okiadpcmtolin_framein(void *pvt, struct opbx_frame *f)
 {
     struct oki_adpcm_decoder_pvt *tmp = (struct oki_adpcm_decoder_pvt *) pvt;
 
@@ -217,7 +210,7 @@ static int okiadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
  *  None.
  */
 
-static struct opbx_frame *okiadpcmtolin_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *okiadpcmtolin_frameout(void *pvt)
 {
     struct oki_adpcm_decoder_pvt *tmp = (struct oki_adpcm_decoder_pvt *) pvt;
 
@@ -244,7 +237,7 @@ static struct opbx_frame *okiadpcmtolin_frameout(struct opbx_translator_pvt *pvt
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int lintookiadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintookiadpcm_framein(void *pvt, struct opbx_frame *f)
 {
     struct oki_adpcm_encoder_pvt *tmp = (struct oki_adpcm_encoder_pvt *) pvt;
 
@@ -273,7 +266,7 @@ static int lintookiadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct opbx_frame *lintookiadpcm_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *lintookiadpcm_frameout(void *pvt)
 {
     struct oki_adpcm_encoder_pvt *tmp = (struct oki_adpcm_encoder_pvt *) pvt;
     int i_max;
@@ -335,22 +328,6 @@ static struct opbx_frame *lintookiadpcm_sample(void)
 }
 
 /*
- * Adpcm_Destroy
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-static void adpcm_destroy(struct opbx_translator_pvt *pvt)
-{
-    free (pvt);
-    localusecnt--;
-}
-
-/*
  * The complete translator for okiadpcmtoLin.
  */
 static opbx_translator_t okiadpcmtolin =
@@ -363,7 +340,7 @@ static opbx_translator_t okiadpcmtolin =
     .newpvt = okiadpcmtolin_new,
     .framein = okiadpcmtolin_framein,
     .frameout = okiadpcmtolin_frameout,
-    .destroy = adpcm_destroy,
+    .destroy = free,
     .sample = okiadpcmtolin_sample
 };
 
@@ -380,7 +357,7 @@ static opbx_translator_t lintookiadpcm =
     .newpvt = lintookiadpcm_new,
     .framein = lintookiadpcm_framein,
     .frameout = lintookiadpcm_frameout,
-    .destroy = adpcm_destroy,
+    .destroy = free,
     .sample = lintookiadpcm_sample
 };
 
@@ -416,26 +393,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-  
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&okiadpcmtolin);
     opbx_translator_unregister(&lintookiadpcm);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
-  
     parse_config();
     opbx_translator_register(&okiadpcmtolin);
     opbx_translator_register(&lintookiadpcm);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Oki 32kbps ADPCM to/from PCM16 translator");

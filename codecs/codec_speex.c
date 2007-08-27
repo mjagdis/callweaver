@@ -344,12 +344,8 @@ static unsigned char speex_ex[] =
     0x98, 0x7f, 0xff, 0xff, 0xff, 0xe8, 0xff, 0xf7, 0x80
 };
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
 
-static const char tdesc[] = "Speex to/from PCM16 translator";
-
-struct opbx_translator_pvt
+struct speex_coder_pvt
 {
     void *speex;
     struct opbx_frame f;
@@ -372,9 +368,8 @@ struct opbx_translator_pvt
     int silent_state;
 };
 
-#define speex_coder_pvt opbx_translator_pvt
 
-static struct opbx_translator_pvt *lintospeex_new(void)
+static void *lintospeex_new(void)
 {
     struct speex_coder_pvt *tmp;
 
@@ -421,11 +416,10 @@ static struct opbx_translator_pvt *lintospeex_new(void)
         speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
     tmp->tail = 0;
     tmp->silent_state = 0;
-    localusecnt++;
     return tmp;
 }
 
-static struct opbx_translator_pvt *speextolin_new(void)
+static void *speextolin_new(void)
 {
     struct speex_coder_pvt *tmp;
 
@@ -441,7 +435,6 @@ static struct opbx_translator_pvt *speextolin_new(void)
     if (enhancement)
         speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
     tmp->tail = 0;
-    localusecnt++;
     return tmp;
 }
 
@@ -469,8 +462,10 @@ static struct opbx_frame *speextolin_sample(void)
     return &f;
 }
 
-static struct opbx_frame *speextolin_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *speextolin_frameout(void *pvt)
 {
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
+
     if (tmp->tail == 0)
         return NULL;
 
@@ -488,8 +483,9 @@ static struct opbx_frame *speextolin_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static int speextolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int speextolin_framein(void *pvt, struct opbx_frame *f)
 {
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
     /* Assuming there's space left, decode into the current buffer at
        the tail location.  Read in as many frames as there are */
     int x;
@@ -554,8 +550,10 @@ static int speextolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     return 0;
 }
 
-static int lintospeex_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int lintospeex_framein(void *pvt, struct opbx_frame *f)
 {
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
+
     /* Just add the frames to our stream */
     /* XXX We should look at how old the rest of our stream is, and if it
        is too old, then we should overwrite it entirely, otherwise we can
@@ -573,8 +571,9 @@ static int lintospeex_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     return 0;
 }
 
-static struct opbx_frame *lintospeex_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *lintospeex_frameout(void *pvt)
 {
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
 #ifndef _SPEEX_TYPES_H
     float fbuf[1024];
     int x;
@@ -659,24 +658,26 @@ static struct opbx_frame *lintospeex_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static void speextolin_destroy(struct opbx_translator_pvt *pvt)
+static void speextolin_destroy(void *pvt)
 {
-    speex_decoder_destroy(pvt->speex);
-    speex_bits_destroy(&pvt->bits);
-    free(pvt);
-    localusecnt--;
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
+
+    speex_decoder_destroy(tmp->speex);
+    speex_bits_destroy(&tmp->bits);
+    free(tmp);
 }
 
-static void lintospeex_destroy(struct opbx_translator_pvt *pvt)
+static void lintospeex_destroy(void *pvt)
 {
+    struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
+
 #ifdef _SPEEX_TYPES_H
     if (preproc)
-        speex_preprocess_state_destroy(pvt->pp);
+        speex_preprocess_state_destroy(tmp->pp);
 #endif
-    speex_encoder_destroy(pvt->speex);
-    speex_bits_destroy(&pvt->bits);
-    free(pvt);
-    localusecnt--;
+    speex_encoder_destroy(tmp->speex);
+    speex_bits_destroy(&tmp->bits);
+    free(tmp);
 }
 
 static opbx_translator_t speextolin =
@@ -727,9 +728,7 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
-                        opbx_mutex_lock(&localuser_lock);
                         quality = res;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
                         opbx_log(OPBX_LOG_ERROR,"Error Quality must be 0-10\n");
@@ -741,9 +740,7 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
-                        opbx_mutex_lock(&localuser_lock);
                         complexity = res;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
                         opbx_log(OPBX_LOG_ERROR,"Error! Complexity must be 0-10\n");
@@ -754,9 +751,7 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
-                        opbx_mutex_lock(&localuser_lock);
                         vbr_quality = res_f;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else
                         opbx_log(OPBX_LOG_ERROR,"Error! VBR Quality must be 0-10\n");
@@ -767,19 +762,15 @@ static void parse_config(void)
                 }
                 else if (!strcasecmp(var->name, "enhancement"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     enhancement = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "vbr"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     vbr = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "abr"))
                 {
@@ -793,52 +784,40 @@ static void parse_config(void)
                             else
                                 opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
                         }
-                        opbx_mutex_lock(&localuser_lock);
                         abr = res;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else 
                         opbx_log(OPBX_LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "vad"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     vad = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "dtx"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     dtx = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "preprocess"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     preproc = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "pp_vad"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     pp_vad = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "pp_agc"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     pp_agc = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "pp_agc_level"))
                 {
@@ -846,28 +825,22 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
-                        opbx_mutex_lock(&localuser_lock);
                         pp_agc_level = res_f;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else
                         opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "pp_denoise"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     pp_denoise = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb"))
                 {
-                    opbx_mutex_lock(&localuser_lock);
                     pp_dereverb = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
-                    opbx_mutex_unlock(&localuser_lock);
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb_decay"))
                 {
@@ -875,9 +848,7 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
-                        opbx_mutex_lock(&localuser_lock);
                         pp_dereverb_decay = res_f;
-                        opbx_mutex_unlock(&localuser_lock);
                     } else
                         opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
                 }
@@ -887,9 +858,7 @@ static void parse_config(void)
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
-                        opbx_mutex_lock(&localuser_lock);
                         pp_dereverb_level = res_f;
-                        opbx_mutex_unlock(&localuser_lock);
                     }
                     else
                         opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
@@ -909,24 +878,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&speextolin);
     opbx_translator_unregister(&lintospeex);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
     parse_config();
     opbx_translator_register(&speextolin);
     opbx_translator_register(&lintospeex);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Speex to/from PCM16 translator");

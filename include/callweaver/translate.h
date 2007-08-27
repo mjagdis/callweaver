@@ -34,8 +34,6 @@ extern "C" {
 #include "callweaver/module.h"
 #include "callweaver/frame.h"
 
-/* Declared by individual translators */
-struct opbx_translator_pvt;
 
 typedef struct opbx_translator opbx_translator_t;
 

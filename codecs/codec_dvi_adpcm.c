@@ -53,11 +53,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define BUFFER_SIZE   8096      /* size for the translation buffers */
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-
-static int localusecnt = 0;
-
-static const char tdesc[] = "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -123,7 +118,7 @@ struct dvi_adpcm_decoder_pvt
  *  None.
  */
 
-static struct opbx_translator_pvt *dviadpcmtolin_new(void)
+static void *dviadpcmtolin_new(void)
 {
     struct dvi_adpcm_decoder_pvt *tmp;
   
@@ -132,8 +127,7 @@ static struct opbx_translator_pvt *dviadpcmtolin_new(void)
     memset(tmp, 0, sizeof(*tmp));
     ima_adpcm_init(&tmp->dvi_state, 32000);
     plc_init(&tmp->plc);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -146,7 +140,7 @@ static struct opbx_translator_pvt *dviadpcmtolin_new(void)
  * Side effects:
  *  None.
  */
-static struct opbx_translator_pvt *lintodviadpcm_new(void)
+static void *lintodviadpcm_new(void)
 {
     struct dvi_adpcm_encoder_pvt *tmp;
   
@@ -154,8 +148,7 @@ static struct opbx_translator_pvt *lintodviadpcm_new(void)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
     ima_adpcm_init(&tmp->dvi_state, 32000);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*
@@ -170,7 +163,7 @@ static struct opbx_translator_pvt *lintodviadpcm_new(void)
  *  tmp->tail is the number of packed values in the buffer.
  */
 
-static int dviadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int dviadpcmtolin_framein(void *pvt, struct opbx_frame *f)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
 
@@ -215,7 +208,7 @@ static int dviadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
  *  None.
  */
 
-static struct opbx_frame *dviadpcmtolin_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *dviadpcmtolin_frameout(void *pvt)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
 
@@ -242,7 +235,7 @@ static struct opbx_frame *dviadpcmtolin_frameout(struct opbx_translator_pvt *pvt
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int lintodviadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintodviadpcm_framein(void *pvt, struct opbx_frame *f)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
 
@@ -271,7 +264,7 @@ static int lintodviadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct opbx_frame *lintodviadpcm_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *lintodviadpcm_frameout(void *pvt)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
     int i_max;
@@ -333,22 +326,6 @@ static struct opbx_frame *lintodviadpcm_sample(void)
 }
 
 /*
- * Adpcm_Destroy
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-static void dviadpcm_destroy(struct opbx_translator_pvt *pvt)
-{
-    free (pvt);
-    localusecnt--;
-}
-
-/*
  * The complete translator for ADPCMToLin.
  */
 static opbx_translator_t dviadpcmtolin =
@@ -361,7 +338,7 @@ static opbx_translator_t dviadpcmtolin =
     .newpvt = dviadpcmtolin_new,
     .framein = dviadpcmtolin_framein,
     .frameout = dviadpcmtolin_frameout,
-    .destroy = dviadpcm_destroy,
+    .destroy = free,
     .sample = dviadpcmtolin_sample
 };
 
@@ -378,7 +355,7 @@ static opbx_translator_t lintodviadpcm =
     .newpvt = lintodviadpcm_new,
     .framein = lintodviadpcm_framein,
     .frameout = lintodviadpcm_frameout,
-    .destroy = dviadpcm_destroy,
+    .destroy = free,
     .sample = lintodviadpcm_sample
 };
 
@@ -414,26 +391,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-  
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&dviadpcmtolin);
     opbx_translator_unregister(&lintodviadpcm);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
-  
     parse_config();
     opbx_translator_register(&dviadpcmtolin);
     opbx_translator_register(&lintodviadpcm);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator");

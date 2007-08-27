@@ -42,13 +42,13 @@ struct opbx_translator {
 	/*! Destination sample rate */
 	int dst_rate;
 	/*! Private data associated with the translator */
-	struct opbx_translator_pvt *(*newpvt)(void);
+	void *(*newpvt)(void);
 	/*! Input frame callback */
-	int (*framein)(struct opbx_translator_pvt *pvt, struct opbx_frame *in);
+	int (*framein)(void *pvt, struct opbx_frame *in);
 	/*! Output frame callback */
-	struct opbx_frame * (*frameout)(struct opbx_translator_pvt *pvt);
+	struct opbx_frame * (*frameout)(void *pvt);
 	/*! Destroy translator callback */
-	void (*destroy)(struct opbx_translator_pvt *pvt);
+	void (*destroy)(void *pvt);
 	/* For performance measurements */
 	/*! Generate an example frame */
 	struct opbx_frame *(*sample)(void);

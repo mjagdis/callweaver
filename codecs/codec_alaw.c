@@ -51,10 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define BUFFER_SIZE   8096    /* size for the translation buffers */
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
-
-static const char tdesc[] = "A-law to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -123,7 +119,7 @@ struct alaw_decoder_pvt
  * Side effects:
  *  None.
  */
-static struct opbx_translator_pvt *alawtolin_new(void)
+static void *alawtolin_new(void)
 {
     struct alaw_decoder_pvt *tmp;
   
@@ -132,8 +128,7 @@ static struct opbx_translator_pvt *alawtolin_new(void)
     memset(tmp, 0, sizeof(*tmp));
     tmp->tail = 0;
     plc_init(&tmp->plc);
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*!
@@ -146,15 +141,14 @@ static struct opbx_translator_pvt *alawtolin_new(void)
  * Side effects:
  *  None.
  */
-static struct opbx_translator_pvt *lintoalaw_new(void)
+static void *lintoalaw_new(void)
 {
     struct alaw_encoder_pvt *tmp;
   
     if ((tmp = malloc(sizeof(struct alaw_encoder_pvt))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    localusecnt++;
-    return (struct opbx_translator_pvt *) tmp;
+    return tmp;
 }
 
 /*!
@@ -168,7 +162,7 @@ static struct opbx_translator_pvt *lintoalaw_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int alawtolin_framein(void *pvt, struct opbx_frame *f)
 {
     struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
     int x;
@@ -215,7 +209,7 @@ static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  None.
  */
-static struct opbx_frame *alawtolin_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *alawtolin_frameout(void *pvt)
 {
     struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
 
@@ -242,7 +236,7 @@ static struct opbx_frame *alawtolin_frameout(struct opbx_translator_pvt *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-static int lintoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintoalaw_framein(void *pvt, struct opbx_frame *f)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
     int x;
@@ -271,7 +265,7 @@ static int lintoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *lintoalaw_frameout(struct opbx_translator_pvt *pvt)
+static struct opbx_frame *lintoalaw_frameout(void *pvt)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
@@ -318,22 +312,6 @@ static struct opbx_frame *lintoalaw_sample(void)
 }
 
 /*!
- * \brief alaw_destroy
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-static void alaw_destroy(struct opbx_translator_pvt *pvt)
-{
-    free(pvt);
-    localusecnt--;
-}
-
-/*!
  * \brief The complete translator for alawtolin.
  */
 static opbx_translator_t alawtolin =
@@ -346,7 +324,7 @@ static opbx_translator_t alawtolin =
     .newpvt = alawtolin_new,
     .framein = alawtolin_framein,
     .frameout = alawtolin_frameout,
-    .destroy = alaw_destroy,
+    .destroy = free,
     .sample = alawtolin_sample
 };
 
@@ -363,7 +341,7 @@ static opbx_translator_t lintoalaw =
     .newpvt = lintoalaw_new,
     .framein = lintoalaw_framein,
     .frameout = lintoalaw_frameout,
-    .destroy = alaw_destroy,
+    .destroy = free,
     .sample = lintoalaw_sample
 };
 
@@ -399,26 +377,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&alawtolin);
     opbx_translator_unregister(&lintoalaw);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
-
     parse_config();
     opbx_translator_register(&alawtolin);
     opbx_translator_register(&lintoalaw);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "A-law to/from PCM16 translator");

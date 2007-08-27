@@ -82,15 +82,10 @@ static uint8_t lpc10_ex[] =
 
 #define LPC10_BYTES_IN_COMPRESSED_FRAME (LPC10_BITS_IN_COMPRESSED_FRAME + 7)/8
 
-OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-
-static int localusecnt = 0;
-
-static const char tdesc[] = "LPC10e to/from PCM16 (signed linear) translator";
 
 static int useplc = 0;
 
-struct opbx_translator_pvt
+struct lpc10_coder_pvt
 {
     union
     {
@@ -109,9 +104,8 @@ struct opbx_translator_pvt
     plc_state_t plc;
 };
 
-#define lpc10_coder_pvt opbx_translator_pvt
 
-static struct opbx_translator_pvt *lpc10_enc_new(void)
+static void *lpc10_enc_new(void)
 {
     struct lpc10_coder_pvt *tmp;
 
@@ -124,11 +118,10 @@ static struct opbx_translator_pvt *lpc10_enc_new(void)
     }
     tmp->tail = 0;
     tmp->longer = 0;
-    localusecnt++;
     return tmp;
 }
 
-static struct opbx_translator_pvt *lpc10_dec_new(void)
+static void *lpc10_dec_new(void)
 {
     struct lpc10_coder_pvt *tmp;
 
@@ -142,7 +135,6 @@ static struct opbx_translator_pvt *lpc10_dec_new(void)
     tmp->tail = 0;
     tmp->longer = 0;
     plc_init(&tmp->plc);
-    localusecnt++;
     return tmp;
 }
 
@@ -171,8 +163,9 @@ static struct opbx_frame *lpc10tolin_sample(void)
     return &f;
 }
 
-static struct opbx_frame *lpc10tolin_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *lpc10tolin_frameout(void *pvt)
 {
+    struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     if (tmp->tail == 0)
         return NULL;
 
@@ -190,8 +183,9 @@ static struct opbx_frame *lpc10tolin_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int lpc10tolin_framein(void *pvt, struct opbx_frame *f)
 {
+    struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     /* Assuming there's space left, decode into the current buffer at
        the tail location */
     int len = 0;
@@ -237,8 +231,9 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     return 0;
 }
 
-static int lintolpc10_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
+static int lintolpc10_framein(void *pvt, struct opbx_frame *f)
 {
+    struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     /* Just add the frames to our stream */
     /* XXX We should look at how old the rest of our stream is, and if it
        is too old, then we should overwrite it entirely, otherwise we can
@@ -253,8 +248,9 @@ static int lintolpc10_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
     return 0;
 }
 
-static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
+static struct opbx_frame *lintolpc10_frameout(void *pvt)
 {
+    struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     int consumed = 0;
 
     /* We can't work on anything less than a frame in size */
@@ -293,13 +289,13 @@ static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
     return &tmp->f;    
 }
 
-static void lpc10_destroy(struct opbx_translator_pvt *pvt)
+static void lpc10_destroy(void *pvt)
 {
+    struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     /* TODO: This makes assumptions about what happens in the LPC10 code */
-    if (pvt->lpc10.enc)
-        lpc10_encode_release(pvt->lpc10.enc);
-    free(pvt);
-    localusecnt--;
+    if (tmp->lpc10.enc)
+        lpc10_encode_release(tmp->lpc10.enc);
+    free(tmp);
 }
 
 static opbx_translator_t lpc10tolin =
@@ -357,25 +353,18 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    int res = 0;
-
-    opbx_mutex_lock(&localuser_lock);
-    if (localusecnt)
-        res = -1;
-    opbx_mutex_unlock(&localuser_lock);
     opbx_translator_unregister(&lpc10tolin);
     opbx_translator_unregister(&lintolpc10);
-    return res;
+    return 0;
 }
 
 static int load_module(void)
 {
-    int res = 0;
     parse_config();
     opbx_translator_register(&lpc10tolin);
     opbx_translator_register(&lintolpc10);
-    return res;
+    return 0;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "LPC10e to/from PCM16 (signed linear) translator");
