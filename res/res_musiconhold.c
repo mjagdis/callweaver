@@ -437,6 +437,7 @@ static void *monitor_custom_command(void *data)
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
+
 	for(;/* ever */;) {
 		/* Spawn custom command if it's not there */
 		if (class->srcfd < 0) {
@@ -482,9 +483,13 @@ static void *monitor_custom_command(void *data)
 		moh = class->members;
 		while (moh) {
 			/* Write data */
-			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) 
-				if (option_debug)
-					opbx_log(OPBX_LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
+			if ((res = write(moh->pipe[1], sbuf, res2)) != res2)  {
+				if (res == -1) {
+					opbx_log(OPBX_LOG_WARNING, "Failed to write to pipe (%d): %s\n", moh->pipe[1], strerror(errno));
+				} else if (option_debug) {
+					opbx_log(OPBX_LOG_DEBUG, "Only wrote %d of %d bytes to pipe %d\n", res, res2, moh->pipe[1]);
+				}
+			}
 			moh = moh->next;
 		}
 		opbx_mutex_unlock(&moh_lock);
