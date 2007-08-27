@@ -129,8 +129,8 @@ struct opbx_dsp
     int busycount;
     int busy_tonelength;
     int busy_quietlength;
-    int historicnoise[DSP_HISTORY];
-    int historicsilence[DSP_HISTORY];
+    int noise_history[DSP_HISTORY];
+    int silence_history[DSP_HISTORY];
     goertzel_state_t freqs[7];
     int freqcount;
     int gsamps;
@@ -138,8 +138,8 @@ struct opbx_dsp
     int progmode;
     int tstate;
     int tcount;
-    int digitmode;
-    int thinkdigit;
+    int digit_mode;
+    int possible_digit;
     int mute_lag;
     float genergy;
     dtmf_rx_state_t dtmf_rx;
@@ -152,7 +152,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 {
     /* See if p1 and p2 are there, relative to i1 and i2 and total energy */
     /* Make sure absolute levels are high enough */
-    if ((p1 < TONE_MIN_THRESH) || (p2 < TONE_MIN_THRESH))
+    if ((p1 < TONE_MIN_THRESH)  ||  (p2 < TONE_MIN_THRESH))
         return 0;
     /* Amplify ignored stuff */
     i2 *= TONE_THRESH;
@@ -203,7 +203,7 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
 #if 0
             printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
             printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
-                hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
+                   hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
 #endif
             switch (dsp->progmode)
             {
@@ -257,6 +257,7 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
                 break;
             default:
                 opbx_log(OPBX_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+                break;
             }
             if (newstate == dsp->tstate)
             {
@@ -327,7 +328,7 @@ int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
         opbx_log(OPBX_LOG_WARNING, "Can only check call progress in signed-linear frames\n");
         return 0;
     }
-    return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
+    return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen/sizeof(int16_t));
 }
 
 static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int *totalsilence)
@@ -336,12 +337,14 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int 
     int x;
     int res;
 
-    if (!len)
+    if (len < 2)
         return 0;
+    /* Use crude HPF, to provide DC immunity. Of course this provides little immunity to other forms of channel
+       pollution, but it sidesteps a lot of the real world problems. */
     accum = 0;
-    for (x = 0;  x < len;  x++) 
-        accum += abs(amp[x]);
-    accum /= len;
+    for (x = 0;  x < len - 1;  x++)
+        accum += abs(amp[x + 1] - amp[x]);
+    accum /= (len - 1);
     if (accum < dsp->threshold)
     {
         /* Silent */
@@ -349,8 +352,8 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int 
         if (dsp->totalnoise)
         {
             /* Move and save history */
-            memmove(dsp->historicnoise + DSP_HISTORY - dsp->busycount, dsp->historicnoise + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->historicnoise[0]));
-            dsp->historicnoise[DSP_HISTORY - 1] = dsp->totalnoise;
+            memmove(dsp->noise_history + DSP_HISTORY - dsp->busycount, dsp->noise_history + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->noise_history[0]));
+            dsp->noise_history[DSP_HISTORY - 1] = dsp->totalnoise;
             /* We don't want to check for busydetect that frequently */
         }
         dsp->totalnoise = 0;
@@ -362,12 +365,12 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int 
         dsp->totalnoise += len/8;
         if (dsp->totalsilence)
         {
-            int silence1 = dsp->historicsilence[DSP_HISTORY - 1];
-            int silence2 = dsp->historicsilence[DSP_HISTORY - 2];
+            int silence1 = dsp->silence_history[DSP_HISTORY - 1];
+            int silence2 = dsp->silence_history[DSP_HISTORY - 2];
             /* Move and save history */
-            memmove(dsp->historicsilence + DSP_HISTORY - dsp->busycount, dsp->historicsilence + DSP_HISTORY - dsp->busycount + 1, dsp->busycount*sizeof(dsp->historicsilence[0]));
-            dsp->historicsilence[DSP_HISTORY - 1] = dsp->totalsilence;
-            /* check if the previous sample differs only by BUSY_PERCENT from the one before it */
+            memmove(dsp->silence_history + DSP_HISTORY - dsp->busycount, dsp->silence_history + DSP_HISTORY - dsp->busycount + 1, dsp->busycount*sizeof(dsp->silence_history[0]));
+            dsp->silence_history[DSP_HISTORY - 1] = dsp->totalsilence;
+            /* Check if the previous sample differs only by BUSY_PERCENT from the one before it */
             if (silence1 < silence2)
                 dsp->busy_maybe = (silence1 + silence1*BUSY_PERCENT/100 >= silence2);
             else
@@ -395,31 +398,31 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
         return res;
     for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
     {
-        avgsilence += dsp->historicsilence[x];
-        avgtone += dsp->historicnoise[x];
+        avgsilence += dsp->silence_history[x];
+        avgtone += dsp->noise_history[x];
     }
     avgsilence /= dsp->busycount;
     avgtone /= dsp->busycount;
     for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
     {
-        if (avgsilence > dsp->historicsilence[x])
+        if (avgsilence > dsp->silence_history[x])
         {
-            if (avgsilence - (avgsilence*BUSY_PERCENT/100) <= dsp->historicsilence[x])
+            if (avgsilence - (avgsilence*BUSY_PERCENT/100) <= dsp->silence_history[x])
                 hitsilence++;
         }
         else
         {
-            if (avgsilence + (avgsilence*BUSY_PERCENT/100) >= dsp->historicsilence[x])
+            if (avgsilence + (avgsilence*BUSY_PERCENT/100) >= dsp->silence_history[x])
                 hitsilence++;
         }
-        if (avgtone > dsp->historicnoise[x])
+        if (avgtone > dsp->noise_history[x])
         {
-            if (avgtone - (avgtone*BUSY_PERCENT/100) <= dsp->historicnoise[x])
+            if (avgtone - (avgtone*BUSY_PERCENT/100) <= dsp->noise_history[x])
                 hittone++;
         }
         else
         {
-            if (avgtone + (avgtone*BUSY_PERCENT/100) >= dsp->historicnoise[x])
+            if (avgtone + (avgtone*BUSY_PERCENT/100) >= dsp->noise_history[x])
                 hittone++;
         }
     }
@@ -447,13 +450,13 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 #endif
     }
     /* If we know the expected busy tone length, check we are in the range */
-    if (res && (dsp->busy_tonelength > 0))
+    if (res  &&  (dsp->busy_tonelength > 0))
     {
         if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100))
             res = 0;
     }
     /* If we know the expected busy tone silent-period length, check we are in the range */
-    if (res && (dsp->busy_quietlength > 0))
+    if (res  &&  (dsp->busy_quietlength > 0))
     {
         if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100))
             res = 0;
@@ -482,14 +485,14 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
         max = 0;
         for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
         {
-            if (dsp->historicsilence[x] < min)
-                min = dsp->historicsilence[x];
-            if (dsp->historicnoise[x] < min)
-                min = dsp->historicnoise[x];
-            if (dsp->historicsilence[x] > max)
-                max = dsp->historicsilence[x];
-            if (dsp->historicnoise[x] > max)
-                max = dsp->historicnoise[x];
+            if (dsp->silence_history[x] < min)
+                min = dsp->silence_history[x];
+            if (dsp->noise_history[x] < min)
+                min = dsp->noise_history[x];
+            if (dsp->silence_history[x] > max)
+                max = dsp->silence_history[x];
+            if (dsp->noise_history[x] > max)
+                max = dsp->noise_history[x];
         }
         if ((max - min < BUSY_THRESHOLD) && (max < BUSY_MAX) && (min > BUSY_MIN))
             res = 1;
@@ -502,8 +505,8 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
 {
     int16_t *amp;
     uint8_t *data;
-    int len = 0;
-    int x = 0;
+    int len;
+    int x;
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
@@ -511,11 +514,12 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
         return 0;
     }
     data = f->data;
+    len = 0;
     switch (f->subclass)
     {
     case OPBX_FORMAT_SLINEAR:
         amp = f->data;
-        len = f->datalen / sizeof(int16_t);
+        len = f->datalen/sizeof(int16_t);
         break;
     case OPBX_FORMAT_ULAW:
         amp = alloca(f->datalen*sizeof(int16_t));
@@ -564,6 +568,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     int16_t *amp;
     uint8_t *odata;
     int len;
+    int dtmf_status;
     int writeback = FALSE;
     char digit_buf[10];
     char buf[2];
@@ -579,7 +584,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     {
     case OPBX_FORMAT_SLINEAR:
         amp = af->data;
-        len = af->datalen/2;
+        len = af->datalen/sizeof(int16_t);
         break;
     case OPBX_FORMAT_ULAW:
         amp = alloca(af->datalen*sizeof(int16_t));
@@ -611,7 +616,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     }
     if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
     {
-        if ((dsp->digitmode & DSP_DIGITMODE_MF))
+        if ((dsp->digit_mode & DSP_DIGITMODE_MF))
         {
             bell_mf_rx(&dsp->bell_mf_rx, amp, len);
             if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
@@ -626,25 +631,25 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         else
         {
             dtmf_rx(&dsp->dtmf_rx, amp, len);
-            /* TODO: Avoid probing inside the DTMF rx object */
-            if (dsp->dtmf_rx.in_digit)
+            dtmf_status = dtmf_rx_status(&dsp->dtmf_rx);
+            /* A confirmed "in digit" status should cause mute to overhang */
+            if (dtmf_status  &&  dtmf_status != 'x')
                 dsp->mute_lag = 5;
-            if (dsp->mute_lag  &&  --dsp->mute_lag)
+            if (dsp->mute_lag)
             {
-                memset(amp, 0, sizeof(int16_t)*len);
-                writeback = TRUE;
-            }
-            /* TODO: Avoid probing inside the DTMF rx object */
-            if ((dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
-            {
-                if (dsp->thinkdigit == 0)
+                if (--dsp->mute_lag)
                 {
-                    if (dsp->dtmf_rx.last_hit)
+                    memset(amp, 0, sizeof(int16_t)*len);
+                    writeback = TRUE;
+                }
+                else
+                {
+                    dsp->possible_digit = FALSE;
+                    if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
                     {
-                        /* Looks like we might have something.  
-                           Request a conference mute for the moment */
-                        dsp->thinkdigit = 'x';
-                        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
+                        opbx_fr_init(&dsp->f);
+                        dsp->f.frametype = OPBX_FRAME_DTMF;
+                        dsp->f.subclass = 'u';
                         FIX_INF(af);
                         if (chan)
                             opbx_queue_frame(chan, af);
@@ -652,53 +657,29 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                         return &dsp->f;
                     }
                 }
+            }
+            if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
+            {
+                if (dsp->possible_digit)
+                {
+                    FIX_INF(af);
+                    if (chan)
+                        opbx_queue_frame(chan, af);
+                    opbx_fr_free(af);
+                }
                 else
                 {
-                    if (dsp->dtmf_rx.in_digit)
+                    if (dtmf_status)
                     {
-                        /* Thought we saw one last time. It is now confirmed. */
-                        if (dsp->thinkdigit)
-                        {
-                            if ((dsp->thinkdigit != 'x')  &&  (dsp->thinkdigit != dsp->dtmf_rx.in_digit))
-                            {
-                                /* If we found a digit, and we're changing digits, go
-                                   ahead and send this one, but DON'T stop confmute because
-                                   we're detecting something else, too... */
-                                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->thinkdigit, NULL);
-                                FIX_INF(af);
-                                if (chan)
-                                    opbx_queue_frame(chan, af);
-                                opbx_fr_free(af);
-                            }
-                            dsp->thinkdigit = dsp->dtmf_rx.in_digit;
-                            return &dsp->f;
-                        }
-                        dsp->thinkdigit = dsp->dtmf_rx.in_digit;
-                    }
-                    else
-                    {
-                        if (dsp->thinkdigit)
-                        {
-                            opbx_fr_init(&dsp->f);
-                            if (dsp->thinkdigit != 'x')
-                            {
-                                /* If we found a digit, send it now */
-                                dsp->f.frametype = OPBX_FRAME_DTMF;
-                                dsp->f.subclass = dsp->thinkdigit;
-                                dsp->thinkdigit = 0;
-                            }
-                            else
-                            {
-                                dsp->f.frametype = OPBX_FRAME_DTMF;
-                                dsp->f.subclass = 'u';
-                                dsp->thinkdigit = 0;
-                            }
-                            FIX_INF(af);
-                            if (chan)
-                                opbx_queue_frame(chan, af);
-                            opbx_fr_free(af);
-                            return &dsp->f;
-                        }
+                        /* Looks like we might have something.  
+                           Request a conference mute for the moment */
+                        dsp->possible_digit = TRUE;
+                        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
+                        FIX_INF(af);
+                        if (chan)
+                            opbx_queue_frame(chan, af);
+                        opbx_fr_free(af);
+                        return &dsp->f;
                     }
                 }
             }
@@ -767,11 +748,12 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 static void opbx_dsp_prog_reset(struct opbx_dsp *dsp)
 {
     goertzel_descriptor_t desc;
-    int max = 0;
+    int max;
     int x;
     
     dsp->gsamp_size = modes[dsp->progmode].size;
     dsp->gsamps = 0;
+    max = 0;
     for (x = 0;  x < sizeof(modes[dsp->progmode].freqs)/sizeof(modes[dsp->progmode].freqs[0]);  x++)
     {
         if (modes[dsp->progmode].freqs[x])
@@ -841,13 +823,13 @@ void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietle
 {
     dsp->busy_tonelength = tonelength;
     dsp->busy_quietlength = quietlength;
-    opbx_log(OPBX_LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
+    opbx_log(OPBX_LOG_DEBUG, "DSP busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
 void opbx_dsp_digitreset(struct opbx_dsp *dsp)
 {
-    dsp->thinkdigit = 0;
-    if (dsp->digitmode & DSP_DIGITMODE_MF)
+    dsp->possible_digit = FALSE;
+    if (dsp->digit_mode & DSP_DIGITMODE_MF)
         bell_mf_rx_init(&dsp->bell_mf_rx, NULL, NULL);
     else
         dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
@@ -870,17 +852,17 @@ void opbx_dsp_reset(struct opbx_dsp *dsp)
     dsp->gsamps = 0;
     for (x = 0;  x < 4;  x++)
         goertzel_reset(&dsp->freqs[x]);
-    memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
-    memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));    
+    memset(dsp->silence_history, 0, sizeof(dsp->silence_history));
+    memset(dsp->noise_history, 0, sizeof(dsp->noise_history));    
 }
 
-int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
+int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digit_mode)
 {
     int new_mode;
     int old_mode;
     
-    old_mode = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
-    new_mode = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+    old_mode = dsp->digit_mode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+    new_mode = digit_mode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
     if (old_mode != new_mode)
     {
         /* Must initialize structures if switching from MF to DTMF or vice-versa */
@@ -898,11 +880,8 @@ int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
                                     NULL,
                                     NULL);
     }
-    if ((digitmode & DSP_DIGITMODE_RELAXDTMF))
-        dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, 8);
-    else
-        dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, 4);
-    dsp->digitmode = digitmode;
+    dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, (digit_mode & DSP_DIGITMODE_RELAXDTMF)  ?  8  :  4);
+    dsp->digit_mode = digit_mode;
     return 0;
 }
 
@@ -912,7 +891,7 @@ int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
     
     for (x = 0;  x < sizeof(aliases)/sizeof(aliases[0]);  x++)
     {
-        if (!strcasecmp(aliases[x].name, zone))
+        if (strcasecmp(aliases[x].name, zone) == 0)
         {
             dsp->progmode = aliases[x].mode;
             opbx_dsp_prog_reset(dsp);
