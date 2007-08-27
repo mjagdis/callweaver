@@ -113,3 +113,71 @@ containing the details of what has been done.
 
 
 #endif
+
+/*  ***************************************************************** 
+                          ALTERNATE APPROACH
+    ***************************************************************** */
+
+bool cw_stubfunction_registerarg(STUB_NAME, MANDATORY, ARG_NAME, ARG_TYPE);
+void *cw_stubfunction_getarg(STUB_NAME, ARG_NAME, cw_stubfunction_arg_t args)
+
+#define TYPE_NULL       (1<<0)	// Used if optional arg and no value supplued
+#define TYPE_INT        (1<<1)
+#define TYPE_STRING     (1<<2)
+#define TYPE_BOOL       (1<<3)
+
+struct cw_stubfunction_arg_s {
+  int arg_t;    // Type of arg
+  void *arg_v;  // Actual arg
+};
+typedef struct cw_stubfunction_arg_s cw_stubfunction_arg_t;
+typedef cw_stubfunction_return_t cw_stubfunction_arg_t;
+
+struct cw_stubfunction_args_s {
+  int argc;			// number of args
+  cw_stubfunction_arg_t *args;	// args
+};
+typedef struct cw_stubfunction_args_s cw_stubfunction_args_t;
+
+
+
+#if 0
+
+/*  ***************************************************************** 
+                     QUICK EXAMPLE - ALTERNATE
+    ***************************************************************** */
+
+static cw_stubfunction_return_t *channel_kill(cw_stubfunction_args_t *args) {
+  char *chan;
+  cw_stubfunction_return_t *retval = malloc(sizeof(cw_stubfunction_return_t));
+  retval->return_t = TYPE_BOOL;
+  retval->return_v = false;
+
+  /* Optional internal testing of an argument - we should be able to trust upstream API
+  if (!cw_stubfunction_testarg(args, TYPE_STRING, 0))
+    return retval; // set false already
+  */
+  chan = cw_stubfunction_getarg(args, TYPE_STRING, 0);
+
+  if (cw_stubfunction_testarg(args, TYPE_INT, 1));
+    // do stuff with timeout variable
+
+  // Code here
+  retval->return_v = true;
+  return retval;
+}
+
+// We define our struct
+cw_stubfunction_type_t stub_test {
+    /* name */          "channel_kill",
+    /* api */           "s/CHAN_NAME;oi/timeout", // CHAN_NAME = 0, timeout = 1
+    /* desc */          "This method will kill the channel identified by CHAN_NAME, if exists.",
+    /* type*/           CW_STUNFUNCTION_PUBLIC,
+    /* function */      channel_kill
+};
+
+
+void register_me(void) {
+    cw_stub_function_register( &stub_test );
+}
+#endif
