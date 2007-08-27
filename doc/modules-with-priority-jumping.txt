@@ -1,7 +1,6 @@
 The following modules use priority jumping. This should be changed to setting
 variables instead and always returning zero
 
-apps/app_chanisavail.c
 apps/app_controlplayback.c
 apps/app_enumlookup.c
 apps/app_hasnewvoicemail.c
