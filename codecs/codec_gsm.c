@@ -125,7 +125,7 @@ static struct opbx_frame *lintogsm_sample(void)
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
-    f.data = slin_ex;
+    f.data = (int16_t *) slin_ex;
     return &f;
 }
 
@@ -137,7 +137,7 @@ static struct opbx_frame *gsmtolin_sample(void)
     f.datalen = sizeof(gsm_ex);
     /* All frames are 20 ms long */
     f.samples = 160;
-    f.data = gsm_ex;
+    f.data = (uint8_t *) gsm_ex;
     return &f;
 }
 
