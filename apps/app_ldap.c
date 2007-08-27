@@ -1,5 +1,5 @@
 /*
- * vim:ft=4:sw=4
+ * vim:ts=4:sw=4
  *
  * CallWeaver -- A telephony toolkit for Unix.
  *
@@ -50,10 +50,9 @@ static const char g_name[] = "LDAPget";
 static const char g_synopsis[] = "Retrieve a value from an ldap directory";
 static const char g_syntax[] = "LDAPget(varname=config-file-section/key)";
 static const char g_descrip[] =
-"Retrieves a value from an LDAP\n"
-"directory and stores it in the given variable. Always returns 0.	If the\n"
-"requested key is not found, jumps to priority n+101 if available.\n";
-
+"Retrieves a value from an LDAP directory and stores it in the given variable.\n"
+"Upon exit, set the variable LDAPSTATUS to either SUCCESS or FAILURE.\n"
+"Always returns 0.\n";
 
 static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
@@ -67,8 +66,10 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	char *temp, *host, *user, *pass, *base, *scope, *filter, *_filter, *attribute,
 		 *convert_from = NULL, *convert_to = NULL;
 
-	if (argc != 1)
+	if (argc != 1) {
+		pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "FAILURE");
 		return opbx_function_syntax(g_syntax);
+	}
 
 	LOCAL_USER_ADD(u);
 
@@ -86,10 +87,12 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		}
 		if (!varname || !config) {
 			opbx_log(OPBX_LOG_WARNING, "Ignoring; Syntax error in argument\n");
+			pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "FAILURE");
 			return 0;
 		}
 	} else {
 		opbx_log(OPBX_LOG_WARNING, "Ignoring, no parameters\n");
+		pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "FAILURE");
 		return 0;
 	}
 
@@ -126,7 +129,6 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		attribute = "cn";
 	}
 	if ((temp = opbx_variable_retrieve(cfg, config, "convert"))) {
-		//convert = opbx_true(temp);
 		if (strchr(temp, ',')) {
 			convert_from = strtrim(strsep(&temp, ","));
 			convert_to = strtrim(strsep(&temp, "\0"));
@@ -146,9 +148,8 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		filter = (char *)realloc(filter, (strlen(filter)+strlen(keys)+1)*sizeof(char));
 		while((key = strsep(&keys, "|")) != NULL) {
 			if ((tail = strstr(filter, "%s")) != NULL) {
-	//key = strtrim(key);
-	memmove(tail+strlen(key), tail+2, strlen(tail+2)+1);
-	memcpy(tail, key, strlen(key));
+				memmove(tail+strlen(key), tail+2, strlen(tail+2)+1);
+				memcpy(tail, key, strlen(key));
 			}
 		}
 	}
@@ -178,14 +179,13 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		}
 		
 	} else {
-		/* Send the call to n+101 priority, where n is the current priority */
-		if (opbx_exists_extension (chan, chan->context, chan->exten, chan->priority + 101, han->cid.cid_num)) {
-			chan->priority += 100;
-		}
+		pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "FAILURE");
+		return 0;
 	}
 	opbx_config_destroy(cfg);
 	free(filter);
 	free(base);
+	pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "SUCCESS");
 
 	LOCAL_USER_REMOVE(u);
 	return 0;
@@ -214,7 +214,6 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
 	LDAPMessage *res, *entry;
 	int ret, ldap_scope = LDAP_SCOPE_SUBTREE;
 
-	//opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: %s\n", filter);
 	ld = ldap_init(host, port);
 	if (!ld) {
 		opbx_log(OPBX_LOG_WARNING, "LDAPget: unable to initialize ldap connection to %s:%d\n", host, port);
