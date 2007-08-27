@@ -84,17 +84,6 @@ static int repack_gsm0610_wav49_to_voip(uint8_t d[], const uint8_t c[])
     return n[0] + n[1];
 }
 
-static int repack_gsm0610_voip_to_wav49(uint8_t c[], const uint8_t d[])
-{
-    gsm0610_frame_t frame[2];
-    int n;
- 
-    n = gsm0610_unpack_voip(&frame[0], d);
-    gsm0610_unpack_voip(&frame[1], d + n);
-    n = gsm0610_pack_wav49(c, frame);
-    return n;
-}
-
 static struct opbx_filestream *gsm_open(FILE *f)
 {
     /* We don't have any header to read or anything really, but
