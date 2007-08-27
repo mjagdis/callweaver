@@ -84,7 +84,7 @@ static void span_message(int level, const char *msg)
     else
         opbx_level = __OPBX_LOG_DEBUG;
     //opbx_level = __OPBX_LOG_WARNING;
-    opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
+    opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
 }
 
 /* opbx_bridge_audio(chan,peer);
