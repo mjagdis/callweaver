@@ -227,8 +227,6 @@ static int rfcomm_sock_ag = -1;
 static int rfcomm_sock_hs = -1;
 static int sco_socket = -1;
 
-static int monitor_pid = -1;
-
 /* The socket monitoring thread */
 static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
 OPBX_MUTEX_DEFINE_STATIC(monitor_lock);

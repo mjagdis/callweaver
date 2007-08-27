@@ -2265,8 +2265,6 @@ do_monitor(void * data)
 
   /* -- We start off by trying to connect all of our devices (non blocking) -- */
 
-  monitor_pid = getpid();
-
   if (opbx_mutex_lock(&iface_lock)) {
     opbx_log(OPBX_LOG_ERROR, "Failed to get iface_lock.\n");
     return NULL;
@@ -2559,7 +2557,6 @@ blt_show_information(int fd, int argc, char *argv[])
   char b1[18];
   ba2str(&local_bdaddr, b1);
   opbx_cli(fd, "-------------------------------------------\n");
-  opbx_cli(fd, "   Monitor PID : %d\n", monitor_pid);
   opbx_cli(fd, "     RFCOMM AG : Channel %d, FD %d\n", rfcomm_channel_ag, rfcomm_sock_ag);
   opbx_cli(fd, "     RFCOMM HS : Channel %d, FD %d\n", rfcomm_channel_hs, rfcomm_sock_hs);
   opbx_cli(fd, "        Device : hci%d, MAC Address %s\n", hcidev_id, b1);
