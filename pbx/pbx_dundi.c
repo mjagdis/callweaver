@@ -3961,8 +3961,6 @@ static int dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char
 	int bypass = 0;
 	struct localuser *u;
 	struct dundi_result dr[MAX_RESULTS];
-	static int dep_warning = 0;
-	int success = 0;
 
 	if (argc < 1 || argc > 3 || !argv[0][0])
 		return opbx_function_syntax(dundifunc_syntax);

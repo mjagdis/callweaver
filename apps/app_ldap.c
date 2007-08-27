@@ -56,7 +56,6 @@ static const char g_descrip[] =
 
 static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char buf[2048];
 	struct localuser *u;
 	char *varname, *config, *keys = NULL, *key = NULL, *tail = NULL;
 	char *result_conv;
