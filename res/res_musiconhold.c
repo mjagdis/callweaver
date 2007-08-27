@@ -270,6 +270,7 @@ static int moh_files_generator(struct opbx_channel *chan, void *data, int sample
 			state->sample_queue -= f->samples;
 			opbx_fr_free(f);
 			if (res < 0) {
+				opbx_log(LOG_WARNING, "Unable to write data: %s\n", strerror(errno));
 				return -1;
 			}
 		} else
@@ -490,6 +491,9 @@ static void *monitor_custom_command(void *data)
 					opbx_log(OPBX_LOG_DEBUG, "Only wrote %d of %d bytes to pipe %d\n", res, res2, moh->pipe[1]);
 				}
 			}
+			if (option_debug > 8) {
+				opbx_log(LOG_DEBUG, "Wrote %d bytes to pipe with handle %d\n", res, moh->pipe[1]);
+			}
 			moh = moh->next;
 		}
 		opbx_mutex_unlock(&moh_lock);
@@ -564,10 +568,14 @@ static struct mohclass *get_mohbyname(char *name)
 static struct mohdata *mohalloc(struct mohclass *cl)
 {
 	struct mohdata *moh;
-	long flags;
+	int flags;
+	int res;
+
 	moh = malloc(sizeof(struct mohdata));
-	if (!moh)
+	if (!moh) {
+		opbx_log(LOG_WARNING, "Out of memory\n");
 		return NULL;
+	}
 	memset(moh, 0, sizeof(struct mohdata));
 	if (pipe(moh->pipe)) {
 		opbx_log(OPBX_LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
@@ -576,9 +584,33 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	}
 	/* Make entirely non-blocking */
 	flags = fcntl(moh->pipe[0], F_GETFL);
-	fcntl(moh->pipe[0], F_SETFL, flags | O_NONBLOCK);
+	if (flags == -1) {
+		opbx_log(LOG_WARNING, "Failed to get flags for moh->pipe[0](%d): %s\n", moh->pipe[0], strerror(errno));
+		free(moh);
+		return NULL;
+	}
+
+	res = fcntl(moh->pipe[0], F_SETFL, flags | O_NONBLOCK);
+	if (res == -1) {
+		opbx_log(LOG_WARNING, "Failed to set flags for moh->pipe[0](%d): %s\n", moh->pipe[0], strerror(errno));
+		free(moh);
+		return NULL;
+	}
+
 	flags = fcntl(moh->pipe[1], F_GETFL);
+	if (flags == -1) {
+		opbx_log(LOG_WARNING, "Failed to get flags for moh->pipe[1](%d): %s\n", moh->pipe[1], strerror(errno));
+		free(moh);
+		return NULL;
+	}
+
 	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
+	if (res == -1) {
+		opbx_log(LOG_WARNING, "Failed to set flags for moh->pipe[1](%d): %s\n", moh->pipe[1], strerror(errno));
+		free(moh);
+		return NULL;
+	}
+
 	moh->parent = cl;
 	moh->next = cl->members;
 	cl->members = moh;
@@ -605,6 +637,7 @@ static void moh_release(struct opbx_channel *chan, void *data)
 		cur = cur->next;
 	}
 	opbx_mutex_unlock(&moh_lock);
+	opbx_log(LOG_NOTICE, "Attempting to close pipe FDs %d and %d\n", moh->pipe[0], moh->pipe[1]);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	oldwfmt = moh->origwfmt;
