@@ -201,7 +201,6 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 	char *chunk;
 	char *op;
 	const char *newparam, *newval;
-	struct opbx_realloca ra;
 	struct opbx_variable *var=NULL;
 	struct opbx_config *cfg = NULL;
 	struct opbx_category *cat = NULL;
@@ -211,8 +210,6 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 		return NULL;
 	}
 	
-	memset(&ra, 0, sizeof(ra));
-
 	cfg = opbx_config_new();
 	if (!cfg) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */

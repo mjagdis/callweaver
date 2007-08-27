@@ -205,7 +205,6 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 	struct opbx_variable *var=NULL;
 	struct opbx_config *cfg=NULL;
 	struct opbx_category *cat=NULL;
-	struct opbx_realloca ra;
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
@@ -219,7 +218,6 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 	
 	if (!table)
 		return NULL;
-	memset(&ra, 0, sizeof(ra));
 
 	obj = fetch_odbc_obj(database, 0);
 	if (!obj)

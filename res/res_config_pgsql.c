@@ -218,7 +218,6 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 	char *chunk;
 	char *op;
 	const char *newparam, *newval;
-	struct opbx_realloca ra;
 	struct opbx_variable *var=NULL;
 	struct opbx_config *cfg = NULL;
 	struct opbx_category *cat = NULL;
@@ -227,8 +226,6 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
 		return NULL;
 	}
-	
-	memset(&ra, 0, sizeof(ra));
 
 	cfg = opbx_config_new();
 	if (!cfg) {
