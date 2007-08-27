@@ -494,7 +494,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		like = argv[3];
 	}
 
-	opbx_cli(fd, "%*s %-30s %-40.40s %10s %10s\n", (int)(-2 - sizeof(m)*2), "ID", "Module", "Description", "Refs", "Chan Usage");
+	opbx_cli(fd, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
 
 	opbx_mutex_trylock(&module_lock);
 
@@ -502,8 +502,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 	for (m = module_list; m; m = m->next) {
 		if (!like || strcasestr(m->resource, like) ) {
 			count++;
-			opbx_cli(fd, "%*p %-30s %-40.40s %10d %10d\n",
-				(int)(-2 - sizeof(m)*2), m,
+			opbx_cli(fd, "%-30s %-40.40s %10d %10d\n",
 				m->resource, m->modinfo->description, atomic_read(&m->refs), m->modinfo->localusecnt);
 		}
 	}
