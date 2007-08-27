@@ -226,6 +226,8 @@ static int shuttingdown = 0;
 static int restartnow = 0;
 static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
+static char random_state[256];
+
 
 static const char *atexit_registry_obj_name(struct opbx_object *obj)
 {
@@ -2078,6 +2080,7 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 
+	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
 	lt_dlinit();
 
 	/* For remote connections, change the name of the remote connection.

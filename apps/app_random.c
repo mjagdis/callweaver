@@ -41,7 +41,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 
-static const char tdesc[] = "Random goto";
 
 static void *random_app;
 static const char random_name[] = "Random";
@@ -51,8 +50,6 @@ static const char random_descrip[] =
 "Conditionally branches, based upon a probability\n"
 "  probability := INTEGER in the range 1 to 100\n";
 
-
-static char random_state[256];
 
 static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
@@ -87,21 +84,15 @@ static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 
 static int unload_module(void)
 {
-	int res = 0;
-
-	res |= opbx_unregister_function(random_app);
-	return res;
+	opbx_unregister_function(random_app);
+	return 0;
 }
 
 static int load_module(void)
 {
-	/* Don't allow unload, since rand(3) depends upon this module being here. */
-	opbx_module_get(get_modinfo()->self);
-
-	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
 	random_app = opbx_register_function(random_name, random_exec, random_synopsis, random_syntax, random_descrip);
 	return 0;
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
+MODULE_INFO(load_module, NULL, unload_module, NULL, "Random goto");
