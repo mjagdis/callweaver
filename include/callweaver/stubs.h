@@ -45,6 +45,7 @@ struct cw_stubfunction_type_s {
                                                         //
     char                        *description;
 
+    char			*ret_type;		// What type of return to expect from stub
     cw_stubfunction_types_t     type;
     cw_stubfunction_return_t    (*implementation)( int argc, char **argv, char *output );
 }
@@ -118,16 +119,19 @@ containing the details of what has been done.
                           ALTERNATE APPROACH
     ***************************************************************** */
 
-bool cw_stubfunction_registerarg(STUB_NAME, MANDATORY, ARG_NAME, ARG_TYPE);
-void *cw_stubfunction_getarg(STUB_NAME, ARG_NAME, cw_stubfunction_arg_t args)
+void *cw_stubfunction_getarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
+boolean cw_stubfunction_testarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
 
-#define TYPE_NULL       (1<<0)	// Used if optional arg and no value supplued
-#define TYPE_INT        (1<<1)
-#define TYPE_STRING     (1<<2)
-#define TYPE_BOOL       (1<<3)
+enum cw_stubfunction_argtype {
+    TYPE_NULL,	// Used if optional arg and no value supplied
+    TYPE_INT,
+    TYPE_STRING,
+    TYPE_BOOL
+};
+typedef enum cw_stubfunction_argtype cw_stubfunction_argtype_t;
 
 struct cw_stubfunction_arg_s {
-  int arg_t;    // Type of arg
+  cw_stubfunction_argtype_t arg_t;    // Type of arg
   void *arg_v;  // Actual arg
 };
 typedef struct cw_stubfunction_arg_s cw_stubfunction_arg_t;
@@ -172,6 +176,7 @@ cw_stubfunction_type_t stub_test {
     /* name */          "channel_kill",
     /* api */           "s/CHAN_NAME;oi/timeout", // CHAN_NAME = 0, timeout = 1
     /* desc */          "This method will kill the channel identified by CHAN_NAME, if exists.",
+    /* ret_type */      "b/RESULT",
     /* type*/           CW_STUNFUNCTION_PUBLIC,
     /* function */      channel_kill
 };
