@@ -73,7 +73,6 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 	struct opbx_channel *tempchan;
 	int status;
 	int res=-1, inuse=-1, option_state=0;
-	int success = 0;
 
 	if (argc < 0 || argc > 1)
 		return opbx_function_syntax(chanisavail_syntax);
