@@ -122,6 +122,7 @@ extern void dnsmgr_reload(void);
 		char *version;
 	};
 
+	extern int file_version_registry_initialized;
 	extern struct opbx_registry file_version_registry;
 
 #  define CALLWEAVER_FILE_VERSION(scm_file, scm_version) \
@@ -132,6 +133,10 @@ extern void dnsmgr_reload(void);
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
 		opbx_object_init_obj(&__file_version.obj, NULL, 0); \
+		if (!file_version_registry_initialized) { \
+			opbx_registry_init(&file_version_registry); \
+			file_version_registry_initialized = 1; \
+		} \
 		__file_version.reg_entry = opbx_registry_add(&file_version_registry, &__file_version.obj); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \

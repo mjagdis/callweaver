@@ -73,10 +73,6 @@ struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *registry, st
 		entry->obj = opbx_object_get_obj(obj);
 
 		opbx_mutex_lock(&registry->lock);
-		if (!registry->list.next) {
-			registry->list.next = registry->list.prev = &registry->list;
-			atomic_set(&registry->inuse, 0);
-		}
 		opbx_list_add(&registry->list, &entry->list);
 		opbx_mutex_unlock(&registry->lock);
 
@@ -156,4 +152,12 @@ struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const voi
 	}
 
 	return obj;
+}
+
+
+void opbx_registry_init(struct opbx_registry *registry)
+{
+	opbx_mutex_init(&registry->lock);
+	opbx_list_init(&registry->list);
+	atomic_set(&registry->inuse, 0);
 }

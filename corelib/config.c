@@ -1077,7 +1077,7 @@ static struct opbx_clicmd config_command_struct = {
 	.usage = show_config_help,
 };
 
-int register_config_cli() 
+int register_config_cli(void)
 {
 	return opbx_cli_register(&config_command_struct);
 }

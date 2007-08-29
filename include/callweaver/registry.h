@@ -34,7 +34,7 @@ struct opbx_list {
 #define LIST_INIT(name) { &(name), &(name), NULL }
 
 static inline void opbx_list_init(struct opbx_list *list) {
-	list->next = list->prev = NULL;
+	list->next = list->prev = list;
 	list->del = NULL;
 }
 
@@ -94,6 +94,7 @@ extern struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *regis
 extern int opbx_registry_del(struct opbx_registry *registry, struct opbx_registry_entry *entry);
 extern int opbx_registry_iterate(struct opbx_registry *registry, int (*func)(struct opbx_object *, void *), void *data);
 extern struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const void *pattern);
+extern void opbx_registry_init(struct opbx_registry *registry);
 
 
 #endif /* _CALLWEAVER_REGISTRY_H */

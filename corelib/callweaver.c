@@ -118,6 +118,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/directory_engine.h"
 #include "callweaver/translate.h"
+#include "callweaver/switch.h"
 
 #include "callweaver/crypto.h"
 
@@ -279,6 +280,8 @@ static const char *file_version_registry_obj_name(struct opbx_object *obj)
 	struct opbx_file_version *it = container_of(obj, struct opbx_file_version, obj);
 	return it->file;
 }
+
+int file_version_registry_initialized = 0;
 
 struct opbx_registry file_version_registry = {
 	.name = "Files",
@@ -2239,10 +2242,20 @@ int callweaver_main(int argc, char *argv[])
 
 	if (option_console && !option_verbose) 
 		opbx_verbose("[ Initializing Custom Configuration Options ]");
+
+	opbx_registry_init(&atexit_registry);
+	opbx_registry_init(&cdrbe_registry);
+	opbx_registry_init(&clicmd_registry);
+	opbx_registry_init(&config_engine_registry);
+	opbx_registry_init(&format_registry);
+	opbx_registry_init(&func_registry);
+	opbx_registry_init(&imager_registry);
+	opbx_registry_init(&switch_registry);
+	opbx_registry_init(&translator_registry);
+
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
-	
 
 	if (option_console) {
 	    
