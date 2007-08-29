@@ -105,7 +105,7 @@ struct g722_encoder_pvt
 {
     struct opbx_frame f;
     uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
-    uint8_t outbuf[BUFFER_SIZE];  /* Encoded G722, two nibbles to a word */
+    uint8_t outbuf[BUFFER_SIZE];            /* Encoded G722 */
     uint8_t next_flag;
     g722_encode_state_t g722_state;
     int tail;
@@ -117,8 +117,8 @@ struct g722_encoder_pvt
 struct g722_decoder_pvt
 {
     struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];    /* Space to build offset */
-    int16_t outbuf[BUFFER_SIZE];    /* Decoded signed linear values */
+    uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
+    int16_t outbuf[BUFFER_SIZE];            /* Decoded signed linear values */
     g722_decode_state_t g722_state;
     int tail;
     plc_state_t plc;

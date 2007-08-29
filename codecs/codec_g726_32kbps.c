@@ -5,9 +5,6 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * Based on frompcm.c and topcm.c from the Emiliano MIPL browser/
- * interpreter.  See http://www.bsdtelephony.com.mx
- *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -21,7 +18,10 @@
 
 /*! \file
  *
- * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps
+ * \brief codec_g726_32kbps.c - Translate between signed linear and ITU G.726-32kbps
+ *                              Note that the underlying codec is capable of handling
+ *                              all 4 bit rates of G.726, but this file only handles
+ *                              the 32kbps variant.
  *
  */
 #ifdef HAVE_CONFIG_H
@@ -38,7 +38,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL: http://svn.callweaver.org/callweaver/trunk/codecs/codec_g726.c $", "$Revision: 3828 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/logger.h"
@@ -346,7 +346,7 @@ static void parse_config(void)
                 {
                     useplc = opbx_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g726: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g726_32kbps: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }
                 var = var->next;
             }
