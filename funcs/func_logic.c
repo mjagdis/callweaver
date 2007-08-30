@@ -198,10 +198,11 @@ static int builtin_function_if(struct opbx_channel *chan, int argc, char **argv,
 			/* No ": ..." so we just drop through */
 		}
 
+		first = 1;
 		len--; /* one for the terminating null */
 		q = buf;
 		for (i = 0; len && i < n; i++) {
-			if (len > 0 && !first) {
+			if (!first) {
 				*(q++) = ',';
 				len--;
 			} else
