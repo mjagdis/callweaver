@@ -1176,12 +1176,23 @@ static int pbx_substitute_variables_helper_full(struct opbx_channel *c, struct v
 
             *cp2 = '\0';
             if ((args = strchr(vars, '(')) && (p = strrchr(args, ')'))) {
+                int offset = 0, length = count;
                 *(args++) = '\0';
                 *p = '\0';
+                if (p[1] == ':')
+                    sscanf(p+2, "%d:%d", &offset, &length);
                 len = opbx_function_exec_str(c, opbx_hash_app_name(vars), vars, args, cp2, count+1);
 		if (len)
 			break;
-	        while (count && *cp2) cp2++, count--;
+                cp4 = cp2;
+                if (offset < 0) {
+                    for (len = count; len && *cp4; cp4++, len--);
+                    *cp4 = '\0';
+                    if ((cp4 += offset) < cp2)
+                        cp4 = cp2;
+                } else
+                    while (count && *cp4 && offset-- > 0) { cp4++; count--; }
+                while (count && *cp4 && length-- > 0) { *(cp2++) = *(cp4++); count--; }
             } else {
                 /* Retrieve variable value */
                 pbx_retrieve_variable(c, vars, &cp4, cp2, count, headp);
