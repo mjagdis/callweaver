@@ -797,6 +797,7 @@ static int action_status(struct mansession *s, struct message *m)
 	char bridge[256];
 	struct timeval now = opbx_tvnow();
 	long elapsed_seconds=0;
+	long billable_seconds=0;
 	int all = opbx_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
@@ -826,6 +827,8 @@ static int action_status(struct mansession *s, struct message *m)
         {
 			if (c->cdr)
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+				if (c->cdr->answer.tv_sec > 0)
+					billable_seconds = now.tv_sec - c->cdr->answer.tv_sec;
 			opbx_cli(s->fd,
         			"Event: Status\r\n"
         			"Privilege: Call\r\n"
@@ -838,6 +841,7 @@ static int action_status(struct mansession *s, struct message *m)
         			"Extension: %s\r\n"
         			"Priority: %d\r\n"
         			"Seconds: %ld\r\n"
+				"BillableSeconds: %ld\r\n"
         			"%s"
         			"Uniqueid: %s\r\n"
         			"%s"
@@ -847,7 +851,8 @@ static int action_status(struct mansession *s, struct message *m)
         			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
         			c->accountcode,
         			opbx_state2str(c->_state), c->context,
-        			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
+        			c->exten, c->priority, (long)elapsed_seconds, (long)billable_seconds,
+				bridge, c->uniqueid, idText);
 		}
         else
         {
