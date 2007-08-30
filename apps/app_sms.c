@@ -16,10 +16,7 @@
 
 /*! \file
  *
- * \brief SMS application - ETSI ES 201 912 protocol 1 implimentation
- * \ingroup applications
- *
- * \author Adrian Kennard
+ * \brief SMS application - ETSI ES 201 912 protocol 1 and 2 implementation
  */
 
 #include "callweaver.h"
@@ -57,7 +54,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* user ref field */
 
 
-static volatile uint8_t message_ref;      /* arbitary message ref */
+static volatile uint8_t message_ref;    /* arbitary message ref */
 static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
 
 static char log_file[255];
@@ -278,6 +275,7 @@ int adsi_tl_add_tm(adsi_tx_state_t *s, char *msg)
     adsi_put_message(s, tx_msg, tx_len);
 }
 /*- End of function --------------------------------------------------------*/
+#endif
 
 static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
 {
@@ -374,6 +372,7 @@ static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
 }
 /*- End of function --------------------------------------------------------*/
 
+#if 0
 static int sms_protocol2_exec(struct opbx_channel *chan, void *data)
 {
     int res = 0;
@@ -483,8 +482,7 @@ static int sms_protocol2_exec(struct opbx_channel *chan, void *data)
             if (inf->frametype == OPBX_FRAME_VOICE)
             {
                 adsi_rx(&h->rx_adsi, inf->data, inf->samples);
-                len = adsi_tx(&h->tx_adsi, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], inf->samples);
-                if (len)
+                if ((len = adsi_tx(&h->tx_adsi, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], inf->samples)))
                 {
                     memset(&outf, 0, sizeof(outf));
                     outf.frametype = OPBX_FRAME_VOICE;
@@ -609,9 +607,20 @@ static long utf8decode(uint8_t **pp)
     }
     if (*p < 0xFE)
     {
-        if ((*p == 0xFC  &&  p[1] < 0x84)  ||  (p[1] & 0xC0) != 0x80  ||  (p[2] & 0xC0) != 0x80  ||  (p[3] & 0xC0) != 0x80
-                || (p[4] & 0xC0) != 0x80  ||  (p[5] & 0xC0) != 0x80)
+        if ((*p == 0xFC  &&  p[1] < 0x84)
+            ||
+            (p[1] & 0xC0) != 0x80
+            ||
+            (p[2] & 0xC0) != 0x80
+            ||
+            (p[3] & 0xC0) != 0x80
+            ||
+            (p[4] & 0xC0) != 0x80
+            ||
+            (p[5] & 0xC0) != 0x80)
+        {
             return *p;             /* not valid UTF-8 */
+        }
         (*pp) += 5;
         return ((*p & 0x01) << 30) + ((p[1] & 0x3F) << 24) + ((p[2] & 0x3F) << 18) + ((p[3] & 0x3F) << 12) + ((p[4] & 0x3F) << 6) + (p[5] & 0x3F);
     }
@@ -796,7 +805,7 @@ static int packsms(uint8_t dcs, uint8_t *base, unsigned int udhl, uint8_t *udh, 
             if (l < 0)
                 l = 0;
             *p++ = l;
-            p += (l * 7 + 7) / 8;
+            p += (l*7 + 7) / 8;
         }
         else if (is8bit(dcs))                                   /* 8 bit */
         {
@@ -845,7 +854,7 @@ static void packdate(uint8_t *o, time_t w)
 }
 
 /*! \brief unpack a date and return */
-static time_t unpackdate(uint8_t *i)
+static time_t unpackdate(const uint8_t *i)
 {
     struct tm t;
 
@@ -1027,7 +1036,7 @@ static uint8_t unpackaddress(char *o, const uint8_t *i)
 }
 
 /*! \brief store an address at o, and return number of bytes used */
-static uint8_t packaddress(uint8_t *o, char *i)
+static uint8_t packaddress(uint8_t *o, const char *i)
 {
     uint8_t p = 2;
 
@@ -1035,7 +1044,7 @@ static uint8_t packaddress(uint8_t *o, char *i)
     if (*i == '+')
     {
         i++;
-        o[1] = 0x80 | DLL_SMS_P1_DATA;
+        o[1] = 0x91;
     }
     else
     {
@@ -1043,19 +1052,15 @@ static uint8_t packaddress(uint8_t *o, char *i)
     }
     while (*i)
     {
-        if (isdigit (*i))
+        if (isdigit(*i))
         {
             if (o[0] & 1)
                 o[p++] |= ((*i & 0xF) << 4);
             else
                 o[p] = (*i & 0xF);
             o[0]++;
-            i++;
         }
-        else
-        {
-            i++;
-        }
+        i++;
     }
     if (o[0] & 1)
         o[p++] |= 0xF0;              /* pad */
@@ -1242,7 +1247,7 @@ static void sms_readfile(sms_t *h, char *fn)
 
                         while (*p  &&  o < SMSLEN)
                         {
-                            if (!isxdigit(p[0])  ||  !isxdigit(p[1])  ||  isxdigit (p[2])  ||  !isxdigit(p[3]))
+                            if (!isxdigit(p[0])  ||  !isxdigit(p[1])  ||  isxdigit(p[2])  ||  !isxdigit(p[3]))
                                 break;
                             h->ud[o++] =
                                 (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 12) +
@@ -1282,7 +1287,7 @@ static void sms_readfile(sms_t *h, char *fn)
                     h->udhi = 1;
                     while (*p  &&  o < SMSLEN)
                     {
-                        if (!isxdigit (p[0])  ||  !isxdigit (p[1]))
+                        if (!isxdigit(p[0])  ||  !isxdigit(p[1]))
                             break;
                         h->udh[o] = (((isalpha(*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha(p[1]) ? 9 : 0) + (p[1] & 0xF));
                         o++;
@@ -1676,7 +1681,8 @@ static void sms_messagerx(sms_t *h)
         sms_log(h, 'N');
         sms_nextoutgoing(h);
         break;
-    default:                          /* Unknown */
+    default:
+        /* Unknown */
         h->omsg[0] = 0x80 | DLL_SMS_P1_ERROR;
         h->omsg[1] = 1;
         h->omsg[2] = DLL_SMS_ERROR_UNKNOWN_MESSAGE_TYPE;
@@ -1931,8 +1937,8 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     LOCAL_USER_ADD(u);
 
     h.ipc0 =
-    h.ipc1 = 20;            /* phase for cosine */
-    h.dcs = 0xF1;           /* default */
+    h.ipc1 = 20;        /* phase for cosine */
+    h.dcs = 0xF1;       /* default */
 
     if (chan->cid.cid_num)
         opbx_copy_string(h.cli, chan->cid.cid_num, sizeof(h.cli));
@@ -2034,10 +2040,16 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
 
     if (answer)
     {
-        /* Set up SMS_EST initial message */
-        h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
-        h.omsg[1] = 0;
-        sms_messagetx(&h);
+        if (protocol == '2')
+        {
+        }
+        else
+        {
+            /* Set up SMS_EST initial message */
+            h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
+            h.omsg[1] = 0;
+            sms_messagetx(&h);
+        }
     }
 
     if (chan->_state != OPBX_STATE_UP)
@@ -2071,6 +2083,10 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
         return -1;
     }
 
+    adsi_tx_init(&h.tx_adsi, ADSI_STANDARD_CLIP);
+    adsi_tx_set_preamble(&h.tx_adsi, (protocol == '2')  ?  300  :  0, -1, -1, -1);
+    adsi_rx_init(&h.rx_adsi, ADSI_STANDARD_CLIP, put_adsi_msg, &h);
+    
     if (opbx_generator_activate(chan, &smsgen, &h) < 0)
     {
         opbx_log(OPBX_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
