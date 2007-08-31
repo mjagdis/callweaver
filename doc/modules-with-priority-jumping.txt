@@ -7,13 +7,7 @@ These are separated into two groups. Will fix and Won't fix. Since some of these
 are in modules or apps that are depricated, or part of the 1.2 high priority
 modules, we won't fix them.
 
-WILL FIX
-  channels/chan_agent.c
-
 WON'T FIX
-  channels/chan_sip.c
-  	Priority jumping is only used in the depricated SipGetHeader application.
-
   apps/icd/icd_bridge.c
   apps/app_osplookup.c
   apps/app_valetparking.c

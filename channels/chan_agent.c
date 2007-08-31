@@ -109,9 +109,8 @@ static const char descrip3[] =
 "placed by the AgentCallbackLogin application. That's why it should be used only\n"
 "with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent \n"
 "instead of Monitor application. That have to be configured in the agents.conf file.\n"
-"\nReturn value:\n"
-"Normally the app returns 0 unless the options are passed. Also if the callerid or\n"
-"the agentid are not specified it'll look for n+101 priority.\n"
+"If callerid or agent id aren't specified, or if other errors occur, set the\n"
+"variable AGENTSTATUS to FAIL. Otherwise set this to SUCCESS. Always return 0\n"
 "\nOptions:\n"
 "	'd' - make the app return -1 if there is an error condition and there is\n"
 "	      no extension n+101\n"
@@ -2279,15 +2278,10 @@ static int agentmonitoroutgoing_exec(struct opbx_channel *chan, int argc, char *
 		if (!nowarnings)
 			opbx_log(OPBX_LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
 	}
-	/* check if there is n + 101 priority */
 	if (res) {
-		if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority+=100;
-			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Going to %d priority because there is no callerid or the agentid cannot be found.\n",chan->priority);
-		}
-		else if (exitifnoagentid)
-			return res;
+		pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "FAIL");
+	} else {
+		pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "SUCCESS");
 	}
 	return 0;
 }

@@ -16639,15 +16639,6 @@ static char sipaddheader_description[] =
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
-static void *sipgetheader_app;
-static char sipgetheader_name[] = "SipGetHeader";
-static char sipgetheader_synopsis[] = "Get a SIP header from an incoming call";
-static char sipgetheader_syntax[] = "SipGetHeader(var=headername)";
-static char sipgetheader_description[] =
-"Sets a channel variable to the content of a SIP header\n"
-"Skips to priority+101 if header does not exist\n"
-"Otherwise returns 0\n";
-
 static void *sipt38switchover_app;
 static char sipt38switchover_name[] = "SipT38SwitchOver";
 static char sipt38switchover_synopsis[] = "Forces a T38 switchover on a non-bridged channel.";
@@ -16828,48 +16819,6 @@ static int sip_addheader(struct opbx_channel *chan, int argc, char **argv, char 
     {
         opbx_log(OPBX_LOG_WARNING, "Too many SIP headers added, max 50\n");
     }
-    opbx_mutex_unlock(&chan->lock);
-    return 0;
-}
-
-/*! \brief  sip_getheader: Get a SIP header (dialplan app) */
-static int sip_getheader(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
-{
-    static int dep_warning = 0;
-    struct sip_pvt *p;
-    char *header, *content;
-    
-    if (!dep_warning)
-    {
-        opbx_log(OPBX_LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
-        dep_warning = 1;
-    }
-
-    if (argc != 1 || !(header = strchr(argv[0], '=')))
-        return opbx_function_syntax(sipgetheader_syntax);
-
-    *(header++) = '\0';
-
-    opbx_mutex_lock(&chan->lock);
-    if (chan->type != channeltype)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Call this application only on incoming SIP calls\n");
-        opbx_mutex_unlock(&chan->lock);
-        return 0;
-    }
-
-    p = chan->tech_pvt;
-    content = get_header(&p->initreq, header);    /* Get the header */
-    if (!opbx_strlen_zero(content))
-    {
-        pbx_builtin_setvar_helper(chan, argv[0], content);
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, argv[0]);
-        opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-    }
-    
     opbx_mutex_unlock(&chan->lock);
     return 0;
 }
@@ -17277,7 +17226,6 @@ static int load_module(void)
 
     /* These will be removed soon */
     sipaddheader_app = opbx_register_function(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
-    sipgetheader_app = opbx_register_function(sipgetheader_name, sip_getheader, sipgetheader_synopsis, sipgetheader_syntax, sipgetheader_description);
 
     /* Register manager commands */
     opbx_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -17316,7 +17264,6 @@ static int unload_module(void)
     opbx_uninstall_t38_functions();
     res |= opbx_unregister_function(dtmfmode_app);
     res |= opbx_unregister_function(sipaddheader_app);
-    res |= opbx_unregister_function(sipgetheader_app);
 
     opbx_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
