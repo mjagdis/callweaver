@@ -302,6 +302,9 @@ static void *opbx_generator_thread(void *data)
 
 	/* Got request to shutdown. */
 	opbx_log(OPBX_LOG_DEBUG, "Generator thread shut down on %s\n", chan->name);
+	free(pgcd->pgenerator_thread);
+	pgcd->pgenerator_thread = NULL;
+	opbx_cond_destroy(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
 	return NULL;
 }
