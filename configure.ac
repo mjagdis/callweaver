@@ -1740,9 +1740,7 @@ AM_CONDITIONAL([WANT_CHAN_AGENT],[test "${with_chan_agent}" = "yes"])
 
 dnl ###########################################################################
 
-MISDN_CFLAGS="-I /usr/include/ "
-MISDN_CFLAGS+="-I /usr/include/i4lnet "
-MISDN_CFLAGS+="-I /usr/include/mISDNuser "
+MISDN_CFLAGS="-I/usr/include/ -I/usr/include/i4lnet -I/usr/include/mISDNuser"
 MISDN_LDFLAGS=
 
 AC_ARG_WITH([misdn-includes],
