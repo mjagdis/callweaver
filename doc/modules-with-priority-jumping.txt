@@ -8,9 +8,6 @@ are in modules or apps that are depricated, or part of the 1.2 high priority
 modules, we won't fix them.
 
 WILL FIX
-  apps/app_sendtext.c
-  apps/app_transfer.c
-  apps/app_voicemail.c
   channels/chan_agent.c
 
 WON'T FIX

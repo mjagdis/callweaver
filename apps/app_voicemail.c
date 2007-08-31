@@ -302,14 +302,8 @@ static const char descrip_vm[] =
 "extension 'o' in the current context.\n"
 "If the caller presses '*' during the prompt, the call jumps to\n"
 "extension 'a' in the current context.\n"
-"If the requested mailbox does not exist, and there exists a priority\n"
-"n + 101, then that priority will be taken next.\n"
-"If an error occur in the voicemail application resulting in that the message cannot be left,\n" 
-"and there exists a priority n + 101, then that priority will be taken next.\n"
-"When multiple mailboxes are specified, the unavailable or busy message\n"
-"will be taken from the first mailbox specified.\n"
-"Returns -1 on error or mailbox not found, or if the user hangs up.\n"
-"Otherwise, it returns 0.\n";
+"Sets the channel variable VMSTATUS on exit to either SUCCESS, NOTFOUND or FAIL\n"
+"Always return 0\n";
 
 static const char synopsis_vmain[] =
 "Enter voicemail system";
@@ -334,8 +328,7 @@ static const char synopsis_vm_box_exists[] =
 
 static const char syntax_vm_box_exists[] = "MailboxExists(mailbox[@context][, options])";
 static const char descrip_vm_box_exists[] =
-"Conditionally branches to priority n+101\n"
-"if the specified voice mailbox exists.\n";
+"Sets the variable MBEXISTS to either YES or NO based on the mailbox's existence\n";
 
 static const char synopsis_vmauthenticate[] =
 "Authenticate off voicemail passwords";
@@ -2339,7 +2332,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 
 	if (!(vmu = find_user(&svm, context, ext))) {
 		opbx_log(OPBX_LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "NOTFOUND");
 		return res;
 	}
 
@@ -5416,8 +5409,9 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	if (argc) {
 		if (argc == 2) {
 			if (opbx_parseoptions(vm_app_options, &flags, opts, argv[1])) {
+				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
 				LOCAL_USER_REMOVE(u);
-				return -1;
+				return 0;
 			}
 			opbx_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
 			if (opbx_test_flag(&flags, OPT_RECORDGAIN)) {
@@ -5425,8 +5419,9 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 
 				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 					opbx_log(OPBX_LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
+					pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
 					LOCAL_USER_REMOVE(u);
-					return -1;
+					return 0;
 				} else {
 					leave_options.record_gain = (signed char) gain;
 				}
@@ -5449,11 +5444,8 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 		}
 	} else {
 		res = opbx_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
-		if (res < 0) {
-			LOCAL_USER_REMOVE(u);
-			return res;
-		}
-		if (opbx_strlen_zero(tmp)) {
+		if (res < 0 || opbx_strlen_zero(tmp)) {
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}	
@@ -5463,9 +5455,7 @@ static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 
 	if (res == ERROR_LOCK_PATH) {
 		opbx_log(OPBX_LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
-		/*Send the call to n+101 priority, where n is the current priority*/
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-			opbx_log(OPBX_LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
 		res = 0;
 	}
 	
@@ -5535,11 +5525,9 @@ static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv, char 
 
 	if (find_user(&svm, context, argv[0])) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
-		if (priority_jump || option_priority_jumping)
-			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				opbx_log(OPBX_LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", argv[0], context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
 	} else
-		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
 
 	LOCAL_USER_REMOVE(u);
 	return 0;
