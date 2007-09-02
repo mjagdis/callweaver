@@ -1148,10 +1148,20 @@ static int init_classes(void)
 	return 1;
 }
 
+
+static void moh_killall(void)
+{
+	struct mohclass *class;
+
+	for (class = mohclasses; class; class = class->next)
+		kill(class->pid, SIGKILL);
+}
+
 static struct opbx_atexit moh_atexit = {
 	.name = "Music On Hold terminate",
-	.function = opbx_moh_destroy,
+	.function = moh_killall,
 };
+
 
 static int load_module(void)
 {
