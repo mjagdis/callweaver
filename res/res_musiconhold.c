@@ -419,7 +419,8 @@ static void monitor_custom_command_cleanup(void *data)
 	struct mohclass *class = data;
 
 	if (class->pid) {
-		opbx_log(OPBX_LOG_DEBUG, "killing %d!\n", class->pid);
+		if (option_debug)
+			opbx_log(OPBX_LOG_DEBUG, "killing %d!\n", class->pid);
 		kill(class->pid, SIGKILL);
 		close(class->srcfd);
 	}
@@ -493,7 +494,7 @@ static void *monitor_custom_command(void *data)
 					kill(class->pid, SIGKILL);
 					class->pid = 0;
 				}
-			} else
+			} else if (option_debug)
 				opbx_log(OPBX_LOG_DEBUG, "Read %d bytes of audio while expecting %d: %s\n", res2, len, strerror(errno));
 			continue;
 		}
@@ -1037,7 +1038,7 @@ static void opbx_moh_destroy(void)
 		opbx_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
 
 	opbx_mutex_lock(&moh_lock);
-	while (moh = mohclasses) {
+	while ((moh = mohclasses)) {
 		mohclasses = mohclasses->next;
 		if (moh->thread) 
 			pthread_cancel(moh->thread); 
