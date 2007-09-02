@@ -114,7 +114,6 @@ static const char descrip3[] =
 static const char descrip4[] =
 "Stops playing music on hold.\n";
 
-static int respawn_time = 20;
 
 struct moh_files_state {
 	struct mohclass *class;
@@ -138,7 +137,6 @@ struct mohclass {
 	int total_files;
 	int format;
 	int pid;		/* PID of custom command */
-	time_t start;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
@@ -157,18 +155,17 @@ static struct mohclass *mohclasses;
 
 OPBX_MUTEX_DEFINE_STATIC(moh_lock);
 
-static void opbx_moh_free_class(struct mohclass **class) 
+static void opbx_moh_free_class(struct mohclass *class) 
 {
 	struct mohdata *members, *mtmp;
-	
-	members = (*class)->members;
+
+	members = class->members;
 	while(members) {
 		mtmp = members;
 		members = members->next;
 		free(mtmp);
 	}
-	free(*class);
-	*class = NULL;
+	free(class);
 }
 
 
@@ -389,10 +386,6 @@ static int spawn_custom_command(struct mohclass *class)
 			printf("arg%d: %s\n", x, argv[x]);
 	}
 #endif	
-	if (time(NULL) - class->start < respawn_time) {
-		sleep(respawn_time - (time(NULL) - class->start));
-	}
-	time(&class->start);
 	class->pid = fork();
 	if (class->pid < 0) {
 		close(fds[0]);
@@ -401,17 +394,14 @@ static int spawn_custom_command(struct mohclass *class)
 		return -1;
 	}
 	if (!class->pid) {
+		/* Child */
 		int x;
 		close(fds[0]);
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
 		/* Close unused file descriptors */
-		for (x=3;x<8192;x++) {
-			if (-1 != fcntl(x, F_GETFL)) {
-				close(x);
-			}
-		}
-		/* Child */
+		for (x = 3; x < 8192; x++)
+			close(x);
 		chdir(class->dir);
 		execv(argv[0], argv);
 		opbx_log(OPBX_LOG_WARNING, "Exec failed: %s\n", strerror(errno));
@@ -422,6 +412,18 @@ static int spawn_custom_command(struct mohclass *class)
 		close(fds[1]);
 	}
 	return fds[0];
+}
+
+static void monitor_custom_command_cleanup(void *data)
+{
+	struct mohclass *class = data;
+
+	if (class->pid) {
+		opbx_log(OPBX_LOG_DEBUG, "killing %d!\n", class->pid);
+		kill(class->pid, SIGKILL);
+		close(class->srcfd);
+	}
+	opbx_moh_free_class(class);
 }
 
 static void *monitor_custom_command(void *data)
@@ -439,17 +441,26 @@ static void *monitor_custom_command(void *data)
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
 
+	pthread_cleanup_push(monitor_custom_command_cleanup, class);
+
 	for(;/* ever */;) {
 		/* Spawn custom command if it's not there */
 		if (class->srcfd < 0) {
 			if ((class->srcfd = spawn_custom_command(class)) < 0) {
 				opbx_log(OPBX_LOG_WARNING, "Unable to spawn custom command\n");
 				/* Try again later */
-				sleep(500);
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				pthread_testcancel();
+				sleep(60);
+				pthread_testcancel();
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				continue;
 			}
 		}
 
 		/* Reliable sleep */
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
 		tv_tmp = opbx_tvnow();
 		if (opbx_tvzero(tv))
 			tv = tv_tmp;
@@ -461,14 +472,20 @@ static void *monitor_custom_command(void *data)
 			opbx_log(OPBX_LOG_NOTICE, "Request to schedule in the past?!?!\n");
 			tv = tv_tmp;
 		}
-		res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
+		pthread_testcancel();
 	
 		if (!class->members)
 			continue;
+
 		/* Read audio */
+		res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		len = opbx_codec_get_len(class->format, res);
-		
-		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
+
+		res2 = read(class->srcfd, sbuf, len);
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (res2 != len) {
 			if (!res2) {
 				close(class->srcfd);
 				class->srcfd = -1;
@@ -477,9 +494,10 @@ static void *monitor_custom_command(void *data)
 					class->pid = 0;
 				}
 			} else
-				opbx_log(OPBX_LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
+				opbx_log(OPBX_LOG_DEBUG, "Read %d bytes of audio while expecting %d: %s\n", res2, len, strerror(errno));
 			continue;
 		}
+
 		opbx_mutex_lock(&moh_lock);
 		moh = class->members;
 		while (moh) {
@@ -498,6 +516,8 @@ static void *monitor_custom_command(void *data)
 		}
 		opbx_mutex_unlock(&moh_lock);
 	}
+
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
@@ -780,12 +800,9 @@ static int moh_register(struct mohclass *moh)
 	}
 	opbx_mutex_unlock(&moh_lock);
 
-	time(&moh->start);
-	moh->start -= respawn_time;
-	
 	if (!strcasecmp(moh->mode, "files")) {
 		if (!moh_scan_files(moh)) {
-			opbx_moh_free_class(&moh);
+			opbx_moh_free_class(moh);
 			return -1;
 		}
 		if (strchr(moh->args, 'r'))
@@ -797,12 +814,12 @@ static int moh_register(struct mohclass *moh)
 		moh->srcfd = -1;
 		if (opbx_pthread_create(&moh->thread, NULL, monitor_custom_command, moh)) {
 			opbx_log(OPBX_LOG_WARNING, "Unable to create moh...\n");
-			opbx_moh_free_class(&moh);
+			opbx_moh_free_class(moh);
 			return -1;
 		}
 	} else {
 		opbx_log(OPBX_LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", moh->mode);
-		opbx_moh_free_class(&moh);
+		opbx_moh_free_class(moh);
 		return -1;
 	}
 	opbx_mutex_lock(&moh_lock);
@@ -1014,41 +1031,19 @@ static int load_moh_classes(void)
 
 static void opbx_moh_destroy(void)
 {
-	struct mohclass *moh, *tmp;
-	char buff[8192];
-	int bytes, tbytes=0, stime = 0, pid = 0;
+	struct mohclass *moh;
 
 	if (option_verbose > 1)
 		opbx_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
+
 	opbx_mutex_lock(&moh_lock);
-	moh = mohclasses;
-
-	while (moh) {
-/*
-		// This Seems to kill callweaver Whenever a reload is done.
-		// Someone should look into it. In the meanwhile, it's better to
-		// comment it out to prevent malfunctions.
-
+	while (moh = mohclasses) {
+		mohclasses = mohclasses->next;
 		if (moh->thread) 
-			pthread_kill(moh->thread, SIGKILL); 
-*/
-		if (moh->pid) {
-			opbx_log(OPBX_LOG_DEBUG, "killing %d!\n", moh->pid);
-			stime = time(NULL) + 2;
-			pid = moh->pid;
-			moh->pid = 0;
-			kill(pid, SIGKILL);
-			while ((opbx_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
-				tbytes = tbytes + bytes;
-			}
-			opbx_log(OPBX_LOG_DEBUG, "Custom command pid %d and child died after %d bytes read\n", pid, tbytes);
-			close(moh->srcfd);
-		}
-		tmp = moh;
-		moh = moh->next;
-		opbx_moh_free_class(&tmp);
+			pthread_cancel(moh->thread); 
+		else
+			opbx_moh_free_class(moh);
 	}
-	mohclasses = NULL;
 	opbx_mutex_unlock(&moh_lock);
 }
 
