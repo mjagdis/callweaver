@@ -1061,7 +1061,7 @@ static void moh_on_off(int on)
 	}
 }
 
-static int moh_cli(int fd, int argc, char *argv[]) 
+static int moh_reload(int fd, int argc, char *argv[]) 
 {
 	struct mohclass *moh;
 	int x;
@@ -1089,7 +1089,10 @@ static int moh_cli(int fd, int argc, char *argv[])
 
 	x = load_moh_classes();
 	moh_on_off(1);
-	opbx_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
+
+	if (fd >= 0)
+		opbx_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
+
 	return 0;
 }
 
@@ -1132,7 +1135,7 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 
 static struct opbx_clicmd cli_moh = {
 	.cmda = { "moh", "reload"},
-	.handler = moh_cli,
+	.handler = moh_reload,
 	.summary = "Music On Hold",
 	.usage = "Music On Hold",
 };
@@ -1189,7 +1192,7 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	load_moh_classes();
+	moh_reload(-1, 0, NULL);
 	return 0;
 }
 
