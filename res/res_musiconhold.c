@@ -1151,22 +1151,6 @@ static struct opbx_clicmd cli_moh_files_show = {
 	.usage = "Lists all loaded file-based MOH classes and their files",
 };
 
-static int init_classes(void) 
-{
-	struct mohclass *moh;
-    
-	if (!load_moh_classes()) 		/* Load classes from config */
-		return 0;			/* Return if nothing is found */
-	moh = mohclasses;
-	while (moh) {
-		if (moh->total_files)
-			moh_scan_files(moh);
-		moh = moh->next;
-	}
-	return 1;
-}
-
-
 static void moh_killall(void)
 {
 	struct mohclass *class;
@@ -1196,7 +1180,7 @@ static int load_module(void)
 	app3 = opbx_register_function(name3, moh3_exec, synopsis3, syntax3, descrip3);
 	app4 = opbx_register_function(name4, moh4_exec, synopsis4, syntax4, descrip4);
 
-	if (!init_classes()) { 	/* No music classes configured, so skip it */
+	if (!load_moh_classes()) { 	/* No music classes configured, so skip it */
 		opbx_log(OPBX_LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
 	} else {
 		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
@@ -1207,7 +1191,7 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	if (init_classes())
+	if (load_moh_classes())
 		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 
 	return 0;
