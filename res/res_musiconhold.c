@@ -1170,6 +1170,8 @@ static int load_module(void)
 	/* We should never be unloaded */
 	opbx_module_get(get_modinfo()->self);
 
+	load_moh_classes();
+
 	app0 = opbx_register_function(name0, moh0_exec, synopsis0, syntax0, descrip0);
 	opbx_atexit_register(&moh_atexit);
 	opbx_cli_register(&cli_moh);
@@ -1180,20 +1182,14 @@ static int load_module(void)
 	app3 = opbx_register_function(name3, moh3_exec, synopsis3, syntax3, descrip3);
 	app4 = opbx_register_function(name4, moh4_exec, synopsis4, syntax4, descrip4);
 
-	if (!load_moh_classes()) { 	/* No music classes configured, so skip it */
-		opbx_log(OPBX_LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
-	} else {
-		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
-	}
+	opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 
 	return 0;
 }
 
 static int reload_module(void)
 {
-	if (load_moh_classes())
-		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
-
+	load_moh_classes();
 	return 0;
 }
 
