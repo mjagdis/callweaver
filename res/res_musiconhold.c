@@ -417,13 +417,17 @@ static int spawn_custom_command(struct mohclass *class)
 static void monitor_custom_command_cleanup(void *data)
 {
 	struct mohclass *class = data;
+	struct mohdata *moh;
 
 	if (class->pid) {
 		if (option_debug)
 			opbx_log(OPBX_LOG_DEBUG, "killing %d!\n", class->pid);
+
 		kill(class->pid, SIGKILL);
-		close(class->srcfd);
+		if (class->srcfd >= 0)
+			close(class->srcfd);
 	}
+
 	opbx_moh_free_class(class);
 }
 
@@ -450,18 +454,23 @@ static void *monitor_custom_command(void *data)
 			if ((class->srcfd = spawn_custom_command(class)) < 0) {
 				opbx_log(OPBX_LOG_WARNING, "Unable to spawn custom command\n");
 				/* Try again later */
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				pthread_testcancel();
+				if (!class->members) {
+					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+					pthread_testcancel();
+				}
 				sleep(60);
-				pthread_testcancel();
+				if (!class->members)
+					pthread_testcancel();
 				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 				continue;
 			}
 		}
 
 		/* Reliable sleep */
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		pthread_testcancel();
+		if (!class->members) {
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_testcancel();
+		}
 		tv_tmp = opbx_tvnow();
 		if (opbx_tvzero(tv))
 			tv = tv_tmp;
@@ -473,17 +482,19 @@ static void *monitor_custom_command(void *data)
 			opbx_log(OPBX_LOG_NOTICE, "Request to schedule in the past?!?!\n");
 			tv = tv_tmp;
 		}
-		pthread_testcancel();
-	
-		if (!class->members)
+
+		if (!class->members) {
+			pthread_testcancel();
 			continue;
+		}
 
 		/* Read audio */
 		res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		len = opbx_codec_get_len(class->format, res);
 
 		res2 = read(class->srcfd, sbuf, len);
-		pthread_testcancel();
+		if (!class->members)
+			pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (res2 != len) {
@@ -500,8 +511,7 @@ static void *monitor_custom_command(void *data)
 		}
 
 		opbx_mutex_lock(&moh_lock);
-		moh = class->members;
-		while (moh) {
+		for (moh = class->members; moh; moh = moh->next) {
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2)  {
 				if (res == -1) {
@@ -513,7 +523,6 @@ static void *monitor_custom_command(void *data)
 			if (option_debug > 8) {
 				opbx_log(OPBX_LOG_DEBUG, "Wrote %d bytes to pipe with handle %d\n", res, moh->pipe[1]);
 			}
-			moh = moh->next;
 		}
 		opbx_mutex_unlock(&moh_lock);
 	}
@@ -640,35 +649,29 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 
 static void moh_release(struct opbx_channel *chan, void *data)
 {
-	struct mohdata *moh = data, *prev, *cur;
-	int oldwfmt;
+	struct mohdata *moh = data, **next;
+
 	opbx_mutex_lock(&moh_lock);
-	/* Unlink */
-	prev = NULL;
-	cur = moh->parent->members;
-	while (cur) {
-		if (cur == moh) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				moh->parent->members = cur->next;
+
+	for (next = &moh->parent->members; *next; next = &(*next)->next) {
+		if (*next == moh) {
+			*next = moh->next;
 			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
+
+	if (chan && moh->origwfmt && opbx_set_write_format(chan, moh->origwfmt)) 
+		opbx_log(OPBX_LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(moh->origwfmt));
+
 	opbx_mutex_unlock(&moh_lock);
+
 	opbx_log(OPBX_LOG_NOTICE, "Attempting to close pipe FDs %d and %d\n", moh->pipe[0], moh->pipe[1]);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
-	oldwfmt = moh->origwfmt;
 	free(moh);
-	if (chan) {
-		if (oldwfmt && opbx_set_write_format(chan, oldwfmt)) 
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(oldwfmt));
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
-	}
+
+	if (chan && option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 }
 
 static void *moh_alloc(struct opbx_channel *chan, void *params)
@@ -712,22 +715,35 @@ static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 		opbx_log(OPBX_LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
 #endif
-	if (res <= 0)
-		return 0;
+	if (res > 0) {
+		opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, moh->parent->format, NULL);
+		f.datalen = res;
+		f.data = buf + OPBX_FRIENDLY_OFFSET/2;
+		f.offset = OPBX_FRIENDLY_OFFSET;
+		f.samples = opbx_codec_get_samples(&f);
+		res = 0;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, moh->parent->format, NULL);
-	f.datalen = res;
-	f.data = buf + OPBX_FRIENDLY_OFFSET/2;
-	f.offset = OPBX_FRIENDLY_OFFSET;
-	f.samples = opbx_codec_get_samples(&f);
-
-	if (opbx_write(chan, &f) < 0)
-    {
-		opbx_log(OPBX_LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
-		return -1;
+		if (opbx_write(chan, &f) < 0) {
+			opbx_log(OPBX_LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+			res = -1;
+		}
+	} else if (res < 0) {
+		/* This can happen either because the custom command has only just
+		 * been started and is not yet providing data OR because it is
+		 * unable to provide data fast enough on occasion OR because the
+		 * monitor_custom_command thread is unable to pass data from the
+		 * custom command pipe to the generator pipes quickly enough on
+		 * occasion.
+		 * The first _always_ happens. The last occasionally happens even
+		 * on a reasonably fast dual cored AMD64 with a single call in MOH.
+		 */
+		if (errno == EAGAIN)
+			res = 0;
+	} else {
+		res = -1;
 	}
 
-	return 0;
+	return res;
 }
 
 static struct opbx_generator mohgen = 
@@ -1030,24 +1046,6 @@ static int load_moh_classes(void)
 	return numclasses;
 }
 
-static void opbx_moh_destroy(void)
-{
-	struct mohclass *moh;
-
-	if (option_verbose > 1)
-		opbx_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
-
-	opbx_mutex_lock(&moh_lock);
-	while ((moh = mohclasses)) {
-		mohclasses = mohclasses->next;
-		if (moh->thread) 
-			pthread_cancel(moh->thread); 
-		else
-			opbx_moh_free_class(moh);
-	}
-	opbx_mutex_unlock(&moh_lock);
-}
-
 static void moh_on_off(int on)
 {
 	struct opbx_channel *chan = NULL;
@@ -1065,10 +1063,30 @@ static void moh_on_off(int on)
 
 static int moh_cli(int fd, int argc, char *argv[]) 
 {
+	struct mohclass *moh;
 	int x;
 
+	/* FIXME: logically this should be after we have the moh_lock so nothing
+	 * else can start before we destroy the old classes. But that leads to
+	 * a deadlock???
+	 */
 	moh_on_off(0);
-	opbx_moh_destroy();
+
+	if (option_verbose > 1)
+		opbx_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
+
+	opbx_mutex_lock(&moh_lock);
+	while ((moh = mohclasses)) {
+		mohclasses = mohclasses->next;
+		if (moh->thread) {
+			pthread_t tid = moh->thread;
+			pthread_cancel(tid); 
+			pthread_join(tid, NULL);
+		} else
+			opbx_moh_free_class(moh);
+	}
+	opbx_mutex_unlock(&moh_lock);
+
 	x = load_moh_classes();
 	moh_on_off(1);
 	opbx_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
