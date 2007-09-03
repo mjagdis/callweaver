@@ -264,7 +264,9 @@ static void *opbx_generator_thread(void *data)
 		/* If there is an activated generator, free its
 		 * resources because its existence is over. */
 		if (pgcd->gen_is_active) {
+			opbx_mutex_unlock(&pgcd->lock);
 			cur_gen_free(chan, cur_gen_data);
+			opbx_mutex_lock(&pgcd->lock);
 			pgcd->gen_is_active = 0;
 		}
 
