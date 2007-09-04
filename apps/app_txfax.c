@@ -150,7 +150,7 @@ static int faxgen_generate(struct opbx_channel *chan, void *data, int samples)
     return 0;
 }
 
-struct opbx_generator faxgen = 
+static struct opbx_generator faxgen = 
 {
 	alloc: 		faxgen_alloc,
 	release: 	faxgen_release,
@@ -670,6 +670,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+    if (!faxgen.is_initialized)
+        opbx_object_init(&faxgen, get_modinfo()->self, -1);
+
     txfax_app = opbx_register_function(txfax_name, txfax_exec, txfax_synopsis, txfax_syntax, txfax_descrip);
     return 0;
 }

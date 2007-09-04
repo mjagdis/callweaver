@@ -56,7 +56,7 @@ void opbx_generator_stop_thread(struct opbx_channel *pchan)
 {
 	opbx_mutex_lock(&pchan->gcd.lock);
 	if (pchan->gcd.gen_req == gen_req_activate)
-		pchan->gcd.gen_free(pchan, pchan->gcd.gen_data);
+		pchan->gcd.gen->release(pchan, pchan->gcd.gen_data);
 	if (pchan->gcd.pgenerator_thread) {
 		pchan->gcd.gen_req = gen_req_shutdown;
 		opbx_cond_signal(&pchan->gcd.gen_req_cond);
@@ -94,18 +94,19 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 
 		/* In case the generator thread hasn't yet processed a
 		 * previous activation request, we need to release its data */
-		if (pgcd->gen_req == gen_req_activate)
-			pgcd->gen_free(chan, pgcd->gen_data);
+		if (pgcd->gen_req == gen_req_activate) {
+			pgcd->gen->release(chan, pgcd->gen_data);
+			opbx_object_put(pgcd->gen);
+		}
 		
 		/* Setup new request */
+		pgcd->gen = opbx_object_get(gen);
 		pgcd->gen_data = gen_data;
-		pgcd->gen_func = gen->generate;
                 if ( chan->gen_samples )
 		    pgcd->gen_samp = chan->gen_samples;
                 else
 		    pgcd->gen_samp = 160;
 		pgcd->samples_per_second = chan->samples_per_second;
-		pgcd->gen_free = gen->release;
 
 		/* Signal generator thread to activate new generator */
 		pgcd->gen_req = gen_req_activate;
@@ -133,8 +134,10 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	/* In case the generator thread hasn't yet processed a
 	 * previous activation request, we need to release its data */
 	opbx_mutex_lock(&pgcd->lock);
-	if (pgcd->gen_req == gen_req_activate)
-		pgcd->gen_free(chan, pgcd->gen_data);
+	if (pgcd->gen_req == gen_req_activate) {
+		pgcd->gen->release(chan, pgcd->gen_data);
+		opbx_object_put(pgcd->gen);
+	}
 		
 	/* Current generator, if any, gets deactivated by signaling
 	 * new request with request code being req_deactivate */
@@ -197,10 +200,9 @@ static void *opbx_generator_thread(void *data)
 {
 	struct opbx_channel *chan = data;
 	struct opbx_generator_channel_data *pgcd = &chan->gcd;
+	struct opbx_generator *cur_gen;
 	void *cur_gen_data;
 	int cur_gen_samp;
-	int (*cur_gen_func)(struct opbx_channel *chan, void *cur_gen_data, int cur_gen_samp);
-	void (*cur_gen_free)(struct opbx_channel *chan, void *cur_gen_data);
 	struct timeval tv;
 	struct timespec ts;
 	long sleep_interval_ns;
@@ -211,10 +213,9 @@ static void *opbx_generator_thread(void *data)
 	opbx_mutex_lock(&pgcd->lock);
 	opbx_log(OPBX_LOG_DEBUG, "Generator thread started on %s\n",
 		 chan->name);
+	cur_gen = NULL;
 	cur_gen_data = NULL;
 	cur_gen_samp = 0;
-	cur_gen_func = NULL;
-	cur_gen_free = NULL;
 	sleep_interval_ns = 0;
 	for (;;) {
 		/* If generator is active, wait for new request
@@ -241,7 +242,7 @@ static void *opbx_generator_thread(void *data)
 					 * at least by opbx_write. This mean we
 					 * can receive new request here */
 					opbx_mutex_unlock(&pgcd->lock);
-					res = cur_gen_func(chan, cur_gen_data, cur_gen_samp);
+					res = cur_gen->generate(chan, cur_gen_data, cur_gen_samp);
 					opbx_mutex_lock(&pgcd->lock);
 					if (res || pgcd->gen_req) {
 						/* Got generator error or new
@@ -265,8 +266,10 @@ static void *opbx_generator_thread(void *data)
 		 * resources because its existence is over. */
 		if (pgcd->gen_is_active) {
 			opbx_mutex_unlock(&pgcd->lock);
-			cur_gen_free(chan, cur_gen_data);
+			cur_gen->release(chan, cur_gen_data);
 			opbx_mutex_lock(&pgcd->lock);
+			opbx_object_put(cur_gen);
+			cur_gen = NULL;
 			pgcd->gen_is_active = 0;
 		}
 
@@ -277,10 +280,9 @@ static void *opbx_generator_thread(void *data)
 			/* Copy gen_* stuff to cur_gen_* stuff, set flag
 			 * gen_is_active, calculate sleep interval and
 			 * obtain current time using CLOCK_MONOTONIC. */
+			cur_gen = pgcd->gen; /* We inherit this reference... */
 			cur_gen_data = pgcd->gen_data;
 			cur_gen_samp = pgcd->gen_samp;
-			cur_gen_func = pgcd->gen_func;
-			cur_gen_free = pgcd->gen_free;
 			pgcd->gen_is_active = -1;
 			sleep_interval_ns = 1000000L * cur_gen_samp / ( pgcd->samples_per_second / 1000 );        // THIS IS BECAUSE It's HARDCODED TO 8000 samples per second. We should use the samples per second in the channel struct.
 			gettimeofday(&tv, NULL);
@@ -308,6 +310,8 @@ static void *opbx_generator_thread(void *data)
 	pgcd->pgenerator_thread = NULL;
 	opbx_cond_destroy(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
+	if (cur_gen)
+		opbx_object_put(cur_gen);
 	return NULL;
 }
 
@@ -317,15 +321,13 @@ static int opbx_generator_start_thread(struct opbx_channel *pchan)
 	struct opbx_generator_channel_data *pgcd = &pchan->gcd;
 
 	/* Just return if generator thread is running already */
-	if (pgcd->pgenerator_thread) {
+	if (pgcd->pgenerator_thread)
 		return 0;
-	}
 
 	/* Create joinable generator thread */
 	pgcd->pgenerator_thread = malloc(sizeof (pthread_t));
-	if (!pgcd->pgenerator_thread) {
+	if (!pgcd->pgenerator_thread)
 		return -1;
-	}
 	opbx_cond_init(&pgcd->gen_req_cond, NULL);
 	if(opbx_pthread_create(pgcd->pgenerator_thread, NULL, opbx_generator_thread, pchan)) {
 		free(pgcd->pgenerator_thread);

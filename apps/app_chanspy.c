@@ -766,6 +766,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+    if (!spygen.is_initialized)
+        opbx_object_init(&spygen, get_modinfo()->self, -1);
+
     chanspy_app = opbx_register_function(chanspy_name, chanspy_exec, chanspy_synopsis, chanspy_syntax, chanspy_desc);
     return 0;
 }

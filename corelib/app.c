@@ -425,6 +425,10 @@ int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, 
 	char tmpf[256];
 	int res = -1;
 	int autoclose = 0;
+
+	if (!linearstream.is_initialized)
+		opbx_object_init(&linearstream, get_modinfo()->self, -1);
+
 	if (fd < 0) {
 		if (opbx_strlen_zero(filename))
 			return -1;

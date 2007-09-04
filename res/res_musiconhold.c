@@ -47,6 +47,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
+#include "callweaver/object.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
@@ -286,7 +287,7 @@ static void *moh_files_alloc(struct opbx_channel *chan, void *params)
 	if (!chan->music_state && (state = malloc(sizeof(struct moh_files_state)))) {
 		chan->music_state = state;
 		allocated = 1;
-	} else 
+	} else
 		state = chan->music_state;
 
 	if (state) {
@@ -1172,6 +1173,12 @@ static int load_module(void)
 {
 	/* We should never be unloaded */
 	opbx_module_get(get_modinfo()->self);
+
+	if (!mohgen.is_initialized)
+		opbx_object_init(&mohgen, get_modinfo()->self, -1);
+
+	if (!moh_file_stream.is_initialized)
+		opbx_object_init(&moh_file_stream, get_modinfo()->self, -1);
 
 	load_moh_classes();
 

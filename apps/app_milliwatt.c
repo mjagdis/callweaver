@@ -139,6 +139,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	if (!milliwattgen.is_initialized)
+		opbx_object_init(&milliwattgen, get_modinfo()->self, -1);
+
 	milliwatt_app = opbx_register_function(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
 	return 0;
 }

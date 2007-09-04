@@ -3744,6 +3744,9 @@ int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int dur
 
     struct tonepair_def d;
 
+    if (!tonepair.is_initialized)
+        opbx_object_init(&tonepair, get_modinfo()->self, -1);
+
     if (vol >= 0)
 	vol = -13;
 

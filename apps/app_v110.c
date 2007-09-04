@@ -803,6 +803,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	if (!v110_gen.is_initialized)
+		opbx_object_init(&v110_gen, get_modinfo()->self, -1);
+
 	v110_app = opbx_register_function(v110_name, login_v110, v110_synopsis, v110_syntax, v110_descrip);
 	return 0;
 }

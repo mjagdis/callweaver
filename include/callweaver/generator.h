@@ -28,11 +28,16 @@
 
 #define GENERATOR_WAIT_ITERATIONS 100
 
+#include "callweaver/object.h"
+
+
 /*! Data structure used to register new generator */
 struct opbx_generator {
+	struct opbx_object obj;
 	void *(*alloc)(struct opbx_channel *chan, void *params);
 	void (*release)(struct opbx_channel *chan, void *data);
 	int (*generate)(struct opbx_channel *chan, void *data, int samples);
+	int is_initialized;
 };
 
 /*! Requests sent to generator thread */
@@ -77,11 +82,8 @@ struct opbx_generator_channel_data {
 	/*! How is our codec supposed to be? What's the sample frequency ? */
 	int samples_per_second;
 
-	/*! New generator function */
-	int (*gen_func)(struct opbx_channel *chan, void *gen_data, int gen_samp);
-
-	/*! What to call to free (release) gen_data */
-	void (*gen_free)(struct opbx_channel *chan, void *gen_data);
+	/*! The generator struct */
+	struct opbx_generator *gen;
 };
 
 /*! Stop channel generator thread */

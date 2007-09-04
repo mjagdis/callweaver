@@ -261,6 +261,9 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 	char *stringp = NULL;
 	char *separator;
 
+	if (!playtones.is_initialized)
+		opbx_object_init(&playtones, get_modinfo()->self, -1);
+
 	if (vol >= 0)
 		d.vol = -13;
 	else

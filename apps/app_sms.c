@@ -2129,6 +2129,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+    if (!smsgen.is_initialized)
+        opbx_object_init(&smsgen, get_modinfo()->self, -1);
+
     snprintf(log_file, sizeof(log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
     snprintf(spool_dir, sizeof(spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
     sms_app = opbx_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
