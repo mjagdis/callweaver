@@ -56,14 +56,7 @@ ifeq ($(ENABLE_DEBUG), yes)
     --with-debug_malloc=yes
 endif
 
-check-ilbc:
-	dh_testdir
-	if [ -f codecs/codec_ilbc.c ];then  \
-	  echo "WARNING: iLBC must be removed from sources before packaging." ; false; \
-	fi
-	touch $@
-
-config.status: check-ilbc patch-stamp configure
+config.status: patch-stamp configure
 	dh_testdir
 	# just make sure we're not regenerating configure =)
 	touch configure
@@ -79,7 +72,7 @@ config.status: check-ilbc patch-stamp configure
 				--localstatedir=/var \
 				--sysconfdir=/etc \
 				\
-				--disable-ilbc --with-pbx_ael=yes \
+				--with-pbx_ael=yes \
 				--with-app_sql_postgres=yes --enable-postgresql=yes \
 				--with-res_config_pgsql --with-res_sqlite=yes \
 				--with-cdr_pgsql=yes --with-app_meetme=no --with-chan-capi=yes \
@@ -201,8 +194,6 @@ get-orig-source:
 	@@mkdir -p ../tarballs/callweaver-$(UPVERSION).tmp/
 	@@cd ../tarballs/callweaver-$(UPVERSION).tmp ; \
 	tar xfz ../$(UPFILENAME) 
-	# cleanup iLBC codec
-	@@rm -rf ../tarballs/callweaver-$(UPVERSION).tmp/callweaver-$(UPVERSION)/codecs/codec_ilbc.c
 	# move opstream's debian/ out of the way while we're doing the DFSG repack anyway.
 	@@cd ../tarballs/callweaver-$(UPVERSION).tmp/callweaver-$(UPVERSION) ; \
 	mkdir packaging;mv debian packaging

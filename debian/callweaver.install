@@ -1,3 +1,9 @@
+usr/lib64/callweaver/libcallweaver*.so.*
+usr/lib64/callweaver/libcwjb*.so.*
+usr/lib64/callweaver/libcwres*.so.*
+usr/lib64/callweaver/libcwsqlite3*.so.*
+usr/lib64/callweaver/modules/*.so
+usr/lib64/callweaver/modules/icd/*.so
 usr/lib/callweaver/libcallweaver*.so.*
 usr/lib/callweaver/libcwjb*.so.*
 usr/lib/callweaver/libcwres*.so.*
