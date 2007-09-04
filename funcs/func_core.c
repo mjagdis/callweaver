@@ -681,7 +681,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, 
 						break;
 					}
 				}
-				return (argv[0][0] ? pbx_builtin_goto(chan, argc, argv, NULL, 0) : 0);
+				return (argc != 1 || argv[0][0] ? pbx_builtin_goto(chan, argc, argv, NULL, 0) : 0);
 			} else {
 				/* False: we want everything after ':' (if anything) */
 				argv[0] = s;
