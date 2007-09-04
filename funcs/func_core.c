@@ -681,7 +681,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, 
 						break;
 					}
 				}
-				return pbx_builtin_goto(chan, argc, argv, NULL, 0);
+				return (argv[0][0] ? pbx_builtin_goto(chan, argc, argv, NULL, 0) : 0);
 			} else {
 				/* False: we want everything after ':' (if anything) */
 				argv[0] = s;
@@ -698,7 +698,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, 
 		}
 	}
     
-	return opbx_function_syntax("GotoIf(boolean ? [[context,]exten,]priority : [[context,]exten,]priority)");
+	return opbx_function_syntax("GotoIf(boolean ? [[[context,]exten,]priority] [: [[context,]exten,]priority])");
 }           
 
 static int pbx_builtin_saynumber(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
