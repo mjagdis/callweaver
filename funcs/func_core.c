@@ -689,7 +689,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, 
 					if ((s = strchr(argv[i], ':'))) {
 						do { *(s++) = '\0'; } while (isspace(*s));
 						argv[i] = s;
-						return pbx_builtin_goto(chan, argc - i, argv + i, NULL, 0);
+						return (argc - i != 1 || s[0] ? pbx_builtin_goto(chan, argc - i, argv + i, NULL, 0) : 0);
 					}
 				}
 				/* No ": ..." so we just drop through */
