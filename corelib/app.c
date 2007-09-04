@@ -427,7 +427,7 @@ int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, 
 	int autoclose = 0;
 
 	if (!linearstream.is_initialized)
-		opbx_object_init(&linearstream, get_modinfo()->self, -1);
+		opbx_object_init(&linearstream, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
 	if (fd < 0) {
 		if (opbx_strlen_zero(filename))

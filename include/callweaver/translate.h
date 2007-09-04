@@ -48,7 +48,7 @@ extern struct opbx_registry translator_registry;
 	 * module lock is held. \
 	 */ \
 	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, get_modinfo()->self, -1); \
+		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
 	__ptr->reg_entry = opbx_registry_add(&translator_registry, &__ptr->obj); \
 	0; \
 })

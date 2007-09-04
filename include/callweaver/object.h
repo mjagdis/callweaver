@@ -37,6 +37,10 @@ struct opbx_object {
 };
 
 
+#define OPBX_OBJECT_NO_REFS -1
+#define OPBX_OBJECT_CURRENT_MODULE (get_modinfo()->self)
+
+
 /*! \brief Initialise an object
  *
  * \param obj		the object to be initialised

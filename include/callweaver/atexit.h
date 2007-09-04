@@ -46,7 +46,7 @@ extern struct opbx_registry atexit_registry;
 	 * module lock is held. \
 	 */ \
 	if (!opbx_object_refs(__ptr)) { \
-		opbx_object_init_obj(&__ptr->obj, NULL, -1); \
+		opbx_object_init_obj(&__ptr->obj, NULL, OPBX_OBJECT_NO_REFS); \
 		/* atexits don't pin the module when registered, but they do pin it \
 		 * just before being run or unregistered so the normal puts only \
 		 * release the module once we're done. \

@@ -856,7 +856,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
 		member->chan->name, member->type, chan->readformat, chan->writeformat ) ;
 
     if (!membergen.is_initialized)
-        opbx_object_init(&membergen, get_modinfo()->self, -1);
+        opbx_object_init(&membergen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
     if ( !opbx_generator_is_active(chan) )
 	opbx_generator_activate(chan,&membergen,member);

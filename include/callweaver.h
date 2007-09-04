@@ -132,7 +132,7 @@ extern void dnsmgr_reload(void);
 	}; \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		opbx_object_init_obj(&__file_version.obj, NULL, 0); \
+		opbx_object_init_obj(&__file_version.obj, NULL, OPBX_OBJECT_NO_REFS); \
 		if (!file_version_registry_initialized) { \
 			opbx_registry_init(&file_version_registry); \
 			file_version_registry_initialized = 1; \

@@ -737,7 +737,7 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!faxgen.is_initialized)
-        opbx_object_init(&faxgen, get_modinfo()->self, -1);
+        opbx_object_init(&faxgen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
     rxfax_app = opbx_register_function(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
     return 0;

@@ -1175,10 +1175,10 @@ static int load_module(void)
 	opbx_module_get(get_modinfo()->self);
 
 	if (!mohgen.is_initialized)
-		opbx_object_init(&mohgen, get_modinfo()->self, -1);
+		opbx_object_init(&mohgen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
 	if (!moh_file_stream.is_initialized)
-		opbx_object_init(&moh_file_stream, get_modinfo()->self, -1);
+		opbx_object_init(&moh_file_stream, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
 	load_moh_classes();
 
