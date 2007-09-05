@@ -243,7 +243,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 				if (j == '#') /* end of password */
 				{
 					  /* see if this is an integer */
-					if (isdigit(argv[0][0]))
+					if (!isdigit(argv[0][0]))
 					{
 						/* nope, it must be a filename */
 						if ((fp = fopen(argv[0],"r")) == NULL)
