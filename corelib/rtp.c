@@ -797,6 +797,70 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 }
 
 
+static int opbx_rtp_senddigit_continue(void *data)
+{
+	uint32_t pkt[4];
+	char iabuf[INET_ADDRSTRLEN];
+	struct opbx_rtp *rtp = data;
+	const struct sockaddr_in *them;
+	int repeat;
+	int more = 1;
+
+	them = udp_socket_get_them(rtp->rtp_sock_info);
+
+	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
+
+	/* Assumption: the rate used for telephone-events is the
+	 * default 8kHz and the packetization interval of the
+	 * incoming audio (which we are clocking off) is 20ms
+	 */
+	rtp->senddtmf_duration += 160;
+
+	pkt[0] = htonl(rtp->senddtmf_rtphdr | rtp->seqno);
+	pkt[1] = htonl(rtp->lastdigitts);
+	pkt[2] = htonl(rtp->ssrc); 
+	pkt[3] = htonl(rtp->senddtmf_payload | rtp->senddtmf_duration);
+
+	/* DTMF tone duration is fixed at 100ms (given the above
+	 * assumptions are true). The inter-digit time is fixed
+	 * at 80ms. However, note that we're not negotiating
+	 * back off with higher levels. If we're asked to send
+	 * back-to-back DTMF we'll simply send events with
+	 * timestamps in the future.
+	 */
+	repeat = 1;
+	if (rtp->senddtmf_duration >= 100 * 8) {
+		rtp->lastdigitts += rtp->senddtmf_duration + (80 * 8);
+		/* End event packets are sent 3 times back-to-back */
+		rtp->senddtmf_rtphdr = 0;
+		pkt[3] |= htonl(1 << 23);
+		repeat = 3;
+		more = 0;
+	}
+
+	while (repeat--) {
+		if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
+			opbx_log(OPBX_LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+				ntohs(them->sin_port),
+				strerror(errno));
+		}
+		if (rtp_debug_test_addr(them)) {
+			opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len 4) - DTMF cont (duration=%d)\n",
+				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+				ntohs(them->sin_port),
+				(rtp->senddtmf_rtphdr & !(2 << 30)),
+				rtp->seqno,
+				rtp->lastdigitts,
+				rtp->senddtmf_duration);
+		}
+	}
+
+	rtp->seqno++;
+	return more;
+}
+
+
 int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
 {
 	static char *digitcodes = "0123456789*#ABCD";
@@ -843,66 +907,10 @@ int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
 	}
 
 	rtp->seqno++;
-	return 0;
-}
 
-static int opbx_rtp_senddigit_continue(struct opbx_rtp * const rtp)
-{
-	uint32_t pkt[4];
-	int repeat;
-	char iabuf[INET_ADDRSTRLEN];
-	const struct sockaddr_in *them;
+	if (rtp->sched)
+		opbx_sched_add(rtp->sched, 20, opbx_rtp_senddigit_continue, rtp);
 
-	them = udp_socket_get_them(rtp->rtp_sock_info);
-
-	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
-
-	/* Assumption: the rate used for telephone-events is the
-	 * default 8kHz and the packetization interval of the
-	 * incoming audio (which we are clocking off) is 20ms
-	 */
-	rtp->senddtmf_duration += 160;
-
-	pkt[0] = htonl(rtp->senddtmf_rtphdr | rtp->seqno);
-	pkt[1] = htonl(rtp->lastdigitts);
-	pkt[2] = htonl(rtp->ssrc); 
-	pkt[3] = htonl(rtp->senddtmf_payload | rtp->senddtmf_duration);
-
-	/* DTMF tone duration is fixed at 100ms (given the above
-	 * assumptions are true). The inter-digit time is fixed
-	 * at 80ms. However, note that we're not negotiating
-	 * back off with higher levels. If we're asked to send
-	 * back-to-back DTMF we'll simply send events with
-	 * timestamps in the future.
-	 */
-	repeat = 1;
-	if (rtp->senddtmf_duration >= 100 * 8) {
-		rtp->lastdigitts += rtp->senddtmf_duration + (80 * 8);
-		/* End event packets are sent 3 times back-to-back */
-		rtp->senddtmf_rtphdr = 0;
-		pkt[3] |= htonl(1 << 23);
-		repeat = 3;
-	}
-
-	while (repeat--) {
-		if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
-			opbx_log(OPBX_LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-				ntohs(them->sin_port),
-				strerror(errno));
-		}
-		if (rtp_debug_test_addr(them)) {
-			opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len 4) - DTMF cont (duration=%d)\n",
-				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-				ntohs(them->sin_port),
-				(rtp->senddtmf_rtphdr & !(2 << 30)),
-				rtp->seqno,
-				rtp->lastdigitts,
-				rtp->senddtmf_duration);
-		}
-	}
-
-	rtp->seqno++;
 	return 0;
 }
 
@@ -946,7 +954,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
      * are 20ms long and evenly paced.
      * (see opbx_rtp_senddigit_continue)
      */
-    if (rtp->senddtmf_rtphdr)
+    if (rtp->senddtmf_rtphdr && !rtp->sched)
 	    opbx_rtp_senddigit_continue(rtp);
 
     len = sizeof(sin);
