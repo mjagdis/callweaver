@@ -68,7 +68,7 @@ static const char disa_descrip[] =
 	"taken NOT to compromise your security.\n\n"
 	"There is a possibility of accessing DISA without password. Simply\n"
 	"exchange your password with \"no-password\".\n\n"
-	"    Example: exten => s,1,DISA(no-password, local)\n\n"
+	"	Example: exten => s,1,DISA(no-password, local)\n\n"
 	"Be aware that using this compromises the security of your PBX.\n\n"
 	"The arguments to this application (in extensions.conf) allow either\n"
 	"specification of a single global passcode (that everyone uses), or\n"
@@ -114,20 +114,20 @@ static void play_dialtone(struct opbx_channel *chan, char *mailbox)
 static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int i;
-    int j;
-    int k;
-    int x;
-    int did_ignore;
+	int j;
+	int k;
+	int x;
+	int did_ignore;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
-    char exten[OPBX_MAX_EXTENSION];
-    char acctcode[20] = "";
+	char exten[OPBX_MAX_EXTENSION];
+	char acctcode[20] = "";
 	char *ourcontext;
-    char *ourcallerid;
-    char ourcidname[256];
-    char ourcidnum[256];
-    char *mailbox;
+	char *ourcallerid;
+	char ourcidname[256];
+	char ourcidnum[256];
+	char *mailbox;
 	struct opbx_frame *f;
 	struct timeval lastdigittime;
 	int res;
@@ -164,7 +164,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	mailbox = (argc > 3 && argv[3][0] ? argv[3] : "");
 
 	if (chan->_state != OPBX_STATE_UP)
-    {
+	{
 		/* answer */
 		opbx_answer(chan);
 	}
@@ -177,7 +177,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	opbx_log(OPBX_LOG_DEBUG, "Context: %s\n",ourcontext);
 
 	if (!strcasecmp(argv[0], "no-password"))
-    {
+	{
 		k |= 1; /* We have the password */
 		opbx_log(OPBX_LOG_DEBUG, "DISA no-password login success\n");
 	}
@@ -186,8 +186,8 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	play_dialtone(chan, mailbox);
 
 	for (;;)
-    {
-	    /* if outa time, give em reorder */
+		{
+		/* if outa time, give em reorder */
 		if (opbx_tvdiff_ms(opbx_tvnow(), lastdigittime) > 
 		    ((k & 2) ? digittimeout : firstdigittimeout))
 		{
@@ -196,7 +196,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			break;
 		}
 		if ((res = opbx_waitfor(chan, -1) < 0))
-        {
+		{
 			opbx_log(OPBX_LOG_DEBUG, "Waitfor returned %d\n", res);
 			continue;
 		}
@@ -208,15 +208,15 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			return -1;
 		}
 		if ((f->frametype == OPBX_FRAME_CONTROL)
-            &&
-		    (f->subclass == OPBX_CONTROL_HANGUP))
+			&&
+			(f->subclass == OPBX_CONTROL_HANGUP))
 		{
 			opbx_fr_free(f);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		if (f->frametype == OPBX_FRAME_VOICE)
-        {
+		{
 			opbx_fr_free(f);
 			continue;
 		}
@@ -245,7 +245,7 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 					  /* see if this is an integer */
 					if (isdigit(argv[0][0]))
 					{
-                        /* nope, it must be a filename */
+						/* nope, it must be a filename */
 						if ((fp = fopen(argv[0],"r")) == NULL)
 						{
 							opbx_log(OPBX_LOG_WARNING,"DISA password file %s not found on chan %s\n",argv[0],chan->name);
@@ -256,39 +256,40 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 						while (fgets(inbuf,sizeof(inbuf) - 1,fp))
 						{
 							char *stringp = NULL;
-                            char *stringp2;
-                            
+							char *stringp2;
+
+							
 							if (!inbuf[0])
-                                continue;
+								continue;
 							if (inbuf[strlen(inbuf) - 1] == '\n') 
 								inbuf[strlen(inbuf) - 1] = 0;
 							if (!inbuf[0])
-                                continue;
-						    /* skip comments */
+								continue;
+							/* skip comments */
 							if (inbuf[0] == '#')
-                                continue;
+								continue;
 							if (inbuf[0] == ';')
-                                continue;
+								continue;
 							stringp = inbuf;
 							strsep(&stringp, "|,");
 							stringp2 = strsep(&stringp, "|,");
 							if (stringp2)
-                            {
+							{
 								ourcontext = stringp2;
 								stringp2 = strsep(&stringp, "|,");
 								if (stringp2)
-                                    ourcallerid = stringp2;
+									ourcallerid = stringp2;
 							}
 							mailbox = strsep(&stringp, "|,");
 							if (!mailbox)
 								mailbox = "";
 
-						    /* password must be in valid format (numeric) */
+							/* password must be in valid format (numeric) */
 							if (sscanf(inbuf, "%d", &j) < 1)
-                                continue;
+								continue;
 							/* if we got it */
 							if (!strcmp(exten, inbuf))
-                                break;
+								break;
 						}
 						fclose(fp);
 					}
@@ -315,22 +316,22 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			exten[i++] = j;  /* save digit */
 			exten[i] = 0;
 			if (!(k & 1))
-                continue; /* if getting password, continue doing it */
+				continue; /* if getting password, continue doing it */
 			  /* if this exists */
 
 			if (opbx_ignore_pattern(ourcontext, exten))
-            {
+			{
 				play_dialtone(chan, "");
 				did_ignore = 1;
 			}
-            else
-            {
+			else
+			{
 				if (did_ignore)
-                {
+				{
 					opbx_playtones_stop(chan);
 					did_ignore = 0;
 				}
-            }
+			}
 			/* if can do some more, do it */
 			if (!opbx_matchmore_extension(chan,ourcontext,exten,1, chan->cid.cid_num))
 				break;
@@ -338,18 +339,18 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	}
 
 	if (k == 3)
-    {
+	{
 		int recheck = 0;
 
 		if (!opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
-        {
+		{
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			exten[0] = 'i';
 			exten[1] = '\0';
 			recheck = 1;
 		}
 		if (!recheck || opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
-        {
+		{
 			opbx_playtones_stop(chan);
 			/* We're authenticated and have a target extension */
 			if (ourcallerid  &&  *ourcallerid)
