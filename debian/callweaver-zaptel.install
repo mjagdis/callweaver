@@ -1,3 +1,2 @@
-usr/lib/callweaver/modules/chan_zap.so
-usr/lib64/callweaver/modules/chan_zap.so
+usr/lib*/callweaver/modules/chan_zap.so
 etc/callweaver/zapata.conf
