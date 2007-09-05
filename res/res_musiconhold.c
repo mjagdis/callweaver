@@ -1160,7 +1160,8 @@ static void moh_killall(void)
 	struct mohclass *class;
 
 	for (class = mohclasses; class; class = class->next)
-		kill(class->pid, SIGKILL);
+		if (class->pid)
+			kill(class->pid, SIGKILL);
 }
 
 static struct opbx_atexit moh_atexit = {
