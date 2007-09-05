@@ -5508,15 +5508,11 @@ static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv, char 
 	struct localuser *u;
 	struct opbx_vm_user svm;
 	char *context;
-	int priority_jump = 0;
 
-	if (argc < 1 || argc > 2 || !argv[0][0])
+	if (argc != 1 || !argv[0][0])
 		return opbx_function_syntax(syntax_vm_box_exists);
 
 	LOCAL_USER_ADD(u);
-
-	if (argc > 1 && strchr(argv[1], 'j'))
-		priority_jump = 1;
 
 	if ((context = strchr(argv[0], '@'))) {
 		*context = '\0';
