@@ -655,6 +655,7 @@ static void *faxmodem_media_thread(void *obj)
 		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, 
 			       AT_CALL_EVENT_CONNECTED);
 	} else {
+	        threadcount_dec();
 		return NULL;
 	}
 
