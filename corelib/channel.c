@@ -735,16 +735,15 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	{
 		if (fin->frametype != OPBX_FRAME_VOICE)
     		{
-			opbx_log(OPBX_LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
-			CRASH;
+			opbx_log(OPBX_LOG_ERROR, "Dropping non-voice (type %d) frame for %s due to long queue length\n", chan->name);
 		}
     		else
     		{	
-			opbx_log(OPBX_LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
-			opbx_fr_free(f);
-			opbx_mutex_unlock(&chan->lock);
-			return 0;
+			opbx_log(OPBX_LOG_WARNING, "Dropping voice frame for %s due to exceptionally long queue\n", chan->name);
 		}
+		opbx_fr_free(f);
+		opbx_mutex_unlock(&chan->lock);
+		return 0;
 	}
 	if (prev)
 		prev->next = f;
