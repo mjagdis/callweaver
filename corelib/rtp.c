@@ -774,10 +774,13 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     res = udp_socket_recvfrom(rtp->rtcp_sock_info, rtcpdata, sizeof(rtcpdata), 0, (struct sockaddr *) &sin, &len, &actions);
     if (res < 0)
     {
-        if (errno != EAGAIN)
-            opbx_log(OPBX_LOG_DEBUG, "RTP Read error: %s\n", strerror(errno));
         if (errno == EBADF)
-            CRASH;
+        {
+            opbx_log(OPBX_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
+            opbx_rtp_set_active(rtp, 0);
+        }
+        else
+            opbx_log(OPBX_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &null_frame;
     }
     if ((actions & 1))
@@ -966,10 +969,13 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     rtpheader = (uint32_t *)(rtp->rawdata + OPBX_FRIENDLY_OFFSET);
     if (res < 0)
     {
-        if (errno != EAGAIN)
-            opbx_log(OPBX_LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
         if (errno == EBADF)
-            CRASH;
+        {
+            opbx_log(OPBX_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
+            opbx_rtp_set_active(rtp, 0);
+        }
+        else
+            opbx_log(OPBX_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &null_frame;
     }
 
