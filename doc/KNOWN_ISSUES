@@ -26,8 +26,31 @@ CHAN_SIP CALL COUNTER ISSUES
     - Use dialplan logic with the GROUP and GROUP_COUNT functions intead of the
       counters.
     
+RTC Lost Interrupt
+
+  Problem
+    - My kernel logs are filled with:
+      Sep  6 11:55:06 callweaver kernel: rtc: lost some interrupts at 1024Hz.
+
+  Solution
+    - check: cat /proc/sys/dev/rtc/max-user-freq
+      if less then 1000 use: echo 1000 > /proc/sys/dev/rtc/max-user-freq
+      put this in your startup script.
+    - if the problem persist check the output of "dmesg", lost interrupt can
+      be also caused by problems with your hard disk(s) (some bad sectors).
+
+CLOCK_MONOTONIC support in libC
+
+  Problem
+    - For better timing performance CallWeaver need that your system libc has
+      support for CLOCK_MONOTONIC
+
+  Solution
+    - on Linux, you have it with GNU libc6 >= 2.3.3
+    - on BSD, you need OS version >= 7.0
 
 OTHER BUGS
 
   - For more info about unsolved and solved bugs, please see
     http://callweaver.org/tickets.
+

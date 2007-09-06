@@ -8,7 +8,6 @@ opbxinclude_HEADERS = acl.h \
                       astobj.h \
                       astosp.h \
                       callweaver_db.h \
-                      callweaver_expr.h \
                       callweaver_hash.h \
                       callweaver_keywords.h \
                       callweaver_mm.h \
