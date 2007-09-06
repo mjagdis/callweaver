@@ -723,9 +723,15 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
     if (res < 0)
     {
         if (errno != EAGAIN)
-            opbx_log(OPBX_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
-        if (errno == EBADF)
-            CRASH;
+        {
+            if (errno == EBADF)
+            {
+                opbx_log(OPBX_LOG_ERROR, "UDPTL read error: %s\n", strerror(errno));
+                opbx_udptl_set_active(udptl, 0);
+            }
+            else
+                opbx_log(OPBX_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
+        }
         return &null_frame;
     }
     if ((actions & 1))
