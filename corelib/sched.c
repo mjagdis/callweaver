@@ -403,9 +403,6 @@ int opbx_sched_del(struct sched_context *con, int id)
 	opbx_mutex_unlock(&con->lock);
 	if (!deleted) {
 		opbx_log(OPBX_LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
-#ifdef DO_CRASH
-		CRASH;
-#endif
 		return -1;
 	} else
 		return 0;
