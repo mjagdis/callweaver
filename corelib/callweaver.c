@@ -2441,22 +2441,26 @@ int callweaver_main(int argc, char *argv[])
 	opbx_rtp_reload();
 #endif
 
+#ifdef __OPBX_DEBUG_MALLOC
+	__opbx_mm_init();
+#endif	
+	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
 	if (option_console && !option_verbose)
 		opbx_verbose(" ]\n");
+
+	time(&opbx_startuptime);
 	if (option_verbose || option_console)
 		opbx_verbose(opbx_term_color(tmp, "CallWeaver Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+
 	if (option_nofork)
 		consolethread = pthread_self();
+
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-#ifdef __OPBX_DEBUG_MALLOC
-	__opbx_mm_init();
-#endif	
-	time(&opbx_startuptime);
-	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
+
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
