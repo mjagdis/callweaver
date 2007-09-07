@@ -853,7 +853,7 @@ int opbx_set_priority(int pri)
 	return 0;
 }
 
-static void quit_handler(int num, int nice, int safeshutdown, int restart)
+static void quit_handler(int nice, int safeshutdown, int restart)
 {
 	char filename[80] = "";
 	time_t s,e;
@@ -915,9 +915,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	opbx_run_atexits();
 	/* Called on exit */
 	if (option_verbose && option_console)
-		opbx_verbose("CallWeaver %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
+		opbx_verbose("CallWeaver %s ending.\n", opbx_active_channels() ? "uncleanly" : "cleanly");
 	if (option_debug)
-		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending (%d).\n", num);
+		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending.\n");
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", opbx_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (opbx_socket > -1) {
 		pthread_cancel(lthread);
@@ -963,9 +963,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	exit(0);
 }
 
-static void __quit_handler(int num)
+static void __quit_handler(int sig)
 {
-	quit_handler(num, 0, 1, 0);
+	quit_handler(0, 1, 0);
 }
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
@@ -1053,7 +1053,7 @@ static int remoteconsolehandler(char *s)
 		}
 		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 		    (s[4] == '\0' || isspace(s[4]))) {
-			quit_handler(0, 0, 0, 0);
+			quit_handler(0, 0, 0);
 			ret = 1;
 		}
 	} else
@@ -1103,7 +1103,7 @@ static int handle_quit(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 0, 1, 0);
+	quit_handler(0, 1, 0);
 	return RESULT_SUCCESS;
 }
 #endif
@@ -1112,7 +1112,7 @@ static int handle_shutdown_now(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
+	quit_handler(0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1120,7 +1120,7 @@ static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 1 /* nicely */, 1 /* safely */, 0 /* no restart */);
+	quit_handler(1 /* nicely */, 1 /* safely */, 0 /* no restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1128,7 +1128,7 @@ static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
+	quit_handler(2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1136,7 +1136,7 @@ static int handle_restart_now(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 0 /* not nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(0 /* not nicely */, 1 /* safely */, 1 /* restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1144,7 +1144,7 @@ static int handle_restart_gracefully(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 1 /* nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(1 /* nicely */, 1 /* safely */, 1 /* restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1152,7 +1152,7 @@ static int handle_restart_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(2 /* really nicely */, 1 /* safely */, 1 /* restart */);
 	return RESULT_SUCCESS;
 }
 
@@ -1275,7 +1275,7 @@ static int opbx_rl_read_char(FILE *cp)
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 				if (!option_reconnect) {
-					quit_handler(0, 0, 0, 0);
+					quit_handler(0, 0, 0);
 				} else {
 					int tries;
 					int reconnects_per_second = 20;
@@ -1292,7 +1292,7 @@ static int opbx_rl_read_char(FILE *cp)
 					}
 					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
-						quit_handler(0, 0, 0, 0);
+						quit_handler(0, 0, 0);
 					}
 				}
 			}
@@ -2271,14 +2271,14 @@ int callweaver_main(int argc, char *argv[])
 		if (option_remote) {
 			if (option_exec) {
 				opbx_remotecontrol(xarg);
-				quit_handler(0, 0, 0, 0);
+				quit_handler(0, 0, 0);
 				exit(0);
 			}
 			printf(opbx_term_quit());
 			opbx_register_verbose(console_verboser);
 			WELCOME_MESSAGE;
 			opbx_remotecontrol(NULL);
-			quit_handler(0, 0, 0, 0);
+			quit_handler(0, 0, 0);
 			exit(0);
 		} else {
 			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
