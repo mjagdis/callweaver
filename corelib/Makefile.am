@@ -19,7 +19,25 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	directory_engine.c \
 	hashtable.c mpool.c xml_parser.c eventlib.c \
 	hashtable_helper.c \
-	file.c filestreams.c crypto.c
+	file.c filestreams.c crypto.c \
+    lang/say_br.c \
+    lang/say_cz.c \
+    lang/say_da.c \
+    lang/say_de.c \
+    lang/say_en.c \
+    lang/say_en_GB.c \
+    lang/say_es.c \
+    lang/say_fr.c \
+    lang/say_gr.c \
+    lang/say_he.c \
+    lang/say_it.c \
+    lang/say_nl.c \
+    lang/say_no.c \
+    lang/say_pl.c \
+    lang/say_pt.c \
+    lang/say_ru.c \
+    lang/say_se.c \
+    lang/say_zh_TW.c
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 
