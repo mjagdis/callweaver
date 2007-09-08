@@ -151,15 +151,14 @@ static int faxgen_generate(struct opbx_channel *chan, void *data, int samples)
 
     return 0;
 }
+/*- End of function --------------------------------------------------------*/
 
 static struct opbx_generator faxgen = 
 {
 	alloc: 		faxgen_alloc,
 	release: 	faxgen_release,
 	generate: 	faxgen_generate,
-} ;
-
-/*- End of function --------------------------------------------------------*/
+};
 
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 {
@@ -167,6 +166,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     char local_ident[21];
     char far_ident[21];
     char buf[128];
+    const char *mode;
     t30_stats_t t;
 
     t30_get_transfer_statistics(s, &t);
@@ -185,11 +185,13 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", buf);
     snprintf(buf, sizeof(buf), "%s", t30_completion_code_to_str(result));
     pbx_builtin_setvar_helper(chan, "PHASEESTRING", buf);
+    mode = (chan->t38_status == T38_NEGOTIATED)  ?  "T.38"  :  "Analogue";
+    pbx_builtin_setvar_helper(chan, "FAXMODE", mode);
 
     opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
     if (result == T30_ERR_OK) 
     {
-        opbx_log(OPBX_LOG_DEBUG, "Fax successfully received.\n");
+        opbx_log(OPBX_LOG_DEBUG, "Fax successfully received (%s).\n", mode);
         opbx_log(OPBX_LOG_DEBUG, "Remote station id: %s\n", far_ident);
         opbx_log(OPBX_LOG_DEBUG, "Local station id:  %s\n", local_ident);
         opbx_log(OPBX_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
@@ -613,6 +615,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     pbx_builtin_setvar_helper(chan, "FAXPAGES", "");
     pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", "");
     pbx_builtin_setvar_helper(chan, "FAXBITRATE", "");
+    pbx_builtin_setvar_helper(chan, "FAXMODE", "");
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", "");
     pbx_builtin_setvar_helper(chan, "PHASEESTRING", "");
 
@@ -685,14 +688,12 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 
     while ( ready && ready_to_talk(chan) )
     {
-
-
         if ( ready && chan->t38_status != T38_NEGOTIATED ) {
-	    ready = rxfax_audio( chan, &fax, target_file, calling_party, verbose, ecm);
+	    ready = rxfax_audio(chan, &fax, target_file, calling_party, verbose, ecm);
 	}
 
         if ( ready && chan->t38_status == T38_NEGOTIATED ) {
-	    ready = rxfax_t38  ( chan, &t38, target_file, calling_party, verbose, ecm);
+	    ready = rxfax_t38(chan, &t38, target_file, calling_party, verbose, ecm);
 	}
 
 	if ( chan->t38_status != T38_NEGOTIATING )
@@ -719,7 +720,6 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         if ((res = opbx_set_write_format(chan, original_write_fmt)))
             opbx_log(OPBX_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
     }
-
     return ready;
 
 }

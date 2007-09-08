@@ -165,6 +165,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     char local_ident[21];
     char far_ident[21];
     char buf[128];
+    const char *mode;
     t30_stats_t t;
 
     t30_get_transfer_statistics(s, &t);
@@ -183,11 +184,12 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", buf);
     snprintf(buf, sizeof(buf), "%s", t30_completion_code_to_str(result));
     pbx_builtin_setvar_helper(chan, "PHASEESTRING", buf);
-
+    mode = (chan->t38_status == T38_NEGOTIATED)  ?  "T.38"  :  "Analogue";
+    pbx_builtin_setvar_helper(chan, "FAXMODE", mode);
 
     opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
     if (result == T30_ERR_OK) {
-        opbx_log(OPBX_LOG_DEBUG, "Fax successfully sent.\n");
+        opbx_log(OPBX_LOG_DEBUG, "Fax successfully sent (%s).\n", mode);
         opbx_log(OPBX_LOG_DEBUG, "Remote station id: %s\n", far_ident);
         opbx_log(OPBX_LOG_DEBUG, "Local station id:  %s\n", local_ident);
         opbx_log(OPBX_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
@@ -534,6 +536,7 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     pbx_builtin_setvar_helper(chan, "FAXPAGES", "");
     pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", "");
     pbx_builtin_setvar_helper(chan, "FAXBITRATE", "");
+    pbx_builtin_setvar_helper(chan, "FAXMODE", "");
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", "");
     pbx_builtin_setvar_helper(chan, "PHASEESTRING", "");
 
