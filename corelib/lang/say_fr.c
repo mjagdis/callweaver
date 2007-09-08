@@ -222,33 +222,33 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
                 sndfile[sndoffset] = format[offset];
             sndfile[sndoffset] = '\0';
-            res = wait_file(chan,ints,sndfile,lang);
+            res = wait_file(chan,ints, sndfile,lang);
             break;
         case 'A':
         case 'a':
             /* Sunday - Saturday */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'B':
         case 'b':
         case 'h':
             /* January - December */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'm':
             /* First - Twelfth */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'd':
         case 'e':
             /* First */
             if (tm.tm_mday == 1)
             {
-                snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
-                res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
+                res = wait_file(chan, ints, nextmsg, lang);
             }
             else
             {
@@ -293,14 +293,14 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case 'l':
             /* 12-Hour */
             if (tm.tm_hour == 0)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+                snprintf(nextmsg, sizeof(nextmsg), "digits/12");
             else if (tm.tm_hour > 12)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
             else
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-            res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+            res = wait_file(chan, ints, nextmsg, lang);
             if (!res)
-                res = wait_file(chan,ints, "digits/oclock",lang);
+                res = wait_file(chan, ints, "digits/oclock",lang);
             break;
         case 'H':
         case 'k':
@@ -309,10 +309,10 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             if (!res)
             {
                 if (format[offset] == 'H')
-                    res = wait_file(chan,ints, "digits/oclock",lang);
+                    res = wait_file(chan, ints, "digits/oclock", lang);
             }
             if (!res)
-                res = wait_file(chan,ints, "digits/oclock",lang);
+                res = wait_file(chan, ints, "digits/oclock", lang);
             break;
         case 'M':
             /* Minute */
@@ -324,10 +324,10 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case 'p':
             /* AM/PM */
             if (tm.tm_hour > 11)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+                snprintf(nextmsg, sizeof(nextmsg), "digits/p-m");
             else
-                snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
-            res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/a-m");
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'Q':
             /* Shorthand for "Today", "Yesterday", or AdBY */
@@ -336,20 +336,20 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             struct tm tmnow;
             time_t beg_today;
 
-            gettimeofday(&now,NULL);
-            opbx_localtime(&now.tv_sec,&tmnow,timezone);
+            gettimeofday(&now, NULL);
+            opbx_localtime(&now.tv_sec, &tmnow, timezone);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
             /* In any case, it saves not having to do opbx_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
             if (beg_today < time)
             {
                 /* Today */
-                res = wait_file(chan,ints, "digits/today",lang);
+                res = wait_file(chan, ints, "digits/today", lang);
             }
             else if (beg_today - 86400 < time)
             {
                 /* Yesterday */
-                res = wait_file(chan,ints, "digits/yesterday",lang);
+                res = wait_file(chan, ints, "digits/yesterday", lang);
             }
             else
             {

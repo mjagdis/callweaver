@@ -265,24 +265,24 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             /* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
         case '\'':
             /* Literal name of a sound file */
-            sndoffset=0;
-            for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+            sndoffset = 0;
+            for (sndoffset = 0;  (format[++offset] != '\'')  &&  (sndoffset < 256);  sndoffset++)
                 sndfile[sndoffset] = format[offset];
             sndfile[sndoffset] = '\0';
-            res = wait_file(chan,ints,sndfile,lang);
+            res = wait_file(chan,ints, sndfile,lang);
             break;
         case 'A':
         case 'a':
             /* Sunday - Saturday */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'B':
         case 'b':
         case 'h':
             /* January - December */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'd':
         case 'e': /* Day of the month */
@@ -329,10 +329,10 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case 'p':
             /* AM/PM */
             if (tm.tm_hour > 11)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+                snprintf(nextmsg, sizeof(nextmsg), "digits/p-m");
             else
-                snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
-            res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/a-m");
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'Q':
             /* Shorthand for "Today", "Yesterday", or "date" */

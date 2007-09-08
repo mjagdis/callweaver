@@ -185,14 +185,10 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         {
             if (!opbx_streamfile(chan, fn, language))
             {
-                if ((audiofd > -1) && (ctrlfd > -1))
-                {
+                if ((audiofd > -1)  &&  (ctrlfd > -1))
                     res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
-                }
                 else
-                {
                     res = opbx_waitstream(chan, ints);
-                }
             }
             opbx_stopstream(chan);
         }

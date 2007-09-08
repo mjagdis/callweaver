@@ -198,28 +198,28 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case '\'':
             /* Literal name of a sound file */
             sndoffset=0;
-            for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+            for (sndoffset = 0;  (format[++offset] != '\'')  &&  (sndoffset < 256);  sndoffset++)
                 sndfile[sndoffset] = format[offset];
             sndfile[sndoffset] = '\0';
-            res = wait_file(chan,ints,sndfile,lang);
+            res = wait_file(chan, ints, sndfile, lang);
             break;
         case 'A':
         case 'a':
             /* Sunday - Saturday */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'B':
         case 'b':
         case 'h':
             /* January - December */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'm':
             /* First - Twelfth */
-            snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-            res = wait_file(chan,ints,nextmsg,lang);
+            snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'd':
         case 'e':
@@ -240,8 +240,8 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
                     if (!res)
                     {
                         /* This works until the end of 2020 */
-                        snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
-                        res = wait_file(chan,ints,nextmsg,lang);
+                        snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
+                        res = wait_file(chan, ints, nextmsg, lang);
                     }
                 }
             }
@@ -263,30 +263,32 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
                             res = wait_file(chan,ints, "digits/oh",lang);
                             if (!res)
                             {
-                                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-                                res = wait_file(chan,ints,nextmsg,lang);
+                                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+                                res = wait_file(chan, ints, nextmsg, lang);
                             }
                         }
                         else if (tm.tm_year <= 20)
                         {
                             /* 1910 - 1920 */
-                            snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-                            res = wait_file(chan,ints,nextmsg,lang);
+                            snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+                            res = wait_file(chan, ints, nextmsg, lang);
                         }
                         else
                         {
                             /* 1921 - 1999 */
-                            int ten, one;
+                            int ten;
+                            int one;
+
                             ten = tm.tm_year / 10;
                             one = tm.tm_year % 10;
-                            snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten * 10);
-                            res = wait_file(chan,ints,nextmsg,lang);
+                            snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten * 10);
+                            res = wait_file(chan, ints, nextmsg, lang);
                             if (!res)
                             {
                                 if (one != 0)
                                 {
-                                    snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-                                    res = wait_file(chan,ints,nextmsg,lang);
+                                    snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+                                    res = wait_file(chan, ints, nextmsg, lang);
                                 }
                             }
                         }
@@ -298,12 +300,12 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case 'l':
             /* 12-Hour */
             if (tm.tm_hour == 0)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+                snprintf(nextmsg, sizeof(nextmsg), "digits/12");
             else if (tm.tm_hour > 12)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
             else
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-            res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'H':
         case 'k':
@@ -322,10 +324,10 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
         case 'p':
             /* AM/PM */
             if (tm.tm_hour > 11)
-                snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+                snprintf(nextmsg, sizeof(nextmsg), "digits/p-m");
             else
-                snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
-            res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/a-m");
+            res = wait_file(chan, ints, nextmsg, lang);
             break;
         case 'Q':
             /* Shorthand for "Today", "Yesterday", or ABdY */
@@ -394,37 +396,39 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             /* Seconds */
             if (tm.tm_sec == 0)
             {
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-                res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+                res = wait_file(chan, ints, nextmsg, lang);
             }
             else if (tm.tm_sec < 10)
             {
                 res = wait_file(chan,ints, "digits/oh",lang);
                 if (!res)
                 {
-                    snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-                    res = wait_file(chan,ints,nextmsg,lang);
+                    snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+                    res = wait_file(chan, ints, nextmsg, lang);
                 }
             }
             else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0))
             {
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-                res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+                res = wait_file(chan, ints, nextmsg, lang);
             }
             else
             {
-                int ten, one;
+                int ten;
+                int one;
+
                 ten = (tm.tm_sec / 10) * 10;
                 one = (tm.tm_sec % 10);
-                snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-                res = wait_file(chan,ints,nextmsg,lang);
+                snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten);
+                res = wait_file(chan, ints, nextmsg, lang);
                 if (!res)
                 {
                     /* Fifty, not fifty-zero */
                     if (one != 0)
                     {
-                        snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-                        res = wait_file(chan,ints,nextmsg,lang);
+                        snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+                        res = wait_file(chan, ints, nextmsg, lang);
                     }
                 }
             }
