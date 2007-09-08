@@ -68,7 +68,7 @@ CLEANFILES = defaults.h defaults.h.tmp
 
 @substitute@
 
-callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
+callweaver_expr2.c: callweaver_expr2.h: callweaver_expr2.y
 	$(YACC) -d --name-prefix=opbx_yy -o callweaver_expr2.c callweaver_expr2.y
 
 callweaver_expr2f.c: callweaver_expr2.l
