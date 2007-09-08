@@ -1,6 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2006, 2007, Steve Underwood based on code which is
  * Copyright (C) 2004 - 2005, Adrian Kennard, rights assigned to Digium
  *
  * See http://www.callweaver.org for more information about
@@ -31,6 +32,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <errno.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <spandsp.h>
@@ -44,15 +46,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/callerid.h"
 
-
 #include "dll_sms.h"
 
 /* ToDo */
 /* Add full VP support */
 /* Handle status report messages (generation and reception) */
 /* Time zones on time stamps */
-/* user ref field */
-
+/* User ref field */
 
 static volatile uint8_t message_ref;    /* arbitary message ref */
 static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
@@ -63,7 +63,7 @@ static char spool_dir[255];
 static void *sms_app;
 static const char sms_name[] = "SMS";
 static const char sms_synopsis[] = "Communicates with SMS service centres and SMS capable analogue phones";
-static const char sms_syntax[] = "SMS(name, [a][s])";
+static const char sms_syntax[] = "SMS(name, [a][d<n>][p<n>][s])";
 static const char sms_descrip[] =
     "SMS handles exchange of SMS data with a call to/from SMS capabale\n"
     "phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
@@ -74,20 +74,12 @@ static const char sms_descrip[] =
     "name is the name of the queue used in /var/spool/callweaver.org/sms\n"
     "Arguments:\n"
     " a: answer, i.e. send initial FSK packet.\n"
+    " d<n>: delay n*100ms before the first send (protocol 1 only).\n"
+    " p<n>: delect ETSI protocol n, where n is 1 or 2.\n"
     " s: act as service centre talking to a phone.\n"
     "Messages are processed as per text file message queues.\n"
     "smsq (a separate software) is a command to generate message\n"
     "queues and send messages.\n";
-
-static const int16_t wave[] =
-{
-    0, 392, 782, 1167, 1545, 1913, 2270, 2612, 2939, 3247, 3536, 3802, 4045, 4263, 4455, 4619, 4755, 4862, 4938, 4985,
-    5000, 4985, 4938, 4862, 4755, 4619, 4455, 4263, 4045, 3802, 3536, 3247, 2939, 2612, 2270, 1913, 1545, 1167, 782, 392,
-    0, -392, -782, -1167,
-    -1545, -1913, -2270, -2612, -2939, -3247, -3536, -3802, -4045, -4263, -4455, -4619, -4755, -4862, -4938, -4985, -5000,
-    -4985, -4938, -4862,
-    -4755, -4619, -4455, -4263, -4045, -3802, -3536, -3247, -2939, -2612, -2270, -1913, -1545, -1167, -782, -392
-};
 
 /* SMS 7 bit character mapping to UCS-2 */
 static const uint16_t defaultalphabet[] =
@@ -120,6 +112,8 @@ static const uint16_t escapes[] =
 
 typedef struct sms_s
 {
+    int protocol;          /* The protocol being used */
+    uint8_t initial_delay; /* Initial delay, in units of 100ms, as defined for ETSI protocol 1 */
     uint8_t hangup;        /* we are done... */
     uint8_t err;           /* set for any errors */
     uint8_t smsc : 1;      /* we are SMSC */
@@ -140,20 +134,15 @@ typedef struct sms_s
     uint16_t ud[SMSLEN];   /* user data (message), UCS-2 coded */
     uint8_t udh[SMSLEN];   /* user data header */
     char cli[20];          /* caller ID */
-    uint8_t ophase;        /* phase (0-79) for 0 and 1 frequencies (1300Hz and 2100Hz) */
-    uint8_t ophasep;       /* phase (0-79) for 1200 bps */
-    uint8_t obyte;         /* byte being sent */
-    unsigned int opause;   /* silent pause before sending (in sample periods) */
-    uint8_t obitp;         /* bit in byte */
-    uint8_t osync;         /* sync bits to send */
-    uint8_t obytep;        /* byte in data */
-    uint8_t obyten;        /* bytes in data */
     uint8_t omsg[256];     /* data buffer (out) */
-    uint8_t imsg[200];     /* data buffer (in) */
+    int omsg_len;          /* The length of the message in omsg */
     adsi_tx_state_t tx_adsi;
     adsi_rx_state_t rx_adsi;
+    unsigned int opause;   /* silent pause before sending (in sample periods) */
+    int tx_active;         /* TRUE if transmission in progress */
 
     /* Stuff to get rid of */
+    uint8_t imsg[255];     /* data buffer (in) */
     signed long long ims0,
     imc0,
     ims1,
@@ -163,13 +152,13 @@ typedef struct sms_s
     uint8_t ips0,
     ips1,
     ipc0,
-    ipc1;                      /* phase sin/cos 0/1 */
+    ipc1;                  /* phase sin/cos 0/1 */
     uint8_t ibitl;         /* last bit */
     uint8_t ibitc;         /* bit run length count */
     uint8_t iphasep;       /* bit phase (0-79) for 1200 bps */
     uint8_t ibitn;         /* bit number in byte being received */
     uint8_t ibytev;        /* byte value being received */
-    uint8_t ibytep;        /* byte pointer in messafe */
+    uint8_t ibytep;        /* byte pointer in message */
     uint8_t ibytec;        /* byte checksum for message */
     uint8_t ierr;          /* error flag */
     uint8_t ibith;         /* history of last bits */
@@ -181,103 +170,40 @@ typedef struct sms_s
 #define is8bit(dcs) (((dcs) & 0xC0)  ?  (((dcs) & 4))  :  (((dcs) & 12) == 4))
 #define is16bit(dcs) (((dcs) & 0xC0)  ?  0  :  (((dcs) & 12) == 8))
 
-
-#if 0
 /* Code for protocol 2, which needs properly integrating */
 #define BLOCK_SIZE 160
 
-static int adsi_create_message(adsi_tx_state_t *s, uint8_t *msg)
+static void put_message(sms_t *h, const uint8_t *msg, int len);
+
+static void *sms_alloc(struct opbx_channel *chan, void *params)
 {
-    int len;
-
-    len = adsi_add_field(s, msg, -1, CLIP_MDMF_SMS, NULL, 0);
-    /* Active */
-    len = adsi_add_field(s, msg, len, CLIP_DISPLAY_INFO, "\00ABC", 4);
-
-    return len;
+    return params;
 }
-/*- End of function --------------------------------------------------------*/
 
-int adsi_tl_next_field(adsi_rx_state_t *s, const uint8_t *msg, int msg_len, int pos, uint8_t *field_type, uint8_t const **field_body, int *field_len)
+static void sms_release(struct opbx_channel *chan, void *data)
 {
-    int len;
-
-    if (pos >= msg_len)
-        return -1;
-    /* These standards all use "IE" type fields - type, length, body - and similar headers */
-    if (pos <= 0)
-    {
-        /* Return the message type */
-        *field_type = msg[0];
-        *field_len = 0;
-        *field_body = NULL;
-        pos = 2;
-    }
-    else
-    {
-        *field_type = msg[pos++];
-        len = msg[pos++];
-        len |= (msg[pos++] << 8);
-        *field_len = len;
-        *field_body = msg + pos;
-        pos += len;
-    }
-    return pos;
+    return;
 }
-/*- End of function --------------------------------------------------------*/
 
-int adsi_tl_add_field(adsi_tx_state_t *s, uint8_t *msg, int len, uint8_t field_type, uint8_t const *field_body, int field_len)
-{
-    /* These standards all use "IE" type fields - type, length, body - and similar headers */
-    if (len <= 0)
-    {
-        /* Initialise a new message. The field type is actually the message type. */
-        msg[0] = field_type;
-        msg[1] = 0;
-        len = 2;
-    }
-    else
-    {
-        /* Add to a message in progress. */
-        if (field_type)
-        {
-            msg[len] = field_type;
-            msg[len + 1] = field_len & 0xFF;
-            msg[len + 2] = (field_len >> 8) & 0xFF;
-            memcpy(msg + len + 3, field_body, field_len);
-            len += (field_len + 3);
-        }
-        else
-        {
-            /* No field type or length, for restricted single message formats */
-            memcpy(msg + len, field_body, field_len);
-            len += field_len;
-        }
-    }
-    return len;
-}
-/*- End of function --------------------------------------------------------*/
-
-int adsi_tl_add_tm(adsi_tx_state_t *s, char *msg)
+int add_tm(sms_t *h)
 {
     uint8_t tx_msg[256];
     int tx_len;
     int l;
 
     l = -1;
-    tx_len = adsi_tl_add_field(s, tx_msg, -1, DLL_SMS_P2_INFO_MT, NULL, 0);
+    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_INFO_MT, NULL, 0);
     tx_len += 2;
-    tx_len = adsi_tl_add_field(s, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, "CW", 2);
-    tx_len = adsi_tl_add_field(s, tx_msg, tx_len, DLL_PARM_DESTINATION, "98765432", 8);
-    tx_len = adsi_tl_add_field(s, tx_msg, tx_len, DLL_PARM_DISPLAY_INFO, msg, strlen(msg));
+    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, "CW", 2);
+    if (h->da[0])
+        tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DESTINATION, h->da, strlen(h->da));
+    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DISPLAY_INFO, h->ud, h->udl);
     tx_msg[2] = tx_len - 4;
     tx_msg[3] = 0;
-    adsi_put_message(s, tx_msg, tx_len);
+    put_message(h, tx_msg, tx_len);
 }
-/*- End of function --------------------------------------------------------*/
-#endif
 
-static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
+static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
 {
     int i;
     int l;
@@ -290,9 +216,10 @@ static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
     int file;
     sms_t *h;
 
-    printf("Good message received (%d bytes)\n", len);
+    opbx_log(OPBX_LOG_EVENT, "Good message received (%d bytes)\n", len);
 
     h = (sms_t *) user_data;
+#if 0
     for (i = 0;  i < len;  i++)
     {
         printf("%2x ", msg[i]);
@@ -300,21 +227,21 @@ static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
             printf("\n");
     }
     printf("\n");
+#endif
     l = -1;
     do
     {
-        l = adsi_tl_next_field(&h->rx_adsi, msg, len, l, &field_type, &field_body, &field_len);
-        if (l > 0)
+        if ((l = adsi_next_field(&h->rx_adsi, msg, len, l, &field_type, &field_body, &field_len)) > 0)
         {
             if (field_body)
             {
                 memcpy(body, field_body, field_len);
                 body[field_len] = '\0';
-                printf("Type %x, len %d, '%s'\n", field_type, field_len, body);
+                opbx_log(OPBX_LOG_EVENT, "Type %x, len %d, '%s'\n", field_type, field_len, body);
             }
             else
             {
-                printf("Message type %x\n", field_type);
+                opbx_log(OPBX_LOG_EVENT, "Message type %x\n", field_type);
                 switch (field_type)
                 {
                 case DLL_SMS_P2_INFO_MO:
@@ -324,225 +251,54 @@ static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
                         write(file, msg + 2, msg[1]);
                         close(file);
                     }
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     /* Skip the TL length */
                     l += 2;
                     break;
                 case DLL_SMS_P2_INFO_MT:
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     /* Skip the TL length */
                     l += 2;
                     break;
                 case DLL_SMS_P2_INFO_STA:
                     l += 2;
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     break;
                 case DLL_SMS_P2_NACK:
-                    adsi_tl_add_tm(&h->tx_adsi, "This is the message");
+                    add_tm(h);
                     l += 2;
                     break;
                 case DLL_SMS_P2_ACK0:
                     l += 2;
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     break;
                 case DLL_SMS_P2_ACK1:
                     l += 2;
-                    adsi_tl_add_tm(&h->tx_adsi, "This is the message");
+                    add_tm(h);
                     break;
                 case DLL_SMS_P2_ENQ:
                     l += 2;
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     break;
                 case DLL_SMS_P2_REL:
                     l += 2;
-                    tx_len = adsi_tl_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
-                    adsi_put_message(&h->tx_adsi, tx_msg, tx_len);
+                    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_ACK0, NULL, 0);
+                    put_message(h, tx_msg, tx_len);
                     break;
                 }
             }
         }
     }
     while (l > 0);
-    printf("\n");
 }
-/*- End of function --------------------------------------------------------*/
-
-#if 0
-static int sms_protocol2_exec(struct opbx_channel *chan, void *data)
-{
-    int res = 0;
-    int count = 0;
-    int percentflag = 0;
-    char msg[256];
-    char *vdata;
-    char *localident;
-    int i;
-    uint8_t adsi_msg[256];
-    int adsi_msg_len;
-
-    struct localuser *u;
-    struct opbx_frame *inf = NULL;
-    struct opbx_frame outf;
-
-    int original_read_fmt;
-    int original_write_fmt;
-
-    uint8_t __buf[sizeof(uint16_t)*BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
-    uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
-    int len;
-    extern int errno;
-
-    if (chan == NULL)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Channel is NULL. Giving up.\n");
-        return -1;
-    }
-    vdata = data;
-
-    /* The next few lines of code parse out the message and header from the input string */
-    if (!vdata)
-    {
-        /* No data implies no filename or anything is present */
-        opbx_log(OPBX_LOG_WARNING, "SMS requires an argument (message)\n");
-        return -1;
-    }
-
-    for (i = 0;  vdata[i]  &&  (vdata[i] != ':')  &&  (vdata[i] != ',');  i++)
-    {
-        if ((vdata[i] == '%')  &&  (vdata[i + 1] == 'd'))
-            percentflag = 1;                      /* the wildcard is used */
-
-        if (i == strlen(vdata))
-        {
-            opbx_log(OPBX_LOG_WARNING, "No extension found\n");
-            return -1;
-        }
-        msg[i] = vdata[i];
-    }
-    msg[i] = '\0';
-
-    printf("Message is '%s'\n", msg);
-    if (vdata[i] == ',')
-        i++;
-    /* Done parsing */
-
-    LOCAL_USER_ADD(u);
-
-    if (chan->_state != OPBX_STATE_UP)
-    {
-        /* Shouldn't need this, but checking to see if channel is already answered
-         * Theoretically asterisk should already have answered before running the app */
-        res = opbx_answer(chan);
-    }
-
-    if (!res)
-    {
-        original_read_fmt = chan->readformat;
-        if (original_read_fmt != OPBX_FORMAT_SLINEAR)
-        {
-            res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
-            if (res < 0)
-            {
-                opbx_log(OPBX_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
-                return -1;
-            }
-        }
-        original_write_fmt = chan->writeformat;
-        if (original_write_fmt != OPBX_FORMAT_SLINEAR)
-        {
-            res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
-            if (res < 0)
-            {
-                opbx_log(OPBX_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
-                res = opbx_set_read_format(chan, original_read_fmt);
-                if (res)
-                    opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-                return -1;
-            }
-        }
-        adsi_tx_init(&h->tx_adsi, ADSI_STANDARD_CLIP);
-        adsi_rx_init(&h->rx_adsi, ADSI_STANDARD_CLIP, put_adsi_msg, h);
-        adsi_msg_len = adsi_create_message(&h->tx_adsi, adsi_msg);
-        if (msg[0] == '\0')
-            adsi_put_message(&h->tx_adsi, adsi_msg, adsi_msg_len);
-
-        while (opbx_waitfor(chan, -1) > -1)
-        {
-            inf = opbx_read(chan);
-            if (inf == NULL)
-            {
-                res = -1;
-                break;
-            }
-            if (inf->frametype == OPBX_FRAME_VOICE)
-            {
-                adsi_rx(&h->rx_adsi, inf->data, inf->samples);
-                if ((len = adsi_tx(&h->tx_adsi, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], inf->samples)))
-                {
-                    memset(&outf, 0, sizeof(outf));
-                    outf.frametype = OPBX_FRAME_VOICE;
-                    outf.subclass = OPBX_FORMAT_SLINEAR;
-                    outf.datalen = len*sizeof(int16_t);
-                    outf.samples = len;
-                    outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-                    outf.offset = OPBX_FRIENDLY_OFFSET;
-                    if (opbx_write(chan, &outf) < 0)
-                    {
-                        opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-                        break;
-                    }
-                }
-            }
-            opbx_fr_free(inf);
-        }
-        if (inf == NULL)
-        {
-            opbx_log(OPBX_LOG_DEBUG, "Got hangup\n");
-            res = -1;
-        }
-        if (original_read_fmt != OPBX_FORMAT_SLINEAR)
-        {
-            res = opbx_set_read_format(chan, original_read_fmt);
-            if (res)
-                opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-        }
-        if (original_write_fmt != OPBX_FORMAT_SLINEAR)
-        {
-            res = opbx_set_write_format(chan, original_write_fmt);
-            if (res)
-                opbx_log(OPBX_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
-        }
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
-    }
-    LOCAL_USER_REMOVE(u);
-    return res;
-}
-/*- End of function --------------------------------------------------------*/
-
-#endif
-
-static void *sms_alloc(struct opbx_channel *chan, void *params)
-{
-    return params;
-}
-
-static void sms_release(struct opbx_channel *chan, void *data)
-{
-    return;
-}
-
-static void sms_messagetx(sms_t *h);
 
 /*! \brief copy number, skipping non digits apart from leading + */
-static void numcpy(char *d, char *s)
+static void numcpy(char *d, const char *s)
 {
     if (*s == '+')
         *d++ = *s++;
@@ -571,11 +327,11 @@ static long utf8decode(uint8_t **pp)
 {
     uint8_t *p = *pp;
 
-    if (!*p)
-        return 0;                 /* null termination of string */
+    if (p[0] == '\0')
+        return 0;                 /* Null termination of string */
     (*pp)++;
     if (*p < 0xC0)
-        return *p;                /* ascii or continuation character */
+        return *p;                /* ASCII or continuation character */
     if (*p < 0xE0)
     {
         if (*p < 0xC2  ||  (p[1] & 0xC0) != 0x80)
@@ -599,9 +355,18 @@ static long utf8decode(uint8_t **pp)
     }
     if (*p < 0xFC)
     {
-        if ((*p == 0xF8  &&  p[1] < 0x88)  ||  (p[1] & 0xC0) != 0x80  ||  (p[2] & 0xC0) != 0x80  ||  (p[3] & 0xC0) != 0x80
-                || (p[4] & 0xC0) != 0x80)
+        if ((p[0] == 0xF8  &&  p[1] < 0x88)
+            ||
+            (p[1] & 0xC0) != 0x80
+            ||
+            (p[2] & 0xC0) != 0x80
+            ||
+            (p[3] & 0xC0) != 0x80
+            ||
+            (p[4] & 0xC0) != 0x80)
+        {
             return *p;             /* not valid UTF-8 */
+        }
         (*pp) += 4;
         return ((*p & 0x03) << 24) + ((p[1] & 0x3F) << 18) + ((p[2] & 0x3F) << 12) + ((p[3] & 0x3F) << 6) + (p[4] & 0x3F);
     }
@@ -628,7 +393,7 @@ static long utf8decode(uint8_t **pp)
 }
 
 /*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using SMS 7 bit character codes */
-/* The return value is the number of septets packed in to o, which is internally limited to SMSLEN */
+/* The return value is the number of septets packed into o, which is internally limited to SMSLEN */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
 static int packsms7(uint8_t *o, int udhl, uint8_t *udh, int udl, uint16_t *ud)
@@ -662,11 +427,11 @@ static int packsms7(uint8_t *o, int udhl, uint8_t *udh, int udl, uint16_t *ud)
             if (++n >= SMSLEN)
                 return n;
         }
-        ;    /* filling to septet boundary */
+        /* Filling to septet boundary */
     }
     if (o)
         o[p] = 0;
-    /* message */
+    /* Message */
     while (udl--)
     {
         long u;
@@ -707,7 +472,7 @@ static int packsms7(uint8_t *o, int udhl, uint8_t *udh, int udl, uint16_t *ud)
                 o[p] = (v >> (7 - b));
         }
         if (++n >= SMSLEN)
-            return n;
+            break;
     }
     return n;
 }
@@ -781,7 +546,7 @@ static int packsms16(uint8_t *o, int udhl, uint8_t *udh, int udl, uint16_t *ud)
         if (o)
             o[p++] = (u >> 8);
         if (p >= 140)
-            return p - 1;          /* could not fit last character */
+            return p - 1;           /* Could not fit last character */
         if (o)
             o[p++] = u;
         if (p >= 140)
@@ -795,30 +560,28 @@ static int packsms16(uint8_t *o, int udhl, uint8_t *udh, int udl, uint16_t *ud)
 static int packsms(uint8_t dcs, uint8_t *base, unsigned int udhl, uint8_t *udh, int udl, uint16_t *ud)
 {
     uint8_t *p = base;
+    int l = 0;
+
     if (udl)
     {
-        int l = 0;
-
-        if (is7bit(dcs))           /* 7 bit */
+        if (is7bit(dcs))
         {
-            l = packsms7(p + 1, udhl, udh, udl, ud);
-            if (l < 0)
+            if ((l = packsms7(p + 1, udhl, udh, udl, ud)) < 0)
                 l = 0;
             *p++ = l;
-            p += (l*7 + 7) / 8;
+            p += (l*7 + 7)/8;
         }
-        else if (is8bit(dcs))                                   /* 8 bit */
+        else if (is8bit(dcs))
         {
-            l = packsms8(p + 1, udhl, udh, udl, ud);
-            if (l < 0)
+            if ((l = packsms8(p + 1, udhl, udh, udl, ud)) < 0)
                 l = 0;
             *p++ = l;
             p += l;
         }
-        else               /* UCS-2 */
+        else
         {
-            l = packsms16(p + 1, udhl, udh, udl, ud);
-            if (l < 0)
+            /* UCS-2 */
+            if ((l = packsms16(p + 1, udhl, udh, udl, ud)) < 0)
                 l = 0;
             *p++ = l;
             p += l;
@@ -826,21 +589,22 @@ static int packsms(uint8_t dcs, uint8_t *base, unsigned int udhl, uint8_t *udh, 
     }
     else
     {
-        *p++ = 0;              /* no user data */
+        /* No user data */
+        *p++ = 0;
     }
     return p - base;
 }
-
 
 /*! \brief pack a date and return */
 static void packdate(uint8_t *o, time_t w)
 {
     struct tm *t = localtime(&w);
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
-    int z = -t->tm_gmtoff/60/15;
+#if defined(__FreeBSD__)  ||  defined(__OpenBSD__)  ||  defined( __NetBSD__ )  ||  defined(__APPLE__)
+    int z = -t->tm_gmtoff/(60*15);
 #else
-    int z = timezone/60/15;
+    int z = timezone/(60*15);
 #endif
+
     *o++ = ((t->tm_year % 10) << 4) + (t->tm_year % 100) / 10;
     *o++ = (((t->tm_mon + 1) % 10) << 4) + (t->tm_mon + 1) / 10;
     *o++ = ((t->tm_mday % 10) << 4) + t->tm_mday / 10;
@@ -1070,20 +834,32 @@ static uint8_t packaddress(uint8_t *o, const char *i)
 /*! \brief Log the output, and remove file */
 static void sms_log(sms_t *h, char status)
 {
-    if (*h->oa  ||  *h->da)
-    {
-        int o = open(log_file, O_CREAT | O_APPEND | O_WRONLY, 0666);
+    int o;
 
-        if (o >= 0)
+    if (h->oa[0]  ||  h->da[0])
+    {
+        if ((o = open(log_file, O_CREAT | O_APPEND | O_WRONLY, 0666)) >= 0)
         {
-            char line[1000], mrs[3] = "", *p;
+            char line[1000];
+            char mrs[3];
+            char *p;
             uint8_t n;
 
             if (h->mr >= 0)
                 snprintf(mrs, sizeof(mrs), "%02X", h->mr);
-            snprintf(line, sizeof(line), "%s %c%c%c%s %s %s %s ",
-                     isodate(time(NULL)), status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue, *h->oa ? h->oa : "-",
-                     *h->da ? h->da : "-");
+            else
+                mrs[0] = '\0';
+            snprintf(line,
+                     sizeof(line),
+                     "%s %c%c%c%s %s %s %s ",
+                     isodate(time(NULL)),
+                     status,
+                     h->rx  ?  'I'  :  'O',
+                     h->smsc  ?  'S'  :  'M',
+                     mrs,
+                     h->queue,
+                     h->oa[0]  ?  h->oa  :  "-",
+                     h->da[0]  ?  h->da  :  "-");
             p = line + strlen(line);
             for (n = 0;  n < h->udl;  n++)
             {
@@ -1112,7 +888,9 @@ static void sms_log(sms_t *h, char status)
             write(o, line, strlen(line));
             close(o);
         }
-        *h->oa = *h->da = h->udl = 0;
+        h->oa[0] =
+        h->da[0] =
+        h->udl = 0;
     }
 }
 
@@ -1126,8 +904,8 @@ static void sms_readfile(sms_t *h, char *fn)
     opbx_log(OPBX_LOG_EVENT, "Sending %s\n", fn);
     h->rx =
     h->udl =
-    *h->oa =
-    *h->da =
+    h->oa[0] =
+    h->da[0] =
     h->pid =
     h->srr =
     h->udhi =
@@ -1183,26 +961,26 @@ static void sms_readfile(sms_t *h, char *fn)
                 {
                     while (isspace(*p))
                         p++;
-                    if (!strcmp(line, "oa")  &&  strlen(p) < sizeof(h->oa))
+                    if (strcmp(line, "oa") == 0  &&  strlen(p) < sizeof(h->oa))
                         numcpy(h->oa, p);
-                    else if (!strcmp(line, "da")  &&  strlen(p) < sizeof(h->oa))
+                    else if (strcmp(line, "da") == 0  &&  strlen(p) < sizeof(h->oa))
                         numcpy(h->da, p);
-                    else if (!strcmp(line, "pid"))
+                    else if (strcmp(line, "pid") == 0)
                         h->pid = atoi(p);
-                    else if (!strcmp(line, "dcs"))
+                    else if (strcmp(line, "dcs") == 0)
                     {
                         h->dcs = atoi(p);
                         dcsset = 1;
                     }
-                    else if (!strcmp(line, "mr"))
+                    else if (strcmp(line, "mr") == 0)
                         h->mr = atoi(p);
-                    else if (!strcmp(line, "srr"))
+                    else if (strcmp(line, "srr") == 0)
                         h->srr = atoi(p)  ?   1  :  0;
-                    else if (!strcmp(line, "vp"))
+                    else if (strcmp(line, "vp") == 0)
                         h->vp = atoi(p);
-                    else if (!strcmp(line, "rp"))
+                    else if (strcmp(line, "rp") == 0)
                         h->rp = atoi(p)  ?  1  :  0;
-                    else if (!strcmp(line, "scts"))
+                    else if (strcmp(line, "scts") == 0)
                     {
                         /* Get date/time */
                         int Y;
@@ -1343,6 +1121,8 @@ static void sms_writefile(sms_t *h)
     char fn[200] = "";
     char fn2[200] = "";
     FILE *o;
+    unsigned int p;
+    uint16_t v;
 
     opbx_copy_string(fn, spool_dir, sizeof(fn));
     mkdir(fn, 0777);            /* ensure it exists */
@@ -1354,14 +1134,12 @@ static void sms_writefile(sms_t *h)
     o = fopen(fn, "w");
     if (o)
     {
-        if (*h->oa)
+        if (h->oa[0])
             fprintf(o, "oa=%s\n", h->oa);
-        if (*h->da)
+        if (h->da[0])
             fprintf(o, "da=%s\n", h->da);
         if (h->udhi)
         {
-            unsigned int p;
-
             fprintf(o, "udh#");
             for (p = 0;  p < h->udhl;  p++)
                 fprintf(o, "%02X", h->udh[p]);
@@ -1369,8 +1147,6 @@ static void sms_writefile(sms_t *h)
         }
         if (h->udl)
         {
-            unsigned int p;
-
             for (p = 0;  p < h->udl  &&  h->ud[p] >= ' ';  p++)
                 ;
             if (p < h->udl)
@@ -1378,8 +1154,7 @@ static void sms_writefile(sms_t *h)
             fprintf(o, "ud=");
             for (p = 0;  p < h->udl;  p++)
             {
-                uint16_t v = h->ud[p];
-
+                v = h->ud[p];
                 if (v < 32)
                     fputc(191, o);
                 else if (v < 0x80)
@@ -1454,85 +1229,87 @@ static struct dirent *readdirqueue(DIR * d, char *queue)
 }
 
 /*! \brief handle the incoming message */
-static uint8_t sms_handleincoming(sms_t *h)
+static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
 {
     uint8_t p = 3;
 
     if (h->smsc)
     {
         /* SMSC */
-        if ((h->imsg[2] & 3) == 1)
+        if ((msg[2] & 3) == 1)
         {
             /* SMS-SUBMIT */
             h->udhl =
             h->udl = 0;
             h->vp = 0;
-            h->srr = ((h->imsg[2] & 0x20) ? 1 : 0);
-            h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
-            h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
+            h->srr = ((msg[2] & 0x20)  ?  1  :  0);
+            h->udhi = ((msg[2] & 0x40)  ?  1  :  0);
+            h->rp = ((msg[2] & 0x80)  ?  1  :  0);
             opbx_copy_string(h->oa, h->cli, sizeof(h->oa));
             h->scts = time(NULL);
-            h->mr = h->imsg[p++];
-            p += unpackaddress(h->da, h->imsg + p);
-            h->pid = h->imsg[p++];
-            h->dcs = h->imsg[p++];
-            if ((h->imsg[2] & 0x18) == 0x10)                               /* relative VP */
+            h->mr = msg[p++];
+            p += unpackaddress(h->da, msg + p);
+            h->pid = msg[p++];
+            h->dcs = msg[p++];
+            if ((msg[2] & 0x18) == 0x10)                               /* relative VP */
             {
-                if (h->imsg[p] < 144)
-                    h->vp = (h->imsg[p] + 1) * 5;
-                else if (h->imsg[p] < 168)
-                    h->vp = 720 + (h->imsg[p] - 143) * 30;
-                else if (h->imsg[p] < 197)
-                    h->vp = (h->imsg[p] - 166) * 1440;
+                if (msg[p] < 144)
+                    h->vp = (msg[p] + 1) * 5;
+                else if (msg[p] < 168)
+                    h->vp = 720 + (msg[p] - 143) * 30;
+                else if (msg[p] < 197)
+                    h->vp = (msg[p] - 166) * 1440;
                 else
-                    h->vp = (h->imsg[p] - 192) * 10080;
+                    h->vp = (msg[p] - 192) * 10080;
                 p++;
             }
-            else if (h->imsg[2] & 0x18)
+            else if (msg[2] & 0x18)
+            {
                 p += 7;                 /* ignore enhanced / absolute VP */
+            }
             p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
             h->rx = 1;                 /* received message */
             sms_writefile(h);      /* write the file */
-            if (p != h->imsg[1] + 2)
+            if (p != msg[1] + 2)
             {
-                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
+                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
                 return 0xFF;          /* duh! */
             }
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
             return 0xFF;
         }
     }
     else
     {
         /* client */
-        if (!(h->imsg[2] & 3))
+        if (!(msg[2] & 3))
         {
             /* SMS-DELIVER */
             *h->da = h->srr = h->rp = h->vp = h->udhi = h->udhl = h->udl = 0;
-            h->srr = ((h->imsg[2] & 0x20) ? 1 : 0);
-            h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
-            h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
+            h->srr = ((msg[2] & 0x20) ? 1 : 0);
+            h->udhi = ((msg[2] & 0x40) ? 1 : 0);
+            h->rp = ((msg[2] & 0x80) ? 1 : 0);
             h->mr = -1;
-            p += unpackaddress(h->oa, h->imsg + p);
-            h->pid = h->imsg[p++];
-            h->dcs = h->imsg[p++];
-            h->scts = unpackdate(h->imsg + p);
+            p += unpackaddress(h->oa, msg + p);
+            h->pid = msg[p++];
+            h->dcs = msg[p++];
+            h->scts = unpackdate(msg + p);
             p += 7;
-            p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
+            p += unpacksms(h->dcs, msg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
             h->rx = 1;                 /* received message */
             sms_writefile(h);      /* write the file */
-            if (p != h->imsg[1] + 2)
+            if (p != msg[1] + 2)
             {
-                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
+                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
                 return 0xFF;          /* duh! */
             }
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
             return 0xFF;
         }
     }
@@ -1549,17 +1326,18 @@ static void sms_nextoutgoing(sms_t *h)
     char fn[100 + NAME_MAX] = "";
     DIR *d;
     char more = 0;
+    uint8_t tx_msg[256];
+    struct dirent *f;
 
     opbx_copy_string(fn, spool_dir, sizeof(fn));
     mkdir(fn, 0777);                /* ensure it exists */
-    h->rx = 0;                         /* outgoing message */
-    snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc ? "mttx" : "motx");
+    h->rx = 0;                      /* outgoing message */
+    snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc  ?  "mttx"  :  "motx");
     mkdir(fn, 0777);                /* ensure it exists */
     d = opendir(fn);
     if (d)
     {
-        struct dirent *f = readdirqueue(d, h->queue);
-        if (f)
+        if ((f = readdirqueue(d, h->queue)))
         {
             snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", f->d_name);
             sms_readfile(h, fn);
@@ -1568,109 +1346,119 @@ static void sms_nextoutgoing(sms_t *h)
         }
         closedir(d);
     }
-    if (*h->da  ||  *h->oa)                                       /* message to send */
+    if (h->da[0]  ||  h->oa[0])             /* message to send */
     {
         uint8_t p = 2;
-        h->omsg[0] = 0x80 | DLL_SMS_P1_DATA;
-        if (h->smsc)               /* deliver */
+        tx_msg[0] = 0x80 | DLL_SMS_P1_DATA;
+        if (h->smsc)
         {
-            h->omsg[p++] = (more ? 4 : 0);
-            p += packaddress(h->omsg + p, h->oa);
-            h->omsg[p++] = h->pid;
-            h->omsg[p++] = h->dcs;
-            packdate(h->omsg + p, h->scts);
+            /* Deliver */
+            tx_msg[p++] = (more)  ?  4  :  0;
+            p += packaddress(tx_msg + p, h->oa);
+            tx_msg[p++] = h->pid;
+            tx_msg[p++] = h->dcs;
+            packdate(tx_msg + p, h->scts);
             p += 7;
-            p += packsms(h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+            p += packsms(h->dcs, tx_msg + p, h->udhl, h->udh, h->udl, h->ud);
         }
-        else               /* submit */
+        else
         {
-            h->omsg[p++] =
-                0x01 + (more ? 4 : 0) + (h->srr ? 0x20 : 0) + (h->rp ? 0x80 : 0) + (h->vp ? 0x10 : 0) + (h->udhi ? 0x40 : 0);
+            /* Submit */
+            tx_msg[p++] = 0x01
+                        + (more  ?  4  :  0)
+                        + (h->srr  ?  0x20  :  0)
+                        + (h->rp  ?  0x80  :  0)
+                        + (h->vp  ?  0x10  :  0)
+                        + (h->udhi  ?  0x40  :  0);
             if (h->mr < 0)
                 h->mr = message_ref++;
-            h->omsg[p++] = h->mr;
-            p += packaddress(h->omsg + p, h->da);
-            h->omsg[p++] = h->pid;
-            h->omsg[p++] = h->dcs;
+            tx_msg[p++] = h->mr;
+            p += packaddress(tx_msg + p, h->da);
+            tx_msg[p++] = h->pid;
+            tx_msg[p++] = h->dcs;
             if (h->vp)           /* relative VP */
             {
                 if (h->vp < 720)
-                    h->omsg[p++] = (h->vp + 4) / 5 - 1;
+                    tx_msg[p++] = (h->vp + 4) / 5 - 1;
                 else if (h->vp < 1440)
-                    h->omsg[p++] = (h->vp - 720 + 29) / 30 + 143;
+                    tx_msg[p++] = (h->vp - 720 + 29) / 30 + 143;
                 else if (h->vp < 43200)
-                    h->omsg[p++] = (h->vp + 1439) / 1440 + 166;
+                    tx_msg[p++] = (h->vp + 1439) / 1440 + 166;
                 else if (h->vp < 635040)
-                    h->omsg[p++] = (h->vp + 10079) / 10080 + 192;
+                    tx_msg[p++] = (h->vp + 10079) / 10080 + 192;
                 else
-                    h->omsg[p++] = 255;        /* max */
+                    tx_msg[p++] = 255;        /* max */
             }
-            p += packsms(h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+            p += packsms(h->dcs, tx_msg + p, h->udhl, h->udh, h->udl, h->ud);
         }
-        h->omsg[1] = p - 2;
-        sms_messagetx(h);
+        tx_msg[1] = p - 2;
+        put_message(h, tx_msg, p);
     }
     else
     {
         /* no message */
-        h->omsg[0] = 0x80 | DLL_SMS_P1_REL;
-        h->omsg[1] = 0;
-        sms_messagetx(h);
+        tx_msg[0] = 0x80 | DLL_SMS_P1_REL;
+        tx_msg[1] = 0;
+        put_message(h, tx_msg, 2);
     }
 }
 
-static void sms_debug(char *dir, const uint8_t *msg)
+static void sms_debug(char *dir, const uint8_t *msg, int len)
 {
     char txt[259*3 + 1];
     char *p = txt;                         /* always long enough */
-    int n = msg[1] + 3;
     int q;
 
-    for (q = 0;  q < n  &&  q < 30;  p += 3)
+    for (q = 0;  q < len  &&  q < 30;  p += 3)
         sprintf(p, " %02X", msg[q++]);
-    if (q < n)
+    if (q < len)
         sprintf(p, "...");
     if (option_verbose > 2)
         opbx_verbose(VERBOSE_PREFIX_3 "SMS %s%s\n", dir, txt);
 }
 
-static void sms_messagerx(sms_t *h)
+static void put_adsi_msg_prot1(void *user_data, const uint8_t *msg, int len)
 {
     uint8_t cause;
-    sms_debug("RX", h->imsg);
+    uint8_t tx_msg[256];
+    sms_t *h = (sms_t *) user_data;
+    
+    sms_debug("RX", msg, len);
     /* testing */
-    switch (h->imsg[0])
+    switch (msg[0])
     {
     case 0x80 | DLL_SMS_P1_DATA:
-        cause = sms_handleincoming(h);
+        cause = sms_handleincoming(h, h->imsg, h->imsg[1] + 2);
         if (!cause)
         {
             sms_log(h, 'Y');
-            h->omsg[0] = 0x80 | DLL_SMS_P1_ACK;
-            h->omsg[1] = 0x02;
-            h->omsg[2] = 0x00;  /* deliver report */
-            h->omsg[3] = 0x00;  /* no parameters */
+            tx_msg[0] = 0x80 | DLL_SMS_P1_ACK;
+            tx_msg[1] = 2;
+            tx_msg[2] = 0x00;       /* deliver report */
+            tx_msg[3] = 0x00;       /* no parameters */
+            put_message(h, tx_msg, 4);
         }
-        else                               /* NACK */
+        else
         {
             sms_log(h, 'N');
-            h->omsg[0] = 0x80 | DLL_SMS_P1_NACK;
-            h->omsg[1] = 3;
-            h->omsg[2] = 0;         /* delivery report */
-            h->omsg[3] = cause;     /* cause */
-            h->omsg[4] = 0;         /* no parameters */
+            tx_msg[0] = 0x80 | DLL_SMS_P1_NACK;
+            tx_msg[1] = 3;
+            tx_msg[2] = 0x00;       /* delivery report */
+            tx_msg[3] = cause;      /* cause */
+            tx_msg[4] = 0x00;       /* no parameters */
+            put_message(h, tx_msg, 5);
         }
-        sms_messagetx(h);
         break;
     case 0x80 | DLL_SMS_P1_ERROR:
+        /* Send whatever we sent again */
         h->err = 1;
-        sms_messagetx(h);           /* send whatever we sent again */
+        put_message(h, h->omsg, h->omsg_len);
         break;
     case 0x80 | DLL_SMS_P1_EST:
         sms_nextoutgoing(h);
         break;
     case 0x80 | DLL_SMS_P1_REL:
-        h->hangup = 1;              /* hangup */
+        h->hangup = 1;
         break;
     case 0x80 | DLL_SMS_P1_ACK:
         sms_log(h, 'Y');
@@ -1683,116 +1471,107 @@ static void sms_messagerx(sms_t *h)
         break;
     default:
         /* Unknown */
-        h->omsg[0] = 0x80 | DLL_SMS_P1_ERROR;
-        h->omsg[1] = 1;
-        h->omsg[2] = DLL_SMS_ERROR_UNKNOWN_MESSAGE_TYPE;
-        sms_messagetx(h);
+        tx_msg[0] = 0x80 | DLL_SMS_P1_ERROR;
+        tx_msg[1] = 1;
+        tx_msg[2] = DLL_SMS_ERROR_UNKNOWN_MESSAGE_TYPE;
+        put_message(h, tx_msg, 3);
         break;
     }
 }
 
-static void sms_messagetx(sms_t *h)
+static void put_message(sms_t *h, const uint8_t *msg, int len)
 {
-    uint8_t c = 0, p;
+    /* Save the message, for possible retransmission */
+    memcpy(h->omsg, msg, len);
+    h->omsg_len = len;
 
-    for (p = 0;  p < h->omsg[1] + 2;  p++)
-        c += h->omsg[p];
-    h->omsg[h->omsg[1] + 2] = 0 - c;
-    sms_debug("TX", h->omsg);
-    h->obyte = 1;
-    h->opause = 200;
-    if (h->omsg[0] == (0x80 | DLL_SMS_P1_EST))
-        h->opause = 2400;            /* initial message delay 300ms (for BT) */
-    h->obytep = 0;
-    h->obitp = 0;
-    h->osync = 80;
-    h->obyten = h->omsg[1] + 3;
+    sms_debug("TX", msg, len);
+    if (h->protocol != '2')
+    {
+        if (msg[0] == (0x80 | DLL_SMS_P1_EST))
+            h->opause = 800*h->initial_delay;
+        else
+            h->opause = 800;
+    }
+    adsi_tx_put_message(&h->tx_adsi, msg, len);
+    h->tx_active = TRUE;
 }
 
 static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 {
-#define MAXSAMPLES (800)
-    int len;
+#define MAXSAMPLES 800
     struct opbx_frame f;
     int16_t *buf;
-    sms_t *h = data;
+    sms_t *h = (sms_t *) data;
     int i;
+    int j;
+    int len;
 
     if (samples > MAXSAMPLES)
     {
         opbx_log(OPBX_LOG_WARNING, "Only doing %d samples (%d requested)\n",
-                 MAXSAMPLES, samples);
+                 MAXSAMPLES,
+                 samples);
         samples = MAXSAMPLES;
     }
     len = samples*sizeof(int16_t) + OPBX_FRIENDLY_OFFSET;
     buf = alloca(len);
 
     opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "app_sms");
-    f.datalen = samples*sizeof(int16_t);
     f.offset = OPBX_FRIENDLY_OFFSET;
     f.data = ((char *) buf) + OPBX_FRIENDLY_OFFSET;
-    f.samples = samples;
-
-    /* Create a buffer containing the digital SMS pattern */
-    for (i = 0;  i < samples;  i++)
+    if (h->opause)
     {
-        buf[i + OPBX_FRIENDLY_OFFSET/2] = wave[0];
-        if (h->opause)
+        i = (h->opause >= samples)  ?  samples  :  h->opause;
+        memset(f.data, 0, sizeof(int16_t)*i);
+        h->opause -= i;
+        if (i < samples)
         {
-            h->opause--;
-        }
-        else if (h->obyten  ||  h->osync)                                   /* sending data */
-        {
-            buf[i + OPBX_FRIENDLY_OFFSET/2] = wave[h->ophase];
-            if ((h->ophase += ((h->obyte & 1)  ?  13  :  21)) >= 80)
-                h->ophase -= 80;
-            if ((h->ophasep += 12) >= 80)                               /* next bit */
-            {
-                h->ophasep -= 80;
-                if (h->osync)
-                {
-                    h->osync--;        /* sending sync bits */
-                }
-                else
-                {
-                    h->obyte >>= 1;
-                    h->obitp++;
-                    if (h->obitp == 1)
-                        h->obyte = 0; /* start bit; */
-                    else if (h->obitp == 2)
-                        h->obyte = h->omsg[h->obytep];
-                    else if (h->obitp == 10)
-                    {
-                        h->obyte = 1; /* stop bit */
-                        h->obitp = 0;
-                        h->obytep++;
-                        if (h->obytep == h->obyten)
-                        {
-                            h->obytep = h->obyten = 0; /* sent */
-                            h->osync = 10;      /* trailing marks */
-                        }
-                    }
-                }
-            }
+            if ((j = adsi_tx(&h->tx_adsi, ((int16_t *) f.data) + i, samples - i)) < samples - i)
+                h->tx_active = FALSE;
+            i += j;
         }
     }
+    else
+    {
+        if ((i = adsi_tx(&h->tx_adsi, (int16_t *) f.data, samples)) < samples)
+            h->tx_active = FALSE;
+    }
+    if (i < samples)
+        memset(((int16_t *) f.data) + i, 0, sizeof(int16_t)*(samples - i));
+    f.samples = samples;
+    f.datalen = f.samples*sizeof(int16_t);
+
     if (opbx_write(chan, &f) < 0)
     {
         opbx_log(OPBX_LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
         return -1;
     }
     return 0;
-#undef SAMPLE2LEN
 #undef MAXSAMPLES
 }
 
 static void sms_process(sms_t *h, const int16_t *data, int samples)
 {
-    if (h->obyten  ||  h->osync)
-        return;                         /* sending */
+    static const int16_t wave[] =
+    {
+        0, 392, 782, 1167, 1545, 1913, 2270, 2612, 2939, 3247, 3536, 3802, 4045, 4263, 4455, 4619, 4755, 4862, 4938, 4985,
+        5000, 4985, 4938, 4862, 4755, 4619, 4455, 4263, 4045, 3802, 3536, 3247, 2939, 2612, 2270, 1913, 1545, 1167, 782, 392,
+        0, -392, -782, -1167,
+        -1545, -1913, -2270, -2612, -2939, -3247, -3536, -3802, -4045, -4263, -4455, -4619, -4755, -4862, -4938, -4985, -5000,
+        -4985, -4938, -4862,
+        -4755, -4619, -4455, -4263, -4045, -3802, -3536, -3247, -2939, -2612, -2270, -1913, -1545, -1167, -782, -392
+    };
+    uint8_t tx_msg[256];
+    
+    /* Ignore the input signal while transmitting */
+    if (h->tx_active)
+        return;
+    //adsi_rx(&h->rx_adsi, data, samples);
     while (samples--)
     {
         unsigned long long m0, m1;
+
         if (abs(*data) > h->imag)
             h->imag = abs(*data);
         else
@@ -1856,22 +1635,29 @@ static void sms_process(sms_t *h, const int16_t *data, int samples)
                             }
                             else
                             {
-                                if (h->ibytep < sizeof (h->imsg))
+                                if (h->ibytep < sizeof(h->imsg))
                                 {
                                     h->imsg[h->ibytep] = h->ibytev;
                                     h->ibytec += h->ibytev;
                                     h->ibytep++;
                                 }
-                                else if (h->ibytep == sizeof (h->imsg))
+                                else if (h->ibytep == sizeof(h->imsg))
                                 {
                                     h->ierr = DLL_SMS_ERROR_WRONG_MESSAGE_LEN;
                                 }
                                 if (h->ibytep > 1  &&  h->ibytep == 3 + h->imsg[1]  &&  !h->ierr)
                                 {
                                     if (!h->ibytec)
-                                        sms_messagerx(h);
+                                    {
+                                        if (h->protocol == '2')
+                                            put_adsi_msg_prot2(h, h->imsg, h->imsg[1] + 2);
+                                        else
+                                            put_adsi_msg_prot1(h, h->imsg, h->imsg[1] + 2);
+                                    }
                                     else
+                                    {
                                         h->ierr = DLL_SMS_ERROR_WRONG_CHECKSUM;
+                                    }
                                 }
                             }
                             h->ibitn = 0;
@@ -1883,22 +1669,22 @@ static void sms_process(sms_t *h, const int16_t *data, int samples)
         }
         else
         {
-            /* lost carrier */
+            /* Lost carrier */
             if (h->idle++ == 80000)
             {
-                /* nothing happening */
+                /* Nothing happening */
                 opbx_log(OPBX_LOG_EVENT, "No data, hanging up\n");
                 h->hangup = 1;
                 h->err = 1;
             }
             if (h->ierr)
             {
-                /* error */
+                /* Send error */
                 h->err = DLL_SMS_ERROR_WRONG_CHECKSUM;
-                h->omsg[0] = 0x80 | DLL_SMS_P1_ERROR;
-                h->omsg[1] = 1;
-                h->omsg[2] = h->ierr;
-                sms_messagetx(h);  /* send error */
+                tx_msg[0] = 0x80 | DLL_SMS_P1_ERROR;
+                tx_msg[1] = 1;
+                tx_msg[2] = h->ierr;
+                put_message(h, tx_msg, 3);
             }
             h->ierr =
             h->ibitn =
@@ -1929,7 +1715,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     int answer;
     int original_read_fmt;
     int original_write_fmt;
-    int protocol;
+    uint8_t tx_msg[256];
 
     if (argc < 1  ||  argc > 2)
         return opbx_function_syntax(sms_syntax);
@@ -1958,7 +1744,8 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
             *d = '-';              /* make very safe for filenames */
     }
 
-    protocol = '1';
+    h.protocol = '1';
+    h.initial_delay = 3;
     if (argc > 1)
     {
         for (d = argv[1];  *d;  d++)
@@ -1969,12 +1756,16 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
                 /* We have to send the initial FSK sequence */
                 answer = 1;
                 break;
+            case 'd':
+                /* Initial delay for protocol 1 */
+                h.initial_delay = *++d - '0';
+                break;
             case 's':
                 /* We are acting as a service centre talking to a phone */
                 h.smsc = 1;
                 break;
-                /* The following apply if there is an arg3/4 and apply to the created message file */
             case 'r':
+                /* The following apply if there is an arg3/4 and apply to the created message file */
                 h.srr = 1;
                 break;
             case 'o':
@@ -1982,7 +1773,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
                 break;
             case 'p':
                 /* Select protocol 1 or 2 from the ETSI spec. */
-                protocol = d[1];
+                h.protocol = *++d;
                 break;
             case '1':
             case '2':
@@ -2040,15 +1831,15 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
 
     if (answer)
     {
-        if (protocol == '2')
+        if (h.protocol == '2')
         {
         }
         else
         {
             /* Set up SMS_EST initial message */
-            h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
-            h.omsg[1] = 0;
-            sms_messagetx(&h);
+            tx_msg[0] = 0x80 | DLL_SMS_P1_EST;
+            tx_msg[1] = 0;
+            put_message(&h, tx_msg, 2);
         }
     }
 
@@ -2084,8 +1875,8 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     }
 
     adsi_tx_init(&h.tx_adsi, ADSI_STANDARD_CLIP);
-    adsi_tx_set_preamble(&h.tx_adsi, (protocol == '2')  ?  300  :  0, -1, -1, -1);
-    adsi_rx_init(&h.rx_adsi, ADSI_STANDARD_CLIP, put_adsi_msg, &h);
+    adsi_tx_set_preamble(&h.tx_adsi, (h.protocol == '2')  ?  -1  :  0, -1, -1, -1);
+    adsi_rx_init(&h.rx_adsi, ADSI_STANDARD_CLIP, (h.protocol == '2')  ?  put_adsi_msg_prot2  :  put_adsi_msg_prot1, &h);
     
     if (opbx_generator_activate(chan, &smsgen, &h) < 0)
     {
