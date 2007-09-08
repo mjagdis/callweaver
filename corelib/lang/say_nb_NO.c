@@ -164,7 +164,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
 
 lang_specific_speech_t lang_specific_no =
 {
-    "no",
+    "nb_NO",
     say_number_full,
     NULL,
     NULL,

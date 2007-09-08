@@ -32,7 +32,7 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
     lang/say_he.c \
     lang/say_it.c \
     lang/say_nl.c \
-    lang/say_no.c \
+    lang/say_nb_NO.c \
     lang/say_pl.c \
     lang/say_pt.c \
     lang/say_ru.c \
