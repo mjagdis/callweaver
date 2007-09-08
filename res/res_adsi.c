@@ -260,7 +260,7 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 			buf[1] = msglen[x] + 1;
 			buf[2] = x + 1 - start;
 			memcpy(buf+3, msg[x], msglen[x]);
-			adsi_put_message(&adsi, buf, 3 + msglen[x]);
+			adsi_tx_put_message(&adsi, buf, 3 + msglen[x]);
 			if (x + 1 - start != 1)
                 adsi_tx_set_preamble(&adsi, 0, 0, -1, -1);
             else

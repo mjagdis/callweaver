@@ -185,7 +185,7 @@ int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec)
 		len = adsi_add_field(&adsi, msg, len, 0, (active)  ?  (const uint8_t *) "\102\102\102"  :  (const uint8_t *) "\157\157\157", 3);
 	}
 
-	adsi_put_message(&adsi, msg, len);
+	adsi_tx_put_message(&adsi, msg, len);
 
 	slen = init_silence + adsi_tx(&adsi, lin+init_silence, sizeof(lin)/sizeof(lin[0]) - init_silence);
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
@@ -457,7 +457,7 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 			break;
 	}
 
-	adsi_put_message(&adsi, msg, len);
+	adsi_tx_put_message(&adsi, msg, len);
 
 	/* Anything that goes after a pre-ring polarity reversal needs some
 	 * leading silence for the CPE to get ready.
@@ -478,7 +478,7 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 	 * Yes, BT-CID HW _does_ require the alert tone.
 	 */
 	if (!callwaiting && sig == ADSI_STANDARD_CLIP) {
-		adsi_send_alert_tone(&adsi);
+		adsi_tx_send_alert_tone(&adsi);
 		/* Strictly speaking (SIN227 again) there should be 43ms silence
 		 * after the alert tone. Spandsp gives us no way to tweak this
 		 * stuff but the seizure length it uses is sufficient that
@@ -490,7 +490,6 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
 }
 
-
 int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char *msg, int codec)
 {
 	int16_t lin[MAX_CALLERID_SIZE * 3];
@@ -499,7 +498,7 @@ int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char 
 
 	adsi_tx_init(&adsi, ADSI_STANDARD_TDD);
 
-	adsi_put_message(&adsi, (uint8_t *) msg, strlen(msg));
+	adsi_tx_put_message(&adsi, (uint8_t *) msg, strlen(msg));
     adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));

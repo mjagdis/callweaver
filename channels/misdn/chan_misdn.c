@@ -637,6 +637,7 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
     
 	}
 }
+
 /*** CLI HANDLING ***/
 static int misdn_set_debug(int fd, int argc, char *argv[])
 {
