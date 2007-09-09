@@ -223,8 +223,7 @@ char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD[20] = "";
 
 static char *_argv[256];
-static int shuttingdown = 0;
-static int restartnow = 0;
+static int restart = 0;
 static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 static char random_state[256];
@@ -778,7 +777,7 @@ static void hup_handler(int num)
 {
 	if (option_verbose > 1) 
 		printf("Received HUP signal -- Reloading configs\n");
-	if (restartnow)
+	if (restart)
 		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
 	opbx_module_reload(NULL);
@@ -853,10 +852,14 @@ int opbx_set_priority(int pri)
 	return 0;
 }
 
-static void quit_handler(int restart)
+static void quit_handler(void *data)
 {
 	char filename[80] = "";
+	int local_restart;
 	int i;
+
+	/* No more changing your mind. This is definitely what we are going to do. */
+	local_restart = restart;
 
 	if (option_verbose)
 		opbx_verbose("Executing last minute cleanups\n");
@@ -877,7 +880,7 @@ static void quit_handler(int restart)
 	if (option_debug)
 		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending.\n");
 
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (opbx_active_channels() ? "Uncleanly" : "Cleanly"), (restart ? "True" : "False"));
+	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (opbx_active_channels() ? "Uncleanly" : "Cleanly"), (local_restart ? "True" : "False"));
 
 	if (opbx_socket > -1) {
 		pthread_cancel(lthread);
@@ -894,101 +897,147 @@ static void quit_handler(int restart)
 	if (!option_remote)
 		unlink((char *)opbx_config_OPBX_PID);
 
-	if (restart) {
-		if (option_verbose || option_console)
-			opbx_verbose("Preparing for CallWeaver restart...\n");
+	if (option_verbose || option_console)
+		opbx_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
 
+	close_logger();
+
+	if (option_console) {
+		printf(opbx_term_quit());
+		if (rl_init)
+			rl_deprep_terminal();
+	}
+
+	if (local_restart) {
 		/* Mark all FD's for closing on exec */
 		for (i = getdtablesize() - 1; i > 2; i--)
 			fcntl(i, F_SETFD, FD_CLOEXEC);
 
-		if (option_verbose || option_console)
-			opbx_verbose("Restarting CallWeaver NOW...\n");
-
-		restartnow = 1;
-
-		/* close logger */
-		close_logger();
-
-		/* If there is a consolethread running send it a SIGHUP 
-		   so it can execvp, otherwise we can do it ourselves */
-		if (consolethread != OPBX_PTHREADT_NULL && consolethread != pthread_self()) {
-			pthread_kill(consolethread, SIGHUP);
-			/* Give the signal handler some time to complete */
-			sleep(2);
-		} else
-			execvp(_argv[0], _argv);
-	
-	} else {
-		/* close logger */
-		close_logger();
+		execvp(_argv[0], _argv);
+		_exit(1);
 	}
-
-	printf(opbx_term_quit());
-
-	if(rl_init)
-	    rl_deprep_terminal();
 
 	exit(0);
 }
 
 
-static void cleanup_handler(int nice, int safeshutdown, int restart)
+static void *quit_when_idle(void *data)
 {
+	int *interval = (int *)data;
 	time_t s, e;
 
-	if (safeshutdown) {
-		shuttingdown = 1;
-		if (!nice) {
-			/* Begin shutdown routine, hanging up active channels */
-			opbx_begin_shutdown(1);
-			if (option_verbose && option_console)
-				opbx_verbose("Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
-			time(&s);
-			for(;;) {
-				time(&e);
-				/* Wait up to 15 seconds for all channels to go away */
-				if ((e - s) > 15)
-					break;
-				if (!opbx_active_channels())
-					break;
-				if (!shuttingdown)
-					break;
-				/* Sleep 1/10 of a second */
-				usleep(100000);
-			}
-		} else {
-			if (nice < 2)
-				opbx_begin_shutdown(0);
-			if (option_verbose && option_console)
-				opbx_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
-			for(;;) {
-				if (!opbx_active_channels())
-					break;
-				if (!shuttingdown)
-					break;
-				sleep(1);
-			}
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	time(&e);
+	while ((*interval == -1 || *interval > 0)) {
+		int n;
+
+		s = e;
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		n = opbx_active_channels();
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_testcancel();
+
+		if (!n)
+			break;
+
+		usleep(100000);
+		if (*interval != -1) {
+			time(&e);
+			*interval -= (e - s);
+			if (*interval < 0)
+				*interval = 0;
 		}
 
-		if (!shuttingdown) {
-			if (option_verbose && option_console) {
-			    opbx_verbose("CallWeaver %s cancelled.\n", restart ? "restart" : "shutdown");
-			    printf(opbx_term_quit());
-			    if(rl_init)
-				rl_deprep_terminal();
-			}
-			return;
+		pthread_testcancel();
+	}
+	pthread_testcancel();
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	opbx_log(OPBX_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	/* Last chance... */
+	pthread_testcancel();
+
+	/* If there is a console thread it has to do any halt or restart because
+	 * it may have tty clean up to do.
+	 */
+	if (option_console && consolethread != OPBX_PTHREADT_NULL) {
+		pthread_cancel(consolethread);
+	} else {
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		quit_handler(NULL);
+	}
+	return NULL;
+}
+
+
+static void shutdown_restart(int fd, int doit, int nice)
+{
+	static opbx_mutex_t lock = OPBX_MUTEX_INIT_VALUE;
+	static pthread_t thread = OPBX_PTHREADT_NULL;
+	static int last_nice, interval;
+
+	opbx_mutex_lock(&lock);
+
+	if (doit >= 0) {
+		if (thread != OPBX_PTHREADT_NULL) {
+			pthread_cancel(thread);
+			pthread_join(thread, NULL);
 		}
+
+		if (doit) {
+			if (nice < 2) {
+				opbx_begin_shutdown((nice ? 0 : 1));
+
+				if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
+					opbx_cli(fd, "Blocked new calls\n");
+				if (option_console)
+					opbx_log(OPBX_LOG_NOTICE, "Blocked new calls\n");
+
+				if (nice < 1) {
+					if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
+						opbx_cli(fd, "Hanging up active calls\n");
+					if (option_console)
+						opbx_log(OPBX_LOG_NOTICE, "Hanging up active calls\n");
+				}
+			}
+
+			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
+				opbx_cli(fd, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
+			if (option_console)
+				opbx_log(OPBX_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
+
+			last_nice = nice;
+			interval = (nice ? -1 : 15);
+			opbx_pthread_create(&thread, NULL, quit_when_idle, &interval);
+		} else {
+			thread = OPBX_PTHREADT_NULL;
+			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
+				opbx_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
+			if (option_console)
+				opbx_log(OPBX_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
+		}
+	} else {
+		if (thread != OPBX_PTHREADT_NULL) {
+			if (interval == -1)
+				opbx_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (last_nice < 2 ? " (new calls blocked)" : ""));
+			else
+				opbx_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), interval, (last_nice < 2 ? " (new calls blocked)" : ""));
+		} else
+			opbx_cli(fd, "No shutdown or restart pending\n");
 	}
 
-	quit_handler(restart);
+	opbx_mutex_unlock(&lock);
 }
 
 
 static void __quit_handler(int sig)
 {
-	cleanup_handler(0, 1, 0);
+	restart = 0;
+	shutdown_restart(-1, 1, 0);
 }
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
@@ -1076,7 +1125,8 @@ static int remoteconsolehandler(char *s)
 		}
 		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 		    (s[4] == '\0' || isspace(s[4]))) {
-			quit_handler(0);
+			restart = 9;
+			quit_handler(NULL);
 			ret = 1;
 		}
 	} else
@@ -1085,9 +1135,13 @@ static int remoteconsolehandler(char *s)
 	return ret;
 }
 
-static char abort_halt_help[] = 
-"Usage: abort shutdown\n"
-"       Causes CallWeaver to abort an executing shutdown or restart, and resume normal\n"
+static char shutdown_restart_status_help[] =
+"Usage: stop|restart status\n"
+"       Shows status of any pending shutdown or restart\n";
+
+static char shutdown_restart_cancel_help[] = 
+"Usage: stop|restart cancel\n"
+"       Causes CallWeaver to cancel a pending shutdown or restart, and resume normal\n"
 "       call operations.\n";
 
 static char shutdown_now_help[] = 
@@ -1121,21 +1175,19 @@ static char bang_help[] =
 "Usage: !<command>\n"
 "       Executes a given shell command\n";
 
-#if 0
-static int handle_quit(int fd, int argc, char *argv[])
-{
-	if (argc != 1)
-		return RESULT_SHOWUSAGE;
-	cleanup_handler(0, 1, 0);
-	return RESULT_SUCCESS;
-}
-#endif
+/* DEPRECATED */
+static char abort_halt_help[] = 
+"Usage: abort halt\n"
+"       Causes CallWeaver to abort a pending shutdown or restart, and resume normal\n"
+"       call operations.\n";
+
 
 static int handle_shutdown_now(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
+	restart = 0;
+	shutdown_restart(fd, 1, 0 /* Not nice */);
 	return RESULT_SUCCESS;
 }
 
@@ -1143,7 +1195,8 @@ static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(1 /* nicely */, 1 /* safely */, 0 /* no restart */);
+	restart = 0;
+	shutdown_restart(fd, 1, 1 /* nicely */);
 	return RESULT_SUCCESS;
 }
 
@@ -1151,7 +1204,8 @@ static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
+	restart = 0;
+	shutdown_restart(fd, 1, 2 /* really nicely */);
 	return RESULT_SUCCESS;
 }
 
@@ -1159,7 +1213,8 @@ static int handle_restart_now(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(0 /* not nicely */, 1 /* safely */, 1 /* restart */);
+	restart = 1;
+	shutdown_restart(fd, 1, 0 /* not nicely */);
 	return RESULT_SUCCESS;
 }
 
@@ -1167,7 +1222,8 @@ static int handle_restart_gracefully(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(1 /* nicely */, 1 /* safely */, 1 /* restart */);
+	restart = 1;
+	shutdown_restart(fd, 1, 1 /* nicely */);
 	return RESULT_SUCCESS;
 }
 
@@ -1175,16 +1231,25 @@ static int handle_restart_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	cleanup_handler(2 /* really nicely */, 1 /* safely */, 1 /* restart */);
+	restart = 1;
+	shutdown_restart(fd, 1, 2 /* really nicely */);
 	return RESULT_SUCCESS;
 }
 
-static int handle_abort_halt(int fd, int argc, char *argv[])
+static int handle_shutdown_restart_cancel(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	opbx_cancel_shutdown();
-	shuttingdown = 0;
+	shutdown_restart(fd, 0, 0);
+	return RESULT_SUCCESS;
+}
+
+static int handle_shutdown_restart_status(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	shutdown_restart(fd, -1, 0);
 	return RESULT_SUCCESS;
 }
 
@@ -1199,45 +1264,63 @@ static int handle_bang(int fd, int argc, char *argv[])
 
 static struct opbx_clicmd core_cli[] = {
 	{
-		.cmda = { "abort", "halt", NULL },
-		.handler = handle_abort_halt,
-		.summary = "Cancel a running halt",
-		.usage = abort_halt_help,
+		.cmda = { "stop", "status", NULL },
+		.handler = handle_shutdown_restart_status,
+		.summary = "Show status of any pending stop or restart",
+		.usage = shutdown_restart_status_help,
+	},
+	{
+		.cmda = { "restart", "status", NULL },
+		.handler = handle_shutdown_restart_status,
+		.summary = "Show status of any pending stop or restart",
+		.usage = shutdown_restart_status_help,
+	},
+	{
+		.cmda = { "stop", "cancel", NULL },
+		.handler = handle_shutdown_restart_cancel,
+		.summary = "Cancel a pending stop or restart request",
+		.usage = shutdown_restart_cancel_help,
+	},
+	{
+		.cmda = { "restart", "cancel", NULL },
+		.handler = handle_shutdown_restart_cancel,
+		.summary = "Cancel a pending stop or restart request",
+		.usage = shutdown_restart_cancel_help,
 	},
 	{
 		.cmda = { "stop", "now", NULL },
 		.handler = handle_shutdown_now,
-		.summary = "Shut down CallWeaver immediately",
+		.summary = "Shut down CallWeaver immediately hanging up any in-progress calls",
 		.usage = shutdown_now_help,
 	},
 	{
 		.cmda = { "stop", "gracefully", NULL },
 		.handler = handle_shutdown_gracefully,
-		.summary = "Gracefully shut down CallWeaver",
+		.summary = "Block new calls and shut down CallWeaver when current calls have ended",
 		.usage = shutdown_gracefully_help,
 	},
 	{
 		.cmda = { "stop", "when","convenient", NULL },
 		.handler = handle_shutdown_when_convenient,
-		.summary = "Shut down CallWeaver at empty call volume",
+		.summary = "Shut down CallWeaver when there are no calls in progress",
 		.usage = shutdown_when_convenient_help,
 	},
 	{
 		.cmda = { "restart", "now", NULL },
 		.handler = handle_restart_now,
-		.summary = "Restart CallWeaver immediately",
+		.summary = "Restart CallWeaver immediately hanging up any in-progress calls",
 		.usage = restart_now_help,
 	},
 	{
 		.cmda = { "restart", "gracefully", NULL },
 		.handler = handle_restart_gracefully,
-		.summary = "Restart CallWeaver gracefully",
+		.summary = "Block new calls and restart CallWeaver when current calls have ended",
 		.usage = restart_gracefully_help,
 	},
 	{
 		.cmda = { "restart", "when", "convenient", NULL },
 		.handler = handle_restart_when_convenient,
-		.summary = "Restart CallWeaver at empty call volume",
+		.summary = "Restart CallWeaver when there are no calls in progress",
 		.usage = restart_when_convenient_help,
 	},
 	{
@@ -1255,6 +1338,14 @@ static struct opbx_clicmd core_cli[] = {
 		.usage = show_version_files_help,
 	},
 #endif /* ! LOW_MEMORY */
+
+	/* DEPRECATED */
+	{
+		.cmda = { "abort", "halt", NULL },
+		.handler = handle_shutdown_restart_cancel,
+		.summary = "Cancel a pending stop or restart request",
+		.usage = abort_halt_help,
+	},
 };
 
 static int opbx_rl_read_char(FILE *cp)
@@ -1298,7 +1389,8 @@ static int opbx_rl_read_char(FILE *cp)
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 				if (!option_reconnect) {
-					quit_handler(0);
+					restart = 0;
+					quit_handler(NULL);
 				} else {
 					int tries;
 					int reconnects_per_second = 20;
@@ -1315,7 +1407,8 @@ static int opbx_rl_read_char(FILE *cp)
 					}
 					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
-						quit_handler(0);
+						restart = 0;
+						quit_handler(NULL);
 					}
 				}
 			}
@@ -2294,14 +2387,16 @@ int callweaver_main(int argc, char *argv[])
 		if (option_remote) {
 			if (option_exec) {
 				opbx_remotecontrol(xarg);
-				quit_handler(0);
+				restart = 0;
+				quit_handler(NULL);
 				exit(0);
 			}
 			printf(opbx_term_quit());
 			opbx_register_verbose(console_verboser);
 			WELCOME_MESSAGE;
 			opbx_remotecontrol(NULL);
-			quit_handler(0);
+			restart = 0;
+			quit_handler(NULL);
 			exit(0);
 		} else {
 			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
@@ -2469,13 +2564,23 @@ int callweaver_main(int argc, char *argv[])
 		snprintf(title, sizeof(title), "CallWeaver Console on '%s' (pid %d)", hostname, opbx_mainpid);
 		set_title(title);
 
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		pthread_cleanup_push(quit_handler, NULL);
+
 		for (;;) {
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_testcancel();
+
 			if (buf) {
 			    free (buf);
 			    buf = (char *)NULL;
 			}
 			buf = readline(cli_prompt());
-			
+
+			pthread_testcancel();
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 			if(buf) {
 				if ( (strlen(buf)>0) && buf[strlen(buf)-1] == '\n')
 					buf[strlen(buf)-1] = '\0';
@@ -2502,15 +2607,16 @@ int callweaver_main(int argc, char *argv[])
 		    free(buf);
 		    buf = (char *)NULL;
 		}
-	}
-	/* Do nothing */
-	for(;;)  {	/* apparently needed for the MACos */
-		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
-		poll(&p, 0, -1);
-	}
 
-	if(rl_init)
-    	    rl_deprep_terminal();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		pthread_cleanup_pop(1);
+	} else {
+		/* Do nothing */
+		for (;;)  {	/* apparently needed for the MACos */
+			struct pollfd p = { -1 /* no descriptor */, 0, 0 };
+			poll(&p, 0, -1);
+		}
+	}
 
 	return 0;
 }
