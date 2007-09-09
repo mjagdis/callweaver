@@ -326,7 +326,7 @@ static const char descrip_vmain[] =
 static const char synopsis_vm_box_exists[] =
 "Check if vmbox exists";
 
-static const char syntax_vm_box_exists[] = "MailboxExists(mailbox[@context][, options])";
+static const char syntax_vm_box_exists[] = "MailboxExists(mailbox[@context])";
 static const char descrip_vm_box_exists[] =
 "Sets the variable MBEXISTS to either YES or NO based on the mailbox's existence\n";
 
@@ -5520,10 +5520,9 @@ static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv, char 
 	}
 
 	if (find_user(&svm, context, argv[0])) {
-		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
-		pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
+		pbx_builtin_setvar_helper(chan, "MBEXISTS", "YES");
 	} else
-		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAIL");
+		pbx_builtin_setvar_helper(chan, "MBEXISTS", "NO");
 
 	LOCAL_USER_REMOVE(u);
 	return 0;
