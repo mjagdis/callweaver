@@ -41,8 +41,8 @@ struct opbx_ha;
 extern void opbx_free_ha(struct opbx_ha *ha);
 extern struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path);
 extern int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin);
-extern int opbx_get_ip(struct sockaddr_in *sin, const char *value);
 extern int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+#define opbx_get_ip(sin, value) opbx_get_ip_or_srv((sin), (value), NULL)
 extern int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int opbx_lookup_iface(char *iface, struct in_addr *address);
 extern struct opbx_ha *opbx_duplicate_ha_list(struct opbx_ha *original);

@@ -272,11 +272,6 @@ int opbx_str2tos(const char *value, int *tos)
 	return 0;
 }
 
-int opbx_get_ip(struct sockaddr_in *sin, const char *value)
-{
-	return opbx_get_ip_or_srv(sin, value, NULL);
-}
-
 /* iface is the interface (e.g. eth0); address is the return value */
 int opbx_lookup_iface(char *iface, struct in_addr *address) 
 {
