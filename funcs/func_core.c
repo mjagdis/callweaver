@@ -198,48 +198,6 @@ static int pbx_builtin_hangup(struct opbx_channel *chan, int argc, char **argv, 
     return -1;
 }
 
-static int pbx_builtin_stripmsd(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
-{
-	int n;
-
-	if (argc != 1 || !(n = atoi(argv[0])) || n >= sizeof(chan->exten))
-		return opbx_function_syntax("StripMSD(n)");
-
-	memmove(chan->exten, chan->exten + n, sizeof(chan->exten) - n);
-
-	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Stripped %d, new extension is %s\n", n, chan->exten);
-
-	return 0;
-}
-
-static int pbx_builtin_prefix(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
-{
-	for (; argc; argv++, argc--) {
-		int n = strlen(argv[0]);
-		memmove(chan->exten + n, chan->exten, sizeof(chan->exten) - n - 1);
-		memcpy(chan->exten, argv[0], n);
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
-	}
-	return 0;
-}
-
-static int pbx_builtin_suffix(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
-{
-	int l = strlen(chan->exten);
-
-	for (; argc; argv++, argc--) {
-		int n = strlen(argv[0]);
-		if (n > sizeof(chan->exten) - l - 1)
-			n = sizeof(chan->exten) - l - 1;
-		memcpy(chan->exten + l, argv[0], n);
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
-	}
-	return 0;
-}
-
 static int pbx_builtin_goto(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *context, *exten;
@@ -909,21 +867,6 @@ static struct opbx_func func_list[] =
 	},
 
 	{
-		.name = "Prefix",
-		.handler = pbx_builtin_prefix, 
-		.synopsis = "Prepend leading digits",
-		.syntax = "Prefix(digits)",
-		.description = "Prepends the digit string specified by digits to the\n"
-		"channel's associated extension. For example, the number 1212 when prefixed\n"
-		"with '555' will become 5551212. This app always returns 0, and the PBX will\n"
-		"continue processing at the next priority for the *new* extension.\n"
-		"  So, for example, if priority  3  of 1212 is  Prefix  555, the next step\n"
-		"executed will be priority 4 of 5551212. If you switch into an extension\n"
-		"which has no first step, the PBX will treat it as though the user dialed an\n"
-		"invalid extension.\n" 
-	},
-
-	{
 		.name = "Progress",
 		.handler = pbx_builtin_progress,
 		.synopsis = "Indicate progress",
@@ -1077,36 +1020,6 @@ static struct opbx_func func_list[] =
 	  	.synopsis = "Set channel variable(s)",
 	  	.syntax = "SetVar(name1=value1, name2=value2, ...[, options])",
 	  	.description = "SetVar has been deprecated in favor of Set.\n"
-	},
-
-	{
-		.name = "StripMSD",
-		.handler = pbx_builtin_stripmsd,
-		.synopsis = "Strip leading digits",
-		.syntax = "StripMSD(count)",
-		.description = "Strips the leading 'count' digits from the channel's\n"
-		"associated extension. For example, the number 5551212 when stripped with a\n"
-		"count of 3 would be changed to 1212. This app always returns 0, and the PBX\n"
-		"will continue processing at the next priority for the *new* extension.\n"
-		"  So, for example, if priority 3 of 5551212 is StripMSD 3, the next step\n"
-		"executed will be priority 4 of 1212. If you switch into an extension which\n"
-		"has no first step, the PBX will treat it as though the user dialed an\n"
-		"invalid extension.\n" 
-	},
-
-	{
-		.name = "Suffix",
-		.handler = pbx_builtin_suffix, 
-		.synopsis = "Append trailing digits",
-		.syntax = "Suffix(digits)",
-		.description = "Appends the digit string specified by digits to the\n"
-		"channel's associated extension. For example, the number 555 when suffixed\n"
-		"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
-		"continue processing at the next priority for the *new* extension.\n"
-		"  So, for example, if priority 3 of 555 is Suffix 1212, the next step\n"
-		"executed will be priority 4 of 5551212. If you switch into an extension\n"
-		"which has no first step, the PBX will treat it as though the user dialed an\n"
-		"invalid extension.\n" 
 	},
 
 	{
