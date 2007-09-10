@@ -17,7 +17,7 @@ Credits:
 
 Configuration info
 ------------------
-The jitter buffer currently has two actual buffers:
+The jitter buffer currently has three actual buffers:
  fixed - A fixed length implementation by Slav Klenov
  adaptive - An adaptive jitter buffer implemented by Steve Kann
    	    more info about this can be found in README.jitterbuffer
