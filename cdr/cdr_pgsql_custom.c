@@ -245,11 +245,4 @@ static int load_module(void)
 	return res;
 }
 
-static int reload_module(void)
-{
-	my_unload_module();
-	return my_load_module();
-}
-
-
-MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
