@@ -779,7 +779,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
             opbx_log(OPBX_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
             opbx_rtp_set_active(rtp, 0);
         }
-        else
+        else if (errno != EAGAIN)
             opbx_log(OPBX_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &null_frame;
     }
@@ -974,7 +974,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
             opbx_log(OPBX_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
             opbx_rtp_set_active(rtp, 0);
         }
-        else
+        else if (errno != EAGAIN)
             opbx_log(OPBX_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &null_frame;
     }
