@@ -382,10 +382,20 @@ sub splitresult {
 	my ($res) = @_;
 	my ($key, $val) = ('', '');
 
-	$res =~ /^([^:]+):\ {0,1}([^\ ].*)$/;
-	$key = $1 if ($1);
-	$val = $2 if ($2);
-
+	#Original
+	#$res =~ /^([^:]+):\ {0,1}([^\ ].*)$/;
+	#$key = $1 if ($1);
+	#$val = $2 if ($2);
+	# Ticket #210
+	# When Status: 0 return "Status" and "" instead of "Status" and "0"
+	#($key, $val) = split /: /, $res;
+	# ... but this is not working if i use UserEvent and put ': ' into
+	# it, so i've to split using only the first value
+	my $i = index($res,': ');
+	if ($i>=0) {
+		$key = substr( $res, 0, $i);
+		$val = substr( $res, $i+2);
+	}
 	return ($key, $val);
 }
 
