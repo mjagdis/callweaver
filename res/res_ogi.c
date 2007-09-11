@@ -233,6 +233,10 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_OGI_DIR, script);
 		script = tmp;
 	}
+	if (access(script,X_OK)!=0) {
+               opbx_log(OPBX_LOG_ERROR, "OGI script does not exists or not in executable format: %s\n", script );
+               return -1;
+	}
 	if (pipe(toast)) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to create toast pipe: %s\n",strerror(errno));
 		return -1;
