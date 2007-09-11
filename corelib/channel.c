@@ -735,7 +735,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	{
 		if (fin->frametype != OPBX_FRAME_VOICE)
     		{
-			opbx_log(OPBX_LOG_ERROR, "Dropping non-voice (type %d) frame for %s due to long queue length\n", chan->name);
+			opbx_log(OPBX_LOG_ERROR, "Dropping non-voice (type %d) frame for %s due to long queue length\n", fin->frametype, chan->name);
 		}
     		else
     		{	
