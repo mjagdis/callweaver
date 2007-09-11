@@ -787,9 +787,9 @@ static inline void show_config_description (int fd, enum misdn_cfg_elements elem
 	misdn_cfg_get_desc(elem, desc, sizeof(desc), def, sizeof(def));
 
 	if (elem < MISDN_CFG_LAST)
-		snprintf(section, "PORTS SECTION", sizeof(section));
+		snprintf(section, BUFFERSIZE, "PORTS SECTION", sizeof(section));
 	else
-		snprintf(section, "GENERAL SECTION", sizeof(section));
+		snprintf(section, BUFFERSIZE, "GENERAL SECTION", sizeof(section));
 
 	if (*def)
 		opbx_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
@@ -4314,13 +4314,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		if (!ast) break;
 
-		if (!ast->gcd.gen_func) break;
-	
-		
-	
+		if (!ast->gcd.gen->generate) break;
+
 		tmp = ast->gcd.gen_data;
 		ast->gcd.gen_data = NULL;
-		generate = ast->gcd.gen_func;
+		generate = ast->gcd.gen->generate;
 
 		if (tone_len <0 || tone_len > 512 ) {
 			opbx_log(OPBX_LOG_NOTICE, "TONE_GEN: len was %d, set to 128\n",tone_len);
