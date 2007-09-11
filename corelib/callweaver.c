@@ -2123,7 +2123,6 @@ int callweaver_main(int argc, char *argv[])
 		switch(c) {
 		case 'd':
 			option_debug++;
-			option_nofork++;
 			break;
 		case 'c':
 			option_console++;
@@ -2149,7 +2148,6 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 'v':
 			option_verbose++;
-			option_nofork++;
 			break;
 		case 'M':
 			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))
@@ -2422,7 +2420,7 @@ int callweaver_main(int argc, char *argv[])
 	} else
 		opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 
-	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
+	if (!option_nofork) {
 		daemon(1,0);
 		/* Blindly re-write pid file since we are forking */
 		unlink((char *)opbx_config_OPBX_PID);
