@@ -58,3 +58,20 @@ CallIDAnswerLength:4
 CallIDPattern:          "DATE="
 CallIDPattern:          "TIME="
 
+5) Common problems
+
+- if faxgetty does not answer your calls change RingsBeforeAnswer from 0 to 1
+- T38 is not supported by chan_fax please use RxFax()
+
+6) Dialplan example
+
+[faxserver]
+
+exten => s,1,NoOp(Entering Fax Server)
+exten => s,n,Set(CDR(userfield)=INCOMING FAX)
+exten => s,n,Dial(FAX/${CALLERID(num)},30,r)
+exten => s,n,Hangup
+
+exten => h,1,System(/usr/local/bin/new-fax-received.sh "${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)}" "${CALLERID(num)}" )
+exten => h,2,Hangup
+
