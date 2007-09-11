@@ -219,6 +219,8 @@ static void hanguptree(struct outchan *outgoing, struct opbx_channel *exception)
 			opbx_cdr_busy(chan->cdr); \
 		numnochan++; \
 		break; \
+	case OPBX_CAUSE_NORMAL_CLEARING: \
+		break; \
 	default: \
 		numnochan++; \
 		break; \
@@ -554,6 +556,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 					opbx_hangup(o->chan);
 					o->chan = NULL;
 					opbx_clear_flag(o, DIAL_STILLGOING);
+					HANDLE_CAUSE(in->hangupcause, in);
 				}
 			}
 			o = o->next;
