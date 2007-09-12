@@ -273,13 +273,16 @@ static int check_header(FILE *f)
 
 static int update_header(FILE *f)
 {
-    off_t cur,end,bytes;
-    int datalen,filelen;
+    off_t cur;
+    off_t end;
+    off_t bytes;
+    int datalen;
+    int filelen;
     
     cur = ftell(f);
     fseek(f, 0, SEEK_END);
     end = ftell(f);
-    /* in a gsm WAV, data starts 60 bytes in */
+    /* In a GSM0610 WAV file, data starts 60 bytes in */
     bytes = end - 60;
     datalen = htoll((bytes + 1) & ~0x1);
     filelen = htoll(52 + ((bytes + 1) & ~0x1));
@@ -318,7 +321,7 @@ static int update_header(FILE *f)
 
 static int write_header(FILE *f)
 {
-    unsigned int hz=htoll(8000);
+    unsigned int hz = htoll(8000);
     unsigned int bhz = htoll(1625);
     unsigned int hs = htoll(20);
     unsigned short fmt = htols(49);
@@ -416,11 +419,11 @@ static int write_header(FILE *f)
 
 static struct opbx_filestream *wav_open(FILE *f)
 {
+    struct opbx_filestream *tmp;
+
     /* We don't have any header to read or anything really, but
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
@@ -477,7 +480,7 @@ static void wav_close(struct opbx_filestream *s)
 static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 {
     int res;
-    uint8_t msdata[66];
+    uint8_t msdata[65];
 
     /* Send a frame from the file to the appropriate channel */
     opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
@@ -509,7 +512,7 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
-    uint8_t wav49_data[66];
+    uint8_t wav49_data[65];
     int len = 0;
     int already_wav49;
 

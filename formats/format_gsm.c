@@ -86,11 +86,11 @@ static int repack_gsm0610_wav49_to_voip(uint8_t d[], const uint8_t c[])
 
 static struct opbx_filestream *gsm_open(FILE *f)
 {
+    struct opbx_filestream *tmp;
+
     /* We don't have any header to read or anything really, but
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
@@ -168,7 +168,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     }
     if (!(f->datalen % 65))
     {
-        /* This is in WAV49 format, need to be converted */
+        /* This is in WAV49 format. It needs to be converted */
 
         for (len = 0;  len < f->datalen;  len += 65)
         {

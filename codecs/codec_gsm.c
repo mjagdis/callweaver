@@ -137,7 +137,7 @@ static struct opbx_frame *gsmtolin_sample(void)
 
 static struct opbx_frame *gsmtolin_frameout(void *pvt)
 {
-    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
@@ -159,13 +159,13 @@ static struct opbx_frame *gsmtolin_frameout(void *pvt)
 
 static int gsmtolin_framein(void *pvt, struct opbx_frame *f)
 {
-    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
-    /* Assuming there's space left, decode into the current buffer at
-       the tail location.  Read in as many frames as there are */
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *) pvt;
     int x;
     int encoded_chunk;
     int decoded_chunk;
     
+    /* Assuming there's space left, decode into the current buffer at
+       the tail location.  Read in as many frames as there are */
     if (f->datalen == 0)
     {
         /* Perform PLC with nominal framesize of 20ms/160 samples */
@@ -215,7 +215,7 @@ static int gsmtolin_framein(void *pvt, struct opbx_frame *f)
         }
     }
 
-    /* just add the last 20ms frame; there must have been at least one */
+    /* Just add the last 20ms frame; there must have been at least one */
     if (useplc)
         plc_rx(&tmp->plc, tmp->buf + tmp->tail - 160, 160);
 
@@ -224,7 +224,8 @@ static int gsmtolin_framein(void *pvt, struct opbx_frame *f)
 
 static int lintogsm_framein(void *pvt, struct opbx_frame *f)
 {
-    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *) pvt;
+
     /* Just add the frames to our stream */
     /* XXX We should look at how old the rest of our stream is, and if it
        is too old, then we should overwrite it entirely, otherwise we can
@@ -241,8 +242,8 @@ static int lintogsm_framein(void *pvt, struct opbx_frame *f)
 
 static struct opbx_frame *lintogsm_frameout(void *pvt)
 {
-    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
-    int x = 0;
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *) pvt;
+    int x;
 
     /* We can't work on anything less than a frame in size */
     if (tmp->tail < 160)
@@ -252,7 +253,7 @@ static struct opbx_frame *lintogsm_frameout(void *pvt)
     tmp->f.data = tmp->outbuf;
 
     /* This only works with VoIP style packing. It does not allow for WAV49 packing */
-    while (tmp->tail >= 160)
+    for (x = 0;  tmp->tail >= 160;  x++)
     {
         if ((x + 1)*33 >= sizeof(tmp->outbuf))
         {
@@ -260,13 +261,12 @@ static struct opbx_frame *lintogsm_frameout(void *pvt)
             break;
         }
         /* Encode a frame of data */
-        gsm0610_encode(tmp->gsm, ((uint8_t *) tmp->outbuf) + (x * 33), tmp->buf, 1);
+        gsm0610_encode(tmp->gsm, ((uint8_t *) tmp->outbuf) + x*33, tmp->buf, 1);
         /* Assume 8000 Hz -- 20 ms */
         tmp->tail -= 160;
         /* Move the data at the end of the buffer to the front */
         if (tmp->tail)
             memmove(tmp->buf, tmp->buf + 160, tmp->tail*sizeof(int16_t));
-        x++;
     }
     tmp->f.datalen = x*33;
     tmp->f.samples = x*160;
@@ -275,7 +275,8 @@ static struct opbx_frame *lintogsm_frameout(void *pvt)
 
 static void gsm_destroy_stuff(void *pvt)
 {
-    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *)pvt;
+    struct gsm_coder_pvt *tmp = (struct gsm_coder_pvt *) pvt;
+
     if (tmp->gsm)
         gsm0610_release(tmp->gsm);
     free(tmp);
