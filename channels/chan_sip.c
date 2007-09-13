@@ -11164,7 +11164,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
             return;
         }
 
-        if (sipdebug)
+        if (sipdebug && option_verbose > 2)
             opbx_verbose("* DTMF-relay event received: '%c'\n", buf[0]);
         if (buf[0] == '*')
             event = 10;
@@ -11179,8 +11179,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
             /* send a FLASH event */
             struct opbx_frame f = { OPBX_FRAME_CONTROL, OPBX_CONTROL_FLASH, };
             opbx_queue_frame(p->owner, &f);
-	    if (sipdebug)
-		opbx_verbose("* DTMF-relay event received: FLASH\n");
+	    if (sipdebug && option_verbose > 2)
+            opbx_verbose("* DTMF-relay event received: FLASH\n");
         }
         else
         {
@@ -11203,8 +11203,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
                 f.subclass = 'A' + (event - 12);
             }
             opbx_queue_frame(p->owner, &f);
-	    if (sipdebug)
-		opbx_verbose("* DTMF-relay event received: %c\n", f.subclass);
+	    if (sipdebug && option_verbose > 2)
+            opbx_verbose("* DTMF-relay event received: %c\n", f.subclass);
         }
         transmit_response(p, "200 OK", req);
         return;
