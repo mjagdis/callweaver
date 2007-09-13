@@ -4089,7 +4089,7 @@ static int vm_intro_no(struct opbx_channel *chan,struct vm_state *vms)
 	if (!res && vms->oldmessages) {
 		if (vms->oldmessages == 1) {
 			res = opbx_play_and_wait(chan, "digits/1");
-			res = res ? res : opbx_play_and_wait(chan, "vm-gamel");
+			res = res ? res : opbx_play_and_wait(chan, "vm-gammel");
 			res = res ? res : opbx_play_and_wait(chan, "vm-message");
 		} else {
 			res = say_and_wait(chan, vms->oldmessages, chan->language);
