@@ -16725,6 +16725,77 @@ static int sip_do_t38switchover(const struct opbx_channel *chan) {
 }
 
 
+static void *siposd_app;
+static char siposd_name[] = "SIPOSD";
+static char siposd_syntax[] = "SIPOSD(Text)";
+static char siposd_synopsis[] = "Add a SIP OSD";
+static char siposd_description[] = ""
+"  SIPOSD(Text)\n"
+"Send a SIP Message to be displayed onto the phone LCD. It works if\n"
+"supported by the phone and channel has  already been answered.\n"
+"It is not possible to clear the screen sending an empty string,\n"
+"the screen get cleared at call's hangup.";
+
+/*
+ * Cloned version of sendtext with extra paramters used by sip_osd
+ */
+static int sip_sendtext2(struct opbx_channel *ast, const char *text, const char *disp) {
+	struct sip_request req;
+	struct sip_pvt *p = ast->tech_pvt;
+	int res = 0;
+	if (!p) return -1;
+	if (opbx_strlen_zero(text)) return 0;
+	reqprep(&req, p, SIP_MESSAGE, 0, 1);
+	add_header(&req, "Content-Type", "text/plain", SIP_DL_DONTCARE);
+	add_header(&req, "Content-Disposition", disp, SIP_DL_DONTCARE );
+	add_header_contentLength(&req, strlen(text));
+	add_line(&req, text, SIP_DL_DONTCARE);
+	return send_request(p, &req, 1, p->ocseq);
+}
+
+/*
+ * Display message onto phone LCD, if supported. -- Antonio Gallo
+ */
+static int sip_osd(struct opbx_channel *chan, int argc, char **argv) {
+	int res = 0;
+	struct sip_pvt *p = NULL;
+	/* parameter checking */
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(OPBX_LOG_WARNING, "sip_osd: missing parameter\n");
+		return -1;
+	}
+	if (opbx_strlen_zero(argv[0])) {
+		opbx_log(OPBX_LOG_WARNING, "sip_osd: application requires the argument TEXT\n");
+		return -1;
+	}
+	/* checking the chan channel structure require locking it */
+	opbx_mutex_lock(&chan->lock);
+	if ( (chan->tech != &sip_tech) && (chan->type != channeltype) ) {
+		opbx_log(OPBX_LOG_WARNING, "sip_osd: Call this application only on SIP incoming calls\n");
+		opbx_mutex_unlock(&chan->lock);
+		return 0;
+	}
+	if (chan->_state != OPBX_STATE_UP) {
+		opbx_log(OPBX_LOG_WARNING, "sip_osd: channel is NOT YET answered!\n");
+		opbx_mutex_unlock(&chan->lock);
+		return 0;
+	}
+	p = chan->tech_pvt;
+	if (!p) {
+		opbx_log(OPBX_LOG_WARNING, "sip_osd: P IS NULL\n");
+		opbx_mutex_unlock(&chan->lock);
+		return 0;
+	}
+	opbx_mutex_unlock(&chan->lock);
+	/* clone sendtext using sendtext2 (all in one) */
+	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan)) return -1;
+	CHECK_BLOCKING(chan);
+	res = sip_sendtext2(chan, argv[0], "desktop");
+	opbx_clear_flag(chan, OPBX_FLAG_BLOCKING);
+	return res;
+}
+
+
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
 static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
@@ -17226,6 +17297,7 @@ static int load_module(void)
 
     /* These will be removed soon */
     sipaddheader_app = opbx_register_function(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
+    siposd_app = opbx_register_function(siposd_name, sip_osd, siposd_synopsis, siposd_syntax, siposd_description);
 
     /* Register manager commands */
     opbx_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -17264,6 +17336,7 @@ static int unload_module(void)
     opbx_uninstall_t38_functions();
     res |= opbx_unregister_function(dtmfmode_app);
     res |= opbx_unregister_function(sipaddheader_app);
+    res |= opbx_unregister_function(siposd_app);
 
     opbx_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
