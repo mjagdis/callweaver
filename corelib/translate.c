@@ -152,6 +152,7 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int s
         
 		/* Keep going if this isn't the final destination */
 		source = bottom_bit((*next)->step->dst_format);
+		next = &(*next)->next;
 	}
 
 	opbx_mutex_unlock(&tr_matrix_lock);
