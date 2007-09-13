@@ -498,7 +498,7 @@ static int valetpark_call(struct opbx_channel *chan, int argc, char **argv, char
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
 		return opbx_function_syntax(vpcsyntax);
 
-	timeout = (argc > 2 && argv[2][0] ? atoi(argv[2]) : DEFAULT_VALETPARK_TIME);
+	timeout = (argc > 2 && argv[2][0] ? atoi(argv[2])*1000 : DEFAULT_VALETPARK_TIME);
 
 	if (opbx_is_valetparked(argv[0], argv[1])) {
 		opbx_log(OPBX_LOG_WARNING,"Call is already Valet Parked Here [%s]\n", argv[0]);
