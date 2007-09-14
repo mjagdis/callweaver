@@ -215,8 +215,8 @@ struct opbx_channel {
 	/*! Music State*/
 	void *music_state;
 
-	/*! All generator data including generator data lock*/
-	struct opbx_generator_channel_data gcd;
+	/*! The generator thread feeding data to the channel */
+	pthread_t pgenerator_thread;
 
 	/*! Comfort noise level to generate in dBov's */
 	int comfortnoiselevel;

@@ -626,7 +626,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
         }
 	/* Init channel generator data struct lock */
-	opbx_mutex_init(&tmp->gcd.lock);
+	tmp->pgenerator_thread = OPBX_PTHREADT_NULL;
 
 	/* Always watch the alertpipe */
 	tmp->fds[OPBX_MAX_FDS-1] = tmp->alertpipe[0];
@@ -1025,7 +1025,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	opbx_copy_string(name, chan->name, sizeof(name));
 
 	/* Stop generator thread */
-	opbx_generator_stop_thread(chan);
+	opbx_generator_deactivate(chan);
 
 	/* Stop monitoring */
 	if (chan->monitor)
@@ -1204,7 +1204,9 @@ int opbx_hangup(struct opbx_channel *chan)
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
 	}
+
 	free_translation(chan);
+	opbx_generator_deactivate(chan);
 	if (chan->stream) 		/* Close audio stream */
 		opbx_closestream(chan->stream);
 	if (chan->vstream)		/* Close video stream */
@@ -1240,11 +1242,6 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 			
 	opbx_mutex_unlock(&chan->lock);
-	
-	/** opbx_generator_deactivate after mutex_unlock*/
-	if (option_debug)
-	    opbx_log(OPBX_LOG_DEBUG, "Generator : deactivate after channel unlock (hangup function)\n");
-	opbx_generator_deactivate(chan);
 
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
@@ -1814,7 +1811,6 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
     {
     	/* Make sure we always return NULL in the future */
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
-		opbx_generator_deactivate(chan);
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			opbx_cdr_end(chan->cdr);
@@ -1848,16 +1844,11 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	else
 		chan->fin++;
 		
-	
 	opbx_mutex_unlock(&chan->lock);
-	/** generator deactivate after channel unlock */
-	if (f == NULL  &&  opbx_generator_is_active(chan))
-	{
-	    if (option_debug)
-	    	opbx_log(OPBX_LOG_DEBUG, "Generator not finished in previous deactivate attempt - trying deactivate after channel unlock (opbx_read function)\n");
+
+	if (f == NULL)
 	    opbx_generator_deactivate(chan);
-	}	
-	
+
 	return f;
 }
 
