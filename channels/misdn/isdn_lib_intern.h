@@ -21,7 +21,7 @@
 #endif
 
 
-ibuffer_t *astbuf;
+ibuffer_t *opbxbuf;
 ibuffer_t *misdnbuf;
 
 

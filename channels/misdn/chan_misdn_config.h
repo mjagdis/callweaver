@@ -67,8 +67,8 @@ enum misdn_cfg_elements {
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
-	MISDN_CFG_CALLGROUP,           /* ast_group_t */
-	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
+	MISDN_CFG_CALLGROUP,           /* opbx_group_t */
+	MISDN_CFG_PICKUPGROUP,         /* opbx_group_t */
 	MISDN_CFG_MAX_IN,              /* int */
 	MISDN_CFG_MAX_OUT,             /* int */
 	MISDN_CFG_FAXDETECT,           /* char[] */
@@ -110,8 +110,8 @@ void misdn_cfg_update_ptp( void );
 
 /* if you requst a general config element, the port value is ignored. if the requested 
  * value is not available, or the buffer is too small, the buffer will be nulled (in 
- * case of a char* only its first byte will be nulled). */
-void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void* buf, int bufsize);
+ * case of a char * only its first byte will be nulled). */
+void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsize);
 
 /* returns the enum element for the given name, returns MISDN_CFG_FIRST if none was found */
 enum misdn_cfg_elements misdn_cfg_get_elem (char *name);
@@ -126,13 +126,13 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 void misdn_cfg_get_ports_string(char *ports);
 
 /* fills the buffer with a nice printable string representation of the config element */
-void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char* buf, int bufsize);
+void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char *buf, int bufsize);
 
 /* returns the next available port number. returns -1 if the last one was reached. */
 int misdn_cfg_get_next_port(int port);
 int misdn_cfg_get_next_port_spin(int port);
 
-int misdn_cfg_is_msn_valid(int port, char* msn);
+int misdn_cfg_is_msn_valid(int port, char *msn);
 int misdn_cfg_is_port_valid(int port);
 int misdn_cfg_is_group_method(char *group, enum misdn_cfg_method meth);
 

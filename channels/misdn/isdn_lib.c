@@ -1106,7 +1106,7 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 		
 		ibuf->rsem=malloc(sizeof(sem_t));
 		
-		bc->astbuf=ibuf;
+		bc->opbxbuf=ibuf;
 
 		if (sem_init(ibuf->rsem,1,0)<0)
 			sem_init(ibuf->rsem,0,0);
@@ -1669,10 +1669,10 @@ int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, v
 {
 	switch (fac) {
 	case FACILITY_CALLDEFLECT:
-		strcpy(bc->out_fac.calldeflect_nr,(char*)data);
+		strcpy(bc->out_fac.calldeflect_nr,(char *) data);
 		break;
 	default:
-		cb_log(1,bc?bc->port:0,"We don't handle this facility yet: %d\n",fac);
+		cb_log(1, bc  ?  bc->port  :  0, "We don't handle this facility yet: %d\n", fac);
 		return 0;
 	}
 	
@@ -3899,7 +3899,7 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	}
 	
 	/* we must activate if we are deactivated */
-	clear_ibuffer(bc->astbuf);
+	clear_ibuffer(bc->opbxbuf);
 	
 	cb_log(5, stack->port, "$$$ Bchan Activated addr %x\n", bc->addr);
 	
@@ -3953,7 +3953,7 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 
 	mISDN_read(stack->midev, buf, 128, TIMEOUT_1SEC);
 
-	clear_ibuffer(bc->astbuf);
+	clear_ibuffer(bc->opbxbuf);
 	
 	bc_state_change(bc,BCHAN_RELEASE);
   

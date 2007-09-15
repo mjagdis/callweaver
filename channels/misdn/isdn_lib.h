@@ -238,7 +238,7 @@ struct misdn_bchannel {
 	int time_usec;
 	
 	
-	void *astbuf;
+	void *opbxbuf;
 
 	void *misdnbuf;
 
@@ -288,7 +288,7 @@ struct misdn_bchannel {
   
 	int crypt_state;
     
-	/*char ast_dtmf_buf[255];
+	/*char opbx_dtmf_buf[255];
 	  char misdn_dtmf_buf[255]; */
   
 	/*** CRYPTING STUFF END***/
