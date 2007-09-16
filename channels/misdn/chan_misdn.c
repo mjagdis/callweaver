@@ -69,6 +69,7 @@
 
 char global_tracefile[BUFFERSIZE+1];
 
+static struct opbx_frame nullframe = { OPBX_FRAME_NULL, };
 
 struct misdn_jb{
 	int size;
@@ -153,6 +154,8 @@ struct chan_list {
 	int pipe[2];
 	char opbx_rd_buf[4096];
 	struct opbx_frame frame;
+	char framedata[160];
+	int framepos;
 
 	int faxdetect; /* 0:no 1:yes 2:yes+nojump */
 	int faxdetect_timeout;
@@ -2494,24 +2497,32 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *opbx)
 		chan_misdn_log(1,0,"misdn_read called without bc\n");
 		return NULL;
 	}
- //	len=read(tmp->pipe[0], &blah, sizeof(blah));
-#if 1
-  	len=read(tmp->pipe[0],tmp->opbx_rd_buf,sizeof(tmp->opbx_rd_buf));
-#endif	
+
+	/* Make sure we have a complete 20ms (160byte) frame */       
+  	len=read(tmp->pipe[0],tmp->framedata + tmp->framepos, 
+		 160 - tmp->framepos);
+	tmp->framepos += len;
 	if (len<=0) {
 		/* we hangup here, since our pipe is closed */
 		chan_misdn_log(2,tmp->bc->port,"misdn_read: Pipe closed, hanging up\n");
 		return NULL;
+	} else if (tmp->framepos < 160) {
+		/* Not a complete frame, so we send a null-frame */
+		return &nullframe;
 	}
 
+	/* We have got a complete frame 
+	 * tmp->framepos now has the length of the frame */
 	tmp->frame.frametype  = OPBX_FRAME_VOICE;
 	tmp->frame.subclass = OPBX_FORMAT_ALAW;
-	tmp->frame.datalen = len;
-	tmp->frame.samples = len;
+	tmp->frame.datalen = tmp->framepos;
+	tmp->frame.samples = tmp->framepos;
 	tmp->frame.mallocd = 0;
 	tmp->frame.offset = 0;
 	tmp->frame.src = NULL;
-	tmp->frame.data = tmp->opbx_rd_buf;
+	tmp->frame.data = tmp->framedata;
+
+	tmp->framepos = 0; 
 
 	if (tmp->faxdetect && !tmp->faxhandled) {
 		if (tmp->faxdetect_timeout) {
