@@ -20,7 +20,6 @@
  * Very Top level source file for callweaver
  * 
  */
-
 #include "callweaver.h"
 
 int main(int argc, char *argv[])
