@@ -9779,6 +9779,32 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static void *zapdisableec_app;
+static char zapdisableec_name[] = "ZapDisableEC";
+static char zapdisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
+static char zapdisableec_syntax[] = "ZapDisableEC()";
+static char zapdisableec_description[] = "Disable Echo Canceller onto the current channel\n";
+
+static int action_zapdisableec(struct opbx_channel *chan, int argc, char **argv)
+{
+    if (chan==NULL) {
+	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel is NULL\n");
+        return 0;
+    }
+    if ( (chan->type==NULL) || (strcmp(chan->type, "Zap")) ) {
+	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel is not Zap\n");
+        return 0;
+    }
+    struct zt_pvt *p = chan->tech_pvt;
+    if (p==NULL) {
+	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel has no PVT structure\n");
+        return 0;
+    }
+    opbx_log(OPBX_LOG_NOTICE, "action_zapdisableec: ECC OFF\n");
+    zt_disable_ec(p);
+    return 0;
+}
+
 static int __unload_module(void)
 {
 	int x = 0;
@@ -9798,6 +9824,7 @@ static int __unload_module(void)
 	opbx_manager_unregister( "ZapDNDoff" );
 	opbx_manager_unregister( "ZapDNDon" );
 	opbx_manager_unregister("ZapShowChannels");
+	opbx_unregister_application(action_zapdisableec);
 	opbx_channel_unregister(&zap_tech);
 	if (!opbx_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
@@ -10734,6 +10761,7 @@ static int load_module(void)
 	opbx_manager_register("ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	opbx_manager_register("ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	opbx_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
+	zapdisableec_app = opbx_register_function(zapdisableec_name, action_zapdisableec, zapdisableec_synopsis, zapdisableec_syntax, zapdisableec_description);
 
 	return res;
 }
