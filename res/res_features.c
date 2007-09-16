@@ -858,6 +858,94 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 	return FEATURE_RETURN_SUCCESS;
 }
 
+static int builtin_autopark(struct opbx_channel *chan, struct opbx_channel *peer, struct opbx_bridge_config *config, char *code, int sense)
+{
+	struct opbx_channel *transferer;
+	struct opbx_channel *transferee;
+	char *transferer_real_context;
+	char newext[256];
+	int res;
+
+	if (sense == FEATURE_SENSE_PEER) {
+		transferer = peer;
+		transferee = chan;
+	} else {
+		transferer = chan;
+		transferee = peer;
+	}
+	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
+			!(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+		/* Use the non-macro context to transfer the call */
+		if (!opbx_strlen_zero(transferer->proc_context))
+			transferer_real_context = transferer->proc_context;
+		else
+			transferer_real_context = transferer->context;
+	}
+	/* Start autoservice on chan while we talk
+	   to the originator */
+	opbx_indicate(transferee, OPBX_CONTROL_HOLD);
+	opbx_autoservice_start(transferee);
+	opbx_moh_start(transferee, NULL);
+
+
+	/* Transfer */
+	if ((res=opbx_waitstream(transferer, OPBX_DIGIT_ANY)) < 0) {
+		opbx_moh_stop(transferee);
+		opbx_autoservice_stop(transferee);
+		opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
+		return res;
+	} else if (res > 0) {
+		newext[0] = (char) res;
+	}
+
+	opbx_stopstream(transferer); 
+	if (res < 0) {
+		opbx_moh_stop(transferee);
+		opbx_autoservice_stop(transferee);
+		opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
+		return res;
+	}
+
+	opbx_moh_stop(transferee);
+
+	res = opbx_autoservice_stop(transferee);
+	opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
+	if (res)
+		res = -1;
+	else if (!opbx_park_call(transferee, transferer, 0, NULL)) {
+
+		if (transferer == peer)
+			res = OPBX_PBX_KEEPALIVE;
+		else
+			res = OPBX_PBX_NO_HANGUP_PEER;
+		return res;
+	} else {
+		opbx_log(OPBX_LOG_WARNING, "Unable to park call %s\n", transferee->name); 
+	} 
+
+	if (!opbx_strlen_zero(xferfailsound))
+		res = opbx_streamfile(transferer, xferfailsound, transferee->language);
+	else
+		res = 0;
+	if (res) {
+		opbx_moh_stop(transferee);
+		opbx_autoservice_stop(transferee);
+		opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
+		return res;
+	}
+	res = opbx_waitstream(transferer, OPBX_DIGIT_ANY);
+	opbx_stopstream(transferer);
+	opbx_moh_stop(transferee);
+	res = opbx_autoservice_stop(transferee);
+	opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
+	if (res) {
+		if (option_verbose > 1)
+			opbx_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
+		return res;
+	}
+	return FEATURE_RETURN_SUCCESS;
+}
+
 
 /* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
@@ -867,6 +955,7 @@ struct opbx_call_feature builtin_features[] =
 		{ OPBX_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, OPBX_FEATURE_FLAG_NEEDSDTMF },
 		{ OPBX_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, OPBX_FEATURE_FLAG_NEEDSDTMF },
 		{ OPBX_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, OPBX_FEATURE_FLAG_NEEDSDTMF },
+		{ OPBX_FEATURE_REDIRECT, "One Touch Park", "autopark", "", "", builtin_autopark, OPBX_FEATURE_FLAG_NEEDSDTMF },
 	};
 
 
