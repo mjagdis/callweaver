@@ -8571,7 +8571,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
         p->laststate = state;
         break;
     }
-    transmit_state_notify(p, state, 1, 1, 0);
+    if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
+    	transmit_state_notify(p, state, 1, 1, 0);
 
     if (option_verbose > 1)
         opbx_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, opbx_extension_state2str(state), p->username);
