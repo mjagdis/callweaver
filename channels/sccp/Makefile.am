@@ -11,8 +11,8 @@ chan_sccp_la_SOURCES		= chan_sccp.c sccp_actions.c sccp_channel.c \
 				sccp_pbx.c sccp_socket.c sccp_softkeys.c sccp_utils.c
 
 chan_sccp_la_CFLAGS		= $(AM_CFLAGS)
-chan_sccp_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
-chan_sccp_la_LDFLAGS            = -module -avoid-version -no-undefined
+chan_sccp_la_LIBADD		= @CALLWEAVER_LIB@
+chan_sccp_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
 endif WANT_CHAN_SCCP
 
 INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include

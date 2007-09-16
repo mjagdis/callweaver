@@ -12,8 +12,8 @@ chan_misdn_la_SOURCES		= chan_misdn.c chan_misdn_config.h asn1.c \
 
 
 chan_misdn_la_CFLAGS		= $(AM_CFLAGS) @MISDN_CFLAGS@ -D_GNU_SOURCE -DCHAN_MISDN_VERSION=\"0.4.0-rc28\"
-chan_misdn_la_LIBADD		= @MISDN_LDFLAGS@ -lisdnnet -lmISDN ${top_builddir}/corelib/libcallweaver.la
-chan_misdn_la_LDFLAGS            = -module -avoid-version -no-undefined
+chan_misdn_la_LIBADD		= @MISDN_LDFLAGS@ -lisdnnet -lmISDN @CALLWEAVER_LIB@
+chan_misdn_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
 endif WANT_CHAN_MISDN
 
 INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include

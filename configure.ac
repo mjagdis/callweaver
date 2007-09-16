@@ -96,6 +96,11 @@ dnl ###
 dnl ###########################################################################
 dnl ###########################################################################
 
+dnl Most platforms support export of symbols from the main program to dynamically
+dnl loaded objects. The exceptions are handled below. If you need to force it
+dnl you can use the --enable-export-dynamic=yes|no option.
+default_export_dynamic="yes"
+
 dnl Shamelessly stolen from editline configure.in to create the relevant cygwin stuff
 dnl Platform-specific settings.  
 case "${host}" in
@@ -122,6 +127,7 @@ case "${host}" in
      broken_types=yes
 	no_libcap=yes
 	ostype=aix
+	default_export_dynamic="no"
     ;;
   *-osf4*)
     AC_DEFINE(OSF1,,[Define if OSF1])
@@ -149,6 +155,7 @@ case "${host}" in
         AC_DEFINE([INET6_ADDRSTRLEN],[46],[cygwin detection does not work for that, anybody has an idea ?])
 	AC_DEFINE([__CYGWIN__],[1],[make sure __CYGWIN__ is defined ...])
 	ostype=cygwin
+	default_export_dynamic="no"
         ;;
   *-*-solaris2*)
         AC_DEFINE([SOLARIS],[1],[needed for optional declarations to be visible])
@@ -761,6 +768,25 @@ dnl ### Optional stuff
 dnl ###
 dnl ###########################################################################
 dnl ###########################################################################
+
+dnl Resolve undefined symbols in dynamically loaded objects using exported
+dnl symbols in the main program object as well as shared objects.
+dnl FIXME: This does not work on all platforms. There should be a check.
+AC_ARG_ENABLE(export-dynamic,
+	      [AC_HELP_STRING([--enable-export-dynamic],[use -export-dynamic (default=auto)])],[enable_export_dynamic="${enableval}"],[])
+if test "${enable_export_dynamic}" = "" -o "${enable_export_dynamic}" = "auto"; then
+	enable_export_dynamic="${default_export_dynamic}"
+fi
+AM_CONDITIONAL([EXPORT_DYNAMIC],[test "${enable_export_dynamic}" = "yes"])
+if test "${enable_export_dynamic}" = "yes"; then
+	CALLWEAVER_LIB=
+	NO_UNDEFINED=
+else
+	CALLWEAVER_LIB='${top_builddir}/corelib/libcallweaver.la'
+	NO_UNDEFINED='-no-undefined'
+fi
+AC_SUBST(CALLWEAVER_LIB)
+AC_SUBST(NO_UNDEFINED)
 
 dnl Optimize for host cpu version
 AC_ARG_ENABLE(optimization,     

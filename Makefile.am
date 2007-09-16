@@ -30,21 +30,6 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 
 ## LDFLAGS		= --as-needed --enable-new-dtags
 
-##########
-# DAEMON #
-##########
-
-libexecdir = ${opbxexecdir}
-libexec_PROGRAMS = callweaver
-
-callweaver_SOURCES = main.c
-
-callweaver_LDADD = ${top_builddir}/corelib/libcallweaver.la $(LIBLTDL)
-callweaver_LDADD += -lreadline
-
-callweaver_CFLAGS =  -fomit-frame-pointer -Wall -Wstrict-prototypes 
-callweaver_CFLAGS += -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
-
 #############
 # UTILITIES #
 #############
@@ -194,7 +179,7 @@ INSTALL_DIRS +=	$(opbximagesdir)
 
 # create directories, set ownership and permissions
 install-data-hook:
-	rm -fr "$(opbxmoddir)"; \
+	rm -fr "$(opbxlibdir)"/libcallweaver.* "$(opbxmoddir)"; \
 	for install_dir in $(INSTALL_DIRS); \
 	do \
 		if test ! -d "$(DESTDIR)$${install_dir}"; \

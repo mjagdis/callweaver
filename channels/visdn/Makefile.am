@@ -29,7 +29,7 @@ noinst_HEADERS = \
 	$(srcdir)/include/list.h
 
 chan_visdn_la_LIBADD		= -lq931 ${top_builddir}/corelib/libopenpbx.la
-chan_visdn_la_LDFLAGS = -module -avoid-version -no-undefined
+chan_visdn_la_LDFLAGS = -module -avoid-version @NO_UNDEFINED@
 
 endif WANT_CHAN_VISDN
 

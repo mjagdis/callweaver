@@ -1,9 +1,10 @@
+libexecdir = ${opbxexecdir}
+
 DEFS += -include $(top_builddir)/include/confdefs.h
 
 SUBDIRS=jitterbuffer resample
 
-opbxlib_LTLIBRARIES = libcallweaver.la
-libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
+CORE_SRC = io.c sched.c logger.c frame.c config.c channel.c \
 	generator.c translate.c say.c pbx.c function.c cli.c term.c \
 	ulaw.c alaw.c phone_no_utils.c callerid.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c callweaver_hash.c\
@@ -39,28 +40,48 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
     lang/say_se.c \
     lang/say_zh_TW.c
 
-nodist_libcallweaver_la_SOURCES = defaults.h
+CORE_NODIST = defaults.h
 
-if WANT_DEBUG
-libcallweaver_la_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes 
-else
-libcallweaver_la_CFLAGS 	=  -fomit-frame-pointer -D_REENTRANT -Wall -Wstrict-prototypes 
+CORE_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+if !WANT_DEBUG
+CORE_CFLAGS 	+= -fomit-frame-pointer
+#CORE_CFLAGS	+= -DDETECT_DEADLOCKS -DOPBX_MUTEX_INIT_W_CONSTRUCTORS -DTHREAD_CRASH
 endif
-libcallweaver_la_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-libcallweaver_la_CFLAGS	+= @SSL_CFLAGS@
-#libcallweaver_la_CFLAGS	+= -DDETECT_DEADLOCKS -DOPBX_MUTEX_INIT_W_CONSTRUCTORS -DTHREAD_CRASH
-libcallweaver_la_LIBADD	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
-libcallweaver_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
-libcallweaver_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
-libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
-libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/resample/libcwresample.la
-libcallweaver_la_LIBADD	+= -lreadline
+CORE_CFLAGS	+= -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
+CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
+CORE_CFLAGS	+= @SSL_CFLAGS@
+
+CORE_LIBS	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
+CORE_LIBS	+= @SQLITE3_THREADSAFE_LIBS@
+CORE_LIBS 	+= ${top_builddir}/stdtime/libtime.la 
+CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
+CORE_LIBS 	+= ${top_builddir}/corelib/resample/libcwresample.la
+CORE_LIBS	+= -lreadline
 
 if WANT_SRTP
-libcallweaver_la_LIBADD	+= -lsrtp
+CORE_LIBS	+= -lsrtp
 endif WANT_SRTP
 
-libcallweaver_la_LDFLAGS   = -no-undefined
+
+if EXPORT_DYNAMIC
+libexec_PROGRAMS = callweaver
+callweaver_SOURCES = main.c $(CORE_SRC)
+callweaver_CFLAGS = $(CORE_CFLAGS)
+callweaver_LDADD = $(CORE_LIBS) $(LIBLTDL)
+callweaver_LDFLAGS = -export-dynamic
+else
+opbxlib_LTLIBRARIES = libcallweaver.la
+libcallweaver_la_SOURCES = $(CORE_SRC)
+nodist_libcallweaver_la_SOURCES = $(CORE_NODIST)
+libcallweaver_la_CFLAGS = $(CORE_CFLAGS)
+libcallweaver_la_LIBADD	= $(CORE_LIBS)
+libcallweaver_la_LDFLAGS   = @NO_UNDEFINED@
+
+libexec_PROGRAMS = callweaver
+callweaver_SOURCES = main.c
+callweaver_CFLAGS = $(CORE_CFLAGS)
+callweaver_LDADD = @CALLWEAVER_LIB@ $(LIBLTDL) -lreadline
+endif
 
 BUILT_SOURCES = defaults.h #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
 EXTRA_DIST = defaults.h.in
