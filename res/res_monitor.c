@@ -386,13 +386,15 @@ static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv, 
 		argc--;
 	}
 
-	if ((urlprefix = strchr(argv[0], ':'))) {
-		*(urlprefix++) = '\0';
-		snprintf(tmp, sizeof(tmp) - 1, "%s/%s.%s", urlprefix, (argc > 1 ? argv[1] : ""),
-			((strcmp(argv[0], "gsm")) ? "wav" : "gsm"));
-		if (!chan->cdr)
-			chan->cdr = opbx_cdr_alloc();
-		opbx_cdr_setuserfield(chan, tmp);
+	if (argc>0) {
+		if ((urlprefix = strchr(argv[0], ':'))) {
+			*(urlprefix++) = '\0';
+			snprintf(tmp, sizeof(tmp) - 1, "%s/%s.%s", urlprefix, (argc > 1 ? argv[1] : ""),
+				((strcmp(argv[0], "gsm")) ? "wav" : "gsm"));
+			if (!chan->cdr)
+				chan->cdr = opbx_cdr_alloc();
+			opbx_cdr_setuserfield(chan, tmp);
+		}
 	}
 
 	if (waitforbridge) {
