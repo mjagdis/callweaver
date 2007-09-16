@@ -9,8 +9,6 @@ The version found in Callweaver SVN trunk has been modified by Rico Gloeckner
 
 It was downloaded from http://www.callweaver.org
 
-The iLBC codec was removed for DFSG-compliance.
-
 License:
 
 This package may be redistributed under the terms of the GNU GPL, version
