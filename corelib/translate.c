@@ -149,7 +149,10 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int s
 			tmpr = NULL;
 			break;
 		}
-        
+
+		if (option_debug)
+			opbx_log(OPBX_LOG_DEBUG, "translate %s to %s using %s\n", opbx_getformatname(1 << source), opbx_getformatname(t->dst_format), t->name);
+
 		/* Keep going if this isn't the final destination */
 		source = bottom_bit((*next)->step->dst_format);
 		next = &(*next)->next;
