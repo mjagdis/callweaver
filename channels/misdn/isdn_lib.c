@@ -566,9 +566,6 @@ void empty_bc(struct misdn_bchannel *bc)
 	
 	bc->crypt_key[0] = 0;
 	
-	bc->generate_tone=0;
-	bc->tone_cnt=0;
-  
 	bc->dnumplan=NUMPLAN_UNKNOWN;
 	bc->onumplan=NUMPLAN_UNKNOWN;
 	bc->rnumplan=NUMPLAN_UNKNOWN;
@@ -2160,37 +2157,6 @@ int handle_timers(msg_t* msg)
 }
 
 
-
-void misdn_lib_tone_generator_start(struct misdn_bchannel *bc)
-{
-	bc->generate_tone=1;
-}
-
-void misdn_lib_tone_generator_stop(struct misdn_bchannel *bc)
-{
-	bc->generate_tone=0;
-}
-
-
-static int do_tone(struct misdn_bchannel *bc, int len)
-{
-	bc->tone_cnt=len;
-	
-	if (bc->generate_tone) {
-		cb_event(EVENT_TONE_GENERATE, bc, glob_mgr->user_data);
-		
-		if ( !bc->nojitter ) {
-			misdn_tx_jitter(bc,len);
-		}
-		
-		return 1;
-	}
-	
-	return 0;
-}
-
-
-
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 {
 	char buf[4096 + mISDN_HEADER_LEN];
@@ -2410,8 +2376,6 @@ int handle_bchan(msg_t *msg)
 	case PH_DATA|REQUEST:
 	case DL_DATA|REQUEST:
 		cb_log(0, stack->port, "DL_DATA REQUEST \n");
-		do_tone(bc, 64);
-		
 		free_msg(msg);
 		return 1;
 	
@@ -2445,43 +2409,30 @@ int handle_bchan(msg_t *msg)
 #endif
 		
 		if ( (bc->bc_state == BCHAN_ACTIVATED) && frm->len > 0) {
-			int t;
-
+			if ( misdn_cap_is_speech(bc->capability)) {
+				if ( !bc->nojitter ) {
 #ifdef MISDN_B_DEBUG
-			cb_log(0,bc->port,"do_tone START\n");
+					cb_log(0,bc->port,"tx_jitter START\n");
 #endif
-			t=do_tone(bc,frm->len);
-
+					misdn_tx_jitter(bc,frm->len);
 #ifdef MISDN_B_DEBUG
-			cb_log(0,bc->port,"do_tone STOP (%d)\n",t);
+					cb_log(0,bc->port,"tx_jitter STOP\n");
 #endif
-			if (  !t ) {
-				
-				if ( misdn_cap_is_speech(bc->capability)) {
-					if ( !bc->nojitter ) {
-#ifdef MISDN_B_DEBUG
-						cb_log(0,bc->port,"tx_jitter START\n");
-#endif
-						misdn_tx_jitter(bc,frm->len);
-#ifdef MISDN_B_DEBUG
-						cb_log(0,bc->port,"tx_jitter STOP\n");
-#endif
-					}
 				}
+			}
 
 #ifdef MISDN_B_DEBUG	
-				cb_log(0,bc->port,"EVENT_B_DATA START\n");
+			cb_log(0,bc->port,"EVENT_B_DATA START\n");
 #endif
 				
-				int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
+			int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
 #ifdef MISDN_B_DEBUG	
-				cb_log(0,bc->port,"EVENT_B_DATA STOP\n");
+			cb_log(0,bc->port,"EVENT_B_DATA STOP\n");
 #endif
-				
-				if (i<0) {
-					cb_log(10,stack->port,"cb_event returned <0\n");
-					/*clean_up_bc(bc);*/
-				}
+			
+			if (i<0) {
+				cb_log(10,stack->port,"cb_event returned <0\n");
+				/*clean_up_bc(bc);*/
 			}
 		}
 		free_msg(msg);
@@ -3940,8 +3891,6 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 	}
 	
 	cb_log(5, stack->port, "$$$ Bchan deActivated addr %x\n", bc->addr);
-	
-	bc->generate_tone=0;
 	
 	iframe_t dact;
 	dact.prim = DL_RELEASE | REQUEST;

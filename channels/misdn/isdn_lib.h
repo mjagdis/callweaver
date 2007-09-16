@@ -296,9 +296,6 @@ struct misdn_bchannel {
 	int active;
 	int upset;
 
-	int generate_tone;
-	int tone_cnt;
- 
 	enum bchannel_state bc_state;
 	enum bchannel_state next_bc_state;
 

@@ -2797,7 +2797,6 @@ static int stop_indicate(struct chan_list *cl)
 {
 	struct opbx_channel *opbx=cl->opbx;
 	chan_misdn_log(3,cl->bc->port," --> None\n");
-	misdn_lib_tone_generator_stop(cl->bc);
 	opbx_playtones_stop(opbx);
 	/*opbx_deactivate_generator(opbx);*/
 	
@@ -2807,7 +2806,6 @@ static int stop_indicate(struct chan_list *cl)
 
 static int start_bc_tones(struct chan_list* cl)
 {
-	misdn_lib_tone_generator_stop(cl->bc);
 	cl->notxtone=0;
 	cl->norxtone=0;
 	return 0;
@@ -3666,7 +3664,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 {
 	struct chan_list *ch=find_chan_by_bc(cl_te, bc);
 	
-	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
+	if (event != EVENT_BCHAN_DATA) { /*  Debug Only Non-Bchan */
 		int debuglevel=1;
 	
 		if ( event==EVENT_CLEANUP && !user_data)
@@ -3693,7 +3691,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				chan_misdn_log(1, bc->port, " --> no Ch, so we've already released.\n");
 				break;
 			case EVENT_CLEANUP:
-			case EVENT_TONE_GENERATE:
 			case EVENT_BCHAN_DATA:
 				return -1;
 
@@ -3705,8 +3702,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	if (ch ) {
 		switch (event) {
-		case EVENT_TONE_GENERATE:
-		break;
 		case EVENT_DISCONNECT:
 		case EVENT_RELEASE:
 		case EVENT_RELEASE_COMPLETE:
@@ -4319,43 +4314,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	}
 	break;
 
-	case EVENT_TONE_GENERATE:
-	{
-		int tone_len=bc->tone_cnt;
-		struct opbx_channel *opbx=ch->opbx;
-		void *tmp;
-		int res;
-		int (*generate)(struct opbx_channel *chan, void *tmp, int samples);
-
-		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n",tone_len);
-
-		if (!opbx)
-            break;
-
-		if (!opbx->gcd.gen->generate)
-            break;
-
-		tmp = opbx->gcd.gen_data;
-		opbx->gcd.gen_data = NULL;
-		generate = opbx->gcd.gen->generate;
-
-		if (tone_len < 0  ||  tone_len > 512) {
-			opbx_log(OPBX_LOG_NOTICE, "TONE_GEN: len was %d, set to 128\n",tone_len);
-			tone_len=128;
-		}
-
-		res = generate(opbx, tmp, tone_len);
-		opbx->gcd.gen_data = tmp;
-		
-		if (res) {
-			opbx_log(OPBX_LOG_WARNING, "Auto-deactivating generator\n");
-			opbx_generator_deactivate(opbx);
-		} else {
-			bc->tone_cnt=0;
-		}
-	}
-	break;
-		
 	case EVENT_BCHAN_DATA:
 	{
 		if ( !misdn_cap_is_speech(ch->bc->capability) ) {
