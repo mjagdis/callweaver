@@ -9780,12 +9780,12 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 }
 
 static void *zapdisableec_app;
-static char zapdisableec_name[] = "ZapDisableEC";
-static char zapdisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
-static char zapdisableec_syntax[] = "ZapDisableEC()";
-static char zapdisableec_description[] = "Disable Echo Canceller onto the current channel\n";
+static const char zapdisableec_name[] = "ZapDisableEC";
+static const char zapdisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
+static const char zapdisableec_syntax[] = "ZapDisableEC()";
+static const char zapdisableec_description[] = "Disable Echo Canceller onto the current channel\n";
 
-static int action_zapdisableec(struct opbx_channel *chan, int argc, char **argv)
+static int action_zapdisableec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     if (chan==NULL) {
 	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel is NULL\n");
