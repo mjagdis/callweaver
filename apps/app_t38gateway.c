@@ -504,7 +504,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
                      state = f->subclass;
                      opbx_indicate(chan, OPBX_CONTROL_RINGING);
                      opbx_fr_free(f);
-                     break;
+                     continue;
                   }
                   else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
                   {
