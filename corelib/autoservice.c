@@ -109,7 +109,7 @@ int opbx_autoservice_start(struct opbx_channel *chan)
 	struct asent *as;
 	int needstart;
 	opbx_mutex_lock(&autolock);
-	needstart = (asthread == OPBX_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */;
+	needstart = (pthread_equal(asthread, OPBX_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */);
 	as = aslist;
 	while(as) {
 		if (as->chan == chan)
@@ -161,7 +161,7 @@ int opbx_autoservice_stop(struct opbx_channel *chan)
 		if (!chan->_softhangup)
 			res = 0;
 	}
-	if (asthread != OPBX_PTHREADT_NULL) 
+	if (!pthread_equal(asthread, OPBX_PTHREADT_NULL))
 		pthread_kill(asthread, SIGURG);
 	opbx_mutex_unlock(&autolock);
 	/* Wait for it to un-block */

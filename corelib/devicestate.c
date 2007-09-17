@@ -210,7 +210,7 @@ static int __opbx_device_state_changed_literal(char *buf)
 	tmp = strrchr(device, '-');
 	if (tmp)
 		*tmp = '\0';
-	if (change_thread != OPBX_PTHREADT_NULL)
+	if (!pthread_equal(change_thread, OPBX_PTHREADT_NULL))
 		change = calloc(1, sizeof(*change) + strlen(device));
 
 	if (!change) {

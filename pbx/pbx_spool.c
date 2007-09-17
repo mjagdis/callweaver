@@ -443,7 +443,7 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	if (scan_thread_id != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(scan_thread_id, OPBX_PTHREADT_NULL)) {
 		res |= pthread_cancel(scan_thread_id);
     		res |= pthread_kill(scan_thread_id, SIGURG);
 		scan_thread_id = OPBX_PTHREADT_NULL;

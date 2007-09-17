@@ -313,7 +313,7 @@ static inline int __opbx_pthread_mutex_unlock(const char *filename, int lineno, 
 	}
 #endif
 
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && !pthread_equal(t->thread[t->reentrancy-1], pthread_self())) {
 		__opbx_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__opbx_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -385,7 +385,7 @@ static inline int __opbx_cond_wait(const char *filename, int lineno, const char 
 	}
 #endif
 
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && !pthread_equal(t->thread[t->reentrancy-1], pthread_self())) {
 		__opbx_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__opbx_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -444,7 +444,7 @@ static inline int __opbx_cond_timedwait(const char *filename, int lineno, const 
 	}
 #endif
 
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && !pthread_equal(t->thread[t->reentrancy-1], pthread_self())) {
 		__opbx_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__opbx_mutex_logger("%s line %d (%s): '%s' was locked here.\n",

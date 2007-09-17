@@ -8636,7 +8636,7 @@ static int __unload_module(void)
 #endif
 
 	/* Cancel the network thread, close the net socket */
-	if (netthreadid != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(netthreadid, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(netthreadid);
 		pthread_join(netthreadid, NULL);
 	}

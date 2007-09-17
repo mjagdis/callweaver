@@ -3186,7 +3186,7 @@ static int unload_module(void)
 {
 	int x;
 	
-	if (sthread != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(sthread, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(sthread);
 		pthread_kill(sthread, SIGURG);
 		pthread_join(sthread, NULL);

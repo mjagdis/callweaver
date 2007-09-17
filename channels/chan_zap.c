@@ -6495,18 +6495,18 @@ static int restart_monitor(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == OPBX_PTHREADT_STOP)
+	if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
 		return 0;
 	if (opbx_mutex_lock(&monlock)) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
-	if (monitor_thread == pthread_self()) {
+	if (pthread_equal(monitor_thread, pthread_self())) {
 		opbx_mutex_unlock(&monlock);
 		opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(monitor_thread, OPBX_PTHREADT_NULL)) {
 		/* Just signal it to be sure it wakes up */
 #if 0
 		pthread_cancel(monitor_thread);
@@ -9812,7 +9812,7 @@ static int __unload_module(void)
 #ifdef ZAPATA_PRI
 	int i;
 	for(i=0;i<NUM_SPANS;i++) {
-		if (pris[i].master != OPBX_PTHREADT_NULL) 
+		if (!pthread_equal(pris[i].master, OPBX_PTHREADT_NULL))
 			pthread_cancel(pris[i].master);
 	}
 	opbx_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
@@ -9840,7 +9840,7 @@ static int __unload_module(void)
 		return -1;
 	}
 	if (!opbx_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != OPBX_PTHREADT_STOP) && (monitor_thread != OPBX_PTHREADT_NULL)) {
+		if (monitor_thread && !pthread_equal(monitor_thread, OPBX_PTHREADT_STOP) && !pthread_equal(monitor_thread, OPBX_PTHREADT_NULL)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
@@ -9881,7 +9881,7 @@ static int __unload_module(void)
 	}
 #ifdef ZAPATA_PRI		
 	for(i=0;i<NUM_SPANS;i++) {
-		if (pris[i].master && (pris[i].master != OPBX_PTHREADT_NULL))
+		if (pris[i].master && !pthread_equal(pris[i].master, OPBX_PTHREADT_NULL))
 			pthread_join(pris[i].master, NULL);
 		zt_close(pris[i].fds[i]);
 	}

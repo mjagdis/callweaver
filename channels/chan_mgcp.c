@@ -3488,18 +3488,18 @@ static int restart_monitor(void)
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
 
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == OPBX_PTHREADT_STOP)
+	if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
 		return 0;
 	if (opbx_mutex_lock(&monlock)) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
-	if (monitor_thread == pthread_self()) {
+	if (pthread_equal(monitor_thread, pthread_self())) {
 		opbx_mutex_unlock(&monlock);
 		opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(monitor_thread, OPBX_PTHREADT_NULL)) {
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
@@ -4220,7 +4220,7 @@ static int reload_config(void)
 			opbx_mutex_unlock(&gatelock);
 
 			/* FS: process queue and IO */
-			if (monitor_thread == pthread_self()) {
+			if (pthread_equal(monitor_thread, pthread_self())) {
 				if (io) opbx_io_wait(io, 10);
 			}
 		}
@@ -4376,7 +4376,7 @@ static int unload_module(void)
 
 	/* Shut down the monitoring thread */
 	if (!opbx_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != OPBX_PTHREADT_STOP)) {
+		if (monitor_thread && !pthread_equal(monitor_thread, OPBX_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);

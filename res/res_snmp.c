@@ -105,7 +105,7 @@ static int unload_module(void)
 	opbx_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
-	return ((thread != OPBX_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
+	return (!pthread_equal(thread, OPBX_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
 static int reload_module(void)
@@ -113,7 +113,7 @@ static int reload_module(void)
 	opbx_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
-	if (thread != OPBX_PTHREADT_NULL)
+	if (!pthread_equal(thread, OPBX_PTHREADT_NULL))
 		pthread_join(thread, NULL);
 	thread = OPBX_PTHREADT_NULL;
 	load_config();

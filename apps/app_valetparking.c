@@ -886,7 +886,7 @@ static int unload_module(void)
 	int res = 0;
 
 	if (!opbx_mutex_lock(&valetparking_lock)) {
-        if (valetparking_thread && (valetparking_thread != OPBX_PTHREADT_STOP)) {
+        if (valetparking_thread && !pthread_equal(valetparking_thread, OPBX_PTHREADT_STOP)) {
             pthread_cancel(valetparking_thread);
             pthread_kill(valetparking_thread, SIGURG);
             pthread_join(valetparking_thread, NULL);

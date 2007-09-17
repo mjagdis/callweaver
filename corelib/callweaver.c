@@ -964,7 +964,7 @@ static void *quit_when_idle(void *data)
 	/* If there is a console thread it has to do any halt or restart because
 	 * it may have tty clean up to do.
 	 */
-	if (option_console && consolethread != OPBX_PTHREADT_NULL) {
+	if (option_console && !pthread_equal(consolethread, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(consolethread);
 	} else {
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -983,7 +983,7 @@ static void shutdown_restart(int fd, int doit, int nice)
 	opbx_mutex_lock(&lock);
 
 	if (doit >= 0) {
-		if (thread != OPBX_PTHREADT_NULL) {
+		if (!pthread_equal(thread, OPBX_PTHREADT_NULL)) {
 			pthread_cancel(thread);
 			pthread_join(thread, NULL);
 		}
@@ -1021,7 +1021,7 @@ static void shutdown_restart(int fd, int doit, int nice)
 				opbx_log(OPBX_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 		}
 	} else {
-		if (thread != OPBX_PTHREADT_NULL) {
+		if (!pthread_equal(thread, OPBX_PTHREADT_NULL)) {
 			if (interval == -1)
 				opbx_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (last_nice < 2 ? " (new calls blocked)" : ""));
 			else
@@ -1071,7 +1071,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete) {
 		/* Wake up a poll()ing console */
-		if (option_console && consolethread != OPBX_PTHREADT_NULL)
+		if (option_console && !pthread_equal(consolethread, OPBX_PTHREADT_NULL))
 			pthread_kill(consolethread, SIGURG);
 	}
 }

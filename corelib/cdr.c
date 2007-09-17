@@ -1135,13 +1135,13 @@ static int do_reload(void)
 
 	/* if this reload enabled the CDR batch mode, create the background thread
 	   if it does not exist */
-	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == OPBX_PTHREADT_NULL)) {
+	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (pthread_equal(cdr_thread, OPBX_PTHREADT_NULL))) {
 		opbx_cli_register(&cli_submit);
 		opbx_atexit_register(&cdr_atexit);
 		res = 0;
 	/* if this reload disabled the CDR and/or batch mode and there is a background thread,
 	   kill it */
-	}else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && (cdr_thread != OPBX_PTHREADT_NULL)) {
+	}else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && !pthread_equal(cdr_thread, OPBX_PTHREADT_NULL)) {
 		cdr_thread = OPBX_PTHREADT_NULL;
 		opbx_cli_unregister(&cli_submit);
 		opbx_atexit_unregister(&cdr_atexit);

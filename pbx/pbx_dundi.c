@@ -4744,12 +4744,12 @@ static int stop_threads(void)
 {
 	int res = 0;
 
-	if (netthreadid != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(netthreadid, OPBX_PTHREADT_NULL)) {
 		res |= pthread_cancel(netthreadid);
     		res |= pthread_kill(netthreadid, SIGURG);
 		netthreadid = OPBX_PTHREADT_NULL;
 	}
-	if (precachethreadid != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(precachethreadid, OPBX_PTHREADT_NULL)) {
 		res |= pthread_cancel(precachethreadid);
     		res |= pthread_kill(precachethreadid, SIGURG);
 		precachethreadid = OPBX_PTHREADT_NULL;

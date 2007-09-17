@@ -2279,7 +2279,7 @@ static int unload_module(void)
 	/* We should never be unloaded */
 	opbx_module_get(get_modinfo()->self);
 
-	if (parking_thread != OPBX_PTHREADT_NULL) {
+	if (!pthread_equal(parking_thread, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(parking_thread);
 		pthread_kill(parking_thread, SIGURG);
 		pthread_join(parking_thread, NULL);

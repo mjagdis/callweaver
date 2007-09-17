@@ -1400,7 +1400,7 @@ static int unload_module(void) {
 	GLOB(descriptor) = -1;
 
 	if (!opbx_mutex_lock(&GLOB(socket_lock))) {
-		if (socket_thread && (socket_thread != OPBX_PTHREADT_STOP)) {
+		if (socket_thread && !pthread_equal(socket_thread, OPBX_PTHREADT_STOP)) {
 			pthread_cancel(socket_thread);
 			pthread_kill(socket_thread, SIGURG);
 			pthread_join(socket_thread, NULL);

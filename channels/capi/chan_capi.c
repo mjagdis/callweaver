@@ -150,7 +150,7 @@ OPBX_MUTEX_DEFINE_STATIC(verbose_lock);
 
 static int capi_capability = OPBX_FORMAT_ALAW;
 
-static pthread_t monitor_thread = (pthread_t)(0-1);
+static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
 
 static struct capi_pvt *iflist = NULL;
 static struct cc_capi_controller *capi_controllers[CAPI_MAX_CONTROLLERS + 1];
@@ -5700,7 +5700,7 @@ static int unload_module(void)
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_no_debug);
 
-	if (monitor_thread != (pthread_t)(0-1)) {
+	if (!pthread_equal(monitor_thread, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(monitor_thread);
 		pthread_kill(monitor_thread, SIGURG);
 		pthread_join(monitor_thread, NULL);
@@ -5803,7 +5803,7 @@ static int load_module(void)
 	command_app = opbx_register_function(commandapp, pbx_capicommand_exec, commandsynopsis, commandsyntax, commandtdesc);
 
 	if (opbx_pthread_create(&monitor_thread, NULL, capidev_loop, NULL) < 0) {
-		monitor_thread = (pthread_t)(0-1);
+		monitor_thread = OPBX_PTHREADT_NULL;
 		cc_log(OPBX_LOG_ERROR, "Unable to start monitor thread!\n");
 		return -1;
 	}
