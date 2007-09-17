@@ -9788,20 +9788,20 @@ static const char zapdisableec_description[] = "Disable Echo Canceller onto the 
 static int action_zapdisableec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     if (chan==NULL) {
-	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel is NULL\n");
+	opbx_log(OPBX_LOG_WARNING, "channel is NULL\n");
         return 0;
     }
     if ( (chan->type==NULL) || (strcmp(chan->type, "Zap")) ) {
-	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel is not Zap\n");
+	opbx_log(OPBX_LOG_WARNING, "channel is not Zap\n");
         return 0;
     }
     struct zt_pvt *p = chan->tech_pvt;
     if (p==NULL) {
-	opbx_log(OPBX_LOG_WARNING, "action_zapdisableec: channel has no PVT structure\n");
+	opbx_log(OPBX_LOG_WARNING, "channel has no PVT structure\n");
         return 0;
     }
-    opbx_log(OPBX_LOG_NOTICE, "action_zapdisableec: ECC OFF\n");
     zt_disable_ec(p);
+    opbx_log(OPBX_LOG_NOTICE, "echo cancelling OFF\n");
     return 0;
 }
 
