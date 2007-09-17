@@ -217,6 +217,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 	     && ( chan->t38_status != peer->t38_status) 
 	   ) {
             opbx_log(OPBX_LOG_DEBUG, "Stop bridging frames. [ %d,%d]\n", chan->t38_status, peer->t38_status);
+            running = RUNNING;
             break;
 	}
     }
@@ -571,9 +572,11 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
                 res = opbx_bridge_frames(chan, peer);
             }
 	    
-            if ( res  
-		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status != T38_STATUS_UNKNOWN ) )
-		&& ( chan->t38_status != peer->t38_status ) )
+            if ( 
+                   ( res == RUNNING )
+		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
+		&& ( chan->t38_status != peer->t38_status ) 
+               )
             {
                 // Different on each side, so gateway 
                 opbx_log(OPBX_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
