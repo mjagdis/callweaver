@@ -233,8 +233,12 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 	char srv[256];
 	char host[256];
 	int tportno = ntohs(sin->sin_port);
+
+	sin->sin_family = AF_INET;
+
 	if (inet_aton(value, &sin->sin_addr))
 		return 0;
+
 	if (service) {
 		snprintf(srv, sizeof(srv), "%s.%s", service, value);
 		if (opbx_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
@@ -242,6 +246,7 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 			value = host;
 		}
 	}
+
 	hp = opbx_gethostbyname(value, &ahp);
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));

@@ -236,6 +236,9 @@ static struct opbx_flags globalflags = { 0 };
 
 static pthread_t netthreadid = OPBX_PTHREADT_NULL;
 
+static int std_attr_detached_initialized;
+static pthread_attr_t std_attr_detached;
+
 #define IAX_STATE_STARTED		(1 << 0)
 #define IAX_STATE_AUTHENTICATED 	(1 << 1)
 #define IAX_STATE_TBD			(1 << 2)
@@ -311,6 +314,7 @@ struct iax2_peer {
 	char mailbox[OPBX_MAX_EXTENSION];		/*!< Mailbox */
 	struct opbx_codec_pref prefs;
 	struct opbx_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
+	char host[MAXHOSTNAMELEN];			/*!< If not dynamic, IP address or hostname */
 	struct sockaddr_in addr;
 	int formats;
 	int sockfd;					/*!< Socket to use for transmission */
@@ -388,7 +392,8 @@ enum iax_transfer_state {
 };
 
 struct iax2_registry {
-	struct sockaddr_in addr;		/*!< Who we connect to for registration purposes */
+	char host[MAXHOSTNAMELEN];		/*!< IP address or hostname we connect to */
+	struct sockaddr_in addr;
 	char username[80];
 	char secret[80];			/*!< Password or key name in []'s */
 	char random[80];
@@ -660,7 +665,7 @@ static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t nowtime);
 static int iax2_write(struct opbx_channel *c, struct opbx_frame *f);
-static int iax2_do_register(struct iax2_registry *reg);
+static void *iax2_do_register(void *data);
 static void prune_peers(void);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 
@@ -4541,13 +4546,13 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	return res;
 }
 
-static int iax2_do_register(struct iax2_registry *reg);
-
 static int iax2_do_register_s(void *data)
 {
+	pthread_t tid;
 	struct iax2_registry *reg = data;
+
 	reg->expire = -1;
-	iax2_do_register(reg);
+	opbx_pthread_create(&tid, &std_attr_detached, iax2_do_register, reg);
 	return 0;
 }
 
@@ -4772,21 +4777,16 @@ static int iax2_register(char *value, int lineno)
 		opbx_log(OPBX_LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	hp = opbx_gethostbyname(hostname, &ahp);
-	if (!hp) {
-		opbx_log(OPBX_LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
-		return -1;
-	}
+
 	reg = malloc(sizeof(struct iax2_registry));
 	if (reg) {
 		memset(reg, 0, sizeof(struct iax2_registry));
+		opbx_copy_string(reg->host, hostname, sizeof(reg->host));
 		opbx_copy_string(reg->username, username, sizeof(reg->username));
 		if (secret)
 			opbx_copy_string(reg->secret, secret, sizeof(reg->secret));
 		reg->expire = -1;
 		reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-		reg->addr.sin_family = AF_INET;
-		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(listen_port);
 		reg->next = registrations;
 		reg->callno = 0;
@@ -5363,7 +5363,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		opbx_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
 		if (callerid)
 			dpr->callerid = strdup(callerid);
-		if (opbx_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+		if (opbx_pthread_create(&newthread, &std_attr_detached, dp_lookup_thread, dpr)) {
 			opbx_log(OPBX_LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
@@ -5441,7 +5441,7 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!opbx_pthread_create(&th, NULL, iax_park_thread, d))
+		if (!opbx_pthread_create(&th, &std_attr_detached, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -6886,34 +6886,64 @@ retryowner2:
 	return 1;
 }
 
-static int iax2_do_register(struct iax2_registry *reg)
+static int iax2_do_register_backend(void *data)
 {
+	struct iax2_registry *reg = data;
 	struct iax_ie_data ied;
-	if (option_debug && iaxdebug)
-		opbx_log(OPBX_LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
-	if (!reg->callno) {
-		if (option_debug)
-			opbx_log(OPBX_LOG_DEBUG, "Allocate call number\n");
-		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
-		if (reg->callno < 1) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to create call for registration\n");
-			return -1;
-		} else if (option_debug)
-			opbx_log(OPBX_LOG_DEBUG, "Registration created on call %d\n", reg->callno);
-		iaxs[reg->callno]->reg = reg;
+
+	if (reg->addr.sin_addr.s_addr) {
+		if (!reg->callno) {
+			if (option_debug)
+				opbx_log(OPBX_LOG_DEBUG, "Allocate call number\n");
+
+			reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
+			if (reg->callno >= 0) {
+				if (option_debug)
+					opbx_log(OPBX_LOG_DEBUG, "Registration created on call %d\n", reg->callno);
+				iaxs[reg->callno]->reg = reg;
+			} else {
+				opbx_log(OPBX_LOG_WARNING, "Unable to create call for registration\n");
+			}
+		}
+
+		if (reg->callno) {
+			/* Setup the next registration a little early */
+			reg->expire  = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+
+			/* Send the request */
+			memset(&ied, 0, sizeof(ied));
+			iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
+			iax_ie_append_short(&ied, IAX_IE_REFRESH, reg->refresh);
+			send_command(iaxs[reg->callno],OPBX_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
+			reg->regstate = REG_STATE_REGSENT;
+			return 0;
+		}
 	}
-	/* Schedule the next registration attempt */
+
+	reg->expire  = opbx_sched_add(sched, DEFAULT_RETRY_TIME, iax2_do_register_s, reg);
+
+	return 0;
+}
+
+static void *iax2_do_register(void *data)
+{
+	struct iax2_registry *reg = data;
+
+	/* Do potentially blocking but thread safe stuff */
 	if (reg->expire > -1)
 		opbx_sched_del(sched, reg->expire);
-	/* Setup the next registration a little early */
-	reg->expire  = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
-	/* Send the request */
-	memset(&ied, 0, sizeof(ied));
-	iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
-	iax_ie_append_short(&ied, IAX_IE_REFRESH, reg->refresh);
-	send_command(iaxs[reg->callno],OPBX_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
-	reg->regstate = REG_STATE_REGSENT;
-	return 0;
+
+	if (option_debug && iaxdebug)
+		opbx_log(OPBX_LOG_DEBUG, "Starting registration request for '%s' at '%s'\n", reg->username, reg->host);
+
+	opbx_get_ip_or_srv(&reg->addr, reg->host, "_iax._udp");
+
+	/* All else is not thread-safe so must be scheduled for the
+	 * thread to run for us.
+	 */
+	reg->expire  = opbx_sched_add(sched, 1, iax2_do_register_backend, reg);
+
+	return NULL;
 }
 
 static int iax2_poke_noanswer(void *data)
@@ -6934,43 +6964,96 @@ static int iax2_poke_noanswer(void *data)
 	return 0;
 }
 
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
+struct iax2_poke_peer_args {
+	struct iax2_peer *peer;
+	int heldcall;
+};
+
+static int iax2_poke_peer_backend(void *data)
 {
-	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
-		/* IF we have no IP, or this isn't to be monitored, return
-		  imeediately after clearing things out */
-		peer->lastms = 0;
-		peer->historicms = 0;
-		peer->pokeexpire = -1;
-		peer->callno = 0;
-		return 0;
+	struct iax2_poke_peer_args *args = data;
+	struct iax2_peer *peer = args->peer;
+	int heldcall = args->heldcall;
+
+	free(args);
+
+	/* If we don't have a qualify timeout we don't need to poke the host, if we don't
+	 * have an address we can't poke the host.
+	 */
+	if (peer->maxms && peer->addr.sin_addr.s_addr) {
+		if (peer->callno > 0) {
+			opbx_log(OPBX_LOG_NOTICE, "Still have a callno...\n");
+			iax2_destroy(peer->callno);
+		}
+		if (heldcall)
+			opbx_mutex_unlock(&iaxsl[heldcall]);
+		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
+		if (heldcall)
+			opbx_mutex_lock(&iaxsl[heldcall]);
+		if (peer->callno > 0) {
+			/* If the host is already unreachable then use the unreachable interval instead */
+			if (peer->lastms < 0)
+				peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
+			else
+				peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+
+			/* Speed up retransmission times */
+			iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
+			iaxs[peer->callno]->peerpoke = peer;
+			send_command(iaxs[peer->callno], OPBX_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
+		} else {
+			opbx_log(OPBX_LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
+			peer->pokeexpire = opbx_sched_add(sched, DEFAULT_RETRY_TIME, iax2_poke_peer_s, peer);
+			return 0;
+		}
+	} else {
+		peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, iax2_poke_peer_s, peer);
 	}
-	if (peer->callno > 0) {
-		opbx_log(OPBX_LOG_NOTICE, "Still have a callno...\n");
-		iax2_destroy(peer->callno);
-	}
-	if (heldcall)
-		opbx_mutex_unlock(&iaxsl[heldcall]);
-	peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
-	if (heldcall)
-		opbx_mutex_lock(&iaxsl[heldcall]);
-	if (peer->callno < 1) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
-		return -1;
-	}
+
+	return 0;
+}
+
+static void *iax2_poke_peer_thread(void *data)
+{
+	struct iax2_poke_peer_args *args = data;
+	struct iax2_peer *peer = args->peer;
+	int heldcall = args->heldcall;
+
+	/* Do potentially blocking but thread safe stuff */
+
 	if (peer->pokeexpire > -1)
 		opbx_sched_del(sched, peer->pokeexpire);
-	/* Speed up retransmission times */
-	iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
-	iaxs[peer->callno]->peerpoke = peer;
-	send_command(iaxs[peer->callno], OPBX_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
-	
-	/* If the host is already unreachable then use the unreachable interval instead */
-	if (peer->lastms < 0) {
-		peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
-	} else
-		peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
 
+	/* If it's a dynamic peer it's up to it to register and, by so doing, tell
+	 * us what address to use. If it isn't dynamic we need to refresh the address
+	 * now and, if required, give it a poke.
+	 */
+	if (!opbx_test_flag(peer, IAX_DYNAMIC) && peer->host[0])
+		opbx_get_ip_or_srv(&peer->addr, peer->host, "_iax._udp");
+
+	/* All else is not thread-safe so must be scheduled for the
+	 * thread to run for us.
+	 */
+	peer->pokeexpire = opbx_sched_add(sched, 1, iax2_poke_peer_backend, args);
+
+	return NULL;
+}
+
+static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
+{
+	pthread_t tid;
+	struct iax2_poke_peer_args *args;
+
+	if ((args = malloc(sizeof(*args)))) {
+		args->peer = peer;
+		args->heldcall = heldcall;
+
+		/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
+		if (opbx_test_flag(peer, IAX_DYNAMIC))
+			iax2_poke_peer_thread(args);
+		else
+			opbx_pthread_create(&tid, &std_attr_detached, iax2_poke_peer_thread, args);
+	}
 	return 0;
 }
 
@@ -7234,6 +7317,43 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	}
 }
 
+
+struct async_get_ip_args {
+	struct iax2_peer *peer;
+	struct sockaddr_in *sin;
+	char *value;
+	const char *service;
+};
+
+static void *async_get_ip_handler(void *data)
+{
+	struct async_get_ip_args *args = (struct async_get_ip_args *)data;
+
+	if (args->value) {
+		opbx_get_ip_or_srv(args->sin, args->value, args->service);
+		free(args->value);
+	}
+	free(args);
+	return NULL;
+}
+
+int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const char *value, const char *service)
+{
+	pthread_t tid;
+	pthread_attr_t attr;
+	struct async_get_ip_args *args;
+	int ret = -1;
+
+	if ((args = malloc(sizeof(*args)))) {
+		args->peer = peer;
+		args->sin = sin;
+		args->value = strdup(value);
+		args->service = service;
+		ret = opbx_pthread_create(&tid, &std_attr_detached, async_get_ip_handler, args);
+	}
+	return ret;
+}
+
 		
 /*--- build_peer: Create peer structure based on configuration */
 static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, int temponly)
@@ -7341,18 +7461,12 @@ static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, i
 						opbx_sched_del(sched, peer->expire);
 					peer->expire = -1;
 					opbx_clear_flag(peer, IAX_DYNAMIC);
-					if (opbx_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
-						free(peer);
-						return NULL;
-					}
+					opbx_copy_string(peer->host, v->value, sizeof(peer->host));
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (opbx_get_ip(&peer->defaddr, v->value)) {
-					free(peer);
-					return NULL;
-				}
+				async_get_ip(peer, &peer->defaddr, strdup(v->value), NULL);
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
 				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||
@@ -7975,7 +8089,7 @@ static int reload_config(void)
 	prune_peers();
 	prune_users();
 	for (reg = registrations; reg; reg = reg->next)
-		iax2_do_register(reg);
+		iax2_do_register_s(reg);
 	/* Qualify hosts, too */
 	opbx_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
@@ -8667,6 +8781,11 @@ static int unload_module(void)
 	return __unload_module();
 }
 
+static void release_module(void)
+{
+	pthread_attr_destroy(&std_attr_detached);
+}
+
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
 static int load_module(void)
 {
@@ -8678,6 +8797,12 @@ static int load_module(void)
 	
 	struct opbx_netsock *ns;
 	struct sockaddr_in sin;
+
+	if (!std_attr_detached_initialized) {
+		pthread_attr_init(&std_attr_detached);
+		pthread_attr_setdetachstate(&std_attr_detached, PTHREAD_CREATE_DETACHED);
+		std_attr_detached_initialized = 1;
+	}
 
 	hash_dial = opbx_hash_app_name("Dial");
 
@@ -8750,7 +8875,7 @@ static int load_module(void)
 	}
 
 	for (reg = registrations; reg; reg = reg->next)
-		iax2_do_register(reg);
+		iax2_do_register_s(reg);
 	opbx_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (peer->sockfd < 0)
@@ -8761,4 +8886,4 @@ static int load_module(void)
 	return res;
 }
 
-MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)
+MODULE_INFO(load_module, reload_config, unload_module, release_module, desc)

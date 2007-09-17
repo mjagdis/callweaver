@@ -933,7 +933,8 @@ struct sip_peer {
     char username[80];        /*!< Temporary username until registration */ 
     char accountcode[OPBX_MAX_ACCOUNT_CODE];    /*!< Account code */
     int amaflags;            /*!< AMA Flags (for billing) */
-    char tohost[MAXHOSTNAMELEN];    /*!< If not dynamic, IP address */
+    char tohost[MAXHOSTNAMELEN];    /*!< If not dynamic, IP address or hostname */
+    char proxyhost[MAXHOSTNAMELEN];    /*!< IP address or hostname of proxy (if any) */
     char regexten[OPBX_MAX_EXTENSION]; /*!< Extension to register (if regcontext is used) */
     char fromuser[80];        /*!< From: user when calling this peer */
     char fromdomain[MAXHOSTNAMELEN];    /*!< From: domain when calling this peer */
@@ -1041,8 +1042,6 @@ static struct opbx_register_list {
 } regl;
 
 
-static int __sip_do_register(struct sip_registry *r);
-
 static int sipsock  = -1;
 
 
@@ -1057,6 +1056,9 @@ static struct opbx_ha *localaddr;
 struct opbx_config *notify_types;
 
 static struct sip_auth *authl;          /*!< Authentication list */
+
+static int std_attr_detached_initialized;
+static pthread_attr_t std_attr_detached;
 
 
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg);
@@ -7310,11 +7312,23 @@ static char *regstate2str(int regstate)
 
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
 
+/*! \brief  __sip_do_register: Register with SIP proxy */
+static void *__sip_do_register(void *data)
+{
+    struct sip_registry *r = (struct sip_registry *)data;
+    int res;
+
+    transmit_register(r, SIP_REGISTER, NULL, NULL);
+    ASTOBJ_UNREF(r, sip_registry_destroy);
+    return NULL;
+}
+
 /*! \brief  sip_reregister: Update registration with SIP Proxy*/
 static int sip_reregister(void *data) 
 {
     /* if we are here, we know that we need to reregister. */
-    struct sip_registry *r= ASTOBJ_REF((struct sip_registry *) data);
+    struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
+    pthread_t tid;
 
     /* if we couldn't get a reference to the registry object, punt */
     if (!r)
@@ -7327,24 +7341,13 @@ static int sip_reregister(void *data)
         snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
         append_history(r->call, "RegistryRenew", tmp);
     }
-    /* Since registry's are only added/removed by the the monitor thread, this
-       may be overkill to reference/dereference at all here */
+
     if (sipdebug)
         opbx_log(OPBX_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
     r->expire = -1;
-    __sip_do_register(r);
-    ASTOBJ_UNREF(r, sip_registry_destroy);
+    opbx_pthread_create(&tid, &std_attr_detached, __sip_do_register, r);
     return 0;
-}
-
-/*! \brief  __sip_do_register: Register with SIP proxy */
-static int __sip_do_register(struct sip_registry *r)
-{
-    int res;
-
-    res = transmit_register(r, SIP_REGISTER, NULL, NULL);
-    return res;
 }
 
 /*! \brief  sip_reg_timeout: Registration timeout, register again */
@@ -14576,7 +14579,6 @@ restartsearch:
 /*! \brief  restart_monitor: Start the channel monitor thread */
 static int restart_monitor(void)
 {
-    pthread_attr_t attr;
     /* If we're supposed to be stopped -- stay stopped */
     if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
         return 0;
@@ -14598,10 +14600,8 @@ static int restart_monitor(void)
     }
     else
     {
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(&monitor_thread, &std_attr_detached, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
@@ -14637,68 +14637,94 @@ static int sip_poke_noanswer(void *data)
 /*! \brief  sip_poke_peer: Check availability of peer, also keep NAT open */
 /*    This is done with the interval in qualify= option in sip.conf */
 /*    Default is 2 seconds */
-static int sip_poke_peer(struct sip_peer *peer)
+static void *sip_poke_peer_thread(void *data)
 {
+    struct sip_peer *peer = data;
     struct sip_pvt *p;
-    
-    if (!peer->maxms || !peer->addr.sin_addr.s_addr)
-    {
-        /* IF we have no IP, or this isn't to be monitored, return
-          imeediately after clearing things out */
-        if (peer->pokeexpire > -1)
-            opbx_sched_del(sched, peer->pokeexpire);
-        peer->lastms = 0;
-        peer->pokeexpire = -1;
-        peer->call = NULL;
-        return 0;
-    }
-    if (peer->call > 0)
-    {
-        if (sipdebug)
-            opbx_log(OPBX_LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
-        sip_destroy(peer->call);
-    }
-    p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
-    if (!peer->call)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
-        return -1;
-    }
-    memcpy(&p->sa, &peer->addr, sizeof(p->sa));
-    memcpy(&p->recv, &peer->addr, sizeof(p->sa));
-    opbx_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
-
-    /* Send options to peer's fullcontact */
-    if (!opbx_strlen_zero(peer->fullcontact))
-    {
-        opbx_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
-    }
-
-    if (!opbx_strlen_zero(peer->tohost))
-        opbx_copy_string(p->tohost, peer->tohost, sizeof(p->tohost));
-    else
-        opbx_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
-
-    /* Recalculate our side, and recalculate Call ID */
-    if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
-        memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-    build_via(p, p->via, sizeof(p->via));
-    build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 
     if (peer->pokeexpire > -1)
         opbx_sched_del(sched, peer->pokeexpire);
-    p->peerpoke = peer;
-    opbx_set_flag(p, SIP_OUTGOING);
+
+    /* If it's a dynamic peer it's up to it to register and, by so doing, tell
+     * us what address to use. If it isn't dynamic we need to refresh the address
+     * now and, if required, give it a poke.
+     */
+    if (!opbx_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)) {
+        uint16_t port = peer->addr.sin_port;
+	peer->addr.sin_port = 0;
+        if (peer->proxyhost[0])
+            opbx_get_ip_or_srv(&peer->addr, peer->proxyhost, "_sip._udp");
+	else if (peer->tohost[0])
+            opbx_get_ip_or_srv(&peer->addr, peer->tohost, "_sip._udp");
+        if (!peer->addr.sin_port)
+            peer->addr.sin_port = (port ? port : htons(DEFAULT_SIP_PORT));
+    }
+
+    /* If we don't have a qualify timeout we don't need to poke the host, if we don't
+     * have an address we can't poke the host.
+     */
+    if (peer->maxms && peer->addr.sin_addr.s_addr) {
+        if (peer->call > 0)
+        {
+            if (sipdebug)
+                opbx_log(OPBX_LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
+            sip_destroy(peer->call);
+        }
+
+        p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
+        if (peer->call) {
+            memcpy(&p->sa, &peer->addr, sizeof(p->sa));
+            memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+            opbx_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
+
+            /* Send options to peer's fullcontact */
+            if (!opbx_strlen_zero(peer->fullcontact))
+            {
+                opbx_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
+            }
+
+            if (!opbx_strlen_zero(peer->tohost))
+                opbx_copy_string(p->tohost, peer->tohost, sizeof(p->tohost));
+            else
+                opbx_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
+
+            /* Recalculate our side, and recalculate Call ID */
+            if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
+                memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+            build_via(p, p->via, sizeof(p->via));
+            build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+
+            p->peerpoke = peer;
+            opbx_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
-    opbx_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-    transmit_invite(p, SIP_INVITE, 0, 2);
+            opbx_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
+            transmit_invite(p, SIP_INVITE, 0, 2);
 #else
-    transmit_invite(p, SIP_OPTIONS, 0, 2);
+            transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
-    gettimeofday(&peer->ps, NULL);
-    peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+            gettimeofday(&peer->ps, NULL);
+            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+        } else {
+            opbx_log(OPBX_LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
+            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_RETRANS, sip_poke_peer_s, peer);
+	}
+    } else {
+        peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+    }
 
     return 0;
+}
+
+static int sip_poke_peer(struct sip_peer *peer)
+{
+	pthread_t tid;
+
+	/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
+	if (opbx_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
+		sip_poke_peer_thread(peer);
+	else
+		opbx_pthread_create(&tid, &std_attr_detached, sip_poke_peer_thread, peer);
+	return 0;
 }
 
 /*! \brief  sip_devicestate: Part of PBX channel interface */
@@ -15348,6 +15374,44 @@ static struct sip_peer *temp_peer(const char *name)
     return peer;
 }
 
+
+struct async_get_ip_args {
+	struct sip_peer *peer;
+	struct sockaddr_in *sin;
+	char *value;
+	const char *service;
+};
+
+static void *async_get_ip_handler(void *data)
+{
+	struct async_get_ip_args *args = (struct async_get_ip_args *)data;
+
+	if (args->value) {
+		opbx_get_ip_or_srv(args->sin, args->value, args->service);
+		free(args->value);
+	}
+	if (args->peer)
+		ASTOBJ_UNREF(args->peer, sip_destroy_peer);
+	free(args);
+	return NULL;
+}
+
+static int async_get_ip(struct sip_peer *peer, struct sockaddr_in *sin, const char *value, const char *service)
+{
+	pthread_t tid;
+	struct async_get_ip_args *args;
+	int ret = -1;
+
+	if ((args = malloc(sizeof(*args)))) {
+		args->peer = (peer ? ASTOBJ_REF(peer) : NULL);
+		args->sin = sin;
+		args->value = strdup(value);
+		args->service = service;
+		ret = opbx_pthread_create(&tid, &std_attr_detached, async_get_ip_handler, args);
+	}
+	return ret;
+}
+
 /*! \brief  build_peer: Build peer from config file */
 static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, int realtime)
 {
@@ -15522,30 +15586,16 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
                     opbx_sched_del(sched, peer->expire);
                 peer->expire = -1;
                 opbx_clear_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);    
-                if (!obproxyfound || !strcasecmp(v->name, "outboundproxy"))
-                {
-                    if (opbx_get_ip_or_srv(&peer->addr, v->value, "_sip._udp"))
-                    {
-                        ASTOBJ_UNREF(peer, sip_destroy_peer);
-                        return NULL;
-                    }
-                }
-                if (!strcasecmp(v->name, "outboundproxy"))
+                if (!strcasecmp(v->name, "outboundproxy")) {
+                    opbx_copy_string(peer->proxyhost, v->value, sizeof(peer->proxyhost));
                     obproxyfound=1;
-                else {
+		} else
                     opbx_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
-                    if (!peer->addr.sin_port)
-                        peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-                }
             }
         }
         else if (!strcasecmp(v->name, "defaultip"))
         {
-            if (opbx_get_ip(&peer->defaddr, v->value))
-            {
-                ASTOBJ_UNREF(peer, sip_destroy_peer);
-                return NULL;
-            }
+            async_get_ip(peer, &peer->defaddr, strdup(v->value), NULL);
         }
         else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny"))
         {
@@ -15958,8 +16008,7 @@ static int reload_config(void)
         }
         else if (!strcasecmp(v->name, "outboundproxy"))
         {
-            if (opbx_get_ip_or_srv(&outboundproxyip, v->value, "_sip._udp") < 0)
-                opbx_log(OPBX_LOG_WARNING, "Unable to locate host '%s'\n", v->value);
+            async_get_ip(NULL, &outboundproxyip, strdup(v->value), "_sip._udp");
         }
         else if (!strcasecmp(v->name, "outboundproxyport"))
         {
@@ -17004,7 +17053,10 @@ static void sip_poke_all_peers(void)
 {
     ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
         ASTOBJ_WRLOCK(iterator);
-        sip_poke_peer(iterator);
+        if (iterator->pokeexpire > -1)
+            opbx_sched_del(sched, iterator->pokeexpire);
+	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
+        iterator->pokeexpire = opbx_sched_add(sched, 1, sip_poke_peer_s, iterator);
         ASTOBJ_UNLOCK(iterator);
     } while (0)
     );
@@ -17249,6 +17301,11 @@ static struct opbx_clicmd  my_clis[] = {
 /*! \brief  load_module: PBX load module - initialization */
 static int load_module(void)
 {
+    if (!std_attr_detached_initialized) {
+        pthread_attr_init(&std_attr_detached);
+        pthread_attr_setdetachstate(&std_attr_detached, PTHREAD_CREATE_DETACHED);
+	std_attr_detached_initialized = 1;
+    }
 
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
@@ -17421,4 +17478,9 @@ static int unload_module(void)
     return res;
 }
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)
+static void release_module(void)
+{
+	pthread_attr_destroy(&std_attr_detached);
+}
+
+MODULE_INFO(load_module, reload_module, unload_module, release_module, desc)
