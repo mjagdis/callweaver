@@ -16776,10 +16776,10 @@ static int sip_do_t38switchover(const struct opbx_channel *chan) {
 
 
 static void *siposd_app;
-static char siposd_name[] = "SIPOSD";
-static char siposd_syntax[] = "SIPOSD(Text)";
-static char siposd_synopsis[] = "Add a SIP OSD";
-static char siposd_description[] = ""
+static const char siposd_name[] = "SIPOSD";
+static const char siposd_syntax[] = "SIPOSD(Text)";
+static const char siposd_synopsis[] = "Add a SIP OSD";
+static const char siposd_description[] = ""
 "  SIPOSD(Text)\n"
 "Send a SIP Message to be displayed onto the phone LCD. It works if\n"
 "supported by the phone and channel has  already been answered.\n"
@@ -16806,7 +16806,7 @@ static int sip_sendtext2(struct opbx_channel *ast, const char *text, const char 
 /*
  * Display message onto phone LCD, if supported. -- Antonio Gallo
  */
-static int sip_osd(struct opbx_channel *chan, int argc, char **argv) {
+static int sip_osd(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
 	int res = 0;
 	struct sip_pvt *p = NULL;
 	/* parameter checking */
