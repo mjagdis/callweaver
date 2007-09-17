@@ -609,9 +609,7 @@ static void *listener(void *unused)
 	int x;
 	int flags;
 	struct pollfd fds[1];
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	for (;;) {
 		if (opbx_socket < 0)
 			break;
@@ -651,7 +649,7 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
-					if (opbx_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
+					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
 						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");

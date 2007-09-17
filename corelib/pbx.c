@@ -2274,7 +2274,6 @@ static void *pbx_thread(void *data)
 enum opbx_pbx_result opbx_pbx_start(struct opbx_channel *c)
 {
     pthread_t t;
-    pthread_attr_t attr;
 
     if (!c)
     {
@@ -2286,9 +2285,7 @@ enum opbx_pbx_result opbx_pbx_start(struct opbx_channel *c)
         return OPBX_PBX_CALL_LIMIT;
 
     /* Start a new thread, and get something handling this channel. */
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (opbx_pthread_create(&t, &attr, pbx_thread, c))
+    if (opbx_pthread_create(&t, &global_attr_detached, pbx_thread, c))
     {
         opbx_log(OPBX_LOG_WARNING, "Failed to create new channel thread\n");
         return OPBX_PBX_FAILED;
@@ -4632,7 +4629,6 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
     struct async_stat *as;
     int res = -1, cdr_res = -1;
     struct outgoing_helper oh;
-    pthread_attr_t attr;
 
     if (sync)
     {
@@ -4781,9 +4777,7 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
         as->priority = priority;
         as->timeout = timeout;
         opbx_set_variables(chan, vars);
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (opbx_pthread_create(&as->p, &attr, async_wait, as))
+        if (opbx_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             opbx_log(OPBX_LOG_WARNING, "Failed to start async wait\n");
             free(as);
@@ -4825,8 +4819,7 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
     struct app_tmp *tmp;
     int res = -1, cdr_res = -1;
     struct outgoing_helper oh;
-    pthread_attr_t attr;
-    
+
     memset(&oh, 0, sizeof(oh));
     oh.vars = vars;    
 
@@ -4883,11 +4876,9 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
                     }
                     else
                     {
-                        pthread_attr_init(&attr);
-                        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
                         if (locked_channel) 
                             opbx_mutex_lock(&chan->lock);
-                        if (opbx_pthread_create(&tmp->t, &attr, opbx_pbx_run_app, tmp))
+                        if (opbx_pthread_create(&tmp->t, &global_attr_detached, opbx_pbx_run_app, tmp))
                         {
                             opbx_log(OPBX_LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
                             free(tmp);
@@ -4964,11 +4955,9 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
         as->timeout = timeout;
         opbx_set_variables(chan, vars);
         /* Start a new thread, and get something handling this channel. */
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if (locked_channel) 
             opbx_mutex_lock(&chan->lock);
-        if (opbx_pthread_create(&as->p, &attr, async_wait, as))
+        if (opbx_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             opbx_log(OPBX_LOG_WARNING, "Failed to start async wait\n");
             free(as);

@@ -168,7 +168,6 @@ static pthread_t parking_thread = OPBX_PTHREADT_NULL;
 static char *__opbx_parking_ext(void);
 static char *__opbx_pickup_ext(void);
 static void *__opbx_bridge_call_thread(void *);
-static void __opbx_bridge_call_thread_launch(void *);
 static int __opbx_park_call(struct opbx_channel *, struct opbx_channel *, int, int *);
 static int __opbx_masq_park_call(struct opbx_channel *, struct opbx_channel *, int, int *);
 static void __opbx_register_feature(struct opbx_call_feature *);
@@ -255,21 +254,6 @@ static void *__opbx_bridge_call_thread(void *data)
 	tobj=NULL;
 	return NULL;
 }
-
-static void __opbx_bridge_call_thread_launch(void *data) 
-{
-	pthread_t thread;
-	pthread_attr_t attr;
-	int result;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr,__opbx_bridge_call_thread, data);
-	result = pthread_attr_destroy(&attr);
-}
-
-
 
 static int adsi_announce_park(struct opbx_channel *chan, int parkingnum)
 {
@@ -813,7 +797,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 							opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					__opbx_bridge_call_thread_launch(tobj);
+					opbx_pthread_create(NULL, &global_attr_rr_detached, __opbx_bridge_call_thread, tobj);
 				} else {
 					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 					opbx_hangup(xferchan);

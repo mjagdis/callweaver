@@ -1065,8 +1065,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	char tmp2[256];
 	
 	pthread_t th;
-	pthread_attr_t attr;
-	
+
     if (!name)
     {
 		astman_send_error(s, m, "Channel not specified");
@@ -1137,9 +1136,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			opbx_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
 			fast->priority = pi;
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
+			if (opbx_pthread_create(&th, &global_attr_detached, fopbx_originate, fast)) {
 				free(fast);
 				res = -1;
 			} else {
@@ -1551,10 +1548,6 @@ static void *accept_thread(void *ignore)
 	struct protoent *p;
 	int arg = 1;
 	int flags;
-	pthread_attr_t attr;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	for (;;)
     {
@@ -1593,10 +1586,9 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		opbx_mutex_unlock(&sessionlock);
-		if (opbx_pthread_create(&s->t, &attr, session_do, s))
+		if (opbx_pthread_create(&s->t, &global_attr_detached, session_do, s))
 			destroy_session(s);
 	}
-	pthread_attr_destroy(&attr);
 	return NULL;
 }
 

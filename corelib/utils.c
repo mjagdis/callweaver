@@ -504,12 +504,9 @@ const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
 }
 
-int opbx_utils_init(void)
-{
-	base64_init();
-	return 0;
-}
 
+pthread_attr_t global_attr_detached;
+pthread_attr_t global_attr_rr_detached;
 
 struct opbx_pthread_wrapper_args {
 	struct module *module;
@@ -545,6 +542,7 @@ int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_
 {
 	struct opbx_pthread_wrapper_args *args;
 	pthread_attr_t lattr;
+	pthread_t lthread;
 
 	if (!(args = malloc(sizeof(*args)))) {
 		opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
@@ -554,6 +552,9 @@ int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_
 	args->module = opbx_module_get(module);
 	args->func = start_routine;
 	args->param = data;
+
+	if (!thread)
+		thread = &lthread;
 
 	if (!attr) {
 		pthread_attr_init(&lattr);
@@ -952,3 +953,15 @@ void opbx_enable_packet_fragmentation(int sock)
 #endif
 }
 
+
+int opbx_utils_init(void)
+{
+	pthread_attr_init(&global_attr_detached);
+	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_DETACHED);
+
+	pthread_attr_init(&global_attr_rr_detached);
+	pthread_attr_setdetachstate(&global_attr_rr_detached, PTHREAD_CREATE_DETACHED);
+
+	base64_init();
+	return 0;
+}

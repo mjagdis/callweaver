@@ -403,7 +403,6 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	/* handle outgoing calls */
 	sccp_channel_t * c;
 	sccp_device_t * d;
-	pthread_attr_t attr;
 	pthread_t t;
 
 	if (!l || !l->device) {
@@ -447,10 +446,8 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	if (dial)
 		opbx_copy_string(c->dialedNumber, dial, sizeof(c->dialedNumber));
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   /* let's call it */
-	if (opbx_pthread_create(&t, &attr, sccp_pbx_startchannel, c->owner)) {
+	if (opbx_pthread_create(&t, &global_attr_detached, sccp_pbx_startchannel, c->owner)) {
 		opbx_log(OPBX_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 	}
@@ -818,14 +815,11 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	}
 
 	if (c->state == SCCP_CHANNELSTATE_RINGOUT) {
+		pthread_t t;
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Blind transfer. Signalling ringing state to %s\n", d->id, transferred->name);
 		opbx_indicate(transferred, OPBX_CONTROL_RINGING);
 		/* starting the ringing thread */
-		pthread_attr_t attr;
-		pthread_t t;
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&t, &attr, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
+		if (opbx_pthread_create(&t, &global_attr_detached, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
 			opbx_log(OPBX_LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
 		}
 	}

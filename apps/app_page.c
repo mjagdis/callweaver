@@ -98,7 +98,7 @@ static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, 
 	struct opbx_variable *lastvar = NULL;
 	struct opbx_var_t *varptr;
 	pthread_t t;
-	pthread_attr_t attr;
+
 	cd = malloc(sizeof(struct calloutdata));
 	if (cd) {
 		memset(cd, 0, sizeof(struct calloutdata));
@@ -130,9 +130,7 @@ static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, 
 			}
 		}
 
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&t, &attr, page_thread, cd)) {
+		if (opbx_pthread_create(&t, &global_attr_detached, page_thread, cd)) {
 			opbx_log(OPBX_LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			free(cd);
 		}

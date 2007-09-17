@@ -1091,9 +1091,6 @@ int icd_command_login (int fd, int argc, char **argv)
     char *passwd=NULL;
     char *channelstring;
     int logFlag=1;
-	pthread_t thread;
-	pthread_attr_t attr;
-	int result;
 
     if ((argc != 3) && (argc !=4)){
         manager_event(EVENT_FLAG_USER, "icd_command",
@@ -1148,11 +1145,7 @@ int icd_command_login (int fd, int argc, char **argv)
     else{
     	icd_caller__del_param(agent, "login_password");
     }
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, icd_command_login_thread, agent);
-	result = pthread_attr_destroy(&attr);	
+	opbx_pthread_create(NULL, &global_attr_rr_detached, icd_command_login_thread, agent);
     return 0;
 }
 

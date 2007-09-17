@@ -769,7 +769,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 	char eid_str[20];
 	char *s;
 	pthread_t lookupthread;
-	pthread_attr_t attr;
+
 	if (ies->eidcount > 1) {
 		/* Since it is a requirement that the first EID is the authenticating host
 		   and the last EID is the root, it is permissible that the first and last EID
@@ -796,10 +796,8 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			s += sizeof(dundi_eid);
 		}
 		opbx_log(OPBX_LOG_DEBUG, "Answering EID query for '%s@%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_query_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &global_attr_detached, dundi_query_thread, st)) {
 			trans->thread = 0;
 			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -910,7 +908,6 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	int skipfirst = 0;
 	
 	pthread_t lookupthread;
-	pthread_attr_t attr;
 
 	memset(&dr2, 0, sizeof(dr2));
 	memset(&dr, 0, sizeof(dr));
@@ -1027,10 +1024,8 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		}
 		st->nummaps = mapcount;
 		opbx_log(OPBX_LOG_DEBUG, "Forwarding precache for '%s@%s'!\n", ies->called_number, ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_precache_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &global_attr_detached, dundi_precache_thread, st)) {
 			trans->thread = 0;
 			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -1119,10 +1114,8 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		}
 		st->nummaps = mapcount;
 		opbx_log(OPBX_LOG_DEBUG, "Answering query for '%s@%s'!\n", ies->called_number, ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_lookup_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &global_attr_detached, dundi_lookup_thread, st)) {
 			trans->thread = 0;
 			opbx_log(OPBX_LOG_WARNING, "Unable to create thread!\n");
 			free(st);

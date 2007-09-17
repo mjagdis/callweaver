@@ -263,10 +263,6 @@ void * sccp_socket_thread(void * ignore) {
 	struct timeval tv;
 	sigset_t sigs;
 
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
 	sigaddset(&sigs, SIGTERM);

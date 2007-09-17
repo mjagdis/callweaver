@@ -150,22 +150,13 @@ static void *opbx_bridge_call_thread(void *data)
 
 static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opbx_channel *peer) 
 {
-	pthread_t thread;
-	pthread_attr_t attr;
-	int result;
 	struct opbx_bridge_thread_obj *tobj;
 	
 	if((tobj = malloc(sizeof(struct opbx_bridge_thread_obj)))) {
 		memset(tobj,0,sizeof(struct opbx_bridge_thread_obj));
 		tobj->chan = chan;
 		tobj->peer = peer;
-		
-
-		result = pthread_attr_init(&attr);
-		pthread_attr_setschedpolicy(&attr, SCHED_RR);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		result = opbx_pthread_create(&thread, &attr, opbx_bridge_call_thread, tobj);
-		result = pthread_attr_destroy(&attr);
+		opbx_pthread_create(NULL, &global_attr_rr_detached, opbx_bridge_call_thread, tobj);
 	}
 }
 
@@ -368,9 +359,6 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	char *chan_name_1,*context,*exten,*tech,*data,*callerid;
 	int pri=0,to=60000;
 	struct fopbx_originate_helper *in;
-	pthread_t thread;
-	pthread_attr_t attr;
-	int result;
 	char *num = NULL;
 
 	if(argc < 3) {
@@ -430,12 +418,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 
 	opbx_cli(fd,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
 
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, originate, in);
-	result = pthread_attr_destroy(&attr);	
+	opbx_pthread_create(NULL, &global_attr_rr_detached, originate, in);
 	return 0;
 }
 

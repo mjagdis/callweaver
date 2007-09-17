@@ -3242,10 +3242,6 @@ static void *do_monitor(void *data)
 
 static int restart_monitor(void)
 {
-    pthread_attr_t attr;
-
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     /* If we're supposed to be stopped -- stay stopped */
     if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
         return 0;
@@ -3277,7 +3273,7 @@ static int restart_monitor(void)
     else
     {
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");

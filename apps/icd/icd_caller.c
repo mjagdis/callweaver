@@ -2944,24 +2944,15 @@ int icd_caller__cmp_last_state_change_reverse_order(icd_caller * caller1, icd_ca
 /* Create a thread for caller that runs independently of the PBX */
 static icd_status icd_caller__create_thread(icd_caller * that)
 {
-    pthread_attr_t attr;
-    int result;
-
     assert(that != NULL);
 
-    /* Adjust thread attributes here before creating it */
-    result = pthread_attr_init(&attr);
-    pthread_attr_setschedpolicy(&attr, SCHED_RR);       /* Or do we want parent scheduling? */
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     /* Adjust the thread state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = opbx_pthread_create(&(that->thread), &attr, icd_caller__run, that);
+    opbx_pthread_create(&(that->thread), &global_attr_rr_detached, icd_caller__run, that);
     that->using_caller_thread = 1;
     opbx_verbose(VERBOSE_PREFIX_2 "Spawn thread for Caller id[%d] [%s]\n", icd_caller__get_id(that),
         icd_caller__get_name(that));
-    /* Clean up */
-    result = pthread_attr_destroy(&attr);
     return ICD_SUCCESS;
 }
 

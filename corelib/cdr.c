@@ -874,7 +874,6 @@ static void *do_batch_backend_process(void *data)
 void opbx_cdr_submit_batch(int shutdown)
 {
 	struct opbx_cdr_batch_item *oldbatchitems = NULL;
-	pthread_attr_t attr;
 	pthread_t batch_post_thread = OPBX_PTHREADT_NULL;
 
 	/* if there's no batch, or no CDRs in the batch, then there's nothing to do */
@@ -894,9 +893,7 @@ void opbx_cdr_submit_batch(int shutdown)
 			opbx_log(OPBX_LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
 		do_batch_backend_process(oldbatchitems);
 	} else {
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
+		if (opbx_pthread_create(&batch_post_thread, &global_attr_detached, do_batch_backend_process, oldbatchitems)) {
 			opbx_log(OPBX_LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
 			do_batch_backend_process(oldbatchitems);
 		} else {

@@ -3561,11 +3561,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 	char *c;
 	struct zt_pvt *p = opbx->tech_pvt;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	struct opbx_channel *chan;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	index = zt_get_index(opbx, p, 0);
     opbx_fr_init(&p->subs[index].f);
@@ -4085,7 +4081,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 						p->owner = chan;
 						if (!chan) {
 							opbx_log(OPBX_LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
-						} else if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+						} else if (opbx_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 							opbx_log(OPBX_LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 							zt_enable_ec(p);
@@ -6072,10 +6068,8 @@ static int handle_init_event(struct zt_pvt *i, int event)
 {
 	int res;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	struct opbx_channel *chan;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	/* Handle an event on a given channel for the monitor thread. */
 	switch(event) {
 	case ZT_EVENT_NONE:
@@ -6119,7 +6113,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						opbx_log(OPBX_LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
-					if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					if (opbx_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 						opbx_log(OPBX_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
@@ -6149,7 +6143,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, OPBX_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 					opbx_log(OPBX_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
@@ -6240,7 +6234,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				if (option_verbose > 1)
 					opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
 				chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 					opbx_log(OPBX_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
 				break;
@@ -6491,9 +6485,6 @@ static void *do_monitor(void *data)
 
 static int restart_monitor(void)
 {
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	/* If we're supposed to be stopped -- stay stopped */
 	if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
 		return 0;
@@ -6517,7 +6508,7 @@ static int restart_monitor(void)
 #endif
 	} else {
 		/* Start a new monitor */
-		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (opbx_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
 			opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -7856,14 +7847,10 @@ static void *pri_dchannel(void *vpri)
 	int cause=0;
 	struct zt_pvt *crv;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	char ani2str[6];
 	char plancallingnum[256];
 	char plancallingani[256];
 	char calledtonstr[10];
-	
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	gettimeofday(&lastidle, NULL);
 	if (!opbx_strlen_zero(pri->idledial) && !opbx_strlen_zero(pri->idleext)) {
@@ -8354,7 +8341,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							opbx_mutex_lock(&pri->lock);
-							if (c && !opbx_pthread_create(&threadid, &attr, ss_thread, c)) {
+							if (c && !opbx_pthread_create(&threadid, &global_attr_detached, ss_thread, c)) {
 								if (option_verbose > 2)
 									opbx_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, !opbx_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 

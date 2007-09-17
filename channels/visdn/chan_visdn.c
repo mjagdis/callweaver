@@ -4982,11 +4982,7 @@ static int load_module()
 		goto err_open_router_control;
 	}
 
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-	if (opbx_pthread_create(&visdn_q931_thread, &attr,
+	if (opbx_pthread_create(&visdn_q931_thread, &global_attr_detached,
 					visdn_q931_thread_main, NULL) < 0) {
 		opbx_log(OPBX_LOG_ERROR, "Unable to start q931 thread.\n");
 		goto err_thread_create;

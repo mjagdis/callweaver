@@ -1085,7 +1085,6 @@ like when a customer, agent is added see icd_distributor__add_agent, icd_distrib
 when the dist has no work to do we invoke opbx_cond_wait see icd_distributor__run
 */
 
-    pthread_attr_t attr;
     pthread_condattr_t condattr;
     int result;
 
@@ -1100,18 +1099,12 @@ when the dist has no work to do we invoke opbx_cond_wait see icd_distributor__ru
     result = pthread_condattr_destroy(&condattr);
 
     /* Create the thread */
-    result = pthread_attr_init(&attr);
-    /* Adjust thread attributes here before creating it */
-    pthread_attr_setschedpolicy(&attr, SCHED_RR); /* Or do we want parent scheduling? */
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     /* Adjust distributor state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = opbx_pthread_create(&(that->thread), &attr, icd_distributor__run, that);
+    result = opbx_pthread_create(&(that->thread), &global_attr_rr_detached, icd_distributor__run, that);
     opbx_verbose(VERBOSE_PREFIX_2 "Spawn Distributor [%s] run thread \n", 
                         icd_distributor__get_name(that));
-    /* Clean up */
-    result = pthread_attr_destroy(&attr);
     return ICD_SUCCESS;
 }
 

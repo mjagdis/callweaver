@@ -229,6 +229,10 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 	 	value; \
 	 })
  	
+
+extern pthread_attr_t global_attr_detached;
+extern pthread_attr_t global_attr_rr_detached;
+
 /*! opbx_pthread_create pins a reference to the module it is called from
  * for the life of the thread. Hence the thread function MUST be in the
  * same module, i.e. you cannot have a globally visible function foo in

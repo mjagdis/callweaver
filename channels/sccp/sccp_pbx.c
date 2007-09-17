@@ -83,7 +83,6 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	sccp_session_t * s;
 	sccp_channel_t * c;
 	char * ringermode = NULL;
-	pthread_attr_t attr;
 	pthread_t t;
 
 	c = CS_OPBX_CHANNEL_PVT(ast);
@@ -189,9 +188,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 		opbx_queue_control(ast, OPBX_CONTROL_RINGING);
 		if (c->autoanswer_type) {
 			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Running the autoanswer thread on %s\n", d->id, ast->name);
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(&t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
+			if (opbx_pthread_create(&t, &global_attr_detached, sccp_pbx_call_autoanswer_thread, &c->callid)) {
 				opbx_log(OPBX_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 			}
 		}

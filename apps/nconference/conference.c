@@ -808,7 +808,6 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
     int res;
 
     pthread_t th;
-    pthread_attr_t attr;
     struct fopbx_originate_helper *fast = malloc(sizeof(struct fopbx_originate_helper));
 
     char dst[80]="";
@@ -867,9 +866,7 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
 	fast->frommember=member;
 
-        pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
+	if (opbx_pthread_create(&th, &global_attr_detached, fopbx_originate, fast)) {
     	    free(fast);
 	    res = -1;
 	} else {

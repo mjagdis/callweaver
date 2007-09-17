@@ -288,10 +288,8 @@ static void *attempt_thread(void *data)
 static void launch_service(struct outgoing *o)
 {
 	pthread_t t;
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
- 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&t, &attr, attempt_thread, o) == -1) {
+
+	if (opbx_pthread_create(&t, &global_attr_detached, attempt_thread, o) == -1) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to create thread :(\n");
 		free_outgoing(o);
 	}
@@ -453,18 +451,13 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	pthread_attr_t attr;
-
 	snprintf(qdir, sizeof(qdir), "%s/%s", opbx_config_OPBX_SPOOL_DIR, "outgoing");
 	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;
 	}
 
-	pthread_attr_init(&attr);
- 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-	if (opbx_pthread_create(&scan_thread_id, &attr, scan_thread, NULL) == -1) {
+	if (opbx_pthread_create(&scan_thread_id, &global_attr_detached, scan_thread, NULL) == -1) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to create thread :(\n");
 		return -1;
 	}

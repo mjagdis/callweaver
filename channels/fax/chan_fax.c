@@ -170,7 +170,6 @@ static int tech_devicestate(void *data);
 static int tech_send_digit(struct opbx_channel *self, char digit);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
-static void launch_faxmodem_media_thread(struct private_object *tech_pvt) ;
 static struct opbx_frame *tech_read(struct opbx_channel *self);
 static int tech_write(struct opbx_channel *self, struct opbx_frame *frame);
 static int tech_write_video(struct opbx_channel *self, struct opbx_frame *frame);
@@ -186,7 +185,6 @@ static int tech_transfer(struct opbx_channel *self, const char *newdest);
 static int tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b, int flags, struct opbx_frame **outframe, struct opbx_channel **recent_chan, int timeoutms);
 static int control_handler(struct faxmodem *fm, int op, const char *num);
 static void *faxmodem_thread(void *obj);
-static void launch_faxmodem_thread(volatile struct faxmodem *fm) ;
 static void activate_fax_modems(void);
 static void deactivate_fax_modems(void);
 
@@ -540,7 +538,7 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 	else
 	    tech_pvt->cid_num = 0;
 	    
-	launch_faxmodem_media_thread(tech_pvt);
+	opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
 	return res;
 }
@@ -742,20 +740,6 @@ static void *faxmodem_media_thread(void *obj)
 	return NULL;
 }
 
-static void launch_faxmodem_media_thread(struct private_object *tech_pvt) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-	pthread_t thread;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, faxmodem_media_thread, tech_pvt);
-	result = pthread_attr_destroy(&attr);
-}
-
-
 
 /*--- tech_answer: answer a call on my channel
  * if being 'answered' means anything special to your channel
@@ -772,7 +756,7 @@ static int tech_answer(struct opbx_channel *self)
 		opbx_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
 	}
 	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-	launch_faxmodem_media_thread(tech_pvt);
+	opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
 	
 	return res;
@@ -799,7 +783,7 @@ static struct opbx_frame *tech_read(struct opbx_channel *self)
 
 	if (res < 0 || !strcmp(cmd, IO_ANSWER)) {
 		struct opbx_frame ans = {OPBX_FRAME_CONTROL, OPBX_CONTROL_ANSWER};
-		launch_faxmodem_media_thread(tech_pvt);
+		opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 		return opbx_frdup(&ans);
 	}
 
@@ -1134,20 +1118,6 @@ static void *faxmodem_thread(void *obj)
 	return NULL;
 }
 
-static void launch_faxmodem_thread(volatile struct faxmodem *fm) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-	pthread_t thread;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, faxmodem_thread, 
-				     (void*)fm);
-	result = pthread_attr_destroy(&attr);
-}
-
 static void activate_fax_modems(void)
 {
 	int max = SOFT_MAX_FAXMODEMS;
@@ -1159,7 +1129,7 @@ static void activate_fax_modems(void)
 		if (VBLEVEL > 1) {
 			opbx_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
 		}
-		launch_faxmodem_thread(&FAXMODEM_POOL[x]);
+		opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 	}
 	opbx_mutex_unlock(&control_lock);
 }

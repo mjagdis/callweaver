@@ -236,8 +236,6 @@ static struct opbx_flags globalflags = { 0 };
 
 static pthread_t netthreadid = OPBX_PTHREADT_NULL;
 
-static int std_attr_detached_initialized;
-static pthread_attr_t std_attr_detached;
 
 #define IAX_STATE_STARTED		(1 << 0)
 #define IAX_STATE_AUTHENTICATED 	(1 << 1)
@@ -4552,7 +4550,7 @@ static int iax2_do_register_s(void *data)
 	struct iax2_registry *reg = data;
 
 	reg->expire = -1;
-	opbx_pthread_create(&tid, &std_attr_detached, iax2_do_register, reg);
+	opbx_pthread_create(&tid, &global_attr_detached, iax2_do_register, reg);
 	return 0;
 }
 
@@ -5363,7 +5361,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		opbx_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
 		if (callerid)
 			dpr->callerid = strdup(callerid);
-		if (opbx_pthread_create(&newthread, &std_attr_detached, dp_lookup_thread, dpr)) {
+		if (opbx_pthread_create(&newthread, &global_attr_detached, dp_lookup_thread, dpr)) {
 			opbx_log(OPBX_LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
@@ -5441,7 +5439,7 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!opbx_pthread_create(&th, &std_attr_detached, iax_park_thread, d))
+		if (!opbx_pthread_create(&th, &global_attr_detached, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -7052,7 +7050,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		if (opbx_test_flag(peer, IAX_DYNAMIC))
 			iax2_poke_peer_thread(args);
 		else
-			opbx_pthread_create(&tid, &std_attr_detached, iax2_poke_peer_thread, args);
+			opbx_pthread_create(&tid, &global_attr_detached, iax2_poke_peer_thread, args);
 	}
 	return 0;
 }
@@ -7349,7 +7347,7 @@ int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const char *va
 		args->sin = sin;
 		args->value = strdup(value);
 		args->service = service;
-		ret = opbx_pthread_create(&tid, &std_attr_detached, async_get_ip_handler, args);
+		ret = opbx_pthread_create(&tid, &global_attr_detached, async_get_ip_handler, args);
 	}
 	return ret;
 }
@@ -8781,10 +8779,6 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static void release_module(void)
-{
-	pthread_attr_destroy(&std_attr_detached);
-}
 
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
 static int load_module(void)
@@ -8797,12 +8791,6 @@ static int load_module(void)
 	
 	struct opbx_netsock *ns;
 	struct sockaddr_in sin;
-
-	if (!std_attr_detached_initialized) {
-		pthread_attr_init(&std_attr_detached);
-		pthread_attr_setdetachstate(&std_attr_detached, PTHREAD_CREATE_DETACHED);
-		std_attr_detached_initialized = 1;
-	}
 
 	hash_dial = opbx_hash_app_name("Dial");
 
@@ -8886,4 +8874,4 @@ static int load_module(void)
 	return res;
 }
 
-MODULE_INFO(load_module, reload_config, unload_module, release_module, desc)
+MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)

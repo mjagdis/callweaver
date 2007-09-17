@@ -537,16 +537,13 @@ static int statechange_queue(const char *dev, int state, void *ign)
     /* Avoid potential for deadlocks by spawning a new thread to handle the event */
     struct statechange *sc;
     pthread_t t;
-    pthread_attr_t attr;
 
     sc = malloc(sizeof(struct statechange) + strlen(dev) + 1);
     if (sc)
     {
         sc->state = state;
         strcpy(sc->dev, dev);
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (opbx_pthread_create(&t, &attr, changethread, sc))
+        if (opbx_pthread_create(&t, &global_attr_detached, changethread, sc))
         {
             opbx_log(OPBX_LOG_WARNING, "Failed to create update thread!\n");
             free(sc);

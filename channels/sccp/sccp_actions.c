@@ -48,7 +48,6 @@ void sccp_handle_alarm(sccp_session_t * s, sccp_moo_t * r) {
 }
 
 void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
-	pthread_attr_t attr;
 	pthread_t t;
 	sccp_device_t * d;
 	btnlist btn[StationMaxButtonTemplateSize];
@@ -225,9 +224,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_dev_sendmsg(d, CapabilitiesReqMessage);
 
 	/* starting thread for monitored line status poll */
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&t, &attr, sccp_dev_postregistration, d)) {
+	if (opbx_pthread_create(&t, &global_attr_detached, sccp_dev_postregistration, d)) {
 		opbx_log(OPBX_LOG_WARNING, "%s: Unable to create thread for monitored status line poll. %s\n", d->id, strerror(errno));
 	}
 }

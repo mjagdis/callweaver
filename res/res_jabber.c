@@ -186,13 +186,10 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 static char *jabber_message_header(struct jabber_message *jmsg, char *key);
 static void *jabber_thread(void *obj);
 static void *media_receive_thread(void *obj);
-static void launch_jabber_thread(struct jabber_profile *profile); 
-static void launch_media_receive_thread(struct jabber_profile *profile);
 static int parse_jabber_command_profile(struct jabber_profile *profile, struct jabber_message *jmsg);
 static void profile_answer(struct jabber_profile *profile);
 static void *jabber_pbx_session(void *obj);
 #ifdef JABBER_DYNAMIC
-static void launch_jabber_pbx_session(struct jabber_profile *profile); 
 static struct jabber_profile *jabber_profile_new(void);
 #endif
 static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct opbx_channel *chan, unsigned int flags);
@@ -742,20 +739,6 @@ static void *jabber_thread(void *obj)
 	return NULL;
 }
 
-static void launch_jabber_thread(struct jabber_profile *profile) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-	pthread_t thread;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, jabber_thread, profile);
-	result = pthread_attr_destroy(&attr);
-}
-
-
 static int waitfor_socket(int fd, int timeout)
 {
     struct pollfd pfds[1];
@@ -836,20 +819,6 @@ static void *media_receive_thread(void *obj)
 	opbx_log(OPBX_LOG_DEBUG, "MEDIA DOWN %s\n", name);
 	g_main_context_unref(profile->context);
 	return NULL;
-}
-
-
-static void launch_media_receive_thread(struct jabber_profile *profile) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-	pthread_t thread;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, media_receive_thread, profile);
-	result = pthread_attr_destroy(&attr);
 }
 
 
@@ -1056,7 +1025,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 												   port))) {
 				jabber_message_node_push(profile, node, Q_OUTBOUND);
 			}
-			launch_media_receive_thread(profile);
+			opbx_pthread_create(NULL, &global_attr_rr_detached, media_receive_thread, profile);
 			
 			if (bridgetome) {
 				bridgeto = jmsg->jabber_id;
@@ -1609,20 +1578,6 @@ static void *jabber_pbx_session(void *obj)
 
 #ifdef JABBER_DYNAMIC
 
-static void launch_jabber_pbx_session(struct jabber_profile *profile) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-	pthread_t thread;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, jabber_pbx_session, profile);
-	result = pthread_attr_destroy(&attr);
-}
-
-
 static struct jabber_profile *jabber_profile_new(void)
 {
 	struct jabber_profile *profile = NULL;
@@ -1774,10 +1729,7 @@ static void *cli_command_thread(void *cli_command)
 
 static void launch_cli_thread(char *cli_command) 
 {
-	pthread_attr_t attr;
-	int result = 0;
 	char *cli_command_dup;
-	pthread_t thread;
 	struct jabber_message_node *node;
 
     if(!opbx_strlen_zero(cli_command)) {
@@ -1793,11 +1745,7 @@ static void launch_cli_thread(char *cli_command)
 												))) {
 				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 	}
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, cli_command_thread, cli_command_dup);
-	result = pthread_attr_destroy(&attr);
+	opbx_pthread_create(NULL, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
 }
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)
@@ -1901,7 +1849,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 							}
 						}
 						
-						launch_jabber_pbx_session(profile);
+						opbx_pthread_create(NULL, &global_attr_rr_detached, jabber_pbx_session, profile);
 
 					} else {
 						opbx_hangup(chan);
@@ -2079,7 +2027,7 @@ static int load_module(void)
 	config_jabber(0);
 	
 	jabber_profile_init(&global_profile, globals.resource, globals.resource, NULL, JFLAG_MAIN);
-	launch_jabber_thread(&global_profile);
+	opbx_pthread_create(NULL, &global_attr_rr_detached, jabber_thread, &global_profile);
 #ifdef PATCHED_MANAGER
 	if (globals.event_master) {
 		opbx_log(OPBX_LOG_NOTICE, "Registering Manager Event Hook\n");

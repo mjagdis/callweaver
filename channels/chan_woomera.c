@@ -200,7 +200,6 @@ static int waitfor_socket(int fd, int timeout);
 static int woomera_profile_thread_running(woomera_profile *profile, int set, int new);
 static int woomera_locate_socket(woomera_profile *profile, int *woomera_socket);
 static void *woomera_thread_run(void *obj); 
-static void launch_woomera_thread(woomera_profile *profile);
 static void destroy_woomera_profile(woomera_profile *profile); 
 static woomera_profile *clone_woomera_profile(woomera_profile *new_profile, woomera_profile *default_profile);
 static woomera_profile *create_woomera_profile(woomera_profile *default_profile);
@@ -212,14 +211,12 @@ static struct opbx_channel *woomera_new(const char *type, int format, void *data
 static int woomera_cli(int fd, int argc, char *argv[]);
 static void tech_destroy(private_object *tech_pvt);
 static struct opbx_channel *woomera_new(const char *type, int format, void *data, int *cause);
-static void launch_tech_thread(private_object *tech_pvt);
 static int tech_create_read_socket(private_object *tech_pvt);
 static int tech_activate(private_object *tech_pvt);
 static void tech_init(private_object *tech_pvt, woomera_profile *profile, int flags);
 static void tech_destroy(private_object *tech_pvt);
 static void *tech_monitor_thread(void *obj);
 static void tech_monitor_in_one_thread(void);
-static void launch_tech_thread(private_object *tech_pvt);
 
 
 /********************CHANNEL METHOD PROTOTYPES*******************
@@ -679,7 +676,7 @@ static void tech_init(private_object *tech_pvt, woomera_profile *profile, int fl
 	if (globals.more_threads) {
 		opbx_set_flag(tech_pvt, TFLAG_ACTIVATE);
 		/* we're gonna try "wasting" a thread to do a better realtime monitoring */
-		launch_tech_thread(tech_pvt);
+		opbx_pthread_create(&tech_pvt->thread, &global_attr_rr_detached, tech_monitor_thread, tech_pvt);
 	} else {
 		if (opbx_test_flag(tech_pvt, TFLAG_OUTBOUND)) {
 			opbx_set_flag(tech_pvt, TFLAG_ACTIVATE);
@@ -1218,31 +1215,6 @@ static void *woomera_thread_run(void *obj)
 	return NULL;
 }
 
-static void launch_woomera_thread(woomera_profile *profile) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&profile->thread, &attr, woomera_thread_run, profile);
-	result = pthread_attr_destroy(&attr);
-}
-
-
-static void launch_tech_thread(private_object *tech_pvt) 
-{
-	pthread_attr_t attr;
-	int result = 0;
-
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&tech_pvt->thread, &attr, tech_monitor_thread, tech_pvt);
-	result = pthread_attr_destroy(&attr);
-}
-
 
 static void destroy_woomera_profile(woomera_profile *profile) 
 {
@@ -1476,7 +1448,7 @@ static int init_woomera(void)
 		ASTOBJ_RDLOCK(iterator);
 		profile = iterator;
 		if (!opbx_test_flag(profile, PFLAG_DISABLED)) {
-			launch_woomera_thread(profile);
+			opbx_pthread_create(&profile->thread, &global_attr_rr_detached, woomera_thread_run, profile);
 		}
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));

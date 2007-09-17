@@ -1057,10 +1057,6 @@ struct opbx_config *notify_types;
 
 static struct sip_auth *authl;          /*!< Authentication list */
 
-static int std_attr_detached_initialized;
-static pthread_attr_t std_attr_detached;
-
-
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -7346,7 +7342,7 @@ static int sip_reregister(void *data)
         opbx_log(OPBX_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
     r->expire = -1;
-    opbx_pthread_create(&tid, &std_attr_detached, __sip_do_register, r);
+    opbx_pthread_create(&tid, &global_attr_detached, __sip_do_register, r);
     return 0;
 }
 
@@ -14601,7 +14597,7 @@ static int restart_monitor(void)
     else
     {
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &std_attr_detached, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
@@ -14723,7 +14719,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (opbx_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
 		sip_poke_peer_thread(peer);
 	else
-		opbx_pthread_create(&tid, &std_attr_detached, sip_poke_peer_thread, peer);
+		opbx_pthread_create(&tid, &global_attr_detached, sip_poke_peer_thread, peer);
 	return 0;
 }
 
@@ -15407,7 +15403,7 @@ static int async_get_ip(struct sip_peer *peer, struct sockaddr_in *sin, const ch
 		args->sin = sin;
 		args->value = strdup(value);
 		args->service = service;
-		ret = opbx_pthread_create(&tid, &std_attr_detached, async_get_ip_handler, args);
+		ret = opbx_pthread_create(&tid, &global_attr_detached, async_get_ip_handler, args);
 	}
 	return ret;
 }
@@ -17301,12 +17297,6 @@ static struct opbx_clicmd  my_clis[] = {
 /*! \brief  load_module: PBX load module - initialization */
 static int load_module(void)
 {
-    if (!std_attr_detached_initialized) {
-        pthread_attr_init(&std_attr_detached);
-        pthread_attr_setdetachstate(&std_attr_detached, PTHREAD_CREATE_DETACHED);
-	std_attr_detached_initialized = 1;
-    }
-
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
@@ -17478,9 +17468,5 @@ static int unload_module(void)
     return res;
 }
 
-static void release_module(void)
-{
-	pthread_attr_destroy(&std_attr_detached);
-}
 
-MODULE_INFO(load_module, reload_module, unload_module, release_module, desc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)
