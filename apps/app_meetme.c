@@ -148,7 +148,6 @@ static struct opbx_conference
     int isdynamic;              /* Created on the fly? */
     int locked;                 /* Is the conference locked? */
     pthread_t recordthread;     /* thread for recording */
-    pthread_attr_t attr;        /* thread attribute */
     char *recordingfilename;    /* Filename to record the Conference into */
     char *recordingformat;      /* Format to record the Conference in */
     char pin[OPBX_MAX_EXTENSION];            /* If protected by a PIN */
@@ -895,10 +894,8 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
             snprintf(recordingtmp,sizeof(recordingtmp), "wav");
             conf->recordingformat = opbx_strdupa(recordingtmp);
         }
-        pthread_attr_init(&conf->attr);
-        pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
         opbx_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
-        opbx_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
+        opbx_pthread_create(&conf->recordthread, &global_attr_detached, recordthread, conf);
     }
 
     user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
