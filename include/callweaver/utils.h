@@ -219,16 +219,6 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
-/*! Atomically get value of "var" protected by "lock" */
-#define OPBX_ATOMIC_GET(lock, var) \
-	({ \
-	 	typeof (var) value; \
-		opbx_mutex_lock(&(lock)); \
-		value = (var); \
-		opbx_mutex_unlock(&(lock)); \
-	 	value; \
-	 })
- 	
 
 extern pthread_attr_t global_attr_default;
 extern pthread_attr_t global_attr_detached;
