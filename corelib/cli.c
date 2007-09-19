@@ -413,7 +413,7 @@ static char *format_uptimestr(time_t timeval)
         snprintf(timestr + offset, maxbytes, "%d second%s", secs, ESS(secs));
     }
 
-    return timestr ? strdup(timestr) : NULL;
+    return strlen(timestr) ? strdup(timestr) : NULL;
 }
 
 static int handle_showuptime(int fd, int argc, char *argv[])
