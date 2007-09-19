@@ -37,7 +37,6 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
-#include "callweaver/utils.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
@@ -871,7 +870,7 @@ static int load_module(void)
 {
 	opbx_cli_register(&showvaletparked);
 	valetparkingtime = DEFAULT_VALETPARK_TIME;
-	opbx_pthread_create(&valetparking_thread, NULL, do_valetparking_thread, NULL);
+	opbx_pthread_create(&valetparking_thread, &global_attr_default, do_valetparking_thread, NULL);
 	valetunparkedcall_app = opbx_register_function(valetunparkedcall, valetunpark_call, vupsynopsis, vupsyntax, vupdesc);
 	valetparkedcall_app = opbx_register_function(valetparkedcall, valetpark_call, vpcsynopsis, vpcsyntax, vpcdesc);
 	valetparking_app = opbx_register_function(valetparking, opbx_valetparking, vpsynopsis, vpsyntax, vpdesc);

@@ -7916,7 +7916,7 @@ static void *pri_dchannel(void *vpri)
 					idle = zt_request("Zap", OPBX_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (opbx_pthread_create(&p, NULL, do_idle_thread, idle)) {
+						if (opbx_pthread_create(&p, &global_attr_default, do_idle_thread, idle)) {
 							opbx_log(OPBX_LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							zt_hangup(idle);
 						}
@@ -8928,7 +8928,7 @@ static int start_pri(struct zt_pri *pri)
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	if (opbx_pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
+	if (opbx_pthread_create(&pri->master, &global_attr_default, pri_dchannel, pri)) {
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;

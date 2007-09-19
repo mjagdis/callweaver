@@ -197,7 +197,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #endif /* HAVE_POSIX_TIMERS */
 
 #ifdef USE_GENERIC_TIMERS
-    if ((ret = opbx_pthread_create(&t->opbx_timer_thread, NULL, _timer_thread, t))) {
+    if ((ret = opbx_pthread_create(&t->opbx_timer_thread, &global_attr_rr, _timer_thread, t))) {
     	if(t->type == OPBX_TIMER_REPEATING)
 	    opbx_log(OPBX_LOG_WARNING, "Failed to create thread for OPBX_TIMER_REPEATING: %s\n", strerror(ret));
 	else if(t->type == OPBX_TIMER_ONESHOT)

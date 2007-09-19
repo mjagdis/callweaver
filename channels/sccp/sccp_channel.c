@@ -987,7 +987,7 @@ void sccp_channel_park(sccp_channel_t * c) {
 		memset(d, 0, sizeof(*dual));
 		dual->chan1 = chan1m;
 		dual->chan2 = chan2m;
-		if (!opbx_pthread_create(&th, NULL, sccp_channel_park_thread, dual))
+		if (!opbx_pthread_create(&th, &global_attr_default, sccp_channel_park_thread, dual))
 			return;
 		free(dual);
 	}

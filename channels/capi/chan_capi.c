@@ -5802,7 +5802,7 @@ static int load_module(void)
 	
 	command_app = opbx_register_function(commandapp, pbx_capicommand_exec, commandsynopsis, commandsyntax, commandtdesc);
 
-	if (opbx_pthread_create(&monitor_thread, NULL, capidev_loop, NULL) < 0) {
+	if (opbx_pthread_create(&monitor_thread, &global_attr_default, capidev_loop, NULL) < 0) {
 		monitor_thread = OPBX_PTHREADT_NULL;
 		cc_log(OPBX_LOG_ERROR, "Unable to start monitor thread!\n");
 		return -1;

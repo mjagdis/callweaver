@@ -1241,7 +1241,7 @@ static int reload_config(void) {
 		}
 
 		sccp_log(0)(VERBOSE_PREFIX_3 "SCCP listening on %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)));
-		opbx_pthread_create(&socket_thread,NULL, sccp_socket_thread, NULL);
+		opbx_pthread_create(&socket_thread, &global_attr_default, sccp_socket_thread, NULL);
 	}
   }
 

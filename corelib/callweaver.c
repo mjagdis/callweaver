@@ -705,7 +705,7 @@ static int opbx_makesocket(void)
 		return -1;
 	}
 	opbx_register_verbose(network_verboser);
-	opbx_pthread_create(&lthread, NULL, listener, NULL);
+	opbx_pthread_create(&lthread, &global_attr_default, listener, NULL);
 
 	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
 		struct passwd *pw;
@@ -1010,7 +1010,7 @@ static void shutdown_restart(int fd, int doit, int nice)
 
 			last_nice = nice;
 			interval = (nice ? -1 : 15);
-			opbx_pthread_create(&thread, NULL, quit_when_idle, &interval);
+			opbx_pthread_create(&thread, &global_attr_default, quit_when_idle, &interval);
 		} else {
 			thread = OPBX_PTHREADT_NULL;
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)

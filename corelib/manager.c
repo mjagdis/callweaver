@@ -1907,7 +1907,7 @@ int init_manager(void)
 		}
 		if (option_verbose)
 			opbx_verbose("CallWeaver Management interface listening on port %d\n", portno);
-		opbx_pthread_create(&t, NULL, accept_thread, NULL);
+		opbx_pthread_create(&t, &global_attr_default, accept_thread, NULL);
 	}
 	return 0;
 }

@@ -230,17 +230,20 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 	 })
  	
 
+extern pthread_attr_t global_attr_default;
 extern pthread_attr_t global_attr_detached;
 extern pthread_attr_t global_attr_rr_detached;
+extern pthread_attr_t global_attr_rr;
 
 /*! opbx_pthread_create pins a reference to the module it is called from
  * for the life of the thread. Hence the thread function MUST be in the
  * same module, i.e. you cannot have a globally visible function foo in
  * module A and call opbx_pthread_create(..., foo, ...) from module B.
  */
-#define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(get_modinfo()->self,(a),(b),(c),(d),0)
 #define OPBX_STACKSIZE 256 * 1024
-extern int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+#define opbx_pthread_create(a,b,c,d) opbx_pthread_create_module((a), (b), (c), (d), get_modinfo()->self)
+extern int opbx_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
+	__attribute__ ((nonnull (1,2,3)));
 
 #ifdef linux
 #define opbx_random random

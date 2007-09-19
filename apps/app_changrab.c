@@ -150,13 +150,14 @@ static void *opbx_bridge_call_thread(void *data)
 
 static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opbx_channel *peer) 
 {
+	pthread_t tid;
 	struct opbx_bridge_thread_obj *tobj;
 	
 	if((tobj = malloc(sizeof(struct opbx_bridge_thread_obj)))) {
 		memset(tobj,0,sizeof(struct opbx_bridge_thread_obj));
 		tobj->chan = chan;
 		tobj->peer = peer;
-		opbx_pthread_create(NULL, &global_attr_rr_detached, opbx_bridge_call_thread, tobj);
+		opbx_pthread_create(&tid, &global_attr_rr_detached, opbx_bridge_call_thread, tobj);
 	}
 }
 
@@ -356,6 +357,7 @@ static void *originate(void *arg) {
 
 
 static int originate_cli(int fd, int argc, char *argv[]) {
+	pthread_t tid;
 	char *chan_name_1,*context,*exten,*tech,*data,*callerid;
 	int pri=0,to=60000;
 	struct fopbx_originate_helper *in;
@@ -418,7 +420,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 
 	opbx_cli(fd,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
 
-	opbx_pthread_create(NULL, &global_attr_rr_detached, originate, in);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, originate, in);
 	return 0;
 }
 

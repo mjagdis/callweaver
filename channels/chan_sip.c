@@ -12932,7 +12932,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
         copy_request(&d->req, req);
         d->chan1 = chan1m;
         d->chan2 = chan2m;
-        if (!opbx_pthread_create(&th, NULL, sip_park_thread, d))
+        if (!opbx_pthread_create(&th, &global_attr_default, sip_park_thread, d))
             return 0;
         free(d);
     }

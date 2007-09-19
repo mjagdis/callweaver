@@ -653,6 +653,7 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 
 static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, struct opbx_bridge_config *config, char *code, int sense)
 {
+	pthread_t tid;
 	struct opbx_channel *transferer;
 	struct opbx_channel *transferee;
 	struct opbx_channel *newchan, *xferchan = NULL;
@@ -797,7 +798,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 							opbx_log(OPBX_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					opbx_pthread_create(NULL, &global_attr_rr_detached, __opbx_bridge_call_thread, tobj);
+					opbx_pthread_create(&tid, &global_attr_rr_detached, __opbx_bridge_call_thread, tobj);
 				} else {
 					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
 					opbx_hangup(xferchan);
@@ -2235,7 +2236,7 @@ static int load_module(void)
 		return res;
 	opbx_cli_register(&showparked);
 	opbx_cli_register(&showfeatures);
-	opbx_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	opbx_pthread_create(&parking_thread, &global_attr_default, do_parking_thread, NULL);
 
 	parkedcall_app = opbx_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
 	parkcall_app = opbx_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);

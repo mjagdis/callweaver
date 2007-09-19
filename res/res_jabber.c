@@ -1007,6 +1007,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 
 
 		if(profile->media_socket > -1) {
+			pthread_t tid;
 			opbx_log(OPBX_LOG_DEBUG, "open socket %d on %s:%d for media\n", profile->media_socket, ip, port);
 			if ((node = jabber_message_node_printf(profile->master, 
 												   "Event",
@@ -1025,7 +1026,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 												   port))) {
 				jabber_message_node_push(profile, node, Q_OUTBOUND);
 			}
-			opbx_pthread_create(NULL, &global_attr_rr_detached, media_receive_thread, profile);
+			opbx_pthread_create(&tid, &global_attr_rr_detached, media_receive_thread, profile);
 			
 			if (bridgetome) {
 				bridgeto = jmsg->jabber_id;
@@ -1729,6 +1730,7 @@ static void *cli_command_thread(void *cli_command)
 
 static void launch_cli_thread(char *cli_command) 
 {
+	pthread_t tid;
 	char *cli_command_dup;
 	struct jabber_message_node *node;
 
@@ -1745,7 +1747,7 @@ static void launch_cli_thread(char *cli_command)
 												))) {
 				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 	}
-	opbx_pthread_create(NULL, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
 }
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)
@@ -1800,6 +1802,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 					}
 
 					if ((profile = jabber_profile_new())) {
+						pthread_t tid;
 						time_t now;
 						jabber_profile_init(profile, pname, identifier, chan, JFLAG_SUB|JFLAG_MALLOC);
 						
@@ -1849,7 +1852,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 							}
 						}
 						
-						opbx_pthread_create(NULL, &global_attr_rr_detached, jabber_pbx_session, profile);
+						opbx_pthread_create(&tid, &global_attr_rr_detached, jabber_pbx_session, profile);
 
 					} else {
 						opbx_hangup(chan);
@@ -2024,10 +2027,11 @@ static int reload_module(void)
 
 static int load_module(void)
 {
+	pthread_t tid;
 	config_jabber(0);
 	
 	jabber_profile_init(&global_profile, globals.resource, globals.resource, NULL, JFLAG_MAIN);
-	opbx_pthread_create(NULL, &global_attr_rr_detached, jabber_thread, &global_profile);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 #ifdef PATCHED_MANAGER
 	if (globals.event_master) {
 		opbx_log(OPBX_LOG_NOTICE, "Registering Manager Event Hook\n");

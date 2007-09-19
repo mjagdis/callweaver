@@ -261,7 +261,7 @@ int test_for_thread_safety(void)
 	lock_count += 1;
 	opbx_mutex_lock(&test_lock);
 	lock_count += 1;
-	opbx_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+	opbx_pthread_create(&test_thread, &global_attr_default, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
@@ -505,7 +505,9 @@ const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 }
 
 
+pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
+pthread_attr_t global_attr_rr;
 pthread_attr_t global_attr_rr_detached;
 
 struct opbx_pthread_wrapper_args {
@@ -538,49 +540,19 @@ static void *opbx_pthread_wrapper(void *data)
 #undef pthread_create /* For opbx_pthread_create function only */
 #endif /* !__linux__ */
 
-int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
+int opbx_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
 {
 	struct opbx_pthread_wrapper_args *args;
-	pthread_attr_t lattr;
-	pthread_t lthread;
 
-	if (!(args = malloc(sizeof(*args)))) {
-		opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
-		return -1;
+	if ((args = malloc(sizeof(*args)))) {
+		args->module = opbx_module_get(module);
+		args->func = start_routine;
+		args->param = data;
+		return pthread_create(thread, attr, opbx_pthread_wrapper, args); /* We're in opbx_pthread_create, so it's okay */
 	}
 
-	args->module = opbx_module_get(module);
-	args->func = start_routine;
-	args->param = data;
-
-	if (!thread)
-		thread = &lthread;
-
-	if (!attr) {
-		pthread_attr_init(&lattr);
-		attr = &lattr;
-	}
-
-#ifdef __linux__
-	/* On Linux, pthread_attr_init() defaults to PTHREAD_EXPLICIT_SCHED,
-	   which is kind of useless. Change this here to
-	   PTHREAD_INHERIT_SCHED; that way the -p option to set realtime
-	   priority will propagate down to new threads by default.
-	   This does mean that callers cannot set a different priority using
-	   PTHREAD_EXPLICIT_SCHED in the attr argument; instead they must set
-	   the priority afterwards with pthread_setschedparam(). */
-	errno = pthread_attr_setinheritsched(attr, PTHREAD_INHERIT_SCHED);
-	if (errno)
-		opbx_log(OPBX_LOG_WARNING, "pthread_attr_setinheritsched returned non-zero: %s\n", strerror(errno));
-#endif
-
-	if (!stacksize)
-		stacksize = OPBX_STACKSIZE;
-	errno = pthread_attr_setstacksize(attr, stacksize);
-	if (errno)
-		opbx_log(OPBX_LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
-
-	return pthread_create(thread, attr, opbx_pthread_wrapper, args); /* We're in opbx_pthread_create, so it's okay */
+	opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
+	return -1;
 }
 
 int opbx_wait_for_input(int fd, int ms)
@@ -956,10 +928,26 @@ void opbx_enable_packet_fragmentation(int sock)
 
 int opbx_utils_init(void)
 {
+	pthread_attr_init(&global_attr_default);
+	pthread_attr_setstacksize(&global_attr_default, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_default, PTHREAD_INHERIT_SCHED);
+	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_JOINABLE);
+
 	pthread_attr_init(&global_attr_detached);
+	pthread_attr_setstacksize(&global_attr_detached, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_detached, PTHREAD_INHERIT_SCHED);
 	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_DETACHED);
 
+	pthread_attr_init(&global_attr_rr);
+	pthread_attr_setstacksize(&global_attr_rr, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_rr, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(&global_attr_rr, SCHED_RR);
+	pthread_attr_setdetachstate(&global_attr_rr, PTHREAD_CREATE_JOINABLE);
+
 	pthread_attr_init(&global_attr_rr_detached);
+	pthread_attr_setstacksize(&global_attr_rr_detached, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_rr_detached, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(&global_attr_rr_detached, SCHED_RR);
 	pthread_attr_setdetachstate(&global_attr_rr_detached, PTHREAD_CREATE_DETACHED);
 
 	base64_init();

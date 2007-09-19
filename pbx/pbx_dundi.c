@@ -4785,8 +4785,8 @@ static int reload_module(void)
 
 	set_config("dundi.conf", &sin);
 
-	if (opbx_pthread_create(&netthreadid, NULL, network_thread, NULL)
-	|| opbx_pthread_create(&precachethreadid, NULL, process_precache, NULL)) {
+	if (opbx_pthread_create(&netthreadid, &global_attr_default, network_thread, NULL)
+	|| opbx_pthread_create(&precachethreadid, &global_attr_default, process_precache, NULL)) {
 		opbx_log(OPBX_LOG_ERROR, "Unable to start network threads\n");
 		stop_threads();
 		return -1;

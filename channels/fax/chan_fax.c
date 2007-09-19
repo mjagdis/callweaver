@@ -513,6 +513,7 @@ static int tech_send_digit(struct opbx_channel *self, char digit)
 
 static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 {
+	pthread_t tid;
 	struct private_object *tech_pvt;
 	//struct faxmodem *fm;
 	int res = 0;
@@ -538,7 +539,7 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 	else
 	    tech_pvt->cid_num = 0;
 	    
-	opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
 	return res;
 }
@@ -747,6 +748,7 @@ static void *faxmodem_media_thread(void *obj)
  */
 static int tech_answer(struct opbx_channel *self)
 {
+	pthread_t tid;
 	struct private_object *tech_pvt;
 	int res = 0;
 
@@ -756,7 +758,7 @@ static int tech_answer(struct opbx_channel *self)
 		opbx_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
 	}
 	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-	opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
 	
 	return res;
@@ -769,6 +771,7 @@ static int tech_answer(struct opbx_channel *self)
  */
 static struct opbx_frame *tech_read(struct opbx_channel *self)
 {
+	pthread_t tid;
 	struct private_object *tech_pvt;
 	int res;
 	char cmd[2];
@@ -783,7 +786,7 @@ static struct opbx_frame *tech_read(struct opbx_channel *self)
 
 	if (res < 0 || !strcmp(cmd, IO_ANSWER)) {
 		struct opbx_frame ans = {OPBX_FRAME_CONTROL, OPBX_CONTROL_ANSWER};
-		opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
+		opbx_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 		return opbx_frdup(&ans);
 	}
 
@@ -1120,6 +1123,7 @@ static void *faxmodem_thread(void *obj)
 
 static void activate_fax_modems(void)
 {
+	pthread_t tid;
 	int max = SOFT_MAX_FAXMODEMS;
 	int x;
 
@@ -1129,7 +1133,7 @@ static void activate_fax_modems(void)
 		if (VBLEVEL > 1) {
 			opbx_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
 		}
-		opbx_pthread_create(NULL, &global_attr_rr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
+		opbx_pthread_create(&tid, &global_attr_rr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 	}
 	opbx_mutex_unlock(&control_lock);
 }

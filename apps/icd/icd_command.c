@@ -1086,6 +1086,7 @@ static void *icd_command_login_thread(void *arg) {
 
 int icd_command_login (int fd, int argc, char **argv)
 {
+    pthread_t tid;
     icd_caller *agent = NULL;
     char *agent_id;
     char *passwd=NULL;
@@ -1145,7 +1146,7 @@ int icd_command_login (int fd, int argc, char **argv)
     else{
     	icd_caller__del_param(agent, "login_password");
     }
-	opbx_pthread_create(NULL, &global_attr_rr_detached, icd_command_login_thread, agent);
+	opbx_pthread_create(&tid, &global_attr_rr_detached, icd_command_login_thread, agent);
     return 0;
 }
 

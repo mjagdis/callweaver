@@ -400,6 +400,7 @@ static void *muxmon_thread(void *obj)
 
 static void launch_monitor_thread(struct opbx_channel *chan, char *filename, unsigned int flags, int readvol, int writevol, char *post_process) 
 {
+    pthread_t tid;
     struct muxmon *muxmon;
 
 
@@ -418,7 +419,7 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
     muxmon->writevol = writevol;
     muxmon->flags = flags;
 
-    opbx_pthread_create(NULL, &global_attr_rr_detached, muxmon_thread, muxmon);
+    opbx_pthread_create(&tid, &global_attr_rr_detached, muxmon_thread, muxmon);
 }
 
 

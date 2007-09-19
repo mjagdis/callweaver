@@ -3171,7 +3171,7 @@ static int load_module(void)
 		return -1;
 	}
 	opbx_cli_register_multiple(myclis, arraysize(myclis));
-	opbx_pthread_create(&sthread, NULL, sound_thread, NULL);
+	opbx_pthread_create(&sthread, &global_attr_default, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
 		opbx_log(OPBX_LOG_ERROR, "Problem starting Monitoring\n");

@@ -493,7 +493,7 @@ sco_start(blt_dev_t * dev, int fd)
 
   dev->sco_running = 1;
 
-  if (opbx_pthread_create(&(dev->sco_thread), NULL, sco_thread, dev) < 0) {
+  if (opbx_pthread_create(&(dev->sco_thread), &global_attr_default, sco_thread, dev) < 0) {
     opbx_log(OPBX_LOG_ERROR, "Unable to start SCO thread.\n");
     dev->sco_running = -1;
     opbx_mutex_unlock(&(dev->sco_lock));
@@ -2419,7 +2419,7 @@ restart_monitor(void)
   } else {
 
     /* Start a new monitor */
-    if (opbx_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+    if (opbx_pthread_create(&monitor_thread, &global_attr_default, do_monitor, NULL) < 0) {
       opbx_mutex_unlock(&monitor_lock);
       opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
       return -1;
