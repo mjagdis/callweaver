@@ -789,7 +789,7 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid state name at line %d of %s\n", tok, lineno, script);
 			return 0;
 		}
-		if ((snums[scnt] = getstatebyname(state, sname, script, lineno, 0) < 0)) {
+		if ((snums[scnt] = getstatebyname(state, sname, script, lineno, 0)) == NULL) {
 			opbx_log(OPBX_LOG_WARNING, "State '%s' not declared at line %d of %s\n", sname, lineno, script);
 			return 0;
 		}
