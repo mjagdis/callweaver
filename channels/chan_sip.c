@@ -82,7 +82,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/file.h"
 #include "callweaver/astobj.h"
-#include "callweaver/dnsmgr.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/linkedlists.h"
 #include "callweaver/localtime.h"
@@ -962,7 +961,6 @@ struct sip_peer {
     int rtpkeepalive;        /*!<  Send RTP packets for keepalive */
     opbx_group_t callgroup;        /*!<  Call group */
     opbx_group_t pickupgroup;    /*!<  Pickup group */
-    struct opbx_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
     struct sockaddr_in addr;    /*!<  IP address of peer */
 
     /* Qualification */
@@ -2422,8 +2420,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
     clear_realm_authentication(peer->auth);
     peer->auth = (struct sip_auth *) NULL;
-    if (peer->dnsmgr)
-        opbx_dnsmgr_release(peer->dnsmgr);
     free(peer);
 }
 
