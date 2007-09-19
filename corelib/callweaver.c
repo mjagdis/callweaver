@@ -328,7 +328,7 @@ static int handle_show_version_files_one(struct opbx_object *obj, void *data)
 			verlen -= 11 + 2;
 		}
 
-		opbx_cli(args->fd, FORMAT, ver, file);
+		opbx_cli(args->fd, FORMAT, verlen, ver, filelen, file);
 		args->count_files++;
 		if (args->name)
 			return 1;
