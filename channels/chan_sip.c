@@ -10659,6 +10659,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
     opbx_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
     opbx_cli(fd, "  Bindaddress:            %s\n", opbx_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
     opbx_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
+    opbx_cli(fd, "  T.38 UDPTL Support:     %s\n", t38udptlsupport ? "Yes" : "No");
     opbx_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
     opbx_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
     opbx_cli(fd, "  Promsic. redir:         %s\n", opbx_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
