@@ -229,10 +229,6 @@ int opbx_module_reload(const char *name)
 		opbx_rtp_reload();
 		reloaded = 2;
 	}
-	if (!name || !strcasecmp(name, "dnsmgr")) {
-		dnsmgr_reload();
-		reloaded = 2;
-	}
 	time(&opbx_lastreloadtime);
 
 	opbx_mutex_lock(&module_lock);

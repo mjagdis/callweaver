@@ -23,7 +23,6 @@ opbxinclude_HEADERS = acl.h \
                       crypto.h \
                       devicestate.h \
                       dns.h \
-                      dnsmgr.h \
                       dsp.h \
                       enum.h \
                       features.h \

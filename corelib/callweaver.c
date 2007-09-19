@@ -2469,9 +2469,6 @@ int callweaver_main(int argc, char *argv[])
 	if (init_logger()) {
 	    opbx_exit(1);
 	}
-	if (dnsmgr_init()) {
-	    opbx_exit(1);
-	}
 	if (opbx_crypto_init()) {
 	    opbx_exit(1);
 	}
