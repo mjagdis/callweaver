@@ -79,7 +79,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/localtime.h"
 #include "callweaver/aes.h"
-#include "callweaver/dnsmgr.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/netsock.h"
 
@@ -311,7 +310,6 @@ struct iax2_peer {
 	char peercontext[OPBX_MAX_EXTENSION];		/*!< Context to pass to peer */
 	char mailbox[OPBX_MAX_EXTENSION];		/*!< Mailbox */
 	struct opbx_codec_pref prefs;
-	struct opbx_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
 	char host[MAXHOSTNAMELEN];			/*!< If not dynamic, IP address or hostname */
 	struct sockaddr_in addr;
 	int formats;
@@ -7784,8 +7782,6 @@ static void destroy_peer(struct iax2_peer *peer)
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
 	register_peer_exten(peer, 0);
-	if (peer->dnsmgr)
-		opbx_dnsmgr_release(peer->dnsmgr);
 	free(peer);
 }
 
