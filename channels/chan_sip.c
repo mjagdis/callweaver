@@ -14660,7 +14660,7 @@ static void *sip_poke_peer_thread(void *data)
      * have an address we can't poke the host.
      */
     if (peer->maxms && peer->addr.sin_addr.s_addr) {
-        if (peer->call > 0)
+        if (peer->call)
         {
             if (sipdebug)
                 opbx_log(OPBX_LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
