@@ -260,7 +260,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
     return res;
 }
 
-int say_date_with_format(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
     struct tm tm;
     int res = 0;
