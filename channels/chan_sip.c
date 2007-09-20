@@ -14217,6 +14217,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
     struct sip_request req;
+    struct sip_request req_bak;
     struct sockaddr_in sin = { 0, }, sout = { 0, };
     struct sip_pvt *p;
     int res;
@@ -14241,6 +14242,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
             opbx_log(OPBX_LOG_WARNING, "Recv error: %s\n", strerror(errno));
         return 1;
     }
+
     if (res == sizeof(req.data))
     {
         opbx_log(OPBX_LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
@@ -14249,8 +14251,13 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     else
 	req.data[res] = '\0';
     req.len = res;
+
     if (sip_debug_test_addr(&sin))
         opbx_set_flag(&req, SIP_PKT_DEBUG);
+
+    // Save our packet...
+    memcpy (&req_bak, &req, sizeof(struct sip_request) );
+
     if (pedanticsipchecking)
         req.len = lws2sws(req.data, req.len);    /* Fix multiline headers */
     if (opbx_test_flag(&req, SIP_PKT_DEBUG))
@@ -14266,7 +14273,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
         static struct stun_state stun_me;
 
         memset(&stun_me, 0, sizeof(struct stun_state));
-        if (stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == STUN_ACCEPT)
+        if (stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == STUN_ACCEPT)
             ;
         if (stun_me.msgtype == STUN_BINDRESP)
         {
