@@ -14255,11 +14255,12 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     if (sip_debug_test_addr(&sin))
         opbx_set_flag(&req, SIP_PKT_DEBUG);
 
-    // Save our packet...
-    memcpy (&req_bak, &req, sizeof(struct sip_request) );
 
-    if (pedanticsipchecking)
+    if (pedanticsipchecking) {
+        // Save our packet...
+        memcpy (&req_bak, &req, sizeof(struct sip_request) );
         req.len = lws2sws(req.data, req.len);    /* Fix multiline headers */
+    }
     if (opbx_test_flag(&req, SIP_PKT_DEBUG))
     {
         opbx_verbose("\n<-- SIP read from %s:%d: \n%s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
@@ -14273,8 +14274,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
         static struct stun_state stun_me;
 
         memset(&stun_me, 0, sizeof(struct stun_state));
-        if (stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == STUN_ACCEPT)
-            ;
+        if ( pedanticsipchecking && stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == STUN_ACCEPT) ;
+        else if ( !pedanticsipchecking && stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == STUN_ACCEPT) ;
         if (stun_me.msgtype == STUN_BINDRESP)
         {
             struct in_addr empty;
