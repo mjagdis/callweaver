@@ -151,7 +151,7 @@ SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
 ############################
 
 # mutable data
-INSTALL_DIRS =	$(opbxvardir)
+INSTALL_DIRS =	$(opbxvardir) $(opbxvardir)/core
 
 # built-in database
 INSTALL_DIRS +=	$(opbxdbdir) $(opbxsqlitedir)

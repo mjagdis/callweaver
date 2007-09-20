@@ -1,32 +1,58 @@
 #!/bin/sh
-CLIARGS="$*"		# Grab any args passed to safe_callweaver
-TTY=9			# TTY (if you want one) for CallWeaver to run on
-CONSOLE=yes		# Whether or not you want a console
-#NOTIFY=ben@alkaloid.net	# Who to notify about crashes
-MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
-DUMPDROP=/tmp
+CALLWEAVER_CLIARGS="$*"		# Grab any args passed to safe_callweaver
+CALLWEAVER_TTY=9			# CALLWEAVER_TTY (if you want one) for CallWeaver to run on
+CALLWEAVER_CONSOLE=yes		# Whether or not you want a console
+#CALLWEAVER_NOTIFY=ben@alkaloid.net	# Who to notify about crashes
+CALLWEAVER_MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 OPBXSBINDIR=@sbindir@
+OPBXVARDIR=@opbxvardir@
+
+[ -r /etc/sysconfig/callweaver ] && . /etc/sysconfig/callweaver
+[ -r /etc/default/callweaver ] && . /etc/default/callweaver
+
+logmsg()
+{
+	msg="$*"
+	echo "callweaver: $msg"
+	if [ -x /usr/bin/logger ]; then
+		logger -p daemon.info "callweaver: $msg"
+	fi
+}
+
+mvcore()
+{
+	if [ "`echo ${OPBXVARDIR}/core/core*`" != "${OPBXVARDIR}/core/core*" ]; then
+		COREDIR="${OPBXVARDIR}/core/`date '+%Y-%M-%d-%H:%M:%S'`"
+		mkdir ${COREDIR}
+		mv ${OPBXVARDIR}/core/core* ${COREDIR} && logmsg "Found and moved core dumps to $COREDIR"
+	fi
+}
 
 #
 # Don't fork when running "safely"
 #
 OPBXARGS=""
-if [ "$TTY" != "" ]; then
-	if [ -c /dev/tty${TTY} ]; then
-		TTY=tty${TTY}
-	elif [ -c /dev/vc/${TTY} ]; then
-		TTY=vc/${TTY}
+if [ "$CALLWEAVER_TTY" != "" ]; then
+	if [ -c /dev/tty${CALLWEAVER_TTY} -a -w /dev/tty${CALLWEAVER_TTY} ]; then
+		CALLWEAVER_TTY=tty${CALLWEAVER_TTY}
+	elif [ -c /dev/vc/${CALLWEAVER_TTY} -a -w /dev/vc/${CALLWEAVER_TTY} ]; then
+		CALLWEAVER_TTY=vc/${CALLWEAVER_TTY}
 	else
-		echo "Cannot find your TTY (${TTY})" >&2
+		logmsg "Cannot find your CALLWEAVER_TTY (${CALLWEAVER_TTY})" >&2
 		exit 1
 	fi
 	OPBXARGS="${OPBXARGS} -vvvg"
-	if [ "$CONSOLE" != "no" ]; then
+	if [ "$CALLWEAVER_CONSOLE" != "no" ]; then
 		OPBXARGS="${OPBXARGS} -c"
+	else
+		OPBXARGS="${OPBXARGS} -f"
 	fi
+else
+	OPBXARGS="${OPBXARGS} -f"
 fi
-if [ ! -w ${DUMPDROP} ]; then	
-	echo "Cannot write to ${DUMPDROP}" >&2
+
+if [ ! -w ${OPBXVARDIR}/core ]; then	
+	logmsg "Cannot write to ${OPBXVARDIR}/core/" >&2
 	exit 1
 fi
 
@@ -35,50 +61,41 @@ fi
 #
 ulimit -c unlimited
 
-#launch_callweaver()
-#{
-#}
-
 run_callweaver()
 {
 	while :; do 
 
-		if [ "$TTY" != "" ]; then
-			cd /tmp
-			stty sane < /dev/${TTY}
-			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
+		cd ${OPBXVARDIR}/core
+		if [ "$CALLWEAVER_TTY" != "" ]; then
+			stty sane < /dev/${CALLWEAVER_TTY}
+			${OPBXSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${OPBXARGS} > /dev/${CALLWEAVER_TTY} 2>&1 < /dev/${CALLWEAVER_TTY}
 		else
-			cd /tmp
-			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS}
+			${OPBXSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${OPBXARGS}
 		fi
 		EXITSTATUS=$?
-		echo "CallWeaver ended with exit status $EXITSTATUS"
+		logmsg "CallWeaver ended with exit status $EXITSTATUS"
 		if [ "$EXITSTATUS" = "0" ]; then
 			# Properly shutdown....
-			echo "CallWeaver shutdown normally."
+			logmsg "CallWeaver shutdown normally."
 			exit 0
 		elif [ $EXITSTATUS -gt 128 ]; then
 			let EXITSIGNAL=EXITSTATUS-128
-			echo "CallWeaver exited on signal $EXITSIGNAL."
-			if [ "$NOTIFY" != "" ]; then
-				echo "CallWeaver on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
-				mail -s "CallWeaver Died" $NOTIFY
+			logmsg "CallWeaver exited on signal $EXITSIGNAL."
+			if [ "$CALLWEAVER_NOTIFY" != "" ]; then
+				logmsg "CallWeaver on $CALLWEAVER_MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
+				mail -s "CallWeaver Died (signal $EXITSIGNAL)" $CALLWEAVER_NOTIFY
 			fi
-                        if [ -f /tmp/core ]; then
-				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-			fi
+			mvcore
 		else
 			if [ "${EXITSTATUS}" = "0" ]; then
-				echo "CallWeaver ended normally.  Aborting."
+				logmsg "CallWeaver ended normally.  Aborting."
 				exit 0
 			else
-				echo "CallWeaver died with code $EXITSTATUS."
-	                        if [ -f /tmp/core ]; then
-					mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-				fi
+				logmsg "CallWeaver died with code $EXITSTATUS."
+				mvcore
 			fi
 		fi
-		echo "Automatically restarting CallWeaver."
+		logmsg "Automatically restarting CallWeaver."
 		sleep 4
 	done
 }
