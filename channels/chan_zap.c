@@ -9811,7 +9811,7 @@ static int __unload_module(void)
 	opbx_manager_unregister( "ZapDNDoff" );
 	opbx_manager_unregister( "ZapDNDon" );
 	opbx_manager_unregister("ZapShowChannels");
-	opbx_unregister_application(action_zapdisableec);
+	opbx_unregister_function(action_zapdisableec);
 	opbx_channel_unregister(&zap_tech);
 	if (!opbx_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
