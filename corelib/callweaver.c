@@ -25,10 +25,10 @@
  *
  * \section copyright Copyright and author
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Based on Asterisk written by Mark Spencer <markster@digium.com>
+ *  Copyright (C) 1999 - 2005, Digium, Inc.
  * Asterisk is a trade mark registered by Digium, Inc.
  *
- * \author Mark Spencer <markster at digium.com>
  * Also see \ref opbxCREDITS
  *
  * \section license License
