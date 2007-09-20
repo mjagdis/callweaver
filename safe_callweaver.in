@@ -22,7 +22,7 @@ logmsg()
 mvcore()
 {
 	if [ "`echo ${OPBXVARDIR}/core/core*`" != "${OPBXVARDIR}/core/core*" ]; then
-		COREDIR="${OPBXVARDIR}/core/`date '+%Y-%M-%d-%H:%M:%S'`"
+		COREDIR="${OPBXVARDIR}/core/`date '+%Y-%m-%d-%H:%M:%S'`"
 		mkdir ${COREDIR}
 		mv ${OPBXVARDIR}/core/core* ${COREDIR} && logmsg "Found and moved core dumps to $COREDIR"
 	fi
