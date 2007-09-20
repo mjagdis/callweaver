@@ -46,7 +46,7 @@ run_callweaver()
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS} >& /dev/${TTY} < /dev/${TTY}
+			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
 		else
 			cd /tmp
 			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS}
