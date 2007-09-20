@@ -25,7 +25,7 @@ CHAN_SIP CALL COUNTER ISSUES
   Solution
     - Use dialplan logic with the GROUP and GROUP_COUNT functions intead of the
       counters.
-    
+
 RTC Lost Interrupt
 
   Problem
@@ -48,6 +48,17 @@ CLOCK_MONOTONIC support in libC
   Solution
     - on Linux, you have it with GNU libc6 >= 2.3.3
     - on BSD, you need OS version >= 7.0
+
+CANNOT DIAL NUMBERS THAT START WITH '#'
+
+  Problem
+    - Some SIP client uses UTF-8 encoding to manage datas and give some 
+      problem dialing numbers that start with '#'
+
+  Solution
+    - First of all check if your phone does not use '#' as a "send" key
+    - Second just put "pedantic=yes" in your sip.conf, Snom phones are
+      affected by this.
 
 OTHER BUGS
 
