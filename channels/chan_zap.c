@@ -1917,8 +1917,7 @@ static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x))
 					opbx_log(OPBX_LOG_WARNING, "%s: Unable to start on hook transfer: %s\n", opbx->name, strerror(errno));
 				x = POLARITY_REV;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x))
-					opbx_log(OPBX_LOG_WARNING, "%s: Unable to reverse polarity: %s\n", opbx->name, strerror(errno));
+				ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x);
 				send_callerid(p);
 			}
 
@@ -4601,8 +4600,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 			if (opbx->_state != OPBX_STATE_UP && p->cid_send_on != CID_START_RING && !opbx->rings) {
 				ioctl(p->subs[SUB_REAL].zfd, ZT_SYNC, &res);
 				res = POLARITY_IDLE;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &res))
-					opbx_log(OPBX_LOG_WARNING, "%s: Unable to restore polarity: %s\n", opbx->name, strerror(errno));
+				ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &res);
 				opbx_log(OPBX_LOG_DEBUG, "%s: Start ringing\n", opbx->name);
 				res = ZT_RING;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &res) && errno != EINPROGRESS)
