@@ -3195,12 +3195,19 @@ static int unload_module(void)
 	opbx_channel_unregister(&alsa_tech);
 	for (x=0;x<arraysize(myclis); x++)
 		opbx_cli_unregister(myclis + x);
-	snd_pcm_close(alsa.icard);
-	snd_pcm_close(alsa.ocard);
-	if (sndcmd[0] > 0) {
+
+	if (alsa.icard)
+		snd_pcm_close(alsa.icard);
+	if (alsa.ocard)
+		snd_pcm_close(alsa.ocard);
+	if (sndcmd[0] >= 0)
 		close(sndcmd[0]);
+	if (sndcmd[1] >= 0)
 		close(sndcmd[1]);
-	}
+
+	alsa.icard = alsa.ocard = NULL;
+	sndcmd[0] = sndcmd[1] = -1;
+
 	if (alsa.owner)
 		opbx_softhangup(alsa.owner, OPBX_SOFTHANGUP_APPUNLOAD);
 	if (alsa.owner)
