@@ -20,6 +20,7 @@ SAMPLES = adsi.conf.sample \
 	meetme.conf.sample \
 	modem.conf.sample \
 	modules.conf.sample \
+	musiconhold.conf.sample \
 	muted.conf.sample \
 	callweaver.adsi.sample \
 	callweaver.conf.sample \
@@ -146,7 +147,7 @@ noinst_DATA = $(SAMPLES)
 
 @substitute@
 
-EXTRA_DIST = $(SAMPLES) musiconhold.conf.sample callweaver.conf.sample.in logger.conf.sample.in
+EXTRA_DIST = $(SAMPLES) callweaver.conf.sample.in logger.conf.sample.in
 CLEANFILES = callweaver.conf.sample logger.conf.sample musiconhold.conf.sample
 
 callweaver.conf.sample: callweaver.conf.sample.in Makefile

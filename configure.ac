@@ -2493,7 +2493,6 @@ AC_OUTPUT([Makefile
                  res/Makefile
                  stdtime/Makefile
                  utils/Makefile
-		 configs/musiconhold.conf.sample
 		 configs/Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
