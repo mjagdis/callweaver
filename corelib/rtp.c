@@ -147,10 +147,10 @@ int opbx_rtcp_fd(struct opbx_rtp *rtp)
     return udp_socket_fd(rtp->rtcp_sock_info);
 }
 
-udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
-                                       udp_socket_info_t *sock_info)
+udp_state_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
+                                 udp_state_t *sock_info)
 {
-    udp_socket_info_t *old;
+    udp_state_t *old;
     
     old = rtp->rtp_sock_info;
     if (sock_info)
@@ -158,10 +158,10 @@ udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
     return old;
 }
 
-udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
-                                        udp_socket_info_t *sock_info)
+udp_state_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
+                                  udp_state_t *sock_info)
 {
-    udp_socket_info_t *old;
+    udp_state_t *old;
     
     old = rtp->rtcp_sock_info;
     if (sock_info)

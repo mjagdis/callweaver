@@ -29,49 +29,49 @@
 #if !defined(_CALLWEAVER_UDP_H)
 #define _CALLWEAVER_UDP_H
 
-typedef struct udp_socket_info_s udp_socket_info_t;
+typedef struct udp_state_s udp_state_t;
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-udp_socket_info_t *udp_socket_create(int nochecksums);
+udp_state_t *udp_socket_create(int nochecksums);
 
-udp_socket_info_t *udp_socket_create_group_with_bindaddr(int nochecksums, int group, struct in_addr *addr, int startport, int endport);
+udp_state_t *udp_socket_create_group_with_bindaddr(int nochecksums, int group, struct in_addr *addr, int startport, int endport);
 
-int udp_socket_destroy(udp_socket_info_t *info);
+int udp_socket_destroy(udp_state_t *s);
 
-int udp_socket_destroy_group(udp_socket_info_t *info);
+int udp_socket_destroy_group(udp_state_t *s);
 
-udp_socket_info_t *udp_socket_find_group_element(udp_socket_info_t *info, int element);
+udp_state_t *udp_socket_find_group_element(udp_state_t *s, int element);
 
-int udp_socket_restart(udp_socket_info_t *info);
+int udp_socket_restart(udp_state_t *s);
 
-int udp_socket_fd(udp_socket_info_t *info);
+int udp_socket_fd(udp_state_t *s);
 
-int udp_socket_get_stunstate(udp_socket_info_t *info);
+int udp_socket_get_stunstate(udp_state_t *s);
 
-void udp_socket_set_stunstate(udp_socket_info_t *info, int state);
+void udp_socket_set_stunstate(udp_state_t *s, int state);
 
-const struct sockaddr_in *udp_socket_get_stun(udp_socket_info_t *info);
+const struct sockaddr_in *udp_socket_get_stun(udp_state_t *s);
 
-void udp_socket_set_stun(udp_socket_info_t *info, const struct sockaddr_in *stun);
+void udp_socket_set_stun(udp_state_t *s, const struct sockaddr_in *stun);
 
-int udp_socket_set_us(udp_socket_info_t *info, const struct sockaddr_in *us);
+int udp_socket_set_us(udp_state_t *s, const struct sockaddr_in *us);
 
-void udp_socket_set_them(udp_socket_info_t *info, const struct sockaddr_in *them);
+void udp_socket_set_them(udp_state_t *s, const struct sockaddr_in *them);
 
-int udp_socket_set_tos(udp_socket_info_t *info, int tos);
+int udp_socket_set_tos(udp_state_t *s, int tos);
 
-void udp_socket_set_nat(udp_socket_info_t *info, int nat_mode);
+void udp_socket_set_nat(udp_state_t *s, int nat_mode);
 
-const struct sockaddr_in *udp_socket_get_us(udp_socket_info_t *info);
+const struct sockaddr_in *udp_socket_get_us(udp_state_t *s);
 
-const struct sockaddr_in *udp_socket_get_apparent_us(udp_socket_info_t *info);
+const struct sockaddr_in *udp_socket_get_apparent_us(udp_state_t *s);
 
-const struct sockaddr_in *udp_socket_get_them(udp_socket_info_t *info);
+const struct sockaddr_in *udp_socket_get_them(udp_state_t *s);
 
-int udp_socket_recvfrom(udp_socket_info_t *info,
+int udp_socket_recvfrom(udp_state_t *s,
                         void *buf,
                         size_t size,
 			            int flags,
@@ -79,7 +79,7 @@ int udp_socket_recvfrom(udp_socket_info_t *info,
                         socklen_t *salen,
                         int *actions);
 
-int udp_socket_sendto(udp_socket_info_t *info, void *buf, size_t size, int flags);
+int udp_socket_sendto(udp_state_t *s, const void *buf, size_t size, int flags);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

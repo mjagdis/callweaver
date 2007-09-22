@@ -14274,9 +14274,11 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
         static struct stun_state stun_me;
 
         memset(&stun_me, 0, sizeof(struct stun_state));
-        if ( pedanticsipchecking && stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == STUN_ACCEPT) ;
-        else if ( !pedanticsipchecking && stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == STUN_ACCEPT) ;
-        if (stun_me.msgtype == STUN_BINDRESP)
+        if (pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == RFC3489_ACCEPT)
+            ;
+        else if (!pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == RFC3489_ACCEPT)
+            ;
+        if (stun_me.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE)
         {
             struct in_addr empty;
             struct sockaddr_in msin;

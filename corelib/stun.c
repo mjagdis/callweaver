@@ -55,17 +55,17 @@ static const char *stun_msg2str(int msg)
 {
     switch (msg)
     {
-    case STUN_BINDREQ:
+    case RFC3489_MSG_TYPE_BINDING_REQUEST:
         return "Binding Request";
-    case STUN_BINDRESP:
+    case RFC3489_MSG_TYPE_BINDING_RESPONSE:
         return "Binding Response";
-    case STUN_BINDERR:
+    case RFC3489_MSG_TYPE_BINDING_ERROR:
         return "Binding Error Response";
-    case STUN_SECREQ:
+    case RFC3489_MSG_TYPE_SHARED_SECRET_REQUEST:
         return "Shared Secret Request";
-    case STUN_SECRESP:
+    case RFC3489_MSG_TYPE_SHARED_SECRET_RESPONSE:
         return "Shared Secret Response";
-    case STUN_SECERR:
+    case RFC3489_MSG_TYPE_SHARED_SECRET_ERROR:
         return "Shared Secret Error Response";
     }
     return "Non-RFC3489 Message";
@@ -75,27 +75,27 @@ static const char *stun_attr2str(int msg)
 {
     switch (msg)
     {
-    case STUN_MAPPED_ADDRESS:
+    case RFC3489_ATTRIB_MAPPED_ADDRESS:
         return "Mapped Address";
-    case STUN_RESPONSE_ADDRESS:
+    case RFC3489_ATTRIB_RESPONSE_ADDRESS:
         return "Response Address";
-    case STUN_CHANGE_REQUEST:
+    case RFC3489_ATTRIB_CHANGE_REQUEST:
         return "Change Request";
-    case STUN_SOURCE_ADDRESS:
+    case RFC3489_ATTRIB_SOURCE_ADDRESS:
         return "Source Address";
-    case STUN_CHANGED_ADDRESS:
+    case RFC3489_ATTRIB_CHANGED_ADDRESS:
         return "Changed Address";
-    case STUN_USERNAME:
+    case RFC3489_ATTRIB_USERNAME:
         return "Username";
-    case STUN_PASSWORD:
+    case RFC3489_ATTRIB_PASSWORD:
         return "Password";
-    case STUN_MESSAGE_INTEGRITY:
+    case RFC3489_ATTRIB_MESSAGE_INTEGRITY:
         return "Message Integrity";
-    case STUN_ERROR_CODE:
+    case RFC3489_ATTRIB_ERROR_CODE:
         return "Error Code";
-    case STUN_UNKNOWN_ATTRIBUTES:
+    case RFC3489_ATTRIB_UNKNOWN_ATTRIBUTES:
         return "Unknown Attributes";
-    case STUN_REFLECTED_FROM:
+    case RFC3489_ATTRIB_REFLECTED_FROM:
         return "Reflected From";
     }
     return "Non-RFC3489 Attribute";
@@ -123,13 +123,13 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
             stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
     switch (ntohs(attr->attr))
     {
-    case STUN_USERNAME:
+    case RFC3489_ATTRIB_USERNAME:
         state->username = (unsigned char *)(attr->value);
         break;
-    case STUN_PASSWORD:
+    case RFC3489_ATTRIB_PASSWORD:
         state->password = (unsigned char *)(attr->value);
         break;
-    case STUN_MAPPED_ADDRESS:
+    case RFC3489_ATTRIB_MAPPED_ADDRESS:
         state->mapped_addr = (struct stun_addr *)(attr->value);
         if (stundebug)
         {
@@ -138,10 +138,10 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
             opbx_verbose("STUN: Mapped port is %d\n", ntohs(state->mapped_addr->port));
         }
         break;
-    case STUN_RESPONSE_ADDRESS:
+    case RFC3489_ATTRIB_RESPONSE_ADDRESS:
         state->response_addr = (struct stun_addr *)(attr->value);
         break;
-    case STUN_SOURCE_ADDRESS:
+    case RFC3489_ATTRIB_SOURCE_ADDRESS:
         state->source_addr = (struct stun_addr *)(attr->value);
         break;
     default:
@@ -352,12 +352,12 @@ struct stun_request *opbx_udp_stun_bindrequest(int fdus,
     attr = (struct stun_attr *)reqh->ies;
 
     if (username)
-        append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
+        append_attr_string(&attr, RFC3489_ATTRIB_USERNAME, username, &reqlen, &reqleft);
     if (password)
-        append_attr_string(&attr, STUN_PASSWORD, password, &reqlen, &reqleft);
+        append_attr_string(&attr, RFC3489_ATTRIB_PASSWORD, password, &reqlen, &reqleft);
 
     reqh->msglen = htons(reqlen);
-    reqh->msgtype = htons(STUN_BINDREQ);
+    reqh->msgtype = htons(RFC3489_MSG_TYPE_BINDING_REQUEST);
 
     if ((myreq = malloc(sizeof(struct stun_request))) != NULL)
     {
@@ -390,7 +390,7 @@ int stun_handle_packet(int s,
     struct stun_header *hdr = (struct stun_header *)data;
     struct stun_attr *attr;
     //struct stun_state st;
-    int ret = STUN_IGNORE;    
+    int ret = RFC3489_IGNORE;
     unsigned char respdata[1024];
     int resplen;
     int respleft;
@@ -460,21 +460,21 @@ int stun_handle_packet(int s,
         st->msgtype=ntohs(hdr->msgtype);
         switch (ntohs(hdr->msgtype))
         {
-        case STUN_BINDREQ:
+        case RFC3489_MSG_TYPE_BINDING_REQUEST:
             if (stundebug)
             {
                 opbx_verbose("STUN Bind Request, username: %s\n", 
                              st->username  ?  (const char *) st->username  :  "<none>");
             }
             if (st->username)
-                append_attr_string(&attr, STUN_USERNAME, (const char *)st->username, &resplen, &respleft);
-            append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
+                append_attr_string(&attr, RFC3489_ATTRIB_USERNAME, (const char *)st->username, &resplen, &respleft);
+            append_attr_address(&attr, RFC3489_ATTRIB_MAPPED_ADDRESS, src, &resplen, &respleft);
             resp->msglen = htons(resplen);
-            resp->msgtype = htons(STUN_BINDRESP);
+            resp->msgtype = htons(RFC3489_MSG_TYPE_BINDING_RESPONSE);
             stun_send(s, src, resp);
-            ret = STUN_ACCEPT;
+            ret = RFC3489_ACCEPT;
             break;
-        case STUN_BINDRESP:
+        case RFC3489_MSG_TYPE_BINDING_RESPONSE:
             if (stundebug)
                 opbx_verbose("** STUN Bind Response\n");
             req_queue = stun_req_queue;
@@ -499,11 +499,12 @@ int stun_handle_packet(int s,
                 req_queue_prev = req_queue;
                 req_queue = req_queue->next;
             }
-            ret = STUN_ACCEPT;
+            ret = RFC3489_ACCEPT;
             break;
         default:
             if (stundebug)
                 opbx_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), stun_msg2str(ntohs(hdr->msgtype)));
+            break;
         }
     }
     return ret;

@@ -60,7 +60,7 @@ typedef int (*opbx_udptl_callback)(struct opbx_udptl *udptl, struct opbx_frame *
 struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
                                                  struct io_context *io,
                                                  int callbackmode,
-                                                 udp_socket_info_t *sock_info);
+                                                 udp_state_t *sock_info);
 
 int opbx_udptl_set_active(struct opbx_udptl *udptl, int active);
 
@@ -86,15 +86,15 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl);
 
 int opbx_udptl_fd(struct opbx_udptl *udptl);
 
-udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
-                                         udp_socket_info_t *sock_info);
+udp_state_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
+                                   udp_state_t *sock_info);
 
 int opbx_udptl_settos(struct opbx_udptl *udptl, int tos);
 
-void opbx_udptl_set_m_type(struct opbx_udptl* udptl, int pt);
+void opbx_udptl_set_m_type(struct opbx_udptl *udptl, int pt);
 
 void opbx_udptl_set_udptlmap_type(struct opbx_udptl *udptl, int pt,
-									char *mimeType, char *mimeSubtype);
+                                  char *mimeType, char *mimeSubtype);
 
 int opbx_udptl_lookup_code(struct opbx_udptl* udptl, int is_opbx_format, int code);
 

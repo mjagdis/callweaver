@@ -67,8 +67,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define TRUE (!FALSE)
 #endif
 
-static int udptldebug = 0;                /* Are we debugging? */
-static struct sockaddr_in udptldebugaddr;    /* Debug packets to/from this host */
+static int udptldebug = 0;                  /* Are we debugging? */
+static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
 static int nochecksums = 0;
 static int udptlfectype = 0;
 static int udptlfecentries = 0;
@@ -76,8 +76,8 @@ static int udptlfecspan = 0;
 static int udptlmaxdatagram = 0;
 
 #define LOCAL_FAX_MAX_DATAGRAM      400
-#define MAX_FEC_ENTRIES             5
-#define MAX_FEC_SPAN                5
+#define LOCAL_FAX_MAX_FEC_PACKETS   5
+#define LOCAL_FAX_MAX_FEC_SPAN      5
 
 #define UDPTL_BUF_MASK              15
 
@@ -91,19 +91,19 @@ typedef struct
 {
     int buf_len;
     uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
-    int fec_len[MAX_FEC_ENTRIES];
-    uint8_t fec[MAX_FEC_ENTRIES][LOCAL_FAX_MAX_DATAGRAM];
+    int fec_len[LOCAL_FAX_MAX_FEC_PACKETS];
+    uint8_t fec[LOCAL_FAX_MAX_FEC_PACKETS][LOCAL_FAX_MAX_DATAGRAM];
     int fec_span;
     int fec_entries;
 } udptl_fec_rx_buffer_t;
 
 struct opbx_udptl
 {
-    udp_socket_info_t *udptl_sock_info;
+    udp_state_t *udptl_sock_info;
     char resp;
     struct opbx_frame f[16];
-    unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
-    unsigned int lasteventseqn;
+    uint8_t rawdata[8192 + OPBX_FRIENDLY_OFFSET];
+    uint32_t lasteventseqn;
     int nat;
     int flags;
     int *ioid;
@@ -659,10 +659,10 @@ int opbx_udptl_fd(struct opbx_udptl *udptl)
     return udp_socket_fd(udptl->udptl_sock_info);
 }
 
-udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
-                                         udp_socket_info_t *sock_info)
+udp_state_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
+                                   udp_state_t *sock_info)
 {
-    udp_socket_info_t *old;
+    udp_state_t *old;
     
     old = udptl->udptl_sock_info;
     if (sock_info)
@@ -830,7 +830,7 @@ void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
 struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
                                                  struct io_context *io,
                                                  int callbackmode,
-                                                 udp_socket_info_t *sock_info)
+                                                 udp_state_t *sock_info)
 {
     struct opbx_udptl *udptl;
     int i;
@@ -1301,16 +1301,16 @@ void opbx_udptl_reload(void)
             udptlfecentries = atoi(s);
             if (udptlfecentries < 0)
                 udptlfecentries = 0;
-            if (udptlfecentries > MAX_FEC_ENTRIES)
-                udptlfecentries = MAX_FEC_ENTRIES;
+            if (udptlfecentries > LOCAL_FAX_MAX_FEC_PACKETS)
+                udptlfecentries = LOCAL_FAX_MAX_FEC_PACKETS;
         }
         if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECspan")))
         {
             udptlfecspan = atoi(s);
             if (udptlfecspan < 0)
                 udptlfecspan = 0;
-            if (udptlfecspan > MAX_FEC_SPAN)
-                udptlfecspan = MAX_FEC_SPAN;
+            if (udptlfecspan > LOCAL_FAX_MAX_FEC_SPAN)
+                udptlfecspan = LOCAL_FAX_MAX_FEC_SPAN;
         }
         opbx_config_destroy(cfg);
     }
