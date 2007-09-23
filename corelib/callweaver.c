@@ -77,6 +77,7 @@
 #endif
 #include <regex.h>
 #include <spandsp.h>
+#include <vale/rfc3489.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>

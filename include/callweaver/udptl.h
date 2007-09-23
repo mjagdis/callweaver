@@ -32,15 +32,6 @@
 
 #include <netinet/in.h>
 
-#if !defined(USE_VALE)
-enum
-{
-    UDPTL_ERROR_CORRECTION_NONE,
-    UDPTL_ERROR_CORRECTION_FEC,
-    UDPTL_ERROR_CORRECTION_REDUNDANCY
-};
-#endif
-
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif

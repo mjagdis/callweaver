@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <vale/rfc3489.h>
 
 #include "callweaver.h"
 
@@ -49,59 +50,9 @@ int stunserver_portno;
 int stun_active = 0;
 int stundebug = 0;
 
-struct stun_request *stun_req_queue;
+rfc3489_request_t *stun_req_queue;
 
-static const char *stun_msg2str(int msg)
-{
-    switch (msg)
-    {
-    case RFC3489_MSG_TYPE_BINDING_REQUEST:
-        return "Binding Request";
-    case RFC3489_MSG_TYPE_BINDING_RESPONSE:
-        return "Binding Response";
-    case RFC3489_MSG_TYPE_BINDING_ERROR:
-        return "Binding Error Response";
-    case RFC3489_MSG_TYPE_SHARED_SECRET_REQUEST:
-        return "Shared Secret Request";
-    case RFC3489_MSG_TYPE_SHARED_SECRET_RESPONSE:
-        return "Shared Secret Response";
-    case RFC3489_MSG_TYPE_SHARED_SECRET_ERROR:
-        return "Shared Secret Error Response";
-    }
-    return "Non-RFC3489 Message";
-}
-
-static const char *stun_attr2str(int msg)
-{
-    switch (msg)
-    {
-    case RFC3489_ATTRIB_MAPPED_ADDRESS:
-        return "Mapped Address";
-    case RFC3489_ATTRIB_RESPONSE_ADDRESS:
-        return "Response Address";
-    case RFC3489_ATTRIB_CHANGE_REQUEST:
-        return "Change Request";
-    case RFC3489_ATTRIB_SOURCE_ADDRESS:
-        return "Source Address";
-    case RFC3489_ATTRIB_CHANGED_ADDRESS:
-        return "Changed Address";
-    case RFC3489_ATTRIB_USERNAME:
-        return "Username";
-    case RFC3489_ATTRIB_PASSWORD:
-        return "Password";
-    case RFC3489_ATTRIB_MESSAGE_INTEGRITY:
-        return "Message Integrity";
-    case RFC3489_ATTRIB_ERROR_CODE:
-        return "Error Code";
-    case RFC3489_ATTRIB_UNKNOWN_ATTRIBUTES:
-        return "Unknown Attributes";
-    case RFC3489_ATTRIB_REFLECTED_FROM:
-        return "Reflected From";
-    }
-    return "Non-RFC3489 Attribute";
-}
-
-int stun_addr2sockaddr(struct sockaddr_in *sin, struct stun_addr *addr)
+int stun_addr2sockaddr(struct sockaddr_in *sin, rfc3489_addr_t *addr)
 {
     if (addr)
     {
@@ -113,14 +64,14 @@ int stun_addr2sockaddr(struct sockaddr_in *sin, struct stun_addr *addr)
     return 0;
 }
 
-static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
+static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
 {
     char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in sin;
 
     if (stundebug  &&  option_debug)
         opbx_verbose("Found STUN Attribute %s (%04x), length %d\n",
-            stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
+            rfc3489_attribute_type_to_str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
     switch (ntohs(attr->attr))
     {
     case RFC3489_ATTRIB_USERNAME:
@@ -130,7 +81,7 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
         state->password = (unsigned char *)(attr->value);
         break;
     case RFC3489_ATTRIB_MAPPED_ADDRESS:
-        state->mapped_addr = (struct stun_addr *)(attr->value);
+        state->mapped_addr = (rfc3489_addr_t *)(attr->value);
         if (stundebug)
         {
             stun_addr2sockaddr(&sin, state->mapped_addr);
@@ -139,16 +90,16 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
         }
         break;
     case RFC3489_ATTRIB_RESPONSE_ADDRESS:
-        state->response_addr = (struct stun_addr *)(attr->value);
+        state->response_addr = (rfc3489_addr_t *)(attr->value);
         break;
     case RFC3489_ATTRIB_SOURCE_ADDRESS:
-        state->source_addr = (struct stun_addr *)(attr->value);
+        state->source_addr = (rfc3489_addr_t *)(attr->value);
         break;
     default:
         if (stundebug && option_debug)
         {
             opbx_verbose("Ignoring STUN attribute %s (%04x), length %d\n", 
-                         stun_attr2str(ntohs(attr->attr)),
+                         rfc3489_attribute_type_to_str(ntohs(attr->attr)),
                          ntohs(attr->attr),
                          ntohs(attr->len));
         }
@@ -157,7 +108,7 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
     return 0;
 }
 
-static void append_attr_string(struct stun_attr **attr, int attrval, const char *s, int *len, int *left)
+static void append_attr_string(rfc3489_attr_t **attr, int attrval, const char *s, int *len, int *left)
 {
     int size = sizeof(**attr) + strlen(s);
 
@@ -166,33 +117,33 @@ static void append_attr_string(struct stun_attr **attr, int attrval, const char 
         (*attr)->attr = htons(attrval);
         (*attr)->len = htons(strlen(s));
         memcpy((*attr)->value, s, strlen(s));
-        (*attr) = (struct stun_attr *)((*attr)->value + strlen(s));
+        (*attr) = (rfc3489_attr_t *)((*attr)->value + strlen(s));
         *len += size;
         *left -= size;
     }
 }
 
-static void append_attr_address(struct stun_attr **attr, int attrval, struct sockaddr_in *sin, int *len, int *left)
+static void append_attr_address(rfc3489_attr_t **attr, int attrval, struct sockaddr_in *sin, int *len, int *left)
 {
     int size = sizeof(**attr) + 8;
-    struct stun_addr *addr;
+    rfc3489_addr_t *addr;
     
     if (*left > size)
     {
         (*attr)->attr = htons(attrval);
         (*attr)->len = htons(8);
-        addr = (struct stun_addr *)((*attr)->value);
+        addr = (rfc3489_addr_t *)((*attr)->value);
         addr->unused = 0;
         addr->family = 0x01;
         addr->port = sin->sin_port;
         addr->addr = sin->sin_addr.s_addr;
-        (*attr) = (struct stun_attr *)((*attr)->value + 8);
+        (*attr) = (rfc3489_attr_t *)((*attr)->value + 8);
         *len += size;
         *left -= size;
     }
 }
 
-static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
+static int stun_send(int s, struct sockaddr_in *dst, rfc3489_header_t *resp)
 {
     return sendto(s,
                   resp,
@@ -212,8 +163,7 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 */
 }
 
-
-static void stun_req_id(struct stun_header *req)
+static void stun_req_id(rfc3489_header_t *req)
 {
     int x;
     
@@ -223,10 +173,10 @@ static void stun_req_id(struct stun_header *req)
 
 /* ************************************************************************* */
 
-struct stun_addr *opbx_stun_find_request(stun_trans_id *st)
+rfc3489_addr_t *opbx_stun_find_request(rfc3489_trans_id_t *st)
 {
-    struct stun_request *req_queue;
-    struct stun_addr *a = NULL;
+    rfc3489_request_t *req_queue;
+    rfc3489_addr_t *a = NULL;
 
     req_queue=stun_req_queue;
 
@@ -238,7 +188,7 @@ struct stun_addr *opbx_stun_find_request(stun_trans_id *st)
 
         if (req_queue->got_response
             &&
-            !memcmp((void *) &req_queue->req_head.id, st, sizeof(stun_trans_id))) 
+            !memcmp((void *) &req_queue->req_head.id, st, sizeof(rfc3489_trans_id_t))) 
         {
             if (stundebug)
                 opbx_verbose("** Found request in request queue for reqresp lookup\n");
@@ -257,11 +207,11 @@ struct stun_addr *opbx_stun_find_request(stun_trans_id *st)
 }
 
 /* ************************************************************************* */
-int stun_remove_request(stun_trans_id *st)
+int stun_remove_request(rfc3489_trans_id_t *st)
 {
-    struct stun_request *req_queue;
-    struct stun_request *req_queue_prev;
-    struct stun_request *delqueue;
+    rfc3489_request_t *req_queue;
+    rfc3489_request_t *req_queue_prev;
+    rfc3489_request_t *delqueue;
     time_t now;
     int found = 0;
 
@@ -275,7 +225,7 @@ int stun_remove_request(stun_trans_id *st)
     {
         if (req_queue->got_response
             &&
-            !memcmp((void *) &req_queue->req_head.id, st, sizeof(stun_trans_id))) 
+            !memcmp(&req_queue->req_head.id, st, sizeof(req_queue->req_head.id))) 
         {
             found = 1;
             delqueue = req_queue;
@@ -331,25 +281,25 @@ int stun_remove_request(stun_trans_id *st)
 
 /* ************************************************************************* */
 
-struct stun_request *opbx_udp_stun_bindrequest(int fdus,
-                                               struct sockaddr_in *suggestion, 
-                                               const char *username,
-                                               const char *password)
+rfc3489_request_t *opbx_udp_stun_bindrequest(int fdus,
+                                             struct sockaddr_in *suggestion, 
+                                             const char *username,
+                                             const char *password)
 {
-    //struct stun_request *req;
-    struct stun_header *reqh;
+    //rfc3489_request_t *req;
+    rfc3489_header_t *reqh;
     unsigned char reqdata[1024];
     int reqlen, reqleft;
-    struct stun_attr *attr;
-    struct stun_request *myreq=NULL;
+    rfc3489_attr_t *attr;
+    rfc3489_request_t *myreq=NULL;
 
-    reqh = (struct stun_header *)reqdata;
+    reqh = (rfc3489_header_t *) reqdata;
     stun_req_id(reqh);
     reqlen = 0;
-    reqleft = sizeof(reqdata) - sizeof(struct stun_header);
+    reqleft = sizeof(reqdata) - sizeof(rfc3489_header_t);
     reqh->msgtype = 0;
     reqh->msglen = 0;
-    attr = (struct stun_attr *)reqh->ies;
+    attr = (rfc3489_attr_t *) reqh->ies;
 
     if (username)
         append_attr_string(&attr, RFC3489_ATTRIB_USERNAME, username, &reqlen, &reqleft);
@@ -359,10 +309,10 @@ struct stun_request *opbx_udp_stun_bindrequest(int fdus,
     reqh->msglen = htons(reqlen);
     reqh->msgtype = htons(RFC3489_MSG_TYPE_BINDING_REQUEST);
 
-    if ((myreq = malloc(sizeof(struct stun_request))) != NULL)
+    if ((myreq = malloc(sizeof(rfc3489_request_t))) != NULL)
     {
-        memset(myreq, 0, sizeof(struct stun_request));
-        memcpy(&myreq->req_head, reqh, sizeof(struct stun_header));
+        memset(myreq, 0, sizeof(rfc3489_request_t));
+        memcpy(&myreq->req_head, reqh, sizeof(rfc3489_header_t));
         if (stun_send(fdus, suggestion, reqh) != -1)
         {
             if (stundebug) 
@@ -383,50 +333,51 @@ struct stun_request *opbx_udp_stun_bindrequest(int fdus,
 
 int stun_handle_packet(int s, 
                        struct sockaddr_in *src, 
-                       unsigned char *data, size_t len, 
-                       struct stun_state *st)    
+                       unsigned char *data,
+                       size_t len, 
+                       rfc3489_state_t *st)    
 {
-    struct stun_header *resp;
-    struct stun_header *hdr = (struct stun_header *)data;
-    struct stun_attr *attr;
-    //struct stun_state st;
+    rfc3489_header_t *resp;
+    rfc3489_header_t *hdr = (rfc3489_header_t *)data;
+    rfc3489_attr_t *attr;
+    //rfc3489_state_t st;
     int ret = RFC3489_IGNORE;
     unsigned char respdata[1024];
     int resplen;
     int respleft;
-    struct stun_request *req_queue;
-    struct stun_request *req_queue_prev;
+    rfc3489_request_t *req_queue;
+    rfc3489_request_t *req_queue_prev;
 
     memset(st, 0, sizeof(st));
-    memcpy(&st->id, &hdr->id, sizeof(stun_trans_id));
+    memcpy(&st->id, &hdr->id, sizeof(st->id));
 
-    if (len < sizeof(struct stun_header))
+    if (len < sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(struct stun_header));
+            opbx_log(OPBX_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(rfc3489_header_t));
         return -1;
     }
     if (stundebug)
-        opbx_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
+        opbx_verbose("STUN Packet, msg %s (%04x), length: %d\n", rfc3489_msg_type_to_str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
 
-    if (ntohs(hdr->msglen) > len - sizeof(struct stun_header))
+    if (ntohs(hdr->msglen) > len - sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
+            opbx_log(OPBX_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(rfc3489_header_t));
     }
     else
         len = ntohs(hdr->msglen);
-    data += sizeof(struct stun_header);
+    data += sizeof(rfc3489_header_t);
 
     while (len)
     {
-        if (len < sizeof(struct stun_attr))
+        if (len < sizeof(rfc3489_attr_t))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(struct stun_attr));
+                opbx_log(OPBX_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(rfc3489_attr_t));
             break;
         }
-        attr = (struct stun_attr *) data;
+        attr = (rfc3489_attr_t *) data;
         if (ntohs(attr->len) > len)
         {
             if (option_debug)
@@ -437,24 +388,24 @@ int stun_handle_packet(int s,
         if (stun_process_attr(st, attr))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
+                opbx_log(OPBX_LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", rfc3489_attribute_type_to_str(ntohs(attr->attr)), ntohs(attr->attr));
             break;
         }
         /* Clear attribute in case previous entry was a string */
         attr->attr = 0;
-        data += ntohs(attr->len) + sizeof(struct stun_attr);
-        len -= ntohs(attr->len) + sizeof(struct stun_attr);
+        data += ntohs(attr->len) + sizeof(rfc3489_attr_t);
+        len -= ntohs(attr->len) + sizeof(rfc3489_attr_t);
     }
 
     /* Null terminate any string */
     *data = '\0';
-    resp = (struct stun_header *)respdata;
+    resp = (rfc3489_header_t *)respdata;
     resplen = 0;
-    respleft = sizeof(respdata) - sizeof(struct stun_header);
+    respleft = sizeof(respdata) - sizeof(rfc3489_header_t);
     resp->id = hdr->id;
     resp->msgtype = 0;
     resp->msglen = 0;
-    attr = (struct stun_attr *)resp->ies;
+    attr = (rfc3489_attr_t *)resp->ies;
     if (!len)
     {
         st->msgtype=ntohs(hdr->msgtype);
@@ -483,12 +434,12 @@ int stun_handle_packet(int s,
             {
                 if (!req_queue->got_response
                     && 
-                    memcmp((void *) &req_queue->req_head.id, (void *) &st->id, sizeof(stun_trans_id)) == 0)
+                    memcmp(&req_queue->req_head.id, (void *) &st->id, sizeof(req_queue->req_head.id)) == 0)
                 {
                     if (stundebug)
                         opbx_verbose("** Found response in request queue. ID: %d done at: %ld gotresponse: %d\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
                     req_queue->got_response = 1;
-                    memcpy(&req_queue->mapped_addr, st->mapped_addr, sizeof(struct stun_addr));
+                    memcpy(&req_queue->mapped_addr, st->mapped_addr, sizeof(rfc3489_addr_t));
                 }
                 else
                 {
@@ -503,7 +454,7 @@ int stun_handle_packet(int s,
             break;
         default:
             if (stundebug)
-                opbx_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), stun_msg2str(ntohs(hdr->msgtype)));
+                opbx_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), rfc3489_msg_type_to_str(ntohs(hdr->msgtype)));
             break;
         }
     }
@@ -533,21 +484,23 @@ int stun_no_debug(int fd, int argc, char *argv[])
 /* ************************************************************************* */
 
 static char stun_debug_usage[] =
-  "Usage: stun debug\n"
-  "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
+    "Usage: stun debug\n"
+    "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
 
 static char stun_no_debug_usage[] =
-  "Usage: stun no debug\n"
-  "       Disable STUN debugging\n";
+    "Usage: stun no debug\n"
+    "       Disable STUN debugging\n";
 
-static struct opbx_clicmd  cli_stun_debug = {
+static struct opbx_clicmd  cli_stun_debug =
+{
 	.cmda = { "stun", "debug", NULL },
 	.handler = stun_do_debug,
 	.summary = "Enable STUN debugging",
 	.usage = stun_debug_usage,
 };
 
-static struct opbx_clicmd  cli_stun_no_debug = {
+static struct opbx_clicmd  cli_stun_no_debug =
+{
 	.cmda = { "stun", "no", "debug", NULL },
 	.handler = stun_no_debug,
 	.summary = "Disable STUN debugging",

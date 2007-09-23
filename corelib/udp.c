@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <vale/rfc3489.h>
 
 #include "callweaver.h"
 
@@ -378,7 +379,7 @@ int udp_socket_recvfrom(udp_state_t *s,
                         int *action)
 {
     struct sockaddr_in stun_sin;
-    struct stun_state rfc3489_local;
+    rfc3489_state_t rfc3489_local;
     int res;
 
     *action = 0;
@@ -403,7 +404,7 @@ int udp_socket_recvfrom(udp_state_t *s,
         {
             if (stundebug)
                 opbx_log(OPBX_LOG_DEBUG, "Checking if payload it is a stun RESPONSE\n");
-            memset(&rfc3489_local, 0, sizeof(struct stun_state));
+            memset(&rfc3489_local, 0, sizeof(rfc3489_state_t));
             stun_handle_packet(s->rfc3489_state, (struct sockaddr_in *) sa, buf, res, &rfc3489_local);
             if (rfc3489_local.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE)
             {

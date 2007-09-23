@@ -43,6 +43,7 @@
 #ifdef ENABLE_SRTP
 #include <srtp/srtp.h>
 #endif
+#include <vale/rfc3489.h>
 
 #include "callweaver.h"
 

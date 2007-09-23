@@ -48,6 +48,8 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <regex.h>
+#include <vale/rfc3489.h>
+#include <vale/udptl.h>
 
 #include "callweaver.h"
 
@@ -856,7 +858,7 @@ static struct sip_pvt {
     int ourport;                /*!< Our port seen from stun*/
     int stun_resreq_id;
     int stun_retrans_no;
-    stun_trans_id  stun_transid;
+    rfc3489_trans_id_t stun_transid;
 } *iflist = NULL;
 
 #define STUN_WAIT_RETRY_TIME    100        /*!< ms to wait between every sip packet check for transmission*/
@@ -870,7 +872,7 @@ struct sip_reqresp {
     struct sip_request req;
     int reliable;
     int seqno;
-    struct stun_request *streq;
+    rfc3489_request_t *streq;
 };
 
 #define FLAG_RESPONSE (1 << 0)
@@ -1947,17 +1949,17 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
         rr->p = p;
         rr->p->stun_retrans_no = 0;
         rr->streq = opbx_udp_stun_bindrequest(sipsock, &stunserver_ip, NULL, NULL);
-	if (rr->streq) 
-    	    memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(stun_trans_id));
+        if (rr->streq) 
+            memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
 
         if (p->rtp  &&  !opbx_rtp_get_stunstate(p->rtp))
         {
-            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p));
             opbx_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
         }
         if (p->vrtp  &&  !opbx_rtp_get_stunstate(p->vrtp))
         {
-            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+            opbx_log(OPBX_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p));
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
         if (p->udptl  &&  !opbx_udptl_get_stunstate(p->udptl))
@@ -2050,8 +2052,8 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
         rr->p = p;
         rr->p->stun_retrans_no = 0;
         rr->streq = opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
-	if (rr->streq) 
-    	    memcpy(&rr->p->stun_transid,&rr->streq->req_head.id,sizeof(stun_trans_id) );
+        if (rr->streq) 
+            memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
 
         if (p->rtp  &&  opbx_rtp_get_stunstate(p->rtp) == 0)
         {
@@ -2127,9 +2129,9 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 static int sip_resend_reqresp(void *data)
 {
     int res = 0;
-    struct sip_reqresp *rr=data;    
-    struct stun_addr *map=NULL;
-    struct sip_pvt *p=rr->p;
+    struct sip_reqresp *rr = data;    
+    rfc3489_addr_t *map = NULL;
+    struct sip_pvt *p = rr->p;
     struct sip_request tmp;
     struct sockaddr_in msin;
 
@@ -2201,8 +2203,9 @@ static int sip_resend_reqresp(void *data)
         opbx_udptl_get_stunstate(p->udptl) != 1)
     {
         char iabuf[INET_ADDRSTRLEN];
+
         stun_addr2sockaddr(&msin,map);
-        memcpy(&p->stun_transid,&rr->streq->req_head.id, sizeof(stun_trans_id) );
+        memcpy(&p->stun_transid, &rr->streq->req_head.id, sizeof(p->stun_transid));
         if (stundebug)
             opbx_log(OPBX_LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
     }
@@ -4127,7 +4130,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 {
     struct sip_pvt *p;
 
-    if (!(p = calloc(1, sizeof(struct sip_pvt))))
+    if ((p = calloc(1, sizeof(struct sip_pvt))) == NULL)
         return NULL;
 
     opbx_mutex_init(&p->lock);
@@ -4139,10 +4142,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     p->stateid = -1;
     p->prefs = prefs;
 
-    p->ourport=ourport;
-    p->stun_needed=0;
-    p->stun_resreq_id=0;
-    memset(&p->stun_transid,0,sizeof(stun_trans_id));
+    p->ourport = ourport;
+    p->stun_needed = 0;
+    p->stun_resreq_id = 0;
+    memset(&p->stun_transid, 0, sizeof(p->stun_transid));
 
     if (intended_method != SIP_OPTIONS)    /* Peerpoke has it's own system */
         p->timer_t1 = 500;    /* Default SIP retransmission timer T1 (RFC 3261) */
@@ -14271,9 +14274,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     /* ANALYZE Packet payload to discover stun responses */
     if (req.method == SIP_UNKNOWN)
     {
-        static struct stun_state stun_me;
+        static rfc3489_state_t stun_me;
 
-        memset(&stun_me, 0, sizeof(struct stun_state));
+        memset(&stun_me, 0, sizeof(rfc3489_state_t));
         if (pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == RFC3489_ACCEPT)
             ;
         else if (!pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == RFC3489_ACCEPT)
