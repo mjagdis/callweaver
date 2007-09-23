@@ -836,7 +836,7 @@ static struct sip_pvt {
     char ruri[256];                /*!< REAL Original requested URI */
 
     //struct opbx_tpkt *tpkt;            /*!< T.38 TPKT session */
-    struct opbx_udptl *udptl;        /*!< T.38 UDPTL session */
+    opbx_udptl_t *udptl;        /*!< T.38 UDPTL session */
     int t38capability;            /*!< Our T38 capability */
     int t38peercapability;            /*!< Peers T38 capability */
     int t38jointcapability;            /*!< Supported T38 capability at both ends */
@@ -16460,10 +16460,10 @@ static int sip_set_rtp_peer(struct opbx_channel *chan, struct opbx_rtp *rtp, str
     return 0;
 }
 
-static struct opbx_udptl *sip_get_udptl_peer(struct opbx_channel *chan)
+static opbx_udptl_t *sip_get_udptl_peer(struct opbx_channel *chan)
 {
     struct sip_pvt *p;
-    struct opbx_udptl *udptl = NULL;
+    opbx_udptl_t *udptl = NULL;
 
     p = chan->tech_pvt;
     if (!p)
@@ -16476,7 +16476,7 @@ static struct opbx_udptl *sip_get_udptl_peer(struct opbx_channel *chan)
     return udptl;
 }
 
-static int sip_set_udptl_peer(struct opbx_channel *chan, struct opbx_udptl *udptl)
+static int sip_set_udptl_peer(struct opbx_channel *chan, opbx_udptl_t *udptl)
 {
     struct sip_pvt *p;
 

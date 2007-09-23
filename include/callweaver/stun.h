@@ -12,6 +12,7 @@
  * at the top of the source tree.
  */
 
+#if !defined(USE_VALE)
 enum
 {
     RFC3489_STATE_IDLE = 0,
@@ -68,6 +69,7 @@ enum
 #define RFC3489_ATTRIB_REFRESH_INTERVAL                         0x8024
 
 #define RFC3489_ADDR_FAMILY_IPV4                                1
+#endif
 
 extern char stunserver_host[MAXHOSTNAMELEN];
 extern struct sockaddr_in stunserver_ip;

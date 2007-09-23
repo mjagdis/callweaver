@@ -51,7 +51,7 @@ CORE_CFLAGS	+= -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
 CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 CORE_CFLAGS	+= @SSL_CFLAGS@
 
-CORE_LIBS	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
+CORE_LIBS	=  -lvale -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 CORE_LIBS	+= @SQLITE3_THREADSAFE_LIBS@
 CORE_LIBS 	+= ${top_builddir}/stdtime/libtime.la 
 CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
