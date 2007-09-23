@@ -637,6 +637,7 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([arpa/inet.h])
 dnl This does not work currently .. some bug in cygwin autoconf
 dnl AC_CHECK_HEADERS([w32api/windows.h])
 dnl AC_CHECK_HEADERS([w32api/winsock2.h],[],[],
@@ -757,6 +758,30 @@ AC_CHECK_HEADERS([spandsp/version.h],[HAVE_SPANDSP_VERSION_H=1],[AC_MSG_ERROR(Sp
 #include <spandsp/version.h>
 
 #if SPANDSP_RELEASE_DATE < 20070916
+#error
+#endif
+])
+
+dnl ###########################################################################
+
+AC_ARG_WITH([vale-includes],
+	[AC_HELP_STRING([--with-vale-includes],[Location of Vale include files.])],
+	[CFLAGS="$CFLAGS -I${withval}"])
+
+AC_ARG_WITH([vale-libs],
+	[AC_HELP_STRING([--with-vale-libs],[Location of Vale library files.])],
+	[LDFLAGS="$LDFLAGS -L${withval}"])
+
+AC_CHECK_HEADERS([vale.h],[HAVE_VALE_H=1],[AC_MSG_ERROR(Vale version 0.0.1 or newer is required to compile Callweaver.)])
+
+AC_CHECK_HEADERS([vale/version.h],[HAVE_VALE_VERSION_H=1],[AC_MSG_ERROR(Vale does not appear to be new enough. You must have version 0.0.1 or newer to compile Callweaver.)],
+[#include <arpa/inet.h>
+#ifdef HAVE_VALE_H
+#include <vale.h>
+#endif
+#include <vale/version.h>
+
+#if VALE_RELEASE_DATE < 20070922
 #error
 #endif
 ])
