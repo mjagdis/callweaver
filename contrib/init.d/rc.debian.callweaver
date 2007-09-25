@@ -27,8 +27,8 @@ export LD_ASSUME_KERNEL=2.4.1
 # be sure that CallWeaver's environment has permission to write the
 # files required  for  its  operation, including logs, its comm
 # socket, the callweaver database, etc.
-#OPBX_USER="callweaver"
-#OPBX_GROUP="callweaver"
+#CW_USER="callweaver"
+#CW_GROUP="callweaver"
 
 test -x $DAEMON || exit 0
 
@@ -40,13 +40,13 @@ case "$1" in
 	if [ -f $SAFE_CALLWEAVER ] ; then
 		DAEMON=$SAFE_CALLWEAVER
 	fi
-        if [ $AST_USER ] ; then
-                ASTARGS="-U $AST_USER"
+        if [ $CW_USER ] ; then
+                CWARGS="-U $CW_USER"
         fi
-        if [ $AST_GROUP ] ; then
-                ASTARGS="`echo $ASTARGS` -G $AST_GROUP"
+        if [ $CW_GROUP ] ; then
+                CWARGS="`echo $CWARGS` -G $CW_GROUP"
         fi
-	start-stop-daemon --start --exec $DAEMON -- $ASTARGS
+	start-stop-daemon --start --exec $DAEMON -- $CWARGS
 	echo "$NAME."
 	;;
   stop)
