@@ -17,7 +17,6 @@
 #include "faxmodem.h"
 
 static int NEXT_ID = 0;
-static int REF_COUNT = 0;
 
 static struct {
 	faxmodem_logger_t func;
@@ -94,33 +93,8 @@ void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info)
 	LOGGER.info = info;
 }
 
-int faxmodem_close(volatile struct faxmodem *fm) 
-{
-	int r = 0;
-
-	faxmodem_clear_flag(fm, FAXMODEM_FLAG_RUNNING);
-
-	if (fm->master > -1) {
-		close(fm->master);
-		fm->master = -1;
-		r++;
-	}
-
-	if (fm->slave > -1) {
-		close(fm->slave);
-		fm->slave = -1;
-		r++;
-	}
-
-	REF_COUNT--;
-	return r;
-}
-
 int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix)
 {
-	
-	memset(fm, 0, sizeof(*fm));
-
 	fm->master = -1;
 	fm->slave = -1;
 
@@ -141,7 +115,6 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 
     if (symlink(fm->stty, fm->devlink)) {
 		do_log(LOGGER.err, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
-		faxmodem_close(fm);
 		return -1;
     }
 
@@ -149,23 +122,19 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 
     if (fcntl(fm->master, F_SETFL, fcntl(fm->master, F_GETFL, 0) | O_NONBLOCK)) {
 		do_log(LOGGER.err, "Cannot set up non-blocking read on %s\n", ttyname(fm->master));
-		faxmodem_close(fm);
         return -1;
     }
 	
     if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler,
 		 fm, 0, 0) < 0) {
 		do_log(LOGGER.err, "Cannot initialize the T.31 modem\n");
-		faxmodem_close(fm);
         return -1;
 
     }
 
 	fm->control_handler = control_handler;
-	faxmodem_set_flag(fm, FAXMODEM_FLAG_RUNNING);
 	fm->state = FAXMODEM_STATE_INIT;
 	
 	do_log(LOGGER.info, "Fax Modem [%s] Ready\n", fm->devlink);
-	REF_COUNT++;
 	return 0;
 }

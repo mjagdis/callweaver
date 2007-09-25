@@ -70,7 +70,6 @@ typedef int (*faxmodem_logger_t)(int, const char *, int, const char *, const cha
 
 
 typedef enum {
-	FAXMODEM_FLAG_RUNNING = ( 1 << 0),
 	FAXMODEM_FLAG_ATDT = ( 1 << 1)
 } faxmodem_flags;
 
@@ -87,12 +86,12 @@ struct faxmodem {
 	faxmodem_control_handler_t control_handler;
 	void *user_data;
 	int psock;
+	pthread_t thread;
 };
 
 char *faxmodem_state2name(int state);
 void faxmodem_clear_logger(void);
 void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
-int faxmodem_close(volatile struct faxmodem *fm);
 int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix);
 
 

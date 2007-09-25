@@ -50,16 +50,13 @@ static const char tdesc[] = "Fax Modem Interface";
 #define SAMPLES 160
 #define MS 20
 
-static volatile int THREADCOUNT = 0;
-OPBX_MUTEX_DEFINE_STATIC(threadcount_lock);
-
 static int TRAP_SEG = 0;
 
 #define MAX_FAXMODEMS 512
 #define TIMEOUT 30000
 
 #define VBPREFIX "CHAN FAX: "
-static volatile struct faxmodem FAXMODEM_POOL[MAX_FAXMODEMS] = {};
+static struct faxmodem FAXMODEM_POOL[MAX_FAXMODEMS] = {};
 static int SOFT_TIMEOUT = TIMEOUT;
 static int SOFT_MAX_FAXMODEMS = MAX_FAXMODEMS;
 static int READY = 0;
@@ -105,7 +102,7 @@ struct private_object {
 	short fdata[(SAMPLES * 2) + OPBX_FRIENDLY_OFFSET];
 	int flen;
 	struct opbx_channel *owner;					/* Pointer to my owner (the abstract channel object) */
-       volatile struct faxmodem *fm;
+       struct faxmodem *fm;
 	int pipe[2];
 #ifdef DO_TRACE
 	int debug[2];
@@ -161,7 +158,7 @@ static int tech_write_video(struct opbx_channel *self, struct opbx_frame *frame)
 /* Helper Function Prototypes */
 static void tech_destroy(struct private_object *tech_pvt);
 static int waitfor_socket(int fd, int timeout) ;
-static volatile struct faxmodem *acquire_modem(int index);
+static struct faxmodem *acquire_modem(int index);
 static void tech_destroy(struct private_object *tech_pvt) ;
 static struct opbx_channel *channel_new(const char *type, int format, void *data, int *cause);
 static void channel_destroy(struct opbx_channel *chan);
@@ -224,20 +221,6 @@ static const struct opbx_channel_tech technology = {
 
 /***************** Helper functions ****************/
 
-static void inline threadcount_inc(void)
-{
-    opbx_mutex_lock(&threadcount_lock);
-    THREADCOUNT++;
-    opbx_mutex_unlock(&threadcount_lock);
-}
-
-static void inline threadcount_dec(void)
-{
-    opbx_mutex_lock(&threadcount_lock);
-    THREADCOUNT--;
-    opbx_mutex_unlock(&threadcount_lock);
-}
-
 static void set_context(char *context)
 {
 	if (CONTEXT) {
@@ -282,9 +265,9 @@ static int waitfor_socket(int fd, int timeout)
 }
 
 
-static volatile struct faxmodem *acquire_modem(int index)
+static struct faxmodem *acquire_modem(int index)
 {
-        volatile struct faxmodem *fm = NULL;
+        struct faxmodem *fm = NULL;
 
 	opbx_mutex_lock(&control_lock);
 	if (index) {
@@ -439,7 +422,7 @@ static struct opbx_channel *tech_requester(const char *type, int format, void *d
 		char *mydata = opbx_strdupa(data);
 		int index = 0;
 		struct private_object *tech_pvt;
-		volatile struct faxmodem *fm;
+		struct faxmodem *fm;
 		char *num = NULL, *did = NULL;
 
 		num = mydata;
@@ -595,7 +578,7 @@ static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize)
 static void *faxmodem_media_thread(void *obj)
 {
 	struct private_object *tech_pvt = obj;
-	volatile struct faxmodem *fm = tech_pvt->fm;
+	struct faxmodem *fm = tech_pvt->fm;
 	struct timeval last = {0,0}, lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
@@ -610,13 +593,10 @@ static void *faxmodem_media_thread(void *obj)
 	pfds[0].fd = tech_pvt->pipe[1];
 	pfds[0].events = POLLIN | POLLERR;
 	
-
-	threadcount_inc();
-	if (VBLEVEL > 1) {
+	if (VBLEVEL > 1)
 		opbx_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
-	}
-	gettimeofday(&last, NULL);
 
+	gettimeofday(&last, NULL);
 
 	if (fm->state == FAXMODEM_STATE_RINGING) {
 		time(&noww);
@@ -653,10 +633,8 @@ static void *faxmodem_media_thread(void *obj)
 	} else if (tech_pvt->fm->state == FAXMODEM_STATE_CONNECTED) {
 		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, 
 			       AT_CALL_EVENT_CONNECTED);
-	} else {
-	        threadcount_dec();
+	} else
 		return NULL;
-	}
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
@@ -734,13 +712,12 @@ static void *faxmodem_media_thread(void *obj)
 		usleep(100);
 		sched_yield();
 	}
-	if (VBLEVEL > 1) {
+
+	if (VBLEVEL > 1)
 		opbx_verbose(VBPREFIX  "MEDIA THREAD OFF %s\n", fm->devlink);
-	}
-	threadcount_dec();
+
 	return NULL;
 }
-
 
 /*--- tech_answer: answer a call on my channel
  * if being 'answered' means anything special to your channel
@@ -1067,57 +1044,75 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 }
 
 
+static void faxmodem_thread_cleanup(void *obj)
+{
+	struct faxmodem *fm = obj;
+
+	if (fm->master > -1) {
+		close(fm->master);
+		fm->master = -1;
+	}
+
+	if (fm->slave > -1) {
+		close(fm->slave);
+		fm->slave = -1;
+	}
+
+	if (fm->devlink[0])
+		unlink(fm->devlink);
+
+	if (VBLEVEL > 1)
+		opbx_verbose(VBPREFIX  "Thread ended for %s\n", fm->devlink);
+}
+
 static void *faxmodem_thread(void *obj)
 {
 	struct faxmodem *fm = obj;
 	int res;
 	char buf[1024], tmp[80];
 
-	opbx_mutex_lock(&control_lock);
-	faxmodem_init(fm, control_handler, DEVICE_PREFIX);
-	opbx_mutex_unlock(&control_lock);
+	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
-	threadcount_inc();
+	if (!faxmodem_init(fm, control_handler, DEVICE_PREFIX)) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-
-	while (faxmodem_test_flag(fm, FAXMODEM_FLAG_RUNNING)) {
-	        res = waitfor_socket(fm->master, 1000);
-		if (res == 0) {
-		    /* Timeout occured, so we try again */
-		    continue;
-		} else if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Bad Read on master [%s]\n", fm->devlink);
-			break;
-		} else if (!faxmodem_test_flag(fm, FAXMODEM_FLAG_RUNNING))
-		    break;
-
-		opbx_set_flag(fm, TFLAG_EVENT);
-		res = read(fm->master, buf, sizeof(buf));
-		t31_at_rx(&fm->t31_state, buf, res);
-		memset(tmp, 0, sizeof(tmp));
-
-		/* Copy the AT command for debugging */
-		if(strstr(buf, "AT") || strstr(buf, "at")) {
-			int x;
-			int l = res < (sizeof(tmp)-1) ? res : sizeof(tmp)-1;
-			strncpy(tmp, buf, l);
-			for(x = 0; x < l; x++) {
-				if(tmp[x] == '\r' || tmp[x] == '\n') {
-					tmp[x] = '\0';
-				}
+		for (;;) {
+	        	res = waitfor_socket(fm->master, 1000);
+			if (res == 0) {
+				/* Timeout occured, so we try again */
+				continue;
+			} else if (res < 0) {
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				opbx_log(OPBX_LOG_WARNING, "Bad Read on master [%s]\n", fm->devlink);
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				break;
 			}
-			if (!opbx_strlen_zero(tmp) && VBLEVEL > 0) {
-				opbx_verbose(VBPREFIX  "Command on %s [%s]\n", fm->devlink, tmp);
+			pthread_testcancel();
+
+			opbx_set_flag(fm, TFLAG_EVENT);
+			res = read(fm->master, buf, sizeof(buf));
+			t31_at_rx(&fm->t31_state, buf, res);
+			memset(tmp, 0, sizeof(tmp));
+
+			/* Copy the AT command for debugging */
+			if (strstr(buf, "AT") || strstr(buf, "at")) {
+				int x;
+				int l = res < (sizeof(tmp)-1) ? res : sizeof(tmp)-1;
+				strncpy(tmp, buf, l);
+				for (x = 0; x < l; x++) {
+					if (tmp[x] == '\r' || tmp[x] == '\n')
+						tmp[x] = '\0';
+				}
+				if (!opbx_strlen_zero(tmp) && VBLEVEL > 0) {
+					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+					opbx_verbose(VBPREFIX  "Command on %s [%s]\n", fm->devlink, tmp);
+					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				}
 			}
 		}
 	}
 
-	if (VBLEVEL > 1) {
-		opbx_verbose(VBPREFIX  "Thread ended for %s\n", fm->devlink);
-	}
-	threadcount_dec();
-	faxmodem_close(fm);
-
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
@@ -1130,10 +1125,10 @@ static void activate_fax_modems(void)
 	opbx_mutex_lock(&control_lock);
 	memset((void*)FAXMODEM_POOL, 0, MAX_FAXMODEMS);
 	for(x = 0; x < max; x++) {
-		if (VBLEVEL > 1) {
+		if (VBLEVEL > 1)
 			opbx_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
-		}
-		opbx_pthread_create(&tid, &global_attr_rr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
+		FAXMODEM_POOL[x].thread = OPBX_PTHREADT_NULL;
+		opbx_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_rr, faxmodem_thread, &FAXMODEM_POOL[x]);
 	}
 	opbx_mutex_unlock(&control_lock);
 }
@@ -1145,17 +1140,23 @@ static void deactivate_fax_modems(void)
 	int x;
 	
 	opbx_mutex_lock(&control_lock);
+
 	for(x = 0; x < max; x++) {
-		if (VBLEVEL > 1) {
-			opbx_verbose(VBPREFIX  "Stopping Fax Modem SLOT %d\n", x);
+		if (!pthread_equal(FAXMODEM_POOL[x].thread, OPBX_PTHREADT_NULL)) {
+			if (VBLEVEL > 1)
+				opbx_verbose(VBPREFIX  "Stopping Fax Modem SLOT %d\n", x);
+			pthread_cancel(FAXMODEM_POOL[x].thread);
 		}
-		faxmodem_close(&FAXMODEM_POOL[x]);
-		unlink((char*)FAXMODEM_POOL[x].devlink);
 	}
+
 	/* Wait for Threads to die */
-	while (THREADCOUNT) {
-		usleep(1000);
-		sched_yield();
+	for(x = 0; x < max; x++) {
+		if (!pthread_equal(FAXMODEM_POOL[x].thread, OPBX_PTHREADT_NULL)) {
+			if (VBLEVEL > 2)
+				opbx_verbose(VBPREFIX  "Stopped Fax Modem SLOT %d\n", x);
+			pthread_join(FAXMODEM_POOL[x].thread, NULL);
+			FAXMODEM_POOL[x].thread = OPBX_PTHREADT_NULL;
+		}
 	}
 
 	opbx_mutex_unlock(&control_lock);
