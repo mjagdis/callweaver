@@ -39,7 +39,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * unavoidable mutex (un)locking around the (unused) condition will cost
  * some performance.
  */
-#undef _POSIX_MONOTONIC_CLOCK
 static void *opbx_generator_thread(void *data)
 {
 	struct opbx_channel *chan = data;
