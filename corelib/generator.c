@@ -32,15 +32,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 
 
-struct opbx_generator_instance {
-	struct opbx_channel *chan;
-	struct opbx_generator *class;
-	void *pvt;
-	int gen_samp;
-	struct timespec interval;
-};
-
-
 /* Note: clock_nanosleep is an Advanced Realtime POSIX function.
  * With GNU libc it is present if you build with __USE_XOPEN2K. Other platforms
  * will need other tests. If clock_nanosleep is not present we fall back on
@@ -51,7 +42,7 @@ struct opbx_generator_instance {
 #undef _POSIX_MONOTONIC_CLOCK
 static void *opbx_generator_thread(void *data)
 {
-	struct opbx_generator_instance *inst = data;
+	struct opbx_channel *chan = data;
 	struct timespec tick;
 #if !defined(_POSIX_TIMERS)
 	struct timeval tv;
@@ -65,7 +56,9 @@ static void *opbx_generator_thread(void *data)
 	opbx_mutex_t mutex;
 
 	opbx_cond_init(&cond, NULL);
+	pthread_cleanup_push(opbx_cond_destroy, &cond);
 	opbx_mutex_init(&mutex);
+	pthread_cleanup_push(opbx_mutex_destroy, &mutex);
 	opbx_mutex_lock(&mutex);
 #endif
 
@@ -80,13 +73,13 @@ static void *opbx_generator_thread(void *data)
 	}
 #endif
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", inst->chan->name);
+	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", chan->name);
 
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		tick.tv_sec += inst->interval.tv_sec;
-		tick.tv_nsec += inst->interval.tv_nsec;
+		tick.tv_sec += chan->generator.interval.tv_sec;
+		tick.tv_nsec += chan->generator.interval.tv_nsec;
 		if (tick.tv_nsec >= 1000000000L) {
 			tick.tv_nsec -= 1000000000L;
 			tick.tv_sec++;
@@ -100,19 +93,15 @@ static void *opbx_generator_thread(void *data)
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-		if (inst->class->generate(inst->chan, inst->pvt, inst->gen_samp)) {
-			opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", inst->chan->name);
+		if (chan->generator.class->generate(chan, chan->generator.pvt, chan->generator.gen_samp)) {
+			opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", chan->name);
 			break;
 		}
 	}
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread shut down\n", inst->chan->name);
-	inst->class->release(inst->chan, inst->pvt);
-	opbx_object_put(inst->class);
-	free(inst);
 #if !defined(__USE_XOPEN2K)
-	opbx_mutex_destroy(&mutex);
-	opbx_cond_destroy(&cond);
+	pthread_cleanup_pop(1);
+	pthread_cleanup_pop(1);
 #endif
 	return NULL;
 }
@@ -120,56 +109,50 @@ static void *opbx_generator_thread(void *data)
 
 void opbx_generator_deactivate(struct opbx_channel *chan)
 {
-	if (!pthread_equal(chan->pgenerator_thread, OPBX_PTHREADT_NULL)) {
+	opbx_mutex_lock(&chan->lock);
+
+	if (!pthread_equal(chan->generator.tid, OPBX_PTHREADT_NULL)) {
 		opbx_log(OPBX_LOG_DEBUG, "%s: Trying to deactivate generator\n", chan->name);
 
-		opbx_mutex_lock(&chan->lock);
-		pthread_cancel(chan->pgenerator_thread);
-		pthread_join(chan->pgenerator_thread, NULL);
-		chan->pgenerator_thread = OPBX_PTHREADT_NULL;
-		opbx_mutex_unlock(&chan->lock);
-
+		pthread_cancel(chan->generator.tid);
+		pthread_join(chan->generator.tid, NULL);
+		chan->generator.tid = OPBX_PTHREADT_NULL;
+		chan->generator.class->release(chan, chan->generator.pvt);
+		opbx_object_put(chan->generator.class);
 		opbx_log(OPBX_LOG_DEBUG, "%s: Generator stopped\n", chan->name);
 	}
+
+	opbx_mutex_unlock(&chan->lock);
 }
 
 
 int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *class, void *params)
 {
-	struct opbx_generator_instance *inst;
-
 	opbx_mutex_lock(&chan->lock);
 
 	opbx_generator_deactivate(chan);
 
-	if ((inst = malloc(sizeof( *inst)))) {
-		if ((inst->pvt = class->alloc(chan, params))) {
-			inst->chan = chan;
-			inst->class = opbx_object_get(class);
-			inst->gen_samp = (chan->gen_samples ? chan->gen_samples : 160);
+	if ((chan->generator.pvt = class->alloc(chan, params))) {
+		chan->generator.class = opbx_object_get(class);
+		chan->generator.gen_samp = (chan->gen_samples ? chan->gen_samples : 160);
 
-			inst->interval.tv_sec = 0;
-			inst->interval.tv_nsec = 1000 * ((1000000L * inst->gen_samp) /  chan->samples_per_second);
-			while (inst->interval.tv_nsec >= 1000000000L) {
-				inst->interval.tv_nsec -= 1000000000L;
-				inst->interval.tv_sec++;
-			}
-
-			if (opbx_pthread_create(&chan->pgenerator_thread, &global_attr_default, opbx_generator_thread, inst)) {
-				opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
-				opbx_mutex_unlock(&chan->lock);
-				class->release(chan, inst->pvt);
-				opbx_object_put(class);
-				free(inst);
-				return -1;
-			}
-			opbx_mutex_unlock(&chan->lock);
-			return 0;
+		chan->generator.interval.tv_sec = 0;
+		chan->generator.interval.tv_nsec = 1000 * ((1000000L * chan->generator.gen_samp) /  chan->samples_per_second);
+		while (chan->generator.interval.tv_nsec >= 1000000000L) {
+			chan->generator.interval.tv_nsec -= 1000000000L;
+			chan->generator.interval.tv_sec++;
 		}
-		/* It's down to the class allocator to log its problem */
-	} else
-		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+
+		if (opbx_pthread_create(&chan->generator.tid, &global_attr_default, opbx_generator_thread, chan)) {
+			opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
+			class->release(chan, chan->generator.pvt);
+			opbx_mutex_unlock(&chan->lock);
+			opbx_object_put(class);
+			return -1;
+		}
+	}
+	/* It's down to the class allocator to log its problem */
 
 	opbx_mutex_unlock(&chan->lock);
-	return -1;
+	return 0;
 }

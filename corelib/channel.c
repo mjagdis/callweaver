@@ -625,8 +625,8 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
     	/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
         }
-	/* Init channel generator data struct lock */
-	tmp->pgenerator_thread = OPBX_PTHREADT_NULL;
+	/* Init channel generator data struct */
+	tmp->generator.tid = OPBX_PTHREADT_NULL;
 
 	/* Always watch the alertpipe */
 	tmp->fds[OPBX_MAX_FDS-1] = tmp->alertpipe[0];

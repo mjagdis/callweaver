@@ -216,7 +216,7 @@ struct opbx_channel {
 	void *music_state;
 
 	/*! The generator thread feeding data to the channel */
-	pthread_t pgenerator_thread;
+	struct opbx_generator_instance generator;
 
 	/*! Comfort noise level to generate in dBov's */
 	int comfortnoiselevel;

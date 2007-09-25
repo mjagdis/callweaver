@@ -18,6 +18,9 @@
 #define _CALLWEAVER_GENERATOR_H
 
 
+#include <pthread.h>
+#include <time.h>
+
 #include "callweaver/object.h"
 
 
@@ -30,16 +33,23 @@ struct opbx_generator {
 	int is_initialized;
 };
 
+struct opbx_generator_instance {
+	pthread_t tid;
+	struct opbx_generator *class;
+	void *pvt;
+	int gen_samp;
+	struct timespec interval;
+};
 
 extern void opbx_generator_deactivate(struct opbx_channel *chan);
 extern int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *class, void *params);
 
-#define opbx_generator_is_active(chan) (!pthread_equal((chan)->pgenerator_thread, OPBX_PTHREADT_NULL))
+#define opbx_generator_is_active(chan) (!pthread_equal((chan)->generator.tid, OPBX_PTHREADT_NULL))
 
 #define opbx_generator_is_self(chan) ({ \
 	const typeof(chan) __chan = (chan); \
-	!pthread_equal(__chan->pgenerator_thread, OPBX_PTHREADT_NULL) \
-		? pthread_equal(__chan->pgenerator_thread, pthread_self()) \
+	!pthread_equal(__chan->generator.tid, OPBX_PTHREADT_NULL) \
+		? pthread_equal(__chan->generator.tid, pthread_self()) \
 		: 1; \
 })
 
