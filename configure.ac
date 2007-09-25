@@ -637,7 +637,7 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([netinet/in.h])
-AC_CHECK_HEADERS([arpa/inet.h])
+dnl AC_CHECK_HEADERS([arpa/inet.h])
 dnl This does not work currently .. some bug in cygwin autoconf
 dnl AC_CHECK_HEADERS([w32api/windows.h])
 dnl AC_CHECK_HEADERS([w32api/winsock2.h],[],[],
@@ -1891,12 +1891,12 @@ AC_ARG_WITH([chan_sip],
 
 AM_CONDITIONAL([WANT_CHAN_SIP],[test "${with_chan_sip}" = "yes"])
 
-AC_ARG_ENABLE([t38],
-	[AC_HELP_STRING([--enable-t38],[Enable T.38 support (default=yes)])],,[enable_t38="yes"])
-
-if test "x${enable_t38}" != "xno"; then
-	AC_DEFINE([T38_SUPPORT],[1],[chan_sip T.38 support])
-fi
+#AC_ARG_ENABLE([t38],
+#	[AC_HELP_STRING([--enable-t38],[Enable T.38 support (default=yes)])],,[enable_t38="yes"])
+#
+#if test "x${enable_t38}" != "xno"; then
+#	AC_DEFINE([T38_SUPPORT],[1],[chan_sip T.38 support])
+#fi
 
 dnl ###########################################################################
 
