@@ -169,10 +169,12 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
     evp.sigev_notify_function = hdlr;
     evp.sigev_notify_attributes = 0;
 
+#if defined(_POSIX_MONOTONIC_CLOCK)
     /* We REALLY prefer monotonic, but you can't have it all! */
     if (timer_create(CLOCK_MONOTONIC, &evp, &t->timer_id) == -1) {
 	opbx_log(OPBX_LOG_DEBUG, "CLOCK_MONOTONIC didn't work, trying "
 		"CLOCK_REALTIME\n");
+#endif
 	if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 #if defined(HAVE_STRERROR_R)
             char buf[128];
@@ -193,7 +195,25 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #endif
 	    return -1;
 	}
+#if defined(_POSIX_MONOTONIC_CLOCK)
+
+#if defined(HAVE_STRERROR_R)
+            char buf[128];
+#if defined(STRERROR_R_CHAR_P)
+	    opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+			 "%s\n", strerror_r(errno, buf, 128));
+#else
+	    if(strerror_r(errno, buf, 128) == 0) {
+	    	opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", buf);
+	    } else {
+		opbx_log(LOG_ERROR, "Error starting timer\n");
+	    }
+#endif
+#endif
+
     }
+#endif /* _POSIX_MONOTONIC_CLOCK */
 #endif /* HAVE_POSIX_TIMERS */
 
 #ifdef USE_GENERIC_TIMERS
@@ -272,13 +292,14 @@ int opbx_timer_start(opbx_timer_t *t)
     long nano, sec;
     
     if (!t->timer_id) {
+	opbx_log(OPBX_LOG_ERROR, "Attempted to start nonexistent posix timer!\n");
 #endif /* HAVE_POSIX_TIMERS */
 
 #ifdef USE_GENERIC_TIMERS
     /* Create joinable thread */
     if(!t->opbx_timer_thread) {
+	opbx_log(OPBX_LOG_ERROR, "Attempted to start nonexistent monotonic timer!\n");
 #endif /* USE_GENERIC_TIMERS */
-	opbx_log(OPBX_LOG_ERROR, "Attempted to start nonexistent timer!\n");
 	return -1;
     }
 

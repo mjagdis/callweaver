@@ -203,6 +203,7 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 	char *zErr = 0;
 	int res = 0;
 	sqlite3 *db;
+	int retry=0;
 
 	sanity_check();
 	if (!(db = sqlite_open_db(globals.dbfile))) {
@@ -215,6 +216,8 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 	}
 
 	opbx_db_del(family, keys);
+
+retry_0:
 	if ((sql = sqlite3_mprintf("insert into %q values('%q','%q','%q')", globals.tablename, family, keys, value))) {
 		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
 

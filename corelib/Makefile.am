@@ -58,6 +58,10 @@ CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
 CORE_LIBS 	+= ${top_builddir}/corelib/resample/libcwresample.la
 CORE_LIBS	+= -lreadline
 
+if HAVE_SSL
+libcallweaver_la_LIBADD	+= -lssl
+endif HAVE SSL
+
 if WANT_SRTP
 CORE_LIBS	+= -lsrtp
 endif WANT_SRTP

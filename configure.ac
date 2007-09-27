@@ -1037,6 +1037,9 @@ if test "${enable_ssl}" = "yes"; then
    CHECK_SSL
 fi
 
+AM_CONDITIONAL([HAVE_SSL],[test "${enable_ssl}" = "yes"])
+
+
 dnl ##########################################################################
 
 AC_ARG_ENABLE([udpfromto],
