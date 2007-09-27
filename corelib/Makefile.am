@@ -59,7 +59,7 @@ CORE_LIBS 	+= ${top_builddir}/corelib/resample/libcwresample.la
 CORE_LIBS	+= -lreadline
 
 if HAVE_SSL
-libcallweaver_la_LIBADD	+= -lssl
+CORE_LIBS	+= -lssl
 endif HAVE_SSL
 
 if WANT_SRTP
