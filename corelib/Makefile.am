@@ -60,7 +60,7 @@ CORE_LIBS	+= -lreadline
 
 if HAVE_SSL
 libcallweaver_la_LIBADD	+= -lssl
-endif HAVE SSL
+endif HAVE_SSL
 
 if WANT_SRTP
 CORE_LIBS	+= -lsrtp
