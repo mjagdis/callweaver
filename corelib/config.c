@@ -622,11 +622,10 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 			continue;
 		}
 		count++;
-		if (option_debug) {
+		if (option_debug)
 			opbx_log(OPBX_LOG_DEBUG, "Parsing %s - Found\n", fn);
-			if (option_verbose > 3)
-				opbx_verbose( "Parsing %s - Found\n", fn);
-		}
+		if (option_verbose > 3)
+			opbx_verbose( "Parsing %s - Found\n", fn);
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
