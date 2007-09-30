@@ -225,9 +225,6 @@ static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 static char random_state[256];
 
-static volatile sig_atomic_t signal_hup = 0;
-static volatile sig_atomic_t signal_quit = 0;
-
 
 static const char *atexit_registry_obj_name(struct opbx_object *obj)
 {
