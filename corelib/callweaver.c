@@ -84,9 +84,14 @@
 #include <netdb.h>
 #endif
 
-#undef _POSIX_SOURCE
 #ifdef __linux__
+  /* Linux capability system calls are only prototyped if
+   * _POSIX_SOURCE is undefined.
+   */
+# define OLD_POSIX_SOURCE _POSIX_SOURCE
+# undef _POSIX_SOURCE
 # include <sys/capability.h>
+# define _POSIX_SOURCE OLD_POSIX_SOURCE
 #endif
 
 #include "callweaver.h"
