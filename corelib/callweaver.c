@@ -72,6 +72,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <semaphore.h>
 #ifdef __linux__
 # include <sys/prctl.h>
 #endif
@@ -143,14 +144,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define OPBX_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
-#ifndef RELEASE_TARBALL
-#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " SVN-" SVN_VERSION " http://www.callweaver.org - The True Open Source PBX\n"); \
-		opbx_verbose( "=========================================================================\n")
-#else
-#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " http://www.callweaver.org - The True Open Source PBX\n"); \
-               opbx_verbose( "=========================================================================\n")
-#endif
 
+char hostname[MAXHOSTNAMELEN];
+char shorthostname[MAXHOSTNAMELEN];
 
 int option_verbose=0;
 int option_debug=0;
@@ -228,6 +224,9 @@ static int restart = 0;
 static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 static char random_state[256];
+
+static volatile sig_atomic_t signal_hup = 0;
+static volatile sig_atomic_t signal_quit = 0;
 
 
 static const char *atexit_registry_obj_name(struct opbx_object *obj)
@@ -426,21 +425,21 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 
 static int fdprint(int fd, const char *s)
 {
-	return write(fd, s, strlen(s) + 1);
+	return write(fd, s, strlen(s));
 }
 
 /*! NULL handler so we can collect the child exit status */
 static void null_sig_handler(int signal)
 {
-
 }
 
 OPBX_MUTEX_DEFINE_STATIC(safe_system_lock);
 static unsigned int safe_system_level = 0;
-static void *safe_system_prev_handler;
+static struct sigaction safe_system_prev_handler;
 
 int opbx_safe_system(const char *s)
 {
+    struct sigaction sa;
     pid_t pid;
     int x;
     int res;
@@ -455,8 +454,12 @@ int opbx_safe_system(const char *s)
     level = safe_system_level++;
 
     /* only replace the handler if it has not already been done */
-    if (level == 0)
-        safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
+    if (level == 0) {
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_NOCLDSTOP;
+        sa.sa_handler = null_sig_handler;
+        sigaction(SIGCHLD, &sa, &safe_system_prev_handler);
+    }
 
     opbx_mutex_unlock(&safe_system_lock);
 
@@ -495,25 +498,13 @@ int opbx_safe_system(const char *s)
 
     /* only restore the handler if we are the last one */
     if (level == 0)
-        signal(SIGCHLD, safe_system_prev_handler);
+        sigaction(SIGCHLD, &safe_system_prev_handler, NULL);
 
     opbx_mutex_unlock(&safe_system_lock);
 
     return res;
 }
 
-/*!
- * write the string to all attached console clients
- */
-static void opbx_network_puts(const char *string)
-{
-    int x;
-    for (x=0;x<OPBX_MAX_CONNECTS; x++)
-    {
-        if (consoles[x].fd > -1)
-            fdprint(consoles[x].p[1], string);
-    }
-}
 
 /*!
  * write the string to the console, and all attached
@@ -521,45 +512,39 @@ static void opbx_network_puts(const char *string)
  */
 void opbx_console_puts(const char *string)
 {
-    fputs(string, stdout);
-    fflush(stdout);
-    opbx_network_puts(string);
+	int i;
+
+	for (i = 0; i < arraysize(consoles); i++) {
+		if (consoles[i].fd > -1)
+			fdprint(consoles[i].p[1], string);
+	}
 }
+
 
 static void network_verboser(const char *s, int pos, int replace, int complete)
 	/* ARGUSED */
 {
+	char *t;
+
 	if (replace) {
-		char *t = alloca(strlen(s) + 2);
+		t = alloca(strlen(s) + 2);
 		sprintf(t, "\r%s", s);
-		if (complete)
-			opbx_network_puts(t);
-	} else {
-		if (complete)
-			opbx_network_puts(s);
+		s = t;
 	}
+	if (complete)
+		opbx_console_puts(s);
 }
+
 
 static pthread_t lthread;
 
 static void *netconsole(void *vconsole)
 {
 	struct console *con = vconsole;
-	char hostname[MAXHOSTNAMELEN]="";
 	char tmp[512];
 	int res;
 	struct pollfd fds[2];
-	
-	if (gethostname(hostname, sizeof(hostname)-1))
-		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
 
-	#ifndef RELEASE_TARBALL	
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
-	#else
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
-	#endif
-
-	fdprint(con->fd, tmp);
 	for(;;) {
 		fds[0].fd = con->fd;
 		fds[0].events = POLLIN;
@@ -572,6 +557,7 @@ static void *netconsole(void *vconsole)
 		if (res < 0) {
 			if (errno != EINTR)
 				opbx_log(OPBX_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+			sleep(1);
 			continue;
 		}
 		if (fds[0].revents) {
@@ -604,11 +590,11 @@ static void *netconsole(void *vconsole)
 
 static void *listener(void *unused)
 {
+	char buf[80];
 	struct sockaddr_un sunaddr;
 	int n, s;
 	socklen_t len;
 	int x;
-	int flags;
 	struct pollfd fds[1];
 
 	for (;;) {
@@ -626,7 +612,6 @@ static void *listener(void *unused)
 		if (n > 0) {
 			len = sizeof(sunaddr);
 			s = accept(opbx_socket, (struct sockaddr *)&sunaddr, &len);
-			pthread_testcancel();
 		}
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -638,29 +623,33 @@ static void *listener(void *unused)
 			if (x != EINTR)
 				opbx_log(OPBX_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
 		} else {
-			for (x=0;x<OPBX_MAX_CONNECTS;x++) {
+			for (x = 0; x < arraysize(consoles); x++) {
 				if (consoles[x].fd < 0) {
 					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
 						opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
-						fdprint(s, "Server failed to create pipe\n");
 						close(s);
 						break;
 					}
-					flags = fcntl(consoles[x].p[1], F_GETFL);
-					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
+
+#ifndef RELEASE_TARBALL	
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
+#else
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
+#endif
+					write(s, buf, n);
+
 					consoles[x].fd = s;
+					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
 					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
 						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
-						fdprint(s, "Server failed to spawn thread\n");
 						close(s);
 					}
 					break;
 				}
 			}
-			if (x >= OPBX_MAX_CONNECTS) {
-				fdprint(s, "No more connections allowed\n");
+			if (x >= arraysize(consoles)) {
 				opbx_log(OPBX_LOG_WARNING, "No more connections allowed\n");
 				close(s);
 			} else if (consoles[x].fd > -1) {
@@ -680,7 +669,7 @@ static int opbx_makesocket(void)
 	uid_t uid = -1;
 	gid_t gid = -1;
 
-	for (x = 0; x < OPBX_MAX_CONNECTS; x++)	
+	for (x = 0; x < arraysize(consoles); x++)	
 		consoles[x].fd = -1;
 	unlink(opbx_config_OPBX_SOCKET);
 	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
@@ -768,47 +757,35 @@ static int opbx_tryconnect(void)
  */
 static void urg_handler(int num)
 {
-	signal(num, urg_handler);
-	return;
-}
-
-static void hup_handler(int num)
-{
-	if (option_verbose > 1) 
-		printf("Received HUP signal -- Reloading configs\n");
-	if (restart)
-		execvp(_argv[0], _argv);
-	/* XXX This could deadlock XXX */
-	opbx_module_reload(NULL);
-	signal(num, hup_handler);
 }
 
 static void child_handler(int sig)
 {
-	/* Must not ever opbx_log or opbx_verbose within signal handler */
-	int n, status;
+	int status;
 
-	/*
-	 * Reap all dead children -- not just one
-	 */
-	for (n = 0; wait3(&status, WNOHANG, NULL) > 0; n++)
-		;
-	if (n == 0 && option_debug)	
-		printf("Huh?  Child handler, but nobody there?\n");
-	signal(sig, child_handler);
+	/* Reap all dead children -- not just one */
+	while (wait3(&status, WNOHANG, NULL) > 0) /* Nothing */;
 }
 
 /*! Set an X-term or screen title */
 static void set_title(char *text)
 {
-	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
-		fprintf(stdout, "\033]2;%s\007", text);
+	char *p;
+
+	if ((p = getenv("TERM")) && strstr(p, "xterm")) {
+		fprintf(stderr, "\033]2;%s\007", text);
+		fflush(stderr);
+	}
 }
 
 static void set_icon(char *text)
 {
-	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
-		fprintf(stdout, "\033]1;%s\007", text);
+	char *p;
+
+	if ((p = getenv("TERM")) && strstr(p, "xterm")) {
+		fprintf(stderr, "\033]1;%s\007", text);
+		fflush(stderr);
+	}
 }
 
 /*! We set ourselves to a high priority, that we might pre-empt everything
@@ -853,7 +830,6 @@ int opbx_set_priority(int pri)
 
 static void quit_handler(void *data)
 {
-	char filename[80] = "";
 	int local_restart;
 	int i;
 
@@ -865,16 +841,9 @@ static void quit_handler(void *data)
 
 	opbx_cdr_engine_term();
 
-	if (option_console || option_remote) {
-		if (getenv("HOME")) 
-			snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
-		if (!opbx_strlen_zero(filename))
-			opbx_rl_write_history(filename);
-	}
-
 	opbx_run_atexits();
 
-	if (option_verbose && option_console)
+	if (option_verbose && (option_console || option_nofork))
 		opbx_verbose("CallWeaver %s ending.\n", opbx_active_channels() ? "uncleanly" : "cleanly");
 	if (option_debug)
 		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending.\n");
@@ -888,23 +857,21 @@ static void quit_handler(void *data)
 		unlink(opbx_config_OPBX_SOCKET);
 	}
 
-	if (opbx_consock > -1)
-		close(opbx_consock);
-	//if (opbx_socket > -1)
-	//	unlink((char *)opbx_config_OPBX_SOCKET);
+	if (option_verbose || option_console || option_nofork)
+		opbx_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
 
 	if (!option_remote)
 		unlink((char *)opbx_config_OPBX_PID);
 
-	if (option_verbose || option_console)
-		opbx_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
-
 	close_logger();
 
-	if (option_console) {
-		printf(opbx_term_quit());
-		if (rl_init)
-			rl_deprep_terminal();
+	if (!pthread_equal(consolethread, OPBX_PTHREADT_NULL)) {
+		pthread_t tid = consolethread;
+
+		option_reconnect = 0;
+		usleep(100000);
+		pthread_cancel(tid);
+		pthread_join(tid, NULL);
 	}
 
 	if (local_restart) {
@@ -913,6 +880,7 @@ static void quit_handler(void *data)
 			fcntl(i, F_SETFD, FD_CLOEXEC);
 
 		execvp(_argv[0], _argv);
+		perror("exec");
 		_exit(1);
 	}
 
@@ -960,15 +928,8 @@ static void *quit_when_idle(void *data)
 	/* Last chance... */
 	pthread_testcancel();
 
-	/* If there is a console thread it has to do any halt or restart because
-	 * it may have tty clean up to do.
-	 */
-	if (option_console && !pthread_equal(consolethread, OPBX_PTHREADT_NULL)) {
-		pthread_cancel(consolethread);
-	} else {
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-		quit_handler(NULL);
-	}
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	quit_handler(NULL);
 	return NULL;
 }
 
@@ -993,20 +954,20 @@ static void shutdown_restart(int fd, int doit, int nice)
 
 				if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
 					opbx_cli(fd, "Blocked new calls\n");
-				if (option_console)
+				if (!option_remote)
 					opbx_log(OPBX_LOG_NOTICE, "Blocked new calls\n");
 
 				if (nice < 1) {
 					if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
 						opbx_cli(fd, "Hanging up active calls\n");
-					if (option_console)
+					if (!option_remote)
 						opbx_log(OPBX_LOG_NOTICE, "Hanging up active calls\n");
 				}
 			}
 
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
 				opbx_cli(fd, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
-			if (option_console)
+			if (!option_remote)
 				opbx_log(OPBX_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 
 			last_nice = nice;
@@ -1016,7 +977,7 @@ static void shutdown_restart(int fd, int doit, int nice)
 			thread = OPBX_PTHREADT_NULL;
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
 				opbx_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
-			if (option_console)
+			if (!option_remote)
 				opbx_log(OPBX_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 		}
 	} else {
@@ -1032,107 +993,6 @@ static void shutdown_restart(int fd, int doit, int nice)
 	opbx_mutex_unlock(&lock);
 }
 
-
-static void __quit_handler(int sig)
-{
-	restart = 0;
-	shutdown_restart(-1, 1, 0);
-}
-
-static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
-{
-	const char *c;
-	if (!strncmp(s, cmp, strlen(cmp))) {
-		c = s + strlen(cmp);
-		opbx_term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
-		return c;
-	}
-	return NULL;
-}
-
-static void console_verboser(const char *s, int pos, int replace, int complete)
-{
-	char tmp[80];
-	const char *c=NULL;
-	/* Return to the beginning of the line */
-	if (!pos) {
-		fprintf(stdout, "\r");
-		if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_2)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1)))
-			fputs(tmp, stdout);
-	}
-	if (c)
-		fputs(c + pos,stdout);
-	else
-		fputs(s + pos,stdout);
-	fflush(stdout);
-	if (complete) {
-		/* Wake up a poll()ing console */
-		if (option_console && !pthread_equal(consolethread, OPBX_PTHREADT_NULL))
-			pthread_kill(consolethread, SIGURG);
-	}
-}
-
-static int opbx_all_zeros(char *s)
-{
-	while(*s) {
-		if (*s > 32)
-			return 0;
-		s++;  
-	}
-	return 1;
-}
-
-static void consolehandler(char *s)
-{
-	printf(opbx_term_end());
-	fflush(stdout);
-	/* Called when readline data is available */
-	if (s && !opbx_all_zeros(s))
-		opbx_rl_add_history(s);
-	/* Give the console access to the shell */
-	if (s) {
-		/* The real handler for bang */
-		if (s[0] == '!') {
-			if (s[1])
-				opbx_safe_system(s+1);
-			else
-				opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
-		} else 
-		    opbx_cli_command(STDOUT_FILENO, s);
-	} else
-		fprintf(stdout, "\nUse \"quit\" to exit\n");
-}
-
-static int remoteconsolehandler(char *s)
-{
-	int ret = 0;
-	/* Called when readline data is available */
-	if (s && !opbx_all_zeros(s))
-	    opbx_rl_add_history(s);
-	/* Give the console access to the shell */
-	if (s) {
-		/* The real handler for bang */
-		if (s[0] == '!') {
-			if (s[1])
-				opbx_safe_system(s+1);
-			else
-				opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
-			ret = 1;
-		}
-		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
-		    (s[4] == '\0' || isspace(s[4]))) {
-			restart = 9;
-			quit_handler(NULL);
-			ret = 1;
-		}
-	} else
-		fprintf(stdout, "\nUse \"quit\" to exit\n");
-
-	return ret;
-}
 
 static char shutdown_restart_status_help[] =
 "Usage: stop|restart status\n"
@@ -1347,123 +1207,6 @@ static struct opbx_clicmd core_cli[] = {
 	},
 };
 
-static int opbx_rl_read_char(FILE *cp)
-{
-	int num_read=0;
-	int lastpos=0;
-	struct pollfd fds[2];
-	int res;
-	int max;
-	char buf[512];
-
-	for (;;) {
-		max = 1;
-		fds[0].fd = opbx_consock;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
-		if (!option_exec) {
-			fds[1].fd = STDIN_FILENO;
-			fds[1].events = POLLIN;
-			fds[1].revents = 0;
-			max++;
-		}
-		res = poll(fds, max, -1);
-		if (res < 0) {
-			if (errno == EINTR)
-				continue;
-			opbx_log(OPBX_LOG_ERROR, "poll failed: %s\n", strerror(errno));
-			break;
-		}
-
-		if (!option_exec && fds[1].revents) {
-			num_read = rl_getc(cp);
-			if (num_read < 1)
-			    break;
-			else 
-			    return (num_read);
-		}
-		if (fds[0].revents) {
-			res = read(opbx_consock, buf, sizeof(buf) - 1);
-			/* if the remote side disappears exit */
-			if (res < 1) {
-				fprintf(stderr, "\nDisconnected from CallWeaver server\n");
-				if (!option_reconnect) {
-					restart = 0;
-					quit_handler(NULL);
-				} else {
-					int tries;
-					int reconnects_per_second = 20;
-					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
-					for (tries = 0; tries < 30 * reconnects_per_second;tries++) {
-						if (opbx_tryconnect()) {
-							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
-							printf(opbx_term_quit());
-							WELCOME_MESSAGE;
-							break;
-						} else {
-							usleep(1000000 / reconnects_per_second);
-						}
-					}
-					if (tries >= 30 * reconnects_per_second) {
-						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
-						restart = 0;
-						quit_handler(NULL);
-					}
-				}
-			}
-
-			buf[res] = '\0';
-
-			if (!option_exec && !lastpos)
-				write(STDOUT_FILENO, "\r", 1);
-			write(STDOUT_FILENO, buf, res);
-			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
-				rl_forced_update_display();
-				return (0);
-			} else {
-				lastpos = 1;
-			}
-		}
-	}
-	rl_forced_update_display();
-	return (0);
-}
-
-#ifdef __Darwin__
-static int opbx_rl_out_event(void)
-{
-	int lastpos=0;
-	struct pollfd fds[2];
-	int res;
-	char buf[512];
-
-	fds[0].fd = opbx_consock;
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-
-        res = poll(fds, 1, 25);
-
-
-	if (fds[0].revents)
-	while ( (res = read(opbx_consock, buf, sizeof(buf) - 1) ) ) {
-	    if ( res > 0 ) {
-		buf[res] = '\0';
-
-		if (!option_exec && !lastpos)
-		    write(STDOUT_FILENO, "\r", 1);
-		write(STDOUT_FILENO, buf, res);
-		if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
-	    	    rl_forced_update_display();
-		    return (0);
-	        } else {
-		    lastpos = 1;
-		}
-	    }
-	    rl_forced_update_display();
-	}
-	return (0);
-}
-#endif
 
 static char *cli_prompt(void)
 {
@@ -1477,7 +1220,6 @@ static char *cli_prompt(void)
 		memset(prompt, 0, sizeof(prompt));
 		while (*t != '\0' && *p < sizeof(prompt)) {
 			if (*t == '%') {
-				char hostname[MAXHOSTNAMELEN]="";
 				int i;
 				struct timeval tv;
 				struct tm tm;
@@ -1513,24 +1255,10 @@ static char *cli_prompt(void)
 						}
 						break;
 					case 'h': /* hostname */
-						if (!gethostname(hostname, sizeof(hostname) - 1)) {
-							strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-						} else {
-							strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
-						}
+						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
 						break;
 					case 'H': /* short hostname */
-						if (!gethostname(hostname, sizeof(hostname) - 1)) {
-							for (i=0;i<sizeof(hostname);i++) {
-								if (hostname[i] == '.') {
-									hostname[i] = '\0';
-									break;
-								}
-							}
-							strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-						} else {
-							strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
-						}
+						strncat(p, shorthostname, sizeof(prompt) - strlen(prompt) - 1);
 						break;
 #ifdef linux
 					case 'l': /* load avg */
@@ -1723,7 +1451,6 @@ static int opbx_rl_initialize(void)
     rl_completion_entry_function = (rl_compentry_func_t *) dummy_completer;
     rl_attempted_completion_function = (CPPFunction *) cli_completion;
 #endif
-    rl_prep_terminal (0);
 
     /* setup history with 100 entries */
     stifle_history(100);
@@ -1766,97 +1493,261 @@ static int opbx_rl_read_history(char *filename)
     return read_history(filename);
 }
 
-static void opbx_remotecontrol(char * data)
+
+static void welcome_message(void)
 {
-	char buf[80];
-	int res;
-	char filename[80] = "";
-	char *hostname;
-	char *cpid;
-	char *version;
-	int pid;
-	char tmp[80];
-	char *stringp = NULL;
+#ifndef RELEASE_TARBALL
+	static const char msg[] = PACKAGE_STRING " SVN-" SVN_VERSION " http://www.callweaver.org - The True Open Source PBX\n";
+#else
+	static const char msg[] = PACKAGE_STRING " http://www.callweaver.org - The True Open Source PBX\n";
+#endif
+	const char *p;
 
-	char *ebuf = NULL;
+	fputs(msg, stdout);
+	for (p = msg; *p != '\n'; p++)
+		putc('=', stdout);
+	putc('\n', stdout);
+}
 
-	read(opbx_consock, buf, sizeof(buf));
-	if (data)
-		write(opbx_consock, data, strlen(data) + 1);
-	stringp=buf;
-	hostname = strsep(&stringp, "/");
-	cpid = strsep(&stringp, "/");
-	version = strsep(&stringp, "\n");
-	if (!version)
-		version = "<Version Unknown>";
-	stringp=hostname;
-	strsep(&stringp, ".");
-	if (cpid)
-		pid = atoi(cpid);
-	else
-		pid = -1;
-	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
-	fdprint(opbx_consock, tmp);
-	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
-	fdprint(opbx_consock, tmp);
-	opbx_verbose("Connected to CallWeaver %s currently running on %s (pid = %d)\n", version, hostname, pid);
-	remotehostname = hostname;
-	if (getenv("HOME")) 
+
+static void console_cleanup(void *data)
+{
+	char filename[80];
+	char *p;
+
+	rl_callback_handler_remove();
+	fputs("\r\n", stdout);
+	fputs(opbx_term_quit(), stdout);
+	fflush(stdout);
+	set_title("");
+
+	if ((p = getenv("HOME"))) {
 		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
-
-	if(!rl_init)	
-	    opbx_rl_initialize();
-
-	if (!opbx_strlen_zero(filename))
-		opbx_rl_read_history(filename);
-
-	FILE tempchar;
-	struct pollfd fds[0];
-	fds[0].fd = opbx_consock;
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-
-	if (option_exec && data) {  /* hack to print output then exit if callweaver -rx is used */
-		while(poll(fds, 1, 100) > 0) {
-			opbx_rl_read_char(&tempchar);
-		}
-		return;
+		opbx_rl_write_history(filename);
 	}
 
-#ifdef __Darwin__
-	rl_event_hook = opbx_rl_out_event;
-#else
-    	rl_getc_function = opbx_rl_read_char;	
-#endif
-	for(;;) {
-		if (ebuf) {
-		    free (ebuf);
-		    ebuf = (char *)NULL;
-		}
+	consolethread = OPBX_PTHREADT_NULL;
+}
 
 
-		ebuf = readline(cli_prompt());
+static void console_handler(char *s)
+{
+	if (s) {
+		while (isspace(*s)) s++;
 
-		if (!opbx_strlen_zero(ebuf)) {
-			if (ebuf[strlen(ebuf)-1] == '\n')
-				ebuf[strlen(ebuf)-1] = '\0';
-			if (!remoteconsolehandler(ebuf)) {
-				res = write(opbx_consock, ebuf, strlen(ebuf) + 1);
-				if (res < 1) {
+		if (*s) {
+			opbx_rl_add_history(s);
+
+			if (s[0] == '!') {
+				if (s[1])
+					opbx_safe_system(s+1);
+				else
+					opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+			} else if (option_remote && (!strcasecmp(s, "quit") || !strcasecmp(s, "exit"))) {
+				console_cleanup(NULL);
+				exit(0);
+			} else {
+				if (write(opbx_consock, s, strlen(s) + 1) < 1) {
 					opbx_log(OPBX_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
-					break;
+					pthread_detach(pthread_self());
+					pthread_cancel(pthread_self());
 				}
 			}
-		} 
-
+		}
+	} else if (option_remote) {
+		console_cleanup(NULL);
+		exit(0);
+	} else {
+		shutdown(opbx_consock, SHUT_WR);
+		putc('\n', stdout);
 	}
-
-	if(ebuf) {
-	    free(ebuf);
-	    ebuf = (char *)NULL;
-	}
-	printf("\nDisconnected from CallWeaver server\n");	
 }
+
+
+static void *console(void *data)
+{
+	char buf[1024];
+	char banner[80];
+	sigset_t sigs;
+	char *clr_eol = rl_get_termcap("ce");
+	char *stringp;
+	char *version;
+	char *p;
+	int update_delay;
+	int res;
+	int pid;
+
+	set_icon("Callweaver");
+
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGWINCH);
+	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+
+	pthread_cleanup_push(console_cleanup, NULL);
+
+	if (!rl_init)
+		opbx_rl_initialize();
+
+	do {
+		welcome_message();
+
+		/* Read the welcome line that contains hostname, version and pid */
+		read(opbx_consock, banner, sizeof(banner));
+
+		/* Make sure verbose and debug settings are what we want or higher */
+		res = snprintf(buf, sizeof(buf), "set verbose atleast %d", option_verbose);
+		write(opbx_consock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
+		res = snprintf(buf, sizeof(buf), "set debug atleast %d", option_debug);
+		write(opbx_consock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
+
+		stringp = banner;
+		remotehostname = strsep(&stringp, "/");
+		p = strsep(&stringp, "/");
+		version = strsep(&stringp, "\n");
+		if (!version)
+			version = "<Version Unknown>";
+		stringp = remotehostname;
+		strsep(&stringp, ".");
+		pid = (p ? atoi(p) : -1);
+
+		snprintf(buf, sizeof(buf), "%s on %s (pid %d)", version, remotehostname, pid);
+		set_title(buf);
+		fprintf(stdout, "Connected to %s currently running on %s (pid = %d)\n", version, remotehostname, pid);
+
+		if ((p = getenv("HOME"))) {
+			snprintf(buf, sizeof(buf), "%s/.callweaver_history", p);
+			opbx_rl_read_history(buf);
+		}
+
+		update_delay = -1;
+
+		if (option_console || option_remote)
+			rl_callback_handler_install(cli_prompt(), console_handler);
+
+		/* If the parent thread was waiting for the console to come
+		 * on line tell it to continue
+		 */
+		if (data) {
+			sem_post((sem_t *)data);
+			data = NULL;
+		}
+
+		for (;;) {
+			struct pollfd pfd[2];
+			int ret;
+
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_testcancel();
+
+			pfd[0].fd = opbx_consock;
+			pfd[1].fd = fileno(stdin);
+			pfd[0].events = pfd[1].events = POLLIN;
+			pfd[0].revents = pfd[1].revents = 0;
+
+			ret = poll(pfd, (option_console || option_remote ? 2 : 1), update_delay);
+
+			pthread_testcancel();
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+			if (ret == 0) {
+				if (update_delay >= 0) {
+					rl_forced_update_display();
+					update_delay = -1;
+				}
+			} else if (ret >= 0) {
+				if (pfd[0].revents) {
+					if ((ret = read(opbx_consock, buf, sizeof(buf) - 1)) > 0) {
+						if (update_delay < 0 && (option_console || option_remote)) {
+							if (clr_eol) {
+								fputc('\r', stdout);
+								fputs(clr_eol, stdout);
+							} else
+								fputs("\r\n", stdout);
+						}
+
+						fwrite(buf, sizeof(buf[0]), ret, stdout);
+
+						/* If we have clear to end of line we can redisplay the input line
+						 * every time the output ends in a new line. Otherwise we want to
+						 * wait and see if there's more output coming because we don't
+						 * have any way of backing up and replacing the current line.
+						 * Of course, if we don't are about input there's no problem...
+						 */
+						if (option_console || option_remote) {
+							if (clr_eol && buf[ret - 1] == '\n') {
+								rl_forced_update_display();
+								update_delay = -1;
+							} else
+								update_delay = 100;
+						}
+						fflush(stdout);
+					} else
+						break;
+				}
+
+				if (pfd[1].revents) {
+					if (update_delay >= 0) {
+						rl_forced_update_display();
+						update_delay = -1;
+					}
+					rl_callback_read_char();
+				}
+			} else if (errno != EINTR) {
+				perror("poll");
+				break;
+			}
+		}
+
+		rl_callback_handler_remove();
+		fputs(opbx_term_quit(), stdout);
+		fflush(stdout);
+		fprintf(stderr, "\nDisconnected from CallWeaver server\n");
+		set_title("");
+		close(opbx_consock);
+		opbx_consock = -1;
+
+		if (option_reconnect) {
+			const int reconnects_per_second = 20;
+			int tries;
+
+			fputs("Attempting to reconnect for 30 seconds...\n", stderr);
+			for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
+				if (opbx_tryconnect()) {
+					fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
+					break;
+				} else {
+					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+					pthread_testcancel();
+					usleep(1000000 / reconnects_per_second);
+					pthread_testcancel();
+					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				}
+			}
+			if (opbx_consock < 0)
+				fprintf(stderr, "Failed to reconnect for 30 seconds. Quitting.\n");
+		}
+	} while (opbx_consock >= 0);
+
+	pthread_cleanup_pop(1);
+	return NULL;
+}
+
+
+static void console_oneshot(char *cmd)
+{
+	char buf[1024];
+	int n;
+
+	/* Dump the connection banner. We don't need it here */
+	read(opbx_consock, buf, sizeof(buf));
+
+	write(opbx_consock, cmd, strlen(cmd) + 1);
+	shutdown(opbx_consock, SHUT_WR);
+
+	while ((n = read(opbx_consock, buf, sizeof(buf))) > 0)
+		write(STDOUT_FILENO, buf, n);
+}
+
 
 static int show_version(void)
 {
@@ -2066,24 +1957,18 @@ static void opbx_readconfig(void) {
 static void opbx_exit(int val)
 {
     printf(opbx_term_quit());
-    if(rl_init)
-	rl_deprep_terminal();
-	    
     exit(val);
 }
 
 int callweaver_main(int argc, char *argv[])
 {
 	int c;
-	char filename[80] = "";
-	char hostname[MAXHOSTNAMELEN]="";
-	char tmp[80];
+	struct sigaction sa;
 	char * xarg = NULL;
 	int x;
 	FILE *f;
 	sigset_t sigs;
 	int is_child_of_nonroot=0;
-	char *buf = NULL;
 	static char *runuser = NULL, *rungroup = NULL;  
 
 
@@ -2104,19 +1989,24 @@ int callweaver_main(int argc, char *argv[])
 		option_remote++;
 		option_nofork++;
 	}
-	if (gethostname(hostname, sizeof(hostname) - 1))
-		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
+
+	gethostname(hostname, sizeof(hostname) - 1);
+	hostname[sizeof(hostname) - 1] = '\0';
+	for (x = 0; hostname[x] && hostname[x] != '.'; x++)
+		shorthostname[x] = hostname[x];
+	shorthostname[x] = '\0';
+
 	opbx_mainpid = getpid();
 	opbx_ulaw_init();
 	opbx_alaw_init();
 	opbx_utils_init();
+
 	/* When CallWeaver restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
 	 * */
 	if (getenv("CALLWEAVER_ALREADY_NONROOT"))
 		is_child_of_nonroot = 1;
-	if (getenv("HOME")) 
-		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
+
 	/* Check for options */
 	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:L:M:")) != -1) {
 		switch(c) {
@@ -2125,7 +2015,7 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 'c':
 			option_console++;
-			option_nofork++;
+			option_reconnect++;
 			break;
 		case 'f':
 			option_nofork++;
@@ -2209,7 +2099,7 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 
-	if (option_console && !option_verbose) 
+	if ((option_console || option_nofork) && !option_verbose) 
 		opbx_verbose("[ Reading Master Configuration ]");
 	opbx_readconfig();
 
@@ -2353,7 +2243,7 @@ int callweaver_main(int argc, char *argv[])
 	printf(opbx_term_end());
 	fflush(stdout);
 
-	if (option_console && !option_verbose) 
+	if ((option_console || option_nofork) && !option_verbose) 
 		opbx_verbose("[ Initializing Custom Configuration Options ]");
 
 	opbx_registry_init(&atexit_registry);
@@ -2370,43 +2260,24 @@ int callweaver_main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
-	if (option_console) {
-	    
-	    if(!rl_init)
-		opbx_rl_initialize();
-
-	    if (!opbx_strlen_zero(filename))
-		opbx_rl_read_history(filename);
-	}
-
 	if (opbx_tryconnect()) {
 		/* One is already running */
 		if (option_remote) {
 			if (option_exec) {
-				opbx_remotecontrol(xarg);
-				restart = 0;
-				quit_handler(NULL);
+				console_oneshot(xarg);
 				exit(0);
 			}
 			printf(opbx_term_quit());
-			opbx_register_verbose(console_verboser);
-			WELCOME_MESSAGE;
-			opbx_remotecontrol(NULL);
-			restart = 0;
-			quit_handler(NULL);
+			console(NULL);
 			exit(0);
 		} else {
 			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(opbx_term_quit());
-			if(rl_init)
-			    rl_deprep_terminal();
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
 		opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
 		printf(opbx_term_quit());
-		if(rl_init)
-		    rl_deprep_terminal();
 		exit(1);
 	}
 
@@ -2419,7 +2290,7 @@ int callweaver_main(int argc, char *argv[])
 	} else
 		opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 
-	if (!option_nofork) {
+	if (!option_console && !option_nofork) {
 		daemon(1,0);
 		/* Blindly re-write pid file since we are forking */
 		unlink((char *)opbx_config_OPBX_PID);
@@ -2436,36 +2307,50 @@ int callweaver_main(int argc, char *argv[])
 		opbx_verbose("Warning! CallWeaver is not thread safe.\n");
 
 	opbx_makesocket();
+
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
 	sigaddset(&sigs, SIGTERM);
 	sigaddset(&sigs, SIGINT);
-	sigaddset(&sigs, SIGPIPE);
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
-	if (option_console || option_verbose || option_remote)
-		opbx_register_verbose(console_verboser);
-	/* Print a welcome message if desired */
-	if (option_verbose || option_console) {
-		WELCOME_MESSAGE;
-	}
-	if (option_console && !option_verbose) 
-		opbx_verbose("[ Booting...");
 
-	signal(SIGURG, urg_handler);
-	signal(SIGINT, __quit_handler);
-	signal(SIGTERM, __quit_handler);
-	signal(SIGHUP, hup_handler);
-	signal(SIGCHLD, child_handler);
-	signal(SIGPIPE, SIG_IGN);
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	sa.sa_handler = urg_handler;
+	sigaction(SIGURG, &sa, NULL);
+
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL);
+
+	sa.sa_handler = child_handler;
+	sa.sa_flags = SA_NOCLDSTOP;
+	sigaction(SIGCHLD, &sa, NULL);
+
+	/* Console start up needs core CLI commands in place because
+	 * the console will request debug and verbose settings
+	 */
+	opbx_cli_init();
+
+	if (option_console || option_nofork) {
+		sem_t sem;
+
+		if (!sem_init(&sem, 0, 0) && opbx_tryconnect() && !opbx_pthread_create(&consolethread, &global_attr_default, console, &sem))
+			sem_wait(&sem);
+		else
+			opbx_log(OPBX_LOG_ERROR, "Failed to start console - console is not available\n");
+		sem_destroy(&sem);
+	}
+
+	if ((option_console || option_nofork) && !option_verbose) 
+		opbx_verbose("[ Booting...");
 
 	/* ensure that the random number generators are seeded with a different value every time
 	   CallWeaver is started
 	*/
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
-
-	opbx_cli_init();
 
 	if (init_logger()) {
 	    opbx_exit(1);
@@ -2537,78 +2422,31 @@ int callweaver_main(int argc, char *argv[])
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
-	if (option_console && !option_verbose)
+	if ((option_console || option_nofork) && !option_verbose)
 		opbx_verbose(" ]\n");
 
 	time(&opbx_startuptime);
-	if (option_verbose || option_console)
-		opbx_verbose(opbx_term_color(tmp, "CallWeaver Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
-
-	if (option_nofork)
-		consolethread = pthread_self();
+	if (option_verbose || option_console || option_nofork)
+		opbx_verbose("CallWeaver Ready\n");
 
 	fully_booted = 1;
-	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
-	if (option_console) {
-		/* Console stuff now... */
-		/* Register our quit function */
-		char title[256];
-		set_icon("CallWeaver");
-		snprintf(title, sizeof(title), "CallWeaver Console on '%s' (pid %d)", hostname, opbx_mainpid);
-		set_title(title);
+	sigdelset(&sigs, SIGWINCH);
 
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	for (;;) {
+		int sig;
 
-		pthread_cleanup_push(quit_handler, NULL);
-
-		for (;;) {
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_testcancel();
-
-			if (buf) {
-			    free (buf);
-			    buf = (char *)NULL;
-			}
-			buf = readline(cli_prompt());
-
-			pthread_testcancel();
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-			if(buf) {
-				if ( (strlen(buf)>0) && buf[strlen(buf)-1] == '\n')
-					buf[strlen(buf)-1] = '\0';
-					
-				consolehandler(buf);
-			} else {
-				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the callweaver console\n",
-								  strlen("\nUse EXIT or QUIT to exit the callweaver console\n")) < 0) {
-					/* Whoa, stdout disappeared from under us... Make /dev/null's */
-					int fd;
-					fd = open("/dev/null", O_RDWR);
-					if (fd > -1) {
-						dup2(fd, STDOUT_FILENO);
-						dup2(fd, STDIN_FILENO);
-					} else
-						opbx_log(OPBX_LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
-					
-					printf(opbx_term_quit());
-					break;
-				}
-			}
-		}
-		if(buf) {
-		    free(buf);
-		    buf = (char *)NULL;
-		}
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-		pthread_cleanup_pop(1);
-	} else {
-		/* Do nothing */
-		for (;;)  {	/* apparently needed for the MACos */
-			struct pollfd p = { -1 /* no descriptor */, 0, 0 };
-			poll(&p, 0, -1);
+		sigwait(&sigs, &sig);
+		switch (sig) {
+			case SIGHUP:
+				if (option_verbose > 1) 
+					printf("Received HUP signal -- Reloading configs\n");
+				opbx_module_reload(NULL);
+				break;
+			case SIGTERM:
+			case SIGINT:
+				shutdown_restart(-1, 1, 0);
+				break;
 		}
 	}
 

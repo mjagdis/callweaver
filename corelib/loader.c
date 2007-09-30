@@ -333,7 +333,7 @@ int opbx_load_resource(const char *resource_name)
 			opbx_verbose( "[%s] => (%s)\n",
 					opbx_term_color(tmp1, resource_name, COLOR_BRWHITE, 0, sizeof(tmp1)),
 					opbx_term_color(tmp2, mod->modinfo->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp2)));
-		} else if (option_console)
+		} else if (option_console || option_nofork)
 			opbx_verbose( ".");
 	} else {
 		if (option_verbose)
