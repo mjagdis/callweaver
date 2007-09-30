@@ -32,8 +32,10 @@
 #include <dirent.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#if !defined(__FreeBSD__)
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#endif
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <signal.h>
