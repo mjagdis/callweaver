@@ -890,15 +890,23 @@ static void quit_handler(void *data)
 }
 
 
+struct shutdown_state {
+	pthread_t tid;
+	int nice;
+	int timeout;
+};
+
+static void shutdown_restart(int fd, int doit, int nice, int timeout);
+
 static void *quit_when_idle(void *data)
 {
-	int *interval = (int *)data;
+	struct shutdown_state *state = data;
 	time_t s, e;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	time(&e);
-	while ((*interval == -1 || *interval > 0)) {
+	while ((state->timeout == -1 || state->timeout > 0)) {
 		int n;
 
 		s = e;
@@ -912,42 +920,56 @@ static void *quit_when_idle(void *data)
 			break;
 
 		usleep(100000);
-		if (*interval != -1) {
+		if (state->timeout != -1) {
 			time(&e);
-			*interval -= (e - s);
-			if (*interval < 0)
-				*interval = 0;
+			state->timeout -= (e - s);
+			if (state->timeout < 0)
+				state->timeout = 0;
 		}
 
 		pthread_testcancel();
 	}
-	pthread_testcancel();
-
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	opbx_log(OPBX_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	/* Last chance... */
 	pthread_testcancel();
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	quit_handler(NULL);
+
+	/* If we ran out of time on a nice shutdown we switch
+	 * to a not nice shutdown (which will have a default
+	 * timeout applied). Otherwise we are good to initiate
+	 * the shutdown/restart.
+	 */
+	if (state->timeout == 0 && state->nice) {
+		opbx_log(OPBX_LOG_NOTICE, "Timeout waiting for idle. Initiating immediate %s\n", (restart ? "restart" : "shutdown"));
+		pthread_detach(pthread_self());
+		state->tid = OPBX_PTHREADT_NULL;
+		shutdown_restart(-1, 1, 0, -1);
+	} else {
+		opbx_log(OPBX_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
+		quit_handler(NULL);
+	}
+
 	return NULL;
 }
 
 
-static void shutdown_restart(int fd, int doit, int nice)
+static void shutdown_restart(int fd, int doit, int nice, int timeout)
 {
 	static opbx_mutex_t lock = OPBX_MUTEX_INIT_VALUE;
-	static pthread_t thread = OPBX_PTHREADT_NULL;
-	static int last_nice, interval;
+	static struct shutdown_state state = {
+		.tid = OPBX_PTHREADT_NULL,
+		.nice = 0,
+		.timeout = 0,
+	};
 
 	opbx_mutex_lock(&lock);
 
 	if (doit >= 0) {
-		if (!pthread_equal(thread, OPBX_PTHREADT_NULL)) {
-			pthread_cancel(thread);
-			pthread_join(thread, NULL);
+		if (!pthread_equal(state.tid, OPBX_PTHREADT_NULL)) {
+			pthread_cancel(state.tid);
+			pthread_join(state.tid, NULL);
+			state.tid = OPBX_PTHREADT_NULL;
 		}
 
 		if (doit) {
@@ -972,22 +994,21 @@ static void shutdown_restart(int fd, int doit, int nice)
 			if (!option_remote)
 				opbx_log(OPBX_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 
-			last_nice = nice;
-			interval = (nice ? -1 : 15);
-			opbx_pthread_create(&thread, &global_attr_default, quit_when_idle, &interval);
+			state.nice = nice;
+			state.timeout = (nice ? (timeout >= 0 ? timeout : -1 ) : 15);
+			opbx_pthread_create(&state.tid, &global_attr_default, quit_when_idle, &state);
 		} else {
-			thread = OPBX_PTHREADT_NULL;
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
 				opbx_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 			if (!option_remote)
 				opbx_log(OPBX_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 		}
 	} else {
-		if (!pthread_equal(thread, OPBX_PTHREADT_NULL)) {
-			if (interval == -1)
-				opbx_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (last_nice < 2 ? " (new calls blocked)" : ""));
+		if (!pthread_equal(state.tid, OPBX_PTHREADT_NULL)) {
+			if (state.timeout == -1)
+				opbx_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
 			else
-				opbx_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), interval, (last_nice < 2 ? " (new calls blocked)" : ""));
+				opbx_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
 		} else
 			opbx_cli(fd, "No shutdown or restart pending\n");
 	}
@@ -1010,13 +1031,17 @@ static char shutdown_now_help[] =
 "       Shuts down a running CallWeaver immediately, hanging up all active calls .\n";
 
 static char shutdown_gracefully_help[] = 
-"Usage: stop gracefully\n"
+"Usage: stop gracefully [timeout]\n"
 "       Causes CallWeaver to not accept new calls, and exit when all\n"
-"       active calls have terminated normally.\n";
+"       active calls have terminated normally.\n"
+"       If a timeout is given and CallWeaver is unable to stop in this\n"
+"       any seconds an immediate stop will be initiated.\n";
 
 static char shutdown_when_convenient_help[] = 
-"Usage: stop when convenient\n"
-"       Causes CallWeaver to perform a shutdown when all active calls have ended.\n";
+"Usage: stop when convenient [timeout]\n"
+"       Causes CallWeaver to perform a shutdown when all active calls have ended.\n"
+"       If a timeout is given and CallWeaver is unable to stop in this\n"
+"       any seconds an immediate stop will be initiated.\n";
 
 static char restart_now_help[] = 
 "Usage: restart now\n"
@@ -1024,13 +1049,17 @@ static char restart_now_help[] =
 "       restart.\n";
 
 static char restart_gracefully_help[] = 
-"Usage: restart gracefully\n"
+"Usage: restart gracefully [timeout]\n"
 "       Causes CallWeaver to stop accepting new calls and exec() itself performing a cold\n"
-"       restart when all active calls have ended.\n";
+"       restart when all active calls have ended.\n"
+"       If a timeout is given and CallWeaver is unable to stop in this\n"
+"       any seconds an immediate stop will be initiated.\n";
 
 static char restart_when_convenient_help[] = 
-"Usage: restart when convenient\n"
-"       Causes CallWeaver to perform a cold restart when all active calls have ended.\n";
+"Usage: restart when convenient [timeout]\n"
+"       Causes CallWeaver to perform a cold restart when all active calls have ended.\n"
+"       If a timeout is given and CallWeaver is unable to stop in this\n"
+"       any seconds an immediate stop will be initiated.\n";
 
 static char bang_help[] =
 "Usage: !<command>\n"
@@ -1048,25 +1077,37 @@ static int handle_shutdown_now(int fd, int argc, char *argv[])
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	restart = 0;
-	shutdown_restart(fd, 1, 0 /* Not nice */);
+	shutdown_restart(fd, 1, 0 /* Not nice */, -1);
 	return RESULT_SUCCESS;
 }
 
 static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	int timeout = -1;
+
+	if (argc < 2 || argc > 3)
 		return RESULT_SHOWUSAGE;
+
+	if (argc == 3)
+		timeout = atoi(argv[2]);
+
 	restart = 0;
-	shutdown_restart(fd, 1, 1 /* nicely */);
+	shutdown_restart(fd, 1, 1 /* nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
 static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	int timeout = -1;
+
+	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
+
+	if (argc == 4)
+		timeout = atoi(argv[3]);
+
 	restart = 0;
-	shutdown_restart(fd, 1, 2 /* really nicely */);
+	shutdown_restart(fd, 1, 2 /* really nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
@@ -1075,25 +1116,37 @@ static int handle_restart_now(int fd, int argc, char *argv[])
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	restart = 1;
-	shutdown_restart(fd, 1, 0 /* not nicely */);
+	shutdown_restart(fd, 1, 0 /* not nicely */, -1);
 	return RESULT_SUCCESS;
 }
 
 static int handle_restart_gracefully(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	int timeout = -1;
+
+	if (argc < 2 || argc > 3)
 		return RESULT_SHOWUSAGE;
+
+	if (argc == 3)
+		timeout = atoi(argv[2]);
+
 	restart = 1;
-	shutdown_restart(fd, 1, 1 /* nicely */);
+	shutdown_restart(fd, 1, 1 /* nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
 static int handle_restart_when_convenient(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	int timeout = -1;
+
+	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
+
+	if (argc == 4)
+		timeout = atoi(argv[3]);
+
 	restart = 1;
-	shutdown_restart(fd, 1, 2 /* really nicely */);
+	shutdown_restart(fd, 1, 2 /* really nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
@@ -1102,7 +1155,7 @@ static int handle_shutdown_restart_cancel(int fd, int argc, char *argv[])
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	opbx_cancel_shutdown();
-	shutdown_restart(fd, 0, 0);
+	shutdown_restart(fd, 0, 0, -1);
 	return RESULT_SUCCESS;
 }
 
@@ -1110,7 +1163,7 @@ static int handle_shutdown_restart_status(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	shutdown_restart(fd, -1, 0);
+	shutdown_restart(fd, -1, 0, 0);
 	return RESULT_SUCCESS;
 }
 
@@ -2447,7 +2500,7 @@ int callweaver_main(int argc, char *argv[])
 				break;
 			case SIGTERM:
 			case SIGINT:
-				shutdown_restart(-1, 1, 0);
+				shutdown_restart(-1, 1, 0, -1);
 				break;
 		}
 	}
