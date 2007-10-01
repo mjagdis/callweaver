@@ -195,11 +195,6 @@ struct console consoles[OPBX_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-static int rl_init = 0;
-static int opbx_rl_add_history(char *);
-static int opbx_rl_read_history(char *);
-static int opbx_rl_write_history(char *);
-
 char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
@@ -1492,64 +1487,6 @@ static char **cli_completion(const char *text, int start, int end)
     return (matches);
 }
 
-static int opbx_rl_initialize(void)
-{
-    /*
-    char *editor = getenv("CW_EDITOR");
-    */
-    rl_initialize ();
-    rl_editing_mode = 1;
-    /* start history*/
-    using_history();
-#ifdef __Darwin__
-    rl_completion_entry_function = (Function *)dummy_completer;
-    rl_attempted_completion_function = (CPPFunction *)cli_completion;
-#else
-    rl_completion_entry_function = (rl_compentry_func_t *) dummy_completer;
-    rl_attempted_completion_function = (CPPFunction *) cli_completion;
-#endif
-
-    /* setup history with 100 entries */
-    stifle_history(100);
-
-    rl_init = 1;
-    return 0;
-}
-
-static int opbx_rl_add_history(char *buf)
-{
-    HIST_ENTRY *last;
-    
-    if (strlen(buf) > 256)
-	return 0;
-    
-    if(!rl_init)
-	opbx_rl_initialize();
-			
-    last = previous_history();
-    if (!last || strcmp (last->line, buf) != 0) {
-	add_history (buf);
-	return 1;
-    }	
-    return 0;
-}
-
-static int opbx_rl_write_history(char *filename)
-{
-    if(!rl_init)
-	opbx_rl_initialize();
-	
-    return write_history(filename);
-}
-
-static int opbx_rl_read_history(char *filename)
-{
-    if(!rl_init)
-	opbx_rl_initialize();
-	
-    return read_history(filename);
-}
-
 
 static void welcome_message(void)
 {
@@ -1579,7 +1516,7 @@ static void console_cleanup(void *data)
 
 	if ((p = getenv("HOME"))) {
 		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
-		opbx_rl_write_history(filename);
+		write_history(filename);
 	}
 
 	consolethread = OPBX_PTHREADT_NULL;
@@ -1592,7 +1529,11 @@ static void console_handler(char *s)
 		while (isspace(*s)) s++;
 
 		if (*s) {
-			opbx_rl_add_history(s);
+			HIST_ENTRY *last_he;
+    
+			last_he = previous_history();
+			if (!last_he || strcmp(last_he->line, s) != 0)
+				add_history(s);
 
 			if (s[0] == '!') {
 				if (s[1])
@@ -1641,14 +1582,20 @@ static void *console(void *data)
 
 	pthread_cleanup_push(console_cleanup, NULL);
 
-	if (!rl_init)
-		opbx_rl_initialize();
+	rl_initialize ();
+	rl_editing_mode = 1;
+	rl_completion_entry_function = (void *)dummy_completer; /* The typedef varies between platforms */
+	rl_attempted_completion_function = (CPPFunction *)cli_completion;
+
+	/* Setup history with 100 entries */
+	using_history();
+	stifle_history(100);
 
 	clr_eol = rl_get_termcap("ce");
 
 	if ((p = getenv("HOME"))) {
 		snprintf(buf, sizeof(buf), "%s/.callweaver_history", p);
-		opbx_rl_read_history(buf);
+		read_history(buf);
 	}
 
 	do {
