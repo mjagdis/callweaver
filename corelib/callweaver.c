@@ -1646,6 +1646,11 @@ static void *console(void *data)
 
 	clr_eol = rl_get_termcap("ce");
 
+	if ((p = getenv("HOME"))) {
+		snprintf(buf, sizeof(buf), "%s/.callweaver_history", p);
+		opbx_rl_read_history(buf);
+	}
+
 	do {
 		welcome_message();
 
@@ -1671,11 +1676,6 @@ static void *console(void *data)
 		snprintf(buf, sizeof(buf), "%s on %s (pid %d)", version, remotehostname, pid);
 		set_title(buf);
 		fprintf(stdout, "Connected to %s currently running on %s (pid = %d)\n", version, remotehostname, pid);
-
-		if ((p = getenv("HOME"))) {
-			snprintf(buf, sizeof(buf), "%s/.callweaver_history", p);
-			opbx_rl_read_history(buf);
-		}
 
 		update_delay = -1;
 
