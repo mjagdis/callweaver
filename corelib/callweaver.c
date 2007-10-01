@@ -131,7 +131,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "core/ulaw.h"
 #include "core/alaw.h"
-#include "core/term.h"
 
 #include "libltdl/ltdl.h"
 
@@ -1281,12 +1280,12 @@ static char *cli_prompt(void)
 #ifdef linux
 				FILE *LOADAVG;
 #endif
-				int fgcolor = COLOR_WHITE, bgcolor = COLOR_BLACK;
 
 				t++;
 				switch (*t) {
 					case 'C': /* color */
 						t++;
+#if 0
 						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
 							strncat(p, opbx_term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
@@ -1301,6 +1300,7 @@ static char *cli_prompt(void)
 						} else {
 							color_used = 1;
 						}
+#endif
 						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
@@ -1378,12 +1378,14 @@ static char *cli_prompt(void)
 		}
 		if (color_used) {
 			/* Force colors back to normal at end */
+#if 0
 			opbx_term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
 			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
 				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
 			} else {
 				strncat(p, term_code, sizeof(term_code));
 			}
+#endif
 		}
 	} else if (remotehostname)
 		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT2, remotehostname);
@@ -1572,7 +1574,6 @@ static void console_cleanup(void *data)
 
 	rl_callback_handler_remove();
 	fputs("\r\n", stdout);
-	fputs(opbx_term_quit(), stdout);
 	fflush(stdout);
 	set_title("");
 
@@ -1754,7 +1755,6 @@ static void *console(void *data)
 		}
 
 		rl_callback_handler_remove();
-		fputs(opbx_term_quit(), stdout);
 		fflush(stdout);
 		fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 		set_title("");
@@ -2011,7 +2011,6 @@ static void opbx_readconfig(void) {
 
 static void opbx_exit(int val)
 {
-    printf(opbx_term_quit());
     exit(val);
 }
 
@@ -2294,10 +2293,6 @@ int callweaver_main(int argc, char *argv[])
 	}
 #endif
 
-	opbx_term_init();
-	printf(opbx_term_end());
-	fflush(stdout);
-
 	if ((option_console || option_nofork) && !option_verbose) 
 		opbx_verbose("[ Initializing Custom Configuration Options ]");
 
@@ -2322,17 +2317,14 @@ int callweaver_main(int argc, char *argv[])
 				console_oneshot(xarg);
 				exit(0);
 			}
-			printf(opbx_term_quit());
 			console(NULL);
 			exit(0);
 		} else {
 			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
-			printf(opbx_term_quit());
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
 		opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
-		printf(opbx_term_quit());
 		exit(1);
 	}
 

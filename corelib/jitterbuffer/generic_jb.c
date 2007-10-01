@@ -46,8 +46,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "jitterbuf_stevek.h"
 #include "jitterbuf_speakup.h"
 
-#include "core/term.h"
-
 
 /* Internal jb flags */
 #define JB_USE (1 << 0)
@@ -185,12 +183,7 @@ static int stevek_to_abstract_code[] =
 static char *jb_get_actions[] = {"Delivered", "Dropped", "Interpolated", "No"};
 
 /* Macros for JB logs */
-/*#define jb_verbose(...) opbx_verbose(VERBOSE_PREFIX_3 " ***[JB LOG]*** " __VA_ARGS__)*/
-#define jb_verbose(...) if(1){\
-	char tmp[192];\
-	char msg[128];\
-	snprintf(msg, sizeof(msg), VERBOSE_PREFIX_3 "***[JB LOG]*** " __VA_ARGS__);\
-	opbx_verbose("%s\n", opbx_term_color(tmp, msg, COLOR_BRGREEN, 0, sizeof(tmp)));}
+#define jb_verbose(...) opbx_verbose(VERBOSE_PREFIX_3 " ***[JB LOG]*** " __VA_ARGS__)
 
 /* Macros for the frame log files */
 #define jb_framelog(...) \

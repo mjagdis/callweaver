@@ -5,7 +5,7 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 SUBDIRS=jitterbuffer resample
 
 CORE_SRC = io.c sched.c logger.c frame.c config.c channel.c \
-	generator.c translate.c say.c pbx.c function.c cli.c term.c \
+	generator.c translate.c say.c pbx.c function.c cli.c \
 	ulaw.c alaw.c phone_no_utils.c callerid.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c callweaver_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \

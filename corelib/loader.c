@@ -52,8 +52,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "libltdl/ltdl.h"
 
-#include "core/term.h"
-
 
 static struct modinfo core_modinfo = {
 	.self = NULL,
@@ -259,7 +257,6 @@ int opbx_module_reload(const char *name)
 
 int opbx_load_resource(const char *resource_name)
 {
-	char tmp1[80], tmp2[80];
 	struct module *newmod, *mod, **m;
 	struct modinfo *(*modinfo)(void);
 	int res;
@@ -330,9 +327,7 @@ int opbx_load_resource(const char *resource_name)
 
 	if (!fully_booted) {
 		if (option_verbose) {
-			opbx_verbose( "[%s] => (%s)\n",
-					opbx_term_color(tmp1, resource_name, COLOR_BRWHITE, 0, sizeof(tmp1)),
-					opbx_term_color(tmp2, mod->modinfo->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp2)));
+			opbx_verbose("[%s] => (%s)\n", resource_name, mod->modinfo->description);
 		} else if (option_console || option_nofork)
 			opbx_verbose( ".");
 	} else {

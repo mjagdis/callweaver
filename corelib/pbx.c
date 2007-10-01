@@ -62,8 +62,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_hash.h"
 #include "callweaver/callweaver_keywords.h"
 
-#include "core/term.h"
-
 
 #ifdef LOW_MEMORY
 #define EXT_DATA_SIZE 256

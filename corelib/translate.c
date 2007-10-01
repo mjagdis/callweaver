@@ -47,8 +47,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/cli.h"
 
-#include "core/term.h"
-
 #include "core/translate.h"
 #include "callweaver/translate.h"
 

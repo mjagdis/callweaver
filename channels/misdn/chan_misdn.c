@@ -62,7 +62,6 @@
 #include "callweaver/features.h"
 #include "callweaver/sched.h"
 
-#include "core/term.h"
 
 #include <chan_misdn_config.h>
 #include <isdn_lib.h>

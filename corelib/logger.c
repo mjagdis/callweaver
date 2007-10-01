@@ -73,7 +73,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/manager.h"
 
-#include "core/term.h"
 
 #define MAX_MSG_QUEUE 200
 
@@ -139,15 +138,6 @@ static char *levels[] = {
 	"DTMF"
 };
 
-static int colors[] = {
-	COLOR_BRGREEN,
-	COLOR_BRBLUE,
-	COLOR_YELLOW,
-	COLOR_BRRED,
-	COLOR_RED,
-	COLOR_GREEN,
-	COLOR_BRGREEN
-};
 
 static int make_components(char *s, int lineno)
 {
@@ -767,19 +757,8 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 				va_end(ap);
 			/* Console channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
-				char linestr[128];
-				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
-
 				if (level != __OPBX_LOG_VERBOSE) {
-					sprintf(linestr, "%d", line);
-					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%s %s: " : "%s %s[" TIDFMT "]: %s:%s %s: ",
-						date,
-						opbx_term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-						GETTID(),
-						opbx_term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-						opbx_term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-						opbx_term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-					
+					snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
 					opbx_console_puts(buf);
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);

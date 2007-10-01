@@ -45,7 +45,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 
-#include "core/term.h"
 
 #ifdef TRACE_FRAMES
 static int headers = 0;
@@ -850,24 +849,13 @@ static char frame_show_codec_n_usage[] =
 
 void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
 {
-    char *n = "unknown";
     char ftype[40] = "Unknown Frametype";
-    char cft[80];
     char subclass[40] = "Unknown Subclass";
-    char csub[80];
     char moreinfo[40] = "";
-    char cn[60];
-    char cp[40];
-    char cmn[40];
 
-    if (name)
-        n = name;
     if (f == NULL)
     {
-        opbx_verbose("%s [ %s (NULL) ] [%s]\n",
-                     opbx_term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-                     opbx_term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-                     opbx_term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+        opbx_verbose("%s [ HANGUP (NULL) ] [%s]\n", prefix, (name ? name : "unknown"));
         return;
     }
     /* XXX We should probably print one each of voice and video when the format changes XXX */
@@ -993,26 +981,9 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
         break;
     }
     if (!opbx_strlen_zero(moreinfo))
-    {
-        opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",
-                     opbx_term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-                     opbx_term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-                     f->frametype,
-                     opbx_term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-                     f->subclass,
-                     opbx_term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
-                     opbx_term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-    }
+        opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n", prefix, ftype, f->frametype, subclass, f->subclass, moreinfo, (name ? name : "unknown"));
     else
-    {
-        opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
-                     opbx_term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-                     opbx_term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-                     f->frametype,
-                     opbx_term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-                     f->subclass,
-                     opbx_term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-    }
+        opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n", prefix, ftype, f->frametype, subclass, f->subclass, (name ? name : "unknown"));
 }
 
 #ifdef TRACE_FRAMES

@@ -51,8 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/utils.h"
 
-#include "core/term.h"
-
 
 static const char *func_registry_obj_name(struct opbx_object *obj)
 {
@@ -312,9 +310,6 @@ static int handle_show_function(int fd, int argc, char *argv[])
 {
 	struct opbx_func *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + OPBX_MAX_APP + 22];
-	char info[64 + OPBX_MAX_APP];
-	char syntitle[40], stxtitle[40], destitle[40];
 	char *synopsis, *syntax, *description;
 	int synopsis_size, description_size, syntax_size;
 
@@ -334,16 +329,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 	syntax_size = strlen(acf->syntax) + 23;
 	syntax = alloca(syntax_size);
 
-	snprintf(info, 64 + OPBX_MAX_APP, "\n  -= Info about function '%s' =- \n\n", acf->name);
-	opbx_term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + OPBX_MAX_APP + 22);
-	opbx_term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	opbx_term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	opbx_term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	opbx_term_color(syntax, acf->syntax, COLOR_CYAN, 0, syntax_size);
-	opbx_term_color(synopsis, acf->synopsis, COLOR_CYAN, 0, synopsis_size);
-	opbx_term_color(description, acf->description, COLOR_CYAN, 0, description_size);
-	
-	opbx_cli(fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
+	opbx_cli(fd, "\n  -= Info about function '%s' =- \n\n[Syntax]\n%s\n\n[Synopsis]\n%s\n\n[Description]\n%s\n", acf->name, acf->syntax, acf->synopsis, acf->description);
 
 	return RESULT_SUCCESS;
 }
