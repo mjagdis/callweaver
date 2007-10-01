@@ -1625,7 +1625,7 @@ static void *console(void *data)
 	char buf[1024];
 	char banner[80];
 	sigset_t sigs;
-	char *clr_eol = rl_get_termcap("ce");
+	char *clr_eol;
 	char *stringp;
 	char *version;
 	char *p;
@@ -1643,6 +1643,8 @@ static void *console(void *data)
 
 	if (!rl_init)
 		opbx_rl_initialize();
+
+	clr_eol = rl_get_termcap("ce");
 
 	do {
 		welcome_message();
