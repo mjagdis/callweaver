@@ -142,7 +142,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *cl
 			chan->generator.interval.tv_sec++;
 		}
 
-		if (opbx_pthread_create(&chan->generator.tid, &global_attr_default, opbx_generator_thread, chan)) {
+		if (opbx_pthread_create(&chan->generator.tid, &global_attr_rr, opbx_generator_thread, chan)) {
 			opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
 			class->release(chan, chan->generator.pvt);
 			opbx_mutex_unlock(&chan->lock);
