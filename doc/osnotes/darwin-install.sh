@@ -2,7 +2,7 @@
 # vim:tw=80:ts=4
 ################################################################################ 
                      HOW TO BUILD CALLWEAVER.ORG ON MAC OSX 
-     Tested with CallWeaver.org 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
+     Tested with CallWeaver 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
 ################################################################################
 
 # open a terminal (i prefer iTerm rather than terminal)
@@ -35,15 +35,21 @@ $ sudo make install
 
 ##################################################################### LIBSPANDSP
 
-# download spandsp-20061122.tar.gz
+# download the latest version of spandsp from
+# http://www.soft-switch.org/downloads/spandsp/
 
-$ tar zxf spandsp-20061122.tar.gz
-$ cd spandsp-0.0.3/
+$ tar zxf spandsp-something.tar.gz
+$ cd spandsp-0.0.4/
 
 $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib" \
   ./configure --prefix=/usr/local/callweaver
 $ make
 $ sudo make install
+
+######################################################################### LIBVALE
+
+# FIXME
+# Add some docs about how to install libvale
 
 #################################################################### GNU READLINE
 
@@ -69,9 +75,7 @@ $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib"
     --prefix=/usr/local/callweaver \
     \
     --enable-debug=yes \
-    --enable-do-crash=yes \
     --enable-frame-tracing=yes \
-    --enable-valgrind=yes \
     --enable-debug=yes \
     --enable-debug-scheduler=yes \
     --enable-stack-backtraces=yes \
@@ -92,7 +96,7 @@ $ sudo niutil -createprop / /groups/callweaver users
 $ sudo niutil -appendprop / /groups/callweaver users callweaver
 $ sudo niutil -create / /users/callweaver
 $ sudo niutil -createprop / /users/callweaver uid 700
-$ sudo niutil -createprop / /users/callweaver realname "CallWeaver.org"
+$ sudo niutil -createprop / /users/callweaver realname "CallWeaver"
 $ sudo niutil -createprop / /users/callweaver shell "/bin/bash"
 $ sudo niutil -createprop / /users/callweaver gid 700
 $ sudo niutil -createprop / /users/callweaver passwd "*" 
