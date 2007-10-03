@@ -58,6 +58,10 @@ CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
 CORE_LIBS 	+= ${top_builddir}/corelib/resample/libcwresample.la
 CORE_LIBS	+= -lreadline
 
+if HAVE_LIBCAP
+CORE_LIBS	+= -lcap
+endif HAVE_LIBCAP
+
 if HAVE_SSL
 CORE_LIBS	+= -lssl -lcrypto
 endif HAVE_SSL

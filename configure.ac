@@ -107,43 +107,43 @@ case "${host}" in
   *-*-darwin*)
         AC_DEFINE([__Darwin__],,[Define if Darwin])
         AC_SUBST(__Darwin__)
-	no_libcap=yes
+	libcap=no
 	ostype=bsd
         ;;
   *-*-freebsd*)
-	no_libcap=yes
+	libcap=no
 	ostype=bsd
         ;;
   *-*-netbsd*)
-	no_libcap=yes
+	libcap=no
 	ostype=bsd
 	;;
   *-*-openbsd*)
-	no_libcap=yes
+	libcap=no
 	ostype=bsd
 	;;
   *-aix*)
     AC_DEFINE(AIX,,[Define if AIX])
      broken_types=yes
-	no_libcap=yes
+	libcap=no
 	ostype=aix
 	default_export_dynamic="no"
     ;;
   *-osf4*)
     AC_DEFINE(OSF1,,[Define if OSF1])
     tru64_types=yes
-	no_libcap=yes
+	libcap=no
 	ostype=osf
     ;;
   *-osf5.1*)
     AC_DEFINE(OSF1)
-	no_libcap=yes
+	libcap=no
 	ostype=osf
     ;;
   *-tru64*)
     AC_DEFINE(OSF1)
 	tru64_types=yes
-	no_libcap=yes
+	libcap=no
 	ostype=osf
     ;;
   *-*-linux*)
@@ -159,13 +159,13 @@ case "${host}" in
         ;;
   *-*-solaris2*)
         AC_DEFINE([SOLARIS],[1],[needed for optional declarations to be visible])
-	no_libcap=yes
+	libcap=no
 	ostype=solaris
 	force_generic_timers=yes
         ;;
   *)
         AC_MSG_RESULT(Unsupported operating system: ${host})
-	no_libcap=yes
+	libcap=no
 	ostype=unknown
         ;;
 esac  
@@ -736,9 +736,11 @@ AC_DEFINE([USE_GENERIC_TIMERS],[1],[forcing generic timers according to the arch
 fi
 dnl ###########################################################################
 
-if test "${no_libcap}" != "yes"; then
-AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.)])
+if test "${libcap}" != "no"; then
+AC_CHECK_HEADERS([sys/capability.h],[libcap=yes],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.)])
+AC_CHECK_LIB([cap], [cap_from_text],[libcap=yes],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.)])
 fi
+AM_CONDITIONAL([HAVE_LIBCAP],[test "${libcap}" != "no"])
 dnl ###########################################################################
 
 AC_ARG_WITH([spandsp-includes],

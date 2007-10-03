@@ -2127,11 +2127,15 @@ int callweaver_main(int argc, char *argv[])
 	if (!is_child_of_nonroot) {
 		struct group *gr;
 		struct passwd *pw;
-#if defined(__linux__)
-		cap_user_header_t cap_header;
-		cap_user_data_t cap_data;
 
-		/* inherit our capabilities */
+#if defined(__linux__)
+		cap_t caps;
+
+		/* There are no standard capabilities we want but there
+		 * are Linux specific capabilities we want. So, in the
+		 * case of Linux we don't drop capabilities when we change
+		 * uid but we fix them up afterwards ourself.
+		 */
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
 			opbx_log(OPBX_LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
 		}
@@ -2202,21 +2206,15 @@ int callweaver_main(int argc, char *argv[])
 		}
 
 #if defined(__linux__)
-		cap_header = alloca(sizeof(*cap_header));
-		cap_data = alloca(sizeof(*cap_data));
-		cap_header->version = _LINUX_CAPABILITY_VERSION;
-		cap_header->pid = 0;
-		cap_data->effective = 1 << CAP_NET_ADMIN;
-		cap_data->permitted = cap_data->effective;
-		cap_data->inheritable = 0;
-		/* set capabilities including NET_ADMIN */
-		/* this allows us to e.g. set all TOS bits */
-
-		if (gr->gr_gid != getegid() )
-		    if (capset(cap_header, cap_data) == -1) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
-			exit(1);
-		    }
+		/* Linux specific capabilities:
+		 *     cap_net_admin    allow TOS setting
+		 *     cap_sys_nice     allow use of FIFO and round-robin scheduling
+		 */
+		if ((caps = cap_from_text("= cap_net_admin,cap_sys_nice=ep"))) {
+			if (cap_set_proc(caps))
+				fprintf(stderr, "Failed to set caps\n");
+			cap_free(caps);
+		}
 #endif
 	}
 
