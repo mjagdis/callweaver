@@ -2400,22 +2400,12 @@ int callweaver_main(int argc, char *argv[])
 	if (opbx_translator_init()) {
 	    opbx_exit(1);
 	}
-#if 0
-	/* This should no longer be necessary */
-	/* sync cust config and reload some internals in case a custom config handler binded to them */
-	read_opbx_cust_config();
-	reload_logger(0);
-	opbx_enum_reload();
-	opbx_rtp_reload();
-#endif
 
 #ifdef __OPBX_DEBUG_MALLOC
 	__opbx_mm_init();
 #endif	
 	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
 
-	/* We might have the option of showing a console, but for now just
-	   do nothing... */
 	if ((option_console || option_nofork) && !option_verbose)
 		opbx_verbose(" ]\n");
 
