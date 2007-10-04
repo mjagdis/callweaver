@@ -53,7 +53,7 @@ static const char txfax_descrip[] =
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
 "Sets REMOTESTATIONID to the receiver CSID.\n"
-"     FAXPAGES to the number of pages received.\n"
+"     FAXPAGES to the number of pages sent.\n"
 "     FAXBITRATE to the transmition rate.\n"
 "     FAXRESOLUTION to the resolution.\n"
 "     PHASEESTATUS to the phase E result status.\n"
