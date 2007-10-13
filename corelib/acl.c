@@ -215,6 +215,7 @@ int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
 			res = ha->sense;
 		/* DEBUG */
+                if (option_debug > 5)
 		opbx_log(OPBX_LOG_DEBUG,
 			"##### Testing %s with %s. Result %d\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
