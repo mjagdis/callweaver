@@ -1109,6 +1109,8 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
 static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pvt, int reinvite); /* T38 negotiation helper function */
 static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
+static char *nat2str(int nat);
+static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p);
 
 
 /*! \brief Definition of this channel for PBX channel registration */
@@ -1130,9 +1132,35 @@ static const struct opbx_channel_tech sip_tech =
     .transfer = sip_transfer,
     .fixup = sip_fixup,
     .send_digit = sip_senddigit,
-    .bridge = opbx_rtp_bridge,
+    .bridge = sip_bridge,
+//    .bridge = opbx_rtp_bridge,
     .send_text = sip_sendtext,
 };
+
+
+
+static void sip_debug_ports(struct sip_pvt *p) {
+    struct sockaddr_in sin;
+    struct sockaddr_in udptlsin;
+
+    char iabuf[255];
+
+    if ( option_debug > 8 )
+    {
+
+        if ( p->owner )
+            opbx_log(LOG_DEBUG,"DEBUG PORTS CHANNEL %s\n", p->owner->name);
+        if (p->udptl) {
+            opbx_udptl_get_us(p->udptl, &udptlsin);
+            opbx_log(LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+        }
+        if (p->rtp) {
+            opbx_rtp_get_us(p->rtp, &sin);
+            opbx_log(LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
+        }
+    }
+
+}
 
 /*!
   \brief Thread-safe random number generator
@@ -1245,16 +1273,48 @@ static inline int sip_debug_test_addr(struct sockaddr_in *addr)
 /*! \brief  sip_is_nat_needed: Check if we need NAT or STUN */
 static inline int sip_is_nat_needed(struct sip_pvt *p) 
 {
-    if (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ALWAYS)
-    	return 1;
+    int local;
 
-    /* If nat=route, then id stun is needed, apply nat to RTP */
-    if ((opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed )
-    	return 1;
+    local = !opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p);
 
-    /* If nat=yes AND global nat is not set as yes/always */
-    if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ALWAYS)
+    opbx_log(LOG_DEBUG,"Checking nat (local %d = %s)\n", local, nat2str(opbx_test_flag(p, SIP_NAT)) );
+
+    if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && local ) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is not needed (condition 1)\n");
+    	return 0;
+    }
+
+    if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && !local ) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is needed (condition 2)\n");
         return 1;
+    }
+
+    if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ALWAYS) ) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is needed (condition 3)\n");
+        return 1;
+    }
+
+    if ( (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ROUTE) && local ) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is not needed (condition 4)\n");
+    	return 0;
+    }
+
+    if ( (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ROUTE) && local) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is not needed (condition 5)\n");
+    	return 0;
+    }
+
+    if (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ALWAYS) {
+        if ( option_debug > 5 )
+            opbx_log(LOG_DEBUG,"Nat is needed (condition 5)\n");
+    	return 1;
+    }
+
 
     return 0;
 }
@@ -1319,6 +1379,7 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
      * externip or can get away with our internal bindaddr
      */
 
+    int res = 0;
     struct sockaddr_in theirs;
     theirs.sin_addr = *them;
 
@@ -1353,11 +1414,13 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
             p->stun_needed = 1;
         }
     }
-    else if (bindaddr.sin_addr.s_addr)
+    else if (bindaddr.sin_addr.s_addr) {
         memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
-    else
-        return opbx_ouraddrfor(them, us);
-    return 0;
+    } else {
+        res=opbx_ouraddrfor(them, us);
+    }
+
+    return res;
 }
 
 /*! \brief  append_history: Append to SIP dialog history */
@@ -3721,6 +3784,7 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
 {
     int res1 = 0;
     int res2 = 0;
+    int bridge_res;
 
     opbx_mutex_lock(&c0->lock);
     if (c0->tech->bridge == sip_bridge)
@@ -3737,25 +3801,25 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     }
     opbx_mutex_unlock(&c1->lock);
 
+    /* We start trying rtp bridge. */ 
+    if ( ( res1==res2) && ((res1 == T38_STATUS_UNKNOWN)  ||  (res1 == T38_OFFER_REJECTED))  ) {
+        bridge_res=opbx_rtp_bridge(c0, c1, flag, fo, rc, 0);
+
+        if ( bridge_res == OPBX_BRIDGE_FAILED_NOWARN )
+             return OPBX_BRIDGE_RETRY_NATIVE;
+        else
+             return bridge_res;
+    }
+
     /* If they are both in T.38 mode try a native UDPTL bridge */
-    if ( (res1 == T38_NEGOTIATED)  &&  (res2 == T38_NEGOTIATED) )
+    if ( (res1 == T38_NEGOTIATED)  &&  (res2 == T38_NEGOTIATED) ) {
         return opbx_udptl_bridge(c0, c1, flag, fo, rc);
+    }
 
     /* If they are in mixed modes, don't try any bridging */
-    if (res1  ||  res2)
-        return OPBX_BRIDGE_FAILED_NOWARN;
+     if ( res1 != res2 )
+         return OPBX_BRIDGE_RETRY;
 
-    /* Because attempt to do a native RTP bridge between peers happens before T38 re-invites
-       and that one time only, and at that moment niether peers have T38 enabled so this will
-       lead to the native RTP bridge always. This is not good for T38 bridging
-       so we disable native bridging - not good enough, and no native T38 bridges, but working. 
-    */
-    if (t38udptlsupport)
-    {
-        opbx_log(OPBX_LOG_WARNING, "T38 support is enabled - DISABLING native RTP bridging !\n" );
-        return OPBX_BRIDGE_FAILED_NOWARN;
-    } 
-    return opbx_rtp_bridge(c0, c1, flag, fo, rc, 0);
 }
 
 /*! \brief  sip_new: Initiate a call in the SIP channel */
@@ -4156,8 +4220,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     if (sin)
     {
         memcpy(&p->sa, sin, sizeof(p->sa));
-        if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
+        if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p)) {
             memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+        }
     }
     else
     {
@@ -4168,6 +4233,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     make_our_tag(p->tag, sizeof(p->tag));
     /* Start with 101 instead of 1 */
     p->ocseq = 101;
+
+    //opbx_log(LOG_DEBUG,"Sip Alloc ... (globalnat %d) \n", useglobal_nat);
 
     if (sip_methods[intended_method].need_rtp)
     {
@@ -4204,6 +4271,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
         p->rtpholdtimeout = global_rtpholdtimeout;
         p->rtpkeepalive = global_rtpkeepalive;
     }
+
+    sip_debug_ports(p);
 
     if (useglobal_nat && sin)
     {
@@ -4753,8 +4822,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 ||
                 (sscanf(m, "image %d UDPTL t38 %n", &x, &len) == 1)))
         {
-            if (debug)
+            if (debug) {
                 opbx_verbose("Got T.38 offer in SDP\n");
+                sip_debug_ports(p);
+            }
             found = 1;
             udptlportno = x;
 
@@ -4764,6 +4835,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         	opbx_udptl_set_active(p->udptl, 1);
     		p->udptl_active = 1;
 		opbx_channel_set_t38_status(p->owner,T38_NEGOTIATED);
+                /*
+                int a;
+                a=opbx_channel_get_t38_status(p->owner);
+                opbx_log(LOG_DEBUG,"Now t38_status is %d for %s \n",a, p->owner->name);
+                sip_debug_ports(p);
+                */
 	    }
 	    
             if (p->owner  &&  p->lastinvite)
@@ -4898,8 +4975,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             opbx_udptl_set_peer(p->udptl, &sin);
             if (debug)
             {
-                opbx_verbose("Peer T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                opbx_log(OPBX_LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                opbx_log(OPBX_LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d.\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -6106,7 +6182,8 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
     if (debug)
     {
         if (p->udptl)
-            opbx_verbose("T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));    
+            opbx_verbose("T.38 UDPTL is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));    
+        }
     }
 
     /* We break with the "recommendation" and send our IP, in order that our
@@ -6220,7 +6297,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     }
     else
         p->sessionversion++;
+
     opbx_rtp_get_us(p->rtp, &sin);
+
     if (p->vrtp)
         opbx_rtp_get_us(p->vrtp, &vsin);
 
@@ -6251,6 +6330,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
             vdest.sin_port = vsin.sin_port;
         }
     }
+
+    sip_debug_ports(p);
+
     if (debug){
         opbx_verbose("We're at %s port %d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
         if (p->vrtp)
@@ -12139,7 +12221,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                             /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
                             /* Send response with T38 SDP to the other side of the bridge */
                             sip_handle_t38_reinvite(bridgepeer, p, 0);
-                            opbx_channel_set_t38_status(p->owner, T38_NEGOTIATING);
+                            opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
                         }
                         else if (p->t38state == SIP_T38_STATUS_UNKNOWN  &&  bridgepeer  &&  (bridgepvt->t38state == SIP_T38_NEGOTIATED))
                         { /* This is case of RTP re-invite after T38 session */
@@ -13367,7 +13449,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     {
                         /* If we are bridged to SIP channel */
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-                        if ( bridgepvt->t38state > SIP_T38_STATUS_UNKNOWN )
+                        if ( bridgepvt->t38state >= SIP_T38_STATUS_UNKNOWN )
                         {
                             if (bridgepvt->udptl)
                             {
@@ -14824,6 +14906,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
         opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", opbx_getformatname(oldformat), opbx_getformatname(global_capability));
         return NULL;
     }
+
     p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
     if (!p)
     {
@@ -14949,8 +15032,9 @@ static int handle_common_options(struct opbx_flags *flags, struct opbx_flags *ma
             opbx_set_flag(flags, SIP_NAT_NEVER);
         else if (!strcasecmp(v->value, "route"))
             opbx_set_flag(flags, SIP_NAT_ROUTE);
-        else if (opbx_true(v->value))
+        else if (opbx_true(v->value)) {
             opbx_set_flag(flags, SIP_NAT_ALWAYS);
+        }
         else
             opbx_set_flag(flags, SIP_NAT_RFC3581);
     }
@@ -16491,6 +16575,8 @@ static int sip_set_udptl_peer(struct opbx_channel *chan, opbx_udptl_t *udptl)
         opbx_udptl_get_peer(udptl, &p->udptlredirip);
     else
         memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
+
+
     if (!opbx_test_flag(p, SIP_GOTREFER))
     {
         if (!p->pendinginvite)
@@ -16667,7 +16753,9 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
         pvt->t38state = SIP_T38_NEGOTIATED;
         p->t38state = SIP_T38_NEGOTIATED;
         opbx_log(OPBX_LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
+        sip_debug_ports(pvt);
         opbx_log(OPBX_LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
+        sip_debug_ports(p);
         opbx_channel_set_t38_status(chan, T38_NEGOTIATED);
         opbx_log(OPBX_LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
         transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
@@ -17041,6 +17129,7 @@ static struct opbx_rtp_protocol sip_rtp =
 /*! \brief  sip_udptl: Interface structure with callbacks used to connect to UDPTL module */
 static struct opbx_udptl_protocol sip_udptl =
 {
+    type: channeltype,
     get_udptl_info: sip_get_udptl_peer,
     set_udptl_peer: sip_set_udptl_peer,
 };
