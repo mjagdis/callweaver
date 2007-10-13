@@ -41,11 +41,11 @@ typedef struct opbx_udptl_s opbx_udptl_t;
 
 struct opbx_udptl_protocol
 {
+	const char * const type;
 	/* Get UDPTL struct, or NULL if unwilling to transfer */
 	opbx_udptl_t *(*get_udptl_info)(struct opbx_channel *chan);
 	/* Set UDPTL peer */
 	int (* const set_udptl_peer)(struct opbx_channel *chan, opbx_udptl_t *peer);
-	const char * const type;
 	struct opbx_udptl_protocol *next;
 };
 
