@@ -1407,11 +1407,13 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
         {
             opbx_log(OPBX_LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
             p->stun_needed = 0;
+            res = 1;
         }
         else
         {
             opbx_log(OPBX_LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", iabuf);
             p->stun_needed = 1;
+            res = 1;
         }
     }
     else if (bindaddr.sin_addr.s_addr) {
@@ -6181,7 +6183,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     if (debug)
     {
-        if (p->udptl)
+        if (p->udptl) {
             opbx_verbose("T.38 UDPTL is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));    
         }
     }
