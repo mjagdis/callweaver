@@ -71,6 +71,7 @@ enum opbx_bridge_result {
 	OPBX_BRIDGE_FAILED = -1,
 	OPBX_BRIDGE_FAILED_NOWARN = -2,
 	OPBX_BRIDGE_RETRY = -3,
+        OPBX_BRIDGE_RETRY_NATIVE = -4,
 };
 
 typedef unsigned long long opbx_group_t;
