@@ -2075,8 +2075,16 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
     cs[2] = NULL;
     oldcodec0 = codec0;
     oldcodec1 = codec1;
+
+    int res1, res2;
+
     for (;;)
     {
+        res1 = opbx_channel_get_t38_status(c0);
+        res2 = opbx_channel_get_t38_status(c1);
+        if ( res1 != res2 )
+            return OPBX_BRIDGE_RETRY;
+
         /* Check if something changed... */
         if ((c0->tech_pvt != pvt0)
             ||
