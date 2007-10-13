@@ -687,7 +687,7 @@ void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t
 	opbx_log(OPBX_LOG_NOTICE,"opbx_channel_set_t38_status called with NULL channel at %s:%d\n", file, line);
 	return;
     }
-    opbx_log(OPBX_LOG_NOTICE,"Setting t38 status to %d at %s:%d\n", status, file, line);
+    opbx_log(OPBX_LOG_NOTICE,"Setting t38 status to %d for %s at %s:%d\n", status, tmp->name, file, line);
     tmp->t38_status = status;
 }
 
@@ -3207,6 +3207,9 @@ int opbx_setstate(struct opbx_channel *chan, int state)
 struct opbx_channel *opbx_bridged_channel(struct opbx_channel *chan)
 {
 	struct opbx_channel *bridged;
+
+        if ( !chan ) return NULL;
+
 	bridged = chan->_bridge;
 	if (bridged && bridged->tech->bridged_channel) 
 		bridged = bridged->tech->bridged_channel(chan, bridged);
@@ -3292,6 +3295,33 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 	opbx_jb_do_usecheck(c0, c1);
 
 	for (;;) {
+
+        /* We get the T38 status of the 2 channels. 
+           If at least one is not in a NON t38 state, then retry 
+           This will force another native bridge loop
+            */
+        int res1,res2;
+        res1 = opbx_channel_get_t38_status(c0);
+        res2 = opbx_channel_get_t38_status(c1);
+        //opbx_log(LOG_DEBUG,"genbridge res t38 = %d:%d [%d %d]\n",res1, res2, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
+
+        if ( res1!=res2 ) {
+            //opbx_log(LOG_DEBUG,"Stopping generic bridge because channels have different modes\n");
+            usleep(100);
+            return OPBX_BRIDGE_RETRY;
+        }
+
+/*
+        if ( res1==T38_NEGOTIATED ) {
+            opbx_log(LOG_DEBUG,"Stopping generic bridge because channel 0 is t38 enabled ( %d != [%d,%d])\n", res1, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
+            return OPBX_BRIDGE_RETRY;
+        }
+        if ( res2==T38_NEGOTIATED ) {
+            opbx_log(LOG_DEBUG,"Stopping generic bridge because channel 1 is t38 enabled\n");
+            return OPBX_BRIDGE_RETRY;
+        }
+*/
+
 		if ((c0->tech_pvt != pvt0) || (c1->tech_pvt != pvt1) ||
 		    (o0nativeformats != c0->nativeformats) ||
 		    (o1nativeformats != c1->nativeformats)) {
@@ -3358,6 +3388,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 		    (f->frametype == OPBX_FRAME_HTML) ||
 		    (f->frametype == OPBX_FRAME_MODEM) ||
 		    (f->frametype == OPBX_FRAME_TEXT)) {
+
 			if (f->frametype == OPBX_FRAME_DTMF) {
 				if (((who == c0) && watch_c0_dtmf) ||
 				    ((who == c1) && watch_c1_dtmf)) {
@@ -3366,6 +3397,10 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 					res = OPBX_BRIDGE_COMPLETE;
 					opbx_log(OPBX_LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
 					break;
+                                } else if ( f->frametype == OPBX_FRAME_MODEM ) {
+                                        opbx_log(LOG_DEBUG, "Got MODEM frame on channel (%s). Exiting generic bridge.\n", who->name);
+                                    /* If we got a t38 frame... exit this generic bridge */
+                                        return OPBX_BRIDGE_RETRY;
 				} else {
 					goto tackygoto;
 				}
@@ -3391,6 +3426,7 @@ tackygoto:
 		cs[2] = cs[0];
 		cs[0] = cs[1];
 		cs[1] = cs[2];
+
 	}
 	return res;
 }
@@ -3401,6 +3437,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 	struct opbx_channel *who = NULL;
 	enum opbx_bridge_result res = OPBX_BRIDGE_COMPLETE;
 	int nativefailed=0;
+	int nativeretry=0;
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
@@ -3532,6 +3569,8 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 			break;
 		}
 
+                nativeretry=0;
+
 		if (c0->tech->bridge &&
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
@@ -3539,7 +3578,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
     		{
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
-				opbx_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
+				opbx_log(LOG_DEBUG,"Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			opbx_set_flag(c0, OPBX_FLAG_NBRIDGE);
 			opbx_set_flag(c1, OPBX_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == OPBX_BRIDGE_COMPLETE)
@@ -3576,13 +3615,15 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 			switch (res)
         		{
 			case OPBX_BRIDGE_RETRY:
-/*				continue; */
 				break;
+                        case OPBX_BRIDGE_RETRY_NATIVE:
+                                nativeretry++;
+                                break;
 			default:
 				opbx_log(OPBX_LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
 				/* fallthrough */
 			case OPBX_BRIDGE_FAILED_NOWARN:
-				nativefailed++;
+			        nativefailed++;
 				break;
 			}
 		}
