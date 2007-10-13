@@ -153,7 +153,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 		    This is a very BASIC method to mute a channel. It should be improved
 		    and we should send EMPTY frames (not just avoid sending them) 
 		*/
-		    opbx_log(OPBX_LOG_NOTICE, "channels are muted.\n");
+                    if (option_debug > 5)
+		        opbx_log(OPBX_LOG_NOTICE, "channels are muted.\n");
 		}
 		else
             	    opbx_write(inactive, f);
@@ -320,6 +321,14 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
 //opbx_log(OPBX_LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+        if ( 
+            ( chan->t38_status == T38_NEGOTIATED ) 
+             && ( peer->t38_status == T38_NEGOTIATED )
+        ) {
+            opbx_log(LOG_DEBUG, "Stop gateway-ing frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
+            running = RUNNING;
+            break;
+        }
 
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
@@ -564,23 +573,29 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
 	    chan->hangupcause = OPBX_CAUSE_NORMAL_CLEARING;
+	
+            res = RUNNING;
+
+            while ( res == RUNNING ) {
+    
+                if ( res && ( chan->t38_status == peer->t38_status ) )
+                {
+                    // Same on both sides, so just bridge 
+                    opbx_log(OPBX_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                    res = opbx_bridge_frames(chan, peer);
+                }
 	    
-            if ( res && ( chan->t38_status == peer->t38_status ) )
-            {
-                // Same on both sides, so just bridge 
-                opbx_log(OPBX_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
-                res = opbx_bridge_frames(chan, peer);
-            }
-	    
-            if ( 
-                   ( res == RUNNING )
-		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
-		&& ( chan->t38_status != peer->t38_status ) 
-               )
-            {
-                // Different on each side, so gateway 
-                opbx_log(OPBX_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
-                res = opbx_t38_gateway(chan, peer, verbose);
+                if ( 
+                       ( res == RUNNING )
+	    	    && ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
+	        	&& ( chan->t38_status != peer->t38_status ) 
+                   )
+                {
+                    // Different on each side, so gateway 
+                    opbx_log(OPBX_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                    res = opbx_t38_gateway(chan, peer, verbose);
+                }
+                opbx_log(LOG_DEBUG," res = %d, RUNNING defined as %d, chan_Status [%d,%d] UNKNOWN set to %d ", res, RUNNING, chan->t38_status, peer->t38_status, T38_STATUS_UNKNOWN  );
             }
         }
         else
