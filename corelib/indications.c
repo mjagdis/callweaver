@@ -403,10 +403,8 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 	}
 
 	if (opbx_generator_activate(chan, &playtones, &d))
-    {
-		free(d.items);
 		return -1;
-	}
+
 	return 0;
 }
 
