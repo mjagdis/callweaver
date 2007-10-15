@@ -98,6 +98,9 @@ static void *opbx_generator_thread(void *data)
 		}
 	}
 
+	/* Next write on the channel should clean out the defunct generator */
+	opbx_set_flag(chan, OPBX_FLAG_WRITE_INT);
+
 #if !defined(__USE_XOPEN2K)
 	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
