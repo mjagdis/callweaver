@@ -500,7 +500,7 @@ void opbx_udptl_proto_unregister(struct opbx_udptl_protocol *proto)
     struct opbx_udptl_protocol *cur;
     struct opbx_udptl_protocol *prev;
 
-    opbx_log(LOG_NOTICE,"Unregistering UDPTL protocol.\n");
+    opbx_log(OPBX_LOG_NOTICE,"Unregistering UDPTL protocol.\n");
     for (cur = protos, prev = NULL;  cur;  prev = cur, cur = cur->next)
     {
         if (cur == proto)
@@ -518,7 +518,7 @@ int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto)
 {
     struct opbx_udptl_protocol *cur;
 
-    opbx_log(LOG_NOTICE,"Registering UDPTL protocol.\n");
+    opbx_log(OPBX_LOG_NOTICE,"Registering UDPTL protocol.\n");
     for (cur = protos;  cur;  cur = cur->next)
     {
         if (cur->type == proto->type)
