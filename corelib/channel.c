@@ -3398,7 +3398,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 					opbx_log(OPBX_LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
 					break;
                                 } else if ( f->frametype == OPBX_FRAME_MODEM ) {
-                                        opbx_log(LOG_DEBUG, "Got MODEM frame on channel (%s). Exiting generic bridge.\n", who->name);
+                                        opbx_log(OPBX_LOG_DEBUG, "Got MODEM frame on channel (%s). Exiting generic bridge.\n", who->name);
                                     /* If we got a t38 frame... exit this generic bridge */
                                         return OPBX_BRIDGE_RETRY;
 				} else {
@@ -3578,7 +3578,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
     		{
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
-				opbx_log(LOG_DEBUG,"Attempting native bridge of %s and %s\n", c0->name, c1->name);
+				opbx_log(OPBX_LOG_DEBUG,"Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			opbx_set_flag(c0, OPBX_FLAG_NBRIDGE);
 			opbx_set_flag(c1, OPBX_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == OPBX_BRIDGE_COMPLETE)
