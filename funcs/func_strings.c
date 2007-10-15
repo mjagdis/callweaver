@@ -215,22 +215,28 @@ static int builtin_function_len(struct opbx_channel *chan, int argc, char **argv
 
 static int acf_strftime(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *epoch;
+	char *epoch = NULL;
+	char *timezone = NULL;
+	char *format = "%c";
 	long epochi;
 	struct tm time;
+
+	if ( (argc>0) && (!opbx_strlen_zero(argv[0])) ) epoch=argv[0];
+	if ( (argc>1) && (!opbx_strlen_zero(argv[1])) ) timezone=argv[1];
+	if ( (argc>2) && (!opbx_strlen_zero(argv[2])) ) format=argv[2];
 
 	if (argc < 1 || !argv[0][0] || !sscanf(epoch, "%ld", &epochi)) {
 		struct timeval tv = opbx_tvnow();
 		epochi = tv.tv_sec;
 	}
+	buf[0] = '\0';
+	opbx_localtime(&epochi, &time, timezone);
 
-	opbx_localtime(&epochi, &time, (argc > 1 && argv[1][0] ? argv[1] : NULL));
-
-	if (!strftime(buf, len, (argc > 2 && argv[2][0] ? argv[2] : "%c"), &time)) {
+	if (!strftime(buf, len, format, &time)) {
 		opbx_log(OPBX_LOG_DEBUG, "C function strftime() output nothing or needed more than %d bytes\n", len);
 		*buf = '\0';
 	}
-
+	buf[len - 1] = '\0';
 	return 0;
 }
 
