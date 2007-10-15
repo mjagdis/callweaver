@@ -153,7 +153,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 		    This is a very BASIC method to mute a channel. It should be improved
 		    and we should send EMPTY frames (not just avoid sending them) 
 		*/
-                    if (option_debug > 5)
+//AGX: variable not defined in TRUNK:                    if (option_debug > 5)
 		        opbx_log(OPBX_LOG_NOTICE, "channels are muted.\n");
 		}
 		else
@@ -325,7 +325,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
             ( chan->t38_status == T38_NEGOTIATED ) 
              && ( peer->t38_status == T38_NEGOTIATED )
         ) {
-            opbx_log(LOG_DEBUG, "Stop gateway-ing frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
+            opbx_log(OPBX_LOG_DEBUG, "Stop gateway-ing frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
             running = RUNNING;
             break;
         }
@@ -595,7 +595,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, cha
                     opbx_log(OPBX_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
                     res = opbx_t38_gateway(chan, peer, verbose);
                 }
-                opbx_log(LOG_DEBUG," res = %d, RUNNING defined as %d, chan_Status [%d,%d] UNKNOWN set to %d ", res, RUNNING, chan->t38_status, peer->t38_status, T38_STATUS_UNKNOWN  );
+                opbx_log(OPBX_LOG_DEBUG," res = %d, RUNNING defined as %d, chan_Status [%d,%d] UNKNOWN set to %d ", res, RUNNING, chan->t38_status, peer->t38_status, T38_STATUS_UNKNOWN  );
             }
         }
         else
