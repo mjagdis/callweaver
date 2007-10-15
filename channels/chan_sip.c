@@ -1149,14 +1149,14 @@ static void sip_debug_ports(struct sip_pvt *p) {
     {
 
         if ( p->owner )
-            opbx_log(LOG_DEBUG,"DEBUG PORTS CHANNEL %s\n", p->owner->name);
+            opbx_log(OPBX_LOG_DEBUG,"DEBUG PORTS CHANNEL %s\n", p->owner->name);
         if (p->udptl) {
             opbx_udptl_get_us(p->udptl, &udptlsin);
-            opbx_log(LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+            opbx_log(OPBX_LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
         }
         if (p->rtp) {
             opbx_rtp_get_us(p->rtp, &sin);
-            opbx_log(LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
+            opbx_log(OPBX_LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%d...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
         }
     }
 
@@ -1277,41 +1277,41 @@ static inline int sip_is_nat_needed(struct sip_pvt *p)
 
     local = !opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p);
 
-    opbx_log(LOG_DEBUG,"Checking nat (local %d = %s)\n", local, nat2str(opbx_test_flag(p, SIP_NAT)) );
+    opbx_log(OPBX_LOG_DEBUG,"Checking nat (local %d = %s)\n", local, nat2str(opbx_test_flag(p, SIP_NAT)) );
 
     if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && local ) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is not needed (condition 1)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is not needed (condition 1)\n");
     	return 0;
     }
 
     if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && !local ) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is needed (condition 2)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is needed (condition 2)\n");
         return 1;
     }
 
     if ( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ALWAYS) ) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is needed (condition 3)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is needed (condition 3)\n");
         return 1;
     }
 
     if ( (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ROUTE) && local ) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is not needed (condition 4)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is not needed (condition 4)\n");
     	return 0;
     }
 
     if ( (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ROUTE) && local) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is not needed (condition 5)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is not needed (condition 5)\n");
     	return 0;
     }
 
     if (opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ALWAYS) {
         if ( option_debug > 5 )
-            opbx_log(LOG_DEBUG,"Nat is needed (condition 5)\n");
+            opbx_log(OPBX_LOG_DEBUG,"Nat is needed (condition 5)\n");
     	return 1;
     }
 
@@ -4236,7 +4236,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     /* Start with 101 instead of 1 */
     p->ocseq = 101;
 
-    //opbx_log(LOG_DEBUG,"Sip Alloc ... (globalnat %d) \n", useglobal_nat);
+    //opbx_log(OPBX_LOG_DEBUG,"Sip Alloc ... (globalnat %d) \n", useglobal_nat);
 
     if (sip_methods[intended_method].need_rtp)
     {
@@ -4840,7 +4840,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 /*
                 int a;
                 a=opbx_channel_get_t38_status(p->owner);
-                opbx_log(LOG_DEBUG,"Now t38_status is %d for %s \n",a, p->owner->name);
+                opbx_log(OPBX_LOG_DEBUG,"Now t38_status is %d for %s \n",a, p->owner->name);
                 sip_debug_ports(p);
                 */
 	    }
