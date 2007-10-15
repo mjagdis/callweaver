@@ -140,6 +140,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* defines various compile-time defaults */
 #include "defaults.h"
 
+#include "terminal.h"
+
 #ifndef AF_LOCAL
 #define AF_LOCAL AF_UNIX
 #define PF_LOCAL PF_UNIX
@@ -774,15 +776,6 @@ static void set_title(char *text)
 	}
 }
 
-static void set_icon(char *text)
-{
-	char *p;
-
-	if ((p = getenv("TERM")) && strstr(p, "xterm")) {
-		fprintf(stderr, "\033]1;%s\007", text);
-		fflush(stderr);
-	}
-}
 
 /*! We set ourselves to a high priority, that we might pre-empt everything
    else.  If your PBX has heavy activity on it, this is a good thing.  */
@@ -1510,7 +1503,7 @@ static void console_cleanup(void *data)
 	char *p;
 
 	rl_callback_handler_remove();
-	fputs("\r\n", stdout);
+	terminal_write("\r\n", 2);
 	fflush(stdout);
 	set_title("");
 
@@ -1574,7 +1567,8 @@ static void *console(void *data)
 	int res;
 	int pid;
 
-	set_icon("Callweaver");
+	terminal_init();
+	terminal_set_icon("Callweaver");
 
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGWINCH);
@@ -1664,13 +1658,13 @@ static void *console(void *data)
 					if ((ret = read(opbx_consock, buf, sizeof(buf) - 1)) > 0) {
 						if (update_delay < 0 && (option_console || option_remote)) {
 							if (clr_eol) {
-								fputc('\r', stdout);
+								terminal_write("\r", 1);
 								fputs(clr_eol, stdout);
 							} else
-								fputs("\r\n", stdout);
+								terminal_write("\r\n", 2);
 						}
 
-						fwrite(buf, sizeof(buf[0]), ret, stdout);
+						terminal_write(buf, ret);
 
 						/* If we have clear to end of line we can redisplay the input line
 						 * every time the output ends in a new line. Otherwise we want to

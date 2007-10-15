@@ -79,8 +79,6 @@ extern void close_logger(void);
 extern int init_framer(void);
 /* Provided by logger.c */
 extern int reload_logger(int);
-/* Provided by term.c */
-extern int term_init(void);
 /* Provided by db.c */
 extern int opbxdb_init(void);
 /* Provided by channel.c */
