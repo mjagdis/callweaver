@@ -2409,17 +2409,13 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
     
     char *sysname = opbx_config_OPBX_SYSTEM_NAME;
     char *syslabel = NULL;
+    time_t nowtime;
 
-    if (expiry)
-    {
-        /* Registration */
-        time_t nowtime;
-        time(&nowtime);
-        nowtime += expiry;
-        snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);    /* Expiration time */
-        opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
-        snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
-    }
+    time(&nowtime);
+    nowtime += expiry;
+    snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);    /* Expiration time */
+    opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+    snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 
     if (opbx_strlen_zero(sysname)) /* No system name, disable this */
 	sysname = NULL;
