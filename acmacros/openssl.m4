@@ -1,13 +1,8 @@
 #
 # Check SSL
 #
-AC_DEFUN([CHECK_SSL],
-[AC_MSG_CHECKING(if ssl is wanted)
- AC_ARG_WITH(ssl,
- [  --with-ssl enable ssl [will check /usr/local/ssl
-                            /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr /usr/sfw ]
- ],
-[   AC_MSG_RESULT(yes)
+AC_DEFUN([CHECK_SSL], [
+
     for dir in $withval /usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr /usr/sfw; do
         ssldir="$dir"
         if test -f "$dir/include/openssl/ssl.h"; then
@@ -33,8 +28,5 @@ AC_DEFUN([CHECK_SSL],
     AC_SUBST([HAVE_SSL])
     AC_SUBST([SSL_LIBS])
     AC_SUBST([SSL_CFLAGS])
-],
-[
-    AC_MSG_RESULT(no)
-])
+
 ])dnl
