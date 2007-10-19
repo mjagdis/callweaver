@@ -936,7 +936,7 @@ if test "${enable_javascript}" = "yes"; then
    if test -n "$HAVE_LIBJS" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \); then
       JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
       if test -n "${HAVE_JS_JSSCRIPT_H}"; then
-	 JS_CFLAGS="${JSCFLAGS} -I/usr/include/js"
+	 JS_CFLAGS="${JS_CFLAGS} -I/usr/include/js"
       fi
       JS_LDFLAGS="-ljs"
       AC_SUBST(JS_CFLAGS)
