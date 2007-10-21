@@ -118,6 +118,7 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 
 		pthread_cancel(chan->generator.tid);
 		pthread_join(chan->generator.tid, NULL);
+		opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
 		chan->generator.tid = OPBX_PTHREADT_NULL;
 		chan->generator.class->release(chan, chan->generator.pvt);
 		opbx_object_put(chan->generator.class);
