@@ -202,6 +202,17 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 	uint8_t *name, *number, *dialled;
 	int name_len, number_len, dialled_len;
 
+#if 0
+    if (option_debug)
+    {
+        char buf[1024];
+        
+        for (l = 0;  l < len  &&  l < 256;  l++)
+            snprintf(&buf[3*l], 4, "%02X ", msg[l]);
+        opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: (%d) %s\n", chan->name, len, buf);
+    }
+#endif
+
 	name = number = dialled = NULL;
 	name_len = number_len = dialled_len = -1;
 
