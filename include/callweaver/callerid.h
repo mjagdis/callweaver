@@ -77,11 +77,13 @@ extern int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres
  * \param msg        The message buffer containing the decoded data stream.
  * \param len        The length of data in the message buffer.
  *
+ * \return 0 if caller ID was successfully decoded, -1 otherwise
+ *
  * Note: This function is never called directly but should be called via a SpanDSP adsi_rx
  * callback function that knows the correct adsi and chan arguments.
  * See channels/chan_zap.c for an example.
  */
-extern void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len);
+extern int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len);
 
 /*! \brief Generates an FSK encoded message waiting indication in [ua]law format
  *         suitable for transmission.

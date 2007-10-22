@@ -5232,11 +5232,12 @@ static int zt_wink(struct zt_pvt *p, int index)
 }
 
 static void ss_thread_adsi_get(struct zt_pvt *p, adsi_rx_state_t *adsi_rx, const uint8_t *msg, int len) {
-	callerid_get(adsi_rx, p->owner, msg, len);
-	free(p->adsi_rx1);
-	p->adsi_rx1 = NULL;
-	free(p->adsi_rx2);
-	p->adsi_rx2 = NULL;
+	if (!callerid_get(adsi_rx, p->owner, msg, len)) {
+		free(p->adsi_rx1);
+		p->adsi_rx1 = NULL;
+		free(p->adsi_rx2);
+		p->adsi_rx2 = NULL;
+	}
 }
 static void ss_thread_adsi_get1(void *data, const uint8_t *msg, int len) {
 	struct zt_pvt *p = data;

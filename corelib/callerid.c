@@ -192,7 +192,7 @@ int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec)
 }
 
 
-void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len)
+int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len)
 {
 	uint8_t field_type;
 	uint8_t *field_body;
@@ -389,7 +389,11 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 		 */
 		opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
 		opbx_set_callerid(chan, (char *) number, (char *) name, (char *) number);
+
+		return 0;
 	}
+
+	return -1;
 }
 
 int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec)
