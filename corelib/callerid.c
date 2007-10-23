@@ -1,15 +1,3 @@
-/* Temporary things, until everyone is using the latest spandsp */
-#if !defined(CLIP_DTMF_C_TERMINATED)
-    #define CLIP_DTMF_C_TERMINATED 'C'
-#endif
-#if !defined(CLIP_DTMF_HASH_TERMINATED)
-    #define CLIP_DTMF_HASH_TERMINATED '#'
-#endif
-#if !defined(CLIP_DTMF_C_CALLER_NUMBER)
-    #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
-    #define adsi_tx_set_preamble(a,b,c,d,e) /**/
-#endif
-
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
@@ -151,17 +139,12 @@ int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 {
 	int16_t lin[MAX_CALLERID_SIZE];
 	int slen;
-
 	adsi_tx_state_t adsi;
-	adsi_tx_init(&adsi, ADSI_STANDARD_CLASS);
 
-	/* FIXME: mate formatting should really be implemented in spandsp
-	 * rather than mucking around under the hood here
-	 */
-	for (adsi.msg_len = 0; msg[adsi.msg_len]; adsi.msg_len++)
-		adsi.msg[adsi.msg_len] = msg[adsi.msg_len];
+	adsi_tx_init(&adsi, ADSI_STANDARD_CLASS);
     adsi_tx_set_preamble(&adsi, 0, 80, -1, -1);
 
+	adsi_tx_put_message(&adsi, (const uint8_t *) msg, strlen(msg));
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
 }
