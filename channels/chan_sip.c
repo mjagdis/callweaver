@@ -16874,9 +16874,8 @@ static const char siposd_synopsis[] = "Add a SIP OSD";
 static const char siposd_description[] = ""
 "  SIPOSD(Text)\n"
 "Send a SIP Message to be displayed onto the phone LCD. It works if\n"
-"supported by the phone and channel has  already been answered.\n"
-"It is not possible to clear the screen sending an empty string,\n"
-"the screen get cleared at call's hangup.";
+"supported by the SIP phone and if the channel has  already been answered.\n"
+"Omitting the text parameter will allow the previous message to be cleared.";
 
 /*
  * Cloned version of sendtext with extra paramters used by sip_osd
@@ -16901,14 +16900,13 @@ static int sip_sendtext2(struct opbx_channel *ast, const char *text, const char 
 static int sip_osd(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
 	int res = 0;
 	struct sip_pvt *p = NULL;
+	const char *blank=" ";
 	/* parameter checking */
 	if (argc != 1 || !argv[0][0]) {
-		opbx_log(OPBX_LOG_WARNING, "sip_osd: missing parameter\n");
-		return -1;
+		argv[0]=(char*)blank;
 	}
 	if (opbx_strlen_zero(argv[0])) {
-		opbx_log(OPBX_LOG_WARNING, "sip_osd: application requires the argument TEXT\n");
-		return -1;
+		argv[0]=(char*)blank;
 	}
 	/* checking the chan channel structure require locking it */
 	opbx_mutex_lock(&chan->lock);
