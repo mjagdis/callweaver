@@ -350,7 +350,6 @@ opbx_udptl_t *opbx_udptl_new_with_sock_info(struct sched_context *sched,
                                             udp_state_t *sock_info)
 {
     opbx_udptl_t *udptl;
-    int i;
 
     if ((udptl = malloc(sizeof(opbx_udptl_t))) == NULL)
         return NULL;

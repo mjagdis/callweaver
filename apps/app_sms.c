@@ -197,7 +197,7 @@ int add_tm(sms_t *h)
     tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, "CW", 2);
     if (h->da[0])
         tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DESTINATION, h->da, strlen(h->da));
-    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DISPLAY_INFO, h->ud, h->udl);
+    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DISPLAY_INFO, (const uint8_t *) h->ud, h->udl);
     tx_msg[2] = tx_len - 4;
     tx_msg[3] = 0;
     put_message(h, tx_msg, tx_len);

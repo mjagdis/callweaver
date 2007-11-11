@@ -288,11 +288,12 @@ void udp_socket_set_nat(udp_state_t *s, int nat_mode)
     if (s == NULL)
         return;
     s->nat = nat_mode;
-    if (nat_mode  &&  s->rfc3489_state == RFC3489_STATE_IDLE  &&  stun_active)
+    if (nat_mode  &&  s->rfc3489_state == RFC3489_STATE_IDLE  &&  rfc3489_active)
     {
         if (stundebug)
-            opbx_log(OPBX_LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(s->us.sin_port) );
-        opbx_udp_stun_bindrequest(s->fd, &stunserver_ip, NULL, NULL);
+            opbx_log(OPBX_LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n", ntohs(s->us.sin_port));
+        /* TODO: This leaks the returned structure */
+        rfc3489_udp_binding_request(s->fd, &rfc3489_server_ip, NULL, NULL);
         s->rfc3489_state = RFC3489_STATE_REQUEST_PENDING;
     }
 }
@@ -387,9 +388,9 @@ int udp_socket_recvfrom(udp_state_t *s,
         return 0;
     if ((res = recvfrom(s->fd, buf, size, flags, sa, salen)) >= 0)
     {
-        if ((s->nat  &&  !stun_active)
+        if ((s->nat  &&  !rfc3489_active)
             ||
-            (s->nat  &&  stun_active  &&  s->rfc3489_state == RFC3489_STATE_IDLE))
+            (s->nat  &&  rfc3489_active  &&  s->rfc3489_state == RFC3489_STATE_IDLE))
         {
             /* Send to whoever sent to us */
             if (s->them.sin_addr.s_addr != ((struct sockaddr_in *) sa)->sin_addr.s_addr
@@ -411,16 +412,16 @@ int udp_socket_recvfrom(udp_state_t *s,
                 if (stundebug)
                     opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response\n");
                 s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
-                if (stun_addr2sockaddr(&stun_sin, rfc3489_local.mapped_addr))
-                {
-                    memcpy(&s->rfc3489_local, &stun_sin, sizeof(struct sockaddr_in));
-                }
-                else
+                if (rfc3489_addr_to_sockaddr(&stun_sin, rfc3489_local.mapped_addr))
                 {
                     if (stundebug)
                         opbx_log(OPBX_LOG_DEBUG, "Stun response did not contain mapped address\n");
                 }
-                stun_remove_request(&rfc3489_local.id);
+                else
+                {
+                    memcpy(&s->rfc3489_local, &stun_sin, sizeof(struct sockaddr_in));
+                }
+                rfc3489_delete_request(&rfc3489_local.id);
                 return -1;
             }
         }

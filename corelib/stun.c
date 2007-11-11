@@ -47,22 +47,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 char stunserver_host[MAXHOSTNAMELEN] = "";
 struct sockaddr_in stunserver_ip;
 int stunserver_portno;
-int stun_active = 0;
 int stundebug = 0;
 
 rfc3489_request_t *stun_req_queue;
-
-int stun_addr2sockaddr(struct sockaddr_in *sin, rfc3489_addr_t *addr)
-{
-    if (addr)
-    {
-        sin->sin_family = AF_INET;
-        sin->sin_addr.s_addr = addr->addr;
-        sin->sin_port = addr->port;
-        return 1;
-    }
-    return 0;
-}
 
 static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
 {
@@ -84,7 +71,7 @@ static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
         state->mapped_addr = (rfc3489_addr_t *)(attr->value);
         if (stundebug)
         {
-            stun_addr2sockaddr(&sin, state->mapped_addr);
+            rfc3489_addr_to_sockaddr(&sin, state->mapped_addr);
             opbx_verbose("STUN: Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
             opbx_verbose("STUN: Mapped port is %d\n", ntohs(state->mapped_addr->port));
         }
@@ -193,8 +180,9 @@ rfc3489_addr_t *opbx_stun_find_request(rfc3489_trans_id_t *st)
             if (stundebug)
                 opbx_verbose("** Found request in request queue for reqresp lookup\n");
             struct sockaddr_in sin;
-            stun_addr2sockaddr(&sin, &req_queue->mapped_addr);
             //char iabuf[INET_ADDRSTRLEN];
+
+            rfc3489_addr_to_sockaddr(&sin, &req_queue->mapped_addr);
             //opbx_verbose("STUN: passing Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
             //opbx_verbose("STUN: passing Mapped port is %d\n", ntohs(req_queue->mapped_addr.port));
             a = &req_queue->mapped_addr;        
@@ -510,7 +498,7 @@ static struct opbx_clicmd  cli_stun_no_debug =
 void opbx_stun_init(void)
 {
     stundebug = 0;
-    stun_active = 0;
+    rfc3489_active = 0;
     stun_req_queue = NULL;
     opbx_cli_register(&cli_stun_debug);
     opbx_cli_register(&cli_stun_no_debug);

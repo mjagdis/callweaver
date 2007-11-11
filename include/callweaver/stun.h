@@ -15,10 +15,7 @@
 extern char stunserver_host[MAXHOSTNAMELEN];
 extern struct sockaddr_in stunserver_ip;
 extern int stunserver_portno;
-extern int stun_active;             /*!< Is STUN globally enabled ?*/
 extern int stundebug;               /*!< Are we debugging stun? */
-
-int stun_addr2sockaddr(struct sockaddr_in *sin, rfc3489_addr_t *addr);
 
 rfc3489_addr_t *opbx_stun_find_request(rfc3489_trans_id_t *st);
 

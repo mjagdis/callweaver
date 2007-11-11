@@ -1385,7 +1385,7 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
 
     if ((localaddr && opbx_apply_ha(localaddr, &theirs))
         &&
-        (stun_active || externip.sin_addr.s_addr))
+        (rfc3489_active || externip.sin_addr.s_addr))
     {
         char iabuf[INET_ADDRSTRLEN];
     
@@ -1403,7 +1403,7 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
         }
         memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
         opbx_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
-        if (!stun_active)
+        if (!rfc3489_active)
         {
             opbx_log(OPBX_LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
             p->stun_needed = 0;
@@ -1999,7 +1999,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
     struct sip_request tmp;
     char tmpmsg[80];
 
-    if (stun_active  &&  p->stun_needed == 1)
+    if (rfc3489_active  &&  p->stun_needed == 1)
     {
         opbx_log(OPBX_LOG_DEBUG,"This call response %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
 
@@ -2101,7 +2101,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
     struct sip_request tmp;
     char tmpmsg[80];
 
-    if (stun_active  &&  p->stun_needed == 1)
+    if (rfc3489_active  &&  p->stun_needed == 1)
     {
         opbx_log(OPBX_LOG_DEBUG,"This call request %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
 
@@ -2269,7 +2269,7 @@ static int sip_resend_reqresp(void *data)
     {
         char iabuf[INET_ADDRSTRLEN];
 
-        stun_addr2sockaddr(&msin,map);
+        rfc3489_addr_to_sockaddr(&msin, map);
         memcpy(&p->stun_transid, &rr->streq->req_head.id, sizeof(p->stun_transid));
         if (stundebug)
             opbx_log(OPBX_LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
@@ -14122,7 +14122,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         if (!p->initreq.headers)
         {
             opbx_log(OPBX_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
-            if (stun_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
+            if (rfc3489_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
             opbx_set_flag(p, SIP_NEEDDESTROY);    
             return 0;
         }
@@ -14368,7 +14368,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 
             if (stundebug) 
                 opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
-            stun_addr2sockaddr(&msin, stun_me.mapped_addr);
+            rfc3489_addr_to_sockaddr(&msin, stun_me.mapped_addr);
 
             memset(&empty, 0, sizeof(empty));
             if (!memcmp(&externip.sin_addr, &empty, sizeof(externip.sin_addr)))
@@ -15886,7 +15886,7 @@ static int reload_config(void)
     memset(&stunserver_ip, 0, sizeof(stunserver_ip));
     stunserver_ip.sin_family = AF_INET;
     stunserver_portno=3478;
-    stun_active=0;
+    rfc3489_active=0;
 
     /* Initialize some reasonable defaults at SIP reload */
     opbx_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
@@ -16207,7 +16207,7 @@ static int reload_config(void)
             {
                 memcpy(&stunserver_ip.sin_addr, hp->h_addr, sizeof(stunserver_ip.sin_addr));
                 opbx_log(OPBX_LOG_NOTICE, "STUN: stunserver_host is: %s\n", stunserver_host);
-                stun_active=1;
+                rfc3489_active=1;
             }
         }
         else if (!strcasecmp(v->name, "stunserver_port"))
@@ -16298,7 +16298,7 @@ static int reload_config(void)
     }
 
 
-    if (stun_active)
+    if (rfc3489_active)
     {
         if (stundebug)
         opbx_log(OPBX_LOG_DEBUG,"Sending initial STUN discovery packet\n");
