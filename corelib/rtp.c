@@ -740,7 +740,7 @@ static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size, int flags)
     }
 #endif    /* ENABLE_SRTP */
 
-    return udp_socket_sendto(rtp->rtp_sock_info, buf, len, flags);
+    return udp_socket_send(rtp->rtp_sock_info, buf, len, flags);
 }
 
 static int rtpread(int *id, int fd, short events, void *cbdata)
@@ -1469,9 +1469,9 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
     memset(rtp, 0, sizeof(struct opbx_rtp));
 
     if (sched  &&  rtcpenable)
-        rtp->rtp_sock_info = udp_socket_create_group_with_bindaddr(nochecksums, 2, &addr, rtpstart, rtpend);
+        rtp->rtp_sock_info = udp_socket_group_create_and_bind(2, nochecksums, &addr, rtpstart, rtpend);
     else
-        rtp->rtp_sock_info = udp_socket_create_group_with_bindaddr(nochecksums, 1, &addr, rtpstart, rtpend);
+        rtp->rtp_sock_info = udp_socket_group_create_and_bind(1, nochecksums, &addr, rtpstart, rtpend);
 
     if (rtp->rtp_sock_info == NULL)
     {
@@ -1531,11 +1531,11 @@ void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
     struct sockaddr_in them_rtcp;
     
-    udp_socket_set_them(rtp->rtp_sock_info, them);
+    udp_socket_set_far(rtp->rtp_sock_info, them);
     /* We need to cook up the RTCP address */
     memcpy(&them_rtcp, them, sizeof(them_rtcp));
     them_rtcp.sin_port = htons(ntohs(them->sin_port) + 1);
-    udp_socket_set_them(rtp->rtcp_sock_info, &them_rtcp);
+    udp_socket_set_far(rtp->rtcp_sock_info, &them_rtcp);
     rtp->rxseqno = 0;
 }
 

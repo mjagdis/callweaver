@@ -406,7 +406,7 @@ int opbx_udptl_settos(opbx_udptl_t *udptl, int tos)
 
 void opbx_udptl_set_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
 {
-    udp_socket_set_them(udptl->udptl_sock_info, them);
+    udp_socket_set_far(udptl->udptl_sock_info, them);
 }
 
 void opbx_udptl_get_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
@@ -476,7 +476,7 @@ int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
         copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
         for (i = 0;  i < copies;  i++)
         {
-            if ((res = udp_socket_sendto(s->udptl_sock_info, buf, len, 0)) < 0)
+            if ((res = udp_socket_send(s->udptl_sock_info, buf, len, 0)) < 0)
                 opbx_log(OPBX_LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
         }
 #if 0

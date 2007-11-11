@@ -62,8 +62,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 struct udp_state_s
 {
     int fd;
-    struct sockaddr_in us;
-    struct sockaddr_in them;
+    struct sockaddr_in local;
+    struct sockaddr_in far;
     struct sockaddr_in rfc3489_local;
     int nochecksums;
     int nat;
@@ -81,16 +81,6 @@ static uint16_t make_mask16(uint16_t x)
     return x;
 }
 
-int udp_socket_destroy(udp_state_t *s)
-{
-    if (s == NULL)
-        return -1;
-    if (s->fd >= 0)
-        close(s->fd);
-    free(s);
-    return 0;
-}
-
 udp_state_t *udp_socket_create(int nochecksums)
 {
     int fd;
@@ -103,7 +93,11 @@ udp_state_t *udp_socket_create(int nochecksums)
         return NULL;
     }
     flags = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+    {
+        close(fd);
+        return NULL;
+    }
 #ifdef SO_NO_CHECK
     if (nochecksums)
         setsockopt(fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
@@ -115,14 +109,24 @@ udp_state_t *udp_socket_create(int nochecksums)
         return NULL;
     }
     memset(s, 0, sizeof(*s));
-    s->them.sin_family = AF_INET;
-    s->us.sin_family = AF_INET;
+    s->far.sin_family = AF_INET;
+    s->local.sin_family = AF_INET;
     s->nochecksums = nochecksums;
     s->fd = fd;
     s->rfc3489_state = RFC3489_STATE_IDLE;
     s->next = NULL;
     s->prev = NULL;
     return s;
+}
+
+int udp_socket_destroy(udp_state_t *s)
+{
+    if (s == NULL)
+        return -1;
+    if (s->fd >= 0)
+        close(s->fd);
+    free(s);
+    return 0;
 }
 
 int udp_socket_destroy_group(udp_state_t *s)
@@ -149,16 +153,59 @@ int udp_socket_destroy_group(udp_state_t *s)
     return 0;
 }
 
-udp_state_t *udp_socket_create_group_with_bindaddr(int nochecksums, int group, struct in_addr *addr, int startport, int endport)
+udp_state_t *udp_socket_create_and_bind(int nochecksums, struct in_addr *addr, int lowest_port, int highest_port)
+{
+    udp_state_t *s;
+    struct sockaddr_in sockaddr;
+    int port;
+    int starting_point;
+
+    port = lowest_port;
+    if (highest_port != lowest_port)
+        port += (rand()%(highest_port - lowest_port + 1));
+    starting_point = port;
+
+    if ((s = udp_socket_create(nochecksums)) == NULL)
+        return NULL;
+
+    for (;;)
+    {
+        sockaddr.sin_family = AF_INET;
+        if (addr)
+            sockaddr.sin_addr = *addr;
+        else
+            sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        sockaddr.sin_port = htons(port);
+        if (udp_socket_set_local(s, &sockaddr) == 0)
+        {
+            /* We must have bound the port OK. */
+            return s;
+        }
+        if (errno != EADDRINUSE)
+        {
+            udp_socket_destroy(s);
+            return NULL;
+        }
+        if (++port > highest_port)
+            port = lowest_port;
+        if (port == starting_point)
+            break;
+    }
+    /* Unravel what we did so far, and give up */
+    udp_socket_destroy(s);
+    return NULL;
+}
+
+udp_state_t *udp_socket_group_create_and_bind(int group, int nochecksums, struct in_addr *addr, int lowest_port, int highest_port)
 {
     udp_state_t *s;
     udp_state_t *s_extra;
     struct sockaddr_in sockaddr;
     int i;
-    int x;
-    int xx;
+    int base;
+    int port;
     int port_mask;
-    int startplace;
+    int starting_point;
 
     if ((s = udp_socket_create(nochecksums)) == NULL)
         return NULL;
@@ -180,25 +227,25 @@ udp_state_t *udp_socket_create_group_with_bindaddr(int nochecksums, int group, s
 
     /* Find a port or group of ports we can bind to, within a specified numeric range */
     port_mask = make_mask16(group);
-    x = ((rand()%(endport - startport)) + startport) & ~port_mask;
-    startplace = x;
+    base = ((rand()%(highest_port - lowest_port)) + lowest_port) & ~port_mask;
+    starting_point = base;
     for (;;)
     {
-        xx = x;
+        port = base;
         memset(&sockaddr, 0, sizeof(sockaddr));
         sockaddr.sin_addr = *addr;
-        sockaddr.sin_port = htons(xx);
+        sockaddr.sin_port = htons(port);
         s_extra = s;
         while (s_extra)
         {
-            if (udp_socket_set_us(s_extra, &sockaddr))
+            if (udp_socket_set_local(s_extra, &sockaddr))
                 break;
-            sockaddr.sin_port = htons(++xx);
+            sockaddr.sin_port = htons(++port);
             s_extra = s_extra->next;
         }
         if (s_extra == NULL)
         {
-            /* We must have bound them all OK. */
+            /* We must have bound all ports OK. */
             return s;
         }
         if (errno != EADDRINUSE)
@@ -207,13 +254,13 @@ udp_state_t *udp_socket_create_group_with_bindaddr(int nochecksums, int group, s
             udp_socket_destroy_group(s);
             return NULL;
         }
-        x += (port_mask + 1);
-        if (x > endport)
-            x = (startport + port_mask) & ~port_mask;
-        if (x == startplace)
+        base += (port_mask + 1);
+        if (base > highest_port)
+            base = (lowest_port + port_mask) & ~port_mask;
+        if (base == starting_point)
             break;
     }
-    opbx_log(OPBX_LOG_ERROR, "No ports available within the range %d to %d. Can't setup media stream.\n", startport, endport);
+    opbx_log(OPBX_LOG_ERROR, "No ports available within the range %d to %d. Can't setup media stream.\n", lowest_port, highest_port);
     /* Unravel what we did so far, and give up */
     udp_socket_destroy_group(s);
     return NULL;
@@ -232,7 +279,7 @@ udp_state_t *udp_socket_find_group_element(udp_state_t *s, int element)
     return s;
 }
 
-int udp_socket_set_us(udp_state_t *s, const struct sockaddr_in *us)
+int udp_socket_set_local(udp_state_t *s, const struct sockaddr_in *us)
 {
     int res;
     long flags;
@@ -240,7 +287,7 @@ int udp_socket_set_us(udp_state_t *s, const struct sockaddr_in *us)
     if (s == NULL  ||  s->fd < 0)
         return -1;
 
-    if (s->us.sin_addr.s_addr  ||  s->us.sin_port)
+    if (s->local.sin_addr.s_addr  ||  s->local.sin_port)
     {
         /* We are already bound, so we need to re-open the socket to unbind it */
         close(s->fd);
@@ -256,20 +303,20 @@ int udp_socket_set_us(udp_state_t *s, const struct sockaddr_in *us)
             setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK, &s->nochecksums, sizeof(s->nochecksums));
 #endif
     }
-    s->us.sin_port = us->sin_port;
-    s->us.sin_addr.s_addr = us->sin_addr.s_addr;
-       if ((res = bind(s->fd, (struct sockaddr *) &s->us, sizeof(s->us))) < 0)
+    s->local.sin_port = us->sin_port;
+    s->local.sin_addr.s_addr = us->sin_addr.s_addr;
+       if ((res = bind(s->fd, (struct sockaddr *) &s->local, sizeof(s->local))) < 0)
     {
-        s->us.sin_port = 0;
-        s->us.sin_addr.s_addr = 0;
+        s->local.sin_port = 0;
+        s->local.sin_addr.s_addr = 0;
     }
     return res;
 }
 
-void udp_socket_set_them(udp_state_t *s, const struct sockaddr_in *them)
+void udp_socket_set_far(udp_state_t *s, const struct sockaddr_in *far)
 {
-    s->them.sin_port = them->sin_port;
-    s->them.sin_addr.s_addr = them->sin_addr.s_addr;
+    s->far.sin_port = far->sin_port;
+    s->far.sin_addr.s_addr = far->sin_addr.s_addr;
 }
 
 int udp_socket_set_tos(udp_state_t *s, int tos)
@@ -291,7 +338,7 @@ void udp_socket_set_nat(udp_state_t *s, int nat_mode)
     if (nat_mode  &&  s->rfc3489_state == RFC3489_STATE_IDLE  &&  rfc3489_active)
     {
         if (stundebug)
-            opbx_log(OPBX_LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n", ntohs(s->us.sin_port));
+            opbx_log(OPBX_LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n", ntohs(s->local.sin_port));
         /* TODO: This leaks the returned structure */
         rfc3489_udp_binding_request(s->fd, &rfc3489_server_ip, NULL, NULL);
         s->rfc3489_state = RFC3489_STATE_REQUEST_PENDING;
@@ -302,8 +349,8 @@ int udp_socket_restart(udp_state_t *s)
 {
     if (s == NULL)
         return -1;
-    memset(&s->them.sin_addr.s_addr, 0, sizeof(s->them.sin_addr.s_addr));
-    s->them.sin_port = 0;
+    memset(&s->far.sin_addr.s_addr, 0, sizeof(s->far.sin_addr.s_addr));
+    s->far.sin_port = 0;
     return 0;
 }
 
@@ -345,7 +392,7 @@ const struct sockaddr_in *udp_socket_get_us(udp_state_t *s)
     static const struct sockaddr_in dummy = {0};
 
     if (s)
-        return &s->us;
+        return &s->local;
     return &dummy;
 }
 
@@ -357,7 +404,7 @@ const struct sockaddr_in *udp_socket_get_apparent_us(udp_state_t *s)
     {
         if (s->rfc3489_state == RFC3489_STATE_RESPONSE_RECEIVED)
             return &s->rfc3489_local;
-        return &s->us;
+        return &s->local;
     }
     return &dummy;
 }
@@ -367,7 +414,7 @@ const struct sockaddr_in *udp_socket_get_them(udp_state_t *s)
     static const struct sockaddr_in dummy = {0};
 
     if (s)
-        return &s->them;
+        return &s->far;
     return &dummy;
 }
 
@@ -379,7 +426,7 @@ int udp_socket_recvfrom(udp_state_t *s,
                         socklen_t *salen,
                         int *action)
 {
-    struct sockaddr_in stun_sin;
+    struct sockaddr_in rfc3489_sin;
     rfc3489_state_t rfc3489_local;
     int res;
 
@@ -393,11 +440,11 @@ int udp_socket_recvfrom(udp_state_t *s,
             (s->nat  &&  rfc3489_active  &&  s->rfc3489_state == RFC3489_STATE_IDLE))
         {
             /* Send to whoever sent to us */
-            if (s->them.sin_addr.s_addr != ((struct sockaddr_in *) sa)->sin_addr.s_addr
+            if (s->far.sin_addr.s_addr != ((struct sockaddr_in *) sa)->sin_addr.s_addr
                 || 
-                s->them.sin_port != ((struct sockaddr_in *) sa)->sin_port)
+                s->far.sin_port != ((struct sockaddr_in *) sa)->sin_port)
             {
-                memcpy(&s->them, sa, sizeof(s->them));
+                memcpy(&s->far, sa, sizeof(s->far));
                 *action |= 1;
             }
         }
@@ -412,14 +459,14 @@ int udp_socket_recvfrom(udp_state_t *s,
                 if (stundebug)
                     opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response\n");
                 s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
-                if (rfc3489_addr_to_sockaddr(&stun_sin, rfc3489_local.mapped_addr))
+                if (rfc3489_addr_to_sockaddr(&rfc3489_sin, rfc3489_local.mapped_addr))
                 {
                     if (stundebug)
                         opbx_log(OPBX_LOG_DEBUG, "Stun response did not contain mapped address\n");
                 }
                 else
                 {
-                    memcpy(&s->rfc3489_local, &stun_sin, sizeof(struct sockaddr_in));
+                    memcpy(&s->rfc3489_local, &rfc3489_sin, sizeof(struct sockaddr_in));
                 }
                 rfc3489_delete_request(&rfc3489_local.id);
                 return -1;
@@ -429,11 +476,49 @@ int udp_socket_recvfrom(udp_state_t *s,
     return res;
 }
 
-int udp_socket_sendto(udp_state_t *s, const void *buf, size_t size, int flags)
+int udp_socket_recv(udp_state_t *s,
+                    void *buf,
+                    size_t size,
+                    int flags,
+                    int *action)
+{
+    struct sockaddr sa;
+    socklen_t salen;
+    int res;
+
+    salen = sizeof(sa);
+    if ((res = udp_socket_recvfrom(s, buf, size, flags, &sa, &salen, action)) >= 0)
+    {
+        if (salen != sizeof(s->far)
+            ||
+            memcmp(&sa, &s->far, sizeof(s->far)))
+        {
+            errno = EAGAIN;
+            return -1;
+        }
+    }
+    return res;
+}
+
+int udp_socket_send(udp_state_t *s, const void *buf, size_t size, int flags)
 {
     if (s == NULL  ||  s->fd < 0)
         return 0;
-    if (s->them.sin_port == 0)
+    if (s->far.sin_port == 0)
         return 0;
-    return sendto(s->fd, buf, size, flags, (struct sockaddr *) &s->them, sizeof(s->them));
+    return sendto(s->fd, buf, size, flags, (struct sockaddr *) &s->far, sizeof(s->far));
+}
+
+int udp_socket_sendto(udp_state_t *s,
+                      const void *buf,
+                      size_t size,
+                      int flags,
+                      struct sockaddr *sa,
+                      socklen_t salen)
+{
+    if (s == NULL  ||  s->fd < 0)
+        return 0;
+    if (s->far.sin_port == 0)
+        return 0;
+    return sendto(s->fd, buf, size, flags, sa, salen);
 }
