@@ -29,12 +29,12 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <vale/rfc3489.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/udp.h"
 #include "callweaver/rtp.h"
 #include "callweaver/lock.h"
 #include "callweaver/stun.h"

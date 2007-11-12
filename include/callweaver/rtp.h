@@ -30,11 +30,12 @@
 #ifndef _CALLWEAVER_RTP_H
 #define _CALLWEAVER_RTP_H
 
+#include <vale/udp.h>
+
 #include "callweaver/frame.h"
 #include "callweaver/io.h"
 #include "callweaver/sched.h"
 #include "callweaver/channel.h"
-#include "callweaver/udp.h"
 
 #include <netinet/in.h>
 

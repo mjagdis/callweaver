@@ -50,6 +50,7 @@
 #include <regex.h>
 #include <vale/rfc3489.h>
 #include <vale/udptl.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
@@ -65,7 +66,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"
-#include "callweaver/udp.h"
 #include "callweaver/rtp.h"
 #include "callweaver/udptl.h"
 //#include "callweaver/tpkt.h"

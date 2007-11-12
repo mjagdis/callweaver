@@ -39,6 +39,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <vale/rfc3489.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
@@ -56,7 +57,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
-#include "callweaver/udp.h"
 #include "callweaver/stun.h"
 
 struct udp_state_s
@@ -297,7 +297,11 @@ int udp_socket_set_local(udp_state_t *s, const struct sockaddr_in *us)
             return -1;
         }
         flags = fcntl(s->fd, F_GETFL);
-        fcntl(s->fd, F_SETFL, flags | O_NONBLOCK);
+        if (fcntl(s->fd, F_SETFL, flags | O_NONBLOCK) < 0)
+        {
+            close(s->fd);
+            return -1;
+        }
 #ifdef SO_NO_CHECK
         if (s->nochecksums)
             setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK, &s->nochecksums, sizeof(s->nochecksums));
@@ -305,7 +309,7 @@ int udp_socket_set_local(udp_state_t *s, const struct sockaddr_in *us)
     }
     s->local.sin_port = us->sin_port;
     s->local.sin_addr.s_addr = us->sin_addr.s_addr;
-       if ((res = bind(s->fd, (struct sockaddr *) &s->local, sizeof(s->local))) < 0)
+    if ((res = bind(s->fd, (struct sockaddr *) &s->local, sizeof(s->local))) < 0)
     {
         s->local.sin_port = 0;
         s->local.sin_addr.s_addr = 0;
@@ -317,6 +321,11 @@ void udp_socket_set_far(udp_state_t *s, const struct sockaddr_in *far)
 {
     s->far.sin_port = far->sin_port;
     s->far.sin_addr.s_addr = far->sin_addr.s_addr;
+}
+
+void udp_socket_set_rfc3489(udp_state_t *s, const struct sockaddr_in *rfc3489)
+{
+    memcpy(&s->rfc3489_local, rfc3489, sizeof(struct sockaddr_in));
 }
 
 int udp_socket_set_tos(udp_state_t *s, int tos)
@@ -361,33 +370,19 @@ int udp_socket_fd(udp_state_t *s)
     return s->fd;
 }
 
-int udp_socket_get_stunstate(udp_state_t *s)
+int udp_socket_get_rfc3489_state(udp_state_t *s)
 {
     if (s)
         return s->rfc3489_state;
     return 0;
 }
 
-void udp_socket_set_stunstate(udp_state_t *s, int state)
+void udp_socket_set_rfc3489_state(udp_state_t *s, int state)
 {
     s->rfc3489_state = state;
 }
 
-const struct sockaddr_in *udp_socket_get_stun(udp_state_t *s)
-{
-    static const struct sockaddr_in dummy = {0};
-
-    if (s)
-        return &s->rfc3489_local;
-    return &dummy;
-}
-
-void udp_socket_set_stun(udp_state_t *s, const struct sockaddr_in *stun)
-{
-    memcpy(&s->rfc3489_local, stun, sizeof(struct sockaddr_in));
-}
-
-const struct sockaddr_in *udp_socket_get_us(udp_state_t *s)
+const struct sockaddr_in *udp_socket_get_local(udp_state_t *s)
 {
     static const struct sockaddr_in dummy = {0};
 
@@ -396,7 +391,7 @@ const struct sockaddr_in *udp_socket_get_us(udp_state_t *s)
     return &dummy;
 }
 
-const struct sockaddr_in *udp_socket_get_apparent_us(udp_state_t *s)
+const struct sockaddr_in *udp_socket_get_apparent_local(udp_state_t *s)
 {
     static const struct sockaddr_in dummy = {0};
 
@@ -409,12 +404,21 @@ const struct sockaddr_in *udp_socket_get_apparent_us(udp_state_t *s)
     return &dummy;
 }
 
-const struct sockaddr_in *udp_socket_get_them(udp_state_t *s)
+const struct sockaddr_in *udp_socket_get_far(udp_state_t *s)
 {
     static const struct sockaddr_in dummy = {0};
 
     if (s)
         return &s->far;
+    return &dummy;
+}
+
+const struct sockaddr_in *udp_socket_get_rfc3489(udp_state_t *s)
+{
+    static const struct sockaddr_in dummy = {0};
+
+    if (s)
+        return &s->rfc3489_local;
     return &dummy;
 }
 
@@ -453,20 +457,20 @@ int udp_socket_recvfrom(udp_state_t *s,
             if (stundebug)
                 opbx_log(OPBX_LOG_DEBUG, "Checking if payload it is a stun RESPONSE\n");
             memset(&rfc3489_local, 0, sizeof(rfc3489_state_t));
-            stun_handle_packet(s->rfc3489_state, (struct sockaddr_in *) sa, buf, res, &rfc3489_local);
+            rfc3489_handle_packet(s->rfc3489_state, (struct sockaddr_in *) sa, buf, res, &rfc3489_local);
             if (rfc3489_local.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE)
             {
                 if (stundebug)
                     opbx_log(OPBX_LOG_DEBUG, "Got STUN bind response\n");
                 s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
-                if (rfc3489_addr_to_sockaddr(&rfc3489_sin, rfc3489_local.mapped_addr))
+                if (rfc3489_addr_to_sockaddr(&rfc3489_sin, rfc3489_local.mapped_addr) == 0)
                 {
-                    if (stundebug)
-                        opbx_log(OPBX_LOG_DEBUG, "Stun response did not contain mapped address\n");
+                    memcpy(&s->rfc3489_local, &rfc3489_sin, sizeof(struct sockaddr_in));
                 }
                 else
                 {
-                    memcpy(&s->rfc3489_local, &rfc3489_sin, sizeof(struct sockaddr_in));
+                    if (stundebug)
+                        opbx_log(OPBX_LOG_DEBUG, "Stun response did not contain mapped address\n");
                 }
                 rfc3489_delete_request(&rfc3489_local.id);
                 return -1;

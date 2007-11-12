@@ -44,12 +44,12 @@
 #include <srtp/srtp.h>
 #endif
 #include <vale/rfc3489.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/udp.h"
 #include "callweaver/rtp.h"
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"
@@ -63,7 +63,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
-#include "callweaver/stun.h"
 
 #define MAX_TIMESTAMP_SKEW    640
 
@@ -207,7 +206,7 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
     char iabuf[INET_ADDRSTRLEN];
     const struct sockaddr_in *them;
 
-    them = udp_socket_get_them(rtp->rtp_sock_info);
+    them = udp_socket_get_far(rtp->rtp_sock_info);
     if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0)
     {
         if (option_debug)
@@ -354,7 +353,7 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
         char iabuf[INET_ADDRSTRLEN];
 
         opbx_log(OPBX_LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
-                 opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr));
+                 opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtp_sock_info)->sin_addr));
         opbx_set_flag(rtp, FLAG_3389_WARNING);
     }
 
@@ -787,7 +786,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     if ((actions & 1))
     {
         if (option_debug  ||  rtpdebug)
-            opbx_log(OPBX_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtcp_sock_info)->sin_port));
+            opbx_log(OPBX_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_far(rtp->rtcp_sock_info)->sin_port));
     }
 
     if (res < hdrlen)
@@ -810,7 +809,7 @@ static int opbx_rtp_senddigit_continue(void *data)
 	int repeat;
 	int more = 1;
 
-	them = udp_socket_get_them(rtp->rtp_sock_info);
+	them = udp_socket_get_far(rtp->rtp_sock_info);
 
 	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
 
@@ -874,7 +873,7 @@ int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
 	const struct sockaddr_in *them;
 
 	/* If we have no peer, return immediately */
-	them = udp_socket_get_them(rtp->rtp_sock_info);
+	them = udp_socket_get_far(rtp->rtp_sock_info);
 	if (them->sin_addr.s_addr == 0 || them->sin_port == 0)
 		return 0;
 
@@ -988,7 +987,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     }
 
     /* Ignore if the other side hasn't been given an address yet. */
-    if (udp_socket_get_them(rtp->rtp_sock_info)->sin_addr.s_addr == 0  ||  udp_socket_get_them(rtp->rtp_sock_info)->sin_port == 0)
+    if (udp_socket_get_far(rtp->rtp_sock_info)->sin_addr.s_addr == 0  ||  udp_socket_get_far(rtp->rtp_sock_info)->sin_port == 0)
         return &null_frame;
 
     if (rtp->nat)
@@ -1001,8 +1000,8 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
             if (option_debug  ||  rtpdebug)
             {
                 opbx_log(OPBX_LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n",
-                         opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr),
-                         ntohs(udp_socket_get_them(rtp->rtp_sock_info)->sin_port));
+                         opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtp_sock_info)->sin_addr),
+                         ntohs(udp_socket_get_far(rtp->rtp_sock_info)->sin_port));
             }
         }
     }
@@ -1541,18 +1540,18 @@ void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 
 void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
-    memcpy(them, udp_socket_get_them(rtp->rtp_sock_info), sizeof(*them));
+    memcpy(them, udp_socket_get_far(rtp->rtp_sock_info), sizeof(*them));
 }
 
 void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us)
 {
-    memcpy(us, udp_socket_get_apparent_us(rtp->rtp_sock_info), sizeof(*us));
+    memcpy(us, udp_socket_get_apparent_local(rtp->rtp_sock_info), sizeof(*us));
 }
 
 int opbx_rtp_get_stunstate(struct opbx_rtp *rtp)
 {
     if (rtp)
-        return udp_socket_get_stunstate(rtp->rtp_sock_info);
+        return udp_socket_get_rfc3489_state(rtp->rtp_sock_info);
     return 0;
 }
 
@@ -1629,7 +1628,7 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
     level = 127 - (level & 0x7F);
     payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_CN);
 
-    them = udp_socket_get_them(rtp->rtp_sock_info);
+    them = udp_socket_get_far(rtp->rtp_sock_info);
 
     /* If we have no peer, return immediately */    
     if (them->sin_addr.s_addr == 0)
@@ -1673,7 +1672,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
     int mark = 0;
     const struct sockaddr_in *them;
 
-    them = udp_socket_get_them(rtp->rtp_sock_info);
+    them = udp_socket_get_far(rtp->rtp_sock_info);
     ms = calc_txstamp(rtp, &f->delivery);
     /* Default prediction */
     if (f->subclass < OPBX_FORMAT_MAX_AUDIO)
@@ -1781,7 +1780,7 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
         return 0;
     
     /* If we have no peer, return immediately */    
-    if (udp_socket_get_them(rtp->rtp_sock_info)->sin_addr.s_addr == 0)
+    if (udp_socket_get_far(rtp->rtp_sock_info)->sin_addr.s_addr == 0)
         return 0;
 
     /* Make sure we have enough space for RTP header */

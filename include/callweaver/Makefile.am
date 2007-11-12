@@ -57,7 +57,6 @@ opbxinclude_HEADERS = acl.h \
                       time.h \
                       transcap.h \
                       translate.h \
-                      udp.h \
                       udpfromto.h \
                       udptl.h \
                       unaligned.h \

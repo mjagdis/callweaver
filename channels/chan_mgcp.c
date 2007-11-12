@@ -86,6 +86,7 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <time.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
@@ -101,7 +102,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"
-#include "callweaver/udp.h"
 #include "callweaver/rtp.h"
 #include "callweaver/acl.h"
 #include "callweaver/phone_no_utils.h"

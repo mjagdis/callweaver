@@ -79,6 +79,7 @@
 #include <regex.h>
 #include <spandsp.h>
 #include <vale/rfc3489.h>
+#include <vale/udp.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
@@ -110,7 +111,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cdr.h"
 #include "callweaver/pbx.h"
 #include "callweaver/enum.h"
-#include "callweaver/udp.h"
 #include "callweaver/rtp.h"
 #include "callweaver/udptl.h"
 #include "callweaver/stun.h"

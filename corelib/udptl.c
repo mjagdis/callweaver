@@ -40,12 +40,12 @@
 #include <fcntl.h>
 #include <vale/rfc3489.h>
 #include <vale/udptl.h>
+#include <vale/udp.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/udp.h"
 #include "callweaver/udptl.h"
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"
@@ -59,7 +59,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
-#include "callweaver/stun.h"
 
 #define UDPTL_MTU        1200
 
@@ -247,7 +246,7 @@ struct opbx_frame *opbx_udptl_read(opbx_udptl_t *udptl)
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
-            opbx_log(OPBX_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_them(udptl->udptl_sock_info)->sin_port));
+            opbx_log(OPBX_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
     }
 
     if (udptl_debug_test_addr(&sin))
@@ -411,18 +410,18 @@ void opbx_udptl_set_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
 
 void opbx_udptl_get_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
 {
-    memcpy(them, udp_socket_get_them(udptl->udptl_sock_info), sizeof(*them));
+    memcpy(them, udp_socket_get_far(udptl->udptl_sock_info), sizeof(*them));
 }
 
 void opbx_udptl_get_us(opbx_udptl_t *udptl, struct sockaddr_in *us)
 {
-    memcpy(us, udp_socket_get_apparent_us(udptl->udptl_sock_info), sizeof(*us));
+    memcpy(us, udp_socket_get_apparent_local(udptl->udptl_sock_info), sizeof(*us));
 }
 
 int opbx_udptl_get_stunstate(opbx_udptl_t *udptl)
 {
     if (udptl)
-        return udp_socket_get_stunstate(udptl->udptl_sock_info);
+        return udp_socket_get_rfc3489_state(udptl->udptl_sock_info);
     return 0;
 }
 
@@ -450,7 +449,7 @@ int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
     char iabuf[INET_ADDRSTRLEN];
     const struct sockaddr_in *them;
 
-    them = udp_socket_get_them(s->udptl_sock_info);
+    them = udp_socket_get_far(s->udptl_sock_info);
 
     /* If we have no peer, return immediately */    
     if (them->sin_addr.s_addr == INADDR_ANY)
