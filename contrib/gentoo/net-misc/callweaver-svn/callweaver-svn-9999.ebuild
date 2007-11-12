@@ -7,7 +7,7 @@ inherit eutils subversion
 DESCRIPTION="CallWeaver is a community-driven vendor-independent cross-platform Open Source PBX software project."
 HOMEPAGE="http://www.callweaver.org/"
 
-ESVN_REPO_URI="http://svn.callweaver.org/callweaver/trunk"
+ESVN_REPO_URI="http://svn.callweaver.org/callweaver/branches/rel/1.2/"
 ESVN_BOOTSTRAP="./bootstrap.sh"
 
 S="${WORKDIR}/${PN}"
@@ -21,7 +21,7 @@ KEYWORDS="~x86 ~amd64"
 IUSE="misdn speex postgres zap t38"
 
 RDEPEND="!net-misc/callweaver-svn
-    >=media-libs/spandsp-0.0.4_pre3
+    >=media-libs/spandsp-0.0.4_pre10
     >=sys-libs/libcap-1.10
     misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
     speex? ( media-libs/speex )

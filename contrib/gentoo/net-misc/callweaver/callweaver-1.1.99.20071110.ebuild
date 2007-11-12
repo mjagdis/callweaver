@@ -6,7 +6,7 @@ inherit eutils
 
 DESCRIPTION="CallWeaver is a community-driven vendor-independent cross-platform Open Source PBX software project."
 HOMEPAGE="http://www.callweaver.org/"
-SRC_URI="http://devs.callweaver.org/release/${P}.tgz"
+SRC_URI="http://devs.callweaver.org/1.2_snapshots/callweaver-RC-${PVR}.tar.gz"
                 
 SLOT="0"
 LICENSE="GPL-2"
@@ -17,7 +17,7 @@ KEYWORDS="~x86 ~amd64"
 IUSE="misdn speex postgres zap t38"
 
 RDEPEND="!net-misc/callweaver-svn
-	=media-libs/spandsp-0.0.4_pre3
+	>=media-libs/spandsp-0.0.4_pre10
     >=sys-libs/libcap-1.10
 	misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
 	speex? ( media-libs/speex )
@@ -30,7 +30,7 @@ DEPEND="${RDEPEND}
         >=sys-devel/automake-1.9.6
         >=sys-devel/autoconf-2.59
         >=sys-devel/libtool-1.5.20"
-
+		
 
 src_compile() {
         ewarn "ALL IUSE ARE EXPERIMENTAL,"
@@ -133,4 +133,3 @@ pkg_config() {
                 done
         fi
 }
-
