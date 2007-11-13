@@ -11308,6 +11308,10 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
                 opbx_cdr_setuserfield(opbx_bridged_channel(p->owner), c);
             transmit_response(p, "200 OK", req);
         }
+        else if (strcasecmp(get_header(req, "Content-Length"), "0") == 0) {
+            transmit_response(p, "200 OK", req);
+            return;
+        }
         else
         {
             transmit_response(p, "403 Unauthorized", req);
