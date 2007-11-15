@@ -16805,11 +16805,6 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv, c
         opbx_log(OPBX_LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         return 0;
     }
-/*
-    if (argc < 1 || !argv[0][0])
-        return opbx_function_synax(sipt38switchover_syntax);
-*/
-    opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
         opbx_log(OPBX_LOG_WARNING, "This function can only be used on SIP channels.\n");
