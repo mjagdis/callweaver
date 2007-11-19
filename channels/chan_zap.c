@@ -8861,7 +8861,7 @@ static int start_pri(struct zt_pri *pri)
 	for (i=0;i<NUM_DCHANS;i++) {
 		if (!pri->dchannels[i])
 			break;
-		pri->fds[i] = open("/dev/zap/channel", O_RDWR, 0600);
+		pri->fds[i] = open("/dev/zap/channel", O_RDWR);
 		x = pri->dchannels[i];
 		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],ZT_SPECIFY,&x) == -1)) {
 			opbx_log(OPBX_LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
@@ -8979,7 +8979,7 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 		if (opbx_strlen_zero(argv[4]))
 			return RESULT_SHOWUSAGE;
 
-		myfd = open(argv[4], O_CREAT|O_WRONLY);
+		myfd = open(argv[4], O_CREAT | O_WRONLY, 0660);
 		if (myfd < 0) {
 			opbx_cli(fd, "Unable to open '%s' for writing\n", argv[4]);
 			return RESULT_SUCCESS;
