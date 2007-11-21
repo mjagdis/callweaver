@@ -265,7 +265,7 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     uint64_t 		now;
     uint64_t 		passage;
 
-    memset(t38, 0, sizeof(t38));
+    memset(t38, 0, sizeof(*t38));
 
     if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
     {
@@ -370,7 +370,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
-    memset(fax, 0, sizeof(fax));
+    memset(fax, 0, sizeof(*fax));
 
     if (fax_init(fax, calling_party) == NULL)
     {
@@ -492,7 +492,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
                 outf.samples = len;
                 outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                 outf.offset = OPBX_FRIENDLY_OFFSET;
-	        memset(&buf[OPBX_FRIENDLY_OFFSET],0,outf.datalen);
+	        memset(&buf[OPBX_FRIENDLY_OFFSET], 0, outf.datalen);
                 if (opbx_write(chan, &outf) < 0)
                 {
                     opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -591,7 +591,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 
 static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    fax_state_t 	fax;
+    fax_state_t fax;
     t38_terminal_state_t t38;
 
     int res = 0;
@@ -614,8 +614,12 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         return -1;
     }
 
+    /* make sure they are initialized to zero */
+    memset(&fax, 0, fax);
+    memset(&t38, 0, t38);
+
     if (argc < 1 || argc > 4)
-	return opbx_function_syntax(rxfax_syntax);
+        return opbx_function_syntax(rxfax_syntax);
 
     /* Resetting channel variables related to T38 */
     
@@ -709,7 +713,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 
     }
 
-    if (!chan->t38_status)
+    if (chan->t38_status != T38_NEGOTIATED)
 	t30_terminate(&fax.t30_state);
     else
 	t30_terminate(&t38.t30_state);

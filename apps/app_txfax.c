@@ -235,10 +235,10 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     struct opbx_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
-    uint64_t 		now;
-    uint64_t 		passage;
+    uint64_t now;
+    uint64_t passage;
 
-    memset(t38, 0, sizeof(t38));
+    memset(t38, 0, sizeof(*t38));
 
     if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
     {
@@ -285,7 +285,7 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     } 
     else 
     {
-        t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION );
+        t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
     }
 
     passage = nowis();
@@ -340,7 +340,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
-    memset(fax, 0, sizeof(fax));
+    memset(fax, 0, sizeof(*fax));
 
     if (fax_init(fax, calling_party) == NULL)
     {
@@ -535,6 +535,10 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         return -1;
     }
 
+    /* Make sure they are initialized to zero */
+    memset(&fax, 0, fax);
+    memset(&t38, 0, t38);
+
     if (argc < 1)
         return opbx_function_syntax(txfax_syntax);
 
@@ -640,12 +644,12 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 	    ready = txfax_t38  ( chan, &t38, source_file, calling_party, verbose, ecm);
 	}
 
-	if ( chan->t38_status != T38_NEGOTIATING )
+	if (chan->t38_status != T38_NEGOTIATING)
 	    ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
 
     }
 
-    if (!chan->t38_status)
+    if (chan->t38_status != T38_NEGOTIATED)
 	t30_terminate(&fax.t30_state);
     else
 	t30_terminate(&t38.t30_state);
