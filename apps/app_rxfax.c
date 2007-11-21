@@ -615,8 +615,8 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     }
 
     /* make sure they are initialized to zero */
-    memset(&fax, 0, fax);
-    memset(&t38, 0, t38);
+    memset(&fax, 0, sizeof(fax));
+    memset(&t38, 0, sizeof(t38));
 
     if (argc < 1 || argc > 4)
         return opbx_function_syntax(rxfax_syntax);
