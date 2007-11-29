@@ -438,7 +438,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     int srclen;
 
     /* Its rather nasty if we are ever passed NULL, but lets try to be as
-       benign as possible in how we traet this situation. */
+       benign as possible in how we treat this situation. */
     if (f == NULL)
         return NULL;
     srclen = 0;
@@ -463,10 +463,9 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     out->delivery = f->delivery;
     out->mallocd = OPBX_MALLOCD_HDR;
     out->offset = OPBX_FRIENDLY_OFFSET;
-    out->data = out->local_data;
     if (srclen > 0)
     {
-        out->src = out->data + f->datalen;
+        out->src = out->local_data + f->datalen;
         /* Must have space since we allocated for it */
         strcpy((char *) out->src, f->src);
     }
@@ -476,8 +475,15 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     }
     out->prev = NULL;
     out->next = NULL;
-    memcpy(out->data, f->data, out->datalen);
-
+    if (f->data)
+    {
+        out->data = out->local_data;
+        memcpy(out->data, f->data, out->datalen);
+    }
+    else
+    {
+        out->data = NULL;
+    }
     out->has_timing_info = f->has_timing_info;
     if (f->has_timing_info)
     {
