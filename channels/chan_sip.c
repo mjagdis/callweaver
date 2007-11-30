@@ -16685,7 +16685,7 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
     p->t38peercapability = pvt->t38jointcapability; 
     opbx_udptl_set_far_max_datagram(p->udptl, opbx_udptl_get_local_max_datagram(pvt->udptl));
     opbx_udptl_set_local_max_datagram(p->udptl, opbx_udptl_get_local_max_datagram(pvt->udptl));
-    opbx_udptl_set_error_correction_scheme(p->udptl, opbx_udptl_get_error_correction_scheme(pvt->udptl));
+    opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
 
     if (reinvite)
     {

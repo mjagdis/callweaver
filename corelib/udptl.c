@@ -72,7 +72,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static int udptldebug = 0;                  /* Are we debugging? */
 static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
 static int nochecksums = 0;
-static int udptlfectype = 0;
+static int udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
 static int udptlfecentries = 0;
 static int udptlfecspan = 0;
 static int udptlmaxdatagram = 0;
@@ -775,7 +775,7 @@ void opbx_udptl_reload(void)
     struct opbx_config *cfg;
     char *s;
 
-    udptlfectype = 0;
+    udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
     udptlfecentries = 0;
     udptlfecspan = 0;
     udptlmaxdatagram = 0;
@@ -797,9 +797,9 @@ void opbx_udptl_reload(void)
         if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC")))
         {
             if (strcmp(s, "t38UDPFEC") == 0)
-                udptlfectype = 2;
+                udptlfectype = UDPTL_ERROR_CORRECTION_FEC;
             else if (strcmp(s, "t38UDPRedundancy") == 0)
-                udptlfectype = 1;
+                udptlfectype = UDPTL_ERROR_CORRECTION_REDUNDANCY;
         }
         if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxMaxDatagram")))
         {
