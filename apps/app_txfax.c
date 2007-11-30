@@ -290,7 +290,8 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 
     passage = nowis();
 
-    while ( ready && ready_to_talk(chan) )
+    t38_terminal_set_tep_mode(t38, TRUE);
+    while (ready  &&  ready_to_talk(chan))
     {
     
 	if ( chan->t38_status != T38_NEGOTIATED )
