@@ -2039,10 +2039,9 @@ AC_ARG_WITH([codec_speex],
 	[AC_HELP_STRING([--with-codec_speex],[Build and install codec_speex (default=yes)])],,[with_codec_speex="yes"])
 
 if test "${with_codec_speex}"; then
-   AC_CHECK_LIB([speex], [main], [HAVE_LIBSPEEX=1])
+   AC_CHECK_LIB([speex], [main], [HAVE_LIBSPEEX=1],[AC_MSG_ERROR(Cannot find Speex library.)])
    
-   AC_CHECK_HEADER([speex/speex.h],[HAVE_SPEEX_H=1 AC_SUBST([SPEEX_CFLAGS],[-I/usr/include/speex])])
-   AC_CHECK_HEADER([speex.h],[HAVE_SPEEX_H=1])
+   AC_CHECK_HEADER([speex/speex.h],[HAVE_SPEEX_H=1 AC_SUBST([SPEEX_CFLAGS],[-I/usr/include/speex])],[AC_MSG_ERROR(Cannot find header files for Speex.)])
 fi
 
 AM_CONDITIONAL([WANT_CODEC_SPEEX],[test "${with_codec_speex}" = "yes" -a -n "${HAVE_LIBSPEEX}" -a -n "${HAVE_SPEEX_H}"])
