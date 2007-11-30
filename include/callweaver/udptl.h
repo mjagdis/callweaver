@@ -94,7 +94,9 @@ int opbx_udptl_lookup_code(opbx_udptl_t* udptl, int is_opbx_format, int code);
 
 void opbx_udptl_offered_from_local(opbx_udptl_t *udptl, int local);
 
-int opbx_udptl_get_error_correction_scheme(opbx_udptl_t *udptl);
+int opbx_udptl_get_preferred_error_correction_scheme(opbx_udptl_t *udptl);
+
+int opbx_udptl_get_current_error_correction_scheme(opbx_udptl_t *udptl);
 
 void opbx_udptl_set_error_correction_scheme(opbx_udptl_t *udptl, int ec);
 

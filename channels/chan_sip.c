@@ -2734,9 +2734,9 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 
     if (r->udptl)
     {
-        if (opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_FEC)
+        if (opbx_udptl_get_preferred_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_FEC)
             r->t38capability |= T38FAX_UDP_EC_FEC;
-        else if (opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
+        else if (opbx_udptl_get_preferred_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
             r->t38capability |= T38FAX_UDP_EC_REDUNDANCY;            
         r->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
         opbx_log(OPBX_LOG_DEBUG,"Our T38 capability (%d)\n", r->t38capability);
@@ -4304,13 +4304,13 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     if (p->udptl)
     {
         p->t38capability = global_t38_capability;
-        if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC)
+        if (opbx_udptl_get_preferred_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC)
             p->t38capability |= T38FAX_UDP_EC_FEC;
-        else if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
+        else if (opbx_udptl_get_preferred_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
             p->t38capability |= T38FAX_UDP_EC_REDUNDANCY;
         p->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
         p->t38jointcapability = p->t38capability;
-    }    
+    }
     strcpy(p->context, default_context);
 
     /* Assign default jb conf to the new sip_pvt */
@@ -4748,7 +4748,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     int x,y;
     int debug=sip_debug_test_pvt(p);
     struct opbx_channel *bridgepeer = NULL;
-
+    int ec_found;
     int udptlportno = -1;
     int peert38capability = 0;
     char s[256];
@@ -5001,7 +5001,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         if (p->vrtp)
             opbx_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
     }
-
     if (udptlportno != -1)
     {
         /* Scan through the a= lines for T38 attributes and set appropriate fileds */
@@ -5009,6 +5008,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         old = 0;
         int found = 0;
     
+        ec_found = UDPTL_ERROR_CORRECTION_REDUNDANCY;
         while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0')
         {
             if (old  &&  (iterator-old != 1))
@@ -5102,19 +5102,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 if (strcasecmp(s, "t38UDPFEC") == 0)
                 {
                     peert38capability |= T38FAX_UDP_EC_FEC;
-                    opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
+                    ec_found = UDPTL_ERROR_CORRECTION_FEC;
                 }
                 else if (strcasecmp(s, "t38UDPRedundancy") == 0)
                 {
                     peert38capability |= T38FAX_UDP_EC_REDUNDANCY;
-                    opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+                    ec_found = UDPTL_ERROR_CORRECTION_REDUNDANCY;
                 }
                 else
                 {
-                    opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+                    ec_found = UDPTL_ERROR_CORRECTION_NONE;
                 }
             }
+            else if ((sscanf(a, "T38VendorInfo:%s", s) == 1))
+            {
+                found = 1;
+            }
         }
+        opbx_udptl_set_error_correction_scheme(p->udptl, ec_found);
         if (found)
         {
             /* Some cisco equipment returns nothing beside c= and m= lines in 200 OK T38 SDP */ 
@@ -5124,10 +5129,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             p->t38jointcapability |= (peert38capability & p->t38capability); /* Put the lower of our's and peer's speed */
         }
         if (debug)
+        {
             opbx_log(OPBX_LOG_DEBUG,"Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
                     p->t38capability, 
                     p->t38peercapability,
                     p->t38jointcapability);
+        }
     }
     else
     {
@@ -6240,11 +6247,14 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
         add_line(resp, a_modem, SIP_DL_DONTCARE);
     snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
         add_line(resp, a_modem, SIP_DL_DONTCARE);
-    if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
+    /* Tell them what we would like for the EC data from them. */
+    if ((p->t38capability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
     {
-        snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
+        snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38capability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
         add_line(resp, a_modem, SIP_DL_DONTCARE);
     }
+    snprintf(a_modem, sizeof(a_modem), "a=T38VendorInfo:spandsp");
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
     /* Update lastrtprx when we send our SDP */
     time(&p->lastrtprx);
     time(&p->lastrtptx);

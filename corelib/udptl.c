@@ -270,7 +270,12 @@ void opbx_udptl_offered_from_local(opbx_udptl_t *udptl, int local)
         opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
 }
 
-int opbx_udptl_get_error_correction_scheme(opbx_udptl_t *udptl)
+int opbx_udptl_get_preferred_error_correction_scheme(opbx_udptl_t *udptl)
+{
+    return udptlfectype;
+}
+
+int opbx_udptl_get_current_error_correction_scheme(opbx_udptl_t *udptl)
 {
     int ec_scheme;
 
@@ -776,7 +781,7 @@ void opbx_udptl_reload(void)
     char *s;
 
     udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
-    udptlfecentries = 0;
+    udptlfecentries = 1;
     udptlfecspan = 0;
     udptlmaxdatagram = 0;
 
