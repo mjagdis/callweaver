@@ -751,7 +751,7 @@ AC_ARG_WITH([spandsp-libs],
 	[AC_HELP_STRING([--with-spandsp-libs],[Location of SpanDSP library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.4pre10 or newer is required to compile Callweaver.)])
+AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.4pre16 or newer is required to compile Callweaver.)])
 
 AC_CHECK_HEADERS([spandsp/version.h],[HAVE_SPANDSP_VERSION_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.4pre16 or newer to compile Callweaver.)],
 [#ifdef HAVE_SPANDSP_H
