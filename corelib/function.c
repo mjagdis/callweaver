@@ -309,27 +309,21 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 static int handle_show_function(int fd, int argc, char *argv[])
 {
 	struct opbx_func *acf;
-	/* Maximum number of characters added by terminal coloring is 22 */
-	char *synopsis, *syntax, *description;
-	int synopsis_size, description_size, syntax_size;
 
-	if (argc < 3) return RESULT_SHOWUSAGE;
+	if (argc < 3)
+        return RESULT_SHOWUSAGE;
 
 	if (!(acf = opbx_find_function(opbx_hash_app_name(argv[2]), argv[2]))) {
 		opbx_cli(fd, "No function by that name registered.\n");
 		return RESULT_FAILURE;
 	}
 
-	synopsis_size = strlen(acf->synopsis) + 23;
-	synopsis = alloca(synopsis_size);
-
-	description_size = strlen(acf->description) + 23;
-	description = alloca(description_size);
-
-	syntax_size = strlen(acf->syntax) + 23;
-	syntax = alloca(syntax_size);
-
-	opbx_cli(fd, "\n  -= Info about function '%s' =- \n\n[Syntax]\n%s\n\n[Synopsis]\n%s\n\n[Description]\n%s\n", acf->name, acf->syntax, acf->synopsis, acf->description);
+	opbx_cli(fd,
+             "\n  -= Info about function '%s' =- \n\n[Syntax]\n%s\n\n[Synopsis]\n%s\n\n[Description]\n%s\n",
+             (acf->name)  ?  acf->name  :  "N/A",
+             (acf->syntax)  ?  acf->syntax  :  "N/A",
+             (acf->synopsis)  ?  acf->synopsis  :  "N/A",
+             (acf->description)  ?  acf->description  :  "N/A");
 
 	return RESULT_SUCCESS;
 }

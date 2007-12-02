@@ -79,14 +79,17 @@ static const char tdesc[] = "CallWeaver Gateway Interface (OGI)";
 static void *app_app;
 static const char app_name[] = "OGI";
 static const char app_synopsis[] = "Executes an OGI compliant application";
+static const char app_syntax[] = "N/A";
 
 static void *eapp_app;
 static const char eapp_name[] = "EOGI";
 static const char eapp_synopsis[] = "Executes an EOGI compliant application";
+static const char eapp_syntax[] = "N/A";
 
 static void *deadapp_app;
 static const char deadapp_name[] = "DeadOGI";
 static const char deadapp_synopsis[] = "Executes OGI on a hungup channel";
+static const char deadapp_syntax[] = "N/A";
 
 static const char descrip[] =
 "  [E|Dead]OGI(command|args): Executes an CallWeaver Gateway Interface compliant\n"
@@ -2111,9 +2114,9 @@ static int load_module(void)
 	opbx_cli_register(&dumpogihtml);
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
-	deadapp_app = opbx_register_function(deadapp_name, deadogi_exec, deadapp_synopsis, NULL, descrip);
-	eapp_app = opbx_register_function(eapp_name, eogi_exec, eapp_synopsis, NULL, descrip);
-	app_app = opbx_register_function(app_name, ogi_exec, app_synopsis, NULL, descrip);
+	deadapp_app = opbx_register_function(deadapp_name, deadogi_exec, deadapp_synopsis, deadapp_syntax, descrip);
+	eapp_app = opbx_register_function(eapp_name, eogi_exec, eapp_synopsis, eapp_syntax, descrip);
+	app_app = opbx_register_function(app_name, ogi_exec, app_synopsis, app_syntax, descrip);
 	return 0;
 }
 
