@@ -720,6 +720,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 	t30_terminate(&t38.t30_state);
 
     fax_release(&fax);
+    t38_terminal_release(&t38);
 
     /* Restoring initial channel formats. */
 
