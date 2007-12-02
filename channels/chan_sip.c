@@ -14753,9 +14753,9 @@ static void *sip_poke_peer_thread(void *data)
         uint16_t port = peer->addr.sin_port;
 	peer->addr.sin_port = 0;
         if (peer->proxyhost[0])
-            opbx_get_ip_or_srv(&peer->addr, peer->proxyhost, "_sip._udp");
+            opbx_get_ip_or_srv(&peer->addr, peer->proxyhost, (srvlookup)  ?  "_sip._udp"  :  NULL);
 	else if (peer->tohost[0])
-            opbx_get_ip_or_srv(&peer->addr, peer->tohost, "_sip._udp");
+            opbx_get_ip_or_srv(&peer->addr, peer->tohost, (srvlookup)  ?  "_sip._udp"  :  NULL);
         if (!peer->addr.sin_port)
             peer->addr.sin_port = (port ? port : htons(DEFAULT_SIP_PORT));
     }
@@ -16110,7 +16110,7 @@ static int reload_config(void)
         }
         else if (!strcasecmp(v->name, "outboundproxy"))
         {
-            async_get_ip(NULL, &outboundproxyip, strdup(v->value), "_sip._udp");
+            async_get_ip(NULL, &outboundproxyip, strdup(v->value), (srvlookup)  ?  "_sip._udp"  :  NULL);
         }
         else if (!strcasecmp(v->name, "outboundproxyport"))
         {
