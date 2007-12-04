@@ -78,8 +78,8 @@ static int udptlfecspan = 0;
 static int udptlmaxdatagram = 0;
 
 #define LOCAL_FAX_MAX_DATAGRAM      400
-#define LOCAL_FAX_MAX_FEC_PACKETS   5
-#define LOCAL_FAX_MAX_FEC_SPAN      5
+#define LOCAL_FAX_MAX_FEC_PACKETS   4
+#define LOCAL_FAX_MAX_FEC_SPAN      4
 
 #define UDPTL_BUF_MASK              15
 

@@ -3264,8 +3264,12 @@ static void bridge_playfile(struct opbx_channel *chan, struct opbx_channel *peer
 	check = opbx_autoservice_stop(peer);
 }
 
-static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, struct opbx_channel *c1,
-			      struct opbx_bridge_config *config, struct opbx_frame **fo, struct opbx_channel **rc, int to)
+static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0,
+                                                   struct opbx_channel *c1,
+                                                   struct opbx_bridge_config *config,
+                                                   struct opbx_frame **fo,
+                                                   struct opbx_channel **rc,
+                                                   struct timeval bridge_end)
 {
 	/* Copy voice back and forth between the two channels. */
 	struct opbx_channel *cs[3];
@@ -3277,7 +3281,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 	int watch_c0_dtmf;
 	int watch_c1_dtmf;
 	void *pvt0, *pvt1;
-	int toms = to;
+	int to;
 	
 	/* Indicates whether a frame was queued into a jitterbuffer */
 	int frame_put_in_jb;
@@ -3330,14 +3334,27 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 			break;
 		}
 
+		if (bridge_end.tv_sec) {
+			to = opbx_tvdiff_ms(bridge_end, opbx_tvnow());
+			if (to <= 0) {
+				if (config->timelimit)
+					res = OPBX_BRIDGE_RETRY;
+				else
+					res = OPBX_BRIDGE_COMPLETE;
+				break;
+			}
+		} else {
+			to = -1;
+        }
+
 		/* Calculate the appropriate max sleep interval - 
 		 * in general, this is the time,
 		 * left to the closest jb delivery moment */
-		toms = opbx_jb_get_when_to_wakeup(c0, c1, to);
+		to = opbx_jb_get_when_to_wakeup(c0, c1, to);
 
-		who = opbx_waitfor_n(cs, 2, &toms);
+		who = opbx_waitfor_n(cs, 2, &to);
 		if (!who) {
-			if (!toms) {
+			if (!to) {
 				res = OPBX_BRIDGE_RETRY;
 				break;
 			}
@@ -3648,7 +3665,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 			o0nativeformats = c0->nativeformats;
 			o1nativeformats = c1->nativeformats;
 		}
-		res = opbx_generic_bridge(c0, c1, config, fo, rc, to);
+		res = opbx_generic_bridge(c0, c1, config, fo, rc, nexteventts);
 		if (res != OPBX_BRIDGE_RETRY)
 			break;
 	}

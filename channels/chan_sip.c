@@ -4772,7 +4772,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         opbx_log(OPBX_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
         return -1;
     }
-    if (sscanf(c, "IN IP4 %256s", host) != 1)
+    if (sscanf(c, "IN IP4 %255s", host) != 1)
     {
         opbx_log(OPBX_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
         return -1;
@@ -4897,7 +4897,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         c = get_sdp_iterate(&destiterator, req, "c");
         if (!opbx_strlen_zero(c))
         {
-            if (sscanf(c, "IN IP4 %256s", host) != 1)
+            if (sscanf(c, "IN IP4 %255s", host) != 1)
             {
                 opbx_log(OPBX_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
             }
@@ -4935,7 +4935,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         c = get_sdp_iterate(&destiterator, req, "c");
         if (!opbx_strlen_zero(c))
         {
-            if (sscanf(c, "IN IP4 %256s", host) != 1)
+            if (sscanf(c, "IN IP4 %255s", host) != 1)
             {
                 opbx_log(OPBX_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
             }
@@ -5086,7 +5086,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 if (x == 1)
                     peert38capability |= T38FAX_TRANSCODING_JBIG;
             }
-            else if ((sscanf(a, "T38FaxRateManagement:%s", s) == 1))
+            else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1))
             {
                 found = 1;
                 opbx_log(OPBX_LOG_DEBUG,"RateMangement: %s\n", s);
@@ -5095,7 +5095,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 else if (!strcasecmp(s, "transferredTCF"))
                     peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
             }
-            else if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1))
+            else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1))
             {
                 found = 1;
                 opbx_log(OPBX_LOG_DEBUG,"UDP EC: %s\n", s);
@@ -5114,7 +5114,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                     ec_found = UDPTL_ERROR_CORRECTION_NONE;
                 }
             }
-            else if ((sscanf(a, "T38VendorInfo:%s", s) == 1))
+            else if ((sscanf(a, "T38VendorInfo:%255s", s) == 1))
             {
                 found = 1;
             }

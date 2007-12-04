@@ -795,6 +795,8 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (!play_warning && !start_sound && !end_sound && timelimit) { 
 				calldurationlimit = timelimit/1000;
 				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
+				if (option_verbose > 2)
+					opbx_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
 			} else if (option_verbose > 2) {
 				opbx_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
 				opbx_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
