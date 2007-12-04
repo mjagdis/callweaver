@@ -272,6 +272,8 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
     if (x  &&  x[0])
         t30_set_supported_modems(&t38->t30_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+    else
+        t30_set_supported_modems(&t38->t30_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     t30_set_supported_image_sizes(&t38->t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
                                 	        | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
@@ -370,6 +372,8 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
     x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
     if (x  &&  x[0])
         t30_set_supported_modems(&fax->t30_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+    else
+        t30_set_supported_modems(&fax->t30_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     /* Support for different image sizes && resolutions*/
     t30_set_supported_image_sizes(&fax->t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH

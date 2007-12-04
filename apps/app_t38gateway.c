@@ -261,6 +261,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     int res;
     int samples;
     int len;
+    char *x;
     t38_gateway_state_t t38_state;
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
@@ -306,6 +307,11 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         return -1;
     }
     t38_gateway_set_transmit_on_idle(&t38_state, TRUE);
+    x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
+    if (x  &&  x[0])
+        t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+    else
+        t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     span_log_set_message_handler(&t38_state.logging, span_message);
     span_log_set_message_handler(&t38_state.t38.logging, span_message);
