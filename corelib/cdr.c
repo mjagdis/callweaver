@@ -1091,7 +1091,7 @@ static int do_reload(void)
 		if ((enabled_value = opbx_variable_retrieve(config, "general", "enable"))) {
 			enabled = opbx_true(enabled_value);
 		}
-		if ((enabled_value = opbx_variable_retrieve(config, "general", "endbeforehexten"))) {
+		if ((end_before_h_value = opbx_variable_retrieve(config, "general", "endbeforehexten"))) {
 			opbx_end_cdr_before_h_exten = opbx_true(end_before_h_value);
 		}
 		if ((batched_value = opbx_variable_retrieve(config, "general", "batch"))) {
