@@ -1254,15 +1254,19 @@ static char *cli_prompt(void)
 {
 	static char prompt[200];
 	char *pfmt;
-	int color_used=0;
+	int color_used = 0;
+#if 0
 	char term_code[20];
+#endif
 
 	if ((pfmt = getenv("CALLWEAVER_PROMPT"))) {
 		char *t = pfmt, *p = prompt;
 		memset(prompt, 0, sizeof(prompt));
 		while (*t != '\0' && *p < sizeof(prompt)) {
 			if (*t == '%') {
+#if 0
 				int i;
+#endif
 				struct timeval tv;
 				struct tm tm;
 #ifdef linux
