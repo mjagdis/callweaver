@@ -53,7 +53,7 @@ void opbx_alaw_init(void)
 	for (i = 0;  i < 256;  i++)
 		__opbx_alaw[i] = alaw_to_linear(i);
 	/* Set up the reverse (A-law) conversion table */
-	for(i = -32768; i < 32768; i++)
-		__opbx_lin2a[((unsigned short)i) >> 3] = linear_to_alaw(i);
+	for(i = -32768;  i < 32768;  i++)
+		__opbx_lin2a[((uint16_t) i) >> 3] = linear_to_alaw(i);
 }
 

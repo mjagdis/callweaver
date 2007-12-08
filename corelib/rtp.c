@@ -1617,7 +1617,7 @@ static uint32_t calc_txstamp(struct opbx_rtp *rtp, struct timeval *delivery)
 
 int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
 {
-    unsigned int *rtpheader;
+    uint32_t *rtpheader;
     int hdrlen = 12;
     int res;
     int payload;
@@ -1637,7 +1637,7 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
     rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
 
     /* Get a pointer to the header */
-    rtpheader = (unsigned int *) data;
+    rtpheader = (uint32_t *) data;
     rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
     rtpheader[1] = htonl(rtp->lastts);
     rtpheader[2] = htonl(rtp->ssrc); 

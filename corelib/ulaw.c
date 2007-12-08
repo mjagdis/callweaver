@@ -53,7 +53,6 @@ void opbx_ulaw_init(void)
 	for (i = 0;  i < 256;  i++)
         __opbx_mulaw[i] = ulaw_to_linear(i);
 	/* Set up the reverse (mu-law) conversion table */
-	for (i = -32768; i < 32768; i++)
-		__opbx_lin2mu[((unsigned short) i) >> 2] = linear_to_ulaw(i);
-	return;
+	for (i = -32768;  i < 32768;  i++)
+		__opbx_lin2mu[((uint16_t) i) >> 2] = linear_to_ulaw(i);
 }

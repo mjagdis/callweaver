@@ -51,6 +51,7 @@ static const char txfax_descrip[] =
 "an answering machine.\n"
 "The \"ecm\" option enables ECM.\n"
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
+"     LOCALSUBADDRESS to specify a sub-address to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
 "Sets REMOTESTATIONID to the receiver CSID.\n"
 "     FAXPAGES to the number of pages sent.\n"
@@ -260,6 +261,9 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
         t30_set_local_ident(&t38->t30_state, x);
+    x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
+    if (x  &&  x[0])
+        t30_set_local_sub_address(&t38->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
         t30_set_header_info(&t38->t30_state, x);
@@ -361,6 +365,9 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
         t30_set_local_ident(&fax->t30_state, x);
+    x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
+    if (x  &&  x[0])
+        t30_set_local_sub_address(&fax->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
         t30_set_header_info(&fax->t30_state, x);
