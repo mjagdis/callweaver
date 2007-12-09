@@ -200,14 +200,14 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #if defined(HAVE_STRERROR_R)
             char buf[128];
 #if defined(STRERROR_R_CHAR_P)
-	    opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+	    opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
 			 "%s\n", strerror_r(errno, buf, 128));
 #else
 	    if(strerror_r(errno, buf, 128) == 0) {
-	    	opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+	    	opbx_log(OPBX_LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", buf);
 	    } else {
-		opbx_log(LOG_ERROR, "Error starting timer\n");
+		opbx_log(OPBX_LOG_ERROR, "Error starting timer\n");
 	    }
 #endif
 #endif
