@@ -2747,12 +2747,13 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
 
 	/* each of these channels may be sitting behind a channel proxy (i.e. chan_agent)
 	   and if so, we don't really want to masquerade it, but its proxy */
+	/* Commented by Mochouinard because caused major issues with chan_agent and transfer 
 	if (original->_bridge && (original->_bridge != opbx_bridged_channel(original)))
 		original = original->_bridge;
 
 	if (clone->_bridge && (clone->_bridge != opbx_bridged_channel(clone)))
 		clone = clone->_bridge;
-
+	*/
 
     if (original == clone)
     {
