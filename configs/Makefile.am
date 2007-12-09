@@ -27,7 +27,6 @@ SAMPLES = adsi.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
 	res_snmp.conf.sample \
-	rpt.conf.sample \
 	rtp.conf.sample \
 	udptl.conf.sample
 
