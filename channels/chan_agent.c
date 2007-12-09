@@ -830,7 +830,8 @@ static int agent_hangup(struct opbx_channel *ast)
 			opbx_mutex_unlock(&p->lock);
 		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		opbx_mutex_unlock(&p->app_lock);
+		if (opbx_strlen_zero(p->loginchan))
+			opbx_mutex_unlock(&p->app_lock);
 	}
 	return 0;
 }
