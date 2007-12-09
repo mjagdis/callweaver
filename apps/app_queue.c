@@ -2818,6 +2818,47 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
     return res;
 }
 
+static int update_queue_member(char *queuename, char *interface, int penalty, int paused, int dump)
+{
+	struct opbx_call_queue *q;
+	struct member *lopbx_member, *look;
+	int res = RES_NOSUCHQUEUE;
+
+	opbx_mutex_lock(&qlock);
+	for (q = queues ; q ; q = q->next) {
+		opbx_mutex_lock(&q->lock);
+		if (!strcmp(q->name, queuename)) {
+			if ((lopbx_member = interface_exists(q, interface)) != NULL) {
+				lopbx_member->penalty = penalty;
+				lopbx_member->paused = paused;
+				manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
+					"Queue: %s\r\n"
+					"Location: %s\r\n"
+					"Membership: %s\r\n"
+					"Penalty: %d\r\n"
+					"CallsTaken: %d\r\n"
+					"LastCall: %ld\r\n"
+					"Status: %d\r\n"
+					"Paused: %d\r\n",
+				    q->name, lopbx_member->interface, lopbx_member->dynamic ? "dynamic" : "static",
+				    lopbx_member->penalty, lopbx_member->calls, lopbx_member->lastcall, lopbx_member->status, lopbx_member->paused);
+
+				if (dump)
+					dump_queue_members(q);
+
+				res = RES_OKAY;
+			} else {
+				res = RES_EXISTS;
+			}
+			opbx_mutex_unlock(&q->lock);
+			break;
+		}
+		opbx_mutex_unlock(&q->lock);
+	}
+	opbx_mutex_unlock(&qlock);
+	return res;
+}
+
 static int add_to_queue(char *queuename, char *interface, int penalty, int paused, int dump)
 {
     struct opbx_call_queue *q;
@@ -3946,6 +3987,55 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
     return 0;
 }
 
+static int manager_update_queue_member(struct mansession *s, struct message *m)
+{
+	char *queuename, *interface, *penalty_s, *paused_s;
+	int paused, penalty = 0;
+
+	queuename = astman_get_header(m, "Queue");
+	interface = astman_get_header(m, "Interface");
+	penalty_s = astman_get_header(m, "Penalty");
+	paused_s = astman_get_header(m, "Paused");
+
+	if (opbx_strlen_zero(queuename)) {
+		astman_send_error(s, m, "'Queue' not specified.");
+		return 0;
+	}
+
+	if (opbx_strlen_zero(interface)) {
+		astman_send_error(s, m, "'Interface' not specified.");
+		return 0;
+	}
+
+	if (opbx_strlen_zero(penalty_s))
+		penalty = 0;
+	else if (sscanf(penalty_s, "%d", &penalty) != 1) {
+		penalty = 0;
+	}
+
+	if (opbx_strlen_zero(paused_s))
+		paused = 0;
+	else
+		paused = abs(opbx_true(paused_s));
+
+	switch (update_queue_member(queuename, interface, penalty, paused, queue_persistent_members)) {
+	case RES_OKAY:
+		astman_send_ack(s, m, "Updated member to queue");
+		break;
+	case RES_EXISTS:
+		astman_send_error(s, m, "Unable to update member: Not there");
+		break;
+	case RES_NOSUCHQUEUE:
+		astman_send_error(s, m, "Unable to update member on queue: No such queue");
+		break;
+	case RES_OUTOFMEMORY:
+		astman_send_error(s, m, "Out of memory");
+		break;
+	}
+	return 0;
+}
+
+
 static int manager_remove_queue_member(struct mansession *s, struct message *m)
 {
     char *queuename, *interface;
@@ -4254,6 +4344,7 @@ static int unload_module(void)
     opbx_manager_unregister("QueueAdd");
     opbx_manager_unregister("QueueRemove");
     opbx_manager_unregister("QueuePause");
+    opbx_manager_unregister("QueueMemberUpdate");
     opbx_devstate_del(statechange_queue, NULL);
     res |= opbx_unregister_function(app_aqm);
     res |= opbx_unregister_function(app_rqm);
@@ -4277,6 +4368,7 @@ static int load_module(void)
     opbx_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
     opbx_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
     opbx_manager_register( "QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable" );
+    opbx_manager_register( "QueueMemberUpdate", EVENT_FLAG_AGENT, manager_update_queue_member, "Update Member on queue." );
     app_aqm = opbx_register_function(name_aqm, aqm_exec, app_aqm_synopsis, app_aqm_syntax, app_aqm_descrip) ;
     app_rqm = opbx_register_function(name_rqm, rqm_exec, app_rqm_synopsis, app_rqm_syntax, app_rqm_descrip) ;
     app_pqm = opbx_register_function(name_pqm, pqm_exec, app_pqm_synopsis, app_pqm_syntax, app_pqm_descrip) ;
