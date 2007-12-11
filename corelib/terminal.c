@@ -29,6 +29,8 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
+#include <callweaver/logger.h>
+
 #include <unistd.h>
 
 /* term.h and curses.h have a lot of defines most of which do not
