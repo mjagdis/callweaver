@@ -200,7 +200,7 @@ void opbx_rtp_proto_unregister(struct opbx_rtp_protocol *proto);
 
 void opbx_rtp_stop(struct opbx_rtp *rtp);
 
-void opbx_rtp_init(void);
+int opbx_rtp_init(void);
 
 void opbx_rtp_reload(void);
 

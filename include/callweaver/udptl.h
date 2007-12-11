@@ -121,7 +121,7 @@ void opbx_udptl_proto_unregister(struct opbx_udptl_protocol *proto);
 
 void opbx_udptl_stop(opbx_udptl_t *udptl);
 
-void opbx_udptl_init(void);
+int opbx_udptl_init(void);
 
 void opbx_udptl_reload(void);
 

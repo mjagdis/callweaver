@@ -32,6 +32,6 @@ int stun_do_debug(int fd, int argc, char *argv[]);
 
 int stun_no_debug(int fd, int argc, char *argv[]);
 
-void opbx_stun_init(void);
+int opbx_stun_init(void);
 
 //static void append_attr_string(rfc3489_attr_t **attr, int attrval, const char *s, int *len, int *left)

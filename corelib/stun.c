@@ -495,11 +495,12 @@ static struct opbx_clicmd  cli_stun_no_debug =
 	.usage = stun_no_debug_usage,
 };
 
-void opbx_stun_init(void)
+int opbx_stun_init(void)
 {
     stundebug = 0;
     rfc3489_active = 0;
     stun_req_queue = NULL;
     opbx_cli_register(&cli_stun_debug);
     opbx_cli_register(&cli_stun_no_debug);
+    return 0;
 }

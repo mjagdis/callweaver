@@ -3932,9 +3932,10 @@ void opbx_moh_cleanup(struct opbx_channel *chan)
         opbx_moh_cleanup_ptr(chan);
 }
 
-void opbx_channels_init(void)
+int opbx_channels_init(void)
 {
 	opbx_cli_register(&cli_show_channeltypes);
+	return 0;
 }
 
 /*--- opbx_print_group: Print call group and pickup group ---*/

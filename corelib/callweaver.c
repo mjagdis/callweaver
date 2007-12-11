@@ -2341,58 +2341,26 @@ int callweaver_main(int argc, char *argv[])
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
 
-	if (init_logger()) {
-	    exit(1);
-	}
-	if (opbx_crypto_init()) {
-	    exit(1);
-	}
-	/* initialize module loader */
-	if (opbx_loader_cli_init() < 0) {
-	    exit(1);
-	}
-	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
-	if (load_modules(1)) {
-	    exit(1);
-	}
-	opbx_channels_init();
-	if (opbx_cdr_engine_init()) {
-	    exit(1);
-	}
-	if (init_manager()) {
-	    exit(1);
-	}
-	if (opbx_device_state_engine_init()) {
-	    exit(1);
-	}
-	opbx_rtp_init();
-	opbx_udptl_init();
-	opbx_stun_init();
-	if (direngine_list_init()) {
-		exit(1);
-	}
-	if (opbx_image_init()) {
-	    exit(1);
-	}
-	if (opbx_file_init()) {
-	    exit(1);
-	}
-	if (load_pbx()) {
-	    exit(1);
-	}
-	if (opbxdb_init()) {
-	    exit(1);
-	}
-	if (init_framer()) {
-	    exit(1);
-	}
-	if (load_modules(0)) {
-	    exit(1);
-	}
-	if (opbx_enum_init()) {
-	    exit(1);
-	}
-	if (opbx_translator_init()) {
+	if (init_logger()
+	|| opbx_crypto_init()
+	|| opbx_loader_cli_init()
+	|| load_modules(1)
+	|| opbx_channels_init()
+	|| opbx_cdr_engine_init()
+	|| init_manager()
+	|| opbx_device_state_engine_init()
+	|| opbx_rtp_init()
+	|| opbx_udptl_init()
+	|| opbx_stun_init()
+	|| direngine_list_init()
+	|| opbx_image_init()
+	|| opbx_file_init()
+	|| load_pbx()
+	|| opbxdb_init()
+	|| init_framer()
+	|| load_modules(0)
+	|| opbx_enum_init()
+	|| opbx_translator_init()) {
 	    exit(1);
 	}
 

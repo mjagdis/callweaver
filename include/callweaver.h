@@ -82,7 +82,7 @@ extern int reload_logger(int);
 /* Provided by db.c */
 extern int opbxdb_init(void);
 /* Provided by channel.c */
-extern void opbx_channels_init(void);
+extern int opbx_channels_init(void);
 
 
 /*!

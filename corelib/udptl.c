@@ -834,10 +834,11 @@ void opbx_udptl_reload(void)
     }
 }
 
-void opbx_udptl_init(void)
+int opbx_udptl_init(void)
 {
     opbx_cli_register(&cli_debug);
     opbx_cli_register(&cli_debug_ip);
     opbx_cli_register(&cli_no_debug);
     opbx_udptl_reload();
+    return 0;
 }

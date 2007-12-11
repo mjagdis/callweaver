@@ -2373,7 +2373,7 @@ void opbx_rtp_reload(void)
         opbx_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
 }
 
-void opbx_rtp_init(void)
+int opbx_rtp_init(void)
 {
     opbx_cli_register(&cli_debug);
     opbx_cli_register(&cli_debug_ip);
@@ -2384,4 +2384,5 @@ void opbx_rtp_init(void)
     srtp_init();
     srtp_install_event_handler(srtp_event_cb);
 #endif
+    return 0;
 }
