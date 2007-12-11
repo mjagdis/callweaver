@@ -179,7 +179,6 @@ int fully_booted = 0;
 char record_cache_dir[OPBX_CACHE_DIR_LEN] = opbxtmpdir_default;
 char debug_filename[OPBX_FILENAME_MAX] = "";
 
-static int opbx_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int opbx_consock = -1;		/*!< UNIX Socket for controlling another callweaver */
 int opbx_mainpid;
 struct console {
@@ -226,7 +225,7 @@ static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 static char random_state[256];
 
-static pthread_t lthread;
+static pthread_t lthread = OPBX_PTHREADT_NULL;
 
 
 static const char *atexit_registry_obj_name(struct opbx_object *obj)
@@ -597,10 +596,8 @@ static void quit_handler(void *data)
 
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (opbx_active_channels() ? "Uncleanly" : "Cleanly"), (local_restart ? "True" : "False"));
 
-	if (opbx_socket > -1) {
+	if (!pthread_equal(lthread, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(lthread);
-		close(opbx_socket);
-		opbx_socket = -1;
 		unlink(opbx_config_OPBX_SOCKET);
 	}
 
@@ -1316,24 +1313,29 @@ static void console_handler(char *s)
 }
 
 
-static int opbx_tryconnect(void)
+static int opbx_tryconnect(char *spec)
 {
-	struct sockaddr_un sunaddr;
-	int res;
-	opbx_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (opbx_consock < 0) {
+	union {
+		struct sockaddr sa;
+		struct sockaddr_un sun;
+	} u;
+	socklen_t salen;
+
+	memset(&u, 0, sizeof(u));
+	u.sun.sun_family = AF_LOCAL;
+	opbx_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
+	salen = sizeof(u.sun);
+
+	if ((opbx_consock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
 		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return 0;
 	}
-	memset(&sunaddr, 0, sizeof(sunaddr));
-	sunaddr.sun_family = AF_LOCAL;
-	opbx_copy_string(sunaddr.sun_path, (char *)opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
-	res = connect(opbx_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
-	if (res) {
+	if (connect(opbx_consock, &u.sa, salen)) {
 		close(opbx_consock);
 		opbx_consock = -1;
 		return 0;
 	} else {
+		fcntl(opbx_consock, F_SETFD, fcntl(opbx_consock, F_GETFD, 0) | FD_CLOEXEC);
 		return 1;
 	}
 }
@@ -1344,6 +1346,7 @@ static void *console(void *data)
 	char buf[1024];
 	char banner[80];
 	sigset_t sigs;
+	char *spec = data;
 	char *clr_eol;
 	char *stringp;
 	char *version;
@@ -1487,7 +1490,7 @@ static void *console(void *data)
 
 			fputs("Attempting to reconnect for 30 seconds...\n", stderr);
 			for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
-				if (opbx_tryconnect()) {
+				if (opbx_tryconnect(spec)) {
 					fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 					break;
 				} else {
@@ -1654,31 +1657,25 @@ static void *netconsole(void *vconsole)
 	return NULL;
 }
 
-static void *listener(void *unused)
+static void *listener(void *data)
 {
 	char buf[80];
-	struct sockaddr_un sunaddr;
+	int sock = (int)data;
 	int n, s;
-	socklen_t len;
 	int x;
 	struct pollfd fds[1];
 
 	for (;;) {
-		if (opbx_socket < 0)
-			break;
-
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		fds[0].fd = opbx_socket;
+		fds[0].fd = sock;
 		fds[0].events= POLLIN;
 		pthread_testcancel();
 		n = poll(fds, 1, -1);
 		x = errno;
 		pthread_testcancel();
-		if (n > 0) {
-			len = sizeof(sunaddr);
-			s = accept(opbx_socket, (struct sockaddr *)&sunaddr, &len);
-		}
+		if (n > 0)
+			s = accept(sock, NULL, NULL);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
@@ -1706,6 +1703,9 @@ static void *listener(void *unused)
 					write(s, buf, n);
 
 					consoles[x].fd = s;
+					fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
+					fcntl(consoles[x].p[0], F_SETFD, fcntl(consoles[x].p[0], F_GETFD, 0) | FD_CLOEXEC);
+					fcntl(consoles[x].p[1], F_SETFD, fcntl(consoles[x].p[1], F_GETFD, 0) | FD_CLOEXEC);
 					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
 					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
 						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
@@ -1728,68 +1728,67 @@ static void *listener(void *unused)
 	return NULL;
 }
 
-static int opbx_makesocket(void)
+static int opbx_makesocket(char *spec)
 {
-	struct sockaddr_un sunaddr;
-	int res;
-	int x;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_un sun;
+	} u;
+	socklen_t salen;
 	uid_t uid = -1;
 	gid_t gid = -1;
+	int sock;
 
-	for (x = 0; x < arraysize(consoles); x++)	
-		consoles[x].fd = -1;
-	unlink(opbx_config_OPBX_SOCKET);
-	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (opbx_socket < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
+	memset(&u, 0, sizeof(u));
+	u.sun.sun_family = AF_LOCAL;
+	opbx_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
+	salen = sizeof(u.sun);
+
+	if ((sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to create socket for %s: %s\n", spec, strerror(errno));
 		return -1;
 	}		
-	memset(&sunaddr, 0, sizeof(sunaddr));
-	sunaddr.sun_family = AF_LOCAL;
-	opbx_copy_string(sunaddr.sun_path, opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
-	res = bind(opbx_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
-	if (res) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-		close(opbx_socket);
-		opbx_socket = -1;
+	if (bind(sock, &u.sa, salen)) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", spec, strerror(errno));
+		close(sock);
 		return -1;
 	}
-	res = listen(opbx_socket, 2);
-	if (res < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-		close(opbx_socket);
-		opbx_socket = -1;
+	if (listen(sock, 1024) < 0) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", spec, strerror(errno));
+		close(sock);
 		return -1;
 	}
-	opbx_register_verbose(network_verboser);
-	opbx_pthread_create(&lthread, &global_attr_default, listener, NULL);
 
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
-		struct passwd *pw;
-		if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
-		} else {
-			uid = pw->pw_uid;
+	fcntl(sock, F_SETFD, fcntl(sock, F_GETFD, 0) | FD_CLOEXEC);
+
+	opbx_pthread_create(&lthread, &global_attr_default, listener, (void *)sock);
+
+	if (u.sa.sa_family == AF_LOCAL) {
+		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
+			struct passwd *pw;
+			if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL)
+				opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
+			else
+				uid = pw->pw_uid;
 		}
-	}
 		
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
-		struct group *grp;
-		if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
-		} else {
-			gid = grp->gr_gid;
+		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
+			struct group *grp;
+			if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL)
+				opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
+			else
+				gid = grp->gr_gid;
 		}
-	}
 
-	if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
-		opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
+			opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", spec, strerror(errno));
 
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
-		mode_t p;
-		sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
-		if ((chmod(opbx_config_OPBX_SOCKET, p)) < 0)
-			opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
+			mode_t p;
+			sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
+			if ((chmod(spec, p)) < 0)
+				opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", spec, strerror(errno));
+		}
 	}
 
 	return 0;
@@ -2297,7 +2296,7 @@ int callweaver_main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
-	if (opbx_tryconnect()) {
+	if (opbx_tryconnect(opbx_config_OPBX_SOCKET)) {
 		/* One is already running */
 		if (option_remote) {
 			if (option_exec) {
@@ -2340,7 +2339,14 @@ int callweaver_main(int argc, char *argv[])
 	if (test_for_thread_safety())
 		opbx_verbose("Warning! CallWeaver is not thread safe.\n");
 
-	opbx_makesocket();
+	for (x = 0; x < arraysize(consoles); x++)	
+		consoles[x].fd = -1;
+
+	unlink(opbx_config_OPBX_SOCKET);
+
+	opbx_makesocket(opbx_config_OPBX_SOCKET);
+
+	opbx_register_verbose(network_verboser);
 
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
@@ -2368,7 +2374,7 @@ int callweaver_main(int argc, char *argv[])
 	opbx_cli_init();
 
 	if (option_console || option_nofork) {
-		if (!opbx_tryconnect() || opbx_pthread_create(&consolethread, &global_attr_default, console, NULL)) {
+		if (!opbx_tryconnect(opbx_config_OPBX_SOCKET) || opbx_pthread_create(&consolethread, &global_attr_default, console, opbx_config_OPBX_SOCKET)) {
 			opbx_log(OPBX_LOG_ERROR, "Failed to start console - console is not available\n");
 			option_console = 0;
 			option_nofork = 1;
