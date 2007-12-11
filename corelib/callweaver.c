@@ -574,6 +574,167 @@ int opbx_set_priority(int pri)
 	return 0;
 }
 
+
+#define MKSTR(x)	# x
+#define UINT_MAX_LEN	sizeof(MKSTR(UINT_MAX))
+
+/* Flag to identify we got a TERM signal */
+static int lockfile_got_term = 0;
+
+
+/* Ignore all signals except for SIGTERM */
+static void lockfile_sighandler(int sig)
+{
+	lockfile_got_term = 1;
+}
+
+
+static void lockfile_release(char *lockfile)
+{
+	if (unlink(lockfile))
+		fprintf(stderr, "lockfile_release: %s: %s", lockfile, strerror(errno));
+}
+
+
+static int lockfile_rewrite(char *lockfile, pid_t pid)
+{
+	char buf[UINT_MAX_LEN + 1];
+	int d, len;
+	int err = 0;
+
+	len = sprintf(buf, "%u\n", pid);
+
+	if ((d = open(lockfile, O_WRONLY, 0)) < 0)
+		err = errno;
+	if (write(d, buf, len) != len && !err)
+		err = errno;
+	if (ftruncate(d, len) && !err)
+		err = errno;
+	if (close(d) && !err)
+		err = errno;
+
+	errno = err;
+	return err;
+}
+
+
+static int lockfile_claim(char *lockfile)
+{
+	char buf[UINT_MAX_LEN + 1];
+	struct sigaction oldsa[3];
+	struct sigaction sa;
+	struct stat st1, st2;
+	char *pidfile;
+	int d, len, err = 0, err2;
+	int claimed = 0;
+
+	lockfile_got_term = 0;
+
+	sa.sa_handler = lockfile_sighandler;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGQUIT, &sa, &oldsa[0]);
+	sigaction(SIGTERM, &sa, &oldsa[1]);
+	sigaction(SIGINT, &sa, &oldsa[2]);
+
+	pidfile = alloca(strlen(lockfile) + 1 + UINT_MAX_LEN + 1);
+	sprintf(pidfile, "%s.%d", lockfile, getpid());
+
+	/* If our pid file exists we failed to unlink it
+	 * earlier. If we cannot unlink it now we have
+	 * to fail and wait until the fs is fixed - we
+	 * can't trust the contents.
+	 */
+	if (unlink(pidfile) < 0 && errno != ENOENT) {
+		fprintf(stderr, "unlink(\"%s\"): %s\n", pidfile, strerror(errno));
+		goto out;
+	}
+
+	if ((d = open(pidfile, O_WRONLY|O_CREAT, 0600)) < 0) {
+		fprintf(stderr, "open(\"%s\"): %s\n", pidfile, strerror(errno));
+		goto out;
+	}
+
+	/* We need dev/inode for later checks.
+	 * Remember: some filesystems (NFS in particular)
+	 * may return short writes or errors on close.
+	 */
+	len = sprintf(buf, "%u\n", getpid());
+	err = fstat(d, &st1);
+	if (!err) {
+		err = write(d, buf, len);
+		if (err >= 0 && err != len) {
+			errno = ENOSPC;
+			err = -1;
+		}
+	}
+	err = (err < 0 ? errno : 0);
+	err2 = close(d);
+	if (!err && err2 < 0)
+		err = errno;
+	if (err) {
+		fprintf(stderr, "%s: %s\n", pidfile, strerror(err));
+		goto out;
+	}
+
+	/* Attempt to claim the lock */
+	err = link(pidfile, lockfile);
+	if (err && errno == EEXIST && !lockfile_got_term) {
+		/* The lock file exists - but maybe whoever
+		 * owned it died without releasing it?
+		 * N.B. This is racey since there is no way
+		 * to guarantee we unlink what we opened.
+		 * But since it only triggers if something
+		 * has already gone wrong it isn't too bad...
+		 */
+		if ((d = open(lockfile, O_RDONLY, 0)) >= 0) {
+			pid_t pid;
+			if ((err2 = read(d, buf, sizeof(buf)-1)) > 0
+			&& ((buf[err2] = '\0'),(pid = atol(buf))) > 1) {
+				if (!kill(pid, 0)) {
+					err = EBUSY;
+				} else {
+					unlink(lockfile);
+					fprintf(stderr, "Removed stale lock %s owned by pid %d\n", lockfile, pid);
+				}
+			}
+			close(d);
+		}
+		if (!lockfile_got_term)
+			err = link(pidfile, lockfile);
+	}
+
+	if (!err && !lockfile_got_term) {
+		claimed = 1;
+		goto out;
+	}
+
+	if (errno == EEXIST && !lockfile_got_term) {
+		/* Use stat to compare inodes since an NFS
+		 * server can make the link, die before it
+		 * says so then return EXISTS when the client
+		 * sends a retry for the response-less request.
+		 */
+		err = stat(lockfile, &st2);
+		if (!err && st1.st_ino == st2.st_ino && st1.st_dev == st2.st_dev) {
+			claimed = 1;
+			goto out;
+		}
+	}
+
+	if (lockfile_got_term)
+		claimed = -1;
+
+out:
+	sigaction(SIGQUIT, &oldsa[0], NULL);
+	sigaction(SIGTERM, &oldsa[0], NULL);
+	sigaction(SIGINT, &oldsa[0], NULL);
+	if (unlink(pidfile) < 0)
+		fprintf(stderr, "unlink(\"%s\"): %s\n", pidfile, strerror(errno));
+	return claimed;
+}
+
+
 static void quit_handler(void *data)
 {
 	int local_restart;
@@ -605,7 +766,7 @@ static void quit_handler(void *data)
 		opbx_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
 
 	if (!option_remote)
-		unlink((char *)opbx_config_OPBX_PID);
+		lockfile_release(opbx_config_OPBX_PID);
 
 	close_logger();
 
@@ -2007,7 +2168,6 @@ int callweaver_main(int argc, char *argv[])
 	struct sigaction sa;
 	char * xarg = NULL;
 	int x;
-	FILE *f;
 	sigset_t sigs;
 	int is_child_of_nonroot=0;
 	static char *runuser = NULL, *rungroup = NULL;  
@@ -2159,6 +2319,7 @@ int callweaver_main(int argc, char *argv[])
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
+
 	if (!runuser)
 		runuser = opbx_config_OPBX_RUN_USER;
 	if (!rungroup)
@@ -2296,9 +2457,8 @@ int callweaver_main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
-	if (opbx_tryconnect(opbx_config_OPBX_SOCKET)) {
-		/* One is already running */
-		if (option_remote) {
+	if (option_remote || option_exec) {
+		if (opbx_tryconnect(opbx_config_OPBX_SOCKET)) {
 			if (option_exec) {
 				console_oneshot(xarg);
 				exit(0);
@@ -2306,33 +2466,38 @@ int callweaver_main(int argc, char *argv[])
 			console(NULL);
 			exit(0);
 		} else {
-			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
+			opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n", opbx_config_OPBX_SOCKET);
 			exit(1);
 		}
-	} else if (option_remote || option_exec) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
-		exit(1);
 	}
 
-	/* Blindly write pid file since we couldn't connect */
-	unlink((char *)opbx_config_OPBX_PID);
-	f = fopen((char *)opbx_config_OPBX_PID, "w");
-	if (f) {
-		fprintf(f, "%d\n", getpid());
-		fclose(f);
-	} else
-		opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
+	switch (lockfile_claim(opbx_config_OPBX_PID)) {
+		case 0: /* Already running */
+			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running.  Use 'callweaver -r' to connect.\n");
+			/* Fall through */
+		case -1: /* Interrupted before claim */
+			exit(1);
+	}
 
 	if (!option_console && !option_nofork) {
-		daemon(1,0);
-		/* Blindly re-write pid file since we are forking */
-		unlink((char *)opbx_config_OPBX_PID);
-		f = fopen((char *)opbx_config_OPBX_PID, "w");
-		if (f) {
-			fprintf(f, "%d\n", getpid());
-			fclose(f);
-		} else
-			opbx_log(OPBX_LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
+		pid_t pid = fork();
+		if (pid == -1) {
+			opbx_log(OPBX_LOG_ERROR, "fork failed: %s\n", strerror(errno));
+			exit(1);
+		} else if (pid) {
+			/* We, the parent, are going to die and our child takes
+			 * over all future responsibilities. Update the pid file
+			 * accordingly.
+			 */
+			if (lockfile_rewrite(opbx_config_OPBX_PID, pid))
+				opbx_log(OPBX_LOG_WARNING, "Unable to rewrite pid file '%s' after forking: %s\n", opbx_config_OPBX_PID, strerror(errno));
+			_exit(0);
+		}
+
+		freopen("/dev/null", "r", stdin);
+		freopen("/dev/null", "w", stdout);
+		freopen("/dev/null", "w", stderr);
+		setsid();
 	}
 
 	/* Test recursive mutex locking. */
