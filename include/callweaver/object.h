@@ -76,13 +76,7 @@ static inline void opbx_object_init_obj(struct opbx_object *obj, struct module *
  */
 static inline struct opbx_object *opbx_object_get_obj(struct opbx_object *obj)
 {
-	int prev;
-
-	do {
-		prev = atomic_read(&obj->refs);
-	} while (atomic_cmpxchg(&obj->refs, prev, prev + 1) != prev);
-
-	if (prev == OPBX_OBJECT_NO_REFS)
+	if (atomic_fetch_and_add(&obj->refs, 1) == OPBX_OBJECT_NO_REFS)
 		opbx_module_get(obj->module);
 
 	return obj;
@@ -118,13 +112,7 @@ static inline struct opbx_object *opbx_object_dup_obj(struct opbx_object *obj)
  */
 static inline int opbx_object_put_obj(struct opbx_object *obj)
 {
-	int prev;
-
-	do {
-		prev = atomic_read(&obj->refs);
-	} while (atomic_cmpxchg(&obj->refs, prev, prev - 1) != prev);
-
-	if (prev == OPBX_OBJECT_NO_REFS + 1) {
+	if (atomic_fetch_and_sub(&obj->refs, 1) == OPBX_OBJECT_NO_REFS + 1) {
 		struct module *module = obj->module;
 		if (obj->release)
 			obj->release(obj);

@@ -282,4 +282,29 @@ static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
 
 #endif
 
+
+static inline int atomic_fetch_and_add(atomic_t *v, int i)
+{
+	int prev;
+
+	do {
+		prev = atomic_read(v);
+	} while (atomic_cmpxchg(v, prev, prev + i) != prev);
+
+	return prev;
+}
+
+
+static inline int atomic_fetch_and_sub(atomic_t *v, int i)
+{
+	int prev;
+
+	do {
+		prev = atomic_read(v);
+	} while (atomic_cmpxchg(v, prev, prev - i) != prev);
+
+	return prev;
+}
+
+
 #endif /* _CALLWEAVER_ATOMIC_H */
