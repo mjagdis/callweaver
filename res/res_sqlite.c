@@ -181,7 +181,7 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc, char *result, size_t result_max)
+static int sqlite_execapp(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *errmsg;
