@@ -226,6 +226,8 @@ static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 static char random_state[256];
 
+static pthread_t lthread;
+
 
 static const char *atexit_registry_obj_name(struct opbx_object *obj)
 {
@@ -503,250 +505,6 @@ int opbx_safe_system(const char *s)
     return res;
 }
 
-
-/*!
- * write the string to the console, and all attached
- * console clients
- */
-void opbx_console_puts(const char *string)
-{
-	int i;
-
-	for (i = 0; i < arraysize(consoles); i++) {
-		if (consoles[i].fd > -1)
-			fdprint(consoles[i].p[1], string);
-	}
-}
-
-
-static void network_verboser(const char *s, int pos, int replace, int complete)
-	/* ARGUSED */
-{
-	char *t;
-
-	if (replace) {
-		t = alloca(strlen(s) + 2);
-		sprintf(t, "\r%s", s);
-		s = t;
-	}
-	if (complete)
-		opbx_console_puts(s);
-}
-
-
-static pthread_t lthread;
-
-static void *netconsole(void *vconsole)
-{
-	struct console *con = vconsole;
-	char tmp[512];
-	int res;
-	struct pollfd fds[2];
-
-	for(;;) {
-		fds[0].fd = con->fd;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
-		fds[1].fd = con->p[0];
-		fds[1].events = POLLIN;
-		fds[1].revents = 0;
-
-		res = poll(fds, 2, -1);
-		if (res < 0) {
-			if (errno != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
-			sleep(1);
-			continue;
-		}
-		if (fds[0].revents) {
-			res = read(con->fd, tmp, sizeof(tmp));
-			if (res < 1) {
-				break;
-			}
-			tmp[res] = 0;
-			opbx_cli_command(con->fd, tmp);
-		}
-		if (fds[1].revents) {
-			res = read(con->p[0], tmp, sizeof(tmp));
-			if (res < 1) {
-				opbx_log(OPBX_LOG_ERROR, "read returned %d\n", res);
-				break;
-			}
-			res = write(con->fd, tmp, res);
-			if (res < 1)
-				break;
-		}
-	}
-	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
-	close(con->fd);
-	close(con->p[0]);
-	close(con->p[1]);
-	con->fd = -1;
-	return NULL;
-}
-
-static void *listener(void *unused)
-{
-	char buf[80];
-	struct sockaddr_un sunaddr;
-	int n, s;
-	socklen_t len;
-	int x;
-	struct pollfd fds[1];
-
-	for (;;) {
-		if (opbx_socket < 0)
-			break;
-
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		fds[0].fd = opbx_socket;
-		fds[0].events= POLLIN;
-		pthread_testcancel();
-		n = poll(fds, 1, -1);
-		x = errno;
-		pthread_testcancel();
-		if (n > 0) {
-			len = sizeof(sunaddr);
-			s = accept(opbx_socket, (struct sockaddr *)&sunaddr, &len);
-		}
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (n <= 0) {
-			if (x != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
-		} else if (s < 0) {
-			if (x != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
-		} else {
-			for (x = 0; x < arraysize(consoles); x++) {
-				if (consoles[x].fd < 0) {
-					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
-						opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
-						consoles[x].fd = -1;
-						close(s);
-						break;
-					}
-
-#ifndef RELEASE_TARBALL	
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
-#else
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
-#endif
-					write(s, buf, n);
-
-					consoles[x].fd = s;
-					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
-					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
-						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
-						consoles[x].fd = -1;
-						close(s);
-					}
-					break;
-				}
-			}
-			if (x >= arraysize(consoles)) {
-				opbx_log(OPBX_LOG_WARNING, "No more connections allowed\n");
-				close(s);
-			} else if (consoles[x].fd > -1) {
-				if (option_verbose > 2) 
-					opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
-			}
-		}
-	}
-	return NULL;
-}
-
-static int opbx_makesocket(void)
-{
-	struct sockaddr_un sunaddr;
-	int res;
-	int x;
-	uid_t uid = -1;
-	gid_t gid = -1;
-
-	for (x = 0; x < arraysize(consoles); x++)	
-		consoles[x].fd = -1;
-	unlink(opbx_config_OPBX_SOCKET);
-	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (opbx_socket < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
-		return -1;
-	}		
-	memset(&sunaddr, 0, sizeof(sunaddr));
-	sunaddr.sun_family = AF_LOCAL;
-	opbx_copy_string(sunaddr.sun_path, opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
-	res = bind(opbx_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
-	if (res) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-		close(opbx_socket);
-		opbx_socket = -1;
-		return -1;
-	}
-	res = listen(opbx_socket, 2);
-	if (res < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-		close(opbx_socket);
-		opbx_socket = -1;
-		return -1;
-	}
-	opbx_register_verbose(network_verboser);
-	opbx_pthread_create(&lthread, &global_attr_default, listener, NULL);
-
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
-		struct passwd *pw;
-		if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
-		} else {
-			uid = pw->pw_uid;
-		}
-	}
-		
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
-		struct group *grp;
-		if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
-		} else {
-			gid = grp->gr_gid;
-		}
-	}
-
-	if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
-		opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-
-	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
-		mode_t p;
-		sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
-		if ((chmod(opbx_config_OPBX_SOCKET, p)) < 0)
-			opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
-	}
-
-	return 0;
-}
-
-static int opbx_tryconnect(void)
-{
-	struct sockaddr_un sunaddr;
-	int res;
-	opbx_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (opbx_consock < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-		return 0;
-	}
-	memset(&sunaddr, 0, sizeof(sunaddr));
-	sunaddr.sun_family = AF_LOCAL;
-	opbx_copy_string(sunaddr.sun_path, (char *)opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
-	res = connect(opbx_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
-	if (res) {
-		close(opbx_consock);
-		opbx_consock = -1;
-		return 0;
-	} else {
-		return 1;
-	}
-}
 
 /*! Urgent handler
  Called by soft_hangup to interrupt the poll, read, or other
@@ -1558,6 +1316,29 @@ static void console_handler(char *s)
 }
 
 
+static int opbx_tryconnect(void)
+{
+	struct sockaddr_un sunaddr;
+	int res;
+	opbx_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (opbx_consock < 0) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		return 0;
+	}
+	memset(&sunaddr, 0, sizeof(sunaddr));
+	sunaddr.sun_family = AF_LOCAL;
+	opbx_copy_string(sunaddr.sun_path, (char *)opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
+	res = connect(opbx_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
+	if (res) {
+		close(opbx_consock);
+		opbx_consock = -1;
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+
 static void *console(void *data)
 {
 	char buf[1024];
@@ -1626,14 +1407,6 @@ static void *console(void *data)
 
 		if (option_console || option_remote)
 			rl_callback_handler_install(cli_prompt(), console_handler);
-
-		/* If the parent thread was waiting for the console to come
-		 * on line tell it to continue
-		 */
-		if (data) {
-			sem_post((sem_t *)data);
-			data = NULL;
-		}
 
 		for (;;) {
 			struct pollfd pfd[2];
@@ -1748,6 +1521,278 @@ static void console_oneshot(char *cmd)
 
 	while ((n = read(opbx_consock, buf, sizeof(buf))) > 0)
 		write(STDOUT_FILENO, buf, n);
+}
+
+
+static void boot(void)
+{
+	if ((option_console || option_nofork) && !option_verbose) 
+		opbx_verbose("[ Booting...");
+
+	/* ensure that the random number generators are seeded with a different value every time
+	   CallWeaver is started
+	*/
+	srand((unsigned int) getpid() + (unsigned int) time(NULL));
+	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
+
+	if (init_logger()
+	|| opbx_crypto_init()
+	|| opbx_loader_cli_init()
+	|| load_modules(1)
+	|| opbx_channels_init()
+	|| opbx_cdr_engine_init()
+	|| init_manager()
+	|| opbx_device_state_engine_init()
+	|| opbx_rtp_init()
+	|| opbx_udptl_init()
+	|| opbx_stun_init()
+	|| direngine_list_init()
+	|| opbx_image_init()
+	|| opbx_file_init()
+	|| load_pbx()
+	|| opbxdb_init()
+	|| init_framer()
+	|| load_modules(0)
+	|| opbx_enum_init()
+	|| opbx_translator_init()) {
+	    exit(1);
+	}
+
+#ifdef __OPBX_DEBUG_MALLOC
+	__opbx_mm_init();
+#endif	
+	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
+
+	if ((option_console || option_nofork) && !option_verbose)
+		opbx_verbose(" ]\n");
+
+	time(&opbx_startuptime);
+	if (option_verbose || option_console || option_nofork)
+		opbx_verbose("CallWeaver Ready\n");
+
+	fully_booted = 1;
+}
+
+
+/*!
+ * write the string to the console, and all attached
+ * console clients
+ */
+void opbx_console_puts(const char *string)
+{
+	int i;
+
+	for (i = 0; i < arraysize(consoles); i++) {
+		if (consoles[i].fd > -1)
+			fdprint(consoles[i].p[1], string);
+	}
+}
+
+
+static void network_verboser(const char *s, int pos, int replace, int complete)
+	/* ARGUSED */
+{
+	char *t;
+
+	if (replace) {
+		t = alloca(strlen(s) + 2);
+		sprintf(t, "\r%s", s);
+		s = t;
+	}
+	if (complete)
+		opbx_console_puts(s);
+}
+
+
+static void *netconsole(void *vconsole)
+{
+	struct console *con = vconsole;
+	char tmp[512];
+	int res;
+	struct pollfd fds[2];
+
+	for(;;) {
+		fds[0].fd = con->fd;
+		fds[0].events = POLLIN;
+		fds[0].revents = 0;
+		fds[1].fd = con->p[0];
+		fds[1].events = POLLIN;
+		fds[1].revents = 0;
+
+		res = poll(fds, 2, -1);
+		if (res < 0) {
+			if (errno != EINTR)
+				opbx_log(OPBX_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+			sleep(1);
+			continue;
+		}
+		if (fds[0].revents) {
+			res = read(con->fd, tmp, sizeof(tmp));
+			if (res < 1) {
+				break;
+			}
+			tmp[res] = 0;
+			opbx_cli_command(con->fd, tmp);
+		}
+		if (fds[1].revents) {
+			res = read(con->p[0], tmp, sizeof(tmp));
+			if (res < 1) {
+				opbx_log(OPBX_LOG_ERROR, "read returned %d\n", res);
+				break;
+			}
+			res = write(con->fd, tmp, res);
+			if (res < 1)
+				break;
+		}
+	}
+	if (option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
+	close(con->fd);
+	close(con->p[0]);
+	close(con->p[1]);
+	con->fd = -1;
+	return NULL;
+}
+
+static void *listener(void *unused)
+{
+	char buf[80];
+	struct sockaddr_un sunaddr;
+	int n, s;
+	socklen_t len;
+	int x;
+	struct pollfd fds[1];
+
+	for (;;) {
+		if (opbx_socket < 0)
+			break;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		fds[0].fd = opbx_socket;
+		fds[0].events= POLLIN;
+		pthread_testcancel();
+		n = poll(fds, 1, -1);
+		x = errno;
+		pthread_testcancel();
+		if (n > 0) {
+			len = sizeof(sunaddr);
+			s = accept(opbx_socket, (struct sockaddr *)&sunaddr, &len);
+		}
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (n <= 0) {
+			if (x != EINTR)
+				opbx_log(OPBX_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
+		} else if (s < 0) {
+			if (x != EINTR)
+				opbx_log(OPBX_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
+		} else {
+			for (x = 0; x < arraysize(consoles); x++) {
+				if (consoles[x].fd < 0) {
+					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
+						opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
+						consoles[x].fd = -1;
+						close(s);
+						break;
+					}
+
+#ifndef RELEASE_TARBALL	
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
+#else
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
+#endif
+					write(s, buf, n);
+
+					consoles[x].fd = s;
+					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
+					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
+						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
+						consoles[x].fd = -1;
+						close(s);
+					} else if (!fully_booted)
+						boot();
+					break;
+				}
+			}
+			if (x >= arraysize(consoles)) {
+				opbx_log(OPBX_LOG_WARNING, "No more connections allowed\n");
+				close(s);
+			} else if (consoles[x].fd > -1) {
+				if (option_verbose > 2) 
+					opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
+			}
+		}
+	}
+	return NULL;
+}
+
+static int opbx_makesocket(void)
+{
+	struct sockaddr_un sunaddr;
+	int res;
+	int x;
+	uid_t uid = -1;
+	gid_t gid = -1;
+
+	for (x = 0; x < arraysize(consoles); x++)	
+		consoles[x].fd = -1;
+	unlink(opbx_config_OPBX_SOCKET);
+	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (opbx_socket < 0) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
+		return -1;
+	}		
+	memset(&sunaddr, 0, sizeof(sunaddr));
+	sunaddr.sun_family = AF_LOCAL;
+	opbx_copy_string(sunaddr.sun_path, opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
+	res = bind(opbx_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
+	if (res) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		close(opbx_socket);
+		opbx_socket = -1;
+		return -1;
+	}
+	res = listen(opbx_socket, 2);
+	if (res < 0) {
+		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		close(opbx_socket);
+		opbx_socket = -1;
+		return -1;
+	}
+	opbx_register_verbose(network_verboser);
+	opbx_pthread_create(&lthread, &global_attr_default, listener, NULL);
+
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
+		struct passwd *pw;
+		if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL) {
+			opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
+		} else {
+			uid = pw->pw_uid;
+		}
+	}
+		
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
+		struct group *grp;
+		if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL) {
+			opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
+		} else {
+			gid = grp->gr_gid;
+		}
+	}
+
+	if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
+		opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
+		mode_t p;
+		sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
+		if ((chmod(opbx_config_OPBX_SOCKET, p)) < 0)
+			opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+	}
+
+	return 0;
 }
 
 
@@ -2323,60 +2368,15 @@ int callweaver_main(int argc, char *argv[])
 	opbx_cli_init();
 
 	if (option_console || option_nofork) {
-		sem_t sem;
-
-		if (!sem_init(&sem, 0, 0) && opbx_tryconnect() && !opbx_pthread_create(&consolethread, &global_attr_default, console, &sem))
-			sem_wait(&sem);
-		else
+		if (!opbx_tryconnect() || opbx_pthread_create(&consolethread, &global_attr_default, console, NULL)) {
 			opbx_log(OPBX_LOG_ERROR, "Failed to start console - console is not available\n");
-		sem_destroy(&sem);
+			option_console = 0;
+			option_nofork = 1;
+		}
 	}
 
-	if ((option_console || option_nofork) && !option_verbose) 
-		opbx_verbose("[ Booting...");
-
-	/* ensure that the random number generators are seeded with a different value every time
-	   CallWeaver is started
-	*/
-	srand((unsigned int) getpid() + (unsigned int) time(NULL));
-	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
-
-	if (init_logger()
-	|| opbx_crypto_init()
-	|| opbx_loader_cli_init()
-	|| load_modules(1)
-	|| opbx_channels_init()
-	|| opbx_cdr_engine_init()
-	|| init_manager()
-	|| opbx_device_state_engine_init()
-	|| opbx_rtp_init()
-	|| opbx_udptl_init()
-	|| opbx_stun_init()
-	|| direngine_list_init()
-	|| opbx_image_init()
-	|| opbx_file_init()
-	|| load_pbx()
-	|| opbxdb_init()
-	|| init_framer()
-	|| load_modules(0)
-	|| opbx_enum_init()
-	|| opbx_translator_init()) {
-	    exit(1);
-	}
-
-#ifdef __OPBX_DEBUG_MALLOC
-	__opbx_mm_init();
-#endif	
-	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
-
-	if ((option_console || option_nofork) && !option_verbose)
-		opbx_verbose(" ]\n");
-
-	time(&opbx_startuptime);
-	if (option_verbose || option_console || option_nofork)
-		opbx_verbose("CallWeaver Ready\n");
-
-	fully_booted = 1;
+	if (!option_console)
+		boot();
 
 	sigdelset(&sigs, SIGWINCH);
 
