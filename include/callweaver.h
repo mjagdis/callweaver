@@ -106,7 +106,7 @@ extern int opbx_channels_init(void);
  * not be present and CVS would expand the Revision keyword into the file's
  * revision number.
  */
-#if defined(__GNUC__) && !defined(LOW_MEMORY)
+#if !defined(LOW_MEMORY)
 
 #  include "callweaver/object.h"
 #  include "callweaver/registry.h"
@@ -139,11 +139,9 @@ extern int opbx_channels_init(void);
 		opbx_registry_del(&file_version_registry, __file_version.reg_entry); \
 	}
 
-#elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
-#  define CALLWEAVER_FILE_VERSION(file, x) static const char __file_version[] = x;
 #else /* LOW_MEMORY */
 #  define CALLWEAVER_FILE_VERSION(file, x)
-#endif /* __GNUC__ */
+#endif
 
 #if defined(__OPBX_DEBUG_MALLOC)  &&  !defined(_CALLWEAVER_CALLWEAVER_MM_H)
 #include "callweaver/callweaver_mm.h"
