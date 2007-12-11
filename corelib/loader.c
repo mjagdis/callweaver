@@ -71,7 +71,6 @@ struct module {
 	char resource[0];
 };
 
-/* This lock protects both the module list AND calls to the libtool ltdl library functions, which are NOT thread-safe */
 OPBX_MUTEX_DEFINE_STATIC(module_lock);
 static struct module *module_list = NULL;
 static int modlistver = 0;
@@ -529,7 +528,59 @@ static struct opbx_clicmd clicmds[] = {
 };
 
 
+OPBX_MUTEX_DEFINE_STATIC(loader_mutex);
+static pthread_key_t loader_err_key;
+struct loader_err {
+	int have_err;
+	char err[251];
+};
+
+static void loader_lock(void)
+{
+	opbx_mutex_lock(&loader_mutex);
+}
+
+static void loader_unlock(void)
+{
+	opbx_mutex_unlock(&loader_mutex);
+}
+
+static void loader_seterr(const char *err)
+{
+	struct loader_err *local = pthread_getspecific(loader_err_key);
+	if (local) {
+		if ((local->have_err = (err ? 1 : 0))) {
+			strncpy(local->err, err, sizeof(local->err) - 1);
+			local->err[sizeof(local->err) - 1] = '\0';
+		}
+	}
+}
+
+static const char *loader_geterr(void)
+{
+	struct loader_err *local = pthread_getspecific(loader_err_key);
+
+	if (!local || !local->have_err)
+		return NULL;
+	local->have_err = 0;
+	return local->err;
+}
+
+
 int opbx_loader_init(void)
+{
+	if (pthread_key_create(&loader_err_key, &free)) {
+		perror("pthread_key_create");
+		exit(1);
+	}
+	pthread_setspecific(loader_err_key, calloc(1, sizeof(struct loader_err)));
+
+	lt_dlinit();
+	lt_dlmutex_register(loader_lock, loader_unlock, loader_seterr, loader_geterr);
+}
+
+
+int opbx_loader_cli_init(void)
 {
 	opbx_cli_register_multiple(clicmds, arraysize(clicmds));
 	return 0;

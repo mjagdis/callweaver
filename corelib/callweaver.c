@@ -2088,7 +2088,8 @@ int callweaver_main(int argc, char *argv[])
 	}
 
 	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
-	lt_dlinit();
+
+	opbx_loader_init();
 
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
@@ -2351,7 +2352,7 @@ int callweaver_main(int argc, char *argv[])
 	    opbx_exit(1);
 	}
 	/* initialize module loader */
-	if (opbx_loader_init() < 0) {
+	if (opbx_loader_cli_init() < 0) {
 	    opbx_exit(1);
 	}
 	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
