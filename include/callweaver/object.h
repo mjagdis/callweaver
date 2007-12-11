@@ -37,7 +37,7 @@ struct opbx_object {
 };
 
 
-#define OPBX_OBJECT_NO_REFS -1
+#define OPBX_OBJECT_NO_REFS 0
 #define OPBX_OBJECT_CURRENT_MODULE (get_modinfo()->self)
 
 
@@ -63,14 +63,28 @@ static inline void opbx_object_init_obj(struct opbx_object *obj, struct module *
  *
  * \param obj	the object being referenced
  *
+ * This should _only_ be called if you are taking what could be the first reference to an object _and_
+ * that object's existence is also protected in some other way - maybe there's a lock we have, maybe
+ * we're taking the address of something static.
+ * Worry about the following:
+ *     thread A: call opbx_object_get(x) [context switch]
+ *     thread B: call opbx_object_get(x) [refs = 1]
+ *     thread B: call opbx_object_put(x) [refs = 0, x released, context switch]
+ *     thread A: call opbx_object_get(x) [uh oh, is x still valid?]
+ *
  * \return the given object with the reference counter incremented
  */
 static inline struct opbx_object *opbx_object_get_obj(struct opbx_object *obj)
 {
-	if (atomic_inc_and_test(&obj->refs)) {
-		atomic_inc(&obj->refs);
+	int prev;
+
+	do {
+		prev = atomic_read(&obj->refs);
+	} while (atomic_cmpxchg(&obj->refs, prev, prev + 1) != prev);
+
+	if (prev == OPBX_OBJECT_NO_REFS)
 		opbx_module_get(obj->module);
-	}
+
 	return obj;
 }
 
@@ -104,9 +118,14 @@ static inline struct opbx_object *opbx_object_dup_obj(struct opbx_object *obj)
  */
 static inline int opbx_object_put_obj(struct opbx_object *obj)
 {
-	if (atomic_dec_and_test(&obj->refs)) {
+	int prev;
+
+	do {
+		prev = atomic_read(&obj->refs);
+	} while (atomic_cmpxchg(&obj->refs, prev, prev - 1) != prev);
+
+	if (prev == OPBX_OBJECT_NO_REFS + 1) {
 		struct module *module = obj->module;
-		atomic_dec(&obj->refs);
 		if (obj->release)
 			obj->release(obj);
 		opbx_module_put(module);

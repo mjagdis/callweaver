@@ -87,7 +87,67 @@ static __inline__ int atomic_dec_and_test(atomic_t *v)
 }
 
 
+/*
+ * Atomic compare and exchange.  Compare old with *ptr. If identical,
+ * store new in *ptr.  Return the initial value of *ptr.  Success is
+ * indicated by comparing returned value with old.
+ * Access to *ptr is serializable via the given mutex however this is
+ * unused here since we have atomic cmpxchg support in the hardware.
+ */
+static inline unsigned long __cmpxchg(void *mutex,
+	volatile void *ptr, unsigned long old_n, unsigned long new_n, int size)
+{
+	unsigned long prev;
+	switch (size) {
+	case 1:
+		__asm__ __volatile__("lock ; cmpxchgb %b1,%2"
+				     : "=a"(prev)
+				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
+				     : "memory");
+		return prev;
+	case 2:
+		__asm__ __volatile__("lock ; cmpxchgw %w1,%2"
+				     : "=a"(prev)
+				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
+				     : "memory");
+		return prev;
+#if defined(x86_64)
+	case 4:
+		__asm__ __volatile__("lock ; cmpxchgl %k1,%2"
+				     : "=a"(prev)
+				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
+				     : "memory");
+		return prev;
+	case 8:
+		__asm__ __volatile__("lock ; cmpxchgq %1,%2"
+				     : "=a"(prev)
+				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
+				     : "memory");
+		return prev;
+#else
+	case 4:
+		__asm__ __volatile__("lock ; cmpxchgl %1,%2"
+				     : "=a"(prev)
+				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
+				     : "memory");
+		return prev;
+#endif
+	}
+	return old_n;
+}
+
+#define cmpxchg(mutex, ptr, old_n, new_n) \
+	((__typeof__(*(ptr)))__cmpxchg((mutex), (ptr), (unsigned long)(old_n), (unsigned long)(new_n), sizeof(*(ptr))))
+
+static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
+{
+	return cmpxchg(NULL, &v->counter, old_n, new_n);
+}
+
+
 #else /* no arch specific support */
+
+#include <stdint.h>
 
 /* Atomic implementation using pthread mutexes */
 
@@ -167,6 +227,59 @@ static inline int atomic_dec_and_test(atomic_t *v)
 }
 
 
-#endif /* __linux__ */
+/*
+ * Atomic compare and exchange.  Compare old with *ptr. If identical,
+ * store new in *ptr.  Return the initial value of *ptr.  Success is
+ * indicated by comparing returned value with old.
+ * Access to *ptr is serialized via the given mutex.
+ */
+static inline unsigned long __cmpxchg(pthread_spinlock_t *mutex,
+	volatile void *ptr, unsigned long old_n, unsigned long new_n, int size)
+{
+	int prev;
+
+	pthread_spin_lock(mutex);
+	switch (size) {
+	case 1:
+		prev = *(uint8_t *)ptr;
+		if (*(uint8_t *)ptr == old_n)
+			*(uint8_t *)ptr = new_n;
+		break;
+	case 2:
+		prev = *(uint16_t *)ptr;
+		if (*(uint16_t *)ptr == old_n)
+			*(uint16_t *)ptr = new_n;
+		break;
+	case 4:
+		prev = *(uint32_t *)ptr;
+		if (*(uint32_t *)ptr == old_n)
+			*(uint32_t *)ptr = new_n;
+		break;
+#if defined(UINT64_MAX)
+	case 8:
+		prev = *(uint64_t *)ptr;
+		if (*(uint64_t *)ptr == old_n)
+			*(uint64_t *)ptr = new_n;
+		break;
+#endif
+	default:
+		prev = old_n;
+		break;
+	}
+	pthread_spin_unlock(mutex);
+	return prev;
+}
+
+#define cmpxchg(mutex, ptr, old_n, new_n) \
+	((__typeof__(*(ptr)))__cmpxchg((mutex), (ptr), (unsigned long)(old_n), (unsigned long)(new_n), sizeof(*(ptr))))
+
+
+static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
+{
+	return cmpxchg(&v->lock, &v->counter, old_n, new_n);
+}
+
+
+#endif
 
 #endif /* _CALLWEAVER_ATOMIC_H */
