@@ -179,7 +179,6 @@ int fully_booted = 0;
 char record_cache_dir[OPBX_CACHE_DIR_LEN] = opbxtmpdir_default;
 char debug_filename[OPBX_FILENAME_MAX] = "";
 
-static int opbx_consock = -1;		/*!< UNIX Socket for controlling another callweaver */
 int opbx_mainpid;
 struct console {
 	int fd;				/*!< File descriptor */
@@ -1166,6 +1165,9 @@ static struct opbx_clicmd core_cli[] = {
 };
 
 
+static int console_sock;
+
+
 static char *cli_prompt(void)
 {
 	static char prompt[200];
@@ -1348,9 +1350,9 @@ static char **cli_completion(const char *text, int start, int end)
     matches = (char**)NULL;
     if (option_remote)
     {
-        snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-        fdprint(opbx_consock, buf);
-        res = read(opbx_consock, buf, sizeof(buf));
+        snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
+        fdprint(console_sock, buf);
+        res = read(console_sock, buf, sizeof(buf));
         buf[res] = '\0';
         nummatches = atoi(buf);
 
@@ -1364,7 +1366,7 @@ static char **cli_completion(const char *text, int start, int end)
                 return (matches);
 
             snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-            fdprint(opbx_consock, buf);
+            fdprint(console_sock, buf);
             res = 0;
             mbuf[0] = '\0';
 
@@ -1379,7 +1381,7 @@ static char **cli_completion(const char *text, int start, int end)
                         return (matches);
                 }
                 // Only read 1024 bytes at a time
-                res = read(opbx_consock, mbuf + mlen, 1024);
+                res = read(console_sock, mbuf + mlen, 1024);
                 if (res > 0)
                     mlen += res;
             }
@@ -1457,7 +1459,7 @@ static void console_handler(char *s)
 				console_cleanup(NULL);
 				exit(0);
 			} else {
-				if (write(opbx_consock, s, strlen(s) + 1) < 1) {
+				if (write(console_sock, s, strlen(s) + 1) < 1) {
 					opbx_log(OPBX_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					pthread_detach(pthread_self());
 					pthread_cancel(pthread_self());
@@ -1468,7 +1470,7 @@ static void console_handler(char *s)
 		console_cleanup(NULL);
 		exit(0);
 	} else {
-		shutdown(opbx_consock, SHUT_WR);
+		shutdown(console_sock, SHUT_WR);
 		putc('\n', stdout);
 	}
 }
@@ -1481,24 +1483,23 @@ static int opbx_tryconnect(char *spec)
 		struct sockaddr_un sun;
 	} u;
 	socklen_t salen;
+	int s;
 
 	memset(&u, 0, sizeof(u));
 	u.sun.sun_family = AF_LOCAL;
 	opbx_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
 	salen = sizeof(u.sun);
 
-	if ((opbx_consock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-		return 0;
-	}
-	if (connect(opbx_consock, &u.sa, salen)) {
-		close(opbx_consock);
-		opbx_consock = -1;
-		return 0;
+	if ((s = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+		fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
+	} else if (connect(s, &u.sa, salen)) {
+		close(s);
+		s = -1;
 	} else {
-		fcntl(opbx_consock, F_SETFD, fcntl(opbx_consock, F_GETFD, 0) | FD_CLOEXEC);
-		return 1;
+		fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
 	}
+
+	return s;
 }
 
 
@@ -1515,6 +1516,8 @@ static void *console(void *data)
 	int update_delay;
 	int res;
 	int pid;
+
+	console_sock = -1;
 
 	terminal_init();
 	terminal_set_icon("Callweaver");
@@ -1542,16 +1545,35 @@ static void *console(void *data)
 	}
 
 	do {
+		const int reconnects_per_second = 20;
+		int tries;
+
 		welcome_message();
 
+		fprintf(stderr, "Connecting to Callweaver at %s...\n", spec);
+		for (tries = 0; console_sock < 0 && tries < 30 * reconnects_per_second; tries++) {
+			if ((console_sock = opbx_tryconnect(spec)) < 0) {
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				pthread_testcancel();
+				usleep(1000000 / reconnects_per_second);
+				pthread_testcancel();
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			}
+		}
+		if (console_sock < 0) {
+			fprintf(stderr, "Failed to connect in 30 seconds. Quitting.\n");
+			break;
+		}
+		fprintf(stderr, "Connect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
+
 		/* Read the welcome line that contains hostname, version and pid */
-		read(opbx_consock, banner, sizeof(banner));
+		read(console_sock, banner, sizeof(banner));
 
 		/* Make sure verbose and debug settings are what we want or higher */
 		res = snprintf(buf, sizeof(buf), "set verbose atleast %d", option_verbose);
-		write(opbx_consock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
+		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
 		res = snprintf(buf, sizeof(buf), "set debug atleast %d", option_debug);
-		write(opbx_consock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
+		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
 
 		stringp = banner;
 		remotehostname = strsep(&stringp, "/");
@@ -1579,7 +1601,7 @@ static void *console(void *data)
 			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 			pthread_testcancel();
 
-			pfd[0].fd = opbx_consock;
+			pfd[0].fd = console_sock;
 			pfd[1].fd = fileno(stdin);
 			pfd[0].events = pfd[1].events = POLLIN;
 			pfd[0].revents = pfd[1].revents = 0;
@@ -1596,7 +1618,7 @@ static void *console(void *data)
 				}
 			} else if (ret >= 0) {
 				if (pfd[0].revents) {
-					if ((ret = read(opbx_consock, buf, sizeof(buf) - 1)) > 0) {
+					if ((ret = read(console_sock, buf, sizeof(buf) - 1)) > 0) {
 						if (update_delay < 0 && (option_console || option_remote)) {
 							if (clr_eol) {
 								terminal_write("\r", 1);
@@ -1611,7 +1633,7 @@ static void *console(void *data)
 						 * every time the output ends in a new line. Otherwise we want to
 						 * wait and see if there's more output coming because we don't
 						 * have any way of backing up and replacing the current line.
-						 * Of course, if we don't are about input there's no problem...
+						 * Of course, if we don't care about input there's no problem...
 						 */
 						if (option_console || option_remote) {
 							if (clr_eol && buf[ret - 1] == '\n') {
@@ -1642,49 +1664,37 @@ static void *console(void *data)
 		fflush(stdout);
 		fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 		set_title("");
-		close(opbx_consock);
-		opbx_consock = -1;
-
-		if (option_reconnect) {
-			const int reconnects_per_second = 20;
-			int tries;
-
-			fputs("Attempting to reconnect for 30 seconds...\n", stderr);
-			for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
-				if (opbx_tryconnect(spec)) {
-					fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
-					break;
-				} else {
-					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-					pthread_testcancel();
-					usleep(1000000 / reconnects_per_second);
-					pthread_testcancel();
-					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				}
-			}
-			if (opbx_consock < 0)
-				fprintf(stderr, "Failed to reconnect for 30 seconds. Quitting.\n");
-		}
-	} while (opbx_consock >= 0);
+		close(console_sock);
+		console_sock = -1;
+	} while (option_reconnect);
 
 	pthread_cleanup_pop(1);
 	return NULL;
 }
 
 
-static void console_oneshot(char *cmd)
+static int console_oneshot(char *spec, char *cmd)
 {
 	char buf[1024];
-	int n;
+	int s, n;
 
-	/* Dump the connection banner. We don't need it here */
-	read(opbx_consock, buf, sizeof(buf));
+	if ((s = opbx_tryconnect(spec)) >= 0) {
+		/* Dump the connection banner. We don't need it here */
+		read(s, buf, sizeof(buf));
 
-	write(opbx_consock, cmd, strlen(cmd) + 1);
-	shutdown(opbx_consock, SHUT_WR);
+		write(s, cmd, strlen(cmd) + 1);
+		shutdown(s, SHUT_WR);
 
-	while ((n = read(opbx_consock, buf, sizeof(buf))) > 0)
-		write(STDOUT_FILENO, buf, n);
+		while ((n = read(s, buf, sizeof(buf))) > 0)
+			write(STDOUT_FILENO, buf, n);
+		close(s);
+		n = 0;
+	} else {
+		fprintf(stderr, "Unable to connect to Callweaver at %s\n", spec);
+		n = 1;
+	}
+
+	return n;
 }
 
 
@@ -2458,17 +2468,10 @@ int callweaver_main(int argc, char *argv[])
 	read_config_maps();
 
 	if (option_remote || option_exec) {
-		if (opbx_tryconnect(opbx_config_OPBX_SOCKET)) {
-			if (option_exec) {
-				console_oneshot(xarg);
-				exit(0);
-			}
-			console(NULL);
-			exit(0);
-		} else {
-			opbx_log(OPBX_LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n", opbx_config_OPBX_SOCKET);
-			exit(1);
-		}
+		if (option_exec)
+			exit(console_oneshot(opbx_config_OPBX_SOCKET, xarg));
+		console(opbx_config_OPBX_SOCKET);
+		exit(0);
 	}
 
 	switch (lockfile_claim(opbx_config_OPBX_PID)) {
@@ -2539,7 +2542,7 @@ int callweaver_main(int argc, char *argv[])
 	opbx_cli_init();
 
 	if (option_console || option_nofork) {
-		if (!opbx_tryconnect(opbx_config_OPBX_SOCKET) || opbx_pthread_create(&consolethread, &global_attr_default, console, opbx_config_OPBX_SOCKET)) {
+		if (opbx_pthread_create(&consolethread, &global_attr_default, console, opbx_config_OPBX_SOCKET)) {
 			opbx_log(OPBX_LOG_ERROR, "Failed to start console - console is not available\n");
 			option_console = 0;
 			option_nofork = 1;
