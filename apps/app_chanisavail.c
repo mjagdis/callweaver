@@ -74,7 +74,7 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 	int status;
 	int res=-1, inuse=-1, option_state=0;
 
-	if (argc < 0 || argc > 1)
+	if (argc < 0 || argc > 2)
 		return opbx_function_syntax(chanisavail_syntax);
 
 	LOCAL_USER_ADD(u);
