@@ -2,7 +2,7 @@
 // Example AEL config file
 //
 
-macro std-exten-ael( ext , dev ) {
+proc std-exten-ael( ext , dev ) {
         Dial(${dev}/${ext},20);
         switch(${DIALSTATUS}) {
         case BUSY:

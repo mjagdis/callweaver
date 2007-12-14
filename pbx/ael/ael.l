@@ -193,7 +193,7 @@ NOSEMIC		([^;()\{\}\[\]]|\\[;()\[\]\{\}])*
 \/\/[^\n]*	{/*comment*/}
 context		{ STORE_POS; return KW_CONTEXT;}
 abstract	{ STORE_POS; return KW_ABSTRACT;}
-macro		{ STORE_POS; return KW_PROC;};
+proc		{ STORE_POS; return KW_PROC;};
 globals		{ STORE_POS; return KW_GLOBALS;}
 ignorepat	{ STORE_POS; return KW_IGNOREPAT;}
 switch		{ STORE_POS; return KW_SWITCH;}
@@ -283,7 +283,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 
 	/*
-	 * handlers for arguments to a macro or application calls.
+	 * handlers for arguments to a proc or application calls.
 	 * We enter this context when we find the initial '(' and
 	 * stay here until we close all matching parentheses,
 	 * and find the comma (argument separator) or the closing ')'
@@ -505,10 +505,10 @@ static int c_prevword(void)
  * declare them global and add a prototype so that the
  * compiler does not complain.
  *
- * NOTE: yyg is declared because it is used in the BEGIN macros,
- * though that should be hidden as the macro changes
+ * NOTE: yyg is declared because it is used in the BEGIN procs,
+ * though that should be hidden as the proc changes
  * depending on the flex options that we use - in particular,
- * %reentrant changes the way the macro is declared;
+ * %reentrant changes the way the proc is declared;
  * without %reentrant, BEGIN uses yystart instead of yyg
  */
 
