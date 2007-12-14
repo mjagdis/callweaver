@@ -1566,22 +1566,18 @@ static void *console(void *data)
 		strsep(&stringp, ".");
 		pid = (p ? atoi(p) : -1);
 
-		res = snprintf(buf, sizeof(buf), "%s on %s (pid %d)", version, remotehostname, pid);
+		res = snprintf(buf, sizeof(buf), "%s running on %s (pid %u)", version, remotehostname, pid);
 		if (res < 0 || res >= sizeof(buf))
 			buf[sizeof(buf)-1] = '\0';
+
 		set_title(buf);
 
-		res = snprintf(buf, sizeof(buf), "%s running on %s (pid %u)\n", version, remotehostname, pid);
-		if (res < 0 || res >= sizeof(buf)) {
-			buf[sizeof(buf)-2] = '\n';
-			buf[sizeof(buf)-1] = '\0';
-		}
 		putc('\n', stdout);
 		fputs(buf, stdout);
-		for (p = buf; *p != '\n'; p++)
+		putc('\n', stdout);
+		for (p = buf; *p; p++)
 			putc('=', stdout);
-		putc('\n', stdout);
-		putc('\n', stdout);
+		fputs("\n\n", stdout);
 
 		update_delay = -1;
 
