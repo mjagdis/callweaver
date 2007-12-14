@@ -420,11 +420,6 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 #endif /* ! LOW_MEMORY */
 
 
-static int fdprint(int fd, const char *s)
-{
-	return write(fd, s, strlen(s));
-}
-
 /*! NULL handler so we can collect the child exit status */
 static void null_sig_handler(int signal)
 {
@@ -1353,11 +1348,13 @@ static char **cli_completion(const char *text, int start, int end)
     matches = (char**)NULL;
     if (option_remote)
     {
-        snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-        fdprint(console_sock, buf);
-        res = read(console_sock, buf, sizeof(buf));
-        buf[res] = '\0';
-        nummatches = atoi(buf);
+        res = snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
+        if (res < sizeof(buf)) {
+            write(console_sock, buf, res);
+            res = read(console_sock, buf, sizeof(buf));
+            buf[res] = '\0';
+            nummatches = atoi(buf);
+        }
 
         if (nummatches > 0)
         {
@@ -1368,29 +1365,31 @@ static char **cli_completion(const char *text, int start, int end)
             if (!mbuf)
                 return (matches);
 
-            snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-            fdprint(console_sock, buf);
-            res = 0;
             mbuf[0] = '\0';
+            res = snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
+            if (res < sizeof(buf)) {
+                write(console_sock, buf, res);
+                res = 0;
 
-            while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1)
-            {
-                if (mlen + 1024 > maxmbuf)
+                while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1)
                 {
-                    // Every step increment buffer 1024 bytes
-                    maxmbuf += 1024;
-                    mbuf = realloc(mbuf, maxmbuf);
-                    if (!mbuf)
-                        return (matches);
+                    if (mlen + 1024 > maxmbuf)
+                    {
+                        // Every step increment buffer 1024 bytes
+                        maxmbuf += 1024;
+                        mbuf = realloc(mbuf, maxmbuf);
+                        if (!mbuf)
+                            return (matches);
+                    }
+                    // Only read 1024 bytes at a time
+                    res = read(console_sock, mbuf + mlen, 1024);
+                    if (res > 0)
+                        mlen += res;
                 }
-                // Only read 1024 bytes at a time
-                res = read(console_sock, mbuf + mlen, 1024);
-                if (res > 0)
-                    mlen += res;
-            }
-            mbuf[mlen] = '\0';
+                mbuf[mlen] = '\0';
 
-            matches = opbx_rl_strtoarr(mbuf);
+                matches = opbx_rl_strtoarr(mbuf);
+            }
             free(mbuf);
         }
 
@@ -1751,7 +1750,7 @@ void opbx_console_puts(const char *string)
 
 	for (i = 0; i < arraysize(consoles); i++) {
 		if (consoles[i].fd > -1)
-			fdprint(consoles[i].p[1], string);
+			write(consoles[i].p[1], string, strlen(string));
 	}
 }
 
