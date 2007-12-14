@@ -1546,7 +1546,6 @@ static void *console(void *data)
 			fprintf(stderr, "Failed to connect in 30 seconds. Quitting.\n");
 			break;
 		}
-		fprintf(stderr, "Connect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 
 		/* Read the welcome line that contains hostname, version and pid */
 		read(console_sock, banner, sizeof(banner));
