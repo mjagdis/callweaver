@@ -1219,12 +1219,16 @@ static char *cli_prompt(void)
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 						}
 						break;
-					case 'h': /* hostname */
-						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
+					case 'h': /* remote hostname */
+						strncat(p, remotehostname, sizeof(prompt) - strlen(prompt) - 1);
 						break;
-					case 'H': /* short hostname */
-						strncat(p, shorthostname, sizeof(prompt) - strlen(prompt) - 1);
+					case 'H': { /* short remote hostname */
+						char *q = strchr(remotehostname, '.');
+						int n = (q ? q - remotehostname : strlen(remotehostname));
+						int l = sizeof(prompt) - strlen(prompt) - 1;
+						strncat(p, remotehostname, n > l ? l : n);
 						break;
+					}
 #ifdef linux
 					case 'l': /* load avg */
 						t++;
