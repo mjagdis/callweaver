@@ -123,7 +123,7 @@ endif WANT_SRTP
 
 if EXPORT_DYNAMIC
 libexec_PROGRAMS = callweaver
-callweaver_SOURCES = main.c terminal.h terminal.c $(CORE_SRC)
+callweaver_SOURCES = main.c console.h console.c terminal.h terminal.c $(CORE_SRC)
 callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = $(CORE_LIBS) $(LIBLTDL)
 callweaver_LDFLAGS = -export-dynamic
@@ -136,7 +136,7 @@ libcallweaver_la_LIBADD	= $(CORE_LIBS)
 libcallweaver_la_LDFLAGS   = @NO_UNDEFINED@
 
 libexec_PROGRAMS = callweaver
-callweaver_SOURCES = main.c terminal.h terminal.c
+callweaver_SOURCES = main.c console.h console.c terminal.h terminal.c
 callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = @CALLWEAVER_LIB@ $(LIBLTDL) -lreadline
 endif
