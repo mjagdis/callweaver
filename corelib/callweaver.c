@@ -1403,22 +1403,6 @@ static char **cli_completion(const char *text, int start, int end)
 }
 
 
-static void welcome_message(void)
-{
-#ifndef RELEASE_TARBALL
-	static const char msg[] = PACKAGE_STRING " SVN-" SVN_VERSION " http://www.callweaver.org - The True Open Source PBX\n";
-#else
-	static const char msg[] = PACKAGE_STRING " http://www.callweaver.org - The True Open Source PBX\n";
-#endif
-	const char *p;
-
-	fputs(msg, stdout);
-	for (p = msg; *p != '\n'; p++)
-		putc('=', stdout);
-	putc('\n', stdout);
-}
-
-
 static void console_cleanup(void *data)
 {
 	char filename[80];
@@ -1548,8 +1532,6 @@ static void *console(void *data)
 		const int reconnects_per_second = 20;
 		int tries;
 
-		welcome_message();
-
 		fprintf(stderr, "Connecting to Callweaver at %s...\n", spec);
 		for (tries = 0; console_sock < 0 && tries < 30 * reconnects_per_second; tries++) {
 			if ((console_sock = opbx_tryconnect(spec)) < 0) {
@@ -1580,14 +1562,27 @@ static void *console(void *data)
 		p = strsep(&stringp, "/");
 		version = strsep(&stringp, "\n");
 		if (!version)
-			version = "<Version Unknown>";
+			version = "Callweaver <Version Unknown>";
 		stringp = remotehostname;
 		strsep(&stringp, ".");
 		pid = (p ? atoi(p) : -1);
 
-		snprintf(buf, sizeof(buf), "%s on %s (pid %d)", version, remotehostname, pid);
+		res = snprintf(buf, sizeof(buf), "%s on %s (pid %d)", version, remotehostname, pid);
+		if (res < 0 || res >= sizeof(buf))
+			buf[sizeof(buf)-1] = '\0';
 		set_title(buf);
-		fprintf(stdout, "Connected to %s currently running on %s (pid = %d)\n", version, remotehostname, pid);
+
+		res = snprintf(buf, sizeof(buf), "%s running on %s (pid %u)\n", version, remotehostname, pid);
+		if (res < 0 || res >= sizeof(buf)) {
+			buf[sizeof(buf)-2] = '\n';
+			buf[sizeof(buf)-1] = '\0';
+		}
+		putc('\n', stdout);
+		fputs(buf, stdout);
+		for (p = buf; *p != '\n'; p++)
+			putc('=', stdout);
+		putc('\n', stdout);
+		putc('\n', stdout);
 
 		update_delay = -1;
 
