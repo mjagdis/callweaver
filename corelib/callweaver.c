@@ -152,7 +152,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 char hostname[MAXHOSTNAMELEN];
-char shorthostname[MAXHOSTNAMELEN];
 
 int option_verbose=0;
 int option_debug=0;
@@ -2197,9 +2196,6 @@ int callweaver_main(int argc, char *argv[])
 
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
-	for (x = 0; hostname[x] && hostname[x] != '.'; x++)
-		shorthostname[x] = hostname[x];
-	shorthostname[x] = '\0';
 
 	opbx_mainpid = getpid();
 	opbx_ulaw_init();
