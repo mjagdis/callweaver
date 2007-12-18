@@ -2809,7 +2809,6 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
     struct hostent *hp;
     struct opbx_hostent ahp;
     struct sip_peer *p;
-    int found=0;
     char *port;
     int portno;
     char host[MAXHOSTNAMELEN], *hostn;
@@ -2828,15 +2827,12 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
 
     if (p)
     {
-        found++;
-        if (create_addr_from_peer(dialog, p))
-            ASTOBJ_UNREF(p, sip_destroy_peer);
+        int ret = create_addr_from_peer(dialog, p);
+        ASTOBJ_UNREF(p, sip_destroy_peer);
+        return ret;
     }
-    if (!p)
+    else
     {
-        if (found)
-            return -1;
-
         hostn = peer;
         if (port)
             portno = atoi(port);
@@ -2868,11 +2864,6 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
             opbx_log(OPBX_LOG_WARNING, "No such host: %s\n", peer);
             return -1;
         }
-    }
-    else
-    {
-        ASTOBJ_UNREF(p, sip_destroy_peer);
-        return 0;
     }
 }
 
