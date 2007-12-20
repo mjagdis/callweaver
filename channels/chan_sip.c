@@ -17400,7 +17400,7 @@ static int load_module(void)
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
 
-    if ((sched = sched_context_create()) == NULL)
+    if ((sched = sched_manual_context_create()) == NULL)
         opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
 
     if ((io = io_context_create()) == NULL)
