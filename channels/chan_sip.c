@@ -17562,6 +17562,7 @@ static int unload_module(void)
     clear_realm_authentication(authl);
     clear_sip_domains();
     close(sipsock);
+    io_context_destroy(io);
     sched_context_destroy(sched);
         
     return res;
