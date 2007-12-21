@@ -114,18 +114,25 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	opbx_mutex_lock(&chan->lock);
 
 	if (!pthread_equal(chan->generator.tid, OPBX_PTHREADT_NULL)) {
+		char name[OPBX_CHANNEL_NAME];
+		struct opbx_generator_instance generator;
+
 		opbx_log(OPBX_LOG_DEBUG, "%s: Trying to deactivate generator\n", chan->name);
 
-		pthread_cancel(chan->generator.tid);
-		pthread_join(chan->generator.tid, NULL);
-		opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
+		opbx_copy_string(name, chan->name, sizeof(name));
+		generator = chan->generator;
 		chan->generator.tid = OPBX_PTHREADT_NULL;
-		chan->generator.class->release(chan, chan->generator.pvt);
-		opbx_object_put(chan->generator.class);
-		opbx_log(OPBX_LOG_DEBUG, "%s: Generator stopped\n", chan->name);
-	}
+		opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
 
-	opbx_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
+
+		pthread_cancel(generator.tid);
+		pthread_join(generator.tid, NULL);
+		generator.class->release(chan, generator.pvt);
+		opbx_object_put(generator.class);
+		opbx_log(OPBX_LOG_DEBUG, "%s: Generator stopped\n", name);
+	} else
+		opbx_mutex_unlock(&chan->lock);
 }
 
 
@@ -133,7 +140,11 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *cl
 {
 	opbx_mutex_lock(&chan->lock);
 
-	opbx_generator_deactivate(chan);
+	while (!pthread_equal(chan->generator.tid, OPBX_PTHREADT_NULL)) {
+		opbx_mutex_unlock(&chan->lock);
+		opbx_generator_deactivate(chan);
+		opbx_mutex_lock(&chan->lock);
+	}
 
 	if ((chan->generator.pvt = class->alloc(chan, params))) {
 		chan->generator.class = opbx_object_get(class);
