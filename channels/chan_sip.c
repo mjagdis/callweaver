@@ -112,8 +112,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DEFAULT_REGISTRATION_TIMEOUT    20
 #define DEFAULT_MAX_FORWARDS    "70"
 
-#define DEFAULT_T1MIN	100				/*!< Minimial T1 roundtrip time - ms */
-
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS    15    /* How long before expiry do we reregister */
@@ -143,9 +141,12 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_FREQ_OK        60 * 1000    /* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK    10 * 1000    /* How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS        1000        /* How frequently to retransmit */
-                        /* 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS        6        /* Try only 6 times for retransmissions, a total of 7 transmissions */
+#define RFC_TIMER_T1        500        /* Default RTT estimate in ms (RFC3261 requires 500ms) */
+#define RFC_TIMER_T2       4000        /* Maximum retransmit interval for non-INVITEs in ms (RFC3261 requires 4s) */
+#define DEFAULT_RFC_TIMER_B  64        /* INVITE transaction timeout, in units of T1. Default gives 7 attempts (RFC3261 requires termination after 64*T1 ms) */
+static int rfc_timer_b = DEFAULT_RFC_TIMER_B;
+#define RFC_TIMER_F          64        /* non-INVITE transaction timeout, in units of T1 (RFC3261 requires termination after 64*T1 ms) */
+
 #define MAX_AUTHTRIES        3        /* Try authentication three times, then fail */
 
 
@@ -881,14 +882,12 @@ struct sip_reqresp {
 /*! \brief sip packet - read in sipsock_read, transmitted in send_request */
 struct sip_pkt {
     struct sip_pkt *next;            /*!< Next packet */
-    int retrans;                /*!< Retransmission number */
     int method;                /*!< SIP method for this packet */
     int seqno;                /*!< Sequence number */
     unsigned int flags;            /*!< non-zero if this is a response packet (e.g. 200 OK) */
     struct sip_pvt *owner;            /*!< Owner call */
     int retransid;                /*!< Retransmission ID */
     int timer_a;                /*!< SIP timer A, retransmission timer */
-    int timer_t1;                /*!< SIP Timer T1, estimated RTT or 500 ms */
     int packetlen;                /*!< Length of packet */
     char data[0];
 };    
@@ -1471,56 +1470,41 @@ static int append_history(struct sip_pvt *p, const char *event, const char *data
 /*! \brief  retrans_pkt: Retransmit SIP message if no answer */
 static int retrans_pkt(void *data)
 {
-    struct sip_pkt *pkt=data, *prev, *cur = NULL;
-    char iabuf[INET_ADDRSTRLEN];
-    int reschedule = DEFAULT_RETRANS;
+    struct sip_pkt *pkt = data, *prev, *cur;
 
     /* Lock channel */
     opbx_mutex_lock(&pkt->owner->lock);
 
-    if (pkt->retrans < MAX_RETRANS)
+    if ((pkt->method == SIP_INVITE && pkt->timer_a < rfc_timer_b)
+    || (pkt->method != SIP_INVITE && pkt->timer_a < RFC_TIMER_F))
     {
-        char buf[80];
+        char buf[(INET_ADDRSTRLEN > 80 ? INET_ADDRSTRLEN : 80)];
+        int reschedule;
 
-        pkt->retrans++;
-        if (!pkt->timer_t1)
-        {
-            /* Re-schedule using timer_a and timer_t1 */
-            if (sipdebug && option_debug > 3)
-                opbx_log(OPBX_LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
-        }
+        /* Re-schedule using timer_a and timer_t1 */
+        if (!pkt->timer_a)
+            pkt->timer_a = 2 ;
         else
-        {
-            int siptimer_a;
+            pkt->timer_a = 2 * pkt->timer_a;	/* Double each time */
 
-            if (sipdebug && option_debug > 3)
-                opbx_log(OPBX_LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
-            if (!pkt->timer_a)
-                pkt->timer_a = 2 ;
-            else
-                pkt->timer_a = 2 * pkt->timer_a;
- 
-            /* For non-invites, a maximum of 4 secs */
-            siptimer_a = DEFAULT_RETRANS * pkt->timer_a;    /* Double each time */
-            if (pkt->method != SIP_INVITE && siptimer_a > 4000)
-                siptimer_a = 4000;
-         
-            /* Reschedule re-transmit */
-            reschedule = siptimer_a;
-            if (option_debug > 3)
-                opbx_log(OPBX_LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
-         } 
+        reschedule = pkt->timer_a * pkt->owner->timer_t1;
+        /* For non-invites, a maximum of T2 (normally 4 secs  as per RFC3261) */
+        if (pkt->method != SIP_INVITE && reschedule > RFC_TIMER_T2)
+            reschedule = RFC_TIMER_T2;
 
         if (pkt->owner  &&  sip_debug_test_pvt(pkt->owner))
         {
             if ( sip_is_nat_needed(pkt->owner) )
-                opbx_verbose("Retransmitting #%d (NAT) to %s:%d:\n%s\n---\n", pkt->retrans, opbx_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
+                opbx_verbose("SIP TIMER: #%d: Retransmitting (NAT) to %s:%d:\n%s\n---\n", pkt->retransid, opbx_inet_ntoa(buf, sizeof(buf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
             else
-                opbx_verbose("Retransmitting #%d (no NAT) to %s:%d:\n%s\n---\n", pkt->retrans, opbx_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
+                opbx_verbose("SIP TIMER: #%d: Retransmitting (no NAT) to %s:%d:\n%s\n---\n", pkt->retransid, opbx_inet_ntoa(buf, sizeof(buf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
         }
-        snprintf(buf, sizeof(buf), "ReTx %d", reschedule);
+        if (sipdebug && option_debug > 3)
+            opbx_log(OPBX_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", pkt->retransid, sip_methods[pkt->method].text, reschedule, pkt->owner->timer_t1);
 
+        snprintf(buf, sizeof(buf), "ReTx %d", reschedule);
         append_history(pkt->owner, buf, pkt->data);
+
         __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
         opbx_mutex_unlock(&pkt->owner->lock);
         return  reschedule;
@@ -1594,7 +1578,6 @@ static int retrans_pkt(void *data)
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod)
 {
     struct sip_pkt *pkt;
-    int siptimer_a = DEFAULT_RETRANS;
 
     if ((pkt = malloc(sizeof(struct sip_pkt) + len + 1)) == NULL)
         return -1;
@@ -1608,15 +1591,14 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
     if (resp)
     	opbx_set_flag(pkt, FLAG_RESPONSE);
     pkt->data[len] = '\0';
-    pkt->timer_t1 = p->timer_t1;    /* Set SIP timer T1 */
     if (fatal)
         opbx_set_flag(pkt, FLAG_FATAL);
-    if (pkt->timer_t1)
-        siptimer_a = pkt->timer_t1*2;
 
     /* Schedule retransmission */
-
-    pkt->retransid = opbx_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
+    /* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
+     * and to avoid sending a retransmit at the exact moment we expect the reply to arrive
+     */
+    pkt->retransid = opbx_sched_add_variable(sched, (p->timer_t1 != RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : RFC_TIMER_T1), retrans_pkt, pkt, 1);
 
     if (option_debug > 3 && sipdebug)
         opbx_log(OPBX_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
@@ -2166,7 +2148,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
         else
             opbx_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
     }
-    if (reliable)
+    if (reliable && !p->peerpoke)
     {
         if (recordhistory)
         {
@@ -2786,7 +2768,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
     r->pickupgroup = peer->pickupgroup;
     /* Set timer T1 to RTT for this peer (if known by qualify=) */
     if (peer->maxms && peer->lastms)
-	r->timer_t1 = peer->lastms < DEFAULT_T1MIN ? DEFAULT_T1MIN : peer->lastms;
+	r->timer_t1 = peer->lastms;
     if ((opbx_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833) || (opbx_test_flag(r, SIP_DTMF) == SIP_DTMF_AUTO))
         r->noncodeccapability |= OPBX_RTP_DTMF;
     else
@@ -2822,7 +2804,6 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
         port++;
     }
     dialog->sa.sin_family = AF_INET;
-    dialog->timer_t1 = 500; /* Default SIP retransmission timer T1 (RFC 3261) */
     p = find_peer(peer, NULL, 1);
 
     if (p)
@@ -4200,8 +4181,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     p->stun_resreq_id = 0;
     memset(&p->stun_transid, 0, sizeof(p->stun_transid));
 
-    if (intended_method != SIP_OPTIONS)    /* Peerpoke has it's own system */
-        p->timer_t1 = 500;    /* Default SIP retransmission timer T1 (RFC 3261) */
+    p->timer_t1 = RFC_TIMER_T1;
+
 #ifdef OSP_SUPPORT
     p->osphandle = -1;
     p->osptimelimit = 0;
@@ -14812,10 +14793,10 @@ static void *sip_poke_peer_thread(void *data)
             transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
             gettimeofday(&peer->ps, NULL);
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+            peer->pokeexpire = opbx_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
         } else {
-            opbx_log(OPBX_LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_RETRANS, sip_poke_peer_s, peer);
+            opbx_log(OPBX_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
+            peer->pokeexpire = opbx_sched_add(sched, RFC_TIMER_T1, sip_poke_peer_s, peer);
 	}
     } else {
         peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
@@ -15958,6 +15939,7 @@ static int reload_config(void)
     strcpy(global_vmexten, DEFAULT_VMEXTEN);
     srvlookup = 0;
     autocreatepeer = 0;
+    rfc_timer_b = DEFAULT_RFC_TIMER_B;
     regcontext[0] = '\0';
     tos = 0;
     expiry = DEFAULT_EXPIRY;
@@ -16130,6 +16112,10 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "autocreatepeer"))
         {
             autocreatepeer = opbx_true(v->value);
+        }
+        else if (!strcasecmp(v->name, "maxinvitetries"))
+        {
+            rfc_timer_b = 1 << (atoi(v->value) - 1);
         }
         else if (!strcasecmp(v->name, "srvlookup"))
         {
