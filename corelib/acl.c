@@ -251,11 +251,10 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 	hp = opbx_gethostbyname(value, &ahp);
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-	} else {
-		opbx_log(OPBX_LOG_WARNING, "Unable to lookup '%s'\n", value);
-		return -1;
+		return 0;
 	}
-	return 0;
+
+	return -1;
 }
 
 int opbx_str2tos(const char *value, int *tos)
