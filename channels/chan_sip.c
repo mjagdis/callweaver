@@ -12215,26 +12215,27 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             {
                 if (!strcasecmp(bridgepeer->type, "SIP"))
                 {
-                    bridgepvt = (struct sip_pvt *)(bridgepeer->tech_pvt);
-		    
-                    if (bridgepvt && bridgepvt->udptl)
-                    {
-                        if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
-                        { 
-                            /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
-                            /* Send response with T38 SDP to the other side of the bridge */
-                            sip_handle_t38_reinvite(bridgepeer, p, 0);
-                            opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
+                    if ((bridgepvt = (struct sip_pvt *) bridgepeer->tech_pvt))
+		            {
+                        if (bridgepvt->udptl)
+                        {
+                            if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
+                            { 
+                                /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
+                                /* Send response with T38 SDP to the other side of the bridge */
+                                sip_handle_t38_reinvite(bridgepeer, p, 0);
+                                opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
+                            }
+                            else if (p->t38state == SIP_T38_STATUS_UNKNOWN  &&  bridgepeer  &&  (bridgepvt->t38state == SIP_T38_NEGOTIATED))
+                            {
+                                /* This is case of RTP re-invite after T38 session */
+                                opbx_log(OPBX_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
+                                /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
+                                opbx_set_flag(p, SIP_NEEDDESTROY);
+                            }
                         }
-                        else if (p->t38state == SIP_T38_STATUS_UNKNOWN  &&  bridgepeer  &&  (bridgepvt->t38state == SIP_T38_NEGOTIATED))
-                        { /* This is case of RTP re-invite after T38 session */
-                            opbx_log(OPBX_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
-                            /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-                            opbx_set_flag(p, SIP_NEEDDESTROY);
-                        }
-                    }
-                    else
-                    {
+                        else
+                        {
                             opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
                             opbx_mutex_lock(&bridgepvt->lock);
                             bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
@@ -12242,6 +12243,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                             opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
                             p->t38state = SIP_T38_STATUS_UNKNOWN;
                             opbx_log(OPBX_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                        }
+                    }
+                    else
+                    {
+                        opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't seem to exist\n");
                     }
                 }
                 else
@@ -13455,32 +13461,38 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     if (!strcasecmp(bridgepeer->type,"SIP"))
                     {
                         /* If we are bridged to SIP channel */
-                        bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-                        if ( bridgepvt->t38state >= SIP_T38_STATUS_UNKNOWN )
+                        if ((bridgepvt = (struct sip_pvt *) bridgepeer->tech_pvt))
                         {
-                            if (bridgepvt->udptl)
+                            if (bridgepvt->t38state >= SIP_T38_STATUS_UNKNOWN)
                             {
-                                /* If everything is OK with other side's udptl struct */
-                                /* Send re-invite to the bridged channel */ 
-                                sip_handle_t38_reinvite(bridgepeer,p,1);
-				opbx_channel_set_t38_status(bridgepeer, T38_NEGOTIATING);
-                            }
-                            else
-                            {
-                                /* Something is wrong with peers udptl struct */
-                                opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
-                                opbx_mutex_lock(&bridgepvt->lock);
-                                bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
-                                opbx_mutex_unlock(&bridgepvt->lock);
-                                opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
-                                p->t38state = SIP_T38_STATUS_UNKNOWN;
-                                opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                                    if (ignore)
-                                    transmit_response(p, "415 Unsupported Media Type", req);
+                                if (bridgepvt->udptl)
+                                {
+                                    /* If everything is OK with other side's udptl struct */
+                                    /* Send re-invite to the bridged channel */ 
+                                    sip_handle_t38_reinvite(bridgepeer, p, 1);
+                                    opbx_channel_set_t38_status(bridgepeer, T38_NEGOTIATING);
+                                }
                                 else
-                                    transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
-                                opbx_set_flag(p, SIP_NEEDDESTROY);
-                            } 
+                                {
+                                    /* Something is wrong with peers udptl struct */
+                                    opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+                                    opbx_mutex_lock(&bridgepvt->lock);
+                                    bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
+                                    opbx_mutex_unlock(&bridgepvt->lock);
+                                    opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+                                    p->t38state = SIP_T38_STATUS_UNKNOWN;
+                                    opbx_log(OPBX_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                                        if (ignore)
+                                        transmit_response(p, "415 Unsupported Media Type", req);
+                                    else
+                                        transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
+                                    opbx_set_flag(p, SIP_NEEDDESTROY);
+                                } 
+                            }
+                        }
+                        else
+                        {
+                            opbx_log(OPBX_LOG_WARNING, "Strange... The other side of the bridge don't seem to exist\n");
                         }
                     }
                     else
@@ -17221,9 +17233,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 
     opbx_mutex_lock(&sip_reload_lock);
     if (sip_reloading)
-    {
         opbx_verbose("Previous SIP reload not yet done\n");
-    }
     else
         sip_reloading = 1;
     opbx_mutex_unlock(&sip_reload_lock);
