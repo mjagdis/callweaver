@@ -12568,8 +12568,10 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
             opbx_sched_del(sched, peer->pokeexpire);
 	    peer->pokeexpire = -1;
 	}
-        if (sipmethod == SIP_INVITE)    /* Does this really happen? */
+#ifdef VOCAL_DATA_HACK
+        if (sipmethod == SIP_INVITE)
             transmit_request(p, SIP_ACK, seqno, 0, 0);
+#endif
         opbx_set_flag(p, SIP_NEEDDESTROY);    
 
         /* Try again eventually */
