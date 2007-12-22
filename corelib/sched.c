@@ -49,6 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
 #include "callweaver/timer.h"
+#include "callweaver/options.h"
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
@@ -402,7 +403,8 @@ int opbx_sched_del(struct sched_context *con, int id)
 #endif
 	opbx_mutex_unlock(&con->lock);
 	if (!deleted) {
-		opbx_log(OPBX_LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
+		if (option_debug)
+			opbx_log(OPBX_LOG_DEBUG, "Attempted to delete nonexistent schedule entry %d!\n", id);
 		return -1;
 	} else
 		return 0;
