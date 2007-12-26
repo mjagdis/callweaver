@@ -8770,6 +8770,9 @@ static int unload_module(void)
 		return -1;
 	}
 
+	sched_context_destroy(sched);
+	io_context_destroy(io);
+
 	opbx_mutex_destroy(&iaxq.lock);
 	opbx_mutex_destroy(&userl.lock);
 	opbx_mutex_destroy(&peerl.lock);
