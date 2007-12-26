@@ -91,8 +91,6 @@ static void *service_thread(void *data)
 {
 	struct sched_context *con = data;
 
-	opbx_cond_init(&con->service, NULL);
-	pthread_cleanup_push((void (*)(void *))opbx_cond_destroy, &con->service);
 	opbx_mutex_lock(&con->lock);
 	pthread_cleanup_push((void (*)(void *))opbx_mutex_unlock, &con->lock);
 
@@ -113,7 +111,6 @@ static void *service_thread(void *data)
 	}
 
 	pthread_cleanup_pop(1);
-	pthread_cleanup_pop(1);
 	return NULL;
 }
 
@@ -125,6 +122,7 @@ void sched_context_destroy(struct sched_context *con)
 	if (!pthread_equal(con->tid, OPBX_PTHREADT_NULL)) {
 		pthread_cancel(con->tid);
 		pthread_join(con->tid, NULL);
+		opbx_cond_destroy(&con->service);
 	}
 
 	opbx_mutex_lock(&con->lock);
@@ -182,10 +180,13 @@ struct sched_context *sched_context_create(void)
 
 	tmp = context_create();
 
-	if (tmp && opbx_pthread_create(&tmp->tid, &global_attr_default, service_thread, tmp)) {
-		opbx_log(OPBX_LOG_ERROR, "unable to start service thread: %s\n", strerror(errno));
-		sched_context_destroy(tmp);
-		tmp = NULL;
+	if (tmp) {
+		opbx_cond_init(&tmp->service, NULL);
+		if (opbx_pthread_create(&tmp->tid, &global_attr_default, service_thread, tmp)) {
+			opbx_log(OPBX_LOG_ERROR, "unable to start service thread: %s\n", strerror(errno));
+			sched_context_destroy(tmp);
+			tmp = NULL;
+		}
 	}
 
 	return tmp;
