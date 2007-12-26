@@ -83,13 +83,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/aes.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/netsock.h"
-
-#ifdef IAX_TRUNKING
-#include "callweaver/timer.h"
-
-opbx_timer_t trunktimer;
-#endif
-
 #include "callweaver/generic_jb.h"
 
 
@@ -8734,11 +8727,6 @@ static struct opbx_clicmd iax2_cli[] = {
 static int __unload_module(void)
 {
 	int x;
-
-#ifdef IAX_TRUNKING
-	/* Destroy the trunking timer */
-	opbx_timer_destroy(&trunktimer);
-#endif
 
 	/* Cancel the network thread, close the net socket */
 	if (!pthread_equal(netthreadid, OPBX_PTHREADT_NULL)) {
