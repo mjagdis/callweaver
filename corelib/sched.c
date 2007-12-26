@@ -99,8 +99,8 @@ static void *service_thread(void *data)
 
 		if (con->schedq) {
 			struct timespec tick;
-			tick.tv_sec += con->schedq->when.tv_sec;
-			tick.tv_nsec += 1000 * con->schedq->when.tv_usec;
+			tick.tv_sec = con->schedq->when.tv_sec;
+			tick.tv_nsec = 1000 * con->schedq->when.tv_usec;
 			while (opbx_cond_timedwait(&con->service, &con->lock, &tick) < 0 && errno == EINTR);
 		} else
 			while (opbx_cond_wait(&con->service, &con->lock) < 0 && errno == EINTR);
