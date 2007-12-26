@@ -62,7 +62,7 @@ CORE_SRC = io.c \
 	ecdisa.h \
     aesopt.h \
     callweaver_expr2.h \
-    timer.c jitterbuffer/libcwjb.la \
+    jitterbuffer/libcwjb.la \
 	resample.c \
 	directory_engine.c \
 	hashtable.c \
