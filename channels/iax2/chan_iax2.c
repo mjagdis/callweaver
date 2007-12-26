@@ -5294,7 +5294,7 @@ static int timing_read(void *user_data)
 	if (iaxtrunkdebug)
 		opbx_verbose("Ending trunk processing with %d peers and %d call chunks processed\n", processed, totalcalls);
 	iaxtrunkdebug =0;
-	return trunkfreq * 1000;
+	return trunkfreq;
 }
 #endif
 
