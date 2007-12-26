@@ -297,7 +297,7 @@ static void schedule(struct sched_context *con, struct sched *s)
  * given the last event *tv and the offset in milliseconds 'when',
  * computes the next value,
  */
-static int sched_settime(struct timeval *tv, int when)
+static void sched_settime(struct timeval *tv, int when)
 {
 	struct timeval now = opbx_tvnow();
 
@@ -309,7 +309,6 @@ static int sched_settime(struct timeval *tv, int when)
 		opbx_log(OPBX_LOG_DEBUG, "Request to schedule in the past?!?!\n");
 		*tv = now;
 	}
-	return 0;
 }
 
 
@@ -338,12 +337,9 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 		tmp->resched = when;
 		tmp->variable = variable;
 		tmp->when = opbx_tv(0, 0);
-		if (sched_settime(&tmp->when, when)) {
-			sched_release(con, tmp);
-		} else {
-			schedule(con, tmp);
-			res = tmp->id;
-		}
+		sched_settime(&tmp->when, when);
+		schedule(con, tmp);
+		res = tmp->id;
 	}
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
@@ -500,10 +496,8 @@ int opbx_sched_runq(struct sched_context *con)
 				 * If they return non-zero, we should schedule them to be
 				 * run again.
 				 */
-				if (sched_settime(&current->when, current->variable? res : current->resched)) {
-					sched_release(con, current);
-				} else
-					schedule(con, current);
+				sched_settime(&current->when, current->variable? res : current->resched);
+				schedule(con, current);
 			} else {
 				/* No longer needed, so release it */
 			 	sched_release(con, current);
