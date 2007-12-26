@@ -5237,7 +5237,7 @@ static inline int iax2_trunk_expired(struct iax2_trunk_peer *tpeer, struct timev
 }
 
 #ifdef IAX_TRUNKING
-static void timing_read(opbx_timer_t *t, void *user_data)
+static int timing_read(void *user_data)
 {
 	//char buf[1024];
 	int res;
@@ -5294,7 +5294,7 @@ static void timing_read(opbx_timer_t *t, void *user_data)
 	if (iaxtrunkdebug)
 		opbx_verbose("Ending trunk processing with %d peers and %d call chunks processed\n", processed, totalcalls);
 	iaxtrunkdebug =0;
-	return;
+	return trunkfreq * 1000;
 }
 #endif
 
@@ -7808,20 +7808,15 @@ static void prune_peers(void){
 }
 
 #ifdef IAX_TRUNKING
-static int timerrunning = 0;
+static int timerrunning = -1;
 #endif
 static void set_timing(void)
 {
 #ifdef IAX_TRUNKING
-	/* If the timer is running, destroy it */
-	if (timerrunning)
-	    opbx_timer_destroy(&trunktimer);
+	if (timerrunning != -1)
+	    opbx_sched_del(sched, timerrunning);
 	
-	/* Create a 1ms timer */
-	timerrunning = 1;
-	opbx_repeating_timer_create(&trunktimer, trunkfreq * 1000, 
-				    timing_read, 0);
-	opbx_timer_start(&trunktimer);
+	timerrunning = opbx_sched_add(sched, 1, timing_read, NULL);
 
 #endif
 }
