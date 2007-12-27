@@ -67,7 +67,6 @@ struct sched {
 struct sched_context {
 	opbx_cond_t service;
 	opbx_mutex_t lock;
-	opbx_mutex_t del_lock;
 	/* Number of events processed */
 	int eventcnt;
 
@@ -102,8 +101,9 @@ static void *service_thread(void *data)
 			tick.tv_sec = con->schedq->when.tv_sec;
 			tick.tv_nsec = 1000 * con->schedq->when.tv_usec;
 			while (opbx_cond_timedwait(&con->service, &con->lock, &tick) < 0 && errno == EINTR);
-		} else
+		} else {
 			while (opbx_cond_wait(&con->service, &con->lock) < 0 && errno == EINTR);
+		}
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
@@ -146,7 +146,6 @@ void sched_context_destroy(struct sched_context *con)
 	/* And the context */
 	opbx_mutex_unlock(&con->lock);
 
-	opbx_mutex_destroy(&con->del_lock);
 	opbx_mutex_destroy(&con->lock);
 	free(con);
 }
@@ -160,7 +159,6 @@ static struct sched_context *context_create(void)
           	memset(tmp, 0, sizeof(struct sched_context));
 		tmp->tid = OPBX_PTHREADT_NULL;
 		opbx_mutex_init(&tmp->lock);
-		opbx_mutex_init(&tmp->del_lock);
 		tmp->eventcnt = 1;
 		tmp->schedcnt = 0;
 		tmp->schedq = NULL;
@@ -292,6 +290,10 @@ static void schedule(struct sched_context *con, struct sched *s)
 	else
 		con->schedq = s;
 	con->schedcnt++;
+
+	if (!last && !pthread_equal(con->tid, OPBX_PTHREADT_NULL))
+		opbx_cond_signal(&con->service);
+
 }
 
 /*
@@ -318,7 +320,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	/*
 	 * Schedule callback(data) to happen when ms into the future
 	 */
-	struct sched *old_schedq;
 	struct sched *tmp;
 	int res = -1;
 
@@ -330,7 +331,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 		return -1;
 	}
 	opbx_mutex_lock(&con->lock);
-	old_schedq = con->schedq;
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
 		tmp->callback = callback;
@@ -346,9 +346,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	opbx_sched_dump(con);
 #endif
-
-	if (con->schedq != old_schedq && !pthread_equal(con->tid, OPBX_PTHREADT_NULL))
-		opbx_cond_signal(&con->service);
 
 	opbx_mutex_unlock(&con->lock);
 	return res;
@@ -393,6 +390,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	opbx_sched_dump(con);
 #endif
+
 	opbx_mutex_unlock(&con->lock);
 	if (!deleted) {
 		if (option_debug)
@@ -401,20 +399,6 @@ int opbx_sched_del(struct sched_context *con, int id)
 	} else
 		return 0;
 }
-
-
-int opbx_sched_del_with_lock(struct sched_context *con, int id)
-{
-	int res;	
-	
-	opbx_mutex_lock(&con->del_lock);
-	res = opbx_sched_del(con, id);
-	opbx_mutex_unlock(&con->del_lock);
-
-	return res;
-
-}
-
 
 
 void opbx_sched_dump(const struct sched_context *con)
@@ -461,19 +445,19 @@ int opbx_sched_runq(struct sched_context *con)
 	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_runq()\n"));
 #endif		
 
-	opbx_mutex_lock(&con->del_lock);
-
 	opbx_mutex_lock(&con->lock);
+
 	for(;;) {
 		if (!con->schedq)
 			break;
-		
+
 		/* schedule all events which are going to expire within 1ms.
 		 * We only care about millisecond accuracy anyway, so this will
 		 * help us get more than one event at one time if they are very
 		 * close together.
 		 */
 		tv = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 1000));
+
 		if (SOONER(con->schedq->when, tv)) {
 			current = con->schedq;
 			con->schedq = con->schedq->next;
@@ -509,8 +493,6 @@ int opbx_sched_runq(struct sched_context *con)
 	}
 
 	opbx_mutex_unlock(&con->lock);
-
-	opbx_mutex_unlock(&con->del_lock);
 
 	return x;
 }

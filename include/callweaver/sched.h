@@ -110,16 +110,6 @@ extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sch
  */
 extern int opbx_sched_del(struct sched_context *con, int id);
 
-/*! Deletes a scheduled event with sched_del lock */
-/*!
- * \param con scheduling context to delete item from
- * \param id ID of the scheduled item to delete
- * Remove this event from being run.  A procedure should not remove its
- * own event, but return 0 instead.
- * Returns 0 on success, -1 on failure
- */
-extern int opbx_sched_del_with_lock(struct sched_context *con, int id);
-
 /*! Determines number of seconds until the next outstanding event to take place */
 /*!
  * \param con context to act upon
