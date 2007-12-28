@@ -233,11 +233,7 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 		con->schedccnt++;
 	} else
 #endif
-	{
-	    tmp->id = -1;
 	    free(tmp);
-	    tmp = NULL;
-	}
 }
 
 int opbx_sched_wait(struct sched_context *con)
