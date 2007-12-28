@@ -437,7 +437,7 @@ int opbx_sched_runq(struct sched_context *con)
 	/*
 	 * Launch all events which need to be run at this time.
 	 */
-	struct sched *current;
+	struct sched *runq, **endq, *current;
 	struct timeval tv;
 	int x=0;
 	int res;
@@ -454,45 +454,35 @@ int opbx_sched_runq(struct sched_context *con)
 	 */
 	tv = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 1000));
 
-	for(;;) {
-		if (!con->schedq)
-			break;
-
-		if (SOONER(con->schedq->when, tv)) {
-			current = con->schedq;
-			con->schedq = con->schedq->next;
-			con->schedcnt--;
-
-			/*
-			 * At this point, the schedule queue is still intact.  We
-			 * have removed the first event and the rest is still there,
-			 * so it's permissible for the callback to add new events, but
-			 * trying to delete itself won't work because it isn't in
-			 * the schedule queue.  If that's what it wants to do, it 
-			 * should return 0.
-			 */
-			
-			opbx_mutex_unlock(&con->lock);
-			res = current->callback(current->data);
-			opbx_mutex_lock(&con->lock);
-			
-			if (res) {
-			 	/*
-				 * If they return non-zero, we should schedule them to be
-				 * run again.
-				 */
-				sched_settime(&current->when, current->variable? res : current->resched);
-				schedule(con, current);
-			} else {
-				/* No longer needed, so release it */
-			 	sched_release(con, current);
-			}
-			x++;
-		} else
-			break;
+	runq = con->schedq;
+	endq = &runq;
+	while (con->schedq && SOONER(con->schedq->when, tv)) {
+		endq = &con->schedq->next;
+		con->schedq = con->schedq->next;
+		con->schedcnt--;
 	}
+	*endq = NULL;
 
 	opbx_mutex_unlock(&con->lock);
+
+	while ((current = runq)) {
+		runq = runq->next;
+		x++;
+
+		res = current->callback(current->data);
+
+		if (res) {
+		 	/*
+			 * If they return non-zero, we should schedule them to be
+			 * run again.
+			 */
+			sched_settime(&current->when, (current->variable ? res : current->resched));
+			schedule(con, current);
+		} else {
+			/* No longer needed, so release it */
+		 	sched_release(con, current);
+		}
+	}
 
 	return x;
 }
