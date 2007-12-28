@@ -447,16 +447,16 @@ int opbx_sched_runq(struct sched_context *con)
 
 	opbx_mutex_lock(&con->lock);
 
+	/* schedule all events which are going to expire within 1ms.
+	 * We only care about millisecond accuracy anyway, so this will
+	 * help us get more than one event at one time if they are very
+	 * close together.
+	 */
+	tv = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 1000));
+
 	for(;;) {
 		if (!con->schedq)
 			break;
-
-		/* schedule all events which are going to expire within 1ms.
-		 * We only care about millisecond accuracy anyway, so this will
-		 * help us get more than one event at one time if they are very
-		 * close together.
-		 */
-		tv = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 1000));
 
 		if (SOONER(con->schedq->when, tv)) {
 			current = con->schedq;
