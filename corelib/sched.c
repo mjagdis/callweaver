@@ -303,10 +303,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 #ifdef DEBUG_SCHED
 	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_add_variable()\n"));
 #endif
-	if (!when) {
-		opbx_log(OPBX_LOG_NOTICE, "Scheduled event in 0 ms?\n");
-		return -1;
-	}
 	opbx_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
