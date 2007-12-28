@@ -7809,7 +7809,7 @@ static void set_timing(void)
 	if (timerrunning != -1)
 	    opbx_sched_del(sched, timerrunning);
 	
-	timerrunning = opbx_sched_add(sched, 1, timing_read, NULL);
+	timerrunning = opbx_sched_add_variable(sched, 1, timing_read, NULL, 1);
 
 #endif
 }
