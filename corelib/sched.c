@@ -292,21 +292,6 @@ static void schedule(struct sched_context *con, struct sched *s)
 
 }
 
-/*
- * given the last event *tv and the offset in milliseconds 'when',
- * computes the next value,
- */
-static void sched_settime(struct timeval *tv, int when)
-{
-	struct timeval now = opbx_tvnow();
-
-	/*opbx_log(OPBX_LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
-	if (opbx_tvzero(*tv))	/* not supplied, default to now */
-		*tv = now;
-	*tv = opbx_tvadd(*tv, opbx_samp2tv(when, 1000));
-}
-
-
 int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb callback, void *data, int variable)
 {
 	/*
@@ -329,8 +314,7 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 		tmp->data = data;
 		tmp->resched = when;
 		tmp->variable = variable;
-		tmp->when = opbx_tv(0, 0);
-		sched_settime(&tmp->when, when);
+		tmp->when = opbx_tvadd(opbx_tvnow(), opbx_samp2tv(when, 1000));
 		schedule(con, tmp);
 		res = tmp->id;
 	}
@@ -468,7 +452,7 @@ int opbx_sched_runq(struct sched_context *con)
 			 * If they return non-zero, we should schedule them to be
 			 * run again.
 			 */
-			sched_settime(&current->when, (current->variable ? res : current->resched));
+			current->when = opbx_tvadd(current->when, opbx_samp2tv((current->variable ? res : current->resched), 1000));
 			schedule(con, current);
 		} else {
 			/* No longer needed, so release it */
