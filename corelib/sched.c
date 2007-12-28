@@ -304,10 +304,6 @@ static void sched_settime(struct timeval *tv, int when)
 	if (opbx_tvzero(*tv))	/* not supplied, default to now */
 		*tv = now;
 	*tv = opbx_tvadd(*tv, opbx_samp2tv(when, 1000));
-	if (opbx_tvcmp(*tv, now) < 0) {
-		opbx_log(OPBX_LOG_DEBUG, "Request to schedule in the past?!?!\n");
-		*tv = now;
-	}
 }
 
 
