@@ -1110,6 +1110,7 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
 static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
 static char *nat2str(int nat);
 static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p);
+static int sip_poke_peer(void *data);
 
 
 /*! \brief Definition of this channel for PBX channel registration */
@@ -2440,19 +2441,20 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 static void sip_destroy_peer(struct sip_peer *peer)
 {
     /* Delete it, it needs to disappear */
-    if (peer->call)
-        sip_destroy(peer->call);
-    if (peer->chanvars)
-    {
-        opbx_variables_destroy(peer->chanvars);
-        peer->chanvars = NULL;
-    }
     if (peer->expire > -1)
         opbx_sched_del(sched, peer->expire);
 
     if (peer->pokeexpire > -1)
         opbx_sched_del(sched, peer->pokeexpire);
 
+    if (peer->call)
+        sip_destroy(peer->call);
+
+    if (peer->chanvars)
+    {
+        opbx_variables_destroy(peer->chanvars);
+        peer->chanvars = NULL;
+    }
     register_peer_exten(peer, 0);
 
     opbx_free_ha(peer->ha);
@@ -7847,16 +7849,6 @@ static int expire_register(void *data)
     return 0;
 }
 
-static int sip_poke_peer(struct sip_peer *peer);
-
-static int sip_poke_peer_s(void *data)
-{
-    struct sip_peer *peer = data;
-    peer->pokeexpire = -1;
-    sip_poke_peer(peer);
-    return 0;
-}
-
 /*! \brief  reg_source_db: Get registration details from CallWeaver DB */
 static void reg_source_db(struct sip_peer *peer)
 {
@@ -7905,15 +7897,15 @@ static void reg_source_db(struct sip_peer *peer)
     peer->addr.sin_family = AF_INET;
     peer->addr.sin_addr = in;
     peer->addr.sin_port = htons(port);
-    if (sipsock < 0)
+
+    if (sipsock >= 0)
     {
-        /* SIP isn't up yet, so schedule a poke only, pretty soon */
+        /* SIP is already up, so schedule a poke in the near future */
         if (peer->pokeexpire > -1)
             opbx_sched_del(sched, peer->pokeexpire);
-        peer->pokeexpire = opbx_sched_add(sched, thread_safe_opbx_random() % 5000 + 1, sip_poke_peer_s, peer);
+        peer->pokeexpire = opbx_sched_add(sched, thread_safe_opbx_random() % 5000 + 1, sip_poke_peer, peer);
     }
-    else
-        sip_poke_peer(peer);
+
     if (peer->expire > -1)
         opbx_sched_del(sched, peer->expire);
     peer->expire = opbx_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
@@ -8162,7 +8154,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
     if (inaddrcmp(&p->addr, &oldsin))
     {
-        sip_poke_peer(p);
+        if (p->pokeexpire > -1)
+            opbx_sched_del(sched, p->pokeexpire);
+        p->pokeexpire = opbx_sched_add(sched, 1, sip_poke_peer, p);
         if (option_verbose > 3)
             opbx_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
         register_peer_exten(p, 1);
@@ -12505,7 +12499,14 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
     {
         int statechanged = 0;
         int newstate = 0;
+
         peer = p->peerpoke;
+
+        if (peer->pokeexpire > -1) {
+            opbx_sched_del(sched, peer->pokeexpire);
+	    peer->pokeexpire = -1;
+	}
+
         gettimeofday(&tv, NULL);
         pingtime = opbx_tvdiff_ms(tv, peer->ps);
         if (pingtime < 1)
@@ -12533,7 +12534,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         if (!peer->lastms)
             statechanged = 1;
         peer->lastms = pingtime;
-        peer->call = NULL;
         if (statechanged)
         {
             opbx_device_state_changed("SIP/%s", peer->name);
@@ -12545,21 +12545,16 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 	    }
         }
 
-        if (peer->pokeexpire > -1) {
-            opbx_sched_del(sched, peer->pokeexpire);
-	    peer->pokeexpire = -1;
-	}
 #ifdef VOCAL_DATA_HACK
         if (sipmethod == SIP_INVITE)
             transmit_request(p, SIP_ACK, seqno, 0, 0);
 #endif
-        opbx_set_flag(p, SIP_NEEDDESTROY);    
 
         /* Try again eventually */
         if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
         else
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
     }
     return 1;
 }
@@ -14714,13 +14709,10 @@ static int sip_poke_noanswer(void *data)
 		opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
     }
-    if (peer->call)
-        sip_destroy(peer->call);
-    peer->call = NULL;
     peer->lastms = -1;
     opbx_device_state_changed("SIP/%s", peer->name);
     /* Try again quickly */
-    peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+    peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
     return 0;
 }
 
@@ -14733,7 +14725,15 @@ static void *sip_poke_peer_thread(void *data)
     struct sip_pvt *p;
 
     if (peer->pokeexpire > -1)
-        opbx_sched_del(sched, peer->pokeexpire);
+        peer->pokeexpire = -1;
+
+    if (peer->call) {
+        p = peer->call;
+        opbx_mutex_lock(&p->lock);
+        peer->call = NULL;
+        opbx_set_flag(p, SIP_NEEDDESTROY);
+        opbx_mutex_unlock(&p->lock);
+    }
 
     /* If it's a dynamic peer it's up to it to register and, by so doing, tell
      * us what address to use. If it isn't dynamic we need to refresh the address
@@ -14754,13 +14754,6 @@ static void *sip_poke_peer_thread(void *data)
      * have an address we can't poke the host.
      */
     if (peer->maxms && peer->addr.sin_addr.s_addr) {
-        if (peer->call)
-        {
-            if (sipdebug)
-                opbx_log(OPBX_LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
-            sip_destroy(peer->call);
-        }
-
         p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
         if (peer->call) {
             memcpy(&p->sa, &peer->addr, sizeof(p->sa));
@@ -14796,17 +14789,18 @@ static void *sip_poke_peer_thread(void *data)
             peer->pokeexpire = opbx_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
         } else {
             opbx_log(OPBX_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-            peer->pokeexpire = opbx_sched_add(sched, RFC_TIMER_T1, sip_poke_peer_s, peer);
+            peer->pokeexpire = opbx_sched_add(sched, RFC_TIMER_T1, sip_poke_peer, peer);
 	}
     } else {
-        peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+        peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
     }
 
     return 0;
 }
 
-static int sip_poke_peer(struct sip_peer *peer)
+static int sip_poke_peer(void *data)
 {
+	struct sip_peer *peer = data;
 	pthread_t tid;
 
 	/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
@@ -17151,7 +17145,7 @@ static void sip_poke_all_peers(void)
         if (iterator->pokeexpire > -1)
             opbx_sched_del(sched, iterator->pokeexpire);
 	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
-        iterator->pokeexpire = opbx_sched_add(sched, 1, sip_poke_peer_s, iterator);
+        iterator->pokeexpire = opbx_sched_add(sched, 1, sip_poke_peer, iterator);
         ASTOBJ_UNLOCK(iterator);
     } while (0)
     );
