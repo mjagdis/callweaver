@@ -12502,10 +12502,15 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 
         peer = p->peerpoke;
 
-        if (peer->pokeexpire > -1) {
-            opbx_sched_del(sched, peer->pokeexpire);
-	    peer->pokeexpire = -1;
-	}
+        /* There should be a noanswer timeout scheduled. If we can
+         * delete it we own the call and peer and can do what we
+         * like. If we can't we have to stop now.
+	 */
+        if (peer->pokeexpire == -1 || opbx_sched_del(sched, peer->pokeexpire))
+            return 1;
+
+        peer->pokeexpire = -1;
+	peer->call = NULL;
 
         gettimeofday(&tv, NULL);
         pingtime = opbx_tvdiff_ms(tv, peer->ps);
@@ -12549,12 +12554,12 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         if (sipmethod == SIP_INVITE)
             transmit_request(p, SIP_ACK, seqno, 0, 0);
 #endif
+        opbx_set_flag(p, SIP_NEEDDESTROY);
 
         /* Try again eventually */
-        if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
-        else
-            peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
+        peer->pokeexpire = opbx_sched_add(sched,
+            ((peer->lastms < 0 || peer->lastms > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
+            sip_poke_peer, peer);
     }
     return 1;
 }
@@ -14701,8 +14706,18 @@ static int restart_monitor(void)
 static int sip_poke_noanswer(void *data)
 {
     struct sip_peer *peer = data;
-    
+
+    /* Since we are now running we can't be unscheduled therefore
+     * even if we get a response handle_response_peerpoke will do
+     * nothing.
+     */
     peer->pokeexpire = -1;
+    if (peer->call)
+    {
+        opbx_set_flag(peer->call, SIP_NEEDDESTROY);
+        peer->call = NULL;
+    }
+
     if (peer->lastms > -1)
     {
 	if (option_verbose > 3)
@@ -14723,17 +14738,6 @@ static void *sip_poke_peer_thread(void *data)
 {
     struct sip_peer *peer = data;
     struct sip_pvt *p;
-
-    if (peer->pokeexpire > -1)
-        peer->pokeexpire = -1;
-
-    if (peer->call) {
-        p = peer->call;
-        opbx_mutex_lock(&p->lock);
-        peer->call = NULL;
-        opbx_set_flag(p, SIP_NEEDDESTROY);
-        opbx_mutex_unlock(&p->lock);
-    }
 
     /* If it's a dynamic peer it's up to it to register and, by so doing, tell
      * us what address to use. If it isn't dynamic we need to refresh the address
@@ -14802,6 +14806,8 @@ static int sip_poke_peer(void *data)
 {
 	struct sip_peer *peer = data;
 	pthread_t tid;
+
+        peer->pokeexpire = -1;
 
 	/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
 	if (opbx_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
