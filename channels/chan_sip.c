@@ -14615,22 +14615,14 @@ restartsearch:
         pthread_testcancel();
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-	/* Wait for sched or io */
-	res = opbx_sched_wait(sched);
-	if ((res < 0) || (res > 1000))
-		res = 1000;
         /* If we might need to send more mailboxes, don't wait long at all.*/
-        if (fastrestart)
+        res = (fastrestart ? 1 : 1000);
             res = 1;
         res = opbx_io_wait(io, res);
         if (res > 20)
             opbx_log(OPBX_LOG_DEBUG, "chan_sip: opbx_io_wait ran %d all at once\n", res);
+
         opbx_mutex_lock(&monlock);
-	if (res >= 0)  {
-		res = opbx_sched_runq(sched);
-		if (res >= 20)
-			opbx_log(OPBX_LOG_DEBUG, "chan_sip: opbx_sched_runq ran %d all at once\n", res);
-	}
 
         /* needs work to send mwi to realtime peers */
         time(&t);
@@ -17398,7 +17390,7 @@ static int load_module(void)
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
 
-    if ((sched = sched_manual_context_create()) == NULL)
+    if ((sched = sched_context_create()) == NULL)
         opbx_log(OPBX_LOG_WARNING, "Unable to create schedule context\n");
 
     if ((io = io_context_create()) == NULL)
