@@ -102,6 +102,14 @@ extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sch
  */
 extern int opbx_sched_del(struct sched_context *con, int id);
 
+/*! Atomically modifies a scheduled event or adds it if the ID did not exist.
+ * \param con,id See opbx_sched_del
+ * \param ...    See opbx_sched_add
+ * Returns a new schedule item ID on success, -1 on failure
+ */
+extern int opbx_sched_modify(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data);
+extern int opbx_sched_modify_variable(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data, int variable);
+
 /*!Returns the number of seconds before an event takes place */
 /*!
  * \param con Context to use

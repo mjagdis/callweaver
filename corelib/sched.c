@@ -218,6 +218,21 @@ int opbx_sched_del(struct sched_context *con, int id)
 }
 
 
+int opbx_sched_modify_variable(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data, int variable)
+{
+	opbx_mutex_lock(&con->lock);
+	opbx_sched_del(con, id);
+	id = opbx_sched_add_variable(con, when, callback, data, variable);
+	opbx_mutex_unlock(&con->lock);
+	return id;
+}
+
+int opbx_sched_modify(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data)
+{
+	return opbx_sched_modify_variable(con, id, when, callback, data, 0);
+}
+
+
 long opbx_sched_when(struct sched_context *con,int id)
 {
 	struct sched *s;
