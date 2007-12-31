@@ -454,90 +454,11 @@ static void print_bearer(struct misdn_bchannel *bc)
 }
 /*************** Helpers END *************/
 
-static void sighandler(int sig)
-{}
-
-static void* misdn_tasks_thread_func (void *data)
-{
-	struct sigaction sa;
-	int wait;
-
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-	sa.sa_handler = sighandler;
-	sa.sa_flags = SA_NODEFER;
-	sigemptyset(&sa.sa_mask);
-	sigaddset(&sa.sa_mask, SIGUSR1);
-	sigaction(SIGUSR1, &sa, NULL);
-	
-	sem_post((sem_t *)data);
-
-	while (1) {
-		wait = opbx_sched_wait(misdn_tasks);
-		if (wait < 0)
-			wait = 8000;
-		wait = poll(NULL, 0, wait);
-		pthread_testcancel();
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (wait < 0)
-			chan_misdn_log(4, 0, "Waking up misdn_tasks thread\n");
-		opbx_sched_runq(misdn_tasks);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		pthread_testcancel();
-	}
-	return NULL;
-}
-
-static void misdn_tasks_init (void)
-{
-	sem_t blocker;
-	int i = 5;
-
-	if (sem_init(&blocker, 0, 0)) {
-		perror("chan_misdn: Failed to initialize semaphore!");
-		exit(1);
-	}
-
-	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
-	
-	misdn_tasks = sched_context_create();
-	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, &blocker);
-
-	while (sem_wait(&blocker) && --i);
-	sem_destroy(&blocker);
-}
-
-static void misdn_tasks_destroy (void)
-{
-	if (misdn_tasks) {
-		chan_misdn_log(4, 0, "Killing misdn_tasks thread\n");
-		if ( pthread_cancel(misdn_tasks_thread) == 0 ) {
-			cb_log(4, 0, "Joining misdn_tasks thread\n");
-			pthread_join(misdn_tasks_thread, NULL);
-		}
-		sched_context_destroy(misdn_tasks);
-	}
-}
-
-static inline void misdn_tasks_wakeup (void)
-{
-	pthread_kill(misdn_tasks_thread, SIGUSR1);
-}
-
 static inline int _misdn_tasks_add_variable (int timeout, opbx_sched_cb callback, void *data, int variable)
 {
-	int task_id;
-
-	if (!misdn_tasks) {
-		misdn_tasks_init();
-	}
-	task_id = opbx_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
-	misdn_tasks_wakeup();
-
-	return task_id;
+	if (!misdn_tasks)
+		misdn_tasks = sched_context_create();
+	return opbx_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
 }
 
 static int misdn_tasks_add (int timeout, opbx_sched_cb callback, void *data)
@@ -4686,7 +4607,7 @@ static int unload_module(void)
 	/* First, take us out of the channel loop */
 	opbx_log(OPBX_LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
-	misdn_tasks_destroy();
+	sched_context_destroy(misdn_tasks);
 	
 	if (!g_config_initialized) return 0;
 	
