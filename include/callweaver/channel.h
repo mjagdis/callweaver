@@ -28,7 +28,6 @@
 #endif
 
 #include "callweaver/frame.h"
-#include "callweaver/sched.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/config.h"
 
@@ -249,8 +248,6 @@ struct opbx_channel {
 
 	/*! Which fd had an event detected on */
 	int fdno;				
-	/*! Schedule context */
-	struct sched_context *sched;		
 	/*! For streaming playback, the schedule ID */
 	int streamid;
         /*! Stream itself. */

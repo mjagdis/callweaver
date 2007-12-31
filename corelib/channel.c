@@ -41,7 +41,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/pbx.h"
 #include "callweaver/frame.h"
-#include "callweaver/sched.h"
 #include "callweaver/options.h"
 #include "callweaver/channel.h"
 #include "callweaver/musiconhold.h"
@@ -597,13 +596,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	}
 	memset(tmp, 0, sizeof(*tmp));
 
-	if ((tmp->sched = sched_manual_context_create()) == NULL)
-        {
-		opbx_log(OPBX_LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
-		free(tmp);
-		return NULL;
-	}
-	
 	for (x = 0;  x < OPBX_MAX_FDS - 1;  x++)
 		tmp->fds[x] = -1;
 
@@ -1211,9 +1203,6 @@ int opbx_hangup(struct opbx_channel *chan)
 		opbx_closestream(chan->stream);
 	if (chan->vstream)		/* Close video stream */
 		opbx_closestream(chan->vstream);
-	if (chan->sched)
-		sched_context_destroy(chan->sched);
-	
 	if (chan->cdr)
 	{
         /* End the CDR if it hasn't already */ 
@@ -3042,7 +3031,6 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	/* Clone exception  becomes real one, as with fdno */
 	opbx_copy_flags(original, clone, OPBX_FLAG_EXCEPTION);
 	original->fdno = clone->fdno;
-	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
 	/* Keep the original state.  The fixup code will need to work with it most likely */
 
