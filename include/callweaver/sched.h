@@ -109,23 +109,6 @@ extern int opbx_sched_del(struct sched_context *con, int id);
  */
 extern long opbx_sched_when(struct sched_context *con,int id);
 
-/*
- *! Convenience macro for objects and reference (add)
- *
- */
-#define opbx_sched_add_object(obj,con,when,callback) opbx_sched_add((con),(when),(callback), ASTOBJ_REF((obj)))
-
-/*
- *! Convenience macro for objects and reference (del)
- *
- */
-#define opbx_sched_del_object(obj,destructor,con,id) do { \
-	if ((id) > -1) { \
-		opbx_sched_del((con),(id)); \
-		(id) = -1; \
-		ASTOBJ_UNREF((obj),(destructor)); \
-	} \
-} while(0)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
