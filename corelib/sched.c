@@ -157,7 +157,8 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 
 	opbx_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
-		tmp->id = con->eventcnt++;
+		if ((tmp->id = con->eventcnt++) == -1)
+			tmp->id = con->eventcnt++;
 		tmp->callback = callback;
 		tmp->data = data;
 		tmp->resched = when;
