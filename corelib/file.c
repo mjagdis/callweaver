@@ -94,6 +94,9 @@ struct opbx_filestream {
 };
 
 
+static struct sched_context *sched;
+
+
 int opbx_stopstream(struct opbx_channel *tmp)
 {
 	/* Stop a running stream if there is one */
@@ -508,12 +511,13 @@ static int opbx_readaudio_callback(void *data)
 			}
 		} else {
 			/* Stream has finished */
+			opbx_stopstream(s->owner);
 			s->owner->streamid = -1;
 			return 0;
 		}
 	}
 	if (whennext != s->lasttimeout) {
-			s->owner->streamid = opbx_sched_add(s->owner->sched, whennext/8, opbx_readaudio_callback, s);
+			s->owner->streamid = opbx_sched_add(sched, whennext/8, opbx_readaudio_callback, s);
 		s->lasttimeout = whennext;
 		return 0;
 	}
@@ -536,12 +540,13 @@ static int opbx_readvideo_callback(void *data)
 			}
 		} else {
 			/* Stream has finished */
+			opbx_stopstream(s->owner);
 			s->owner->vstreamid = -1;
 			return 0;
 		}
 	}
 	if (whennext != s->lasttimeout) {
-		s->owner->vstreamid = opbx_sched_add(s->owner->sched, whennext/8, opbx_readvideo_callback, s);
+		s->owner->vstreamid = opbx_sched_add(sched, whennext/8, opbx_readvideo_callback, s);
 		s->lasttimeout = whennext;
 		return 0;
 	}
@@ -604,12 +609,12 @@ int opbx_closestream(struct opbx_filestream *f)
 		if (f->fmt->format < OPBX_FORMAT_MAX_AUDIO) {
 			f->owner->stream = NULL;
 			if (f->owner->streamid > -1)
-				opbx_sched_del(f->owner->sched, f->owner->streamid);
+				opbx_sched_del(sched, f->owner->streamid);
 			f->owner->streamid = -1;
 		} else {
 			f->owner->vstream = NULL;
 			if (f->owner->vstreamid > -1)
-				opbx_sched_del(f->owner->sched, f->owner->vstreamid);
+				opbx_sched_del(sched, f->owner->vstreamid);
 			f->owner->vstreamid = -1;
 		}
 	}
@@ -923,12 +928,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 	struct opbx_frame *fr;
 	if (!breakon) breakon = "";
 	while(c->stream) {
-		res = opbx_sched_wait(c->sched);
-		if ((res < 0)) {
-			opbx_stopstream(c);
-			break;
-		}
-		res = opbx_waitfor(c, res);
+		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
@@ -968,7 +968,6 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 			/* Ignore */
 			opbx_fr_free(fr);
 		}
-		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -986,17 +985,11 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 			rewind = "";
 	
 	while(c->stream) {
-		res = opbx_sched_wait(c->sched);
-		if ((res < 0)) {
-			opbx_stopstream(c);
-			break;
-		}
-		res = opbx_waitfor(c, res);
+		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
-		} else
-		if (res > 0) {
+		} else if (res > 0) {
 			fr = opbx_read(c);
 			if (!fr) {
 #if 0
@@ -1034,10 +1027,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 			}
 			/* Ignore */
 			opbx_fr_free(fr);
-		} else
-			opbx_sched_runq(c->sched);
-	
-		
+		}
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1054,11 +1044,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 		breakon = "";
 	
 	while(c->stream) {
-		ms = opbx_sched_wait(c->sched);
-		if (ms < 0) {
-			opbx_stopstream(c);
-			break;
-		}
+		ms = 10000;
 		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
 			/* Continue */
@@ -1108,7 +1094,6 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			/* Ignore */
 			opbx_fr_free(fr);
 		}
-		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1124,12 +1109,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 
 	if (!context) context = c->context;
 	while(c->stream) {
-		res = opbx_sched_wait(c->sched);
-		if (res < 0) {
-			opbx_stopstream(c);
-			break;
-		}
-		res = opbx_waitfor(c, res);
+		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
@@ -1169,7 +1149,6 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 			/* Ignore */
 			opbx_fr_free(fr);
 		}
-		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1221,6 +1200,7 @@ struct opbx_clicmd show_file = {
 
 int opbx_file_init(void)
 {
+	sched = sched_context_create();
 	opbx_cli_register(&show_file);
 	return 0;
 }

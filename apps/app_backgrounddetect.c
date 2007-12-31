@@ -173,12 +173,6 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 		res = opbx_streamfile(chan, argv[0], chan->language);
 		if (!res) {
 			while(chan->stream) {
-				res = opbx_sched_wait(chan->sched);
-				if (res < 0) {
-					res = 0;
-					break;
-				}
-
 				/* Check for a T38 switchover */
 				if (chan->t38_status == T38_NEGOTIATED && !ignorefax) {
 				    opbx_log(OPBX_LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
@@ -197,12 +191,11 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 			    		    opbx_log(OPBX_LOG_WARNING, "Already in a fax extension, not redirecting\n");
 				    }
 				    res = 0;
-				    opbx_fr_free(fr);
 				    break;
 				}
 
 				// NOW let's check for incoming RTP audio
-				res = opbx_waitfor(chan, res);
+				res = opbx_waitfor(chan, 10000);
 
 				if (res < 0) {
 					opbx_log(OPBX_LOG_WARNING, "Waitfor failed on %s\n", chan->name);
@@ -319,7 +312,6 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 					}
 					opbx_fr_free(fr);
 				}
-				opbx_sched_runq(chan->sched);
 			}
 			opbx_stopstream(chan);
 		} else {
