@@ -45,14 +45,6 @@ struct sched_context;
  */
 extern struct sched_context *sched_context_create(void);
 
-/*! New schedule context */
-/* !
- * Create a scheduling context for a manual scheduler.
- * You need to run sched_runq() yourself.
- * Returns a malloc'd sched_context structure, NULL on failure
- */
-extern struct sched_context *sched_manual_context_create(void);
-
 /*! destroys a schedule context */
 /*!
  * \param c Context to free
@@ -109,25 +101,6 @@ extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sch
  * Returns 0 on success, -1 on failure
  */
 extern int opbx_sched_del(struct sched_context *con, int id);
-
-/*! Determines number of seconds until the next outstanding event to take place */
-/*!
- * \param con context to act upon
- * Determine the number of seconds until the next outstanding event
- * should take place, and return the number of milliseconds until
- * it needs to be run.  This value is perfect for passing to the poll
- * call.  Returns "-1" if there is nothing there are no scheduled events
- * (and thus the poll should not timeout)
- */
-extern int opbx_sched_wait(struct sched_context *con);
-
-/*! Runs the queue */
-/*!
- * \param con Scheduling context to run
- * Run the queue, executing all callbacks which need to be performed
- * at this time.  Returns the number of events processed.
- */
-extern int opbx_sched_runq(struct sched_context *con);
 
 /*!Dumps the scheduler contents */
 /*!
