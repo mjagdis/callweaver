@@ -77,7 +77,7 @@ int opbx_load_resource(const char *resource_name);
 int opbx_unload_resource(const char *resource_name, int hangup);
 
 
-int opbx_loader_init(void);
+void opbx_loader_init(void);
 int opbx_loader_cli_init(void);
 
 

@@ -567,7 +567,7 @@ static const char *loader_geterr(void)
 }
 
 
-int opbx_loader_init(void)
+void opbx_loader_init(void)
 {
 	if (pthread_key_create(&loader_err_key, &free)) {
 		perror("pthread_key_create");
