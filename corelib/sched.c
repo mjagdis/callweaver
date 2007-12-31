@@ -25,14 +25,6 @@
 #include "confdefs.h"
 #endif
 
-//#undef DEBUG_SCHED
-
-#ifdef DEBUG_SCHEDULER
-#define DEBUG_LOG(a) DEBUG_M(a)
-#else
-#define DEBUG_LOG(a) 
-#endif
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,38 +78,6 @@ struct sched_context {
 };
 
 
-void opbx_sched_dump(const struct sched_context *con)
-{
-	/*
-	 * Dump the contents of the scheduler to
-	 * stderr
-	 */
-	struct sched *q;
-	struct timeval tv = opbx_tvnow();
-#ifdef SCHED_MAX_CACHE
-	opbx_log(OPBX_LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
-#else
-	opbx_log(OPBX_LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
-#endif
-
-	opbx_log(OPBX_LOG_DEBUG, "=============================================================\n");
-	opbx_log(OPBX_LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
-	opbx_log(OPBX_LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
- 	for (q = con->schedq; q; q = q->next) {
- 		struct timeval delta =  opbx_tvsub(q->when, tv);
-
-		opbx_log(OPBX_LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
-			q->id,
-			q->callback,
-			q->data,
-			delta.tv_sec,
-			(long int)delta.tv_usec);
-	}
-	opbx_log(OPBX_LOG_DEBUG, "=============================================================\n");
-	
-}
-
-
 static struct sched *sched_alloc(struct sched_context *con)
 {
 	/*
@@ -125,6 +85,7 @@ static struct sched *sched_alloc(struct sched_context *con)
 	 * to minimize the number of necessary malloc()'s
 	 */
 	struct sched *tmp;
+
 #ifdef SCHED_MAX_CACHE
 	if (con->schedc) {
 		tmp = con->schedc;
@@ -165,6 +126,7 @@ static void schedule(struct sched_context *con, struct sched *s)
 	 
 	struct sched *last=NULL;
 	struct sched *current=con->schedq;
+
 	while(current) {
 		if (SOONER(s->when, current->when))
 			break;
@@ -193,9 +155,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	struct sched *tmp;
 	int res = -1;
 
-#ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_add_variable()\n"));
-#endif
 	opbx_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
@@ -207,10 +166,6 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 		schedule(con, tmp);
 		res = tmp->id;
 	}
-#ifdef DUMP_SCHEDULER
-	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	opbx_sched_dump(con);
-#endif
 
 	opbx_mutex_unlock(&con->lock);
 	return res;
@@ -233,10 +188,9 @@ int opbx_sched_del(struct sched_context *con, int id)
 	 */
 	struct sched *last=NULL, *s;
 	int deleted = 0;
-#ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_del()\n"));
-#endif
+
 	opbx_mutex_lock(&con->lock);
+
 	s = con->schedq;
 	while(s) {
 		if (s->id == id) {
@@ -253,12 +207,8 @@ int opbx_sched_del(struct sched_context *con, int id)
 		s = s->next;
 	}
 
-#ifdef DUMP_SCHEDULER
-	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	opbx_sched_dump(con);
-#endif
-
 	opbx_mutex_unlock(&con->lock);
+
 	if (!deleted) {
 		if (option_debug)
 			opbx_log(OPBX_LOG_DEBUG, "Attempted to delete nonexistent schedule entry %d!\n", id);
@@ -272,10 +222,9 @@ long opbx_sched_when(struct sched_context *con,int id)
 {
 	struct sched *s;
 	long secs;
-#ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_when()\n"));
-#endif
+
 	opbx_mutex_lock(&con->lock);
+
 	s=con->schedq;
 	while (s!=NULL) {
 		if (s->id==id) break;
@@ -286,6 +235,7 @@ long opbx_sched_when(struct sched_context *con,int id)
 		struct timeval now = opbx_tvnow();
 		secs=s->when.tv_sec-now.tv_sec;
 	}
+
 	opbx_mutex_unlock(&con->lock);
 	return secs;
 }
@@ -299,9 +249,6 @@ static void opbx_sched_runq(struct sched_context *con)
 	struct sched *runq, **endq, *current;
 	struct timeval tv;
 	int res;
-#ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_sched_runq()\n"));
-#endif		
 
 	opbx_mutex_lock(&con->lock);
 

@@ -102,13 +102,6 @@ extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sch
  */
 extern int opbx_sched_del(struct sched_context *con, int id);
 
-/*!Dumps the scheduler contents */
-/*!
- * \param con Context to dump
- * Debugging: Dump the contents of the scheduler to stderr
- */
-extern void opbx_sched_dump(const struct sched_context *con);
-
 /*!Returns the number of seconds before an event takes place */
 /*!
  * \param con Context to use

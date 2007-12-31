@@ -830,14 +830,6 @@ fi
 AM_CONDITIONAL([WANT_DEBUG],[test "${enable_debug}" = "yes"])
 
 dnl Enable debugging
-AC_ARG_ENABLE(debug-scheduler,
-	[AC_HELP_STRING([--enable-debug-scheduler],[build with scheduler debug information])],,[enable_debug_scheduler="no"])
-
-if test "${enable_debug_scheduler}" = "yes"; then
-   AC_DEFINE([DEBUG_SCHEDULER],[],[Enable scheduler debugging.])
-fi
-
-dnl Enable debugging
 AC_ARG_ENABLE(stack-backtraces,
 	[AC_HELP_STRING([--enable-stack-backtraces],[build with stack backtraces])],,[enable_stack_backtraces="no"])
 
