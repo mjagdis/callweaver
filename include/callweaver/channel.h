@@ -360,9 +360,7 @@ struct opbx_channel {
 
         /*! Generator: default samples per iteration */
         int gen_samples;
-        /*! codec sample rate / defaults to 8000 */
-        int samples_per_second;
-	
+
 	/* New event based read/write (not all channels supports it */
 	//TODO
 
@@ -493,9 +491,6 @@ struct outgoing_helper {
 	extension "s"
  */
 struct opbx_channel *opbx_channel_alloc(int needalertpipe);
-
-/* Sets the channel codec samples per seconds */
-void opbx_channel_set_samples_per_second( struct opbx_channel *tmp, int sps );
 
 /*! Sets the T38 channel status */
 #define opbx_channel_set_t38_status(c,s) opbx_channel_perform_set_t38_status(c,s, __FILE__, __LINE__)

@@ -647,7 +647,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	tmp->t38_status = T38_STATUS_UNKNOWN;
 
         tmp->gen_samples = 160;
-        tmp->samples_per_second = 8000;
 
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;
@@ -655,14 +654,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 
 	opbx_mutex_unlock(&chlock);
 	return tmp;
-}
-
-/* Sets the channel codec samples per seconds */
-void opbx_channel_set_samples_per_second( struct opbx_channel *tmp, int sps )
-{
-    //TODO should we check for sps to be correct ? (ie 8000, 16000 etccc)
-    //TODO: Should we stop the generator and reactivate it or simply check that it's not running ?
-    tmp->samples_per_second = sps;
 }
 
 /* Sets the channel t38 status */
