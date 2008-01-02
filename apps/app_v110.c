@@ -131,12 +131,12 @@ static void v110_gen_release (struct opbx_channel *chan, void *data)
 	return;
 }
 
-static int v110_generate(struct opbx_channel *chan, void *data, int want)
+static struct opbx_frame *v110_generate(struct opbx_channel *chan, void *data, int want)
 {
 	struct v110_state *vs = data;
 
 	vs->fill_outframe(vs, want);
-	return opbx_write(chan, &vs->f);
+	return &vs->f;
 }
 
 static struct opbx_generator v110_gen = {

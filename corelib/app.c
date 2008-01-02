@@ -348,14 +348,16 @@ struct linear_state {
 	int autoclose;
 	int allowoverride;
 	int origwfmt;
+	struct opbx_frame f;
+	int16_t buf[OPBX_FRIENDLY_OFFSET / sizeof(int16_t) + 2048];
 };
 
 static void linear_release(struct opbx_channel *chan, void *params)
 {
 	struct linear_state *ls = params;
 	
-    if (ls->origwfmt && opbx_set_write_format(chan, ls->origwfmt))
-    {
+	if (ls->origwfmt && opbx_set_write_format(chan, ls->origwfmt))
+	{
 		opbx_log(OPBX_LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
 	}
 	if (ls->autoclose)
@@ -363,33 +365,25 @@ static void linear_release(struct opbx_channel *chan, void *params)
 	free(params);
 }
 
-static int linear_generator(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *linear_generator(struct opbx_channel *chan, void *data, int samples)
 {
-	struct opbx_frame f;
-	short buf[2048 + OPBX_FRIENDLY_OFFSET / 2];
 	struct linear_state *ls = data;
-	int res, len;
 
-	len = samples*sizeof(int16_t);
-	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET)
-    {
-		opbx_log(OPBX_LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
-		len = sizeof(buf) - OPBX_FRIENDLY_OFFSET;
+	opbx_fr_init_ex(&ls->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+
+	ls->f.datalen = samples * sizeof(ls->buf[0]);
+	if (ls->f.datalen > sizeof(ls->buf) - OPBX_FRIENDLY_OFFSET)
+		ls->f.datalen = sizeof(ls->buf) - OPBX_FRIENDLY_OFFSET;
+
+	ls->f.offset = OPBX_FRIENDLY_OFFSET;
+	ls->f.data = &ls->buf[OPBX_FRIENDLY_OFFSET / sizeof(ls->buf[0])];
+	ls->f.datalen = read(ls->fd, &ls->buf[OPBX_FRIENDLY_OFFSET / sizeof(ls->buf[0])], ls->f.datalen);
+	if (ls->f.datalen > 0)
+	{
+		ls->f.samples = ls->f.datalen / sizeof(ls->buf[0]);
+		return &ls->f;
 	}
-	memset(&f, 0, sizeof(f));
-	res = read(ls->fd, buf + OPBX_FRIENDLY_OFFSET/2, len);
-	if (res > 0)
-    {
-        opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
-		f.data = buf + OPBX_FRIENDLY_OFFSET/sizeof(int16_t);
-		f.datalen = res;
-		f.samples = res/sizeof(int16_t);
-		f.offset = OPBX_FRIENDLY_OFFSET;
-		opbx_write(chan, &f);
-		if (res == len)
-			return 0;
-	}
-	return -1;
+	return NULL;
 }
 
 static void *linear_alloc(struct opbx_channel *chan, void *params)

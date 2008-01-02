@@ -29,7 +29,7 @@ struct opbx_generator {
 	struct opbx_object obj;
 	void *(*alloc)(struct opbx_channel *chan, void *params);
 	void (*release)(struct opbx_channel *chan, void *data);
-	int (*generate)(struct opbx_channel *chan, void *data, int samples);
+	struct opbx_frame *(*generate)(struct opbx_channel *chan, void *data, int samples);
 	int is_initialized;
 };
 
@@ -37,8 +37,6 @@ struct opbx_generator_instance {
 	pthread_t tid;
 	struct opbx_generator *class;
 	void *pvt;
-	int gen_samp;
-	struct timespec interval;
 };
 
 extern void opbx_generator_deactivate(struct opbx_channel *chan);

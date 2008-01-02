@@ -3698,11 +3698,10 @@ struct tonepair_def
 
 struct tonepair_state
 {
-    tone_gen_state_t tone_state;
+	tone_gen_state_t tone_state;
 	int origwfmt;
 	struct opbx_frame f;
-	uint8_t offset[OPBX_FRIENDLY_OFFSET];
-	int16_t data[4000];
+	int16_t data[OPBX_FRIENDLY_OFFSET / sizeof(int16_t) + 4000];
 };
 
 static void tonepair_release(struct opbx_channel *chan, void *params)
@@ -3719,9 +3718,8 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	struct tonepair_state *ts;
 	struct tonepair_def *td = params;
 
-	if ((ts = malloc(sizeof(*ts))) == NULL)
+	if ((ts = calloc(1, sizeof(*ts))) == NULL)
 		return NULL;
-	memset(ts, 0, sizeof(*ts));
 	ts->origwfmt = chan->writeformat;
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
 	{
@@ -3734,29 +3732,21 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	return ts;
 }
 
-static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct tonepair_state *ts = data;
-	int len;
-	int x;
 
-	len = samples*sizeof(int16_t);
-	if (len > sizeof(ts->data)/sizeof(int16_t) - 1)
-	{
-		opbx_log(OPBX_LOG_WARNING, "Can't generate that much data!\n");
-		return -1;
-	}
-	memset(&ts->f, 0, sizeof(ts->f));
 	opbx_fr_init_ex(&ts->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
-	ts->f.datalen = len;
-	ts->f.samples = samples;
+
+	ts->f.datalen = samples * sizeof(ts->data[0]);
+	if (ts->f.datalen > sizeof(ts->data) / sizeof(ts->data[0]) - 1)
+		ts->f.datalen = sizeof(ts->data) / sizeof(ts->data[0]) - 1;
+
+	ts->f.samples = ts->f.datalen / sizeof(ts->data[0]);
 	ts->f.offset = OPBX_FRIENDLY_OFFSET;
-	ts->f.data = ts->data;
-        x = tone_gen(&ts->tone_state, ts->data, samples);
-	opbx_write(chan, &ts->f);
-	if (x < samples)
-	    return -1;
-	return 0;
+	ts->f.data = &ts->data[OPBX_FRIENDLY_OFFSET / sizeof(ts->data[0])];
+	tone_gen(&ts->tone_state, ts->f.data, ts->f.samples);
+	return &ts->f;
 }
 
 static struct opbx_generator tonepair =

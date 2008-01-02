@@ -62,10 +62,8 @@ void send_state_change_notifications( struct opbx_conf_member* member )
 
 // process outgoing frames for the channel, playing either normal conference audio,
 // or requested sounds
-static int process_outgoing( struct opbx_conf_member *member, int samples )
+static struct opbx_frame *process_outgoing( struct opbx_conf_member *member, int samples )
 {
-
-    int res;
     struct opbx_frame *cf = NULL;
 
     opbx_mutex_lock(&member->lock);
@@ -84,22 +82,10 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
     // if there's no frames exit the loop.
     if( cf == NULL ) {
         opbx_log(OPBX_LOG_ERROR, "Nothing to write to the conference, channel => %s\n", member->channel_name ) ;
-	return 0;
+	return NULL;
     }
 
-    // send the voice frame
-    res = opbx_write( member->chan, cf );
-
-    if ( ( res != 0) )
-    {
-        // log 'dropped' outgoing frame
-        opbx_log(OPBX_LOG_ERROR, "unable to write voice frame to channel, channel => %s, samples %d \n", member->channel_name, samples ) ;
-    }
-
-    // clean up frame
-    opbx_fr_free(cf);
-
-    return 0;
+    return cf;
 }
 
 /* *****************************************************************************
@@ -298,17 +284,17 @@ static void membergen_release(struct opbx_channel *chan, void *data)
 }
 
 
-static int membergen_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *membergen_generate(struct opbx_channel *chan, void *data, int samples)
 {
     struct opbx_conf_member *member = data;
 
     // If this is a talker, don't send any packets
     if (member->type==MEMBERTYPE_TALKER)
-	return 0;
+	return NULL;
 
     if (member->framelen!=0)
-        process_outgoing( member, samples );
-    return 0;
+        return process_outgoing( member, samples );
+    return NULL;
 }
 
 struct opbx_generator membergen = 

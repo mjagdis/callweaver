@@ -43,6 +43,7 @@ static void *opbx_generator_thread(void *data)
 {
 	struct opbx_channel *chan = data;
 	struct timespec tick;
+	struct opbx_frame *f;
 #if !defined(_POSIX_TIMERS)
 	struct timeval tv;
 #elif defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
@@ -74,15 +75,38 @@ static void *opbx_generator_thread(void *data)
 
 	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", chan->name);
 
-	for (;;) {
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	while ((f = chan->generator.class->generate(chan, chan->generator.pvt, chan->gen_samples))) {
+		opbx_write(chan, f);
 
-		tick.tv_sec += chan->generator.interval.tv_sec;
-		tick.tv_nsec += chan->generator.interval.tv_nsec;
+		if (!opbx_tvzero(f->delivery)) {
+			tick.tv_sec = f->delivery.tv_sec;
+			tick.tv_nsec = 1000L * f->delivery.tv_usec;
+		} else if (f->len) {
+			tick.tv_sec += f->len / 1000;
+			tick.tv_nsec += 1000000L * (f->len % 1000);
+		} else if (f->samples) {
+			int n = (f->samples / f->samplerate);
+			tick.tv_sec += n;
+			tick.tv_nsec += 1000000L * ((1000 * (f->samples - n * f->samplerate)) / f->samplerate);
+		} else {
+			/* If we have a null frame whatever is generating data just wasn't
+			 * ready for us so we need to give it some time.
+			 * But wait! We might be real time. The data source might not be.
+			 * So sched_yield() may not help - we _need_ to actually sleep.
+			 * We'll choose an arbitrary 0.5ms.
+			 */
+			tick.tv_nsec += 500000L;
+		}
+
+		/* Normalize */
 		if (tick.tv_nsec >= 1000000000L) {
 			tick.tv_nsec -= 1000000000L;
 			tick.tv_sec++;
 		}
+
+		opbx_fr_free(f);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 #if !defined(__USE_XOPEN2K)
 		while (opbx_cond_timedwait(&cond, &mutex, &tick) < 0 && errno == EINTR);
@@ -91,12 +115,9 @@ static void *opbx_generator_thread(void *data)
 #endif
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (chan->generator.class->generate(chan, chan->generator.pvt, chan->generator.gen_samp)) {
-			opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", chan->name);
-			break;
-		}
 	}
+
+	opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", chan->name);
 
 	/* Next write on the channel should clean out the defunct generator */
 	opbx_set_flag(chan, OPBX_FLAG_WRITE_INT);
@@ -148,14 +169,6 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *cl
 
 	if ((chan->generator.pvt = class->alloc(chan, params))) {
 		chan->generator.class = opbx_object_get(class);
-		chan->generator.gen_samp = (chan->gen_samples ? chan->gen_samples : 160);
-
-		chan->generator.interval.tv_sec = 0;
-		chan->generator.interval.tv_nsec = 1000 * ((1000000L * chan->generator.gen_samp) /  chan->samples_per_second);
-		while (chan->generator.interval.tv_nsec >= 1000000000L) {
-			chan->generator.interval.tv_nsec -= 1000000000L;
-			chan->generator.interval.tv_sec++;
-		}
 
 		if (opbx_pthread_create(&chan->generator.tid, &global_attr_rr, opbx_generator_thread, chan)) {
 			opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));

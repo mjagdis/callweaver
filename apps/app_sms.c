@@ -163,6 +163,9 @@ typedef struct sms_s
     uint8_t ierr;          /* error flag */
     uint8_t ibith;         /* history of last bits */
     uint8_t ibitt;         /* total of 1's in last 3 bites */
+
+    struct opbx_frame f;
+    int16_t buf[OPBX_FRIENDLY_OFFSET / sizeof(int16_t) + 800];
 } sms_t;
 
 /* different types of encoding */
@@ -1497,58 +1500,43 @@ static void put_message(sms_t *h, const uint8_t *msg, int len)
     h->tx_active = TRUE;
 }
 
-static int sms_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *sms_generate(struct opbx_channel *chan, void *data, int samples)
 {
-#define MAXSAMPLES 800
-    struct opbx_frame f;
-    int16_t *buf;
     sms_t *h = (sms_t *) data;
     int i;
     int j;
     int len;
 
-    if (samples > MAXSAMPLES)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Only doing %d samples (%d requested)\n",
-                 MAXSAMPLES,
-                 samples);
-        samples = MAXSAMPLES;
-    }
-    len = samples*sizeof(int16_t) + OPBX_FRIENDLY_OFFSET;
-    buf = alloca(len);
+    if (samples > sizeof(h->buf) / sizeof(h->buf[0]))
+        samples = sizeof(h->buf) / sizeof(h->buf[0]);
+    len = samples * sizeof(h->buf[0]) + OPBX_FRIENDLY_OFFSET;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "app_sms");
-    f.offset = OPBX_FRIENDLY_OFFSET;
-    f.data = ((char *) buf) + OPBX_FRIENDLY_OFFSET;
+    opbx_fr_init_ex(&h->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "app_sms");
+    h->f.offset = OPBX_FRIENDLY_OFFSET;
+    h->f.data = ((char *) h->buf) + OPBX_FRIENDLY_OFFSET;
     if (h->opause)
     {
         i = (h->opause >= samples)  ?  samples  :  h->opause;
-        memset(f.data, 0, sizeof(int16_t)*i);
+        memset(h->f.data, 0, sizeof(int16_t)*i);
         h->opause -= i;
         if (i < samples)
         {
-            if ((j = adsi_tx(&h->tx_adsi, ((int16_t *) f.data) + i, samples - i)) < samples - i)
+            if ((j = adsi_tx(&h->tx_adsi, ((int16_t *) h->f.data) + i, samples - i)) < samples - i)
                 h->tx_active = FALSE;
             i += j;
         }
     }
     else
     {
-        if ((i = adsi_tx(&h->tx_adsi, (int16_t *) f.data, samples)) < samples)
+        if ((i = adsi_tx(&h->tx_adsi, (int16_t *) h->f.data, samples)) < samples)
             h->tx_active = FALSE;
     }
     if (i < samples)
-        memset(((int16_t *) f.data) + i, 0, sizeof(int16_t)*(samples - i));
-    f.samples = samples;
-    f.datalen = f.samples*sizeof(int16_t);
+        memset(((int16_t *) h->f.data) + i, 0, sizeof(int16_t)*(samples - i));
+    h->f.samples = samples;
+    h->f.datalen = h->f.samples*sizeof(int16_t);
 
-    if (opbx_write(chan, &f) < 0)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
-        return -1;
-    }
-    return 0;
-#undef MAXSAMPLES
+    return &h->f;
 }
 
 static void sms_process(sms_t *h, const int16_t *data, int samples)

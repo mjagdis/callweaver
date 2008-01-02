@@ -95,19 +95,18 @@ struct playtones_state
 	struct playtones_item *items;
 	int npos;
 	int pos;
-    tone_gen_descriptor_t tone_desc;
-    tone_gen_state_t tone_state;
+	tone_gen_descriptor_t tone_desc;
+	tone_gen_state_t tone_state;
 	int origwfmt;
 	struct opbx_frame f;
-	unsigned char offset[OPBX_FRIENDLY_OFFSET];
-	short data[4000];
+	int16_t data[OPBX_FRIENDLY_OFFSET / sizeof(int16_t) + 4000];
 };
 
 static void playtones_release(struct opbx_channel *chan, void *params)
 {
 	struct playtones_state *ps = params;
 	
-    if (chan)
+	if (chan)
 		opbx_set_write_format(chan, ps->origwfmt);
 	if (ps->items)
         free(ps->items);
@@ -165,9 +164,8 @@ static void *playtones_alloc(struct opbx_channel *chan, void *params)
 	struct playtones_def *pd = params;
 	struct playtones_state *ps;
 
-	if ((ps = malloc(sizeof(*ps))) == NULL)
+	if ((ps = calloc(1, sizeof(*ps))) == NULL)
 		return NULL;
-	memset(ps, 0, sizeof(*ps));
 	ps->origwfmt = chan->writeformat;
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
     {
@@ -196,44 +194,34 @@ static void *playtones_alloc(struct opbx_channel *chan, void *params)
 	return ps;
 }
 
-static int playtones_generator(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *playtones_generator(struct opbx_channel *chan, void *data, int samples)
 {
 	struct playtones_state *ps = data;
 	struct playtones_item *pi;
-	int len;
-    int x;
+	int x;
 
-	/*
-	 * We need to prepare a frame with 16 * timelen samples as we're 
-	 * generating SLIN audio
-	 */
-	len = samples + samples;
-	if (len > sizeof(ps->data)/sizeof(int16_t) - 1)
-    {
-		opbx_log(OPBX_LOG_WARNING, "Can't generate that much data!\n");
-		return -1;
-	}
-
-    x = tone_gen(&ps->tone_state, ps->data, samples);
-	pi = &ps->items[ps->npos];
-
-	/* Assemble frame */
 	opbx_fr_init_ex(&ps->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
-	ps->f.datalen = len;
-	ps->f.samples = samples;
-	ps->f.offset = OPBX_FRIENDLY_OFFSET;
-	ps->f.data = ps->data;
-	opbx_write(chan, &ps->f);
 
+	ps->f.datalen = samples * sizeof(ps->data[0]);
+	if (ps->f.datalen > sizeof(ps->data) / sizeof(ps->data[0]) - 1)
+		ps->f.datalen = sizeof(ps->data) / sizeof(ps->data[0]) - 1;
+
+	ps->f.samples = ps->f.datalen / sizeof(ps->data[0]);
+	ps->f.offset = OPBX_FRIENDLY_OFFSET;
+	ps->f.data = &ps->data[OPBX_FRIENDLY_OFFSET / sizeof(ps->data[0])];
+
+	x = tone_gen(&ps->tone_state, ps->f.data, ps->f.samples);
+
+	pi = &ps->items[ps->npos];
 	ps->pos += x;
 	if (pi->duration  &&  ps->pos >= pi->duration*8)
-    {
-    	/* item finished? */
+	{
+		/* item finished? */
 		ps->pos = 0;					/* start new item */
 		ps->npos++;
 		if (ps->npos >= ps->nitems)
-        {
-            /* last item */
+		{
+			/* last item */
 			if (ps->reppos == -1)			/* repeat set? */
 				return -1;
 			ps->npos = ps->reppos;			/* redo from top */
@@ -243,7 +231,7 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int sample
 		pi = &ps->items[ps->npos];
 		tone_setup(ps, pi);
 	}
-	return 0;
+	return &ps->f;
 }
 
 static struct opbx_generator playtones =

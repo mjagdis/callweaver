@@ -55,13 +55,21 @@ static const char milliwatt_descrip[] =
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
+
+struct gen_state {
+	int index;
+	struct opbx_frame f;
+	uint8_t buf[640 + OPBX_FRIENDLY_OFFSET];
+};
+
+
 static void *milliwatt_alloc(struct opbx_channel *chan, void *params)
 {
-	int *indexp;
-	indexp = malloc(sizeof(int));
-	if (indexp == NULL) return(NULL);
-	*indexp = 0;
-	return(indexp);
+	struct gen_state *state;
+
+	if ((state = malloc(sizeof(*state))))
+		state->index = 0;
+	return state;
 }
 
 static void milliwatt_release(struct opbx_channel *chan, void *data)
@@ -70,31 +78,25 @@ static void milliwatt_release(struct opbx_channel *chan, void *data)
 	return;
 }
 
-static int milliwatt_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *milliwatt_generate(struct opbx_channel *chan, void *data, int samples)
 {
-	struct opbx_frame wf;
-	unsigned char waste[OPBX_FRIENDLY_OFFSET];
-	unsigned char buf[640];
-	int i, *indexp = (int *) data;
+	struct gen_state *state = data;
+	int i;
 
-	if (samples > sizeof(buf))
-	{
-		opbx_log(OPBX_LOG_WARNING,"Only doing %d samples (%d requested)\n",(int)sizeof(buf),samples);
-		samples = sizeof(buf);
-	}
-	waste[0] = 0; /* make compiler happy */
-	opbx_fr_init_ex(&wf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, "app_milliwatt");
-	wf.offset = OPBX_FRIENDLY_OFFSET;
-	wf.data = buf;
-	wf.datalen = samples;
-	wf.samples = samples;
+	if (samples > sizeof(state->buf) - OPBX_FRIENDLY_OFFSET)
+		samples = sizeof(state->buf) - OPBX_FRIENDLY_OFFSET;
+
+	opbx_fr_init_ex(&state->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, "app_milliwatt");
+	state->f.offset = OPBX_FRIENDLY_OFFSET;
+	state->f.data = state->buf + OPBX_FRIENDLY_OFFSET;
+	state->f.datalen = state->f.samples = samples;
 	/* create a buffer containing the digital milliwatt pattern */
 	for (i = 0;  i < samples;  i++)
 	{
-		buf[i] = digital_milliwatt[(*indexp)++];
-		*indexp &= 7;
+		state->buf[OPBX_FRIENDLY_OFFSET + i] = digital_milliwatt[state->index];
+		state->index = (state->index + 1) & 7;
 	}
-	return opbx_write(chan,&wf);
+	return &state->f;
 }
 
 static struct opbx_generator milliwattgen = 

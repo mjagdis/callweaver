@@ -97,6 +97,8 @@ struct chanspy_translation_helper
     int volfactor;
     int fd;
     struct opbx_slinfactory slinfactory[2];
+    struct opbx_frame f;
+    int16_t buf[1280];
 };
 
 /* Prototypes */
@@ -106,7 +108,7 @@ static void spy_release(struct opbx_channel *chan, void *data);
 static void *spy_alloc(struct opbx_channel *chan, void *params);
 static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum);
 static void opbx_flush_spy_queue(struct opbx_channel_spy *spy);
-static int spy_generate(struct opbx_channel *chan, void *data, int len);
+static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, int len);
 static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan, struct opbx_channel_spy *spy);
 static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy);
 static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd);
@@ -266,11 +268,11 @@ static int spy_queue_ready(struct opbx_channel_spy *spy)
 }
 #endif
 
-static int spy_generate(struct opbx_channel *chan, void *data, int sample)
+static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, int sample)
 {
 
     struct chanspy_translation_helper *csth = data;
-    struct opbx_frame frame, *f;
+    struct opbx_frame *f;
     int len0 = 0;
     int len1 = 0;
     int samp0 = 0;
@@ -280,12 +282,12 @@ static int spy_generate(struct opbx_channel *chan, void *data, int sample)
     int vf;
     int minsamp;
     int maxsamp;
-    int16_t buf0[1280], buf1[1280], buf[1280];
+    int16_t buf0[1280], buf1[1280];
 
     if (csth->spy.status == CHANSPY_DONE)
     {
         /* Channel is already gone more than likely */
-        return -1;
+        return NULL;
     }
 
     len = sample * sizeof(int16_t);
@@ -307,10 +309,12 @@ static int spy_generate(struct opbx_channel *chan, void *data, int sample)
     }
     opbx_mutex_unlock(&csth->spy.lock);
 
+    opbx_fr_init_ex(&csth->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+    csth->f.data = csth->buf;
+    csth->f.datalen = csth->f.samples = 0;
+
     if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len)
-    {
-        return 0;
-    }
+        return &csth->f;
 
     len0 = opbx_slinfactory_read(&csth->slinfactory[0], buf0, len);
     samp0 = len0/sizeof(int16_t);
@@ -332,39 +336,35 @@ static int spy_generate(struct opbx_channel *chan, void *data, int sample)
     if (samp0  &&  samp1)
     {
         for (x = 0;  x < minsamp;  x++)
-            buf[x] = buf0[x] + buf1[x];
+            csth->buf[x] = buf0[x] + buf1[x];
         if (samp0 > samp1)
         {
             for (  ;  x < samp0;  x++)
-                buf[x] = buf0[x];
+                csth->buf[x] = buf0[x];
         }
         else
         {
             for (  ;  x < samp1;  x++)
-                buf[x] = buf1[x];
+                csth->buf[x] = buf1[x];
         }
     }
     else if (samp0)
     {
-        memcpy(buf, buf0, len0);
+        memcpy(csth->buf, buf0, len0);
         x = samp0;
     }
     else if (samp1)
     {
-        memcpy(buf, buf1, len1);
+        memcpy(csth->buf, buf1, len1);
         x = samp1;
     }
 
-    opbx_fr_init_ex(&frame, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
-    frame.data = buf;
-    frame.samples = x;
-    frame.datalen = x*sizeof(int16_t);
+    csth->f.samples = x;
+    csth->f.datalen = x*sizeof(int16_t);
 
-    if (opbx_write(chan, &frame))
-        return -1;
     if (csth->fd) /* Write audio to file if open */
         write(csth->fd, buf1, len1);
-    return 0;
+    return &csth->f;
 }
 
 

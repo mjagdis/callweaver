@@ -110,10 +110,22 @@ static uint64_t nowis(void)
 	MEMBER GENERATOR
    ****************************************************************************/
 
+struct faxgen_state {
+    fax_state_t *fax;
+    struct opbx_frame f;
+    uint8_t buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
+};
+
 static void *faxgen_alloc(struct opbx_channel *chan, void *params)
 {
+    struct faxgen_state *fgs;
+
     opbx_log(OPBX_LOG_DEBUG,"Allocating fax generator\n");
-    return params;
+
+    if ((fgs = malloc(sizeof(*fgs)))) {
+	    fgs->fax = params;
+    }
+    return fgs;
 }
 
 /*- End of function --------------------------------------------------------*/
@@ -121,36 +133,28 @@ static void *faxgen_alloc(struct opbx_channel *chan, void *params)
 static void faxgen_release(struct opbx_channel *chan, void *data)
 {
     opbx_log(OPBX_LOG_DEBUG,"Releasing fax generator\n");
+    free(data);
     return;
 }
 
 /*- End of function --------------------------------------------------------*/
 
-static int faxgen_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *faxgen_generate(struct opbx_channel *chan, void *data, int samples)
 {
+    struct faxgen_state *fgs = data;
     int len;
-    fax_state_t *fax;
-    struct opbx_frame outf;
 
-    uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
-    uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
-    
-    fax = (fax_state_t*) data;
+    opbx_fr_init_ex(&fgs->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
 
     samples = (samples <= MAX_BLOCK_SIZE)  ?  samples  :  MAX_BLOCK_SIZE;
-    if ((len = fax_tx(fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)) > 0) {
-        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
-        outf.datalen = len*sizeof(int16_t);
-        outf.samples = len;
-        outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-        outf.offset = OPBX_FRIENDLY_OFFSET;
-
-        if (opbx_write(chan, &outf) < 0) {
-            opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-        }
+    if ((len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*OPBX_FRIENDLY_OFFSET], samples)) > 0) {
+        fgs->f.datalen = len*sizeof(int16_t);
+        fgs->f.samples = len;
+        fgs->f.data = &fgs->buf[2*OPBX_FRIENDLY_OFFSET];
+        fgs->f.offset = 2*OPBX_FRIENDLY_OFFSET;
     }
 
-    return 0;
+    return &fgs->f;
 }
 /*- End of function --------------------------------------------------------*/
 

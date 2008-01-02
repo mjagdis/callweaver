@@ -150,6 +150,8 @@ struct mohdata {
 	int origwfmt;
 	struct mohclass *parent;
 	struct mohdata *next;
+	struct opbx_frame f;
+	int16_t buf[1280 + OPBX_FRIENDLY_OFFSET / sizeof(int16_t)];
 };
 
 static struct mohclass *mohclasses;
@@ -253,28 +255,20 @@ static struct opbx_frame *moh_files_readframe(struct opbx_channel *chan)
 	return f;
 }
 
-static int moh_files_generator(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *moh_files_generator(struct opbx_channel *chan, void *data, int samples)
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = data;
 	struct opbx_frame *f = NULL;
 	int res = 0;
 
 	state->sample_queue += samples;
 
-	while (state->sample_queue > 0) {
-		if ((f = moh_files_readframe(chan))) {
-			state->samples += f->samples;
-			res = opbx_write(chan, f);
-			state->sample_queue -= f->samples;
-			opbx_fr_free(f);
-			if (res < 0) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to write data: %s\n", strerror(errno));
-				return -1;
-			}
-		} else
-			return -1;	
+	if ((f = moh_files_readframe(chan))) {
+		state->samples += f->samples;
+		state->sample_queue -= f->samples;
+		return f;
 	}
-	return res;
+	return NULL;
 }
 
 
@@ -694,11 +688,9 @@ static void *moh_alloc(struct opbx_channel *chan, void *params)
 	return res;
 }
 
-static int moh_generate(struct opbx_channel *chan, void *data, int samples)
+static struct opbx_frame *moh_generate(struct opbx_channel *chan, void *data, int samples)
 {
-	struct opbx_frame f;
 	struct mohdata *moh = data;
-	short buf[1280 + OPBX_FRIENDLY_OFFSET / 2];
 	int len, res;
 
 	if (!moh->parent->pid)
@@ -706,28 +698,22 @@ static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 
 	len = opbx_codec_get_len(moh->parent->format, samples);
 
-	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET) {
-		opbx_log(OPBX_LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, chan->name);
-		len = sizeof(buf) - OPBX_FRIENDLY_OFFSET;
-	}
-	res = read(moh->pipe[0], buf + OPBX_FRIENDLY_OFFSET/2, len);
+	if (len > sizeof(moh->buf) - OPBX_FRIENDLY_OFFSET)
+		len = sizeof(moh->buf) - OPBX_FRIENDLY_OFFSET;
+
+	res = read(moh->pipe[0], moh->buf + OPBX_FRIENDLY_OFFSET / sizeof(moh->buf[0]), len);
 #if 0
 	if (res != len) {
 		opbx_log(OPBX_LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
 #endif
+	opbx_fr_init_ex(&moh->f, OPBX_FRAME_VOICE, moh->parent->format, NULL);
 	if (res > 0) {
-		opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, moh->parent->format, NULL);
-		f.datalen = res;
-		f.data = buf + OPBX_FRIENDLY_OFFSET/2;
-		f.offset = OPBX_FRIENDLY_OFFSET;
-		f.samples = opbx_codec_get_samples(&f);
-		res = 0;
-
-		if (opbx_write(chan, &f) < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
-			res = -1;
-		}
+		moh->f.datalen = res;
+		moh->f.data = moh->buf + OPBX_FRIENDLY_OFFSET / sizeof(moh->buf[0]);
+		moh->f.offset = OPBX_FRIENDLY_OFFSET;
+		moh->f.samples = opbx_codec_get_samples(&moh->f);
+		return &moh->f;
 	} else if (res < 0) {
 		/* This can happen either because the custom command has only just
 		 * been started and is not yet providing data OR because it is
@@ -739,12 +725,10 @@ static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 		 * on a reasonably fast dual cored AMD64 with a single call in MOH.
 		 */
 		if (errno == EAGAIN)
-			res = 0;
-	} else {
-		res = -1;
+			return &moh->f;
 	}
 
-	return res;
+	return NULL;
 }
 
 static struct opbx_generator mohgen = 
