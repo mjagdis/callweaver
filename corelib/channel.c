@@ -2161,7 +2161,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 	default:
 		if (chan->tech->write)
         {
-			if (chan->writetrans) 
+			if (chan->writetrans && fr->frametype == OPBX_FRAME_VOICE) 
 				f = opbx_translate(chan->writetrans, fr, 0);
 			else
 				f = fr;
