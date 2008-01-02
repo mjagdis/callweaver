@@ -542,13 +542,24 @@ static void *opbx_pthread_wrapper(void *data)
 
 int opbx_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
 {
+	int ret, n;
+
 	struct opbx_pthread_wrapper_args *args;
 
 	if ((args = malloc(sizeof(*args)))) {
 		args->module = opbx_module_get(module);
 		args->func = start_routine;
 		args->param = data;
-		return pthread_create(thread, attr, opbx_pthread_wrapper, args); /* We're in opbx_pthread_create, so it's okay */
+		ret = pthread_create(thread, attr, opbx_pthread_wrapper, args);
+		if (ret == 1 && !pthread_attr_getschedpolicy(attr, &n) && n != SCHED_OTHER) {
+			struct sched_param sp;
+			opbx_log(OPBX_LOG_WARNING, "No permission for realtime scheduling - dropping to non-realtime\n");
+			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
+			sp.sched_priority = 0;
+			pthread_attr_setschedparam(attr, &sp);
+			ret = pthread_create(thread, attr, opbx_pthread_wrapper, args);
+		}
+		return ret;
 	}
 
 	opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
