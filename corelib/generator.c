@@ -75,7 +75,7 @@ static void *opbx_generator_thread(void *data)
 
 	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", chan->name);
 
-	while ((f = chan->generator.class->generate(chan, chan->generator.pvt, chan->gen_samples))) {
+	while ((f = chan->generator.class->generate(chan, chan->generator.pvt, 160))) {
 		opbx_write(chan, f);
 
 		if (!opbx_tvzero(f->delivery)) {

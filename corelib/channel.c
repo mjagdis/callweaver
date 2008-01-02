@@ -646,8 +646,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	tmp->tech = &null_tech;
 	tmp->t38_status = T38_STATUS_UNKNOWN;
 
-        tmp->gen_samples = 160;
-
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;
 	channels = tmp;
