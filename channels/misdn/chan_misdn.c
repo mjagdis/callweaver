@@ -4607,7 +4607,7 @@ static int unload_module(void)
 	/* First, take us out of the channel loop */
 	opbx_log(OPBX_LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
-	if (misdn_task) {
+	if (misdn_tasks) {
 		sched_context_destroy(misdn_tasks);
 		misdn_tasks = NULL;
 	}
