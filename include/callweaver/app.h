@@ -143,9 +143,6 @@ extern int opbx_safe_system(const char *s);
 /*! Send DTMF to chan (optionally entertain peer)   */
 int opbx_dtmf_stream(struct opbx_channel *chan, struct opbx_channel *peer, char *digits, int between);
 
-/*! Stream a filename (or file descriptor) as a generator. */
-int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, int allowoverride);
-
 /*! Stream a file with fast forward, pause, reverse, restart. */
 int opbx_control_streamfile(struct opbx_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
 
