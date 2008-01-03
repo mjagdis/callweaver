@@ -79,6 +79,7 @@ static void *opbx_generator_thread(void *data)
 		opbx_write(chan, f);
 
 		if (!opbx_tvzero(f->delivery)) {
+			clk = CLOCK_REALTIME;
 			tick.tv_sec = f->delivery.tv_sec;
 			tick.tv_nsec = 1000L * f->delivery.tv_usec;
 		} else if (f->len) {
