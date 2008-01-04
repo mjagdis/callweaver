@@ -169,9 +169,6 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path);
 /* Unlock a path */
 int opbx_unlock_path(const char *path);
 
-/* Read a file into callweaver */
-char *opbx_read_textfile(const char *file);
-
 #define GROUP_CATEGORY_PREFIX "GROUP"
 
 /*! Split a group string into group and category, returning a default category if none is provided. */

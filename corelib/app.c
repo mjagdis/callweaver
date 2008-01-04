@@ -1172,39 +1172,6 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 }
 
 
-char *opbx_read_textfile(const char *filename)
-{
-	int fd;
-	char *output=NULL;
-	struct stat filesize;
-	int count=0;
-	int res;
-	if(stat(filename,&filesize)== -1){
-		opbx_log(OPBX_LOG_WARNING,"Error can't stat %s\n", filename);
-		return NULL;
-	}
-	count=filesize.st_size + 1;
-	fd = open(filename, O_RDONLY);
-	if (fd < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
-		return NULL;
-	}
-	output=(char *)malloc(count);
-	if (output) {
-		res = read(fd, output, count - 1);
-		if (res == count - 1) {
-			output[res] = '\0';
-		} else {
-			opbx_log(OPBX_LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count -  1, strerror(errno));
-			free(output);
-			output = NULL;
-		}
-	} else 
-		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
-	close(fd);
-	return output;
-}
-
 int opbx_parseoptions(const struct opbx_option *options, struct opbx_flags *flags, char **args, char *optstr)
 {
 	char *s;
