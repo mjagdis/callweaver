@@ -94,9 +94,6 @@ extern int opbx_parseoptions(const struct opbx_option *options, struct opbx_flag
 	static struct opbx_ivr_menu holder = { title, flags, __options_##holder }
 	
 
-/*! Runs an IVR menu, returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
-extern int opbx_ivr_menu_run(struct opbx_channel *c, struct opbx_ivr_menu *menu, void *cbdata);
-
 /*! Plays a stream and gets DTMF data from a channel */
 /*!
  * \param c Which channel one is interacting with
