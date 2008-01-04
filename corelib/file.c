@@ -356,7 +356,7 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 	struct fileopen_args *args = data;
 	FILE *bfile;
 
-	if ((!(args->chan->writeformat & f->format) && !((f->format >= OPBX_FORMAT_MAX_AUDIO) && args->fmt)))
+	if (args->chan && (!(args->chan->writeformat & f->format) && !((f->format >= OPBX_FORMAT_MAX_AUDIO) && args->fmt)))
 		return 0;
 
 	/* Check for a specific format */
@@ -371,8 +371,6 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 					if ((args->s->pvt = f->open(bfile))) {
 						args->s->fmt = opbx_object_dup(f);
 						args->s->lasttimeout = -1;
-						args->s->trans = NULL;
-						args->s->filename = NULL;
 						free(fn);
 						return 1;
 					}
@@ -657,10 +655,8 @@ int opbx_closestream(struct opbx_filestream *f)
 		}
 	}
 	/* destroy the translator on exit */
-	if (f->trans) {
+	if (f->trans)
 		opbx_translator_free_path(f->trans);
-		f->trans = NULL;
-	}
 
 	if (f->realfilename && f->filename) {
 			size = strlen(f->filename) + strlen(f->realfilename) + 15;
@@ -670,14 +666,10 @@ int opbx_closestream(struct opbx_filestream *f)
 			opbx_safe_system(cmd);
 	}
 
-	if (f->filename) {
+	if (f->filename)
 		free(f->filename);
-		f->filename = NULL;
-	}
-	if (f->realfilename) {
+	if (f->realfilename)
 		free(f->realfilename);
-		f->realfilename = NULL;
-	}
 
 	f->fmt->close(f->pvt);
 	opbx_object_put(f->fmt);
@@ -778,58 +770,25 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 	return -1;
 }
 
-struct readfile_args {
-	const char *filename;
-	const char *type;
-	struct opbx_filestream *fs;
-};
 
-static int readfile_one(struct opbx_object *obj, void *data)
+struct opbx_filestream *opbx_readfile(const char *filename, const char *fmt, const char *comment, int flags, int check, mode_t mode)
 {
-	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
-	struct readfile_args *args = data;
-	FILE *bfile;
-	char *fn;
-
-	if (exts_compare(f->exts, args->type)) {
-		if ((fn = build_filename(args->filename, args->type))) {
-			bfile = fopen(fn, "r");
-			free(fn);
-			if (bfile) {
-				if ((args->fs = f->open(bfile))) {
-					args->fs->fmt = opbx_object_dup(f);
-					return 1;
-				} else {
-					opbx_log(OPBX_LOG_WARNING, "Unable to open %s\n", fn);
-					fclose(bfile);
-				}
-			} else if (errno != EEXIST)
-				opbx_log(OPBX_LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-		} else
-			opbx_log(OPBX_LOG_ERROR, "Out of memory");
-	}
-
-	return 0;
-}
-
-struct opbx_filestream *opbx_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
-{
-	struct readfile_args args = {
-		filename, type, NULL
+	struct fileopen_args args = {
+		.filename = filename,
+		.fmt = fmt,
 	};
 
-	opbx_registry_iterate(&format_registry, readfile_one, &args);
+	if (!(args.s = calloc(1, sizeof(*args.s)))) {
+		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
 
-	if (args.fs) {
-		args.fs->trans = NULL;
-		args.fs->flags = flags;
-		args.fs->mode = mode;
-		args.fs->filename = strdup(filename);
-		args.fs->vfs = NULL;
-	} else
-		opbx_log(OPBX_LOG_WARNING, "No such format '%s'\n", type);
+	opbx_registry_iterate(&format_registry, fileopen_one, &args);
+	if (args.s->fmt)
+		return args.s;
 
-	return args.fs;
+	free(args.s);
+	return NULL;
 }
 
 
