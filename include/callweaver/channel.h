@@ -714,15 +714,6 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan);
  */
 int opbx_write(struct opbx_channel *chan, struct opbx_frame *frame);
 
-/*! Write video frame to a channel */
-/*!
- * \param chan destination channel of the frame
- * \param frame frame that will be written
- * This function writes the given frame to the indicated channel.
- * It returns 1 on success, 0 if not implemented, and -1 on failure.
- */
-int opbx_write_video(struct opbx_channel *chan, struct opbx_frame *frame);
-
 /* Send empty audio to prime a channel driver */
 int opbx_prod(struct opbx_channel *chan);
 

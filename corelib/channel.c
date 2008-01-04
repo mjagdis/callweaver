@@ -2024,17 +2024,6 @@ int opbx_prod(struct opbx_channel *chan)
 	return 0;
 }
 
-int opbx_write_video(struct opbx_channel *chan, struct opbx_frame *fr)
-{
-	int res;
-
-	if (!chan->tech->write_video)
-		return 0;
-	if ((res = opbx_write(chan, fr)) == 0)
-		res = 1;
-	return res;
-}
-
 int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 {
 	int res = -1;
