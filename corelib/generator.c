@@ -75,7 +75,8 @@ static void *opbx_generator_thread(void *data)
 
 	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", chan->name);
 
-	while ((f = chan->generator.class->generate(chan, chan->generator.pvt, 160))) {
+	f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
+	while (f) {
 		opbx_write(chan, f);
 
 		if (!opbx_tvzero(f->delivery)) {
@@ -106,6 +107,8 @@ static void *opbx_generator_thread(void *data)
 		}
 
 		opbx_fr_free(f);
+
+		f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
