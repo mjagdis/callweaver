@@ -112,9 +112,6 @@ extern int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int m
 /* Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 extern int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
-/*! Record voice (after playing prompt if specified), waiting for silence (in ms) up to a given timeout (in s) or '#' */
-int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *prompt, int silence, int maxsec);
-
 
 void opbx_install_t38_functions( int (*has_request_t38_func)(const struct opbx_channel *chan) );
 
