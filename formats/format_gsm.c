@@ -57,15 +57,11 @@ static const uint8_t gsm_silence[] = /* 33 */
     0x92,0x49,0x24
 };
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
     FILE *f;                                /* Descriptor */
     struct opbx_frame fr;                   /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
-    char empty;                             /* Empty character */
-    uint8_t gsm[66];                        /* Two GSM Frames */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + 66];                        /* Two GSM Frames */
 };
 
 
@@ -84,76 +80,67 @@ static int repack_gsm0610_wav49_to_voip(uint8_t d[], const uint8_t c[])
     return n[0] + n[1];
 }
 
-static struct opbx_filestream *gsm_open(FILE *f)
+static void *gsm_open(FILE *f)
 {
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
-        tmp->fr.data = tmp->gsm;
-        /* datalen will vary for each frame */
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *gsm_rewrite(FILE *f, const char *comment)
+static void *gsm_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void gsm_close(struct opbx_filestream *s)
+static void gsm_close(void *data)
 {
-    fclose(s->f);
-    free(s);
+    struct pvt *pvt = data;
+
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *gsm_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
 
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.samples = 160;
-    s->fr.datalen = 33;
-    s->fr.data = s->gsm;
-    if ((res = fread(s->gsm, 1, 33, s->f)) != 33)
+    pvt->fr.samples = 160;
+    pvt->fr.datalen = 33;
+    if ((res = fread(pvt->fr.data, 1, 33, pvt->f)) != 33)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
+
     *whennext = 160;
-    return &s->fr;
+    return &pvt->fr;
 }
 
-static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int gsm_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
-    uint8_t gsm[66];
     int len;
     
     if (f->frametype != OPBX_FRAME_VOICE)
@@ -172,8 +159,8 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
         for (len = 0;  len < f->datalen;  len += 65)
         {
-            repack_gsm0610_wav49_to_voip(gsm, f->data + len);
-            if ((res = fwrite(gsm, 1, 66, fs->f)) != 66)
+            repack_gsm0610_wav49_to_voip(pvt->buf, f->data + len);
+            if ((res = fwrite(pvt->buf, 1, 66, pvt->f)) != 66)
             {
                 opbx_log(OPBX_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
                 return -1;
@@ -187,7 +174,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
             opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
             return -1;
         }
-        if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+        if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
         {
             opbx_log(OPBX_LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
             return -1;
@@ -196,8 +183,9 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     return 0;
 }
 
-static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int gsm_seek(void *data, long sample_offset, int whence)
 {
+    struct pvt *pvt = data;
     off_t offset = 0;
     off_t min;
     off_t cur;
@@ -205,9 +193,9 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     off_t distance;
     
     min = 0;
-    cur = ftell(fs->f);
-    fseek(fs->f, 0, SEEK_END);
-    max = ftell(fs->f);
+    cur = ftell(pvt->f);
+    fseek(pvt->f, 0, SEEK_END);
+    max = ftell(pvt->f);
     /* have to fudge to frame here, so not fully to sample */
     distance = (sample_offset/160) * 33;
     if (whence == SEEK_SET)
@@ -226,26 +214,28 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     {
         int i;
 
-        fseek(fs->f, 0, SEEK_END);
+        fseek(pvt->f, 0, SEEK_END);
         for (i = 0;  i < (offset - max)/33;  i++)
-            fwrite(gsm_silence, 1, 33, fs->f);
+            fwrite(gsm_silence, 1, 33, pvt->f);
     }
-    return fseek(fs->f, offset, SEEK_SET);
+    return fseek(pvt->f, offset, SEEK_SET);
 }
 
-static int gsm_trunc(struct opbx_filestream *fs)
+static int gsm_trunc(void *data)
 {
-    return ftruncate(fileno(fs->f), ftell(fs->f));
+    struct pvt *pvt = data;
+
+    return ftruncate(fileno(pvt->f), ftell(pvt->f));
 }
 
-static long gsm_tell(struct opbx_filestream *fs)
+static long gsm_tell(void *data)
 {
-    off_t offset;
-    offset = ftell(fs->f);
-    return (offset/33)*160;
+    struct pvt *pvt = data;
+
+    return (ftell(pvt->f)/33)*160;
 }
 
-static char *gsm_getcomment(struct opbx_filestream *s)
+static char *gsm_getcomment(void *data)
 {
     return NULL;
 }

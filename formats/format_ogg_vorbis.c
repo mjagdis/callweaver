@@ -53,10 +53,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define BLOCK_SIZE 4096
 
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
-
     FILE *fp;
 
     /* structures for handling the Ogg container */
@@ -77,13 +75,11 @@ struct opbx_filestream
     /*! \brief Indicates whether an End of Stream condition has been detected. */
     int eos;
 
-    /*! \brief Buffer to hold audio data. */
-    short buffer[SAMPLES_MAX];
-
     /*! \brief CallWeaver frame object. */
     struct opbx_frame fr;
-    char waste[OPBX_FRIENDLY_OFFSET];
-    char empty;
+
+    /*! \brief Buffer to hold audio data. */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + SAMPLES_MAX * sizeof(int16_t)];
 };
 
 
@@ -97,20 +93,17 @@ static const char desc[] = "OGG/Vorbis audio";
  * \param fd Descriptor that points to on disk storage of the OGG/Vorbis data.
  * \return The new filestream.
  */
-static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
+static void *ogg_vorbis_open(FILE *fp)
 {
+    struct pvt *tmp;
     int i;
     int bytes;
     int result;
     char **ptr;
     char *buffer;
 
-    struct opbx_filestream *tmp;
-
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-
         tmp->writing = 0;
         tmp->fp = fp;
 
@@ -261,6 +254,10 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         vorbis_synthesis_init(&tmp->vd, &tmp->vi);
         vorbis_block_init(&tmp->vd, &tmp->vb);
     }
+
+    opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
+    tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
     return tmp;
 }
 
@@ -270,18 +267,15 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
  * \param comment Comment that should be embedded in the OGG/Vorbis file.
  * \return A new filestream.
  */
-static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
+static void *ogg_vorbis_rewrite(FILE *fp, const char *comment)
 {
     ogg_packet header;
     ogg_packet header_comm;
     ogg_packet header_code;
+    struct pvt *tmp;
 
-    struct opbx_filestream *tmp;
-
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-
         tmp->writing = 1;
         tmp->fp = fp;
 
@@ -326,24 +320,24 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
  * \brief Write out any pending encoded data.
  * \param s A OGG/Vorbis filestream.
  */
-static void write_stream(struct opbx_filestream *s)
+static void write_stream(struct pvt *pvt)
 {
-    while (vorbis_analysis_blockout(&s->vd, &s->vb) == 1)
+    while (vorbis_analysis_blockout(&pvt->vd, &pvt->vb) == 1)
     {
-        vorbis_analysis(&s->vb, NULL);
-        vorbis_bitrate_addblock(&s->vb);
+        vorbis_analysis(&pvt->vb, NULL);
+        vorbis_bitrate_addblock(&pvt->vb);
         
-        while (vorbis_bitrate_flushpacket(&s->vd, &s->op))
+        while (vorbis_bitrate_flushpacket(&pvt->vd, &pvt->op))
         {
-            ogg_stream_packetin(&s->os, &s->op);
-            while (!s->eos)
+            ogg_stream_packetin(&pvt->os, &pvt->op);
+            while (!pvt->eos)
             {
-                if (ogg_stream_pageout(&s->os, &s->og) == 0)
+                if (ogg_stream_pageout(&pvt->os, &pvt->og) == 0)
                     break;
-                fwrite(s->og.header, 1, s->og.header_len, s->fp);
-                fwrite(s->og.body, 1, s->og.body_len, s->fp);
-                if (ogg_page_eos(&s->og))
-                    s->eos = 1;
+                fwrite(pvt->og.header, 1, pvt->og.header_len, pvt->fp);
+                fwrite(pvt->og.body, 1, pvt->og.body_len, pvt->fp);
+                if (ogg_page_eos(&pvt->og))
+                    pvt->eos = 1;
             }
         }
     }
@@ -355,13 +349,14 @@ static void write_stream(struct opbx_filestream *s)
  * \param f An frame containing audio to be written to the filestream.
  * \return -1 ifthere was an error, 0 on success.
  */
-static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
+static int ogg_vorbis_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int i;
     float **buffer;
-    short *data;
+    short *fdata;
 
-    if (!s->writing)
+    if (!pvt->writing)
     {
         opbx_log(OPBX_LOG_ERROR, "This stream is not set up for writing!\n");
         return -1;
@@ -380,16 +375,16 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
     if (!f->datalen)
         return -1;
 
-    data = (short *) f->data;
+    fdata = (short *) f->data;
 
-    buffer = vorbis_analysis_buffer(&s->vd, f->samples);
+    buffer = vorbis_analysis_buffer(&pvt->vd, f->samples);
 
     for (i = 0;  i < f->samples;  i++)
-        buffer[0][i] = data[i]/32768.f;
+        buffer[0][i] = fdata[i]/32768.f;
 
-    vorbis_analysis_wrote(&s->vd, f->samples);
+    vorbis_analysis_wrote(&pvt->vd, f->samples);
 
-    write_stream(s);
+    write_stream(pvt);
 
     return 0;
 }
@@ -398,27 +393,29 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
  * \brief Close a OGG/Vorbis filestream.
  * \param s A OGG/Vorbis filestream.
  */
-static void ogg_vorbis_close(struct opbx_filestream *s)
+static void ogg_vorbis_close(void *data)
 {
-    if (s->writing)
+    struct pvt *pvt = data;
+
+    if (pvt->writing)
     {
         /* Tell the Vorbis encoder that the stream is finished
          * and write out the rest of the data */
-        vorbis_analysis_wrote(&s->vd, 0);
-        write_stream(s);
+        vorbis_analysis_wrote(&pvt->vd, 0);
+        write_stream(pvt);
     }
 
-    ogg_stream_clear(&s->os);
-    vorbis_block_clear(&s->vb);
-    vorbis_dsp_clear(&s->vd);
-    vorbis_comment_clear(&s->vc);
-    vorbis_info_clear(&s->vi);
+    ogg_stream_clear(&pvt->os);
+    vorbis_block_clear(&pvt->vb);
+    vorbis_dsp_clear(&pvt->vd);
+    vorbis_comment_clear(&pvt->vc);
+    vorbis_info_clear(&pvt->vi);
 
-    if (s->writing)
-        ogg_sync_clear(&s->oy);
+    if (pvt->writing)
+        ogg_sync_clear(&pvt->oy);
     
-    fclose(s->fp);
-    free(s);
+    fclose(pvt->fp);
+    free(pvt);
 }
 
 /*!
@@ -427,7 +424,7 @@ static void ogg_vorbis_close(struct opbx_filestream *s)
  * \param pcm Pointer to a buffere to store audio data in.
  */
 
-static int read_samples(struct opbx_filestream *s, float ***pcm)
+static int read_samples(struct pvt *pvt, float ***pcm)
 {
     int samples_in;
     int result;
@@ -436,18 +433,18 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
 
     while (1)
     {
-        samples_in = vorbis_synthesis_pcmout(&s->vd, pcm);
+        samples_in = vorbis_synthesis_pcmout(&pvt->vd, pcm);
         if (samples_in > 0)
             return samples_in;
         
         /* The Vorbis decoder needs more data... */
         /* See ifOGG has any packets in the current page for the Vorbis decoder. */
-        result = ogg_stream_packetout(&s->os, &s->op);
+        result = ogg_stream_packetout(&pvt->os, &pvt->op);
         if (result > 0)
         {
             /* Yes OGG had some more packets for the Vorbis decoder. */
-            if (vorbis_synthesis(&s->vb, &s->op) == 0)
-                vorbis_synthesis_blockin(&s->vd, &s->vb);
+            if (vorbis_synthesis(&pvt->vb, &pvt->op) == 0)
+                vorbis_synthesis_blockin(&pvt->vd, &pvt->vb);
             continue;
         }
 
@@ -456,26 +453,26 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
         
         /* No more packets left in the current page... */
 
-        if (s->eos)
+        if (pvt->eos)
         {
             /* No more pages left in the stream */
             return -1;
         }
 
-        while (!s->eos)
+        while (!pvt->eos)
         {
             /* See ifOGG has any pages in it's internal buffers */
-            result = ogg_sync_pageout(&s->oy, &s->og);
+            result = ogg_sync_pageout(&pvt->oy, &pvt->og);
             if (result > 0)
             {
                 /* Yes, OGG has more pages in it's internal buffers,
                    add the page to the stream state */
-                result = ogg_stream_pagein(&s->os, &s->og);
+                result = ogg_stream_pagein(&pvt->os, &pvt->og);
                 if (result == 0)
                 {
                     /* Yes, got a new,valid page */
-                    if (ogg_page_eos(&s->og))
-                        s->eos = 1;
+                    if (ogg_page_eos(&pvt->og))
+                        pvt->eos = 1;
                     break;
                 }
                 opbx_log(OPBX_LOG_WARNING, "Invalid page in the bitstream; continuing...\n");
@@ -486,13 +483,13 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
 
             /* No, we need to read more data from the file descrptor */
             /* get a buffer from OGG to read the data into */
-            buffer = ogg_sync_buffer(&s->oy, BLOCK_SIZE);
+            buffer = ogg_sync_buffer(&pvt->oy, BLOCK_SIZE);
             /* read more data from the file descriptor */
-            bytes = fread(buffer, 1, BLOCK_SIZE, s->fp);
+            bytes = fread(buffer, 1, BLOCK_SIZE, pvt->fp);
             /* Tell OGG how many bytes we actually read into the buffer */
-            ogg_sync_wrote(&s->oy, bytes);
+            ogg_sync_wrote(&pvt->oy, bytes);
             if (bytes == 0)
-                s->eos = 1;
+                pvt->eos = 1;
         }
     }
 }
@@ -503,8 +500,10 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
  * \param whennext Number of sample times to schedule the next call.
  * \return A pointer to a frame containing audio data or NULL ifthere is no more audio data.
  */
-static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *ogg_vorbis_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
+    int16_t *buffer = (int16_t *)pvt->fr.data;
     int clipflag = 0;
     int i;
     int j;
@@ -522,7 +521,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
             break;
 
         /* See ifVorbis decoder has some audio data for us ... */
-        samples_in = read_samples(s, &pcm);
+        samples_in = read_samples(pvt, &pcm);
         if (samples_in <= 0)
             break;
 
@@ -535,7 +534,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
         for(j = 0;  j < samples_in;  j++)
             accumulator[j] = 0.0;
 
-        for (i = 0;  i < s->vi.channels;  i++)
+        for (i = 0;  i < pvt->vi.channels;  i++)
         {
             mono = pcm[i];
             for (j = 0;  j < samples_in;  j++)
@@ -544,7 +543,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
 
         for (j = 0; j < samples_in; j++)
         {
-            val =  accumulator[j] * 32767.0 / s->vi.channels;
+            val =  accumulator[j] * 32767.0 / pvt->vi.channels;
             if (val > 32767)
             {
                 val = 32767;
@@ -555,27 +554,23 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
                 val = -32768;
                 clipflag = 1;
             }
-            s->buffer[samples_out + j] = val;
+            buffer[samples_out + j] = val;
         }
             
         if (clipflag)
-            opbx_log(OPBX_LOG_WARNING, "Clipping in frame %ld\n", (long)(s->vd.sequence));
+            opbx_log(OPBX_LOG_WARNING, "Clipping in frame %ld\n", (long)(pvt->vd.sequence));
         
         /* Tell the Vorbis decoder how many samples we actually used. */
-        vorbis_synthesis_read(&s->vd, samples_in);
+        vorbis_synthesis_read(&pvt->vd, samples_in);
         samples_out += samples_in;
     }
 
     if (samples_out > 0)
     {
-        opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
-        s->fr.offset = OPBX_FRIENDLY_OFFSET;
-        s->fr.datalen = samples_out*sizeof(int16_t);
-        s->fr.data = s->buffer;
-        s->fr.samples = samples_out;
+        pvt->fr.datalen = samples_out * sizeof(buffer[0]);
+        pvt->fr.samples = samples_out;
         *whennext = samples_out;
-        
-        return &s->fr;
+        return &pvt->fr;
     }
     return NULL;
 }
@@ -586,7 +581,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
  * \return 0 on success, -1 on failure.
  */
 
-static int ogg_vorbis_trunc(struct opbx_filestream *s)
+static int ogg_vorbis_trunc(void *data)
 {
     opbx_log(OPBX_LOG_WARNING, "Truncation is not supported on OGG/Vorbis streams!\n");
     return -1;
@@ -600,19 +595,19 @@ static int ogg_vorbis_trunc(struct opbx_filestream *s)
  * \return 0 on success, -1 on failure.
  */
 
-static int ogg_vorbis_seek(struct opbx_filestream *s, long sample_offset, int whence)
+static int ogg_vorbis_seek(void *data, long sample_offset, int whence)
 {
     opbx_log(OPBX_LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
-static long ogg_vorbis_tell(struct opbx_filestream *s)
+static long ogg_vorbis_tell(void *data)
 {
     opbx_log(OPBX_LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
-static char *ogg_vorbis_getcomment(struct opbx_filestream *s)
+static char *ogg_vorbis_getcomment(void *data)
 {
     opbx_log(OPBX_LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
     return NULL;

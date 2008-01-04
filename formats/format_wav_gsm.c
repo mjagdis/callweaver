@@ -58,20 +58,16 @@ static const uint8_t wav49_silence[] = /* 65 */
     0x92,0x24,0x49,0x92,0x00
 };
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
-    /* This is what a filestream means to us */
     FILE *f; /* Descriptor */
-    struct opbx_frame fr;               /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];   /* Buffer for sending frames, etc */
-    char empty;                         /* Empty character */
-    unsigned char gsm[66];              /* Two Real GSM Frames */
     int foffset;
     int secondhalf;                     /* Are we on the second half */
     struct timeval last;
+    struct opbx_frame fr;               /* Frame information */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + 66];              /* Two Real GSM Frames */
 };
 
 static struct opbx_format format;
@@ -417,102 +413,95 @@ static int write_header(FILE *f)
     return 0;
 }
 
-static struct opbx_filestream *wav_open(FILE *f)
+static void *wav_open(FILE *f)
 {
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if (check_header(f))
+        return NULL;
+
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (check_header(f))
-        {
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
-        tmp->fr.data = tmp->gsm;
-        /* datalen will vary for each frame */
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
         tmp->secondhalf = 0;
+        return tmp;
     }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *wav_rewrite(FILE *f, const char *comment)
+static void *wav_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         if (write_header(f))
         {
             free(tmp);
             return NULL;
         }
         tmp->f = f;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void wav_close(struct opbx_filestream *s)
+static void wav_close(void *data)
 {
+    struct pvt *pvt = data;
     char zero = 0;
     
     /* Pad to even length */
-    fseek(s->f, 0, SEEK_END);
-    if (ftell(s->f) & 0x1)
-        fwrite(&zero, 1, 1, s->f);
-    fclose(s->f);
-    free(s);
+    fseek(pvt->f, 0, SEEK_END);
+    if (ftell(pvt->f) & 0x1)
+        fwrite(&zero, 1, 1, pvt->f);
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *wav_read(void *data, int *whennext)
 {
-    int res;
     uint8_t msdata[65];
+    struct pvt *pvt = data;
+    int res;
 
     /* Send a frame from the file to the appropriate channel */
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.samples = 160;
-    s->fr.datalen = 33;
-    if (s->secondhalf)
+    pvt->fr.samples = 160;
+    pvt->fr.datalen = 33;
+    if (pvt->secondhalf)
     {
         /* Just return a frame based on the second GSM frame */
-        s->fr.data = s->gsm + 33;
+        pvt->fr.data = &pvt->buf[OPBX_FRIENDLY_OFFSET + 33];
     }
     else
     {
-        if ((res = fread(msdata, 1, 65, s->f)) != 65)
+        if ((res = fread(msdata, 1, 65, pvt->f)) != 65)
         {
             if (res  &&  (res != 1))
                 opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
             return NULL;
         }
         /* Convert from WAV49 format to two VoIP format GSM frames */
-        repack_gsm0610_wav49_to_voip(s->gsm, msdata);
-        s->fr.data = s->gsm;
+        pvt->fr.data = &pvt->buf[OPBX_FRIENDLY_OFFSET];
+        repack_gsm0610_wav49_to_voip(&pvt->buf[OPBX_FRIENDLY_OFFSET], msdata);
     }
-    s->secondhalf = !s->secondhalf;
+    pvt->secondhalf = !pvt->secondhalf;
     *whennext = 160;
-    return &s->fr;
+    return &pvt->fr;
 }
 
-static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int wav_write(void *data, struct opbx_frame *f)
 {
-    int res;
     uint8_t wav49_data[65];
+    struct pvt *pvt = data;
+    int res;
     int len = 0;
     int already_wav49;
 
@@ -531,43 +520,44 @@ static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
     {
         if (already_wav49)
         {
-            fs->secondhalf = 0;
-            if ((res = fwrite(f->data + len, 1, 65, fs->f)) != 65)
+            pvt->secondhalf = 0;
+            if ((res = fwrite(f->data + len, 1, 65, pvt->f)) != 65)
             {
                 opbx_log(OPBX_LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
                 return -1;
             }
-            update_header(fs->f);
+            update_header(pvt->f);
             len += 65;
         }
         else
         {
-            if (fs->secondhalf)
+            if (pvt->secondhalf)
             {
-                memcpy(fs->gsm + 33, f->data + len, 33);
+                memcpy(pvt->buf + 33, f->data + len, 33);
                 /* Convert from two VoIP format GSM frames to WAV49 format */
-                repack_gsm0610_voip_to_wav49(wav49_data, fs->gsm);
-                if ((res = fwrite(wav49_data, 1, 65, fs->f)) != 65)
+                repack_gsm0610_voip_to_wav49(wav49_data, pvt->buf);
+                if ((res = fwrite(wav49_data, 1, 65, pvt->f)) != 65)
                 {
                     opbx_log(OPBX_LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
                     return -1;
                 }
-                update_header(fs->f);
+                update_header(pvt->f);
             }
             else
             {
                 /* Copy the data and do nothing */
-                memcpy(fs->gsm, f->data + len, 33);
+                memcpy(pvt->buf, f->data + len, 33);
             }
-            fs->secondhalf = !fs->secondhalf;
+            pvt->secondhalf = !pvt->secondhalf;
             len += 33;
         }
     }
     return 0;
 }
 
-static int wav_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int wav_seek(void *data, long sample_offset, int whence)
 {
+    struct pvt *pvt = data;
     off_t offset = 0;
     off_t distance;
     off_t cur;
@@ -575,9 +565,9 @@ static int wav_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     off_t max;
     
     min = 60;
-    cur = ftell(fs->f);
-    fseek(fs->f, 0, SEEK_END);
-    max = ftell(fs->f);
+    cur = ftell(pvt->f);
+    fseek(pvt->f, 0, SEEK_END);
+    max = ftell(pvt->f);
     /* I'm getting sloppy here, I'm only going to go to even splits of the 2
      * frames, if you want tighter cuts use format_gsm, format_pcm, or format_wav */
     distance = (sample_offset/320)*65;
@@ -597,32 +587,33 @@ static int wav_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     {
         int i;
 
-        fseek(fs->f, 0, SEEK_END);
+        fseek(pvt->f, 0, SEEK_END);
         for (i = 0;  i < (offset - max)/65;  i++)
-            fwrite(wav49_silence, 1, 65, fs->f);
+            fwrite(wav49_silence, 1, 65, pvt->f);
     }
-    fs->secondhalf = 0;
-    return fseek(fs->f, offset, SEEK_SET);
+    pvt->secondhalf = 0;
+    return fseek(pvt->f, offset, SEEK_SET);
 }
 
-static int wav_trunc(struct opbx_filestream *fs)
+static int wav_trunc(void *data)
 {
-    if (ftruncate(fileno(fs->f), ftell(fs->f)))
+    struct pvt *pvt = data;
+
+    if (ftruncate(fileno(pvt->f), ftell(pvt->f)))
         return -1;
-    return update_header(fs->f);
+    return update_header(pvt->f);
 }
 
-static long wav_tell(struct opbx_filestream *fs)
+static long wav_tell(void *data)
 {
-    off_t offset;
+    struct pvt *pvt = data;
 
-    offset = ftell(fs->f);
     /* since this will most likely be used later in play or record, lets stick
      * to that level of resolution, just even frames boundaries */
-    return (offset - 52)/65*320;
+    return (ftell(pvt->f) - 52)/65*320;
 }
 
-static char *wav_getcomment(struct opbx_filestream *s)
+static char *wav_getcomment(void *data)
 {
     return NULL;
 }

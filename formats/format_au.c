@@ -55,16 +55,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define AU_ENC_8BIT_ULAW        1
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
     FILE *f;                            /* Descriptor */
-    struct opbx_channel *owner;
     struct opbx_frame fr;               /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];   /* Buffer for sending frames, etc */
-    char empty;                         /* Empty character */
-    int16_t buf[BUF_SIZE];
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + BUF_SIZE];
 };
 
 
@@ -207,80 +202,74 @@ static int write_header(FILE *f)
     return 0;
 }
 
-static struct opbx_filestream *au_open(FILE *f)
+static void *au_open(FILE *f)
 {
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))) == NULL)
-    {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
-        return NULL;
-    }
-
-    memset(tmp, 0, sizeof(struct opbx_filestream));
     if (check_header(f) < 0)
-    {
-        free(tmp);
         return NULL;
-    }
-    tmp->f = f;
-    opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
-    tmp->fr.data = tmp->buf;
-    /* datalen will vary for each frame */
-    tmp->fr.src = format.name;
-    return tmp;
-}
 
-static struct opbx_filestream *au_rewrite(FILE *f, const char *comment)
-{
-    struct opbx_filestream *tmp;
-
-    if ((tmp = malloc(sizeof(struct opbx_filestream))) == NULL)
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
-        return NULL;
+        tmp->f = f;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, format.name);
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
     }
 
-    memset(tmp, 0, sizeof(struct opbx_filestream));
-    if (write_header(f))
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
+}
+
+static void *au_rewrite(FILE *f, const char *comment)
+{
+    struct pvt *tmp;
+
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        free(tmp);
-        return NULL;
+        if (write_header(f))
+        {
+            free(tmp);
+            return NULL;
+        }
+        tmp->f = f;
+        return tmp;
     }
-    tmp->f = f;
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void au_close(struct opbx_filestream *s)
+static void au_close(void *data)
 {
-    fclose(s->f);
-    free(s);
+    struct pvt *pvt = data;
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *au_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
     int delay;
 
-    /* Send a frame from the file to the appropriate channel */
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.data = s->buf;
-    if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
+    if ((res = fread(pvt->fr.data, 1, BUF_SIZE, pvt->f)) < 1)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
-    s->fr.samples = res;
-    s->fr.datalen = res;
-    delay = s->fr.samples;
+    pvt->fr.datalen = pvt->fr.samples = res;
+
+    delay = pvt->fr.samples;
     *whennext = delay;
-    return &s->fr;
+    return &pvt->fr;
 }
 
-static int au_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int au_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
 
     if (f->frametype != OPBX_FRAME_VOICE)
@@ -293,17 +282,18 @@ static int au_write(struct opbx_filestream *fs, struct opbx_frame *f)
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
-    update_header(fs->f);
+    update_header(pvt->f);
     return 0;
 }
 
-static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int au_seek(void *data, long sample_offset, int whence)
 {
+    struct pvt *pvt = data;
     off_t min;
     off_t max;
     off_t cur;
@@ -312,9 +302,9 @@ static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     
     samples = sample_offset;
     min = AU_HEADER_SIZE;
-    cur = ftell(fs->f);
-    fseek(fs->f, 0, SEEK_END);
-    max = ftell(fs->f);
+    cur = ftell(pvt->f);
+    fseek(pvt->f, 0, SEEK_END);
+    max = ftell(pvt->f);
     if (whence == SEEK_SET)
         offset = samples + min;
     else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -325,25 +315,26 @@ static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
         offset = (offset > max)  ?  max  :  offset;
     /* always protect the header space. */
     offset = (offset < min)  ?  min  :  offset;
-    return fseek(fs->f, offset, SEEK_SET);
+    return fseek(pvt->f, offset, SEEK_SET);
 }
 
-static int au_trunc(struct opbx_filestream *fs)
+static int au_trunc(void *data)
 {
-    if (ftruncate(fileno(fs->f), ftell(fs->f)))
+    struct pvt *pvt = data;
+
+    if (ftruncate(fileno(pvt->f), ftell(pvt->f)))
         return -1;
-    return update_header(fs->f);
+    return update_header(pvt->f);
 }
 
-static long au_tell(struct opbx_filestream *fs)
+static long au_tell(void *data)
 {
-    off_t offset;
+    struct pvt *pvt = data;
 
-    offset = ftell(fs->f);
-    return offset - AU_HEADER_SIZE;
+    return ftell(pvt->f) - AU_HEADER_SIZE;
 }
 
-static char *au_getcomment(struct opbx_filestream *s)
+static char *au_getcomment(void *data)
 {
     return NULL;
 }

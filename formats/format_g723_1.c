@@ -46,76 +46,61 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define G723_MAX_SIZE 1024
 
-struct opbx_filestream
+struct pvt
 {
-    /* First entry MUST be reserved for the channel type */
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
-    FILE *f;                                            /* Descriptor */
-    struct opbx_filestream *next;
-    struct opbx_frame *fr;                              /* Frame representation of buf */
-    struct timeval orig;                                /* Original frame time */
-    uint8_t buf[G723_MAX_SIZE + OPBX_FRIENDLY_OFFSET];  /* Buffer for sending frames, etc */
+    FILE *f;
+    struct opbx_frame fr;
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + G723_MAX_SIZE];
 };
 
 
 static struct opbx_format format;
 static const char desc[] = "G.723.1 Simple Timestamp File Format";
 
-static struct opbx_filestream *g723_open(FILE *f)
+static void *g723_open(FILE *f)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
-        tmp->fr = (struct opbx_frame *) tmp->buf;
-        opbx_fr_init_ex(tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G723_1, format.name);
-        tmp->fr->data = tmp->buf + sizeof(struct opbx_frame);
-        /* datalen will vary for each frame */
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G723_1, format.name);
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *g723_rewrite(FILE *f, const char *comment)
+static void *g723_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *g723_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     unsigned short size;
     int res;
     int delay;
 
     /* Read the delay for the next packet, and schedule again if necessary */
-    if (fread(&delay, 1, 4, s->f) == 4) 
+    if (fread(&delay, 1, 4, pvt->f) == 4) 
         delay = ntohl(delay);
     else
         delay = -1;
-    if (fread(&size, 1, 2, s->f) != 2)
+    if (fread(&size, 1, 2, pvt->f) != 2)
     {
         /* Out of data, or the file is no longer valid.  In any case
            go ahead and stop the stream */
@@ -132,10 +117,8 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
         return NULL;
     }
     /* Read the data into the buffer */
-    s->fr->offset = OPBX_FRIENDLY_OFFSET;
-    s->fr->datalen = size;
-    s->fr->data = s->buf + sizeof(struct opbx_frame) + OPBX_FRIENDLY_OFFSET;
-    if ((res = fread(s->fr->data, 1, size, s->f)) != size)
+    pvt->fr.datalen = size;
+    if ((res = fread(pvt->fr.data, 1, size, pvt->f)) != size)
     {
         opbx_log(OPBX_LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
         return NULL;
@@ -143,34 +126,30 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
 #if 0
         /* Average out frames <= 50 ms */
         if (delay < 50)
-            s->fr->timelen = 30;
+            pvt->fr.timelen = 30;
         else
-            s->fr->timelen = delay;
+            pvt->fr.timelen = delay;
 #else
-        s->fr->samples = 240;
+        pvt->fr.samples = 240;
 #endif
-    *whennext = s->fr->samples;
-    return s->fr;
+    *whennext = pvt->fr.samples;
+    return &pvt->fr;
 }
 
-static void g723_close(struct opbx_filestream *s)
+static void g723_close(void *data)
 {
-    fclose(s->f);
-    free(s);
-    s = NULL;
+    struct pvt *pvt = data;
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int g723_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     u_int32_t delay;
     u_int16_t size;
     int res;
 
-    if (fs->fr)
-    {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write on a read stream??\n");
-        return -1;
-    }
     if (f->frametype != OPBX_FRAME_VOICE)
     {
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
@@ -187,18 +166,18 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
         opbx_log(OPBX_LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
         return 0;
     }
-    if ((res = fwrite(&delay, 1, 4, fs->f)) != 4)
+    if ((res = fwrite(&delay, 1, 4, pvt->f)) != 4)
     {
         opbx_log(OPBX_LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
     size = htons(f->datalen);
-    if ((res = fwrite(&size, 1, 2, fs->f)) != 2)
+    if ((res = fwrite(&size, 1, 2, pvt->f)) != 2)
     {
         opbx_log(OPBX_LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
         return -1;
@@ -206,25 +185,27 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
     return 0;
 }
 
-static int g723_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int g723_seek(void *data, long sample_offset, int whence)
 {
     return -1;
 }
 
-static int g723_trunc(struct opbx_filestream *fs)
+static int g723_trunc(void *data)
 {
+    struct pvt *pvt = data;
+
     /* Truncate file to current length */
-    if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
+    if (ftruncate(fileno(pvt->f), ftell(pvt->f)) < 0)
         return -1;
     return 0;
 }
 
-static long g723_tell(struct opbx_filestream *fs)
+static long g723_tell(void *data)
 {
     return -1;
 }
 
-static char *g723_getcomment(struct opbx_filestream *s)
+static char *g723_getcomment(void *data)
 {
     return NULL;
 }

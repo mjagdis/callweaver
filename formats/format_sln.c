@@ -43,19 +43,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
 
-#define BUF_SIZE 320        /* 160 samples */
+#define BUF_SIZE 160
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
     FILE *f;                                /* Descriptor */
-    struct opbx_channel *owner;
-    struct opbx_frame fr;                   /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
-    char empty;                             /* Empty character */
-    uint8_t buf[BUF_SIZE];                  /* Output Buffer */
     struct timeval last;
+    struct opbx_frame fr;                   /* Frame information */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + BUF_SIZE * sizeof(int16_t)];                  /* Output Buffer */
 };
 
 
@@ -64,78 +59,68 @@ static struct opbx_format format;
 static const char desc[] = "Raw Signed Linear Audio support (SLN)";
 
 
-static struct opbx_filestream *slinear_open(FILE *f)
+static void *slinear_open(FILE *f)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
-        tmp->fr.data = tmp->buf;
-        /* datalen will vary for each frame */
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *slinear_rewrite(FILE *f, const char *comment)
+static void *slinear_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void slinear_close(struct opbx_filestream *s)
+static void slinear_close(void *data)
 {
-    fclose(s->f);
-    free(s);
-    s = NULL;
+    struct pvt *pvt = data;
+
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *slinear_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *slinear_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
     int delay;
     /* Send a frame from the file to the appropriate channel */
 
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.data = s->buf;
-    if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
+    if ((res = fread(pvt->fr.data, 1, BUF_SIZE * sizeof(int16_t), pvt->f)) < 1)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
-    s->fr.samples = res/sizeof(int16_t);
-    s->fr.datalen = res;
-    delay = s->fr.samples;
+    pvt->fr.samples = res / sizeof(int16_t);
+    pvt->fr.datalen = res;
+    delay = pvt->fr.samples;
     *whennext = delay;
-    return &s->fr;
+    return &pvt->fr;
 }
 
-static int slinear_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int slinear_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
 
     if (f->frametype != OPBX_FRAME_VOICE)
@@ -148,7 +133,7 @@ static int slinear_write(struct opbx_filestream *fs, struct opbx_frame *f)
         opbx_log(OPBX_LOG_WARNING, "Asked to write non-slinear frame (%d)!\n", f->subclass);
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
@@ -156,15 +141,16 @@ static int slinear_write(struct opbx_filestream *fs, struct opbx_frame *f)
     return 0;
 }
 
-static int slinear_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int slinear_seek(void *data, long sample_offset, int whence)
 {
+    struct pvt *pvt = data;
     off_t offset=0,min,cur,max;
 
     min = 0;
     sample_offset <<= 1;
-    cur = ftell(fs->f);
-    fseek(fs->f, 0, SEEK_END);
-    max = ftell(fs->f);
+    cur = ftell(pvt->f);
+    fseek(pvt->f, 0, SEEK_END);
+    max = ftell(pvt->f);
     if (whence == SEEK_SET)
         offset = sample_offset;
     else if (whence == SEEK_CUR  ||  whence == SEEK_FORCECUR)
@@ -177,22 +163,24 @@ static int slinear_seek(struct opbx_filestream *fs, long sample_offset, int when
     }
     /* always protect against seeking past begining. */
     offset = (offset < min)  ?  min  :  offset;
-    return fseek(fs->f, offset, SEEK_SET)/sizeof(int16_t);
+    return fseek(pvt->f, offset, SEEK_SET)/sizeof(int16_t);
 }
 
-static int slinear_trunc(struct opbx_filestream *fs)
+static int slinear_trunc(void *data)
 {
-    return ftruncate(fileno(fs->f), ftell(fs->f));
+    struct pvt *pvt = data;
+
+    return ftruncate(fileno(pvt->f), ftell(pvt->f));
 }
 
-static long slinear_tell(struct opbx_filestream *fs)
+static long slinear_tell(void *data)
 {
-    off_t offset;
-    offset = ftell(fs->f);
-    return offset / 2;
+    struct pvt *pvt = data;
+
+    return ftell(pvt->f) / 2;
 }
 
-static char *slinear_getcomment(struct opbx_filestream *s)
+static char *slinear_getcomment(void *data)
 {
     return NULL;
 }

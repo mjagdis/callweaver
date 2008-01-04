@@ -68,17 +68,12 @@ static int frame_size[4] =
     FRAME_TIME * 2
 };
 
-struct opbx_filestream
+struct pvt
 {
-    /* Do not place anything before "reserved" */
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
     FILE *f;                                /* Open file descriptor */
     int rate;                               /* RATE_* defines */
     struct opbx_frame fr;                   /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];       /* Buffer for sending frames, etc */
-    char empty;                             /* Empty character */
-    uint8_t g726[FRAME_TIME * 5];           /* G.726 encoded voice */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + FRAME_TIME * 5];           /* G.726 encoded voice */
 };
 
 static struct opbx_format format40, format32, format24, format16;
@@ -88,210 +83,113 @@ static const char desc[] = "Raw G.726 (16/24/32/40kbps) data";
 /*
  * Rate dependant format functions (open, rewrite)
  */
-static struct opbx_filestream *g726_40_open(FILE *f)
+static void *g726_open(FILE *f, int rate, char *name)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
+
+    if ((tmp = calloc(1, sizeof(*tmp))))
+    {
+        tmp->f = f;
+        tmp->rate = rate;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name);
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
+    }
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return tmp;
+}
+
+static void *g726_40_open(FILE *f)
+{
+    return g726_open(f, RATE_40, format40.name);
+}
+
+static void *g726_32_open(FILE *f)
+{
+    return g726_open(f, RATE_32, format32.name);
+}
+
+static void *g726_24_open(FILE *f)
+{
+    return g726_open(f, RATE_24, format24.name);
+}
+
+static void *g726_16_open(FILE *f)
+{
+    return g726_open(f, RATE_16, format16.name);
+}
+
+
+static void *g726_rewrite(FILE *f, int rate, const char *comment)
+{
+    struct pvt *tmp;
     
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
-        tmp->rate = RATE_40;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, format40.name);
-        tmp->fr.data = tmp->g726;
-        /* datalen will vary for each frame */
+        tmp->rate = rate;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *g726_32_open(FILE *f)
+static void *g726_40_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_32;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, format32.name);
-        tmp->fr.data = tmp->g726;
-        /* datalen will vary for each frame */
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+    return g726_rewrite(f, RATE_40, comment);
 }
 
-static struct opbx_filestream *g726_24_open(FILE *f)
+static void *g726_32_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_24;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, format24.name);
-        tmp->fr.data = tmp->g726;
-        /* datalen will vary for each frame */
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+    return g726_rewrite(f, RATE_32, comment);
 }
 
-static struct opbx_filestream *g726_16_open(FILE *f)
+static void *g726_24_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, format16.name);
-        tmp->rate = RATE_16;
-        tmp->fr.data = tmp->g726;
-        /* datalen will vary for each frame */
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+    return g726_rewrite(f, RATE_24, comment);
 }
 
-static struct opbx_filestream *g726_40_rewrite(FILE *f, const char *comment)
+static void *g726_16_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_40;
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+    return g726_rewrite(f, RATE_16, comment);
 }
 
-static struct opbx_filestream *g726_32_rewrite(FILE *f, const char *comment)
-{
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_32;
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
-}
-
-static struct opbx_filestream *g726_24_rewrite(FILE *f, const char *comment)
-{
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_24;
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
-}
-
-static struct opbx_filestream *g726_16_rewrite(FILE *f, const char *comment)
-{
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
-    {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
-        tmp->f = f;
-        tmp->rate = RATE_16;
-    }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
-}
 
 /*
  * Rate independent format functions (close, read, write)
  */
-static void g726_close(struct opbx_filestream *s)
+static void g726_close(void *data)
 {
-    fclose(s->f);
-    free(s);
-    s = NULL;
+    struct pvt *pvt = data;
+
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *g726_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *g726_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
 
     /* Send a frame from the file to the appropriate channel */
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.samples = 8*FRAME_TIME;
-    s->fr.datalen = frame_size[s->rate];
-    s->fr.data = s->g726;
-    if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen)
+    pvt->fr.samples = 8*FRAME_TIME;
+    pvt->fr.datalen = frame_size[pvt->rate];
+    if ((res = fread(pvt->fr.data, 1, pvt->fr.datalen, pvt->f)) != pvt->fr.datalen)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
-    *whennext = s->fr.samples;
-    return &s->fr;
+    *whennext = pvt->fr.samples;
+    return &pvt->fr;
 }
 
-static int g726_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int g726_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
     
     if (f->frametype != OPBX_FRAME_VOICE)
@@ -305,37 +203,37 @@ static int g726_write(struct opbx_filestream *fs, struct opbx_frame *f)
                  f->subclass);
         return -1;
     }
-    if (f->datalen % frame_size[fs->rate])
+    if (f->datalen % frame_size[pvt->rate])
     {
         opbx_log(OPBX_LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
-                 f->datalen, frame_size[fs->rate]);
+                 f->datalen, frame_size[pvt->rate]);
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", 
-                 res, frame_size[fs->rate], strerror(errno));
+                 res, frame_size[pvt->rate], strerror(errno));
         return -1;
     }
     return 0;
 }
 
-static char *g726_getcomment(struct opbx_filestream *s)
+static char *g726_getcomment(void *data)
 {
     return NULL;
 }
 
-static int g726_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int g726_seek(void *data, long sample_offset, int whence)
 {
     return -1;
 }
 
-static int g726_trunc(struct opbx_filestream *fs)
+static int g726_trunc(void *data)
 {
     return -1;
 }
 
-static long g726_tell(struct opbx_filestream *fs)
+static long g726_tell(void *data)
 {
     return -1;
 }

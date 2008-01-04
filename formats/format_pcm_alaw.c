@@ -50,18 +50,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* #define REALTIME_WRITE */
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
-    /* This is what a filestream means to us */
     FILE *f;                                    /* Descriptor */
-    struct opbx_frame fr;                       /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];           /* Buffer for sending frames, etc */
-    char empty;                                 /* Empty character */
-    uint8_t buf[BUF_SIZE];                      /* Output Buffer */
 #ifdef REALTIME_WRITE
     unsigned long start_time;
 #endif
+    struct opbx_frame fr;                       /* Frame information */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + BUF_SIZE];                      /* Output Buffer */
 };
 
 static struct opbx_format format;
@@ -85,82 +81,71 @@ static unsigned long get_time(void)
 }
 #endif
 
-static struct opbx_filestream *pcm_open(FILE *f)
+static void *pcm_open(FILE *f)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    struct pvt *tmp;
+
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
-        tmp->fr.data = tmp->buf;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, format.name);
-        /* datalen will vary for each frame */
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
 #ifdef REALTIME_WRITE
         tmp->start_time = get_time();
 #endif
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
+static void *pcm_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
-    
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    struct pvt *tmp;
+
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
 #ifdef REALTIME_WRITE
         tmp->start_time = get_time();
 #endif
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void pcm_close(struct opbx_filestream *s)
+static void pcm_close(void *data)
 {
-    fclose(s->f);
-    free(s);
-    s = NULL;
+    struct pvt *pvt = data;
+
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *pcm_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
 
-    /* Send a frame from the file to the appropriate channel */
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.data = s->buf;
-    if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
+    if ((res = fread(pvt->fr.data, 1, BUF_SIZE, pvt->f)) < 1)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
-    s->fr.samples = res;
-    s->fr.datalen = res;
-    *whennext = s->fr.samples;
-    return &s->fr;
+    pvt->fr.samples = res;
+    pvt->fr.datalen = res;
+    *whennext = pvt->fr.samples;
+    return &pvt->fr;
 }
 
-static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int pcm_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
 #ifdef REALTIME_WRITE
     unsigned long cur_time;
@@ -181,12 +166,12 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
 #ifdef REALTIME_WRITE
     cur_time = get_time();
-    fpos = ( cur_time - fs->start_time ) * 8;    /* 8 bytes per msec */
+    fpos = ( cur_time - pvt->start_time ) * 8;    /* 8 bytes per msec */
     /* Check if we have written to this position yet. If we have, then increment pos by one frame
     *  for some degree of protection against receiving packets in the same clock tick.
     */
     
-    fstat(fileno(fs->f), &stat_buf );
+    fstat(fileno(pvt->f), &stat_buf );
     if (stat_buf.st_size > fpos )
     {
         fpos += f->datalen;    /* Incrementing with the size of this current frame */
@@ -200,7 +185,7 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
         unsigned long to_write;
 
         cur = stat_buf.st_size;
-        if (fseek(fs->f, cur, SEEK_SET) < 0)
+        if (fseek(pvt->f, cur, SEEK_SET) < 0)
         {
             opbx_log(OPBX_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
             return -1;
@@ -211,20 +196,20 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
             to_write = fpos - cur;
             if (to_write > 512)
                 to_write = 512;
-            fwrite(buf, 1, to_write, fs->f);
+            fwrite(buf, 1, to_write, pvt->f);
             cur += to_write;
         }
     }
 
 
-    if (fseek(s->f, fpos, SEEK_SET) < 0)
+    if (fseek(pvt->f, fpos, SEEK_SET) < 0)
     {
         opbx_log(OPBX_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
         return -1;
     }
 #endif    /* REALTIME_WRITE */
     
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
@@ -232,14 +217,15 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
     return 0;
 }
 
-static int pcm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int pcm_seek(void *data, long sample_offset, int whence)
 {
+    struct pvt *pvt = data;
     off_t offset=0,min,cur,max;
 
     min = 0;
-    cur = ftell(fs->f);
-    fseek(fs->f, 0, SEEK_END);
-    max = ftell(fs->f);
+    cur = ftell(pvt->f);
+    fseek(pvt->f, 0, SEEK_END);
+    max = ftell(pvt->f);
     if (whence == SEEK_SET)
         offset = sample_offset;
     else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -252,22 +238,24 @@ static int pcm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     }
     /* Always protect against seeking past begining */
     offset = (offset < min)  ?  min  :  offset;
-    return fseek(fs->f, offset, SEEK_SET);
+    return fseek(pvt->f, offset, SEEK_SET);
 }
 
-static int pcm_trunc(struct opbx_filestream *fs)
+static int pcm_trunc(void *data)
 {
-    return ftruncate(fileno(fs->f), ftell(fs->f));
+    struct pvt *pvt = data;
+
+    return ftruncate(fileno(pvt->f), ftell(pvt->f));
 }
 
-static long pcm_tell(struct opbx_filestream *fs)
+static long pcm_tell(void *data)
 {
-    off_t offset;
-    offset = ftell(fs->f);
-    return offset;
+    struct pvt *pvt = data;
+
+    return ftell(pvt->f);
 }
 
-static char *pcm_getcomment(struct opbx_filestream *s)
+static char *pcm_getcomment(void *data)
 {
     return NULL;
 }

@@ -48,18 +48,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-struct opbx_filestream
+struct pvt
 {
-    void *reserved[OPBX_RESERVED_POINTERS];
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
-    /* This is what a filestream means to us */
     FILE *f; /* Descriptor */
     unsigned int lastts;
     struct opbx_frame fr;                /* Frame information */
-    char waste[OPBX_FRIENDLY_OFFSET];    /* Buffer for sending frames, etc */
-    char empty;                            /* Empty character */
-    unsigned char h263[16384];                /* Four Real h263 Frames */
+    uint8_t buf[OPBX_FRIENDLY_OFFSET + 16384];                /* Four Real h263 Frames */
 };
 
 
@@ -68,106 +64,101 @@ static struct opbx_format format;
 static const char desc[] = "Raw h263 data";
 
 
-static struct opbx_filestream *h263_open(FILE *f)
+static void *h263_open(FILE *f)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
     unsigned int ts;
     int res;
+
     if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts))
     {
         opbx_log(OPBX_LOG_WARNING, "Empty file!\n");
         return NULL;
     }
         
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, format.name);
-        tmp->fr.data = tmp->h263;
-        /* datalen will vary for each frame */
+        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        return tmp;
     }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static struct opbx_filestream *h263_rewrite(FILE *f, const char *comment)
+static void *h263_rewrite(FILE *f, const char *comment)
 {
-    /* We don't have any header to read or anything really, but
-       if we did, it would go here.  We also might want to check
-       and be sure it's a valid file.  */
-    struct opbx_filestream *tmp;
+    struct pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    if ((tmp = calloc(1, sizeof(*tmp))))
     {
-        memset(tmp, 0, sizeof(struct opbx_filestream));
         tmp->f = f;
+        return tmp;
     }
-    else
-    {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
-    }
-    return tmp;
+
+    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    return NULL;
 }
 
-static void h263_close(struct opbx_filestream *s)
+static void h263_close(void *data)
 {
-    fclose(s->f);
-    free(s);
-    s = NULL;
+    struct pvt *pvt = data;
+
+    fclose(pvt->f);
+    free(pvt);
 }
 
-static struct opbx_frame *h263_read(struct opbx_filestream *s, int *whennext)
+static struct opbx_frame *h263_read(void *data, int *whennext)
 {
+    struct pvt *pvt = data;
     int res;
-    int mark=0;
+    int mark;
     unsigned short len;
     unsigned int ts;
 
-    /* Send a frame from the file to the appropriate channel */
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, NULL);
-    s->fr.offset = OPBX_FRIENDLY_OFFSET;
-    s->fr.data = s->h263;
-    if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
+    if ((res = fread(&len, 1, sizeof(len), pvt->f)) < 1)
         return NULL;
+
     len = ntohs(len);
-    if (len & 0x8000)
-    {
-        mark = 1;
-    }
+    mark = len & 0x8000;
     len &= 0x7fff;
-    if (len > sizeof(s->h263))
+
+    if (len > sizeof(pvt->buf) - OPBX_FRIENDLY_OFFSET)
     {
         opbx_log(OPBX_LOG_WARNING, "Length %d is too long\n", len);
         return NULL;
     }
-    if ((res = fread(s->h263, 1, len, s->f)) != len)
+
+    if ((res = fread(pvt->fr.data, 1, len, pvt->f)) != len)
     {
         if (res)
             opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
-    s->fr.samples = s->lastts;
-    s->fr.datalen = len;
-    s->fr.subclass |= mark;
-    s->fr.delivery.tv_sec = 0;
-    s->fr.delivery.tv_usec = 0;
-    if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts))
+
+    pvt->fr.samples = pvt->lastts;
+    pvt->fr.datalen = len;
+    pvt->fr.subclass |= mark;
+
+    if ((res = fread(&ts, 1, sizeof(ts), pvt->f)) == sizeof(ts))
     {
-        s->lastts = ntohl(ts);
-        *whennext = s->lastts * 4/45;
+        pvt->lastts = ntohl(ts);
+        *whennext = pvt->fr.len = pvt->lastts * 4/45;
     }
     else
     {
+        pvt->fr.len = 1;
         *whennext = 0;
     }
-    return &s->fr;
+    return &pvt->fr;
 }
 
-static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
+static int h263_write(void *data, struct opbx_frame *f)
 {
+    struct pvt *pvt = data;
     int res;
     unsigned int ts;
     unsigned short len;
@@ -189,18 +180,18 @@ static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
         return -1;
     }
     ts = htonl(f->samples);
-    if ((res = fwrite(&ts, 1, sizeof(ts), fs->f)) != sizeof(ts))
+    if ((res = fwrite(&ts, 1, sizeof(ts), pvt->f)) != sizeof(ts))
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
         return -1;
     }
     len = htons(f->datalen | mark);
-    if ((res = fwrite(&len, 1, sizeof(len), fs->f)) != sizeof(len))
+    if ((res = fwrite(&len, 1, sizeof(len), pvt->f)) != sizeof(len))
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
         return -1;
     }
-    if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+    if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
         opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
@@ -208,31 +199,32 @@ static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
     return 0;
 }
 
-static char *h263_getcomment(struct opbx_filestream *s)
+static char *h263_getcomment(void *data)
 {
     return NULL;
 }
 
-static int h263_seek(struct opbx_filestream *fs, long sample_offset, int whence)
+static int h263_seek(void *data, long sample_offset, int whence)
 {
-    /* No way Jose */
     return -1;
 }
 
-static int h263_trunc(struct opbx_filestream *fs)
+static int h263_trunc(void *data)
 {
+    struct pvt *pvt = data;
+
     /* Truncate file to current length */
-    if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
+    if (ftruncate(fileno(pvt->f), ftell(pvt->f)) < 0)
         return -1;
     return 0;
 }
 
-static long h263_tell(struct opbx_filestream *fs)
+static long h263_tell(void *data)
 {
+    struct pvt *pvt = data;
+
     /* XXX This is totally bogus XXX */
-    off_t offset;
-    offset = ftell(fs->f);
-    return (offset/20)*160;
+    return (ftell(pvt->f)/20)*160;
 }
 
 

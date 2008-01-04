@@ -48,24 +48,24 @@ struct opbx_format {
 	/* Format of frames it uses/provides (one only) */
 	int format;
 	/* Open an input stream, and start playback */
-	struct opbx_filestream * (*open)(FILE * f);
+	void *(*open)(FILE * f);
 	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
-	struct opbx_filestream * (*rewrite)(FILE *f, const char *comment);
-	/* Write a frame to a channel */
-	int (*write)(struct opbx_filestream *, struct opbx_frame *);
+	void *(*rewrite)(FILE *f, const char *comment);
+	/* Write a frame to a format handler */
+	int (*write)(void *, struct opbx_frame *);
 	/* seek num samples into file, whence(think normal seek) */
-	int (*seek)(struct opbx_filestream *, long offset, int whence);
+	int (*seek)(void *, long offset, int whence);
 	/* trunc file to current position */
-	int (*trunc)(struct opbx_filestream *fs);
+	int (*trunc)(void *);
 	/* tell current position */
-	long (*tell)(struct opbx_filestream *fs);
+	long (*tell)(void *);
 	/* Read the next frame from the filestream (if available) and report when to get next one
 		(in samples) */
-	struct opbx_frame * (*read)(struct opbx_filestream *, int *whennext);
+	struct opbx_frame *(*read)(void *, int *whennext);
 	/* Close file, and destroy filestream structure */
-	void (*close)(struct opbx_filestream *);
+	void (*close)(void *);
 	/* Retrieve file comment */
-	char * (*getcomment)(struct opbx_filestream *);
+	char *(*getcomment)(void *);
 };
 
 extern struct opbx_registry format_registry;
