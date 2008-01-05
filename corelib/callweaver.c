@@ -918,7 +918,7 @@ static char shutdown_gracefully_help[] =
 "       Causes CallWeaver to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n"
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
-"       any seconds an immediate stop will be initiated.\n";
+"       many seconds an immediate stop will be initiated.\n";
 
 static char shutdown_when_convenient_help[] = 
 "Usage: stop when convenient [timeout]\n"
