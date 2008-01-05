@@ -7412,21 +7412,21 @@ static int sip_reregister(void *data)
 /*! \brief  sip_reg_timeout: Registration timeout, register again */
 static int sip_reg_timeout(void *data)
 {
-
     /* if we are here, our registration timed out, so we'll just do it over */
     struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
     struct sip_pvt *p;
     int res;
 
-    /* if we couldn't get a reference to the registry object, punt */
-    if (!r)
-        return 0;
+    /* Since we are now running we can't be unscheduled therefore
+     * even if we get a response handle_response_register will do
+     * nothing.
+     */
+    r->timeout = -1;
 
     opbx_log(OPBX_LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
     if (r->call)
     {
-        /* Unlink us, destroy old call.  Locking is not relevant here because all this happens
-           in the single SIP manager thread. */
+        /* Unlink us, destroy old call. */
         p = r->call;
         if (p->registry)
             ASTOBJ_UNREF(p->registry, sip_registry_destroy);
@@ -12352,6 +12352,16 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
     struct sip_registry *r;
 
     r = p->registry;
+
+    /* There should be a timeout scheduled. If we can delete
+     * it we own the call. If we can't we have to stop now.
+     */
+
+    if (r->timeout == -1 || opbx_sched_del(sched, r->timeout))
+        return 1;
+
+    r->timeout = -1;
+
     switch (resp)
     {
     case 401:
@@ -12367,8 +12377,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         opbx_log(OPBX_LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
-        opbx_sched_del(sched, r->timeout);
-	r->timeout = -1;
         opbx_set_flag(p, SIP_NEEDDESTROY);    
         break;
     case 404:
@@ -12377,9 +12385,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
         opbx_set_flag(p, SIP_NEEDDESTROY);    
-        r->call = NULL;
-        opbx_sched_del(sched, r->timeout);
-	r->timeout = -1;
         break;
     case 407:
         /* Proxy auth */
@@ -12395,9 +12400,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
         opbx_set_flag(p, SIP_NEEDDESTROY);    
-        r->call = NULL;
-        opbx_sched_del(sched, r->timeout);
-	r->timeout = -1;
         break;
     case 200:
         /* 200 OK */
@@ -12416,12 +12418,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
                       regstate2str(r->regstate));
         r->regattempts = 0;
         opbx_log(OPBX_LOG_DEBUG, "Registration successful\n");
-        if (r->timeout > -1)
-        {
-            opbx_log(OPBX_LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
-            opbx_sched_del(sched, r->timeout);
-        }
-        r->timeout=-1;
         r->call = NULL;
         p->registry = NULL;
         /* Let this one hang around until we have all the responses */
@@ -12484,7 +12480,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         /* Schedule re-registration before we expire */
         r->expire=opbx_sched_add(sched, expires_ms, sip_reregister, r); 
         ASTOBJ_UNREF(r, sip_registry_destroy);
+        return 1;
     }
+
+    if (opbx_test_flag(p, SIP_NEEDDESTROY))
+        r->call = NULL;
+    else
+        r->timeout = opbx_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
     return 1;
 }
 
