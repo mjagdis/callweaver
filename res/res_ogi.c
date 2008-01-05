@@ -79,24 +79,24 @@ static const char tdesc[] = "CallWeaver Gateway Interface (OGI)";
 static void *app_app;
 static const char app_name[] = "OGI";
 static const char app_synopsis[] = "Executes an OGI compliant application";
-static const char app_syntax[] = "N/A";
+static const char app_syntax[] = "OGI(command, arg1, arg2, ..., argn)";
 
 static void *eapp_app;
 static const char eapp_name[] = "EOGI";
 static const char eapp_synopsis[] = "Executes an EOGI compliant application";
-static const char eapp_syntax[] = "N/A";
+static const char eapp_syntax[] = "EOGI(command, arg1, arg2, ..., argn)";
 
 static void *deadapp_app;
 static const char deadapp_name[] = "DeadOGI";
 static const char deadapp_synopsis[] = "Executes OGI on a hungup channel";
-static const char deadapp_syntax[] = "N/A";
+static const char deadapp_syntax[] = "DeadOGI(command, arg1, arg2, ..., argn)";
 
 static const char descrip[] =
-"  [E|Dead]OGI(command|args): Executes an CallWeaver Gateway Interface compliant\n"
-"program on a channel. OGI allows CallWeaver to launch external programs\n"
-"written in any language to control a telephony channel, play audio,\n"
-"read DTMF digits, etc. by communicating with the OGI protocol on stdin\n"
-"and stdout.\n"
+"  [E|Dead]OGI(command, arg1, arg2, ..., argn):\n"
+"Executes an CallWeaver Gateway Interface compliant program on a channel.\n"
+"OGI allows CallWeaver to launch external programs written in any language\n"
+"to control a telephony channel, play audio, read DTMF digits, etc. by\n"
+"communicating with the OGI protocol on stdin and stdout.\n"
 "Returns -1 on hangup (except for DeadOGI) or if application requested\n"
 " hangup, or 0 on non-hangup exit. \n"
 "Using 'EOGI' provides enhanced OGI, with incoming audio available out of band"
@@ -2008,7 +2008,7 @@ static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int e
 	OGI ogi;
 
 	if (argc < 1 || !argv[0][0])
-		return opbx_function_syntax("OGI(script[, args])");
+		return opbx_function_syntax("OGI(command[, arg1, arg2, ..., argn])");
 
 	LOCAL_USER_ADD(u);
 #if 0
