@@ -77,7 +77,7 @@ static void *opbx_generator_thread(void *data)
 
 	f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
 	while (f) {
-		int ret = opbx_write(chan, f);
+		opbx_write(chan, f);
 
 		if (!opbx_tvzero(f->delivery)) {
 			clk = CLOCK_REALTIME;
@@ -107,13 +107,6 @@ static void *opbx_generator_thread(void *data)
 		}
 
 		opbx_fr_free(f);
-
-		/* If the frame write failed the channel is hung up. We'll be
-		 * getting a deactivate any time now. There's no point doing
-		 * any more work while we wait for it.
-		 */
-		if (ret < 0)
-			break;
 
 		f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
 
