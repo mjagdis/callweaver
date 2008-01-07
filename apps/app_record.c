@@ -266,9 +266,9 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 				}
 				if (f->frametype == OPBX_FRAME_VOICE) {
 					res = opbx_writestream(s, f);
-					
 					if (res) {
 						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
+						opbx_fr_free(f);
 						break;
 					}
 					
@@ -290,9 +290,9 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 				}
 				if (f->frametype == OPBX_FRAME_VIDEO) {
 					res = opbx_writestream(s, f);
-					
 					if (res) {
 						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
+						opbx_fr_free(f);
 						break;
 					}
 				}

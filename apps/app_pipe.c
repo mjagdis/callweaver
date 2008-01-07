@@ -191,6 +191,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 						if (res < 0) {
 							if (errno != EAGAIN) {
 								opbx_log(OPBX_LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
+                                opbx_fr_free(f);
 								res = -1;
 								break;
 							}
