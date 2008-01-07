@@ -66,6 +66,7 @@ static int echo_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
 	opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
 	/* Do our thing here */
+    f = NULL;
 	while(opbx_waitfor(chan, -1) > -1) {
 		f = opbx_read(chan);
 		if (!f)
@@ -87,7 +88,10 @@ static int echo_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 					break;
 		}
 		opbx_fr_free(f);
+        f = NULL;
 	}
+	if (f)
+		opbx_fr_free(f);
 
 	LOCAL_USER_REMOVE(u);
 	return res;

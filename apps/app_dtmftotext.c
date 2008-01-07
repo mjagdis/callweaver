@@ -277,6 +277,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 					myf.f.data = myf.frdata;
 					if (opbx_write(chan, &myf.f) < 0)
                     {
+						opbx_fr_free(f);
 						res = -1;
 						break;
 					}
@@ -284,6 +285,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
                     {
                         // last frame
 						opbx_log(OPBX_LOG_DEBUG, "Last frame\n");
+						opbx_fr_free(f);
 						res = 0;
 						break;
 					}

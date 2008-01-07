@@ -355,8 +355,10 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                 if ((f = opbx_read(active)))
                 {
                     if (t38_gateway_rx(&t38_state, f->data, f->samples))
+                    {
+                        clean_frame(f);
                         break;
-
+                    }
                     samples = (f->samples <= MAX_BLOCK_SIZE)  ?  f->samples  :  MAX_BLOCK_SIZE;
 
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
@@ -368,6 +370,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                         outf.offset = OPBX_FRIENDLY_OFFSET;
                         if (opbx_write(channels[1], &outf) < 0)
                         {
+                            clean_frame(f);
                             opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                             break;
                         }
