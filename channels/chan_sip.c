@@ -12352,6 +12352,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
     struct sip_registry *r;
 
     r = p->registry;
+    if (!r)
+        return 1;
 
     /* There should be a timeout scheduled. If we can delete
      * it we own the call. If we can't we have to stop now.
@@ -12656,7 +12658,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             {
                 handle_response_invite(p, resp, rest, req, ignore, seqno);
             }
-            else if (sipmethod == SIP_REGISTER)
+            else if (p->registry && sipmethod == SIP_REGISTER)
             {
                 res = handle_response_register(p, resp, rest, req, ignore, seqno);
 	    } else if (sipmethod == SIP_BYE) {
