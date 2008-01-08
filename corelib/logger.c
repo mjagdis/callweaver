@@ -642,35 +642,6 @@ void close_logger(void)
 	return;
 }
 
-static void strip_coloring(char *str)
-{
-	char *src, *dest, *end;
-	
-	if (!str)
-		return;
-
-	/* find the first potential escape sequence in the string */
-
-	src = strchr(str, '\033');
-	if (!src)
-		return;
-
-	dest = src;
-	while (*src) {
-		/* at the top of this loop, *src will always be an ESC character */
-		if ((src[1] == '[') && ((end = strchr(src + 2, 'm'))))
-			src = end + 1;
-		else
-			*dest++ = *src++;
-
-		/* copy characters, checking for ESC as we go */
-		while (*src && (*src != '\033'))
-			*dest++ = *src++;
-	}
-
-	*dest = '\0';
-}
-
 static void opbx_log_vsyslog(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
@@ -693,7 +664,6 @@ static void opbx_log_vsyslog(opbx_log_level level, const char *file, int line, c
 	}
 	s = buf + strlen(buf);
 	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
-	strip_coloring(s);
 	syslog(syslog_level_map[level], "%s", buf);
 }
 
@@ -782,10 +752,8 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 				} else {
 					/* No error message, continue printing */
 					va_start(ap, fmt);
-					vsnprintf(buf, sizeof(buf), fmt, ap);
+					vfprintf(chan->fileptr, fmt, ap);
 					va_end(ap);
-					strip_coloring(buf);
-					fputs(buf, chan->fileptr);
 					fflush(chan->fileptr);
 				}
 			}
