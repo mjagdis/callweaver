@@ -330,13 +330,15 @@ static int write_header(FILE *f)
 static void *wav_open(FILE *f)
 {
     struct pvt *tmp;
+    int maxlen;
 
-    if ((tmp->maxlen = check_header(f)) < 0)
+    if ((maxlen = check_header(f)) < 0)
         return NULL;
 
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
+        tmp->maxlen = maxlen;
         tmp->needsgain = 1;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
         tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
