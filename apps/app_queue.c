@@ -29,7 +29,7 @@
  * 
  *             Each dynamic agent in each queue is now stored in the opbxdb.
  *             When callweaver is restarted, each agent will be automatically
- *             readded into their recorded queues. This feature can be
+ *             read into their recorded queues. This feature can be
  *             configured with the 'persistent_members=<1|0>' setting in the
  *             '[general]' category in queues.conf. The default is on.
  * 

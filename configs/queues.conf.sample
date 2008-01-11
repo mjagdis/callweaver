@@ -5,7 +5,7 @@
 ; Persistent Members
 ;    Store each dynamic member in each queue in the cwdb so that
 ;    when callweaver is restarted, each member will be automatically
-;    readded into their recorded queues. Default is 'yes'.
+;    read into their recorded queues. Default is 'no'.
 ;
 persistentmembers = yes
 ;
