@@ -3625,8 +3625,10 @@ static int sip_senddigit(struct opbx_channel *ast, char digit)
         transmit_info_with_digit(p, digit);
         break;
     case SIP_DTMF_RFC2833:
-        if (p->rtp)
+        if (p->rtp) {
             opbx_rtp_senddigit(p->rtp, digit);
+            res = -2;
+        }
         break;
     case SIP_DTMF_INBAND:
         res = -1;

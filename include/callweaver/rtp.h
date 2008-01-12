@@ -86,7 +86,6 @@ struct opbx_rtp
 	uint8_t rawdata[8192 + OPBX_FRIENDLY_OFFSET];
 	uint32_t ssrc;
 	uint32_t lastts;
-	uint32_t lastdigitts;
 	uint32_t lastrxts;
 	uint32_t lastividtimestamp;
 	uint32_t lastovidtimestamp;
@@ -96,9 +95,10 @@ struct opbx_rtp
 	int lastrxformat;
 	int dtmfcount;
 	unsigned int dtmfduration;
+	int senddtmf;
+	uint32_t senddtmf_startts;
 	uint32_t senddtmf_rtphdr;
 	uint32_t senddtmf_payload;
-	int senddtmf_duration;
 	int nat;
 	unsigned int flags;
 	int framems;
