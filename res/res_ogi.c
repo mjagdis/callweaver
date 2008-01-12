@@ -551,7 +551,6 @@ static int handle_streamfile(struct opbx_channel *chan, OGI *ogi, int argc, char
 	opbx_seekstream(fs, 0, SEEK_END);
 	max_length = opbx_tellstream(fs);
 	opbx_seekstream(fs, sample_offset, SEEK_SET);
-	res = opbx_applystream(chan, fs);
 	res = opbx_playstream(fs);
 	if (res) {
 		fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
@@ -611,7 +610,6 @@ static int handle_getoption(struct opbx_channel *chan, OGI *ogi, int argc, char 
         opbx_seekstream(fs, 0, SEEK_END);
         max_length = opbx_tellstream(fs);
         opbx_seekstream(fs, sample_offset, SEEK_SET);
-        res = opbx_applystream(chan, fs);
         res = opbx_playstream(fs);
         if (res) {
                 fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
@@ -944,7 +942,6 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
 		}
 		
 		chan->stream = fs;
-		opbx_applystream(chan,fs);
 		/* really should have checks */
 		opbx_seekstream(fs, sample_offset, SEEK_SET);
 		opbx_truncstream(fs);

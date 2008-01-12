@@ -265,9 +265,6 @@ opbx_filestream_session_t *opbx_filestream_writefile(
 //struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
 /*! \brief */
 //struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang);
-/*! \brief Applies an open stream to a channel. */
-// Used only by OGI. rewirkable with higher levels
-//int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s);
 /*! \brief play a open stream on a channel. */
 // Used only by OGI. rewirkable with higher levels
 //int opbx_playstream(struct opbx_filestream *s);

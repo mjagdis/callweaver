@@ -270,14 +270,6 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
  */
 struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang);
 
-/*! Applys a open stream to a channel. */
-/*!
- * \param chan channel to work
- * \param opbx_filestream s to apply
- * Returns 0 for success, -1 on failure
- */
-int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s);
-
 /*! play a open stream on a channel. */
 /*!
  * \param opbx_filestream s to play

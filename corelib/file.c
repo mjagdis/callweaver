@@ -345,7 +345,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 
 struct fileopen_args {
 	const char *filename;
-	const struct opbx_channel *chan;
+	struct opbx_channel *chan;
 	const char *fmt;
 	struct opbx_filestream *s;
 };
@@ -370,6 +370,7 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 				if ((bfile = fopen(fn, "r"))) {
 					if ((args->s->pvt = f->open(bfile))) {
 						args->s->fmt = opbx_object_dup(f);
+						args->s->owner = args->chan;
 						args->s->lasttimeout = -1;
 						free(fn);
 						return 1;
@@ -384,7 +385,7 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 	return 0;
 }
 
-static struct opbx_filestream *opbx_fileopen(const struct opbx_channel *chan, const char *filename, const char *fmt)
+static struct opbx_filestream *opbx_fileopen(struct opbx_channel *chan, const char *filename, const char *fmt)
 {
 	struct fileopen_args args = {
 		.filename = filename,
@@ -590,12 +591,6 @@ static int opbx_readvideo_callback(void *data)
 	return 1;
 }
 
-int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s)
-{
-	s->owner = chan;
-	return 0;
-}
-
 int opbx_playstream(struct opbx_filestream *s)
 {
 	if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
@@ -752,10 +747,6 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 	if (vfs)
 		opbx_log(OPBX_LOG_DEBUG, "Ooh, found a video stream, too\n");
 	if (fs){
-		if (opbx_applystream(chan, fs))
-			return -1;
-		if (vfs && opbx_applystream(chan, vfs))
-			return -1;
 		if (opbx_playstream(fs))
 			return -1;
 		if (vfs && opbx_playstream(vfs))
