@@ -1959,7 +1959,7 @@ static int do_senddigit(struct opbx_channel *chan, char digit)
 
 	if (chan->tech->send_digit)
 		res = chan->tech->send_digit(chan, digit);
-	if (!chan->tech->send_digit || res)
+	if (!chan->tech->send_digit || res < 0)
     {
 		/*
 		 * Device does not support DTMF tones, lets fake
@@ -1967,6 +1967,7 @@ static int do_senddigit(struct opbx_channel *chan, char digit)
 		 */
 		static const char* dtmf_tones[] =
         {
+			"!0/100,!0/100",	/* silence */
 			"!941+1336/100,!0/100",	/* 0 */
 			"!697+1209/100,!0/100",	/* 1 */
 			"!697+1336/100,!0/100",	/* 2 */
@@ -1984,14 +1985,16 @@ static int do_senddigit(struct opbx_channel *chan, char digit)
 			"!941+1209/100,!0/100",	/* * */
 			"!941+1477/100,!0/100"	/* # */
         };
-		if (digit >= '0'  &&  digit <='9')
-			opbx_playtones_start(chan, 0, dtmf_tones[digit - '0'], 0);
+		if (res == -2)
+			opbx_playtones_start(chan, 0, dtmf_tones[0], 0);
+		else if (digit >= '0'  &&  digit <='9')
+			opbx_playtones_start(chan, 0, dtmf_tones[1 + digit - '0'], 0);
 		else if (digit >= 'A' && digit <= 'D')
-			opbx_playtones_start(chan, 0, dtmf_tones[digit - 'A' + 10], 0);
+			opbx_playtones_start(chan, 0, dtmf_tones[1 + digit - 'A' + 10], 0);
 		else if (digit == '*')
-			opbx_playtones_start(chan, 0, dtmf_tones[14], 0);
-		else if (digit == '#')
 			opbx_playtones_start(chan, 0, dtmf_tones[15], 0);
+		else if (digit == '#')
+			opbx_playtones_start(chan, 0, dtmf_tones[16], 0);
 		else
         {
 			/* not handled */
