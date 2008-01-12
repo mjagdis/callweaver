@@ -261,14 +261,6 @@ struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *f
  * Returns a opbx_filestream pointer if it opens the file, NULL on error
  */
 struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
-/*! Opens stream for use in seeking, playing */
-/*!
- * \param chan channel to work with
- * \param filename to use
- * \param preflang prefered language to use
- * Returns a opbx_filestream pointer if it opens the file, NULL on error
- */
-struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang);
 
 /*! play a open stream on a channel. */
 /*!

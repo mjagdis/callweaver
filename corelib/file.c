@@ -479,7 +479,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	return NULL;
 }
 
-struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang)
+static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:

@@ -263,8 +263,6 @@ opbx_filestream_session_t *opbx_filestream_writefile(
 //opbx_filestream_session_t *opbx_filestream_open(struct opbx_channel *chan, const char *filename);
 //As opbx_filestream_open without _full but doesn't stops generator
 //struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
-/*! \brief */
-//struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang);
 /*! \brief play a open stream on a channel. */
 // Used only by OGI. rewirkable with higher levels
 //int opbx_playstream(struct opbx_filestream *s);
