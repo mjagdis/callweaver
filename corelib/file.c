@@ -578,6 +578,8 @@ static struct opbx_generator filestream_generator =
 
 int opbx_playstream(struct opbx_filestream *fs)
 {
+	if (fs->vfs)
+		opbx_generator_activate(fs->vfs->owner, &fs->vfs->generator, &filestream_generator, fs->vfs);
 	opbx_generator_activate(fs->owner, &fs->owner->generator, &filestream_generator, fs);
 	return 0;
 }
@@ -721,8 +723,6 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 		opbx_log(OPBX_LOG_DEBUG, "Ooh, found a video stream, too\n");
 	if (fs){
 		if (opbx_playstream(fs))
-			return -1;
-		if (fs->vfs && opbx_playstream(fs->vfs))
 			return -1;
 #if 1
 		if (option_verbose > 2)
