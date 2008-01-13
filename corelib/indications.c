@@ -223,7 +223,7 @@ static struct opbx_frame *playtones_generator(struct opbx_channel *chan, void *d
 		{
 			/* last item */
 			if (ps->reppos == -1)			/* repeat set? */
-				return -1;
+				return NULL;
 			ps->npos = ps->reppos;			/* redo from top */
 		}
 
