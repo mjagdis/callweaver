@@ -40,12 +40,13 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/atomic.h"
 #include "callweaver/frame.h"
 #include "callweaver/file.h"
 #include "callweaver/cli.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
-#include "callweaver/sched.h"
+#include "callweaver/generator.h"
 #include "callweaver/options.h"
 #include "callweaver/translate.h"
 #include "callweaver/utils.h"
@@ -79,6 +80,7 @@ struct opbx_registry format_registry = {
 struct opbx_filestream {
 	struct opbx_format *fmt;
 	void *pvt;
+	atomic_t running;
 	int flags;
 	mode_t mode;
 	char *filename;
@@ -91,24 +93,32 @@ struct opbx_filestream {
 	int lastwriteformat;
 	int lasttimeout;
 	struct opbx_channel *owner;
+	/* Currently the generator instance is only used for video
+	 * streams, audio streams use the generator instance in the
+	 * channel struct. This is because channels are not currently
+	 * reference counted so the channel clean up code needs to
+	 * be able to find and deactivate a running generator.
+	 * (At the moment you cannot have a video stream unless there
+	 * is an accompanying audio stream)
+	 */
+	struct opbx_generator_instance generator;
 };
 
 
-static struct sched_context *sched;
-
-
-int opbx_stopstream(struct opbx_channel *tmp)
+int opbx_stopstream(struct opbx_channel *chan)
 {
+	struct opbx_filestream *fs;
+
 	/* Stop a running stream if there is one */
-	if (tmp->vstream) {
-		opbx_closestream(tmp->vstream);
-		tmp->vstream = NULL;
+	if ((fs = chan->vstream)) {
+		chan->vstream = NULL;
+		opbx_closestream(fs);
 	}
-	if (tmp->stream) {
-		opbx_closestream(tmp->stream);
-		tmp->stream = NULL;
-		if (tmp->oldwriteformat && opbx_set_write_format(tmp, tmp->oldwriteformat))
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
+	if ((fs = chan->stream)) {
+		chan->stream = NULL;
+		opbx_closestream(fs);
+		if (chan->oldwriteformat && opbx_set_write_format(chan, chan->oldwriteformat))
+			opbx_log(OPBX_LOG_WARNING, "Unable to restore format back to %d\n", chan->oldwriteformat);
 	}
 	return 0;
 }
@@ -397,6 +407,8 @@ static struct opbx_filestream *opbx_fileopen(struct opbx_channel *chan, const ch
 		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
+	atomic_set(&args.s->running, 0);
+	args.s->generator.tid = OPBX_PTHREADT_NULL;
 
 	opbx_registry_iterate(&format_registry, fileopen_one, &args);
 	if (args.s->fmt)
@@ -533,70 +545,44 @@ struct opbx_frame *opbx_readframe(struct opbx_filestream *s)
 	return f;
 }
 
-static int opbx_readaudio_callback(void *data)
-{
-	struct opbx_filestream *s = data;
-	struct opbx_frame *fr;
-	int whennext = 0;
 
-	while(!whennext) {
-		fr = s->fmt->read(s->pvt, &whennext);
-		if (fr) {
-			if (opbx_write(s->owner, fr)) {
-				opbx_log(OPBX_LOG_WARNING, "Failed to write frame\n");
-				s->owner->streamid = -1;
-				return 0;
-			}
-		} else {
-			/* Stream has finished */
-			opbx_stopstream(s->owner);
-			s->owner->streamid = -1;
-			return 0;
-		}
-	}
-	if (whennext != s->lasttimeout) {
-			s->owner->streamid = opbx_sched_add(sched, whennext/8, opbx_readaudio_callback, s);
-		s->lasttimeout = whennext;
-		return 0;
-	}
-	return 1;
+static void filestream_release(struct opbx_channel *chan, void *params)
+{
+	struct opbx_filestream *fs = params;
+
 }
 
-static int opbx_readvideo_callback(void *data)
+static void *filestream_alloc(struct opbx_channel *chan, void *params)
 {
-	struct opbx_filestream *s = data;
-	struct opbx_frame *fr;
-	int whennext = 0;
+	struct opbx_filestream *fs = params;
 
-	while(!whennext) {
-		fr = s->fmt->read(s->pvt, &whennext);
-		if (fr) {
-			if (opbx_write(s->owner, fr)) {
-				opbx_log(OPBX_LOG_WARNING, "Failed to write frame\n");
-				s->owner->vstreamid = -1;
-				return 0;
-			}
-		} else {
-			/* Stream has finished */
-			opbx_stopstream(s->owner);
-			s->owner->vstreamid = -1;
-			return 0;
-		}
-	}
-	if (whennext != s->lasttimeout) {
-		s->owner->vstreamid = opbx_sched_add(sched, whennext/8, opbx_readvideo_callback, s);
-		s->lasttimeout = whennext;
-		return 0;
-	}
-	return 1;
+	atomic_inc(&fs->running);
+	return fs;
 }
 
-int opbx_playstream(struct opbx_filestream *s)
+static struct opbx_frame *filestream_generate(struct opbx_channel *chan, void *data, int samples)
 {
-	if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
-		opbx_readaudio_callback(s);
-	else
-		opbx_readvideo_callback(s);
+	struct opbx_filestream *fs = data;
+	struct opbx_frame *f;
+	int whennext = 0;
+
+	f = fs->fmt->read(fs->pvt, &whennext);
+	if (!f)
+		atomic_dec(&fs->running);
+	return f;
+}
+
+static struct opbx_generator filestream_generator =
+{
+	alloc: filestream_alloc,
+	release: filestream_release,
+	generate: filestream_generate,
+};
+
+
+int opbx_playstream(struct opbx_filestream *fs)
+{
+	opbx_generator_activate(fs->owner, &fs->owner->generator, &filestream_generator, fs);
 	return 0;
 }
 
@@ -636,29 +622,20 @@ int opbx_closestream(struct opbx_filestream *f)
 	size_t size = 0;
 
 	/* Stop a running stream if there is one */
-	if (f->owner) {
-		if (f->fmt->format < OPBX_FORMAT_MAX_AUDIO) {
-			f->owner->stream = NULL;
-			if (f->owner->streamid > -1)
-				opbx_sched_del(sched, f->owner->streamid);
-			f->owner->streamid = -1;
-		} else {
-			f->owner->vstream = NULL;
-			if (f->owner->vstreamid > -1)
-				opbx_sched_del(sched, f->owner->vstreamid);
-			f->owner->vstreamid = -1;
-		}
-	}
+	if (f->vfs)
+		opbx_generator_deactivate(&f->vfs->generator);
+	opbx_generator_deactivate(&f->owner->generator);
+
 	/* destroy the translator on exit */
 	if (f->trans)
 		opbx_translator_free_path(f->trans);
 
 	if (f->realfilename && f->filename) {
-			size = strlen(f->filename) + strlen(f->realfilename) + 15;
-			cmd = alloca(size);
-			memset(cmd,0,size);
-			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
-			opbx_safe_system(cmd);
+		size = strlen(f->filename) + strlen(f->realfilename) + 15;
+		cmd = alloca(size);
+		memset(cmd,0,size);
+		snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
+		opbx_safe_system(cmd);
 	}
 
 	if (f->filename)
@@ -773,6 +750,8 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *fmt, con
 		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
+	atomic_set(&args.s->running, 0);
+	args.s->generator.tid = OPBX_PTHREADT_NULL;
 
 	opbx_registry_iterate(&format_registry, fileopen_one, &args);
 	if (args.s->fmt)
@@ -899,6 +878,8 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
+	atomic_set(&args.s->running, 0);
+	args.s->generator.tid = OPBX_PTHREADT_NULL;
 
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified
 	 * We really can't use O_APPEND as it will break WAV header updates
@@ -923,8 +904,11 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 	/* XXX Maybe I should just front-end opbx_waitstream_full ? XXX */
 	int res;
 	struct opbx_frame *fr;
-	if (!breakon) breakon = "";
-	while(c->stream) {
+
+	if (!breakon)
+		breakon = "";
+
+	while (atomic_read(&c->stream->running)) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -975,13 +959,13 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 	struct opbx_frame *fr;
 
 	if (!breakon)
-			breakon = "";
+		breakon = "";
 	if (!forward)
-			forward = "";
+		forward = "";
 	if (!rewind)
-			rewind = "";
+		rewind = "";
 	
-	while(c->stream) {
+	while (atomic_read(&c->stream->running)) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -1040,7 +1024,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 	if (!breakon)
 		breakon = "";
 	
-	while(c->stream) {
+	while (atomic_read(&c->stream->running)) {
 		ms = 10000;
 		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
@@ -1104,8 +1088,10 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 	struct opbx_frame *fr;
 	char exten[OPBX_MAX_EXTENSION];
 
-	if (!context) context = c->context;
-	while(c->stream) {
+	if (!context)
+		context = c->context;
+
+	while (atomic_read(&c->stream->running)) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -1197,7 +1183,9 @@ struct opbx_clicmd show_file = {
 
 int opbx_file_init(void)
 {
-	sched = sched_context_create();
+	if (!filestream_generator.is_initialized)
+		opbx_object_init(&filestream_generator, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+
 	opbx_cli_register(&show_file);
 	return 0;
 }

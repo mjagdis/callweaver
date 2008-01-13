@@ -248,12 +248,8 @@ struct opbx_channel {
 
 	/*! Which fd had an event detected on */
 	int fdno;				
-	/*! For streaming playback, the schedule ID */
-	int streamid;
         /*! Stream itself. */
         struct opbx_filestream *stream;
-	/*! For streaming playback, the schedule ID */
-	int vstreamid;
 	/*! Stream itself. */
 	struct opbx_filestream *vstream;
 	/*! Original writer format */
