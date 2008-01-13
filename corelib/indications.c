@@ -390,7 +390,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		s = strsep(&stringp, separator);
 	}
 
-	if (opbx_generator_activate(chan, &playtones, &d))
+	if (opbx_generator_activate(chan, &chan->generator, &playtones, &d))
 		return -1;
 
 	return 0;
@@ -398,7 +398,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 
 void opbx_playtones_stop(struct opbx_channel *chan)
 {
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 }
 
 struct tone_zone *tone_zones;

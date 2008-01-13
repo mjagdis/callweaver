@@ -541,7 +541,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	if (dsp)
 	    opbx_dsp_reset(dsp);
 
-	opbx_generator_activate(chan, &faxgen, fax);
+	opbx_generator_activate(chan, &chan->generator, &faxgen, fax);
 
 	while ( ready && ready_to_talk(chan) ) {
 
@@ -597,7 +597,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	    inf = NULL;
 	}
 
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 
     }
 

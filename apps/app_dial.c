@@ -305,7 +305,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 	
 	if (single) {
 		/* Turn off hold music, etc */
-		opbx_generator_deactivate(in);
+		opbx_generator_deactivate(&in->generator);
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
 		opbx_channel_make_compatible(outgoing->chan, in);
 	}
@@ -1612,7 +1612,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				opbx_indicate(chan, -1);
 			}
 			/* Be sure no generators are left on it */
-			opbx_generator_deactivate(chan);
+			opbx_generator_deactivate(&chan->generator);
 			/* Make sure channels are compatible */
 			res = opbx_channel_make_compatible(chan, peer);
 			if (res < 0) {

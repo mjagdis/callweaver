@@ -999,7 +999,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	opbx_copy_string(name, chan->name, sizeof(name));
 
 	/* Stop generator thread */
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 
 	/* Stop monitoring */
 	if (chan->monitor)
@@ -1180,7 +1180,7 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 
 	free_translation(chan);
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 	if (chan->stream) 		/* Close audio stream */
 		opbx_closestream(chan->stream);
 	if (chan->vstream)		/* Close video stream */
@@ -1649,7 +1649,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE)  ||  opbx_check_hangup(chan))
 	{
 		opbx_mutex_unlock(&chan->lock);
-		opbx_generator_deactivate(chan);
+		opbx_generator_deactivate(&chan->generator);
 		return NULL;
 	}
 	prestate = chan->_state;
@@ -1818,7 +1818,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	opbx_mutex_unlock(&chan->lock);
 
 	if (f == NULL)
-	    opbx_generator_deactivate(chan);
+	    opbx_generator_deactivate(&chan->generator);
 
 	return f;
 }
@@ -2072,7 +2072,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 			opbx_mutex_unlock(&chan->lock);
 			if (option_debug)
 			    opbx_log(OPBX_LOG_DEBUG, "trying deactivate generator with unlock/lock channel (opbx_write function)\n");
-			opbx_generator_deactivate(chan);
+			opbx_generator_deactivate(&chan->generator);
 			opbx_mutex_lock(&chan->lock);
 		}
         else
@@ -3767,14 +3767,14 @@ int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int dur
                                  0,
                                  0);
     }
-    if (opbx_generator_activate(chan, &tonepair, &d))
+    if (opbx_generator_activate(chan, &chan->generator, &tonepair, &d))
 		return -1;
 	return 0;
 }
 
 void opbx_tonepair_stop(struct opbx_channel *chan)
 {
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 }
 
 int opbx_tonepair(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol)

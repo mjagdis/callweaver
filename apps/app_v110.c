@@ -256,7 +256,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *re
 
 	v110_generate(chan, vs, primelen);
 
-	if (opbx_generator_activate(chan, &v110_gen, vs) < 0) {
+	if (opbx_generator_activate(chan, &chan->generator, &v110_gen, vs) < 0) {
 		opbx_log(OPBX_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;

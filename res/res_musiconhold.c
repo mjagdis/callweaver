@@ -857,19 +857,19 @@ static int local_opbx_moh_start(struct opbx_channel *chan, char *class)
 	}
 
 	/* Stop any generators that might be running */
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 
 	opbx_set_flag(chan, OPBX_FLAG_MOH);
 	if (mohclass->total_files) {
-		return opbx_generator_activate(chan, &moh_file_stream, mohclass);
+		return opbx_generator_activate(chan, &chan->generator, &moh_file_stream, mohclass);
 	} else
-		return opbx_generator_activate(chan, &mohgen, mohclass);
+		return opbx_generator_activate(chan, &chan->generator, &mohgen, mohclass);
 }
 
 static void local_opbx_moh_stop(struct opbx_channel *chan)
 {
 	opbx_clear_flag(chan, OPBX_FLAG_MOH);
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 
 	if (chan->music_state) {
 		if (chan->stream) {
@@ -1040,7 +1040,7 @@ static void moh_on_off(int on)
 			if (on)
 				local_opbx_moh_start(chan, NULL);
 			else
-				opbx_generator_deactivate(chan);
+				opbx_generator_deactivate(&chan->generator);
 		}
 		opbx_mutex_unlock(&chan->lock);
 	}

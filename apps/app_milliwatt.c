@@ -118,7 +118,7 @@ static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv, char
 	{
 		opbx_answer(chan);
 	}
-	if (opbx_generator_activate(chan,&milliwattgen,"milliwatt") < 0)
+	if (opbx_generator_activate(chan, &chan->generator, &milliwattgen, "milliwatt") < 0)
 	{
 		opbx_log(OPBX_LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		LOCAL_USER_REMOVE(u);
@@ -126,7 +126,7 @@ static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv, char
 	}
 	while(!opbx_safe_sleep(chan, 10000));
 
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 	LOCAL_USER_REMOVE(u);
 	return -1;
 }

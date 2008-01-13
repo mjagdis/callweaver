@@ -1866,7 +1866,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     adsi_tx_set_preamble(&h.tx_adsi, (h.protocol == '2')  ?  -1  :  0, -1, -1, -1);
     adsi_rx_init(&h.rx_adsi, ADSI_STANDARD_CLIP, (h.protocol == '2')  ?  put_adsi_msg_prot2  :  put_adsi_msg_prot1, &h);
     
-    if (opbx_generator_activate(chan, &smsgen, &h) < 0)
+    if (opbx_generator_activate(chan, &chan->generator, &smsgen, &h) < 0)
     {
         opbx_log(OPBX_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
         LOCAL_USER_REMOVE(u);

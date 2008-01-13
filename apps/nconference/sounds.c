@@ -55,7 +55,7 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
 
 
     opbx_set_write_format( member->chan, OPBX_FORMAT_SLINEAR );
-    opbx_generator_activate(member->chan,&membergen,member);
+    opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 
     return res;
 }

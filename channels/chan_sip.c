@@ -13027,7 +13027,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
 static void opbx_quiet_chan(struct opbx_channel *chan) 
 {
     if (chan)
-        opbx_generator_deactivate(chan);
+        opbx_generator_deactivate(&chan->generator);
     else
         opbx_log(OPBX_LOG_WARNING, "Aiiiee. Tried to quit_chan non-existing Channel!\n");
 }

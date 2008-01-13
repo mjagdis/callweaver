@@ -35,12 +35,13 @@ struct opbx_generator {
 
 struct opbx_generator_instance {
 	pthread_t tid;
+	struct opbx_channel *chan;
 	struct opbx_generator *class;
 	void *pvt;
 };
 
-extern void opbx_generator_deactivate(struct opbx_channel *chan);
-extern int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *class, void *params);
+extern void opbx_generator_deactivate(struct opbx_generator_instance *gen);
+extern int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator_instance *gen, struct opbx_generator *class, void *params);
 
 #define opbx_generator_is_active(chan) (!pthread_equal((chan)->generator.tid, OPBX_PTHREADT_NULL))
 

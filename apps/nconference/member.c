@@ -129,7 +129,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
     } 
     else if ( member->force_on_hold == -1 ) {
 	opbx_moh_stop(member->chan);
-	opbx_generator_activate(member->chan,&membergen,member);
+	opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 	member->force_on_hold = 0 ;
     } 
 
@@ -150,7 +150,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
 	 member->skip_moh_when_alone == 0 
        ) {
 	opbx_moh_stop(member->chan);
-	opbx_generator_activate(member->chan,&membergen,member);
+	opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 	member->is_on_hold = 0 ;
 	return 0;
     }
@@ -573,7 +573,7 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
     opbx_log( OPBX_CONF_DEBUG, "end member event loop, time_entered => %ld -  removal: %d\n", member->time_entered.tv_sec, member->remove_flag ) ;
 
     //opbx_log( OPBX_CONF_DEBUG, "Deactivating generator - Channel => %s\n", member->chan->name ) ;
-    opbx_generator_deactivate(chan);
+    opbx_generator_deactivate(&chan->generator);
 
     return -1 ;
 		
@@ -845,7 +845,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, cha
         opbx_object_init(&membergen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
 
     if ( !opbx_generator_is_active(chan) )
-	opbx_generator_activate(chan,&membergen,member);
+	opbx_generator_activate(chan, &chan->generator, &membergen, member);
 
 
     return member ;
@@ -857,7 +857,7 @@ int opbx_conf_member_genactivate( struct opbx_conf_member *member ) {
     int res = 1;
 
     if ( !opbx_generator_is_active(member->chan) )
-	res = opbx_generator_activate(member->chan,&membergen,member);
+	res = opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 
     if (res < 0)
     {

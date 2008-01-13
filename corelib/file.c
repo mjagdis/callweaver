@@ -434,7 +434,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	if (!asis) {
 		/* do this first, otherwise we detect the wrong writeformat */
 		opbx_stopstream(chan);
-		opbx_generator_deactivate(chan);
+		opbx_generator_deactivate(&chan->generator);
 	}
 	if (opbx_strlen_zero(preflang)) {
 		preflang = DEFAULT_LANGUAGE;

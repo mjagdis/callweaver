@@ -41,7 +41,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  */
 static void *opbx_generator_thread(void *data)
 {
-	struct opbx_channel *chan = data;
+	struct opbx_generator_instance *gen = data;
 	struct timespec tick;
 	struct opbx_frame *f;
 #if !defined(_POSIX_TIMERS)
@@ -73,11 +73,11 @@ static void *opbx_generator_thread(void *data)
 	}
 #endif
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", chan->name);
+	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", gen->chan->name);
 
-	f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
+	f = gen->class->generate(gen->chan, gen->pvt, 160);
 	while (f) {
-		opbx_write(chan, f);
+		opbx_write(gen->chan, f);
 
 		if (!opbx_tvzero(f->delivery)) {
 			clk = CLOCK_REALTIME;
@@ -108,7 +108,7 @@ static void *opbx_generator_thread(void *data)
 
 		opbx_fr_free(f);
 
-		f = chan->generator.class->generate(chan, chan->generator.pvt, 160);
+		f = gen->class->generate(gen->chan, gen->pvt, 160);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -121,10 +121,10 @@ static void *opbx_generator_thread(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", chan->name);
+	opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", gen->chan->name);
 
 	/* Next write on the channel should clean out the defunct generator */
-	opbx_set_flag(chan, OPBX_FLAG_WRITE_INT);
+	opbx_set_flag(gen->chan, OPBX_FLAG_WRITE_INT);
 
 #if !defined(__USE_XOPEN2K)
 	pthread_cleanup_pop(1);
@@ -134,49 +134,53 @@ static void *opbx_generator_thread(void *data)
 }
 
 
-void opbx_generator_deactivate(struct opbx_channel *chan)
+void opbx_generator_deactivate(struct opbx_generator_instance *gen)
 {
-	opbx_mutex_lock(&chan->lock);
+	if (!gen->chan)
+		return;
 
-	if (!pthread_equal(chan->generator.tid, OPBX_PTHREADT_NULL)) {
+	opbx_mutex_lock(&gen->chan->lock);
+
+	if (!pthread_equal(gen->tid, OPBX_PTHREADT_NULL)) {
 		char name[OPBX_CHANNEL_NAME];
 		struct opbx_generator_instance generator;
 
-		opbx_log(OPBX_LOG_DEBUG, "%s: Trying to deactivate generator\n", chan->name);
+		opbx_log(OPBX_LOG_DEBUG, "%s: Trying to deactivate generator\n", gen->chan->name);
 
-		opbx_copy_string(name, chan->name, sizeof(name));
-		generator = chan->generator;
-		chan->generator.tid = OPBX_PTHREADT_NULL;
-		opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
+		opbx_copy_string(name, gen->chan->name, sizeof(name));
+		generator = *gen;
+		gen->tid = OPBX_PTHREADT_NULL;
+		opbx_clear_flag(gen->chan, OPBX_FLAG_WRITE_INT);
 
-		opbx_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&gen->chan->lock);
 
 		pthread_cancel(generator.tid);
 		pthread_join(generator.tid, NULL);
-		generator.class->release(chan, generator.pvt);
+		generator.class->release(generator.chan, generator.pvt);
 		opbx_object_put(generator.class);
 		opbx_log(OPBX_LOG_DEBUG, "%s: Generator stopped\n", name);
 	} else
-		opbx_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&gen->chan->lock);
 }
 
 
-int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *class, void *params)
+int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator_instance *gen, struct opbx_generator *class, void *params)
 {
 	opbx_mutex_lock(&chan->lock);
 
-	while (!pthread_equal(chan->generator.tid, OPBX_PTHREADT_NULL)) {
+	while (!pthread_equal(gen->tid, OPBX_PTHREADT_NULL)) {
 		opbx_mutex_unlock(&chan->lock);
-		opbx_generator_deactivate(chan);
+		opbx_generator_deactivate(gen);
 		opbx_mutex_lock(&chan->lock);
 	}
 
-	if ((chan->generator.pvt = class->alloc(chan, params))) {
-		chan->generator.class = opbx_object_get(class);
+	if ((gen->pvt = class->alloc(chan, params))) {
+		gen->class = opbx_object_get(class);
 
-		if (opbx_pthread_create(&chan->generator.tid, &global_attr_rr, opbx_generator_thread, chan)) {
+		gen->chan = chan;
+		if (opbx_pthread_create(&gen->tid, &global_attr_rr, opbx_generator_thread, gen)) {
 			opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
-			class->release(chan, chan->generator.pvt);
+			class->release(chan, gen->pvt);
 			opbx_mutex_unlock(&chan->lock);
 			opbx_object_put(class);
 			return -1;

@@ -67,7 +67,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		} 
 		else {
     		    opbx_moh_stop(member->chan);
-		    opbx_generator_activate(member->chan,&membergen,member);
+		    opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 		}
 		opbx_log(OPBX_CONF_DEBUG,"Volume MUTE (muted: %d)\n",member->talk_mute);
 		break;

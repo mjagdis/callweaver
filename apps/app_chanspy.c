@@ -479,7 +479,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
         if (fd)
             csth.fd = fd;
         start_spying(spyee, chan, &csth.spy);
-        opbx_generator_activate(chan, &spygen, &csth);
+        opbx_generator_activate(chan, &chan->generator, &spygen, &csth);
 
         while (csth.spy.status == CHANSPY_RUNNING
                &&
@@ -533,7 +533,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
                 inp[x++] = res;
             }
         }
-        opbx_generator_deactivate(chan);
+        opbx_generator_deactivate(&chan->generator);
         stop_spying(spyee, &csth.spy);
 
         if (option_verbose >= 2)

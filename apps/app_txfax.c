@@ -478,7 +478,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 	// This is activated when we don't receive any frame for
 	// X seconds (see above)... we are probably on ZAP or talking without UDPTL to
 	// another callweaver box
-	opbx_generator_activate(chan, &faxgen, fax);
+	opbx_generator_activate(chan, &chan->generator, &faxgen, fax);
 
 	while ( ready && ready_to_talk(chan) ) {
 
@@ -515,7 +515,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
     	    opbx_fr_free(inf);
 	    inf = NULL;
 	}
-	opbx_generator_deactivate(chan);
+	opbx_generator_deactivate(&chan->generator);
 
     }
 
