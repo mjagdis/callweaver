@@ -1183,8 +1183,6 @@ int opbx_hangup(struct opbx_channel *chan)
 	opbx_generator_deactivate(&chan->generator);
 	if (chan->stream) 		/* Close audio stream */
 		opbx_closestream(chan->stream);
-	if (chan->vstream)		/* Close video stream */
-		opbx_closestream(chan->vstream);
 	if (chan->cdr)
 	{
         /* End the CDR if it hasn't already */ 

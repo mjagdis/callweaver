@@ -110,10 +110,6 @@ int opbx_stopstream(struct opbx_channel *chan)
 	struct opbx_filestream *fs;
 
 	/* Stop a running stream if there is one */
-	if ((fs = chan->vstream)) {
-		chan->vstream = NULL;
-		opbx_closestream(fs);
-	}
 	if ((fs = chan->stream)) {
 		chan->stream = NULL;
 		opbx_closestream(fs);
@@ -505,11 +501,12 @@ static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const
 	       set it up.
 		   
 	*/
-	int fmts = -1;
 	char filename2[256];
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
+	struct opbx_filestream *fs;
+	int fmts = -1;
 
 	if (!opbx_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
@@ -528,9 +525,9 @@ static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const
 		return NULL;
 	}
 
- 	chan->vstream = opbx_fileopen(chan, filename2, fmt);
-	if (chan->vstream)
-		return chan->vstream;
+ 	fs = opbx_fileopen(chan, filename2, fmt);
+	if (fs)
+		return fs;
 
 	opbx_log(OPBX_LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
@@ -548,8 +545,7 @@ struct opbx_frame *opbx_readframe(struct opbx_filestream *s)
 
 static void filestream_release(struct opbx_channel *chan, void *params)
 {
-	struct opbx_filestream *fs = params;
-
+//	struct opbx_filestream *fs = params;
 }
 
 static void *filestream_alloc(struct opbx_channel *chan, void *params)
@@ -623,7 +619,8 @@ int opbx_closestream(struct opbx_filestream *f)
 
 	/* Stop a running stream if there is one */
 	if (f->vfs)
-		opbx_generator_deactivate(&f->vfs->generator);
+		opbx_closestream(f->vfs);
+
 	opbx_generator_deactivate(&f->owner->generator);
 
 	/* destroy the translator on exit */
@@ -717,16 +714,15 @@ int opbx_filecopy(const char *filename, const char *filename2, const char *fmt)
 int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char *preflang)
 {
 	struct opbx_filestream *fs;
-	struct opbx_filestream *vfs;
 
 	fs = opbx_openstream(chan, filename, preflang);
-	vfs = opbx_openvstream(chan, filename, preflang);
-	if (vfs)
+	fs->vfs = opbx_openvstream(chan, filename, preflang);
+	if (fs->vfs)
 		opbx_log(OPBX_LOG_DEBUG, "Ooh, found a video stream, too\n");
 	if (fs){
 		if (opbx_playstream(fs))
 			return -1;
-		if (vfs && opbx_playstream(vfs))
+		if (fs->vfs && opbx_playstream(fs->vfs))
 			return -1;
 #if 1
 		if (option_verbose > 2)

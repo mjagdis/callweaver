@@ -250,8 +250,6 @@ struct opbx_channel {
 	int fdno;				
         /*! Stream itself. */
         struct opbx_filestream *stream;
-	/*! Stream itself. */
-	struct opbx_filestream *vstream;
 	/*! Original writer format */
 	int oldwriteformat;			
 	
