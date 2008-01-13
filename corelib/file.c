@@ -904,7 +904,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 	if (!breakon)
 		breakon = "";
 
-	while (atomic_read(&c->stream->running)) {
+	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -961,7 +961,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 	if (!rewind)
 		rewind = "";
 	
-	while (atomic_read(&c->stream->running)) {
+	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -1020,7 +1020,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 	if (!breakon)
 		breakon = "";
 	
-	while (atomic_read(&c->stream->running)) {
+	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		ms = 10000;
 		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
@@ -1087,7 +1087,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 	if (!context)
 		context = c->context;
 
-	while (atomic_read(&c->stream->running)) {
+	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		res = opbx_waitfor(c, 10000);
 		if (res < 0) {
 			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
