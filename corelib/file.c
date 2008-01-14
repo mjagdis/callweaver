@@ -112,9 +112,15 @@ int opbx_stopstream(struct opbx_channel *chan)
 	/* Stop a running stream if there is one */
 	if ((fs = chan->stream)) {
 		chan->stream = NULL;
-		opbx_closestream(fs);
+
+		opbx_generator_deactivate(&fs->owner->generator);
+		if (fs->vfs)
+			opbx_generator_deactivate(&fs->vfs->generator);
+
 		if (chan->oldwriteformat && opbx_set_write_format(chan, chan->oldwriteformat))
 			opbx_log(OPBX_LOG_WARNING, "Unable to restore format back to %d\n", chan->oldwriteformat);
+
+		opbx_closestream(fs);
 	}
 	return 0;
 }
@@ -619,13 +625,9 @@ int opbx_closestream(struct opbx_filestream *f)
 	char *cmd = NULL;
 	size_t size = 0;
 
-	/* Stop a running stream if there is one */
 	if (f->vfs)
 		opbx_closestream(f->vfs);
 
-	opbx_generator_deactivate(&f->owner->generator);
-
-	/* destroy the translator on exit */
 	if (f->trans)
 		opbx_translator_free_path(f->trans);
 
