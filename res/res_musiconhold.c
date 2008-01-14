@@ -871,12 +871,8 @@ static void local_opbx_moh_stop(struct opbx_channel *chan)
 	opbx_clear_flag(chan, OPBX_FLAG_MOH);
 	opbx_generator_deactivate(&chan->generator);
 
-	if (chan->music_state) {
-		if (chan->stream) {
-			opbx_closestream(chan->stream);
-			chan->stream = NULL;
-		}
-	}
+	if (chan->music_state)
+		opbx_stopstream(chan);
 }
 
 static struct mohclass *moh_class_malloc(void)
