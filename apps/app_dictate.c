@@ -249,7 +249,7 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 						}
 						if (lastop != DFLAG_PLAY) {
 							lastop = DFLAG_PLAY;
-							opbx_closestream(fs);
+							opbx_stopstream(chan);
 							fs = opbx_openstream(chan, path, chan->language);
 							opbx_seekstream(fs, samples, SEEK_SET);
 							chan->stream = NULL;
