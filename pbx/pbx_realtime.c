@@ -206,7 +206,8 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 			if(!opbx_strlen_zero(tmp))
 			   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
 			if (option_verbose > 2)
-	 		    opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+	 		    opbx_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
+				    exten, context, priority,
 			            app,
 				    chan->name,
 				    (!opbx_strlen_zero(appdata) ? (char *)appdata : "")
