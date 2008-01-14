@@ -969,6 +969,7 @@ struct sip_peer {
     int pokeexpire;            /*!<  When to expire poke (qualify= checking) */
     int lastms;            /*!<  How long last response took (in ms), or -1 for no response */
     int maxms;            /*!<  Max ms we will accept for the host to be up, 0 to not monitor */
+    int noanswer;         /*!<  How many noanswers we have had in a row */
     struct timeval ps;        /*!<  Ping send time */
     
     struct sockaddr_in defaddr;    /*!<  Default IP address, used until registration */
@@ -12522,6 +12523,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         pingtime = opbx_tvdiff_ms(tv, peer->ps);
         if (pingtime < 1)
             pingtime = 1;
+        peer->noanswer = 0;
         if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
         {
             if (pingtime <= peer->maxms)
@@ -14716,14 +14718,18 @@ static int sip_poke_noanswer(void *data)
         peer->call = NULL;
     }
 
-    if (peer->lastms > -1)
+    if (peer->noanswer < 3)
+        peer->noanswer++;
+
+    if (peer->noanswer == 3 && peer->lastms > -1)
     {
 	if (option_verbose > 3)
 		opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+        peer->lastms = -1;
+        opbx_device_state_changed("SIP/%s", peer->name);
     }
-    peer->lastms = -1;
-    opbx_device_state_changed("SIP/%s", peer->name);
+
     /* Try again quickly */
     peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
     return 0;
