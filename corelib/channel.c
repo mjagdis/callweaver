@@ -1179,10 +1179,13 @@ int opbx_hangup(struct opbx_channel *chan)
 		return 0;
 	}
 
-	free_translation(chan);
-	opbx_generator_deactivate(&chan->generator);
 	if (chan->stream) 		/* Close audio stream */
-		opbx_closestream(chan->stream);
+		opbx_stopstream(chan);
+
+	opbx_generator_deactivate(&chan->generator);
+
+	free_translation(chan);
+
 	if (chan->cdr)
 	{
         /* End the CDR if it hasn't already */ 
