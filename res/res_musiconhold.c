@@ -694,7 +694,7 @@ static struct opbx_frame *moh_generate(struct opbx_channel *chan, void *data, in
 	int len, res;
 
 	if (!moh->parent->pid)
-		return -1;
+		return NULL;
 
 	len = opbx_codec_get_len(moh->parent->format, samples);
 
