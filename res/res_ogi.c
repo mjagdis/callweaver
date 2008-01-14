@@ -927,8 +927,11 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
 	if ((argc > 7) && (!strchr(argv[7], '=')))
 		res = opbx_streamfile(chan, "beep", chan->language);
 
-	if (!res)
+	if (!res) {
 		res = opbx_waitstream(chan, argv[4]);
+		opbx_stopstream(chan);
+	}
+
 	if (res) {
 		fdprintf(ogi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	} else {
@@ -941,7 +944,6 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
 			return RESULT_FAILURE;
 		}
 		
-		chan->stream = fs;
 		/* really should have checks */
 		opbx_seekstream(fs, sample_offset, SEEK_SET);
 		opbx_truncstream(fs);
