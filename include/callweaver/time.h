@@ -35,6 +35,25 @@ typedef typeof(tv.tv_sec) opbx_time_t;
 typedef typeof(tv.tv_usec) opbx_suseconds_t;
 
 /*!
+ * \brief Computes the difference (in microseconds) between two \c struct \c timeval instances.
+ * \param end the beginning of the time period
+ * \param start the end of the time period
+ * \return the difference in microseconds
+ */
+OPBX_INLINE_API(
+int opbx_tvdiff(struct timeval end, struct timeval start),
+{
+	/* the offset by 1,000,000 below is intentional...
+	   it avoids differences in the way that division
+	   is handled for positive and negative numbers, by ensuring
+	   that the divisor is always positive
+	*/
+	return  ((end.tv_sec - start.tv_sec) * 1000000) +
+		(end.tv_usec - start.tv_usec);
+}
+)
+
+/*!
  * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
  * \param end the beginning of the time period
  * \param start the end of the time period
