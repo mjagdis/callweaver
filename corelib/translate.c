@@ -260,13 +260,23 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
     return NULL;
 }
 
-static void calc_cost(struct opbx_translator *t, int secs)
+
+struct calc_cost_args {
+	struct opbx_translator *t;
+	int samples;
+};
+
+
+static void *calc_cost(void *data)
 {
-    int sofar;
+    struct calc_cost_args *args = data;
+    struct opbx_translator *t = args->t;
     struct opbx_translator_pvt *pvt;
     struct opbx_frame *f;
     struct opbx_frame *out;
     struct timeval start;
+    int secs = args->samples;
+    int sofar;
     int cost;
 
     if (secs < 1)
@@ -276,14 +286,14 @@ static void calc_cost(struct opbx_translator *t, int secs)
     if (t->sample == NULL)
     {
         opbx_log(OPBX_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
-        t->cost = 99999;
-        return;
+        t->cost = INT_MAX;
+        return NULL;
     }
     if ((pvt = t->newpvt()) == NULL)
     {
         opbx_log(OPBX_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
-        t->cost = 99999;
-        return;
+        t->cost = INT_MAX;
+        return NULL;
     }
     start = opbx_tvnow();
     /* Call the encoder until we've processed "secs" seconds of data */
@@ -293,8 +303,8 @@ static void calc_cost(struct opbx_translator *t, int secs)
         {
             opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
             t->destroy(pvt);
-            t->cost = 99999;
-            return;
+            t->cost = INT_MAX;
+            return NULL;
         }
         t->framein(pvt, f);
         opbx_fr_free(f);
@@ -304,11 +314,13 @@ static void calc_cost(struct opbx_translator *t, int secs)
             opbx_fr_free(out);
         }
     }
-    cost = opbx_tvdiff_ms(opbx_tvnow(), start);
+    cost = opbx_tvdiff(opbx_tvnow(), start);
     t->destroy(pvt);
-    t->cost = cost/secs;
+    t->cost = (cost/secs + 99) / 100;
     if (t->cost <= 0)
         t->cost = 1;
+
+    return NULL;
 }
 
 static int rebuild_matrix_one(struct opbx_object *obj, void *data)
@@ -317,8 +329,18 @@ static int rebuild_matrix_one(struct opbx_object *obj, void *data)
 	struct opbx_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
 	int *samples = data;
 
-	if (*samples || !t->cost)
-		calc_cost(t, *samples);
+	if (*samples || !t->cost) {
+		struct calc_cost_args args = {
+			.t = t,
+			.samples = *samples,
+		};
+		pthread_t tid;
+		int ret;
+		if (!(ret = opbx_pthread_create(&tid, &global_attr_fifo, calc_cost, &args)))
+			pthread_join(tid, NULL);
+		else
+			opbx_log(OPBX_LOG_ERROR, "calc_cost thread: %d %s\n", ret, strerror(ret));
+	}
 
 	td->step = opbx_object_dup(t);
 	td->cost = t->cost;
@@ -437,13 +459,13 @@ static int show_translation(int fd, int argc, char *argv[])
         for (y = -1;  y < SHOW_TRANS;  y++)
         {
             if (x >= 0  &&  y >= 0  &&  tr_matrix[x][y].step)
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", (tr_matrix[x][y].cost >= 99999)  ?  tr_matrix[x][y].cost - 99999  :  tr_matrix[x][y].cost);
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d.%01d", tr_matrix[x][y].cost / 10, tr_matrix[x][y].cost % 10);
             else if (((x == -1  &&  y >= 0)  ||  (y == -1  &&  x >= 0)))
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5s", opbx_getformatname(1 << (x + y + 1)));
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %8s", opbx_getformatname(1 << (x + y + 1)));
             else if (x != -1  &&  y != -1)
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), "        -");
             else
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), "      ");
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), "         ");
         }
         snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
         opbx_cli(fd, line);            
