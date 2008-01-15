@@ -222,6 +222,8 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 
 extern pthread_attr_t global_attr_default;
 extern pthread_attr_t global_attr_detached;
+extern pthread_attr_t global_attr_fifo_detached;
+extern pthread_attr_t global_attr_fifo;
 extern pthread_attr_t global_attr_rr_detached;
 extern pthread_attr_t global_attr_rr;
 

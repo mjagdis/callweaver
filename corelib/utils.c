@@ -507,6 +507,8 @@ const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 
 pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
+pthread_attr_t global_attr_fifo;
+pthread_attr_t global_attr_fifo_detached;
 pthread_attr_t global_attr_rr;
 pthread_attr_t global_attr_rr_detached;
 
@@ -952,6 +954,20 @@ int opbx_utils_init(void)
 	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_DETACHED);
 
 	sp.sched_priority = 50;
+
+	pthread_attr_init(&global_attr_fifo);
+	pthread_attr_setstacksize(&global_attr_fifo, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_fifo, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(&global_attr_fifo, SCHED_FIFO);
+	pthread_attr_setschedparam(&global_attr_fifo, &sp);
+	pthread_attr_setdetachstate(&global_attr_fifo, PTHREAD_CREATE_JOINABLE);
+
+	pthread_attr_init(&global_attr_fifo_detached);
+	pthread_attr_setstacksize(&global_attr_fifo_detached, OPBX_STACKSIZE);
+	pthread_attr_setinheritsched(&global_attr_fifo_detached, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(&global_attr_fifo_detached, SCHED_FIFO);
+	pthread_attr_setschedparam(&global_attr_fifo_detached, &sp);
+	pthread_attr_setdetachstate(&global_attr_fifo_detached, PTHREAD_CREATE_DETACHED);
 
 	pthread_attr_init(&global_attr_rr);
 	pthread_attr_setstacksize(&global_attr_rr, OPBX_STACKSIZE);
