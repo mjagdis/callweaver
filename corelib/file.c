@@ -512,7 +512,7 @@ static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
 	struct opbx_filestream *fs;
-	int fmts = -1;
+	int fmts = 0;
 
 	if (!opbx_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
