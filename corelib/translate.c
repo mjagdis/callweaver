@@ -295,6 +295,19 @@ static void *calc_cost(void *data)
         t->cost = INT_MAX;
         return NULL;
     }
+
+    t->cost = INT_MAX;
+    if (!(f = t->sample())) {
+        opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+        goto out;
+    }
+    t->framein(pvt, f);
+    opbx_fr_free(f);
+    while ((out = t->frameout(pvt))) {
+        sofar += out->samples;
+        opbx_fr_free(out);
+    }
+
     start = opbx_tvnow();
     /* Call the encoder until we've processed "secs" seconds of data */
     for (sofar = 0;  sofar < secs*t->dst_rate;  )
@@ -302,9 +315,7 @@ static void *calc_cost(void *data)
         if ((f = t->sample()) == NULL)
         {
             opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
-            t->destroy(pvt);
-            t->cost = INT_MAX;
-            return NULL;
+            goto out;
         }
         t->framein(pvt, f);
         opbx_fr_free(f);
@@ -315,11 +326,12 @@ static void *calc_cost(void *data)
         }
     }
     cost = opbx_tvdiff(opbx_tvnow(), start);
-    t->destroy(pvt);
     t->cost = (cost/secs + 99) / 100;
     if (t->cost <= 0)
         t->cost = 1;
 
+out:
+    t->destroy(pvt);
     return NULL;
 }
 
