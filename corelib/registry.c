@@ -60,8 +60,6 @@ static void registry_purge(struct opbx_registry *registry)
 			opbx_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, registry->obj_name(entry->obj));
 		free(entry);
 	}
-
-	opbx_mutex_unlock(&registry->lock);
 }
 
 struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *registry, struct opbx_object *obj)
