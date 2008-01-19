@@ -765,10 +765,10 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 		 * so just log to stdout 
 		*/
 		if (level != __OPBX_LOG_VERBOSE) {
+			fprintf(stdout, (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
 			va_start(ap, fmt);
-			vsnprintf(buf, sizeof(buf), fmt, ap);
+			vfprintf(stdout, fmt, ap);
 			va_end(ap);
-			fputs(buf, stdout);
 		}
 	}
 
