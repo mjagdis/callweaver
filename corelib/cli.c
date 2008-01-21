@@ -50,9 +50,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "libltdl/ltdl.h"
 
-/* For rl_filename_completion */
-#include <readline/readline.h>
-
 
 static const char *clicmd_registry_obj_name(struct opbx_object *obj)
 {
@@ -163,23 +160,6 @@ void opbx_cli(int fd, char *fmt, ...)
 }
 
 
-static char load_help[] = 
-"Usage: load <module name>\n"
-"       Loads the specified module into CallWeaver.\n"
-"       If the module is already present but deregistered (see unload)\n"
-"       its functionality will simply be reregistered. Note that since\n"
-"       the module has not actually been unloaded and reloaded this\n"
-"       may mean that internal state is NOT reset.\n";
-
-static char unload_help[] = 
-"Usage: unload [-h] <module name>\n"
-"       Deregisters the functionality provided by the specified\n"
-"       module from CallWeaver so that it will be removed as soon\n"
-"       as it is no longer in use.\n"
-"       The -h option requests that channels that are currently\n"
-"       using or dependent on the module be hung up.\n"
-"       It is always safe to call unload multiple times on a module.\n";
-
 static char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
@@ -192,11 +172,6 @@ static char chanlist_help[] =
 "       'concise' is specified, the format is abridged and in a more easily\n"
 "       machine parsable format. If 'verbose' is specified, the output includes\n"
 "       more and longer fields.\n";
-
-static char reload_help[] = 
-"Usage: reload [module ...]\n"
-"       Reloads configuration files for all listed modules which support\n"
-"       reloading, or for all supported modules if none are listed.\n";
 
 static char set_verbose_help[] = 
 "Usage: set verbose <level>\n"
@@ -215,39 +190,6 @@ static char softhangup_help[] =
 "       Request that a channel be hung up. The hangup takes effect\n"
 "       the next time the driver reads or writes from the channel\n";
 
-static int handle_load(int fd, int argc, char *argv[])
-{
-    if (argc != 2)
-        return RESULT_SHOWUSAGE;
-    if (opbx_load_resource(argv[1])) {
-        opbx_cli(fd, "Unable to load module %s\n", argv[1]);
-        return RESULT_FAILURE;
-    }
-    return RESULT_SUCCESS;
-}
-
-static int handle_reload(int fd, int argc, char *argv[])
-{
-    int x;
-    int res;
-    if (argc < 1)
-        return RESULT_SHOWUSAGE;
-    if (argc > 1) { 
-        for (x=1;x<argc;x++) {
-            res = opbx_module_reload(argv[x]);
-            switch(res) {
-            case 0:
-                opbx_cli(fd, "No such module '%s'\n", argv[x]);
-                break;
-            case 1:
-                opbx_cli(fd, "Module '%s' does not support reload\n", argv[x]);
-                break;
-            }
-        }
-    } else
-        opbx_module_reload(NULL);
-    return RESULT_SUCCESS;
-}
 
 static int handle_set_verbose(int fd, int argc, char *argv[])
 {
@@ -299,33 +241,6 @@ static int handle_set_debug(int fd, int argc, char *argv[])
         opbx_cli(fd, "Core debug is at least %d\n", option_debug);
     else if (oldval > 0 && option_debug == 0)
         opbx_cli(fd, "Core debug is now OFF\n");
-    return RESULT_SUCCESS;
-}
-
-static int handle_unload(int fd, int argc, char *argv[])
-{
-    int x;
-    int hangup = 0;
-
-    if (argc < 2)
-        return RESULT_SHOWUSAGE;
-
-    for (x = 1; x < argc; x++) {
-        if (argv[x][0] == '-') {
-            switch (argv[x][1]) {
-            case 'h':
-                hangup = 1;
-                break;
-            default:
-                return RESULT_SHOWUSAGE;
-            }
-        } else if (x !=  argc - 1) 
-            return RESULT_SHOWUSAGE;
-        else if (opbx_unload_resource(argv[x], hangup)) {
-            opbx_cli(fd, "Unable to unload resource %s\n", argv[x]);
-            return RESULT_FAILURE;
-        }
-    }
     return RESULT_SUCCESS;
 }
 
@@ -963,64 +878,6 @@ static char *complete_ch_4(char *line, char *word, int pos, int state)
     return complete_ch_helper(line, word, pos, state, 3);
 }
 
-static char *complete_mod_2(char *line, char *word, int pos, int state)
-{
-    return opbx_module_helper(line, word, pos, state, 1, 1);
-}
-
-
-struct complete_fn_args {
-	const char *word;
-	char *ret;
-	int wordlen;
-	int state;
-};
-
-static int complete_fn_one(const char *filename, lt_ptr data)
-{
-    struct complete_fn_args *args = (struct complete_fn_args *)data;
-    char *basename;
-
-    if ((basename = strrchr(filename, '/')) && (basename++, 1)
-    && !strncmp(basename, args->word, args->wordlen)) {
-        if (!args->state) {
-            int l = strlen(basename);
-            if ((args->ret = malloc(l + 3 + 1))) {
-	    	memcpy(args->ret, basename, l);
-		memcpy(args->ret + l, ".so\000", 4);
-            	return 1;
-            }
-	    opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
-	    return 1;
-        }
-        args->state--;
-    }
-    return 0;
-}
-
-static char *complete_fn(char *line, char *word, int pos, int state)
-{
-    char filename[256];
-    struct complete_fn_args args = {
-	    .ret = NULL,
-    };
-
-    if (pos == 1) {
-        if (word[0] == '/') {
-            opbx_copy_string(filename, word, sizeof(filename));
-            args.ret = (char*)rl_filename_completion_function(filename, state);
-            if (args.ret)
-                args.ret = strdup(args.ret);
-        } else {
-            args.state = state;
-            args.word = word;
-            args.wordlen = strlen(word);
-            lt_dlforeachfile(lt_dlgetsearchpath(), complete_fn_one, &args);
-        }
-    }
-    return args.ret;
-}
-
 
 static int handle_help(int fd, int argc, char *argv[]);
 
@@ -1063,25 +920,11 @@ static struct opbx_clicmd builtins[] = {
         .usage = help_help
     },
     {
-        .cmda = { "load", NULL },
-        .handler = handle_load,
-        .summary = "Load a dynamic module by name",
-        .usage = load_help,
-        .generator = complete_fn
-    },
-    {
         .cmda = { "no", "debug", "channel", NULL },
         .handler = handle_nodebugchan,
         .summary = "Disable debugging on a channel",
         .usage = nodebugchan_help,
         .generator = complete_ch_4
-    },
-    {
-        .cmda = { "reload", NULL },
-        .handler = handle_reload,
-        .summary = "Reload configuration",
-        .usage = reload_help,
-        .generator = complete_mod_2
     },
     {
         .cmda = { "set", "debug", NULL },
@@ -1127,13 +970,6 @@ static struct opbx_clicmd builtins[] = {
         .summary = "Request a hangup on a given channel",
         .usage = softhangup_help,
         .generator = complete_ch_3
-    },
-    {
-        .cmda = { "unload", NULL },
-        .handler = handle_unload,
-        .summary = "Unload a dynamic module by name",
-        .usage = unload_help,
-        .generator = complete_fn
     },
 };
 

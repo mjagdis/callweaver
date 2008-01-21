@@ -97,24 +97,6 @@ int opbx_loader_cli_init(void);
  */
 int opbx_module_reload(const char *name);
 
-/*! 
- * \brief Match modules names for the CallWeaver cli.
- * \param line Unused by this function, but this should be the line we are
- *        matching.
- * \param wordstem The partial name to match. 
- * \param pos The position the word we are completing is in.
- * \param state The possible match to return.
- * \param rpos The position we should be matching.  This should be the same as
- *        pos.
- * \param needsreload This should be 1 if we need to reload this module and 0
- *        otherwise.  This function will only return modules that are reloadble
- *        if this is 1.
- *
- * \return A possible completion of the partial match, or NULL if no matches
- * were found.
- */
-char *opbx_module_helper(char *line, char *wordstem, int pos, int state, int rpos, int needsreload);
-
 
 struct localuser;
 
