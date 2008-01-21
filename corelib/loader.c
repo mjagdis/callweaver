@@ -161,40 +161,25 @@ int opbx_unload_resource(const char *resource_name, int hangup)
 	return -1;
 }
 
-static char *opbx_module_helper(char *line, char *word, int pos, int state)
+static char *module_generator(char *line, char *word, int pos, int state)
 {
 	struct module *m;
-	int which=0;
-	char *ret;
+	int which = 0;
+	char *ret = NULL;
 
 	opbx_mutex_lock(&module_lock);
+
 	m = module_list;
-	while(m) {
+	while (m) {
 		if (!strncasecmp(word, m->resource, strlen(word))) {
-			if (++which > state)
+			if (++which > state) {
+				ret = strdup(m->resource);
 				break;
+			}
 		}
 		m = m->next;
 	}
-	if (m) {
-		ret = strdup(m->resource);
-	} else {
-		ret = NULL;
-		if (!strncasecmp(word, "extconfig", strlen(word))) {
-			if (++which > state)
-				ret = strdup("extconfig");
-		} else if (!strncasecmp(word, "manager", strlen(word))) {
-			if (++which > state)
-				ret = strdup("manager");
-		} else if (!strncasecmp(word, "enum", strlen(word))) {
-			if (++which > state)
-				ret = strdup("enum");
-		} else if (!strncasecmp(word, "rtp", strlen(word))) {
-			if (++which > state)
-				ret = strdup("rtp");
-		}
-			
-	}
+
 	opbx_mutex_unlock(&module_lock);
 	return ret;
 }
@@ -597,6 +582,35 @@ static int handle_reload(int fd, int argc, char *argv[])
 }
 
 
+static char *reload_module_generator(char *line, char *word, int pos, int state)
+{
+	static char *core[] = {
+		"extconfig",
+		"manager",
+		"enum",
+		"rtp",
+	};
+	char *ret = NULL;
+	int i, l;
+
+	l = strlen(word);
+
+	for (i = 0; i < arraysize(core); i++) {
+		if (!strncasecmp(word, core[i], l)) {
+			if (state-- == 0) {
+				ret = strdup(core[i]);
+				break;
+			}
+		}
+	}
+
+	if (!ret)
+		ret = module_generator(line, word, pos, state - arraysize(core));
+
+	return ret;
+}
+
+
 static int handle_unload(int fd, int argc, char *argv[])
 {
 	int x;
@@ -663,7 +677,7 @@ static struct opbx_clicmd clicmds[] = {
 	{
 		.cmda = { "show", "modules", "like", NULL },
 		.handler = handle_modlist,
-		.generator = opbx_module_helper,
+		.generator = module_generator,
 		.summary = "List modules and info",
 		.usage = modlist_help,
 	},
@@ -677,14 +691,14 @@ static struct opbx_clicmd clicmds[] = {
 	{
 		.cmda = { "reload", NULL },
 		.handler = handle_reload,
-		.generator = opbx_module_helper,
+		.generator = reload_module_generator,
 		.summary = "Reload configuration",
 		.usage = reload_help,
 	},
 	{
 		.cmda = { "unload", NULL },
 		.handler = handle_unload,
-		.generator = opbx_module_helper,
+		.generator = module_generator,
 		.summary = "Unload a dynamic module by name",
 		.usage = unload_help,
 	},
