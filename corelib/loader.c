@@ -161,14 +161,12 @@ int opbx_unload_resource(const char *resource_name, int hangup)
 	return -1;
 }
 
-static char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos)
+static char *opbx_module_helper(char *line, char *word, int pos, int state)
 {
 	struct module *m;
 	int which=0;
 	char *ret;
 
-	if (pos != rpos)
-		return NULL;
 	opbx_mutex_lock(&module_lock);
 	m = module_list;
 	while(m) {
@@ -505,11 +503,6 @@ static int handle_modlist(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_mod_4(char *line, char *word, int pos, int state)
-{
-	return opbx_module_helper(line, word, pos, state, 3);
-}
-
 
 static int handle_load(int fd, int argc, char *argv[])
 {
@@ -604,12 +597,6 @@ static int handle_reload(int fd, int argc, char *argv[])
 }
 
 
-static char *complete_mod_2(char *line, char *word, int pos, int state)
-{
-	return opbx_module_helper(line, word, pos, state, 1);
-}
-
-
 static int handle_unload(int fd, int argc, char *argv[])
 {
 	int x;
@@ -676,7 +663,7 @@ static struct opbx_clicmd clicmds[] = {
 	{
 		.cmda = { "show", "modules", "like", NULL },
 		.handler = handle_modlist,
-		.generator = complete_mod_4,
+		.generator = opbx_module_helper,
 		.summary = "List modules and info",
 		.usage = modlist_help,
 	},
@@ -690,7 +677,7 @@ static struct opbx_clicmd clicmds[] = {
 	{
 		.cmda = { "reload", NULL },
 		.handler = handle_reload,
-		.generator = complete_mod_2,
+		.generator = opbx_module_helper,
 		.summary = "Reload configuration",
 		.usage = reload_help,
 	},
