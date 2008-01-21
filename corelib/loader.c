@@ -161,7 +161,7 @@ int opbx_unload_resource(const char *resource_name, int hangup)
 	return -1;
 }
 
-static char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload)
+static char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos)
 {
 	struct module *m;
 	int which=0;
@@ -172,7 +172,7 @@ static char *opbx_module_helper(char *line, char *word, int pos, int state, int 
 	opbx_mutex_lock(&module_lock);
 	m = module_list;
 	while(m) {
-		if (!strncasecmp(word, m->resource, strlen(word)) && (m->modinfo->reconfig || !needsreload)) {
+		if (!strncasecmp(word, m->resource, strlen(word))) {
 			if (++which > state)
 				break;
 		}
@@ -507,7 +507,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 
 static char *complete_mod_4(char *line, char *word, int pos, int state)
 {
-	return opbx_module_helper(line, word, pos, state, 3, 0);
+	return opbx_module_helper(line, word, pos, state, 3);
 }
 
 
@@ -606,7 +606,7 @@ static int handle_reload(int fd, int argc, char *argv[])
 
 static char *complete_mod_2(char *line, char *word, int pos, int state)
 {
-	return opbx_module_helper(line, word, pos, state, 1, 1);
+	return opbx_module_helper(line, word, pos, state, 1);
 }
 
 
