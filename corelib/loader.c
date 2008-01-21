@@ -684,9 +684,9 @@ static struct opbx_clicmd clicmds[] = {
 	{
 		.cmda = { "unload", NULL },
 		.handler = handle_unload,
+		.generator = opbx_module_helper,
 		.summary = "Unload a dynamic module by name",
 		.usage = unload_help,
-		.generator = complete_fn
 	},
 };
 
