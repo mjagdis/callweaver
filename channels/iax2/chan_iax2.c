@@ -662,7 +662,7 @@ static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t nowtime);
 static int iax2_write(struct opbx_channel *c, struct opbx_frame *f);
-static void *iax2_do_register(void *data);
+static void *iax2_do_register_thread(void *data);
 static void prune_peers(void);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 
@@ -4552,10 +4552,8 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 static int iax2_do_register_s(void *data)
 {
 	pthread_t tid;
-	struct iax2_registry *reg = data;
 
-	reg->expire = -1;
-	opbx_pthread_create(&tid, &global_attr_detached, iax2_do_register, reg);
+	opbx_pthread_create(&tid, &global_attr_detached, iax2_do_register_thread, data);
 	return 0;
 }
 
@@ -4703,6 +4701,23 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	char iabuf[INET_ADDRSTRLEN];
 	int oldmsgs;
 
+	reg = iaxs[callno]->reg;
+	if (!reg) {
+		opbx_log(OPBX_LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
+		return -1;
+	}
+	if (inaddrcmp(&reg->addr, sin)) {
+		opbx_log(OPBX_LOG_WARNING, "Received unsolicited registry ack from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		return -1;
+	}
+
+	/* If we can delete the scheduled reregistration we own the
+	 * call and registry entry. Otherwise the reregistration is
+	 * already running and we should do nothing.
+	 */
+	if (opbx_sched_del(sched, reg->expire))
+		return 0;
+
 	memset(&us, 0, sizeof(us));
 	if (ies->apparent_addr)
 		memcpy(&us, ies->apparent_addr, sizeof(us));
@@ -4713,26 +4728,11 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	if (ies->calling_number) {
 		/* We don't do anything with it really, but maybe we should */
 	}
-	reg = iaxs[callno]->reg;
-	if (!reg) {
-		opbx_log(OPBX_LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
-		return -1;
-	}
+
 	memcpy(&oldus, &reg->us, sizeof(oldus));
 	oldmsgs = reg->messages;
-	if (inaddrcmp(&reg->addr, sin)) {
-		opbx_log(OPBX_LOG_WARNING, "Received unsolicited registry ack from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
-		return -1;
-	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
 	reg->messages = ies->msgcount;
-	/* always refresh the registration at the interval requested by the server
-	   we are registering to
-	*/
-	reg->refresh = refresh;
-	if (reg->expire > -1)
-		opbx_sched_del(sched, reg->expire);
-	reg->expire = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if ((inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
 		if (reg->messages > 65534)
 			snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
@@ -4747,6 +4747,13 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
 	reg->regstate = REG_STATE_REGISTERED;
+
+	/* Always refresh the registration at the interval requested
+	 * by the server we are registering to
+	 */
+	reg->refresh = refresh;
+	reg->expire = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+
 	return 0;
 }
 
@@ -6891,10 +6898,20 @@ retryowner2:
 	return 1;
 }
 
-static int iax2_do_register_backend(void *data)
+static void *iax2_do_register_thread(void *data)
 {
 	struct iax2_registry *reg = data;
 	struct iax_ie_data ied;
+
+	/* Since we are running we cannot be descheduled so we own
+	 * both the registry entry and the associated call until
+	 * we schedule the next refresh.
+	 */
+
+	if (option_debug && iaxdebug)
+		opbx_log(OPBX_LOG_DEBUG, "Starting registration request for '%s' at '%s'\n", reg->username, reg->host);
+
+	opbx_get_ip_or_srv(&reg->addr, reg->host, "_iax._udp");
 
 	if (reg->addr.sin_addr.s_addr) {
 		if (!reg->callno) {
@@ -6912,44 +6929,24 @@ static int iax2_do_register_backend(void *data)
 		}
 
 		if (reg->callno) {
-			/* Setup the next registration a little early */
-			reg->expire  = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
-
 			/* Send the request */
 			memset(&ied, 0, sizeof(ied));
 			iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
 			iax_ie_append_short(&ied, IAX_IE_REFRESH, reg->refresh);
 			send_command(iaxs[reg->callno],OPBX_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 			reg->regstate = REG_STATE_REGSENT;
-			return 0;
+
+			/* Setup the next registration a little early */
+			reg->expire  = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+
+			return NULL;
 		}
 	}
 
 	reg->expire  = opbx_sched_add(sched, DEFAULT_RETRY_TIME, iax2_do_register_s, reg);
-
-	return 0;
-}
-
-static void *iax2_do_register(void *data)
-{
-	struct iax2_registry *reg = data;
-
-	/* Do potentially blocking but thread safe stuff */
-	if (reg->expire > -1)
-		opbx_sched_del(sched, reg->expire);
-
-	if (option_debug && iaxdebug)
-		opbx_log(OPBX_LOG_DEBUG, "Starting registration request for '%s' at '%s'\n", reg->username, reg->host);
-
-	opbx_get_ip_or_srv(&reg->addr, reg->host, "_iax._udp");
-
-	/* All else is not thread-safe so must be scheduled for the
-	 * thread to run for us.
-	 */
-	reg->expire  = opbx_sched_add(sched, 1, iax2_do_register_backend, reg);
-
 	return NULL;
 }
+
 
 static int iax2_poke_noanswer(void *data)
 {
@@ -8091,7 +8088,7 @@ static int reload_config(void)
 
 	opbx_mutex_lock(&regl.lock);
 	for (reg = regl.regs; reg; reg = reg->next)
-		iax2_do_register_s(reg);
+		reg->expire  = opbx_sched_add(sched, opbx_random() % 5000, iax2_do_register_s, reg);
 	opbx_mutex_unlock(&regl.lock);
 
 	/* Qualify hosts, too */
@@ -8873,7 +8870,7 @@ static int load_module(void)
 
 	opbx_mutex_lock(&regl.lock);
 	for (reg = regl.regs; reg; reg = reg->next)
-		iax2_do_register_s(reg);
+		reg->expire  = opbx_sched_add(sched, opbx_random() % 5000, iax2_do_register_s, reg);
 	opbx_mutex_unlock(&regl.lock);
 
 	opbx_mutex_lock(&peerl.lock);
