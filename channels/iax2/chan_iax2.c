@@ -8069,7 +8069,6 @@ static int set_config(char *config_file, int reload)
 		cat = opbx_category_browse(cfg, cat);
     }
     opbx_config_destroy(cfg);
-    set_timing();
     return capability;
 }
 
