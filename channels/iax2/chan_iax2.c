@@ -159,6 +159,9 @@ static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int trunkfreq = 20;
+#ifdef IAX_TRUNKING
+static int trunkschedid = -1;
+#endif
 static int authdebug = 1;
 static int autokill = 0;
 static int iaxcompat = 0;
@@ -7800,16 +7803,6 @@ static void prune_peers(void){
 	opbx_mutex_unlock(&peerl.lock);
 }
 
-static void set_timing(void)
-{
-#ifdef IAX_TRUNKING
-	static int timerrunning = -1;
-
-	if (timerrunning == -1 || !opbx_sched_del(sched, timerrunning))
-		timerrunning = opbx_sched_add_variable(sched, 1, timing_read, NULL, 1);
-#endif
-}
-
 
 /*--- set_config: Load configuration */
 static int set_config(char *config_file, int reload)
@@ -7951,9 +7944,18 @@ static int set_config(char *config_file, int reload)
 				i = 0;
 			opbx_set2_flag((&globalflags), i || opbx_true(v->value), IAX_RTAUTOCLEAR);	
 		} else if (!strcasecmp(v->name, "trunkfreq")) {
+#ifdef IAX_TRUNKING
+			int oldfreq = trunkfreq;
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
 				trunkfreq = 10;
+			if (trunkfreq != oldfreq || trunkschedid == -1) {
+				if (trunkschedid == -1 || !opbx_sched_del(sched, trunkschedid))
+					trunkschedid = opbx_sched_add_variable(sched, 0, timing_read, NULL, 1);
+			}
+#else
+			opbx_log(OPBX_LOG_WARNING, "trunkfreq is set in config but trunking support was not enabled for this build\n");
+#endif
 		} else if (!strcasecmp(v->name, "autokill")) {
 			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)
@@ -8804,6 +8806,10 @@ static int load_module(void)
 	opbx_mutex_init(&peerl.lock);
 	
 	set_config(config, 0);
+#ifdef IAX_TRUNKING
+	if (trunkschedid == -1)
+		trunkschedid = opbx_sched_add_variable(sched, 0, timing_read, NULL, 1);
+#endif
 
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(listen_port);
