@@ -400,8 +400,6 @@ struct iax2_registry {
 	struct iax2_registry *next;
 };
 
-static struct iax2_registry *registrations;
-
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME		100
 #define MAX_RETRY_TIME  	10000
@@ -584,6 +582,11 @@ static struct opbx_peer_list {
 	struct iax2_peer *peers;
 	opbx_mutex_t lock;
 } peerl;
+
+static struct opbx_reg_list {
+	struct iax2_registry *regs;
+	opbx_mutex_t lock;
+} regl;
 
 /*! Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
@@ -3659,11 +3662,15 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	char host[80];
 	char perceived[80];
 	char iabuf[INET_ADDRSTRLEN];
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&peerl.lock);
+
 	opbx_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
-	for (reg = registrations;reg;reg = reg->next) {
+
+	opbx_mutex_lock(&regl.lock);
+
+	for (reg = regl.regs; reg; reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		if (reg->us.sin_addr.s_addr) 
 			snprintf(perceived, sizeof(perceived), "%s:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
@@ -3672,7 +3679,9 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		opbx_cli(fd, FORMAT, host, 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
-	opbx_mutex_unlock(&peerl.lock);
+
+	opbx_mutex_unlock(&regl.lock);
+
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -4782,9 +4791,11 @@ static int iax2_register(char *value, int lineno)
 		reg->expire = -1;
 		reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(listen_port);
-		reg->next = registrations;
 		reg->callno = 0;
-		registrations = reg;
+		opbx_mutex_lock(&regl.lock);
+		reg->next = regl.regs;
+		regl.regs = reg;
+		opbx_mutex_unlock(&regl.lock);
 	} else {
 		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
 		return -1;
@@ -7696,32 +7707,40 @@ static void delete_users(void)
 {
 	struct iax2_user *user;
 	struct iax2_peer *peer;
-	struct iax2_registry *reg, *regl;
 
 	opbx_mutex_lock(&userl.lock);
-	for (user=userl.users;user;) {
+	for (user = userl.users; user; user = user->next)
 		opbx_set_flag(user, IAX_DELME);
-		user = user->next;
-	}
 	opbx_mutex_unlock(&userl.lock);
-	for (reg = registrations;reg;) {
-		regl = reg;
-		reg = reg->next;
-		if (regl->expire > -1) {
-			opbx_sched_del(sched, regl->expire);
-		}
-		if (regl->callno) {
-			/* XXX Is this a potential lock?  I don't think so, but you never know */
-			opbx_mutex_lock(&iaxsl[regl->callno]);
-			if (iaxs[regl->callno]) {
-				iaxs[regl->callno]->reg = NULL;
-				iax2_destroy_nolock(regl->callno);
+
+	opbx_mutex_lock(&regl.lock);
+	while (regl.regs) {
+		struct iax2_registry *reg = regl.regs;
+		regl.regs = regl.regs->next;
+
+		/* There should be an expire scheduled and if we can delete it
+		 * we own the registry entry and any call associated with it.
+		 * If we can't delete the expire job either it or call handling
+		 * owns the registry entry and we can't touch it.
+		 * Sadly, since registry entries aren't currently ref counted
+		 * that means we will leak memory here.
+		 */
+		if (reg->expire != -1 && !opbx_sched_del(sched, reg->expire)) {
+			if (reg->callno) {
+				/* XXX Is this a potential lock?  I don't think so, but you never know */
+				opbx_mutex_lock(&iaxsl[reg->callno]);
+				if (iaxs[reg->callno]) {
+					iaxs[reg->callno]->reg = NULL;
+					iax2_destroy_nolock(reg->callno);
+				}
+				opbx_mutex_unlock(&iaxsl[reg->callno]);
 			}
-			opbx_mutex_unlock(&iaxsl[regl->callno]);
+			free(reg);
 		}
-		free(regl);
 	}
-	registrations = NULL;
+	regl.regs = NULL;
+	opbx_mutex_unlock(&regl.lock);
+
 	opbx_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
@@ -8070,8 +8089,12 @@ static int reload_config(void)
 	set_config(config,1);
 	prune_peers();
 	prune_users();
-	for (reg = registrations; reg; reg = reg->next)
+
+	opbx_mutex_lock(&regl.lock);
+	for (reg = regl.regs; reg; reg = reg->next)
 		iax2_do_register_s(reg);
+	opbx_mutex_unlock(&regl.lock);
+
 	/* Qualify hosts, too */
 	opbx_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
@@ -8804,6 +8827,7 @@ static int load_module(void)
 	opbx_mutex_init(&iaxq.lock);
 	opbx_mutex_init(&userl.lock);
 	opbx_mutex_init(&peerl.lock);
+	opbx_mutex_init(&regl.lock);
 	
 	set_config(config, 0);
 #ifdef IAX_TRUNKING
@@ -8848,8 +8872,11 @@ static int load_module(void)
 		opbx_netsock_release(netsock);
 	}
 
-	for (reg = registrations; reg; reg = reg->next)
+	opbx_mutex_lock(&regl.lock);
+	for (reg = regl.regs; reg; reg = reg->next)
 		iax2_do_register_s(reg);
+	opbx_mutex_unlock(&regl.lock);
+
 	opbx_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (peer->sockfd < 0)
