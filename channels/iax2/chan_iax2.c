@@ -7800,17 +7800,13 @@ static void prune_peers(void){
 	opbx_mutex_unlock(&peerl.lock);
 }
 
-#ifdef IAX_TRUNKING
-static int timerrunning = -1;
-#endif
 static void set_timing(void)
 {
 #ifdef IAX_TRUNKING
-	if (timerrunning != -1)
-	    opbx_sched_del(sched, timerrunning);
-	
-	timerrunning = opbx_sched_add_variable(sched, 1, timing_read, NULL, 1);
+	static int timerrunning = -1;
 
+	if (timerrunning == -1 || !opbx_sched_del(sched, timerrunning))
+		timerrunning = opbx_sched_add_variable(sched, 1, timing_read, NULL, 1);
 #endif
 }
 
