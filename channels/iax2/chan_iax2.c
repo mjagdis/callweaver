@@ -664,7 +664,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 static int iax2_write(struct opbx_channel *c, struct opbx_frame *f);
 static void *iax2_do_register_thread(void *data);
 static void prune_peers(void);
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
+static int iax2_poke_peer(void *data);
 
 static struct opbx_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static int iax2_devicestate(void *data);
@@ -4861,8 +4861,6 @@ static int expire_registry(void *data)
 }
 
 
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
-
 static void reg_source_db(struct iax2_peer *p)
 {
 	char data[80];
@@ -4882,7 +4880,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (option_verbose > 2)
 						opbx_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
 						opbx_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
-					iax2_poke_peer(p, 0);
+					p->pokeexpire = opbx_sched_add(sched, 0, iax2_poke_peer, p);
 					p->expiry = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
 					p->addr.sin_family = AF_INET;
@@ -4955,15 +4953,21 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			opbx_db_del("IAX/Registry", p->name);
 			opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		}
-		/* Update the host */
-		/* Verify that the host is really there */
-		iax2_poke_peer(p, callno);
+
+		/* Schedule a poke as soon as possible */
+		if (!opbx_sched_del(sched, p->pokeexpire)) {
+			if (p->callno) {
+				iax2_destroy(p->callno);
+				p->callno = 0;
+			}
+			p->pokeexpire = opbx_sched_add(sched, 0, iax2_poke_peer, p);
+		}
 	}		
+
 	/* Store socket fd */
 	p->sockfd = fd;
+
 	/* Setup the expiry */
-	if (p->expire > -1)
-		opbx_sched_del(sched, p->expire);
 	if (refresh > max_reg_expire) {
 		opbx_log(OPBX_LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
 			p->name, max_reg_expire, refresh);
@@ -4975,8 +4979,9 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	} else {
 		p->expiry = refresh;
 	}
-	if (p->expiry && sin->sin_addr.s_addr)
+	if ((p->expire == -1 || !opbx_sched_del(sched, p->expire)) && p->expiry && sin->sin_addr.s_addr)
 		p->expire = opbx_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -5189,14 +5194,6 @@ static void vnak_retransmit(int callno, int last)
 		f = f->next;
 	}
 	opbx_mutex_unlock(&iaxq.lock);
-}
-
-static int iax2_poke_peer_s(void *data)
-{
-	struct iax2_peer *peer = data;
-	peer->pokeexpire = -1;
-	iax2_poke_peer(peer, 0);
-	return 0;
 }
 
 static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
@@ -6385,8 +6382,10 @@ retryowner2:
 				/* save RR info */
 				save_rr(&fr, &ies);
 
-				if (iaxs[fr.callno]->peerpoke) {
-					peer = iaxs[fr.callno]->peerpoke;
+				/* If we can deschedule the noanswer timeout we own the call
+				 * and the peer. Otherwise we do nothing.
+				 */
+				if ((peer = iaxs[fr.callno]->peerpoke) && !opbx_sched_del(sched, peer->pokeexpire)) {
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
 							opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
@@ -6408,17 +6407,16 @@ retryowner2:
 					else					
 						peer->historicms = iaxs[fr.callno]->pingtime;
 
-					if (peer->pokeexpire > -1)
-						opbx_sched_del(sched, peer->pokeexpire);
 					send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 					iax2_destroy_nolock(fr.callno);
 					peer->callno = 0;
+
 					/* Try again eventually */
-						opbx_log(OPBX_LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
+					opbx_log(OPBX_LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
-						peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer, peer);
 					else
-						peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqok, iax2_poke_peer, peer);
 				}
 				break;
 			case IAX_COMMAND_LAGRQ:
@@ -6951,33 +6949,43 @@ static void *iax2_do_register_thread(void *data)
 static int iax2_poke_noanswer(void *data)
 {
 	struct iax2_peer *peer = data;
-	peer->pokeexpire = -1;
+
+	/* Since we are running no one else can remove our schedule
+	 * entry so we own the peer and and call until we schedule
+	 * the next poke.
+	 */
+
 	if (peer->lastms > -1) {
 		opbx_log(OPBX_LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
 		opbx_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
-	if (peer->callno > 0)
-		iax2_destroy(peer->callno);
-	peer->callno = 0;
 	peer->lastms = -1;
+
+	if (peer->callno > 0) {
+		iax2_destroy(peer->callno);
+		peer->callno = 0;
+	}
+
 	/* Try again quickly */
-	peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+	peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer, peer);
 	return 0;
 }
 
-struct iax2_poke_peer_args {
-	struct iax2_peer *peer;
-	int heldcall;
-};
-
-static int iax2_poke_peer_backend(void *data)
+static void *iax2_poke_peer_thread(void *data)
 {
-	struct iax2_poke_peer_args *args = data;
-	struct iax2_peer *peer = args->peer;
-	int heldcall = args->heldcall;
+	struct iax2_peer *peer = data;
 
-	free(args);
+	/* If we are running we can't be descheduled so we own
+	 * the peer and any associated call.
+	 */
+
+	/* If it's a dynamic peer it's up to it to register and, by so doing, tell
+	 * us what address to use. If it isn't dynamic we need to refresh the address
+	 * now and, if required, give it a poke.
+	 */
+	if (!opbx_test_flag(peer, IAX_DYNAMIC) && peer->host[0])
+		opbx_get_ip_or_srv(&peer->addr, peer->host, "_iax._udp");
 
 	/* If we don't have a qualify timeout we don't need to poke the host, if we don't
 	 * have an address we can't poke the host.
@@ -6987,75 +6995,39 @@ static int iax2_poke_peer_backend(void *data)
 			opbx_log(OPBX_LOG_NOTICE, "Still have a callno...\n");
 			iax2_destroy(peer->callno);
 		}
-		if (heldcall)
-			opbx_mutex_unlock(&iaxsl[heldcall]);
-		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
-		if (heldcall)
-			opbx_mutex_lock(&iaxsl[heldcall]);
-		if (peer->callno > 0) {
-			/* If the host is already unreachable then use the unreachable interval instead */
-			if (peer->lastms < 0)
-				peer->pokeexpire = opbx_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
-			else
-				peer->pokeexpire = opbx_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
 
+		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
+
+		if (peer->callno > 0) {
 			/* Speed up retransmission times */
 			iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 			iaxs[peer->callno]->peerpoke = peer;
 			send_command(iaxs[peer->callno], OPBX_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
+
+			/* If the host is already unreachable then use the unreachable interval instead */
+			peer->pokeexpire = opbx_sched_add(sched, (peer->lastms < 0 ? peer->pokefreqnotok : DEFAULT_MAXMS * 2), iax2_poke_noanswer, peer);
 		} else {
 			opbx_log(OPBX_LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
-			peer->pokeexpire = opbx_sched_add(sched, DEFAULT_RETRY_TIME, iax2_poke_peer_s, peer);
-			return 0;
+			peer->pokeexpire = opbx_sched_add(sched, DEFAULT_RETRY_TIME, iax2_poke_peer, peer);
 		}
 	} else {
-		peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, iax2_poke_peer_s, peer);
+		peer->pokeexpire = opbx_sched_add(sched, DEFAULT_FREQ_OK, iax2_poke_peer, peer);
 	}
-
-	return 0;
-}
-
-static void *iax2_poke_peer_thread(void *data)
-{
-	struct iax2_poke_peer_args *args = data;
-	struct iax2_peer *peer = args->peer;
-	int heldcall = args->heldcall;
-
-	/* Do potentially blocking but thread safe stuff */
-
-	if (peer->pokeexpire > -1)
-		opbx_sched_del(sched, peer->pokeexpire);
-
-	/* If it's a dynamic peer it's up to it to register and, by so doing, tell
-	 * us what address to use. If it isn't dynamic we need to refresh the address
-	 * now and, if required, give it a poke.
-	 */
-	if (!opbx_test_flag(peer, IAX_DYNAMIC) && peer->host[0])
-		opbx_get_ip_or_srv(&peer->addr, peer->host, "_iax._udp");
-
-	/* All else is not thread-safe so must be scheduled for the
-	 * thread to run for us.
-	 */
-	peer->pokeexpire = opbx_sched_add(sched, 1, iax2_poke_peer_backend, args);
 
 	return NULL;
 }
 
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
+static int iax2_poke_peer(void *data)
 {
 	pthread_t tid;
-	struct iax2_poke_peer_args *args;
+	struct iax2_peer *peer = data;
 
-	if ((args = malloc(sizeof(*args)))) {
-		args->peer = peer;
-		args->heldcall = heldcall;
+	/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
+	if (opbx_test_flag(peer, IAX_DYNAMIC))
+		iax2_poke_peer_thread(data);
+	else
+		opbx_pthread_create(&tid, &global_attr_detached, iax2_poke_peer_thread, data);
 
-		/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
-		if (opbx_test_flag(peer, IAX_DYNAMIC))
-			iax2_poke_peer_thread(args);
-		else
-			opbx_pthread_create(&tid, &global_attr_detached, iax2_poke_peer_thread, args);
-	}
 	return 0;
 }
 
@@ -8094,7 +8066,7 @@ static int reload_config(void)
 	/* Qualify hosts, too */
 	opbx_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
-		iax2_poke_peer(peer, 0);
+		peer->pokeexpire = opbx_sched_add(sched, opbx_random() % 5000, iax2_poke_peer, peer);
 	opbx_mutex_unlock(&peerl.lock);
 	return 0;
 }
@@ -8877,7 +8849,7 @@ static int load_module(void)
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (peer->sockfd < 0)
 			peer->sockfd = defaultsockfd;
-		iax2_poke_peer(peer, 0);
+		peer->pokeexpire = opbx_sched_add(sched, opbx_random() % 5000, iax2_poke_peer, peer);
 	}
 	opbx_mutex_unlock(&peerl.lock);
 	return res;
