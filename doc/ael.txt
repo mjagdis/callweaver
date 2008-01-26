@@ -71,7 +71,7 @@ going to be run. Other extensions are the timeout "t" extension, the
 invalid response, or "i" extension, and there's a "fax" extension. For
 instance, a normal call will activate the "s" extension, but an
 incoming FAX call will come into the "fax" extension, if it
-exists. (BTW, asterisk can tell it's a fax call by the little "beep"
+exists. (BTW, CallWeaver can tell it's a fax call by the little "beep"
 that the calling fax machine emits every so many seconds.).
 
 Extensions contain several priorities, which are individual
@@ -79,7 +79,7 @@ instructions to perform. Some are as simple as setting a variable to a
 value. Others are as complex as initiating the Voicemail application,
 for instance. Priorities are executed in order.
 
-When the 's" extension completes, asterisk waits until the timeout for
+When the 's" extension completes, CallWeaver waits until the timeout for
 a response. If the response matches an extension's pattern in the
 context, then control is transferred to that extension. Usually the
 responses are tones emitted when a user presses a button on their
@@ -126,8 +126,8 @@ The AEL parser (pbx_ael.so) is completely separate from the module
 that parses extensions.conf (pbx_config.so). To use AEL, the only
 thing that has to be done is the module pbx_ael.so must be loaded by
 CallWeaver. This will be done automatically if using 'autoload=yes' in
-/etc/asterisk/modules.conf. When the module is loaded, it will look
-for 'extensions.ael' in /etc/asterisk/. extensions.conf and
+/etc/callweaver/modules.conf. When the module is loaded, it will look
+for 'extensions.ael' in /etc/callweaver/. extensions.conf and
 extensions.ael can be used in conjunction with
 each other if that is what is desired. Some users may want to keep
 extensions.conf for the features that are configured in the 'general'
@@ -169,8 +169,8 @@ Disable AEL debug messages
 If things are going wrong in your dialplan, you can use the following
 facilities to debug your file:
 
-1. The messages log in /var/log/asterisk. (from the checks done at load time).
-2. the "show dialplan" command in asterisk
+1. The messages log in /var/log/callweaver. (from the checks done at load time).
+2. the "show dialplan" command in CallWeaver
 3. the standalone executable, "aelparse" built in the utils/ dir in the source.
 
 
@@ -179,23 +179,23 @@ facilities to debug your file:
 *****************************
 
 You can use the "aelparse" program to check your extensions.ael
-file before feeding it to asterisk. Wouldn't it be nice to eliminate
-most errors before giving the file to asterisk?
+file before feeding it to CallWeaver. Wouldn't it be nice to eliminate
+most errors before giving the file to CallWeaver?
 
-aelparse is compiled in the utils directory of the asterisk release.
+aelparse is compiled in the utils directory of the CallWeaver release.
 It isn't installed anywhere (yet). You can copy it to your favorite
 spot in your PATH.
 
 aelparse has two optional arguments:
 
 -d   - Override the normal location of the config file dir, (usually
-       /etc/asterisk), and use the current directory instead as the
+       /etc/callweaver), and use the current directory instead as the
        config file dir. Aelparse will then expect to find the file
        "./extensions.ael" in the current directory, and any included
        files in the current directory as well.
 
 -n   - don't show all the function calls to set priorities and contexts
-       within asterisk. It will just show the errors and warnings from
+       within CallWeaver. It will just show the errors and warnings from
        the parsing and semantic checking phases.
 
 
@@ -319,7 +319,7 @@ After that, it is freed from memory.
 A program could be written that could build a tree of pval structures, and
 a pretty printing function is provided, that would dump the data to a file,
 or the tree could be handed to the compiler to merge the data into the 
-asterisk dialplan. The modularity of the design offers several opportunities
+CallWeaver dialplan. The modularity of the design offers several opportunities
 for developers to simplify apps to generate dialplan data.
 
 
@@ -657,7 +657,7 @@ context default {
 You can include other files with the #include "filepath" construct.
 
 
-   #include "/etc/asterisk/testfor.ael"
+   #include "/etc/callweaver/testfor.ael"
 
 
 An interesting property of the #include, is that you can use it almost
@@ -666,7 +666,7 @@ a file in a proc, context, or even extension.  The #include does not
 have to occur at the beginning of a line. Included files can include
 other files, up to 50 levels deep. If the path provided in quotes is a
 relative path, the parser looks in the config file directory for the
-file (usually /etc/asterisk).
+file (usually /etc/callweaver).
 
 
 
@@ -866,7 +866,7 @@ NOTE: AEL introduces the ifTime keyword/statement, which works just
       CallWeaver cmd GotoIfTime
 
 NOTE: The pattern statement makes sure the new extension that is
-      created has an '_' preceding it to make sure asterisk recognizes
+      created has an '_' preceding it to make sure CallWeaver recognizes
       the extension name as a pattern.
 
 NOTE: Every character enclosed by the switch expression's parenthesis
@@ -931,7 +931,7 @@ statements. It means the "first" statement in the extension. I would
 not advise trying to use numeric labels other than "1" in goto's or
 jumps, nor would I advise declaring a "1" label anywhere! As a matter
 of fact, it would be bad form to declare a numeric label, and it might
-confllict with the priority numbers used internally by asterisk.
+confllict with the priority numbers used internally by CallWeaver.
 
 The syntax of the jump statement is: jump
 extension[,priority][@context] If priority is absent, it defaults to
@@ -1120,7 +1120,7 @@ These checks will be:
       the application that would set that variable is not called in
       the same extension. This is a warning only...
     * Calls to applications not in the "applist" database (installed
-      in /var/lib/asterisk/applist" on most systems).
+      in /var/lib/callweaver/applist" on most systems).
     * In an assignment statement, if the assignment is to a function,
       the function name used is checked to see if it one of the
       currently known functions. A warning is issued if it is not.
@@ -1154,11 +1154,11 @@ Differences with the original version of AEL
    8. A pretty printer function is available within pbx_ael.so.
    9. In the utils directory, two standalone programs are supplied for
       debugging AEL files. One is called "aelparse", and it reads in
-      the /etc/asterisk/extensions.ael file, and shows the results of
+      the /etc/callweaver/extensions.ael file, and shows the results of
       syntax and semantic checking on stdout, and also shows the
       results of compilation to stdout. The other is "aelparse1",
       which uses the original ael compiler to do the same work,
-      reading in "/etc/asterisk/extensions.ael", using the original
+      reading in "/etc/callweaver/extensions.ael", using the original
       'pbx_ael.so' instead.
   10. AEL supports the "jump" statement, and the "pattern" statement
       in switch constructs. Hopefully these will be documented in the
@@ -1255,6 +1255,6 @@ available through AEL, via:
       this way. 
 
     * Variables: Channels of communication have variables associated
-      with them, and asterisk provides some global variables. These can be
+      with them, and CallWeaver provides some global variables. These can be
       manipulated and/or consulted by the above mechanisms. 
 
