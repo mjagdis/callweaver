@@ -54,9 +54,9 @@ static const char playback_descrip[] =
 "option causes the playback of the message to  be  skipped  if  the  channel\n"
 "is not in the 'up' state (i.e. it hasn't been  answered  yet. If 'skip' is \n"
 "specified, the application will return immediately should the channel not be\n"
-"off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
+"off hook.  Otherwise, unless 'noanswer' is specified, the channel will\n"
 "be answered before the sound is played. Not all channels support playing\n"
-"messages while still hook. Returns -1 if the channel was hung up.\n"
+"messages while still on hook. Returns -1 if the channel was hung up.\n"
 "The channel variable PLAYBACKSTATUS is set to SUCCESS or FAILED on termination."
 "\n";
 
