@@ -1649,8 +1649,11 @@ out:
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	opbx_log(OPBX_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
-	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE))
+	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE)) {
+		if (calldurationlimit)
+			chan->whentohangup = 0;
 		res=0;
+	}
 	
 	LOCAL_USER_REMOVE(u);    
 	
