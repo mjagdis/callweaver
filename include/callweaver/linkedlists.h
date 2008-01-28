@@ -318,14 +318,15 @@ struct {								\
   the list traversal (and without having to re-traverse the list to modify the
   previous entry, if any).
  */
-#define OPBX_LIST_REMOVE_CURRENT(head, field)						\
+#define OPBX_LIST_REMOVE_CURRENT(head, field) do {					\
 	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
 	else										\
 		(head)->first = __list_next;						\
 	if (!__list_next)								\
-		(head)->last = __list_prev;
+		(head)->last = __list_prev;						\
+} while (0)
 
 /*!
   \brief Inserts a list entry before the current entry during a traversal.
@@ -360,11 +361,11 @@ struct {								\
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list) and recreating the embedded lock.
 */
-#define OPBX_LIST_HEAD_INIT(head) {					\
+#define OPBX_LIST_HEAD_INIT(head) do {					\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
 	opbx_mutex_init(&(head)->lock);					\
-}
+} while (0)
 
 /*!
   \brief Destroys a list head structure.
@@ -374,11 +375,11 @@ struct {								\
   entry to \a NULL (empty list) and destroying the embedded lock.
   It does not free the structure from memory.
 */
-#define OPBX_LIST_HEAD_DESTROY(head) {					\
+#define OPBX_LIST_HEAD_DESTROY(head) do {				\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
 	opbx_mutex_destroy(&(head)->lock);				\
-}
+} while (0)
 
 /*!
   \brief Initializes a list head structure.
@@ -388,10 +389,10 @@ struct {								\
   entry to \a NULL (empty list). There is no embedded lock handling
   with this macro.
 */
-#define OPBX_LIST_HEAD_INIT_NOLOCK(head) {				\
+#define OPBX_LIST_HEAD_INIT_NOLOCK(head) do {				\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
-}
+} while (0)
 
 /*!
   \brief Inserts a list entry after a given entry.
