@@ -85,9 +85,9 @@ enum TypeOfResult
 
 static int builtin_function_math(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	float fnum1;
-	float fnum2;
-	float ftmp = 0;
+	double fnum1;
+	double fnum2;
+	double ftmp = 0;
 	char *op;
 	int iaction=-1;
 	int type_of_result = FLOAT_RESULT;
@@ -163,12 +163,12 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			return -1;
 		}
 
-		if (sscanf(mvalue1, "%f", &fnum1) != 1) {
+		if (sscanf(mvalue1, "%lf", &fnum1) != 1) {
 			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 			return -1;
 		}
 
-		if (sscanf(mvalue2, "%f", &fnum2) != 1) {
+		if (sscanf(mvalue2, "%lf", &fnum2) != 1) {
 			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 			return -1;
 		}
@@ -179,7 +179,7 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			break;
 		case DIVIDEFUNCTION :
 			if (fnum2 <= 0)
-				ftmp = 0; /* can't do a divide by 0 */
+				ftmp = 0.0L; /* can't do a divide by 0 */
 			else
 				ftmp = (fnum1 / fnum2);
 			break;
@@ -220,7 +220,7 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 
 		if (iaction < GTFUNCTION || iaction > EQFUNCTION) {
 			if (type_of_result == FLOAT_RESULT)
-				snprintf(user_result, sizeof(user_result), "%f", ftmp);
+				snprintf(user_result, sizeof(user_result), "%lf", ftmp);
 			else if (type_of_result == INT_RESULT)
 				snprintf(user_result, sizeof(user_result), "%i", (int) ftmp);
 			else if (type_of_result == HEX_RESULT)
