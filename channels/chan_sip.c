@@ -3910,16 +3910,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     snprintf(peer, sizeof(peer), "[%s]:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), i->sa.sin_addr), ntohs(i->sa.sin_port));
     pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
 #endif
-    opbx_setstate(tmp, state);
-    if (state != OPBX_STATE_DOWN)
-    {
-        if (opbx_pbx_start(tmp))
-        {
-            opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-            opbx_hangup(tmp);
-            tmp = NULL;
-        }
-    }
+
     /* Set channel variables for this call from configuration */
     for (v = i->chanvars;  v;  v = v->next)
         pbx_builtin_setvar_helper(tmp, v->name, v->value);
@@ -3927,6 +3918,14 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     /* Configure the new channel jb */
     if (tmp != NULL  &&  i != NULL  &&  i->rtp != NULL)
         opbx_jb_configure(tmp, &i->jbconf);
+
+    opbx_setstate(tmp, state);
+    if (state != OPBX_STATE_DOWN && opbx_pbx_start(tmp))
+    {
+        opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+        opbx_hangup(tmp);
+        tmp = NULL;
+    }
 
     opbx_mutex_lock(&usecnt_lock);
     usecnt++;
