@@ -89,13 +89,9 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 	double fnum2;
 	double ftmp = 0;
 	char *op;
-	int iaction=-1;
-	int type_of_result = FLOAT_RESULT;
-
-	/* dunno, big calulations :D */
-	char user_result[30];
-
 	char *mvalue1, *mvalue2 = NULL;
+	int iaction = -1;
+	int type_of_result = FLOAT_RESULT;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return opbx_function_syntax(math_func_syntax);
@@ -199,19 +195,19 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			break;
 		}
 		case GTFUNCTION :
-			opbx_copy_string (user_result, (fnum1 > fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			opbx_copy_string (buf, (fnum1 > fnum2)?"TRUE":"FALSE", len);
 			break;
 		case LTFUNCTION :
-			opbx_copy_string (user_result, (fnum1 < fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			opbx_copy_string (buf, (fnum1 < fnum2)?"TRUE":"FALSE", len);
 			break;
 		case GTEFUNCTION :
-			opbx_copy_string (user_result, (fnum1 >= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			opbx_copy_string (buf, (fnum1 >= fnum2)?"TRUE":"FALSE", len);
 			break;
 		case LTEFUNCTION :
-			opbx_copy_string (user_result, (fnum1 <= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			opbx_copy_string (buf, (fnum1 <= fnum2)?"TRUE":"FALSE", len);
 			break;					
 		case EQFUNCTION :
-			opbx_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			opbx_copy_string (buf, (fnum1 == fnum2)?"TRUE":"FALSE", len);
 			break;
 		default :
 			opbx_log(OPBX_LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
@@ -220,16 +216,14 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 
 		if (iaction < GTFUNCTION || iaction > EQFUNCTION) {
 			if (type_of_result == FLOAT_RESULT)
-				snprintf(user_result, sizeof(user_result), "%lf", ftmp);
+				snprintf(buf, len, "%lf", ftmp);
 			else if (type_of_result == INT_RESULT)
-				snprintf(user_result, sizeof(user_result), "%i", (int) ftmp);
+				snprintf(buf, len, "%i", (int) ftmp);
 			else if (type_of_result == HEX_RESULT)
-				snprintf(user_result, sizeof(user_result), "%x", (unsigned int) ftmp);
+				snprintf(buf, len, "%x", (unsigned int) ftmp);
 			else if (type_of_result == CHAR_RESULT)
-				snprintf(user_result, sizeof(user_result), "%c", (unsigned char) ftmp);
+				snprintf(buf, len, "%c", (unsigned char) ftmp);
 		}
-
-		opbx_copy_string(buf, user_result, len);
 	}
 
 	return 0;
