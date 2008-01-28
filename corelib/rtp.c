@@ -2128,8 +2128,14 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
         }
         if ((who = opbx_waitfor_n(cs, 2, &timeoutms)) == 0)
         {
-            if (!timeoutms) 
+            if (!timeoutms)
+            {
+                if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0))
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+                if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0))
+                    opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
                 return OPBX_BRIDGE_RETRY;
+            }
             if (option_debug)
                 opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
             /* check for hangup / whentohangup */
