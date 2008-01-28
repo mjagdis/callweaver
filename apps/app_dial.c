@@ -1565,7 +1565,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (!res) {
 			if (calldurationlimit > 0) {
 				time(&now);
-				chan->whentohangup = now + calldurationlimit;
+				peer->whentohangup = now + calldurationlimit;
 			}
 			if (!opbx_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
@@ -1649,14 +1649,11 @@ out:
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	opbx_log(OPBX_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
-	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE)) {
-		if (calldurationlimit)
-			chan->whentohangup = 0;
+	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE))
 		res=0;
-	}
-	
-	LOCAL_USER_REMOVE(u);    
-	
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 
