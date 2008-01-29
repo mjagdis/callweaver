@@ -2821,16 +2821,16 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
 static int update_queue_member(char *queuename, char *interface, int penalty, int paused, int dump)
 {
 	struct opbx_call_queue *q;
-	struct member *lopbx_member, *look;
+	struct member *last_member, *look;
 	int res = RES_NOSUCHQUEUE;
 
 	opbx_mutex_lock(&qlock);
 	for (q = queues ; q ; q = q->next) {
 		opbx_mutex_lock(&q->lock);
 		if (!strcmp(q->name, queuename)) {
-			if ((lopbx_member = interface_exists(q, interface)) != NULL) {
-				lopbx_member->penalty = penalty;
-				lopbx_member->paused = paused;
+			if ((last_member = interface_exists(q, interface)) != NULL) {
+				last_member->penalty = penalty;
+				last_member->paused = paused;
 				manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
 					"Queue: %s\r\n"
 					"Location: %s\r\n"
@@ -2840,8 +2840,8 @@ static int update_queue_member(char *queuename, char *interface, int penalty, in
 					"LastCall: %ld\r\n"
 					"Status: %d\r\n"
 					"Paused: %d\r\n",
-				    q->name, lopbx_member->interface, lopbx_member->dynamic ? "dynamic" : "static",
-				    lopbx_member->penalty, lopbx_member->calls, lopbx_member->lastcall, lopbx_member->status, lopbx_member->paused);
+				    q->name, last_member->interface, last_member->dynamic ? "dynamic" : "static",
+				    last_member->penalty, last_member->calls, last_member->lastcall, last_member->status, last_member->paused);
 
 				if (dump)
 					dump_queue_members(q);

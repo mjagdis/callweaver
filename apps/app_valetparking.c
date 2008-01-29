@@ -86,7 +86,7 @@ static int valetparkingtime = DEFAULT_VALETPARK_TIME;
 /* First available extension for valetparking */
 static int valetparking_start = 1;
 
-/* Lopbx available extension for valetparking */
+/* Last available extension for valetparking */
 static int valetparking_stop = 10000;
 
 static const char vpsynopsis[] = "Valet Parking";
@@ -176,15 +176,15 @@ static int opbx_pop_valetparking_top(char *lotname)
 
 static int opbx_pop_valetparking_bot(char *lotname)
 {
-	struct valetparkeduser *cur,*lopbx=NULL;
+	struct valetparkeduser *cur,*last=NULL;
 	opbx_mutex_lock(&valetparking_lock);
 	for(cur = valetparkinglot;cur;cur = cur->next) {
 		if(cur->lotname && !strcmp(lotname,cur->lotname)) {
-			lopbx = cur;
+			last = cur;
 		}
 	}
 	opbx_mutex_unlock(&valetparking_lock);
-	return lopbx ? lopbx->valetparkingnum : 0;
+	return last ? last->valetparkingnum : 0;
 }
 
 static int opbx_is_valetparked(char *exten,char *lotname)
@@ -249,7 +249,7 @@ static int opbx_valetpark_call(struct opbx_channel *chan, int timeout, int *exto
 			}
 		}
 		if (x <= valetparking_stop) {
-			char lopbxname[256];
+			char lastname[256];
 
 			chan->appl = "Valet Parked Call";
 
@@ -288,9 +288,9 @@ static int opbx_valetpark_call(struct opbx_channel *chan, int timeout, int *exto
 				time_t now = 0, then = 0;
 				time(&then);
 				opbx_moh_stop(chan);
-				strncpy(lopbxname, chan->name, sizeof(lopbxname) - 1);
+				strncpy(lastname, chan->name, sizeof(lastname) - 1);
 				then -= 2;
-				while(chan && !opbx_check_hangup(chan) && !strcmp(chan->name, lopbxname)) {
+				while(chan && !opbx_check_hangup(chan) && !strcmp(chan->name, lastname)) {
 					time(&now);
 					if (now - then > 2) {
 						if(! (res = opbx_streamfile(chan, "vm-extension", chan->language))) {

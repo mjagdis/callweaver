@@ -79,7 +79,7 @@
 /* 5 64-byte frames = one frame */
 #define BUFFER_FMT ((buffersize * 10) << 16) | (0x0006);
 
-/* Don't switch between read/write modes fopbxer than every 300 ms */
+/* Don't switch between read/write modes faster than every 300 ms */
 #define MIN_SWITCH_TIME 600
 
 
@@ -94,7 +94,7 @@ static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
 
 #if 0
-static struct timeval lopbxtime;
+static struct timeval lasttime;
 #endif
 
 static int usecnt;

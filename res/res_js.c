@@ -112,7 +112,7 @@ enum jchan_flags {
 	JC_SECURE_FLAG = (1 << 0), 
 	JC_BREACH_FATAL = (1 << 1), 
 	JC_DEAD_FLAG = (1 << 2), 
-	JC_LOPBX_FLAG = (1 << 31)
+	JC_LAST_FLAG = (1 << 31)
 };
 
 #define jc_test_flag(obj, flag) (obj->flags & flag) 

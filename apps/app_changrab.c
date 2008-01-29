@@ -303,7 +303,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	return 0;
 }
 
-struct fopbx_originate_helper {
+struct fast_originate_helper {
 	char tech[256];
 	char data[256];
 	int timeout;
@@ -323,7 +323,7 @@ struct fopbx_originate_helper {
 #define USAGE "Usage: originate <channel> <exten>@<context> [pri] [callerid] [timeout]\n"
 
 static void *originate(void *arg) {
-	struct fopbx_originate_helper *in = arg;
+	struct fast_originate_helper *in = arg;
 	int reason=0;
 	int res;
 	struct opbx_channel *chan = NULL;
@@ -360,7 +360,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	pthread_t tid;
 	char *chan_name_1,*context,*exten,*tech,*data,*callerid;
 	int pri=0,to=60000;
-	struct fopbx_originate_helper *in;
+	struct fast_originate_helper *in;
 	char *num = NULL;
 
 	if(argc < 3) {
@@ -393,12 +393,12 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 		opbx_cli(fd,USAGE);
         return -1;
 	}
-	in = malloc(sizeof(struct fopbx_originate_helper));
+	in = malloc(sizeof(struct fast_originate_helper));
 	if(!in) {
 		opbx_cli(fd,"No Memory!\n");
         return -1;
 	}
-	memset(in,0,sizeof(struct fopbx_originate_helper));
+	memset(in,0,sizeof(struct fast_originate_helper));
 	
 	callerid = (argc > 4)  ? argv[4] : NULL;
 	to = (argc > 5) ? atoi(argv[5]) : 60000;

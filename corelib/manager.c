@@ -59,7 +59,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/acl.h"
 #include "callweaver/utils.h"
 
-struct fopbx_originate_helper {
+struct fast_originate_helper {
 	char tech[256];
 	char data[256];
 	int timeout;
@@ -118,18 +118,18 @@ void add_manager_hook(struct manager_custom_hook *hook)
 
 void del_manager_hook(struct manager_custom_hook *hook)
 {
-	struct manager_custom_hook *hookp, *lopbxhook = NULL;
+	struct manager_custom_hook *hookp, *lasthook = NULL;
 
 	opbx_mutex_lock(&hooklock);
 	for (hookp = manager_hooks; hookp ; hookp = hookp->next) {
 		if (hookp == hook) {
-			if (lopbxhook) {
-				lopbxhook->next = hookp->next;
+			if (lasthook) {
+				lasthook->next = hookp->next;
 			} else {
 				manager_hooks = hookp->next;
 			}
 		}
-		lopbxhook = hookp;
+		lasthook = hookp;
 	}
 	opbx_mutex_unlock(&hooklock);
 
@@ -976,9 +976,9 @@ static int action_command(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static void *fopbx_originate(void *data)
+static void *fast_originate(void *data)
 {
-	struct fopbx_originate_helper *in = data;
+	struct fast_originate_helper *in = data;
 	int res;
 	int reason = 0;
 	struct opbx_channel *chan = NULL;
@@ -1112,7 +1112,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	if (opbx_true(async))
     {
-		struct fopbx_originate_helper *fast = malloc(sizeof(struct fopbx_originate_helper));
+		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
 
 		if (!fast)
         {
@@ -1120,7 +1120,7 @@ static int action_originate(struct mansession *s, struct message *m)
 		}
         else
         {
-			memset(fast, 0, sizeof(struct fopbx_originate_helper));
+			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (!opbx_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
 			opbx_copy_string(fast->tech, tech, sizeof(fast->tech));
@@ -1136,7 +1136,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			opbx_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
 			fast->priority = pi;
-			if (opbx_pthread_create(&th, &global_attr_detached, fopbx_originate, fast)) {
+			if (opbx_pthread_create(&th, &global_attr_detached, fast_originate, fast)) {
 				free(fast);
 				res = -1;
 			} else {

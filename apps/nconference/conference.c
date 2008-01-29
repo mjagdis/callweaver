@@ -741,7 +741,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
      admin mode-related functions
    *********************************************************************************************/
 
-struct fopbx_originate_helper {
+struct fast_originate_helper {
 	char tech[256];
 	char data[256];
 	int timeout;
@@ -757,11 +757,11 @@ struct fopbx_originate_helper {
 	struct opbx_conf_member *frommember;
 };
 
-static void *fopbx_originate(void *data)
+static void *fast_originate(void *data)
 {
     int res = 0,
 	reason;
-    struct fopbx_originate_helper *in = data;
+    struct fast_originate_helper *in = data;
     struct opbx_channel *chan = NULL;
 
     opbx_indicate(in->frommember->chan, OPBX_CONTROL_RINGING);
@@ -808,7 +808,7 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
     int res;
 
     pthread_t th;
-    struct fopbx_originate_helper *fast = malloc(sizeof(struct fopbx_originate_helper));
+    struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
 
     char dst[80]="";
     char appdata[80]="";
@@ -817,7 +817,7 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
     if (!fast) {
 	res = -1;
     } else {
-	memset(fast, 0, sizeof(struct fopbx_originate_helper));
+	memset(fast, 0, sizeof(struct fast_originate_helper));
 
 	if (  (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_TIMEOUT")) ) {
 	    fast->timeout = atoi(var) * 1000;
@@ -866,7 +866,7 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
 	fast->frommember=member;
 
-	if (opbx_pthread_create(&th, &global_attr_detached, fopbx_originate, fast)) {
+	if (opbx_pthread_create(&th, &global_attr_detached, fast_originate, fast)) {
     	    free(fast);
 	    res = -1;
 	} else {
