@@ -2766,6 +2766,8 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
         opbx_copy_string(r->fromdomain, peer->fromdomain, sizeof(r->fromdomain));
     if (!opbx_strlen_zero(peer->fromuser))
         opbx_copy_string(r->fromuser, peer->fromuser, sizeof(r->fromuser));
+    if (!opbx_strlen_zero(peer->language))
+        opbx_copy_string(r->language, peer->language, sizeof(r->language));
     r->maxtime = peer->maxms;
     r->callgroup = peer->callgroup;
     r->pickupgroup = peer->pickupgroup;
