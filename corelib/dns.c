@@ -1,6 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2008, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005 Thorsten Lockert
  *
  * Written by Thorsten Lockert <tholo@trollphone.org>
@@ -174,55 +175,66 @@ static int dns_parse_answer(void *context,
 	return 0;
 }
 
+
+OPBX_MUTEX_DEFINE_STATIC(res_lock);
+
 #if (defined(res_ninit) && !defined(__UCLIBC__))
 #define HAS_RES_NINIT
-#else
-OPBX_MUTEX_DEFINE_STATIC(res_lock);
-#if 0
-#warning "Warning, res_ninit is missing...  Could have reentrancy issues"
+struct state {
+	struct __res_state rs;
+	struct state *next;
+};
+
+static struct state *states;
 #endif
-#endif
+
 
 /*--- opbx_search_dns: Lookup record in DNS */
 int opbx_search_dns(void *context,
 	   const char *dname, int class, int type,
 	   int (*callback)(void *context, char *answer, int len, char *fullanswer))
 {
-#ifdef HAS_RES_NINIT
-	struct __res_state dnsstate;
-#endif
 	char answer[MAX_SIZE];
-	int res, ret = -1;
-
+	int ret = -1;
 #ifdef HAS_RES_NINIT
-	memset(&dnsstate, 0, sizeof(dnsstate));
+	struct state *s;
 
-	res_ninit(&dnsstate);
-	res = res_nsearch(&dnsstate, dname, class, type, (unsigned char *)answer, sizeof(answer));
+	opbx_mutex_lock(&res_lock);
+	if ((s = states))
+		states = states->next;
+	opbx_mutex_unlock(&res_lock);
+
+	if (!s && !(s = calloc(1, sizeof(*s))))
+		return -1;
+
+	if ((ret = res_ninit(&s->rs))) {
+		ret = res_nsearch(&s->rs, dname, class, type, (unsigned char *)answer, sizeof(answer));
+		res_nclose(&s->rs);
+	}
+
+	opbx_mutex_lock(&res_lock);
+	s->next = states;
+	states = s;
+	opbx_mutex_unlock(&res_lock);
+
+	if (ret > 0 && (ret = dns_parse_answer(context, class, type, answer, ret, callback)) < 0)
+		opbx_log(OPBX_LOG_WARNING, "DNS Parse error for %s\n", dname);
+	if (ret == 0)
+		opbx_log(OPBX_LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 #else
 	opbx_mutex_lock(&res_lock);
-	res_init();
-	res = res_search(dname, class, type, answer, sizeof(answer));
-#endif
-	if (res > 0) {
-		if ((res = dns_parse_answer(context, class, type, answer, res, callback)) < 0) {
-			opbx_log(OPBX_LOG_WARNING, "DNS Parse error for %s\n", dname);
-			ret = -1;
-		}
-		else if (ret == 0) {
-			opbx_log(OPBX_LOG_DEBUG, "No matches found in DNS for %s\n", dname);
-			ret = 0;
-		}
-		else
-			ret = 1;
-	}
-#ifdef HAS_RES_NINIT
-	res_nclose(&dnsstate);
-#else
+	if ((ret = res_init())) {
+		ret = res_search(dname, class, type, answer, sizeof(answer));
 #ifndef __APPLE__
-	res_close();
+		res_close();
 #endif
+	}
 	opbx_mutex_unlock(&res_lock);
+
+	if (ret > 0 && (ret = dns_parse_answer(context, class, type, answer, ret, callback)) < 0)
+		opbx_log(OPBX_LOG_WARNING, "DNS Parse error for %s\n", dname);
+	if (ret == 0)
+		opbx_log(OPBX_LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 #endif
 	return ret;
 }
