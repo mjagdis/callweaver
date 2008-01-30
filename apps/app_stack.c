@@ -84,14 +84,14 @@ static const char pop_descrip[] =
 "  Always returns 0, even if the stack is empty.\n";
 
 
-static int pop_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pop_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
 	return 0;
 }
 
-static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int return_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[3 + 3 + 1];
 	char *label;
@@ -99,12 +99,12 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 
 	label = pbx_builtin_getvar_helper(chan, STACKVAR);
 
-	if (opbx_strlen_zero(label)) {
-		opbx_log(OPBX_LOG_ERROR, "Return without Gosub: stack is empty\n");
+	if (cw_strlen_zero(label)) {
+		cw_log(CW_LOG_ERROR, "Return without Gosub: stack is empty\n");
 		return -1;
 	}
 
-	opbx_separate_app_args(label, ',', 100, argv);
+	cw_separate_app_args(label, ',', 100, argv);
 	argc = atoi(argv[3]);
 
 	memcpy(buf, "ARG", 3);
@@ -115,22 +115,22 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
-	if (opbx_explicit_goto(chan, argv[0], argv[1], atoi(argv[2]))) {
-		opbx_log(OPBX_LOG_WARNING, "No statement after Gosub to return to?\n");
+	if (cw_explicit_goto(chan, argv[0], argv[1], atoi(argv[2]))) {
+		cw_log(CW_LOG_WARNING, "No statement after Gosub to return to?\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-static int gosub_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int gosub_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char buf[3 + 1 + OPBX_MAX_CONTEXT + 1 + OPBX_MAX_EXTENSION + 1 + 11 + 11];
+	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *p, *q;
 	int i;
 
 	if (argc < 1 || argc > 3)
-		return opbx_function_syntax(gosub_syntax);
+		return cw_function_syntax(gosub_syntax);
 
 	exten = (argc > 1 ? argv[argc-2] : NULL);
 	context = (argc > 2 ? argv[argc-3] : NULL);
@@ -138,17 +138,17 @@ static int gosub_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 	if ((p = strchr(argv[argc-1], '('))) {
 		*(p++) = '\0';
 		if (!(q = strrchr(p, ')')))
-			return opbx_function_syntax(gosub_syntax);
+			return cw_function_syntax(gosub_syntax);
 
 		*q = '\0';
 	}
 
 	snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
 
-	if (opbx_explicit_gotolabel(chan, context, exten, argv[argc-1]))
+	if (cw_explicit_gotolabel(chan, context, exten, argv[argc-1]))
 		return -1;
 
-	argc = (p ? opbx_separate_app_args(p, ',', 100, argv) : 0);
+	argc = (p ? cw_separate_app_args(p, ',', 100, argv) : 0);
 	i = strlen(buf);
 	snprintf(buf+i, sizeof(buf)-i, ",%d", argc);
 	pbx_builtin_pushvar_helper(chan, STACKVAR, buf);
@@ -162,14 +162,14 @@ static int gosub_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 	return 0;
 }
 
-static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *s, *q;
 	int i;
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
-		return opbx_function_syntax(gosubif_syntax);
+		return cw_function_syntax(gosubif_syntax);
 
 	/* Trim trailing space from the condition */
 	q = s;
@@ -207,20 +207,20 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(return_app);
-	res |= opbx_unregister_function(pop_app);
-	res |= opbx_unregister_function(gosubif_app);
-	res |= opbx_unregister_function(gosub_app);
+	res |= cw_unregister_function(return_app);
+	res |= cw_unregister_function(pop_app);
+	res |= cw_unregister_function(gosubif_app);
+	res |= cw_unregister_function(gosub_app);
 
 	return res;
 }
 
 static int load_module(void)
 {
-	pop_app = opbx_register_function(pop_name, pop_exec, pop_synopsis, pop_syntax, pop_descrip);
-	return_app = opbx_register_function(return_name, return_exec, return_synopsis, return_syntax, return_descrip);
-	gosubif_app = opbx_register_function(gosubif_name, gosubif_exec, gosubif_synopsis, gosubif_syntax, gosubif_descrip);
-	gosub_app = opbx_register_function(gosub_name, gosub_exec, gosub_synopsis, gosub_syntax, gosub_descrip);
+	pop_app = cw_register_function(pop_name, pop_exec, pop_synopsis, pop_syntax, pop_descrip);
+	return_app = cw_register_function(return_name, return_exec, return_synopsis, return_syntax, return_descrip);
+	gosubif_app = cw_register_function(gosubif_name, gosubif_exec, gosubif_synopsis, gosubif_syntax, gosubif_descrip);
+	gosub_app = cw_register_function(gosub_name, gosub_exec, gosub_synopsis, gosub_syntax, gosub_descrip);
 
 	return 0;
 }

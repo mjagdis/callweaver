@@ -79,45 +79,45 @@ struct calloutdata {
 	char tech[64];
 	char resource[256];
 	char nconferenceopts[64];
-	struct opbx_variable *variables;
+	struct cw_variable *variables;
 };
 
 static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
-	opbx_pbx_outgoing_app(cd->tech, OPBX_FORMAT_SLINEAR, cd->resource, 30000,
+	cw_pbx_outgoing_app(cd->tech, CW_FORMAT_SLINEAR, cd->resource, 30000,
 		"NConference", cd->nconferenceopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
 	free(cd);
 	return NULL;
 }
 
-static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, const char *tech, const char *resource)
+static void launch_page(struct cw_channel *chan, const char *nconferenceopts, const char *tech, const char *resource)
 {
 	struct calloutdata *cd;
 	const char *varname;
-	struct opbx_variable *lastvar = NULL;
-	struct opbx_var_t *varptr;
+	struct cw_variable *lastvar = NULL;
+	struct cw_var_t *varptr;
 	pthread_t t;
 
 	cd = malloc(sizeof(struct calloutdata));
 	if (cd) {
 		memset(cd, 0, sizeof(struct calloutdata));
-		opbx_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
-		opbx_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
-		opbx_copy_string(cd->tech, tech, sizeof(cd->tech));
-		opbx_copy_string(cd->resource, resource, sizeof(cd->resource));
-		opbx_copy_string(cd->nconferenceopts, nconferenceopts, sizeof(cd->nconferenceopts));
+		cw_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
+		cw_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
+		cw_copy_string(cd->tech, tech, sizeof(cd->tech));
+		cw_copy_string(cd->resource, resource, sizeof(cd->resource));
+		cw_copy_string(cd->nconferenceopts, nconferenceopts, sizeof(cd->nconferenceopts));
 
-		OPBX_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
-			if (!(varname = opbx_var_full_name(varptr)))
+		CW_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
+			if (!(varname = cw_var_full_name(varptr)))
 				continue;
 			if (varname[0] == '_') {
-				struct opbx_variable *newvar = NULL;
+				struct cw_variable *newvar = NULL;
 
 				if (varname[1] == '_') {
-					newvar = opbx_variable_new(varname, opbx_var_value(varptr));
+					newvar = cw_variable_new(varname, cw_var_value(varptr));
 				} else {
-					newvar = opbx_variable_new(&varname[1], opbx_var_value(varptr));
+					newvar = cw_variable_new(&varname[1], cw_var_value(varptr));
 				}
 
 				if (newvar) {
@@ -130,14 +130,14 @@ static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, 
 			}
 		}
 
-		if (opbx_pthread_create(&t, &global_attr_detached, page_thread, cd)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
+		if (cw_pthread_create(&t, &global_attr_detached, page_thread, cd)) {
+			cw_log(CW_LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			free(cd);
 		}
 	}
 }
 
-static int page_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int page_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *tech, *resource;
@@ -147,7 +147,7 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int res=0;
 
 	if (argc < 1 || argc > 2)
-		return opbx_function_syntax(page_syntax);
+		return cw_function_syntax(page_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -167,17 +167,17 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			*resource++ = '\0';
 			launch_page(chan, nconferenceopts, tech, resource);
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
+			cw_log(CW_LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
 		}
 	}
 	if (!(flags & PAGE_QUIET)) {
-		res = opbx_streamfile(chan, "beep", chan->language);
+		res = cw_streamfile(chan, "beep", chan->language);
 		if (!res)
-			res = opbx_waitstream(chan, "");
+			res = cw_waitstream(chan, "");
 	}
 	if (!res) {
 		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
-		opbx_function_exec_str(chan, hash_nconference, "NConference", nconferenceopts, NULL, 0);
+		cw_function_exec_str(chan, hash_nconference, "NConference", nconferenceopts, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -189,15 +189,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |=  opbx_unregister_function(page_app);
+	res |=  cw_unregister_function(page_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	hash_nconference = opbx_hash_app_name("NConference");
+	hash_nconference = cw_hash_app_name("NConference");
 
-	page_app = opbx_register_function(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
+	page_app = cw_register_function(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
 	return 0;
 }
 

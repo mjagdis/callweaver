@@ -34,7 +34,7 @@
 void sccp_sk_redial(sccp_device_t * d , sccp_line_t * l, sccp_channel_t * c) {
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Redial Softkey.\n",d->id);
 
-	if (opbx_strlen_zero(d->lastNumber)) {
+	if (cw_strlen_zero(d->lastNumber)) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: No number to redial\n", d->id);
 		return;
 	}
@@ -42,11 +42,11 @@ void sccp_sk_redial(sccp_device_t * d , sccp_line_t * l, sccp_channel_t * c) {
 	if (c) {
 		if (c->state == SCCP_CHANNELSTATE_OFFHOOK) {
 			/* we have a offhook channel */
-			opbx_mutex_lock(&c->lock);
-			opbx_copy_string(c->dialedNumber, d->lastNumber, sizeof(c->dialedNumber));
+			cw_mutex_lock(&c->lock);
+			cw_copy_string(c->dialedNumber, d->lastNumber, sizeof(c->dialedNumber));
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Get ready to redial number %s\n", d->id, d->lastNumber);
 			c->digittimeout = time(0)+1;
-			opbx_mutex_unlock(&c->lock);
+			cw_mutex_unlock(&c->lock);
 		}
 		/* here's a KEYMODE error. nothing to do */
 		return;
@@ -105,7 +105,7 @@ void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 		return;
 	}
 	
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->dnd = (d->dnd) ? 0 : 1;
 	if (d->dndmode == SCCP_DNDMODE_REJECT) {
 		l1 = d->lines;
@@ -118,7 +118,7 @@ void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 			l1 = l1->next_on_device;
 		}
 	}
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	sccp_dev_dbput(d);
 	sccp_dev_check_displayprompt(d);
 }
@@ -130,12 +130,12 @@ void sccp_sk_backspace(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 		return;
 	if (c->state != SCCP_CHANNELSTATE_DIALING)
 		return;
-	opbx_mutex_lock(&c->lock);
+	cw_mutex_lock(&c->lock);
 	len = strlen(c->dialedNumber)-1;
 	if (len >= 0)
 		c->dialedNumber[len] = '\0';
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: backspacing dial number %s\n", c->device->id, c->dialedNumber);
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 }
 
 void sccp_sk_answer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
@@ -198,9 +198,9 @@ void sccp_sk_trnsfvm(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	}
 
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: TRANSVM to %s\n", d->id, l->trnsfvm);
-	opbx_copy_string(c->owner->call_forward, l->trnsfvm, sizeof(c->owner->call_forward));
-	opbx_setstate(c->owner, OPBX_STATE_BUSY);
-	opbx_queue_control(c->owner, OPBX_CONTROL_BUSY);
+	cw_copy_string(c->owner->call_forward, l->trnsfvm, sizeof(c->owner->call_forward));
+	cw_setstate(c->owner, CW_STATE_BUSY);
+	cw_queue_control(c->owner, CW_CONTROL_BUSY);
 }
 
 void sccp_sk_private(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
@@ -208,18 +208,18 @@ void sccp_sk_private(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: private function is not active on this device\n", d->id);
 		return;
 	}
-	opbx_mutex_lock(&c->lock);
+	cw_mutex_lock(&c->lock);
 	c->private = (c->private) ? 0 : 1;
 	sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_PRIVATE, 0);
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Private %s on call %d\n", d->id, c->private ? "enabled" : "disabled", c->callid);
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 }
 
 void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 #ifndef CS_SCCP_PICKUP
 	sccp_log(10)(VERBOSE_PREFIX_3 "### Native PICKUP was not compiled in\n");
 #else
-	struct opbx_channel *ast, *original = NULL;
+	struct cw_channel *ast, *original = NULL;
 
 	if (!l)
 		l = d->currentLine;
@@ -236,7 +236,7 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	if (!c)
 		c = sccp_channel_newcall(l, NULL);
 	if (!c) {
-			opbx_log(OPBX_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n",d->id, l->name);
+			cw_log(CW_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n",d->id, l->name);
 			return;
 	}
 
@@ -250,32 +250,32 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 		return;
 	}
 
-	if (opbx_pickup_call(ast)) {
+	if (cw_pickup_call(ast)) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: pickup error\n", d->id);
 		/* let the channel goes down to the invalid number */
 		return;
 	}
 
 	if (ast) {
-		opbx_mutex_lock(&ast->lock);
+		cw_mutex_lock(&ast->lock);
 		original = ast->masqr;
-		opbx_mutex_unlock(&ast->lock);
+		cw_mutex_unlock(&ast->lock);
 	}
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Pickup the call from %s\n", d->id, original->name);
 	
 	/* need the lock for the pbx_startchannel */
 	if (ast->pbx)
-		opbx_queue_hangup(ast);
+		cw_queue_hangup(ast);
 	else
-		opbx_hangup(ast);
+		cw_hangup(ast);
 
 	if (original) {
 		sccp_channel_set_callingparty(c, original->cid.cid_name, original->cid.cid_num);
 	}
-	opbx_mutex_lock(&c->lock);
+	cw_mutex_lock(&c->lock);
 	c->calltype = SKINNY_CALLTYPE_INBOUND;
 	sccp_indicate_nolock(c, SCCP_CHANNELSTATE_CONNECTED);
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 #endif
 }

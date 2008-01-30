@@ -54,49 +54,49 @@ static const char config_func_desc[] = "This function will read configuration va
 /* }}} */
 
 /* function_config_read() {{{ */
-static int function_config_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_config_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static struct {
 		char *key, *value;
 	} keytab[] = {
 #if 0
 		/* These doesn't seem to be available outside callweaver.c */
-		{ "cwrunuser", opbx_config_OPBX_RUN_USER },
-		{ "cwrungroup", opbx_config_OPBX_RUN_GROUP },
-		{ "cwmoddir", opbx_config_OPBX_MOD_DIR },
+		{ "cwrunuser", cw_config_CW_RUN_USER },
+		{ "cwrungroup", cw_config_CW_RUN_GROUP },
+		{ "cwmoddir", cw_config_CW_MOD_DIR },
 #endif
-		{ "cwctlpermissions", opbx_config_OPBX_CTL_PERMISSIONS },
-		{ "cwctlowner", opbx_config_OPBX_CTL_OWNER },
-		{ "cwctlgroup", opbx_config_OPBX_CTL_GROUP },
-		{ "cwctl", opbx_config_OPBX_CTL },
-		{ "cwdb", opbx_config_OPBX_DB },
-		{ "cwetcdir", opbx_config_OPBX_CONFIG_DIR },
-		{ "cwconfigdir", opbx_config_OPBX_CONFIG_DIR },
-		{ "cwspooldir", opbx_config_OPBX_SPOOL_DIR },
-		{ "cwvarlibdir", opbx_config_OPBX_VAR_DIR },
-		{ "cwvardir", opbx_config_OPBX_VAR_DIR },
-		{ "cwdbdir", opbx_config_OPBX_DB_DIR },
-		{ "cwlogdir", opbx_config_OPBX_LOG_DIR },
-		{ "cwogidir", opbx_config_OPBX_OGI_DIR },
-		{ "cwsoundsdir", opbx_config_OPBX_SOUNDS_DIR },
-		{ "cwrundir", opbx_config_OPBX_RUN_DIR },
-		{ "systemname", opbx_config_OPBX_SYSTEM_NAME },
-		{ "enableunsafeunload", opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD },
+		{ "cwctlpermissions", cw_config_CW_CTL_PERMISSIONS },
+		{ "cwctlowner", cw_config_CW_CTL_OWNER },
+		{ "cwctlgroup", cw_config_CW_CTL_GROUP },
+		{ "cwctl", cw_config_CW_CTL },
+		{ "cwdb", cw_config_CW_DB },
+		{ "cwetcdir", cw_config_CW_CONFIG_DIR },
+		{ "cwconfigdir", cw_config_CW_CONFIG_DIR },
+		{ "cwspooldir", cw_config_CW_SPOOL_DIR },
+		{ "cwvarlibdir", cw_config_CW_VAR_DIR },
+		{ "cwvardir", cw_config_CW_VAR_DIR },
+		{ "cwdbdir", cw_config_CW_DB_DIR },
+		{ "cwlogdir", cw_config_CW_LOG_DIR },
+		{ "cwogidir", cw_config_CW_OGI_DIR },
+		{ "cwsoundsdir", cw_config_CW_SOUNDS_DIR },
+		{ "cwrundir", cw_config_CW_RUN_DIR },
+		{ "systemname", cw_config_CW_SYSTEM_NAME },
+		{ "enableunsafeunload", cw_config_CW_ENABLE_UNSAFE_UNLOAD },
 	};
 	int i;
 
 	if (buf) {
 		for (i = 0; i < arraysize(keytab); i++) {
 			if (!strcasecmp(keytab[i].key, argv[0])) {
-				opbx_copy_string(buf, keytab[i].value, len);
+				cw_copy_string(buf, keytab[i].value, len);
 				return 0;
 			}
 		}
-		opbx_log(OPBX_LOG_ERROR, "Config setting '%s' not known.\n", argv[0]);
+		cw_log(CW_LOG_ERROR, "Config setting '%s' not known.\n", argv[0]);
 		return -1;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
+	cw_log(CW_LOG_ERROR, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 	return -1;
 }
 /* function_config_read() }}} */
@@ -108,14 +108,14 @@ static const char tdesc[] = "CONFIG function";
 /* unload_module() {{{ */
 static int unload_module(void)
 {
-        return opbx_unregister_function(config_function);
+        return cw_unregister_function(config_function);
 }
 /* }}} */
 
 /* load_module() {{{ */
 static int load_module(void)
 {
-        config_function = opbx_register_function(config_func_name, function_config_rw, config_func_synopsis, config_func_syntax, config_func_desc);
+        config_function = cw_register_function(config_func_name, function_config_rw, config_func_synopsis, config_func_syntax, config_func_desc);
 	return 0;
 }
 /* }}} */

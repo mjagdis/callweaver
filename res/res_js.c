@@ -103,7 +103,7 @@ static void
 js_error(JSContext *cx, const char *message, JSErrorReport *report)
 {
     if (message) {
-        opbx_log(OPBX_LOG_ERROR, "%s\n", message);
+        cw_log(CW_LOG_ERROR, "%s\n", message);
     }
 	
 }
@@ -131,7 +131,7 @@ static int global_var_option_whitelist = 0;
 static int global_func_option_whitelist = 0;
 
 struct jchan {
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	char *name;
 	char *context;
 	char *exten;
@@ -152,20 +152,20 @@ static JSRuntime *rt;
 
 
 static int process_config(void) {
-	struct opbx_config *cfg;
-    struct opbx_variable *v;
+	struct cw_config *cfg;
+    struct cw_variable *v;
 	int i = 0, j = 0, k = 0;
 	memset(global_app_list, 0, MAX_LIST * MAX_LIST);
 	memset(global_var_list, 0, MAX_LIST * MAX_LIST);
 	memset(global_func_list, 0, MAX_LIST * MAX_LIST);
 
-	if ((cfg = opbx_config_load(global_config_file))) {
-		for (v = opbx_variable_browse(cfg, "general"); v ; v = v->next) {
+	if ((cfg = cw_config_load(global_config_file))) {
+		for (v = cw_variable_browse(cfg, "general"); v ; v = v->next) {
 			if (!strcmp(v->name, "global_dir")) {
 				strncpy(global_dir, v->value, sizeof(global_dir));
 			}
 		}
-		for (v = opbx_variable_browse(cfg, "security"); v ; v = v->next) {
+		for (v = cw_variable_browse(cfg, "security"); v ; v = v->next) {
 			if (!strcasecmp(v->name, "app_list_type")) 
 				global_app_option_whitelist = !strcasecmp(v->value, "white") ? 1 : 0;
 			else if (!strcasecmp(v->name, "var_list_type"))
@@ -180,9 +180,9 @@ static int process_config(void) {
 				strncpy(global_func_list[k++], v->value, MAX_LIST);
 			
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Cannot open %s\n", global_config_file);
+		cw_log(CW_LOG_WARNING, "Cannot open %s\n", global_config_file);
 		return -1;
 	}
 
@@ -228,7 +228,7 @@ chan_up(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		arg = JSVAL_TO_BOOLEAN(argv[0]);
 	}
 
-	*rval = BOOLEAN_TO_JSVAL( opbx_check_hangup(jc->chan) ? JS_FALSE : JS_TRUE );
+	*rval = BOOLEAN_TO_JSVAL( cw_check_hangup(jc->chan) ? JS_FALSE : JS_TRUE );
 
 	return arg == JS_TRUE ? *rval : JS_TRUE;
 }
@@ -241,7 +241,7 @@ chan_waitfordigit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *
 	int digit;
 	
 	if (argc > 0) {
-		digit = opbx_waitfordigit(jc->chan, JSVAL_TO_INT(argv[0]));
+		digit = cw_waitfordigit(jc->chan, JSVAL_TO_INT(argv[0]));
 		if (digit <= 0) {
 			*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
 			return JS_TRUE;
@@ -253,7 +253,7 @@ chan_waitfordigit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *
 		return JS_TRUE;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
     return JS_FALSE;
 
 }
@@ -278,7 +278,7 @@ chan_mohstart(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 	if (argc > 0)
         class = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
 	if(jc->chan)
-		opbx_moh_start(jc->chan, class);
+		cw_moh_start(jc->chan, class);
 	
 	return JS_TRUE;
 }
@@ -288,7 +288,7 @@ chan_mohstop(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
 	if(jc->chan)
-		opbx_moh_stop(jc->chan);
+		cw_moh_stop(jc->chan);
 	return JS_TRUE;
 }
 
@@ -297,11 +297,11 @@ chan_wait(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
 	if (argc > 0) {
-		opbx_safe_sleep(jc->chan, JSVAL_TO_INT(argv[0]));
+		cw_safe_sleep(jc->chan, JSVAL_TO_INT(argv[0]));
 		return JS_TRUE;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
     return JS_FALSE;
 
 }
@@ -337,8 +337,8 @@ chan_getdigits(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 
 
 	memset(buf, 0, sizeof(buf));
-	opbx_app_getdata(jc->chan, path && !opbx_strlen_zero(path) ? path : NULL, buf, maxdigits, timeout);
-	if (!opbx_strlen_zero(buf)) {
+	cw_app_getdata(jc->chan, path && !cw_strlen_zero(path) ? path : NULL, buf, maxdigits, timeout);
+	if (!cw_strlen_zero(buf)) {
 		*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, buf) );
 	} else 
 		*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
@@ -373,10 +373,10 @@ chan_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 				
 				if (deny) {
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
+						cw_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
 					if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-						opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
-						opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
+						cw_log(CW_LOG_WARNING, "Execution Halted by security measures.\n");
+						cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 						return JS_FALSE;
 					} else 
 						return JS_TRUE;
@@ -423,10 +423,10 @@ chan_setvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 				
 				if (deny) {
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
+						cw_verbose(VERBOSE_PREFIX_3"Usage of Var [%s] Blocked by security measures.\n", varname);
 					if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-						opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
-						opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
+						cw_log(CW_LOG_WARNING, "Execution Halted by security measures.\n");
+						cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 						return JS_FALSE;
 					} else 
 						return JS_TRUE;
@@ -472,10 +472,10 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 			if (deny) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", app);
+					cw_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", app);
 				if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-					opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
-					opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
+					cw_log(CW_LOG_WARNING, "Execution Halted by security measures.\n");
+					cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 					return JS_FALSE;
 				} else 
 					return JS_TRUE;
@@ -484,14 +484,14 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		}
 
 		data = strdup(data ? data : "");
-		*rval = BOOLEAN_TO_JSVAL ( opbx_function_exec_str(jc->chan, opbx_hash_app_name(app), app, data, NULL, 0) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_app_name(app), app, data, NULL, 0) ? JS_FALSE : JS_TRUE );
 		if (data)
 			free(data);
 
 		return JS_TRUE;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
 	return JS_FALSE;
 }
 
@@ -510,7 +510,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 	if (argc > 0)
 		fdata = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
 
-	if (fdata && (fname = opbx_strdupa(fdata))) {
+	if (fdata && (fname = cw_strdupa(fdata))) {
 		if ((args = strchr(fname, '('))) {
 			*(args++) = '\0';
 			if ((p = strrchr(args, ')')))
@@ -529,10 +529,10 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 
 			if (deny) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", fdata);
+					cw_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", fdata);
 				if (jc_test_flag(jc, JC_BREACH_FATAL)) {
-					opbx_log(OPBX_LOG_WARNING, "Execution Halted by security measures.\n");
-					opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
+					cw_log(CW_LOG_WARNING, "Execution Halted by security measures.\n");
+					cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 					return JS_FALSE;
 				} else 
 					return JS_TRUE;
@@ -540,14 +540,14 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 			
 		}
 
-		if (!opbx_function_exec_str(jc->chan, opbx_hash_app_name(fname), fname, args, dbuf, sizeof(dbuf)))
+		if (!cw_function_exec_str(jc->chan, cw_hash_app_name(fname), fname, args, dbuf, sizeof(dbuf)))
 			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, dbuf) );
 
 		free(fname);
 		return JS_TRUE;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
 	return JS_FALSE;
 }
 
@@ -555,7 +555,7 @@ static JSBool
 chan_hangup(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	opbx_softhangup(jc->chan, OPBX_SOFTHANGUP_EXPLICIT);
+	cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 	return JS_TRUE;
 }
 
@@ -564,7 +564,7 @@ static JSBool
 chan_answer(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	opbx_answer(jc->chan);
+	cw_answer(jc->chan);
 	return JS_TRUE;
 }
 
@@ -594,11 +594,11 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 	} else if (filename) {
 		snprintf(path_info, sizeof(path_info), "%s,%s,%s,%s", filename, silence, maxduration, options);
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Invalid Arguements.\n");
+		cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
 		return JS_FALSE;
 	}
 	
-	*rval = BOOLEAN_TO_JSVAL ( opbx_function_exec_str(jc->chan, opbx_hash_app_name("Record"), "Record", path_info, NULL, 0) ? JS_FALSE : JS_TRUE );
+	*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_app_name("Record"), "Record", path_info, NULL, 0) ? JS_FALSE : JS_TRUE );
 	return JS_TRUE;
 	
 }
@@ -624,9 +624,9 @@ chan_streamfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 			} else 
 				path = filename;
 
-			res = opbx_streamfile(jc->chan, path, jc->chan->language);
+			res = cw_streamfile(jc->chan, path, jc->chan->language);
 			if (!res) {
-				if ((res = opbx_waitstream(jc->chan, OPBX_DIGIT_ANY)) < 0)
+				if ((res = cw_waitstream(jc->chan, CW_DIGIT_ANY)) < 0)
 					return JS_FALSE;
 				if (res > 0) {
 					ret[0] = (char) res;
@@ -662,7 +662,7 @@ chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
                 return JS_FALSE;
         }
 
-        res = opbx_db_del(family, key);
+        res = cw_db_del(family, key);
         if (!res) {
 	        *rval = BOOLEAN_TO_JSVAL ( JSVAL_TRUE);
                 return JS_TRUE;
@@ -689,7 +689,7 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
                 return JS_FALSE;
         }
 
-        res = opbx_db_put(family, key, name);
+        res = cw_db_put(family, key, name);
 
         if (!res) {
 		*rval = BOOLEAN_TO_JSVAL ( JSVAL_TRUE);		
@@ -720,13 +720,13 @@ chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
                 return JS_FALSE;
         }
 
-        res = opbx_db_get(family, key, tmp, sizeof(tmp));
-	if (( res = opbx_db_get(family, key, tmp, sizeof(tmp)) )) {
+        res = cw_db_get(family, key, tmp, sizeof(tmp));
+	if (( res = cw_db_get(family, key, tmp, sizeof(tmp)) )) {
 		// Error
 		return JS_TRUE; // Return information in *rval to JSVAL_NULL
 	} else {
 		*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);
-		if ( opbx_strlen_zero(tmp) ) 
+		if ( cw_strlen_zero(tmp) ) 
 			*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);  // NULL
 		else
 			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, tmp)); // Not null
@@ -867,7 +867,7 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 	struct config_data *config_data = data;
 	char code[256];
 
-	if (config_data->name && (line = opbx_strdupa((char *) ptr))) {
+	if (config_data->name && (line = cw_strdupa((char *) ptr))) {
 		while (line) {
 			if ((nextline = strchr(line, '\n'))) {
 				*nextline = '\0';
@@ -931,7 +931,7 @@ js_fetchurl(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		curl_easy_perform(curl_handle);
 		curl_easy_cleanup(curl_handle);
     } else {
-		opbx_log(OPBX_LOG_ERROR, "Error!\n");
+		cw_log(CW_LOG_ERROR, "Error!\n");
 		return JS_FALSE;
 	}
 
@@ -955,7 +955,7 @@ static int write_buf(int fd, char *buf) {
 static JSBool
 js_unlinksound(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	struct opbx_channel *chan = JS_GetPrivate(cx, obj);
+	struct cw_channel *chan = JS_GetPrivate(cx, obj);
 	char *path = NULL, *prefix = NULL, *filename = NULL;
 	char path_info[256];
 	
@@ -992,7 +992,7 @@ js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	unsigned char out[B64BUFFLEN+512];
 	char path_info[256];
 	char *path = NULL, *prefix = NULL;
-	struct opbx_channel *chan = JS_GetPrivate(cx, obj);
+	struct cw_channel *chan = JS_GetPrivate(cx, obj);
 	
 	if ( chan && 
 		 argc > 3 && 
@@ -1092,14 +1092,14 @@ js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 			close(ifd);
 
 		snprintf(buf, B64BUFFLEN, "/bin/cat %s | /usr/sbin/sendmail -tf \"%s\" %s", filename, from, to);
-		opbx_safe_system(buf);
+		cw_safe_system(buf);
 		unlink(filename);
 
 		if (option_verbose > 2) {
 			if (file)
-				opbx_verbose(VERBOSE_PREFIX_3"Emailed file [%s] to [%s]\n", filename, to);
+				cw_verbose(VERBOSE_PREFIX_3"Emailed file [%s] to [%s]\n", filename, to);
 			else
-				opbx_verbose(VERBOSE_PREFIX_3"Emailed data to [%s]\n", to);
+				cw_verbose(VERBOSE_PREFIX_3"Emailed data to [%s]\n", to);
 		}
 		return JS_TRUE;
 	}
@@ -1114,7 +1114,7 @@ js_die(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	char *msg = NULL;
 	if ( argc > 0 && (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[0])))) {
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3"Javascript Die: %s\n", msg);
+			cw_verbose(VERBOSE_PREFIX_3"Javascript Die: %s\n", msg);
 	}
 	return JS_FALSE;
 }
@@ -1167,7 +1167,7 @@ js_verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 					break;
 				};
 
-				opbx_verbose("%s%s", prefix, JS_GetStringBytes(str));
+				cw_verbose("%s%s", prefix, JS_GetStringBytes(str));
 			}
 		} else
 			return JS_FALSE;
@@ -1187,7 +1187,7 @@ js_include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		eval_some_js(code, cx, obj, rval);
 		return JS_TRUE;
 	}
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements\n");
 	return JS_FALSE;
 }
 
@@ -1201,21 +1201,21 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		   (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[1])))) {
 
 			if (!strcasecmp(log, "LOG_EVENT"))
-				opbx_log(OPBX_LOG_EVENT, msg);
+				cw_log(CW_LOG_EVENT, msg);
 			else if (!strcasecmp(log, "LOG_NOTICE"))
-				opbx_log(OPBX_LOG_NOTICE, msg);
+				cw_log(CW_LOG_NOTICE, msg);
 			else if (!strcasecmp(log, "LOG_WARNING"))
-				opbx_log(OPBX_LOG_WARNING, msg);
+				cw_log(CW_LOG_WARNING, msg);
 			else if (!strcasecmp(log, "LOG_ERROR"))
-				opbx_log(OPBX_LOG_ERROR, msg);
+				cw_log(CW_LOG_ERROR, msg);
 			else if (!strcasecmp(log, "LOG_VERBOSE"))
-				opbx_log(OPBX_LOG_VERBOSE, msg);
+				cw_log(CW_LOG_VERBOSE, msg);
 			else
-				opbx_log(OPBX_LOG_EVENT, msg);
+				cw_log(CW_LOG_EVENT, msg);
 			return JS_TRUE;
 		} 
 	} 
-	opbx_log(OPBX_LOG_ERROR, "Invalid Arguements\n");
+	cw_log(CW_LOG_ERROR, "Invalid Arguements\n");
 	return JS_FALSE;
 
 }
@@ -1252,7 +1252,7 @@ static JSFunctionSpec secure_callweaver_functions[] = {
 };
 
 
-static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct opbx_channel *chan, struct jchan *jc, int flags) {
+static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct cw_channel *chan, struct jchan *jc, int flags) {
 	JSObject *Chan;
 	if ((Chan = JS_DefineObject(cx, obj, "Chan", &chan_class, NULL, 0))) {
 		memset(jc, 0, sizeof(struct jchan));
@@ -1268,7 +1268,7 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct opbx_channel *ch
 	return NULL;
 }
 
-static int js_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *arg, *nextarg;
 	int res=-1;
@@ -1282,7 +1282,7 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	int flags = 0;
 
 	if (argc < 1 || !argv[0][0]) {
-		opbx_log(OPBX_LOG_ERROR, "js requires an argument (filename|code)\n");
+		cw_log(CW_LOG_ERROR, "js requires an argument (filename|code)\n");
 		return -1;
 	}
 
@@ -1345,15 +1345,15 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int function_js_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_js_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret;
 
 	if (argc < 1 || !argv[0][0])
-		return opbx_function_syntax(js_func_syntax);
+		return cw_function_syntax(js_func_syntax);
 
 	if (js_exec(chan, argc, argv, NULL, 0) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
-		opbx_copy_string(buf, ret, len);
+		cw_copy_string(buf, ret, len);
 		return 0;
 	}
 	return -1;
@@ -1370,8 +1370,8 @@ static int unload_module(void)
 	if (rt)
 		JS_DestroyRuntime(rt);
     JS_ShutDown();
-	opbx_unregister_function(js_function); 
-	res |= opbx_unregister_function(app);
+	cw_unregister_function(js_function); 
+	res |= cw_unregister_function(app);
 	return res;
 }
 
@@ -1388,8 +1388,8 @@ static int load_module(void)
         return -1;
 
 	process_config();
-	js_function = opbx_register_function(js_func_name, function_js_read, js_func_synopsis, js_func_syntax, js_func_desc); 
-	app = opbx_register_function(name, js_exec, synopsis, syntax, tdesc);
+	js_function = cw_register_function(js_func_name, function_js_read, js_func_synopsis, js_func_syntax, js_func_desc); 
+	app = cw_register_function(name, js_exec, synopsis, syntax, tdesc);
 	return 0;
 }
 

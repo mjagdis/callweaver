@@ -27,22 +27,22 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 // mutex for synchronizing access to conflist
-OPBX_MUTEX_DEFINE_EXPORTED(conflist_lock);
+CW_MUTEX_DEFINE_EXPORTED(conflist_lock);
 
 // mutex for synchronizing calls to start_conference() and remove_conf()
-OPBX_MUTEX_DEFINE_STATIC(start_stop_conf_lock);
+CW_MUTEX_DEFINE_STATIC(start_stop_conf_lock);
 
 
 // single-linked list of current conferences
-struct opbx_conference *conflist = NULL ;
+struct cw_conference *conflist = NULL ;
 int conference_count = 0 ;
 
 
 // called by app_conference.c:load_module()
 void init_conference( void ) 
 {
-    opbx_mutex_init( &conflist_lock ) ;
-    opbx_mutex_init( &start_stop_conf_lock ) ;
+    cw_mutex_init( &conflist_lock ) ;
+    cw_mutex_init( &start_stop_conf_lock ) ;
 }
 
 /* ********************************************************************************************** 
@@ -50,18 +50,18 @@ void init_conference( void )
    *********************************************************************************************/
 
 int add_command_to_queue ( 
-	struct opbx_conference *conf, struct opbx_conf_member *member ,
+	struct cw_conference *conf, struct cw_conf_member *member ,
 	int command, int param_number, char *param_text 
 	) 
 {
 
-    struct opbx_conf_command_queue *cq, *cq_last;
+    struct cw_conf_command_queue *cq, *cq_last;
 
-    cq = calloc(1, sizeof( struct opbx_conf_command_queue ) ) ;
+    cq = calloc(1, sizeof( struct cw_conf_command_queue ) ) ;
 	
     if ( cq == NULL ) 
     {
-    	opbx_log(OPBX_LOG_ERROR, "unable to malloc opbx_conf_command_queue\n" ) ;
+    	cw_log(CW_LOG_ERROR, "unable to malloc cw_conf_command_queue\n" ) ;
     	return 1 ;
     }
 
@@ -71,7 +71,7 @@ int add_command_to_queue (
     cq->param_number = param_number;
     strncpy(cq->param_text, param_text, sizeof(cq->param_text) );
 
-    opbx_mutex_lock( &conf->lock ) ;
+    cw_mutex_lock( &conf->lock ) ;
 
     if ( conf->command_queue == NULL ) {
 	conf->command_queue = cq;
@@ -82,39 +82,39 @@ int add_command_to_queue (
 	cq_last->next = cq;
     }
 
-    opbx_log(OPBX_CONF_DEBUG, "Conference, name => %s - Added command %d params: '%d/%s'\n", 
+    cw_log(CW_CONF_DEBUG, "Conference, name => %s - Added command %d params: '%d/%s'\n", 
 	      conf->name, cq->command, cq->param_number, cq->param_text );
 
-    opbx_mutex_unlock( &conf->lock ) ;
+    cw_mutex_unlock( &conf->lock ) ;
 
     return 1;
 }
 
-static struct opbx_conf_command_queue *get_command_from_queue ( struct opbx_conference *conf ) 
+static struct cw_conf_command_queue *get_command_from_queue ( struct cw_conference *conf ) 
 {
-    struct opbx_conf_command_queue *cq;
+    struct cw_conf_command_queue *cq;
 
-    opbx_mutex_lock( &conf->lock ) ;
+    cw_mutex_lock( &conf->lock ) ;
 
     cq = conf->command_queue;
 
     if (cq != NULL)
 	conf->command_queue = cq->next;
 
-    opbx_mutex_unlock( &conf->lock ) ;
+    cw_mutex_unlock( &conf->lock ) ;
 
     return cq;    
 }
 
-static void opbx_conf_command_execute( struct opbx_conference *conf ) {
-    struct opbx_conf_command_queue 	*cq;
-    struct opbx_conf_member *member 	= NULL ;
+static void cw_conf_command_execute( struct cw_conference *conf ) {
+    struct cw_conf_command_queue 	*cq;
+    struct cw_conf_member *member 	= NULL ;
 
     cq = get_command_from_queue(conf);
 
     if ( cq == NULL ) return;
 
-    opbx_log(OPBX_CONF_DEBUG,"Parsing Command Queue for conference %s\n",conf->name);
+    cw_log(CW_CONF_DEBUG,"Parsing Command Queue for conference %s\n",conf->name);
 
     switch (cq->command) {
 	case CONF_ACTION_MUTE_ALL: 
@@ -124,15 +124,15 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    while ( member != NULL )
 	    {
 		if (member != cq->issuedby) {
-		    opbx_mutex_lock( &member->lock ) ;
+		    cw_mutex_lock( &member->lock ) ;
 		    queue_incoming_silent_frame(member,2);
 		    member->talk_mute = cq->param_number;
-		    opbx_log(OPBX_CONF_DEBUG,"(CQ) Member Talk MUTE set to %d\n",member->talk_mute);
+		    cw_log(CW_CONF_DEBUG,"(CQ) Member Talk MUTE set to %d\n",member->talk_mute);
 		    if (cq->param_number)
 			conference_queue_sound( member, "conf-muted" );
 		    else
 			conference_queue_sound( member, "conf-unmuted" );
-		    opbx_mutex_unlock( &member->lock ) ;
+		    cw_mutex_unlock( &member->lock ) ;
 		}
 		// adjust our pointer to the next inline
 		member = member->next ;
@@ -144,11 +144,11 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    // loop over member list to retrieve queued frames
 	    while ( member != NULL )
 	    {
-		opbx_mutex_lock( &member->lock ) ;
+		cw_mutex_lock( &member->lock ) ;
 		queue_incoming_silent_frame(member,2);
 		member->dont_play_any_sound =  cq->param_number;
-		opbx_log(OPBX_CONF_DEBUG,"(CQ) Member Talk Disable sounds set to %d\n",member->dont_play_any_sound);
-		opbx_mutex_unlock( &member->lock ) ;
+		cw_log(CW_CONF_DEBUG,"(CQ) Member Talk Disable sounds set to %d\n",member->dont_play_any_sound);
+		cw_mutex_unlock( &member->lock ) ;
 		// adjust our pointer to the next inline
 		member = member->next ;
 	    } 
@@ -160,11 +160,11 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    while ( member != NULL )
 	    {
 		if (member != cq->issuedby) {
-		    opbx_mutex_lock( &member->lock ) ;
+		    cw_mutex_lock( &member->lock ) ;
 		    queue_incoming_silent_frame(member,2);
 		    if ( !(member->quiet_mode == 1 && cq->param_number) )
 			conference_queue_sound( member, cq->param_text );
-		    opbx_mutex_unlock( &member->lock ) ;
+		    cw_mutex_unlock( &member->lock ) ;
 		    // adjust our pointer to the next inline
 		}
 		    member = member->next ;
@@ -177,11 +177,11 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    while ( member != NULL )
 	    {
 		if (member != cq->issuedby) {
-		    opbx_mutex_lock( &member->lock ) ;
+		    cw_mutex_lock( &member->lock ) ;
 		    queue_incoming_silent_frame(member,2);
 		    if ( !(member->quiet_mode == 1 && cq->param_number) )
 			conference_queue_number( member, cq->param_text );
-		    opbx_mutex_unlock( &member->lock ) ;
+		    cw_mutex_unlock( &member->lock ) ;
 		    // adjust our pointer to the next inline
 		}
 		member = member->next ;
@@ -194,15 +194,15 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    while ( member != NULL )
 	    {
 		if (member != cq->issuedby) {;
-		    opbx_mutex_lock( &member->lock ) ;
+		    cw_mutex_lock( &member->lock ) ;
 		    if ( cq->param_number == 1) {
 			member->force_on_hold =  1;
 		    } 
 		    else {
 			member->force_on_hold = -1;
 		    }
-		    opbx_mutex_unlock( &member->lock ) ;
-		    opbx_log(OPBX_CONF_DEBUG,"(CQ) Member: playing moh set to %d\n",cq->param_number);
+		    cw_mutex_unlock( &member->lock ) ;
+		    cw_log(CW_CONF_DEBUG,"(CQ) Member: playing moh set to %d\n",cq->param_number);
 		    // adjust our pointer to the next inline
 		}
 		member = member->next ;
@@ -215,15 +215,15 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    {
 		// If it's not me and we don't have to kick all members
 		if (member != cq->issuedby) {
-		    opbx_mutex_lock( &member->lock ) ;
+		    cw_mutex_lock( &member->lock ) ;
 		    queue_incoming_silent_frame(member,2);
 		    if (cq->param_number == 0) 
 			conference_queue_sound( member, "goodbye" );
 		    else
 			conference_queue_sound( member, "conf-kicked" );
 		    member->force_remove_flag = 1;
-		    opbx_log(OPBX_CONF_DEBUG,"(CQ) Conf %s Member Kicked: %s\n",conf->name, member->chan->name);
-		    opbx_mutex_unlock( &member->lock ) ;
+		    cw_log(CW_CONF_DEBUG,"(CQ) Conf %s Member Kicked: %s\n",conf->name, member->chan->name);
+		    cw_mutex_unlock( &member->lock ) ;
 		    if (cq->param_number == 1) 
 			break;
 		}
@@ -232,7 +232,7 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
 	    } 
 	    break;
 	default:
-	    opbx_log(OPBX_LOG_WARNING, "Conference %s : don't know how to execute command %d\n", conf->name, cq->command) ;	
+	    cw_log(CW_LOG_WARNING, "Conference %s : don't know how to execute command %d\n", conf->name, cq->command) ;	
 	    break;
     }
 
@@ -244,18 +244,18 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
      member-related functions
    *********************************************************************************************/
 
-static void add_member( struct opbx_conference *conf, struct opbx_conf_member *member ) 
+static void add_member( struct cw_conference *conf, struct cw_conf_member *member ) 
 {
     char cnum[80];
 
     if ( conf == NULL ) 
     {
-    	opbx_log(OPBX_LOG_ERROR, "unable to add member to NULL conference\n" ) ;
+    	cw_log(CW_LOG_ERROR, "unable to add member to NULL conference\n" ) ;
     	return ;
     }
 
     // acquire the conference lock
-    opbx_mutex_lock( &conf->lock ) ;
+    cw_mutex_lock( &conf->lock ) ;
 
     member->next = conf->memberlist ; // next is now list
     conf->memberlist = member ; // member is now at head of list
@@ -263,7 +263,7 @@ static void add_member( struct opbx_conference *conf, struct opbx_conf_member *m
 
 
     // release the conference lock
-    opbx_mutex_unlock( &conf->lock ) ;	
+    cw_mutex_unlock( &conf->lock ) ;	
 
     if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
 	strncpy( cnum, member->chan->cid.cid_num, sizeof(cnum) );
@@ -273,7 +273,7 @@ static void add_member( struct opbx_conference *conf, struct opbx_conf_member *m
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
 
-    opbx_log( OPBX_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
+    cw_log( CW_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
 
     manager_event(
 	EVENT_FLAG_CALL, 
@@ -286,19 +286,19 @@ static void add_member( struct opbx_conference *conf, struct opbx_conf_member *m
 }
 
 
-static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* member ) 
+static int remove_member(struct cw_conference* conf, struct cw_conf_member* member ) 
 {
     // check for member
     if ( member == NULL )
     {
-	opbx_log(OPBX_LOG_WARNING, "unable to remove NULL member\n" ) ;
+	cw_log(CW_LOG_WARNING, "unable to remove NULL member\n" ) ;
 	return -1 ;
     }
 
     // check for conference
     if ( conf == NULL )
     {
-    	opbx_log(OPBX_LOG_WARNING, "unable to remove member from NULL conference\n" ) ;
+    	cw_log(CW_LOG_WARNING, "unable to remove member from NULL conference\n" ) ;
     	return -1 ;
     }
 
@@ -306,8 +306,8 @@ static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* 
     // loop through the member list looking for the requested member
     //
 
-    struct opbx_conf_member *member_list = conf->memberlist ;
-    struct opbx_conf_member *member_temp = NULL ;
+    struct cw_conf_member *member_list = conf->memberlist ;
+    struct cw_conf_member *member_temp = NULL ;
 
     while ( member_list != NULL ) 
     {
@@ -336,7 +336,7 @@ static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* 
 	    delete_member( member ) ;
 			
 	    conf->membercount --;
-	    opbx_log( OPBX_CONF_DEBUG, "removed member from conference, name => %s\n", conf->name) ;
+	    cw_log( CW_CONF_DEBUG, "removed member from conference, name => %s\n", conf->name) ;
 			
 	    break ;
 	}
@@ -356,13 +356,13 @@ static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* 
      conference-related functions
    *********************************************************************************************/
 
-static void conference_exec( struct opbx_conference *conf ) 
+static void conference_exec( struct cw_conference *conf ) 
 {
 
-    struct opbx_conf_member *member, *temp_member ;
+    struct cw_conf_member *member, *temp_member ;
     struct timeval empty_start = {0,0}, tv = {0,0} ;
 	
-    opbx_log( OPBX_CONF_DEBUG, "Entered conference_exec, name => %s\n", conf->name ) ;
+    cw_log( CW_CONF_DEBUG, "Entered conference_exec, name => %s\n", conf->name ) ;
 	
     //
     // main conference thread loop
@@ -372,7 +372,7 @@ static void conference_exec( struct opbx_conference *conf )
     {
 
 	//Acquire the mutex
-	opbx_mutex_lock( &conf->lock );
+	cw_mutex_lock( &conf->lock );
 	
 	// get list of conference members
 	member = conf->memberlist ;
@@ -380,12 +380,12 @@ static void conference_exec( struct opbx_conference *conf )
 	// loop over member list to retrieve queued frames
 	while ( member != NULL )
 	{
-	    opbx_mutex_lock( &member->lock ) ;
+	    cw_mutex_lock( &member->lock ) ;
 	    // check for dead members
 	    if ( member->remove_flag == 1 ) 
 	    {
 		char cnum[80];
-	    	opbx_log( OPBX_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
+	    	cw_log( CW_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
 	    	temp_member = member->next ;
 		if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
 		    strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
@@ -398,7 +398,7 @@ static void conference_exec( struct opbx_conference *conf )
 	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND , 1, "conf-hasleft" );
 	    	continue ;
 	    }
-	    opbx_mutex_unlock( &member->lock ) ;
+	    cw_mutex_unlock( &member->lock ) ;
 	    // adjust our pointer to the next inline
 	    member = member->next ;
 	} 
@@ -411,13 +411,13 @@ static void conference_exec( struct opbx_conference *conf )
  		gettimeofday( &empty_start, NULL );
 
 	    if (conf->auto_destroy) {
-		opbx_log( OPBX_CONF_DEBUG, "removing conference, count => %d, name => %s\n", conf->membercount, conf->name ) ;
+		cw_log( CW_CONF_DEBUG, "removing conference, count => %d, name => %s\n", conf->membercount, conf->name ) ;
 		remove_conf( conf ) ; // stop the conference
 		break ; // break from main processing loop
 	    } else {
-		//opbx_log( OPBX_CONF_DEBUG, "Delaying conference removal. Auto destroy is not set.\n" ) ;
+		//cw_log( CW_CONF_DEBUG, "Delaying conference removal. Auto destroy is not set.\n" ) ;
  		gettimeofday( &tv, NULL ) ;
-		if ( tv.tv_sec - empty_start.tv_sec > OPBX_CONF_DESTROY_TIME ) 
+		if ( tv.tv_sec - empty_start.tv_sec > CW_CONF_DESTROY_TIME ) 
 		    conf->auto_destroy=1;
 	    }
 	} else {
@@ -429,14 +429,14 @@ static void conference_exec( struct opbx_conference *conf )
 	// Check for the commands to be executed by the conference
 	//
 	if (conf->command_queue) 
-	    opbx_conf_command_execute( conf );
+	    cw_conf_command_execute( conf );
 
 	//---------//
 	// CLEANUP //
 	//---------//
 
 	// release conference mutex
-	opbx_mutex_unlock( &conf->lock ) ;
+	cw_mutex_unlock( &conf->lock ) ;
 
 	//Sleep for 1ms (relax)
 	usleep(1000);
@@ -446,14 +446,14 @@ static void conference_exec( struct opbx_conference *conf )
     // exit the conference thread
     // 
 	
-    opbx_log( OPBX_CONF_DEBUG, "exit conference_exec\n" ) ;
+    cw_log( CW_CONF_DEBUG, "exit conference_exec\n" ) ;
 
     // exit the thread
     pthread_exit( NULL ) ;
     return ;
 }
 
-struct opbx_conf_member *find_member( struct opbx_conference *conf, const char* name ) 
+struct cw_conf_member *find_member( struct cw_conference *conf, const char* name ) 
 {
     // check for member
     if ( name == NULL )
@@ -465,7 +465,7 @@ struct opbx_conf_member *find_member( struct opbx_conference *conf, const char* 
     //
     // loop through the member list looking for the requested member
     //
-    struct opbx_conf_member *member_list = conf->memberlist ;
+    struct cw_conf_member *member_list = conf->memberlist ;
 
     while ( member_list != NULL ) 
     {
@@ -479,19 +479,19 @@ struct opbx_conf_member *find_member( struct opbx_conference *conf, const char* 
     return NULL ;
 }
 
-struct opbx_conference *find_conf( const char* name ) 
+struct cw_conference *find_conf( const char* name ) 
 {	
-    struct opbx_conference *conf = conflist ;
+    struct cw_conference *conf = conflist ;
 	
     // no conferences exist
     if ( conflist == NULL ) 
     {
-    	opbx_log( OPBX_CONF_DEBUG, "conflist has not yet been initialized, name => %s\n", name ) ;
+    	cw_log( CW_CONF_DEBUG, "conflist has not yet been initialized, name => %s\n", name ) ;
     	return NULL ;
     }
 	
     // acquire mutex
-    opbx_mutex_lock( &conflist_lock ) ;
+    cw_mutex_lock( &conflist_lock ) ;
 
     // loop through conf list
     while ( conf != NULL ) 
@@ -499,35 +499,35 @@ struct opbx_conference *find_conf( const char* name )
 	if ( strncasecmp( (char*)&(conf->name), name, sizeof(conf->name) ) == 0 )
 	{
 	    // found conf name match 
-	    opbx_log( OPBX_CONF_DEBUG, "found conference in conflist, name => %s\n", name ) ;
+	    cw_log( CW_CONF_DEBUG, "found conference in conflist, name => %s\n", name ) ;
 	    break ;
 	}
 	conf = conf->next ;
     }
 
     // release mutex
-    opbx_mutex_unlock( &conflist_lock ) ;
+    cw_mutex_unlock( &conflist_lock ) ;
 
     if ( conf == NULL )
     {
-	opbx_log( OPBX_CONF_DEBUG, "unable to find conference in conflist, name => %s\n", name ) ;
+	cw_log( CW_CONF_DEBUG, "unable to find conference in conflist, name => %s\n", name ) ;
     }
 
     return conf ;
 
 }
 
-static struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member )
+static struct cw_conference* create_conf( char* name, struct cw_conf_member* member )
 {
-    opbx_log( OPBX_CONF_DEBUG, "entered create_conf, name => %s\n", name ) ;	
+    cw_log( CW_CONF_DEBUG, "entered create_conf, name => %s\n", name ) ;	
 
 
     // allocate memory for conference
-    struct opbx_conference *conf = calloc(1, sizeof( struct opbx_conference ) ) ;
+    struct cw_conference *conf = calloc(1, sizeof( struct cw_conference ) ) ;
 	
     if ( conf == NULL ) 
     {
-    	opbx_log(OPBX_LOG_ERROR, "unable to malloc opbx_conference\n" ) ;
+    	cw_log(CW_LOG_ERROR, "unable to malloc cw_conference\n" ) ;
     	return NULL ;
     }
 
@@ -538,14 +538,14 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     conf->next = NULL ;
     conf->memberlist = NULL ;
     conf->membercount = 0 ;
-    conf->conference_thread = OPBX_PTHREADT_NULL ;
+    conf->conference_thread = CW_PTHREADT_NULL ;
     conf->is_locked = 0;
     conf->command_queue = NULL ;
 
     // copy name to conference
     strncpy( (char*)&(conf->name), name, sizeof(conf->name) - 1 ) ;
     // initialize mutexes
-    opbx_mutex_init( &conf->lock ) ;
+    cw_mutex_init( &conf->lock ) ;
 	
     // add the initial member
     add_member( conf, member) ;
@@ -555,25 +555,25 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     //
 
     // acquire mutex
-    opbx_mutex_lock( &conflist_lock ) ;
+    cw_mutex_lock( &conflist_lock ) ;
 
     conf->next = conflist ;
     conflist = conf ;
-    opbx_log( OPBX_CONF_DEBUG, "added new conference to conflist, name => %s\n", name ) ;
+    cw_log( CW_CONF_DEBUG, "added new conference to conflist, name => %s\n", name ) ;
 
     //
     // spawn thread for new conference, using conference_exec( conf )
     //
     // acquire conference mutexes
-    opbx_mutex_lock( &conf->lock ) ;
+    cw_mutex_lock( &conf->lock ) ;
 	
-    if ( opbx_pthread_create( &conf->conference_thread, &global_attr_default, (void*)conference_exec, conf ) == 0 ) 
+    if ( cw_pthread_create( &conf->conference_thread, &global_attr_default, (void*)conference_exec, conf ) == 0 ) 
     {
 	// detach the thread so it doesn't leak
 	pthread_detach( conf->conference_thread ) ;
 	// release conference mutexes
-	opbx_mutex_unlock( &conf->lock ) ;
-	opbx_log( OPBX_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
+	cw_mutex_unlock( &conf->lock ) ;
+	cw_log( CW_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
 	manager_event(
 	    EVENT_FLAG_CALL, 
 	    APP_CONFERENCE_MANID"ConfCreate", 
@@ -585,11 +585,11 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     }
     else
     {
-    	opbx_log(OPBX_LOG_ERROR, "unable to start conference thread for conference %s\n", conf->name ) ;
-	conf->conference_thread = OPBX_PTHREADT_NULL ;
+    	cw_log(CW_LOG_ERROR, "unable to start conference thread for conference %s\n", conf->name ) ;
+	conf->conference_thread = CW_PTHREADT_NULL ;
 
 	// release conference mutexes
-	opbx_mutex_unlock( &conf->lock ) ;
+	cw_mutex_unlock( &conf->lock ) ;
 
 	// clean up conference
 	free( conf ) ;
@@ -603,24 +603,24 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     conf->auto_destroy = 1;
 
     // release mutex
-    opbx_mutex_unlock( &conflist_lock ) ;
+    cw_mutex_unlock( &conflist_lock ) ;
 
     return conf ;
 }
 
 
-void remove_conf( struct opbx_conference *conf )
+void remove_conf( struct cw_conference *conf )
 {
-    struct opbx_conference *conf_current = conflist ;
-    struct opbx_conference *conf_temp = NULL ;
+    struct cw_conference *conf_current = conflist ;
+    struct cw_conference *conf_temp = NULL ;
 
-    opbx_log( OPBX_CONF_DEBUG, "attempting to remove conference, name => %s\n", conf->name ) ;
-
-    // acquire mutex
-    opbx_mutex_lock( &start_stop_conf_lock ) ;
+    cw_log( CW_CONF_DEBUG, "attempting to remove conference, name => %s\n", conf->name ) ;
 
     // acquire mutex
-    opbx_mutex_lock( &conflist_lock ) ;
+    cw_mutex_lock( &start_stop_conf_lock ) ;
+
+    // acquire mutex
+    cw_mutex_lock( &conflist_lock ) ;
 
     // loop through list of conferences
     while ( conf_current != NULL ) 
@@ -642,17 +642,17 @@ void remove_conf( struct opbx_conference *conf )
 	    }
 
 	    // calculate time in conference
-	    opbx_log( OPBX_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
+	    cw_log( CW_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
 	    manager_event(
 		EVENT_FLAG_CALL, 
 		APP_CONFERENCE_MANID"ConfRemove",
 		"ConfNo: %s\r\n",
 		conf_current->name
 	    ) ;
-	    opbx_mutex_unlock( &conf_current->lock ) ;
+	    cw_mutex_unlock( &conf_current->lock ) ;
 
 	    //Free all the command queue
-	    struct opbx_conf_command_queue *cqd, *cq = conf_current->command_queue;
+	    struct cw_conf_command_queue *cqd, *cq = conf_current->command_queue;
 	    while ( cq != NULL) {
 		cqd=cq;
 		cq=cq->next;
@@ -677,31 +677,31 @@ void remove_conf( struct opbx_conference *conf )
     --conference_count ;
 
     // release mutex
-    opbx_mutex_unlock( &conflist_lock ) ;
+    cw_mutex_unlock( &conflist_lock ) ;
 	
     // release mutex
-    opbx_mutex_unlock( &start_stop_conf_lock ) ;
+    cw_mutex_unlock( &start_stop_conf_lock ) ;
 
     return ;
 }
 
 
-struct opbx_conference* start_conference( struct opbx_conf_member* member ) 
+struct cw_conference* start_conference( struct cw_conf_member* member ) 
 {
-    struct opbx_conference* conf = NULL ;
+    struct cw_conference* conf = NULL ;
 
     // check input
     if ( member == NULL )
     {
-    	opbx_log(OPBX_LOG_WARNING, "unable to handle null member\n" ) ;
+    	cw_log(CW_LOG_WARNING, "unable to handle null member\n" ) ;
     	return NULL ;
     }
 
     // look for an existing conference
-    opbx_log( OPBX_CONF_DEBUG, "attempting to find requested conference\n" ) ;
+    cw_log( CW_CONF_DEBUG, "attempting to find requested conference\n" ) ;
 
     // acquire mutex
-    opbx_mutex_lock( &start_stop_conf_lock ) ;
+    cw_mutex_lock( &start_stop_conf_lock ) ;
 
     conf = find_conf( member->id ) ;
 	
@@ -709,7 +709,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
     if ( conf == NULL )
     {
 	// create a new conference
-	opbx_log( OPBX_CONF_DEBUG, "attempting to create requested conference\n" ) ;
+	cw_log( CW_CONF_DEBUG, "attempting to create requested conference\n" ) ;
 	
 	// create the new conference with one member
 	conf = create_conf( member->id, member ) ;
@@ -717,8 +717,8 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
 	// return an error if create_conf() failed
 	if ( conf == NULL ) 
 	{
-	    opbx_log(OPBX_LOG_ERROR, "unable to find or create requested conference\n" ) ;
-	    opbx_mutex_unlock( &start_stop_conf_lock ) ;
+	    cw_log(CW_LOG_ERROR, "unable to find or create requested conference\n" ) ;
+	    cw_mutex_unlock( &start_stop_conf_lock ) ;
 	    return NULL ;
 	}
     }
@@ -732,7 +732,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
     }	
 
     // release mutex
-    opbx_mutex_unlock( &start_stop_conf_lock ) ;
+    cw_mutex_unlock( &start_stop_conf_lock ) ;
     
     return conf ;
 }
@@ -753,8 +753,8 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct opbx_variable *vars;
-	struct opbx_conf_member *frommember;
+	struct cw_variable *vars;
+	struct cw_conf_member *frommember;
 };
 
 static void *fast_originate(void *data)
@@ -762,35 +762,35 @@ static void *fast_originate(void *data)
     int res = 0,
 	reason;
     struct fast_originate_helper *in = data;
-    struct opbx_channel *chan = NULL;
+    struct cw_channel *chan = NULL;
 
-    opbx_indicate(in->frommember->chan, OPBX_CONTROL_RINGING);
+    cw_indicate(in->frommember->chan, CW_CONTROL_RINGING);
 
 
     if (1) {
-		res = opbx_pbx_outgoing_app(
-			in->tech, OPBX_FORMAT_SLINEAR, 
+		res = cw_pbx_outgoing_app(
+			in->tech, CW_FORMAT_SLINEAR, 
 			in->data, in->timeout, 
 			in->app, in->appdata, 
 			&reason, 1, 
-			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
-			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			in->vars, &chan );
     } else {
-		res = opbx_pbx_outgoing_exten(
-			in->tech, OPBX_FORMAT_SLINEAR, 
+		res = cw_pbx_outgoing_exten(
+			in->tech, CW_FORMAT_SLINEAR, 
 			in->data, in->timeout, 
 			in->context, in->exten, in->priority, 
 			&reason, 1, 
-			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
-			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			in->vars, NULL );
     }   
 
-    opbx_log(OPBX_CONF_DEBUG,"Originate returned %d \n",reason);
-    opbx_indicate(in->frommember->chan, -1);
+    cw_log(CW_CONF_DEBUG,"Originate returned %d \n",reason);
+    cw_indicate(in->frommember->chan, -1);
 
-    if ( reason == OPBX_CONTROL_ANSWER ) {
+    if ( reason == CW_CONTROL_ANSWER ) {
 	conference_queue_sound( in->frommember, "beep" );
     } 
     else {
@@ -798,13 +798,13 @@ static void *fast_originate(void *data)
     }
 
     if (chan)
-	opbx_mutex_unlock(&chan->lock);
+	cw_mutex_unlock(&chan->lock);
     free(in);
     return NULL;
 }
 
 
-static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
+static int conf_do_originate(struct cw_conf_member *member, char *ext) {
     int res;
 
     pthread_t th;
@@ -843,30 +843,30 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 #endif
 	}
 
-	opbx_copy_string( fast->tech, 	 "Local", sizeof(fast->tech) );
-	opbx_copy_string( fast->data, 	 dst, sizeof(fast->data) );
-	opbx_copy_string( fast->app, 	 APP_CONFERENCE_NAME, sizeof(fast->app) );
-	opbx_copy_string( fast->appdata, appdata, sizeof(fast->appdata) );
+	cw_copy_string( fast->tech, 	 "Local", sizeof(fast->tech) );
+	cw_copy_string( fast->data, 	 dst, sizeof(fast->data) );
+	cw_copy_string( fast->app, 	 APP_CONFERENCE_NAME, sizeof(fast->app) );
+	cw_copy_string( fast->appdata, appdata, sizeof(fast->appdata) );
 
 	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NAME")) )
-	    opbx_copy_string( fast->cid_name, var, sizeof(fast->cid_name) );
+	    cw_copy_string( fast->cid_name, var, sizeof(fast->cid_name) );
 	else
-	    opbx_copy_string( fast->cid_name,"NavyConference",sizeof(fast->cid_name) );
+	    cw_copy_string( fast->cid_name,"NavyConference",sizeof(fast->cid_name) );
 
 	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NUM")) )
-	    opbx_copy_string( fast->cid_num, var,sizeof(fast->cid_num) );
+	    cw_copy_string( fast->cid_num, var,sizeof(fast->cid_num) );
 	else
-	    opbx_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
+	    cw_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
 
-	opbx_copy_string( fast->context, "internal", sizeof(fast->context) );
-	opbx_copy_string( fast->exten, ext, sizeof(fast->exten) );
+	cw_copy_string( fast->context, "internal", sizeof(fast->context) );
+	cw_copy_string( fast->exten, ext, sizeof(fast->exten) );
 	fast->priority = 1;
 	fast->vars=NULL;
 /**/
 
 	fast->frommember=member;
 
-	if (opbx_pthread_create(&th, &global_attr_detached, fast_originate, fast)) {
+	if (cw_pthread_create(&th, &global_attr_detached, fast_originate, fast)) {
     	    free(fast);
 	    res = -1;
 	} else {
@@ -875,8 +875,8 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
     }
 
-    opbx_mutex_unlock(&member->chan->lock);
-    opbx_conf_member_genactivate( member ) ;
+    cw_mutex_unlock(&member->chan->lock);
+    cw_conf_member_genactivate( member ) ;
 
     return res;
 }
@@ -884,10 +884,10 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
 // **********************************************************************************
 
-static int conference_set_pin(struct opbx_conf_member *member, char *pin) {
+static int conference_set_pin(struct cw_conf_member *member, char *pin) {
 
-    opbx_copy_string(member->conf->pin, pin, sizeof(member->conf->pin));
-    opbx_log( OPBX_CONF_DEBUG, "Conference %s: PIN Set to %s\n",member->conf->name, member->conf->pin ) ;
+    cw_copy_string(member->conf->pin, pin, sizeof(member->conf->pin));
+    cw_log( CW_CONF_DEBUG, "Conference %s: PIN Set to %s\n",member->conf->name, member->conf->pin ) ;
     conference_queue_number( member, member->conf->pin );
 
     manager_event(
@@ -906,7 +906,7 @@ static int conference_set_pin(struct opbx_conf_member *member, char *pin) {
 // **********************************************************************************
 
 
-int conference_parse_admin_command(struct opbx_conf_member *member) {
+int conference_parse_admin_command(struct cw_conf_member *member) {
     char action;
     char *parameters;
     int res = 0;
@@ -971,7 +971,7 @@ int conference_parse_admin_command(struct opbx_conf_member *member) {
 		conference_queue_sound( member, "beeperr" );
 	    break;
 	default:
-	    opbx_log(OPBX_CONF_DEBUG,"Admin mode: Action: %c parameters: %s. Invalid or unknown\n",
+	    cw_log(CW_CONF_DEBUG,"Admin mode: Action: %c parameters: %s. Invalid or unknown\n",
 		action, parameters);
 	    break;
     }

@@ -41,7 +41,7 @@ struct odbc_obj {
 	SQLHENV  env;                   /* ODBC Environment */
 	SQLHDBC  con;                   /* ODBC Connection Handle */
 	SQLHSTMT stmt;                  /* ODBC Statement Handle */
-	opbx_mutex_t lock;
+	cw_mutex_t lock;
 	int up;
 
 };

@@ -2,10 +2,10 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES 		=
+cwmod_LTLIBRARIES 		=
 
 if WANT_CHAN_MISDN
-opbxmod_LTLIBRARIES		+= chan_misdn.la
+cwmod_LTLIBRARIES		+= chan_misdn.la
 chan_misdn_la_SOURCES		= chan_misdn.c chan_misdn_config.h asn1.c \
 				  asn1.h fac.c fac.h isdn_lib.c isdn_lib.h \
 				  isdn_lib_intern.h isdn_msg_parser.c misdn_config.c

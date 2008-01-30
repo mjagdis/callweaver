@@ -89,8 +89,8 @@ static uint8_t ulaw_slin_ex[] =
  */
 struct ulaw_encoder_pvt
 {
-    struct opbx_frame f;
-    char offset[OPBX_FRIENDLY_OFFSET];      /*!< Space to build offset */
+    struct cw_frame f;
+    char offset[CW_FRIENDLY_OFFSET];      /*!< Space to build offset */
     uint8_t outbuf[BUFFER_SIZE];            /*!< Encoded ulaw, two nibbles to a word */
     int tail;
 };
@@ -100,8 +100,8 @@ struct ulaw_encoder_pvt
  */
 struct ulaw_decoder_pvt
 {
-    struct opbx_frame f;
-    char offset[OPBX_FRIENDLY_OFFSET];      /*!< Space to build offset */
+    struct cw_frame f;
+    char offset[CW_FRIENDLY_OFFSET];      /*!< Space to build offset */
     int16_t outbuf[BUFFER_SIZE];            /*!< Decoded signed linear values */
     int tail;
     plc_state_t plc;
@@ -161,7 +161,7 @@ static void *lintoulaw_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-static int ulawtolin_framein(void *pvt, struct opbx_frame *f)
+static int ulawtolin_framein(void *pvt, struct cw_frame *f)
 {
     struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *) pvt;
     int x;
@@ -170,7 +170,7 @@ static int ulawtolin_framein(void *pvt, struct opbx_frame *f)
     if (f->datalen == 0) {
         /* perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc) {
@@ -181,14 +181,14 @@ static int ulawtolin_framein(void *pvt, struct opbx_frame *f)
     }
 
     if ((tmp->tail + f->datalen)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
     /* Reset ssindex and signal to frame's specified values */
     b = f->data;
     for (x = 0;  x < f->datalen;  x++)
-        tmp->outbuf[tmp->tail + x] = OPBX_MULAW(b[x]);
+        tmp->outbuf[tmp->tail + x] = CW_MULAW(b[x]);
 
     if (useplc)
         plc_rx(&tmp->plc, tmp->outbuf+tmp->tail, f->datalen);
@@ -208,17 +208,17 @@ static int ulawtolin_framein(void *pvt, struct opbx_frame *f)
  * Side effects:
  *  None.
  */
-static struct opbx_frame *ulawtolin_frameout(void *pvt)
+static struct cw_frame *ulawtolin_frameout(void *pvt)
 {
     struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
     tmp->tail = 0;
@@ -235,7 +235,7 @@ static struct opbx_frame *ulawtolin_frameout(void *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-static int lintoulaw_framein(void *pvt, struct opbx_frame *f)
+static int lintoulaw_framein(void *pvt, struct cw_frame *f)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
     int x;
@@ -243,12 +243,12 @@ static int lintoulaw_framein(void *pvt, struct opbx_frame *f)
   
     if (tmp->tail + f->datalen/sizeof(int16_t) >= sizeof(tmp->outbuf))
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     s = f->data;
     for (x = 0;  x < f->datalen/sizeof(int16_t);  x++) 
-        tmp->outbuf[x + tmp->tail] = OPBX_LIN2MU(s[x]);
+        tmp->outbuf[x + tmp->tail] = CW_LIN2MU(s[x]);
     tmp->tail += f->datalen/sizeof(int16_t);
     return 0;
 }
@@ -264,16 +264,16 @@ static int lintoulaw_framein(void *pvt, struct opbx_frame *f)
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *lintoulaw_frameout(void *pvt)
+static struct cw_frame *lintoulaw_frameout(void *pvt)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
   
     if (tmp->tail == 0)
         return NULL;
     
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     tmp->f.datalen = tmp->tail;
 
@@ -284,11 +284,11 @@ static struct opbx_frame *lintoulaw_frameout(void *pvt)
 /*!
  * \brief ulawtolin_sample
  */
-static struct opbx_frame *ulawtolin_sample(void)
+static struct cw_frame *ulawtolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (ulaw_slin_ex);
     f.samples = sizeof(ulaw_slin_ex);
     f.data = ulaw_slin_ex;
@@ -298,11 +298,11 @@ static struct opbx_frame *ulawtolin_sample(void)
 /*!
  * \brief lintoulaw_sample
  */
-static struct opbx_frame *lintoulaw_sample(void)
+static struct cw_frame *lintoulaw_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof(slin_ulaw_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);
@@ -313,12 +313,12 @@ static struct opbx_frame *lintoulaw_sample(void)
 /*!
  * \brief The complete translator for ulawtolin.
  */
-static opbx_translator_t ulawtolin =
+static cw_translator_t ulawtolin =
 {
     .name = "ulawtolin",
-    .src_format = OPBX_FORMAT_ULAW,
+    .src_format = CW_FORMAT_ULAW,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = ulawtolin_new,
     .framein = ulawtolin_framein,
@@ -330,12 +330,12 @@ static opbx_translator_t ulawtolin =
 /*!
  * \brief The complete translator for lintoulaw.
  */
-static opbx_translator_t lintoulaw =
+static cw_translator_t lintoulaw =
 {
     .name = "lintoulaw",
-    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_format = CW_FORMAT_SLINEAR,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_ULAW,
+    .dst_format = CW_FORMAT_ULAW,
     .dst_rate = 8000,
     .newpvt = lintoulaw_new,
     .framein = lintoulaw_framein,
@@ -346,25 +346,25 @@ static opbx_translator_t lintoulaw =
 
 static void parse_config(void)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
+    struct cw_config *cfg;
+    struct cw_variable *var;
 
-    if ((cfg = opbx_config_load("codecs.conf")))
+    if ((cfg = cw_config_load("codecs.conf")))
     {
-        if ((var = opbx_variable_browse(cfg, "plc")))
+        if ((var = cw_variable_browse(cfg, "plc")))
         {
             while (var)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value)  ?  1  :  0;
+                    useplc = cw_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_ulaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                        cw_verbose(VERBOSE_PREFIX_3 "codec_ulaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }
                 var = var->next;
             }
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
@@ -376,16 +376,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&ulawtolin);
-    opbx_translator_unregister(&lintoulaw);
+    cw_translator_unregister(&ulawtolin);
+    cw_translator_unregister(&lintoulaw);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&ulawtolin);
-    opbx_translator_register(&lintoulaw);
+    cw_translator_register(&ulawtolin);
+    cw_translator_register(&lintoulaw);
     return 0;
 }
 

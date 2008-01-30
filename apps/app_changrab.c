@@ -9,8 +9,8 @@
  * Thanks to Claude Patry <cpatry@gmail.com> for his help.
  */
 
-/*uncomment below or build with -DOPBX_10_COMPAT for 1.0 */ 
-//#define OPBX_10_COMPAT
+/*uncomment below or build with -DCW_10_COMPAT for 1.0 */ 
+//#define CW_10_COMPAT
 
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -53,63 +53,63 @@ static const char changrab_description[] =
 "          been answered yet\n";
 
 
-static struct opbx_channel *my_opbx_get_channel_by_name_locked(char *channame) {
-	struct opbx_channel *chan;
-	chan = opbx_channel_walk_locked(NULL);
+static struct cw_channel *my_cw_get_channel_by_name_locked(char *channame) {
+	struct cw_channel *chan;
+	chan = cw_channel_walk_locked(NULL);
 	while(chan) {
 		if (!strncasecmp(chan->name, channame, strlen(channame)))
 			return chan;
-		opbx_mutex_unlock(&chan->lock);
-		chan = opbx_channel_walk_locked(chan);
+		cw_mutex_unlock(&chan->lock);
+		chan = cw_channel_walk_locked(chan);
 	}
 	return NULL;
 }
 
-static int changrab_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res=0;
 	struct localuser *u;
-	struct opbx_channel *newchan;
-	struct opbx_channel *oldchan;
-	struct opbx_frame *f;
-	struct opbx_bridge_config config;
+	struct cw_channel *newchan;
+	struct cw_channel *oldchan;
+	struct cw_frame *f;
+	struct cw_bridge_config config;
 
 	if (argc < 1 || argc > 2)
-		return opbx_function_syntax(changrab_syntax);
+		return cw_function_syntax(changrab_syntax);
 
-	if ((oldchan = my_opbx_get_channel_by_name_locked(argv[0]))) {
-		opbx_mutex_unlock(&oldchan->lock);
+	if ((oldchan = my_cw_get_channel_by_name_locked(argv[0]))) {
+		cw_mutex_unlock(&oldchan->lock);
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "No Such Channel: %s\n", argv[0]);
 		return -1;
 	}
 	
 	if (argc > 1) {
 		if (oldchan->_bridge && strchr(argv[1], 'b'))
 			oldchan = oldchan->_bridge;
-		if (strchr(argv[1],'r') && oldchan->_state == OPBX_STATE_UP)
+		if (strchr(argv[1],'r') && oldchan->_state == CW_STATE_UP)
 			return -1;
 	}
 	
 	LOCAL_USER_ADD(u);
-	newchan = opbx_channel_alloc(0);
+	newchan = cw_channel_alloc(0);
 	snprintf(newchan->name, sizeof (newchan->name), "ChanGrab/%s",oldchan->name);
 	newchan->readformat = oldchan->readformat;
 	newchan->writeformat = oldchan->writeformat;
-	opbx_channel_masquerade(newchan, oldchan);
-	if((f = opbx_read(newchan))) {
-		opbx_fr_free(f);
-		memset(&config,0,sizeof(struct opbx_bridge_config));
-		opbx_set_flag(&(config.features_callee), OPBX_FEATURE_REDIRECT);
-		opbx_set_flag(&(config.features_caller), OPBX_FEATURE_REDIRECT);
+	cw_channel_masquerade(newchan, oldchan);
+	if((f = cw_read(newchan))) {
+		cw_fr_free(f);
+		memset(&config,0,sizeof(struct cw_bridge_config));
+		cw_set_flag(&(config.features_callee), CW_FEATURE_REDIRECT);
+		cw_set_flag(&(config.features_caller), CW_FEATURE_REDIRECT);
 
-		if(newchan->_state != OPBX_STATE_UP) {
-			opbx_answer(newchan);
+		if(newchan->_state != CW_STATE_UP) {
+			cw_answer(newchan);
 		}
 		
 		chan->appl = "Bridged Call";
-		res = opbx_bridge_call(chan, newchan, &config);
-		opbx_hangup(newchan);
+		res = cw_bridge_call(chan, newchan, &config);
+		cw_hangup(newchan);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -117,47 +117,47 @@ static int changrab_exec(struct opbx_channel *chan, int argc, char **argv, char 
 }
 
 
-struct opbx_bridge_thread_obj 
+struct cw_bridge_thread_obj 
 {
-	struct opbx_bridge_config bconfig;
-	struct opbx_channel *chan;
-	struct opbx_channel *peer;
+	struct cw_bridge_config bconfig;
+	struct cw_channel *chan;
+	struct cw_channel *peer;
 };
 
-static void *opbx_bridge_call_thread(void *data) 
+static void *cw_bridge_call_thread(void *data) 
 {
-	struct opbx_bridge_thread_obj *tobj = data;
+	struct cw_bridge_thread_obj *tobj = data;
 	tobj->chan->appl = "Redirected Call";
 	tobj->peer->appl = "Redirected Call";
 	if (tobj->chan->cdr) {
-		opbx_cdr_reset(tobj->chan->cdr,0);
-		opbx_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
+		cw_cdr_reset(tobj->chan->cdr,0);
+		cw_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
 	}
 	if (tobj->peer->cdr) {
-		opbx_cdr_reset(tobj->peer->cdr,0);
-		opbx_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
+		cw_cdr_reset(tobj->peer->cdr,0);
+		cw_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
 	}
 
 
-	opbx_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
-	opbx_hangup(tobj->chan);
-	opbx_hangup(tobj->peer);
+	cw_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
+	cw_hangup(tobj->chan);
+	cw_hangup(tobj->peer);
 	tobj->chan = tobj->peer = NULL;
 	free(tobj);
 	tobj=NULL;
 	return NULL;
 }
 
-static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opbx_channel *peer) 
+static void cw_bridge_call_thread_launch(struct cw_channel *chan, struct cw_channel *peer) 
 {
 	pthread_t tid;
-	struct opbx_bridge_thread_obj *tobj;
+	struct cw_bridge_thread_obj *tobj;
 	
-	if((tobj = malloc(sizeof(struct opbx_bridge_thread_obj)))) {
-		memset(tobj,0,sizeof(struct opbx_bridge_thread_obj));
+	if((tobj = malloc(sizeof(struct cw_bridge_thread_obj)))) {
+		memset(tobj,0,sizeof(struct cw_bridge_thread_obj));
 		tobj->chan = chan;
 		tobj->peer = peer;
-		opbx_pthread_create(&tid, &global_attr_rr_detached, opbx_bridge_call_thread, tobj);
+		cw_pthread_create(&tid, &global_attr_rr_detached, cw_bridge_call_thread, tobj);
 	}
 }
 
@@ -166,47 +166,47 @@ static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opb
 static int changrab_cli(int fd, int argc, char *argv[]) {
 	char *chan_name_1, *chan_name_2 = NULL, *context,*exten,*flags=NULL;
 	char *pria = NULL;
-    struct opbx_channel *xferchan_1, *xferchan_2;
+    struct cw_channel *xferchan_1, *xferchan_2;
 	int pri=0,x=1;
 
 	if(argc < 3) {
-		opbx_cli(fd,CGUSAGE);
+		cw_cli(fd,CGUSAGE);
 		return -1;
 	}
 	chan_name_1 = argv[x++];
 	if(chan_name_1[0] == '-') {
-		flags = opbx_strdupa(chan_name_1);
+		flags = cw_strdupa(chan_name_1);
 		if (strchr(flags,'h')) {
 			chan_name_1 = argv[x++];
-			if((xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1))) {
-				opbx_mutex_unlock(&xferchan_1->lock);
-				opbx_hangup(xferchan_1);
-				opbx_verbose("OK, good luck!\n");
+			if((xferchan_1 = my_cw_get_channel_by_name_locked(chan_name_1))) {
+				cw_mutex_unlock(&xferchan_1->lock);
+				cw_hangup(xferchan_1);
+				cw_verbose("OK, good luck!\n");
 				return 0;
 			} else 
 				return -1;
 		} else if (strchr(flags,'m') || strchr(flags,'M')) {
 			chan_name_1 = argv[x++];
-			if((xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1))) {
-				opbx_mutex_unlock(&xferchan_1->lock);
-				strchr(flags,'m') ? opbx_moh_start(xferchan_1,NULL) : opbx_moh_stop(xferchan_1);
+			if((xferchan_1 = my_cw_get_channel_by_name_locked(chan_name_1))) {
+				cw_mutex_unlock(&xferchan_1->lock);
+				strchr(flags,'m') ? cw_moh_start(xferchan_1,NULL) : cw_moh_stop(xferchan_1);
 			} else 
 				return 1;
 			return 0;
 		}
 		if(argc < 4) {
-			opbx_cli(fd,CGUSAGE);
+			cw_cli(fd,CGUSAGE);
 			return -1;
 		}
 		chan_name_1 = argv[x++];
 	}
 
-	exten = opbx_strdupa(argv[x++]);
+	exten = cw_strdupa(argv[x++]);
 	if((context = strchr(exten,'@'))) {
 		*context = 0;
 		context++;
 		if(!(context && exten)) {
-			opbx_cli(fd,CGUSAGE);
+			cw_cli(fd,CGUSAGE);
 			return -1;
 		}
 		if((pria = strchr(context,':'))) {
@@ -223,82 +223,82 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	}
 
 	
-	xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1);
+	xferchan_1 = my_cw_get_channel_by_name_locked(chan_name_1);
 
 	if(!xferchan_1) {
-		opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n",chan_name_1);
+		cw_log(CW_LOG_WARNING, "No Such Channel: %s\n",chan_name_1);
 		return -1;
 	} 
 
-	opbx_mutex_unlock(&xferchan_1->lock);
+	cw_mutex_unlock(&xferchan_1->lock);
 	if(flags && strchr(flags,'b')) {
-		if(opbx_bridged_channel(xferchan_1)) {
-			xferchan_1 = opbx_bridged_channel(xferchan_1);
+		if(cw_bridged_channel(xferchan_1)) {
+			xferchan_1 = cw_bridged_channel(xferchan_1);
 		}
 	}
 
 	if(chan_name_2) {
-		struct opbx_frame *f;
-		struct opbx_channel *newchan_1, *newchan_2;
+		struct cw_frame *f;
+		struct cw_channel *newchan_1, *newchan_2;
 		
-		if (!(newchan_1 = opbx_channel_alloc(0))) {
-			opbx_log(OPBX_LOG_WARNING, "Memory Error!\n");
-			opbx_hangup(newchan_1);
+		if (!(newchan_1 = cw_channel_alloc(0))) {
+			cw_log(CW_LOG_WARNING, "Memory Error!\n");
+			cw_hangup(newchan_1);
 			return -1;
 		} else {
 			snprintf(newchan_1->name, sizeof (newchan_1->name), "ChanGrab/%s", xferchan_1->name);
 			newchan_1->readformat = xferchan_1->readformat;
 			newchan_1->writeformat = xferchan_1->writeformat;
-			opbx_channel_masquerade(newchan_1, xferchan_1);
-			if ((f = opbx_read(newchan_1))) {
-				opbx_fr_free(f);
+			cw_channel_masquerade(newchan_1, xferchan_1);
+			if ((f = cw_read(newchan_1))) {
+				cw_fr_free(f);
 			} else {
-				opbx_hangup(newchan_1);
+				cw_hangup(newchan_1);
 				return -1;
 			}
 		}
 
-		if(!(xferchan_2 = my_opbx_get_channel_by_name_locked(chan_name_2))) {
-			opbx_log(OPBX_LOG_WARNING, "No Such Channel: %s\n",chan_name_2);
-			opbx_hangup(newchan_1);
+		if(!(xferchan_2 = my_cw_get_channel_by_name_locked(chan_name_2))) {
+			cw_log(CW_LOG_WARNING, "No Such Channel: %s\n",chan_name_2);
+			cw_hangup(newchan_1);
 			return -1;
 		}
 
-		opbx_mutex_unlock(&xferchan_2->lock);		
+		cw_mutex_unlock(&xferchan_2->lock);		
 
 		if(flags && strchr(flags, 'B')) {
-			if(opbx_bridged_channel(xferchan_2)) {
-				xferchan_2 = opbx_bridged_channel(xferchan_2);
+			if(cw_bridged_channel(xferchan_2)) {
+				xferchan_2 = cw_bridged_channel(xferchan_2);
 			}
 		}
 
-		if(!(newchan_2 = opbx_channel_alloc(0))) {
-			opbx_log(OPBX_LOG_WARNING, "Memory Error!\n");
-			opbx_hangup(newchan_1);
+		if(!(newchan_2 = cw_channel_alloc(0))) {
+			cw_log(CW_LOG_WARNING, "Memory Error!\n");
+			cw_hangup(newchan_1);
 			return -1;
 		} else {
 			snprintf(newchan_2->name, sizeof (newchan_2->name), "ChanGrab/%s", xferchan_2->name);
 			newchan_2->readformat = xferchan_2->readformat;
 			newchan_2->writeformat = xferchan_2->writeformat;
-			opbx_channel_masquerade(newchan_2, xferchan_2);
+			cw_channel_masquerade(newchan_2, xferchan_2);
 
-			if ((f = opbx_read(newchan_2))) {
-				opbx_fr_free(f);
+			if ((f = cw_read(newchan_2))) {
+				cw_fr_free(f);
 			} else {
-				opbx_hangup(newchan_1);
-				opbx_hangup(newchan_2);
+				cw_hangup(newchan_1);
+				cw_hangup(newchan_2);
 				return -1;
 			}
 		}
 		
-		opbx_bridge_call_thread_launch(newchan_1, newchan_2);
+		cw_bridge_call_thread_launch(newchan_1, newchan_2);
 		
 	} else {
-		opbx_verbose("Transferring_to context %s, extension %s, priority %d\n", context, exten, pri);
-		opbx_async_goto(xferchan_1, context, exten, pri);
+		cw_verbose("Transferring_to context %s, extension %s, priority %d\n", context, exten, pri);
+		cw_async_goto(xferchan_1, context, exten, pri);
 
 		if(xferchan_1)
-			opbx_mutex_unlock(&xferchan_1->lock);
+			cw_mutex_unlock(&xferchan_1->lock);
 	}
 	return 0;
 }
@@ -315,7 +315,7 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct opbx_variable *vars;
+	struct cw_variable *vars;
 };
 
 
@@ -326,9 +326,9 @@ static void *originate(void *arg) {
 	struct fast_originate_helper *in = arg;
 	int reason=0;
 	int res;
-	struct opbx_channel *chan = NULL;
+	struct cw_channel *chan = NULL;
 
-	res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, !opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
+	res = cw_pbx_outgoing_exten(in->tech, CW_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, !cw_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
 	manager_event(EVENT_FLAG_CALL, "Originate", 
 			"ChannelRequested: %s/%s\r\n"
 			"Context: %s\r\n"
@@ -344,12 +344,12 @@ static void *originate(void *arg) {
 			in->priority, 
 			res,
 			reason,
-			opbx_control2str(reason)
+			cw_control2str(reason)
 	);
 
-	/* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
+	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
 	if (chan) {
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	}
 	free(in);
 	return NULL;
@@ -364,18 +364,18 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	char *num = NULL;
 
 	if(argc < 3) {
-		opbx_cli(fd,USAGE);
+		cw_cli(fd,USAGE);
 		return -1;
 	}
 	chan_name_1 = argv[1];
 
-	exten = opbx_strdupa(argv[2]);
+	exten = cw_strdupa(argv[2]);
 	if((context = strchr(exten,'@'))) {
 		*context = 0;
 		context++;
 	}
 	if(! (context && exten)) {
-		opbx_cli(fd,CGUSAGE);
+		cw_cli(fd,CGUSAGE);
         return -1;
 	}
 
@@ -384,18 +384,18 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	if(!pri)
 		pri = 1;
 
-	tech = opbx_strdupa(chan_name_1);
+	tech = cw_strdupa(chan_name_1);
 	if((data = strchr(tech,'/'))) {
 		*data = '\0';
 		data++;
 	}
 	if(!(tech && data)) {
-		opbx_cli(fd,USAGE);
+		cw_cli(fd,USAGE);
         return -1;
 	}
 	in = malloc(sizeof(struct fast_originate_helper));
 	if(!in) {
-		opbx_cli(fd,"No Memory!\n");
+		cw_cli(fd,"No Memory!\n");
         return -1;
 	}
 	memset(in,0,sizeof(struct fast_originate_helper));
@@ -418,9 +418,9 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	strncpy(in->exten,exten,sizeof(in->exten));
 	in->priority = pri;
 
-	opbx_cli(fd,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
+	cw_cli(fd,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
 
-	opbx_pthread_create(&tid, &global_attr_rr_detached, originate, in);
+	cw_pthread_create(&tid, &global_attr_rr_detached, originate, in);
 	return 0;
 }
 
@@ -438,7 +438,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 	 * free *word when you want to return from this function ...
 	 */
 	if (fix_complete_args(line, &word, &pos)) {
-		opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+		cw_log(CW_LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
 #endif
@@ -447,8 +447,8 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 	 * exten@context completion ... 
 	 */
 	if (pos == 2) {
-		struct opbx_context *c;
-		struct opbx_exten *e;
+		struct cw_context *c;
+		struct cw_exten *e;
 		char *context = NULL, *exten = NULL, *delim = NULL;
 
 		/* now, parse values from word = exten@context */
@@ -472,31 +472,31 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 		free(word);
 #endif
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(context); free(exten);
 			return NULL;
 		}
 
 		/* find our context ... */
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
 			/* our context? */
 			if ( (!context || !strlen(context)) || /* if no input, all contexts ... */
-				 (context && !strncmp(opbx_get_context_name(c),
+				 (context && !strncmp(cw_get_context_name(c),
 				              context, strlen(context))) ) { /* if input, compare ... */
 				/* try to complete extensions ... */
-				e = opbx_walk_context_extensions(c, NULL);
+				e = cw_walk_context_extensions(c, NULL);
 				while (e) {
 
-					if(!strncasecmp(opbx_get_context_name(c), "proc-", 5) || !strncasecmp(opbx_get_extension_name(e),"_",1)) {
-						e = opbx_walk_context_extensions(c, e);
+					if(!strncasecmp(cw_get_context_name(c), "proc-", 5) || !strncasecmp(cw_get_extension_name(e),"_",1)) {
+						e = cw_walk_context_extensions(c, e);
 						continue;
 					}
 
 					/* our extension? */
 					if ( (!exten || !strlen(exten)) ||  /* if not input, all extensions ... */
-						 (exten && !strncmp(opbx_get_extension_name(e), exten,
+						 (exten && !strncmp(cw_get_extension_name(e), exten,
 						                    strlen(exten))) ) { /* if input, compare ... */
 								
 						if (++which > state) {
@@ -506,27 +506,27 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 
 
 							if (exten) {
-								ret = malloc(strlen(opbx_get_extension_name(e)) +
-									strlen(opbx_get_context_name(c)) + 2);
+								ret = malloc(strlen(cw_get_extension_name(e)) +
+									strlen(cw_get_context_name(c)) + 2);
 								if (ret)
-									sprintf(ret, "%s@%s", opbx_get_extension_name(e),
-											opbx_get_context_name(c));
+									sprintf(ret, "%s@%s", cw_get_extension_name(e),
+											cw_get_context_name(c));
 								
 							}
 							free(exten); free(context);
 
-							opbx_unlock_contexts();
+							cw_unlock_contexts();
 	
 							return ret;
 						}
 					}
-					e = opbx_walk_context_extensions(c, e);
+					e = cw_walk_context_extensions(c, e);
 				}
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 
 		free(exten); free(context);
 
@@ -538,7 +538,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 	 */
 	if (pos == 3) {
 		char *delim, *exten, *context, *dupline, *duplinet, *ec;
-		struct opbx_context *c;
+		struct cw_context *c;
 
 		dupline = strdup(line);
 		if (!dupline) {
@@ -584,8 +584,8 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 		context = strdup(delim + 1);
 		free(dupline);
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 #ifdef BROKEN_READLINE
 			free(word);
 #endif
@@ -594,54 +594,54 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 		}
 
 		/* walk contexts */
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
-			if (!strcmp(opbx_get_context_name(c), context)) {
-				struct opbx_exten *e;
+			if (!strcmp(cw_get_context_name(c), context)) {
+				struct cw_exten *e;
 
 				/* walk extensions */
 				free(context);
-				e = opbx_walk_context_extensions(c, NULL); 
+				e = cw_walk_context_extensions(c, NULL); 
 				while (e) {
-					if (!strcmp(opbx_get_extension_name(e), exten)) {
-						struct opbx_exten *priority;
+					if (!strcmp(cw_get_extension_name(e), exten)) {
+						struct cw_exten *priority;
 						char buffer[10];
 					
 						free(exten);
-						priority = opbx_walk_extension_priorities(e, NULL);
+						priority = cw_walk_extension_priorities(e, NULL);
 						/* serve priorities */
 						do {
 							snprintf(buffer, 10, "%u",
-								opbx_get_extension_priority(priority));
+								cw_get_extension_priority(priority));
 							if (!strncmp(word, buffer, strlen(word))) {
 								if (++which > state) {
 #ifdef BROKEN_READLINE
 									free(word);
 #endif
-									opbx_unlock_contexts();
+									cw_unlock_contexts();
 									return strdup(buffer);
 								}
 							}
-							priority = opbx_walk_extension_priorities(e,
+							priority = cw_walk_extension_priorities(e,
 								priority);
 						} while (priority);
 
 #ifdef BROKEN_READLINE
 						free(word);
 #endif
-						opbx_unlock_contexts();
+						cw_unlock_contexts();
 						return NULL;			
 					}
-					e = opbx_walk_context_extensions(c, e);
+					e = cw_walk_context_extensions(c, e);
 				}
 #ifdef BROKEN_READLINE
 				free(word);
 #endif
 				free(exten);
-				opbx_unlock_contexts();
+				cw_unlock_contexts();
 				return NULL;
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
 #ifdef BROKEN_READLINE
@@ -649,7 +649,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 #endif
 		free(exten); free(context);
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -662,22 +662,22 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state)
 {
-    struct opbx_channel *c;
+    struct cw_channel *c;
     int which=0;
     char *ret;
 
-    c = opbx_channel_walk_locked(NULL);
+    c = cw_channel_walk_locked(NULL);
     while(c) {
         if (!strncasecmp(word, c->name, strlen(word))) {
             if (++which > state)
                 break;
         }
-        opbx_mutex_unlock(&c->lock);
-        c = opbx_channel_walk_locked(c);
+        cw_mutex_unlock(&c->lock);
+        c = cw_channel_walk_locked(c);
     }
     if (c) {
         ret = strdup(c->name);
-        opbx_mutex_unlock(&c->lock);
+        cw_mutex_unlock(&c->lock);
     } else
         ret = NULL;
     return ret;
@@ -707,14 +707,14 @@ static char *complete_org(char *line, char *word, int pos, int state)
 }
 
 
-static struct opbx_clicmd cli_changrab = {
+static struct cw_clicmd cli_changrab = {
 	.cmda = { "changrab", NULL},
 	.handler = changrab_cli,
 	.generator = complete_cg,
 	.summary = "ChanGrab",
 	.usage = "ChanGrab",
 };
-static struct opbx_clicmd cli_originate = {
+static struct cw_clicmd cli_originate = {
 	.cmda = { "originate", NULL },
 	.handler = originate_cli,
 	.generator = complete_org,
@@ -726,17 +726,17 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	opbx_cli_unregister(&cli_changrab);
-	opbx_cli_unregister(&cli_originate);
-	res |= opbx_unregister_function(changrab_app);
+	cw_cli_unregister(&cli_changrab);
+	cw_cli_unregister(&cli_originate);
+	res |= cw_unregister_function(changrab_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	opbx_cli_register(&cli_changrab);
-	opbx_cli_register(&cli_originate);
-	changrab_app = opbx_register_function(changrab_name, changrab_exec, tdesc, changrab_syntax, changrab_description);
+	cw_cli_register(&cli_changrab);
+	cw_cli_register(&cli_originate);
+	changrab_app = cw_register_function(changrab_name, changrab_exec, tdesc, changrab_syntax, changrab_description);
 	return 0;
 }
 

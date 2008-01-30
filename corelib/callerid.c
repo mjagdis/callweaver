@@ -63,19 +63,19 @@ static inline int lin2xlaw(int codec, int16_t *lin, int slen, uint8_t *xlaw, int
 	if (slen > xmax)
 		slen = xmax;
 
-	if (codec == OPBX_FORMAT_ULAW) {
+	if (codec == CW_FORMAT_ULAW) {
 		for (i = 0; i < slen; i++)
-			xlaw[i] = OPBX_LIN2MU(lin[i]);
+			xlaw[i] = CW_LIN2MU(lin[i]);
 	} else {
 		for (i = 0; i < slen; i++)
-			xlaw[i] = OPBX_LIN2A(lin[i]);
+			xlaw[i] = CW_LIN2A(lin[i]);
 	}
 
 	return slen;
 }
 
 
-int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec)
+int cw_gen_ecdisa(uint8_t *outbuf, int outlen, int codec)
 {
 	int16_t lin[MAX_CALLERID_SIZE];
 	tone_gen_descriptor_t tone_desc;
@@ -92,7 +92,7 @@ int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec)
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
 }
 
-int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
+int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
 {
 	int16_t lin[MAX_CALLERID_SIZE];
 	tone_gen_descriptor_t tone_desc;
@@ -125,7 +125,7 @@ int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
 	 * ADSI/US implementation notes on the net say tone for 82ms at -15dBm0 followed by 160ms silence.
 	 * Spandsp's adsi.c uses 110ms tone at -13dBm0 followed by 60ms silence. It seems
 	 * spandsp's adsi.c implements BT's idle state tone alert. Be warned if you want to
-	 * try and remove opbx_gen_case - the idle state alert is _almost_ like the loop
+	 * try and remove cw_gen_case - the idle state alert is _almost_ like the loop
 	 * state alert but not quite!
 	 */
 	make_tone_gen_descriptor(&tone_desc, 2130, -13, 2750, -13, 85, 0, 0, 0, FALSE);
@@ -175,7 +175,7 @@ int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec)
 }
 
 
-int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len)
+int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *msg, int len)
 {
 	uint8_t field_type;
 	uint8_t *field_body;
@@ -192,7 +192,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
         
         for (l = 0;  l < len  &&  l < 256;  l++)
             snprintf(&buf[3*l], 4, "%02X ", msg[l]);
-        opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: (%d) %s\n", chan->name, len, buf);
+        cw_log(CW_LOG_DEBUG, "%s: CID-IN: (%d) %s\n", chan->name, len, buf);
     }
 #endif
 
@@ -201,7 +201,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 
 	if (adsi->standard == ADSI_STANDARD_CLIP_DTMF) {
 		if (option_debug)
-			opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, msg);
+			cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, msg);
 
 		/* Spandsp only handles the Dutch/Danish system.
 		 * For Finland/Denmark/Iceland/Netherlands/India/Belgium/Sweden/Brazil/Saudi Arabia/Uruguay/?
@@ -240,7 +240,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 			}
 
 			if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, field_body);
+				cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, field_body);
 			switch (field_type) {
 				case 'D':
 					if (field_len == 1) {
@@ -274,11 +274,11 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 		while (l > 0) {
 			if (!field_body) {
 				if (option_debug)
-					opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: %s: Message Type: 0x%02x\n", chan->name, adsi_standard_to_str(adsi->standard), field_type);
+					cw_log(CW_LOG_DEBUG, "%s: CID-IN: %s: Message Type: 0x%02x\n", chan->name, adsi_standard_to_str(adsi->standard), field_type);
 				message_type = field_type;
 			} else {
 				if (option_debug)
-					opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, field_body);
+					cw_log(CW_LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, field_body);
 				/* CLASS, CLIP, and ACLIP use identical message codes.
 				 * JCLIP is different but MDMF CALLERID and ABSENCE match the rest
 				 * and there is nothing that conflicts with the standard DIALLED_NUMBER.
@@ -321,7 +321,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 										break;
 									}
 								}
-								opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
+								cw_log(CW_LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
 								name = (uint8_t *) "Unknown";
 								break;
 							case MCLASS_CALLER_NAME:
@@ -361,7 +361,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 			 * may have unwanted side-effects and may break existing user
 			 * configurations.
 			 */
-			opbx_shrink_phone_number((char *) number);
+			cw_shrink_phone_number((char *) number);
 		}
 
 		if (name_len >= 0)
@@ -370,8 +370,8 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 		/* The last argument should be ANI. If we have ANI (unlikely but technically
 		 * possible) we should use it, no?
 		 */
-		opbx_log(OPBX_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
-		opbx_set_callerid(chan, (char *) number, (char *) name, (char *) number);
+		cw_log(CW_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
+		cw_set_callerid(chan, (char *) number, (char *) name, (char *) number);
 
 		return 0;
 	}
@@ -379,7 +379,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t
 	return -1;
 }
 
-int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec)
+int cw_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec)
 {
 	const int init_silence = 2000;
 	int16_t lin[MAX_CALLERID_SIZE];
@@ -411,22 +411,22 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 			sprintf(datetime, "%02d%02d%02d%02d", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
 			len = adsi_add_field(&adsi, msg, len, MCLASS_DATETIME, (uint8_t *)datetime, 8);
 
-			if ((pres & OPBX_PRES_RESTRICTION) == OPBX_PRES_ALLOWED && number && *number) {
+			if ((pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED && number && *number) {
 				i = strlen(number);
 				len = adsi_add_field(&adsi, msg, len, MCLASS_CALLER_NUMBER, (uint8_t *)number, (i > 16 ? 16 : i));
 			} else {
 				len = adsi_add_field(&adsi, msg, len, MCLASS_ABSENCE1,
-					((pres & OPBX_PRES_RESTRICTION) == OPBX_PRES_RESTRICTED
+					((pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED
 					 	? (uint8_t *)"P" : (uint8_t *)"O"),
 					1);
 			}
 
-			if ((pres & OPBX_PRES_RESTRICTION) == OPBX_PRES_ALLOWED && name && *name) {
+			if ((pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED && name && *name) {
 				i = strlen(name);
 				len = adsi_add_field(&adsi, msg, len, MCLASS_CALLER_NAME, (uint8_t *)name, (i > 16 ? 16 : i));
 			} else {
 				len = adsi_add_field(&adsi, msg, len, MCLASS_ABSENCE2,
-					((pres & OPBX_PRES_RESTRICTION) == OPBX_PRES_RESTRICTED
+					((pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED
 					 	? (uint8_t *)"P" : (uint8_t *)"O"),
 					1);
 			}
@@ -451,7 +451,7 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 			}
             break;
 		default:
-			opbx_log(OPBX_LOG_ERROR, "Bad signalling type %d\n", sig);
+			cw_log(CW_LOG_ERROR, "Bad signalling type %d\n", sig);
 			break;
 	}
 
@@ -517,9 +517,9 @@ int tdd_feed(struct tdd_state *tdd, uint8_t *xlaw, int len, int codec)
 	int16_t lin[160];
 	int i, j, c;
 
-	if (codec == OPBX_FORMAT_ULAW) {
+	if (codec == CW_FORMAT_ULAW) {
 		for (i = j = 0; i < len; i++) {
-			lin[j++] = OPBX_MULAW(xlaw[i]);
+			lin[j++] = CW_MULAW(xlaw[i]);
 			if (j == sizeof(lin)/sizeof(lin[0])) {
 				adsi_rx(&tdd->rx, lin, sizeof(lin)/sizeof(lin[0]));
 				j = 0;
@@ -527,7 +527,7 @@ int tdd_feed(struct tdd_state *tdd, uint8_t *xlaw, int len, int codec)
 		}
 	} else {
 		for (i = j = 0; i < len; i++) {
-			lin[j++] = OPBX_ALAW(xlaw[i]);
+			lin[j++] = CW_ALAW(xlaw[i]);
 			if (j == sizeof(lin)/sizeof(lin[0])) {
 				adsi_rx(&tdd->rx, lin, sizeof(lin)/sizeof(lin[0]));
 				j = 0;
@@ -552,7 +552,7 @@ struct tdd_state *tdd_new(void)
 		memset(tdd, 0, sizeof(struct tdd_state));
 		adsi_rx_init(&tdd->rx, ADSI_STANDARD_TDD, put_tdd_msg, tdd);
 	} else
-		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 	return tdd;
 }
 

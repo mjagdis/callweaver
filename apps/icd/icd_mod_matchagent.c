@@ -67,17 +67,17 @@ static void *icd_distributor__match_agent_run(void *that)
 				* function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
 				*/ 
 				if (icd_verbose > 4) 
-				opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
+				cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
 					icd_distributor__get_name(dist), dist->link_fn); 
 				result = dist->link_fn(dist, dist->link_fn_extra);   
 				result = icd_distributor__lock(dist); 
 			}
 		} 
 		/* All distributor links are now created wait for changes of customer or agent list  */      
-		opbx_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
+		cw_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
 		result = icd_distributor__unlock(dist); 
 		if (icd_verbose > 4) 
-			opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  icd_distributor__get_name(dist));             
+			cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  icd_distributor__get_name(dist));             
 		} else { 
 	            /* TBD - Make paused thread work better.  
 	             *        - Use pthread_cond_wait() 
@@ -104,7 +104,7 @@ static icd_status init_icd_distributor_match_agent(icd_distributor * that, char 
 	icd_distributor__set_run_fn(that, icd_distributor__match_agent_run);  
     icd_distributor__create_thread(that);
 
-    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
+    cw_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
     return ICD_SUCCESS;
 }
 
@@ -117,7 +117,7 @@ int icd_module_load(icd_config_registry * registry)
     icd_config_registry__register_ptr(registry, "dist.link", "popcustmatchagent",
       link_callers_via_pop_customer_match_agent  );
 
-    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[MatchAgent]!\n");
+    cw_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[MatchAgent]!\n");
 
     return 0;
 }
@@ -125,7 +125,7 @@ int icd_module_load(icd_config_registry * registry)
 int icd_module_unload(void)
 {
     /*TODO didnt get this far */
-    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[MatchAgent]!\n");
+    cw_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[MatchAgent]!\n");
     return 0;
 
 }
@@ -170,7 +170,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 				customer_caller = icd_member__get_caller(customer);
 			}    
 			if (customer == NULL || customer_caller == NULL) {
-				opbx_log(OPBX_LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
+				cw_log(CW_LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
 				icd_distributor__get_name(dist));
 				continue;
 			}
@@ -178,13 +178,13 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 			tmp_str = icd_caller__get_param(customer_caller, "identifier");
 	
 			if (tmp_str == NULL) {
-				opbx_log(OPBX_LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
+				cw_log(CW_LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
 				icd_distributor__get_name(dist), icd_caller__get_name(customer_caller));
 				continue;
 			}
 			agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);   
 			if (agent_caller == NULL) {
-				opbx_log(OPBX_LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
+				cw_log(CW_LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
 				icd_distributor__get_name(dist), tmp_str);
 				continue;
 			}
@@ -194,7 +194,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 			icd_member_list__lock(dist->agents);		
 			agent = icd_member_list__get_for_caller(dist->agents, agent_caller);
 			if (agent == NULL ) {
-			/*  opbx_log(OPBX_LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
+			/*  cw_log(CW_LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
                 	icd_distributor__get_name(dist), tmp_str);
 			*/                
 				icd_member_list__unlock(dist->agents);		
@@ -207,7 +207,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 			icd_member_list__unlock(dist->agents);
 			result = icd_member__distribute(agent);
 			if (result != ICD_SUCCESS) {
-				opbx_log(OPBX_LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
+				cw_log(CW_LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
 				icd_distributor__get_name(dist), tmp_str);
 				icd_member__unlock(agent);
 				continue;
@@ -255,14 +255,14 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 			/* Figure out who the bridger is, and who the bridgee is */
 				result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-				opbx_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
+				cw_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
 				icd_distributor__get_name(dist), icd_caller__get_id(customer_caller), icd_caller__get_id(agent_caller));
 				if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
 					result = icd_caller__bridge(customer_caller);
 				} else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
 					result = icd_caller__bridge(agent_caller);
 				} else {
-					opbx_log(OPBX_LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
+					cw_log(CW_LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
 					icd_distributor__get_name(dist));
 					icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
 					icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);

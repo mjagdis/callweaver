@@ -29,9 +29,9 @@
 
 
 /*! \brief structure associated with registering an image format */
-struct opbx_imager {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+struct cw_imager {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	/*! Name */
 	char *name;						
 	/*! Description */
@@ -41,32 +41,32 @@ struct opbx_imager {
 	/*! Image format */
 	int format;						
 	/*! Read an image from a file descriptor */
-	struct opbx_frame *(*read_image)(int fd, int len);	
+	struct cw_frame *(*read_image)(int fd, int len);	
 	/*! Identify if this is that type of file */
 	int (*identify)(int fd);				
 	/*! Returns length written */
-	int (*write_image)(int fd, struct opbx_frame *frame); 	
+	int (*write_image)(int fd, struct cw_frame *frame); 	
 };
 
 
-extern struct opbx_registry imager_registry;
+extern struct cw_registry imager_registry;
 
 
-#define opbx_image_register(ptr) ({ \
+#define cw_image_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&imager_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&imager_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_image_unregister(ptr) ({ \
+#define cw_image_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&imager_registry, __ptr->reg_entry); \
+		cw_registry_del(&imager_registry, __ptr->reg_entry); \
 	0; \
 })
 
@@ -77,7 +77,7 @@ extern struct opbx_registry imager_registry;
  * Checks the channel to see if it supports the transmission of images
  * Returns non-zero if image transmission is supported
  */
-extern int opbx_supports_images(struct opbx_channel *chan);
+extern int cw_supports_images(struct cw_channel *chan);
 
 /*! Sends an image */
 /*!
@@ -86,7 +86,7 @@ extern int opbx_supports_images(struct opbx_channel *chan);
  * Sends an image on the given channel.
  * Returns 0 on success, -1 on error
  */
-extern int opbx_send_image(struct opbx_channel *chan, char *filename);
+extern int cw_send_image(struct cw_channel *chan, char *filename);
 
 /*! Make an image */
 /*! 
@@ -94,15 +94,15 @@ extern int opbx_send_image(struct opbx_channel *chan, char *filename);
  * \param preflang preferred language to get the image...?
  * \param format the format of the file
  * Make an image from a filename ??? No estoy positivo
- * Returns an opbx_frame on success, NULL on failure
+ * Returns an cw_frame on success, NULL on failure
  */
-extern struct opbx_frame *opbx_read_image(char *filename, char *lang, int format);
+extern struct cw_frame *cw_read_image(char *filename, char *lang, int format);
 
 /*! Initialize image stuff */
 /*!
  * Initializes all the various image stuff.  Basically just registers the cli stuff
  * Returns 0 all the time
  */
-extern int opbx_image_init(void);
+extern int cw_image_init(void);
 
 #endif /* _CALLWEAVER_IMAGE_H */

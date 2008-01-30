@@ -19,8 +19,8 @@
  */
 extern int capi_alloc_rtp(struct capi_pvt *i);
 extern void voice_over_ip_profile(struct cc_capi_controller *cp);
-extern int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f);
-extern struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len);
+extern int capi_write_rtp(struct cw_channel *c, struct cw_frame *f);
+extern struct cw_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len);
 extern _cstruct capi_rtp_ncpi(struct capi_pvt *i);
 
 #endif

@@ -42,18 +42,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "core/alaw.h"
 
-uint8_t __opbx_lin2a[8192];
-int16_t __opbx_alaw[256];
+uint8_t __cw_lin2a[8192];
+int16_t __cw_alaw[256];
 
-void opbx_alaw_init(void)
+void cw_alaw_init(void)
 {
 	int i;
 	
     /* Set up A-law conversion table */
 	for (i = 0;  i < 256;  i++)
-		__opbx_alaw[i] = alaw_to_linear(i);
+		__cw_alaw[i] = alaw_to_linear(i);
 	/* Set up the reverse (A-law) conversion table */
 	for(i = -32768;  i < 32768;  i++)
-		__opbx_lin2a[((uint16_t) i) >> 3] = linear_to_alaw(i);
+		__cw_lin2a[((uint16_t) i) >> 3] = linear_to_alaw(i);
 }
 

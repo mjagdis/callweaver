@@ -50,7 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/config.h"
 
-OPBX_MUTEX_DEFINE_STATIC(monitorlock);
+CW_MUTEX_DEFINE_STATIC(monitorlock);
 
 static unsigned long seq = 0;
 
@@ -99,134 +99,134 @@ static const char changemonitor_descrip[] =
 
 
 /* Predeclare statics to keep GCC 4.x happy */
-static int __opbx_monitor_start( struct opbx_channel *, const char *, const char *, int);
-static int __opbx_monitor_stop(struct opbx_channel *, int);
-static int __opbx_monitor_change_fname(struct opbx_channel *, const char *, int);
-static void __opbx_monitor_setjoinfiles(struct opbx_channel *, int);
+static int __cw_monitor_start( struct cw_channel *, const char *, const char *, int);
+static int __cw_monitor_stop(struct cw_channel *, int);
+static int __cw_monitor_change_fname(struct cw_channel *, const char *, int);
+static void __cw_monitor_setjoinfiles(struct cw_channel *, int);
 
 /* Start monitoring a channel */
-static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
+static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock)
 {
 	int res = 0;
 	char tmp[256];
 
 	if (need_lock) {
-		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
+		if (cw_mutex_lock(&chan->lock)) {
+			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
 
 	if (!(chan->monitor)) {
-		struct opbx_channel_monitor *monitor;
+		struct cw_channel_monitor *monitor;
 		char *channel_name, *p;
 
 		/* Create monitoring directory if needed */
-		if (mkdir(opbx_config_OPBX_MONITOR_DIR, 0770) < 0) {
+		if (mkdir(cw_config_CW_MONITOR_DIR, 0770) < 0) {
 			if (errno != EEXIST) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to create audio monitor directory: %s\n",
+				cw_log(CW_LOG_WARNING, "Unable to create audio monitor directory: %s\n",
 					strerror(errno));
 			}
 		}
 
-		monitor = malloc(sizeof(struct opbx_channel_monitor));
+		monitor = malloc(sizeof(struct cw_channel_monitor));
 		if (!monitor) {
 			if (need_lock) 
-				opbx_mutex_unlock(&chan->lock);
+				cw_mutex_unlock(&chan->lock);
 			return -1;
 		}
-		memset(monitor, 0, sizeof(struct opbx_channel_monitor));
+		memset(monitor, 0, sizeof(struct cw_channel_monitor));
 
 		/* Determine file names */
-		if (fname_base && !opbx_strlen_zero(fname_base)) {
+		if (fname_base && !cw_strlen_zero(fname_base)) {
 			int directory = strchr(fname_base, '/') ? 1 : 0;
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
 				char *name = strdup(fname_base);
 				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
 				free(name);
-				opbx_safe_system(tmp);
+				cw_safe_system(tmp);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
-						directory ? "" : opbx_config_OPBX_MONITOR_DIR, fname_base);
+						directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
-						directory ? "" : opbx_config_OPBX_MONITOR_DIR, fname_base);
-			opbx_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
+						directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
+			cw_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
 		} else {
-			opbx_mutex_lock(&monitorlock);
+			cw_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
-						opbx_config_OPBX_MONITOR_DIR, seq);
+						cw_config_CW_MONITOR_DIR, seq);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%ld",
-						opbx_config_OPBX_MONITOR_DIR, seq);
+						cw_config_CW_MONITOR_DIR, seq);
 			seq++;
-			opbx_mutex_unlock(&monitorlock);
+			cw_mutex_unlock(&monitorlock);
 
-			if((channel_name = opbx_strdupa(chan->name))) {
+			if((channel_name = cw_strdupa(chan->name))) {
 				while((p = strchr(channel_name, '/'))) {
 					*p = '-';
 				}
 				snprintf(monitor->filename_base, FILENAME_MAX, "%s/%ld-%s",
-						 opbx_config_OPBX_MONITOR_DIR, time(NULL),channel_name);
+						 cw_config_CW_MONITOR_DIR, time(NULL),channel_name);
 				monitor->filename_changed = 1;
 			} else {
-				opbx_log(OPBX_LOG_ERROR,"Failed to allocate Memory\n");
+				cw_log(CW_LOG_ERROR,"Failed to allocate Memory\n");
 				return -1;
 			}
 		}
 
-		monitor->stop = __opbx_monitor_stop;
+		monitor->stop = __cw_monitor_stop;
 
 		/* Determine file format */
-		if (format_spec && !opbx_strlen_zero(format_spec)) {
+		if (format_spec && !cw_strlen_zero(format_spec)) {
 			monitor->format = strdup(format_spec);
 		} else {
 			monitor->format = strdup("wav");
 		}
 		
 		/* open files */
-		if (opbx_fileexists(monitor->read_filename, NULL, NULL)) {
-			opbx_filedelete(monitor->read_filename, NULL);
+		if (cw_fileexists(monitor->read_filename, NULL, NULL)) {
+			cw_filedelete(monitor->read_filename, NULL);
 		}
-		if (!(monitor->read_stream = opbx_writefile(monitor->read_filename,
+		if (!(monitor->read_stream = cw_writefile(monitor->read_filename,
 						monitor->format, NULL,
 						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
-			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n",
+			cw_log(CW_LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
-			opbx_mutex_unlock(&chan->lock);
+			cw_mutex_unlock(&chan->lock);
 			return -1;
 		}
-		if (opbx_fileexists(monitor->write_filename, NULL, NULL)) {
-			opbx_filedelete(monitor->write_filename, NULL);
+		if (cw_fileexists(monitor->write_filename, NULL, NULL)) {
+			cw_filedelete(monitor->write_filename, NULL);
 		}
-		if (!(monitor->write_stream = opbx_writefile(monitor->write_filename,
+		if (!(monitor->write_stream = cw_writefile(monitor->write_filename,
 						monitor->format, NULL,
 						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
-			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n",
+			cw_log(CW_LOG_WARNING, "Could not create file %s\n",
 						monitor->write_filename);
-			opbx_closestream(monitor->read_stream);
+			cw_closestream(monitor->read_stream);
 			free(monitor);
-			opbx_mutex_unlock(&chan->lock);
+			cw_mutex_unlock(&chan->lock);
 			return -1;
 		}
 		chan->monitor = monitor;
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 	} else {
-		opbx_log(OPBX_LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
+		cw_log(CW_LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
 					chan->name);
 		res = -1;
 	}
 
 	if (need_lock) {
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	}
 	return res;
 }
 
 /* Stop monitoring a channel */
-static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
+static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 {
 	char *execute;
 	char *execute_args;
@@ -234,8 +234,8 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 	int delfiles = 0;
 
 	if (need_lock) {
-		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
+		if (cw_mutex_lock(&chan->lock)) {
+			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
@@ -244,41 +244,41 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 		char filename[ FILENAME_MAX ];
 
 		if (chan->monitor->read_stream) {
-			opbx_closestream(chan->monitor->read_stream);
+			cw_closestream(chan->monitor->read_stream);
 		}
 		if (chan->monitor->write_stream) {
-			opbx_closestream(chan->monitor->write_stream);
+			cw_closestream(chan->monitor->write_stream);
 		}
 
-		if (chan->monitor->filename_changed && !opbx_strlen_zero(chan->monitor->filename_base)) {
-			if (opbx_fileexists(chan->monitor->read_filename,NULL,NULL)) {
+		if (chan->monitor->filename_changed && !cw_strlen_zero(chan->monitor->filename_base)) {
+			if (cw_fileexists(chan->monitor->read_filename,NULL,NULL)) {
 				snprintf(filename, FILENAME_MAX, "%s-in", chan->monitor->filename_base);
-				if (opbx_fileexists(filename, NULL, NULL)) {
-					opbx_filedelete(filename, NULL);
+				if (cw_fileexists(filename, NULL, NULL)) {
+					cw_filedelete(filename, NULL);
 				}
-				opbx_filerename(chan->monitor->read_filename, filename, chan->monitor->format);
+				cw_filerename(chan->monitor->read_filename, filename, chan->monitor->format);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "File %s not found\n", chan->monitor->read_filename);
+				cw_log(CW_LOG_WARNING, "File %s not found\n", chan->monitor->read_filename);
 			}
 
-			if (opbx_fileexists(chan->monitor->write_filename,NULL,NULL)) {
+			if (cw_fileexists(chan->monitor->write_filename,NULL,NULL)) {
 				snprintf(filename, FILENAME_MAX, "%s-out", chan->monitor->filename_base);
-				if (opbx_fileexists(filename, NULL, NULL)) {
-					opbx_filedelete(filename, NULL);
+				if (cw_fileexists(filename, NULL, NULL)) {
+					cw_filedelete(filename, NULL);
 				}
-				opbx_filerename(chan->monitor->write_filename, filename, chan->monitor->format);
+				cw_filerename(chan->monitor->write_filename, filename, chan->monitor->format);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "File %s not found\n", chan->monitor->write_filename);
+				cw_log(CW_LOG_WARNING, "File %s not found\n", chan->monitor->write_filename);
 			}
 		}
 
-		if (chan->monitor->joinfiles && !opbx_strlen_zero(chan->monitor->filename_base)) {
+		if (chan->monitor->joinfiles && !cw_strlen_zero(chan->monitor->filename_base)) {
 			char tmp[1024];
 			char tmp2[1024];
 			char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
-			char *dir = directory ? "" : opbx_config_OPBX_MONITOR_DIR;
+			char *dir = directory ? "" : cw_config_CW_MONITOR_DIR;
 
 			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
 			if (execute_args == NULL  ||  execute_args[0] == '\0')
@@ -314,11 +314,11 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
             {
                 /* Remove legs when done mixing */
 				snprintf(tmp2, sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &", tmp, dir ,name);
-				opbx_copy_string(tmp, tmp2, sizeof(tmp));
+				cw_copy_string(tmp, tmp2, sizeof(tmp));
 			}
-			opbx_log(OPBX_LOG_DEBUG,"monitor executing %s\n",tmp);
-			if (opbx_safe_system(tmp) == -1)
-				opbx_log(OPBX_LOG_WARNING, "Execute of %s failed.\n",tmp);
+			cw_log(CW_LOG_DEBUG,"monitor executing %s\n",tmp);
+			if (cw_safe_system(tmp) == -1)
+				cw_log(CW_LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
 		
 		free(chan->monitor->format);
@@ -327,22 +327,22 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 	}
 
 	if (need_lock)
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	return 0;
 }
 
 /* Change monitoring filename of a channel */
-static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fname_base, int need_lock)
+static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_base, int need_lock)
 {
 	char tmp[256];
-	if ((!fname_base) || (opbx_strlen_zero(fname_base))) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
+	if ((!fname_base) || (cw_strlen_zero(fname_base))) {
+		cw_log(CW_LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
 		return -1;
 	}
 	
 	if (need_lock) {
-		if (opbx_mutex_lock(&chan->lock)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to lock channel\n");
+		if (cw_mutex_lock(&chan->lock)) {
+			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
@@ -354,21 +354,21 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 			char *name = strdup(fname_base);
 			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
 			free(name);
-			opbx_safe_system(tmp);
+			cw_safe_system(tmp);
 		}
 
-		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : opbx_config_OPBX_MONITOR_DIR, fname_base);
+		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
+		cw_log(CW_LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}
 
 	if (need_lock)
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 
 	return 0;
 }
 
-static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[256];
 	char *urlprefix = NULL;
@@ -392,8 +392,8 @@ static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv, 
 			snprintf(tmp, sizeof(tmp) - 1, "%s/%s.%s", urlprefix, (argc > 1 ? argv[1] : ""),
 				((strcmp(argv[0], "gsm")) ? "wav" : "gsm"));
 			if (!chan->cdr)
-				chan->cdr = opbx_cdr_alloc();
-			opbx_cdr_setuserfield(chan, tmp);
+				chan->cdr = cw_cdr_alloc();
+			cw_cdr_setuserfield(chan, tmp);
 		}
 	}
 
@@ -405,22 +405,22 @@ static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv, 
 		return 0;
 	}
 
-	res = __opbx_monitor_start(chan, argv[0], (argc > 1 ? argv[1] : ""), 1);
+	res = __cw_monitor_start(chan, argv[0], (argc > 1 ? argv[1] : ""), 1);
 	if (res < 0)
-		res = __opbx_monitor_change_fname(chan, (argc > 1 ? argv[1] : ""), 1);
-	__opbx_monitor_setjoinfiles(chan, joinfiles);
+		res = __cw_monitor_change_fname(chan, (argc > 1 ? argv[1] : ""), 1);
+	__cw_monitor_setjoinfiles(chan, joinfiles);
 
 	return res;
 }
 
-static int stop_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	return __opbx_monitor_stop(chan, 1);
+	return __cw_monitor_stop(chan, 1);
 }
 
-static int change_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	return __opbx_monitor_change_fname(chan, argv[0], 1);
+	return __cw_monitor_change_fname(chan, argv[0], 1);
 }
 
 static char start_monitor_action_help[] =
@@ -439,50 +439,50 @@ static char start_monitor_action_help[] =
 
 static int start_monitor_action(struct mansession *s, struct message *m)
 {
-	struct opbx_channel *c = NULL;
+	struct cw_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
 	char *format = astman_get_header(m, "Format");
 	char *mix = astman_get_header(m, "Mix");
 	char *d;
 	
-	if ((!name) || (opbx_strlen_zero(name))) {
+	if ((!name) || (cw_strlen_zero(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = opbx_get_channel_by_name_locked(name);
+	c = cw_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 
-	if ((!fname) || (opbx_strlen_zero(fname))) {
+	if ((!fname) || (cw_strlen_zero(fname))) {
 		/* No filename base specified, default to channel name as per CLI */
 		fname = malloc (FILENAME_MAX);
 		if (!fname) {
 			astman_send_error(s, m, "Could not start monitoring channel");
-			opbx_mutex_unlock(&c->lock);
+			cw_mutex_unlock(&c->lock);
 			return 0;
 		}
 		memset(fname, 0, FILENAME_MAX);
-		opbx_copy_string(fname, c->name, FILENAME_MAX);
+		cw_copy_string(fname, c->name, FILENAME_MAX);
 		/* Channels have the format technology/channel_name - have to replace that /  */
 		if ((d=strchr(fname, '/'))) *d='-';
 	}
 	
-	if (__opbx_monitor_start(c, format, fname, 1)) {
-		if (__opbx_monitor_change_fname(c, fname, 1)) {
+	if (__cw_monitor_start(c, format, fname, 1)) {
+		if (__cw_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
-			opbx_mutex_unlock(&c->lock);
+			cw_mutex_unlock(&c->lock);
 			return 0;
 		}
 	}
 
-	if (opbx_true(mix)) {
-		__opbx_monitor_setjoinfiles(c, 1);
+	if (cw_true(mix)) {
+		__cw_monitor_setjoinfiles(c, 1);
 	}
 
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Started monitoring channel");
 	return 0;
 }
@@ -494,20 +494,20 @@ static char stop_monitor_action_help[] =
 
 static int stop_monitor_action(struct mansession *s, struct message *m)
 {
-	struct opbx_channel *c = NULL;
+	struct cw_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int res;
-	if ((!name) || (opbx_strlen_zero(name))) {
+	if ((!name) || (cw_strlen_zero(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = opbx_get_channel_by_name_locked(name);
+	c = cw_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	res = __opbx_monitor_stop(c, 1);
-	opbx_mutex_unlock(&c->lock);
+	res = __cw_monitor_stop(c, 1);
+	cw_mutex_unlock(&c->lock);
 	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
 		return 0;
@@ -526,33 +526,33 @@ static char change_monitor_action_help[] =
 
 static int change_monitor_action(struct mansession *s, struct message *m)
 {
-	struct opbx_channel *c = NULL;
+	struct cw_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
-	if ((!name) || (opbx_strlen_zero(name))) {
+	if ((!name) || (cw_strlen_zero(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if ((!fname)||(opbx_strlen_zero(fname))) {
+	if ((!fname)||(cw_strlen_zero(fname))) {
 		astman_send_error(s, m, "No filename specified");
 		return 0;
 	}
-	c = opbx_get_channel_by_name_locked(name);
+	c = cw_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if (__opbx_monitor_change_fname(c, fname, 1)) {
+	if (__cw_monitor_change_fname(c, fname, 1)) {
 		astman_send_error(s, m, "Could not change monitored filename of channel");
-		opbx_mutex_unlock(&c->lock);
+		cw_mutex_unlock(&c->lock);
 		return 0;
 	}
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Stopped monitoring channel");
 	return 0;
 }
 
-static void __opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
+static void __cw_monitor_setjoinfiles(struct cw_channel *chan, int turnon)
 {
 	if (chan->monitor)
 		chan->monitor->joinfiles = turnon;
@@ -561,33 +561,33 @@ static void __opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	opbx_module_get(get_modinfo()->self);
+	cw_module_get(get_modinfo()->self);
 
-	monitor_app = opbx_register_function(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
-	stopmonitor_app = opbx_register_function(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
-	changemonitor_app = opbx_register_function(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
+	monitor_app = cw_register_function(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
+	stopmonitor_app = cw_register_function(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
+	changemonitor_app = cw_register_function(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
 
-	opbx_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
-	opbx_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
-	opbx_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
+	cw_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
+	cw_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
+	cw_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
 
-	opbx_monitor_start = __opbx_monitor_start;
-	opbx_monitor_stop = __opbx_monitor_stop;
-	opbx_monitor_change_fname = __opbx_monitor_change_fname;
-	opbx_monitor_setjoinfiles = __opbx_monitor_setjoinfiles;
+	cw_monitor_start = __cw_monitor_start;
+	cw_monitor_stop = __cw_monitor_stop;
+	cw_monitor_change_fname = __cw_monitor_change_fname;
+	cw_monitor_setjoinfiles = __cw_monitor_setjoinfiles;
 
 	return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_unregister_function(monitor_app);
-	opbx_unregister_function(stopmonitor_app);
-	opbx_unregister_function(changemonitor_app);
+	cw_unregister_function(monitor_app);
+	cw_unregister_function(stopmonitor_app);
+	cw_unregister_function(changemonitor_app);
 
-	opbx_manager_unregister("Monitor");
-	opbx_manager_unregister("StopMonitor");
-	opbx_manager_unregister("ChangeMonitor");
+	cw_manager_unregister("Monitor");
+	cw_manager_unregister("StopMonitor");
+	cw_manager_unregister("ChangeMonitor");
 	return 0;
 }
 

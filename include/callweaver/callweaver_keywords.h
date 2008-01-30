@@ -1,6 +1,6 @@
 /* API to use string hashes for keywords in place of strcmp()
  *
- *  opbx_keywords.h
+ *  cw_keywords.h
  *  CallWeaver Keywords
  *
  * Keyword hash codes
@@ -65,83 +65,83 @@
 // Built-in channel variable names used in pbx.c
 // ---------------------------------------------------------------------------
 //
-// UPPERCASE only. Use function opbx_hash_string() to obtain a hash value for
-// case sensitive comparisons, use function opbx_hash_string_toupper() to
+// UPPERCASE only. Use function cw_hash_string() to obtain a hash value for
+// case sensitive comparisons, use function cw_hash_string_toupper() to
 // obtain a hash value for case insensitive comparisons.
 //
 
-#define OPBX_KEYWORD_ANSWERED			0x2146E99D
-#define OPBX_KEYWORD_CALLERID			0x00E173C6
-#define OPBX_KEYWORD_CALLERIDNUM		0x2AA80F40
-#define OPBX_KEYWORD_CALLERIDNAME		0x04C28AF1
-#define OPBX_KEYWORD_CALLERANI			0x275B0471
-#define OPBX_KEYWORD_CALLINGPRES		0x53038954
-#define OPBX_KEYWORD_CALLINGANI2		0x172910FA
-#define OPBX_KEYWORD_CALLINGTON			0x16FA640F
-#define OPBX_KEYWORD_CALLINGTNS			0x16F963D5
-#define OPBX_KEYWORD_DIALSTATUS			0x3D7F96A2
-#define OPBX_KEYWORD_DNID			0x02813E45
-#define OPBX_KEYWORD_HINT			0x3A2B3507
-#define OPBX_KEYWORD_HINTNAME			0x47AF6B32
-#define OPBX_KEYWORD_EXTEN			0x76AF848A
-#define OPBX_KEYWORD_RDNIS			0x4437ACA6
-#define OPBX_KEYWORD_CONTEXT			0x7D8222EF
-#define OPBX_KEYWORD_PRIORITY			0x63565B44
-#define OPBX_KEYWORD_CHANNEL			0x5C7D4983
-#define OPBX_KEYWORD_UNIQUEID			0x4B6D096C
-#define OPBX_KEYWORD_HANGUPCAUSE		0x3926FB5C
-#define OPBX_KEYWORD_NEWDESTNUM			0x275D7824
-#define OPBX_KEYWORD_ACCOUNTCODE		0x047D129A
-#define OPBX_KEYWORD_LANGUAGE			0x75479ED8
-#define OPBX_KEYWORD_SYSTEMNAME			0x3D58527A
+#define CW_KEYWORD_ANSWERED			0x2146E99D
+#define CW_KEYWORD_CALLERID			0x00E173C6
+#define CW_KEYWORD_CALLERIDNUM		0x2AA80F40
+#define CW_KEYWORD_CALLERIDNAME		0x04C28AF1
+#define CW_KEYWORD_CALLERANI			0x275B0471
+#define CW_KEYWORD_CALLINGPRES		0x53038954
+#define CW_KEYWORD_CALLINGANI2		0x172910FA
+#define CW_KEYWORD_CALLINGTON			0x16FA640F
+#define CW_KEYWORD_CALLINGTNS			0x16F963D5
+#define CW_KEYWORD_DIALSTATUS			0x3D7F96A2
+#define CW_KEYWORD_DNID			0x02813E45
+#define CW_KEYWORD_HINT			0x3A2B3507
+#define CW_KEYWORD_HINTNAME			0x47AF6B32
+#define CW_KEYWORD_EXTEN			0x76AF848A
+#define CW_KEYWORD_RDNIS			0x4437ACA6
+#define CW_KEYWORD_CONTEXT			0x7D8222EF
+#define CW_KEYWORD_PRIORITY			0x63565B44
+#define CW_KEYWORD_CHANNEL			0x5C7D4983
+#define CW_KEYWORD_UNIQUEID			0x4B6D096C
+#define CW_KEYWORD_HANGUPCAUSE		0x3926FB5C
+#define CW_KEYWORD_NEWDESTNUM			0x275D7824
+#define CW_KEYWORD_ACCOUNTCODE		0x047D129A
+#define CW_KEYWORD_LANGUAGE			0x75479ED8
+#define CW_KEYWORD_SYSTEMNAME			0x3D58527A
 
 // ---------------------------------------------------------------------------
 // Values for the DIALSTATUS channel variable
 // ---------------------------------------------------------------------------
 //
-// UPPERCASE only. Use function opbx_hash_string() to obtain a hash value for
-// case sensitive comparisons, use function opbx_hash_string_toupper() to
+// UPPERCASE only. Use function cw_hash_string() to obtain a hash value for
+// case sensitive comparisons, use function cw_hash_string_toupper() to
 // obtain a hash value for case insensitive comparisons.
 //
 
-#define OPBX_KEYWORD_ANSWER			0x141BA75E
-#define OPBX_KEYWORD_BARRED			0x064A173E
-#define OPBX_KEYWORD_BUSY			0x28F00BD9
-#define OPBX_KEYWORD_CANCEL			0x5AF84CFA
-#define OPBX_KEYWORD_CHANUNAVAIL		0x61B1E464
-#define OPBX_KEYWORD_CONGESTION			0x0C09C847
-#define OPBX_KEYWORD_NOANSWER			0x5ABF695F
-#define OPBX_KEYWORD_NUMBERCHANGED		0x3A9A762B
-#define OPBX_KEYWORD_REJECTED			0x03B1B8FE
-#define OPBX_KEYWORD_UNALLOCATED		0x4920440E
+#define CW_KEYWORD_ANSWER			0x141BA75E
+#define CW_KEYWORD_BARRED			0x064A173E
+#define CW_KEYWORD_BUSY			0x28F00BD9
+#define CW_KEYWORD_CANCEL			0x5AF84CFA
+#define CW_KEYWORD_CHANUNAVAIL		0x61B1E464
+#define CW_KEYWORD_CONGESTION			0x0C09C847
+#define CW_KEYWORD_NOANSWER			0x5ABF695F
+#define CW_KEYWORD_NUMBERCHANGED		0x3A9A762B
+#define CW_KEYWORD_REJECTED			0x03B1B8FE
+#define CW_KEYWORD_UNALLOCATED		0x4920440E
 
 
 // ---------------------------------------------------------------------------
 // Built-in global variable names used in pbx.c
 // ---------------------------------------------------------------------------
 //
-// UPPERCASE only. Use function opbx_hash_string() to obtain a hash value for
-// case sensitive comparisons, use function opbx_hash_string_toupper() to
+// UPPERCASE only. Use function cw_hash_string() to obtain a hash value for
+// case sensitive comparisons, use function cw_hash_string_toupper() to
 // obtain a hash value for case insensitive comparisons.
 //
 
-#define OPBX_KEYWORD_EPOCH			0x0000B089
-#define OPBX_KEYWORD_DATETIME			0x2F5B471B
-#define OPBX_KEYWORD_TIMESTAMP			0x138C4996
+#define CW_KEYWORD_EPOCH			0x0000B089
+#define CW_KEYWORD_DATETIME			0x2F5B471B
+#define CW_KEYWORD_TIMESTAMP			0x138C4996
 
 
 // ---------------------------------------------------------------------------
 // Modifiers used in pbx.c
 // ---------------------------------------------------------------------------
 //
-// UPPERCASE only. Use function opbx_hash_string() to obtain a hash value for
-// case sensitive comparisons, use function opbx_hash_string_toupper() to
+// UPPERCASE only. Use function cw_hash_string() to obtain a hash value for
+// case sensitive comparisons, use function cw_hash_string_toupper() to
 // obtain a hash value for case insensitive comparisons.
 //
 
-#define OPBX_KEYWORD_SKIP			0x3AED4AFF
-#define OPBX_KEYWORD_NOANSWER			0x5ABF695F
-#define OPBX_KEYWORD_BYEXTENSION		0x3A9C6B28
+#define CW_KEYWORD_SKIP			0x3AED4AFF
+#define CW_KEYWORD_NOANSWER			0x5ABF695F
+#define CW_KEYWORD_BYEXTENSION		0x3A9C6B28
 
 
 #endif

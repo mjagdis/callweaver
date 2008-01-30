@@ -30,38 +30,38 @@ extern "C" {
 
 typedef enum {
     /*! FAILURE WHEN RETURNING THIS ENUM */
-    OPBX_DEVICE_FAILURE = -1,
+    CW_DEVICE_FAILURE = -1,
     /*! Device is valid but channel didn't know state */
-    OPBX_DEVICE_UNKNOWN = 0,
+    CW_DEVICE_UNKNOWN = 0,
     /*! Device is not used */
-    OPBX_DEVICE_NOT_INUSE = 1,
+    CW_DEVICE_NOT_INUSE = 1,
     /*! Device is in use */
-    OPBX_DEVICE_INUSE = 2,
+    CW_DEVICE_INUSE = 2,
     /*! Device is busy */
-    OPBX_DEVICE_BUSY = 3,
+    CW_DEVICE_BUSY = 3,
     /*! Device is invalid */
-    OPBX_DEVICE_INVALID = 4,
+    CW_DEVICE_INVALID = 4,
     /*! Device is unavailable */
-    OPBX_DEVICE_UNAVAILABLE = 5,
+    CW_DEVICE_UNAVAILABLE = 5,
     /*! Device is ringing */
-    OPBX_DEVICE_RINGING = 6
-} opbx_devicestate_t;
+    CW_DEVICE_RINGING = 6
+} cw_devicestate_t;
 
-typedef int (*opbx_devstate_cb_type)(const char *dev, int state, void *data);
+typedef int (*cw_devstate_cb_type)(const char *dev, int state, void *data);
 
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
  */
-const char *devstate2str(opbx_devicestate_t devstate);
+const char *devstate2str(cw_devicestate_t devstate);
 
 /*! \brief Search the Channels by Name
  * \param device like a dialstring
  * Search the Device in active channels by compare the channelname against 
  * the devicename. Compared are only the first chars to the first '-' char.
- * Returns an OPBX_DEVICE_UNKNOWN if no channel found or
- * OPBX_DEVICE_INUSE if a channel is found
+ * Returns an CW_DEVICE_UNKNOWN if no channel found or
+ * CW_DEVICE_INUSE if a channel is found
  */
-opbx_devicestate_t opbx_parse_device_state(const char *device);
+cw_devicestate_t cw_parse_device_state(const char *device);
 
 /*! \brief Asks a channel for device state
  * \param device like a dialstring
@@ -69,9 +69,9 @@ opbx_devicestate_t opbx_parse_device_state(const char *device);
  * used by the low level module
  * Trys the channel devicestate callback if not supported search in the
  * active channels list for the device.
- * Returns an OPBX_DEVICE_??? state -1 on failure
+ * Returns an CW_DEVICE_??? state -1 on failure
  */
-opbx_devicestate_t opbx_device_state(const char *device);
+cw_devicestate_t cw_device_state(const char *device);
 
 /*! \brief Tells CallWeaver that the State for a Device has changed
  * \param fmt devicename like a dialstring with format parameters
@@ -79,7 +79,7 @@ opbx_devicestate_t opbx_device_state(const char *device);
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
-int opbx_device_state_changed(const char *fmt, ...)
+int cw_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 
@@ -89,17 +89,17 @@ int opbx_device_state_changed(const char *fmt, ...)
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
-int opbx_device_state_changed_literal(const char *device);
+int cw_device_state_changed_literal(const char *device);
 
 /*! \brief Registers a device state change callback 
  * \param data to pass to callback
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success
  */ 
-int opbx_devstate_add(opbx_devstate_cb_type callback, void *data);
-void opbx_devstate_del(opbx_devstate_cb_type callback, void *data);
+int cw_devstate_add(cw_devstate_cb_type callback, void *data);
+void cw_devstate_del(cw_devstate_cb_type callback, void *data);
 
-int opbx_device_state_engine_init(void);
+int cw_device_state_engine_init(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

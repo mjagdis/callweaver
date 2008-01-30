@@ -67,7 +67,7 @@ struct icd_queue {
       icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
     void *dump_fn_extra;
     icd_memory *memory;
-    opbx_mutex_t lock;
+    cw_mutex_t lock;
     int allocated;
 };
 
@@ -97,7 +97,7 @@ icd_queue *create_icd_queue(char *name, icd_config * config)
     /* make a new queue object from scratch */
     ICD_MALLOC(queue, sizeof(icd_queue));
     if (queue == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Queue\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Queue\n");
         return NULL;
     }
     queue->state = ICD_QUEUE_STATE_CREATED;
@@ -139,7 +139,7 @@ icd_status destroy_icd_queue(icd_queue ** queuep)
         icd_event_factory__generate(event_factory, *queuep, (*queuep)->name, module_id, ICD_EVENT_DESTROY, NULL,
         (*queuep)->listeners, NULL);
     if (vetoed == ICD_EVETO) {
-        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Queue %s has been vetoed\n", icd_queue__get_name(*queuep));
+        cw_log(CW_LOG_NOTICE, "Destruction of ICD Queue %s has been vetoed\n", icd_queue__get_name(*queuep));
         return ICD_EVETO;
     }
 
@@ -180,7 +180,7 @@ icd_status init_icd_queue(icd_queue * that, char *name, icd_config * config)
         that->name = strdup(name);
     }
 
-    opbx_mutex_init(&that->lock);
+    cw_mutex_init(&that->lock);
     that->distributor = create_icd_distributor(name, config);
     if (config != NULL) {
         customers_config = icd_config__get_subset(config, "customers.");
@@ -297,10 +297,10 @@ icd_status icd_queue__clear(icd_queue * that)
         that->dump_fn_extra = NULL;
 
         icd_queue__unlock(that);
-        opbx_mutex_destroy(&(that->lock));
+        cw_mutex_destroy(&(that->lock));
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Queue %s in order to clear it\n", icd_queue__get_name(that));
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Queue %s in order to clear it\n", icd_queue__get_name(that));
     return ICD_ELOCK;
 }
 
@@ -360,7 +360,7 @@ icd_status icd_queue__calc_holdtime(icd_queue * that)
     icd_list__unlock((icd_list *) (that->customers));
     new = (total < 1 || count < 1) ? 0 : (int) (total / count);
     if (new != old) {
-        opbx_verbose("== APP_ICD: Setting hold time to %d minutes for queue %s == \n", new,
+        cw_verbose("== APP_ICD: Setting hold time to %d minutes for queue %s == \n", new,
             icd_queue__get_name(that));
         icd_queue__set_holdannounce_holdtime(that, new);
     }
@@ -408,7 +408,7 @@ icd_status icd_queue__customer_quit(icd_queue * that, icd_member * member)
     /* Check for valid caller */
     caller = icd_member__get_caller(member);
     if (caller == NULL || icd_caller__has_role(caller, ICD_CUSTOMER_ROLE) == 0) {
-        opbx_log(OPBX_LOG_WARNING, "Invalid caller %s requesting to be removed from customer queue %s\n",
+        cw_log(CW_LOG_WARNING, "Invalid caller %s requesting to be removed from customer queue %s\n",
             icd_caller__get_name(caller), icd_queue__get_name(that));
         return ICD_ENOTFOUND;
     }
@@ -428,7 +428,7 @@ icd_status icd_queue__customer_distribute(icd_queue * that, icd_member * member)
 {
     icd_status vetoed;
     icd_caller *caller;
-    struct opbx_channel *chan = NULL;
+    struct cw_channel *chan = NULL;
     char msg[120];
 
     assert(that != NULL);
@@ -523,7 +523,7 @@ icd_status icd_queue__agent_quit(icd_queue * that, icd_member * member)
     /* Check for valid caller */
     caller = icd_member__get_caller(member);
     if (caller == NULL || icd_caller__has_role(caller, ICD_AGENT_ROLE) == 0) {
-        opbx_log(OPBX_LOG_WARNING, "Invalid caller %s requesting to be removed from agent queue %s\n",
+        cw_log(CW_LOG_WARNING, "Invalid caller %s requesting to be removed from agent queue %s\n",
             icd_caller__get_name(caller), icd_queue__get_name(that));
     }
     /* Check for veto */
@@ -534,7 +534,7 @@ icd_status icd_queue__agent_quit(icd_queue * that, icd_member * member)
 
     /* Remove from both the distributor and the queue */
 
-    opbx_log(OPBX_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
+    cw_log(CW_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
     icd_distributor__remove_agent(that->distributor, (icd_agent *) caller);
     return icd_member_list__remove_member_by_element(that->agents, member);
 }
@@ -554,7 +554,7 @@ icd_status icd_queue__agent_dist_quit(icd_queue * that, icd_member * member)
     /* Check for valid caller */
     caller = icd_member__get_caller(member);
     if (caller == NULL || icd_caller__has_role(caller, ICD_AGENT_ROLE) == 0) {
-        opbx_log(OPBX_LOG_WARNING, "Invalid caller %s requesting to be removed from agent distributor %s\n",
+        cw_log(CW_LOG_WARNING, "Invalid caller %s requesting to be removed from agent distributor %s\n",
             icd_caller__get_name(caller), icd_queue__get_name(that));
     }
     /* Check for veto */
@@ -565,7 +565,7 @@ icd_status icd_queue__agent_dist_quit(icd_queue * that, icd_member * member)
 
     /* Remove from both the distributor and the queue */
 
-    opbx_log(OPBX_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
+    cw_log(CW_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
     return icd_distributor__remove_agent(that->distributor, (icd_agent *) caller);
 }
 
@@ -584,7 +584,7 @@ icd_status icd_queue__customer_dist_quit(icd_queue * that, icd_member * member)
     /* Check for valid caller */
     caller = icd_member__get_caller(member);
     if (caller == NULL || icd_caller__has_role(caller, ICD_CUSTOMER_ROLE) == 0) {
-        opbx_log(OPBX_LOG_WARNING, "Invalid caller %s requesting to be removed from customer distributor %s\n",
+        cw_log(CW_LOG_WARNING, "Invalid caller %s requesting to be removed from customer distributor %s\n",
             icd_caller__get_name(caller), icd_queue__get_name(that));
     }
     /* Check for veto */
@@ -595,7 +595,7 @@ icd_status icd_queue__customer_dist_quit(icd_queue * that, icd_member * member)
 
     /* Remove from both the distributor and the queue */
 
-    opbx_log(OPBX_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
+    cw_log(CW_LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
     return icd_distributor__remove_customer(that->distributor, (icd_customer *) caller);
 }
 /* Tells the queue to add agent to distributor. Removes if already present. */
@@ -603,7 +603,7 @@ icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
 {
     icd_status vetoed;
     icd_caller *caller;
-    struct opbx_channel *chan = NULL;
+    struct cw_channel *chan = NULL;
     char msg[120];
 
     assert(that != NULL);
@@ -661,28 +661,28 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, int fd, voi
 
     assert(that != NULL);
 
-    opbx_cli(fd, "\nDumping icd_queue {\n");
-    opbx_cli(fd, "%sname=%s (%s)\n", indent, icd_queue__get_name(that), that->allocated ? "alloced" : "on heap");
+    cw_cli(fd, "\nDumping icd_queue {\n");
+    cw_cli(fd, "%sname=%s (%s)\n", indent, icd_queue__get_name(that), that->allocated ? "alloced" : "on heap");
 
-    opbx_cli(fd, "%sparams {\n", indent);
+    cw_cli(fd, "%sparams {\n", indent);
     for (keys = vh_keys(that->params); keys; keys = keys->next)
-        opbx_cli(fd, "%s%s%s=%s\n", indent, indent, keys->name, (char *) vh_read(that->params, keys->name));
+        cw_cli(fd, "%s%s%s=%s\n", indent, indent, keys->name, (char *) vh_read(that->params, keys->name));
 
-    opbx_cli(fd, "%s}\n\n", indent);
+    cw_cli(fd, "%s}\n\n", indent);
 
-    opbx_cli(fd, "%sdump_fn=%p\n", indent, that->dump_fn);
-    opbx_cli(fd, "\n%s customers=%p {\n", indent, that->customers);
+    cw_cli(fd, "%sdump_fn=%p\n", indent, that->dump_fn);
+    cw_cli(fd, "\n%s customers=%p {\n", indent, that->customers);
     if (verbosity > 1) {
         icd_member_list__dump(that->customers, verbosity - 1, fd);
     } else
         icd_member_list__dump(that->customers, 0, fd);
 
-    opbx_cli(fd, "%s}\n\n%sagents=%p  {\n", indent, indent, that->agents);
+    cw_cli(fd, "%s}\n\n%sagents=%p  {\n", indent, indent, that->agents);
     if (verbosity > 1) {
         icd_member_list__dump(that->agents, verbosity - 1, fd);
     } else
         icd_member_list__dump(that->agents, 0, fd);
-    opbx_cli(fd, "%s}\n", indent);
+    cw_cli(fd, "%s}\n", indent);
     dist = (icd_distributor *) icd_queue__get_distributor(that);
     if (dist)
         icd_distributor__dump(dist, verbosity, fd);
@@ -697,7 +697,7 @@ icd_status icd_queue__show(icd_queue * that, int verbosity, int fd)
     assert(that != NULL);
     //vh_keylist *keys;
 
-    opbx_cli(fd, FMT_QUEUE_DATA, icd_queue__get_name(that), 
+    cw_cli(fd, FMT_QUEUE_DATA, icd_queue__get_name(that), 
         icd_queue__get_agent_count(that),
         icd_queue__agent_active_count(that),
         icd_distributor__agents_pending(that->distributor),
@@ -742,7 +742,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
 {
     char *monitor_args = NULL;
     char buf[512], buf2[768];
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     struct tm *ptr;
     time_t tm;
  
@@ -756,7 +756,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
         chan = icd_caller__get_channel(caller);
         if (chan) {
             pbx_substitute_variables_helper(chan, buf, buf2, sizeof(buf2));
-            opbx_function_exec_str(chan, opbx_hash_app_name("Muxmon"), "Muxmon", buf2, NULL, 0);
+            cw_function_exec_str(chan, cw_hash_app_name("Muxmon"), "Muxmon", buf2, NULL, 0);
         }
       
     }
@@ -860,7 +860,7 @@ char *icd_queue__get_holdannounce_sound_next(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_next == NULL || !strlen(that->holdannounce.sound_next)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-youarenext";
     }
     return that->holdannounce.sound_next;
@@ -870,7 +870,7 @@ char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_thereare == NULL || !strlen(that->holdannounce.sound_thereare)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-thereare";
     }
     return that->holdannounce.sound_thereare;
@@ -880,7 +880,7 @@ char *icd_queue__get_holdannounce_sound_calls(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_calls == NULL || !strlen(that->holdannounce.sound_calls)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-callswaiting";
     }
     return that->holdannounce.sound_calls;
@@ -890,7 +890,7 @@ char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_holdtime == NULL || !strlen(that->holdannounce.sound_holdtime)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-holdtime";
     }
     return that->holdannounce.sound_holdtime;
@@ -900,7 +900,7 @@ char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_minutes == NULL || !strlen(that->holdannounce.sound_minutes)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-minutes";
     }
     return that->holdannounce.sound_minutes;
@@ -910,7 +910,7 @@ char *icd_queue__get_holdannounce_sound_thanks(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_thanks == NULL || !strlen(that->holdannounce.sound_thanks)) {
-        opbx_log(OPBX_LOG_WARNING, "This is not supposed to happen.\n");
+        cw_log(CW_LOG_WARNING, "This is not supposed to happen.\n");
         return "queue-thankyou";
     }
     return that->holdannounce.sound_thanks;
@@ -978,7 +978,7 @@ icd_status icd_queue__lock(icd_queue * that)
     if (that->state == ICD_QUEUE_STATE_CLEARED || that->state == ICD_QUEUE_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = opbx_mutex_lock(&that->lock);
+    retval = cw_mutex_lock(&that->lock);
 
     if (retval == 0) {
         return ICD_SUCCESS;
@@ -996,7 +996,7 @@ icd_status icd_queue__unlock(icd_queue * that)
     if (that->state == ICD_QUEUE_STATE_CLEARED || that->state == ICD_QUEUE_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = opbx_mutex_unlock(&that->lock);
+    retval = cw_mutex_unlock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }
@@ -1053,7 +1053,7 @@ icd_queue_holdannounce *create_icd_queue_holdannounce(icd_config * config)
 
     announce = (icd_queue_holdannounce *) ICD_STD_MALLOC(sizeof(icd_queue_holdannounce));
     if (announce == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Queue Hold Announcements\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Queue Hold Announcements\n");
         return NULL;
     }
     memset(announce, 0, sizeof(icd_queue_holdannounce));

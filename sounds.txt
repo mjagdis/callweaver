@@ -773,14 +773,14 @@ The sample configuration also has a single user with extension 1234 and password
 
 %opus-language-italian.gsm%italian
 
-%opbx-Demo-Server.gsm%You have reached an callweaver demonstration server located on the Internet.  Demonstration servers are provided to help you test the callweaver software pbx.  To connect to a conference which may contain other callweaver users, press 1, to hear more about this server, press 2, to quit, simply hang up, or press 3.  The callweaver project participants wish to thank you for taking time to install this software.  You can find more resources are at www.callweaver.org.
+%cw-Demo-Server.gsm%You have reached an callweaver demonstration server located on the Internet.  Demonstration servers are provided to help you test the callweaver software pbx.  To connect to a conference which may contain other callweaver users, press 1, to hear more about this server, press 2, to quit, simply hang up, or press 3.  The callweaver project participants wish to thank you for taking time to install this software.  You can find more resources are at www.callweaver.org.
 
-%opbx-telephony-innovation.gsm%callweaver.org, the telephony innovation toolkit
+%cw-telephony-innovation.gsm%callweaver.org, the telephony innovation toolkit
 
-%opbx-open-source-telephony.gsm%callweaver.org open source telephony project
+%cw-open-source-telephony.gsm%callweaver.org open source telephony project
 
-%opbx-GPL.gsm%callweaver.org, released under the GPL
+%cw-GPL.gsm%callweaver.org, released under the GPL
 
-%opbx-copyright.gsm%callweaver.org, copyright 2005
+%cw-copyright.gsm%callweaver.org, copyright 2005
 
-%opbx-future.gsm%callweaver.org, the future of telephony is calling
+%cw-future.gsm%callweaver.org, the future of telephony is calling

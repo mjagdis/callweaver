@@ -71,7 +71,7 @@ static const char record_descrip[] =
 "Returns -1 when the user hangs up.\n";
 
 
-static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int record_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	int count = 0;
@@ -80,11 +80,11 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	int i = 0;
 	char tmp[256];
 
-	struct opbx_filestream *s = '\0';
+	struct cw_filestream *s = '\0';
 	struct localuser *u;
-	struct opbx_frame *f = NULL;
+	struct cw_frame *f = NULL;
 	
-	struct opbx_dsp *sildet = NULL;   	/* silence detector dsp */
+	struct cw_dsp *sildet = NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
@@ -100,7 +100,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	int flags;
 	
 	if (argc < 1 || argc > 4 || !argv[0][0])
-		return opbx_function_syntax(record_syntax);
+		return cw_function_syntax(record_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -115,7 +115,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	}
 
 	if (!ext) {
-		opbx_log(OPBX_LOG_WARNING, "No extension specified to filename!\n");
+		cw_log(CW_LOG_WARNING, "No extension specified to filename!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -165,12 +165,12 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 		int pieces;
 
 		/* Separate each piece out by the format specifier */
-		pieces = opbx_separate_app_args(argv[0], '%', arraysize(piece), piece);
+		pieces = cw_separate_app_args(argv[0], '%', arraysize(piece), piece);
 
 		do {
 			int tmplen;
 			/* First piece has no leading percent, so it's copied verbatim */
-			opbx_copy_string(tmp, piece[0], sizeof(tmp));
+			cw_copy_string(tmp, piece[0], sizeof(tmp));
 			tmplen = strlen(tmp);
 			for (i = 1; i < pieces; i++) {
 				if (piece[i][0] == 'd') {
@@ -183,10 +183,10 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 					tmp[tmplen++] = piece[i][0];
 				}
 				/* Copy the remaining portion of the piece */
-				opbx_copy_string(tmp + tmplen, &(piece[i][1]), sizeof(tmp) - tmplen);
+				cw_copy_string(tmp + tmplen, &(piece[i][1]), sizeof(tmp) - tmplen);
 			}
 			count++;
-		} while ( opbx_fileexists(tmp, ext, chan->language) );
+		} while ( cw_fileexists(tmp, ext, chan->language) );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
 		strncpy(tmp, argv[0], sizeof(tmp)-1);
@@ -194,14 +194,14 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	
 	
 	
-	if (chan->_state != OPBX_STATE_UP) {
+	if (chan->_state != CW_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to record while on-hook */
-			res = opbx_answer(chan);
+			res = cw_answer(chan);
 		}
 	}
 	
@@ -209,48 +209,48 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	
 		if (!option_quiet) {
 			/* Some code to play a nice little beep to signify the start of the record operation */
-			res = opbx_streamfile(chan, "beep", chan->language);
+			res = cw_streamfile(chan, "beep", chan->language);
 			if (!res) {
-				res = opbx_waitstream(chan, "");
+				res = cw_waitstream(chan, "");
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s\n", chan->name);
+				cw_log(CW_LOG_WARNING, "cw_streamfile failed on %s\n", chan->name);
 			}
-			opbx_stopstream(chan);
+			cw_stopstream(chan);
 		}
 		
 		/* The end of beep code.  Now the recording starts */
 		
 		if (silence > 0) {
 			rfmt = chan->readformat;
-			res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+			res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
 			if (res < 0) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
+				cw_log(CW_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
-			sildet = opbx_dsp_new();
+			sildet = cw_dsp_new();
 			if (!sildet) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
+				cw_log(CW_LOG_WARNING, "Unable to create silence detector :(\n");
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
-			opbx_dsp_set_threshold(sildet, 256);
+			cw_dsp_set_threshold(sildet, 256);
 		} 
 		
 		
 		flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
-		s = opbx_writefile( tmp, ext, NULL, flags , 0, 0644);
+		s = cw_writefile( tmp, ext, NULL, flags , 0, 0644);
 		
 		if (s) {
 			int waitres;
 
 			/* Request a video update */
-			opbx_indicate(chan, OPBX_CONTROL_VIDUPDATE);
+			cw_indicate(chan, CW_CONTROL_VIDUPDATE);
 
 			if (maxduration <= 0)
 				maxduration = -1;
 			
-			while ((waitres = opbx_waitfor(chan, maxduration)) > -1) {
+			while ((waitres = cw_waitfor(chan, maxduration)) > -1) {
 				if (maxduration > 0) {
 					if (waitres == 0) {
 						gottimeout = 1;
@@ -259,22 +259,22 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 					maxduration = waitres;
   				}
 				
-				f = opbx_read(chan);
+				f = cw_read(chan);
 				if (!f) {
 					res = -1;
 					break;
 				}
-				if (f->frametype == OPBX_FRAME_VOICE) {
-					res = opbx_writestream(s, f);
+				if (f->frametype == CW_FRAME_VOICE) {
+					res = cw_writestream(s, f);
 					if (res) {
-						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
-						opbx_fr_free(f);
+						cw_log(CW_LOG_WARNING, "Problem writing frame\n");
+						cw_fr_free(f);
 						break;
 					}
 					
 					if (silence > 0) {
 						dspsilence = 0;
-						opbx_dsp_silence(sildet, f, &dspsilence);
+						cw_dsp_silence(sildet, f, &dspsilence);
 						if (dspsilence) {
 							totalsilence = dspsilence;
 						} else {
@@ -282,52 +282,52 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 						}
 						if (totalsilence > silence) {
 							/* Ended happily with silence */
-							opbx_fr_free(f);
+							cw_fr_free(f);
 							gotsilence = 1;
 							break;
 						}
 					}
 				}
-				if (f->frametype == OPBX_FRAME_VIDEO) {
-					res = opbx_writestream(s, f);
+				if (f->frametype == CW_FRAME_VIDEO) {
+					res = cw_writestream(s, f);
 					if (res) {
-						opbx_log(OPBX_LOG_WARNING, "Problem writing frame\n");
-						opbx_fr_free(f);
+						cw_log(CW_LOG_WARNING, "Problem writing frame\n");
+						cw_fr_free(f);
 						break;
 					}
 				}
-				if ((f->frametype == OPBX_FRAME_DTMF) &&
+				if ((f->frametype == CW_FRAME_DTMF) &&
 					(f->subclass == terminator)) {
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					break;
 				}
-				opbx_fr_free(f);
+				cw_fr_free(f);
 			}
 			if (!f) {
-				opbx_log(OPBX_LOG_DEBUG, "Got hangup\n");
+				cw_log(CW_LOG_DEBUG, "Got hangup\n");
 				res = -1;
 			}
 			
 			if (gotsilence) {
-				opbx_stream_rewind(s, silence-1000);
-				opbx_truncstream(s);
+				cw_stream_rewind(s, silence-1000);
+				cw_truncstream(s);
 			} else if (!gottimeout) {
 				/* Strip off the last 1/4 second of it */
-				opbx_stream_rewind(s, 250);
-				opbx_truncstream(s);
+				cw_stream_rewind(s, 250);
+				cw_truncstream(s);
 			}
-			opbx_closestream(s);
+			cw_closestream(s);
 		} else
-			opbx_log(OPBX_LOG_WARNING, "Could not create file %s\n", tmp);
+			cw_log(CW_LOG_WARNING, "Could not create file %s\n", tmp);
 	} else
-		opbx_log(OPBX_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+		cw_log(CW_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 	
 	if ((silence > 0) && rfmt) {
-		res = opbx_set_read_format(chan, rfmt);
+		res = cw_set_read_format(chan, rfmt);
 		if (res)
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+			cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
 		if (sildet)
-			opbx_dsp_free(sildet);
+			cw_dsp_free(sildet);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -339,13 +339,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(record_app);
+	res |= cw_unregister_function(record_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	record_app = opbx_register_function(record_name, record_exec, record_synopsis, record_syntax, record_descrip);
+	record_app = cw_register_function(record_name, record_exec, record_synopsis, record_syntax, record_descrip);
 	return 0;
 }
 

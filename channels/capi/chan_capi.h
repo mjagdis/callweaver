@@ -72,17 +72,17 @@ static inline unsigned int read_capi_dword(void *m)
 /*
  * define some private functions
  */
-#define cc_mutex_t                opbx_mutex_t
-#define cc_mutex_init             opbx_mutex_init
-#define cc_mutex_lock(x)          opbx_mutex_lock(x)
-#define cc_mutex_unlock(x)        opbx_mutex_unlock(x)
-#define cc_mutex_destroy(x)       opbx_mutex_destroy(x)
-#define cc_log(x...)              opbx_log(x)
-#define cc_pbx_verbose(x...)      opbx_verbose(x)
-#define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
+#define cc_mutex_t                cw_mutex_t
+#define cc_mutex_init             cw_mutex_init
+#define cc_mutex_lock(x)          cw_mutex_lock(x)
+#define cc_mutex_unlock(x)        cw_mutex_unlock(x)
+#define cc_mutex_destroy(x)       cw_mutex_destroy(x)
+#define cc_log(x...)              cw_log(x)
+#define cc_pbx_verbose(x...)      cw_verbose(x)
+#define cc_copy_string(dst, src, size)  cw_copy_string(dst, src, size)
 
 #define CC_CHANNEL_PVT(c) (c)->tech_pvt
-#define CC_BRIDGE_RETURN enum opbx_bridge_result
+#define CC_BRIDGE_RETURN enum cw_bridge_result
 
 /*
  * prototypes
@@ -219,10 +219,10 @@ struct capi_pvt {
 
 	int readerfd;
 	int writerfd;
-	struct opbx_frame f;
-	unsigned char frame_data[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
+	struct cw_frame f;
+	unsigned char frame_data[CAPI_MAX_B3_BLOCK_SIZE + CW_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
 
-	opbx_cond_t event_trigger;
+	cw_cond_t event_trigger;
 	unsigned int waitevent;
 
 	char name[CAPI_MAX_STRING];
@@ -230,7 +230,7 @@ struct capi_pvt {
 	unsigned char tmpbuf[CAPI_MAX_STRING];
 
 	/*! Channel we belong to, possibly NULL */
-	struct opbx_channel *owner;		
+	struct cw_channel *owner;		
 	
 	/* capi message number */
 	_cword MessageNumber;	
@@ -241,11 +241,11 @@ struct capi_pvt {
 	
 	/* send buffer */
 	unsigned char send_buffer[CAPI_MAX_B3_BLOCKS *
-		(CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET)];
+		(CAPI_MAX_B3_BLOCK_SIZE + CW_FRIENDLY_OFFSET)];
 	unsigned short send_buffer_handle;
 
 	/* receive buffer */
-	unsigned char rec_buffer[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
+	unsigned char rec_buffer[CAPI_MAX_B3_BLOCK_SIZE + CW_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
 
 	/* current state */
 	int state;
@@ -257,34 +257,34 @@ struct capi_pvt {
 	/* which b-protocol is active */
 	int bproto;
 	
-	char context[OPBX_MAX_EXTENSION];
+	char context[CW_MAX_EXTENSION];
 	/*! Multiple Subscriber Number we listen to (, seperated list) */
 	char incomingmsn[CAPI_MAX_STRING];	
 	/*! Prefix to Build CID */
-	char prefix[OPBX_MAX_EXTENSION];	
+	char prefix[CW_MAX_EXTENSION];	
 	/* the default caller id */
 	char defaultcid[CAPI_MAX_STRING];
 
 	/*! Caller ID if available */
-	char cid[OPBX_MAX_EXTENSION];	
+	char cid[CW_MAX_EXTENSION];	
 	/*! Dialed Number if available */
-	char dnid[OPBX_MAX_EXTENSION];
+	char dnid[CW_MAX_EXTENSION];
 	/* callerid type of number */
 	int cid_ton;
 
 	char accountcode[20];	
 	int amaflags;
 
-	opbx_group_t callgroup;
-	opbx_group_t pickupgroup;
-	opbx_group_t group;
+	cw_group_t callgroup;
+	cw_group_t pickupgroup;
+	cw_group_t group;
 	
 	/* language */
 	char language[MAX_LANGUAGE];	
 
 	/* additional numbers to dial */
 	int doOverlap;
-	char overlapdigits[OPBX_MAX_EXTENSION];
+	char overlapdigits[CW_MAX_EXTENSION];
 
 	int calledPartyIsISDN;
 	/* this is an outgoing channel */
@@ -323,7 +323,7 @@ struct capi_pvt {
 	unsigned int FaxState;
 
 	/* not all codecs supply frames in nice 160 byte chunks */
-	struct opbx_smoother *smoother;
+	struct cw_smoother *smoother;
 
 	/* outgoing queue count */
 	int B3q;
@@ -339,13 +339,13 @@ struct capi_pvt {
 
 	float txgain;
 	float rxgain;
-	struct opbx_dsp *vad;
+	struct cw_dsp *vad;
 
 	unsigned int reason;
 	unsigned int reasonb3;
 
 	/* RTP */
-	struct opbx_rtp *rtp;
+	struct cw_rtp *rtp;
 	int capability;
 	int rtpcodec;
 	int codec;
@@ -374,9 +374,9 @@ struct cc_capi_conf {
 	char language[MAX_LANGUAGE];
 	char incomingmsn[CAPI_MAX_STRING];
 	char defaultcid[CAPI_MAX_STRING];
-	char context[OPBX_MAX_EXTENSION];
+	char context[CW_MAX_EXTENSION];
 	char controllerstr[CAPI_MAX_STRING];
-	char prefix[OPBX_MAX_EXTENSION];
+	char prefix[CW_MAX_EXTENSION];
 	char accountcode[20];
 	int devices;
 	int softdtmf;
@@ -393,12 +393,12 @@ struct cc_capi_conf {
 	int bridge;
 	int amaflags;
 	unsigned int faxsetting;
-	opbx_group_t callgroup;
-	opbx_group_t pickupgroup;
-	opbx_group_t group;
+	cw_group_t callgroup;
+	cw_group_t pickupgroup;
+	cw_group_t group;
 	float rxgain;
 	float txgain;
-	struct opbx_codec_pref prefs;
+	struct cw_codec_pref prefs;
 	int capability;
 };
 

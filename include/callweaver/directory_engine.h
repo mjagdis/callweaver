@@ -55,8 +55,8 @@ struct directory_entry_s {
     int  				rtptimeout;
     int  				holdtimeout;
     char 				*subscribecontext;
-    opbx_group_t                        callgroup;
-    opbx_group_t                        pickupgroup;
+    cw_group_t                        callgroup;
+    cw_group_t                        pickupgroup;
 */
 
     directory_entry_attribute_t 	*attributes;    // linked list of attributes

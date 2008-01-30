@@ -1512,7 +1512,7 @@ YY_RULE_SETUP
 {
 		if ( pbcpop(')') ) {	/* error */
 			STORE_LOC;
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
 			yylval->str = strdup(yytext);
 			prev_word = 0;
@@ -1551,7 +1551,7 @@ YY_RULE_SETUP
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c))  { /* error */
 			STORE_LOC;
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylval->str = strdup(yytext);
@@ -1587,7 +1587,7 @@ YY_RULE_SETUP
 {
 		if ( pbcpop(')') ) { /* error */
 			STORE_LOC;
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
 			BEGIN(0);
 			yylval->str = strdup(yytext);
 			return word;
@@ -1634,7 +1634,7 @@ YY_RULE_SETUP
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
 			STORE_LOC;
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylval->str = strdup(yytext);
 			return word;
@@ -1665,7 +1665,7 @@ YY_RULE_SETUP
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
 			STORE_LOC;
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylval->str = strdup(yytext);
 			return word;
@@ -1697,16 +1697,16 @@ YY_RULE_SETUP
 		p1 = strchr(yytext,'"');
 		p2 = strrchr(yytext,'"');
 		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
 		} else if ( (int)(p2-p1) > sizeof(fnamebuf) - 1 ) {
-			opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
+			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
 		} else {
 			int i;
 			strncpy(fnamebuf, p1, p2-p1);
 			fnamebuf[p2-p1] = 0;
 			for (i=0; i<include_stack_index; i++) {
 				if ( !strcmp(fnamebuf,include_stack[i].fname )) {
-					opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
+					cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
 						my_file, my_lineno, my_col, fnamebuf);
 					break;
 				}
@@ -1718,16 +1718,16 @@ YY_RULE_SETUP
 			*p2 = 0;
 			/* relative vs. absolute */
 			if (*(p1+1) != '/')
-				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", opbx_config_OPBX_CONFIG_DIR, p1 + 1);
+				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", cw_config_CW_CONFIG_DIR, p1 + 1);
 			else
 #ifdef STANDALONE
 				strncpy(fnamebuf, p1 + 1, sizeof(fnamebuf) - 1);
 #else
-				opbx_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
+				cw_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
 #endif
 			in1 = fopen( fnamebuf, "r" );
 			if ( ! in1 ) {
-				opbx_log(OPBX_LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
+				cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
 			} else {
 				char *buffer;
 				struct stat stats;
@@ -1735,7 +1735,7 @@ YY_RULE_SETUP
 				buffer = (char*)malloc(stats.st_size+1);
 				fread(buffer, 1, stats.st_size, in1);
 				buffer[stats.st_size] = 0;
-				opbx_log(OPBX_LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
+				cw_log(CW_LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
 				fclose(in1);
 
 				include_stack[include_stack_index].fname = my_file;
@@ -3015,7 +3015,7 @@ struct pval *ael2_parse(char *filename, int *errors)
 	ael_yylex_init(&io->scanner);
 	fin = fopen(filename,"r");
 	if ( !fin ) {
-		opbx_log(OPBX_LOG_ERROR,"File %s could not be opened\n", filename);
+		cw_log(CW_LOG_ERROR,"File %s could not be opened\n", filename);
 		*errors = 1;
 		return 0;
 	}

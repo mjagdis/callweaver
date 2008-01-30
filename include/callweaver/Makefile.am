@@ -2,7 +2,7 @@ AUTOMAKE_OPTS = gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxinclude_HEADERS = acl.h \
+cwinclude_HEADERS = acl.h \
                       aes.h \
                       app.h \
                       astobj.h \

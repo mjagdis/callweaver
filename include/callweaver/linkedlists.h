@@ -35,8 +35,8 @@
   list head structure pointed to by head.
   Returns non-zero on success, 0 on failure
 */
-#define OPBX_LIST_LOCK(head)						\
-	opbx_mutex_lock(&(head)->lock) 
+#define CW_LIST_LOCK(head)						\
+	cw_mutex_lock(&(head)->lock) 
 	
 /*!
   \brief Attempts to unlock a list.
@@ -46,8 +46,8 @@
   list head structure pointed to by head. If the list
   was not locked by this thread, this macro has no effect.
 */
-#define OPBX_LIST_UNLOCK(head) 						\
-	opbx_mutex_unlock(&(head)->lock)
+#define CW_LIST_UNLOCK(head) 						\
+	cw_mutex_unlock(&(head)->lock)
 
 /*!
   \brief Defines a structure to be used to hold a list of specified type.
@@ -62,17 +62,17 @@
 
   Example usage:
   \code
-  static OPBX_LIST_HEAD(entry_list, entry) entries;
+  static CW_LIST_HEAD(entry_list, entry) entries;
   \endcode
 
   This would define \c struct \c entry_list, and declare an instance of it named
   \a entries, all intended to hold a list of type \c struct \c entry.
 */
-#define OPBX_LIST_HEAD(name, type)					\
+#define CW_LIST_HEAD(name, type)					\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
-	opbx_mutex_t lock;						\
+	cw_mutex_t lock;						\
 }
 
 /*!
@@ -88,31 +88,31 @@ struct name {								\
 
   Example usage:
   \code
-  static OPBX_LIST_HEAD_NOLOCK(entry_list, entry) entries;
+  static CW_LIST_HEAD_NOLOCK(entry_list, entry) entries;
   \endcode
 
   This would define \c struct \c entry_list, and declare an instance of it named
   \a entries, all intended to hold a list of type \c struct \c entry.
 */
-#define OPBX_LIST_HEAD_NOLOCK(name, type)				\
+#define CW_LIST_HEAD_NOLOCK(name, type)				\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
 }
 
 /*!
-  \brief Defines initial values for a declaration of OPBX_LIST_HEAD
+  \brief Defines initial values for a declaration of CW_LIST_HEAD
 */
-#define OPBX_LIST_HEAD_INIT_VALUE	{		\
+#define CW_LIST_HEAD_INIT_VALUE	{		\
 	.first = NULL,					\
 	.last = NULL,					\
-	.lock = OPBX_MUTEX_INIT_VALUE,			\
+	.lock = CW_MUTEX_INIT_VALUE,			\
 	}
 
 /*!
-  \brief Defines initial values for a declaration of OPBX_LIST_HEAD_NOLOCK
+  \brief Defines initial values for a declaration of CW_LIST_HEAD_NOLOCK
 */
-#define OPBX_LIST_HEAD_NOLOCK_INIT_VALUE	{	\
+#define CW_LIST_HEAD_NOLOCK_INIT_VALUE	{	\
 	.first = NULL,					\
 	.last = NULL,					\
 	}
@@ -128,29 +128,29 @@ struct name {								\
 
   Example usage:
   \code
-  static OPBX_LIST_HEAD_STATIC(entry_list, entry);
+  static CW_LIST_HEAD_STATIC(entry_list, entry);
   \endcode
 
   This would define \c struct \c entry_list, intended to hold a list of
   type \c struct \c entry.
 */
-#define OPBX_LIST_HEAD_STATIC(name, type)				\
+#define CW_LIST_HEAD_STATIC(name, type)				\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
-	opbx_mutex_t lock;						\
-} name = OPBX_LIST_HEAD_INIT_VALUE
+	cw_mutex_t lock;						\
+} name = CW_LIST_HEAD_INIT_VALUE
 
 /*!
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
 
-  This is the same as OPBX_LIST_HEAD_STATIC, except without the lock included.
+  This is the same as CW_LIST_HEAD_STATIC, except without the lock included.
 */
-#define OPBX_LIST_HEAD_NOLOCK_STATIC(name, type)				\
+#define CW_LIST_HEAD_NOLOCK_STATIC(name, type)				\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
-} name = OPBX_LIST_HEAD_NOLOCK_INIT_VALUE
+} name = CW_LIST_HEAD_NOLOCK_INIT_VALUE
 
 /*!
   \brief Initializes a list head structure with a specified first entry.
@@ -160,10 +160,10 @@ struct name {								\
   This macro initializes a list head structure by setting the head
   entry to the supplied value and recreating the embedded lock.
 */
-#define OPBX_LIST_HEAD_SET(head, entry) do {				\
+#define CW_LIST_HEAD_SET(head, entry) do {				\
 	(head)->first = (entry);					\
 	(head)->last = (entry);						\
-	opbx_mutex_init(&(head)->lock);					\
+	cw_mutex_init(&(head)->lock);					\
 } while (0)
 
 /*!
@@ -174,7 +174,7 @@ struct name {								\
   This macro initializes a list head structure by setting the head
   entry to the supplied value.
 */
-#define OPBX_LIST_HEAD_SET_NOLOCK(head, entry) do {			\
+#define CW_LIST_HEAD_SET_NOLOCK(head, entry) do {			\
 	(head)->first = (entry);					\
 	(head)->last = (entry);						\
 } while (0)
@@ -190,13 +190,13 @@ struct name {								\
   \code
   struct list_entry {
   	...
-  	OPBX_LIST_ENTRY(list_entry) list;
+  	CW_LIST_ENTRY(list_entry) list;
   }
   \endcode
 
   The field name \a list here is arbitrary, and can be anything you wish.
 */
-#define OPBX_LIST_ENTRY(type)						\
+#define CW_LIST_ENTRY(type)						\
 struct {								\
 	struct type *next;						\
 }
@@ -205,15 +205,15 @@ struct {								\
   \brief Returns the first entry contained in a list.
   \param head This is a pointer to the list head structure
  */
-#define	OPBX_LIST_FIRST(head)	((head)->first)
+#define	CW_LIST_FIRST(head)	((head)->first)
 
 /*!
   \brief Returns the next entry in the list after the given entry.
   \param elm This is a pointer to the current entry.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 */
-#define OPBX_LIST_NEXT(elm, field)	((elm)->field.next)
+#define CW_LIST_NEXT(elm, field)	((elm)->field.next)
 
 /*!
   \brief Checks whether the specified list contains any entries.
@@ -221,7 +221,7 @@ struct {								\
 
   Returns non-zero if the list has entries, zero if not.
  */
-#define	OPBX_LIST_EMPTY(head)	(OPBX_LIST_FIRST(head) == NULL)
+#define	CW_LIST_EMPTY(head)	(CW_LIST_FIRST(head) == NULL)
 
 /*!
   \brief Loops over (traverses) the entries in a list.
@@ -229,37 +229,37 @@ struct {								\
   \param var This is the name of the variable that will hold a pointer to the
   current list entry on each iteration. It must be declared before calling
   this macro.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
   This macro is use to loop over (traverse) the entries in a list. It uses a
   \a for loop, and supplies the enclosed code with a pointer to each list
   entry as it loops. It is typically used as follows:
   \code
-  static OPBX_LIST_HEAD(entry_list, list_entry) entries;
+  static CW_LIST_HEAD(entry_list, list_entry) entries;
   ...
   struct list_entry {
   	...
-  	OPBX_LIST_ENTRY(list_entry) list;
+  	CW_LIST_ENTRY(list_entry) list;
   }
   ...
   struct list_entry *current;
   ...
-  OPBX_LIST_TRAVERSE(&entries, current, list) {
+  CW_LIST_TRAVERSE(&entries, current, list) {
      (do something with current here)
   }
   \endcode
   \warning If you modify the forward-link pointer contained in the \a current entry while
   inside the loop, the behavior will be unpredictable. At a minimum, the following
   macros will modify the forward-link pointer, and should not be used inside
-  OPBX_LIST_TRAVERSE() against the entry pointed to by the \a current pointer without
+  CW_LIST_TRAVERSE() against the entry pointed to by the \a current pointer without
   careful consideration of their consequences:
-  \li OPBX_LIST_NEXT() (when used as an lvalue)
-  \li OPBX_LIST_INSERT_AFTER()
-  \li OPBX_LIST_INSERT_HEAD()
-  \li OPBX_LIST_INSERT_TAIL()
+  \li CW_LIST_NEXT() (when used as an lvalue)
+  \li CW_LIST_INSERT_AFTER()
+  \li CW_LIST_INSERT_HEAD()
+  \li CW_LIST_INSERT_TAIL()
 */
-#define OPBX_LIST_TRAVERSE(head,var,field) 				\
+#define CW_LIST_TRAVERSE(head,var,field) 				\
 	for((var) = (head)->first; (var); (var) = (var)->field.next)
 
 /*!
@@ -268,7 +268,7 @@ struct {								\
   \param var This is the name of the variable that will hold a pointer to the
   current list entry on each iteration. It must be declared before calling
   this macro.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
   This macro is used to safely loop over (traverse) the entries in a list. It
@@ -276,26 +276,26 @@ struct {								\
   entry as it loops. It is typically used as follows:
 
   \code
-  static OPBX_LIST_HEAD(entry_list, list_entry) entries;
+  static CW_LIST_HEAD(entry_list, list_entry) entries;
   ...
   struct list_entry {
   	...
-  	OPBX_LIST_ENTRY(list_entry) list;
+  	CW_LIST_ENTRY(list_entry) list;
   }
   ...
   struct list_entry *current;
   ...
-  OPBX_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list) {
+  CW_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list) {
      (do something with current here)
   }
-  OPBX_LIST_TRAVERSE_SAFE_END;
+  CW_LIST_TRAVERSE_SAFE_END;
   \endcode
 
-  It differs from OPBX_LIST_TRAVERSE() in that the code inside the loop can modify
-  (or even free, after calling OPBX_LIST_REMOVE_CURRENT()) the entry pointed to by
+  It differs from CW_LIST_TRAVERSE() in that the code inside the loop can modify
+  (or even free, after calling CW_LIST_REMOVE_CURRENT()) the entry pointed to by
   the \a current pointer without affecting the loop traversal.
 */
-#define OPBX_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
+#define CW_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)->first) __list_next;						\
 	typeof((head)->first) __list_prev = NULL;					\
 	typeof((head)->first) __new_prev = NULL;					\
@@ -310,15 +310,15 @@ struct {								\
 /*!
   \brief Removes the \a current entry from a list during a traversal.
   \param head This is a pointer to the list head structure
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
-  \note This macro can \b only be used inside an OPBX_LIST_TRAVERSE_SAFE_BEGIN()
+  \note This macro can \b only be used inside an CW_LIST_TRAVERSE_SAFE_BEGIN()
   block; it is used to unlink the current entry from the list without affecting
   the list traversal (and without having to re-traverse the list to modify the
   previous entry, if any).
  */
-#define OPBX_LIST_REMOVE_CURRENT(head, field) do {					\
+#define CW_LIST_REMOVE_CURRENT(head, field) do {					\
 	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
@@ -332,13 +332,13 @@ struct {								\
   \brief Inserts a list entry before the current entry during a traversal.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be inserted.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
-  \note This macro can \b only be used inside an OPBX_LIST_TRAVERSE_SAFE_BEGIN()
+  \note This macro can \b only be used inside an CW_LIST_TRAVERSE_SAFE_BEGIN()
   block.
  */
-#define OPBX_LIST_INSERT_BEFORE_CURRENT(head, elm, field) do {		\
+#define CW_LIST_INSERT_BEFORE_CURRENT(head, elm, field) do {		\
 	if (__list_prev) {						\
 		(elm)->field.next = __list_prev->field.next;		\
 		__list_prev->field.next = elm;				\
@@ -352,7 +352,7 @@ struct {								\
 /*!
   \brief Closes a safe loop traversal block.
  */
-#define OPBX_LIST_TRAVERSE_SAFE_END  }
+#define CW_LIST_TRAVERSE_SAFE_END  }
 
 /*!
   \brief Initializes a list head structure.
@@ -361,10 +361,10 @@ struct {								\
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list) and recreating the embedded lock.
 */
-#define OPBX_LIST_HEAD_INIT(head) do {					\
+#define CW_LIST_HEAD_INIT(head) do {					\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
-	opbx_mutex_init(&(head)->lock);					\
+	cw_mutex_init(&(head)->lock);					\
 } while (0)
 
 /*!
@@ -375,10 +375,10 @@ struct {								\
   entry to \a NULL (empty list) and destroying the embedded lock.
   It does not free the structure from memory.
 */
-#define OPBX_LIST_HEAD_DESTROY(head) do {				\
+#define CW_LIST_HEAD_DESTROY(head) do {				\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
-	opbx_mutex_destroy(&(head)->lock);				\
+	cw_mutex_destroy(&(head)->lock);				\
 } while (0)
 
 /*!
@@ -389,7 +389,7 @@ struct {								\
   entry to \a NULL (empty list). There is no embedded lock handling
   with this macro.
 */
-#define OPBX_LIST_HEAD_INIT_NOLOCK(head) do {				\
+#define CW_LIST_HEAD_INIT_NOLOCK(head) do {				\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
 } while (0)
@@ -400,10 +400,10 @@ struct {								\
   \param listelm This is a pointer to the entry after which the new entry should
   be inserted.
   \param elm This is a pointer to the entry to be inserted.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define OPBX_LIST_INSERT_AFTER(head, listelm, elm, field) do {		\
+#define CW_LIST_INSERT_AFTER(head, listelm, elm, field) do {		\
 	(elm)->field.next = (listelm)->field.next;			\
 	(listelm)->field.next = (elm);					\
 	if ((head)->last == (listelm))					\
@@ -414,10 +414,10 @@ struct {								\
   \brief Inserts a list entry at the head of a list.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be inserted.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define OPBX_LIST_INSERT_HEAD(head, elm, field) do {			\
+#define CW_LIST_INSERT_HEAD(head, elm, field) do {			\
 		(elm)->field.next = (head)->first;			\
 		(head)->first = (elm);					\
 		if (!(head)->last)					\
@@ -428,14 +428,14 @@ struct {								\
   \brief Appends a list entry to the tail of a list.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be appended.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
   Note: The link field in the appended entry is \b not modified, so if it is
   actually the head of a list itself, the entire list will be appended
-  temporarily (until the next OPBX_LIST_INSERT_TAIL is performed).
+  temporarily (until the next CW_LIST_INSERT_TAIL is performed).
  */
-#define OPBX_LIST_INSERT_TAIL(head, elm, field) do {			\
+#define CW_LIST_INSERT_TAIL(head, elm, field) do {			\
       if (!(head)->first) {						\
 		(head)->first = (elm);					\
 		(head)->last = (elm);					\
@@ -452,7 +452,7 @@ struct {								\
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define OPBX_LIST_APPEND_LIST(head, list, field) do {			\
+#define CW_LIST_APPEND_LIST(head, list, field) do {			\
       if (!(head)->first) {						\
 		(head)->first = (list)->first;				\
 		(head)->last = (list)->last;				\
@@ -465,13 +465,13 @@ struct {								\
 /*!
   \brief Removes and returns the head entry from a list.
   \param head This is a pointer to the list head structure
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
 
   Removes the head entry from the list, and returns a pointer to it.
   This macro is safe to call on an empty list.
  */
-#define OPBX_LIST_REMOVE_HEAD(head, field) ({				\
+#define CW_LIST_REMOVE_HEAD(head, field) ({				\
 		typeof((head)->first) cur = (head)->first;		\
 		if (cur) {						\
 			(head)->first = cur->field.next;		\
@@ -486,11 +486,11 @@ struct {								\
   \brief Removes a specific entry from a list.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be removed.
-  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  \param field This is the name of the field (declared using CW_LIST_ENTRY())
   used to link entries of this list together.
   \warning The removed entry is \b not freed nor modified in any way.
  */
-#define OPBX_LIST_REMOVE(head, elm, field) do {			        \
+#define CW_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
 		(head)->first = (elm)->field.next;			\
 		if ((head)->last == (elm))				\

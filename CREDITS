@@ -53,7 +53,7 @@ Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
        format, and various fixes. Can be contacted at mahmut@oa.com.au
 James Dennis - Cisco SIP compatibility patches to work with SIP service
        providers. Can be contacted at callweaver@jdennis.net
-Tilghman Lesher - - Route lookup code; opbx_localtime(), opbx_say_date_with_format(); 
+Tilghman Lesher - - Route lookup code; cw_localtime(), cw_say_date_with_format(); 
                     GotoIfTime, Random, SayUnixTime, HasNewVoicemail, and Cut applications, 
 		    along with various other patches. http://asterisk.drunkcoder.com/
 Jayson Vantuyl - Manager protocol changes, various other bugs.

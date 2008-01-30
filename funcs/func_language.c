@@ -55,16 +55,16 @@ static const char language_func_desc[] =
 	"functions, like SayNumber.\n";
 
 
-static int builtin_function_language_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_language_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc > 1)
-		return opbx_function_syntax(language_func_syntax);
+		return cw_function_syntax(language_func_syntax);
 
 	if (chan) {
 		if (argc > 0)
-			opbx_copy_string(chan->language, argv[0], sizeof(chan->language));
+			cw_copy_string(chan->language, argv[0], sizeof(chan->language));
 		if (buf)
-			opbx_copy_string(buf, chan->language, len);
+			cw_copy_string(buf, chan->language, len);
 	}
 
 	return 0;
@@ -74,12 +74,12 @@ static const char tdesc[] = "language functions";
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(language_function);
+        return cw_unregister_function(language_function);
 }
 
 static int load_module(void)
 {
-        language_function =  opbx_register_function(language_func_name, builtin_function_language_rw, language_func_synopsis, language_func_syntax, language_func_desc);
+        language_function =  cw_register_function(language_func_name, builtin_function_language_rw, language_func_synopsis, language_func_syntax, language_func_desc);
 	return 0;
 }
 

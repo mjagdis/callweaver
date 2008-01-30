@@ -84,17 +84,17 @@ static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
 static int alignment = 0;
 
 /* Predeclare all statics to make GCC 4.x happy */
-static int __adsi_transmit_message_full(struct opbx_channel *, unsigned char *, int, int, int);
+static int __adsi_transmit_message_full(struct cw_channel *, unsigned char *, int, int, int);
 static int __adsi_download_connect(unsigned char *, char *,  unsigned char *, unsigned char *, int);
 static int __adsi_data_mode(unsigned char *);
 static int __adsi_voice_mode(unsigned char *, int);
 static int __adsi_download_disconnect(unsigned char *);
 
-static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int len, int *remainder)
+static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int len, int *remainder)
 {
 	/* Sends carefully on a full duplex channel by using reading for
 	   timing */
-	struct opbx_frame *inf, outf;
+	struct cw_frame *inf, outf;
 	int amt;
 
 	/* Zero out our outgoing frame */
@@ -108,13 +108,13 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 			amt = *remainder;
 		else
 			*remainder = *remainder - amt;
-        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+        cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW, NULL);
 		outf.data = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
-		if (opbx_write(chan, &outf))
+		if (cw_write(chan, &outf))
         {
-			opbx_log(OPBX_LOG_WARNING, "Failed to carefully write frame\n");
+			cw_log(CW_LOG_WARNING, "Failed to carefully write frame\n");
 			return -1;
 		}
 		/* Update pointers and lengths */
@@ -126,17 +126,17 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 		amt = len;
 		/* If we don't get anything at all back in a second, forget
 		   about it */
-		if (opbx_waitfor(chan, 1000) < 1)
+		if (cw_waitfor(chan, 1000) < 1)
 			return -1;
-		inf = opbx_read(chan);
+		inf = cw_read(chan);
 		/* Detect hangup */
 		if (!inf)
 			return -1;
-		if (inf->frametype == OPBX_FRAME_VOICE)
+		if (inf->frametype == CW_FRAME_VOICE)
         {
 			/* Read a voice frame */
-			if (inf->subclass != OPBX_FORMAT_ULAW) {
-				opbx_log(OPBX_LOG_WARNING, "Channel not in ulaw?\n");
+			if (inf->subclass != CW_FORMAT_ULAW) {
+				cw_log(CW_LOG_WARNING, "Channel not in ulaw?\n");
 				return -1;
 			}
 			/* Send no more than they sent us */
@@ -144,25 +144,25 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 				amt = inf->datalen;
 			else if (remainder)
 				*remainder = inf->datalen - amt;
-            opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+            cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW, NULL);
 			outf.data = buf;
 			outf.datalen = amt;
 			outf.samples = amt;
-			if (opbx_write(chan, &outf))
+			if (cw_write(chan, &outf))
             {
-				opbx_log(OPBX_LOG_WARNING, "Failed to carefully write frame\n");
+				cw_log(CW_LOG_WARNING, "Failed to carefully write frame\n");
 				return -1;
 			}
 			/* Update pointers and lengths */
 			buf += amt;
 			len -= amt;
 		}
-		opbx_fr_free(inf);
+		cw_fr_free(inf);
 	}
 	return 0;
 }
 
-static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **msg, int *msglen, int *msgtype)
+static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg, int *msglen, int *msgtype)
 {
 	/* msglen must be no more than 256 bits, each */
 	uint8_t cas_buf[MAX_CALLERID_SIZE]; /* Actually only need enough for CAS - <250ms */
@@ -177,11 +177,11 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	char ack[3];
 	/* Wait up to 500 ms for initial ACK */
 	int waittime;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int rem = 0;
 	int def;
 
-	if (chan->adsicpe == OPBX_ADSI_UNAVAILABLE) {
+	if (chan->adsicpe == CW_ADSI_UNAVAILABLE) {
 		/* Don't bother if we know they don't support ADSI */
 		errno = ENOSYS;
 		return -1;
@@ -190,53 +190,53 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	while(retries < maxretries) {
 		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
-			opbx_gen_cas(cas_buf, 680, 0, OPBX_FORMAT_ULAW);
+			cw_gen_cas(cas_buf, 680, 0, CW_FORMAT_ULAW);
 		
 			/* Send CAS */
 			if (adsi_careful_send(chan, cas_buf, 680, NULL)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to send CAS\n");
+				cw_log(CW_LOG_WARNING, "Unable to send CAS\n");
 			}
 			/* Wait For DTMF result */
 			waittime = 500;
 			for(;;) {
-				if (((res = opbx_waitfor(chan, waittime)) < 1)) {
+				if (((res = cw_waitfor(chan, waittime)) < 1)) {
 					/* Didn't get back DTMF A in time */
-					opbx_log(OPBX_LOG_DEBUG, "No ADSI CPE detected (%d)\n", res);
+					cw_log(CW_LOG_DEBUG, "No ADSI CPE detected (%d)\n", res);
 					if (!chan->adsicpe)
-						chan->adsicpe = OPBX_ADSI_UNAVAILABLE;
+						chan->adsicpe = CW_ADSI_UNAVAILABLE;
 					errno = ENOSYS;
 					return -1;
 				}
 				waittime = res;
-				f = opbx_read(chan);
+				f = cw_read(chan);
 				if (!f) {
-					opbx_log(OPBX_LOG_DEBUG, "Hangup in ADSI\n");
+					cw_log(CW_LOG_DEBUG, "Hangup in ADSI\n");
 					return -1;
 				}
-				if (f->frametype == OPBX_FRAME_DTMF)
+				if (f->frametype == CW_FRAME_DTMF)
                 {
 					if (f->subclass == 'A') {
 						/* Okay, this is an ADSI CPE.  Note this for future reference, too */
 						if (!chan->adsicpe)
-							chan->adsicpe = OPBX_ADSI_AVAILABLE;
+							chan->adsicpe = CW_ADSI_AVAILABLE;
 						break;
 					} else {
 						if (f->subclass == 'D')  {
-							opbx_log(OPBX_LOG_DEBUG, "Off-hook capable CPE only, not ADSI\n");
+							cw_log(CW_LOG_DEBUG, "Off-hook capable CPE only, not ADSI\n");
 						} else
-							opbx_log(OPBX_LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass);
+							cw_log(CW_LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass);
 						if (!chan->adsicpe)
-							chan->adsicpe = OPBX_ADSI_UNAVAILABLE;
+							chan->adsicpe = CW_ADSI_UNAVAILABLE;
 						errno =	ENOSYS;
 						return -1;
 					}
 				}
-				opbx_fr_free(f);
+				cw_fr_free(f);
 			}
 
-			opbx_log(OPBX_LOG_DEBUG, "ADSI Compatible CPE Detected\n");
+			cw_log(CW_LOG_DEBUG, "ADSI Compatible CPE Detected\n");
 		} else
-			opbx_log(OPBX_LOG_DEBUG, "Already in data mode\n");
+			cw_log(CW_LOG_DEBUG, "Already in data mode\n");
 
 		if (!mem) {
 			mem = malloc(24000 * 5 * sizeof(uint16_t) + 24000 * 5 * sizeof(int8_t));
@@ -244,14 +244,14 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 				lin = mem;
 				buf = mem + 24000 * 5 * sizeof(uint16_t);
 			} else {
-				opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
 				return -1;
 			}
 		}
 
 		x = 0;
 #if 1
-		def= opbx_channel_defer_dtmf(chan);
+		def= cw_channel_defer_dtmf(chan);
 #endif
 		adsi_tx_init(&adsi, ADSI_STANDARD_CLASS);
 		pos = 0;
@@ -270,48 +270,48 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 			 */
 			pos += adsi_tx(&adsi, lin + pos, sizeof(lin)/sizeof(lin[0]) - pos);
 			//if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", x + 1, msglen[x], pos);
+				cw_log(CW_LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", x + 1, msglen[x], pos);
 			x++;
 		}
 
 		for (x = 0; x < pos; x++)
-			buf[x] = OPBX_LIN2MU(lin[x]);
+			buf[x] = CW_LIN2MU(lin[x]);
 
 		rem = 0;
 		res = adsi_careful_send(chan, buf, pos, &rem); 
 		if (!def)
-			opbx_channel_undefer_dtmf(chan);
+			cw_channel_undefer_dtmf(chan);
 		if (res) {
 			free(mem);
 			return -1;
 		}
 
-		opbx_log(OPBX_LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
+		cw_log(CW_LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
 
 		memset(ack, 0, sizeof(ack));
 		/* Get real result */
-		res = opbx_readstring(chan, ack, 2, 1000, 1000, "");
+		res = cw_readstring(chan, ack, 2, 1000, 1000, "");
 		/* Check for hangup */
 		if (res < 0) {
 			free(mem);
 			return -1;
 		}
 		if (ack[0] == 'D') {
-			opbx_log(OPBX_LOG_DEBUG, "Acked up to message %d\n", atoi(ack + 1));
+			cw_log(CW_LOG_DEBUG, "Acked up to message %d\n", atoi(ack + 1));
 			start += atoi(ack + 1);
 			if (start >= x)
 				break;
 			else {
 				retries++;
-				opbx_log(OPBX_LOG_DEBUG, "Retransmitting (%d), from %d\n", retries, start + 1);
+				cw_log(CW_LOG_DEBUG, "Retransmitting (%d), from %d\n", retries, start + 1);
 			}
 		} else {
 			retries++;
-			opbx_log(OPBX_LOG_WARNING, "Unexpected response to ack: %s (retry %d)\n", ack, retries);
+			cw_log(CW_LOG_WARNING, "Unexpected response to ack: %s (retry %d)\n", ack, retries);
 		} 
 	}
 	if (retries >= maxretries) {
-		opbx_log(OPBX_LOG_WARNING, "Maximum ADSI Retries (%d) exceeded\n", maxretries);
+		cw_log(CW_LOG_WARNING, "Maximum ADSI Retries (%d) exceeded\n", maxretries);
 		free(mem);
 		errno = ETIMEDOUT;
 		return -1;
@@ -321,7 +321,7 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	
 }
 
-static int __adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
+static int __adsi_begin_download(struct cw_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -332,15 +332,15 @@ static int __adsi_begin_download(struct opbx_channel *chan, char *service, unsig
 	bytes += __adsi_download_connect(buf + bytes, service, fdn, sec, version);
 	if (__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
 		return -1;
-	if (opbx_readstring(chan, ack, 1, 10000, 10000, ""))
+	if (cw_readstring(chan, ack, 1, 10000, 10000, ""))
 		return -1;
 	if (ack[0] == 'B')
 		return 0;
-	opbx_log(OPBX_LOG_DEBUG, "Download was denied by CPE\n");
+	cw_log(CW_LOG_DEBUG, "Download was denied by CPE\n");
 	return -1;
 }
 
-static int __adsi_end_download(struct opbx_channel *chan)
+static int __adsi_end_download(struct cw_channel *chan)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -353,7 +353,7 @@ static int __adsi_end_download(struct opbx_channel *chan)
 	return 0;
 }
 
-static int __adsi_transmit_message_full(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
+static int __adsi_transmit_message_full(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
 	int msglens[5];
@@ -371,13 +371,13 @@ static int __adsi_transmit_message_full(struct opbx_channel *chan, unsigned char
 
 	for (x=0;x<msglen;x+=(msg[x+1]+2)) {
 		if (msg[x] == ADSI_SWITCH_TO_DATA) {
-			opbx_log(OPBX_LOG_DEBUG, "Switch to data is sent!\n");
+			cw_log(CW_LOG_DEBUG, "Switch to data is sent!\n");
 			waitforswitch++;
 			newdatamode = ADSI_FLAG_DATAMODE;
 		}
 		
 		if (msg[x] == ADSI_SWITCH_TO_VOICE) {
-			opbx_log(OPBX_LOG_DEBUG, "Switch to voice is sent!\n");
+			cw_log(CW_LOG_DEBUG, "Switch to voice is sent!\n");
 			waitforswitch++;
 			newdatamode = 0;
 		}
@@ -388,46 +388,46 @@ static int __adsi_transmit_message_full(struct opbx_channel *chan, unsigned char
 	msgtypes[0] = msgtype;
 
 	if (msglen > 253) {
-		opbx_log(OPBX_LOG_WARNING, "Can't send ADSI message of %d bytes, too large\n", msglen);
+		cw_log(CW_LOG_WARNING, "Can't send ADSI message of %d bytes, too large\n", msglen);
 		return -1;
 	}
 
-	opbx_stopstream(chan);
+	cw_stopstream(chan);
 
-	if (opbx_set_write_format(chan, OPBX_FORMAT_ULAW)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to set write format to ULAW\n");
+	if (cw_set_write_format(chan, CW_FORMAT_ULAW)) {
+		cw_log(CW_LOG_WARNING, "Unable to set write format to ULAW\n");
 		return -1;
 	}
 
-	if (opbx_set_read_format(chan, OPBX_FORMAT_ULAW)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to set read format to ULAW\n");
+	if (cw_set_read_format(chan, CW_FORMAT_ULAW)) {
+		cw_log(CW_LOG_WARNING, "Unable to set read format to ULAW\n");
 		if (writeformat) {
-			if (opbx_set_write_format(chan, writeformat)) 
-				opbx_log(OPBX_LOG_WARNING, "Unable to restore write format to %d\n", writeformat);
+			if (cw_set_write_format(chan, writeformat)) 
+				cw_log(CW_LOG_WARNING, "Unable to restore write format to %d\n", writeformat);
 		}
 		return -1;
 	}
 	res = __adsi_transmit_messages(chan, msgs, msglens, msgtypes);
 
 	if (dowait) {
-		opbx_log(OPBX_LOG_DEBUG, "Wait for switch is '%d'\n", waitforswitch);
-		while(waitforswitch-- && ((res = opbx_waitfordigit(chan, 1000)) > 0)) { res = 0; opbx_log(OPBX_LOG_DEBUG, "Waiting for 'B'...\n"); }
+		cw_log(CW_LOG_DEBUG, "Wait for switch is '%d'\n", waitforswitch);
+		while(waitforswitch-- && ((res = cw_waitfordigit(chan, 1000)) > 0)) { res = 0; cw_log(CW_LOG_DEBUG, "Waiting for 'B'...\n"); }
 	}
 	
 	if (!res)
 		chan->adsicpe = (chan->adsicpe & ~ADSI_FLAG_DATAMODE) | newdatamode;
 
 	if (writeformat)
-		opbx_set_write_format(chan, writeformat);
+		cw_set_write_format(chan, writeformat);
 	if (readformat)
-		opbx_set_read_format(chan, readformat);
+		cw_set_read_format(chan, readformat);
 
 	if (!res)
-		res = opbx_safe_sleep(chan, 100 );
+		res = cw_safe_sleep(chan, 100 );
 	return res;
 }
 
-static int __adsi_transmit_message(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype)
+static int __adsi_transmit_message(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype)
 {
 	return __adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
 }
@@ -570,7 +570,7 @@ static int __adsi_query_cpeinfo(unsigned char *buf)
 	return bytes;
 }
 
-static int __adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *buf, int maxlen)
+static int __adsi_read_encoded_dtmf(struct cw_channel *chan, unsigned char *buf, int maxlen)
 {
 	int bytes = 0;
 	int res;
@@ -580,7 +580,7 @@ static int __adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *bu
 	memset(buf, 0, sizeof(buf));
 	while(bytes <= maxlen) {
 		/* Wait up to a second for a digit */
-		res = opbx_waitfordigit(chan, 1000);
+		res = cw_waitfordigit(chan, 1000);
 		if (!res)
 			break;
 		if (res == '*') {
@@ -605,7 +605,7 @@ static int __adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *bu
 	return bytes;
 }
 
-static int __adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int voice)
+static int __adsi_get_cpeid(struct cw_channel *chan, unsigned char *cpeid, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
@@ -621,7 +621,7 @@ static int __adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int
 	memset(buf, 0, sizeof(buf));
 	res = __adsi_read_encoded_dtmf(chan, cpeid, 4);
 	if (res != 4) {
-		opbx_log(OPBX_LOG_WARNING, "Got %d bytes back of encoded DTMF, expecting 4\n", res);
+		cw_log(CW_LOG_WARNING, "Got %d bytes back of encoded DTMF, expecting 4\n", res);
 		res = 0;
 	} else {
 		res = 1;
@@ -632,12 +632,12 @@ static int __adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int
 		bytes += __adsi_voice_mode(buf, 0);
 		__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
-		opbx_waitfordigit(chan, 1000);
+		cw_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height, int *buttons, int voice)
+static int __adsi_get_cpeinfo(struct cw_channel *chan, int *width, int *height, int *buttons, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
@@ -651,11 +651,11 @@ static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height
 
 	/* Get width */
 	memset(buf, 0, sizeof(buf));
-	res = opbx_readstring(chan, (char *)buf, 2, 1000, 500, "");
+	res = cw_readstring(chan, (char *)buf, 2, 1000, 500, "");
 	if (res < 0)
 		return res;
 	if (strlen((char *)buf) != 2) {
-		opbx_log(OPBX_LOG_WARNING, "Got %d bytes of width, expecting 2\n", res);
+		cw_log(CW_LOG_WARNING, "Got %d bytes of width, expecting 2\n", res);
 		res = 0;
 	} else {
 		res = 1;
@@ -665,11 +665,11 @@ static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height
 	/* Get height */
 	memset(buf, 0, sizeof(buf));
 	if (res) {
-		res = opbx_readstring(chan, (char *)buf, 2, 1000, 500, "");
+		res = cw_readstring(chan, (char *)buf, 2, 1000, 500, "");
 		if (res < 0)
 			return res;
 		if (strlen((char *)buf) != 2) {
-			opbx_log(OPBX_LOG_WARNING, "Got %d bytes of height, expecting 2\n", res);
+			cw_log(CW_LOG_WARNING, "Got %d bytes of height, expecting 2\n", res);
 			res = 0;
 		} else {
 			res = 1;
@@ -680,11 +680,11 @@ static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height
 	/* Get buttons */
 	memset(buf, 0, sizeof(buf));
 	if (res) {
-		res = opbx_readstring(chan, (char *)buf, 1, 1000, 500, "");
+		res = cw_readstring(chan, (char *)buf, 1, 1000, 500, "");
 		if (res < 0)
 			return res;
 		if (strlen((char *)buf) != 1) {
-			opbx_log(OPBX_LOG_WARNING, "Got %d bytes of buttons, expecting 1\n", res);
+			cw_log(CW_LOG_WARNING, "Got %d bytes of buttons, expecting 1\n", res);
 			res = 0;
 		} else {
 			res = 1;
@@ -697,7 +697,7 @@ static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height
 		bytes += __adsi_voice_mode(buf, 0);
 		__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
-		opbx_waitfordigit(chan, 1000);
+		cw_waitfordigit(chan, 1000);
 	}
 	return res;
 }
@@ -764,11 +764,11 @@ static int __adsi_voice_mode(unsigned char *buf, int when)
 
 }
 
-static int __adsi_available(struct opbx_channel *chan)
+static int __adsi_available(struct cw_channel *chan)
 {
 	int cpe = chan->adsicpe & 0xff;
-	if ((cpe == OPBX_ADSI_AVAILABLE) ||
-	    (cpe == OPBX_ADSI_UNKNOWN))
+	if ((cpe == CW_ADSI_AVAILABLE) ||
+	    (cpe == CW_ADSI_UNKNOWN))
 		return 1;
 	return 0;
 }
@@ -922,7 +922,7 @@ static int __adsi_set_line(unsigned char *buf, int page, int line)
 static int total = 0;
 static int speeds = 0;
 
-static int __adsi_channel_restore(struct opbx_channel *chan)
+static int __adsi_channel_restore(struct cw_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -949,7 +949,7 @@ static int __adsi_channel_restore(struct opbx_channel *chan)
 
 }
 
-static int __adsi_print(struct opbx_channel *chan, char **lines, int *aligns, int voice)
+static int __adsi_print(struct cw_channel *chan, char **lines, int *aligns, int voice)
 {
 	unsigned char buf[4096];
 	int bytes=0;
@@ -964,12 +964,12 @@ static int __adsi_print(struct opbx_channel *chan, char **lines, int *aligns, in
 	res = __adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 	if (voice) {
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
-		opbx_waitfordigit(chan, 1000);
+		cw_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-static int __adsi_load_session(struct opbx_channel *chan, unsigned char *app, int ver, int data)
+static int __adsi_load_session(struct cw_channel *chan, unsigned char *app, int ver, int data)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -989,20 +989,20 @@ static int __adsi_load_session(struct opbx_channel *chan, unsigned char *app, in
 	if (__adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
 		return -1;
 	if (app) {
-		res = opbx_readstring(chan, resp, 1, 1200, 1200, "");
+		res = cw_readstring(chan, resp, 1, 1200, 1200, "");
 		if (res < 0)
 			return -1;
 		if (res) {
-			opbx_log(OPBX_LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
+			cw_log(CW_LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
 			return 0;
 		}
 		if (!strcmp(resp, "B")) {
-			opbx_log(OPBX_LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
+			cw_log(CW_LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
 			return 1;
 		} else if (!strcmp(resp, "A")) {
-			opbx_log(OPBX_LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
+			cw_log(CW_LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
+			cw_log(CW_LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
 		}
 	} else
 		return 1;
@@ -1010,7 +1010,7 @@ static int __adsi_load_session(struct opbx_channel *chan, unsigned char *app, in
 
 }
 
-static int __adsi_unload_session(struct opbx_channel *chan)
+static int __adsi_unload_session(struct cw_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -1060,14 +1060,14 @@ static void init_state(void)
 static void adsi_load(void)
 {
 	int x;
-	struct opbx_config *conf;
-	struct opbx_variable *v;
+	struct cw_config *conf;
+	struct cw_variable *v;
 	char *name, *sname;
 	init_state();
-	conf = opbx_config_load("adsi.conf");
+	conf = cw_config_load("adsi.conf");
 	if (conf) {
 		x=0;
-		v = opbx_variable_browse(conf, "intro");
+		v = cw_variable_browse(conf, "intro");
 		while(v) {
 			if (!strcasecmp(v->name, "alignment"))
 				alignment = str2align(v->value);
@@ -1084,7 +1084,7 @@ static void adsi_load(void)
 			}
 			v = v->next;
 		}
-		v = opbx_variable_browse(conf, "speeddial");
+		v = cw_variable_browse(conf, "speeddial");
 		if (x)
 			total = x;
 		x = 0;
@@ -1107,7 +1107,7 @@ static void adsi_load(void)
 		}
 		if (x)
 			speeds = x;
-		opbx_config_destroy(conf);
+		cw_config_destroy(conf);
 	}
 }
 
@@ -1120,7 +1120,7 @@ static int reload_module(void)
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	opbx_module_get(get_modinfo()->self);
+	cw_module_get(get_modinfo()->self);
 
 	adsi_load();
 	adsi_begin_download = __adsi_begin_download;

@@ -40,11 +40,11 @@ struct varz
 
 struct varz *global_varlist;
 
-/* Our own version of opbx_log, since the expr parser uses it. */
+/* Our own version of cw_log, since the expr parser uses it. */
 
-void opbx_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void cw_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 
-void opbx_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...)
+void cw_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
@@ -228,7 +228,7 @@ int check_eval(char *buffer, char *error_report)
 	*ep++ = 0;
 
 	/* now, run the test */
-	result = opbx_expr(evalbuf, s, sizeof(s));
+	result = cw_expr(evalbuf, s, sizeof(s));
 	if (result) {
 		sprintf(error_report, "line %u, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
 		return 1;

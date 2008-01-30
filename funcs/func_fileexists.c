@@ -49,10 +49,10 @@ static const char fileexists_func_syntax[] = "FILEEXISTS(filename)";
 static const char fileexists_func_desc[] = "Returns the file status. Results are 'EXISTS' if the file exists and 'NONEXISTENT' if the file does not exist.\n";
 
 
-static int builtin_function_fileexists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_fileexists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(fileexists_func_syntax);
+		return cw_function_syntax(fileexists_func_syntax);
 
 	if (buf)
 		strncpy(buf, (access(argv[0], F_OK) ? "EXISTS" : "NONEXISTENT"), len);
@@ -65,12 +65,12 @@ static const char tdesc[] = "file existence dialplan function";
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(fileexists_function);
+        return cw_unregister_function(fileexists_function);
 }
 
 static int load_module(void)
 {
-        fileexists_function = opbx_register_function(fileexists_func_name, builtin_function_fileexists, fileexists_func_synopsis, fileexists_func_syntax, fileexists_func_desc);
+        fileexists_function = cw_register_function(fileexists_func_name, builtin_function_fileexists, fileexists_func_synopsis, fileexists_func_syntax, fileexists_func_desc);
 	return 0;
 }
 

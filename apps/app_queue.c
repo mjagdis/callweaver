@@ -27,7 +27,7 @@
  *             NetNation Communications (www.netnation.com)
  *             Kevin Lindsay <kevinl@netnation.com>
  * 
- *             Each dynamic agent in each queue is now stored in the opbxdb.
+ *             Each dynamic agent in each queue is now stored in the cwdb.
  *             When callweaver is restarted, each agent will be automatically
  *             read into their recorded queues. This feature can be
  *             configured with the 'persistent_members=<1|0>' setting in the
@@ -219,7 +219,7 @@ static const char app_upqm_descrip[] =
     "            UNPAUSED | NOTFOUND\n"
     "Example: UnpauseQueueMember(, SIP/3000)\n";
 
-/*! \brief Persistent Members opbxdb family */
+/*! \brief Persistent Members cwdb family */
 static const char pm_family[] = "/Queue/PersistentMembers";
 /* The maximum lengh of each persistent member queue database entry */
 #define PM_MAX_LEN 2048
@@ -260,7 +260,7 @@ queue_results[] =
 
 struct outchan
 {
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     char interface[256];
     int stillgoing;
     int metric;
@@ -273,11 +273,11 @@ struct outchan
 
 struct queue_ent
 {
-    struct opbx_call_queue *parent;	/*!< What queue is our parent */
+    struct cw_call_queue *parent;	/*!< What queue is our parent */
     char moh[80];			/*!< Name of musiconhold to be used */
     char announce[80];		/*!< Announcement to play for member when call is answered */
-    char context[OPBX_MAX_CONTEXT];	/*!< Context when user exits queue */
-    char digits[OPBX_MAX_EXTENSION];	/*!< Digits entered while in queue */
+    char context[CW_MAX_CONTEXT];	/*!< Context when user exits queue */
+    char digits[CW_MAX_EXTENSION];	/*!< Digits entered while in queue */
     int pos;			/*!< Where we are in the queue */
     int trying_agent;		/*!< Are we trying to reach an agent */
     int prio;			/*!< Our priority */
@@ -288,7 +288,7 @@ struct queue_ent
     int handled;			/*!< Whether our call was handled */
     time_t start;			/*!< When we started holding */
     time_t expire;			/*!< When this entry should expire (time out of queue) */
-    struct opbx_channel *chan;	/*!< Our channel */
+    struct cw_channel *chan;	/*!< Our channel */
     struct queue_ent *next;		/*!< The next queue entry */
 };
 
@@ -306,19 +306,19 @@ struct member
     struct member *next;		/*!< Next member */
 };
 
-/* values used in multi-bit flags in opbx_call_queue */
+/* values used in multi-bit flags in cw_call_queue */
 #define QUEUE_EMPTY_NORMAL 1
 #define QUEUE_EMPTY_STRICT 2
 #define ANNOUNCEHOLDTIME_ALWAYS 1
 #define ANNOUNCEHOLDTIME_ONCE 2
 
-struct opbx_call_queue
+struct cw_call_queue
 {
-    opbx_mutex_t lock;
+    cw_mutex_t lock;
     char name[80];			/*!< Name */
     char moh[80];			/*!< Music On Hold class to be used */
     char announce[80];		/*!< Announcement to play when call is answered */
-    char context[OPBX_MAX_CONTEXT];	/*!< Exit context */
+    char context[CW_MAX_CONTEXT];	/*!< Exit context */
     unsigned int monjoin: 1;
     unsigned int dead: 1;
     unsigned int joinempty: 2;
@@ -368,13 +368,13 @@ struct opbx_call_queue
 
     struct member *members;		    /*!< Head of the list of members */
     struct queue_ent *head;		    /*!< Head of the list of callers */
-    struct opbx_call_queue *next;	/*!< Next call queue */
+    struct cw_call_queue *next;	/*!< Next call queue */
 };
 
-static struct opbx_call_queue *queues = NULL;
-OPBX_MUTEX_DEFINE_STATIC(qlock);
+static struct cw_call_queue *queues = NULL;
+CW_MUTEX_DEFINE_STATIC(qlock);
 
-static void set_queue_result(struct opbx_channel *chan, enum queue_result res)
+static void set_queue_result(struct cw_channel *chan, enum queue_result res)
 {
     int i;
 
@@ -413,7 +413,7 @@ static int strat2int(const char *strategy)
 }
 
 /*! \brief Insert the 'new' entry after the 'prev' entry of queue 'q' */
-static inline void insert_entry(struct opbx_call_queue *q, struct queue_ent *prev, struct queue_ent *new, int *pos)
+static inline void insert_entry(struct cw_call_queue *q, struct queue_ent *prev, struct queue_ent *new, int *pos)
 {
     struct queue_ent *cur;
 
@@ -442,28 +442,28 @@ enum queue_member_status
     QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(struct opbx_call_queue *q)
+static enum queue_member_status get_member_status(struct cw_call_queue *q)
 {
     struct member *member;
     enum queue_member_status result = QUEUE_NO_MEMBERS;
 
-    opbx_mutex_lock(&q->lock);
+    cw_mutex_lock(&q->lock);
     for (member = q->members; member; member = member->next)
     {
         switch (member->status)
         {
-        case OPBX_DEVICE_INVALID:
+        case CW_DEVICE_INVALID:
             /* nothing to do */
             break;
-        case OPBX_DEVICE_UNAVAILABLE:
+        case CW_DEVICE_UNAVAILABLE:
             result = QUEUE_NO_REACHABLE_MEMBERS;
             break;
         default:
-            opbx_mutex_unlock(&q->lock);
+            cw_mutex_unlock(&q->lock);
             return QUEUE_NORMAL;
         }
     }
-    opbx_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&q->lock);
     return result;
 }
 
@@ -475,13 +475,13 @@ struct statechange
 
 static void *changethread(void *data)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct statechange *sc = data;
     struct member *cur;
     char *loc;
     char *technology;
 
-    technology = opbx_strdupa(sc->dev);
+    technology = cw_strdupa(sc->dev);
     loc = strchr(technology, '/');
     if (loc)
     {
@@ -494,11 +494,11 @@ static void *changethread(void *data)
         return NULL;
     }
     if (option_debug)
-        opbx_log(OPBX_LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
-    opbx_mutex_lock(&qlock);
+        cw_log(CW_LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
+    cw_mutex_lock(&qlock);
     for (q = queues; q; q = q->next)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         cur = q->members;
         while (cur)
         {
@@ -525,9 +525,9 @@ static void *changethread(void *data)
             }
             cur = cur->next;
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     free(sc);
     return NULL;
 }
@@ -543,9 +543,9 @@ static int statechange_queue(const char *dev, int state, void *ign)
     {
         sc->state = state;
         strcpy(sc->dev, dev);
-        if (opbx_pthread_create(&t, &global_attr_detached, changethread, sc))
+        if (cw_pthread_create(&t, &global_attr_detached, changethread, sc))
         {
-            opbx_log(OPBX_LOG_WARNING, "Failed to create update thread!\n");
+            cw_log(CW_LOG_WARNING, "Failed to create update thread!\n");
             free(sc);
         }
     }
@@ -563,30 +563,30 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
         memset(cur, 0, sizeof(struct member));
         cur->penalty = penalty;
         cur->paused = paused;
-        opbx_copy_string(cur->interface, interface, sizeof(cur->interface));
+        cw_copy_string(cur->interface, interface, sizeof(cur->interface));
         if (!strchr(cur->interface, '/'))
-            opbx_log(OPBX_LOG_WARNING, "No location at interface '%s'\n", interface);
-        cur->status = opbx_device_state(interface);
+            cw_log(CW_LOG_WARNING, "No location at interface '%s'\n", interface);
+        cur->status = cw_device_state(interface);
         cur->added = time(NULL);
     }
 
     return cur;
 }
 
-static struct opbx_call_queue *alloc_queue(const char *queuename)
+static struct cw_call_queue *alloc_queue(const char *queuename)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
 
     if ((q = malloc(sizeof(*q))))
     {
         memset(q, 0, sizeof(*q));
-        opbx_mutex_init(&q->lock);
-        opbx_copy_string(q->name, queuename, sizeof(q->name));
+        cw_mutex_init(&q->lock);
+        cw_copy_string(q->name, queuename, sizeof(q->name));
     }
     return q;
 }
 
-static void init_queue(struct opbx_call_queue *q)
+static void init_queue(struct cw_call_queue *q)
 {
     q->dead = 0;
     q->retry = DEFAULT_RETRY;
@@ -602,21 +602,21 @@ static void init_queue(struct opbx_call_queue *q)
     q->monfmt[0] = '\0';
     q->periodicannouncefrequency = 0;
     q->report_maxpos = -1;
-    q->reportpos_first = opbx_true("yes");
+    q->reportpos_first = cw_true("yes");
 
-    opbx_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
-    opbx_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
-    opbx_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
-    opbx_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
-    opbx_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
-    opbx_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
-    opbx_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
-    opbx_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
-    opbx_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
-    opbx_copy_string(q->sound_periodicannounce, "queue-periodic-announce", sizeof(q->sound_periodicannounce));
+    cw_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
+    cw_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
+    cw_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
+    cw_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
+    cw_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
+    cw_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
+    cw_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
+    cw_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
+    cw_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
+    cw_copy_string(q->sound_periodicannounce, "queue-periodic-announce", sizeof(q->sound_periodicannounce));
 }
 
-static void clear_queue(struct opbx_call_queue *q)
+static void clear_queue(struct cw_call_queue *q)
 {
     q->holdtime = 0;
     q->callscompleted = 0;
@@ -632,19 +632,19 @@ static void clear_queue(struct opbx_call_queue *q)
    The failunknown flag is set for config files (and static realtime) to show
    errors for unknown parameters. It is cleared for dynamic realtime to allow
    extra fields in the tables. */
-static void queue_set_param(struct opbx_call_queue *q, const char *param, const char *val, int linenum, int failunknown)
+static void queue_set_param(struct cw_call_queue *q, const char *param, const char *val, int linenum, int failunknown)
 {
     if (!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold"))
     {
-        opbx_copy_string(q->moh, val, sizeof(q->moh));
+        cw_copy_string(q->moh, val, sizeof(q->moh));
     }
     else if (!strcasecmp(param, "announce"))
     {
-        opbx_copy_string(q->announce, val, sizeof(q->announce));
+        cw_copy_string(q->announce, val, sizeof(q->announce));
     }
     else if (!strcasecmp(param, "context"))
     {
-        opbx_copy_string(q->context, val, sizeof(q->context));
+        cw_copy_string(q->context, val, sizeof(q->context));
     }
     else if (!strcasecmp(param, "timeout"))
     {
@@ -654,47 +654,47 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     }
     else if (!strcasecmp(param, "monitor-join"))
     {
-        q->monjoin = opbx_true(val);
+        q->monjoin = cw_true(val);
     }
     else if (!strcasecmp(param, "monitor-format"))
     {
-        opbx_copy_string(q->monfmt, val, sizeof(q->monfmt));
+        cw_copy_string(q->monfmt, val, sizeof(q->monfmt));
     }
     else if (!strcasecmp(param, "queue-youarenext"))
     {
-        opbx_copy_string(q->sound_next, val, sizeof(q->sound_next));
+        cw_copy_string(q->sound_next, val, sizeof(q->sound_next));
     }
     else if (!strcasecmp(param, "queue-thereare"))
     {
-        opbx_copy_string(q->sound_thereare, val, sizeof(q->sound_thereare));
+        cw_copy_string(q->sound_thereare, val, sizeof(q->sound_thereare));
     }
     else if (!strcasecmp(param, "queue-callswaiting"))
     {
-        opbx_copy_string(q->sound_calls, val, sizeof(q->sound_calls));
+        cw_copy_string(q->sound_calls, val, sizeof(q->sound_calls));
     }
     else if (!strcasecmp(param, "queue-holdtime"))
     {
-        opbx_copy_string(q->sound_holdtime, val, sizeof(q->sound_holdtime));
+        cw_copy_string(q->sound_holdtime, val, sizeof(q->sound_holdtime));
     }
     else if (!strcasecmp(param, "queue-minutes"))
     {
-        opbx_copy_string(q->sound_minutes, val, sizeof(q->sound_minutes));
+        cw_copy_string(q->sound_minutes, val, sizeof(q->sound_minutes));
     }
     else if (!strcasecmp(param, "queue-seconds"))
     {
-        opbx_copy_string(q->sound_seconds, val, sizeof(q->sound_seconds));
+        cw_copy_string(q->sound_seconds, val, sizeof(q->sound_seconds));
     }
     else if (!strcasecmp(param, "queue-lessthan"))
     {
-        opbx_copy_string(q->sound_lessthan, val, sizeof(q->sound_lessthan));
+        cw_copy_string(q->sound_lessthan, val, sizeof(q->sound_lessthan));
     }
     else if (!strcasecmp(param, "queue-thankyou"))
     {
-        opbx_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
+        cw_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
     }
     else if (!strcasecmp(param, "queue-reporthold"))
     {
-        opbx_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
+        cw_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
     }
     else if (!strcasecmp(param, "reportmaxpos"))
     {
@@ -702,7 +702,7 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     }
     else if (!strcasecmp(param, "reportpos-first"))
     {
-        q->reportpos_first = opbx_true(val);
+        q->reportpos_first = cw_true(val);
     }
     else if (!strcasecmp(param, "announce-frequency"))
     {
@@ -715,13 +715,13 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
         {
             if (linenum >= 0)
             {
-                opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid value for %s "
+                cw_log(CW_LOG_WARNING, "'%s' isn't a valid value for %s "
                          "using 0 instead for queue '%s' at line %d of queues.conf\n",
                          val, param, q->name, linenum);
             }
             else
             {
-                opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid value for %s "
+                cw_log(CW_LOG_WARNING, "'%s' isn't a valid value for %s "
                          "using 0 instead for queue '%s'\n", val, param, q->name);
             }
             q->roundingseconds=0;
@@ -731,14 +731,14 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     {
         if (!strcasecmp(val, "once"))
             q->announceholdtime = ANNOUNCEHOLDTIME_ONCE;
-        else if (opbx_true(val))
+        else if (cw_true(val))
             q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
         else
             q->announceholdtime = 0;
     }
     else if (!strcasecmp(param, "periodic-announce"))
     {
-        opbx_copy_string(q->sound_periodicannounce, val, sizeof(q->sound_periodicannounce));
+        cw_copy_string(q->sound_periodicannounce, val, sizeof(q->sound_periodicannounce));
     }
     else if (!strcasecmp(param, "periodic-announce-frequency"))
     {
@@ -769,7 +769,7 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
         q->strategy = strat2int(val);
         if (q->strategy < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+            cw_log(CW_LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
                      val, q->name);
             q->strategy = 0;
         }
@@ -778,7 +778,7 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     {
         if (!strcasecmp(val, "strict"))
             q->joinempty = QUEUE_EMPTY_STRICT;
-        else if (opbx_true(val))
+        else if (cw_true(val))
             q->joinempty = QUEUE_EMPTY_NORMAL;
         else
             q->joinempty = 0;
@@ -787,22 +787,22 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     {
         if (!strcasecmp(val, "strict"))
             q->leavewhenempty = QUEUE_EMPTY_STRICT;
-        else if (opbx_true(val))
+        else if (cw_true(val))
             q->leavewhenempty = QUEUE_EMPTY_NORMAL;
         else
             q->leavewhenempty = 0;
     }
     else if (!strcasecmp(param, "eventmemberstatus"))
     {
-        q->maskmemberstatus = !opbx_true(val);
+        q->maskmemberstatus = !cw_true(val);
     }
     else if (!strcasecmp(param, "eventwhencalled"))
     {
-        q->eventwhencalled = opbx_true(val);
+        q->eventwhencalled = cw_true(val);
     }
     else if (!strcasecmp(param, "reportholdtime"))
     {
-        q->reportholdtime = opbx_true(val);
+        q->reportholdtime = cw_true(val);
     }
     else if (!strcasecmp(param, "memberdelay"))
     {
@@ -818,23 +818,23 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
     }
     else if (!strcasecmp(param, "timeoutrestart"))
     {
-        q->timeoutrestart = opbx_true(val);
+        q->timeoutrestart = cw_true(val);
     }
     else if (failunknown)
     {
         if (linenum >= 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
+            cw_log(CW_LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
                      q->name, param, linenum);
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown keyword in queue '%s': %s\n", q->name, param);
+            cw_log(CW_LOG_WARNING, "Unknown keyword in queue '%s': %s\n", q->name, param);
         }
     }
 }
 
-static void rt_handle_member_record(struct opbx_call_queue *q, char *interface, const char *penalty_str)
+static void rt_handle_member_record(struct cw_call_queue *q, char *interface, const char *penalty_str)
 {
     struct member *m, *prev_m;
     int penalty = 0;
@@ -884,17 +884,17 @@ static void rt_handle_member_record(struct opbx_call_queue *q, char *interface, 
   \return Return the queue, or NULL if it doesn't exist.
   \note Should be called with the global qlock locked.
    When found, the queue is returned with q->lock locked. */
-static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opbx_variable *queue_vars, struct opbx_config *member_config)
+static struct cw_call_queue *reload_queue_rt(const char *queuename, struct cw_variable *queue_vars, struct cw_config *member_config)
 {
-    struct opbx_variable *v;
-    struct opbx_call_queue *q, *prev_q;
+    struct cw_variable *v;
+    struct cw_call_queue *q, *prev_q;
     struct member *m, *prev_m, *next_m;
     char *interface;
     char *tmp, *tmp_name;
     char tmpbuf[64];    /* Must be longer than the longest queue param name. */
 
     /* Find the queue in the in-core list (we will create a new one if not found). */
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     q = queues;
     prev_q = NULL;
     while (q)
@@ -906,19 +906,19 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
         q = q->next;
         prev_q = q;
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     /* Static queues override realtime. */
     if (q)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         if (!q->realtime)
         {
             if (q->dead)
             {
-                opbx_mutex_unlock(&q->lock);
+                cw_mutex_unlock(&q->lock);
                 return NULL;
             }
-            opbx_mutex_unlock(&q->lock);
+            cw_mutex_unlock(&q->lock);
             return q;
         }
     }
@@ -935,7 +935,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
             /*! \note Hmm, can't seem to distinguish a DB failure from a not
                found condition... So we might delete an in-core queue
                in case of DB failure. */
-            opbx_log(OPBX_LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
+            cw_log(CW_LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
 
             q->dead = 1;
             /* Delete if unused (else will be deleted when last caller leaves). */
@@ -950,12 +950,12 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
                 {
                     prev_q->next = q->next;
                 }
-                opbx_mutex_unlock(&q->lock);
+                cw_mutex_unlock(&q->lock);
                 free(q);
             }
             else
             {
-                opbx_mutex_unlock(&q->lock);
+                cw_mutex_unlock(&q->lock);
             }
         }
         return NULL;
@@ -967,7 +967,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
         q = alloc_queue(queuename);
         if (!q)
             return NULL;
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         clear_queue(q);
         q->realtime = 1;
         q->next = queues;
@@ -982,7 +982,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
         /* Convert to dashes `-' from underscores `_' as the latter are more SQL friendly. */
         if ((tmp = strchr(v->name, '_')) != NULL)
         {
-            opbx_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
+            cw_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
             tmp_name = tmpbuf;
             tmp = tmp_name;
             while ((tmp = strchr(tmp, '_')) != NULL)
@@ -1002,11 +1002,11 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
         m = m->next;
     }
 
-    interface = opbx_category_browse(member_config, NULL);
+    interface = cw_category_browse(member_config, NULL);
     while (interface)
     {
-        rt_handle_member_record(q, interface, opbx_variable_retrieve(member_config, interface, "penalty"));
-        interface = opbx_category_browse(member_config, interface);
+        rt_handle_member_record(q, interface, cw_variable_retrieve(member_config, interface, "penalty"));
+        interface = cw_category_browse(member_config, interface);
     }
 
     /* Delete all realtime members that have been deleted in DB. */
@@ -1029,15 +1029,15 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
         }
         m = next_m;
     }
-    opbx_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&q->lock);
     return q;
 }
 
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
 {
-    struct opbx_variable *queue_vars = NULL;
-    struct opbx_config *member_config = NULL;
-    struct opbx_call_queue *q;
+    struct cw_variable *queue_vars = NULL;
+    struct cw_config *member_config = NULL;
+    struct cw_call_queue *q;
     struct queue_ent *cur, *prev = NULL;
     int res = -1;
     int pos = 0;
@@ -1052,28 +1052,28 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
        changed the queue and member list as it was after the change.
        Thus we might see an empty member list when a queue is
        deleted. In practise, this is unlikely to cause a problem. */
-    queue_vars = opbx_load_realtime("queues", "name", queuename, NULL);
+    queue_vars = cw_load_realtime("queues", "name", queuename, NULL);
     if (queue_vars)
     {
-        member_config = opbx_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
+        member_config = cw_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
         if (!member_config)
         {
-            opbx_log(OPBX_LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
+            cw_log(CW_LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
             return res;
         }
     }
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     q = reload_queue_rt(queuename, queue_vars, member_config);
     /* Note: If found, reload_queue_rt() returns with q->lock locked. */
     if (member_config)
-        opbx_config_destroy(member_config);
+        cw_config_destroy(member_config);
     if (queue_vars)
-        opbx_variables_destroy(queue_vars);
+        cw_variables_destroy(queue_vars);
 
     if (!q)
     {
-        opbx_mutex_unlock(&qlock);
+        cw_mutex_unlock(&qlock);
         return res;
     }
 
@@ -1110,9 +1110,9 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
         /* No luck, join at the end of the queue */
         if (!inserted)
             insert_entry(q, prev, qe, &pos);
-        opbx_copy_string(qe->moh, q->moh, sizeof(qe->moh));
-        opbx_copy_string(qe->announce, q->announce, sizeof(qe->announce));
-        opbx_copy_string(qe->context, q->context, sizeof(qe->context));
+        cw_copy_string(qe->moh, q->moh, sizeof(qe->moh));
+        cw_copy_string(qe->announce, q->announce, sizeof(qe->announce));
+        cw_copy_string(qe->context, q->context, sizeof(qe->context));
         q->count++;
         res = 0;
         manager_event(EVENT_FLAG_CALL, "Join",
@@ -1122,16 +1122,16 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
                       qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
                       q->name, qe->pos, q->count );
 #if 0
-        opbx_log(OPBX_LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
+        cw_log(CW_LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
 
     }
-    opbx_mutex_unlock(&q->lock);
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&qlock);
     return res;
 }
 
-static void free_members(struct opbx_call_queue *q, int all)
+static void free_members(struct cw_call_queue *q, int all)
 {
     /* Free non-dynamic members */
     struct member *curm, *next, *prev;
@@ -1155,11 +1155,11 @@ static void free_members(struct opbx_call_queue *q, int all)
     }
 }
 
-static void destroy_queue(struct opbx_call_queue *q)
+static void destroy_queue(struct cw_call_queue *q)
 {
-    struct opbx_call_queue *cur, *prev = NULL;
+    struct cw_call_queue *cur, *prev = NULL;
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (cur = queues;  cur;  cur = cur->next)
     {
         if (cur == q)
@@ -1174,27 +1174,27 @@ static void destroy_queue(struct opbx_call_queue *q)
             prev = cur;
         }
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     free_members(q, 1);
-    opbx_mutex_destroy(&q->lock);
+    cw_mutex_destroy(&q->lock);
     free(q);
 }
 
-static int play_file(struct opbx_channel *chan, char *filename)
+static int play_file(struct cw_channel *chan, char *filename)
 {
     int res=0;
 
-    if (!opbx_strlen_zero(filename))
+    if (!cw_strlen_zero(filename))
     {
-        opbx_stopstream(chan);
-        res = opbx_streamfile(chan, filename, chan->language);
+        cw_stopstream(chan);
+        res = cw_streamfile(chan, filename, chan->language);
 
         if (!res)
-            res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+            res = cw_waitstream(chan, CW_DIGIT_ANY);
         else
             res = 0;
 
-        opbx_stopstream(chan);
+        cw_stopstream(chan);
     }
     return res;
 }
@@ -1216,18 +1216,18 @@ static int valid_exit(struct queue_ent *qe, char digit)
     }
 
     /* If there's no context to goto, short-circuit */
-    if (opbx_strlen_zero(qe->context))
+    if (cw_strlen_zero(qe->context))
         return 0;
 
     /* If the extension is bad, then reset the digits to blank */
-    if (!opbx_canmatch_extension(qe->chan, qe->context, qe->digits, 1, qe->chan->cid.cid_num))
+    if (!cw_canmatch_extension(qe->chan, qe->context, qe->digits, 1, qe->chan->cid.cid_num))
     {
         qe->digits[0] = '\0';
         return 0;
     }
 
     /* We have an exact match */
-    if (!opbx_goto_if_exists(qe->chan, qe->context, qe->digits, 1))
+    if (!cw_goto_if_exists(qe->chan, qe->context, qe->digits, 1))
     {
         /* Return 1 on a successful goto */
         return 1;
@@ -1251,7 +1251,7 @@ static int say_position(struct queue_ent *qe)
     if ( (qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency) )
         return 0;
 
-    opbx_moh_stop(qe->chan);
+    cw_moh_stop(qe->chan);
     /* Say we're next, if we are */
     if (qe->pos == 1)
     {
@@ -1274,7 +1274,7 @@ static int say_position(struct queue_ent *qe)
             res = play_file(qe->chan, qe->parent->sound_thereare);
             if (res && valid_exit(qe, res))
                 goto playout;
-            res = opbx_say_number(qe->chan, qe->pos, OPBX_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
+            res = cw_say_number(qe->chan, qe->pos, CW_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
             if (res && valid_exit(qe, res))
                 goto playout;
             res = play_file(qe->chan, qe->parent->sound_calls);
@@ -1301,7 +1301,7 @@ static int say_position(struct queue_ent *qe)
     }
 
     if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
+        cw_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
 
     /* If the hold time is >1 min, if it's enabled, and if it's not
        supposed to be only once and we have already said it, say it */
@@ -1320,13 +1320,13 @@ static int say_position(struct queue_ent *qe)
                 if (res && valid_exit(qe, res))
                     goto playout;
 
-                res = opbx_say_number(qe->chan, 2, OPBX_DIGIT_ANY, qe->chan->language, (char *)NULL);
+                res = cw_say_number(qe->chan, 2, CW_DIGIT_ANY, qe->chan->language, (char *)NULL);
                 if (res && valid_exit(qe, res))
                     goto playout;
             }
             else
             {
-                res = opbx_say_number(qe->chan, avgholdmins, OPBX_DIGIT_ANY, qe->chan->language, (char*) NULL);
+                res = cw_say_number(qe->chan, avgholdmins, CW_DIGIT_ANY, qe->chan->language, (char*) NULL);
                 if (res && valid_exit(qe, res))
                     goto playout;
             }
@@ -1337,7 +1337,7 @@ static int say_position(struct queue_ent *qe)
         }
         if (avgholdsecs>0)
         {
-            res = opbx_say_number(qe->chan, avgholdsecs, OPBX_DIGIT_ANY, qe->chan->language, (char*) NULL);
+            res = cw_say_number(qe->chan, avgholdsecs, CW_DIGIT_ANY, qe->chan->language, (char*) NULL);
             if (res && valid_exit(qe, res))
                 goto playout;
 
@@ -1350,16 +1350,16 @@ static int say_position(struct queue_ent *qe)
 
 posout:
     if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
+        cw_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
                      qe->chan->name, qe->parent->name, qe->pos);
-    if (!opbx_strlen_zero(qe->parent->sound_thanks))
+    if (!cw_strlen_zero(qe->parent->sound_thanks))
         res = play_file(qe->chan, qe->parent->sound_thanks);
 
 playout:
     /* Set our last_pos indicators */
     qe->last_pos = now;
     qe->last_pos_said = qe->pos;
-    opbx_moh_start(qe->chan, qe->moh);
+    cw_moh_start(qe->chan, qe->moh);
 
     return res;
 }
@@ -1374,24 +1374,24 @@ static void recalc_holdtime(struct queue_ent *qe)
 
     newvalue = time(NULL) - qe->start;
 
-    opbx_mutex_lock(&qe->parent->lock);
+    cw_mutex_lock(&qe->parent->lock);
     if (newvalue <= qe->parent->servicelevel)
         qe->parent->callscompletedinsl++;
     oldvalue = qe->parent->holdtime;
     qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newvalue) >> 2;
-    opbx_mutex_unlock(&qe->parent->lock);
+    cw_mutex_unlock(&qe->parent->lock);
 }
 
 
 static void leave_queue(struct queue_ent *qe)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct queue_ent *cur, *prev = NULL;
     int pos = 0;
 
     if ((q = qe->parent) == NULL)
         return;
-    opbx_mutex_lock(&q->lock);
+    cw_mutex_lock(&q->lock);
 
     prev = NULL;
     cur = q->head;
@@ -1406,7 +1406,7 @@ static void leave_queue(struct queue_ent *qe)
                           "Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
                           qe->chan->name, q->name,  q->count);
 #if 0
-            opbx_log(OPBX_LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
+            cw_log(CW_LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 #endif
             /* Take us out of the queue */
             if (prev)
@@ -1422,7 +1422,7 @@ static void leave_queue(struct queue_ent *qe)
         }
         cur = cur->next;
     }
-    opbx_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&q->lock);
     if (q->dead && !q->count)
     {
         /* It's dead and nobody is in it, so kill it */
@@ -1431,7 +1431,7 @@ static void leave_queue(struct queue_ent *qe)
 }
 
 /* Hang up a list of outgoing calls */
-static void hangupcalls(struct outchan *outgoing, struct opbx_channel *exception)
+static void hangupcalls(struct outchan *outgoing, struct cw_channel *exception)
 {
     struct outchan *oo;
 
@@ -1439,20 +1439,20 @@ static void hangupcalls(struct outchan *outgoing, struct opbx_channel *exception
     {
         /* Hangup any existing lines we have open */
         if (outgoing->chan && (outgoing->chan != exception))
-            opbx_hangup(outgoing->chan);
+            cw_hangup(outgoing->chan);
         oo = outgoing;
         outgoing=outgoing->next;
         free(oo);
     }
 }
 
-static int update_status(struct opbx_call_queue *q, struct member *member, int status)
+static int update_status(struct cw_call_queue *q, struct member *member, int status)
 {
     struct member *cur;
 
     /* Since a reload could have taken place, we have to traverse the list to
        be sure it's still valid */
-    opbx_mutex_lock(&q->lock);
+    cw_mutex_lock(&q->lock);
     cur = q->members;
     while (cur)
     {
@@ -1477,28 +1477,28 @@ static int update_status(struct opbx_call_queue *q, struct member *member, int s
         }
         cur = cur->next;
     }
-    opbx_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&q->lock);
     return 0;
 }
 
-static int update_dial_status(struct opbx_call_queue *q, struct member *member, int status)
+static int update_dial_status(struct cw_call_queue *q, struct member *member, int status)
 {
-    if (status == OPBX_CAUSE_BUSY)
-        status = OPBX_DEVICE_BUSY;
-    else if (status == OPBX_CAUSE_UNREGISTERED)
-        status = OPBX_DEVICE_UNAVAILABLE;
-    else if (status == OPBX_CAUSE_NOSUCHDRIVER)
-        status = OPBX_DEVICE_INVALID;
+    if (status == CW_CAUSE_BUSY)
+        status = CW_DEVICE_BUSY;
+    else if (status == CW_CAUSE_UNREGISTERED)
+        status = CW_DEVICE_UNAVAILABLE;
+    else if (status == CW_CAUSE_NOSUCHDRIVER)
+        status = CW_DEVICE_INVALID;
     else
-        status = OPBX_DEVICE_UNKNOWN;
+        status = CW_DEVICE_UNKNOWN;
     return update_status(q, member, status);
 }
 
 /* traverse all defined queues which have calls waiting and contain this member
    return 0 if no other queue has precedence (higher weight) or 1 if found  */
-static int compare_weight(struct opbx_call_queue *rq, struct member *member)
+static int compare_weight(struct cw_call_queue *rq, struct member *member)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct member *mem;
     int found = 0;
 
@@ -1508,24 +1508,24 @@ static int compare_weight(struct opbx_call_queue *rq, struct member *member)
     {
         if (q == rq) /* don't check myself, could deadlock */
             continue;
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         if (q->count  &&  q->members)
         {
             for (mem = q->members; mem; mem = mem->next)
             {
                 if (!strcmp(mem->interface, member->interface))
                 {
-                    opbx_log(OPBX_LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
+                    cw_log(CW_LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
                     if (q->weight > rq->weight)
                     {
-                        opbx_log(OPBX_LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
+                        cw_log(CW_LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
                         found = 1;
                         break;
                     }
                 }
             }
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
         if (found)
             break;
     }
@@ -1542,9 +1542,9 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
+            cw_log(CW_LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
         if (qe->chan->cdr)
-            opbx_cdr_busy(qe->chan->cdr);
+            cw_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
         (*busies)++;
         return 0;
@@ -1553,44 +1553,44 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     if (tmp->member->paused)
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "%s paused, can't receive call\n", tmp->interface);
+            cw_log(CW_LOG_DEBUG, "%s paused, can't receive call\n", tmp->interface);
         if (qe->chan->cdr)
-            opbx_cdr_busy(qe->chan->cdr);
+            cw_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
         return 0;
     }
     if (use_weight && compare_weight(qe->parent,tmp->member))
     {
-        opbx_log(OPBX_LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
+        cw_log(CW_LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
         if (qe->chan->cdr)
-            opbx_cdr_busy(qe->chan->cdr);
+            cw_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
         (*busies)++;
         return 0;
     }
 
-    opbx_copy_string(tech, tmp->interface, sizeof(tech));
+    cw_copy_string(tech, tmp->interface, sizeof(tech));
     if ((location = strchr(tech, '/')))
         *location++ = '\0';
     else
         location = "";
 
     /* Request the peer */
-    tmp->chan = opbx_request(tech, qe->chan->nativeformats, location, &status);
+    tmp->chan = cw_request(tech, qe->chan->nativeformats, location, &status);
     if (!tmp->chan)
     {           /* If we can't, just go on to the next call */
 #if 0
-        opbx_log(OPBX_LOG_NOTICE, "Unable to create channel of type '%s' for Queue\n", cur->tech);
+        cw_log(CW_LOG_NOTICE, "Unable to create channel of type '%s' for Queue\n", cur->tech);
 #endif
 
         if (qe->chan->cdr)
-            opbx_cdr_busy(qe->chan->cdr);
+            cw_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
         update_dial_status(qe->parent, tmp->member, status);
 
-        opbx_mutex_lock(&qe->parent->lock);
+        cw_mutex_lock(&qe->parent->lock);
         qe->parent->rrpos++;
-        opbx_mutex_unlock(&qe->parent->lock);
+        cw_mutex_unlock(&qe->parent->lock);
 
         (*busies)++;
         return 0;
@@ -1617,21 +1617,21 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
 
     /* Inherit specially named variables from parent channel */
-    opbx_channel_inherit_variables(qe->chan, tmp->chan);
+    cw_channel_inherit_variables(qe->chan, tmp->chan);
 
     /* Presense of ADSI CPE on outgoing channel follows ours */
     tmp->chan->adsicpe = qe->chan->adsicpe;
 
     /* Place the call, but don't wait on the answer */
-    res = opbx_call(tmp->chan, location, 0);
+    res = cw_call(tmp->chan, location, 0);
     if (res)
     {
         /* Again, keep going even if there's an error */
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "ast call on peer returned %d\n", res);
+            cw_log(CW_LOG_DEBUG, "ast call on peer returned %d\n", res);
         else if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
-        opbx_hangup(tmp->chan);
+            cw_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
+        cw_hangup(tmp->chan);
         tmp->chan = NULL;
         tmp->stillgoing = 0;
         (*busies)++;
@@ -1655,7 +1655,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
                           qe->chan->context, qe->chan->exten, qe->chan->priority);
         }
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
+            cw_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
     }
     return 1;
 }
@@ -1692,7 +1692,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
                     if (cur->stillgoing && !cur->chan && (cur->metric <= bestmetric))
                     {
                         if (option_debug)
-                            opbx_log(OPBX_LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
+                            cw_log(CW_LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
                         ring_entry(qe, cur, busies);
                     }
                     cur = cur->next;
@@ -1702,7 +1702,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
             {
                 /* Ring just the best channel */
                 if (option_debug)
-                    opbx_log(OPBX_LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
+                    cw_log(CW_LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
                 ring_entry(qe, best, busies);
             }
         }
@@ -1711,7 +1711,7 @@ static int ring_one(struct queue_ent *qe, struct outchan *outgoing, int *busies)
     if (!best)
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Nobody left to try ringing in queue\n");
+            cw_log(CW_LOG_DEBUG, "Nobody left to try ringing in queue\n");
         return 0;
     }
     return 1;
@@ -1740,7 +1740,7 @@ static int store_next(struct queue_ent *qe, struct outchan *outgoing)
     {
         /* Ring just the best channel */
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Next is '%s' with metric %d\n", best->interface, best->metric);
+            cw_log(CW_LOG_DEBUG, "Next is '%s' with metric %d\n", best->interface, best->metric);
         qe->parent->rrpos = best->metric % 1000;
     }
     else
@@ -1761,22 +1761,22 @@ static int store_next(struct queue_ent *qe, struct outchan *outgoing)
     return 0;
 }
 
-static int background_file(struct queue_ent *qe, struct opbx_channel *chan, char *filename)
+static int background_file(struct queue_ent *qe, struct cw_channel *chan, char *filename)
 {
     int res;
 
-    opbx_stopstream(chan);
-    res = opbx_streamfile(chan, filename, chan->language);
+    cw_stopstream(chan);
+    res = cw_streamfile(chan, filename, chan->language);
 
     if (!res)
     {
         /* Wait for a keypress */
-        res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+        res = cw_waitstream(chan, CW_DIGIT_ANY);
         if (res <= 0 || !valid_exit(qe, res))
             res = 0;
 
         /* Stop playback */
-        opbx_stopstream(chan);
+        cw_stopstream(chan);
     }
     else
     {
@@ -1784,7 +1784,7 @@ static int background_file(struct queue_ent *qe, struct opbx_channel *chan, char
     }
 
     /*if (res) {
-       opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s \n", chan->name);
+       cw_log(CW_LOG_WARNING, "cw_streamfile failed on %s \n", chan->name);
        res = 0;
     }*/
 
@@ -1804,16 +1804,16 @@ static int say_periodic_announcement(struct queue_ent *qe)
         return 0;
 
     /* Stop the music on hold so we can play our own file */
-    opbx_moh_stop(qe->chan);
+    cw_moh_stop(qe->chan);
 
     if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
+        cw_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
 
     /* play the announcement */
     res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce);
 
     /* Resume Music on Hold */
-    opbx_moh_start(qe->chan, qe->moh);
+    cw_moh_start(qe->chan, qe->moh);
 
     /* update last_periodic_announce_time */
     qe->last_periodic_announce_time = now;
@@ -1823,13 +1823,13 @@ static int say_periodic_announcement(struct queue_ent *qe)
 
 static void record_abandoned(struct queue_ent *qe)
 {
-    opbx_mutex_lock(&qe->parent->lock);
+    cw_mutex_lock(&qe->parent->lock);
     qe->parent->callsabandoned++;
-    opbx_mutex_unlock(&qe->parent->lock);
+    cw_mutex_unlock(&qe->parent->lock);
 }
 
 
-#define OPBX_MAX_WATCHERS 256
+#define CW_MAX_WATCHERS 256
 
 #define BUILD_WATCHERS do { \
 		o = outgoing; \
@@ -1863,12 +1863,12 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
     int numnochan = 0;
     int stillgoing = 0;
     int orig = *to;
-    struct opbx_frame *f;
+    struct cw_frame *f;
     struct outchan *peer = NULL;
-    struct opbx_channel *watchers[OPBX_MAX_WATCHERS];
+    struct cw_channel *watchers[CW_MAX_WATCHERS];
     int pos;
-    struct opbx_channel *winner;
-    struct opbx_channel *in = qe->chan;
+    struct cw_channel *winner;
+    struct cw_channel *in = qe->chan;
 
     while (*to && !peer)
     {
@@ -1884,38 +1884,38 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
         {
             if (numlines == (numbusies + numnochan))
             {
-                opbx_log(OPBX_LOG_DEBUG, "Everyone is busy at this time\n");
+                cw_log(CW_LOG_DEBUG, "Everyone is busy at this time\n");
                 /* Make sure it doesn't loop too fast */
                 usleep(1000000);
             }
             else
             {
-                opbx_log(OPBX_LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
+                cw_log(CW_LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
             }
             *to = 0;
             return NULL;
         }
-        winner = opbx_waitfor_n(watchers, pos, to);
+        winner = cw_waitfor_n(watchers, pos, to);
         o = outgoing;
         while (o)
         {
-            if (o->stillgoing && (o->chan) &&  (o->chan->_state == OPBX_STATE_UP))
+            if (o->stillgoing && (o->chan) &&  (o->chan->_state == CW_STATE_UP))
             {
                 if (!peer)
                 {
                     if (option_verbose > 2)
-                        opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+                        cw_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
                     peer = o;
                 }
             }
             else if (o->chan && (o->chan == winner))
             {
-                if (!opbx_strlen_zero(o->chan->call_forward))
+                if (!cw_strlen_zero(o->chan->call_forward))
                 {
                     char tmpchan[256]="";
                     char *stuff;
                     char *tech;
-                    opbx_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
+                    cw_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
                     if ((stuff = strchr(tmpchan, '/')))
                     {
                         *stuff = '\0';
@@ -1930,20 +1930,20 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                     }
                     /* Before processing channel, go ahead and check for forwarding */
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
+                        cw_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
                     /* Setup parameters */
-                    o->chan = opbx_request(tech, in->nativeformats, stuff, &status);
+                    o->chan = cw_request(tech, in->nativeformats, stuff, &status);
                     if (status != o->oldstatus)
                         update_dial_status(qe->parent, o->member, status);
                     if (!o->chan)
                     {
-                        opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+                        cw_log(CW_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
                         o->stillgoing = 0;
                         numnochan++;
                     }
                     else
                     {
-                        opbx_channel_inherit_variables(in, o->chan);
+                        cw_channel_inherit_variables(in, o->chan);
                         if (o->chan->cid.cid_num)
                             free(o->chan->cid.cid_num);
                         o->chan->cid.cid_num = NULL;
@@ -1955,15 +1955,15 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                         {
                             o->chan->cid.cid_num = strdup(in->cid.cid_num);
                             if (!o->chan->cid.cid_num)
-                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+                                cw_log(CW_LOG_WARNING, "Out of memory\n");
                         }
                         if (in->cid.cid_name)
                         {
                             o->chan->cid.cid_name = strdup(in->cid.cid_name);
                             if (!o->chan->cid.cid_name)
-                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+                                cw_log(CW_LOG_WARNING, "Out of memory\n");
                         }
-                        opbx_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
+                        cw_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
                         o->chan->cdrflags = in->cdrflags;
 
                         if (in->cid.cid_ani)
@@ -1974,50 +1974,50 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             if (o->chan->cid.cid_ani)
                                 strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
                             else
-                                opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+                                cw_log(CW_LOG_WARNING, "Out of memory\n");
                         }
                         if (o->chan->cid.cid_rdnis)
                             free(o->chan->cid.cid_rdnis);
-                        if (!opbx_strlen_zero(in->proc_exten))
+                        if (!cw_strlen_zero(in->proc_exten))
                             o->chan->cid.cid_rdnis = strdup(in->proc_exten);
                         else
                             o->chan->cid.cid_rdnis = strdup(in->exten);
-                        if (opbx_call(o->chan, tmpchan, 0))
+                        if (cw_call(o->chan, tmpchan, 0))
                         {
-                            opbx_log(OPBX_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+                            cw_log(CW_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
                             o->stillgoing = 0;
-                            opbx_hangup(o->chan);
+                            cw_hangup(o->chan);
                             o->chan = NULL;
                             numnochan++;
                         }
                     }
                     /* Hangup the original channel now, in case we needed it */
-                    opbx_hangup(winner);
+                    cw_hangup(winner);
                     continue;
                 }
-                f = opbx_read(winner);
+                f = cw_read(winner);
                 if (f)
                 {
-                    if (f->frametype == OPBX_FRAME_CONTROL)
+                    if (f->frametype == CW_FRAME_CONTROL)
                     {
                         switch(f->subclass)
                         {
-                        case OPBX_CONTROL_ANSWER:
+                        case CW_CONTROL_ANSWER:
                             /* This is our guy if someone answered. */
                             if (!peer)
                             {
                                 if (option_verbose > 2)
-                                    opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+                                    cw_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
                                 peer = o;
                             }
                             break;
-                        case OPBX_CONTROL_BUSY:
+                        case CW_CONTROL_BUSY:
                             if (option_verbose > 2)
-                                opbx_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
+                                cw_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
                             o->stillgoing = 0;
                             if (in->cdr)
-                                opbx_cdr_busy(in->cdr);
-                            opbx_hangup(o->chan);
+                                cw_cdr_busy(in->cdr);
+                            cw_hangup(o->chan);
                             o->chan = NULL;
                             if (qe->parent->strategy)
                             {
@@ -2027,13 +2027,13 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             }
                             numbusies++;
                             break;
-                        case OPBX_CONTROL_CONGESTION:
+                        case CW_CONTROL_CONGESTION:
                             if (option_verbose > 2)
-                                opbx_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
+                                cw_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
                             o->stillgoing = 0;
                             if (in->cdr)
-                                opbx_cdr_busy(in->cdr);
-                            opbx_hangup(o->chan);
+                                cw_cdr_busy(in->cdr);
+                            cw_hangup(o->chan);
                             o->chan = NULL;
                             if (qe->parent->strategy)
                             {
@@ -2043,31 +2043,31 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             }
                             numbusies++;
                             break;
-                        case OPBX_CONTROL_RINGING:
+                        case CW_CONTROL_RINGING:
                             if (option_verbose > 2)
-                                opbx_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
+                                cw_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
                             if (!sentringing)
                             {
 #if 0
-                                opbx_indicate(in, OPBX_CONTROL_RINGING);
+                                cw_indicate(in, CW_CONTROL_RINGING);
 #endif
 
                                 sentringing++;
                             }
                             break;
-                        case OPBX_CONTROL_OFFHOOK:
+                        case CW_CONTROL_OFFHOOK:
                             /* Ignore going off hook */
                             break;
                         default:
-                            opbx_log(OPBX_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+                            cw_log(CW_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
                         }
                     }
-                    opbx_fr_free(f);
+                    cw_fr_free(f);
                 }
                 else
                 {
                     o->stillgoing = 0;
-                    opbx_hangup(o->chan);
+                    cw_hangup(o->chan);
                     o->chan = NULL;
                     if (qe->parent->strategy)
                     {
@@ -2081,44 +2081,44 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
         }
         if (winner == in)
         {
-            f = opbx_read(in);
+            f = cw_read(in);
 #if 0
 
-            if (f && (f->frametype != OPBX_FRAME_VOICE))
+            if (f && (f->frametype != CW_FRAME_VOICE))
                 printf("Frame type: %d, %d\n", f->frametype, f->subclass);
-            else if (!f || (f->frametype != OPBX_FRAME_VOICE))
+            else if (!f || (f->frametype != CW_FRAME_VOICE))
                 printf("Hangup received on %s\n", in->name);
 #endif
 
-            if (!f || ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_HANGUP)))
+            if (!f || ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_HANGUP)))
             {
                 /* Got hung up */
                 *to=-1;
                 if (f)
-                    opbx_fr_free(f);
+                    cw_fr_free(f);
                 return NULL;
             }
-            if ((f->frametype == OPBX_FRAME_DTMF) && caller_disconnect && (f->subclass == '*'))
+            if ((f->frametype == CW_FRAME_DTMF) && caller_disconnect && (f->subclass == '*'))
             {
                 if (option_verbose > 3)
-                    opbx_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+                    cw_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
                 *to=0;
-                opbx_fr_free(f);
+                cw_fr_free(f);
                 return NULL;
             }
-            if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass))
+            if ((f->frametype == CW_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass))
             {
                 if (option_verbose > 3)
-                    opbx_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
+                    cw_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
                 *to=0;
                 *digit=f->subclass;
-                opbx_fr_free(f);
+                cw_fr_free(f);
                 return NULL;
             }
-            opbx_fr_free(f);
+            cw_fr_free(f);
         }
         if (!*to && (option_verbose > 2))
-            opbx_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+            cw_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
     }
 
     return peer;
@@ -2134,7 +2134,7 @@ static int is_our_turn(struct queue_ent *qe)
     /* Check if we have some agent available */
     /*
        found=0;
-       opbx_mutex_lock(&qe->parent->lock);
+       cw_mutex_lock(&qe->parent->lock);
        cur = qe->parent->members;
        while (cur)
        {
@@ -2145,18 +2145,18 @@ static int is_our_turn(struct queue_ent *qe)
            }
            cur = cur->next;
        }
-       opbx_mutex_unlock(&qe->parent->lock);
+       cw_mutex_unlock(&qe->parent->lock);
     
        if (found !=1)
        {
            if (option_debug)
-               opbx_log(OPBX_LOG_DEBUG, "Not any available agent .\n");
+               cw_log(CW_LOG_DEBUG, "Not any available agent .\n");
            return 0;
        }
     */
 
     /* Atomically read the parent head */
-    opbx_mutex_lock(&qe->parent->lock);
+    cw_mutex_lock(&qe->parent->lock);
     ch = qe->parent->head;
     /* If we are now at the top of the head, break out */
     if (ch == qe)
@@ -2164,7 +2164,7 @@ static int is_our_turn(struct queue_ent *qe)
         qe->trying_agent = 1;
         res = 1;
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
+            cw_log(CW_LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
     }
     else
     {
@@ -2181,19 +2181,19 @@ static int is_our_turn(struct queue_ent *qe)
         {
             qe->trying_agent = 1;
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+                cw_log(CW_LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
             res = 1;
         }
         else
         {
             qe->trying_agent = 0;
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+                cw_log(CW_LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
             res = 0;
         }
     }
 
-    opbx_mutex_unlock(&qe->parent->lock);
+    cw_mutex_unlock(&qe->parent->lock);
     return res;
 }
 
@@ -2213,7 +2213,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
         if (qe->expire && (time(NULL) > qe->expire))
         {
             *reason = QUEUE_TIMEOUT;
-            opbx_queue_log(qe->parent->name, qe->chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe->pos);
+            cw_queue_log(qe->parent->name, qe->chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe->pos);
             break;
         }
 
@@ -2223,7 +2223,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
         if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS))
         {
             *reason = QUEUE_LEAVEEMPTY;
-            opbx_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
+            cw_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
             leave_queue(qe);
             break;
         }
@@ -2232,7 +2232,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
         if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
         {
             *reason = QUEUE_LEAVEUNAVAIL;
-            opbx_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
+            cw_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
             leave_queue(qe);
             break;
         }
@@ -2249,20 +2249,20 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
         /* Wait a second before checking again */
         if (!res)
-            res = opbx_waitfordigit(qe->chan, RECHECK * 1000);
+            res = cw_waitfordigit(qe->chan, RECHECK * 1000);
         if (res)
             break;
     }
     return res;
 }
 
-static int update_queue(struct opbx_call_queue *q, struct member *member)
+static int update_queue(struct cw_call_queue *q, struct member *member)
 {
     struct member *cur;
 
     /* Since a reload could have taken place, we have to traverse the list to
        be sure it's still valid */
-    opbx_mutex_lock(&q->lock);
+    cw_mutex_lock(&q->lock);
     cur = q->members;
     while (cur)
     {
@@ -2275,11 +2275,11 @@ static int update_queue(struct opbx_call_queue *q, struct member *member)
         cur = cur->next;
     }
     q->callscompleted++;
-    opbx_mutex_unlock(&q->lock);
+    cw_mutex_unlock(&q->lock);
     return 0;
 }
 
-static int calc_metric(struct opbx_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct outchan *tmp)
+static int calc_metric(struct cw_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct outchan *tmp)
 {
     switch (q->strategy)
     {
@@ -2320,7 +2320,7 @@ static int calc_metric(struct opbx_call_queue *q, struct member *mem, int pos, s
         tmp->metric += mem->penalty * 1000000;
         break;
     case QUEUE_STRATEGY_RANDOM:
-        tmp->metric = opbx_random() % 1000;
+        tmp->metric = cw_random() % 1000;
         tmp->metric += mem->penalty * 1000000;
         break;
     case QUEUE_STRATEGY_FEWESTCALLS:
@@ -2335,7 +2335,7 @@ static int calc_metric(struct opbx_call_queue *q, struct member *mem, int pos, s
         tmp->metric += mem->penalty * 1000000;
         break;
     default:
-        opbx_log(OPBX_LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
+        cw_log(CW_LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
         break;
     }
     return 0;
@@ -2346,13 +2346,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
     struct member *cur;
     struct outchan *outgoing=NULL, *tmp = NULL;
     int to;
-    char restofit[OPBX_MAX_EXTENSION];
-    char oldexten[OPBX_MAX_EXTENSION]="";
-    char oldcontext[OPBX_MAX_CONTEXT]="";
+    char restofit[CW_MAX_EXTENSION];
+    char oldexten[CW_MAX_EXTENSION]="";
+    char oldcontext[CW_MAX_CONTEXT]="";
     char queuename[256]="";
     char *newnum;
-    struct opbx_channel *peer;
-    struct opbx_channel *which;
+    struct cw_channel *peer;
+    struct cw_channel *which;
     struct outchan *lpeer;
     struct member *member;
     int res = 0;
@@ -2363,7 +2363,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
     char digit = 0;
     time_t callstart;
     time_t now = time(NULL);
-    struct opbx_bridge_config bridge_config;
+    struct cw_bridge_config bridge_config;
     char nondataquality = 1;
 
     memset(&bridge_config, 0, sizeof(bridge_config));
@@ -2374,25 +2374,25 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         switch (*options)
         {
         case 't':
-            opbx_set_flag(&(bridge_config.features_callee), OPBX_FEATURE_REDIRECT);
+            cw_set_flag(&(bridge_config.features_callee), CW_FEATURE_REDIRECT);
             break;
         case 'T':
-            opbx_set_flag(&(bridge_config.features_caller), OPBX_FEATURE_REDIRECT);
+            cw_set_flag(&(bridge_config.features_caller), CW_FEATURE_REDIRECT);
             break;
         case 'w':
-            opbx_set_flag(&(bridge_config.features_callee), OPBX_FEATURE_AUTOMON);
+            cw_set_flag(&(bridge_config.features_callee), CW_FEATURE_AUTOMON);
             break;
         case 'W':
-            opbx_set_flag(&(bridge_config.features_caller), OPBX_FEATURE_AUTOMON);
+            cw_set_flag(&(bridge_config.features_caller), CW_FEATURE_AUTOMON);
             break;
         case 'd':
             nondataquality = 0;
             break;
         case 'h':
-            opbx_set_flag(&(bridge_config.features_callee), OPBX_FEATURE_DISCONNECT);
+            cw_set_flag(&(bridge_config.features_callee), CW_FEATURE_DISCONNECT);
             break;
         case 'H':
-            opbx_set_flag(&(bridge_config.features_caller), OPBX_FEATURE_DISCONNECT);
+            cw_set_flag(&(bridge_config.features_caller), CW_FEATURE_DISCONNECT);
             break;
         case 'n':
             if ((now - qe->start >= qe->parent->timeout))
@@ -2403,18 +2403,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
     /* Hold the lock while we setup the outgoing calls */
     if (use_weight)
-        opbx_mutex_lock(&qlock);
-    opbx_mutex_lock(&qe->parent->lock);
+        cw_mutex_lock(&qlock);
+    cw_mutex_lock(&qe->parent->lock);
     if (option_debug)
     {
-        opbx_log(OPBX_LOG_DEBUG, "%s is trying to call a queue member.\n",
+        cw_log(CW_LOG_DEBUG, "%s is trying to call a queue member.\n",
                  qe->chan->name);
     }
-    opbx_copy_string(queuename, qe->parent->name, sizeof(queuename));
+    cw_copy_string(queuename, qe->parent->name, sizeof(queuename));
     cur = qe->parent->members;
-    if (!opbx_strlen_zero(qe->announce))
+    if (!cw_strlen_zero(qe->announce))
         announce = qe->announce;
-    if (!opbx_strlen_zero(announceoverride))
+    if (!cw_strlen_zero(announceoverride))
         announce = announceoverride;
 
     while (cur)
@@ -2422,10 +2422,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         tmp = malloc(sizeof(*tmp));
         if (!tmp)
         {
-            opbx_mutex_unlock(&qe->parent->lock);
+            cw_mutex_unlock(&qe->parent->lock);
             if (use_weight)
-                opbx_mutex_unlock(&qlock);
-            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+                cw_mutex_unlock(&qlock);
+            cw_log(CW_LOG_WARNING, "Out of memory\n");
             goto out;
         }
         memset(tmp, 0, sizeof(*tmp));
@@ -2433,15 +2433,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         if (option_debug)
         {
             if (url)
-                opbx_log(OPBX_LOG_DEBUG, "Queue with URL=%s_\n", url);
+                cw_log(CW_LOG_DEBUG, "Queue with URL=%s_\n", url);
             else
-                opbx_log(OPBX_LOG_DEBUG, "Simple queue (no URL)\n");
+                cw_log(CW_LOG_DEBUG, "Simple queue (no URL)\n");
         }
 
         tmp->member = cur;      /* Never directly dereference!  Could change on reload */
         tmp->oldstatus = cur->status;
         tmp->lastcall = cur->lastcall;
-        opbx_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
+        cw_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
         /* If we're dialing by extension, look at the extension to know what to dial */
         if ((newnum = strstr(tmp->interface, "/BYEXTENSION")))
         {
@@ -2449,7 +2449,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit) - 1);
             snprintf(newnum, sizeof(tmp->interface) - (newnum - tmp->interface), "%s%s", qe->chan->exten, restofit);
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Dialing by extension %s\n", tmp->interface);
+                cw_log(CW_LOG_DEBUG, "Dialing by extension %s\n", tmp->interface);
         }
         /* Special case: If we ring everyone, go ahead and ring them, otherwise
            just calculate their metric for the appropriate strategy */
@@ -2460,7 +2460,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         tmp->next = outgoing;
         outgoing = tmp;
         /* If this line is up, don't try anybody else */
-        if (outgoing->chan && (outgoing->chan->_state == OPBX_STATE_UP))
+        if (outgoing->chan && (outgoing->chan->_state == CW_STATE_UP))
             break;
 
         cur = cur->next;
@@ -2470,14 +2470,14 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
     else
         to = -1;
     ring_one(qe, outgoing, &numbusies);
-    opbx_mutex_unlock(&qe->parent->lock);
+    cw_mutex_unlock(&qe->parent->lock);
     if (use_weight)
-        opbx_mutex_unlock(&qlock);
-    lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, opbx_test_flag(&(bridge_config.features_caller), OPBX_FEATURE_DISCONNECT));
-    opbx_mutex_lock(&qe->parent->lock);
+        cw_mutex_unlock(&qlock);
+    lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, cw_test_flag(&(bridge_config.features_caller), CW_FEATURE_DISCONNECT));
+    cw_mutex_lock(&qe->parent->lock);
     if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
         store_next(qe, outgoing);
-    opbx_mutex_unlock(&qe->parent->lock);
+    cw_mutex_unlock(&qe->parent->lock);
     if (lpeer)
         peer = lpeer->chan;
     else
@@ -2495,7 +2495,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             res = digit;
         }
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
+            cw_log(CW_LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
         goto out;
     }
     if (peer)
@@ -2505,9 +2505,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
            conversation.  */
         qe->handled++;
         if (!strcmp(qe->chan->type,"Zap"))
-            opbx_channel_setoption(qe->chan, OPBX_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
+            cw_channel_setoption(qe->chan, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
         if (!strcmp(peer->type,"Zap"))
-            opbx_channel_setoption(peer, OPBX_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
+            cw_channel_setoption(peer, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
         /* Update parameters for the queue */
         recalc_holdtime(qe);
         member = lpeer->member;
@@ -2517,18 +2517,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         {
             int res2;
 
-            res2 = opbx_autoservice_start(qe->chan);
+            res2 = cw_autoservice_start(qe->chan);
             if (!res2)
             {
                 if (qe->parent->memberdelay)
                 {
-                    opbx_log(OPBX_LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
-                    res2 |= opbx_safe_sleep(peer, qe->parent->memberdelay * 1000);
+                    cw_log(CW_LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
+                    res2 |= cw_safe_sleep(peer, qe->parent->memberdelay * 1000);
                 }
                 if (!res2 && announce)
                 {
                     if (play_file(peer, announce))
-                        opbx_log(OPBX_LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
+                        cw_log(CW_LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
                 }
                 if (!res2 && qe->parent->reportholdtime)
                 {
@@ -2541,22 +2541,22 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                         if (holdtime < 2)
                         {
                             play_file(peer, qe->parent->sound_lessthan);
-                            opbx_say_number(peer, 2, OPBX_DIGIT_ANY, peer->language, NULL);
+                            cw_say_number(peer, 2, CW_DIGIT_ANY, peer->language, NULL);
                         }
                         else
                         {
-                            opbx_say_number(peer, holdtime, OPBX_DIGIT_ANY, peer->language, NULL);
+                            cw_say_number(peer, holdtime, CW_DIGIT_ANY, peer->language, NULL);
                         }
                         play_file(peer, qe->parent->sound_minutes);
                     }
                 }
             }
-            res2 |= opbx_autoservice_stop(qe->chan);
+            res2 |= cw_autoservice_stop(qe->chan);
             if (peer->_softhangup)
             {
                 /* Agent must have hung up */
-                opbx_log(OPBX_LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
-                opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
+                cw_log(CW_LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
+                cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
                 record_abandoned(qe);
                 if (qe->parent->eventwhencalled)
                 {
@@ -2567,32 +2567,32 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                                   "Member: %s\r\n",
                                   queuename, qe->chan->uniqueid, peer->name, member->interface);
                 }
-                opbx_hangup(peer);
+                cw_hangup(peer);
                 goto out;
             }
             else if (res2)
             {
                 /* Caller must have hung up just before being connected*/
-                opbx_log(OPBX_LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
-                opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+                cw_log(CW_LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
+                cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
                 record_abandoned(qe);
-                opbx_hangup(peer);
+                cw_hangup(peer);
                 return -1;
             }
         }
         /* Stop music on hold */
-        opbx_moh_stop(qe->chan);
+        cw_moh_stop(qe->chan);
         /* If appropriate, log that we have a destination channel */
         if (qe->chan->cdr)
-            opbx_cdr_setdestchan(qe->chan->cdr, peer->name);
+            cw_cdr_setdestchan(qe->chan->cdr, peer->name);
         /* Make sure channels are compatible */
-        res = opbx_channel_make_compatible(qe->chan, peer);
+        res = cw_channel_make_compatible(qe->chan, peer);
         if (res < 0)
         {
-            opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
-            opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
+            cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
+            cw_log(CW_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
             record_abandoned(qe);
-            opbx_hangup(peer);
+            cw_hangup(peer);
             return -1;
         }
         /* Begin Monitoring */
@@ -2604,28 +2604,28 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             else
                 which = peer;
             if (monitorfilename)
-                opbx_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
+                cw_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
             else if (qe->chan->cdr)
-                opbx_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+                cw_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
             else
             {
                 /* Last ditch effort -- no CDR, make up something */
                 char tmpid[256];
-                snprintf(tmpid, sizeof(tmpid), "chan-%ld", opbx_random());
-                opbx_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
+                snprintf(tmpid, sizeof(tmpid), "chan-%ld", cw_random());
+                cw_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
             }
             if (qe->parent->monjoin)
-                opbx_monitor_setjoinfiles(which, 1);
+                cw_monitor_setjoinfiles(which, 1);
         }
         /* Drop out of the queue at this point, to prepare for next caller */
         leave_queue(qe);
-        if (!opbx_strlen_zero(url) && opbx_channel_supports_html(peer))
+        if (!cw_strlen_zero(url) && cw_channel_supports_html(peer))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
-            opbx_channel_sendurl(peer, url);
+                cw_log(CW_LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
+            cw_channel_sendurl(peer, url);
         }
-        opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
+        cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
         if (qe->parent->eventwhencalled)
             manager_event(EVENT_FLAG_AGENT, "AgentConnect",
                           "Queue: %s\r\n"
@@ -2635,19 +2635,19 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                           "Holdtime: %ld\r\n",
                           queuename, qe->chan->uniqueid, peer->name, member->interface,
                           (long)time(NULL) - qe->start);
-        opbx_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
-        opbx_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
+        cw_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
+        cw_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
         time(&callstart);
 
-        bridge = opbx_bridge_call(qe->chan,peer, &bridge_config);
+        bridge = cw_bridge_call(qe->chan,peer, &bridge_config);
 
         if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten))
         {
-            opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
+            cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
         }
         else if (qe->chan->_softhangup)
         {
-            opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld",
+            cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld",
                            (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
@@ -2665,7 +2665,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         }
         else
         {
-            opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+            cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
                 manager_event(EVENT_FLAG_AGENT, "AgentComplete",
@@ -2680,8 +2680,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             }
         }
 
-        if (bridge != OPBX_PBX_NO_HANGUP_PEER)
-            opbx_hangup(peer);
+        if (bridge != CW_PBX_NO_HANGUP_PEER)
+            cw_hangup(peer);
         update_queue(qe->parent, member);
         if (bridge == 0)
             res = 1; /* JDG: bridge successfull, leave app_queue */
@@ -2698,10 +2698,10 @@ static int wait_a_bit(struct queue_ent *qe)
     /* Don't need to hold the lock while we setup the outgoing calls */
     int retrywait = qe->parent->retry * 1000;
 
-    return opbx_waitfordigit(qe->chan, retrywait);
+    return cw_waitfordigit(qe->chan, retrywait);
 }
 
-static struct member * interface_exists(struct opbx_call_queue *q, char *interface)
+static struct member * interface_exists(struct cw_call_queue *q, char *interface)
 {
     struct member *mem;
 
@@ -2722,7 +2722,7 @@ static struct member * interface_exists(struct opbx_call_queue *q, char *interfa
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[, ...]
  *
  */
-static void dump_queue_members(struct opbx_call_queue *pm_queue)
+static void dump_queue_members(struct cw_call_queue *pm_queue)
 {
     struct member *cur_member;
     char value[PM_MAX_LEN];
@@ -2744,7 +2744,7 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
                        cur_member->next ? "," : "");
         if (res != strlen(value + value_len))
         {
-            opbx_log(OPBX_LOG_WARNING, "Could not create persistent member string, out of space\n");
+            cw_log(CW_LOG_WARNING, "Could not create persistent member string, out of space\n");
             break;
         }
         value_len += res;
@@ -2752,26 +2752,26 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
 
     if (value_len && !cur_member)
     {
-        if (opbx_db_put(pm_family, pm_queue->name, value))
-            opbx_log(OPBX_LOG_WARNING, "failed to create persistent dynamic entry!\n");
+        if (cw_db_put(pm_family, pm_queue->name, value))
+            cw_log(CW_LOG_WARNING, "failed to create persistent dynamic entry!\n");
     }
     else
     {
         /* Delete the entry if the queue is empty or there is an error */
-        opbx_db_del(pm_family, pm_queue->name);
+        cw_db_del(pm_family, pm_queue->name);
     }
 }
 
 static int remove_from_queue(char *queuename, char *interface, time_t *added)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct member *last_member, *look;
     int res = RES_NOSUCHQUEUE;
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (q = queues;  q;  q = q->next)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         if (!strcmp(q->name, queuename))
         {
             if ((last_member = interface_exists(q, interface)))
@@ -2809,24 +2809,24 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
             {
                 res = RES_EXISTS;
             }
-            opbx_mutex_unlock(&q->lock);
+            cw_mutex_unlock(&q->lock);
             break;
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     return res;
 }
 
 static int update_queue_member(char *queuename, char *interface, int penalty, int paused, int dump)
 {
-	struct opbx_call_queue *q;
+	struct cw_call_queue *q;
 	struct member *last_member, *look;
 	int res = RES_NOSUCHQUEUE;
 
-	opbx_mutex_lock(&qlock);
+	cw_mutex_lock(&qlock);
 	for (q = queues ; q ; q = q->next) {
-		opbx_mutex_lock(&q->lock);
+		cw_mutex_lock(&q->lock);
 		if (!strcmp(q->name, queuename)) {
 			if ((last_member = interface_exists(q, interface)) != NULL) {
 				last_member->penalty = penalty;
@@ -2850,25 +2850,25 @@ static int update_queue_member(char *queuename, char *interface, int penalty, in
 			} else {
 				res = RES_EXISTS;
 			}
-			opbx_mutex_unlock(&q->lock);
+			cw_mutex_unlock(&q->lock);
 			break;
 		}
-		opbx_mutex_unlock(&q->lock);
+		cw_mutex_unlock(&q->lock);
 	}
-	opbx_mutex_unlock(&qlock);
+	cw_mutex_unlock(&qlock);
 	return res;
 }
 
 static int add_to_queue(char *queuename, char *interface, int penalty, int paused, int dump)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct member *new_member;
     int res = RES_NOSUCHQUEUE;
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (q = queues;  q;  q = q->next)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         if (!strcmp(q->name, queuename))
         {
             if (interface_exists(q, interface) == NULL)
@@ -2906,43 +2906,43 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
             {
                 res = RES_EXISTS;
             }
-            opbx_mutex_unlock(&q->lock);
+            cw_mutex_unlock(&q->lock);
             break;
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     return res;
 }
 
 static int set_member_paused(char *queuename, char *interface, int paused)
 {
     int found = 0;
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct member *mem;
 
     /* Special event for when all queues are paused - individual events still generated */
 
-    if (opbx_strlen_zero(queuename))
-        opbx_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
+    if (cw_strlen_zero(queuename))
+        cw_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (q = queues ; q ; q = q->next)
     {
-        opbx_mutex_lock(&q->lock);
-        if (opbx_strlen_zero(queuename)  ||  !strcasecmp(q->name, queuename))
+        cw_mutex_lock(&q->lock);
+        if (cw_strlen_zero(queuename)  ||  !strcasecmp(q->name, queuename))
         {
             if ((mem = interface_exists(q, interface)))
             {
                 found++;
                 if (mem->paused == paused)
-                    opbx_log(OPBX_LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
+                    cw_log(CW_LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
                 mem->paused = paused;
 
                 if (queue_persistent_members)
                     dump_queue_members(q);
 
-                opbx_queue_log(q->name, "NONE", interface, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
+                cw_queue_log(q->name, "NONE", interface, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
 
                 manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
                               "Queue: %s\r\n"
@@ -2951,9 +2951,9 @@ static int set_member_paused(char *queuename, char *interface, int paused)
                               q->name, mem->interface, paused);
             }
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
 
     if (found)
         return RESULT_SUCCESS;
@@ -2961,7 +2961,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
         return RESULT_FAILURE;
 }
 
-/* Reload dynamic queue members persisted into the opbxdb */
+/* Reload dynamic queue members persisted into the cwdb */
 static void reload_queue_members(void)
 {
     char *cur_ptr;  
@@ -2972,15 +2972,15 @@ static void reload_queue_members(void)
     int penalty = 0;
     char *paused_tok;
     int paused = 0;
-    struct opbx_db_entry *db_tree;
-    struct opbx_db_entry *entry;
-    struct opbx_call_queue *cur_queue;
+    struct cw_db_entry *db_tree;
+    struct cw_db_entry *entry;
+    struct cw_call_queue *cur_queue;
     char queue_data[PM_MAX_LEN];
 
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
 
     /* Each key in 'pm_family' is the name of a queue */
-    db_tree = opbx_db_gettree(pm_family, NULL);
+    db_tree = cw_db_gettree(pm_family, NULL);
     for (entry = db_tree; entry; entry = entry->next)
     {
         if (!strncmp(entry->key, pm_family, strlen(pm_family)))
@@ -2991,28 +2991,28 @@ static void reload_queue_members(void)
         cur_queue = queues;
         while (cur_queue)
         {
-            opbx_mutex_lock(&cur_queue->lock);
+            cw_mutex_lock(&cur_queue->lock);
             if (!strcmp(queue_name, cur_queue->name))
                 break;
-            opbx_mutex_unlock(&cur_queue->lock);
+            cw_mutex_unlock(&cur_queue->lock);
             cur_queue = cur_queue->next;
         }
 
         if (!cur_queue)
         {
             /* If the queue no longer exists, remove it from the database */
-            opbx_db_del(pm_family, queue_name);
+            cw_db_del(pm_family, queue_name);
             continue;
         }
-        opbx_mutex_unlock(&cur_queue->lock);
+        cw_mutex_unlock(&cur_queue->lock);
 
-        if (opbx_db_get(pm_family, queue_name, queue_data, PM_MAX_LEN))
+        if (cw_db_get(pm_family, queue_name, queue_data, PM_MAX_LEN))
             continue;
 
         cur_ptr = queue_data;
         while ((member = strsep(&cur_ptr, "|,")))
         {
-            if (opbx_strlen_zero(member))
+            if (cw_strlen_zero(member))
                 continue;
 
             interface = strsep(&member, ";");
@@ -3021,54 +3021,54 @@ static void reload_queue_members(void)
 
             if (!penalty_tok)
             {
-                opbx_log(OPBX_LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
+                cw_log(CW_LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
                 break;
             }
             penalty = strtol(penalty_tok, NULL, 10);
             if (errno == ERANGE)
             {
-                opbx_log(OPBX_LOG_WARNING, "Error converting penalty: %s: Out of range.\n", penalty_tok);
+                cw_log(CW_LOG_WARNING, "Error converting penalty: %s: Out of range.\n", penalty_tok);
                 break;
             }
 
             if (!paused_tok)
             {
-                opbx_log(OPBX_LOG_WARNING, "Error parsing persistent member string for '%s' (paused)\n", queue_name);
+                cw_log(CW_LOG_WARNING, "Error parsing persistent member string for '%s' (paused)\n", queue_name);
                 break;
             }
             paused = strtol(paused_tok, NULL, 10);
             if ((errno == ERANGE) || paused < 0 || paused > 1)
             {
-                opbx_log(OPBX_LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", paused_tok);
+                cw_log(CW_LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", paused_tok);
                 break;
             }
 
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", queue_name, interface, penalty, paused);
+                cw_log(CW_LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", queue_name, interface, penalty, paused);
 
             if (add_to_queue(queue_name, interface, penalty, paused, 0) == RES_OUTOFMEMORY)
             {
-                opbx_log(OPBX_LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
+                cw_log(CW_LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
                 break;
             }
         }
     }
 
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     if (db_tree)
     {
-        opbx_log(OPBX_LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
-        opbx_db_freetree(db_tree);
+        cw_log(CW_LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
+        cw_db_freetree(db_tree);
     }
 }
 
-static int pqm_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     int priority_jump = 0;
 
     if (argc < 2 || argc > 3 || !argv[1][0])
-        return opbx_function_syntax(app_pqm_syntax);
+        return cw_function_syntax(app_pqm_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -3080,7 +3080,7 @@ static int pqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
 
     if (set_member_paused(argv[0], argv[1], 1))
     {
-        opbx_log(OPBX_LOG_WARNING, "Attempt to pause interface %s, not found\n", argv[1]);
+        cw_log(CW_LOG_WARNING, "Attempt to pause interface %s, not found\n", argv[1]);
         LOCAL_USER_REMOVE(u);
         pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
         return -1;
@@ -3091,13 +3091,13 @@ static int pqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     return 0;
 }
 
-static int upqm_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int upqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     int priority_jump = 0;
 
     if (argc < 2 || argc > 3 || !argv[1][0])
-        return opbx_function_syntax(app_upqm_syntax);
+        return cw_function_syntax(app_upqm_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -3109,7 +3109,7 @@ static int upqm_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 
     if (set_member_paused(argv[0], argv[1], 0))
     {
-        opbx_log(OPBX_LOG_WARNING, "Attempt to unpause interface %s, not found\n", argv[1]);
+        cw_log(CW_LOG_WARNING, "Attempt to unpause interface %s, not found\n", argv[1]);
         LOCAL_USER_REMOVE(u);
         pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
         return -1;
@@ -3120,7 +3120,7 @@ static int upqm_exec(struct opbx_channel *chan, int argc, char **argv, char *res
     return 0;
 }
 
-static int rqm_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     time_t added = 0;
@@ -3128,14 +3128,14 @@ static int rqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     int res = -1;
 
     if (argc < 1 || argc > 3)
-        return opbx_function_syntax(app_rqm_syntax);
+        return cw_function_syntax(app_rqm_syntax);
 
     LOCAL_USER_ADD(u);
 
     if (argc < 2 || !argv[1][0])
     {
         char *p;
-        argv[1] = opbx_strdupa(chan->name);
+        argv[1] = cw_strdupa(chan->name);
         if ((p = strrchr(argv[1], '-')))
             *p = '\0';
     }
@@ -3149,23 +3149,23 @@ static int rqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     switch (remove_from_queue(argv[0], argv[1], &added))
     {
     case RES_OKAY:
-        opbx_log(OPBX_LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", argv[1], argv[0]);
-        opbx_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGOFF", "%s|%ld", argv[1], time(NULL) - added);
+        cw_log(CW_LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", argv[1], argv[0]);
+        cw_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGOFF", "%s|%ld", argv[1], time(NULL) - added);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
         res = 0;
         break;
     case RES_EXISTS:
-        opbx_log(OPBX_LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", argv[1], argv[0]);
+        cw_log(CW_LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", argv[1], argv[0]);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
         res = 0;
         break;
     case RES_NOSUCHQUEUE:
-        opbx_log(OPBX_LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", argv[0]);
+        cw_log(CW_LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", argv[0]);
         pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOSUCHQUEUE");
         res = 0;
         break;
     case RES_OUTOFMEMORY:
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
         break;
     }
 
@@ -3173,7 +3173,7 @@ static int rqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     return res;
 }
 
-static int aqm_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     int res=-1;
     struct localuser *u;
@@ -3181,14 +3181,14 @@ static int aqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     int penalty = 0;
 
     if (argc < 1 || argc > 4)
-        return opbx_function_syntax(app_aqm_syntax);
+        return cw_function_syntax(app_aqm_syntax);
 
     LOCAL_USER_ADD(u);
 
     if (argc < 2 || !argv[1][0])
     {
         char *p;
-        argv[1] = opbx_strdupa(chan->name);
+        argv[1] = cw_strdupa(chan->name);
         if ((p = strrchr(argv[1], '-')))
             *p = '\0';
     }
@@ -3206,23 +3206,23 @@ static int aqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     switch (add_to_queue(argv[0], argv[1], penalty, 0, queue_persistent_members))
     {
     case RES_OKAY:
-        opbx_log(OPBX_LOG_NOTICE, "Added interface '%s' to queue '%s'\n", argv[1], argv[0]);
-        opbx_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGIN", "%s", argv[1]);
+        cw_log(CW_LOG_NOTICE, "Added interface '%s' to queue '%s'\n", argv[1], argv[0]);
+        cw_queue_log("NONE", chan->uniqueid, argv[1], "AGENTCALLBACKLOGIN", "%s", argv[1]);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "ADDED");
         res = 0;
         break;
     case RES_EXISTS:
-        opbx_log(OPBX_LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", argv[1], argv[0]);
+        cw_log(CW_LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", argv[1], argv[0]);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "MEMBERALREADY");
         res = 0;
         break;
     case RES_NOSUCHQUEUE:
-        opbx_log(OPBX_LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", argv[0]);
+        cw_log(CW_LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", argv[0]);
         pbx_builtin_setvar_helper(chan, "AQMSTATUS", "NOSUCHQUEUE");
         res = 0;
         break;
     case RES_OUTOFMEMORY:
-        opbx_log(OPBX_LOG_ERROR, "Out of memory adding member %s to queue %s\n", argv[1], argv[0]);
+        cw_log(CW_LOG_ERROR, "Out of memory adding member %s to queue %s\n", argv[1], argv[0]);
         break;
     }
 
@@ -3230,7 +3230,7 @@ static int aqm_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     return res;
 }
 
-static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     int res=-1;
     int ringing=0;
@@ -3246,7 +3246,7 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     struct queue_ent qe;
     
     if (argc < 1 || argc > 5 || !argv[0][0])
-        return opbx_function_syntax(syntax);
+        return cw_function_syntax(syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -3264,12 +3264,12 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         if (sscanf(user_priority, "%d", &prio) == 1)
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
+                cw_log(CW_LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
                     chan->name, prio);
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
+            cw_log(CW_LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
                 user_priority, chan->name);
             prio = 0;
         }
@@ -3277,7 +3277,7 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     else
     {
         if (option_debug > 2)
-            opbx_log(OPBX_LOG_DEBUG, "NO QUEUE_PRIO variable found. Using default.\n");
+            cw_log(CW_LOG_DEBUG, "NO QUEUE_PRIO variable found. Using default.\n");
         prio = 0;
     }
 
@@ -3285,7 +3285,7 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
         ringing = 1;
 
     if (option_debug)  
-        opbx_log(OPBX_LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
+        cw_log(CW_LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
             argv[0], argv[1], argv[2], argv[3], (long)qe.expire, (int)prio);
 
     qe.chan = chan;
@@ -3296,16 +3296,16 @@ static int queue_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     qe.last_periodic_announce_time = time(NULL);
     if (!join_queue(argv[0], &qe, &reason))
     {
-        opbx_queue_log(argv[0], chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", (argc > 2 ? argv[2] : ""),
+        cw_queue_log(argv[0], chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", (argc > 2 ? argv[2] : ""),
                   chan->cid.cid_num ? chan->cid.cid_num : "");
 check_turns:
         if (ringing)
         {
-            opbx_indicate(chan, OPBX_CONTROL_RINGING);
+            cw_indicate(chan, CW_CONTROL_RINGING);
         }
         else
         {              
-            opbx_moh_start(chan, qe.moh);
+            cw_moh_start(chan, qe.moh);
         }
         for (;;)
         {
@@ -3317,10 +3317,10 @@ check_turns:
             {
                 /* Record this abandoned call */
                 record_abandoned(&qe);
-                opbx_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+                cw_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
                 if (option_verbose > 2)
                 {
-                    opbx_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", argv[0]);
+                    cw_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", argv[0]);
                     res = -1;
                 }
                 break;
@@ -3329,7 +3329,7 @@ check_turns:
                 break;
             if (valid_exit(&qe, res))
             {
-                opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+                cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
                 break;
             }
         }
@@ -3351,7 +3351,7 @@ check_turns:
                     record_abandoned(&qe);
                     reason = QUEUE_TIMEOUT;
                     res = 0;
-                    opbx_queue_log(argv[0], chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+                    cw_queue_log(argv[0], chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
                     break;
                 }
 
@@ -3362,7 +3362,7 @@ check_turns:
                         res = say_position(&qe);
                     if (res && valid_exit(&qe, res))
                     {
-                        opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+                        cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
                         break;
                     }
 
@@ -3375,7 +3375,7 @@ check_turns:
 
                 if (res && valid_exit(&qe, res))
                 {
-                    opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+                    cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
                     break;
                 }
 
@@ -3388,11 +3388,11 @@ check_turns:
                         if (!qe.handled)
                         {
                             record_abandoned(&qe);
-                            opbx_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+                            cw_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
                         }
                     }
                     else if (res > 0)
-                        opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+                        cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
                     break;
                 }
 
@@ -3422,7 +3422,7 @@ check_turns:
                     record_abandoned(&qe);
                     reason = QUEUE_TIMEOUT;
                     res = 0;
-                    opbx_queue_log(argv[0], chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);    
+                    cw_queue_log(argv[0], chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);    
                     break;
                 }
 
@@ -3432,17 +3432,17 @@ check_turns:
                 if (res < 0)
                 {
                     record_abandoned(&qe);
-                    opbx_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+                    cw_queue_log(argv[0], chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
                     if (option_verbose > 2)
                     {
-                        opbx_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", argv[0]);
+                        cw_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", argv[0]);
                         res = -1;
                     }
                     break;
                 }
                 if (res && valid_exit(&qe, res))
                 {
-                    opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+                    cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
                     break;
                 }
                 /* exit after 'timeout' cycle if 'n' option enabled */
@@ -3450,10 +3450,10 @@ check_turns:
                 {
                     if (option_verbose > 2)
                     {
-                        opbx_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
+                        cw_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
                         res = -1;
                     }
-                    opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+                    cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
                     record_abandoned(&qe);
                     reason = QUEUE_TIMEOUT;
                     res = 0;
@@ -3467,34 +3467,34 @@ check_turns:
                 if (!is_our_turn(&qe))
                 {
                     if (option_debug)
-                        opbx_log(OPBX_LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
+                        cw_log(CW_LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
                                 qe.chan->name);
                     goto check_turns;
                 }
             }
         }
         /* Don't allow return code > 0 */
-        if (res >= 0 && res != OPBX_PBX_KEEPALIVE)
+        if (res >= 0 && res != CW_PBX_KEEPALIVE)
         {
             res = 0;    
             if (ringing)
             {
-                opbx_indicate(chan, -1);
+                cw_indicate(chan, -1);
             }
             else
             {
-                opbx_moh_stop(chan);
+                cw_moh_stop(chan);
             }           
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
         leave_queue(&qe);
-        opbx_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe.pos);
+        cw_queue_log(argv[0], chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe.pos);
         if (reason != QUEUE_UNKNOWN)
             set_queue_result(chan, reason);
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], reason);
+        cw_log(CW_LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], reason);
         set_queue_result(chan, reason);
         res = 0;
     }
@@ -3502,15 +3502,15 @@ check_turns:
     return res;
 }
 
-static int queue_function_qac(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     int count = 0;
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct localuser *u;
     struct member *m;
 
     if (argc != 1)
-        return opbx_function_syntax(queueagentcount_func_syntax);
+        return cw_function_syntax(queueagentcount_func_syntax);
 
     if (!buf)
         return 0;
@@ -3518,28 +3518,28 @@ static int queue_function_qac(struct opbx_channel *chan, int argc, char **argv, 
     LOCAL_USER_ADD(u);
 
     /* Find the right queue */
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (q = queues; q; q = q->next)
     {
         if (!strcasecmp(q->name, argv[0]))
         {
-            opbx_mutex_lock(&q->lock);
+            cw_mutex_lock(&q->lock);
             break;
         }
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
 
     if (q)
     {
         for (m = q->members; m; m = m->next)
         {
             /* Count the agents who are logged in and presently answering calls */
-            if ((m->status != OPBX_DEVICE_UNAVAILABLE) && (m->status != OPBX_DEVICE_INVALID))
+            if ((m->status != CW_DEVICE_UNAVAILABLE) && (m->status != CW_DEVICE_INVALID))
             {
                 count++;
             }
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
 
     snprintf(buf, len, "%d", count);
@@ -3550,24 +3550,24 @@ static int queue_function_qac(struct opbx_channel *chan, int argc, char **argv, 
 
 static void reload_queues(void)
 {
-    struct opbx_call_queue *q, *ql, *qn;
-    struct opbx_config *cfg;
+    struct cw_call_queue *q, *ql, *qn;
+    struct cw_config *cfg;
     char *cat, *tmp;
-    struct opbx_variable *var;
+    struct cw_variable *var;
     struct member *prev, *cur;
     int new;
     char *general_val = NULL;
     char interface[80];
     int penalty;
     
-    cfg = opbx_config_load("queues.conf");
+    cfg = cw_config_load("queues.conf");
     if (!cfg)
     {
-        opbx_log(OPBX_LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
+        cw_log(CW_LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
         return;
     }
     memset(interface, 0, sizeof(interface));
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     use_weight=0;
     /* Mark all queues as dead for the moment */
     q = queues;
@@ -3577,15 +3577,15 @@ static void reload_queues(void)
         q = q->next;
     }
     /* Chug through config file */
-    cat = opbx_category_browse(cfg, NULL);
+    cat = cw_category_browse(cfg, NULL);
     while(cat)
     {
         if (!strcasecmp(cat, "general"))
         {  
             /* Initialize global settings */
             queue_persistent_members = 0;
-            if ((general_val = opbx_variable_retrieve(cfg, "general", "persistentmembers")))
-                queue_persistent_members = opbx_true(general_val);
+            if ((general_val = cw_variable_retrieve(cfg, "general", "persistentmembers")))
+                queue_persistent_members = cw_true(general_val);
         }
         else
         {    /* Define queue */
@@ -3608,7 +3608,7 @@ static void reload_queues(void)
             if (q)
             {
                 if (!new)
-                    opbx_mutex_lock(&q->lock);
+                    cw_mutex_lock(&q->lock);
                 /* Re-initialize the queue, and clear statistics */
                 init_queue(q);
                 clear_queue(q);
@@ -3620,13 +3620,13 @@ static void reload_queues(void)
                     while(prev->next)
                         prev = prev->next;
                 }
-                var = opbx_variable_browse(cfg, cat);
+                var = cw_variable_browse(cfg, cat);
                 while(var)
                 {
                     if (!strcasecmp(var->name, "member"))
                     {
                         /* Add a new member */
-                        opbx_copy_string(interface, var->value, sizeof(interface));
+                        cw_copy_string(interface, var->value, sizeof(interface));
                         if ((tmp = strchr(interface, ',')))
                         {
                             *tmp = '\0';
@@ -3656,7 +3656,7 @@ static void reload_queues(void)
                     var = var->next;
                 }
                 if (!new) 
-                    opbx_mutex_unlock(&q->lock);
+                    cw_mutex_unlock(&q->lock);
                 if (new)
                 {
                     q->next = queues;
@@ -3664,9 +3664,9 @@ static void reload_queues(void)
                 }
             }
         }
-        cat = opbx_category_browse(cfg, cat);
+        cat = cw_category_browse(cfg, cat);
     }
-    opbx_config_destroy(cfg);
+    cw_config_destroy(cfg);
     q = queues;
     ql = NULL;
     while(q)
@@ -3683,22 +3683,22 @@ static void reload_queues(void)
                 free(q);
             }
             else
-                opbx_log(OPBX_LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
+                cw_log(CW_LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
         }
         else
         {
             for (cur = q->members; cur; cur = cur->next)
-                cur->status = opbx_device_state(cur->interface);
+                cur->status = cw_device_state(cur->interface);
             ql = q;
         }
         q = qn;
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
 }
 
 static int __queues_show(int manager, int fd, int argc, char **argv, int queue_show)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct queue_ent *qe;
     struct member *mem;
     int pos;
@@ -3712,29 +3712,29 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
     time(&now);
     if ((!queue_show && argc != 2) || (queue_show && argc != 3))
         return RESULT_SHOWUSAGE;
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     q = queues;
     if (!q)
     {   
-        opbx_mutex_unlock(&qlock);
+        cw_mutex_unlock(&qlock);
         if (queue_show)
-            opbx_cli(fd, "No such queue: %s.%s",argv[2], term);
+            cw_cli(fd, "No such queue: %s.%s",argv[2], term);
         else
-            opbx_cli(fd, "No queues.%s", term);
+            cw_cli(fd, "No queues.%s", term);
         return RESULT_SUCCESS;
     }
     while (q)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
         if (queue_show)
         {
             if (strcasecmp(q->name, argv[2]) != 0)
             {
-                opbx_mutex_unlock(&q->lock);
+                cw_mutex_unlock(&q->lock);
                 q = q->next;
                 if (!q)
                 {
-                    opbx_cli(fd, "No such queue: %s.%s",argv[2], term);
+                    cw_cli(fd, "No such queue: %s.%s",argv[2], term);
                     break;
                 }
                 continue;
@@ -3744,58 +3744,58 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
         max = max_buf;
         max_left = sizeof(max_buf);
         if (q->maxlen)
-            opbx_build_string(&max, &max_left, "%d", q->maxlen);
+            cw_build_string(&max, &max_left, "%d", q->maxlen);
         else
-            opbx_build_string(&max, &max_left, "unlimited");
+            cw_build_string(&max, &max_left, "unlimited");
         sl = 0;
         if(q->callscompleted > 0)
             sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-        opbx_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
+        cw_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
             q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
         if (q->members)
         {
-            opbx_cli(fd, "   Members: %s", term);
+            cw_cli(fd, "   Members: %s", term);
             for (mem = q->members; mem; mem = mem->next)
             {
                 max_buf[0] = '\0';
                 max = max_buf;
                 max_left = sizeof(max_buf);
                 if (mem->penalty)
-                    opbx_build_string(&max, &max_left, " with penalty %d", mem->penalty);
+                    cw_build_string(&max, &max_left, " with penalty %d", mem->penalty);
                 if (mem->dynamic)
-                    opbx_build_string(&max, &max_left, " (dynamic)");
+                    cw_build_string(&max, &max_left, " (dynamic)");
                 if (mem->paused)
-                    opbx_build_string(&max, &max_left, " (paused)");
-                opbx_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
+                    cw_build_string(&max, &max_left, " (paused)");
+                cw_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
                 if (mem->calls)
                 {
-                    opbx_build_string(&max, &max_left, " has taken %d calls (last was %ld secs ago)",
+                    cw_build_string(&max, &max_left, " has taken %d calls (last was %ld secs ago)",
                              mem->calls, (long)(time(NULL) - mem->lastcall));
                 }
                 else
-                    opbx_build_string(&max, &max_left, " has taken no calls yet");
-                opbx_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
+                    cw_build_string(&max, &max_left, " has taken no calls yet");
+                cw_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
             }
         }
         else
-            opbx_cli(fd, "   No Members%s", term);
+            cw_cli(fd, "   No Members%s", term);
         if (q->head)
         {
             pos = 1;
-            opbx_cli(fd, "   Callers: %s", term);
+            cw_cli(fd, "   Callers: %s", term);
             for (qe = q->head; qe; qe = qe->next) 
-                opbx_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
+                cw_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
                     (long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
         }
         else
-            opbx_cli(fd, "   No Callers%s", term);
-        opbx_cli(fd, "%s", term);
-        opbx_mutex_unlock(&q->lock);
+            cw_cli(fd, "   No Callers%s", term);
+        cw_cli(fd, "%s", term);
+        cw_mutex_unlock(&q->lock);
         q = q->next;
         if (queue_show)
             break;
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     return RESULT_SUCCESS;
 }
 
@@ -3811,10 +3811,10 @@ static int queue_show(int fd, int argc, char **argv)
 
 static char *complete_queue(char *line, char *word, int pos, int state)
 {
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     int which=0;
     
-    opbx_mutex_lock(&qlock);
+    cw_mutex_lock(&qlock);
     for (q = queues; q; q = q->next)
     {
         if (!strncasecmp(word, q->name, strlen(word)))
@@ -3823,7 +3823,7 @@ static char *complete_queue(char *line, char *word, int pos, int state)
                 break;
         }
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
     return q ? strdup(q->name) : NULL;
 }
 
@@ -3834,7 +3834,7 @@ static int manager_queues_show( struct mansession *s, struct message *m )
 {
     char *a[] = { "show", "queues" };
     __queues_show(1, s->fd, 2, a, 0);
-    opbx_cli(s->fd, "\r\n\r\n");    /* Properly terminate Manager output */
+    cw_cli(s->fd, "\r\n\r\n");    /* Properly terminate Manager output */
 
     return RESULT_SUCCESS;
 } 
@@ -3848,28 +3848,28 @@ static int manager_queues_status( struct mansession *s, struct message *m )
     char *queuefilter = astman_get_header(m,"Queue");
     char *memberfilter = astman_get_header(m,"Member");
     char idText[256] = "";
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct queue_ent *qe;
     float sl = 0;
     struct member *mem;
 
     astman_send_ack(s, m, "Queue status will follow");
     time(&now);
-    opbx_mutex_lock(&qlock);
-    if (!opbx_strlen_zero(id))
+    cw_mutex_lock(&qlock);
+    if (!cw_strlen_zero(id))
     {
         snprintf(idText,256,"ActionID: %s\r\n",id);
     }
     for (q = queues; q; q = q->next)
     {
-        opbx_mutex_lock(&q->lock);
+        cw_mutex_lock(&q->lock);
 
         /* List queue properties */
-        if (opbx_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter))
+        if (cw_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter))
         {
             if(q->callscompleted > 0)
                 sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-            opbx_cli(s->fd, "Event: QueueParams\r\n"
+            cw_cli(s->fd, "Event: QueueParams\r\n"
                         "Queue: %s\r\n"
                         "Max: %d\r\n"
                         "Calls: %d\r\n"
@@ -3886,9 +3886,9 @@ static int manager_queues_status( struct mansession *s, struct message *m )
             /* List Queue Members */
             for (mem = q->members; mem; mem = mem->next)
             {
-                if (opbx_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter))
+                if (cw_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter))
                 {
-                    opbx_cli(s->fd, "Event: QueueMember\r\n"
+                    cw_cli(s->fd, "Event: QueueMember\r\n"
                         "Queue: %s\r\n"
                         "Location: %s\r\n"
                         "Membership: %s\r\n"
@@ -3907,7 +3907,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
             pos = 1;
             for (qe = q->head; qe; qe = qe->next)
             {
-                opbx_cli(s->fd, "Event: QueueEntry\r\n"
+                cw_cli(s->fd, "Event: QueueEntry\r\n"
                     "Queue: %s\r\n"
                     "Position: %d\r\n"
                     "Channel: %s\r\n"
@@ -3922,11 +3922,11 @@ static int manager_queues_status( struct mansession *s, struct message *m )
                         (long)(now - qe->start), idText);
             }
         }
-        opbx_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&q->lock);
     }
-    opbx_mutex_unlock(&qlock);
+    cw_mutex_unlock(&qlock);
 
-    opbx_cli(s->fd,
+    cw_cli(s->fd,
         "Event: QueueStatusComplete\r\n"
         "%s"
         "\r\n",idText);
@@ -3945,29 +3945,29 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
     penalty_s = astman_get_header(m, "Penalty");
     paused_s = astman_get_header(m, "Paused");
 
-    if (opbx_strlen_zero(queuename))
+    if (cw_strlen_zero(queuename))
     {
         astman_send_error(s, m, "'Queue' not specified.");
         return 0;
     }
 
-    if (opbx_strlen_zero(interface))
+    if (cw_strlen_zero(interface))
     {
         astman_send_error(s, m, "'Interface' not specified.");
         return 0;
     }
 
-    if (opbx_strlen_zero(penalty_s))
+    if (cw_strlen_zero(penalty_s))
         penalty = 0;
     else if (sscanf(penalty_s, "%d", &penalty) != 1)
     {
         penalty = 0;
     }
 
-    if (opbx_strlen_zero(paused_s))
+    if (cw_strlen_zero(paused_s))
         paused = 0;
     else
-        paused = abs(opbx_true(paused_s));
+        paused = abs(cw_true(paused_s));
 
     switch (add_to_queue(queuename, interface, penalty, paused, queue_persistent_members))
     {
@@ -3997,26 +3997,26 @@ static int manager_update_queue_member(struct mansession *s, struct message *m)
 	penalty_s = astman_get_header(m, "Penalty");
 	paused_s = astman_get_header(m, "Paused");
 
-	if (opbx_strlen_zero(queuename)) {
+	if (cw_strlen_zero(queuename)) {
 		astman_send_error(s, m, "'Queue' not specified.");
 		return 0;
 	}
 
-	if (opbx_strlen_zero(interface)) {
+	if (cw_strlen_zero(interface)) {
 		astman_send_error(s, m, "'Interface' not specified.");
 		return 0;
 	}
 
-	if (opbx_strlen_zero(penalty_s))
+	if (cw_strlen_zero(penalty_s))
 		penalty = 0;
 	else if (sscanf(penalty_s, "%d", &penalty) != 1) {
 		penalty = 0;
 	}
 
-	if (opbx_strlen_zero(paused_s))
+	if (cw_strlen_zero(paused_s))
 		paused = 0;
 	else
-		paused = abs(opbx_true(paused_s));
+		paused = abs(cw_true(paused_s));
 
 	switch (update_queue_member(queuename, interface, penalty, paused, queue_persistent_members)) {
 	case RES_OKAY:
@@ -4043,7 +4043,7 @@ static int manager_remove_queue_member(struct mansession *s, struct message *m)
     queuename = astman_get_header(m, "Queue");
     interface = astman_get_header(m, "Interface");
 
-    if (opbx_strlen_zero(queuename) || opbx_strlen_zero(interface))
+    if (cw_strlen_zero(queuename) || cw_strlen_zero(interface))
     {
         astman_send_error(s, m, "Need 'Queue' and 'Interface' parameters.");
         return 0;
@@ -4076,13 +4076,13 @@ static int manager_pause_queue_member(struct mansession *s, struct message *m)
     paused_s = astman_get_header(m, "Paused");
     queuename = astman_get_header(m, "Queue");  /* Optional - if not supplied, pause the given Interface in all queues */
 
-    if (opbx_strlen_zero(interface) || opbx_strlen_zero(paused_s))
+    if (cw_strlen_zero(interface) || cw_strlen_zero(paused_s))
     {
         astman_send_error(s, m, "Need 'Interface' and 'Paused' parameters.");
         return 0;
     }
 
-    paused = abs(opbx_true(paused_s));
+    paused = abs(cw_true(paused_s));
 
     if (set_member_paused(queuename, interface, paused))
         astman_send_error(s, m, "Interface not found");
@@ -4121,13 +4121,13 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
         {
             if (penalty < 0)
             {
-                opbx_cli(fd, "Penalty must be >= 0\n");
+                cw_cli(fd, "Penalty must be >= 0\n");
                 penalty = 0;
             }
         }
         else
         {
-            opbx_cli(fd, "Penalty must be an integer >= 0\n");
+            cw_cli(fd, "Penalty must be an integer >= 0\n");
             penalty = 0;
         }
     }
@@ -4139,16 +4139,16 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
     switch (add_to_queue(queuename, interface, penalty, 0, queue_persistent_members))
     {
     case RES_OKAY:
-        opbx_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
+        cw_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
         return RESULT_SUCCESS;
     case RES_EXISTS:
-        opbx_cli(fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
+        cw_cli(fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
         return RESULT_FAILURE;
     case RES_NOSUCHQUEUE:
-        opbx_cli(fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
+        cw_cli(fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
         return RESULT_FAILURE;
     case RES_OUTOFMEMORY:
-        opbx_cli(fd, "Out of memory\n");
+        cw_cli(fd, "Out of memory\n");
         return RESULT_FAILURE;
     default:
         return RESULT_FAILURE;
@@ -4222,16 +4222,16 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
     switch (remove_from_queue(queuename, interface, NULL))
     {
     case RES_OKAY:
-        opbx_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+        cw_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
         return RESULT_SUCCESS;
     case RES_EXISTS:
-        opbx_cli(fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+        cw_cli(fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
         return RESULT_FAILURE;
     case RES_NOSUCHQUEUE:
-        opbx_cli(fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+        cw_cli(fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
         return RESULT_FAILURE;
     case RES_OUTOFMEMORY:
-        opbx_cli(fd, "Out of memory\n");
+        cw_cli(fd, "Out of memory\n");
         return RESULT_FAILURE;
     default:
         return RESULT_FAILURE;
@@ -4241,7 +4241,7 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
 static char *complete_remove_queue_member(char *line, char *word, int pos, int state)
 {
     int which = 0;
-    struct opbx_call_queue *q;
+    struct cw_call_queue *q;
     struct member *m;
 
     /* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue> */
@@ -4271,16 +4271,16 @@ static char *complete_remove_queue_member(char *line, char *word, int pos, int s
     {
         for (q = queues ; q ; q = q->next)
         {
-            opbx_mutex_lock(&q->lock);
+            cw_mutex_lock(&q->lock);
             for (m = q->members ; m ; m = m->next)
             {
                 if (++which > state)
                 {
-                    opbx_mutex_unlock(&q->lock);
+                    cw_mutex_unlock(&q->lock);
                     return strdup(m->interface);
                 }
             }
-            opbx_mutex_unlock(&q->lock);
+            cw_mutex_unlock(&q->lock);
         }
     }
     return NULL;
@@ -4290,7 +4290,7 @@ static char show_queues_usage[] =
     "Usage: show queues\n"
     "       Provides summary information on call queues.\n";
 
-static struct opbx_clicmd cli_show_queues = {
+static struct cw_clicmd cli_show_queues = {
     .cmda = { "show", "queues", NULL },
     .handler = queues_show, 
     .summary = "Show status of queues",
@@ -4301,7 +4301,7 @@ static char show_queue_usage[] =
     "Usage: show queue\n"
     "       Provides summary information on a specified queue.\n";
 
-static struct opbx_clicmd cli_show_queue = {
+static struct cw_clicmd cli_show_queue = {
     .cmda = { "show", "queue", NULL },
     .handler = queue_show, 
     .generator = complete_queue,
@@ -4312,7 +4312,7 @@ static struct opbx_clicmd cli_show_queue = {
 static char aqm_cmd_usage[] =
     "Usage: add queue member <channel> to <queue> [penalty <penalty>]\n";
 
-static struct opbx_clicmd cli_add_queue_member = {
+static struct cw_clicmd cli_add_queue_member = {
     .cmda = { "add", "queue", "member", NULL },
     .handler = handle_add_queue_member,
     .generator = complete_add_queue_member,
@@ -4323,7 +4323,7 @@ static struct opbx_clicmd cli_add_queue_member = {
 static char rqm_cmd_usage[] =
     "Usage: remove queue member <channel> from <queue>\n";
 
-static struct opbx_clicmd cli_remove_queue_member = {
+static struct cw_clicmd cli_remove_queue_member = {
     .cmda = { "remove", "queue", "member", NULL },
     .handler = handle_remove_queue_member,
     .generator = complete_remove_queue_member,
@@ -4335,45 +4335,45 @@ static int unload_module(void)
 {
     int res = 0;
 
-    opbx_cli_unregister(&cli_show_queue);
-    opbx_cli_unregister(&cli_show_queues);
-    opbx_cli_unregister(&cli_add_queue_member);
-    opbx_cli_unregister(&cli_remove_queue_member);
-    opbx_manager_unregister("Queues");
-    opbx_manager_unregister("QueueStatus");
-    opbx_manager_unregister("QueueAdd");
-    opbx_manager_unregister("QueueRemove");
-    opbx_manager_unregister("QueuePause");
-    opbx_manager_unregister("QueueMemberUpdate");
-    opbx_devstate_del(statechange_queue, NULL);
-    res |= opbx_unregister_function(app_aqm);
-    res |= opbx_unregister_function(app_rqm);
-    res |= opbx_unregister_function(app_pqm);
-    res |= opbx_unregister_function(app_upqm);
-    res |= opbx_unregister_function(queueagentcount_function);
-    res |= opbx_unregister_function(app);
+    cw_cli_unregister(&cli_show_queue);
+    cw_cli_unregister(&cli_show_queues);
+    cw_cli_unregister(&cli_add_queue_member);
+    cw_cli_unregister(&cli_remove_queue_member);
+    cw_manager_unregister("Queues");
+    cw_manager_unregister("QueueStatus");
+    cw_manager_unregister("QueueAdd");
+    cw_manager_unregister("QueueRemove");
+    cw_manager_unregister("QueuePause");
+    cw_manager_unregister("QueueMemberUpdate");
+    cw_devstate_del(statechange_queue, NULL);
+    res |= cw_unregister_function(app_aqm);
+    res |= cw_unregister_function(app_rqm);
+    res |= cw_unregister_function(app_pqm);
+    res |= cw_unregister_function(app_upqm);
+    res |= cw_unregister_function(queueagentcount_function);
+    res |= cw_unregister_function(app);
     return res;
 }
 
 static int load_module(void)
 {
-    app = opbx_register_function(name, queue_exec, synopsis, syntax, descrip);
-    opbx_cli_register(&cli_show_queue);
-    opbx_cli_register(&cli_show_queues);
-    opbx_cli_register(&cli_add_queue_member);
-    opbx_cli_register(&cli_remove_queue_member);
-    opbx_devstate_add(statechange_queue, NULL);
-    opbx_manager_register( "Queues", 0, manager_queues_show, "Queues" );
-    opbx_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
-    opbx_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
-    opbx_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
-    opbx_manager_register( "QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable" );
-    opbx_manager_register( "QueueMemberUpdate", EVENT_FLAG_AGENT, manager_update_queue_member, "Update Member on queue." );
-    app_aqm = opbx_register_function(name_aqm, aqm_exec, app_aqm_synopsis, app_aqm_syntax, app_aqm_descrip) ;
-    app_rqm = opbx_register_function(name_rqm, rqm_exec, app_rqm_synopsis, app_rqm_syntax, app_rqm_descrip) ;
-    app_pqm = opbx_register_function(name_pqm, pqm_exec, app_pqm_synopsis, app_pqm_syntax, app_pqm_descrip) ;
-    app_upqm = opbx_register_function(name_upqm, upqm_exec, app_upqm_synopsis, app_upqm_syntax, app_upqm_descrip) ;
-    queueagentcount_function = opbx_register_function(queueagentcount_func_name, queue_function_qac, queueagentcount_func_synopsis, queueagentcount_func_syntax, queueagentcount_func_desc);
+    app = cw_register_function(name, queue_exec, synopsis, syntax, descrip);
+    cw_cli_register(&cli_show_queue);
+    cw_cli_register(&cli_show_queues);
+    cw_cli_register(&cli_add_queue_member);
+    cw_cli_register(&cli_remove_queue_member);
+    cw_devstate_add(statechange_queue, NULL);
+    cw_manager_register( "Queues", 0, manager_queues_show, "Queues" );
+    cw_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
+    cw_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
+    cw_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
+    cw_manager_register( "QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable" );
+    cw_manager_register( "QueueMemberUpdate", EVENT_FLAG_AGENT, manager_update_queue_member, "Update Member on queue." );
+    app_aqm = cw_register_function(name_aqm, aqm_exec, app_aqm_synopsis, app_aqm_syntax, app_aqm_descrip) ;
+    app_rqm = cw_register_function(name_rqm, rqm_exec, app_rqm_synopsis, app_rqm_syntax, app_rqm_descrip) ;
+    app_pqm = cw_register_function(name_pqm, pqm_exec, app_pqm_synopsis, app_pqm_syntax, app_pqm_descrip) ;
+    app_upqm = cw_register_function(name_upqm, upqm_exec, app_upqm_synopsis, app_upqm_syntax, app_upqm_descrip) ;
+    queueagentcount_function = cw_register_function(queueagentcount_func_name, queue_function_qac, queueagentcount_func_synopsis, queueagentcount_func_syntax, queueagentcount_func_desc);
 
     reload_queues();
     

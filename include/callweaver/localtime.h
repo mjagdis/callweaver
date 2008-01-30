@@ -28,11 +28,11 @@
 #include "confdefs.h"
 #endif
 
-extern int opbx_tzsetwall(void);
-extern void opbx_tzset(const char *name);
-extern struct tm *opbx_localtime(const time_t *timep, struct tm *p_tm, const char *zone);
-extern time_t opbx_mktime(struct tm * const tmp, const char *zone);
-extern char *opbx_ctime(const time_t * const timep);
-extern char *opbx_ctime_r(const time_t * const timep, char *buf);
+extern int cw_tzsetwall(void);
+extern void cw_tzset(const char *name);
+extern struct tm *cw_localtime(const time_t *timep, struct tm *p_tm, const char *zone);
+extern time_t cw_mktime(struct tm * const tmp, const char *zone);
+extern char *cw_ctime(const time_t * const timep);
+extern char *cw_ctime_r(const time_t * const timep, char *buf);
 
 #endif /* _CALLWEAVER_LOCALTIME_H */

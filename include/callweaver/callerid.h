@@ -62,13 +62,13 @@
  * \param number      Caller number. Use NULL for no number.
  * \param name        Caller name. Use NULL for no name.
  * \param callwaiting Whether this is at the start of a call or is a callwaiting announcement.
- * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ * \param codec       Either CW_FORMAT_ULAW or CW_FORMAT_ALAW.
  *
  * This function creates a stream of caller ID (a callerid spill) data in ulaw or alaw format.
  *
  * \return It returns the size (in bytes) of the data.
  */
-extern int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec);
+extern int cw_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec);
 
 /*! \brief Parse the caller ID decoded from an adsi_rx decoded FSK/DTMF stream and apply it to the channel
  *
@@ -83,7 +83,7 @@ extern int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres
  * callback function that knows the correct adsi and chan arguments.
  * See channels/chan_zap.c for an example.
  */
-extern int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len);
+extern int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *msg, int len);
 
 /*! \brief Generates an FSK encoded message waiting indication in [ua]law format
  *         suitable for transmission.
@@ -93,7 +93,7 @@ extern int callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const 
  * \param outlen      Length of "outbuf" available for use.
  * \param active      Whether the message waiting indicator should be active or not.
  * \param mdmf        True if an MDMF indication should be used, FALSE for SDMF.
- * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ * \param codec       Either CW_FORMAT_ULAW or CW_FORMAT_ALAW.
  *
  * \return It returns the size (in bytes) of the data.
  */
@@ -104,11 +104,11 @@ extern int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int 
  * \param outbuf      Buffer to use.  Must be at least 2400 bytes unless no SAS is desired.
  * \param outlen      Length of "outbuf" available for use.
  * \param sendsas     Non-zero if CAS should be preceeded by SAS.
- * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ * \param codec       Either CW_FORMAT_ULAW or CW_FORMAT_ALAW.
  *
  * \return Returns -1 on error (if len is less than 2400), 0 on success.
  */
-extern int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
+extern int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
 
 	/* A 2100Hz monotone (commonly known as a fax tone) may be used to cause
 	 * most switches (with the possible exceptio of some ancient pre-fax
@@ -119,9 +119,9 @@ extern int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
  *
  * \param outbuf      Buffer to use.
  * \param outlen      Length of "outbuf" to use.
- * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ * \param codec       Either CW_FORMAT_ULAW or CW_FORMAT_ALAW.
  */
-extern int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
+extern int cw_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
 
 
 /*

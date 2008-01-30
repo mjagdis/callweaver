@@ -34,8 +34,8 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
-#define OPBX_INCLUDE_GLOB 1
-#ifdef OPBX_INCLUDE_GLOB
+#define CW_INCLUDE_GLOB 1
+#ifdef CW_INCLUDE_GLOB
 #include <glob.h>
 #if defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
@@ -63,8 +63,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static char *extconfig_conf = "extconfig.conf";
 
-static struct opbx_config_map {
-	struct opbx_config_map *next;
+static struct cw_config_map {
+	struct cw_config_map *next;
 	char *name;
 	char *driver;
 	char *database;
@@ -72,65 +72,65 @@ static struct opbx_config_map {
 	char stuff[0];
 } *config_maps = NULL;
 
-OPBX_MUTEX_DEFINE_STATIC(config_lock);
+CW_MUTEX_DEFINE_STATIC(config_lock);
 
-static const char *config_engine_registry_obj_name(struct opbx_object *obj)
+static const char *config_engine_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_config_engine *it = container_of(obj, struct opbx_config_engine, obj);
+	struct cw_config_engine *it = container_of(obj, struct cw_config_engine, obj);
 	return it->name;
 }
 
-static int config_engine_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int config_engine_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-	struct opbx_config_engine *config_engine_a = container_of(a, struct opbx_config_engine, obj);
-	struct opbx_config_engine *config_engine_b = container_of(b, struct opbx_config_engine, obj);
+	struct cw_config_engine *config_engine_a = container_of(a, struct cw_config_engine, obj);
+	struct cw_config_engine *config_engine_b = container_of(b, struct cw_config_engine, obj);
 
 	return strcmp(config_engine_a->name, config_engine_b->name);
 }
 
-static int config_engine_registry_obj_match(struct opbx_object *obj, const void *pattern)
+static int config_engine_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
-	struct opbx_config_engine *ce = container_of(obj, struct opbx_config_engine, obj);
+	struct cw_config_engine *ce = container_of(obj, struct cw_config_engine, obj);
 	return strcasecmp(ce->name, pattern);
 }
 
-struct opbx_registry config_engine_registry = {
+struct cw_registry config_engine_registry = {
 	.name = "Config Engine",
 	.obj_name = config_engine_registry_obj_name,
 	.obj_cmp = config_engine_registry_obj_cmp,
 	.obj_match = config_engine_registry_obj_match,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 #define MAX_INCLUDE_LEVEL 10
 
-struct opbx_comment {
-	struct opbx_comment *next;
+struct cw_comment {
+	struct cw_comment *next;
 	char cmt[0];
 };
 
-struct opbx_category {
+struct cw_category {
 	char name[80];
 	int ignored;			/* do not let user of the config see this category */
-	struct opbx_variable *root;
-	struct opbx_variable *last;
-	struct opbx_category *next;
+	struct cw_variable *root;
+	struct cw_variable *last;
+	struct cw_category *next;
 };
 
-struct opbx_config {
-	struct opbx_category *root;
-	struct opbx_category *last;
-	struct opbx_category *current;
-	struct opbx_category *last_browse;		/* used to cache the last category supplied via category_browse */
+struct cw_config {
+	struct cw_category *root;
+	struct cw_category *last;
+	struct cw_category *current;
+	struct cw_category *last_browse;		/* used to cache the last category supplied via category_browse */
 	int include_level;
 	int max_include_level;
 };
 
-struct opbx_variable *opbx_variable_new(const char *name, const char *value) 
+struct cw_variable *cw_variable_new(const char *name, const char *value) 
 {
-	struct opbx_variable *variable;
+	struct cw_variable *variable;
 
-	int length = strlen(name) + strlen(value) + 2 + sizeof(struct opbx_variable);
+	int length = strlen(name) + strlen(value) + 2 + sizeof(struct cw_variable);
 	variable = malloc(length);
 	if (variable) {
 		memset(variable, 0, length);
@@ -143,7 +143,7 @@ struct opbx_variable *opbx_variable_new(const char *name, const char *value)
 	return variable;
 }
 
-void opbx_variable_append(struct opbx_category *category, struct opbx_variable *variable)
+void cw_variable_append(struct cw_category *category, struct cw_variable *variable)
 {
 	if (category->last)
 		category->last->next = variable;
@@ -152,9 +152,9 @@ void opbx_variable_append(struct opbx_category *category, struct opbx_variable *
 	category->last = variable;
 }
 
-void opbx_variables_destroy(struct opbx_variable *v)
+void cw_variables_destroy(struct cw_variable *v)
 {
-	struct opbx_variable *vn;
+	struct cw_variable *vn;
 
 	while(v) {
 		vn = v;
@@ -163,14 +163,14 @@ void opbx_variables_destroy(struct opbx_variable *v)
 	}
 }
 
-struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, const char *category)
+struct cw_variable *cw_variable_browse(const struct cw_config *config, const char *category)
 {
-	struct opbx_category *cat = NULL;
+	struct cw_category *cat = NULL;
 
 	if (category && config->last_browse && (config->last_browse->name == category))
 		cat = config->last_browse;
 	else
-		cat = opbx_category_get(config, category);
+		cat = cw_category_get(config, category);
 
 	if (cat)
 		return cat->root;
@@ -178,17 +178,17 @@ struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, con
 		return NULL;
 }
 
-char *opbx_variable_retrieve(const struct opbx_config *config, const char *category, const char *variable)
+char *cw_variable_retrieve(const struct cw_config *config, const char *category, const char *variable)
 {
-	struct opbx_variable *v;
+	struct cw_variable *v;
 
 	if (category) {
-		for (v = opbx_variable_browse(config, category); v; v = v->next) {
+		for (v = cw_variable_browse(config, category); v; v = v->next) {
 			if (!strcasecmp(variable, v->name))
 				return v->value;
 		}
 	} else {
-		struct opbx_category *cat;
+		struct cw_category *cat;
 
 		for (cat = config->root; cat; cat = cat->next)
 			for (v = cat->root; v; v = v->next)
@@ -199,9 +199,9 @@ char *opbx_variable_retrieve(const struct opbx_config *config, const char *categ
 	return NULL;
 }
 
-static struct opbx_variable *variable_clone(const struct opbx_variable *old)
+static struct cw_variable *variable_clone(const struct cw_variable *old)
 {
-	struct opbx_variable *new = opbx_variable_new(old->name, old->value);
+	struct cw_variable *new = cw_variable_new(old->name, old->value);
 
 	if (new) {
 		new->lineno = old->lineno;
@@ -213,36 +213,36 @@ static struct opbx_variable *variable_clone(const struct opbx_variable *old)
 	return new;
 }
  
-static void move_variables(struct opbx_category *old, struct opbx_category *new)
+static void move_variables(struct cw_category *old, struct cw_category *new)
 {
-	struct opbx_variable *var;
-	struct opbx_variable *next;
+	struct cw_variable *var;
+	struct cw_variable *next;
 
 	next = old->root;
 	old->root = NULL;
 	for (var = next; var; var = next) {
 		next = var->next;
 		var->next = NULL;
-		opbx_variable_append(new, var);
+		cw_variable_append(new, var);
 	}
 }
 
-struct opbx_category *opbx_category_new(const char *name) 
+struct cw_category *cw_category_new(const char *name) 
 {
-	struct opbx_category *category;
+	struct cw_category *category;
 
-	category = malloc(sizeof(struct opbx_category));
+	category = malloc(sizeof(struct cw_category));
 	if (category) {
-		memset(category, 0, sizeof(struct opbx_category));
-		opbx_copy_string(category->name, name, sizeof(category->name));
+		memset(category, 0, sizeof(struct cw_category));
+		cw_copy_string(category->name, name, sizeof(category->name));
 	}
 
 	return category;
 }
 
-static struct opbx_category *category_get(const struct opbx_config *config, const char *category_name, int ignored)
+static struct cw_category *category_get(const struct cw_config *config, const char *category_name, int ignored)
 {
-	struct opbx_category *cat;
+	struct cw_category *cat;
 
 	for (cat = config->root; cat; cat = cat->next) {
 		if (cat->name == category_name && (ignored || !cat->ignored))
@@ -257,17 +257,17 @@ static struct opbx_category *category_get(const struct opbx_config *config, cons
 	return NULL;
 }
 
-struct opbx_category *opbx_category_get(const struct opbx_config *config, const char *category_name)
+struct cw_category *cw_category_get(const struct cw_config *config, const char *category_name)
 {
 	return category_get(config, category_name, 0);
 }
 
-int opbx_category_exist(const struct opbx_config *config, const char *category_name)
+int cw_category_exist(const struct cw_config *config, const char *category_name)
 {
-	return !!opbx_category_get(config, category_name);
+	return !!cw_category_get(config, category_name);
 }
 
-void opbx_category_append(struct opbx_config *config, struct opbx_category *category)
+void cw_category_append(struct cw_config *config, struct cw_category *category)
 {
 	if (config->last)
 		config->last->next = category;
@@ -277,22 +277,22 @@ void opbx_category_append(struct opbx_config *config, struct opbx_category *cate
 	config->current = category;
 }
 
-void opbx_category_destroy(struct opbx_category *cat)
+void cw_category_destroy(struct cw_category *cat)
 {
-	opbx_variables_destroy(cat->root);
+	cw_variables_destroy(cat->root);
 	free(cat);
 }
 
-static struct opbx_category *next_available_category(struct opbx_category *cat)
+static struct cw_category *next_available_category(struct cw_category *cat)
 {
 	for (; cat && cat->ignored; cat = cat->next);
 
 	return cat;
 }
 
-char *opbx_category_browse(struct opbx_config *config, const char *prev)
+char *cw_category_browse(struct cw_config *config, const char *prev)
 {	
-	struct opbx_category *cat = NULL;
+	struct cw_category *cat = NULL;
 
 	if (prev && config->last_browse && (config->last_browse->name == prev))
 		cat = config->last_browse->next;
@@ -325,9 +325,9 @@ char *opbx_category_browse(struct opbx_config *config, const char *prev)
 		return NULL;
 }
 
-struct opbx_variable *opbx_category_detach_variables(struct opbx_category *cat)
+struct cw_variable *cw_category_detach_variables(struct cw_category *cat)
 {
-	struct opbx_variable *v;
+	struct cw_variable *v;
 
 	v = cat->root;
 	cat->root = NULL;
@@ -335,27 +335,27 @@ struct opbx_variable *opbx_category_detach_variables(struct opbx_category *cat)
 	return v;
 }
 
-void opbx_category_rename(struct opbx_category *cat, const char *name)
+void cw_category_rename(struct cw_category *cat, const char *name)
 {
-	opbx_copy_string(cat->name, name, sizeof(cat->name));
+	cw_copy_string(cat->name, name, sizeof(cat->name));
 }
 
-static void inherit_category(struct opbx_category *new, const struct opbx_category *base)
+static void inherit_category(struct cw_category *new, const struct cw_category *base)
 {
-	struct opbx_variable *var;
+	struct cw_variable *var;
 
 	for (var = base->root; var; var = var->next) {
-		struct opbx_variable *v;
+		struct cw_variable *v;
 		
 		v = variable_clone(var);
 		if (v)
-			opbx_variable_append(new, v);
+			cw_variable_append(new, v);
 	}
 }
 
-struct opbx_config *opbx_config_new(void) 
+struct cw_config *cw_config_new(void) 
 {
-	struct opbx_config *config;
+	struct cw_config *config;
 
 	config = malloc(sizeof(*config));
 	if (config) {
@@ -366,16 +366,16 @@ struct opbx_config *opbx_config_new(void)
 	return config;
 }
 
-void opbx_config_destroy(struct opbx_config *cfg)
+void cw_config_destroy(struct cw_config *cfg)
 {
-	struct opbx_category *cat, *catn;
+	struct cw_category *cat, *catn;
 
 	if (!cfg)
 		return;
 
 	cat = cfg->root;
 	while(cat) {
-		opbx_variables_destroy(cat->root);
+		cw_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
 		free(catn);
@@ -383,34 +383,34 @@ void opbx_config_destroy(struct opbx_config *cfg)
 	free(cfg);
 }
 
-struct opbx_category *opbx_config_get_current_category(const struct opbx_config *cfg)
+struct cw_category *cw_config_get_current_category(const struct cw_config *cfg)
 {
 	return cfg->current;
 }
 
-void opbx_config_set_current_category(struct opbx_config *cfg, const struct opbx_category *cat)
+void cw_config_set_current_category(struct cw_config *cfg, const struct cw_category *cat)
 {
 	/* cast below is just to silence compiler warning about dropping "const" */
-	cfg->current = (struct opbx_category *) cat;
+	cfg->current = (struct cw_category *) cat;
 }
 
-static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat, char *buf, int lineno, const char *configfile)
+static int process_text_line(struct cw_config *cfg, struct cw_category **cat, char *buf, int lineno, const char *configfile)
 {
 	char *c;
 	char *cur = buf;
-	struct opbx_variable *v;
+	struct cw_variable *v;
 	char cmd[512], exec_file[512];
 	int object, do_exec, do_include;
 
 	/* Actually parse the entry */
 	if (cur[0] == '[') {
-		struct opbx_category *newcat = NULL;
+		struct cw_category *newcat = NULL;
 		char *catname;
 
 		/* A category header */
 		c = strchr(cur, ']');
 		if (!c) {
-			opbx_log(OPBX_LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
+			cw_log(CW_LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
 			return -1;
 		}
 		*c++ = '\0';
@@ -418,15 +418,15 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
  		if (*c++ != '(')
  			c = NULL;
 		catname = cur;
-		*cat = newcat = opbx_category_new(catname);
+		*cat = newcat = cw_category_new(catname);
 		if (!newcat) {
-			opbx_log(OPBX_LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
+			cw_log(CW_LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
 			return -1;
 		}
  		/* If there are options or categories to inherit from, process them now */
  		if (c) {
  			if (!(cur = strchr(c, ')'))) {
- 				opbx_log(OPBX_LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
+ 				cw_log(CW_LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
  				return -1;
  			}
  			*cur = '\0';
@@ -436,23 +436,23 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 				} else if (!strcasecmp(cur, "+")) {
 					*cat = category_get(cfg, catname, 1);
 					if (!*cat) {
-						opbx_config_destroy(cfg);
+						cw_config_destroy(cfg);
 						if (newcat)
-							opbx_category_destroy(newcat);
-						opbx_log(OPBX_LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
+							cw_category_destroy(newcat);
+						cw_log(CW_LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
 						return -1;
 					}
 					if (newcat) {
 						move_variables(newcat, *cat);
-						opbx_category_destroy(newcat);
+						cw_category_destroy(newcat);
 						newcat = NULL;
 					}
 				} else {
-					struct opbx_category *base;
+					struct cw_category *base;
  				
 					base = category_get(cfg, cur, 1);
 					if (!base) {
-						opbx_log(OPBX_LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
+						cw_log(CW_LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
 					inherit_category(*cat, base);
@@ -460,7 +460,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
  			}
  		}
 		if (newcat)
-			opbx_category_append(cfg, *cat);
+			cw_category_append(cfg, *cat);
 	} else if (cur[0] == '#') {
 		/* A directive */
 		cur++;
@@ -481,7 +481,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 		else
 			do_exec = 0;
 		if (do_exec && !option_exec_includes) {
-			opbx_log(OPBX_LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in callweaver.conf (options section)!\n");
+			cw_log(CW_LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in callweaver.conf (options section)!\n");
 			do_exec = 0;
 		}
 		if (do_include || do_exec) {
@@ -490,7 +490,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 				/* Get rid of leading mess */
 				cur = c;
-				while (!opbx_strlen_zero(cur)) {
+				while (!cw_strlen_zero(cur)) {
 					c = cur + strlen(cur) - 1;
 					if ((*c == '>') || (*c == '<') || (*c == '\"'))
 						*c = '\0';
@@ -502,19 +502,19 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 				if (do_exec) { 
 					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%ld.%ld", time(NULL), (long)pthread_self());
 					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
-					opbx_safe_system(cmd);
+					cw_safe_system(cmd);
 					cur = exec_file;
 				} else
 					exec_file[0] = '\0';
 				/* A #include */
-				do_include = opbx_config_internal_load(cur, cfg) ? 1 : 0;
-				if(!opbx_strlen_zero(exec_file))
+				do_include = cw_config_internal_load(cur, cfg) ? 1 : 0;
+				if(!cw_strlen_zero(exec_file))
 					unlink(exec_file);
 				if(!do_include)
 					return 0;
 
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
+				cw_log(CW_LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
 						do_exec ? "exec" : "include",
 						do_exec ? "/path/to/executable" : "filename",
 						lineno,
@@ -522,11 +522,11 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 			}
 		}
 		else 
-			opbx_log(OPBX_LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			cw_log(CW_LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
 	} else {
 		/* Just a line (variable = value) */
 		if (!*cat) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"parse error: No category context for line %d of %s\n", lineno, configfile);
 			return -1;
 		}
@@ -540,26 +540,26 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 				c++;
 			} else
 				object = 0;
-			v = opbx_variable_new(opbx_strip(cur), opbx_strip(c));
+			v = cw_variable_new(cw_strip(cur), cw_strip(c));
 			if (v) {
 				v->lineno = lineno;
 				v->object = object;
 				/* Put and reset comments */
 				v->blanklines = 0;
-				opbx_variable_append(*cat, v);
+				cw_variable_append(*cat, v);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Out of memory, line %d\n", lineno);
+				cw_log(CW_LOG_WARNING, "Out of memory, line %d\n", lineno);
 				return -1;
 			}
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
+			cw_log(CW_LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
 		}
 
 	}
 	return 0;
 }
 
-static struct opbx_config *config_text_file_load(const char *database, const char *table, const char *filename, struct opbx_config *cfg)
+static struct cw_config *config_text_file_load(const char *database, const char *table, const char *filename, struct cw_config *cfg)
 {
 	char fn[256];
 	char buf[8192];
@@ -567,19 +567,19 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 	FILE *f;
 	int lineno=0;
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
-	struct opbx_category *cat = NULL;
+	struct cw_category *cat = NULL;
 	int count = 0;
 	struct stat statbuf;
 	
-	cat = opbx_config_get_current_category(cfg);
+	cat = cw_config_get_current_category(cfg);
 
 	if (filename[0] == '/') {
-		opbx_copy_string(fn, filename, sizeof(fn));
+		cw_copy_string(fn, filename, sizeof(fn));
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)opbx_config_OPBX_CONFIG_DIR, filename);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)cw_config_CW_CONFIG_DIR, filename);
 	}
 
-#ifdef OPBX_INCLUDE_GLOB
+#ifdef CW_INCLUDE_GLOB
 	{
 		int glob_ret;
 		glob_t globbuf;
@@ -590,42 +590,42 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
 #endif
 		if (glob_ret == GLOB_NOSPACE)
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
 		else if (glob_ret  == GLOB_ABORTED)
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
 		else  {
 			/* loop over expanded files */
 			int i;
 			for (i=0; i<globbuf.gl_pathc; i++) {
-				opbx_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
+				cw_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
 	do {
 		if (stat(fn, &statbuf)) {
-			opbx_log(OPBX_LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
+			cw_log(CW_LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
 			continue;
 		}
 		if (!S_ISREG(statbuf.st_mode)) {
-			opbx_log(OPBX_LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
+			cw_log(CW_LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;
 		}
 		if ((option_verbose > 3) && !option_debug) {
-			opbx_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
+			cw_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 			fflush(stdout);
 		}
 		if (!(f = fopen(fn, "r"))) {
 			if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "No file to parse: %s\n", fn);
+				cw_log(CW_LOG_DEBUG, "No file to parse: %s\n", fn);
 			if (option_verbose > 1)
-				opbx_verbose( "Not found (%s)\n", strerror(errno));
+				cw_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
 		if (option_debug)
-			opbx_log(OPBX_LOG_DEBUG, "Parsing %s - Found\n", fn);
+			cw_log(CW_LOG_DEBUG, "Parsing %s - Found\n", fn);
 		if (option_verbose > 3)
-			opbx_verbose( "Parsing %s - Found\n", fn);
+			cw_verbose( "Parsing %s - Found\n", fn);
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
@@ -647,7 +647,7 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 							comment++;
 							nest[comment-1] = lineno;
 						} else {
-							opbx_log(OPBX_LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+							cw_log(CW_LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
 						}
 					} else if ((comment_p >= new_buf + 2) &&
 						   (*(comment_p - 1) == COMMENT_TAG) &&
@@ -677,8 +677,8 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 					}
 				}
 				if (process_buf) {
-					char *buf = opbx_strip(process_buf);
-					if (!opbx_strlen_zero(buf)) {
+					char *buf = cw_strip(process_buf);
+					if (!cw_strlen_zero(buf)) {
 						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
 							cfg = NULL;
 							break;
@@ -690,9 +690,9 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		fclose(f);		
 	} while(0);
 	if (comment) {
-		opbx_log(OPBX_LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
+		cw_log(CW_LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
-#ifdef OPBX_INCLUDE_GLOB
+#ifdef CW_INCLUDE_GLOB
 					if (!cfg)
 						break;
 				}
@@ -706,30 +706,30 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 	return cfg;
 }
 
-int config_text_file_save(const char *configfile, const struct opbx_config *cfg, const char *generator)
+int config_text_file_save(const char *configfile, const struct cw_config *cfg, const char *generator)
 {
 	FILE *f;
 	char fn[256];
 	char date[256]="";
 	time_t t;
-	struct opbx_variable *var;
-	struct opbx_category *cat;
+	struct cw_variable *var;
+	struct cw_category *cat;
 	int blanklines = 0;
 
 	if (configfile[0] == '/') {
-		opbx_copy_string(fn, configfile, sizeof(fn));
+		cw_copy_string(fn, configfile, sizeof(fn));
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", opbx_config_OPBX_CONFIG_DIR, configfile);
+		snprintf(fn, sizeof(fn), "%s/%s", cw_config_CW_CONFIG_DIR, configfile);
 	}
 	time(&t);
-	opbx_copy_string(date, ctime(&t), sizeof(date));
+	cw_copy_string(date, ctime(&t), sizeof(date));
 #ifdef __CYGWIN__	
 	if ((f = fopen(fn, "w+"))) {
 #else
  	if ((f = fopen(fn, "w"))) {
 #endif
 		if ((option_verbose > 1) && !option_debug)
-			opbx_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
+			cw_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
 		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
@@ -762,7 +762,7 @@ int config_text_file_save(const char *configfile, const struct opbx_config *cfg,
 		}
 		fclose(f);
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -770,9 +770,9 @@ int config_text_file_save(const char *configfile, const struct opbx_config *cfg,
 
 static void clear_config_maps(void) 
 {
-	struct opbx_config_map *map;
+	struct cw_config_map *map;
 
-	opbx_mutex_lock(&config_lock);
+	cw_mutex_lock(&config_lock);
 
 	while (config_maps) {
 		map = config_maps;
@@ -780,12 +780,12 @@ static void clear_config_maps(void)
 		free(map);
 	}
 		
-	opbx_mutex_unlock(&config_lock);
+	cw_mutex_unlock(&config_lock);
 }
 
 static int append_mapping(char *name, char *driver, char *database, char *table)
 {
-	struct opbx_config_map *map;
+	struct cw_config_map *map;
 	int length;
 
 	length = sizeof(*map);
@@ -813,7 +813,7 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 	map->next = config_maps;
 
 	if (option_verbose > 1)
-		opbx_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
+		cw_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
 			    map->name, map->driver, map->database, map->table ? map->table : map->name);
 
 	config_maps = map;
@@ -822,102 +822,102 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 
 void read_config_maps(void) 
 {
-	struct opbx_config *config, *configtmp;
-	struct opbx_variable *v;
+	struct cw_config *config, *configtmp;
+	struct cw_variable *v;
 	char *driver, *table, *database, *stringp;
 
 	clear_config_maps();
 
-	configtmp = opbx_config_new();
+	configtmp = cw_config_new();
 	configtmp->max_include_level = 1;
-	config = opbx_config_internal_load(extconfig_conf, configtmp);
+	config = cw_config_internal_load(extconfig_conf, configtmp);
 	if (!config) {
-		opbx_config_destroy(configtmp);
+		cw_config_destroy(configtmp);
 		return;
 	}
 
-	for (v = opbx_variable_browse(config, "settings"); v; v = v->next) {
+	for (v = cw_variable_browse(config, "settings"); v; v = v->next) {
 		stringp = v->value;
 		driver = strsep(&stringp, ",");
 		database = strsep(&stringp, ",");
 		table = strsep(&stringp, ",");
 			
 		if (!strcmp(v->name, extconfig_conf)) {
-			opbx_log(OPBX_LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
+			cw_log(CW_LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
 			continue;
 		}
 
 		if (!strcmp(v->name, "callweaver.conf")) {
-			opbx_log(OPBX_LOG_WARNING, "Cannot bind 'callweaver.conf'!\n");
+			cw_log(CW_LOG_WARNING, "Cannot bind 'callweaver.conf'!\n");
 			continue;
 		}
 
 		if (!strcmp(v->name, "logger.conf")) {
-			opbx_log(OPBX_LOG_WARNING, "Cannot bind 'logger.conf'!\n");
+			cw_log(CW_LOG_WARNING, "Cannot bind 'logger.conf'!\n");
 			continue;
 		}
 
 		if (!driver || !database)
 			continue;
 		if (!strcasecmp(v->name, "sipfriends")) {
-			opbx_log(OPBX_LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
+			cw_log(CW_LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
 			append_mapping("sipusers", driver, database, table ? table : "sipfriends");
 			append_mapping("sippeers", driver, database, table ? table : "sipfriends");
 		} else if (!strcasecmp(v->name, "iaxfriends")) {
-			opbx_log(OPBX_LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
+			cw_log(CW_LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
 			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends");
 			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends");
 		} else 
 			append_mapping(v->name, driver, database, table);
 	}
 		
-	opbx_config_destroy(config);
+	cw_config_destroy(config);
 }
 
 /*--- find_engine: Find realtime engine for realtime family */
-static struct opbx_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
+static struct cw_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
 {
-	struct opbx_config_map *map;
-	struct opbx_config_engine *eng;
-	struct opbx_object *obj;
+	struct cw_config_map *map;
+	struct cw_config_engine *eng;
+	struct cw_object *obj;
 
-	opbx_mutex_lock(&config_lock);
+	cw_mutex_lock(&config_lock);
 
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(family, map->name)) {
 			if (database)
-				opbx_copy_string(database, map->database, dbsiz);
+				cw_copy_string(database, map->database, dbsiz);
 			if (table)
-				opbx_copy_string(table, map->table ? map->table : family, tabsiz);
+				cw_copy_string(table, map->table ? map->table : family, tabsiz);
 			break;
 		}
 	}
 
-	opbx_mutex_unlock(&config_lock);
+	cw_mutex_unlock(&config_lock);
 
 	/* Check if the required driver (engine) exist */
 	eng = NULL;
 	if (map) {
-		obj = opbx_registry_find(&config_engine_registry, map->driver);
+		obj = cw_registry_find(&config_engine_registry, map->driver);
 		if (obj)
-			eng = container_of(obj, struct opbx_config_engine, obj);
+			eng = container_of(obj, struct cw_config_engine, obj);
 		else
-			opbx_log(OPBX_LOG_WARNING, "Realtime mapping for '%s' requires engine '%s', but the engine is not available\n", map->name, map->driver);
+			cw_log(CW_LOG_WARNING, "Realtime mapping for '%s' requires engine '%s', but the engine is not available\n", map->name, map->driver);
 	}
 
 	return eng;
 }
 
 
-struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_config *cfg)
+struct cw_config *cw_config_internal_load(const char *filename, struct cw_config *cfg)
 {
 	char db[256];
 	char table[256];
-	struct opbx_config_engine *eng;
-	struct opbx_config *result;
+	struct cw_config_engine *eng;
+	struct cw_config *result;
 
 	if (cfg->include_level == cfg->max_include_level) {
-		opbx_log(OPBX_LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
+		cw_log(CW_LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
 		return NULL;
 	}
 
@@ -927,14 +927,14 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 	if (strcmp(filename, extconfig_conf) && strcmp(filename, "callweaver.conf")) {
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));
 		if (eng && !eng->load_func) {
-			opbx_object_put(eng);
+			cw_object_put(eng);
 			eng = NULL;
 		}
 
 		if (!eng) {
 			eng = find_engine("global", db, sizeof(db), table, sizeof(table));
 			if (eng && !eng->load_func) {
-				opbx_object_put(eng);
+				cw_object_put(eng);
 				eng = NULL;
 			}
 		}
@@ -942,7 +942,7 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 
 	if (eng) {
 		result = eng->load_func(db, table, filename, cfg);
-		opbx_object_put(eng);
+		cw_object_put(eng);
 	} else
 		result = config_text_file_load(db, table, filename, cfg);
 
@@ -952,28 +952,28 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 	return result;
 }
 
-struct opbx_config *opbx_config_load(const char *filename)
+struct cw_config *cw_config_load(const char *filename)
 {
-	struct opbx_config *cfg;
-	struct opbx_config *result;
+	struct cw_config *cfg;
+	struct cw_config *result;
 
-	cfg = opbx_config_new();
+	cfg = cw_config_new();
 	if (!cfg)
 		return NULL;
 
-	result = opbx_config_internal_load(filename, cfg);
+	result = cw_config_internal_load(filename, cfg);
 	if (!result)
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 
 	return result;
 }
 
-struct opbx_variable *opbx_load_realtime(const char *family, ...)
+struct cw_variable *cw_load_realtime(const char *family, ...)
 {
-	struct opbx_config_engine *eng;
+	struct cw_config_engine *eng;
 	char db[256]="";
 	char table[256]="";
-	struct opbx_variable *res=NULL;
+	struct cw_variable *res=NULL;
 	va_list ap;
 
 	va_start(ap, family);
@@ -981,33 +981,33 @@ struct opbx_variable *opbx_load_realtime(const char *family, ...)
 	if (eng) {
 		if (eng->realtime_func) 
 			res = eng->realtime_func(db, table, ap);
-		opbx_object_put(eng);
+		cw_object_put(eng);
 	}
 	va_end(ap);
 
 	return res;
 }
 
-/*--- opbx_check_realtime: Check if realtime engine is configured for family */
-int opbx_check_realtime(const char *family)
+/*--- cw_check_realtime: Check if realtime engine is configured for family */
+int cw_check_realtime(const char *family)
 {
-	struct opbx_config_engine *eng;
+	struct cw_config_engine *eng;
 
 	eng = find_engine(family, NULL, 0, NULL, 0);
 	if (eng) {
-		opbx_object_put(eng);
+		cw_object_put(eng);
 		return 1;
 	}
 	return 0;
 
 }
 
-struct opbx_config *opbx_load_realtime_multientry(const char *family, ...)
+struct cw_config *cw_load_realtime_multientry(const char *family, ...)
 {
-	struct opbx_config_engine *eng;
+	struct cw_config_engine *eng;
 	char db[256]="";
 	char table[256]="";
-	struct opbx_config *res=NULL;
+	struct cw_config *res=NULL;
 	va_list ap;
 
 	va_start(ap, family);
@@ -1015,16 +1015,16 @@ struct opbx_config *opbx_load_realtime_multientry(const char *family, ...)
 	if (eng) {
 		if (eng->realtime_multi_func) 
 			res = eng->realtime_multi_func(db, table, ap);
-		opbx_object_put(eng);
+		cw_object_put(eng);
 	}
 	va_end(ap);
 
 	return res;
 }
 
-int opbx_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
+int cw_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
-	struct opbx_config_engine *eng;
+	struct cw_config_engine *eng;
 	int res = -1;
 	char db[256]="";
 	char table[256]="";
@@ -1035,33 +1035,33 @@ int opbx_update_realtime(const char *family, const char *keyfield, const char *l
 	if (eng) {
 		if (eng->update_func) 
 			res = eng->update_func(db, table, keyfield, lookup, ap);
-		opbx_object_put(eng);
+		cw_object_put(eng);
 	}
 	va_end(ap);
 
 	return res;
 }
 
-static int config_engine_print(struct opbx_object *obj, void *data)
+static int config_engine_print(struct cw_object *obj, void *data)
 {
-	struct opbx_config_engine *eng = container_of(obj, struct opbx_config_engine, obj);
+	struct cw_config_engine *eng = container_of(obj, struct cw_config_engine, obj);
 	int *fd = data;
-	struct opbx_config_map *map;
+	struct cw_config_map *map;
 
-	opbx_cli(*fd, "Config Engine: %s\n", eng->name);
+	cw_cli(*fd, "Config Engine: %s\n", eng->name);
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(map->driver, eng->name)) {
-			opbx_cli(*fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+			cw_cli(*fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 				map->table ? map->table : map->name);
 		}
 	}
-	opbx_cli(*fd, "\n");
+	cw_cli(*fd, "\n");
 	return 0;
 }
 
 static int config_command(int fd, int argc, char **argv) 
 {
-	opbx_registry_iterate(&config_engine_registry, config_engine_print, &fd);
+	cw_registry_iterate(&config_engine_registry, config_engine_print, &fd);
 	return 0;
 }
 
@@ -1069,7 +1069,7 @@ static char show_config_help[] =
 	"Usage: show config mappings\n"
 	"	Shows the filenames to config engines.\n";
 
-static struct opbx_clicmd config_command_struct = {
+static struct cw_clicmd config_command_struct = {
 	.cmda = { "show", "config", "mappings", NULL },
 	.handler = config_command,
 	.summary = "Show Config mappings (file names to config engines)",
@@ -1078,5 +1078,5 @@ static struct opbx_clicmd config_command_struct = {
 
 int register_config_cli(void)
 {
-	return opbx_cli_register(&config_command_struct);
+	return cw_cli_register(&config_command_struct);
 }

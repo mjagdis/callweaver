@@ -68,7 +68,7 @@ static const char transfer_descrip[] =
 "successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static int transfer_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int transfer_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
 	int len;
@@ -79,7 +79,7 @@ static int transfer_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	char *status;
 
 	if (argc != 1)
-		return opbx_function_syntax(transfer_syntax);
+		return cw_function_syntax(transfer_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -103,12 +103,12 @@ static int transfer_exec(struct opbx_channel *chan, int argc, char **argv, char 
 		return 0;
 	}
 
-	res = opbx_transfer(chan, dest);
+	res = cw_transfer(chan, dest);
 
 	if (res < 0) {
 		status = "FAILURE";
 		if (option_priority_jumping)
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 	} else {
 		status = "SUCCESS";
@@ -126,13 +126,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(transfer_app);
+	res |= cw_unregister_function(transfer_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	transfer_app = opbx_register_function(transfer_name, transfer_exec, transfer_synopsis, transfer_syntax, transfer_descrip);
+	transfer_app = cw_register_function(transfer_name, transfer_exec, transfer_synopsis, transfer_syntax, transfer_descrip);
 	return 0;
 }
 

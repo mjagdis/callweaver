@@ -27,29 +27,29 @@
 extern "C" {
 #endif
 
-struct opbx_db_entry {
-	struct opbx_db_entry *next;
+struct cw_db_entry {
+	struct cw_db_entry *next;
 	char *key;
 	char data[0];
 };
 
-int opbx_db_get(const char *family, const char *key, char *out, int outlen);
+int cw_db_get(const char *family, const char *key, char *out, int outlen);
 
-int opbx_db_put(const char *family, const char *key, char *value);
+int cw_db_put(const char *family, const char *key, char *value);
 
-int opbx_db_del(const char *family, const char *key);
+int cw_db_del(const char *family, const char *key);
 
-int opbx_db_deltree(const char *family, const char *keytree);
+int cw_db_deltree(const char *family, const char *keytree);
 
-int opbx_db_deltree_with_value(const char *family, const char *keytree, const char *value);
+int cw_db_deltree_with_value(const char *family, const char *keytree, const char *value);
 
-struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree);
+struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree);
 
-void opbx_db_freetree(struct opbx_db_entry *entry);
+void cw_db_freetree(struct cw_db_entry *entry);
 
 
-#define opbx_db_mprintf sqlite3_mprintf
-#define opbx_db_free sqlite3_free
+#define cw_db_mprintf sqlite3_mprintf
+#define cw_db_free sqlite3_free
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

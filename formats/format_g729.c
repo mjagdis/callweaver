@@ -53,11 +53,11 @@ struct pvt
     /* Believe it or not, we must decode/recode to account for the
        weird MS format */
     FILE *f;                                /* Descriptor */
-    struct opbx_frame fr;                   /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + 20];                       /* Two Real G729 Frames */
+    struct cw_frame fr;                   /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + 20];                       /* Two Real G729 Frames */
 };
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Raw G729 data";
 
@@ -71,13 +71,13 @@ static void *g729_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G729A, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_G729A, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -91,7 +91,7 @@ static void *g729_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -103,7 +103,7 @@ static void g729_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *g729_read(void *data, int *whennext)
+static struct cw_frame *g729_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -115,7 +115,7 @@ static struct opbx_frame *g729_read(void *data, int *whennext)
     if ((res = fread(pvt->fr.data, 1, 20, pvt->f)) != 20)
     {
         if (res && (res != 10))
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
 
@@ -123,29 +123,29 @@ static struct opbx_frame *g729_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int g729_write(void *data, struct opbx_frame *f)
+static int g729_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
 
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_G729A)
+    if (f->subclass != CW_FORMAT_G729A)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
         return -1;
     }
     if (f->datalen % 10)
     {
-        opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
+        cw_log(CW_LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
         return -1;
     }
     return 0;
@@ -202,11 +202,11 @@ static long g729_tell(void *data)
     return (ftell(pvt->f)/20)*160;
 }
 
-static struct opbx_format format =
+static struct cw_format format =
 {
     .name = "g729",
     .exts = "g729",
-    .format = OPBX_FORMAT_G729A,
+    .format = CW_FORMAT_G729A,
     .open = g729_open,
     .rewrite = g729_rewrite,
     .write = g729_write,
@@ -220,13 +220,13 @@ static struct opbx_format format =
 
 static int load_module(void)
 {
-    opbx_format_register(&format);
+    cw_format_register(&format);
     return 0;
 }
 
 static int unload_module(void)
 {
-    opbx_format_unregister(&format);
+    cw_format_unregister(&format);
     return 0;
 }
 

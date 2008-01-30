@@ -102,7 +102,7 @@ static super_tone_set_t *set;
 
 #define CHAN_PSEUDO    -2
 
-static char context[OPBX_MAX_EXTENSION] = "default";
+static char context[CW_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
@@ -130,29 +130,29 @@ static char accountcode[20] = "";
 static char callerid[256] = "";
 static int use_callerid = TRUE;
 
-static char mailbox[OPBX_MAX_EXTENSION];
+static char mailbox[CW_MAX_EXTENSION];
 
 static int amaflags = 0;
 
 static int adsi = 0;
 
 static int min_unused = 2;
-static char idleext[OPBX_MAX_EXTENSION];
-static char idledial[OPBX_MAX_EXTENSION];
+static char idleext[CW_MAX_EXTENSION];
+static char idledial[CW_MAX_EXTENSION];
 
 static int usecnt = 0;
-OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
+CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of unicall_pvt's) */
-OPBX_MUTEX_DEFINE_STATIC(iflock);
+CW_MUTEX_DEFINE_STATIC(iflock);
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-OPBX_MUTEX_DEFINE_STATIC(monlock);
+CW_MUTEX_DEFINE_STATIC(monlock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
+static pthread_t monitor_thread = CW_PTHREADT_NULL;
 
 /* Chunk size to read -- we use 20ms chunks to make things happy.  */   
 #define READ_SIZE 160
@@ -160,24 +160,24 @@ static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
 #define MASK_AVAIL              (1 << 0)        /* Channel available for PRI use */
 #define MASK_INUSE              (1 << 1)        /* Channel currently in use */
 
-static struct opbx_channel *unicall_request(const char *type, int format, void *data, int *cause);
-static int unicall_call(struct opbx_channel *c, char *dest, int timeout);
-static int unicall_hangup(struct opbx_channel *c);
-static int unicall_answer(struct opbx_channel *c);
-static struct opbx_frame *unicall_read(struct opbx_channel *c);
-static int unicall_write(struct opbx_channel *c, struct opbx_frame *f);
-static int unicall_indicate(struct opbx_channel *c, int condition);
-static int unicall_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan);
-static int unicall_digit(struct opbx_channel *c, char digit);
-static int unicall_send_text(struct opbx_channel *c, const char *text);
-static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
-struct opbx_frame *unicall_exception(struct opbx_channel *ast);
-static int unicall_setoption(struct opbx_channel *chan, int option, void *data, int datalen);
+static struct cw_channel *unicall_request(const char *type, int format, void *data, int *cause);
+static int unicall_call(struct cw_channel *c, char *dest, int timeout);
+static int unicall_hangup(struct cw_channel *c);
+static int unicall_answer(struct cw_channel *c);
+static struct cw_frame *unicall_read(struct cw_channel *c);
+static int unicall_write(struct cw_channel *c, struct cw_frame *f);
+static int unicall_indicate(struct cw_channel *c, int condition);
+static int unicall_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
+static int unicall_digit(struct cw_channel *c, char digit);
+static int unicall_send_text(struct cw_channel *c, const char *text);
+static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
+struct cw_frame *unicall_exception(struct cw_channel *ast);
+static int unicall_setoption(struct cw_channel *chan, int option, void *data, int datalen);
 
-static const struct opbx_channel_tech unicall_tech = {
+static const struct cw_channel_tech unicall_tech = {
     .type = type,
     .description = tdesc,
-    .capabilities = OPBX_FORMAT_ULAW,
+    .capabilities = CW_FORMAT_ULAW,
     .requester = unicall_request,
     .call = unicall_call,
     .hangup = unicall_hangup,
@@ -198,10 +198,10 @@ struct unicall_pvt_s;
 typedef struct unicall_uc_s
 {
     pthread_t master;                           /* Thread of master */
-    opbx_mutex_t lock;                          /* Mutex */
-    char idleext[OPBX_MAX_EXTENSION];           /* Where to idle extra calls */
-    char idlecontext[OPBX_MAX_EXTENSION];       /* What context to use for idle */
-    char idledial[OPBX_MAX_EXTENSION];          /* What to dial before dumping */
+    cw_mutex_t lock;                          /* Mutex */
+    char idleext[CW_MAX_EXTENSION];           /* Where to idle extra calls */
+    char idlecontext[CW_MAX_EXTENSION];       /* What context to use for idle */
+    char idledial[CW_MAX_EXTENSION];          /* What to dial before dumping */
     int min_unused;                             /* Min # of channels to keep empty */
     int min_idle;                               /* Min # of "idling" calls to keep active */
     int num_channels;                           /* Num of chans in group (say, 31 or 24) */
@@ -232,11 +232,11 @@ static char *subnames[] =
 struct unicall_subchannel
 {
     int fd;
-    struct opbx_channel *owner;
+    struct cw_channel *owner;
     int chan;
-    short buffer[OPBX_FRIENDLY_OFFSET/2 + READ_SIZE];
+    short buffer[CW_FRIENDLY_OFFSET/2 + READ_SIZE];
     int buffer_contents;
-    struct opbx_frame f;                         /* One frame for each channel.  How did this ever work before? */
+    struct cw_frame f;                         /* One frame for each channel.  How did this ever work before? */
     int needringing;
     int needanswer;
     int needcongestion;
@@ -245,7 +245,7 @@ struct unicall_subchannel
     int inthreeway;
     int curconfno;                              /* Which conference we are currently in */
     dtmf_tx_state_t dtmf_tx_state;
-    char dtmfq[OPBX_MAX_EXTENSION];
+    char dtmfq[CW_MAX_EXTENSION];
     int super_tone;
     super_tone_tx_state_t tx_state;
     ZT_CONFINFO curconf;
@@ -258,8 +258,8 @@ struct unicall_subchannel
 
 typedef struct unicall_pvt_s
 {
-    opbx_mutex_t lock;
-    struct opbx_channel *owner;                 /* Our current active owner (if applicable) */
+    cw_mutex_t lock;
+    struct cw_channel *owner;                 /* Our current active owner (if applicable) */
                                                 /* Up to three channels can be associated with this call */
         
     struct unicall_subchannel sub_unused;       /* Just a safety precaution */
@@ -276,20 +276,20 @@ typedef struct unicall_pvt_s
     int firstradio;                             /* first radio flag */
     float rxgain;
     float txgain;
-    char context[OPBX_MAX_EXTENSION];
-    char exten[OPBX_MAX_EXTENSION];
+    char context[CW_MAX_EXTENSION];
+    char exten[CW_MAX_EXTENSION];
     char language[MAX_LANGUAGE];
     char musicclass[MAX_LANGUAGE];
-    char cid_num[OPBX_MAX_EXTENSION];
-    char cid_name[OPBX_MAX_EXTENSION];
-    char lastcid_num[OPBX_MAX_EXTENSION];
-    char lastcid_name[OPBX_MAX_EXTENSION];
+    char cid_num[CW_MAX_EXTENSION];
+    char cid_name[CW_MAX_EXTENSION];
+    char lastcid_num[CW_MAX_EXTENSION];
+    char lastcid_name[CW_MAX_EXTENSION];
     char *origcid_num;                  /* malloced original caller id */
     char *origcid_name;                 /* malloced original caller id */
-    char callwait_num[OPBX_MAX_EXTENSION];
-    char callwait_name[OPBX_MAX_EXTENSION];
-    char rdnis[OPBX_MAX_EXTENSION];
-    char dnid[OPBX_MAX_EXTENSION];
+    char callwait_num[CW_MAX_EXTENSION];
+    char callwait_name[CW_MAX_EXTENSION];
+    char rdnis[CW_MAX_EXTENSION];
+    char dnid[CW_MAX_EXTENSION];
     unsigned int group;
     int law;
     int confno;                         /* Our conference */
@@ -323,11 +323,11 @@ typedef struct unicall_pvt_s
     int amaflags;                       /* AMA Flags */
     int adsi;
     int cancallforward;
-    char call_forward[OPBX_MAX_EXTENSION];
-    char mailbox[OPBX_MAX_EXTENSION];
+    char call_forward[CW_MAX_EXTENSION];
+    char mailbox[CW_MAX_EXTENSION];
     int onhooktime;
     int msgstate;
-    struct opbx_dsp *dsp;
+    struct cw_dsp *dsp;
     
     int confirm_answer;                 /* Wait for '#' to confirm answer */
     int distinctive_ring;               /* Which distinctive ring to use */
@@ -363,17 +363,17 @@ static int hangup_uc2cause(int cause)
     switch (cause)
     {
     case UC_CAUSE_USER_BUSY:
-        return OPBX_CAUSE_BUSY;
+        return CW_CAUSE_BUSY;
     case UC_CAUSE_NORMAL_CLEARING:
-        return OPBX_CAUSE_NORMAL;
+        return CW_CAUSE_NORMAL;
     case UC_CAUSE_NETWORK_CONGESTION:
     case UC_CAUSE_REQ_CHANNEL_NOT_AVAILABLE:
-        return OPBX_CAUSE_CONGESTION;
+        return CW_CAUSE_CONGESTION;
     case UC_CAUSE_UNASSIGNED_NUMBER:
     case UC_CAUSE_NUMBER_CHANGED:
-        return OPBX_CAUSE_UNALLOCATED;
+        return CW_CAUSE_UNALLOCATED;
     default:
-        return OPBX_CAUSE_FAILURE;
+        return CW_CAUSE_FAILURE;
     }
     return 0;
 }
@@ -383,9 +383,9 @@ static int hangup_cause2uc(int cause)
 {
     switch (cause)
     {
-    case OPBX_CAUSE_BUSY:
+    case CW_CAUSE_BUSY:
         return UC_CAUSE_USER_BUSY;
-    case OPBX_CAUSE_NORMAL:
+    case CW_CAUSE_NORMAL:
     default:
         return UC_CAUSE_NORMAL_CLEARING;
     }
@@ -401,17 +401,17 @@ int select_codec(unicall_pvt_t *p, int index, int new_codec)
     {
         switch (new_codec)
         {
-        case OPBX_FORMAT_SLINEAR:
+        case CW_FORMAT_SLINEAR:
             if (uc_channel_set_api_codec(p->uc, 0, UC_CODEC_LINEAR16))
                 res = -1;
             /*endif*/
             break;
-        case OPBX_FORMAT_ULAW:
+        case CW_FORMAT_ULAW:
             if (uc_channel_set_api_codec(p->uc, 0, UC_CODEC_ULAW))
                 res = -1;
             /*endif*/
             break;
-        case OPBX_FORMAT_ALAW:
+        case CW_FORMAT_ALAW:
             if (uc_channel_set_api_codec(p->uc, 0, UC_CODEC_ALAW))
                 res = -1;
             /*endif*/
@@ -421,7 +421,7 @@ int select_codec(unicall_pvt_t *p, int index, int new_codec)
         }
         /*endswitch*/
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Unable to set channel %d to codec 0x%X.\n", p->channel, new_codec);
+            cw_log(CW_LOG_WARNING, "Unable to set channel %d to codec 0x%X.\n", p->channel, new_codec);
         else
             p->subs[index].current_codec = new_codec;
         /*endif*/
@@ -438,21 +438,21 @@ static void super_tone(struct unicall_subchannel *s, int type)
     /*endif*/
 }
 
-static int unicall_get_index(struct opbx_channel *opbx, unicall_pvt_t *p, int nullok)
+static int unicall_get_index(struct cw_channel *cw, unicall_pvt_t *p, int nullok)
 {
     int res;
 
-    if (p->subs[SUB_REAL].owner == opbx)
+    if (p->subs[SUB_REAL].owner == cw)
         res = SUB_REAL;
-    else if (p->subs[SUB_CALLWAIT].owner == opbx)
+    else if (p->subs[SUB_CALLWAIT].owner == cw)
         res = SUB_CALLWAIT;
-    else if (p->subs[SUB_THREEWAY].owner == opbx)
+    else if (p->subs[SUB_THREEWAY].owner == cw)
         res = SUB_THREEWAY;
     else
     {
         res = -1;
         if (!nullok)
-            opbx_log(OPBX_LOG_WARNING, "Unable to get index, and nullok is not asserted\n");
+            cw_log(CW_LOG_WARNING, "Unable to get index, and nullok is not asserted\n");
         /*endif*/
     }
     /*endif*/
@@ -463,9 +463,9 @@ static void swap_subs(unicall_pvt_t *p, int a, int b)
 {
     int tchan;
     int tinthreeway;
-    struct opbx_channel *towner;
+    struct cw_channel *towner;
 
-    opbx_log(OPBX_LOG_DEBUG, "Swapping %d and %d\n", a, b);
+    cw_log(CW_LOG_DEBUG, "Swapping %d and %d\n", a, b);
 
     tchan = p->subs[a].chan;
     towner = p->subs[a].owner;
@@ -491,26 +491,26 @@ static int alloc_sub(unicall_pvt_t *p, int x)
 {
     if (p->subs[x].fd >= 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
+        cw_log(CW_LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
         return -1;
     }
     /*endif*/
     if ((p->subs[x].fd = unicall_open(p, "/dev/zap/pseudo")) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+        cw_log(CW_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
         return -1;
     }
     /*endif*/
     if (ioctl(p->subs[x].fd, ZT_CHANNO, &p->subs[x].chan))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].fd);
+        cw_log(CW_LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].fd);
         unicall_close(p->subs[x].fd);
         p->subs[x].fd = -1;
         return -1;
     }
     /*endif*/
     if (option_debug)
-        opbx_log(OPBX_LOG_DEBUG, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], p->subs[x].fd, p->subs[x].chan);
+        cw_log(CW_LOG_DEBUG, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], p->subs[x].fd, p->subs[x].chan);
     /*endif*/
     return 0;
 }
@@ -519,11 +519,11 @@ static int unalloc_sub(unicall_pvt_t *p, int x)
 {
     if (x == SUB_REAL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Trying to unalloc the real channel %d?!?\n", p->channel);
+        cw_log(CW_LOG_WARNING, "Trying to unalloc the real channel %d?!?\n", p->channel);
         return -1;
     }
     /*endif*/
-    opbx_log(OPBX_LOG_DEBUG, "Released sub %d of channel %d\n", x, p->channel);
+    cw_log(CW_LOG_DEBUG, "Released sub %d of channel %d\n", x, p->channel);
     if (p->subs[x].fd < 0)
         unicall_close(p->subs[x].fd);
     /*endif*/
@@ -550,20 +550,20 @@ static int unicall_close(int fd)
     return close(fd);
 }
 
-static int unicall_digit(struct opbx_channel *opbx, char digit)
+static int unicall_digit(struct cw_channel *cw, char digit)
 {
     unicall_pvt_t *p;
     int index;
     int i;
     char buf[2];
 
-    p = opbx->tech_pvt;
-    if ((index = unicall_get_index(opbx, p, 0)) == SUB_REAL)
+    p = cw->tech_pvt;
+    if ((index = unicall_get_index(cw, p, 0)) == SUB_REAL)
     {
         buf[0] = digit;
         buf[1] = '\0';
         if ((i = dtmf_tx_put(&p->subs[SUB_REAL].dtmf_tx_state, buf, -1)) != 0)
-            opbx_log(OPBX_LOG_WARNING, "Failed to add %d digits to the DTMF tx buffer\n", i);
+            cw_log(CW_LOG_WARNING, "Failed to add %d digits to the DTMF tx buffer\n", i);
         p->dialing = TRUE;
     }
     /*endif*/    
@@ -632,12 +632,12 @@ static char *alarm2str(int alarm)
 
 static void unicall_message(char *s)
 {
-    opbx_verbose(s);
+    cw_verbose(s);
 }
 
 static void unicall_report(char *s)
 {
-    opbx_log(OPBX_LOG_WARNING, s);
+    cw_log(CW_LOG_WARNING, s);
 }
 
 static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, int slavechannel)
@@ -682,7 +682,7 @@ static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, i
     /*endif*/
     if (ioctl(c->fd, ZT_SETCONF, &zi))
     {
-        opbx_log(OPBX_LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->fd, zi.confmode, zi.confno);
+        cw_log(CW_LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->fd, zi.confmode, zi.confno);
         return -1;
     }
     /*endif*/
@@ -690,7 +690,7 @@ static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, i
         p->confno = zi.confno;
     /*endif*/
     memcpy(&c->curconf, &zi, sizeof(c->curconf));
-    opbx_log(OPBX_LOG_DEBUG, "Added %d to conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
+    cw_log(CW_LOG_DEBUG, "Added %d to conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
     return 0;
 }
 
@@ -721,11 +721,11 @@ static int conf_del(unicall_pvt_t *p, struct unicall_subchannel *c, int index)
     zi.confmode = 0;
     if (ioctl(c->fd, ZT_SETCONF, &zi))
     {
-        opbx_log(OPBX_LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
+        cw_log(CW_LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
         return -1;
     }
     /*endif*/
-    opbx_log(OPBX_LOG_DEBUG, "Removed %d from conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
+    cw_log(CW_LOG_DEBUG, "Removed %d from conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
     memcpy(&c->curconf, &zi, sizeof(c->curconf));
     return 0;
 }
@@ -737,7 +737,7 @@ static inline int unicall_confmute(unicall_pvt_t *p, int muted)
     x = (muted)  ?  UC_SWITCHING_MUTE  :  UC_SWITCHING_UNMUTE;
     if (uc_channel_switching(p->uc, 0, x, 0, 0) != UC_RET_OK)
     {
-        opbx_log(OPBX_LOG_WARNING, "unicall_confmute(%d) failed on channel %d: %s\n", muted, p->channel, strerror(errno));
+        cw_log(CW_LOG_WARNING, "unicall_confmute(%d) failed on channel %d: %s\n", muted, p->channel, strerror(errno));
         return -1;
     }
     /*endif*/
@@ -810,7 +810,7 @@ static int reset_conf(unicall_pvt_t *p)
     if (p->subs[SUB_REAL].fd > -1)
     {
         if (uc_channel_switching(p->uc, 0, UC_SWITCHING_FREE, 0, 0) != UC_RET_OK)
-            opbx_log(OPBX_LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
         /*endif*/
     }
     /*endif*/
@@ -893,7 +893,7 @@ static int update_conf(unicall_pvt_t *p)
         p->confno = -1;
     }
     /*endif*/
-    opbx_log(OPBX_LOG_DEBUG, "Updated conferencing on %d, with %d conference users\n", p->channel, needconf);
+    cw_log(CW_LOG_DEBUG, "Updated conferencing on %d, with %d conference users\n", p->channel, needconf);
     return 0;
 }
 
@@ -904,14 +904,14 @@ static void unicall_enable_ec(unicall_pvt_t *p)
     /*endif*/
     if (p->echocanon)
     {
-        opbx_log(OPBX_LOG_DEBUG, "Echo cancellation already on\n");
+        cw_log(CW_LOG_DEBUG, "Echo cancellation already on\n");
         return;
     }
     /*endif*/
     if (p->digital)
     {
         /* TODO: This is a lie :-) */
-        opbx_log(OPBX_LOG_DEBUG, "Echo cancellation isn't required on digital connection\n");
+        cw_log(CW_LOG_DEBUG, "Echo cancellation isn't required on digital connection\n");
         return;
     }
     /*endif*/
@@ -919,18 +919,18 @@ static void unicall_enable_ec(unicall_pvt_t *p)
     {
         if (uc_channel_echo_cancel(p->uc, 0, UC_ECHO_CANCEL_ON) != UC_RET_OK)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
         }
         else
         {
             p->echocanon = TRUE;
-            opbx_log(OPBX_LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
+            cw_log(CW_LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
         }
         /*endif*/
     }
     else
     {
-        opbx_log(OPBX_LOG_DEBUG, "No echo cancellation requested\n");
+        cw_log(CW_LOG_DEBUG, "No echo cancellation requested\n");
     }
     /*endif*/
 }
@@ -943,14 +943,14 @@ static void unicall_train_ec(unicall_pvt_t *p)
     {
         x = (p->echotraining)  ?  UC_ECHO_CANCEL_TRAINING  :  UC_ECHO_CANCEL_NOTRAINING;
         if (uc_channel_echo_cancel(p->uc, 0, x) != UC_RET_OK)
-            opbx_log(OPBX_LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
         else
-            opbx_log(OPBX_LOG_DEBUG, "Engaged echo training on channel %d\n", p->channel);
+            cw_log(CW_LOG_DEBUG, "Engaged echo training on channel %d\n", p->channel);
         /*endif*/
     }
     else
     {
-        opbx_log(OPBX_LOG_DEBUG, "No echo training requested\n");
+        cw_log(CW_LOG_DEBUG, "No echo training requested\n");
     }
     /*endif*/
 }
@@ -963,18 +963,18 @@ static void unicall_disable_ec(unicall_pvt_t *p)
     if (p->echocancel)
     {
         if (uc_channel_echo_cancel(p->uc, 0, UC_ECHO_CANCEL_OFF) != UC_RET_OK)
-            opbx_log(OPBX_LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
         else
-            opbx_log(OPBX_LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
+            cw_log(CW_LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
         /*endif*/
     }
     /*endif*/
     p->echocanon = FALSE;
 }
 
-static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
+static int unicall_call(struct cw_channel *cw, char *rdest, int timeout)
 {
-    unicall_pvt_t *p = opbx->tech_pvt;
+    unicall_pvt_t *p = cw->tech_pvt;
     uc_callparms_t *callparms;
     char callerid[256];
     char dest[256];
@@ -987,10 +987,10 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     int ret;
     uc_makecall_t makecall;
 
-    opbx_log(OPBX_LOG_DEBUG, "unicall_call called - '%s'\n", rdest);
-    if (opbx->_state != OPBX_STATE_DOWN  &&  opbx->_state != OPBX_STATE_RESERVED)
+    cw_log(CW_LOG_DEBUG, "unicall_call called - '%s'\n", rdest);
+    if (cw->_state != CW_STATE_DOWN  &&  cw->_state != CW_STATE_RESERVED)
     {
-        opbx_log(OPBX_LOG_WARNING, "unicall_call called on %s, neither down nor reserved\n", opbx->name);
+        cw_log(CW_LOG_WARNING, "unicall_call called on %s, neither down nor reserved\n", cw->name);
         return -1;
     }
     /*endif*/
@@ -999,7 +999,7 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     {
         /* If a radio channel, up immediately */
         /* Special pseudo -- automatically up */
-        opbx_setstate(opbx, OPBX_STATE_UP); 
+        cw_setstate(cw, CW_STATE_UP); 
         return 0;
     }
     /*endif*/
@@ -1013,15 +1013,15 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     else
         c = dest;
     /*endif*/
-    if (opbx->cid.cid_num)
+    if (cw->cid.cid_num)
     {
-        strncpy(callerid, opbx->cid.cid_num, sizeof(callerid) - 1);
-        opbx_log(OPBX_LOG_DEBUG, "unicall_call caller id - '%s'\n", callerid);
-        opbx_callerid_parse(callerid, &n, &l);
+        strncpy(callerid, cw->cid.cid_num, sizeof(callerid) - 1);
+        cw_log(CW_LOG_DEBUG, "unicall_call caller id - '%s'\n", callerid);
+        cw_callerid_parse(callerid, &n, &l);
         if (l)
         {
-            opbx_shrink_phone_number(l);
-            if (!opbx_isphonenumber(l))
+            cw_shrink_phone_number(l);
+            if (!cw_isphonenumber(l))
                 l = NULL;
             /*endif*/
         }
@@ -1034,7 +1034,7 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     /*endif*/
     if (strlen(c) < p->stripmsd)
     {
-        opbx_log(OPBX_LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
+        cw_log(CW_LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
         return -1;
     }
     /*endif*/
@@ -1081,7 +1081,7 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     uc_callparm_original_called_number_npi(callparms, npi);
     uc_callparm_original_called_number(callparms, num);
 #endif
-    if ((category = pbx_builtin_getvar_helper(opbx, "CALLING_PARTY_CATEGORY")) == NULL)
+    if ((category = pbx_builtin_getvar_helper(cw, "CALLING_PARTY_CATEGORY")) == NULL)
     {
         uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
     }
@@ -1090,12 +1090,12 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
         cat = atoi(category);
         if (cat >= 0  &&  cat <= 9)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Calling party category set to %s (%d).\n", category, cat);
+            cw_log(CW_LOG_DEBUG, "Calling party category set to %s (%d).\n", category, cat);
             uc_callparm_calling_party_category(callparms, cat);
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Strange value (%d) for ${CAT} variable - using default\n", cat);
+            cw_log(CW_LOG_WARNING, "Strange value (%d) for ${CAT} variable - using default\n", cat);
             uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
         }
     }
@@ -1107,12 +1107,12 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     makecall.crn = 0;
     if ((ret = uc_call_control(p->uc, UC_OP_MAKECALL, 0, &makecall)) != UC_RET_OK)
     {
-        opbx_log(OPBX_LOG_WARNING, "Make call failed - %s\n", uc_ret2str(ret));
+        cw_log(CW_LOG_WARNING, "Make call failed - %s\n", uc_ret2str(ret));
         return -1;
     }
     /*endif*/
     p->crn = makecall.crn;
-    opbx_setstate(opbx, OPBX_STATE_DIALING);
+    cw_setstate(cw, CW_STATE_DIALING);
     return 0;
 }
 
@@ -1125,7 +1125,7 @@ static void destroy_unicall_pvt_s(unicall_pvt_t **pvt)
         p->prev->next = p->next;
     if (p->next)
         p->next->prev = p->prev;
-    opbx_mutex_destroy(&p->lock);
+    cw_mutex_destroy(&p->lock);
     free(p);
     *pvt = NULL;
 }
@@ -1174,7 +1174,7 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
             /*endif*/
             if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
             {
-                opbx_log(OPBX_LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
+                cw_log(CW_LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
                 free(cur);
                 return -1;
             }
@@ -1206,7 +1206,7 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
         /*endif*/
         if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
         {
-            opbx_log(OPBX_LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
+            cw_log(CW_LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
             free(cur);
             return -1;
         }
@@ -1221,16 +1221,16 @@ static int restore_gains(unicall_pvt_t *p)
 {
     if (uc_channel_gains(p->uc, 0, p->rxgain, p->txgain))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
+        cw_log(CW_LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
         return -1;
     }
     /*endif*/
     return 0;
 }
 
-static int unicall_hangup(struct opbx_channel *opbx)
+static int unicall_hangup(struct cw_channel *cw)
 {
-    unicall_pvt_t *p = opbx->tech_pvt;
+    unicall_pvt_t *p = cw->tech_pvt;
     unicall_pvt_t *tmp;
     unicall_pvt_t *prev;
     int res;
@@ -1239,24 +1239,24 @@ static int unicall_hangup(struct opbx_channel *opbx)
     int x;
 
     if (option_debug)
-        opbx_log(OPBX_LOG_DEBUG, "unicall_hangup(%s)\n", opbx->name);
+        cw_log(CW_LOG_DEBUG, "unicall_hangup(%s)\n", cw->name);
     /*endif*/
     if (p == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to hangup channel not connected\n");
+        cw_log(CW_LOG_WARNING, "Asked to hangup channel not connected\n");
         return 0;
     }
     /*endif*/
-    index = unicall_get_index(opbx, p, 1);
+    index = unicall_get_index(cw, p, 1);
 
     restore_gains(p);
     if (p->dsp)
-        opbx_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
+        cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
     /*endif*/
     x = 0;
     unicall_confmute(p, 0);
 
-    opbx_log(OPBX_LOG_DEBUG,
+    cw_log(CW_LOG_DEBUG,
             "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
             p->channel,
             index,
@@ -1275,18 +1275,18 @@ static int unicall_hangup(struct opbx_channel *opbx)
         p->subs[index].needringing = FALSE;
         p->subs[index].current_codec = 0;
         if (uc_channel_set_api_codec(p->uc, 0, UC_CODEC_DEFAULT))
-            opbx_log(OPBX_LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
         /*endif*/
         switch (index)
         {
         case SUB_REAL:
             if (p->subs[SUB_CALLWAIT].fd >= 0  &&  p->subs[SUB_THREEWAY].fd >= 0)
             {
-                opbx_log(OPBX_LOG_DEBUG, "Normal call hung up with both three way call and a call waiting call in place?\n");
+                cw_log(CW_LOG_DEBUG, "Normal call hung up with both three way call and a call waiting call in place?\n");
                 if (p->subs[SUB_CALLWAIT].inthreeway)
                 {
                     /* We had flipped over to answer a callwait and now it's gone */
-                    opbx_log(OPBX_LOG_DEBUG, "We were flipped over to the callwait, moving back and unowning.\n");
+                    cw_log(CW_LOG_DEBUG, "We were flipped over to the callwait, moving back and unowning.\n");
                     /* Move to the call-wait, but un-own us until they flip back. */
                     swap_subs(p, SUB_CALLWAIT, SUB_REAL);
                     unalloc_sub(p, SUB_CALLWAIT);
@@ -1295,20 +1295,20 @@ static int unicall_hangup(struct opbx_channel *opbx)
                 else
                 {
                     /* The three way hung up, but we still have a call wait */
-                    opbx_log(OPBX_LOG_DEBUG, "We were in the threeway and have a callwait still.  Ditching the threeway.\n");
+                    cw_log(CW_LOG_DEBUG, "We were in the threeway and have a callwait still.  Ditching the threeway.\n");
                     swap_subs(p, SUB_THREEWAY, SUB_REAL);
                     unalloc_sub(p, SUB_THREEWAY);
                     if (p->subs[SUB_REAL].inthreeway)
                     {
                         /* This was part of a three way call.  Immediately make way for
                            another call */
-                        opbx_log(OPBX_LOG_DEBUG, "Call was complete, setting owner to former third call\n");
+                        cw_log(CW_LOG_DEBUG, "Call was complete, setting owner to former third call\n");
                         p->owner = p->subs[SUB_REAL].owner;
                     }
                     else
                     {
                         /* This call hasn't been completed yet...  Set owner to NULL */
-                        opbx_log(OPBX_LOG_DEBUG, "Call was incomplete, setting owner to NULL\n");
+                        cw_log(CW_LOG_DEBUG, "Call was incomplete, setting owner to NULL\n");
                         p->owner = NULL;
                     }
                     /*endif*/
@@ -1322,8 +1322,8 @@ static int unicall_hangup(struct opbx_channel *opbx)
                 swap_subs(p, SUB_CALLWAIT, SUB_REAL);
                 unalloc_sub(p, SUB_CALLWAIT);
                 p->owner = p->subs[SUB_REAL].owner;
-                if (opbx_bridged_channel(p->subs[SUB_REAL].owner))
-                    opbx_moh_stop(opbx_bridged_channel(p->subs[SUB_REAL].owner));
+                if (cw_bridged_channel(p->subs[SUB_REAL].owner))
+                    cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
                 /*endif*/
             }
             else if (p->subs[SUB_THREEWAY].fd >= 0)
@@ -1334,13 +1334,13 @@ static int unicall_hangup(struct opbx_channel *opbx)
                 {
                     /* This was part of a three way call.  Immediately make way for
                        another call */
-                    opbx_log(OPBX_LOG_DEBUG, "Call was complete, setting owner to former third call\n");
+                    cw_log(CW_LOG_DEBUG, "Call was complete, setting owner to former third call\n");
                     p->owner = p->subs[SUB_REAL].owner;
                 }
                 else
                 {
                     /* This call hasn't been completed yet...  Set owner to NULL */
-                    opbx_log(OPBX_LOG_DEBUG, "Call was incomplete, setting owner to NULL\n");
+                    cw_log(CW_LOG_DEBUG, "Call was incomplete, setting owner to NULL\n");
                     p->owner = NULL;
                 }
                 /*endif*/
@@ -1354,8 +1354,8 @@ static int unicall_hangup(struct opbx_channel *opbx)
             {
                 /* This is actually part of a three way, placed on hold.  Place the third part
                    on music on hold now */
-                if (p->subs[SUB_THREEWAY].owner  &&  opbx_bridged_channel(p->subs[SUB_THREEWAY].owner))
-                    opbx_moh_start(opbx_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+                if (p->subs[SUB_THREEWAY].owner  &&  cw_bridged_channel(p->subs[SUB_THREEWAY].owner))
+                    cw_moh_start(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
                 /*endif*/
                 p->subs[SUB_THREEWAY].inthreeway = FALSE;
                 /* Make it the call wait now */
@@ -1373,8 +1373,8 @@ static int unicall_hangup(struct opbx_channel *opbx)
             {
                 /* The other party of the three way call is currently in a call-wait state.
                    Start music on hold for them, and take the main guy out of the third call */
-                if (p->subs[SUB_CALLWAIT].owner && opbx_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-                    opbx_moh_start(opbx_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+                if (p->subs[SUB_CALLWAIT].owner && cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))
+                    cw_moh_start(cw_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
                 /*endif*/
                 p->subs[SUB_CALLWAIT].inthreeway = FALSE;
             }
@@ -1386,7 +1386,7 @@ static int unicall_hangup(struct opbx_channel *opbx)
             break;
         default:
             /* This wasn't any sort of call, but how are we an index? */
-            opbx_log(OPBX_LOG_WARNING, "Index found but not any type of call?\n");
+            cw_log(CW_LOG_WARNING, "Index found but not any type of call?\n");
             break;
         }
         /*endswitch*/
@@ -1404,18 +1404,18 @@ static int unicall_hangup(struct opbx_channel *opbx)
         p->onhooktime = time(NULL);
         if (p->dsp)
         {
-            opbx_dsp_free(p->dsp);
+            cw_dsp_free(p->dsp);
             p->dsp = NULL;
         }
         /*endif*/
         if (uc_channel_set_api_codec(p->uc, 0, UC_CODEC_DEFAULT))
-            opbx_log(OPBX_LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
         /*endif*/
         /* Perform low level drop call if no owner left */
         if (p->crn)
         {
-            if ((ret = uc_call_control(p->uc, UC_OP_DROPCALL, p->crn, (void *) (intptr_t) hangup_cause2uc(opbx->hangupcause))) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+            if ((ret = uc_call_control(p->uc, UC_OP_DROPCALL, p->crn, (void *) (intptr_t) hangup_cause2uc(cw->hangupcause))) < 0)
+                cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
             /*endif*/
             if (p->alreadyhungup)
                 p->alreadyhungup = FALSE;
@@ -1428,25 +1428,25 @@ static int unicall_hangup(struct opbx_channel *opbx)
         /*endif*/
         super_tone(&p->subs[SUB_REAL], ST_TYPE_NONE);
         x = 0;
-        //opbx_channel_setoption(opbx, OPBX_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
-        //opbx_channel_setoption(opbx, OPBX_OPTION_TDD, &x, sizeof(char), 0);
+        //cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
+        //cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char), 0);
         p->dialing = FALSE;
         p->rdnis[0] = '\0';
         update_conf(p);
         restart_monitor();
     }
     /*endif*/
-    opbx->tech_pvt = NULL;
-    opbx_setstate(opbx, OPBX_STATE_DOWN);
-    opbx_mutex_lock(&usecnt_lock);
+    cw->tech_pvt = NULL;
+    cw_setstate(cw, CW_STATE_DOWN);
+    cw_mutex_lock(&usecnt_lock);
     if (--usecnt < 0) 
-        opbx_log(OPBX_LOG_WARNING, "Usecnt < 0???\n");
+        cw_log(CW_LOG_WARNING, "Usecnt < 0???\n");
     /*endif*/
-    opbx_mutex_unlock(&usecnt_lock);
+    cw_mutex_unlock(&usecnt_lock);
     if (option_verbose > 2) 
-        opbx_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", opbx->name);
+        cw_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", cw->name);
     /*endif*/
-    opbx_mutex_lock(&iflock);
+    cw_mutex_lock(&iflock);
     if (p->destroy)
     {
         for (prev = NULL, tmp = iffirst;  iffirst;  prev = tmp, tmp = tmp->next)
@@ -1461,19 +1461,19 @@ static int unicall_hangup(struct opbx_channel *opbx)
         /*endfor*/
     }
     /*endif*/
-    opbx_mutex_unlock(&iflock);
+    cw_mutex_unlock(&iflock);
     return 0;
 }
 
-static int unicall_answer(struct opbx_channel *opbx)
+static int unicall_answer(struct cw_channel *cw)
 {
     unicall_pvt_t *p;
     int index;
     int ret;
 
-    p = opbx->tech_pvt;
-    opbx_setstate(opbx, OPBX_STATE_UP);
-    if ((index = unicall_get_index(opbx, p, 0)) < 0)
+    p = cw->tech_pvt;
+    cw_setstate(cw, CW_STATE_UP);
+    if ((index = unicall_get_index(cw, p, 0)) < 0)
         index = SUB_REAL;
     /*endif*/
     /* Nothing to do if a radio channel */
@@ -1482,31 +1482,31 @@ static int unicall_answer(struct opbx_channel *opbx)
     /*endif*/
     if (p->crn)
     {
-        opbx_log(OPBX_LOG_WARNING, "Answer Call\n");
+        cw_log(CW_LOG_WARNING, "Answer Call\n");
         if ((ret = uc_call_control(p->uc, UC_OP_ANSWERCALL, p->crn, NULL)))
-            opbx_log(OPBX_LOG_WARNING, "Answer call failed on %s - %s\n", opbx->name, uc_ret2str(ret));
+            cw_log(CW_LOG_WARNING, "Answer call failed on %s - %s\n", cw->name, uc_ret2str(ret));
         /*endif*/
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Trying to answer a non-existant call\n");
+        cw_log(CW_LOG_WARNING, "Trying to answer a non-existant call\n");
         ret = -1;
     }
     return ret;
 }
 
-static int unicall_setoption(struct opbx_channel *chan, int option, void *data, int datalen)
+static int unicall_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
     unicall_pvt_t *p = chan->tech_pvt;
     char *cp;
     int x;
 
-    opbx_log(OPBX_LOG_WARNING, "unicall_setoption called - %d\n", option);
-    if (option != OPBX_OPTION_TONE_VERIFY
+    cw_log(CW_LOG_WARNING, "unicall_setoption called - %d\n", option);
+    if (option != CW_OPTION_TONE_VERIFY
         &&
-        option != OPBX_OPTION_TDD
+        option != CW_OPTION_TDD
         &&
-        option != OPBX_OPTION_RELAXDTMF)
+        option != CW_OPTION_RELAXDTMF)
     {
         errno = ENOSYS;
         return -1;
@@ -1521,39 +1521,39 @@ static int unicall_setoption(struct opbx_channel *chan, int option, void *data, 
     cp = (char *) data;
     switch (option)
     {
-    case OPBX_OPTION_TONE_VERIFY:
+    case CW_OPTION_TONE_VERIFY:
         switch (*cp)
         {
         case 1:
-            opbx_log(OPBX_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n", chan->name);
-            opbx_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
+            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n", chan->name);
+            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
             break;
         case 2:
-            opbx_log(OPBX_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n", chan->name);
-            opbx_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
+            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n", chan->name);
+            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
             break;
         default:
-            opbx_log(OPBX_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n", chan->name);
-            opbx_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
+            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n", chan->name);
+            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
             break;
         }
         /*endswitch*/
         break;
-    case OPBX_OPTION_RELAXDTMF:
+    case CW_OPTION_RELAXDTMF:
         /* Relax DTMF decoding (or not) */
         switch (*cp)
         {
         case 0:
-            opbx_log(OPBX_LOG_DEBUG, "Set option RELAX DTMF, value: OFF(0) on %s\n",chan->name);
+            cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: OFF(0) on %s\n",chan->name);
             x = FALSE;
             break;
         default:
-            opbx_log(OPBX_LOG_DEBUG, "Set option RELAX DTMF, value: ON(1) on %s\n",chan->name);
+            cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: ON(1) on %s\n",chan->name);
             x = TRUE;
             break;
         }
         /*endswitch*/
-        opbx_dsp_digitmode(p->dsp, (x)  ?  DSP_DIGITMODE_RELAXDTMF  :  (DSP_DIGITMODE_DTMF | p->dtmfrelax));
+        cw_dsp_digitmode(p->dsp, (x)  ?  DSP_DIGITMODE_RELAXDTMF  :  (DSP_DIGITMODE_DTMF | p->dtmfrelax));
         break;
     }
     /*endswitch*/
@@ -1578,7 +1578,7 @@ static void unicall_unlink(unicall_pvt_t *slave, unicall_pvt_t *master)
             if (slave == NULL  ||  master->slaves[x] == slave)
             {
                 /* Take slave out of the conference */
-                opbx_log(OPBX_LOG_DEBUG, "Unlinking slave %d from %d\n", master->slaves[x]->channel, master->channel);
+                cw_log(CW_LOG_DEBUG, "Unlinking slave %d from %d\n", master->slaves[x]->channel, master->channel);
                 conf_del(master, &master->slaves[x]->subs[SUB_REAL], SUB_REAL);
                 conf_del(master->slaves[x], &master->subs[SUB_REAL], SUB_REAL);
                 master->slaves[x]->master = NULL;
@@ -1630,7 +1630,7 @@ static void unicall_link(unicall_pvt_t *slave, unicall_pvt_t *master)
 
     if (slave == NULL  ||  master == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Tried to link to/from NULL??\n");
+        cw_log(CW_LOG_WARNING, "Tried to link to/from NULL??\n");
         return;
     }
     /*endif*/
@@ -1646,19 +1646,19 @@ static void unicall_link(unicall_pvt_t *slave, unicall_pvt_t *master)
     /*endfor*/
     if (x >= MAX_SLAVES)
     {
-        opbx_log(OPBX_LOG_WARNING, "Replacing slave %d with new slave, %d\n", master->slaves[MAX_SLAVES - 1]->channel, slave->channel);
+        cw_log(CW_LOG_WARNING, "Replacing slave %d with new slave, %d\n", master->slaves[MAX_SLAVES - 1]->channel, slave->channel);
         master->slaves[MAX_SLAVES - 1] = slave;
     }
     /*endif*/
     if (slave->master) 
-        opbx_log(OPBX_LOG_WARNING, "Replacing master %d with new master, %d\n", slave->master->channel, master->channel);
+        cw_log(CW_LOG_WARNING, "Replacing master %d with new master, %d\n", slave->master->channel, master->channel);
     /*endif*/
     slave->master = master;
     
-    opbx_log(OPBX_LOG_DEBUG, "Making %d slave to master %d\n", slave->channel, master->channel);
+    cw_log(CW_LOG_DEBUG, "Making %d slave to master %d\n", slave->channel, master->channel);
 }
 
-static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms)
+static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms)
 {
     unicall_pvt_t *p0;
     unicall_pvt_t *p1;
@@ -1666,9 +1666,9 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     unicall_pvt_t *op1;
     unicall_pvt_t *master = NULL;
     unicall_pvt_t *slave = NULL;
-    struct opbx_channel *who = NULL;
-    struct opbx_channel *cs[3];
-    struct opbx_frame *f;
+    struct cw_channel *who = NULL;
+    struct cw_channel *cs[3];
+    struct cw_frame *f;
     int inconf;
     int nothingok;
     int ofd1;
@@ -1681,8 +1681,8 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     int t2;
     int os1;
     int os2;
-    struct opbx_channel *oc1;
-    struct opbx_channel *oc2;
+    struct cw_channel *oc1;
+    struct cw_channel *oc2;
 
     i1 = -1;
     i2 = -1;
@@ -1690,9 +1690,9 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     os2 = -1;
     inconf = FALSE;
     nothingok = FALSE;
-    opbx_log(OPBX_LOG_WARNING, "unicall_bridge called\n");
+    cw_log(CW_LOG_WARNING, "unicall_bridge called\n");
     /* If need DTMF, can't native bridge */
-    if ((flags & (OPBX_BRIDGE_DTMF_CHANNEL_0 | OPBX_BRIDGE_DTMF_CHANNEL_1)))
+    if ((flags & (CW_BRIDGE_DTMF_CHANNEL_0 | CW_BRIDGE_DTMF_CHANNEL_1)))
         return -2;
     /*endif*/
     p0 = c0->tech_pvt;
@@ -1701,8 +1701,8 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     if (p0->protocol_class == NULL  ||  p1->protocol_class == NULL)
         return -2;
     /*endif*/
-    opbx_mutex_lock(&c0->lock);
-    opbx_mutex_lock(&c1->lock);
+    cw_mutex_lock(&c0->lock);
+    cw_mutex_lock(&c1->lock);
     op0 =
     p0 = c0->tech_pvt;
     op1 =
@@ -1716,14 +1716,14 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     if (oi1 < 0  ||  oi2 < 0)
         return -1;
     /*endif*/
-    opbx_mutex_lock(&p0->lock);
-    if (opbx_mutex_trylock(&p1->lock))
+    cw_mutex_lock(&p0->lock);
+    if (cw_mutex_trylock(&p1->lock))
     {
         /* Don't block, due to potential for deadlock */
-        opbx_mutex_unlock(&p0->lock);
-        opbx_mutex_unlock(&c0->lock);
-        opbx_mutex_unlock(&c1->lock);
-        opbx_log(OPBX_LOG_NOTICE, "Avoiding deadlock...\n");
+        cw_mutex_unlock(&p0->lock);
+        cw_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c1->lock);
+        cw_log(CW_LOG_NOTICE, "Avoiding deadlock...\n");
         return -3;
     }
     /*endif*/
@@ -1751,8 +1751,8 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             }
             else
             {
-                opbx_log(OPBX_LOG_WARNING, "Huh?  Both calls are callwaits or 3-ways?  That's clever...?\n");
-                opbx_log(OPBX_LOG_WARNING,
+                cw_log(CW_LOG_WARNING, "Huh?  Both calls are callwaits or 3-ways?  That's clever...?\n");
+                cw_log(CW_LOG_WARNING,
                         "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n",
                         p0->channel,
                         oi1,
@@ -1836,15 +1836,15 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             && 
             p1->subs[SUB_REAL].inthreeway
             &&
-            p1->subs[SUB_REAL].owner->_state == OPBX_STATE_RINGING)
+            p1->subs[SUB_REAL].owner->_state == CW_STATE_RINGING)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
+            cw_log(CW_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
             super_tone(&p0->subs[oi1], ST_TYPE_RINGBACK);
             os2 = p1->subs[SUB_REAL].owner->_state;
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p0->channel, oi1, p1->channel, oi2);
+            cw_log(CW_LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p0->channel, oi1, p1->channel, oi2);
             super_tone(&p0->subs[oi1], ST_TYPE_NONE);
         }
         /*endif*/
@@ -1856,15 +1856,15 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             && 
             p0->subs[SUB_REAL].inthreeway
             && 
-            p0->subs[SUB_REAL].owner->_state == OPBX_STATE_RINGING)
+            p0->subs[SUB_REAL].owner->_state == CW_STATE_RINGING)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
+            cw_log(CW_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
             super_tone(&p1->subs[oi2], ST_TYPE_RINGBACK);
             os1 = p0->subs[SUB_REAL].owner->_state;
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p1->channel, oi2, p0->channel, oi1);
+            cw_log(CW_LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p1->channel, oi2, p0->channel, oi1);
             super_tone(&p1->subs[oi1], ST_TYPE_NONE);
         }
         /*endif*/
@@ -1873,7 +1873,7 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     }
     else if (!nothingok)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can't link %d/%s with %d/%s\n", p0->channel, subnames[oi1], p1->channel, subnames[oi2]);
+        cw_log(CW_LOG_WARNING, "Can't link %d/%s with %d/%s\n", p0->channel, subnames[oi1], p1->channel, subnames[oi2]);
     }
     /*endif*/
 
@@ -1882,11 +1882,11 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     t1 = p0->subs[SUB_REAL].inthreeway;
     t2 = p1->subs[SUB_REAL].inthreeway;
 
-    opbx_mutex_unlock(&p0->lock);
-    opbx_mutex_unlock(&p1->lock);
+    cw_mutex_unlock(&p0->lock);
+    cw_mutex_unlock(&p1->lock);
 
-    opbx_mutex_unlock(&c0->lock);
-    opbx_mutex_unlock(&c1->lock);
+    cw_mutex_unlock(&c0->lock);
+    cw_mutex_unlock(&c1->lock);
 
     /* Native bridge failed */
     if ((master == NULL  ||  slave == NULL)  &&  !nothingok)
@@ -1899,8 +1899,8 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     {
         /* Here's our main loop...  Start by locking things, looking for private parts, 
            and then balking if anything is wrong */
-        opbx_mutex_lock(&c0->lock);
-        opbx_mutex_lock(&c1->lock);
+        cw_mutex_lock(&c0->lock);
+        cw_mutex_lock(&c1->lock);
         p0 = c0->tech_pvt;
         p1 = c1->tech_pvt;
         if (op0 == p0)
@@ -1909,8 +1909,8 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
         if (op1 == p1)
             i2 = unicall_get_index(c1, p1, 1);
         /*endif*/
-        opbx_mutex_unlock(&c0->lock);
-        opbx_mutex_unlock(&c1->lock);
+        cw_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c1->lock);
         if (timeoutms == 0
             ||
             op0 != p0
@@ -1940,7 +1940,7 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             if (slave  &&  master)
                 unicall_unlink(slave, master);
             /*endif*/
-            opbx_log(OPBX_LOG_DEBUG,
+            cw_log(CW_LOG_DEBUG,
                     "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
                     op0->channel,
                     oi1,
@@ -1949,9 +1949,9 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             return -3;
         }
         /*endif*/
-        if ((who = opbx_waitfor_n(cs, 2, &timeoutms)) == NULL)
+        if ((who = cw_waitfor_n(cs, 2, &timeoutms)) == NULL)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
+            cw_log(CW_LOG_DEBUG, "Ooh, empty read...\n");
             continue;
         }
         /*endif*/
@@ -1960,7 +1960,7 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
         else if (who->tech_pvt == op1)
             op1->ignoredtmf = TRUE;
         /*endif*/
-        f = opbx_read(who);
+        f = cw_read(who);
         if (who->tech_pvt == op0) 
             op0->ignoredtmf = FALSE;
         else if (who->tech_pvt == op1)
@@ -1976,11 +1976,11 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             return 0;
         }
         /*endif*/
-        if (f->frametype == OPBX_FRAME_DTMF)
+        if (f->frametype == CW_FRAME_DTMF)
         {
-            if ((who == c0  &&  (flags & OPBX_BRIDGE_DTMF_CHANNEL_0))
+            if ((who == c0  &&  (flags & CW_BRIDGE_DTMF_CHANNEL_0))
                 || 
-                (who == c1  &&  (flags & OPBX_BRIDGE_DTMF_CHANNEL_1)))
+                (who == c1  &&  (flags & CW_BRIDGE_DTMF_CHANNEL_1)))
             {
                 *fo = f;
                 *rc = who;
@@ -1992,7 +1992,7 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
             /*endif*/
         }
         /*endif*/
-        opbx_fr_free(f);
+        cw_fr_free(f);
 
         /* Swap who gets priority */
         cs[2] = cs[0];
@@ -2002,17 +2002,17 @@ static enum opbx_bridge_result unicall_bridge(struct opbx_channel *c0, struct op
     /*endif*/
 }
 
-static int unicall_indicate(struct opbx_channel *chan, int condition);
+static int unicall_indicate(struct cw_channel *chan, int condition);
 
-static int unicall_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan)
+static int unicall_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
     unicall_pvt_t *p;
     int x;
 
     p = newchan->tech_pvt;
-    opbx_mutex_lock(&p->lock);
-    opbx_log(OPBX_LOG_WARNING, "New owner for channel %d is %s\n", p->channel, newchan->name);
-    //opbx_log(OPBX_LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
+    cw_mutex_lock(&p->lock);
+    cw_log(CW_LOG_WARNING, "New owner for channel %d is %s\n", p->channel, newchan->name);
+    //cw_log(CW_LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
     if (p->owner == oldchan)
         p->owner = newchan;
     /*endif*/
@@ -2028,27 +2028,27 @@ static int unicall_fixup(struct opbx_channel *oldchan, struct opbx_channel *newc
         /*endif*/
     }
     /*endfor*/
-    if (newchan->_state == OPBX_STATE_RINGING) 
-        unicall_indicate(newchan, OPBX_CONTROL_RINGING);
+    if (newchan->_state == CW_STATE_RINGING) 
+        unicall_indicate(newchan, CW_CONTROL_RINGING);
     /*endif*/
     update_conf(p);
-    opbx_mutex_unlock(&p->lock);
+    cw_mutex_unlock(&p->lock);
     return 0;
 }
 
-static struct opbx_channel *unicall_new(unicall_pvt_t *, int, int, int, int);
+static struct cw_channel *unicall_new(unicall_pvt_t *, int, int, int, int);
 
-struct opbx_frame *unicall_exception(struct opbx_channel *opbx)
+struct cw_frame *unicall_exception(struct cw_channel *cw)
 {
     unicall_pvt_t *p;
     int index;
 
-    p = opbx->tech_pvt;
-    if ((index = unicall_get_index(opbx, p, 0)) < 0)
+    p = cw->tech_pvt;
+    if ((index = unicall_get_index(cw, p, 0)) < 0)
         return  NULL;
     /*endif*/
     
-    opbx_fr_init(&p->subs[index].f);
+    cw_fr_init(&p->subs[index].f);
     p->subs[index].f.src = "unicall_exception";
     
     if (p->owner == NULL  &&  !p->radio)
@@ -2065,12 +2065,12 @@ struct opbx_frame *unicall_exception(struct opbx_channel *opbx)
     }
     /*endif*/
     if (!p->radio)
-        opbx_log(OPBX_LOG_DEBUG, "Exception on %d, channel %d\n", opbx->fds[0],p->channel);
+        cw_log(CW_LOG_DEBUG, "Exception on %d, channel %d\n", cw->fds[0],p->channel);
     /*endif*/
     /* If it's not us, return NULL immediately */
-    if (opbx != p->owner)
+    if (cw != p->owner)
     {
-        opbx_log(OPBX_LOG_WARNING, "We're %s, not %s\n", opbx->name, p->owner->name);
+        cw_log(CW_LOG_WARNING, "We're %s, not %s\n", cw->name, p->owner->name);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2088,23 +2088,23 @@ void handle_uc_read(uc_t *uc, int ch, void *user_data, uint8_t *buf, int len)
     
     p = (unicall_pvt_t *) user_data;
 
-    readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + OPBX_FRIENDLY_OFFSET;
+    readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + CW_FRIENDLY_OFFSET;
     memcpy(readbuf, buf, len);
     p->subs[SUB_REAL].buffer_contents = len;
     if (p->subs[SUB_REAL].super_tone != ST_TYPE_NONE)
     {
         gen_len = super_tone_tx(&p->subs[SUB_REAL].tx_state, amp, len);
-        select_codec(p, SUB_REAL, OPBX_FORMAT_SLINEAR);
+        select_codec(p, SUB_REAL, CW_FORMAT_SLINEAR);
         if (uc_channel_write(uc, ch, (uint8_t *) amp, gen_len*sizeof(int16_t)) < 0)
-            opbx_log(OPBX_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
+            cw_log(CW_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
         /*endif*/
     }
     else if (p->dialing)
     {
         gen_len = dtmf_tx(&p->subs[SUB_REAL].dtmf_tx_state, amp, len);
-        select_codec(p, SUB_REAL, OPBX_FORMAT_SLINEAR);
+        select_codec(p, SUB_REAL, CW_FORMAT_SLINEAR);
         if (uc_channel_write(uc, ch, (uint8_t *) amp, gen_len*sizeof(int16_t)) < 0)
-            opbx_log(OPBX_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
+            cw_log(CW_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
         /*endif*/
         if (gen_len < len)
             p->dialing = FALSE;
@@ -2113,29 +2113,29 @@ void handle_uc_read(uc_t *uc, int ch, void *user_data, uint8_t *buf, int len)
     /*endif*/
 }
 
-struct opbx_frame *unicall_read(struct opbx_channel *opbx)
+struct cw_frame *unicall_read(struct cw_channel *cw)
 {
     unicall_pvt_t *p;
     int index;
-    struct opbx_frame *f;
+    struct cw_frame *f;
     char tmpfax[256];
 
-    p = opbx->tech_pvt;
-    //opbx_log(OPBX_LOG_WARNING, "unicall_read\n");
-    opbx_mutex_lock(&p->lock);
+    p = cw->tech_pvt;
+    //cw_log(CW_LOG_WARNING, "unicall_read\n");
+    cw_mutex_lock(&p->lock);
     
-    index = unicall_get_index(opbx, p, 0);
+    index = unicall_get_index(cw, p, 0);
     
     /* Hang up if we don't really exist */
     if (index < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "We don't exist?\n");
-        opbx_mutex_unlock(&p->lock);
+        cw_log(CW_LOG_WARNING, "We don't exist?\n");
+        cw_mutex_unlock(&p->lock);
         return NULL;
     }
     /*endif*/
     
-    opbx_fr_init(&p->subs[index].f);
+    cw_fr_init(&p->subs[index].f);
     p->subs[index].f.src = "unicall_read";
     
     /* Make sure it sends initial key state as first frame */
@@ -2148,62 +2148,62 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
             return NULL;
         /*endif*/
         p->firstradio = TRUE;
-        p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
+        p->subs[index].f.frametype = CW_FRAME_CONTROL;
         if (ps.rxisoffhook)
-            p->subs[index].f.subclass = OPBX_CONTROL_RADIO_KEY;
+            p->subs[index].f.subclass = CW_CONTROL_RADIO_KEY;
         else
-            p->subs[index].f.subclass = OPBX_CONTROL_RADIO_UNKEY;
+            p->subs[index].f.subclass = CW_CONTROL_RADIO_UNKEY;
         /*endif*/
-        opbx_mutex_unlock(&p->lock);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
 
-    select_codec(p, index, opbx->rawreadformat);
+    select_codec(p, index, cw->rawreadformat);
     uc_check_event(p->uc);
     uc_schedule_run(p->uc);
 
     if (p->subs[index].needringing)
     {
         /* Send ringing frame if requested */
-        opbx_log(OPBX_LOG_DEBUG, "needringing\n");
+        cw_log(CW_LOG_DEBUG, "needringing\n");
         p->subs[index].needringing = 0;
-        p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-        p->subs[index].f.subclass = OPBX_CONTROL_RINGING;
-        opbx_setstate(opbx, OPBX_STATE_RINGING);
-        opbx_mutex_unlock(&p->lock);
+        p->subs[index].f.frametype = CW_FRAME_CONTROL;
+        p->subs[index].f.subclass = CW_CONTROL_RINGING;
+        cw_setstate(cw, CW_STATE_RINGING);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
     if (p->subs[index].needbusy)
     {
         /* Send busy frame if requested */
-        opbx_log(OPBX_LOG_DEBUG, "needbusy\n");
+        cw_log(CW_LOG_DEBUG, "needbusy\n");
         p->subs[index].needbusy = FALSE;
-        p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-        p->subs[index].f.subclass = OPBX_CONTROL_BUSY;
-        opbx_mutex_unlock(&p->lock);
+        p->subs[index].f.frametype = CW_FRAME_CONTROL;
+        p->subs[index].f.subclass = CW_CONTROL_BUSY;
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     if (p->subs[index].needcongestion)
     {
         /* Send congestion frame if requested */
-        opbx_log(OPBX_LOG_DEBUG, "needcongestion\n");
+        cw_log(CW_LOG_DEBUG, "needcongestion\n");
         p->subs[index].needcongestion = FALSE;
-        p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-        p->subs[index].f.subclass = OPBX_CONTROL_CONGESTION;
-        opbx_mutex_unlock(&p->lock);
+        p->subs[index].f.frametype = CW_FRAME_CONTROL;
+        p->subs[index].f.subclass = CW_CONTROL_CONGESTION;
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     if (p->subs[index].needanswer)
     {
         /* Send answer frame if requested */
-        opbx_log(OPBX_LOG_DEBUG, "needanswer\n");
+        cw_log(CW_LOG_DEBUG, "needanswer\n");
         p->subs[index].needanswer = FALSE;
-        p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-        p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
-        opbx_setstate(opbx, OPBX_STATE_UP);
-        opbx_mutex_unlock(&p->lock);
+        p->subs[index].f.frametype = CW_FRAME_CONTROL;
+        p->subs[index].f.subclass = CW_CONTROL_ANSWER;
+        cw_setstate(cw, CW_STATE_UP);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2211,71 +2211,71 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
     /* Check first for any outstanding DTMF characters */
     if (p->subs[index].dtmfq[0])
     {
-        opbx_log(OPBX_LOG_WARNING, "got a DTMF %d\n", p->subs[index].dtmfq[0]);
+        cw_log(CW_LOG_WARNING, "got a DTMF %d\n", p->subs[index].dtmfq[0]);
         p->subs[index].f.subclass = p->subs[index].dtmfq[0];
         memmove(&p->subs[index].dtmfq[0], &p->subs[index].dtmfq[1], sizeof(p->subs[index].dtmfq) - 1);
-        p->subs[index].f.frametype = OPBX_FRAME_DTMF;
+        p->subs[index].f.frametype = CW_FRAME_DTMF;
         if (p->subs[index].f.subclass == 'f')
         {
             /* Fax tone -- Handle and return NULL */
             if (!p->faxhandled)
             {
                 p->faxhandled = TRUE;
-                if (strncasecmp(opbx->exten, "fax", 3))
+                if (strncasecmp(cw->exten, "fax", 3))
                 {
-					const char *target_context = (opbx->proc_context[0] == '\0')  ?  opbx->context  :  opbx->proc_context;
-                    snprintf(tmpfax, sizeof(tmpfax), "fax%s", opbx->exten);
-                    if (opbx_exists_extension(opbx, target_context, tmpfax, 1, opbx->cid.cid_num))
+					const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
+                    snprintf(tmpfax, sizeof(tmpfax), "fax%s", cw->exten);
+                    if (cw_exists_extension(cw, target_context, tmpfax, 1, cw->cid.cid_num))
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to specific fax extension %s\n", opbx->name, tmpfax);
+                            cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to specific fax extension %s\n", cw->name, tmpfax);
                         /*endif*/
-                        if (opbx_async_goto(opbx, target_context, tmpfax, 1))
-                            opbx_log(OPBX_LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", opbx->name, tmpfax, target_context);
+                        if (cw_async_goto(cw, target_context, tmpfax, 1))
+                            cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", cw->name, tmpfax, target_context);
                         /*endif*/
                     }
-                    else if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num))
+                    else if (cw_exists_extension(cw, target_context, "fax", 1, cw->cid.cid_num))
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", opbx->name);
+                            cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", cw->name);
                         /*endif*/
-                        if (opbx_async_goto(opbx, target_context, "fax", 1))
-                            opbx_log(OPBX_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, target_context);
+                        if (cw_async_goto(cw, target_context, "fax", 1))
+                            cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, target_context);
                         /*endif*/
                     }
                     else
                     {
-                        opbx_log(OPBX_LOG_NOTICE, "Fax detected, but no fax extension\n");
+                        cw_log(CW_LOG_NOTICE, "Fax detected, but no fax extension\n");
                     }
                     /*endif*/
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+                    cw_log(CW_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
                 }
                 /*endif*/
             }
             else
             {
-                opbx_log(OPBX_LOG_DEBUG, "Fax already handled\n");
+                cw_log(CW_LOG_DEBUG, "Fax already handled\n");
             }
             /*endif*/
-            p->subs[index].f.frametype = OPBX_FRAME_NULL;
+            p->subs[index].f.frametype = CW_FRAME_NULL;
             p->subs[index].f.subclass = 0;
             return &p->subs[index].f;
         }
         /*endif*/
         if (p->confirm_answer)
         {
-            opbx_log(OPBX_LOG_WARNING, "Confirm answer!\n");
+            cw_log(CW_LOG_WARNING, "Confirm answer!\n");
             /* Upon receiving a DTMF digit, consider this an answer confirmation instead
                of a DTMF digit */
-            p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-            p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
-            opbx_setstate(opbx, OPBX_STATE_UP);
+            p->subs[index].f.frametype = CW_FRAME_CONTROL;
+            p->subs[index].f.subclass = CW_CONTROL_ANSWER;
+            cw_setstate(cw, CW_STATE_UP);
         }
         /*endif*/
-        opbx_mutex_unlock(&p->lock);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2283,7 +2283,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
     if (p->subs[index].buffer_contents == 0)
     {
         /* Return a NULL frame */
-        opbx_mutex_unlock(&p->lock);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2291,39 +2291,39 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
     p->subs[index].buffer_contents = 0;
     if (p->dialing
         ||
-        (index  &&  opbx->_state != OPBX_STATE_UP)
+        (index  &&  cw->_state != CW_STATE_UP)
         ||
         (index == SUB_CALLWAIT  &&  !p->subs[SUB_CALLWAIT].inthreeway))
     {
         /* Whoops, we're still dialing, or in a state where we shouldn't transmit....
            don't send anything */
         /* Return a NULL frame */
-        opbx_mutex_unlock(&p->lock);
+        cw_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
 
 #if 0
-    opbx_log(OPBX_LOG_WARNING, "Read %d of voice on %s\n", p->subs[index].f.datalen, opbx->name);
+    cw_log(CW_LOG_WARNING, "Read %d of voice on %s\n", p->subs[index].f.datalen, cw->name);
 #endif
-    if (opbx->rawreadformat == OPBX_FORMAT_SLINEAR)
+    if (cw->rawreadformat == CW_FORMAT_SLINEAR)
         p->subs[index].f.datalen = READ_SIZE*2;
     else 
         p->subs[index].f.datalen = READ_SIZE;
     /*endif*/
-    p->subs[index].f.frametype = OPBX_FRAME_VOICE;
-    p->subs[index].f.subclass = opbx->rawreadformat;
+    p->subs[index].f.frametype = CW_FRAME_VOICE;
+    p->subs[index].f.subclass = cw->rawreadformat;
     p->subs[index].f.samples = READ_SIZE;
     p->subs[index].f.mallocd = 0;
-    p->subs[index].f.offset = OPBX_FRIENDLY_OFFSET;
-    p->subs[index].f.data = p->subs[index].buffer + OPBX_FRIENDLY_OFFSET/2;
+    p->subs[index].f.offset = CW_FRIENDLY_OFFSET;
+    p->subs[index].f.data = p->subs[index].buffer + CW_FRIENDLY_OFFSET/2;
     if (p->dsp  &&  !p->ignoredtmf  &&  index == SUB_REAL)
     {
-        if ((f = opbx_dsp_process(opbx, p->dsp, &p->subs[index].f)))
+        if ((f = cw_dsp_process(cw, p->dsp, &p->subs[index].f)))
         {
-            if ((f->frametype == OPBX_FRAME_CONTROL)  &&  (f->subclass == OPBX_CONTROL_BUSY))
+            if ((f->frametype == CW_FRAME_CONTROL)  &&  (f->subclass == CW_CONTROL_BUSY))
             {
-                if ((opbx->_state == OPBX_STATE_UP)  &&  !p->outgoing)
+                if ((cw->_state == CW_STATE_UP)  &&  !p->outgoing)
                 {
                     /* Treat this as a "hangup" instead of a "busy" on the assumption that
                        its a busy  */
@@ -2340,17 +2340,17 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
         f = &p->subs[index].f; 
     }
     /*endif*/
-    if (f  &&  (f->frametype == OPBX_FRAME_DTMF))
+    if (f  &&  (f->frametype == CW_FRAME_DTMF))
     {
-        opbx_log(OPBX_LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, opbx->name);
+        cw_log(CW_LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, cw->name);
         if (p->confirm_answer)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Confirm answer on %s!\n", opbx->name);
+            cw_log(CW_LOG_DEBUG, "Confirm answer on %s!\n", cw->name);
             /* Upon receiving a DTMF digit, consider this an answer confirmation instead
                of a DTMF digit */
-            p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
-            p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
-            opbx_setstate(opbx, OPBX_STATE_UP);
+            p->subs[index].f.frametype = CW_FRAME_CONTROL;
+            p->subs[index].f.subclass = CW_CONTROL_ANSWER;
+            cw_setstate(cw, CW_STATE_UP);
             f = &p->subs[index].f;
         }
         else if (f->subclass == 'f')
@@ -2359,37 +2359,37 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
             if (!p->faxhandled)
             {
                 p->faxhandled = TRUE;
-                if (strcmp(opbx->exten, "fax"))
+                if (strcmp(cw->exten, "fax"))
                 {
-					const char *target_context = (opbx->proc_context[0] == '\0')  ?  opbx->context  :  opbx->proc_context;
-                    if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num))
+					const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
+                    if (cw_exists_extension(cw, target_context, "fax", 1, cw->cid.cid_num))
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", opbx->name);
+                            cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", cw->name);
                         /*endif*/
-                        if (opbx_async_goto(opbx, target_context, "fax", 1))
-                            opbx_log(OPBX_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, target_context);
+                        if (cw_async_goto(cw, target_context, "fax", 1))
+                            cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, target_context);
                         /*endif*/
                     }
                     else
                     {
-                        opbx_log(OPBX_LOG_NOTICE, "Fax detected, but no fax extension\n");
+                        cw_log(CW_LOG_NOTICE, "Fax detected, but no fax extension\n");
                     }
                     /*endif*/
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+                    cw_log(CW_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
                 }
                 /*endif*/
             }
             else
             {
-                opbx_log(OPBX_LOG_DEBUG, "Fax already handled\n");
+                cw_log(CW_LOG_DEBUG, "Fax already handled\n");
             }
             /*endif*/
             unicall_confmute(p, 0);
-            p->subs[index].f.frametype = OPBX_FRAME_NULL;
+            p->subs[index].f.frametype = CW_FRAME_NULL;
             p->subs[index].f.subclass = 0;
             f = &p->subs[index].f;
         }
@@ -2397,7 +2397,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
         {
             /* Confmute request */
             unicall_confmute(p, 1);
-            p->subs[index].f.frametype = OPBX_FRAME_NULL;
+            p->subs[index].f.frametype = CW_FRAME_NULL;
             p->subs[index].f.subclass = 0;
             f = &p->subs[index].f;
         }
@@ -2405,7 +2405,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
         {
             /* Unmute */
             unicall_confmute(p, 0);
-            p->subs[index].f.frametype = OPBX_FRAME_NULL;
+            p->subs[index].f.frametype = CW_FRAME_NULL;
             p->subs[index].f.subclass = 0;
             f = &p->subs[index].f;
         }
@@ -2417,48 +2417,48 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
     }
     /*endif*/
 
-    opbx_mutex_unlock(&p->lock);
+    cw_mutex_unlock(&p->lock);
     return f;
 }
 
-static int unicall_write(struct opbx_channel *opbx, struct opbx_frame *frame)
+static int unicall_write(struct cw_channel *cw, struct cw_frame *frame)
 {
     unicall_pvt_t *p;
     int index;
     int res;
 
-    p = opbx->tech_pvt;
+    p = cw->tech_pvt;
     res = 0;
-    //opbx_log(OPBX_LOG_WARNING, "unicall_write\n");
-    if ((index = unicall_get_index(opbx, p, 0)) < 0)
+    //cw_log(CW_LOG_WARNING, "unicall_write\n");
+    if ((index = unicall_get_index(cw, p, 0)) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "%s doesn't really exist?\n", opbx->name);
+        cw_log(CW_LOG_WARNING, "%s doesn't really exist?\n", cw->name);
         return -1;
     }
     /*endif*/    
     /* Write a frame of (presumably voice) data */
-    if (frame->frametype != OPBX_FRAME_VOICE)
+    if (frame->frametype != CW_FRAME_VOICE)
     {
-        if (frame->frametype != OPBX_FRAME_IMAGE)
-            opbx_log(OPBX_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
+        if (frame->frametype != CW_FRAME_IMAGE)
+            cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
         /*endif*/
         return 0;
     }
     /*endif*/
-    if ((frame->subclass != OPBX_FORMAT_SLINEAR)
+    if ((frame->subclass != CW_FORMAT_SLINEAR)
         && 
-        (frame->subclass != OPBX_FORMAT_ULAW)
+        (frame->subclass != CW_FORMAT_ULAW)
         &&
-        (frame->subclass != OPBX_FORMAT_ALAW))
+        (frame->subclass != CW_FORMAT_ALAW))
     {
-        opbx_log(OPBX_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
+        cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
         return 0;
     }
     /*endif*/
     if (p->dialing)
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n", opbx->name);
+            cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n", cw->name);
         /*endif*/
         return 0;
     }
@@ -2466,7 +2466,7 @@ static int unicall_write(struct opbx_channel *opbx, struct opbx_frame *frame)
     if (p->subs[index].super_tone != ST_TYPE_NONE)
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Dropping frame since I'm still sending supervisory tone %d on %s...\n", p->subs[index].super_tone, opbx->name);
+            cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still sending supervisory tone %d on %s...\n", p->subs[index].super_tone, cw->name);
         /*endif*/
         return 0;
     }
@@ -2479,14 +2479,14 @@ static int unicall_write(struct opbx_channel *opbx, struct opbx_frame *frame)
     select_codec(p, index, frame->subclass);
     if ((res = uc_channel_write(p->uc, p->subs[index].chan, (unsigned char *) frame->data, frame->datalen)) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
+        cw_log(CW_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
         return -1;
     }
     /*endif*/
     return 0;
 }
 
-static int unicall_indicate(struct opbx_channel *chan, int condition)
+static int unicall_indicate(struct cw_channel *chan, int condition)
 {
     unicall_pvt_t *p;
     int res = -1;
@@ -2494,45 +2494,45 @@ static int unicall_indicate(struct opbx_channel *chan, int condition)
     int ret;
 
     p = chan->tech_pvt;
-    opbx_log(OPBX_LOG_WARNING, "unicall_indicate %d\n", condition);
+    cw_log(CW_LOG_WARNING, "unicall_indicate %d\n", condition);
     if ((index = unicall_get_index(chan, p, 0)) != SUB_REAL)
         return 0;
     /*endif*/
     switch (condition)
     {
-    case OPBX_CONTROL_BUSY:
+    case CW_CONTROL_BUSY:
         super_tone(&p->subs[index], ST_TYPE_BUSY);
         break;
-    case OPBX_CONTROL_RINGING:
+    case CW_CONTROL_RINGING:
         //super_tone(&p->subs[index], ST_TYPE_RINGBACK);
         //if ((ret = uc_call_control(p->uc, UC_OP_ACCEPTCALL, ev->offered.crn, NULL)) < 0)
-        //    opbx_log(OPBX_LOG_WARNING, "Accept call failed - %s\n", uc_ret2str(ret));
-        if (chan->_state != OPBX_STATE_UP)
+        //    cw_log(CW_LOG_WARNING, "Accept call failed - %s\n", uc_ret2str(ret));
+        if (chan->_state != CW_STATE_UP)
         {
-            if (chan->_state != OPBX_STATE_RING)
-                opbx_setstate(chan, OPBX_STATE_RINGING);
+            if (chan->_state != CW_STATE_RING)
+                cw_setstate(chan, CW_STATE_RINGING);
             /*endif*/
         }
         /*endif*/
         break;
-    case OPBX_CONTROL_CONGESTION:
+    case CW_CONTROL_CONGESTION:
         super_tone(&p->subs[index], ST_TYPE_CONGESTED);
         break;
-    case OPBX_CONTROL_RADIO_KEY:
+    case CW_CONTROL_RADIO_KEY:
         if (p->radio)
         {
             if ((ret = uc_call_control(p->uc, UC_OP_DROPCALL, p->crn, (void *) UC_CAUSE_NORMAL_CLEARING)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         /*endif*/
         res = 0;
         break;
-    case OPBX_CONTROL_RADIO_UNKEY:
+    case CW_CONTROL_RADIO_UNKEY:
         if (p->radio)
         {
             if ((ret = uc_call_control(p->uc, UC_OP_DROPCALL, p->crn, (void *) UC_CAUSE_NORMAL_CLEARING)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         /*endif*/
@@ -2542,23 +2542,23 @@ static int unicall_indicate(struct opbx_channel *chan, int condition)
         super_tone(&p->subs[index], ST_TYPE_NONE);
         break;
     default:
-        opbx_log(OPBX_LOG_WARNING, "Don't know how to set condition %d on channel %s\n", condition, chan->name);
+        cw_log(CW_LOG_WARNING, "Don't know how to set condition %d on channel %s\n", condition, chan->name);
         break;
     }
     /*endswitch*/
     return res;
 }
 
-static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx, int index, int law)
+static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx, int index, int law)
 {
-    struct opbx_channel *tmp;
+    struct cw_channel *tmp;
     int deflaw;
     int x;
     int y;
 
-    if ((tmp = opbx_channel_alloc(0)) == NULL)
+    if ((tmp = cw_channel_alloc(0)) == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to allocate channel structure\n");
+        cw_log(CW_LOG_WARNING, "Unable to allocate channel structure\n");
         return  NULL;
     }
     /*endif*/
@@ -2566,9 +2566,9 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
         law = uc_channel_get_api_codec(i->uc, 0);
     /*endif*/
     if (law == UC_CODEC_ALAW)
-        deflaw = OPBX_FORMAT_ALAW;
+        deflaw = CW_FORMAT_ALAW;
     else
-        deflaw = OPBX_FORMAT_ULAW;
+        deflaw = CW_FORMAT_ULAW;
     /*endif*/
     y = 1;
     do
@@ -2587,7 +2587,7 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
     tmp->type = type;
     tmp->tech = &unicall_tech;
     tmp->fds[0] = i->subs[index].fd;
-    tmp->nativeformats = OPBX_FORMAT_SLINEAR | deflaw;
+    tmp->nativeformats = CW_FORMAT_SLINEAR | deflaw;
     /* Start out assuming uLaw, since it's smaller :) */
     tmp->rawreadformat = deflaw;
     tmp->readformat = deflaw;
@@ -2595,25 +2595,25 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
     tmp->writeformat = deflaw;
     i->subs[index].current_codec = deflaw;
     if (uc_channel_set_api_codec(i->uc, 0, UC_CODEC_DEFAULT))
-        opbx_log(OPBX_LOG_WARNING, "Unable to set law on channel %d to default\n", i->channel);
+        cw_log(CW_LOG_WARNING, "Unable to set law on channel %d to default\n", i->channel);
     /*endif*/
 
     if (i->dsp)
     {
-        opbx_log(OPBX_LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
+        cw_log(CW_LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
     }
     else
     {
-        if ((i->dsp = opbx_dsp_new()))
+        if ((i->dsp = cw_dsp_new()))
         {
-            opbx_dsp_set_features(i->dsp, DSP_FEATURE_DTMF_DETECT);
-            opbx_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+            cw_dsp_set_features(i->dsp, DSP_FEATURE_DTMF_DETECT);
+            cw_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
         }
         /*endif*/
     }
     /*endif*/
 
-    if (state == OPBX_STATE_RING)
+    if (state == CW_STATE_RING)
         tmp->rings = 1;
     /*endif*/
     tmp->tech_pvt = i;
@@ -2633,19 +2633,19 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
         tmp->amaflags = i->amaflags;
     /*endif*/
     if (i->subs[index].owner)
-        opbx_log(OPBX_LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
+        cw_log(CW_LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
     /*endif*/
     i->subs[index].owner = tmp;
-    opbx_setstate(tmp, state);
-    opbx_mutex_lock(&usecnt_lock);
+    cw_setstate(tmp, state);
+    cw_mutex_lock(&usecnt_lock);
     usecnt++;
-    opbx_mutex_unlock(&usecnt_lock);
+    cw_mutex_unlock(&usecnt_lock);
     strncpy(tmp->context, i->context, sizeof(tmp->context) - 1);
     /* Copy call forward info */
     strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
     /* If we've been told "no ADSI" then enforce it */
     if (!i->adsi)
-        tmp->adsicpe = OPBX_ADSI_UNAVAILABLE;
+        tmp->adsicpe = CW_ADSI_UNAVAILABLE;
     /*endif*/
     if (i->exten[0])
         strncpy(tmp->exten, i->exten, sizeof(tmp->exten) - 1);
@@ -2666,10 +2666,10 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
         tmp->cid.cid_name = strdup(i->cid_name);
     /*endif*/
     tmp->cid.cid_pres = i->callingpres;
-    if (startpbx  &&  opbx_pbx_start(tmp))
+    if (startpbx  &&  cw_pbx_start(tmp))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-        opbx_hangup(tmp);
+        cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+        cw_hangup(tmp);
         tmp = NULL;
     }
     /*endif*/
@@ -2678,13 +2678,13 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
 
 int channel_error(uc_t *uc, int user_data, int cause)
 {
-    opbx_log(OPBX_LOG_ERROR, "Channel error - %d\n", cause);
+    cw_log(CW_LOG_ERROR, "Channel error - %d\n", cause);
     return  0;
 }
 
 void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
 {
-    struct opbx_channel *c;
+    struct cw_channel *c;
     unicall_pvt_t *i;
     int ch;
     int ret;
@@ -2698,12 +2698,12 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     /*endif*/
     /* Handle an event on a given channel for the monitor thread. */
 
-    opbx_log(OPBX_LOG_WARNING, "UniCall/%d event %s\n", i->channel, uc_event2str(ev->e));
+    cw_log(CW_LOG_WARNING, "UniCall/%d event %s\n", i->channel, uc_event2str(ev->e));
     switch (ev->e)
     {
     case UC_EVENT_PROTOCOLFAIL:
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d protocol error. Cause %d\n", i->channel, ev->gen.data);
+            cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d protocol error. Cause %d\n", i->channel, ev->gen.data);
         /*endif*/
         if (!i->blocked)
         {
@@ -2711,7 +2711,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             if (i->owner)
             {
                 i->alreadyhungup = TRUE;
-                i->owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
+                i->owner->_softhangup |= CW_SOFTHANGUP_DEV;
             }
             /*endif*/
             i->crn = 0;
@@ -2721,24 +2721,24 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         break;
     case UC_EVENT_LOCALUNBLOCKED:
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d local unblocked\n", i->channel);
+            cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d local unblocked\n", i->channel);
         /*endif*/
         break;
     case UC_EVENT_LOCALBLOCKED:
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d local blocked\n", i->channel);
+            cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d local blocked\n", i->channel);
         /*endif*/
         break;
     case UC_EVENT_FARUNBLOCKED:
         i->blocked = FALSE;
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d far unblocked\n", i->channel);
+            cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d far unblocked\n", i->channel);
         /*endif*/
         break;
     case UC_EVENT_FARBLOCKED:
         i->blocked = TRUE;
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d far blocked\n", i->channel);
+            cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d far blocked\n", i->channel);
         /*endif*/
         break;
     case UC_EVENT_DETECTED:
@@ -2754,11 +2754,11 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     case UC_EVENT_PROCEEDING:
         break;
     case UC_EVENT_DIALEDNUMBER:
-        opbx_log(OPBX_LOG_WARNING, "Dest '%s'\n", ev->offered.parms.destination_number);
+        cw_log(CW_LOG_WARNING, "Dest '%s'\n", ev->offered.parms.destination_number);
         /* Get caller ID */
         if (i->use_callerid)
         {
-            opbx_shrink_phone_number(ev->offered.parms.originating_number);
+            cw_shrink_phone_number(ev->offered.parms.originating_number);
             strncpy(i->cid_num, ev->offered.parms.originating_number, sizeof(i->cid_num) - 1);
         }
         else
@@ -2774,24 +2774,24 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         /*endif*/
         i->exten[sizeof(i->exten) - 1] = '\0';
         /* See if extension exists */
-        if (opbx_exists_extension(NULL, i->context, i->exten, 1, i->cid_num))
+        if (cw_exists_extension(NULL, i->context, i->exten, 1, i->cid_num))
         {
             /* A complete and valid number */
             reqmoreinfo.type = UC_REQUESTMOREINFO_DESTINATION_NUMBER;
             reqmoreinfo.minimum = -1;
             if ((ret = uc_call_control(i->uc, UC_OP_REQUESTMOREINFO, ev->offered.crn, &reqmoreinfo)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         else
         {
-            if (opbx_matchmore_extension(NULL, i->context, i->exten, 1, i->cid_num))
+            if (cw_matchmore_extension(NULL, i->context, i->exten, 1, i->cid_num))
             {
                 /* A valid, but incomplete, number - ask for another digit. */
                 reqmoreinfo.type = UC_REQUESTMOREINFO_DESTINATION_NUMBER;
                 reqmoreinfo.minimum = strlen(ev->offered.parms.destination_number) + 1;
                 if ((ret = uc_call_control(i->uc, UC_OP_REQUESTMOREINFO, ev->offered.crn, &reqmoreinfo)) < 0)
-                    opbx_log(OPBX_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
+                    cw_log(CW_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
                 /*endif*/
             }
             else
@@ -2800,7 +2800,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
                 reqmoreinfo.type = UC_REQUESTMOREINFO_DESTINATION_NUMBER;
                 reqmoreinfo.minimum = -1;
                 if ((ret = uc_call_control(i->uc, UC_OP_REQUESTMOREINFO, ev->offered.crn, &reqmoreinfo)) < 0)
-                    opbx_log(OPBX_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
+                    cw_log(CW_LOG_WARNING, "Request more info failed - %s\n", uc_ret2str(ret));
                 /*endif*/
             }
             /*endif*/
@@ -2809,7 +2809,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         break;
     case UC_EVENT_OFFERED:
         /* Check for callerid, digits, etc */
-        opbx_log(OPBX_LOG_WARNING,
+        cw_log(CW_LOG_WARNING,
                  "CRN %d - Offered on channel %d (ANI: %s, DNIS: %s, Cat: %d)\n",
                  ev->offered.crn,
                  ev->offered.channel,
@@ -2823,7 +2823,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             /* Get caller ID */
             if (i->use_callerid)
             {
-                opbx_shrink_phone_number(ev->offered.parms.originating_number);
+                cw_shrink_phone_number(ev->offered.parms.originating_number);
                 strncpy(i->cid_num, ev->offered.parms.originating_number, sizeof(i->cid_num) - 1);
                 strncpy(i->cid_name, ev->offered.parms.originating_name, sizeof(i->cid_name) - 1);
             }
@@ -2847,7 +2847,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
                 strcpy(i->exten, "s");
             /*endif*/
             /* Make sure the extension exists */
-            if (opbx_exists_extension(NULL, i->context, i->exten, 1, i->cid_num))
+            if (cw_exists_extension(NULL, i->context, i->exten, 1, i->cid_num))
             {
                 //i->call = ev->offered.call;
                 i->crn = ev->offered.crn;
@@ -2858,13 +2858,13 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
                     i->law = UC_CODEC_ULAW;
                 /*endif*/
                 if ((ret = uc_call_control(i->uc, UC_OP_ACCEPTCALL, ev->offered.crn, NULL)) < 0)
-                    opbx_log(OPBX_LOG_WARNING, "Accept call failed - %s\n", uc_ret2str(ret));
+                    cw_log(CW_LOG_WARNING, "Accept call failed - %s\n", uc_ret2str(ret));
                 /*endif*/
             }
             else
             {
                 ret = UC_RET_OK;
-                if (opbx_matchmore_extension(NULL, i->context, i->exten, 1, i->cid_num)
+                if (cw_matchmore_extension(NULL, i->context, i->exten, 1, i->cid_num)
                     &&
                     uc_call_control(i->uc, UC_OP_CALLACK, ev->offered.crn, NULL) == UC_RET_OK)
                 {
@@ -2874,7 +2874,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
                 {
                     if (option_verbose > 2)
                     {
-                        opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d extension '%s' in context '%s' from '%s' does not exist.  Rejecting call\n",
+                        cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d extension '%s' in context '%s' from '%s' does not exist.  Rejecting call\n",
                                     i->channel,
                                     i->exten,
                                     i->context,
@@ -2882,7 +2882,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
                     }
                     /*endif*/
                     if ((ret = uc_call_control(i->uc, UC_OP_DROPCALL, ev->offered.crn, (void *) UC_CAUSE_UNASSIGNED_NUMBER)) < 0)
-                        opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                        cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
                     /*endif*/
                 }
                 /*endif*/
@@ -2892,24 +2892,24 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         else
         { 
             if ((ret = uc_call_control(i->uc, UC_OP_DROPCALL, ev->offered.crn, (void *) UC_CAUSE_CHANNEL_UNACCEPTABLE)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         /*endif*/
         break;
     case UC_EVENT_ACCEPTED:        
         if (uc_channel_set_api_codec(i->uc, 0, UC_CODEC_DEFAULT))
-            opbx_log(OPBX_LOG_WARNING, "UniCall/%d unable to set law\n", i->channel);
+            cw_log(CW_LOG_WARNING, "UniCall/%d unable to set law\n", i->channel);
         /*endif*/
         if (uc_channel_gains(i->uc, 0, i->rxgain, i->txgain))
-            opbx_log(OPBX_LOG_WARNING, "UniCall/%d unable to set gains\n", i->channel);
+            cw_log(CW_LOG_WARNING, "UniCall/%d unable to set gains\n", i->channel);
         /*endif*/
         /* Start PBX */
-        if ((c = unicall_new(i, OPBX_STATE_RING, 1, SUB_REAL, i->law)) == NULL)
+        if ((c = unicall_new(i, CW_STATE_RING, 1, SUB_REAL, i->law)) == NULL)
         {
-            opbx_log(OPBX_LOG_WARNING, "UniCall/%d unable to start PBX\n", i->channel);
+            cw_log(CW_LOG_WARNING, "UniCall/%d unable to start PBX\n", i->channel);
             if ((ret = uc_call_control(i->uc, UC_OP_DROPCALL, ev->offered.crn, (void *) UC_CAUSE_NETWORK_CONGESTION)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         /*endif*/
@@ -2926,7 +2926,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             }
             else
             {
-                opbx_log(OPBX_LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
+                cw_log(CW_LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
             }
             /*endif*/
         }
@@ -2943,7 +2943,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             {
                 i->dialing = TRUE;
                 dtmf_tx_put(&i->subs[SUB_REAL].dtmf_tx_state, i->dialstr, -1);
-                opbx_log(OPBX_LOG_DEBUG, "Sent deferred digit string: %s\n", i->dialstr);
+                cw_log(CW_LOG_DEBUG, "Sent deferred digit string: %s\n", i->dialstr);
                 i->dialstr[0] = '\0';
             }
             /*endif*/
@@ -2953,7 +2953,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Connected/answered on bad channel %d\n", ev->gen.channel);
+            cw_log(CW_LOG_WARNING, "Connected/answered on bad channel %d\n", ev->gen.channel);
         }
         /*endif*/
         break;
@@ -2965,26 +2965,26 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Connected/answered on bad channel %d\n", ev->gen.channel);
+            cw_log(CW_LOG_WARNING, "Connected/answered on bad channel %d\n", ev->gen.channel);
         }
         /*endif*/
         break;
     case UC_EVENT_FARDISCONNECTED:
         if ((ch = ev->fardisconnected.channel) >= 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "CRN %d - far disconnected cause=%s [%d]\n", ev->fardisconnected.crn, uc_cause2str(ev->fardisconnected.cause), ev->fardisconnected.cause);
+            cw_log(CW_LOG_WARNING, "CRN %d - far disconnected cause=%s [%d]\n", ev->fardisconnected.crn, uc_cause2str(ev->fardisconnected.cause), ev->fardisconnected.cause);
             if (i->owner)
             {
                 i->alreadyhungup = TRUE;
-                i->owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
+                i->owner->_softhangup |= CW_SOFTHANGUP_DEV;
                 if (option_verbose > 2) 
-                    opbx_verbose(VERBOSE_PREFIX_3 "Channel %d got hangup\n", ch);
+                    cw_verbose(VERBOSE_PREFIX_3 "Channel %d got hangup\n", ch);
                 /*endif*/
             }
             else
             {
                 if ((ret = uc_call_control(i->uc, UC_OP_DROPCALL, ev->fardisconnected.crn, (void *) UC_CAUSE_NORMAL_CLEARING)) < 0)
-                    opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+                    cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
                 /*endif*/
             }
             /*endif*/
@@ -2992,7 +2992,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             {
             case UC_CAUSE_REQ_CHANNEL_NOT_AVAILABLE:
                 if (option_verbose > 2)
-                    opbx_verbose(VERBOSE_PREFIX_3 "Forcing restart of channel %d since channel reported in use\n", ch);
+                    cw_verbose(VERBOSE_PREFIX_3 "Forcing restart of channel %d since channel reported in use\n", ch);
                 //pri_reset(i, ch);
                 //i->resetting = TRUE;
                 break;
@@ -3013,49 +3013,49 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
+            cw_log(CW_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
         }
         /*endif*/
         break;
     case UC_EVENT_DROPCALL:
         if ((ch = ev->gen.channel) >= 0)
         {
-            opbx_log(OPBX_LOG_DEBUG, "CRN %d - Doing a release call\n", ev->gen.crn);
+            cw_log(CW_LOG_DEBUG, "CRN %d - Doing a release call\n", ev->gen.crn);
             if ((ret = uc_call_control(i->uc, UC_OP_RELEASECALL, ev->gen.crn, NULL)) < 0)
-                opbx_log(OPBX_LOG_WARNING, "Release call failed - %s\n", uc_ret2str(ret));
+                cw_log(CW_LOG_WARNING, "Release call failed - %s\n", uc_ret2str(ret));
             /*endif*/
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
+            cw_log(CW_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
         }
         /*endif*/
         break;
     case UC_EVENT_RELEASECALL:
         if ((ch = ev->gen.channel) >= 0)
         {
-            opbx_log(OPBX_LOG_DEBUG, "CRN %d - Call released\n", ev->gen.crn);
+            cw_log(CW_LOG_DEBUG, "CRN %d - Call released\n", ev->gen.crn);
             if (option_verbose > 2)
-                opbx_verbose(VERBOSE_PREFIX_3 "UniCall/%d released\n", i->channel);
+                cw_verbose(VERBOSE_PREFIX_3 "UniCall/%d released\n", i->channel);
             /*endif*/
             i->crn = 0;
             unicall_disable_ec(i);
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
+            cw_log(CW_LOG_WARNING, "Hangup on bad channel %d\n", ev->fardisconnected.channel);
         }
         /*endif*/
         i->reserved = FALSE;
         break;
     case UC_EVENT_ALARM:
         /* TODO: No alarm handling is bad! */
-        opbx_log(OPBX_LOG_WARNING,
+        cw_log(CW_LOG_WARNING,
                 "UniCall/%d Alarm masks 0x%04X 0x%04X\n",
                 i->channel,
                 ev->alarm.raised,
                 ev->alarm.cleared);
-        opbx_log(OPBX_LOG_WARNING,
+        cw_log(CW_LOG_WARNING,
                 "UniCall/%d Alarm %s raised, %s cleared\n",
                 i->channel,
                 alarm2str(ev->alarm.raised),
@@ -3064,7 +3064,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         i->current_alarms &= ~ev->alarm.cleared;
         break;
     default:
-        opbx_log(OPBX_LOG_WARNING,
+        cw_log(CW_LOG_WARNING,
                 "UniCall/%d Don't know how to handle signalling event %s\n",
                 i->channel,
                 uc_event2str(ev->e));
@@ -3096,15 +3096,15 @@ static void *do_monitor(void *data)
 
     /* From here on out, we die whenever asked */
 #if 0
-    opbx_log(OPBX_LOG_DEBUG, "Monitor starting...\n");
+    cw_log(CW_LOG_DEBUG, "Monitor starting...\n");
 #endif
     for (;;)
     {
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
         /* Lock the interface list */
-	pthread_cleanup_push(opbx_mutex_unlock, &iflock);
-        opbx_mutex_lock(&iflock);
+	pthread_cleanup_push(cw_mutex_unlock, &iflock);
+        cw_mutex_lock(&iflock);
 
         /*endif*/
         /* Build the stuff we're going to select on. This is the socket of every
@@ -3118,7 +3118,7 @@ static void *do_monitor(void *data)
             {
                 if (FD_ISSET(i->subs[SUB_REAL].fd, &efds)) {
                     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-                    opbx_log(OPBX_LOG_WARNING, "Descriptor %d appears twice?\n", i->subs[SUB_REAL].fd);
+                    cw_log(CW_LOG_WARNING, "Descriptor %d appears twice?\n", i->subs[SUB_REAL].fd);
                     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
                 }
                 /*endif*/
@@ -3151,7 +3151,7 @@ static void *do_monitor(void *data)
         if (res < 0)
         {
             if (err != EAGAIN  &&  err != EINTR) {
-                opbx_log(OPBX_LOG_WARNING, "select return %d: %s\n", res, strerror(err));
+                cw_log(CW_LOG_WARNING, "select return %d: %s\n", res, strerror(err));
             }
             /*endif*/
             continue;
@@ -3160,9 +3160,9 @@ static void *do_monitor(void *data)
 
         /* Alright, lock the interface list again, and let's look and see what has
            happened */
-        if (opbx_mutex_lock(&iflock))
+        if (cw_mutex_lock(&iflock))
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to lock the interface list\n");
+            cw_log(CW_LOG_WARNING, "Unable to lock the interface list\n");
             continue;
         }
         /*endif*/
@@ -3186,10 +3186,10 @@ static void *do_monitor(void *data)
                             &&
                             0) //(last->protocol_class & __ZT_SIG_FXO))
                         {
-                            opbx_log(OPBX_LOG_DEBUG, "Channel %d has mailbox %s\n", last->channel, last->mailbox);
-                            if ((res = opbx_app_has_voicemail(last->mailbox, NULL)) != last->msgstate)
+                            cw_log(CW_LOG_DEBUG, "Channel %d has mailbox %s\n", last->channel, last->mailbox);
+                            if ((res = cw_app_has_voicemail(last->mailbox, NULL)) != last->msgstate)
                             {
-                                opbx_log(OPBX_LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
+                                cw_log(CW_LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
                                 found++;
                             }
                             /*endif*/
@@ -3208,7 +3208,7 @@ static void *do_monitor(void *data)
                 {
                     if (!i->sigcheck  &&  (i->owner  ||  i->subs[SUB_REAL].owner))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "UniCall/%d Whoa....  I'm owned but found (%d) in read [%p, %p]...\n", i->channel, i->subs[SUB_REAL].fd, i->owner, i->subs[SUB_REAL].owner);
+                        cw_log(CW_LOG_WARNING, "UniCall/%d Whoa....  I'm owned but found (%d) in read [%p, %p]...\n", i->channel, i->subs[SUB_REAL].fd, i->owner, i->subs[SUB_REAL].owner);
                         continue;
                     }
                     /*endif*/
@@ -3221,7 +3221,7 @@ static void *do_monitor(void *data)
                 {
                     if (!i->sigcheck  &&  (i->owner  ||  i->subs[SUB_REAL].owner))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].fd);
+                        cw_log(CW_LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].fd);
                         continue;
                     }
                     /*endif*/
@@ -3233,7 +3233,7 @@ static void *do_monitor(void *data)
             /*endif*/
         }
         /*endfor*/
-        opbx_mutex_unlock(&iflock);
+        cw_mutex_unlock(&iflock);
     }
     /*endfor*/
     /* Never reached */
@@ -3243,23 +3243,23 @@ static void *do_monitor(void *data)
 static int restart_monitor(void)
 {
     /* If we're supposed to be stopped -- stay stopped */
-    if (pthread_equal(monitor_thread, OPBX_PTHREADT_STOP))
+    if (pthread_equal(monitor_thread, CW_PTHREADT_STOP))
         return 0;
     /*endif*/
-    if (opbx_mutex_lock(&monlock))
+    if (cw_mutex_lock(&monlock))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to lock monitor\n");
+        cw_log(CW_LOG_WARNING, "Unable to lock monitor\n");
         return -1;
     }
     /*endif*/
     if (pthread_equal(monitor_thread, pthread_self()))
     {
-        opbx_mutex_unlock(&monlock);
-        opbx_log(OPBX_LOG_WARNING, "Cannot kill myself\n");
+        cw_mutex_unlock(&monlock);
+        cw_log(CW_LOG_WARNING, "Cannot kill myself\n");
         return -1;
     }
     /*endif*/
-    if (!pthread_equal(monitor_thread, OPBX_PTHREADT_NULL))
+    if (!pthread_equal(monitor_thread, CW_PTHREADT_NULL))
     {
         /* Just signal it to be sure it wakes up */
 #if 0
@@ -3273,19 +3273,19 @@ static int restart_monitor(void)
     else
     {
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0)
+        if (cw_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0)
         {
-            opbx_mutex_unlock(&monlock);
-            opbx_log(OPBX_LOG_ERROR, "Unable to start monitor thread.\n");
+            cw_mutex_unlock(&monlock);
+            cw_log(CW_LOG_ERROR, "Unable to start monitor thread.\n");
             return -1;
         }
         /*endif*/
     }
     /*endif*/
 #if 0
-    opbx_log(OPBX_LOG_DEBUG, "Created thread %ld detached in restart monitor\n", monitor_thread);
+    cw_log(CW_LOG_DEBUG, "Created thread %ld detached in restart monitor\n", monitor_thread);
 #endif
-    opbx_mutex_unlock(&monlock);
+    cw_mutex_unlock(&monlock);
     return 0;
 }
 
@@ -3295,11 +3295,11 @@ static int reset_channel(unicall_pvt_t *p)
     int ret;
     int i;
 
-    opbx_log(OPBX_LOG_DEBUG, "reset_channel()\n");
+    cw_log(CW_LOG_DEBUG, "reset_channel()\n");
     if (p->owner)
     {
         drop = FALSE;
-        p->owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
+        p->owner->_softhangup |= CW_SOFTHANGUP_DEV;
     }
     /*endif*/
     for (i = 0;  i < 3;  i++)
@@ -3307,7 +3307,7 @@ static int reset_channel(unicall_pvt_t *p)
         if (p->subs[i].owner)
         {
             drop = FALSE;
-            p->subs[i].owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
+            p->subs[i].owner->_softhangup |= CW_SOFTHANGUP_DEV;
         }
         /*endif*/
     }
@@ -3316,8 +3316,8 @@ static int reset_channel(unicall_pvt_t *p)
     {
         if ((ret = uc_call_control(p->uc, UC_OP_DROPCALL, p->crn, (void *) UC_CAUSE_NORMAL_CLEARING)))
         {
-            opbx_log(OPBX_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
-            opbx_log(OPBX_LOG_ERROR, "Unable to hangup chan_unicall channel %d\n", p->channel);
+            cw_log(CW_LOG_WARNING, "Drop call failed - %s\n", uc_ret2str(ret));
+            cw_log(CW_LOG_ERROR, "Unable to hangup chan_unicall channel %d\n", p->channel);
             return -1;
         }
         /*endif*/
@@ -3361,7 +3361,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
     {
         if ((tmp = (unicall_pvt_t *) malloc(sizeof(unicall_pvt_t))) == NULL)
         {
-            opbx_log(OPBX_LOG_ERROR, "MALLOC FAILED\n");
+            cw_log(CW_LOG_ERROR, "MALLOC FAILED\n");
             return NULL;
         }
         /*endif*/
@@ -3441,7 +3441,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
             {
                 if (reset_channel(tmp))
                 {
-                    opbx_log(OPBX_LOG_ERROR, "Failed to reset chan_unicall channel %d\n", tmp->channel);
+                    cw_log(CW_LOG_ERROR, "Failed to reset chan_unicall channel %d\n", tmp->channel);
                     return NULL;
                 }
                 /*endif*/
@@ -3457,7 +3457,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
             /*endif*/
             if (tmp->subs[SUB_REAL].fd < 0)
             {
-                opbx_log(OPBX_LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
+                cw_log(CW_LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
                 destroy_unicall_pvt_s(&tmp);
                 return NULL;
             }
@@ -3480,7 +3480,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
                               tmp->protocol_end,
                               1)) == NULL)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to create UC context :(\n");
+            cw_log(CW_LOG_WARNING, "Unable to create UC context :(\n");
             unicall_close(tmp->subs[SUB_REAL].fd);
             destroy_unicall_pvt_s(&tmp);
             return NULL;
@@ -3493,7 +3493,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
         //uc_set_channel_error_callback(tmp->uc, channel_error, (void *) tmp);
         dtmf_tx_init(&tmp->subs[SUB_REAL].dtmf_tx_state);
         if ((ret = uc_call_control(tmp->uc, UC_OP_UNBLOCK, 0, (void *) -1)) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Unblock failed - %s\n", uc_ret2str(ret));
+            cw_log(CW_LOG_WARNING, "Unblock failed - %s\n", uc_ret2str(ret));
         /*endif*/
         tmp->immediate = immediate;
         tmp->protocol_class = protocol_class;
@@ -3521,7 +3521,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
         }
         /*endif*/
         tmp->transfer = transfer;
-        opbx_mutex_init(&tmp->lock);
+        cw_mutex_init(&tmp->lock);
         strncpy(tmp->language, language, sizeof(tmp->language) - 1);
         strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass) - 1);
         strncpy(tmp->context, context, sizeof(tmp->context) - 1);
@@ -3537,7 +3537,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
         {
             uc_channel_gains(tmp->uc, 0, tmp->rxgain, tmp->txgain);
             if (tmp->dsp)
-                opbx_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
+                cw_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
             /*endif*/
             update_conf(tmp);
             tmp->current_alarms = 0;
@@ -3596,7 +3596,7 @@ static unicall_pvt_t *chandup(unicall_pvt_t *src)
     memcpy(p, src, sizeof(unicall_pvt_t));
     if ((p->subs[SUB_REAL].fd = unicall_open(p, "/dev/zap/pseudo")) < 0)
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
+        cw_log(CW_LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
         free(p);
         return NULL;
     }
@@ -3607,7 +3607,7 @@ static unicall_pvt_t *chandup(unicall_pvt_t *src)
     return p;
 }
 
-static struct opbx_channel *unicall_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *unicall_request(const char *type, int format, void *data, int *cause)
 {
     unicall_pvt_t *p;
     unicall_pvt_t *exit;
@@ -3615,7 +3615,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     int groupmatch;
     int channelmatch;
     int callwait;
-    struct opbx_channel *tmp;
+    struct cw_channel *tmp;
     char *dest;
     int x;
     char *s;
@@ -3638,22 +3638,22 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     y = 0;
 
     oldformat = format;
-    format &= (OPBX_FORMAT_SLINEAR | OPBX_FORMAT_ALAW | OPBX_FORMAT_ULAW);
+    format &= (CW_FORMAT_SLINEAR | CW_FORMAT_ALAW | CW_FORMAT_ULAW);
     if (format == 0)
     {
-        opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
+        cw_log(CW_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
         return NULL;
     }
     /*endif*/
     if (data == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Channel requested with no data\n");
+        cw_log(CW_LOG_WARNING, "Channel requested with no data\n");
         return NULL;
     }
     /*endif*/
     if ((dest = strdup((char *) data)) == NULL)
     {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
         return NULL;
     }
     /*endif*/
@@ -3667,7 +3667,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         s = strsep(&stringp, "/");
         if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to determine group for data %s\n", (char *) data);
+            cw_log(CW_LOG_WARNING, "Unable to determine group for data %s\n", (char *) data);
             free(dest);
             return NULL;
         }
@@ -3718,7 +3718,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         }
         else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to determine channel for data %s\n", (char *) data);
+            cw_log(CW_LOG_WARNING, "Unable to determine channel for data %s\n", (char *) data);
             free(dest);
             return NULL;
         }
@@ -3727,9 +3727,9 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     }
     /*endif*/
     /* Search for an unowned channel */
-    if (opbx_mutex_lock(&iflock))
+    if (cw_mutex_lock(&iflock))
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to lock interface list???\n");
+        cw_log(CW_LOG_ERROR, "Unable to lock interface list???\n");
         return NULL;
     }
     /*endif*/
@@ -3741,7 +3741,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         if (available(p, channelmatch, groupmatch, &busy))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Using channel %d\n", p->channel);
+                cw_log(CW_LOG_DEBUG, "Using channel %d\n", p->channel);
             /*endif*/
             if (p->reserved  ||  p->current_alarms)
                 continue;
@@ -3751,7 +3751,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             {
                 if ((p->call = uc_new_call(p->uc, NULL)) == NULL)
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
+                    cw_log(CW_LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
                     break;
                 }
                 /*endif*/
@@ -3776,7 +3776,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
                 /*endif*/
             }
             /*endif*/
-            tmp = unicall_new(p, OPBX_STATE_RESERVED, 0, p->owner  ?  SUB_CALLWAIT  :  SUB_REAL, 0);
+            tmp = unicall_new(p, CW_STATE_RESERVED, 0, p->owner  ?  SUB_CALLWAIT  :  SUB_REAL, 0);
             /* Make special notes */
             if (res > 1)
             {
@@ -3789,7 +3789,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
                 {
                     /* Distinctive ring */
                     if (res < 3)
-                        opbx_log(OPBX_LOG_WARNING, "Distinctive ring missing identifier in '%s'\n", (char *) data);
+                        cw_log(CW_LOG_WARNING, "Distinctive ring missing identifier in '%s'\n", (char *) data);
                     else
                         p->distinctive_ring = y;
                     /*endif*/
@@ -3801,14 +3801,14 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Unknown option '%c' in '%s'\n", opt, (char *) data);
+                    cw_log(CW_LOG_WARNING, "Unknown option '%c' in '%s'\n", opt, (char *) data);
                 }
                 /*endif*/
             }
             /*endif*/
             /* Note if the call is a call waiting call */
             if (callwait)
-                tmp->cdrflags |= OPBX_CDR_CALLWAIT;
+                tmp->cdrflags |= CW_CDR_CALLWAIT;
             /*endif*/
             break;
         }
@@ -3825,10 +3825,10 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         }
     }
     /*endwhile*/
-    opbx_mutex_unlock(&iflock);
+    cw_mutex_unlock(&iflock);
     restart_monitor();
     if (callwait  ||  (tmp == NULL  &&  busy))
-        *cause = OPBX_CAUSE_BUSY;
+        *cause = CW_CAUSE_BUSY;
     return tmp;
 }
 
@@ -3844,7 +3844,7 @@ static int get_group(char *s)
 
     if ((copy = strdup(s)) == NULL)
     {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
         return 0;
     }
     /*endif*/
@@ -3863,14 +3863,14 @@ static int get_group(char *s)
         }
         else
         {
-            opbx_log(OPBX_LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
+            cw_log(CW_LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
             return 0;
         }
         piece = strsep(&c, ",");
         for (x = start;  x <= finish;  x++)
         {
             if (x > 31  ||  x < 0)
-                opbx_log(OPBX_LOG_WARNING, "Ignoring invalid group %d\n", x);
+                cw_log(CW_LOG_WARNING, "Ignoring invalid group %d\n", x);
             else
                 group |= (1 << x);
             /*endif*/
@@ -3912,7 +3912,7 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
     chan = atoi(argv[3]);
     if (chan < 1  ||  chan > NUM_SPANS)
     {
-        opbx_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
+        cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
         return RESULT_SUCCESS;
     }
     /*endif*/
@@ -3923,7 +3923,7 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
             if (tmp->uc)
             {
                 uc_set_logging(tmp->uc, logging_level, 0, NULL);
-                opbx_cli(fd, "Enabled debugging on channel %d\n", chan);
+                cw_cli(fd, "Enabled debugging on channel %d\n", chan);
                 return RESULT_SUCCESS;
             }
             /*endif*/
@@ -3933,9 +3933,9 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
     }
     /*endfor*/
     if (tmp) 
-        opbx_cli(fd, "UniCall not running on channel %d\n", chan);
+        cw_cli(fd, "UniCall not running on channel %d\n", chan);
     else
-        opbx_cli(fd, "No such zap channel %d\n", chan);
+        cw_cli(fd, "No such zap channel %d\n", chan);
     /*endif*/
     return RESULT_SUCCESS;
 }
@@ -3951,7 +3951,7 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
     chan = atoi(argv[4]);
     if (chan < 1  ||  chan > NUM_SPANS)
     {
-        opbx_cli(fd, "Invalid channel %d.  Should be a number greater than 0\n", chan);
+        cw_cli(fd, "Invalid channel %d.  Should be a number greater than 0\n", chan);
         return RESULT_SUCCESS;
     }
     /*endif*/
@@ -3962,7 +3962,7 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
             if (tmp->uc)
             {
                 uc_set_logging(tmp->uc, 0, 0, NULL);
-                opbx_cli(fd, "Disabled debugging on channel %d\n", chan);
+                cw_cli(fd, "Disabled debugging on channel %d\n", chan);
                 return RESULT_SUCCESS;
             }
             /*endif*/
@@ -3972,9 +3972,9 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
     }
     /*endwhile*/
     if (tmp) 
-        opbx_cli(fd, "UniCall not running on channel %d\n", chan);
+        cw_cli(fd, "UniCall not running on channel %d\n", chan);
     else
-        opbx_cli(fd, "No such zap channel %d\n", chan);
+        cw_cli(fd, "No such zap channel %d\n", chan);
     /*endif*/
     return RESULT_SUCCESS;
 }
@@ -3987,7 +3987,7 @@ static char uc_no_debug_help[] =
     "Usage: UC no debug span <span>\n"
     "       Disables debugging on a given PRI span\n";
 
-static struct opbx_clicmd uc_debug = {
+static struct cw_clicmd uc_debug = {
     .cmda = { "UC", "debug", "span", NULL },
     .handler = handle_uc_debug,
     .generator = complete_span,
@@ -3995,7 +3995,7 @@ static struct opbx_clicmd uc_debug = {
     .usage = uc_debug_help,
 };
 
-static struct opbx_clicmd uc_no_debug = {
+static struct cw_clicmd uc_no_debug = {
     .cmda = { "UC", "no", "debug", "span", NULL },
     .handler = handle_uc_no_debug,
     .generator = complete_span,
@@ -4040,8 +4040,8 @@ static int unicall_show_channels(int fd, int argc, char **argv)
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     /*endif*/
-    opbx_mutex_lock(&iflock);
-    opbx_cli(fd, FORMAT2, "Channel", "Extension", "Context", "Status", "Language", "MusicOnHold");
+    cw_mutex_lock(&iflock);
+    cw_cli(fd, FORMAT2, "Channel", "Extension", "Context", "Status", "Language", "MusicOnHold");
     
     for (tmp = iffirst;  tmp;  tmp = tmp->next)
     {
@@ -4055,10 +4055,10 @@ static int unicall_show_channels(int fd, int argc, char **argv)
             tmp2 = "Idle";
         else
             snprintf(tmp2 = tmp2x, sizeof(tmp2x), "%d", tmp->crn);
-        opbx_cli(fd, FORMAT1, tmp1, tmp->exten, tmp->context, tmp2, tmp->language, tmp->musicclass);
+        cw_cli(fd, FORMAT1, tmp1, tmp->exten, tmp->context, tmp2, tmp->language, tmp->musicclass);
     }
     /*endfor*/
-    opbx_mutex_unlock(&iflock);
+    cw_mutex_unlock(&iflock);
     return RESULT_SUCCESS;
 #undef FORMAT1
 #undef FORMAT2
@@ -4075,61 +4075,61 @@ static int unicall_show_channel(int fd, int argc, char **argv)
     /*endif*/
     channel = atoi(argv[3]);
 
-    opbx_mutex_lock(&iflock);
+    cw_mutex_lock(&iflock);
     for (tmp = iffirst;  tmp;  tmp = tmp->next)
     {
         if (tmp->channel == channel)
         {
-            opbx_cli(fd, "Channel: %d\n", tmp->channel);
-            opbx_cli(fd, "File descriptor: %d\n", tmp->subs[SUB_REAL].fd);
-            opbx_cli(fd, "Group: %d\n", tmp->group);
-            opbx_cli(fd, "Extension: %s\n", tmp->exten);
-            opbx_cli(fd, "Context: %s\n", tmp->context);
-            opbx_cli(fd, "Destroy: %d\n", tmp->destroy);
-            opbx_cli(fd, "Signalling type: %s\n", tmp->protocol_class);
-            opbx_cli(fd, "Signalling variant: %s\n", tmp->protocol_variant);
-            opbx_cli(fd, "Signalling end: %s\n", (tmp->protocol_end == UC_MODE_CO)  ?  "CO"  :  "CPE");
-            opbx_cli(fd, "Owner: %s\n", (tmp->owner)  ?  tmp->owner->name  :  "<None>");
-            opbx_cli(fd, "Real: %s%s\n", (tmp->subs[SUB_REAL].owner)  ?  tmp->subs[SUB_REAL].owner->name  :  "<None>", (tmp->subs[SUB_REAL].inthreeway)  ?  " (Confed)"  :  "");
-            opbx_cli(fd, "Callwait: %s%s\n", (tmp->subs[SUB_CALLWAIT].owner)  ?  tmp->subs[SUB_CALLWAIT].owner->name  :  "<None>", (tmp->subs[SUB_CALLWAIT].inthreeway)  ?  " (Confed)"  :  "");
-            opbx_cli(fd, "Threeway: %s%s\n", (tmp->subs[SUB_THREEWAY].owner)  ?  tmp->subs[SUB_THREEWAY].owner->name  :  "<None>", (tmp->subs[SUB_THREEWAY].inthreeway)  ?  " (Confed)"  :  "");
-            opbx_cli(fd, "Confno: %d\n", tmp->confno);
-            opbx_cli(fd, "Propagated conference: %d\n", tmp->propconfno);
-            opbx_cli(fd, "Real in conference: %d\n", tmp->inconference);
-            opbx_cli(fd, "Dialing: %d\n", tmp->dialing);
-            opbx_cli(fd, "Default law: %s\n", (tmp->law == UC_CODEC_ULAW)  ?  "ulaw"  :  (tmp->law == UC_CODEC_ALAW)  ?  "alaw"  :  "unknown");
-            opbx_cli(fd, "Fax handled: %s\n", (tmp->faxhandled)  ?  "yes"  :  "no");
+            cw_cli(fd, "Channel: %d\n", tmp->channel);
+            cw_cli(fd, "File descriptor: %d\n", tmp->subs[SUB_REAL].fd);
+            cw_cli(fd, "Group: %d\n", tmp->group);
+            cw_cli(fd, "Extension: %s\n", tmp->exten);
+            cw_cli(fd, "Context: %s\n", tmp->context);
+            cw_cli(fd, "Destroy: %d\n", tmp->destroy);
+            cw_cli(fd, "Signalling type: %s\n", tmp->protocol_class);
+            cw_cli(fd, "Signalling variant: %s\n", tmp->protocol_variant);
+            cw_cli(fd, "Signalling end: %s\n", (tmp->protocol_end == UC_MODE_CO)  ?  "CO"  :  "CPE");
+            cw_cli(fd, "Owner: %s\n", (tmp->owner)  ?  tmp->owner->name  :  "<None>");
+            cw_cli(fd, "Real: %s%s\n", (tmp->subs[SUB_REAL].owner)  ?  tmp->subs[SUB_REAL].owner->name  :  "<None>", (tmp->subs[SUB_REAL].inthreeway)  ?  " (Confed)"  :  "");
+            cw_cli(fd, "Callwait: %s%s\n", (tmp->subs[SUB_CALLWAIT].owner)  ?  tmp->subs[SUB_CALLWAIT].owner->name  :  "<None>", (tmp->subs[SUB_CALLWAIT].inthreeway)  ?  " (Confed)"  :  "");
+            cw_cli(fd, "Threeway: %s%s\n", (tmp->subs[SUB_THREEWAY].owner)  ?  tmp->subs[SUB_THREEWAY].owner->name  :  "<None>", (tmp->subs[SUB_THREEWAY].inthreeway)  ?  " (Confed)"  :  "");
+            cw_cli(fd, "Confno: %d\n", tmp->confno);
+            cw_cli(fd, "Propagated conference: %d\n", tmp->propconfno);
+            cw_cli(fd, "Real in conference: %d\n", tmp->inconference);
+            cw_cli(fd, "Dialing: %d\n", tmp->dialing);
+            cw_cli(fd, "Default law: %s\n", (tmp->law == UC_CODEC_ULAW)  ?  "ulaw"  :  (tmp->law == UC_CODEC_ALAW)  ?  "alaw"  :  "unknown");
+            cw_cli(fd, "Fax handled: %s\n", (tmp->faxhandled)  ?  "yes"  :  "no");
             if (tmp->master)
-                opbx_cli(fd, "Master Channel: %d\n", tmp->master->channel);
+                cw_cli(fd, "Master Channel: %d\n", tmp->master->channel);
             /*endif*/
             for (x = 0;  x < MAX_SLAVES;  x++)
             {
                 if (tmp->slaves[x])
-                    opbx_cli(fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
+                    cw_cli(fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
                 /*endif*/
             }
             /*endfor*/
             if (tmp->uc)
             {
-                opbx_cli(fd, "UniCall flags: ");
+                cw_cli(fd, "UniCall flags: ");
                 if (tmp->blocked)
-                    opbx_cli(fd, "Blocked ");
+                    cw_cli(fd, "Blocked ");
                 /*endif*/
                 if (tmp->crn)
-                    opbx_cli(fd, "Call ");
+                    cw_cli(fd, "Call ");
                 /*endif*/
-                opbx_cli(fd, "\n");
+                cw_cli(fd, "\n");
             }
             /*endif*/
-            opbx_mutex_unlock(&iflock);
+            cw_mutex_unlock(&iflock);
             return RESULT_SUCCESS;
         }
         /*endif*/
     }
     /*endfor*/
     
-    opbx_cli(fd, "Unable to find given channel %d\n", channel);
-    opbx_mutex_unlock(&iflock);
+    cw_cli(fd, "Unable to find given channel %d\n", channel);
+    cw_mutex_unlock(&iflock);
     return RESULT_FAILURE;
 }
 
@@ -4144,21 +4144,21 @@ static char destroy_channel_usage[] =
     "Usage: UC destroy channel <chan num>\n"
     "    DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
-static struct opbx_clicmd cli_show_channels = { 
+static struct cw_clicmd cli_show_channels = { 
     .cmda = {"UC", "show", "channels", NULL},
     .handler = unicall_show_channels,
     .summary = "Show active UniCall channels",
     .usage = show_channels_usage,
 };
 
-static struct opbx_clicmd cli_show_channel = { 
+static struct cw_clicmd cli_show_channel = { 
     .cmda = {"UC", "show", "channel", NULL},
     .handler = unicall_show_channel,
     .summary = "Show information on a channel",
     .usage = show_channel_usage,
 };
 
-static struct opbx_clicmd cli_destroy_channel = { 
+static struct cw_clicmd cli_destroy_channel = { 
     .cmda = {"UC", "destroy", "channel", NULL},
     .handler = unicall_destroy_channel,
     .summary = "Destroy a channel",
@@ -4168,8 +4168,8 @@ static struct opbx_clicmd cli_destroy_channel = {
 static int setup_unicall(int reload)
 {
     unicall_pvt_t *tmp;
-    struct opbx_config *cfg;
-    struct opbx_variable *v;
+    struct cw_config *cfg;
+    struct cw_variable *v;
     char *chan;
     char *c;
     int start;
@@ -4180,17 +4180,17 @@ static int setup_unicall(int reload)
     int cur_radio;
 
     /* We *must* have a config file, otherwise stop immediately */
-    if ((cfg = opbx_config_load((char *) config)) == NULL)
+    if ((cfg = cw_config_load((char *) config)) == NULL)
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to load config %s\n", config);
+        cw_log(CW_LOG_ERROR, "Unable to load config %s\n", config);
         return -1;
     }
     /*endif*/
 
-    if (opbx_mutex_lock(&iflock))
+    if (cw_mutex_lock(&iflock))
     {
         /* It's a little silly to lock it, but we might as well just to be sure */
-        opbx_log(OPBX_LOG_ERROR, "Unable to lock interface list???\n");
+        cw_log(CW_LOG_ERROR, "Unable to lock interface list???\n");
         return -1;
     }
     /*endif*/
@@ -4203,7 +4203,7 @@ static int setup_unicall(int reload)
     /* Set some defaults for things that might not be specified in the config file. */
     use_callerid = TRUE;
 
-    v = opbx_variable_browse(cfg, "channels");
+    v = cw_variable_browse(cfg, "channels");
     while (v)
     {
         /* Create the interface list */
@@ -4211,9 +4211,9 @@ static int setup_unicall(int reload)
         {
             if (cur_protocol_class == NULL)
             {
-                opbx_log(OPBX_LOG_ERROR, "Signalling must be specified before any channels are.\n");
-                opbx_config_destroy(cfg);
-                opbx_mutex_unlock(&iflock);
+                cw_log(CW_LOG_ERROR, "Signalling must be specified before any channels are.\n");
+                cw_config_destroy(cfg);
+                cw_mutex_unlock(&iflock);
                 return -1;
             }
             /*endif*/
@@ -4237,15 +4237,15 @@ static int setup_unicall(int reload)
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
-                    opbx_config_destroy(cfg);
-                    opbx_mutex_unlock(&iflock);
+                    cw_log(CW_LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
+                    cw_config_destroy(cfg);
+                    cw_mutex_unlock(&iflock);
                     return -1;
                 }
                 /*endif*/
                 if (finish < start)
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
+                    cw_log(CW_LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
                     /* Just swap them */
                     x = finish;
                     finish = start;
@@ -4256,14 +4256,14 @@ static int setup_unicall(int reload)
                 {
                     if ((tmp = mkintf(x, cur_protocol_class, cur_protocol_variant, cur_protocol_end, cur_radio, reload)) == NULL)
                     {
-                        opbx_log(OPBX_LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-                        opbx_config_destroy(cfg);
-                        opbx_mutex_unlock(&iflock);
+                        cw_log(CW_LOG_ERROR, "Unable to register channel '%s'\n", v->value);
+                        cw_config_destroy(cfg);
+                        cw_mutex_unlock(&iflock);
                         return -1;
                     }
                     /*endif*/
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, tmp->protocol_class);
+                        cw_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, tmp->protocol_class);
                     /*endif*/
                 }
                 /*endfor*/
@@ -4288,11 +4288,11 @@ static int setup_unicall(int reload)
         }
         else if (strcasecmp(v->name, "threewaycalling") == 0)
         {
-            threewaycalling = opbx_true(v->value);
+            threewaycalling = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "cancallforward") == 0)
         {
-            cancallforward = opbx_true(v->value);
+            cancallforward = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "mailbox") == 0)
         {
@@ -4300,15 +4300,15 @@ static int setup_unicall(int reload)
         }
         else if (strcasecmp(v->name, "adsi") == 0)
         {
-            adsi = opbx_true(v->value);
+            adsi = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "transfer") == 0)
         {
-            transfer = opbx_true(v->value);
+            transfer = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "echocancelwhenbridged") == 0)
         {
-            echocanbridged = opbx_true(v->value);
+            echocanbridged = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "echocancel") == 0)
         {
@@ -4320,12 +4320,12 @@ static int setup_unicall(int reload)
             if ((y == 32)  ||  (y == 64)  ||  (y == 128)  ||  (y == 256))
                 echocancel = y;
             else
-                echocancel = opbx_true(v->value);
+                echocancel = cw_true(v->value);
             /*endif*/
         }
         else if (strcasecmp(v->name, "callreturn") == 0)
         {
-            callreturn = opbx_true(v->value);
+            callreturn = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "context") == 0)
         {
@@ -4357,18 +4357,18 @@ static int setup_unicall(int reload)
         } 
         else if (strcasecmp(v->name, "immediate") == 0)
         {
-            immediate = opbx_true(v->value);
+            immediate = cw_true(v->value);
         } 
         else if (strcasecmp(v->name, "rxgain") == 0)
         {
             if (sscanf(v->value, "%f", &rxgain) != 1)
-                opbx_log(OPBX_LOG_WARNING, "Invalid rxgain: %s\n", v->value);
+                cw_log(CW_LOG_WARNING, "Invalid rxgain: %s\n", v->value);
             /*endif*/
         } 
         else if (strcasecmp(v->name, "txgain") == 0)
         {
             if (sscanf(v->value, "%f", &txgain) != 1)
-                opbx_log(OPBX_LOG_WARNING, "Invalid txgain: %s\n", v->value);
+                cw_log(CW_LOG_WARNING, "Invalid txgain: %s\n", v->value);
             /*endif*/
         } 
         else if (strcasecmp(v->name, "accountcode") == 0)
@@ -4377,9 +4377,9 @@ static int setup_unicall(int reload)
         } 
         else if (strcasecmp(v->name, "amaflags") == 0)
         {
-            y = opbx_cdr_amaflags2int(v->value);
+            y = cw_cdr_amaflags2int(v->value);
             if (y < 0) 
-                opbx_log(OPBX_LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
+                cw_log(CW_LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
             else
                 amaflags = y;
             /*endif*/
@@ -4398,7 +4398,7 @@ static int setup_unicall(int reload)
         }
         else if (strcasecmp(v->name, "usecallerid") == 0)
         {
-            use_callerid = opbx_true(v->value);
+            use_callerid = cw_true(v->value);
         }
         else if (strcasecmp(v->name, "callerid") == 0)
         {
@@ -4425,7 +4425,7 @@ static int setup_unicall(int reload)
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Ignoring %s\n", v->name);
+            cw_log(CW_LOG_DEBUG, "Ignoring %s\n", v->name);
         }
         /*endif*/
         v = v->next;
@@ -4433,18 +4433,18 @@ static int setup_unicall(int reload)
     /*endwhile*/
     if ((set = get_supervisory_tone_set(super_tones)) == NULL)
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to read supervisory tone set %s\n", super_tones);
-        opbx_config_destroy(cfg);
+        cw_log(CW_LOG_ERROR, "Unable to read supervisory tone set %s\n", super_tones);
+        cw_config_destroy(cfg);
         return -1;
     }
     /*endif*/
-    opbx_mutex_unlock(&iflock);
+    cw_mutex_unlock(&iflock);
 
     /* Make sure we can register our UC channel type */
-    if (opbx_channel_register(&unicall_tech))
+    if (cw_channel_register(&unicall_tech))
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", type);
-        opbx_config_destroy(cfg);
+        cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", type);
+        cw_config_destroy(cfg);
         return -1;
     }
     /*endif*/
@@ -4461,12 +4461,12 @@ static int load_module(void)
         return -1;
     /*endif*/
 
-    opbx_cli_register(&uc_debug);
-    opbx_cli_register(&uc_no_debug);
+    cw_cli_register(&uc_debug);
+    cw_cli_register(&uc_no_debug);
 
-    opbx_cli_register(&cli_show_channels);
-    opbx_cli_register(&cli_show_channel);
-    opbx_cli_register(&cli_destroy_channel);
+    cw_cli_register(&cli_show_channels);
+    cw_cli_register(&cli_show_channel);
+    cw_cli_register(&cli_destroy_channel);
 
     /* And start the monitor for the first time */
     restart_monitor();
@@ -4479,13 +4479,13 @@ static int unload_module(void)
     unicall_pvt_t *pl;
 
     /* First, take us out of the channel loop */
-    opbx_channel_unregister(&unicall_tech);
-    opbx_cli_unregister(&cli_show_channels);
-    opbx_cli_unregister(&cli_show_channel);
-    opbx_cli_unregister(&cli_destroy_channel);
-    if (opbx_mutex_lock(&iflock))
+    cw_channel_unregister(&unicall_tech);
+    cw_cli_unregister(&cli_show_channels);
+    cw_cli_unregister(&cli_show_channel);
+    cw_cli_unregister(&cli_destroy_channel);
+    if (cw_mutex_lock(&iflock))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
+        cw_log(CW_LOG_WARNING, "Unable to lock the monitor\n");
         return -1;
     }
     /*endif*/
@@ -4493,31 +4493,31 @@ static int unload_module(void)
     for (p = iffirst;  p;  p = p->next)
     {
         if (p->owner)
-            opbx_softhangup(p->owner, OPBX_SOFTHANGUP_APPUNLOAD);
+            cw_softhangup(p->owner, CW_SOFTHANGUP_APPUNLOAD);
         /*endif*/
     }
     /*endfor*/
     iffirst = NULL;
-    opbx_mutex_unlock(&iflock);
-    if (opbx_mutex_lock(&monlock))
+    cw_mutex_unlock(&iflock);
+    if (cw_mutex_lock(&monlock))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
+        cw_log(CW_LOG_WARNING, "Unable to lock the monitor\n");
         return -1;
     }
     /*endif*/
-    if (monitor_thread  &&  !pthread_equal(monitor_thread, OPBX_PTHREADT_STOP)  &&  !pthread_equal(monitor_thread, OPBX_PTHREADT_NULL))
+    if (monitor_thread  &&  !pthread_equal(monitor_thread, CW_PTHREADT_STOP)  &&  !pthread_equal(monitor_thread, CW_PTHREADT_NULL))
     {
         pthread_cancel(monitor_thread);
         pthread_kill(monitor_thread, SIGURG);
         pthread_join(monitor_thread, NULL);
     }
     /*endif*/
-    monitor_thread = OPBX_PTHREADT_STOP;
-    opbx_mutex_unlock(&monlock);
+    monitor_thread = CW_PTHREADT_STOP;
+    cw_mutex_unlock(&monlock);
 
-    if (opbx_mutex_lock(&iflock))
+    if (cw_mutex_lock(&iflock))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to lock the monitor\n");
+        cw_log(CW_LOG_WARNING, "Unable to lock the monitor\n");
         return -1;
     }
     /*endif*/
@@ -4535,12 +4535,12 @@ static int unload_module(void)
     }
     /*endfor*/
     iffirst = NULL;
-    opbx_mutex_unlock(&iflock);
+    cw_mutex_unlock(&iflock);
     memset(round_robin, 0, sizeof(round_robin));
     return 0;
 }
 
-static int unicall_send_text(struct opbx_channel *c, const char *text)
+static int unicall_send_text(struct cw_channel *c, const char *text)
 {
     unicall_pvt_t *p;
     int index;
@@ -4550,7 +4550,7 @@ static int unicall_send_text(struct opbx_channel *c, const char *text)
     p = c->tech_pvt;
     if ((index = unicall_get_index(c, p, 0)) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Huh?  I don't exist?\n");
+        cw_log(CW_LOG_WARNING, "Huh?  I don't exist?\n");
         return -1;
     }
     /*endif*/
@@ -4561,7 +4561,7 @@ static int unicall_send_text(struct opbx_channel *c, const char *text)
     msg.message = (unsigned char *) text;
     if ((ret = uc_call_control(p->uc, UC_OP_USERTOUSER, 0, &msg)) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
+        cw_log(CW_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
         return -1;
     }
     /*endif*/
@@ -4572,7 +4572,7 @@ static int reload_module(void)
 {
     if (setup_unicall(TRUE))
     {
-        opbx_log(OPBX_LOG_WARNING, "Reload of chan_unicall.so is unsuccessful!\n");
+        cw_log(CW_LOG_WARNING, "Reload of chan_unicall.so is unsuccessful!\n");
         return -1;
     }
     return 0;

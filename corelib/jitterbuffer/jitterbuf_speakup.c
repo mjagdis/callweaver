@@ -106,7 +106,7 @@ void jb_speakup_reset(speakup_jitterbuffer *jb)
     frame_free(frame);
   }
   //reset stats
-  memset(&(jb->info),0,sizeof(opbx_jb_info) );
+  memset(&(jb->info),0,sizeof(cw_jb_info) );
   // set default settings
   reset(jb);
 }
@@ -202,7 +202,7 @@ void jb_speakup_set_settings(speakup_jitterbuffer *jb, jb_speakup_settings *sett
  * delay and delay_target will be calculated
  * *stats = info
  */
-void jb_speakup_get_info(speakup_jitterbuffer *jb, opbx_jb_info *stats) 
+void jb_speakup_get_info(speakup_jitterbuffer *jb, cw_jb_info *stats) 
 {
   long max_index, pointer;
   
@@ -260,23 +260,23 @@ float jb_speakup_guess_mos(float p, long d, int codec)
   float result;
   
   switch (codec) {
-  case OPBX_FORMAT_GSM:
+  case CW_FORMAT_GSM:
 	  result = (4.31 - 0.23*p - 0.0071*d);
 	  break;
 
-  case OPBX_FORMAT_G723_1: 
+  case CW_FORMAT_G723_1: 
 	  result = (3.99 - 0.16*p - 0.0071*d);
 	  break;
 
-  case OPBX_FORMAT_G729A: 
+  case CW_FORMAT_G729A: 
 	  result = (4.13 - 0.14*p - 0.0071*d);
 	  break;
 
-  case OPBX_FORMAT_ALAW:
+  case CW_FORMAT_ALAW:
 	  result = (4.42 - 0.087*p - 0.0071*d);
 	  break;
 
-  case OPBX_FORMAT_ULAW:
+  case CW_FORMAT_ULAW:
 	  result = (4.42 - 0.087*p - 0.0071*d);
 	  break;
 

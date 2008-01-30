@@ -77,23 +77,23 @@ static const char descrip2[] =
 "   APPERROR	Specified command successfully executed, but returned error code\n";
 
 
-static int system_exec_helper(struct opbx_channel *chan, int argc, char **argv)
+static int system_exec_helper(struct cw_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
 	
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(syntax);
+		return cw_function_syntax(syntax);
 
 	LOCAL_USER_ADD(u);
 
 	/* Do our thing here */
-	res = opbx_safe_system(argv[0]);
+	res = cw_safe_system(argv[0]);
 	if ((res < 0) && (errno != ECHILD)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 	} else if (res == 127) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 	} else {
 		if (res < 0) 
@@ -110,14 +110,14 @@ static int system_exec_helper(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int system_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int system_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	return system_exec_helper(chan, argc, argv);
 }
 
-static int trysystem_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int trysystem_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	opbx_log(OPBX_LOG_WARNING, "TrySystem is depricated. Please use System - it's the same thing!");
+	cw_log(CW_LOG_WARNING, "TrySystem is depricated. Please use System - it's the same thing!");
 	return system_exec_helper(chan, argc, argv);
 }
 
@@ -125,15 +125,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(app2);
-	res |= opbx_unregister_function(app);
+	res |= cw_unregister_function(app2);
+	res |= cw_unregister_function(app);
 	return res;
 }
 
 static int load_module(void)
 {
-	app2 = opbx_register_function(name2, trysystem_exec, synopsis2, syntax2, descrip2);
-	app = opbx_register_function(name, system_exec, synopsis, syntax, descrip);
+	app2 = cw_register_function(name2, trysystem_exec, synopsis2, syntax2, descrip2);
+	app = cw_register_function(name, system_exec, synopsis, syntax, descrip);
 	return 0;
 }
 

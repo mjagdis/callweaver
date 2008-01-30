@@ -46,16 +46,16 @@ static const char moh_func_desc[] =
 	"This function will read or set the music on hold class for a channel.\n";
 
 
-static int function_moh_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_moh_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc > 1)
-		return opbx_function_syntax(moh_func_syntax);
+		return cw_function_syntax(moh_func_syntax);
 
 	if (chan) {
 		if (argc > 0)
-			opbx_copy_string(chan->musicclass, argv[0], MAX_MUSICCLASS);
+			cw_copy_string(chan->musicclass, argv[0], MAX_MUSICCLASS);
 		if (buf)
-			opbx_copy_string(buf, chan->musicclass, len);
+			cw_copy_string(buf, chan->musicclass, len);
 	}
 
 	return 0;
@@ -66,12 +66,12 @@ static const char tdesc[] = "MOH functions";
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(moh_function);
+        return cw_unregister_function(moh_function);
 }
 
 static int load_module(void)
 {
-        moh_function = opbx_register_function(moh_func_name, function_moh_rw, moh_func_synopsis, moh_func_syntax, moh_func_desc);
+        moh_function = cw_register_function(moh_func_name, function_moh_rw, moh_func_synopsis, moh_func_syntax, moh_func_desc);
 	return 0;
 }
 

@@ -61,7 +61,7 @@ static const char playback_descrip[] =
 "\n";
 
 
-static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int playback_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *front = NULL, *back = NULL;
@@ -71,7 +71,7 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	int i;
 
 	if (argc < 1)
-		return opbx_function_syntax(playback_syntax);
+		return cw_function_syntax(playback_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -84,7 +84,7 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char 
 			option_noanswer = 1;
 	}
 	
-	if (chan->_state != OPBX_STATE_UP) {
+	if (chan->_state != CW_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
                         pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "SUCCESS");
@@ -92,22 +92,22 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char 
 			return 0;
 		} else if (!option_noanswer)
 			/* Otherwise answer unless we're supposed to send this while on-hook */
-			res = opbx_answer(chan);
+			res = cw_answer(chan);
 	}
 	if (!res) {
-		opbx_stopstream(chan);
+		cw_stopstream(chan);
 		front = argv[0];
 		while (!res && front) {
 			if ((back = strchr(front, '&'))) {
 				*back = '\0';
 				back++;
 			}
-			res = opbx_streamfile(chan, front, chan->language);
+			res = cw_streamfile(chan, front, chan->language);
 			if (!res) { 
-				res = opbx_waitstream(chan, "");	
-				opbx_stopstream(chan);
+				res = cw_waitstream(chan, "");	
+				cw_stopstream(chan);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
+				cw_log(CW_LOG_WARNING, "cw_streamfile failed on %s for %s\n", chan->name, argv[0]);
 				res = 0;
 				mres = 1;
 			}
@@ -124,13 +124,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(playback_app);
+	res |= cw_unregister_function(playback_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	playback_app = opbx_register_function(playback_name, playback_exec, playback_synopsis, playback_syntax, playback_descrip);
+	playback_app = cw_register_function(playback_name, playback_exec, playback_synopsis, playback_syntax, playback_descrip);
 	return 0;
 }
 

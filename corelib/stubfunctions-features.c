@@ -21,76 +21,76 @@
 #include <callweaver/features.h>
 
 
-static int stub_opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout)
+static int stub_cw_park_call(struct cw_channel *chan, struct cw_channel *host, int timeout, int *extout)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
-static int stub_opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *host, int timeout, int *extout)
+static int stub_cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *host, int timeout, int *extout)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
-static char *stub_opbx_parking_ext(void)
+static char *stub_cw_parking_ext(void)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return NULL;
 }
 
-static char *stub_opbx_pickup_ext(void)
+static char *stub_cw_pickup_ext(void)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return NULL;
 }
 
-static int stub_opbx_bridge_call(struct opbx_channel *chan, struct opbx_channel *peer,struct opbx_bridge_config *config)
+static int stub_cw_bridge_call(struct cw_channel *chan, struct cw_channel *peer,struct cw_bridge_config *config)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
-static int stub_opbx_pickup_call(struct opbx_channel *chan)
+static int stub_cw_pickup_call(struct cw_channel *chan)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 	return -1;
 }
 
-static void stub_opbx_register_feature(struct opbx_call_feature *feature)
+static void stub_cw_register_feature(struct cw_call_feature *feature)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 }
 
-static void stub_opbx_unregister_feature(struct opbx_call_feature *feature)
+static void stub_cw_unregister_feature(struct cw_call_feature *feature)
 {
-	opbx_log(OPBX_LOG_NOTICE, "res_features not loaded!\n");
+	cw_log(CW_LOG_NOTICE, "res_features not loaded!\n");
 }
 
 
 
 
-int (*opbx_park_call)(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout) =
-	stub_opbx_park_call;
+int (*cw_park_call)(struct cw_channel *chan, struct cw_channel *host, int timeout, int *extout) =
+	stub_cw_park_call;
 
-int (*opbx_masq_park_call)(struct opbx_channel *rchan, struct opbx_channel *host, int timeout, int *extout) =
-	stub_opbx_masq_park_call;
+int (*cw_masq_park_call)(struct cw_channel *rchan, struct cw_channel *host, int timeout, int *extout) =
+	stub_cw_masq_park_call;
 
-char *(*opbx_parking_ext)(void) =
-	stub_opbx_parking_ext;
+char *(*cw_parking_ext)(void) =
+	stub_cw_parking_ext;
 
-char *(*opbx_pickup_ext)(void) =
-	stub_opbx_pickup_ext;
+char *(*cw_pickup_ext)(void) =
+	stub_cw_pickup_ext;
 
-int (*opbx_bridge_call)(struct opbx_channel *chan, struct opbx_channel *peer,struct opbx_bridge_config *config) =
-	stub_opbx_bridge_call;
+int (*cw_bridge_call)(struct cw_channel *chan, struct cw_channel *peer,struct cw_bridge_config *config) =
+	stub_cw_bridge_call;
 
-int (*opbx_pickup_call)(struct opbx_channel *chan) =
-	stub_opbx_pickup_call;
+int (*cw_pickup_call)(struct cw_channel *chan) =
+	stub_cw_pickup_call;
 
-void (*opbx_register_feature)(struct opbx_call_feature *feature) =
-	stub_opbx_register_feature;
+void (*cw_register_feature)(struct cw_call_feature *feature) =
+	stub_cw_register_feature;
 
-void (*opbx_unregister_feature)(struct opbx_call_feature *feature) =
-	stub_opbx_unregister_feature;
+void (*cw_unregister_feature)(struct cw_call_feature *feature) =
+	stub_cw_unregister_feature;
 

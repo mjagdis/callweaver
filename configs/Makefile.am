@@ -165,24 +165,24 @@ musiconhold.conf.sample: musiconhold.conf.sample.in Makefile
 	mv musiconhold.conf.sample.tmp musiconhold.conf.sample
 
 install-data-local:
-	if [ ! -d "$(DESTDIR)${opbxconfdir}" ]; \
+	if [ ! -d "$(DESTDIR)${cwconfdir}" ]; \
 	then \
-	    mkdir -p $(DESTDIR)${opbxconfdir}; \
-	    chmod 0750 $(DESTDIR)${opbxconfdir}; \
+	    mkdir -p $(DESTDIR)${cwconfdir}; \
+	    chmod 0750 $(DESTDIR)${cwconfdir}; \
 	fi; \
 	if test -z "$(DESTDIR)"; \
 	then \
-		chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}; \
+		chown ${cwrunuser}:${cwrungroup} $(DESTDIR)${cwconfdir}; \
 	fi; \
 	for samplefile in $(SAMPLES); \
 	do \
 		configfile=`basename $${samplefile} .sample`; \
-		if test ! -f $(DESTDIR)${opbxconfdir}/$${configfile}; \
+		if test ! -f $(DESTDIR)${cwconfdir}/$${configfile}; \
 		then \
-			$(INSTALL) -m 0640 $${samplefile} $(DESTDIR)${opbxconfdir}/$${configfile}; \
+			$(INSTALL) -m 0640 $${samplefile} $(DESTDIR)${cwconfdir}/$${configfile}; \
 			if test -z "$(DESTDIR)"; \
 			then \
-				chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}/$${configfile}; \
+				chown ${cwrunuser}:${cwrungroup} $(DESTDIR)${cwconfdir}/$${configfile}; \
 			fi; \
 		fi; \
 	done

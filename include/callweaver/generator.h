@@ -25,29 +25,29 @@
 
 
 /*! Data structure that defines a class of generator */
-struct opbx_generator {
-	struct opbx_object obj;
-	void *(*alloc)(struct opbx_channel *chan, void *params);
-	void (*release)(struct opbx_channel *chan, void *data);
-	struct opbx_frame *(*generate)(struct opbx_channel *chan, void *data, int samples);
+struct cw_generator {
+	struct cw_object obj;
+	void *(*alloc)(struct cw_channel *chan, void *params);
+	void (*release)(struct cw_channel *chan, void *data);
+	struct cw_frame *(*generate)(struct cw_channel *chan, void *data, int samples);
 	int is_initialized;
 };
 
-struct opbx_generator_instance {
+struct cw_generator_instance {
 	pthread_t tid;
-	struct opbx_channel *chan;
-	struct opbx_generator *class;
+	struct cw_channel *chan;
+	struct cw_generator *class;
 	void *pvt;
 };
 
-extern void opbx_generator_deactivate(struct opbx_generator_instance *gen);
-extern int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator_instance *gen, struct opbx_generator *class, void *params);
+extern void cw_generator_deactivate(struct cw_generator_instance *gen);
+extern int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params);
 
-#define opbx_generator_is_active(chan) (!pthread_equal((chan)->generator.tid, OPBX_PTHREADT_NULL))
+#define cw_generator_is_active(chan) (!pthread_equal((chan)->generator.tid, CW_PTHREADT_NULL))
 
-#define opbx_generator_is_self(chan) ({ \
+#define cw_generator_is_self(chan) ({ \
 	const typeof(chan) __chan = (chan); \
-	!pthread_equal(__chan->generator.tid, OPBX_PTHREADT_NULL) \
+	!pthread_equal(__chan->generator.tid, CW_PTHREADT_NULL) \
 		? pthread_equal(__chan->generator.tid, pthread_self()) \
 		: 1; \
 })

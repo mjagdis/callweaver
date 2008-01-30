@@ -68,7 +68,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static const char desc[] = "Custom PostgreSQL CDR Backend";
 static const char name[] = "pgsql_custom";
 
-OPBX_MUTEX_DEFINE_STATIC(pgsql_lock);
+CW_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define CDR_PGSQL_CONF "cdr_pgsql_custom.conf"
 static char conninfo[512];
 static char table[128];
@@ -82,57 +82,57 @@ static int pgsql_reconnect(void);
 
 static int parse_config(void)
 {
-	struct opbx_config *config;
+	struct cw_config *config;
 	char *s;
 
-	config = opbx_config_load(CDR_PGSQL_CONF);
+	config = cw_config_load(CDR_PGSQL_CONF);
 
 	if (config) {
 
 		/* get the PostgreSQL DSN */
-		s = opbx_variable_retrieve(config, "global", "dsn");
+		s = cw_variable_retrieve(config, "global", "dsn");
 		if (s == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
+			cw_log(CW_LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
 			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
 		} else {
 			strncpy(conninfo, s, sizeof(conninfo));
 		}
 		
 		/* get the CDR table name */
-		s = opbx_variable_retrieve(config, "global", "table");
+		s = cw_variable_retrieve(config, "global", "table");
 		if (s == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "No database table found, assuming 'cdr'.\n");
+			cw_log(CW_LOG_WARNING, "No database table found, assuming 'cdr'.\n");
 			strncpy(table, "cdr", sizeof(table));
 		} else {
 			strncpy(table, s, sizeof(table));
 		}
 
 		/* get the CDR columns */
-                s = opbx_variable_retrieve(config, "master", "columns");
+                s = cw_variable_retrieve(config, "master", "columns");
                 if (s == NULL) {
-                        opbx_log(OPBX_LOG_WARNING, "Column names not specified. Module not loaded.\n");
+                        cw_log(CW_LOG_WARNING, "Column names not specified. Module not loaded.\n");
 			return -1;
                 } else {
                         strncpy(columns, s, sizeof(columns));
                 }
 
 		/* get the CDR column values */
-                s = opbx_variable_retrieve(config, "master", "values");
+                s = cw_variable_retrieve(config, "master", "values");
                 if (s == NULL) {
-                        opbx_log(OPBX_LOG_WARNING, "Values not specified. Module not loaded.\n");
+                        cw_log(CW_LOG_WARNING, "Values not specified. Module not loaded.\n");
 			return -1;
                 } else {
                         strncpy(values, s, sizeof(values));
                 }
 		
 		if (columns != NULL && values != NULL)
-			opbx_log(OPBX_LOG_NOTICE, "Using column layout: %s.\n", columns);
+			cw_log(CW_LOG_NOTICE, "Using column layout: %s.\n", columns);
 
 
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Config file (%s) not found.\n", CDR_PGSQL_CONF);
+		cw_log(CW_LOG_WARNING, "Config file (%s) not found.\n", CDR_PGSQL_CONF);
 	}
-	opbx_config_destroy(config);
+	cw_config_destroy(config);
 
 	return 1;
 }
@@ -144,7 +144,7 @@ static int pgsql_reconnect(void)
 		if (PQstatus(conn) == CONNECTION_OK) {
 			return 1;
 		} else {
-			opbx_log(OPBX_LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
+			cw_log(CW_LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
 
 			/* try to reset the connection */
 			if (PQstatus(conn) != CONNECTION_BAD)
@@ -152,11 +152,11 @@ static int pgsql_reconnect(void)
 
 			/* check the connection status again */
 			if (PQstatus(conn) == CONNECTION_OK) {
-				opbx_log(OPBX_LOG_NOTICE, "Existing database connection reset ok.\n");
+				cw_log(CW_LOG_NOTICE, "Existing database connection reset ok.\n");
 				return 1;
 			} else {
 				/* still no luck, tear down the connection and we'll make a new connection */
-				opbx_log(OPBX_LOG_NOTICE, "Unable to reset existing database connection.\n");
+				cw_log(CW_LOG_NOTICE, "Unable to reset existing database connection.\n");
 				PQfinish(conn);
 			}
 		}
@@ -165,26 +165,26 @@ static int pgsql_reconnect(void)
 	conn = PQconnectdb(conninfo);
 
 	if (PQstatus(conn) == CONNECTION_OK) {
-		opbx_log(OPBX_LOG_NOTICE, "Successfully connected to PostgreSQL database.\n");
+		cw_log(CW_LOG_NOTICE, "Successfully connected to PostgreSQL database.\n");
 		return 1;
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Couldn't establish DB connection. Check debug.\n");
-		opbx_log(OPBX_LOG_ERROR, "Reason %s\n", PQerrorMessage(conn));
+		cw_log(CW_LOG_WARNING, "Couldn't establish DB connection. Check debug.\n");
+		cw_log(CW_LOG_ERROR, "Reason %s\n", PQerrorMessage(conn));
 	}		
 
 	return -1;
 }
 
-static int pgsql_log(struct opbx_cdr *cdr)
+static int pgsql_log(struct cw_cdr *cdr)
 {
 	PGresult *res;
 	char sql_insert_cmd[2048];
 	char sql_tmp_cmd[1024];
 
-	struct opbx_channel dummy;
+	struct cw_channel dummy;
 
 
-	opbx_log(OPBX_LOG_DEBUG,"Inserting a CDR record.\n");
+	cw_log(CW_LOG_DEBUG,"Inserting a CDR record.\n");
 
 	snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
 
@@ -194,32 +194,32 @@ static int pgsql_log(struct opbx_cdr *cdr)
         pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 
 
-	opbx_log(OPBX_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
+	cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
 
 	/* check if database connection is still good */
 	if (!pgsql_reconnect()) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+		cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
 		return -1;
 	}
 
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	res = PQexec(conn, sql_insert_cmd);
 
 	if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		opbx_log(OPBX_LOG_ERROR, "Failed to insert call detail record into database!\n");
-		opbx_log(OPBX_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+		cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
+		cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
-		opbx_mutex_unlock(&pgsql_lock);
+		cw_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
 	PQclear(res);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 	return 0;
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = pgsql_log,
@@ -228,7 +228,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 { 
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
@@ -236,7 +236,7 @@ static int load_module(void)
 {
 	int res;
 
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 
 	parse_config();
 	

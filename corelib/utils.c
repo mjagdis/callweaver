@@ -50,13 +50,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/module.h"
 
-#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/strings.h"
 
-#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/time.h"
 
-#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/utils.h"
 
 static char base64[64];
@@ -68,7 +68,7 @@ static char b2a[256];
 #define ERANGE 34
 #undef gethostbyname
 
-OPBX_MUTEX_DEFINE_STATIC(__mutex);
+CW_MUTEX_DEFINE_STATIC(__mutex);
 
 /* Recursive replacement for gethostbyname for BSD-based systems.  This
 routine is derived from code originally written and placed in the public 
@@ -80,7 +80,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 {
 	int hsave;
 	struct hostent *ph;
-	opbx_mutex_lock(&__mutex); /* begin critical area */
+	cw_mutex_lock(&__mutex); /* begin critical area */
 	hsave = h_errno;
 
 	ph = gethostbyname(name);
@@ -114,7 +114,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 		/* as a terminator must be there, the minimum value is ph->h_length */
 		if(nbytes > buflen) {
 			*result = NULL;
-			opbx_mutex_unlock(&__mutex); /* end critical area */
+			cw_mutex_unlock(&__mutex); /* end critical area */
 			return ERANGE; /* not enough space in buf!! */
 		}
 
@@ -163,7 +163,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 	}
 	h_errno = hsave;  /* restore h_errno */
-	opbx_mutex_unlock(&__mutex); /* end critical area */
+	cw_mutex_unlock(&__mutex); /* end critical area */
 
 	return (*result == NULL); /* return 0 on success, non-zero on error */
 }
@@ -174,7 +174,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 /*! \brief Re-entrant (thread safe) version of gethostbyname that replaces the 
    standard gethostbyname (which is not thread safe)
 */
-struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
+struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp)
 {
 	int res;
 	int herrno;
@@ -198,7 +198,7 @@ struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
 		/* Forge a reply for IP's to avoid octal IP's being interpreted as octal */
 		if (dots != 3)
 			return NULL;
-		memset(hp, 0, sizeof(struct opbx_hostent));
+		memset(hp, 0, sizeof(struct cw_hostent));
 		hp->hp.h_addr_list = (void *) hp->buf;
 		hp->hp.h_addr = hp->buf + sizeof(void *);
 		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
@@ -222,8 +222,8 @@ struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
 
 
 
-OPBX_MUTEX_DEFINE_STATIC(test_lock);
-OPBX_MUTEX_DEFINE_STATIC(test_lock2);
+CW_MUTEX_DEFINE_STATIC(test_lock);
+CW_MUTEX_DEFINE_STATIC(test_lock2);
 static pthread_t test_thread; 
 static int lock_count = 0;
 static int test_errors = 0;
@@ -233,22 +233,22 @@ static int test_errors = 0;
    working properly, and non-zero if they are not working properly. */
 static void *test_thread_body(void *data) 
 { 
-	opbx_mutex_lock(&test_lock);
+	cw_mutex_lock(&test_lock);
 	lock_count += 10;
 	if (lock_count != 10) 
 		test_errors++;
-	opbx_mutex_lock(&test_lock);
+	cw_mutex_lock(&test_lock);
 	lock_count += 10;
 	if (lock_count != 20) 
 		test_errors++;
-	opbx_mutex_lock(&test_lock2);
-	opbx_mutex_unlock(&test_lock);
+	cw_mutex_lock(&test_lock2);
+	cw_mutex_unlock(&test_lock);
 	lock_count -= 10;
 	if (lock_count != 10) 
 		test_errors++;
-	opbx_mutex_unlock(&test_lock);
+	cw_mutex_unlock(&test_lock);
 	lock_count -= 10;
-	opbx_mutex_unlock(&test_lock2);
+	cw_mutex_unlock(&test_lock2);
 	if (lock_count != 0) 
 		test_errors++;
 	return NULL;
@@ -256,25 +256,25 @@ static void *test_thread_body(void *data)
 
 int test_for_thread_safety(void)
 { 
-	opbx_mutex_lock(&test_lock2);
-	opbx_mutex_lock(&test_lock);
+	cw_mutex_lock(&test_lock2);
+	cw_mutex_lock(&test_lock);
 	lock_count += 1;
-	opbx_mutex_lock(&test_lock);
+	cw_mutex_lock(&test_lock);
 	lock_count += 1;
-	opbx_pthread_create(&test_thread, &global_attr_default, test_thread_body, NULL); 
+	cw_pthread_create(&test_thread, &global_attr_default, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
-	opbx_mutex_unlock(&test_lock);
+	cw_mutex_unlock(&test_lock);
 	lock_count -= 1;
 	usleep(100); 
 	if (lock_count != 1) 
 		test_errors++;
-	opbx_mutex_unlock(&test_lock);
+	cw_mutex_unlock(&test_lock);
 	lock_count -= 1;
 	if (lock_count != 0) 
 		test_errors++;
-	opbx_mutex_unlock(&test_lock2);
+	cw_mutex_unlock(&test_lock2);
 	usleep(100);
 	if (lock_count != 0) 
 		test_errors++;
@@ -282,7 +282,7 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-void opbx_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len)
+void cw_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len)
 {
 	int x;
 	int len = 0;
@@ -291,8 +291,8 @@ void opbx_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len
 		len += sprintf(output + len, "%2.2x", md_value[x]);
 }
 
-/*! \Brief opbx_md5_hash_bin: Produce 16 char MD5 hash of value. ---*/
-int opbx_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len)
+/*! \Brief cw_md5_hash_bin: Produce 16 char MD5 hash of value. ---*/
+int cw_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len)
 {
 	EVP_MD_CTX mdctx;
 	unsigned int md_len;
@@ -304,17 +304,17 @@ int opbx_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned in
 	return md_len;
 }
 
-void opbx_md5_hash(char *output, char *input)
+void cw_md5_hash(char *output, char *input)
 {
 	unsigned int md_len;
-	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned char md_value[CW_MAX_BINARY_MD_SIZE];
 	
-	md_len = opbx_md5_hash_bin(md_value, (unsigned char *) input, strlen(input));
+	md_len = cw_md5_hash_bin(md_value, (unsigned char *) input, strlen(input));
 
-	opbx_hash_to_hex(output, md_value, md_len);
+	cw_hash_to_hex(output, md_value, md_len);
 }
 
-int opbx_md5_hash_two_bin(unsigned char *md_value,
+int cw_md5_hash_two_bin(unsigned char *md_value,
 			  unsigned char *input1, unsigned int input1_len,
 			  unsigned char *input2, unsigned int input2_len)
 {
@@ -329,18 +329,18 @@ int opbx_md5_hash_two_bin(unsigned char *md_value,
 	return md_len;
 }
 
-void opbx_md5_hash_two(char *output, char *input1, char *input2)
+void cw_md5_hash_two(char *output, char *input1, char *input2)
 {
 	unsigned int md_len;
-	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned char md_value[CW_MAX_BINARY_MD_SIZE];
 	
-	md_len = opbx_md5_hash_two_bin(md_value, (unsigned char *) input1, strlen(input1),
+	md_len = cw_md5_hash_two_bin(md_value, (unsigned char *) input1, strlen(input1),
 				       (unsigned char *) input2, strlen(input2));
 
-	opbx_hash_to_hex(output, md_value, md_len);
+	cw_hash_to_hex(output, md_value, md_len);
 }
 
-int opbx_base64decode(unsigned char *dst, const char *src, int max)
+int cw_base64decode(unsigned char *dst, const char *src, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
@@ -374,7 +374,7 @@ int opbx_base64decode(unsigned char *dst, const char *src, int max)
 	return cnt;
 }
 
-int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max)
+int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
@@ -439,7 +439,7 @@ static void base64_init(void)
 	b2a[(int)'/'] = 63;
 }
 
-/*! \brief  opbx_uri_encode: Turn text string to URI-encoded %XX version ---*/
+/*! \brief  cw_uri_encode: Turn text string to URI-encoded %XX version ---*/
 /* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
@@ -451,7 +451,7 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
+char *cw_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
 {
 	char *reserved = ";/?:@&=+$, ";	/* Reserved chars */
 
@@ -481,8 +481,8 @@ char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved)
 	return outbuf;
 }
 
-/*! \brief  opbx_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
-void opbx_uri_decode(char *s) 
+/*! \brief  cw_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+void cw_uri_decode(char *s) 
 {
 	char *o;
 	unsigned int tmp;
@@ -498,8 +498,8 @@ void opbx_uri_decode(char *s)
 	*o = '\0';
 }
 
-/*! \brief  opbx_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
-const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
+/*! \brief  cw_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
+const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
 }
@@ -512,63 +512,63 @@ pthread_attr_t global_attr_fifo_detached;
 pthread_attr_t global_attr_rr;
 pthread_attr_t global_attr_rr_detached;
 
-struct opbx_pthread_wrapper_args {
+struct cw_pthread_wrapper_args {
 	struct module *module;
 	void *(*func)(void *);
 	void *param;
 };
 
-static void opbx_pthread_wrapper_cleanup(void *data)
+static void cw_pthread_wrapper_cleanup(void *data)
 {
-	struct opbx_pthread_wrapper_args *args = data;
+	struct cw_pthread_wrapper_args *args = data;
 
-	opbx_module_put(args->module);
+	cw_module_put(args->module);
 	free(args);
 }
 
-static void *opbx_pthread_wrapper(void *data)
+static void *cw_pthread_wrapper(void *data)
 {
-	struct opbx_pthread_wrapper_args *args = data;
+	struct cw_pthread_wrapper_args *args = data;
 	void *ret;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	pthread_cleanup_push(opbx_pthread_wrapper_cleanup, args);
+	pthread_cleanup_push(cw_pthread_wrapper_cleanup, args);
 	ret = args->func(args->param);
 	pthread_cleanup_pop(1);
 	return ret;
 }
 
 #ifndef __linux__
-#undef pthread_create /* For opbx_pthread_create function only */
+#undef pthread_create /* For cw_pthread_create function only */
 #endif /* !__linux__ */
 
-int opbx_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
+int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
 {
 	int ret, n;
 
-	struct opbx_pthread_wrapper_args *args;
+	struct cw_pthread_wrapper_args *args;
 
 	if ((args = malloc(sizeof(*args)))) {
-		args->module = opbx_module_get(module);
+		args->module = cw_module_get(module);
 		args->func = start_routine;
 		args->param = data;
-		ret = pthread_create(thread, attr, opbx_pthread_wrapper, args);
+		ret = pthread_create(thread, attr, cw_pthread_wrapper, args);
 		if (ret == 1 && !pthread_attr_getschedpolicy(attr, &n) && n != SCHED_OTHER) {
 			struct sched_param sp;
-			opbx_log(OPBX_LOG_WARNING, "No permission for realtime scheduling - dropping to non-realtime\n");
+			cw_log(CW_LOG_WARNING, "No permission for realtime scheduling - dropping to non-realtime\n");
 			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
 			sp.sched_priority = 0;
 			pthread_attr_setschedparam(attr, &sp);
-			ret = pthread_create(thread, attr, opbx_pthread_wrapper, args);
+			ret = pthread_create(thread, attr, cw_pthread_wrapper, args);
 		}
 		return ret;
 	}
 
-	opbx_log(OPBX_LOG_ERROR, "malloc: %s\n", strerror(errno));
+	cw_log(CW_LOG_ERROR, "malloc: %s\n", strerror(errno));
 	return -1;
 }
 
-int opbx_wait_for_input(int fd, int ms)
+int cw_wait_for_input(int fd, int ms)
 {
 	struct pollfd pfd[1];
 	memset(pfd, 0, sizeof(pfd));
@@ -577,7 +577,7 @@ int opbx_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
-int opbx_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
+int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;
 
@@ -596,21 +596,21 @@ int opbx_build_string_va(char **buffer, size_t *space, const char *fmt, va_list 
 	return 0;
 }
 
-int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...)
+int cw_build_string(char **buffer, size_t *space, const char *fmt, ...)
 {
 	va_list ap;
 	int result;
 
 	va_start(ap, fmt);
-	result = opbx_build_string_va(buffer, space, fmt, ap);
+	result = cw_build_string_va(buffer, space, fmt, ap);
 	va_end(ap);
 
 	return result;
 }
 
-int opbx_true(const char *s)
+int cw_true(const char *s)
 {
-	if (opbx_strlen_zero(s))
+	if (cw_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a true value */
@@ -625,9 +625,9 @@ int opbx_true(const char *s)
 	return 0;
 }
 
-int opbx_false(const char *s)
+int cw_false(const char *s)
 {
-	if (opbx_strlen_zero(s))
+	if (cw_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a false value */
@@ -650,19 +650,19 @@ int opbx_false(const char *s)
 static struct timeval tvfix(struct timeval a)
 {
 	if (a.tv_usec >= ONE_MILLION) {
-		opbx_log(OPBX_LOG_WARNING, "warning too large timestamp %ld.%ld\n",
+		cw_log(CW_LOG_WARNING, "warning too large timestamp %ld.%ld\n",
 			a.tv_sec, (long int) a.tv_usec);
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
-		opbx_log(OPBX_LOG_WARNING, "warning negative timestamp %ld.%ld\n",
+		cw_log(CW_LOG_WARNING, "warning negative timestamp %ld.%ld\n",
 				a.tv_sec, (long int) a.tv_usec);
 		a.tv_usec = 0;
 	}
 	return a;
 }
 
-struct timeval opbx_tvadd(struct timeval a, struct timeval b)
+struct timeval cw_tvadd(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
 	a = tvfix(a);
@@ -676,7 +676,7 @@ struct timeval opbx_tvadd(struct timeval a, struct timeval b)
 	return a;
 }
 
-struct timeval opbx_tvsub(struct timeval a, struct timeval b)
+struct timeval cw_tvsub(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
 	a = tvfix(a);
@@ -741,7 +741,7 @@ size_t strnlen(const char *s, size_t n)
 }
 #endif /* !HAVE_STRNLEN */
 
-#if !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC)
+#if !defined(HAVE_STRNDUP) && !defined(__CW_DEBUG_MALLOC)
 char *strndup(const char *s, size_t n)
 {
 	size_t len = strnlen(s, n);
@@ -753,9 +753,9 @@ char *strndup(const char *s, size_t n)
 	new[len] = '\0';
 	return memcpy(new, s, len);
 }
-#endif /* !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC) */
+#endif /* !defined(HAVE_STRNDUP) && !defined(__CW_DEBUG_MALLOC) */
 
-#if !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC)
+#if !defined(HAVE_VASPRINTF) && !defined(__CW_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap)
 {
 	int size;
@@ -773,7 +773,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 
 	return size;
 }
-#endif /* !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC) */
+#endif /* !defined(HAVE_VASPRINTF) && !defined(__CW_DEBUG_MALLOC) */
 
 #ifndef HAVE_STRTOQ
 #ifndef LONG_MIN
@@ -916,68 +916,68 @@ int getloadavg(double *list, int nelem)
  * BSD libc (and others) do not. */
 #ifndef linux
 
-OPBX_MUTEX_DEFINE_STATIC(randomlock);
+CW_MUTEX_DEFINE_STATIC(randomlock);
 
-long int opbx_random(void)
+long int cw_random(void)
 {
 	long int res;
-	opbx_mutex_lock(&randomlock);
+	cw_mutex_lock(&randomlock);
 	res = random();
-	opbx_mutex_unlock(&randomlock);
+	cw_mutex_unlock(&randomlock);
 	return res;
 }
 #endif
 
-void opbx_enable_packet_fragmentation(int sock)
+void cw_enable_packet_fragmentation(int sock)
 {
 #ifdef __linux__
 	int val = IP_PMTUDISC_DONT;
 	
 	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
-		opbx_log(OPBX_LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
+		cw_log(CW_LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
 #endif
 }
 
 
-int opbx_utils_init(void)
+int cw_utils_init(void)
 {
 	struct sched_param sp;
 
 	pthread_attr_init(&global_attr_default);
-	pthread_attr_setstacksize(&global_attr_default, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_default, PTHREAD_INHERIT_SCHED);
 	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_JOINABLE);
 
 	pthread_attr_init(&global_attr_detached);
-	pthread_attr_setstacksize(&global_attr_detached, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_detached, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_detached, PTHREAD_INHERIT_SCHED);
 	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_DETACHED);
 
 	sp.sched_priority = 50;
 
 	pthread_attr_init(&global_attr_fifo);
-	pthread_attr_setstacksize(&global_attr_fifo, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_fifo, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_fifo, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_fifo, SCHED_FIFO);
 	pthread_attr_setschedparam(&global_attr_fifo, &sp);
 	pthread_attr_setdetachstate(&global_attr_fifo, PTHREAD_CREATE_JOINABLE);
 
 	pthread_attr_init(&global_attr_fifo_detached);
-	pthread_attr_setstacksize(&global_attr_fifo_detached, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_fifo_detached, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_fifo_detached, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_fifo_detached, SCHED_FIFO);
 	pthread_attr_setschedparam(&global_attr_fifo_detached, &sp);
 	pthread_attr_setdetachstate(&global_attr_fifo_detached, PTHREAD_CREATE_DETACHED);
 
 	pthread_attr_init(&global_attr_rr);
-	pthread_attr_setstacksize(&global_attr_rr, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_rr, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_rr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_rr, SCHED_RR);
 	pthread_attr_setschedparam(&global_attr_rr, &sp);
 	pthread_attr_setdetachstate(&global_attr_rr, PTHREAD_CREATE_JOINABLE);
 
 	pthread_attr_init(&global_attr_rr_detached);
-	pthread_attr_setstacksize(&global_attr_rr_detached, OPBX_STACKSIZE);
+	pthread_attr_setstacksize(&global_attr_rr_detached, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_rr_detached, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_rr_detached, SCHED_RR);
 	pthread_attr_setschedparam(&global_attr_rr_detached, &sp);

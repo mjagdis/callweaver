@@ -50,9 +50,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 
-OPBX_MUTEX_DEFINE_STATIC(modlock);
+CW_MUTEX_DEFINE_STATIC(modlock);
 
-#define OPBX_NAME_STRLEN 256
+#define CW_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 
 static void *chanspy_app;
@@ -81,7 +81,7 @@ static const char chanspy_desc[] =
 #define OPTION_GROUP     (1 << 3)   /* Only look at channels in group */
 #define OPTION_RECORD    (1 << 4)   /* Record */
 
-OPBX_DECLARE_OPTIONS(chanspy_opts,{
+CW_DECLARE_OPTIONS(chanspy_opts,{
     ['q'] = { OPTION_QUIET },
     ['b'] = { OPTION_BRIDGED },
     ['v'] = { OPTION_VOLUME, 1 },
@@ -93,26 +93,26 @@ OPBX_DECLARE_OPTIONS(chanspy_opts,{
 struct chanspy_translation_helper
 {
     /* spy data */
-    struct opbx_channel_spy spy;
+    struct cw_channel_spy spy;
     int volfactor;
     int fd;
-    struct opbx_slinfactory slinfactory[2];
-    struct opbx_frame f;
+    struct cw_slinfactory slinfactory[2];
+    struct cw_frame f;
     int16_t buf[1280];
 };
 
 /* Prototypes */
-static struct opbx_channel *local_get_channel_begin_name(char *name);
-static struct opbx_channel *local_channel_walk(struct opbx_channel *chan);
-static void spy_release(struct opbx_channel *chan, void *data);
-static void *spy_alloc(struct opbx_channel *chan, void *params);
-static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum);
-static void opbx_flush_spy_queue(struct opbx_channel_spy *spy);
-static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, int len);
-static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan, struct opbx_channel_spy *spy);
-static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy);
-static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd);
-static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+static struct cw_channel *local_get_channel_begin_name(char *name);
+static struct cw_channel *local_channel_walk(struct cw_channel *chan);
+static void spy_release(struct cw_channel *chan, void *data);
+static void *spy_alloc(struct cw_channel *chan, void *params);
+static struct cw_frame *spy_queue_shift(struct cw_channel_spy *spy, int qnum);
+static void cw_flush_spy_queue(struct cw_channel_spy *spy);
+static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int len);
+static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy);
+static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy);
+static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *volfactor, int fd);
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
 
 static __inline__ int db_to_scaling_factor(int db)
 {
@@ -120,33 +120,33 @@ static __inline__ int db_to_scaling_factor(int db)
 }
 
 #if 0
-static struct opbx_channel *local_get_channel_by_name(char *name)
+static struct cw_channel *local_get_channel_by_name(char *name)
 {
-    struct opbx_channel *ret;
+    struct cw_channel *ret;
 
-    opbx_mutex_lock(&modlock);
-    if ((ret = opbx_get_channel_by_name_locked(name)))
-        opbx_mutex_unlock(&ret->lock);
-    opbx_mutex_unlock(&modlock);
+    cw_mutex_lock(&modlock);
+    if ((ret = cw_get_channel_by_name_locked(name)))
+        cw_mutex_unlock(&ret->lock);
+    cw_mutex_unlock(&modlock);
 
     return ret;
 }
 #endif
 
-static struct opbx_channel *local_channel_walk(struct opbx_channel *chan)
+static struct cw_channel *local_channel_walk(struct cw_channel *chan)
 {
-    struct opbx_channel *ret;
-    opbx_mutex_lock(&modlock);
-    if ((ret = opbx_channel_walk_locked(chan)))
-        opbx_mutex_unlock(&ret->lock);
-    opbx_mutex_unlock(&modlock);
+    struct cw_channel *ret;
+    cw_mutex_lock(&modlock);
+    if ((ret = cw_channel_walk_locked(chan)))
+        cw_mutex_unlock(&ret->lock);
+    cw_mutex_unlock(&modlock);
     return ret;
 }
 
-static struct opbx_channel *local_get_channel_begin_name(char *name)
+static struct cw_channel *local_get_channel_begin_name(char *name)
 {
-    struct opbx_channel *chan, *ret = NULL;
-    opbx_mutex_lock(&modlock);
+    struct cw_channel *chan, *ret = NULL;
+    cw_mutex_lock(&modlock);
     chan = local_channel_walk(NULL);
     while (chan)
     {
@@ -157,32 +157,32 @@ static struct opbx_channel *local_get_channel_begin_name(char *name)
         }
         chan = local_channel_walk(chan);
     }
-    opbx_mutex_unlock(&modlock);
+    cw_mutex_unlock(&modlock);
 
     return ret;
 }
 
-static void spy_release(struct opbx_channel *chan, void *data)
+static void spy_release(struct cw_channel *chan, void *data)
 {
     struct chanspy_translation_helper *csth = data;
 
-    opbx_slinfactory_destroy(&csth->slinfactory[0]);
-    opbx_slinfactory_destroy(&csth->slinfactory[1]);
+    cw_slinfactory_destroy(&csth->slinfactory[0]);
+    cw_slinfactory_destroy(&csth->slinfactory[1]);
 
     return;
 }
 
-static void *spy_alloc(struct opbx_channel *chan, void *params)
+static void *spy_alloc(struct cw_channel *chan, void *params)
 {
     struct chanspy_translation_helper *csth = params;
-    opbx_slinfactory_init(&csth->slinfactory[0]);
-    opbx_slinfactory_init(&csth->slinfactory[1]);
+    cw_slinfactory_init(&csth->slinfactory[0]);
+    cw_slinfactory_init(&csth->slinfactory[1]);
     return params;
 }
 
-static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum)
+static struct cw_frame *spy_queue_shift(struct cw_channel_spy *spy, int qnum)
 {
-    struct opbx_frame *f;
+    struct cw_frame *f;
 
     if (qnum < 0  ||  qnum > 1)
         return NULL;
@@ -196,40 +196,40 @@ static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum
     return NULL;
 }
 
-static void opbx_flush_spy_queue(struct opbx_channel_spy *spy)
+static void cw_flush_spy_queue(struct cw_channel_spy *spy)
 {
-    struct opbx_frame *f = NULL;
+    struct cw_frame *f = NULL;
     int x = 0;
 
-    opbx_mutex_lock(&spy->lock);
+    cw_mutex_lock(&spy->lock);
     for (x = 0;  x < 2;  x++)
     {
         f = NULL;
         while ((f = spy_queue_shift(spy, x)))
-            opbx_fr_free(f);
+            cw_fr_free(f);
     }
-    opbx_mutex_unlock(&spy->lock);
+    cw_mutex_unlock(&spy->lock);
 }
 
 #if 0
-static int extract_audio(short *buf, size_t len, struct opbx_trans_pvt *trans, struct opbx_frame *fr, int *maxsamp)
+static int extract_audio(short *buf, size_t len, struct cw_trans_pvt *trans, struct cw_frame *fr, int *maxsamp)
 {
-    struct opbx_frame *f;
+    struct cw_frame *f;
     int size, retlen = 0;
 
     if (trans)
     {
-        if ((f = opbx_translate(trans, fr, 0)))
+        if ((f = cw_translate(trans, fr, 0)))
         {
             size = (f->datalen > len) ? len : f->datalen;
             memcpy(buf, f->data, size);
             retlen = f->datalen;
-            opbx_fr_free(f);
+            cw_fr_free(f);
         }
         else
         {
             /* your guess is as good as mine why this will happen but it seems to only happen on iax and appears harmless */
-            opbx_log(OPBX_LOG_DEBUG, "Failed to translate frame from %s\n", opbx_getformatname(fr->subclass));
+            cw_log(CW_LOG_DEBUG, "Failed to translate frame from %s\n", cw_getformatname(fr->subclass));
         }
     }
     else
@@ -250,11 +250,11 @@ static int extract_audio(short *buf, size_t len, struct opbx_trans_pvt *trans, s
     return retlen;
 }
 
-static int spy_queue_ready(struct opbx_channel_spy *spy)
+static int spy_queue_ready(struct cw_channel_spy *spy)
 {
     int res = 0;
 
-    opbx_mutex_lock(&spy->lock);
+    cw_mutex_lock(&spy->lock);
     if (spy->status == CHANSPY_RUNNING)
     {
         res = (spy->queue[0]  &&  spy->queue[1])  ?  1  :  0;
@@ -263,16 +263,16 @@ static int spy_queue_ready(struct opbx_channel_spy *spy)
     {
         res = (spy->queue[0] || spy->queue[1])  ?  1  :  -1;
     }
-    opbx_mutex_unlock(&spy->lock);
+    cw_mutex_unlock(&spy->lock);
     return res;
 }
 #endif
 
-static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, int sample)
+static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sample)
 {
 
     struct chanspy_translation_helper *csth = data;
-    struct opbx_frame *f;
+    struct cw_frame *f;
     int len0 = 0;
     int len1 = 0;
     int samp0 = 0;
@@ -292,33 +292,33 @@ static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, in
 
     len = sample * sizeof(int16_t);
 
-    opbx_mutex_lock(&csth->spy.lock);
+    cw_mutex_lock(&csth->spy.lock);
     while((f = csth->spy.queue[0]))
     {
         csth->spy.queue[0] = f->next;
-        opbx_slinfactory_feed(&csth->slinfactory[0], f);
-        opbx_fr_free(f);
+        cw_slinfactory_feed(&csth->slinfactory[0], f);
+        cw_fr_free(f);
     }
-    opbx_mutex_unlock(&csth->spy.lock);
-    opbx_mutex_lock(&csth->spy.lock);
+    cw_mutex_unlock(&csth->spy.lock);
+    cw_mutex_lock(&csth->spy.lock);
     while((f = csth->spy.queue[1]))
     {
         csth->spy.queue[1] = f->next;
-        opbx_slinfactory_feed(&csth->slinfactory[1], f);
-        opbx_fr_free(f);
+        cw_slinfactory_feed(&csth->slinfactory[1], f);
+        cw_fr_free(f);
     }
-    opbx_mutex_unlock(&csth->spy.lock);
+    cw_mutex_unlock(&csth->spy.lock);
 
-    opbx_fr_init_ex(&csth->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+    cw_fr_init_ex(&csth->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
     csth->f.data = csth->buf;
     csth->f.datalen = csth->f.samples = 0;
 
     if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len)
         return &csth->f;
 
-    len0 = opbx_slinfactory_read(&csth->slinfactory[0], buf0, len);
+    len0 = cw_slinfactory_read(&csth->slinfactory[0], buf0, len);
     samp0 = len0/sizeof(int16_t);
-    len1 = opbx_slinfactory_read(&csth->slinfactory[1], buf1, len);
+    len1 = cw_slinfactory_read(&csth->slinfactory[1], buf1, len);
     samp1 = len1/sizeof(int16_t);
 
     vf = db_to_scaling_factor(csth->volfactor) >> 4;
@@ -368,7 +368,7 @@ static struct opbx_frame *spy_generate(struct opbx_channel *chan, void *data, in
 }
 
 
-static struct opbx_generator spygen =
+static struct cw_generator spygen =
     {
     alloc:
         spy_alloc,
@@ -378,15 +378,15 @@ static struct opbx_generator spygen =
         spy_generate,
     };
 
-static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan, struct opbx_channel_spy *spy)
+static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy)
 {
 
-    struct opbx_channel_spy *cptr=NULL;
-    struct opbx_channel *peer;
+    struct cw_channel_spy *cptr=NULL;
+    struct cw_channel *peer;
 
-    opbx_log(OPBX_LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
+    cw_log(CW_LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
 
-    opbx_mutex_lock(&chan->lock);
+    cw_mutex_lock(&chan->lock);
     if (chan->spiers)
     {
         for (cptr = chan->spiers;  cptr  &&  cptr->next;  cptr = cptr->next)
@@ -397,22 +397,22 @@ static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan
     {
         chan->spiers = spy;
     }
-    opbx_mutex_unlock(&chan->lock);
-    if ( opbx_test_flag(chan, OPBX_FLAG_NBRIDGE)  &&  (peer = opbx_bridged_channel(chan)))
-        opbx_softhangup(peer, OPBX_SOFTHANGUP_UNBRIDGE);
+    cw_mutex_unlock(&chan->lock);
+    if ( cw_test_flag(chan, CW_FLAG_NBRIDGE)  &&  (peer = cw_bridged_channel(chan)))
+        cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);
 }
 
-static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy)
+static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy)
 {
-    struct opbx_channel_spy *cptr = NULL;
-    struct opbx_channel_spy *prev = NULL;
+    struct cw_channel_spy *cptr = NULL;
+    struct cw_channel_spy *prev = NULL;
 
     /* If our status has changed, then the channel we're spying on is gone....
        DON'T TOUCH IT!!!  RUN AWAY!!! */
     if (spy->status != CHANSPY_RUNNING)
         return;
 
-    opbx_mutex_lock(&chan->lock);
+    cw_mutex_lock(&chan->lock);
     for (cptr = chan->spiers;  cptr;  cptr = cptr->next)
     {
         if (cptr == spy)
@@ -429,14 +429,14 @@ static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy)
         }
         prev = cptr;
     }
-    opbx_mutex_unlock(&chan->lock);
+    cw_mutex_unlock(&chan->lock);
 }
 
 /* attempt to set the desired gain adjustment via the channel driver;
    if successful, clear it out of the csth structure so the
    generator will not attempt to do the adjustment itself
 */
-static void set_volume(struct opbx_channel *chan, struct chanspy_translation_helper *csth)
+static void set_volume(struct cw_channel *chan, struct chanspy_translation_helper *csth)
 {
     signed char volume_adjust;
 
@@ -446,11 +446,11 @@ static void set_volume(struct opbx_channel *chan, struct chanspy_translation_hel
         volume_adjust = -24;
     else
         volume_adjust = csth->volfactor;
-    if (!opbx_channel_setoption(chan, OPBX_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
+    if (!cw_channel_setoption(chan, CW_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
         csth->volfactor = 0;
 }
 
-static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd)
+static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *volfactor, int fd)
 {
     struct chanspy_translation_helper csth;
     int running = 1;
@@ -458,49 +458,49 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
     int x = 0;
     char inp[24] = "";
     char *name = NULL;
-    struct opbx_frame *f = NULL;
+    struct cw_frame *f = NULL;
 
-    if ((chan  &&  opbx_check_hangup(chan)) || (spyee  &&  opbx_check_hangup(spyee)))
+    if ((chan  &&  cw_check_hangup(chan)) || (spyee  &&  cw_check_hangup(spyee)))
         return 0;
 
-    if (chan  &&  !opbx_check_hangup(chan)  &&  spyee  &&  !opbx_check_hangup(spyee))
+    if (chan  &&  !cw_check_hangup(chan)  &&  spyee  &&  !cw_check_hangup(spyee))
     {
         memset(inp, 0, sizeof(inp));
-        name = opbx_strdupa(spyee->name);
+        name = cw_strdupa(spyee->name);
         if (option_verbose >= 2)
-            opbx_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
+            cw_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
 
         memset(&csth, 0, sizeof(csth));
         csth.spy.status = CHANSPY_RUNNING;
-        opbx_mutex_init(&csth.spy.lock);
+        cw_mutex_init(&csth.spy.lock);
         csth.volfactor = *volfactor;
         set_volume(chan, &csth);
         
         if (fd)
             csth.fd = fd;
         start_spying(spyee, chan, &csth.spy);
-        opbx_generator_activate(chan, &chan->generator, &spygen, &csth);
+        cw_generator_activate(chan, &chan->generator, &spygen, &csth);
 
         while (csth.spy.status == CHANSPY_RUNNING
                &&
                chan
                &&
-               !opbx_check_hangup(chan)
+               !cw_check_hangup(chan)
                &&
                spyee
                &&
-               !opbx_check_hangup(spyee)
+               !cw_check_hangup(spyee)
                &&
                running == 1
                &&
-               (res = opbx_waitfor(chan, -1) > -1))
+               (res = cw_waitfor(chan, -1) > -1))
         {
-            if ((f = opbx_read(chan)) == NULL)
+            if ((f = cw_read(chan)) == NULL)
                 break;
             res = 0;
-            if (f->frametype == OPBX_FRAME_DTMF)
+            if (f->frametype == CW_FRAME_DTMF)
                 res = f->subclass;
-            opbx_fr_free(f);
+            cw_fr_free(f);
             if (res == 0)
                 continue;
             if (x == sizeof(inp))
@@ -515,7 +515,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
             }
             else if (res == '#')
             {
-                if (!opbx_strlen_zero(inp))
+                if (!cw_strlen_zero(inp))
                 {
                     running = x ? atoi(inp) : -1;
                     break;
@@ -524,7 +524,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
                 if (*volfactor > 24)
                     *volfactor = -24;
                 if (option_verbose > 2)
-                    opbx_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
+                    cw_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
                 csth.volfactor = *volfactor;
                 set_volume(chan, &csth);
             }
@@ -533,28 +533,28 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
                 inp[x++] = res;
             }
         }
-        opbx_generator_deactivate(&chan->generator);
+        cw_generator_deactivate(&chan->generator);
         stop_spying(spyee, &csth.spy);
 
         if (option_verbose >= 2)
-            opbx_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
-        opbx_flush_spy_queue(&csth.spy);
+            cw_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
+        cw_flush_spy_queue(&csth.spy);
     }
     else
     {
         running = 0;
     }
-    opbx_mutex_destroy(&csth.spy.lock);
+    cw_mutex_destroy(&csth.spy.lock);
     return running;
 }
 
-static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     struct localuser *u;
-    struct opbx_channel *peer = NULL;
-    struct opbx_channel *prev = NULL;
-    char name[OPBX_NAME_STRLEN];
-    char peer_name[OPBX_NAME_STRLEN + 5];
+    struct cw_channel *peer = NULL;
+    struct cw_channel *prev = NULL;
+    char name[CW_NAME_STRLEN];
+    char peer_name[CW_NAME_STRLEN + 5];
     char *ptr = NULL;
     char *mygroup = NULL;
     char *recbase = NULL;
@@ -569,33 +569,33 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     int oldrf = 0;
     int oldwf = 0;
     int fd = 0;
-    struct opbx_flags flags;
+    struct cw_flags flags;
     signed char zero_volume = 0;
 
     if (argc < 1 || argc > 2)
-        return opbx_function_syntax(chanspy_syntax);
+        return cw_function_syntax(chanspy_syntax);
 
     LOCAL_USER_ADD(u);
 
     oldrf = chan->readformat;
     oldwf = chan->writeformat;
-    if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR) < 0)
+    if (cw_set_read_format(chan, CW_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(OPBX_LOG_ERROR, "Could Not Set Read Format.\n");
+        cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
 
-    if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR) < 0)
+    if (cw_set_write_format(chan, CW_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(OPBX_LOG_ERROR, "Could Not Set Write Format.\n");
+        cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
 
-    opbx_answer(chan);
+    cw_answer(chan);
 
-    opbx_set_flag(chan, OPBX_FLAG_SPYING); /* so nobody can spy on us while we are spying */
+    cw_set_flag(chan, CW_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
     if (argc < 2  ||  !argv[1][0]  ||  !strcmp(argv[1], "all"))
         argv[1] = NULL;
@@ -603,22 +603,22 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     if (argv[1])
     {
         char *opts[3];
-        opbx_parseoptions(chanspy_opts, &flags, opts, argv[1]);
-        if (opbx_test_flag(&flags, OPTION_GROUP))
+        cw_parseoptions(chanspy_opts, &flags, opts, argv[1]);
+        if (cw_test_flag(&flags, OPTION_GROUP))
             mygroup = opts[1];
-        if (opbx_test_flag(&flags, OPTION_RECORD))
+        if (cw_test_flag(&flags, OPTION_RECORD))
         {
             if (!(recbase = opts[2]))
                 recbase = "chanspy";
         }
-        silent = opbx_test_flag(&flags, OPTION_QUIET);
-        bronly = opbx_test_flag(&flags, OPTION_BRIDGED);
-        if (opbx_test_flag(&flags, OPTION_VOLUME)  &&  opts[1])
+        silent = cw_test_flag(&flags, OPTION_QUIET);
+        bronly = cw_test_flag(&flags, OPTION_BRIDGED);
+        if (cw_test_flag(&flags, OPTION_VOLUME)  &&  opts[1])
         {
             int vol;
 
             if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 24)  ||  (vol < -24))
-                opbx_log(OPBX_LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
+                cw_log(CW_LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
             else
                 volfactor = vol;
         }
@@ -627,10 +627,10 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     if (recbase)
     {
         char filename[512];
-        snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",opbx_config_OPBX_MONITOR_DIR, recbase, time(NULL));
+        snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",cw_config_CW_MONITOR_DIR, recbase, time(NULL));
         if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Cannot open %s for recording\n", filename);
+            cw_log(CW_LOG_WARNING, "Cannot open %s for recording\n", filename);
             fd = 0;
         }
     }
@@ -639,19 +639,19 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     {
         if (!silent)
         {
-            if ((res = opbx_streamfile(chan, "beep", chan->language)) == 0)
-                res = opbx_waitstream(chan, "");
+            if ((res = cw_streamfile(chan, "beep", chan->language)) == 0)
+                res = cw_waitstream(chan, "");
             if (res < 0)
             {
-                opbx_clear_flag(chan, OPBX_FLAG_SPYING);
+                cw_clear_flag(chan, CW_FLAG_SPYING);
                 break;
             }
         }
 
         count = 0;
-        if ((res = opbx_waitfordigit(chan, waitms)) < 0)
+        if ((res = cw_waitfordigit(chan, waitms)) < 0)
         {
-            opbx_clear_flag(chan, OPBX_FLAG_SPYING);
+            cw_clear_flag(chan, CW_FLAG_SPYING);
             break;
         }
                 
@@ -682,15 +682,15 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
                 {
                     if (peer
                         &&
-                        (!bronly  ||  opbx_bridged_channel(peer))
+                        (!bronly  ||  cw_bridged_channel(peer))
                         &&
-                        !opbx_check_hangup(peer)
+                        !cw_check_hangup(peer)
                         &&
-                        !opbx_test_flag(peer, OPBX_FLAG_SPYING))
+                        !cw_test_flag(peer, CW_FLAG_SPYING))
                     {
                         int x = 0;
                         strncpy(peer_name, "spy-", 5);
-                        strncpy(peer_name + strlen(peer_name), peer->name, OPBX_NAME_STRLEN);
+                        strncpy(peer_name + strlen(peer_name), peer->name, CW_NAME_STRLEN);
                         ptr = strchr(peer_name, '/');
                         *ptr = '\0';
                         ptr++;
@@ -703,20 +703,20 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
 
                         if (!silent)
                         {
-                            if (opbx_fileexists(peer_name, NULL, NULL))
+                            if (cw_fileexists(peer_name, NULL, NULL))
                             {
-                                res = opbx_streamfile(chan, peer_name, chan->language);
+                                res = cw_streamfile(chan, peer_name, chan->language);
                                 if (!res)
-                                    res = opbx_waitstream(chan, "");
+                                    res = cw_waitstream(chan, "");
                                 if (res)
                                     break;
                             }
                             else
                             {
-                                res = opbx_say_character_str(chan, peer_name, "", chan->language);
+                                res = cw_say_character_str(chan, peer_name, "", chan->language);
                             }
                             if ((num = atoi(ptr)))
-                                opbx_say_digits(chan, atoi(ptr), "", chan->language);
+                                cw_say_digits(chan, atoi(ptr), "", chan->language);
                         }
                         count++;
                         prev = peer;
@@ -725,7 +725,7 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
                             break;
                         if (res > 1  &&  argv[0])
                         {
-                            snprintf(name, OPBX_NAME_STRLEN, "%s/%d", argv[0], res);
+                            snprintf(name, CW_NAME_STRLEN, "%s/%d", argv[0], res);
                             if ((peer = local_get_channel_begin_name(name)))
                                 chosen = 1;
                             continue;
@@ -743,15 +743,15 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv, char *
     if (fd > 0)
         close(fd);
 
-    if (oldrf  &&  opbx_set_read_format(chan, oldrf) < 0)
-        opbx_log(OPBX_LOG_ERROR, "Could Not Set Read Format.\n");
+    if (oldrf  &&  cw_set_read_format(chan, oldrf) < 0)
+        cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
 
-    if (oldwf  &&  opbx_set_write_format(chan, oldwf) < 0)
-        opbx_log(OPBX_LOG_ERROR, "Could Not Set Write Format.\n");
+    if (oldwf  &&  cw_set_write_format(chan, oldwf) < 0)
+        cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
 
-    opbx_clear_flag(chan, OPBX_FLAG_SPYING);
+    cw_clear_flag(chan, CW_FLAG_SPYING);
 
-    opbx_channel_setoption(chan, OPBX_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
 
     ALL_DONE(u, res);
 }
@@ -760,16 +760,16 @@ static int unload_module(void)
 {
     int res = 0;
 
-    res |= opbx_unregister_function(chanspy_app);
+    res |= cw_unregister_function(chanspy_app);
     return res;
 }
 
 static int load_module(void)
 {
     if (!spygen.is_initialized)
-        opbx_object_init(&spygen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+        cw_object_init(&spygen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
 
-    chanspy_app = opbx_register_function(chanspy_name, chanspy_exec, chanspy_synopsis, chanspy_syntax, chanspy_desc);
+    chanspy_app = cw_register_function(chanspy_name, chanspy_exec, chanspy_synopsis, chanspy_syntax, chanspy_desc);
     return 0;
 }
 

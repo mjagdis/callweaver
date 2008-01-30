@@ -39,7 +39,7 @@ static uint32_t callCount = 1;
 extern struct sched_context *sched;
 extern struct io_context *io;
 
-OPBX_MUTEX_DEFINE_STATIC(callCountLock);
+CW_MUTEX_DEFINE_STATIC(callCountLock);
 
 sccp_channel_t * sccp_channel_allocate(sccp_line_t * l) {
 /* this just allocate a sccp channel (not the callweaver channel, for that look at sccp_pbx_channel_allocate) */
@@ -48,61 +48,61 @@ sccp_channel_t * sccp_channel_allocate(sccp_line_t * l) {
 
   /* If there is no current line, then we can't make a call in, or out. */
 	if (!l) {
-		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on a device with no lines\n");
+		cw_log(CW_LOG_ERROR, "SCCP: Tried to open channel on a device with no lines\n");
 	return NULL;
 	}
 
 	if (!l->device) {
-		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on NULL device\n");
+		cw_log(CW_LOG_ERROR, "SCCP: Tried to open channel on NULL device\n");
 		return NULL;
 	}
 	
 	d = l->device;
 
 	if (!d->session) {
-		opbx_log(OPBX_LOG_ERROR, "SCCP: Tried to open channel on device %s without a session\n", d->id);
+		cw_log(CW_LOG_ERROR, "SCCP: Tried to open channel on device %s without a session\n", d->id);
 		return NULL;
 	}
 
 	c = malloc(sizeof(sccp_channel_t));
 	if (!c) {
 		/* error allocating memory */
-		opbx_log(OPBX_LOG_ERROR, "%s: No memory to allocate channel on line %s\n",d->id, l->name);
+		cw_log(CW_LOG_ERROR, "%s: No memory to allocate channel on line %s\n",d->id, l->name);
 		return NULL;
 	}
 	memset(c, 0, sizeof(sccp_channel_t));
-	opbx_mutex_init(&c->lock);
+	cw_mutex_init(&c->lock);
 
 	/* default ringermode SKINNY_STATION_OUTSIDERING. Change it with SCCPRingerMode app */
 	c->ringermode = SKINNY_STATION_OUTSIDERING;
 	/* inbound for now. It will be changed later on outgoing calls */
 	c->calltype = SKINNY_CALLTYPE_INBOUND;
 
-	opbx_mutex_lock(&callCountLock);
+	cw_mutex_lock(&callCountLock);
 	c->callid = callCount++;
-	opbx_mutex_unlock(&callCountLock);
+	cw_mutex_unlock(&callCountLock);
 
 	c->line = l;
 	c->device = d;
 
-	opbx_mutex_lock(&l->lock);
+	cw_mutex_lock(&l->lock);
 	l->channelCount++;
-	opbx_mutex_unlock(&l->lock);
+	cw_mutex_unlock(&l->lock);
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->channelCount++;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: New channel number: %d on line %s\n", d->id, c->callid, l->name);
 
 	/* put it on the top of the lists */
 
-	opbx_mutex_lock(&GLOB(channels_lock));
+	cw_mutex_lock(&GLOB(channels_lock));
 	c->next = GLOB(channels);
 	if (GLOB(channels)) /* first one */
 		GLOB(channels)->prev = c;
 	GLOB(channels) = c;
-	opbx_mutex_unlock(&GLOB(channels_lock));
+	cw_mutex_unlock(&GLOB(channels_lock));
 
 	c->next_on_line = l->channels;
 	if (l->channels) /* first one */
@@ -117,9 +117,9 @@ sccp_channel_t * sccp_channel_get_active(sccp_device_t * d) {
 	if (!d)
 		return NULL;
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: getting the active channel on device\n",d->id);
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	c = d->active_channel;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	/* go safe! Will remove it soon after test the active_channel XXX*/
 /*	if (c)
 		return c;
@@ -135,10 +135,10 @@ sccp_channel_t * sccp_channel_get_active(sccp_device_t * d) {
 void sccp_channel_set_active(sccp_channel_t * c) {
 	sccp_device_t * d = c->device;
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the active channel %d on device\n", DEV_ID_LOG(d), (c) ? c->callid : 0);
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->active_channel = c;
 	d->currentLine = c->line;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 }
 
 void sccp_channel_send_callinfo(sccp_channel_t * c) {
@@ -147,14 +147,14 @@ void sccp_channel_send_callinfo(sccp_channel_t * c) {
 	REQ(r, CallInfoMessage);
 
 	if (c->callingPartyName)
-		opbx_copy_string(r->msg.CallInfoMessage.callingPartyName, c->callingPartyName, sizeof(r->msg.CallInfoMessage.callingPartyName));
+		cw_copy_string(r->msg.CallInfoMessage.callingPartyName, c->callingPartyName, sizeof(r->msg.CallInfoMessage.callingPartyName));
 	if (c->callingPartyNumber)
-		opbx_copy_string(r->msg.CallInfoMessage.callingParty, c->callingPartyNumber, sizeof(r->msg.CallInfoMessage.callingParty));
+		cw_copy_string(r->msg.CallInfoMessage.callingParty, c->callingPartyNumber, sizeof(r->msg.CallInfoMessage.callingParty));
 
 	if (c->calledPartyName)
-		opbx_copy_string(r->msg.CallInfoMessage.calledPartyName, c->calledPartyName, sizeof(r->msg.CallInfoMessage.calledPartyName));
+		cw_copy_string(r->msg.CallInfoMessage.calledPartyName, c->calledPartyName, sizeof(r->msg.CallInfoMessage.calledPartyName));
 	if (c->calledPartyNumber)
-		opbx_copy_string(r->msg.CallInfoMessage.calledParty, c->calledPartyNumber, sizeof(r->msg.CallInfoMessage.calledParty));
+		cw_copy_string(r->msg.CallInfoMessage.calledParty, c->calledPartyNumber, sizeof(r->msg.CallInfoMessage.calledParty));
 
 	r->msg.CallInfoMessage.lel_lineId   = htolel(c->line->instance);
 	r->msg.CallInfoMessage.lel_callRef  = htolel(c->callid);
@@ -167,12 +167,12 @@ void sccp_channel_send_callinfo(sccp_channel_t * c) {
 void sccp_channel_send_dialednumber(sccp_channel_t * c) {
 	sccp_moo_t * r;
 
-	if (opbx_strlen_zero(c->calledPartyNumber))
+	if (cw_strlen_zero(c->calledPartyNumber))
 		return;
 
 	REQ(r, DialedNumberMessage);
 
-	opbx_copy_string(r->msg.DialedNumberMessage.calledParty, c->calledPartyNumber, sizeof(r->msg.DialedNumberMessage.calledParty));
+	cw_copy_string(r->msg.DialedNumberMessage.calledParty, c->calledPartyNumber, sizeof(r->msg.DialedNumberMessage.calledParty));
 
 	r->msg.DialedNumberMessage.lel_lineId   = htolel(c->line->instance);
 	r->msg.DialedNumberMessage.lel_callRef  = htolel(c->callid);
@@ -212,12 +212,12 @@ void sccp_channel_set_callingparty(sccp_channel_t * c, char *name, char *number)
 	d = c->device;
 
 	if (name && strncmp(name, c->callingPartyName, StationMaxNameSize - 1)) {
-		opbx_copy_string(c->callingPartyName, name, sizeof(c->callingPartyName));
+		cw_copy_string(c->callingPartyName, name, sizeof(c->callingPartyName));
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set callingParty Name %s on channel %d\n", d->id, c->callingPartyName, c->callid);
 	}
 
 	if (number && strncmp(number, c->callingPartyNumber, StationMaxDirnumSize - 1)) {
-		opbx_copy_string(c->callingPartyNumber, number, sizeof(c->callingPartyNumber));
+		cw_copy_string(c->callingPartyNumber, number, sizeof(c->callingPartyNumber));
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set callingParty Number %s on channel %d\n", d->id, c->callingPartyNumber, c->callid);
 	}
 
@@ -233,12 +233,12 @@ void sccp_channel_set_calledparty(sccp_channel_t * c, char *name, char *number) 
 	d = c->device;
 
 	if (name && strncmp(name, c->calledPartyName, StationMaxNameSize - 1)) {
-		opbx_copy_string(c->calledPartyName, name, sizeof(c->calledPartyNumber));
+		cw_copy_string(c->calledPartyName, name, sizeof(c->calledPartyNumber));
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set calledParty Name %s on channel %d\n", d->id, c->calledPartyName, c->callid);
 	}
 
 	if (number && strncmp(number, c->calledPartyNumber, StationMaxDirnumSize - 1)) {
-		opbx_copy_string(c->calledPartyNumber, number, sizeof(c->callingPartyNumber));
+		cw_copy_string(c->calledPartyNumber, number, sizeof(c->callingPartyNumber));
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set calledParty Number %s on channel %d\n", d->id, c->calledPartyNumber, c->callid);
 	}
 }
@@ -253,9 +253,9 @@ void sccp_channel_StatisticsRequest(sccp_channel_t * c) {
 
 	/* XXX need to test what we have to copy in the DirectoryNumber */
 	if (c->calltype == SKINNY_CALLTYPE_OUTBOUND)
-		opbx_copy_string(r->msg.ConnectionStatisticsReq.DirectoryNumber, c->calledPartyNumber, sizeof(r->msg.ConnectionStatisticsReq.DirectoryNumber));
+		cw_copy_string(r->msg.ConnectionStatisticsReq.DirectoryNumber, c->calledPartyNumber, sizeof(r->msg.ConnectionStatisticsReq.DirectoryNumber));
 	else
-		opbx_copy_string(r->msg.ConnectionStatisticsReq.DirectoryNumber, c->callingPartyNumber, sizeof(r->msg.ConnectionStatisticsReq.DirectoryNumber));
+		cw_copy_string(r->msg.ConnectionStatisticsReq.DirectoryNumber, c->callingPartyNumber, sizeof(r->msg.ConnectionStatisticsReq.DirectoryNumber));
 
 	r->msg.ConnectionStatisticsReq.lel_callReference = htolel((c) ? c->callid : 0);
 	r->msg.ConnectionStatisticsReq.lel_StatsProcessing = htolel(SKINNY_STATSPROCESSING_CLEAR);
@@ -277,14 +277,14 @@ void sccp_channel_openreceivechannel(sccp_channel_t * c) {
 	r->msg.OpenReceiveChannel.lel_vadValue = htolel(c->line->echocancel);
 	r->msg.OpenReceiveChannel.lel_conferenceId1 = htolel(c->callid);
 	sccp_dev_send(c->line->device, r);
-	/* create the rtp stuff. It must be create before setting the channel OPBX_STATE_UP. otherwise no audio will be played */
+	/* create the rtp stuff. It must be create before setting the channel CW_STATE_UP. otherwise no audio will be played */
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Ask the device to open a RTP port on channel %d. Codec: %s, echocancel: %s\n", c->line->device->id, c->callid, skinny_codec2str(payloadType), c->line->echocancel ? "ON" : "OFF");
 	if (!c->rtp) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Starting RTP on channel %s-%d\n", DEV_ID_LOG(c->device), c->line->name, c->callid);
 		sccp_channel_start_rtp(c);
 	}
 	if (!c->rtp) {
-		opbx_log(OPBX_LOG_WARNING, "%s: Error opening RTP for channel %s-%d\n", DEV_ID_LOG(c->device), c->line->name, c->callid);
+		cw_log(CW_LOG_WARNING, "%s: Error opening RTP for channel %s-%d\n", DEV_ID_LOG(c->device), c->line->name, c->callid);
 		sccp_dev_starttone(c->line->device, SKINNY_TONE_REORDERTONE, c->line->instance, c->callid, 0);
 	}
 }
@@ -293,7 +293,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	sccp_moo_t * r;
 	struct sockaddr_in sin;
 	char iabuf[INET_ADDRSTRLEN];
-	struct opbx_hostent ahp;
+	struct cw_hostent ahp;
 	struct hostent *hp;
 	int payloadType = sccp_codec_ast2skinny(c->format);
 
@@ -302,8 +302,8 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 		return;
 	}
 
-	opbx_rtp_get_us(c->rtp, &sin);
-	opbx_rtp_settos(c->rtp, c->line->rtptos);
+	cw_rtp_get_us(c->rtp, &sin);
+	cw_rtp_settos(c->rtp, c->line->rtptos);
 
 	REQ(r, StartMediaTransmission);
 	r->msg.StartMediaTransmission.lel_conferenceId = htolel(c->callid);
@@ -314,10 +314,10 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 			if (GLOB(externexpire) && (time(NULL) >= GLOB(externexpire))) {
 				time(&GLOB(externexpire));
 				GLOB(externexpire) += GLOB(externrefresh);
-				if ((hp = opbx_gethostbyname(GLOB(externhost), &ahp))) {
+				if ((hp = cw_gethostbyname(GLOB(externhost), &ahp))) {
 					memcpy(&GLOB(externip.sin_addr), hp->h_addr, sizeof(GLOB(externip.sin_addr)));
 				} else
-					opbx_log(OPBX_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
+					cw_log(CW_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
 			}
 			memcpy(&sin.sin_addr, &GLOB(externip.sin_addr), 4);
 		}
@@ -331,7 +331,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	r->msg.StartMediaTransmission.lel_maxFramesPerPacket = 0;
 	r->msg.StartMediaTransmission.lel_conferenceId1 = htolel(c->callid);
 	sccp_dev_send(c->line->device, r);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %s:%d with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %s:%d with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
 }
 
 
@@ -363,16 +363,16 @@ void sccp_channel_stopmediatransmission(sccp_channel_t * c) {
 
 void sccp_channel_endcall(sccp_channel_t * c) {
 	sccp_device_t * d;
-	struct opbx_channel * ast;
+	struct cw_channel * ast;
 
 	if (!c || !c->device)
 		return;
 
-	opbx_mutex_lock(&c->lock);
+	cw_mutex_lock(&c->lock);
 
 	ast = c->owner;
 	if (ast)
-		opbx_mutex_lock(&ast->lock);
+		cw_mutex_lock(&ast->lock);
 	/* this is a station active endcall or onhook */
 	d = c->device;
 
@@ -384,17 +384,17 @@ void sccp_channel_endcall(sccp_channel_t * c) {
 	}
 
 	sccp_indicate_nolock(c, SCCP_CHANNELSTATE_ONHOOK);
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 	if (ast) {
-		opbx_mutex_unlock(&ast->lock);
-		if (c->calltype == SKINNY_CALLTYPE_INBOUND || ast->pbx || ast->blocker || CS_OPBX_BRIDGED_CHANNEL(ast)) {
+		cw_mutex_unlock(&ast->lock);
+		if (c->calltype == SKINNY_CALLTYPE_INBOUND || ast->pbx || ast->blocker || CS_CW_BRIDGED_CHANNEL(ast)) {
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending (queue) hangup request to %s\n", DEV_ID_LOG(d), ast->name);
-			opbx_queue_hangup(ast);
+			cw_queue_hangup(ast);
 		} else {
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending (force) hangup request to %s\n", DEV_ID_LOG(d), ast->name);
-			opbx_hangup(ast);
+			cw_hangup(ast);
 		}
-//			opbx_softhangup(ast, OPBX_SOFTHANGUP_EXPLICIT);
+//			cw_softhangup(ast, CW_SOFTHANGUP_EXPLICIT);
 	}
 	return;
 }
@@ -406,7 +406,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	pthread_t t;
 
 	if (!l || !l->device) {
-		opbx_log(OPBX_LOG_ERROR, "SCCP: Can't allocate SCCP channel if line or device are not defined!\n");
+		cw_log(CW_LOG_ERROR, "SCCP: Can't allocate SCCP channel if line or device are not defined!\n");
 		return NULL;
 	}
 
@@ -422,7 +422,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	c = sccp_channel_allocate(l);
 
 	if (!c) {
-		opbx_log(OPBX_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n", d->id, l->name);
+		cw_log(CW_LOG_ERROR, "%s: Can't allocate SCCP channel for line %s\n", d->id, l->name);
 		return NULL;
 	}
 	c->calltype = SKINNY_CALLTYPE_OUTBOUND;
@@ -431,12 +431,12 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 
 	/* ok the number exist. allocate the callweaver channel */
 	if (!sccp_pbx_channel_allocate(c)) {
-		opbx_log(OPBX_LOG_WARNING, "%s: Unable to allocate a new channel for line %s\n", d->id, l->name);
+		cw_log(CW_LOG_WARNING, "%s: Unable to allocate a new channel for line %s\n", d->id, l->name);
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 		return c;
 	}
 
-	sccp_opbx_setstate(c, OPBX_STATE_OFFHOOK);
+	sccp_cw_setstate(c, CW_STATE_OFFHOOK);
 
 	if (d->earlyrtp ==  SCCP_CHANNELSTATE_OFFHOOK && !c->rtp) {
 		sccp_channel_openreceivechannel(c);
@@ -444,11 +444,11 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 
 	/* copy the number to dial in the ast->exten */
 	if (dial)
-		opbx_copy_string(c->dialedNumber, dial, sizeof(c->dialedNumber));
+		cw_copy_string(c->dialedNumber, dial, sizeof(c->dialedNumber));
 
   /* let's call it */
-	if (opbx_pthread_create(&t, &global_attr_detached, sccp_pbx_startchannel, c->owner)) {
-		opbx_log(OPBX_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
+	if (cw_pthread_create(&t, &global_attr_detached, sccp_pbx_startchannel, c->owner)) {
+		cw_log(CW_LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 	}
 	return c;
@@ -458,10 +458,10 @@ void sccp_channel_answer(sccp_channel_t * c) {
 	sccp_line_t * l;
 	sccp_device_t * d;
 	sccp_channel_t * hold;
-	struct opbx_channel * bridged;
+	struct cw_channel * bridged;
 
 	if (!c || !c->line || !c->line->device) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", (c ? c->callid : 0) );
+		cw_log(CW_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", (c ? c->callid : 0) );
 		return;
 	}
 	l = c->line;
@@ -479,25 +479,25 @@ void sccp_channel_answer(sccp_channel_t * c) {
     sccp_dev_set_activeline(c->line);
 	if (c->owner) {
 		/* the old channel state could be CALLTRANSFER, so the bridged channel is on hold */
-		bridged = CS_OPBX_BRIDGED_CHANNEL(c->owner);
-		if (bridged && opbx_test_flag(bridged, OPBX_FLAG_MOH)) {
-			opbx_moh_stop(bridged);
+		bridged = CS_CW_BRIDGED_CHANNEL(c->owner);
+		if (bridged && cw_test_flag(bridged, CW_FLAG_MOH)) {
+			cw_moh_stop(bridged);
 		}
 	}
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONNECTED);
-	opbx_queue_control(c->owner, OPBX_CONTROL_ANSWER);
+	cw_queue_control(c->owner, CW_CONTROL_ANSWER);
 }
 
 int sccp_channel_hold(sccp_channel_t * c) {
 	sccp_line_t * l;
 	sccp_device_t * d;
-	struct opbx_channel * peer;
+	struct cw_channel * peer;
 
 	if (!c)
 		return 0;
 		
 	if (!c->line || !c->line->device) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		cw_log(CW_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return 0;
 	}
 
@@ -509,24 +509,24 @@ int sccp_channel_hold(sccp_channel_t * c) {
 	/* put on hold an active call */
 	if (sccp_channel_get_active(d) != c || c->state != SCCP_CHANNELSTATE_CONNECTED) {
 		/* something wrong on the code let's notify it for a fix */
-		opbx_log(OPBX_LOG_ERROR, "%s can't put on hold an inactive channel %s-%d\n", d->id, l->name, c->callid);
+		cw_log(CW_LOG_ERROR, "%s can't put on hold an inactive channel %s-%d\n", d->id, l->name, c->callid);
 		/* hard button phones need it */
 		sccp_dev_displayprompt(d, l->instance, c->callid, "No active call to put on hold.",5);
 		return 0;
 	}
 
-	peer = CS_OPBX_BRIDGED_CHANNEL(c->owner);
+	peer = CS_CW_BRIDGED_CHANNEL(c->owner);
 
 	if (peer) {
-		opbx_moh_start(peer, NULL);
+		cw_moh_start(peer, NULL);
 	}
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Hold the channel %s-%d\n", d->id, l->name, c->callid);
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->active_channel = NULL;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_HOLD);
 
-	opbx_queue_control(c->owner, OPBX_CONTROL_HOLD);
+	cw_queue_control(c->owner, CW_CONTROL_HOLD);
 	return 1;
 }
 
@@ -534,13 +534,13 @@ int sccp_channel_resume(sccp_channel_t * c) {
 	sccp_line_t * l;
 	sccp_device_t * d;
 	sccp_channel_t * hold;
-	struct opbx_channel * peer;
+	struct cw_channel * peer;
 
 	if (!c || !c->owner)
 		return 0;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		cw_log(CW_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return 0;
 	}
 
@@ -557,28 +557,28 @@ int sccp_channel_resume(sccp_channel_t * c) {
 	/* resume an active call */
 	if (c->state != SCCP_CHANNELSTATE_HOLD && c->state != SCCP_CHANNELSTATE_CALLTRANSFER) {
 		/* something wrong on the code let's notify it for a fix */
-		opbx_log(OPBX_LOG_ERROR, "%s can't resume the channel %s-%d. Not on hold\n", d->id, l->name, c->callid);
+		cw_log(CW_LOG_ERROR, "%s can't resume the channel %s-%d. Not on hold\n", d->id, l->name, c->callid);
 		sccp_dev_displayprompt(d, l->instance, c->callid, "No active call to put on hold",5);
 		return 0;
 	}
 
 	/* check if we are in the middle of a transfer */
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	if (d->transfer_channel == c) {
 		d->transfer_channel = NULL;
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer on the channel %s-%d\n", d->id, l->name, c->callid);
 	}
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 
-	peer = CS_OPBX_BRIDGED_CHANNEL(c->owner);
+	peer = CS_CW_BRIDGED_CHANNEL(c->owner);
 	if (peer) {
-		opbx_moh_stop(peer);
+		cw_moh_stop(peer);
             /* this is for STABLE version */
 	}
 
 	sccp_channel_set_active(c);
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONNECTED);
-	opbx_queue_control(c->owner, OPBX_CONTROL_UNHOLD);
+	cw_queue_control(c->owner, CW_CONTROL_UNHOLD);
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Resume the channel %s-%d\n", d->id, l->name, c->callid);
 	return 1;
 }
@@ -590,7 +590,7 @@ void sccp_channel_delete(sccp_channel_t * c) {
 	if (!c)
 		return;
 
-	opbx_mutex_lock(&c->lock);
+	cw_mutex_lock(&c->lock);
 
 	l = c->line;
 	d = c->device;
@@ -602,7 +602,7 @@ void sccp_channel_delete(sccp_channel_t * c) {
 
 	/* mark the channel DOWN so any pending thread will terminate */
 	if (c->owner) {
-		opbx_setstate(c->owner, OPBX_STATE_DOWN);
+		cw_setstate(c->owner, CW_STATE_DOWN);
 		c->owner = NULL;
 	}
 
@@ -616,14 +616,14 @@ void sccp_channel_delete(sccp_channel_t * c) {
 	/* remove from the global channels list */
 
 	if (c->next) { /* not the last one */
-		opbx_mutex_lock(&c->next->lock);
+		cw_mutex_lock(&c->next->lock);
 		c->next->prev = c->prev;
-		opbx_mutex_unlock(&c->next->lock);
+		cw_mutex_unlock(&c->next->lock);
 	}
 	if (c->prev) { /* not the first one */
-		opbx_mutex_lock(&c->prev->lock);
+		cw_mutex_lock(&c->prev->lock);
 		c->prev->next = c->next;
-		opbx_mutex_unlock(&c->prev->lock);
+		cw_mutex_unlock(&c->prev->lock);
 	}
 	else { /* the first one */
 		GLOB(channels) = c->next;
@@ -631,36 +631,36 @@ void sccp_channel_delete(sccp_channel_t * c) {
 
 	/* remove the channel from the channels line list */
 	if (c->next_on_line) { /* not the last one */
-		opbx_mutex_lock(&c->next_on_line->lock);
+		cw_mutex_lock(&c->next_on_line->lock);
 		c->next_on_line->prev_on_line = c->prev_on_line;
-		opbx_mutex_unlock(&c->next_on_line->lock);
+		cw_mutex_unlock(&c->next_on_line->lock);
 	}
 	if (c->prev_on_line) { /* not the first one */
-		opbx_mutex_lock(&c->prev_on_line->lock);
+		cw_mutex_lock(&c->prev_on_line->lock);
 		c->prev_on_line->next_on_line = c->next_on_line;
-		opbx_mutex_unlock(&c->prev_on_line->lock);
+		cw_mutex_unlock(&c->prev_on_line->lock);
 	}
 	else { /* the first one */
-		opbx_mutex_lock(&l->lock);
+		cw_mutex_lock(&l->lock);
 		l->channels = c->next_on_line;
-		opbx_mutex_unlock(&l->lock);
+		cw_mutex_unlock(&l->lock);
 	}
 
-	opbx_mutex_lock(&l->lock);
+	cw_mutex_lock(&l->lock);
 /*	if (l->activeChannel == c)
 		l->activeChannel = NULL; */
 	l->channelCount--;
-	opbx_mutex_unlock(&l->lock);
+	cw_mutex_unlock(&l->lock);
 
 	/* deactive the active call if needed */
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->channelCount--;
 	if (d->active_channel == c)
 		d->active_channel = NULL;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Deleted channel %d from line %s\n", DEV_ID_LOG(d), c->callid, l ? l->name : "(null)");
-	opbx_mutex_unlock(&c->lock);
+	cw_mutex_unlock(&c->lock);
 	free(c);
 	return;
 }
@@ -675,23 +675,23 @@ void sccp_channel_start_rtp(sccp_channel_t * c) {
 		return;
 
 /* No need to lock, because already locked in the sccp_indicate.c */
-/*	opbx_mutex_lock(&c->lock); */
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Creating rtp server connection at %s\n", c->device->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->ourip));
-	c->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, s->ourip);
+/*	cw_mutex_lock(&c->lock); */
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Creating rtp server connection at %s\n", c->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), s->ourip));
+	c->rtp = cw_rtp_new_with_bindaddr(sched, io, 1, 0, s->ourip);
 	if (c->device->nat)
-		opbx_rtp_setnat(c->rtp, 1);
+		cw_rtp_setnat(c->rtp, 1);
 
 	if (c->rtp && c->owner)
-		c->owner->fds[0] = opbx_rtp_fd(c->rtp);
+		c->owner->fds[0] = cw_rtp_fd(c->rtp);
 
-/*	opbx_mutex_unlock(&c->lock); */
+/*	cw_mutex_unlock(&c->lock); */
 }
 
 void sccp_channel_stop_rtp(sccp_channel_t * c) {
 	if (c->rtp) {
 		if (c->owner)
 			c->owner->fds[0] = -1;
-		opbx_rtp_destroy(c->rtp);
+		cw_rtp_destroy(c->rtp);
 		c->rtp = NULL;
 	}
 }
@@ -704,7 +704,7 @@ void sccp_channel_transfer(sccp_channel_t * c) {
 		return;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		cw_log(CW_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return;
 	}
 
@@ -715,16 +715,16 @@ void sccp_channel_transfer(sccp_channel_t * c) {
 		return;
 	}
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	/* are we in the middle of a transfer? */
 	if (d->transfer_channel && (d->transfer_channel != c)) {
-		opbx_mutex_unlock(&d->lock);
+		cw_mutex_unlock(&d->lock);
 		sccp_channel_transfer_complete(c);
 		return;
 	}
 
 	d->transfer_channel = c;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer request from line channel %s-%d\n", d->id, c->line->name, c->callid);
 
 	if (!c->owner) {
@@ -738,19 +738,19 @@ void sccp_channel_transfer(sccp_channel_t * c) {
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLTRANSFER);
 	newcall = sccp_channel_newcall(c->line, NULL);
 	/* set a var for BLINDTRANSFER. It will be removed if the user manually answer the call Otherwise it is a real BLINDTRANSFER*/
-	if (newcall && newcall->owner && CS_OPBX_BRIDGED_CHANNEL(c->owner))
-		pbx_builtin_setvar_helper(newcall->owner, "_BLINDTRANSFER", CS_OPBX_BRIDGED_CHANNEL(c->owner)->name);
+	if (newcall && newcall->owner && CS_CW_BRIDGED_CHANNEL(c->owner))
+		pbx_builtin_setvar_helper(newcall->owner, "_BLINDTRANSFER", CS_CW_BRIDGED_CHANNEL(c->owner)->name);
 }
 
 static void * sccp_channel_transfer_ringing_thread(void *data) {
 	char * name = data;
-	struct opbx_channel * ast;
+	struct cw_channel * ast;
 
 	if (!name)
 		return NULL;
 
 	sleep(1);
-	ast = opbx_get_channel_by_name_locked(name);
+	ast = cw_get_channel_by_name_locked(name);
 	free(name);
 
 	if (!ast)
@@ -758,15 +758,15 @@ static void * sccp_channel_transfer_ringing_thread(void *data) {
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Send ringing indication to %s(%p)\n", ast->name, ast);
 	if (GLOB(blindtransferindication) == SCCP_BLINDTRANSFER_RING)
-		opbx_indicate(ast, OPBX_CONTROL_RINGING);
+		cw_indicate(ast, CW_CONTROL_RINGING);
 	else if (GLOB(blindtransferindication) == SCCP_BLINDTRANSFER_MOH)
-		opbx_moh_start(ast, NULL);
-	opbx_mutex_unlock(&ast->lock);
+		cw_moh_start(ast, NULL);
+	cw_mutex_unlock(&ast->lock);
 	return NULL;
 }
 
 void sccp_channel_transfer_complete(sccp_channel_t * c) {
-	struct opbx_channel	*transferred = NULL, *original_transferred=NULL,	*transferee = NULL, *destination = NULL;
+	struct cw_channel	*transferred = NULL, *original_transferred=NULL,	*transferee = NULL, *destination = NULL;
 	sccp_channel_t * peer;
 	sccp_device_t * d = NULL;
 
@@ -774,19 +774,19 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		return;
 
 	if (!c->line || !c->line->device) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
+		cw_log(CW_LOG_WARNING, "SCCP: weird error. The channel has no line or device on channel %d\n", c->callid);
 		return;
 	}
 	
 	d = c->line->device;
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	peer = d->transfer_channel;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Complete transfer from %s-%d\n", d->id, c->line->name, c->callid);
 
 	if (c->state != SCCP_CHANNELSTATE_RINGOUT && c->state != SCCP_CHANNELSTATE_CONNECTED) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to complete transfer. The channel is not ringing or connected\n");
+		cw_log(CW_LOG_WARNING, "Failed to complete transfer. The channel is not ringing or connected\n");
 		sccp_dev_starttone(d, SKINNY_TONE_BEEPBONK, c->line->instance, c->callid, 0);
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
@@ -797,9 +797,9 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		return;
 	}
 
-	transferred = CS_OPBX_BRIDGED_CHANNEL(peer->owner);
+	transferred = CS_CW_BRIDGED_CHANNEL(peer->owner);
 	original_transferred = transferred;
-	destination = CS_OPBX_BRIDGED_CHANNEL(c->owner);
+	destination = CS_CW_BRIDGED_CHANNEL(c->owner);
 	transferee = c->owner;
 
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: transferred: %s(%p)\npeer->owner: %s(%p)\ndestination: %s(%p)\nc->owner:%s(%p)\n", d->id,
@@ -809,7 +809,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	c->owner->name, c->owner);
 
 	if (!transferred || !transferee) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
+		cw_log(CW_LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
 	}
@@ -817,22 +817,22 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	if (c->state == SCCP_CHANNELSTATE_RINGOUT) {
 		pthread_t t;
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Blind transfer. Signalling ringing state to %s\n", d->id, transferred->name);
-		opbx_indicate(transferred, OPBX_CONTROL_RINGING);
+		cw_indicate(transferred, CW_CONTROL_RINGING);
 		/* starting the ringing thread */
-		if (opbx_pthread_create(&t, &global_attr_detached, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
-			opbx_log(OPBX_LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
+		if (cw_pthread_create(&t, &global_attr_detached, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
+			cw_log(CW_LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
 		}
 	}
 
 	if (transferee->cdr && transferred->cdr) {
-		transferee->cdr = opbx_cdr_append(transferee->cdr, transferred->cdr);
+		transferee->cdr = cw_cdr_append(transferee->cdr, transferred->cdr);
 	} else if (transferred->cdr) {
 		transferee->cdr = transferred->cdr;
 	}
 	transferred->cdr = NULL;
 
-	if (opbx_channel_masquerade(transferee, transferred)) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to masquerade %s into %s\n", transferee->name, transferred->name);
+	if (cw_channel_masquerade(transferee, transferred)) {
+		cw_log(CW_LOG_WARNING, "Failed to masquerade %s into %s\n", transferee->name, transferred->name);
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
 	}
@@ -843,12 +843,12 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 
 	}
 
-	opbx_queue_hangup(peer->owner);
-	opbx_mutex_unlock(&transferee->lock);
+	cw_queue_hangup(peer->owner);
+	cw_mutex_unlock(&transferee->lock);
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->transfer_channel = NULL;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 
 	if (!destination) {
 		/* the channel was ringing not answered yet. BLIND TRANSFER */
@@ -861,7 +861,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	}
 
 	/* it's a SCCP channel destination on transfer */
-	c = CS_OPBX_CHANNEL_PVT(destination);
+	c = CS_CW_CHANNEL_PVT(destination);
 
 	if (c) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer confirmation destination on channel %s\n", d->id, destination->name);
@@ -877,14 +877,14 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 #ifdef CS_SCCP_PARK
 
 struct sccp_dual {
-	struct opbx_channel *chan1;
-	struct opbx_channel *chan2;
+	struct cw_channel *chan1;
+	struct cw_channel *chan2;
 };
 
 static void * sccp_channel_park_thread(void *stuff) {
-	struct opbx_channel *chan1, *chan2;
+	struct cw_channel *chan1, *chan2;
 	struct sccp_dual *dual;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int ext;
 	int res;
 	char extstr[20];
@@ -895,27 +895,27 @@ static void * sccp_channel_park_thread(void *stuff) {
 	chan1 = dual->chan1;
 	chan2 = dual->chan2;
 	free(dual);
-	f = opbx_read(chan1);
+	f = cw_read(chan1);
 	if (f)
-		opbx_fr_free(f);
-	res = opbx_park_call(chan1, chan2, 0, &ext);
+		cw_fr_free(f);
+	res = cw_park_call(chan1, chan2, 0, &ext);
 	if (!res) {
 		extstr[0] = 128;
 		extstr[1] = SKINNY_LBL_CALL_PARK_AT;
 		sprintf(&extstr[2]," %d",ext);
-		c = CS_OPBX_CHANNEL_PVT(chan2);
+		c = CS_CW_CHANNEL_PVT(chan2);
 //		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, extstr, 0);
 		sccp_dev_displaynotify(c->device, extstr, 10);
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Parked channel %s on %d\n", DEV_ID_LOG(c->device), chan1->name, ext);
 	}
-	opbx_hangup(chan2);
+	cw_hangup(chan2);
 	return NULL;
 }
 
 void sccp_channel_park(sccp_channel_t * c) {
 	sccp_device_t * d;
 	struct sccp_dual *dual;
-	struct opbx_channel *chan1m, *chan2m, *bridged;
+	struct cw_channel *chan1m, *chan2m, *bridged;
 	pthread_t th;
 
 	if (!c)
@@ -934,24 +934,24 @@ void sccp_channel_park(sccp_channel_t * c) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver channel\n", d->id);
 		return;
 	}
-	bridged = CS_OPBX_BRIDGED_CHANNEL(c->owner);
+	bridged = CS_CW_BRIDGED_CHANNEL(c->owner);
 	if (!bridged) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver bridged channel\n", d->id);
 		return;
 	}
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLPARK);
 
-	chan1m = opbx_channel_alloc(0);
+	chan1m = cw_channel_alloc(0);
 	if (!chan1m) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
 		return;
 	}
-	chan2m = opbx_channel_alloc(0);
+	chan2m = cw_channel_alloc(0);
 	if (!chan1m) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
-		opbx_hangup(chan1m);
+		cw_hangup(chan1m);
 		return;
 	}
 
@@ -959,10 +959,10 @@ void sccp_channel_park(sccp_channel_t * c) {
 	/* Make formats okay */
 	chan1m->readformat = bridged->readformat;
 	chan1m->writeformat = bridged->writeformat;
-	opbx_channel_masquerade(chan1m, bridged);
+	cw_channel_masquerade(chan1m, bridged);
 	/* Setup the extensions and such */
-	opbx_copy_string(chan1m->context, bridged->context, sizeof(chan1m->context));
-	opbx_copy_string(chan1m->exten, bridged->exten, sizeof(chan1m->exten));
+	cw_copy_string(chan1m->context, bridged->context, sizeof(chan1m->context));
+	cw_copy_string(chan1m->exten, bridged->exten, sizeof(chan1m->exten));
 	chan1m->priority = bridged->priority;
 
 	/* We make a clone of the peer channel too, so we can play
@@ -971,14 +971,14 @@ void sccp_channel_park(sccp_channel_t * c) {
 	/* Make formats okay */
 	chan2m->readformat = c->owner->readformat;
 	chan2m->writeformat = c->owner->writeformat;
-	opbx_channel_masquerade(chan2m, c->owner);
+	cw_channel_masquerade(chan2m, c->owner);
 	/* Setup the extensions and such */
-	opbx_copy_string(chan2m->context, c->owner->context, sizeof(chan2m->context));
-	opbx_copy_string(chan2m->exten, c->owner->exten, sizeof(chan2m->exten));
+	cw_copy_string(chan2m->context, c->owner->context, sizeof(chan2m->context));
+	cw_copy_string(chan2m->exten, c->owner->exten, sizeof(chan2m->exten));
 	chan2m->priority = c->owner->priority;
-	if (opbx_do_masquerade(chan2m)) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: Masquerade failed :(\n");
-		opbx_hangup(chan2m);
+	if (cw_do_masquerade(chan2m)) {
+		cw_log(CW_LOG_WARNING, "SCCP: Masquerade failed :(\n");
+		cw_hangup(chan2m);
 		return;
 	}
 
@@ -987,7 +987,7 @@ void sccp_channel_park(sccp_channel_t * c) {
 		memset(d, 0, sizeof(*dual));
 		dual->chan1 = chan1m;
 		dual->chan2 = chan2m;
-		if (!opbx_pthread_create(&th, &global_attr_default, sccp_channel_park_thread, dual))
+		if (!cw_pthread_create(&th, &global_attr_default, sccp_channel_park_thread, dual))
 			return;
 		free(dual);
 	}

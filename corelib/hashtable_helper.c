@@ -37,23 +37,23 @@
 #include "callweaver/hashtable_helper.h"
 
 
-#define hash_log(lev,fmt,...) if ( option_debug > 5 ) opbx_log(lev,fmt, __VA_ARGS__ )
+#define hash_log(lev,fmt,...) if ( option_debug > 5 ) cw_log(lev,fmt, __VA_ARGS__ )
 
 /* ***************************************************************************
    ***************************************************************************
    ************************************************************************ */
 
-int opbx_core_hash_insert ( hash_table_t *hash, char *key, void *data ) {
+int cw_core_hash_insert ( hash_table_t *hash, char *key, void *data ) {
     int new;
 
     hash_entry_t *x;
 
     if ( !strlen(key) ) {
-        opbx_log(OPBX_LOG_WARNING,"Cannot add entry with empty name to hashtable.\n");
+        cw_log(CW_LOG_WARNING,"Cannot add entry with empty name to hashtable.\n");
         return 0;
     }
 
-    hash_log(OPBX_LOG_DEBUG,"Hash adding Hash Entry '%s' to table.\n",key);
+    hash_log(CW_LOG_DEBUG,"Hash adding Hash Entry '%s' to table.\n",key);
 
     x = hash_create_entry(hash, key, &new);
 
@@ -66,20 +66,20 @@ int opbx_core_hash_insert ( hash_table_t *hash, char *key, void *data ) {
 }
 
 
-int opbx_core_hash_get ( hash_table_t *hash, char *key, void **data ) {
+int cw_core_hash_get ( hash_table_t *hash, char *key, void **data ) {
     hash_entry_t *entry;
 
-    hash_log(OPBX_LOG_DEBUG, "Hash searching Key '%s'\n", key);
+    hash_log(CW_LOG_DEBUG, "Hash searching Key '%s'\n", key);
 
     entry = hash_find_entry( hash, key );
 
     if ( (entry == NULL) )
     {
-        hash_log(OPBX_LOG_DEBUG,"Can't find hash identified by key '%s'\n", key);
+        hash_log(CW_LOG_DEBUG,"Can't find hash identified by key '%s'\n", key);
 	*data = NULL;
         return 0;
     } else {
-        hash_log(OPBX_LOG_DEBUG,"Hashtable: found key '%s'\n", key);
+        hash_log(CW_LOG_DEBUG,"Hashtable: found key '%s'\n", key);
 	*data = hash_get_value(entry);
 	return 1;
     }
@@ -87,19 +87,19 @@ int opbx_core_hash_get ( hash_table_t *hash, char *key, void **data ) {
     return 1;
 }
 
-int opbx_core_hash_delete (hash_table_t *hash, char *key, int mustfree ) {
+int cw_core_hash_delete (hash_table_t *hash, char *key, int mustfree ) {
     hash_entry_t *entry;
 
     if ( !strlen(key) ) {
-	opbx_log(OPBX_LOG_WARNING, "Cannot delete hash with empty key from hashtable.\n");
+	cw_log(CW_LOG_WARNING, "Cannot delete hash with empty key from hashtable.\n");
         return 0;
     }
 
-    hash_log(OPBX_LOG_DEBUG, "Destroying hash with key '%s' from hashtable.\n", key);
+    hash_log(CW_LOG_DEBUG, "Destroying hash with key '%s' from hashtable.\n", key);
 
     if ((entry = hash_find_entry(hash, (const void *) key)) == NULL)
     {
-        opbx_log(OPBX_LOG_ERROR,"Hash can't find key '%s'\n", key);
+        cw_log(CW_LOG_ERROR,"Hash can't find key '%s'\n", key);
         return 0;
     }
 

@@ -43,7 +43,7 @@
 
 static void_hash_table *loaded_modules;
 
- OPBX_MUTEX_DEFINE_STATIC(modlock);
+ CW_MUTEX_DEFINE_STATIC(modlock);
 
 static int icd_module_load_from_file(char *filename, icd_config_registry * registry)
 {
@@ -53,14 +53,14 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
 
     assert(filename != NULL);
 
-    opbx_mutex_lock(&modlock);
+    cw_mutex_lock(&modlock);
 
     if (!loaded_modules)
         loaded_modules = vh_init("LOADED_MODULES");
     module = vh_read(loaded_modules, filename);
     if (module) {
-        opbx_log(OPBX_LOG_WARNING, "Already Loaded\n");
-        opbx_mutex_unlock(&modlock);
+        cw_log(CW_LOG_WARNING, "Already Loaded\n");
+        cw_mutex_unlock(&modlock);
         return -1;
     } else
         module = NULL;
@@ -69,41 +69,41 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
     strncpy(module->filename, filename, sizeof(module->filename));
     module->lib = dlopen(filename, RTLD_GLOBAL | RTLD_LAZY);
     if (!module->lib) {
-        opbx_log(OPBX_LOG_WARNING, "Error loading module %s, aborted %s\n", filename, dlerror());
+        cw_log(CW_LOG_WARNING, "Error loading module %s, aborted %s\n", filename, dlerror());
         ICD_FREE(module);
-        opbx_mutex_unlock(&modlock);
+        cw_mutex_unlock(&modlock);
         return -1;
     }
 
     module->load_fn = dlsym(module->lib, "icd_module_load");
     if (module->load_fn == NULL) {
         errcnt++;
-        opbx_log(OPBX_LOG_WARNING, "No 'icd_module_load' function found in module [%s]\n", filename);
+        cw_log(CW_LOG_WARNING, "No 'icd_module_load' function found in module [%s]\n", filename);
     }
 
     module->unload_fn = dlsym(module->lib, "icd_module_unload");
     if (module->unload_fn == NULL) {
         errcnt++;
-        opbx_log(OPBX_LOG_WARNING, "No 'icd_module_unload' function found in module [%s]\n", filename);
+        cw_log(CW_LOG_WARNING, "No 'icd_module_unload' function found in module [%s]\n", filename);
     }
 
     if (errcnt) {
         dlclose(module->lib);
         ICD_FREE(module);
-        opbx_mutex_unlock(&modlock);
+        cw_mutex_unlock(&modlock);
         return -1;
     }
 
     vh_write(loaded_modules, filename, module);
-    opbx_mutex_unlock(&modlock);
+    cw_mutex_unlock(&modlock);
 
     if ((res = module->load_fn(registry))) {
-        opbx_log(OPBX_LOG_WARNING, "Error loading module %s\n", filename);
-        opbx_mutex_lock(&modlock);
+        cw_log(CW_LOG_WARNING, "Error loading module %s\n", filename);
+        cw_mutex_lock(&modlock);
         vh_delete(loaded_modules, filename);
         dlclose(module->lib);
         ICD_FREE(module);
-        opbx_mutex_unlock(&modlock);
+        cw_mutex_unlock(&modlock);
         return -1;
     }
 
@@ -124,7 +124,7 @@ icd_status icd_module_load_dynamic_module(icd_config_registry * registry)
 
     dir = opendir(mydir);
     if (!dir) {
-        opbx_log(OPBX_LOG_WARNING, "Can't open directory: %s\n", mydir);
+        cw_log(CW_LOG_WARNING, "Can't open directory: %s\n", mydir);
         return -1;
     }
     while ((de = readdir(dir))) {
@@ -149,16 +149,16 @@ icd_status icd_module_unload_dynamic_modules()
     vh_keylist *keys = vh_keys(loaded_modules), *key;
     icd_status result;
 
-    opbx_mutex_lock(&modlock);
+    cw_mutex_lock(&modlock);
 
     for (key = keys; key; key = key->next) {
         module = vh_read(loaded_modules, key->name);
         if (module) {
-            /*opbx_log(OPBX_LOG_NOTICE,"Module[%s] File[%s] UnLoaded\n",key->name,module->filename); */
+            /*cw_log(CW_LOG_NOTICE,"Module[%s] File[%s] UnLoaded\n",key->name,module->filename); */
             if (module->unload_fn != NULL) {
                 module->unload_fn();
             } else {
-                /*opbx_log(OPBX_LOG_WARNING, "No 'icd_module_unload' function found in Module:[%s] File:[%s]\n",
+                /*cw_log(CW_LOG_WARNING, "No 'icd_module_unload' function found in Module:[%s] File:[%s]\n",
                    key->name,module->filename);
                  */
                 result = ICD_SUCCESS;
@@ -168,14 +168,14 @@ icd_status icd_module_unload_dynamic_modules()
             dlclose(module->lib);
             ICD_FREE(module);
         } else {
-            /*opbx_log(OPBX_LOG_WARNING,"wack vh_read from loadable_module hash and no module object found ... \n");
+            /*cw_log(CW_LOG_WARNING,"wack vh_read from loadable_module hash and no module object found ... \n");
              */
             module = NULL;
         }
     }
 
     vh_destroy(&loaded_modules);
-    opbx_mutex_unlock(&modlock);
+    cw_mutex_unlock(&modlock);
 
     return ICD_SUCCESS;
 }

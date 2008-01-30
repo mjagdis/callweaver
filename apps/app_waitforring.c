@@ -57,60 +57,60 @@ static const char waitforring_descrip[] =
 "success or -1 on hangup\n";
 
 
-static int waitforring_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int waitforring_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int res = 0;
 	int ms;
 
 	if (argc != 1 || !isdigit(argv[0][0]))
-                return opbx_function_syntax(waitforring_syntax);
+                return cw_function_syntax(waitforring_syntax);
 
 	LOCAL_USER_ADD(u);
 
 	ms = atoi(argv[0]) * 1000;
 	while (ms > 0) {
-		ms = opbx_waitfor(chan, ms);
+		ms = cw_waitfor(chan, ms);
 		if (ms < 0) {
 			res = ms;
 			break;
 		}
 		if (ms > 0) {
-			f = opbx_read(chan);
+			f = cw_read(chan);
 			if (!f) {
 				res = -1;
 				break;
 			}
-			if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RING)) {
+			if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_RING)) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
+					cw_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
 			}
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 	}
 	/* Now we're really ready for the ring */
 	if (!res) {
 		ms = 99999999;
 		while(ms > 0) {
-			ms = opbx_waitfor(chan, ms);
+			ms = cw_waitfor(chan, ms);
 			if (ms < 0) {
 				res = ms;
 				break;
 			}
 			if (ms > 0) {
-				f = opbx_read(chan);
+				f = cw_read(chan);
 				if (!f) {
 					res = -1;
 					break;
 				}
-				if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RING)) {
+				if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_RING)) {
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
-					opbx_fr_free(f);
+						cw_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
+					cw_fr_free(f);
 					break;
 				}
-				opbx_fr_free(f);
+				cw_fr_free(f);
 			}
 		}
 	}
@@ -123,13 +123,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(waitforring_app);
+	res |= cw_unregister_function(waitforring_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	waitforring_app = opbx_register_function(waitforring_name, waitforring_exec, waitforring_synopsis, waitforring_syntax, waitforring_descrip);
+	waitforring_app = cw_register_function(waitforring_name, waitforring_exec, waitforring_synopsis, waitforring_syntax, waitforring_descrip);
 	return 0;
 }
 

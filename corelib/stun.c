@@ -57,7 +57,7 @@ static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
     struct sockaddr_in sin;
 
     if (stundebug  &&  option_debug)
-        opbx_verbose("Found STUN Attribute %s (%04x), length %d\n",
+        cw_verbose("Found STUN Attribute %s (%04x), length %d\n",
             rfc3489_attribute_type_to_str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
     switch (ntohs(attr->attr))
     {
@@ -72,8 +72,8 @@ static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
         if (stundebug)
         {
             rfc3489_addr_to_sockaddr(&sin, state->mapped_addr);
-            opbx_verbose("STUN: Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
-            opbx_verbose("STUN: Mapped port is %d\n", ntohs(state->mapped_addr->port));
+            cw_verbose("STUN: Mapped address is %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+            cw_verbose("STUN: Mapped port is %d\n", ntohs(state->mapped_addr->port));
         }
         break;
     case RFC3489_ATTRIB_RESPONSE_ADDRESS:
@@ -85,7 +85,7 @@ static int stun_process_attr(rfc3489_state_t *state, rfc3489_attr_t *attr)
     default:
         if (stundebug && option_debug)
         {
-            opbx_verbose("Ignoring STUN attribute %s (%04x), length %d\n", 
+            cw_verbose("Ignoring STUN attribute %s (%04x), length %d\n", 
                          rfc3489_attribute_type_to_str(ntohs(attr->attr)),
                          ntohs(attr->attr),
                          ntohs(attr->len));
@@ -140,7 +140,7 @@ static int stun_send(int s, struct sockaddr_in *dst, rfc3489_header_t *resp)
                   sizeof(*dst));
 /*
     // Alternative way to send STUN PACKETS using CallWeaver library functions.
-    return opbx_sendfromto(
+    return cw_sendfromto(
 	s,
 	resp,ntohs(resp->msglen) + sizeof(*resp),0,
 	NULL,0,
@@ -155,12 +155,12 @@ static void stun_req_id(rfc3489_header_t *req)
     int x;
     
     for (x = 0;  x < 4;  x++)
-        req->id.id[x] = opbx_random();
+        req->id.id[x] = cw_random();
 }
 
 /* ************************************************************************* */
 
-rfc3489_addr_t *opbx_stun_find_request(rfc3489_trans_id_t *st)
+rfc3489_addr_t *cw_stun_find_request(rfc3489_trans_id_t *st)
 {
     rfc3489_request_t *req_queue;
     rfc3489_addr_t *a = NULL;
@@ -168,23 +168,23 @@ rfc3489_addr_t *opbx_stun_find_request(rfc3489_trans_id_t *st)
     req_queue=stun_req_queue;
 
     if (stundebug)
-        opbx_verbose("** Trying to lookup stun response for this sip packet %d\n", st->id[0]);
+        cw_verbose("** Trying to lookup stun response for this sip packet %d\n", st->id[0]);
     while (req_queue != NULL)
     {
-        //opbx_verbose("** STUN FIND REQUEST compare trans_id %d\n",req_queue->req_head.id.id[0]);
+        //cw_verbose("** STUN FIND REQUEST compare trans_id %d\n",req_queue->req_head.id.id[0]);
 
         if (req_queue->got_response
             &&
             !memcmp((void *) &req_queue->req_head.id, st, sizeof(rfc3489_trans_id_t))) 
         {
             if (stundebug)
-                opbx_verbose("** Found request in request queue for reqresp lookup\n");
+                cw_verbose("** Found request in request queue for reqresp lookup\n");
             struct sockaddr_in sin;
             //char iabuf[INET_ADDRSTRLEN];
 
             rfc3489_addr_to_sockaddr(&sin, &req_queue->mapped_addr);
-            //opbx_verbose("STUN: passing Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
-            //opbx_verbose("STUN: passing Mapped port is %d\n", ntohs(req_queue->mapped_addr.port));
+            //cw_verbose("STUN: passing Mapped address is %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+            //cw_verbose("STUN: passing Mapped port is %d\n", ntohs(req_queue->mapped_addr.port));
             a = &req_queue->mapped_addr;        
             if (!stundebug)
                 return a;
@@ -208,7 +208,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
     req_queue_prev = NULL;
 
     if (stundebug)
-        opbx_verbose("** Trying to lookup for removal stun queue %d\n", st->id[0]);
+        cw_verbose("** Trying to lookup for removal stun queue %d\n", st->id[0]);
     while (req_queue != NULL)
     {
         if (req_queue->got_response
@@ -218,7 +218,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
             found = 1;
             delqueue = req_queue;
             if (stundebug)
-                opbx_verbose("** Found: request in removal stun queue %d\n", st->id[0]);
+                cw_verbose("** Found: request in removal stun queue %d\n", st->id[0]);
             if (req_queue_prev != NULL)
             {
                 req_queue_prev->next = req_queue->next;
@@ -236,7 +236,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
             req_queue = req_queue->next;
     }
     if (!found)
-        opbx_verbose("** Not Found: request in removal stun queue %d\n", st->id[0]);
+        cw_verbose("** Not Found: request in removal stun queue %d\n", st->id[0]);
 
     /* Removing old requests, caused by "sip reload" whose requests are not linked to any transmission */
     req_queue = stun_req_queue;
@@ -246,7 +246,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
         if (req_queue->whendone + 300 < now)
         {
             if (stundebug)
-                opbx_verbose("** DROP: request in removal stun queue %d (too old)\n",req_queue->req_head.id.id[0]);
+                cw_verbose("** DROP: request in removal stun queue %d (too old)\n",req_queue->req_head.id.id[0]);
             delqueue = req_queue;
             if (req_queue_prev != NULL)
             {
@@ -269,7 +269,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
 
 /* ************************************************************************* */
 
-rfc3489_request_t *opbx_udp_stun_bindrequest(int fdus,
+rfc3489_request_t *cw_udp_stun_bindrequest(int fdus,
                                              struct sockaddr_in *suggestion, 
                                              const char *username,
                                              const char *password)
@@ -304,7 +304,7 @@ rfc3489_request_t *opbx_udp_stun_bindrequest(int fdus,
         if (stun_send(fdus, suggestion, reqh) != -1)
         {
             if (stundebug) 
-                opbx_verbose("** STUN Packet SENT %d %d\n", reqh->id.id[0], myreq->req_head.id.id[0]);
+                cw_verbose("** STUN Packet SENT %d %d\n", reqh->id.id[0], myreq->req_head.id.id[0]);
             time(&myreq->whendone);
             myreq->next = stun_req_queue;
             stun_req_queue = myreq;
@@ -342,16 +342,16 @@ int stun_handle_packet(int s,
     if (len < sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(rfc3489_header_t));
+            cw_log(CW_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(rfc3489_header_t));
         return -1;
     }
     if (stundebug)
-        opbx_verbose("STUN Packet, msg %s (%04x), length: %d\n", rfc3489_msg_type_to_str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
+        cw_verbose("STUN Packet, msg %s (%04x), length: %d\n", rfc3489_msg_type_to_str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
 
     if (ntohs(hdr->msglen) > len - sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(rfc3489_header_t));
+            cw_log(CW_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(rfc3489_header_t));
     }
     else
         len = ntohs(hdr->msglen);
@@ -362,21 +362,21 @@ int stun_handle_packet(int s,
         if (len < sizeof(rfc3489_attr_t))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(rfc3489_attr_t));
+                cw_log(CW_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(rfc3489_attr_t));
             break;
         }
         attr = (rfc3489_attr_t *) data;
         if (ntohs(attr->len) > len)
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+                cw_log(CW_LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
             break;
         }
 
         if (stun_process_attr(st, attr))
         {
             if (option_debug)
-                opbx_log(OPBX_LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", rfc3489_attribute_type_to_str(ntohs(attr->attr)), ntohs(attr->attr));
+                cw_log(CW_LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", rfc3489_attribute_type_to_str(ntohs(attr->attr)), ntohs(attr->attr));
             break;
         }
         /* Clear attribute in case previous entry was a string */
@@ -402,7 +402,7 @@ int stun_handle_packet(int s,
         case RFC3489_MSG_TYPE_BINDING_REQUEST:
             if (stundebug)
             {
-                opbx_verbose("STUN Bind Request, username: %s\n", 
+                cw_verbose("STUN Bind Request, username: %s\n", 
                              st->username  ?  (const char *) st->username  :  "<none>");
             }
             if (st->username)
@@ -415,7 +415,7 @@ int stun_handle_packet(int s,
             break;
         case RFC3489_MSG_TYPE_BINDING_RESPONSE:
             if (stundebug)
-                opbx_verbose("** STUN Bind Response\n");
+                cw_verbose("** STUN Bind Response\n");
             req_queue = stun_req_queue;
             req_queue_prev = NULL;
             while (req_queue != NULL)
@@ -425,14 +425,14 @@ int stun_handle_packet(int s,
                     memcmp(&req_queue->req_head.id, (void *) &st->id, sizeof(req_queue->req_head.id)) == 0)
                 {
                     if (stundebug)
-                        opbx_verbose("** Found response in request queue. ID: %d done at: %ld gotresponse: %d\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
+                        cw_verbose("** Found response in request queue. ID: %d done at: %ld gotresponse: %d\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
                     req_queue->got_response = 1;
                     memcpy(&req_queue->mapped_addr, st->mapped_addr, sizeof(rfc3489_addr_t));
                 }
                 else
                 {
                     if (stundebug)
-                        opbx_verbose("** STUN request not matching. ID: %d done at: %ld gotresponse %d:\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
+                        cw_verbose("** STUN request not matching. ID: %d done at: %ld gotresponse %d:\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
                 }
 
                 req_queue_prev = req_queue;
@@ -442,7 +442,7 @@ int stun_handle_packet(int s,
             break;
         default:
             if (stundebug)
-                opbx_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), rfc3489_msg_type_to_str(ntohs(hdr->msgtype)));
+                cw_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), rfc3489_msg_type_to_str(ntohs(hdr->msgtype)));
             break;
         }
     }
@@ -456,7 +456,7 @@ int stun_do_debug(int fd, int argc, char *argv[])
     if (argc != 2)
         return RESULT_SHOWUSAGE;
     stundebug = 1;
-    opbx_cli(fd, "STUN Debugging Enabled\n");
+    cw_cli(fd, "STUN Debugging Enabled\n");
     return RESULT_SUCCESS;
 }
    
@@ -465,7 +465,7 @@ int stun_no_debug(int fd, int argc, char *argv[])
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     stundebug = 0;
-    opbx_cli(fd, "STUN Debugging Disabled\n");
+    cw_cli(fd, "STUN Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 
@@ -479,7 +479,7 @@ static char stun_no_debug_usage[] =
     "Usage: stun no debug\n"
     "       Disable STUN debugging\n";
 
-static struct opbx_clicmd  cli_stun_debug =
+static struct cw_clicmd  cli_stun_debug =
 {
 	.cmda = { "stun", "debug", NULL },
 	.handler = stun_do_debug,
@@ -487,7 +487,7 @@ static struct opbx_clicmd  cli_stun_debug =
 	.usage = stun_debug_usage,
 };
 
-static struct opbx_clicmd  cli_stun_no_debug =
+static struct cw_clicmd  cli_stun_no_debug =
 {
 	.cmda = { "stun", "no", "debug", NULL },
 	.handler = stun_no_debug,
@@ -495,12 +495,12 @@ static struct opbx_clicmd  cli_stun_no_debug =
 	.usage = stun_no_debug_usage,
 };
 
-int opbx_stun_init(void)
+int cw_stun_init(void)
 {
     stundebug = 0;
     rfc3489_active = 0;
     stun_req_queue = NULL;
-    opbx_cli_register(&cli_stun_debug);
-    opbx_cli_register(&cli_stun_no_debug);
+    cw_cli_register(&cli_stun_debug);
+    cw_cli_register(&cli_stun_no_debug);
     return 0;
 }

@@ -174,7 +174,7 @@ icd_event_factory *create_icd_event_factory(char *name)
 
     ICD_MALLOC(factory, sizeof(icd_event_factory));
     if (factory == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Event Factory\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Event Factory\n");
         return NULL;
     }
     factory->allocated = 1;
@@ -274,7 +274,7 @@ icd_event *icd_event_factory__make(icd_event_factory * that, void *src, char *sr
 
     ICD_MALLOC(event, sizeof(icd_event));
     if (event == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Event\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Event\n");
         return NULL;
     }
     event->allocated = 1;
@@ -445,12 +445,12 @@ icd_status icd_event__clear(icd_event * that)
 
 /***** Actions *****/
 /*
-for (mod = APP_ICD; mod < ICD_MODULE_L OPBX_STANDARD; ++mod) {
+for (mod = APP_ICD; mod < ICD_MODULE_L CW_STANDARD; ++mod) {
         snprintf(tmp, sizeof(tmp), "%d",mod);
         icd_fieldset__strncpy(modules,tmp,icd_module_strings[mod], 10);
     };
 
-    for (event = ICD_EVENT_TEST; event < ICD_EVENT_L OPBX_STANDARD; ++event) {
+    for (event = ICD_EVENT_TEST; event < ICD_EVENT_L CW_STANDARD; ++event) {
         snprintf(tmp, sizeof(tmp), "%d",event);
         icd_fieldset__strncpy(events,tmp,icd_event_strings[event], 10);
     };

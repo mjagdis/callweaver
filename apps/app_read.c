@@ -67,9 +67,9 @@ static const char read_descrip[] =
 "Returns -1 on hangup or error and 0 otherwise.\n";
 
 
-#define opbx_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
+#define cw_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
 
-static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int read_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res = 0;
 	struct localuser *u;
@@ -81,7 +81,7 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
 	int to = 0;
 
 	if (argc < 1 || argc > 6)
-		return opbx_function_syntax(read_syntax);
+		return cw_function_syntax(read_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -90,7 +90,7 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
 		if (maxdigits < 1 || maxdigits > 255)
     			maxdigits = 255;
 		else if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
+			cw_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
 	}
 
 	if (argc > 3) {
@@ -118,7 +118,7 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
 			to = 0;
 	}
 
-	if (chan->_state != OPBX_STATE_UP) {
+	if (chan->_state != CW_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, argv[0], "\0");
@@ -126,32 +126,32 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
 			return 0;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
-			res = opbx_answer(chan);
+			res = cw_answer(chan);
 		}
 	}
 	if (!res) {
 		while(tries && !res) {
-			opbx_stopstream(chan);
-			res = opbx_app_getdata(chan, (argc > 1 && argv[1][0] ? argv[1] : NULL), tmp, maxdigits, to);
+			cw_stopstream(chan);
+			res = cw_app_getdata(chan, (argc > 1 && argv[1][0] ? argv[1] : NULL), tmp, maxdigits, to);
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, argv[0], tmp);
-				if (!opbx_strlen_zero(tmp)) {
+				if (!cw_strlen_zero(tmp)) {
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+						cw_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
 					tries = 0;
 				} else {
 					tries--;
 					if (option_verbose > 2) {
 						if (tries)
-							opbx_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
+							cw_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
 						else
-							opbx_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
+							cw_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
 					}
 				}
 				res = 0;
 			} else {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
+					cw_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
 			}
 		}
 	}
@@ -163,13 +163,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(read_app);
+	res |= cw_unregister_function(read_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	read_app = opbx_register_function(read_name, read_exec, read_synopsis, read_syntax, read_descrip);
+	read_app = cw_register_function(read_name, read_exec, read_synopsis, read_syntax, read_descrip);
 	return 0;
 }
 

@@ -28,9 +28,9 @@ extern "C" {
 #include "callweaver/frame.h"
 
 /*! data structure associated with a translator */
-struct opbx_translator {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+struct cw_translator {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	/*! Name of translator */
 	char name[80];
 	/*! Source format */
@@ -44,14 +44,14 @@ struct opbx_translator {
 	/*! Private data associated with the translator */
 	void *(*newpvt)(void);
 	/*! Input frame callback */
-	int (*framein)(void *pvt, struct opbx_frame *in);
+	int (*framein)(void *pvt, struct cw_frame *in);
 	/*! Output frame callback */
-	struct opbx_frame * (*frameout)(void *pvt);
+	struct cw_frame * (*frameout)(void *pvt);
 	/*! Destroy translator callback */
 	void (*destroy)(void *pvt);
 	/* For performance measurements */
 	/*! Generate an example frame */
-	struct opbx_frame *(*sample)(void);
+	struct cw_frame *(*sample)(void);
 	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	int cost;
 };

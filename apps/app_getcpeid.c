@@ -58,7 +58,7 @@ static const char getcpeid_descrip[] =
 "Returns -1 on hangup only.\n";
 
 
-static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
+static int cpeid_setstatus(struct cw_channel *chan, char *stuff[], int voice)
 {
 	int justify[5] = { ADSI_JUST_CENT, ADSI_JUST_LEFT, ADSI_JUST_LEFT, ADSI_JUST_LEFT };
 	char *tmp[5];
@@ -69,7 +69,7 @@ static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char data[4][80];
 	char *stuff[4];
@@ -96,7 +96,7 @@ static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 		if (res > 0) {
 			gotcpeid = 1;
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
+				cw_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
 		}
 		if (res > -1) {
 			strncpy(stuff[1], "Measuring CPE...", sizeof(data[1]) - 1);
@@ -105,7 +105,7 @@ static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 			res = adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
 			if (res > -1) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "CPE has %d lines, %d columns, and %d buttons on '%s'\n", height, width, buttons, chan->name);
+					cw_verbose(VERBOSE_PREFIX_3 "CPE has %d lines, %d columns, and %d buttons on '%s'\n", height, width, buttons, chan->name);
 				gotgeometry = 1;
 			}
 		}
@@ -121,7 +121,7 @@ static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 			strncpy(stuff[3], "Press # to exit", sizeof(data[3]) - 1);
 			cpeid_setstatus(chan, stuff, 1);
 			for(;;) {
-				res = opbx_waitfordigit(chan, 1000);
+				res = cw_waitfordigit(chan, 1000);
 				if (res < 0)
 					break;
 				if (res == '#') {
@@ -140,13 +140,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(getcpeid_app);
+	res |= cw_unregister_function(getcpeid_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	getcpeid_app = opbx_register_function(getcpeid_name, cpeid_exec, getcpeid_synopsis, getcpeid_syntax, getcpeid_descrip);
+	getcpeid_app = cw_register_function(getcpeid_name, cpeid_exec, getcpeid_synopsis, getcpeid_syntax, getcpeid_descrip);
 	return 0;
 }
 

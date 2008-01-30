@@ -48,7 +48,7 @@
    *********************************************************************** */
 
 typedef struct private_s {
-    opbx_filestream_implementation_t    *myimpl;
+    cw_filestream_implementation_t    *myimpl;
     FILE                                *FD;
 } private_t;
 
@@ -63,26 +63,26 @@ static filestream_result_value my_file_exists ( int codec_format, int codec_rate
     // This module will look under the sound directory for a file path
     // like: $cw_sound_dir/sndfile/$codec_rate/$codec_format/$filename.*
 
-    snprintf( file, sizeof(file), "%s/sndfile/%d/%s/%s.wav", opbx_config_OPBX_SOUNDS_DIR, 
-              codec_rate, opbx_getformatname(codec_format), filename );
+    snprintf( file, sizeof(file), "%s/sndfile/%d/%s/%s.wav", cw_config_CW_SOUNDS_DIR, 
+              codec_rate, cw_getformatname(codec_format), filename );
 
     res = stat(file, &st);  // This throws 0 on success.    
-    opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+    cw_log(CW_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
 
     if ( res ) {
         ret = FS_RESULT_FILE_EXISTS_NON_NATIVE;
 
-        snprintf( file, sizeof(file), "%s/sndfile/%s/%s/%s.wav", opbx_config_OPBX_SOUNDS_DIR, 
-                  "default", opbx_getformatname(codec_format), filename );
+        snprintf( file, sizeof(file), "%s/sndfile/%s/%s/%s.wav", cw_config_CW_SOUNDS_DIR, 
+                  "default", cw_getformatname(codec_format), filename );
         res = stat(file, &st);  // This throws 0 on success.
 
-        opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+        cw_log(CW_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
 
         if ( res ) {
-            snprintf( file, sizeof(file), "%s/sndfile/%s/%s/%s.wav", opbx_config_OPBX_SOUNDS_DIR, 
+            snprintf( file, sizeof(file), "%s/sndfile/%s/%s/%s.wav", cw_config_CW_SOUNDS_DIR, 
                       "default", "default", filename );
             res = stat(file, &st);  // This throws 0 on success.
-            opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
+            cw_log(CW_LOG_DEBUG,"fsi_findsuitablefile: stats of %s\n", file);
             if ( res ) 
                 ret = FS_RESULT_FILE_NOT_FOUND;
         }
@@ -102,20 +102,20 @@ static filestream_result_value my_file_exists ( int codec_format, int codec_rate
     return ret;
 }
 
-static filestream_result_value   fsi_init( opbx_filestream_session_t *session, opbx_filestream_implementation_t *impl )
+static filestream_result_value   fsi_init( cw_filestream_session_t *session, cw_filestream_implementation_t *impl )
 {
 
-    opbx_mpool_t        *pool = opbx_filestream_session_get_pool( session );
+    cw_mpool_t        *pool = cw_filestream_session_get_pool( session );
     private_t           *pvt;    
     int                 pool_err;
     const char          *uri;
 
     assert( pool!=NULL );
 
-    pvt = opbx_mpool_alloc( pool, sizeof(private_t), &pool_err );
+    pvt = cw_mpool_alloc( pool, sizeof(private_t), &pool_err );
     pvt->myimpl = impl;
-    opbx_filestream_session_set_pvt( session, (void*) pvt );
-    uri = opbx_filestream_session_get_uri( session );    
+    cw_filestream_session_set_pvt( session, (void*) pvt );
+    uri = cw_filestream_session_get_uri( session );    
 
     /*
         now we should parse the URI and,
@@ -125,16 +125,16 @@ static filestream_result_value   fsi_init( opbx_filestream_session_t *session, o
     return FS_RESULT_SUCCESS;
 }
 
-static filestream_result_value   fsi_findsuitablefile( opbx_filestream_implementation_t *impl, char *type, char *filename )
+static filestream_result_value   fsi_findsuitablefile( cw_filestream_implementation_t *impl, char *type, char *filename )
 {
     filestream_result_value ret = FS_RESULT_FILE_NOT_FOUND;
     char *name = NULL;
 
-    opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile\n");
+    cw_log(CW_LOG_DEBUG,"fsi_findsuitablefile\n");
 
     if ( !strcmp(type,"file") ) {
         if ( (ret=my_file_exists( impl->codec_format, impl->codec_rate, filename, &name ))!=FS_RESULT_FILE_NOT_FOUND ) {
-            opbx_log(OPBX_LOG_DEBUG,"fsi_findsuitablefile: found file with path %s\n", name);
+            cw_log(CW_LOG_DEBUG,"fsi_findsuitablefile: found file with path %s\n", name);
             free(name);
         }
     }
@@ -148,12 +148,12 @@ static filestream_result_value   fsi_findsuitablefile( opbx_filestream_implement
 
 
 
-static struct opbx_frame *fsi_read( int *whennext )
+static struct cw_frame *fsi_read( int *whennext )
 {
     return NULL;
 }
 
-static filestream_result_value fsi_write( struct opbx_frame *frame )
+static filestream_result_value fsi_write( struct cw_frame *frame )
 {
     return FS_RESULT_SUCCESS;
 }
@@ -195,11 +195,11 @@ static filestream_result_value fsi_close( void )
 #define FSI_DESC               "FileStream SNDFile"
 #define FSI_STREAMTYPE_FILE   "file"
 
-static opbx_filestream_implementation_t sndfile_implementation = {
+static cw_filestream_implementation_t sndfile_implementation = {
     FSI_NAME,
     FSI_DESC,
     FSI_STREAMTYPE_FILE,
-    OPBX_FORMAT_SLINEAR,
+    CW_FORMAT_SLINEAR,
     8000,
     fsi_init,
     fsi_findsuitablefile,
@@ -215,12 +215,12 @@ static opbx_filestream_implementation_t sndfile_implementation = {
 
 static int load_module(void)
 {
-    return opbx_filestream_register( &sndfile_implementation );
+    return cw_filestream_register( &sndfile_implementation );
 }
 
 static int unload_module(void)
 {
-    return opbx_filestream_unregister( &sndfile_implementation );
+    return cw_filestream_unregister( &sndfile_implementation );
 }
 
 

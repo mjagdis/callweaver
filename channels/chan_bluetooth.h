@@ -49,7 +49,7 @@
 #ifndef HANDSFREE_AUDIO_GW_SVCLASS_ID
 # define HANDSFREE_AUDIO_GW_SVCLASS_ID 0x111f
 #endif
-#define BLUETOOTH_FORMAT    OPBX_FORMAT_SLINEAR
+#define BLUETOOTH_FORMAT    CW_FORMAT_SLINEAR
 #define BLT_CHAN_NAME       "BLT"
 #define BLT_CONFIG_FILE     "chan_bluetooth.conf"
 #define BLT_DESCRIPTION     "Bluetooth Channel driver for CallWeaver.org"
@@ -109,9 +109,9 @@ struct blt_dev {
 
   blt_status_t status;              /* Device Status */
 
-  struct opbx_channel * owner;       /* Channel we belong to, possibly NULL */
+  struct cw_channel * owner;       /* Channel we belong to, possibly NULL */
   blt_dev_t * dev;                  /* The bluetooth device channel is for */
-  struct opbx_frame fr;              /* Recieved frame */
+  struct cw_frame fr;              /* Recieved frame */
 
   /* SCO Handler */
   int sco_pipe[2];                   /* SCO alert pipe */
@@ -120,7 +120,7 @@ struct blt_dev {
   int sco_mtu;                       /* SCO MTU */
   int sco_running;                   /* 1 when sCO thread should be running */
   pthread_t sco_thread;              /* SCO thread */
-  opbx_mutex_t sco_lock;              /* SCO lock */
+  cw_mutex_t sco_lock;              /* SCO lock */
   int sco_pos_in;                    /* Reader in position (drain)*/
   int sco_pos_inrcv;                 /* Reader in position (fill) */
   int wakeread;	                     /* blt_read() needs to be woken */
@@ -146,7 +146,7 @@ struct blt_dev {
   int rd;                           /* RFCOMM fd */
   int tmp_rd;                       /* RFCOMM fd */
   int call_cnt;                     /* Number of attempted calls */
-  opbx_mutex_t lock;                 /* RFCOMM socket lock */
+  cw_mutex_t lock;                 /* RFCOMM socket lock */
   char rd_buff[BLT_RDBUFF_MAX];     /* RFCOMM input buffer */
   int rd_buff_pos;                  /* RFCOMM input buffer position */
   int ready;                        /* 1 When ready */
@@ -157,8 +157,8 @@ struct blt_dev {
   int cind;                                /* Runtime[AG]: Recieved +CIND */  
   int call_pos, service_pos, callsetup_pos;  /* Runtime[AG]: Positions in CIND/CMER */
   int call, service, callsetup;              /* Runtime[AG]: Values */
-  char cid_num[OPBX_MAX_EXTENSION];
-  char cid_name[OPBX_MAX_EXTENSION];
+  char cid_num[CW_MAX_EXTENSION];
+  char cid_name[CW_MAX_EXTENSION];
 
   /* HS mode */
   blt_state_t state;                       /* Runtime: Device state (AG mode only) */
@@ -215,7 +215,7 @@ static int hcidev_id;
 static bdaddr_t local_bdaddr;
 
 /* All the current sockets */
-OPBX_MUTEX_DEFINE_STATIC(iface_lock);
+CW_MUTEX_DEFINE_STATIC(iface_lock);
 static blt_dev_t * iface_head;
 static int ifcount = 0;
 
@@ -228,24 +228,24 @@ static int rfcomm_sock_hs = -1;
 static int sco_socket = -1;
 
 /* The socket monitoring thread */
-static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
-OPBX_MUTEX_DEFINE_STATIC(monitor_lock);
+static pthread_t monitor_thread = CW_PTHREADT_NULL;
+CW_MUTEX_DEFINE_STATIC(monitor_lock);
 
 /* Cound how many times this module is currently in use */
 static int usecnt = 0;
-OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
+CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static struct sched_context * sched = NULL;
 
 /* ---------------------------------- */
 
-static struct opbx_channel *blt_request(const char *type, int format, void *data, int *cause);
-static int blt_hangup(struct opbx_channel *c);
-static int blt_answer(struct opbx_channel *c);
-static struct opbx_frame *blt_read(struct opbx_channel *chan);
-static int blt_call(struct opbx_channel *c, char *dest, int timeout);
-static int blt_write(struct opbx_channel *chan, struct opbx_frame *f);
-static int blt_indicate(struct opbx_channel *chan, int cond);
+static struct cw_channel *blt_request(const char *type, int format, void *data, int *cause);
+static int blt_hangup(struct cw_channel *c);
+static int blt_answer(struct cw_channel *c);
+static struct cw_frame *blt_read(struct cw_channel *chan);
+static int blt_call(struct cw_channel *c, char *dest, int timeout);
+static int blt_write(struct cw_channel *chan, struct cw_frame *f);
+static int blt_indicate(struct cw_channel *chan, int cond);
 
 static int blt_show_information(int, int, char**);
 static int blt_show_peers(int, int, char **);
@@ -282,7 +282,7 @@ static int blt_parse_config(void);
 static char *complete_device_2_ag(char *, char *, int, int);
 
 /*! Bluetooth: channel tech callback information */
-static const struct opbx_channel_tech blt_tech = {
+static const struct cw_channel_tech blt_tech = {
 	.type = BLT_CHAN_NAME,
 	.description = BLT_DESCRIPTION,
 	.capabilities = BLUETOOTH_FORMAT,
@@ -325,14 +325,14 @@ atcmd_list[] =
 
 
 /*
- * OPBX.org CLI command definitions for Channel:Bluetooth
+ * CW.org CLI command definitions for Channel:Bluetooth
  */
 
 static char show_peers_usage[] =
 "Usage: bluetooth show peers\n"
 "       List all bluetooth peers and their status\n";
 
-static struct opbx_clicmd cli_show_peers =
+static struct cw_clicmd cli_show_peers =
     {
 	    .cmda = { "bluetooth", "show", "peers", NULL },
 	    .handler = blt_show_peers,
@@ -345,7 +345,7 @@ static char ag_sendcmd[] =
 "Usage: bluetooth ag <device> sendcmd <cmd>\n"
 "       Sends a AT cmd over the RFCOMM link, and print result (AG only)\n";
 
-static struct opbx_clicmd cli_ag_sendcmd =
+static struct cw_clicmd cli_ag_sendcmd =
     {
 	    .cmda = { "bluetooth", "sendcmd", NULL },
 	    .handler = blt_ag_sendcmd,
@@ -358,7 +358,7 @@ static char show_information[] =
 "Usage: bluetooth show information\n"
 "       Lists information about the bluetooth subsystem\n";
 
-static struct opbx_clicmd cli_show_information =
+static struct cw_clicmd cli_show_information =
     {
 	    .cmda = { "bluetooth", "show", "information", NULL },
 	    .handler = blt_show_information,

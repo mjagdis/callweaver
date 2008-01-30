@@ -20,7 +20,7 @@ show_usage() {
    echo " CallWeaver.org remote CLI"
    echo ""
    echo "Usage:"
-   echo " opbxcli [options]"
+   echo " cwcli [options]"
    echo ""
    echo "Options:"
    echo " -h   - online help"
@@ -102,9 +102,9 @@ verbosity="${v1}${v2}"
 # invoke CLI mode
 options="${verbosity}${color}"
 if test -z "${options}"; then
-    @opbxexecdir@/callweaver -r
+    @cwexecdir@/callweaver -r
 else
-    @opbxexecdir@/callweaver -${options}r
+    @cwexecdir@/callweaver -${options}r
 fi
 
 # END OF FILE

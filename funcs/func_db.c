@@ -71,23 +71,23 @@ static const char db_func_desc[] =
 	"will also set the variable DB_RESULT.\n";
 
 
-static int function_db_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_db_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *key;
 
 	if (argc < 1 || argc > 2 || !argv[0][0] || !(key = strchr(argv[0], '/')))
-		return opbx_function_syntax(db_func_syntax);
+		return cw_function_syntax(db_func_syntax);
 
 	*(key++) = '\0';
 
 	if (argc > 1) {
-		if (opbx_db_put(argv[0], key, argv[1]))
-			opbx_log(OPBX_LOG_WARNING, "DB: Error setting %s/%s to %s\n", argv[0], key, argv[1]);
+		if (cw_db_put(argv[0], key, argv[1]))
+			cw_log(CW_LOG_WARNING, "DB: Error setting %s/%s to %s\n", argv[0], key, argv[1]);
 	}
 
 	if (buf) {
-		if (opbx_db_get(argv[0], key, buf, len))
-			opbx_log(OPBX_LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
+		if (cw_db_get(argv[0], key, buf, len))
+			cw_log(CW_LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
 		else {
 			/* FIXME: Why do we set a variable as well as fill the result buffer?
 			 * Why do we leave the variable unchanged if the key does not exist?
@@ -100,22 +100,22 @@ static int function_db_rw(struct opbx_channel *chan, int argc, char **argv, char
 }
 
 
-static int function_db_exists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_db_exists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *key;
 
 	if (argc != 1 || !argv[0][0] || !(key = strchr(argv[0], '/')))
-		return opbx_function_syntax(db_exists_func_syntax);
+		return cw_function_syntax(db_exists_func_syntax);
 
 	if (len < 2) {
-		opbx_log(OPBX_LOG_ERROR, "Out of space in return buffer\n");
+		cw_log(CW_LOG_ERROR, "Out of space in return buffer\n");
 		return -1;
 	}
 
 	*(key++) = '\0';
 
 	if (buf) {
-		opbx_copy_string(buf, (opbx_db_get(argv[0], key, buf, len) ? "0" : "1"), len);
+		cw_copy_string(buf, (cw_db_get(argv[0], key, buf, len) ? "0" : "1"), len);
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 	}
 
@@ -127,16 +127,16 @@ static int unload_module(void)
 {
         int res = 0;
 
-        res |= opbx_unregister_function(db_exists_function);
-        res |= opbx_unregister_function(db_function);
+        res |= cw_unregister_function(db_exists_function);
+        res |= cw_unregister_function(db_function);
 
         return res;
 }
 
 static int load_module(void)
 {
-        db_exists_function = opbx_register_function(db_exists_func_name, function_db_exists, db_exists_func_synopsis, db_exists_func_syntax, db_exists_func_desc);
-        db_function = opbx_register_function(db_func_name, function_db_rw, db_func_synopsis, db_func_syntax, db_func_desc);
+        db_exists_function = cw_register_function(db_exists_func_name, function_db_exists, db_exists_func_synopsis, db_exists_func_syntax, db_exists_func_desc);
+        db_function = cw_register_function(db_func_name, function_db_rw, db_func_synopsis, db_func_syntax, db_func_desc);
 
         return 0;
 }

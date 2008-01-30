@@ -90,7 +90,7 @@ extern "C" {
     icd_status icd_caller__removed_from_distributor(icd_caller * that, icd_distributor * distributor);
 
 /* Attach a channel to the caller structure */
-    icd_status icd_caller__assign_channel(icd_caller * that, opbx_channel * chan);
+    icd_status icd_caller__assign_channel(icd_caller * that, cw_channel * chan);
 
 /* Identify a caller to link with this caller */
     icd_status icd_caller__link_to_caller(icd_caller * that, icd_caller * associate);
@@ -159,7 +159,7 @@ extern "C" {
     icd_status icd_caller__stop_caller_response(icd_caller * that);
 
 /* Make sure this caller has a channel */
-    opbx_channel *icd_caller__create_channel(icd_caller * caller);
+    cw_channel *icd_caller__create_channel(icd_caller * caller);
 
 /* If this caller is on-hook, ring them to get the channel up */
     icd_status icd_caller__dial_channel(icd_caller * that);
@@ -244,10 +244,10 @@ extern "C" {
     void *icd_caller__get_owner(icd_caller * that);
 
 /* Set the channel for that caller call */
-    icd_status icd_caller__set_channel(icd_caller * that, opbx_channel * chan);
+    icd_status icd_caller__set_channel(icd_caller * that, cw_channel * chan);
 
 /* Get the channel for that caller call */
-    opbx_channel *icd_caller__get_channel(icd_caller * that);
+    cw_channel *icd_caller__get_channel(icd_caller * that);
 
 /* Set the timeout for that caller call */
     icd_status icd_caller__set_timeout(icd_caller * that, int);

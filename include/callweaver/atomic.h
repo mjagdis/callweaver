@@ -154,7 +154,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
 /* The IEEE Std. 1003.1j-2000 introduces functions to implement spinlocks.
  * If we have an earlier 1003.1j we have to use mutexes.
  * If we use mutexes the current callweaver/lock.h forces us to use
- * opbx_mutexes. If DEBUG_THREADS is on opbx_mutexes are unnecessarily
+ * cw_mutexes. If DEBUG_THREADS is on cw_mutexes are unnecessarily
  * heavyweight for what we want here :-(
  * To enable __USE_XOPEN2K (if available) in a GNU libc environment
  * you need to compile with either _POSIX_C_SOURCE >= 200112L,
@@ -165,11 +165,11 @@ static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
 #ifndef __USE_XOPEN2K
 #  define PTHREAD_PROCESS_SHARED	0
 #  define PTHREAD_PROCESS_PRIVATE	0
-#  define pthread_spinlock_t		opbx_mutex_t
-#  define pthread_spin_init(l, a)	opbx_mutex_init(l)
-#  define pthread_spin_destroy(l)	opbx_mutex_destroy(l)
-#  define pthread_spin_lock(l)		opbx_mutex_lock(l)
-#  define pthread_spin_unlock(l)	opbx_mutex_unlock(l)
+#  define pthread_spinlock_t		cw_mutex_t
+#  define pthread_spin_init(l, a)	cw_mutex_init(l)
+#  define pthread_spin_destroy(l)	cw_mutex_destroy(l)
+#  define pthread_spin_lock(l)		cw_mutex_lock(l)
+#  define pthread_spin_unlock(l)	cw_mutex_unlock(l)
 #endif
 
 

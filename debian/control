@@ -31,7 +31,7 @@ Description: Development files for Callweaver
  Callweaver is an Open Source PBX and telephony toolkit.
  .
  This package contains the include files used if you wish to compile a
- package which requires OpenPBX source file headers.
+ package which requires Callweaver source file headers.
 
 Package: callweaver-doc
 Recommends: callweaver

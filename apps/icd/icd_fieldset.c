@@ -65,12 +65,12 @@
 typedef enum {
     ICD_FIELDSET_STATE_CREATED, ICD_FIELDSET_STATE_INITIALIZED,
     ICD_FIELDSET_STATE_CLEARED, ICD_FIELDSET_STATE_DESTROYED,
-    ICD_FIELDSET_STATE_L, OPBX_STANDARD
+    ICD_FIELDSET_STATE_L, CW_STANDARD
 } icd_fieldset_state;
 
 typedef enum {
     ICD_FIELDSET_REGNODE_EXACT, ICD_FIELDSET_REGNODE_PARENT,
-    ICD_FIELDSET_REGNODE_XLATE, ICD_FIELDSET_REGNODE_L, OPBX_STANDARD_FIXME
+    ICD_FIELDSET_REGNODE_XLATE, ICD_FIELDSET_REGNODE_L, CW_STANDARD_FIXME
 } icd_fieldset_regnode_type;
 
 struct icd_fieldset {
@@ -101,7 +101,7 @@ icd_fieldset *create_icd_fieldset(char *name)
     /* make a new fieldset from scratch */
     ICD_MALLOC(fieldset, sizeof(icd_fieldset));
     if (fieldset == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD fieldset\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD fieldset\n");
         return NULL;
     }
     fieldset->allocated = 1;
@@ -388,7 +388,7 @@ icd_fieldset_iterator *icd_fieldset__get_key_iterator(icd_fieldset * that)
 
     ICD_MALLOC(iter, sizeof(icd_fieldset_iterator));
     if (iter == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create an iterator on ICD Fieldset\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create an iterator on ICD Fieldset\n");
         return NULL;
     }
 

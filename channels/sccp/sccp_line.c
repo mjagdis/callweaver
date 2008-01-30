@@ -47,34 +47,34 @@ void sccp_line_delete_nolock(sccp_line_t * l) {
 
 	/* remove from the global lines list */
 	if (l->next) { /* not the last one */
-		opbx_mutex_lock(&l->next->lock);
+		cw_mutex_lock(&l->next->lock);
 		l->next->prev = l->prev;
-		opbx_mutex_unlock(&l->next->lock);
+		cw_mutex_unlock(&l->next->lock);
 	}
 	if (l->prev) { /* not the first one */
-		opbx_mutex_lock(&l->prev->lock);
+		cw_mutex_lock(&l->prev->lock);
 		l->prev->next = l->next;
-		opbx_mutex_unlock(&l->prev->lock);
+		cw_mutex_unlock(&l->prev->lock);
 	} else { /* the first one */
-		opbx_mutex_lock(&GLOB(lines_lock));
+		cw_mutex_lock(&GLOB(lines_lock));
 		GLOB(lines) = l->next;
-		opbx_mutex_unlock(&GLOB(lines_lock));
+		cw_mutex_unlock(&GLOB(lines_lock));
 	}
 
 	/* remove the line from the device lines list */
 	if (l->next_on_device) { /* not the last one */
-		opbx_mutex_lock(&l->next_on_device->lock);
+		cw_mutex_lock(&l->next_on_device->lock);
 		l->next_on_device->prev_on_device = l->prev_on_device;
-		opbx_mutex_unlock(&l->next_on_device->lock);
+		cw_mutex_unlock(&l->next_on_device->lock);
 	}
 	if (l->prev_on_device) { /* not the first one */
-		opbx_mutex_lock(&l->prev_on_device->lock);
+		cw_mutex_lock(&l->prev_on_device->lock);
 		l->prev_on_device->next_on_device = l->next_on_device;
-		opbx_mutex_unlock(&l->prev_on_device->lock);
+		cw_mutex_unlock(&l->prev_on_device->lock);
 	} else { /* the first one */
-		opbx_mutex_lock(&l->lock);
+		cw_mutex_lock(&l->lock);
 		l->device->lines = l->next_on_device;
-		opbx_mutex_unlock(&l->lock);
+		cw_mutex_unlock(&l->lock);
 	}
 	if (l->cfwd_num)
 			free(l->cfwd_num);
@@ -101,7 +101,7 @@ void sccp_line_cfwd(sccp_line_t * l, uint8_t type, char * number) {
 		l->cfwd_type = SCCP_CFWD_NONE;
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Call Forward disabled on line %s\n", d->id, l->name);
 	} else {
-		if (!number || opbx_strlen_zero(number)) {
+		if (!number || cw_strlen_zero(number)) {
 			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Call Forward to an empty number. Invalid\n", d->id);
 			return;
 		}

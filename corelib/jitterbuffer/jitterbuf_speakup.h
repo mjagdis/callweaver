@@ -97,7 +97,7 @@ typedef struct speakup_jitterbuffer {
 	jb_frame *voiceframes; 	 /* queued voiceframes */
 	jb_frame *controlframes; /* queued controlframes */
 	jb_speakup_settings settings;    /* the settings of the jitterbuffer */
-	opbx_jb_info info;            /* the statistics of the jitterbuffer */
+	cw_jb_info info;            /* the statistics of the jitterbuffer */
 } speakup_jitterbuffer;
 
 
@@ -137,7 +137,7 @@ void jb_speakup_set_settings(speakup_jitterbuffer *jb, jb_speakup_settings *sett
  * Copying the statistics directly for the jitterbuffer won't work because
  * The statistics are only calculated when calling this function.
  */
-void jb_speakup_get_info(speakup_jitterbuffer *jb, opbx_jb_info *stats);
+void jb_speakup_get_info(speakup_jitterbuffer *jb, cw_jb_info *stats);
 
 /*
  * Get the current settings of the jitterbuffer.

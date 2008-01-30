@@ -57,7 +57,7 @@ static icd_module module_id = ICD_MEMBER;
 typedef enum {
     ICD_MEMBER_STATE_CREATED, ICD_MEMBER_STATE_INITIALIZED,
     ICD_MEMBER_STATE_CLEARED, ICD_MEMBER_STATE_DESTROYED,
-    ICD_MEMBER_STATE_L, OPBX_STANDARD
+    ICD_MEMBER_STATE_L, CW_STANDARD
 } icd_member_state;
 
 struct icd_member {
@@ -78,7 +78,7 @@ struct icd_member {
     icd_listeners *listeners;
     icd_memory *memory;
     int allocated;
-    opbx_mutex_t lock;
+    cw_mutex_t lock;
 };
 
 /*===== Private APIs =====*/
@@ -99,7 +99,7 @@ icd_member *create_icd_member(icd_queue * queue, icd_caller * caller, icd_config
     /* make a new member object from scratch */
     ICD_MALLOC(member, sizeof(icd_member));
     if (member == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Member\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Member\n");
         return NULL;
     }
     member->allocated = 1;
@@ -138,7 +138,7 @@ icd_status destroy_icd_member(icd_member ** memberp)
         icd_event_factory__generate(event_factory, *memberp, (*memberp)->name, module_id, ICD_EVENT_DESTROY, NULL,
         (*memberp)->listeners, NULL);
     if (vetoed == ICD_EVETO) {
-        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Member %s has been vetoed\n", icd_member__get_name(*memberp));
+        cw_log(CW_LOG_NOTICE, "Destruction of ICD Member %s has been vetoed\n", icd_member__get_name(*memberp));
         return ICD_EVETO;
     }
 
@@ -167,7 +167,7 @@ icd_status init_icd_member(icd_member * that, icd_queue * queue, icd_caller * ca
 
     if (that->allocated != 1)
         ICD_MEMSET_ZERO(that, sizeof(icd_member));
-    opbx_mutex_init(&that->lock);
+    cw_mutex_init(&that->lock);
     that->queue = queue;
     that->caller = caller;
     that->distributor = icd_queue__get_distributor(queue);
@@ -227,12 +227,12 @@ icd_status icd_member__clear(icd_member * that)
         destroy_icd_listeners(&(that->listeners));
         that->params = NULL;
         icd_member__unlock(that);
-        opbx_mutex_destroy(&(that->lock));
+        cw_mutex_destroy(&(that->lock));
         /* the clear call was above the unlock call causing it to fail -Tony */
         that->state = ICD_MEMBER_STATE_CLEARED;
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Member %s in order to clear it\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Member %s in order to clear it\n",
         icd_member__get_name(that));
     return ICD_ELOCK;
 }
@@ -684,7 +684,7 @@ icd_status icd_member__lock(icd_member * that)
     if (that->state == ICD_MEMBER_STATE_CLEARED || that->state == ICD_MEMBER_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    result = opbx_mutex_lock(&that->lock);
+    result = cw_mutex_lock(&that->lock);
     if (result == 0) {
         return ICD_SUCCESS;
     }
@@ -701,7 +701,7 @@ icd_status icd_member__unlock(icd_member * that)
     if (that->state == ICD_MEMBER_STATE_CLEARED || that->state == ICD_MEMBER_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    result = opbx_mutex_unlock(&that->lock);
+    result = cw_mutex_unlock(&that->lock);
     if (result == 0) {
         return ICD_SUCCESS;
     }

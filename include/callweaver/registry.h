@@ -27,18 +27,18 @@
 #include "callweaver/atomic.h"
 
 
-struct opbx_list {
-	struct opbx_list *next, *prev, *del;
+struct cw_list {
+	struct cw_list *next, *prev, *del;
 };
 
 #define LIST_INIT(name) { &(name), &(name), NULL }
 
-static inline void opbx_list_init(struct opbx_list *list) {
+static inline void cw_list_init(struct cw_list *list) {
 	list->next = list->prev = list;
 	list->del = NULL;
 }
 
-static inline void __opbx_list_add(struct opbx_list *prev, struct opbx_list *entry, struct opbx_list *next)
+static inline void __cw_list_add(struct cw_list *prev, struct cw_list *entry, struct cw_list *next)
 {
 	next->prev = entry;
 	entry->next = next;
@@ -46,55 +46,55 @@ static inline void __opbx_list_add(struct opbx_list *prev, struct opbx_list *ent
 	prev->next = entry;
 }
 
-static inline void opbx_list_add(struct opbx_list *head, struct opbx_list *entry)
+static inline void cw_list_add(struct cw_list *head, struct cw_list *entry)
 {
-	__opbx_list_add(head, entry, head->next);
+	__cw_list_add(head, entry, head->next);
 }
 
-static inline void __opbx_list_del(struct opbx_list *prev, struct opbx_list *next)
+static inline void __cw_list_del(struct cw_list *prev, struct cw_list *next)
 {
 	next->prev = prev;
 	prev->next = next;
 }
 
-static inline void opbx_list_del(struct opbx_list *head, struct opbx_list *entry)
+static inline void cw_list_del(struct cw_list *head, struct cw_list *entry)
 {
 	if (!entry->del) {
-		__opbx_list_del(entry->prev, entry->next);
+		__cw_list_del(entry->prev, entry->next);
 		entry->del = head->del;
 		head->del = entry;
 	}
 }
 
-#define opbx_list_for_each(var, head) \
+#define cw_list_for_each(var, head) \
 	for (var = (head)->next; var != (head); var = var->next)
 
 
-struct opbx_object;
+struct cw_object;
 
 
-struct opbx_registry_entry {
-	struct opbx_list list;
-	struct opbx_object *obj;
+struct cw_registry_entry {
+	struct cw_list list;
+	struct cw_object *obj;
 };
 
-struct opbx_registry {
-	opbx_mutex_t lock;
+struct cw_registry {
+	cw_mutex_t lock;
 	atomic_t inuse;
-	struct opbx_list list;
-	int (*obj_cmp)(struct opbx_object *a, struct opbx_object *b);
-	int (*obj_match)(struct opbx_object *obj, const void *pattern);
+	struct cw_list list;
+	int (*obj_cmp)(struct cw_object *a, struct cw_object *b);
+	int (*obj_match)(struct cw_object *obj, const void *pattern);
 	char *name;
-	const char *(*obj_name)(struct opbx_object *obj);
+	const char *(*obj_name)(struct cw_object *obj);
 	void (*onchange)(void);
 };
 
 
-extern struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *registry, struct opbx_object *obj);
-extern int opbx_registry_del(struct opbx_registry *registry, struct opbx_registry_entry *entry);
-extern int opbx_registry_iterate(struct opbx_registry *registry, int (*func)(struct opbx_object *, void *), void *data);
-extern struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const void *pattern);
-extern void opbx_registry_init(struct opbx_registry *registry);
+extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct cw_object *obj);
+extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
+extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern);
+extern void cw_registry_init(struct cw_registry *registry);
 
 
 #endif /* _CALLWEAVER_REGISTRY_H */

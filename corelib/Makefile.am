@@ -1,4 +1,4 @@
-libexecdir = ${opbxexecdir}
+libexecdir = ${cwexecdir}
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
@@ -97,7 +97,7 @@ CORE_NODIST = defaults.h
 CORE_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 if !WANT_DEBUG
 CORE_CFLAGS 	+= -fomit-frame-pointer
-#CORE_CFLAGS	+= -DDETECT_DEADLOCKS -DOPBX_MUTEX_INIT_W_CONSTRUCTORS -DTHREAD_CRASH
+#CORE_CFLAGS	+= -DDETECT_DEADLOCKS -DCW_MUTEX_INIT_W_CONSTRUCTORS -DTHREAD_CRASH
 endif
 CORE_CFLAGS	+= -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
@@ -128,7 +128,7 @@ callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = $(CORE_LIBS) $(LIBLTDL)
 callweaver_LDFLAGS = -export-dynamic
 else
-opbxlib_LTLIBRARIES = libcallweaver.la
+cwlib_LTLIBRARIES = libcallweaver.la
 libcallweaver_la_SOURCES = $(CORE_SRC)
 nodist_libcallweaver_la_SOURCES = $(CORE_NODIST)
 libcallweaver_la_CFLAGS = $(CORE_CFLAGS)
@@ -148,7 +148,7 @@ CLEANFILES = defaults.h defaults.h.tmp
 @substitute@
 
 callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
-	$(YACC) -d --name-prefix=opbx_yy -o callweaver_expr2.c callweaver_expr2.y
+	$(YACC) -d --name-prefix=cw_yy -o callweaver_expr2.c callweaver_expr2.y
 
 callweaver_expr2f.c: callweaver_expr2.l
 	$(LEX) -f -t callweaver_expr2.l > callweaver_expr2f.c

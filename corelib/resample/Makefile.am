@@ -1,7 +1,7 @@
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxlib_LTLIBRARIES             = libcwresample.la
+cwlib_LTLIBRARIES             = libcwresample.la
 libcwresample_la_SOURCES        = \
                                     filterkit.c \
                                     resample.c \

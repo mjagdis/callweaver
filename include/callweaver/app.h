@@ -37,27 +37,27 @@ extern "C" {
 
 /* Callback function for IVR, returns 0 on completion, -1 on hangup or digit if
    interrupted */
-typedef int (*opbx_ivr_callback)(struct opbx_channel *chan, char *option, void *cbdata);
+typedef int (*cw_ivr_callback)(struct cw_channel *chan, char *option, void *cbdata);
 
 typedef enum {
-	OPBX_ACTION_UPONE,		/* adata is unused */
-	OPBX_ACTION_EXIT,		/* adata is the return value for opbx_ivr_menu_run if channel was not hungup */
-	OPBX_ACTION_CALLBACK,	/* adata is an opbx_ivr_callback */
-	OPBX_ACTION_PLAYBACK,	/* adata is file to play */
-	OPBX_ACTION_BACKGROUND,	/* adata is file to play */
-	OPBX_ACTION_PLAYLIST,	/* adata is list of files, separated by ; to play */
-	OPBX_ACTION_MENU,		/* adata is a pointer to an opbx_ivr_menu */
-	OPBX_ACTION_REPEAT,		/* adata is max # of repeats, cast to a pointer */
-	OPBX_ACTION_RESTART,		/* adata is like repeat, but resets repeats to 0 */
-	OPBX_ACTION_TRANSFER,	/* adata is a string with exten[@context] */
-	OPBX_ACTION_WAITOPTION,	/* adata is a timeout, or 0 for defaults */
-	OPBX_ACTION_NOOP,		/* adata is unused */
-	OPBX_ACTION_BACKLIST,	/* adata is list of files separated by ; allows interruption */
-} opbx_ivr_action;
+	CW_ACTION_UPONE,		/* adata is unused */
+	CW_ACTION_EXIT,		/* adata is the return value for cw_ivr_menu_run if channel was not hungup */
+	CW_ACTION_CALLBACK,	/* adata is an cw_ivr_callback */
+	CW_ACTION_PLAYBACK,	/* adata is file to play */
+	CW_ACTION_BACKGROUND,	/* adata is file to play */
+	CW_ACTION_PLAYLIST,	/* adata is list of files, separated by ; to play */
+	CW_ACTION_MENU,		/* adata is a pointer to an cw_ivr_menu */
+	CW_ACTION_REPEAT,		/* adata is max # of repeats, cast to a pointer */
+	CW_ACTION_RESTART,		/* adata is like repeat, but resets repeats to 0 */
+	CW_ACTION_TRANSFER,	/* adata is a string with exten[@context] */
+	CW_ACTION_WAITOPTION,	/* adata is a timeout, or 0 for defaults */
+	CW_ACTION_NOOP,		/* adata is unused */
+	CW_ACTION_BACKLIST,	/* adata is list of files separated by ; allows interruption */
+} cw_ivr_action;
 
-struct opbx_ivr_option {
+struct cw_ivr_option {
 	char *option;
-	opbx_ivr_action action;
+	cw_ivr_action action;
 	void *adata;	
 };
 
@@ -71,33 +71,33 @@ struct opbx_ivr_option {
 
 */
 
-struct opbx_ivr_menu {
+struct cw_ivr_menu {
 	char *title;		/* Title of menu */
 	unsigned int flags;	/* Flags */
-	struct opbx_ivr_option *options;	/* All options */
+	struct cw_ivr_option *options;	/* All options */
 };
 
-#define OPBX_IVR_FLAG_AUTORESTART (1 << 0)
+#define CW_IVR_FLAG_AUTORESTART (1 << 0)
 
-struct opbx_option {
+struct cw_option {
 	unsigned int flag;
 	int arg_index;
 };
 
-extern int opbx_parseoptions(const struct opbx_option *options, struct opbx_flags *flags, char **args, char *optstr);
+extern int cw_parseoptions(const struct cw_option *options, struct cw_flags *flags, char **args, char *optstr);
 
-#define OPBX_DECLARE_OPTIONS(holder,args...) \
-	static struct opbx_option holder[128] = args
+#define CW_DECLARE_OPTIONS(holder,args...) \
+	static struct cw_option holder[128] = args
 
-#define OPBX_IVR_DECLARE_MENU(holder,title,flags,foo...) \
-	static struct opbx_ivr_option __options_##holder[] = foo;\
-	static struct opbx_ivr_menu holder = { title, flags, __options_##holder }
+#define CW_IVR_DECLARE_MENU(holder,title,flags,foo...) \
+	static struct cw_ivr_option __options_##holder[] = foo;\
+	static struct cw_ivr_menu holder = { title, flags, __options_##holder }
 	
 
 /*! Plays a stream and gets DTMF data from a channel */
 /*!
  * \param c Which channel one is interacting with
- * \param prompt File to pass to opbx_streamfile (the one that you wish to play)
+ * \param prompt File to pass to cw_streamfile (the one that you wish to play)
  * \param s The location where the DTMF data will be stored
  * \param maxlen Max Length of the data
  * \param timeout Timeout length waiting for data(in milliseconds).  Set to 0 for standard timeout(six seconds), or -1 for no time out.
@@ -107,81 +107,81 @@ extern int opbx_parseoptions(const struct opbx_option *options, struct opbx_flag
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-extern int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout);
+extern int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout);
 
 /* Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
-extern int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
+extern int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 
-void opbx_install_t38_functions( int (*has_request_t38_func)(const struct opbx_channel *chan) );
+void cw_install_t38_functions( int (*has_request_t38_func)(const struct cw_channel *chan) );
 
-void opbx_uninstall_t38_functions(void);
+void cw_uninstall_t38_functions(void);
 
-int opbx_app_request_t38(const struct opbx_channel *chan);
+int cw_app_request_t38(const struct cw_channel *chan);
 
 
-void opbx_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
+void cw_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs));
   
-void opbx_uninstall_vm_functions(void);
+void cw_uninstall_vm_functions(void);
 
 /*! Determine if a given mailbox has any voicemail */
-int opbx_app_has_voicemail(const char *mailbox, const char *folder);
+int cw_app_has_voicemail(const char *mailbox, const char *folder);
 
 /*! Determine number of new/old messages in a mailbox */
-int opbx_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
+int cw_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
 /*! Safely spawn an external program while closingn file descriptors */
-extern int opbx_safe_system(const char *s);
+extern int cw_safe_system(const char *s);
 
 /*! Send DTMF to chan (optionally entertain peer)   */
-int opbx_dtmf_stream(struct opbx_channel *chan, struct opbx_channel *peer, char *digits, int between);
+int cw_dtmf_stream(struct cw_channel *chan, struct cw_channel *peer, char *digits, int between);
 
 /*! Stream a file with fast forward, pause, reverse, restart. */
-int opbx_control_streamfile(struct opbx_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
+int cw_control_streamfile(struct cw_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
 
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
-int opbx_play_and_wait(struct opbx_channel *chan, const char *fn);
+int cw_play_and_wait(struct cw_channel *chan, const char *fn);
 
 /*! Record a file for a max amount of time (in seconds), in a given list of formats separated by ',', outputting the duration of the recording, and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
-     calls opbx_unlock_path() on 'path' if passed */
-int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
+     calls cw_unlock_path() on 'path' if passed */
+int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
 
 /*! Record a message and prepend the message to the given record file after playing the optional playfile (or a beep), storing the duration in 'duration' and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. */
-int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
+int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
-enum OPBX_LOCK_RESULT {
-	OPBX_LOCK_SUCCESS = 0,
-	OPBX_LOCK_TIMEOUT = -1,
-	OPBX_LOCK_PATH_NOT_FOUND = -2,
-	OPBX_LOCK_FAILURE = -3,
+enum CW_LOCK_RESULT {
+	CW_LOCK_SUCCESS = 0,
+	CW_LOCK_TIMEOUT = -1,
+	CW_LOCK_PATH_NOT_FOUND = -2,
+	CW_LOCK_FAILURE = -3,
 };
 
 /*
  * \brief Lock a filesystem path.
  * \param path the path to be locked
- * \return one of OPBX_LOCK_RESULT values
+ * \return one of CW_LOCK_RESULT values
  */
-enum OPBX_LOCK_RESULT opbx_lock_path(const char *path);
+enum CW_LOCK_RESULT cw_lock_path(const char *path);
 
 /* Unlock a path */
-int opbx_unlock_path(const char *path);
+int cw_unlock_path(const char *path);
 
 #define GROUP_CATEGORY_PREFIX "GROUP"
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
-int opbx_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max);
+int cw_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max);
 
 /*! Set the group for a channel, splitting the provided data into group and category, if specified. */
-int opbx_app_group_set_channel(struct opbx_channel *chan, char *data);
+int cw_app_group_set_channel(struct cw_channel *chan, char *data);
 
 /*! Get the current channel count of the specified group and category. */
-int opbx_app_group_get_count(char *group, char *category);
+int cw_app_group_get_count(char *group, char *category);
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
-int opbx_app_group_match_get_count(char *groupmatch, char *category);
+int cw_app_group_match_get_count(char *groupmatch, char *category);
 
 
 /*!
@@ -196,13 +196,13 @@ int opbx_app_group_match_get_count(char *groupmatch, char *category);
 
   \return The number of arguments found, or zero if the function arguments are not valid.
 */
-int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv);
+int cw_separate_app_args(char *buf, char delim, int max_args, char **argv);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
-int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
+int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 
 /*! Allow to record message and have a review option */
-int opbx_record_review(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
+int cw_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -64,18 +64,18 @@
 #include "callweaver/icd/icd_plugable_fn.h"
 
 /* 
-   Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.
-   Add the CFLAG -DOPBX_POST_10 in make.conf to get the 3 arg version *default*
+   Support for pre/post 1.0 rendition of cw_set_(read/write)_format.
+   Add the CFLAG -DCW_POST_10 in make.conf to get the 3 arg version *default*
    or comment it to get the 2 arg version.
    This is obsolete as of 06/01/2004 do we nuke this macros 
 */
 
-#ifdef OPBX_POST_10
-#define icd_set_read_format(chan,fmt) opbx_set_read_format(chan,fmt,0);
-#define icd_set_write_format(chan,fmt) opbx_set_write_format(chan,fmt,0);
+#ifdef CW_POST_10
+#define icd_set_read_format(chan,fmt) cw_set_read_format(chan,fmt,0);
+#define icd_set_write_format(chan,fmt) cw_set_write_format(chan,fmt,0);
 #else
-#define icd_set_read_format(chan,fmt) opbx_set_read_format(chan,fmt);
-#define icd_set_write_format(chan,fmt) opbx_set_write_format(chan,fmt);
+#define icd_set_read_format(chan,fmt) cw_set_read_format(chan,fmt);
+#define icd_set_write_format(chan,fmt) cw_set_write_format(chan,fmt);
 #endif
 #endif
 

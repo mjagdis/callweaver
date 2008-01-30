@@ -25,21 +25,21 @@
 
 #include "callweaver/linkedlists.h"
 
-struct opbx_var_t {
-	OPBX_LIST_ENTRY(opbx_var_t) entries;
+struct cw_var_t {
+	CW_LIST_ENTRY(cw_var_t) entries;
 	// added 'hash' to accommodate hash based system to recognise identifiers
 	unsigned int hash;
 	char *value;
 	char name[0];
 };
 
-OPBX_LIST_HEAD_NOLOCK(varshead, opbx_var_t);
+CW_LIST_HEAD_NOLOCK(varshead, cw_var_t);
 
-struct opbx_var_t *opbx_var_assign(const char *name, const char *value);
-void opbx_var_delete(struct opbx_var_t *var);
-char *opbx_var_name(struct opbx_var_t *var);
-char *opbx_var_full_name(struct opbx_var_t *var);
-char *opbx_var_value(struct opbx_var_t *var);
-#define opbx_var_hash(v) (v ? v->hash : 0)
+struct cw_var_t *cw_var_assign(const char *name, const char *value);
+void cw_var_delete(struct cw_var_t *var);
+char *cw_var_name(struct cw_var_t *var);
+char *cw_var_full_name(struct cw_var_t *var);
+char *cw_var_value(struct cw_var_t *var);
+#define cw_var_hash(v) (v ? v->hash : 0)
 
 #endif /* _CALLWEAVER_CHANVARS_H */

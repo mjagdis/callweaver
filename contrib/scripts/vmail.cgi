@@ -43,7 +43,7 @@ $context=""; # Define here your by default context (so you dont need to put voic
 	}
 );
 
-$opbxpath = "/_callweaver";
+$cwpath = "/_callweaver";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
 $footer = "<hr><font size=-1><a href=\"http://www.callweaver.org\">The CallWeaver.org Open Source PBX</a> Copyright 2006</a></a>";
@@ -670,7 +670,7 @@ foreach $msg (&messages($context, $mbox, $folder)) {
 		$duration = "<i>Unknown</i>";
 	}
 	$hasmsg++;
-	print "<tr><td><input type=checkbox name=\"msgselect\" value=\"$msg\">&nbsp;<b>$msg</b></td><td>$fields->{'callerid'}</td><td>$duration</td><td>$fields->{'origdate'}</td><td><input name='play$msg' alt=\"Play message $msg\" border=0 type=image align=left src=\"$opbxpath/play.gif\"></td></tr>\n";
+	print "<tr><td><input type=checkbox name=\"msgselect\" value=\"$msg\">&nbsp;<b>$msg</b></td><td>$fields->{'callerid'}</td><td>$duration</td><td>$fields->{'origdate'}</td><td><input name='play$msg' alt=\"Play message $msg\" border=0 type=image align=left src=\"$cwpath/play.gif\"></td></tr>\n";
 
 }
 if (!$hasmsg) {

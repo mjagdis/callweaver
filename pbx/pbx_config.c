@@ -44,7 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/phone_no_utils.h"
 
-#ifdef __OPBX_DEBUG_MALLOC
+#ifdef __CW_DEBUG_MALLOC
 static void FREE(void *ptr)
 {
 	free(ptr);
@@ -62,9 +62,9 @@ static int write_protect_config = 1;
 static int autofallthrough_config = 0;
 static int clearglobalvars_config = 0;
 
-OPBX_MUTEX_DEFINE_STATIC(save_dialplan_lock);
+CW_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
-static struct opbx_context *local_contexts = NULL;
+static struct cw_context *local_contexts = NULL;
 
 /*
  * Help for commands provided by this module ...
@@ -133,13 +133,13 @@ static int handle_context_dont_include(int fd, int argc, char *argv[])
 
 	if (strcmp(argv[3], "in")) return RESULT_SHOWUSAGE;
 
-	if (!opbx_context_remove_include(argv[4], argv[2], registrar)) {
-		opbx_cli(fd, "We are not including '%s' in '%s' now\n",
+	if (!cw_context_remove_include(argv[4], argv[2], registrar)) {
+		cw_cli(fd, "We are not including '%s' in '%s' now\n",
 			argv[2], argv[4]);
 		return RESULT_SUCCESS;
 	}
 
-	opbx_cli(fd, "Failed to remove '%s' include from '%s' context\n",
+	cw_cli(fd, "Failed to remove '%s' include from '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_FAILURE;
 }
@@ -153,28 +153,28 @@ static char *complete_context_dont_include(char *line, char *word,
 	 * Context completion ...
 	 */
 	if (pos == 2) {
-		struct opbx_context *c;
+		struct cw_context *c;
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
 
 		/* walk pbx_get_contexts ... */
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
-			struct opbx_include *i;
+			struct cw_include *i;
 
-			if (opbx_lock_context(c)) {
-				c = opbx_walk_contexts(c);
+			if (cw_lock_context(c)) {
+				c = cw_walk_contexts(c);
 				continue;
 			}
 
-			i = opbx_walk_context_includes(c, NULL);
+			i = cw_walk_context_includes(c, NULL);
 			while (i) {
 				if (!strlen(word) ||
-					!strncmp(opbx_get_include_name(i), word, strlen(word))) {
-					struct opbx_context *nc;
+					!strncmp(cw_get_include_name(i), word, strlen(word))) {
+					struct cw_context *nc;
 					int already_served = 0;
 
 					/* check if this include is already served or not */
@@ -182,42 +182,42 @@ static char *complete_context_dont_include(char *line, char *word,
 					/* go through all contexts again till we reach actuall
 					 * context or already_served = 1
 					 */
-					nc = opbx_walk_contexts(NULL);
+					nc = cw_walk_contexts(NULL);
 					while (nc && nc != c && !already_served) {
-						if (!opbx_lock_context(nc)) {
-							struct opbx_include *ni;
+						if (!cw_lock_context(nc)) {
+							struct cw_include *ni;
 
-							ni = opbx_walk_context_includes(nc, NULL);
+							ni = cw_walk_context_includes(nc, NULL);
 							while (ni && !already_served) {
-								if (!strcmp(opbx_get_include_name(i),
-									opbx_get_include_name(ni)))
+								if (!strcmp(cw_get_include_name(i),
+									cw_get_include_name(ni)))
 									already_served = 1;
-								ni = opbx_walk_context_includes(nc, ni);
+								ni = cw_walk_context_includes(nc, ni);
 							}	
 							
-							opbx_unlock_context(nc);
+							cw_unlock_context(nc);
 						}
-						nc = opbx_walk_contexts(nc);
+						nc = cw_walk_contexts(nc);
 					}
 
 					if (!already_served) {
 						if (++which > state) {
 							char *res =
-								strdup(opbx_get_include_name(i));
-							opbx_unlock_context(c);
-							opbx_unlock_contexts();
+								strdup(cw_get_include_name(i));
+							cw_unlock_context(c);
+							cw_unlock_contexts();
 							return res;
 						}
 					}
 				}
-				i = opbx_walk_context_includes(c, i);
+				i = cw_walk_context_includes(c, i);
 			}
 
-			opbx_unlock_context(c);
-			c = opbx_walk_contexts(c);
+			cw_unlock_context(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -226,14 +226,14 @@ static char *complete_context_dont_include(char *line, char *word,
 	 * included somewhere)
 	 */
 	if (pos == 3) {
-		struct opbx_context *c;
+		struct cw_context *c;
 		char *context, *dupline, *duplinet;
 
 		if (state > 0) return NULL;
 
 		/* take 'context' from line ... */
 		if (!(dupline = strdup(line))) {
-			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+			cw_log(CW_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -247,41 +247,41 @@ static char *complete_context_dont_include(char *line, char *word,
 			return NULL;
 		}
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
 			return NULL;
 		}
 
 		/* go through all contexts and check if is included ... */
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
-			struct opbx_include *i;
-			if (opbx_lock_context(c)) {
+			struct cw_include *i;
+			if (cw_lock_context(c)) {
 				free(dupline);
-				opbx_unlock_contexts();
+				cw_unlock_contexts();
 				return NULL;
 			}
 
-			i = opbx_walk_context_includes(c, NULL);
+			i = cw_walk_context_includes(c, NULL);
 			while (i) {
 				/* is it our context? */
-				if (!strcmp(opbx_get_include_name(i), context)) {
+				if (!strcmp(cw_get_include_name(i), context)) {
 					/* yes, it is, context is really included, so
 					 * complete "in" command
 					 */
 					free(dupline);
-					opbx_unlock_context(c);
-					opbx_unlock_contexts();
+					cw_unlock_context(c);
+					cw_unlock_contexts();
 					return strdup("in");
 				}
-				i = opbx_walk_context_includes(c, i);
+				i = cw_walk_context_includes(c, i);
 			}
-			opbx_unlock_context(c);
-			c = opbx_walk_contexts(c);
+			cw_unlock_context(c);
+			c = cw_walk_contexts(c);
 		}
 		free(dupline);
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -289,11 +289,11 @@ static char *complete_context_dont_include(char *line, char *word,
 	 * Context from which we removing include ... 
 	 */
 	if (pos == 4) {
-		struct opbx_context *c;
+		struct cw_context *c;
 		char *context, *dupline, *duplinet, *in;
 
 		if (!(dupline = strdup(line))) {
-			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+			cw_log(CW_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -315,50 +315,50 @@ static char *complete_context_dont_include(char *line, char *word,
 			return NULL;
 		}
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
 			return NULL;
 		}
 
 		/* walk through all contexts ... */
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
-			struct opbx_include *i;
-			if (opbx_lock_context(c)) {
+			struct cw_include *i;
+			if (cw_lock_context(c)) {
 				free(dupline);
 				return NULL;
 			}
 	
 			/* walk through all includes and check if it is our context */	
-			i = opbx_walk_context_includes(c, NULL);
+			i = cw_walk_context_includes(c, NULL);
 			while (i) {
 				/* is in this context included another on which we want to
 				 * remove?
 				 */
-				if (!strcmp(context, opbx_get_include_name(i))) {
+				if (!strcmp(context, cw_get_include_name(i))) {
 					/* yes, it's included, is matching our word too? */
-					if (!strncmp(opbx_get_context_name(c),
+					if (!strncmp(cw_get_context_name(c),
 							word, strlen(word))) {
 						/* check state for completion */
 						if (++which > state) {
-							char *res = strdup(opbx_get_context_name(c));
+							char *res = strdup(cw_get_context_name(c));
 							free(dupline);
-							opbx_unlock_context(c);
-							opbx_unlock_contexts();
+							cw_unlock_context(c);
+							cw_unlock_contexts();
 							return res;
 						}
 					}
 					break;
 				}
-				i = opbx_walk_context_includes(c, i);
+				i = cw_walk_context_includes(c, i);
 			}	
-			opbx_unlock_context(c);
-			c = opbx_walk_contexts(c);
+			cw_unlock_context(c);
+			c = cw_walk_contexts(c);
 		}
 
 		free(dupline);
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -388,7 +388,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		if (strcmp("hint", c)) {
     		    while (*c != '\0') {
 			if (!isdigit(*c++)) {
-				opbx_cli(fd, "Invalid priority '%s'\n", argv[3]);
+				cw_cli(fd, "Invalid priority '%s'\n", argv[3]);
 				return RESULT_FAILURE;
 			}
 		    }
@@ -397,7 +397,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		    removing_priority = PRIORITY_HINT;
 
 		if (removing_priority == 0) {
-			opbx_cli(fd, "If you want to remove whole extension, please " \
+			cw_cli(fd, "If you want to remove whole extension, please " \
 				"omit priority argument\n");
 			return RESULT_FAILURE;
 		}
@@ -407,30 +407,30 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 	 * Format exten@context checking ...
 	 */
 	if (!(context = strchr(argv[2], (int)'@'))) {
-		opbx_cli(fd, "First argument must be in exten@context format\n");
+		cw_cli(fd, "First argument must be in exten@context format\n");
 		return RESULT_FAILURE;
 	}
 
 	*context++ = '\0';
 	exten = argv[2];
 	if ((!strlen(exten)) || (!(strlen(context)))) {
-		opbx_cli(fd, "Missing extension or context name in second argument '%s@%s'\n",
+		cw_cli(fd, "Missing extension or context name in second argument '%s@%s'\n",
 			exten == NULL ? "?" : exten, context == NULL ? "?" : context);
 		return RESULT_FAILURE;
 	}
 
-	if (!opbx_context_remove_extension(context, exten, removing_priority, registrar)) {
+	if (!cw_context_remove_extension(context, exten, removing_priority, registrar)) {
 		if (!removing_priority)
-			opbx_cli(fd, "Whole extension %s@%s removed\n",
+			cw_cli(fd, "Whole extension %s@%s removed\n",
 				exten, context);
 		else
-			opbx_cli(fd, "Extension %s@%s with priority %d removed\n",
+			cw_cli(fd, "Extension %s@%s with priority %d removed\n",
 				exten, context, removing_priority);
 			
 		return RESULT_SUCCESS;
 	}
 
-	opbx_cli(fd, "Failed to remove extension %s@%s\n", exten, context);
+	cw_cli(fd, "Failed to remove extension %s@%s\n", exten, context);
 
 	return RESULT_FAILURE;
 }
@@ -494,7 +494,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 	 * free *word when you want to return from this function ...
 	 */
 	if (fix_complete_args(line, &word, &pos)) {
-		opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+		cw_log(CW_LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
 #endif
@@ -503,8 +503,8 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 	 * exten@context completion ... 
 	 */
 	if (pos == 2) {
-		struct opbx_context *c;
-		struct opbx_exten *e;
+		struct cw_context *c;
+		struct cw_exten *e;
 		char *context = NULL, *exten = NULL, *delim = NULL;
 
 		/* now, parse values from word = exten@context */
@@ -528,51 +528,51 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		free(word);
 #endif
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(context); free(exten);
 			return NULL;
 		}
 
 		/* find our context ... */
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
 			/* our context? */
 			if ( (!context || !strlen(context)) ||                            /* if no input, all contexts ... */
-				 (context && !strncmp(opbx_get_context_name(c),
+				 (context && !strncmp(cw_get_context_name(c),
 				              context, strlen(context))) ) {                  /* if input, compare ... */
 				/* try to complete extensions ... */
-				e = opbx_walk_context_extensions(c, NULL);
+				e = cw_walk_context_extensions(c, NULL);
 				while (e) {
 					/* our extension? */
 					if ( (!exten || !strlen(exten)) ||                           /* if not input, all extensions ... */
-						 (exten && !strncmp(opbx_get_extension_name(e), exten,
+						 (exten && !strncmp(cw_get_extension_name(e), exten,
 						                    strlen(exten))) ) { /* if input, compare ... */
 						if (++which > state) {
 							/* If there is an extension then return
 							 * exten@context.
 							 */
 							if (exten) {
-								ret = malloc(strlen(opbx_get_extension_name(e)) +
-									strlen(opbx_get_context_name(c)) + 2);
+								ret = malloc(strlen(cw_get_extension_name(e)) +
+									strlen(cw_get_context_name(c)) + 2);
 								if (ret)
-									sprintf(ret, "%s@%s", opbx_get_extension_name(e),
-										opbx_get_context_name(c));
+									sprintf(ret, "%s@%s", cw_get_extension_name(e),
+										cw_get_context_name(c));
 							}
 							free(exten); free(context);
 
-							opbx_unlock_contexts();
+							cw_unlock_contexts();
 	
 							return ret;
 						}
 					}
-					e = opbx_walk_context_extensions(c, e);
+					e = cw_walk_context_extensions(c, e);
 				}
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 
 		free(exten); free(context);
 
@@ -584,7 +584,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 	 */
 	if (pos == 3) {
 		char *delim, *exten, *context, *dupline, *duplinet, *ec;
-		struct opbx_context *c;
+		struct cw_context *c;
 
 		dupline = strdup(line);
 		if (!dupline) {
@@ -630,8 +630,8 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		context = strdup(delim + 1);
 		free(dupline);
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 #ifdef BROKEN_READLINE
 			free(word);
 #endif
@@ -640,54 +640,54 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		}
 
 		/* walk contexts */
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
-			if (!strcmp(opbx_get_context_name(c), context)) {
-				struct opbx_exten *e;
+			if (!strcmp(cw_get_context_name(c), context)) {
+				struct cw_exten *e;
 
 				/* walk extensions */
 				free(context);
-				e = opbx_walk_context_extensions(c, NULL); 
+				e = cw_walk_context_extensions(c, NULL); 
 				while (e) {
-					if (!strcmp(opbx_get_extension_name(e), exten)) {
-						struct opbx_exten *priority;
+					if (!strcmp(cw_get_extension_name(e), exten)) {
+						struct cw_exten *priority;
 						char buffer[10];
 					
 						free(exten);
-						priority = opbx_walk_extension_priorities(e, NULL);
+						priority = cw_walk_extension_priorities(e, NULL);
 						/* serve priorities */
 						do {
 							snprintf(buffer, 10, "%u",
-								opbx_get_extension_priority(priority));
+								cw_get_extension_priority(priority));
 							if (!strncmp(word, buffer, strlen(word))) {
 								if (++which > state) {
 #ifdef BROKEN_READLINE
 									free(word);
 #endif
-									opbx_unlock_contexts();
+									cw_unlock_contexts();
 									return strdup(buffer);
 								}
 							}
-							priority = opbx_walk_extension_priorities(e,
+							priority = cw_walk_extension_priorities(e,
 								priority);
 						} while (priority);
 
 #ifdef BROKEN_READLINE
 						free(word);
 #endif
-						opbx_unlock_contexts();
+						cw_unlock_contexts();
 						return NULL;			
 					}
-					e = opbx_walk_context_extensions(c, e);
+					e = cw_walk_context_extensions(c, e);
 				}
 #ifdef BROKEN_READLINE
 				free(word);
 #endif
 				free(exten);
-				opbx_unlock_contexts();
+				cw_unlock_contexts();
 				return NULL;
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
 #ifdef BROKEN_READLINE
@@ -695,7 +695,7 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 #endif
 		free(exten); free(context);
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -715,32 +715,32 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 	/* third arg must be 'in' ... */
 	if (strcmp(argv[3], "in")) return RESULT_SHOWUSAGE;
 
-	if (opbx_context_add_include(argv[4], argv[2], registrar)) {
+	if (cw_context_add_include(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				opbx_cli(fd, "Out of memory for context addition\n"); break;
+				cw_cli(fd, "Out of memory for context addition\n"); break;
 
 			case EBUSY:
-				opbx_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+				cw_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
 
 			case EEXIST:
-				opbx_cli(fd, "Context '%s' already included in '%s' context\n",
+				cw_cli(fd, "Context '%s' already included in '%s' context\n",
 					argv[1], argv[3]); break;
 
 			case ENOENT:
 			case EINVAL:
-				opbx_cli(fd, "There is no existence of context '%s'\n",
+				cw_cli(fd, "There is no existence of context '%s'\n",
 					errno == ENOENT ? argv[4] : argv[2]); break;
 
 			default:
-				opbx_cli(fd, "Failed to include '%s' in '%s' context\n",
+				cw_cli(fd, "Failed to include '%s' in '%s' context\n",
 					argv[1], argv[3]); break;
 		}
 		return RESULT_FAILURE;
 	}
 
 	/* show some info ... */
-	opbx_cli(fd, "Context '%s' included in '%s' context\n",
+	cw_cli(fd, "Context '%s' included in '%s' context\n",
 		argv[2], argv[3]);
 
 	return RESULT_SUCCESS;
@@ -749,32 +749,32 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 static char *complete_context_add_include(char *line, char *word, int pos,
     int state)
 {
-	struct opbx_context *c;
+	struct cw_context *c;
 	int which = 0;
 
 	/* server context for inclusion ... */
 	if (pos == 1)
 	{
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
 
 		/* server all contexts */ 
-		c = opbx_walk_contexts(NULL); 
+		c = cw_walk_contexts(NULL); 
 		while (c) {
 			if ((!strlen(word) || 
-				 !strncmp(opbx_get_context_name(c), word, strlen(word))) &&
+				 !strncmp(cw_get_context_name(c), word, strlen(word))) &&
 				++which > state)
 			{
-				char *context = strdup(opbx_get_context_name(c));
-				opbx_unlock_contexts();
+				char *context = strdup(cw_get_context_name(c));
+				cw_unlock_contexts();
 				return context;
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 	}
 
 	/* complete 'in' only if context exist ... */
@@ -786,7 +786,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 
 		/* parse context from line ... */
 		if (!(dupline = strdup(line))) {
-			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+			cw_log(CW_LOG_ERROR, "Out of free memory\n");
 			if (state == 0) return strdup("in");
 			return NULL;
 		}
@@ -796,34 +796,34 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		strsep(&duplinet, " ");
 		context = strsep(&duplinet, " ");
 		if (context) {
-			struct opbx_context *c;
+			struct cw_context *c;
 			int context_existence = 0;
 
 			/* check for context existence ... */
-			if (opbx_lock_contexts()) {
-				opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+			if (cw_lock_contexts()) {
+				cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 				free(dupline);
 				/* our fault, we can't check, so complete 'in' ... */
 				return strdup("in");
 			}
 
-			c = opbx_walk_contexts(NULL);
+			c = cw_walk_contexts(NULL);
 			while (c && !context_existence) {
-				if (!strcmp(context, opbx_get_context_name(c))) {
+				if (!strcmp(context, cw_get_context_name(c))) {
 					context_existence = 1;
 					continue;
 				}
-				c = opbx_walk_contexts(c);
+				c = cw_walk_contexts(c);
 			}
 
 			/* if context exists, return 'into' ... */
 			if (context_existence) {
 				free(dupline);
-				opbx_unlock_contexts();
+				cw_unlock_contexts();
 				return strdup("into");
 			}
 
-			opbx_unlock_contexts();
+			cw_unlock_contexts();
 		}	
 
 		free(dupline);
@@ -837,7 +837,7 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		int context_existence = 0;
 
 		if (!(dupline = strdup(line))) {
-			opbx_log(OPBX_LOG_ERROR, "Out of free memory\n");
+			cw_log(CW_LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -853,63 +853,63 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 			return NULL;
 		}
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock context list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
 			return NULL;
 		}
 
 		/* check for context existence ... */
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c && !context_existence) {
-			if (!strcmp(context, opbx_get_context_name(c))) {
+			if (!strcmp(context, cw_get_context_name(c))) {
 				context_existence = 1;
 				continue;
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
 		if (!context_existence) {
 			free(dupline);
-			opbx_unlock_contexts();
+			cw_unlock_contexts();
 			return NULL;
 		}
 
 		/* go through all contexts ... */
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
 			/* must be different contexts ... */
-			if (strcmp(context, opbx_get_context_name(c))) {
-				if (!opbx_lock_context(c)) {
-					struct opbx_include *i;
+			if (strcmp(context, cw_get_context_name(c))) {
+				if (!cw_lock_context(c)) {
+					struct cw_include *i;
 					int included = 0;
 
 					/* check for duplicity inclusion ... */
-					i = opbx_walk_context_includes(c, NULL);
+					i = cw_walk_context_includes(c, NULL);
 					while (i && !included) {
-						if (!strcmp(opbx_get_include_name(i), context))
+						if (!strcmp(cw_get_include_name(i), context))
 							included = 1;
-						i = opbx_walk_context_includes(c, i);
+						i = cw_walk_context_includes(c, i);
 					}
-					opbx_unlock_context(c);
+					cw_unlock_context(c);
 
 					/* not included yet, so show possibility ... */
 					if (!included &&
-						!strncmp(opbx_get_context_name(c), word, strlen(word))){
+						!strncmp(cw_get_context_name(c), word, strlen(word))){
 						
 						if (++which > state) {
-							char *res = strdup(opbx_get_context_name(c));
+							char *res = strdup(cw_get_context_name(c));
 							free(dupline);
-							opbx_unlock_contexts();
+							cw_unlock_contexts();
 							return res;
 						}
 					}	
 				}
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		free(dupline);
 		return NULL;
 	}
@@ -923,15 +923,15 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 static int handle_save_dialplan(int fd, int argc, char *argv[])
 {
 	char filename[256];
-	struct opbx_context *c;
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
+	struct cw_context *c;
+	struct cw_config *cfg;
+	struct cw_variable *v;
 	int context_header_written;
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
 
 	if (! (static_config && !write_protect_config)) {
-		opbx_cli(fd,
+		cw_cli(fd,
 			"I can't save dialplan now, see '%s' example file.\n",
 			config);
 		return RESULT_FAILURE;
@@ -939,8 +939,8 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
 
-	if (opbx_mutex_lock(&save_dialplan_lock)) {
-		opbx_cli(fd,
+	if (cw_mutex_lock(&save_dialplan_lock)) {
+		cw_cli(fd,
 			"Failed to lock dialplan saving (another proccess saving?)\n");
 		return RESULT_FAILURE;
 	}
@@ -963,25 +963,25 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	} else
 		/* no config file, default one */
 		snprintf(filename, sizeof(filename), "%s/%s",
-			(char *)opbx_config_OPBX_CONFIG_DIR, config);
+			(char *)cw_config_CW_CONFIG_DIR, config);
 
-	cfg = opbx_config_load("extensions.conf");
+	cfg = cw_config_load("extensions.conf");
 
 	/* try to lock contexts list */
-	if (opbx_lock_contexts()) {
-		opbx_cli(fd, "Failed to lock contexts list\n");
-		opbx_mutex_unlock(&save_dialplan_lock);
-		opbx_config_destroy(cfg);
+	if (cw_lock_contexts()) {
+		cw_cli(fd, "Failed to lock contexts list\n");
+		cw_mutex_unlock(&save_dialplan_lock);
+		cw_config_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
 	/* create new file ... */
 	if (!(output = fopen(filename, "wt"))) {
-		opbx_cli(fd, "Failed to create file '%s'\n",
+		cw_cli(fd, "Failed to create file '%s'\n",
 			filename);
-		opbx_unlock_contexts();
-		opbx_mutex_unlock(&save_dialplan_lock);
-		opbx_config_destroy(cfg);
+		cw_unlock_contexts();
+		cw_mutex_unlock(&save_dialplan_lock);
+		cw_config_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -993,7 +993,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		clearglobalvars_config ? "yes" : "no",
 		option_priority_jumping ? "yes" : "no");
 
-	if ((v = opbx_variable_browse(cfg, "globals"))) {
+	if ((v = cw_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
 		while(v) {
 			fprintf(output, "%s => %s\n", v->name, v->value);
@@ -1002,157 +1002,157 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		fprintf(output, "\n");
 	}
 
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 	
 	/* walk all contexts */
-	c = opbx_walk_contexts(NULL);
+	c = cw_walk_contexts(NULL);
 	while (c) {
 		context_header_written = 0;
 	
 		/* try to lock context and fireout all info */	
-		if (!opbx_lock_context(c)) {
-			struct opbx_exten *e, *last_written_e = NULL;
-			struct opbx_include *i;
-			struct opbx_ignorepat *ip;
-			struct opbx_sw *sw;
+		if (!cw_lock_context(c)) {
+			struct cw_exten *e, *last_written_e = NULL;
+			struct cw_include *i;
+			struct cw_ignorepat *ip;
+			struct cw_sw *sw;
 
 			/* registered by this module? */
-			if (!strcmp(opbx_get_context_registrar(c), registrar)) {
-				fprintf(output, "[%s]\n", opbx_get_context_name(c));
+			if (!strcmp(cw_get_context_registrar(c), registrar)) {
+				fprintf(output, "[%s]\n", cw_get_context_name(c));
 				context_header_written = 1;
 			}
 
 			/* walk extensions ... */
-			e = opbx_walk_context_extensions(c, NULL);
+			e = cw_walk_context_extensions(c, NULL);
 			while (e) {
-				struct opbx_exten *p;
+				struct cw_exten *p;
 
 				/* fireout priorities */
-				p = opbx_walk_extension_priorities(e, NULL);
+				p = cw_walk_extension_priorities(e, NULL);
 				while (p) {
-					if (!strcmp(opbx_get_extension_registrar(p),
+					if (!strcmp(cw_get_extension_registrar(p),
 						registrar)) {
 			
 						/* make empty line between different extensions */	
 						if (last_written_e != NULL &&
-							strcmp(opbx_get_extension_name(last_written_e),
-								opbx_get_extension_name(p)))
+							strcmp(cw_get_extension_name(last_written_e),
+								cw_get_extension_name(p)))
 							fprintf(output, "\n");
 						last_written_e = p;
 				
 						if (!context_header_written) {
-							fprintf(output, "[%s]\n", opbx_get_context_name(c));
+							fprintf(output, "[%s]\n", cw_get_context_name(c));
 							context_header_written = 1;
 						}
 
-						if (opbx_get_extension_priority(p)!=PRIORITY_HINT) {
+						if (cw_get_extension_priority(p)!=PRIORITY_HINT) {
 							char *tempdata;
-							const char *el = opbx_get_extension_label(p);
+							const char *el = cw_get_extension_label(p);
 							char label[128] = "";
 
-							tempdata = opbx_get_extension_app_data(p);
+							tempdata = cw_get_extension_app_data(p);
 
 							if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
 								incomplete = 1; // error encountered or label is > 125 chars
 
-							if (opbx_get_extension_matchcid(p)) {
+							if (cw_get_extension_matchcid(p)) {
 								fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
-								    opbx_get_extension_name(p),
-								    opbx_get_extension_cidmatch(p),
-								    opbx_get_extension_priority(p),
+								    cw_get_extension_name(p),
+								    cw_get_extension_cidmatch(p),
+								    cw_get_extension_priority(p),
 								    label,
-								    opbx_get_extension_app(p),
+								    cw_get_extension_app(p),
 								    tempdata);
 							} else {
 								fprintf(output, "exten => %s,%d%s,%s(%s)\n",
-								    opbx_get_extension_name(p),
-								    opbx_get_extension_priority(p),
+								    cw_get_extension_name(p),
+								    cw_get_extension_priority(p),
 								    label,
-								    opbx_get_extension_app(p),
+								    cw_get_extension_app(p),
 								    tempdata);
 							}
 						} else {
 							fprintf(output, "exten => %s,hint,%s\n",
-							    opbx_get_extension_name(p),
-							    opbx_get_extension_app(p));
+							    cw_get_extension_name(p),
+							    cw_get_extension_app(p));
 						}
 					}
-					p = opbx_walk_extension_priorities(e, p);
+					p = cw_walk_extension_priorities(e, p);
 				}
 
-				e = opbx_walk_context_extensions(c, e);
+				e = cw_walk_context_extensions(c, e);
 			}
 
 			/* written any extensions? ok, write space between exten & inc */
 			if (last_written_e) fprintf(output, "\n");
 
 			/* walk through includes */
-			i = opbx_walk_context_includes(c, NULL);
+			i = cw_walk_context_includes(c, NULL);
 			while (i) {
-				if (!strcmp(opbx_get_include_registrar(i), registrar)) {
+				if (!strcmp(cw_get_include_registrar(i), registrar)) {
 					if (!context_header_written) {
-						fprintf(output, "[%s]\n", opbx_get_context_name(c));
+						fprintf(output, "[%s]\n", cw_get_context_name(c));
 						context_header_written = 1;
 					}
 					fprintf(output, "include => %s\n",
-						opbx_get_include_name(i));
+						cw_get_include_name(i));
 				}
-				i = opbx_walk_context_includes(c, i);
+				i = cw_walk_context_includes(c, i);
 			}
 
-			if (opbx_walk_context_includes(c, NULL))
+			if (cw_walk_context_includes(c, NULL))
 				fprintf(output, "\n");
 
 			/* walk through switches */
-			sw = opbx_walk_context_switches(c, NULL);
+			sw = cw_walk_context_switches(c, NULL);
 			while (sw) {
-				if (!strcmp(opbx_get_switch_registrar(sw), registrar)) {
+				if (!strcmp(cw_get_switch_registrar(sw), registrar)) {
 					if (!context_header_written) {
-						fprintf(output, "[%s]\n", opbx_get_context_name(c));
+						fprintf(output, "[%s]\n", cw_get_context_name(c));
 						context_header_written = 1;
 					}
 					fprintf(output, "switch => %s/%s\n",
-						opbx_get_switch_name(sw),
-						opbx_get_switch_data(sw));
+						cw_get_switch_name(sw),
+						cw_get_switch_data(sw));
 				}
-				sw = opbx_walk_context_switches(c, sw);
+				sw = cw_walk_context_switches(c, sw);
 			}
 
-			if (opbx_walk_context_switches(c, NULL))
+			if (cw_walk_context_switches(c, NULL))
 				fprintf(output, "\n");
 
 			/* fireout ignorepats ... */
-			ip = opbx_walk_context_ignorepats(c, NULL);
+			ip = cw_walk_context_ignorepats(c, NULL);
 			while (ip) {
-				if (!strcmp(opbx_get_ignorepat_registrar(ip), registrar)) {
+				if (!strcmp(cw_get_ignorepat_registrar(ip), registrar)) {
 					if (!context_header_written) {
-						fprintf(output, "[%s]\n", opbx_get_context_name(c));
+						fprintf(output, "[%s]\n", cw_get_context_name(c));
 						context_header_written = 1;
 					}
 
 					fprintf(output, "ignorepat => %s\n",
-						opbx_get_ignorepat_name(ip));
+						cw_get_ignorepat_name(ip));
 				}
-				ip = opbx_walk_context_ignorepats(c, ip);
+				ip = cw_walk_context_ignorepats(c, ip);
 			}
 
-			opbx_unlock_context(c);
+			cw_unlock_context(c);
 		} else
 			incomplete = 1;
 
-		c = opbx_walk_contexts(c);
+		c = cw_walk_contexts(c);
 	}	
 
-	opbx_unlock_contexts();
-	opbx_mutex_unlock(&save_dialplan_lock);
+	cw_unlock_contexts();
+	cw_mutex_unlock(&save_dialplan_lock);
 	fclose(output);
 
 	if (incomplete) {
-		opbx_cli(fd, "Saved dialplan is incomplete\n");
+		cw_cli(fd, "Saved dialplan is incomplete\n");
 		return RESULT_FAILURE;
 	}
 
-	opbx_cli(fd, "Dialplan successfully saved into '%s'\n",
+	cw_cli(fd, "Dialplan successfully saved into '%s'\n",
 		filename);
 	return RESULT_SUCCESS;
 }
@@ -1187,7 +1187,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			iprior = PRIORITY_HINT;
 		} else {
 			if (sscanf(prior, "%d", &iprior) != 1) {
-				opbx_cli(fd, "'%s' is not a valid priority\n", prior);
+				cw_cli(fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
 		}
@@ -1211,34 +1211,34 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 
 	if (!app_data)
 		app_data="";
-	if (opbx_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
+	if (cw_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				opbx_cli(fd, "Out of free memory\n"); break;
+				cw_cli(fd, "Out of free memory\n"); break;
 
 			case EBUSY:
-				opbx_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+				cw_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
 
 			case ENOENT:
-				opbx_cli(fd, "No existence of '%s' context\n", argv[4]); break;
+				cw_cli(fd, "No existence of '%s' context\n", argv[4]); break;
 
 			case EEXIST:
-				opbx_cli(fd, "Extension %s@%s with priority %s already exists\n",
+				cw_cli(fd, "Extension %s@%s with priority %s already exists\n",
 					exten, argv[4], prior); break;
 
 			default:
-				opbx_cli(fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
+				cw_cli(fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
 					exten, prior, app, app_data, argv[4]); break;
 		}
 		return RESULT_FAILURE;
 	}
 
 	if (argc == 6) 
-		opbx_cli(fd, "Extension %s@%s (%s) replace by '%s,%s,%s,%s'\n",
+		cw_cli(fd, "Extension %s@%s (%s) replace by '%s,%s,%s,%s'\n",
 			exten, argv[4], prior, exten, prior, app, app_data);
 	else
-		opbx_cli(fd, "Extension '%s,%s,%s,%s' added into '%s' context\n",
+		cw_cli(fd, "Extension '%s,%s,%s,%s' added into '%s' context\n",
 			exten, prior, app, app_data, argv[4]);
 
 	return RESULT_SUCCESS;
@@ -1258,29 +1258,29 @@ static char *complete_context_add_extension(char *line, char *word,
 
 	/* complete context */
 	if (pos == 4) {
-		struct opbx_context *c;
+		struct cw_context *c;
 
 		/* try to lock contexts list ... */
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
 		/* walk through all contexts */
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
 			/* matching context? */
-			if (!strncmp(opbx_get_context_name(c), word, strlen(word))) {
+			if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
 				if (++which > state) {
-					char *res = strdup(opbx_get_context_name(c));
-					opbx_unlock_contexts();
+					char *res = strdup(cw_get_context_name(c));
+					cw_unlock_contexts();
 					return res;
 				}
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -1297,33 +1297,33 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
 
-	if (opbx_context_add_ignorepat(argv[4], argv[2], registrar)) {
+	if (cw_context_add_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				opbx_cli(fd, "Out of free memory\n"); break;
+				cw_cli(fd, "Out of free memory\n"); break;
 
 			case ENOENT:
-				opbx_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+				cw_cli(fd, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
 			case EEXIST:
-				opbx_cli(fd, "Ignore pattern '%s' already included in '%s' context\n",
+				cw_cli(fd, "Ignore pattern '%s' already included in '%s' context\n",
 					argv[2], argv[4]);
 				break;
 
 			case EBUSY:
-				opbx_cli(fd, "Failed to lock context(s) list, please, try again later\n");
+				cw_cli(fd, "Failed to lock context(s) list, please, try again later\n");
 				break;
 
 			default:
-				opbx_cli(fd, "Failed to add ingore pattern '%s' into '%s' context\n",
+				cw_cli(fd, "Failed to add ingore pattern '%s' into '%s' context\n",
 					argv[2], argv[4]);
 				break;
 		}
 		return RESULT_FAILURE;
 	}
 
-	opbx_cli(fd, "Ignore pattern '%s' added into '%s' context\n",
+	cw_cli(fd, "Ignore pattern '%s' added into '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_SUCCESS;
 }
@@ -1334,7 +1334,7 @@ static char *complete_context_add_ignorepat(char *line, char *word,
 	if (pos == 3) return state == 0 ? strdup("into") : NULL;
 
 	if (pos == 4) {
-		struct opbx_context *c;
+		struct cw_context *c;
 		int which = 0;
 		char *dupline, *duplinet, *ignorepat = NULL;
 
@@ -1347,41 +1347,41 @@ static char *complete_context_add_ignorepat(char *line, char *word,
 			ignorepat = strsep(&duplinet, " ");
 		}
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to lock contexts list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_ERROR, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
-			if (!strncmp(opbx_get_context_name(c), word, strlen(word))) {
+			if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
 				int serve_context = 1;
 				if (ignorepat) {
-					if (!opbx_lock_context(c)) {
-						struct opbx_ignorepat *ip;
-						ip = opbx_walk_context_ignorepats(c, NULL);
+					if (!cw_lock_context(c)) {
+						struct cw_ignorepat *ip;
+						ip = cw_walk_context_ignorepats(c, NULL);
 						while (ip && serve_context) {
-							if (!strcmp(opbx_get_ignorepat_name(ip), ignorepat))
+							if (!strcmp(cw_get_ignorepat_name(ip), ignorepat))
 								serve_context = 0;
-							ip = opbx_walk_context_ignorepats(c, ip);
+							ip = cw_walk_context_ignorepats(c, ip);
 						}
-						opbx_unlock_context(c);
+						cw_unlock_context(c);
 					}
 				}
 				if (serve_context) {
 					if (++which > state) {
-						char *context = strdup(opbx_get_context_name(c));
+						char *context = strdup(cw_get_context_name(c));
 						if (dupline) free(dupline);
-						opbx_unlock_contexts();
+						cw_unlock_contexts();
 						return context;
 					}
 				}
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
 		if (dupline) free(dupline);
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -1393,29 +1393,29 @@ static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "from")) return RESULT_SHOWUSAGE;
 
-	if (opbx_context_remove_ignorepat(argv[4], argv[2], registrar)) {
+	if (cw_context_remove_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case EBUSY:
-				opbx_cli(fd, "Failed to lock context(s) list, please try again later\n");
+				cw_cli(fd, "Failed to lock context(s) list, please try again later\n");
 				break;
 
 			case ENOENT:
-				opbx_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+				cw_cli(fd, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
 			case EINVAL:
-				opbx_cli(fd, "There is no existence of '%s' ignore pattern in '%s' context\n",
+				cw_cli(fd, "There is no existence of '%s' ignore pattern in '%s' context\n",
 					argv[2], argv[4]);
 				break;
 
 			default:
-				opbx_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
+				cw_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
 				break;
 		}
 		return RESULT_FAILURE;
 	}
 
-	opbx_cli(fd, "Ignore pattern '%s' removed from '%s' context\n",
+	cw_cli(fd, "Ignore pattern '%s' removed from '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_SUCCESS;
 }
@@ -1432,58 +1432,58 @@ static int handle_reload_extensions(int fd, int argc, char *argv[])
 static char *complete_context_remove_ignorepat(char *line, char *word,
 	int pos, int state)
 {
-	struct opbx_context *c;
+	struct cw_context *c;
 	int which = 0;
 
 	if (pos == 2) {
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
-			if (!opbx_lock_context(c)) {
-				struct opbx_ignorepat *ip;
+			if (!cw_lock_context(c)) {
+				struct cw_ignorepat *ip;
 			
-				ip = opbx_walk_context_ignorepats(c, NULL);
+				ip = cw_walk_context_ignorepats(c, NULL);
 				while (ip) {
-					if (!strncmp(opbx_get_ignorepat_name(ip), word, strlen(word))) {
+					if (!strncmp(cw_get_ignorepat_name(ip), word, strlen(word))) {
 						if (which + 1 > state) {
-							struct opbx_context *cw;
+							struct cw_context *cw;
 							int already_served = 0;
-							cw = opbx_walk_contexts(NULL);
+							cw = cw_walk_contexts(NULL);
 							while (cw && cw != c && !already_served) {
-								if (!opbx_lock_context(cw)) {
-									struct opbx_ignorepat *ipw;
-									ipw = opbx_walk_context_ignorepats(cw, NULL);
+								if (!cw_lock_context(cw)) {
+									struct cw_ignorepat *ipw;
+									ipw = cw_walk_context_ignorepats(cw, NULL);
 									while (ipw) {
-										if (!strcmp(opbx_get_ignorepat_name(ipw),
-											opbx_get_ignorepat_name(ip))) already_served = 1;
-										ipw = opbx_walk_context_ignorepats(cw, ipw);
+										if (!strcmp(cw_get_ignorepat_name(ipw),
+											cw_get_ignorepat_name(ip))) already_served = 1;
+										ipw = cw_walk_context_ignorepats(cw, ipw);
 									}
-									opbx_unlock_context(cw);
+									cw_unlock_context(cw);
 								}
-								cw = opbx_walk_contexts(cw);
+								cw = cw_walk_contexts(cw);
 							}
 							if (!already_served) {
-								char *ret = strdup(opbx_get_ignorepat_name(ip));
-								opbx_unlock_context(c);
-								opbx_unlock_contexts();
+								char *ret = strdup(cw_get_ignorepat_name(ip));
+								cw_unlock_context(c);
+								cw_unlock_contexts();
 								return ret;
 							}
 						} else
 							which++;
 					}
-					ip = opbx_walk_context_ignorepats(c, ip);
+					ip = cw_walk_context_ignorepats(c, ip);
 				}
 
-				opbx_unlock_context(c);
+				cw_unlock_context(c);
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
  
@@ -1494,7 +1494,7 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 
 		dupline = strdup(line);
 		if (!dupline) {
-			opbx_log(OPBX_LOG_WARNING, "Out of free memory\n");
+			cw_log(CW_LOG_WARNING, "Out of free memory\n");
 			return NULL;
 		}
 
@@ -1508,39 +1508,39 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 			return NULL;
 		}
 
-		if (opbx_lock_contexts()) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to lock contexts list\n");
+		if (cw_lock_contexts()) {
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
 			return NULL;
 		}
 
-		c = opbx_walk_contexts(NULL);
+		c = cw_walk_contexts(NULL);
 		while (c) {
-			if (!opbx_lock_context(c)) {
-				struct opbx_ignorepat *ip;
-				ip = opbx_walk_context_ignorepats(c, NULL);
+			if (!cw_lock_context(c)) {
+				struct cw_ignorepat *ip;
+				ip = cw_walk_context_ignorepats(c, NULL);
 				while (ip) {
-					if (!strcmp(opbx_get_ignorepat_name(ip), ignorepat)) {
-						if (!strncmp(opbx_get_context_name(c), word, strlen(word))) {
+					if (!strcmp(cw_get_ignorepat_name(ip), ignorepat)) {
+						if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
 							if (++which > state) {
-								char *ret = strdup(opbx_get_context_name(c));
+								char *ret = strdup(cw_get_context_name(c));
 								free(dupline);
-								opbx_unlock_context(c);
-								opbx_unlock_contexts();
+								cw_unlock_context(c);
+								cw_unlock_contexts();
 								return ret;
 							}
 						}
 					}
-					ip = opbx_walk_context_ignorepats(c, ip);
+					ip = cw_walk_context_ignorepats(c, ip);
 				}
 
-				opbx_unlock_context(c);
+				cw_unlock_context(c);
 			}
-			c = opbx_walk_contexts(c);
+			c = cw_walk_contexts(c);
 		}
 
 		free(dupline);
-		opbx_unlock_contexts();
+		cw_unlock_contexts();
 		return NULL;
 	}
 
@@ -1550,7 +1550,7 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 /*
  * CLI entries for commands provided by this module
  */
-static struct opbx_clicmd context_dont_include_cli = {
+static struct cw_clicmd context_dont_include_cli = {
 	.cmda = { "dont", "include", NULL },
 	.handler = handle_context_dont_include,
 	.generator = complete_context_dont_include,
@@ -1558,7 +1558,7 @@ static struct opbx_clicmd context_dont_include_cli = {
 	.usage = context_dont_include_help,
 };
 
-static struct opbx_clicmd context_remove_extension_cli = {
+static struct cw_clicmd context_remove_extension_cli = {
 	.cmda = { "remove", "extension", NULL },
 	.handler = handle_context_remove_extension,
 	.generator = complete_context_remove_extension,
@@ -1566,7 +1566,7 @@ static struct opbx_clicmd context_remove_extension_cli = {
 	.usage = context_remove_extension_help,
 };
 
-static struct opbx_clicmd context_add_include_cli = {
+static struct cw_clicmd context_add_include_cli = {
 	.cmda = { "include", "context", NULL },
 	.handler = handle_context_add_include,
 	.generator = complete_context_add_include,
@@ -1574,14 +1574,14 @@ static struct opbx_clicmd context_add_include_cli = {
 	.usage = context_add_include_help,
 };
 
-static struct opbx_clicmd save_dialplan_cli = {
+static struct cw_clicmd save_dialplan_cli = {
 	.cmda = { "save", "dialplan", NULL },
 	.handler = handle_save_dialplan,
 	.summary = "Save dialplan",
 	.usage = save_dialplan_help,
 };
 
-static struct opbx_clicmd context_add_extension_cli = {
+static struct cw_clicmd context_add_extension_cli = {
 	.cmda = { "add", "extension", NULL },
 	.handler = handle_context_add_extension,
 	.generator = complete_context_add_extension,
@@ -1589,7 +1589,7 @@ static struct opbx_clicmd context_add_extension_cli = {
 	.usage = context_add_extension_help,
 };
 
-static struct opbx_clicmd context_add_ignorepat_cli = {
+static struct cw_clicmd context_add_ignorepat_cli = {
 	.cmda = { "add", "ignorepat", NULL },
 	.handler = handle_context_add_ignorepat,
 	.generator = complete_context_add_ignorepat,
@@ -1597,7 +1597,7 @@ static struct opbx_clicmd context_add_ignorepat_cli = {
 	.usage = context_add_ignorepat_help,
 };
 
-static struct opbx_clicmd context_remove_ignorepat_cli = {
+static struct cw_clicmd context_remove_ignorepat_cli = {
 	.cmda = { "remove", "ignorepat", NULL },
 	.handler = handle_context_remove_ignorepat,
 	.generator = complete_context_remove_ignorepat,
@@ -1605,7 +1605,7 @@ static struct opbx_clicmd context_remove_ignorepat_cli = {
 	.usage = context_remove_ignorepat_help,
 };
 
-static struct opbx_clicmd reload_extensions_cli = {
+static struct cw_clicmd reload_extensions_cli = {
 	.cmda = { "extensions", "reload", NULL},
 	.handler = handle_reload_extensions,
 	.summary = "Reload extensions and *only* extensions",
@@ -1617,59 +1617,59 @@ static struct opbx_clicmd reload_extensions_cli = {
  */
 static int unload_module(void)
 {
-	opbx_cli_unregister(&context_add_extension_cli);
+	cw_cli_unregister(&context_add_extension_cli);
 	if (static_config && !write_protect_config)
-		opbx_cli_unregister(&save_dialplan_cli);
-	opbx_cli_unregister(&context_add_include_cli);
-	opbx_cli_unregister(&context_dont_include_cli);
-	opbx_cli_unregister(&context_remove_extension_cli);
-	opbx_cli_unregister(&context_remove_ignorepat_cli);
-	opbx_cli_unregister(&context_add_ignorepat_cli);
-	opbx_cli_unregister(&reload_extensions_cli);
-	opbx_context_destroy(NULL, registrar);
+		cw_cli_unregister(&save_dialplan_cli);
+	cw_cli_unregister(&context_add_include_cli);
+	cw_cli_unregister(&context_dont_include_cli);
+	cw_cli_unregister(&context_remove_extension_cli);
+	cw_cli_unregister(&context_remove_ignorepat_cli);
+	cw_cli_unregister(&context_add_ignorepat_cli);
+	cw_cli_unregister(&reload_extensions_cli);
+	cw_context_destroy(NULL, registrar);
 	return 0;
 }
 
 static int pbx_load_module(void)
 {
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
+	struct cw_config *cfg;
+	struct cw_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
-	struct opbx_context *con;
+	struct cw_context *con;
 	char *end;
 	char *label;
 	char realvalue[256];
 	int lastpri = -2;
 
-	cfg = opbx_config_load(config);
+	cfg = cw_config_load(config);
 	if (cfg) {
 		/* Use existing config to populate the PBX table */
-		static_config = opbx_true(opbx_variable_retrieve(cfg, "general",
+		static_config = cw_true(cw_variable_retrieve(cfg, "general",
 							       "static"));
-		write_protect_config = opbx_true(opbx_variable_retrieve(cfg, "general",
+		write_protect_config = cw_true(cw_variable_retrieve(cfg, "general",
 								      "writeprotect"));
-		autofallthrough_config = opbx_true(opbx_variable_retrieve(cfg, "general",
+		autofallthrough_config = cw_true(cw_variable_retrieve(cfg, "general",
 									"autofallthrough"));
-		clearglobalvars_config = opbx_true(opbx_variable_retrieve(cfg, "general", 
+		clearglobalvars_config = cw_true(cw_variable_retrieve(cfg, "general", 
 									"clearglobalvars"));
-		option_priority_jumping = !opbx_false(opbx_variable_retrieve(cfg, "general",
+		option_priority_jumping = !cw_false(cw_variable_retrieve(cfg, "general",
 									   "priorityjumping"));
 
-		v = opbx_variable_browse(cfg, "globals");
+		v = cw_variable_browse(cfg, "globals");
 		while(v) {
 			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
 		}
-		cxt = opbx_category_browse(cfg, NULL);
+		cxt = cw_category_browse(cfg, NULL);
 		while(cxt) {
 			/* All categories but "general" or "globals" are considered contexts */
 			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
-				cxt = opbx_category_browse(cfg, cxt);
+				cxt = cw_category_browse(cfg, cxt);
 				continue;
 			}
-			if ((con=opbx_context_create(&local_contexts,cxt, registrar))) {
-				v = opbx_variable_browse(cfg, cxt);
+			if ((con=cw_context_create(&local_contexts,cxt, registrar))) {
+				v = cw_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
 						char *stringp=NULL;
@@ -1687,7 +1687,7 @@ static int pbx_load_module(void)
 							if (cidmatch) {
 								*cidmatch = '\0';
 								cidmatch++;
-								opbx_shrink_phone_number(cidmatch);
+								cw_shrink_phone_number(cidmatch);
 							}
 							pri = strsep(&stringp, ",");
 							if (!pri)
@@ -1700,7 +1700,7 @@ static int pbx_load_module(void)
 								if (end)
 									*end = '\0';
 								else
-									opbx_log(OPBX_LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+									cw_log(CW_LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 							}
 							plus = strchr(pri, '+');
 							if (plus) {
@@ -1713,16 +1713,16 @@ static int pbx_load_module(void)
 								if (lastpri > -2)
 									ipri = lastpri + 1;
 								else
-									opbx_log(OPBX_LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+									cw_log(CW_LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
 							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
 								if (lastpri > -2)
 									ipri = lastpri;
 								else
-									opbx_log(OPBX_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+									cw_log(CW_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%d", &ipri) != 1) {
-									if ((ipri = opbx_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
-										opbx_log(OPBX_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+									if ((ipri = cw_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
+										cw_log(CW_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;
 									}
 								}
@@ -1749,7 +1749,7 @@ static int pbx_load_module(void)
 								if ((end = strrchr(data, ')'))) {
 									*end = '\0';
 								} else {
-									opbx_log(OPBX_LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+									cw_log(CW_LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
 								}
 							}
 
@@ -1762,23 +1762,23 @@ static int pbx_load_module(void)
 								lastpri = ipri;
 								if(!option_dontwarn) {
 									if (!strcmp(realext, "_."))
-										opbx_log(OPBX_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+										cw_log(CW_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								}
-								if (opbx_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
-									opbx_log(OPBX_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+								if (cw_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
+									cw_log(CW_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}
 							free(tc);
 						} else 
-						    opbx_log(OPBX_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						    cw_log(CW_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
-						if (opbx_context_add_include2(con, realvalue, registrar))
-							opbx_log(OPBX_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+						if (cw_context_add_include2(con, realvalue, registrar))
+							cw_log(CW_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
-						if (opbx_context_add_ignorepat2(con, realvalue, registrar))
-							opbx_log(OPBX_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+						if (cw_context_add_ignorepat2(con, realvalue, registrar))
+							cw_log(CW_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
 						if (!strcasecmp(v->name, "switch"))
@@ -1791,20 +1791,20 @@ static int pbx_load_module(void)
 						data = strsep(&stringp, "");
 						if (!data)
 							data = "";
-						if (opbx_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							opbx_log(OPBX_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+						if (cw_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
+							cw_log(CW_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;
 				}
 			}
-			cxt = opbx_category_browse(cfg, cxt);
+			cxt = cw_category_browse(cfg, cxt);
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 	}
-	opbx_merge_contexts_and_delete(&local_contexts,registrar);
+	cw_merge_contexts_and_delete(&local_contexts,registrar);
 
-	for (con = opbx_walk_contexts(NULL); con; con = opbx_walk_contexts(con))
-		opbx_context_verify_includes(con);
+	for (con = cw_walk_contexts(NULL); con; con = cw_walk_contexts(con))
+		cw_context_verify_includes(con);
 
 	pbx_set_autofallthrough(autofallthrough_config);
 
@@ -1815,22 +1815,22 @@ static int load_module(void)
 {
 	if (pbx_load_module()) return -1;
  
-	opbx_cli_register(&context_remove_extension_cli);
-	opbx_cli_register(&context_dont_include_cli);
-	opbx_cli_register(&context_add_include_cli);
+	cw_cli_register(&context_remove_extension_cli);
+	cw_cli_register(&context_dont_include_cli);
+	cw_cli_register(&context_add_include_cli);
 	if (static_config && !write_protect_config)
-		opbx_cli_register(&save_dialplan_cli);
-	opbx_cli_register(&context_add_extension_cli);
-	opbx_cli_register(&context_add_ignorepat_cli);
-	opbx_cli_register(&context_remove_ignorepat_cli);
-	opbx_cli_register(&reload_extensions_cli);
+		cw_cli_register(&save_dialplan_cli);
+	cw_cli_register(&context_add_extension_cli);
+	cw_cli_register(&context_add_ignorepat_cli);
+	cw_cli_register(&context_remove_ignorepat_cli);
+	cw_cli_register(&reload_extensions_cli);
 
 	return 0;
 }
 
 static int reload_module(void)
 {
-	opbx_context_destroy(NULL, registrar);
+	cw_context_destroy(NULL, registrar);
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
 	pbx_load_module();

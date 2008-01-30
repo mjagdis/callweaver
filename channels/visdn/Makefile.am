@@ -2,11 +2,11 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES 		=
+cwmod_LTLIBRARIES 		=
 
 if WANT_CHAN_VISDN
 
-opbxmod_LTLIBRARIES		+= chan_visdn.la
+cwmod_LTLIBRARIES		+= chan_visdn.la
 
 chan_visdn_la_SOURCES = \
 	chan_visdn.c	\
@@ -28,7 +28,7 @@ noinst_HEADERS = \
 	util.h		\
 	$(srcdir)/include/list.h
 
-chan_visdn_la_LIBADD		= -lq931 ${top_builddir}/corelib/libopenpbx.la
+chan_visdn_la_LIBADD		= -lq931 ${top_builddir}/corelib/libcallweaver.la
 chan_visdn_la_LDFLAGS = -module -avoid-version @NO_UNDEFINED@
 
 endif WANT_CHAN_VISDN

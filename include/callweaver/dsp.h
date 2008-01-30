@@ -53,49 +53,49 @@
 #define DSP_TONE_STATE_SPECIAL3     7
 #define DSP_TONE_STATE_HUNGUP       8
 
-struct opbx_dsp;
+struct cw_dsp;
 
-struct opbx_dsp *opbx_dsp_new(void);
+struct cw_dsp *cw_dsp_new(void);
 
-void opbx_dsp_free(struct opbx_dsp *dsp);
+void cw_dsp_free(struct cw_dsp *dsp);
 
 /*! \brief Set threshold value for silence */
-void opbx_dsp_set_threshold(struct opbx_dsp *dsp, int threshold);
+void cw_dsp_set_threshold(struct cw_dsp *dsp, int threshold);
 
 /*! \brief Set number of required cadences for busy */
-void opbx_dsp_set_busy_count(struct opbx_dsp *dsp, int cadences);
+void cw_dsp_set_busy_count(struct cw_dsp *dsp, int cadences);
 
 /*! \brief Set expected lengths of the busy tone */
-void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietlength);
+void cw_dsp_set_busy_pattern(struct cw_dsp *dsp, int tonelength, int quietlength);
 
 /*! \brief Scans for progress indication in audio */
-int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf);
+int cw_dsp_call_progress(struct cw_dsp *dsp, struct cw_frame *inf);
 
 /*! \brief Set zone for doing progress detection */
-int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone);
+int cw_dsp_set_call_progress_zone(struct cw_dsp *dsp, char *zone);
 
-/*! \brief Return OPBX_FRAME_NULL frames when there is silence, OPBX_FRAME_BUSY on 
+/*! \brief Return CW_FRAME_NULL frames when there is silence, CW_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
-struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *dsp, struct opbx_frame *inf);
+struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, struct cw_frame *inf);
 
 /*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */
-int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilence);
+int cw_dsp_silence(struct cw_dsp *dsp, struct cw_frame *f, int *totalsilence);
 
 /*! \brief Return non-zero if historically this should be a busy, request that
-  opbx_dsp_silence has already been called */
-int opbx_dsp_busydetect(struct opbx_dsp *dsp);
+  cw_dsp_silence has already been called */
+int cw_dsp_busydetect(struct cw_dsp *dsp);
 
 /*! \brief Reset total silence count */
-void opbx_dsp_reset(struct opbx_dsp *dsp);
+void cw_dsp_reset(struct cw_dsp *dsp);
 
 /*! \brief Reset DTMF detector */
-void opbx_dsp_digitreset(struct opbx_dsp *dsp);
+void cw_dsp_digitreset(struct cw_dsp *dsp);
 
 /*! \brief Select feature set */
-void opbx_dsp_set_features(struct opbx_dsp *dsp, int features);
+void cw_dsp_set_features(struct cw_dsp *dsp, int features);
 
 /*! \brief Set digit mode */
-int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode);
+int cw_dsp_digitmode(struct cw_dsp *dsp, int digitmode);
 
 #endif /* _CALLWEAVER_DSP_H */

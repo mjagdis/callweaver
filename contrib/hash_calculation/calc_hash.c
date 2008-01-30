@@ -1,6 +1,6 @@
 /* API to use string hashes for keywords in place of strcmp()
  *
- *  opbx_hash.h
+ *  cw_hash.h
  *  CallWeaver Keywords
  *
  * Hash functions

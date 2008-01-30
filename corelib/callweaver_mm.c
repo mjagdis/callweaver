@@ -25,7 +25,7 @@
 #include "confdefs.h"
 #endif
 
-#ifdef __OPBX_DEBUG_MALLOC
+#ifdef __CW_DEBUG_MALLOC
 
 #include <stdio.h>
 #include <string.h>
@@ -67,9 +67,9 @@ enum func_type
 
 static FILE *mmlog;
 
-struct opbx_region
+struct cw_region
 {
-    struct opbx_region *next;
+    struct cw_region *next;
     char file[40];
     char func[40];
     unsigned int lineno;
@@ -80,27 +80,27 @@ struct opbx_region
     unsigned char data[0];
 };
 
-static struct opbx_region *regions[SOME_PRIME];
+static struct cw_region *regions[SOME_PRIME];
 
 #define HASH(a) (((unsigned long)(a)) % SOME_PRIME)
     
-OPBX_MUTEX_DEFINE_STATIC(reglock);
-OPBX_MUTEX_DEFINE_STATIC(showmemorylock);
+CW_MUTEX_DEFINE_STATIC(reglock);
+CW_MUTEX_DEFINE_STATIC(showmemorylock);
 
-static inline void *__opbx_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
+static inline void *__cw_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
 {
-    struct opbx_region *reg;
+    struct cw_region *reg;
     void *ptr = NULL;
     unsigned int *fence;
     int hash;
     
-    reg = malloc(size + sizeof(struct opbx_region) + sizeof(unsigned int));
-    opbx_mutex_lock(&reglock);
+    reg = malloc(size + sizeof(struct cw_region) + sizeof(unsigned int));
+    cw_mutex_lock(&reglock);
     if (reg)
     {
-        opbx_copy_string(reg->file, file, sizeof(reg->file));
+        cw_copy_string(reg->file, file, sizeof(reg->file));
         reg->file[sizeof(reg->file) - 1] = '\0';
-        opbx_copy_string(reg->func, func, sizeof(reg->func));
+        cw_copy_string(reg->func, func, sizeof(reg->func));
         reg->func[sizeof(reg->func) - 1] = '\0';
         reg->lineno = lineno;
         reg->len = size;
@@ -114,7 +114,7 @@ static inline void *__opbx_alloc_region(size_t size, int which, const char *file
         regions[hash] = reg;
         reg->fence = FENCE_MAGIC;
     }
-    opbx_mutex_unlock(&reglock);
+    cw_mutex_unlock(&reglock);
     if (reg == NULL)
     {
         fprintf(stderr, "Out of memory :(\n");
@@ -127,13 +127,13 @@ static inline void *__opbx_alloc_region(size_t size, int which, const char *file
     return ptr;
 }
 
-static inline size_t __opbx_sizeof_region(void *ptr)
+static inline size_t __cw_sizeof_region(void *ptr)
 {
     int hash = HASH(ptr);
-    struct opbx_region *reg;
+    struct cw_region *reg;
     size_t len = 0;
     
-    opbx_mutex_lock(&reglock);
+    cw_mutex_lock(&reglock);
     for (reg = regions[hash];  reg;  reg = reg->next)
     {
         if (reg->data == ptr)
@@ -142,17 +142,17 @@ static inline size_t __opbx_sizeof_region(void *ptr)
             break;
         }
     }
-    opbx_mutex_unlock(&reglock);
+    cw_mutex_unlock(&reglock);
     return len;
 }
 
-static void __opbx_free_region(void *ptr, const char *file, int lineno, const char *func)
+static void __cw_free_region(void *ptr, const char *file, int lineno, const char *func)
 {
     int hash = HASH(ptr);
-    struct opbx_region *reg, *prev = NULL;
+    struct cw_region *reg, *prev = NULL;
     unsigned int *fence;
 
-    opbx_mutex_lock(&reglock);
+    cw_mutex_lock(&reglock);
     for (reg = regions[hash];  reg;  reg = reg->next)
     {
         if (reg->data == ptr)
@@ -165,7 +165,7 @@ static void __opbx_free_region(void *ptr, const char *file, int lineno, const ch
         }
         prev = reg;
     }
-    opbx_mutex_unlock(&reglock);
+    cw_mutex_unlock(&reglock);
     if (reg)
     {
         fence = (unsigned int *) (reg->data + reg->len);
@@ -200,34 +200,34 @@ static void __opbx_free_region(void *ptr, const char *file, int lineno, const ch
     }
 }
 
-void *__opbx_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
+void *__cw_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
 {
     void *ptr;
 
-    ptr = __opbx_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func);
+    ptr = __cw_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func);
     if (ptr) 
         memset(ptr, 0, size * nmemb);
     return ptr;
 }
 
-void *__opbx_malloc(size_t size, const char *file, int lineno, const char *func) 
+void *__cw_malloc(size_t size, const char *file, int lineno, const char *func) 
 {
-    return __opbx_alloc_region(size, FUNC_MALLOC, file, lineno, func);
+    return __cw_alloc_region(size, FUNC_MALLOC, file, lineno, func);
 }
 
-void __opbx_free(void *ptr, const char *file, int lineno, const char *func) 
+void __cw_free(void *ptr, const char *file, int lineno, const char *func) 
 {
-    __opbx_free_region(ptr, file, lineno, func);
+    __cw_free_region(ptr, file, lineno, func);
 }
 
-void *__opbx_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func) 
+void *__cw_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func) 
 {
     void *tmp;
     size_t len = 0;
 
     if (ptr)
     {
-        len = __opbx_sizeof_region(ptr);
+        len = __cw_sizeof_region(ptr);
         if (!len)
         {
             fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", ptr, func, file, lineno);
@@ -239,7 +239,7 @@ void *__opbx_realloc(void *ptr, size_t size, const char *file, int lineno, const
             return NULL;
         }
     }
-    tmp = __opbx_alloc_region(size, FUNC_REALLOC, file, lineno, func);
+    tmp = __cw_alloc_region(size, FUNC_REALLOC, file, lineno, func);
     if (tmp)
     {
         if (len > size)
@@ -247,13 +247,13 @@ void *__opbx_realloc(void *ptr, size_t size, const char *file, int lineno, const
         if (ptr)
         {
             memcpy(tmp, ptr, len);
-            __opbx_free_region(ptr, file, lineno, func);
+            __cw_free_region(ptr, file, lineno, func);
         }
     }
     return tmp;
 }
 
-char *__opbx_strdup(const char *s, const char *file, int lineno, const char *func) 
+char *__cw_strdup(const char *s, const char *file, int lineno, const char *func) 
 {
     size_t len;
     void *ptr;
@@ -261,13 +261,13 @@ char *__opbx_strdup(const char *s, const char *file, int lineno, const char *fun
     if (!s)
         return NULL;
     len = strlen(s) + 1;
-    ptr = __opbx_alloc_region(len, FUNC_STRDUP, file, lineno, func);
+    ptr = __cw_alloc_region(len, FUNC_STRDUP, file, lineno, func);
     if (ptr)
         strcpy(ptr, s);
     return ptr;
 }
 
-char *__opbx_strndup(const char *s, size_t n, const char *file, int lineno, const char *func) 
+char *__cw_strndup(const char *s, size_t n, const char *file, int lineno, const char *func) 
 {
     size_t len;
     void *ptr;
@@ -277,18 +277,18 @@ char *__opbx_strndup(const char *s, size_t n, const char *file, int lineno, cons
     len = strlen(s) + 1;
     if (len > n)
         len = n;
-    ptr = __opbx_alloc_region(len, FUNC_STRNDUP, file, lineno, func);
+    ptr = __cw_alloc_region(len, FUNC_STRNDUP, file, lineno, func);
     if (ptr)
         strcpy(ptr, s);
     return ptr;
 }
 
-int __opbx_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
+int __cw_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
 {
     int n;
     int size = strlen(fmt) + 1;
 
-    if ((*strp = __opbx_alloc_region(size, FUNC_VASPRINTF, file, lineno, func)) == NULL)
+    if ((*strp = __cw_alloc_region(size, FUNC_VASPRINTF, file, lineno, func)) == NULL)
         return -1; 
     for (;;)
     {
@@ -305,7 +305,7 @@ int __opbx_vasprintf(char **strp, const char *fmt, va_list ap, const char *file,
             /* glibc 2.0 */
             size *= 2;
         }
-        if ((*strp = __opbx_realloc(*strp, size, file, lineno, func)) == NULL)
+        if ((*strp = __cw_realloc(*strp, size, file, lineno, func)) == NULL)
             return -1;
     }
 }
@@ -314,7 +314,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;
-    struct opbx_region *reg;
+    struct cw_region *reg;
     unsigned int len = 0;
     int count = 0;
     unsigned int *fence;
@@ -323,7 +323,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
         fn = argv[3];
 
     /* try to lock applications list ... */
-    opbx_mutex_lock(&showmemorylock);
+    cw_mutex_lock(&showmemorylock);
 
     for (x = 0;  x < SOME_PRIME;  x++)
     {
@@ -353,14 +353,14 @@ static int handle_show_memory(int fd, int argc, char *argv[])
             }
             if (fn == NULL  ||  strcasecmp(fn, reg->file) == 0)
             {
-                opbx_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
+                cw_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
                 len += reg->len;
                 count++;
             }
         }
     }
-    opbx_cli(fd, "%d bytes allocated %d units total\n", len, count);
-    opbx_mutex_unlock(&showmemorylock);
+    cw_cli(fd, "%d bytes allocated %d units total\n", len, count);
+    cw_mutex_unlock(&showmemorylock);
     return RESULT_SUCCESS;
 }
 
@@ -377,7 +377,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;
-    struct opbx_region *reg;
+    struct cw_region *reg;
     unsigned int len = 0;
     unsigned int cache_len = 0;
     int count = 0;
@@ -388,7 +388,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
         fn = argv[3];
 
     /* Try to lock applications list ... */
-    opbx_mutex_lock(&reglock);
+    cw_mutex_lock(&reglock);
 
     for (x = 0;  x < SOME_PRIME;  x++)
     {
@@ -405,7 +405,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
             {
                 cur = alloca(sizeof(*cur));
                 memset(cur, 0, sizeof(*cur));
-                opbx_copy_string(cur->fn, (fn)  ?  reg->func  :  reg->file, sizeof(cur->fn));
+                cw_copy_string(cur->fn, (fn)  ?  reg->func  :  reg->file, sizeof(cur->fn));
                 cur->next = list;
                 list = cur;
             }
@@ -415,7 +415,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
             cur->count++;
         }
     }
-    opbx_mutex_unlock(&reglock);
+    cw_mutex_unlock(&reglock);
     
     /* Dump the whole list */
     for (cur = list;  cur;  cur = cur->next)
@@ -427,12 +427,12 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
         {
             if (fn)
             {
-                opbx_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+                cw_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
                     cur->len, cur->cache_len, cur->count, cur->fn, fn);
             }
             else
             {
-                opbx_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+                cw_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
                     cur->len, cur->cache_len, cur->count, cur->fn);
             }
         }
@@ -440,20 +440,20 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
         {
             if (fn)
             {
-                opbx_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+                cw_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
                     cur->len, cur->count, cur->fn, fn);
             }
             else
             {
-                opbx_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
+                cw_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
                     cur->len, cur->count, cur->fn);
             }
         }
     }
     if (cache_len)
-        opbx_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
+        cw_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
     else
-        opbx_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
+        cw_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
     return RESULT_SUCCESS;
 }
 
@@ -467,7 +467,7 @@ static char show_memory_summary_help[] =
 "       Summarizes heap memory allocations by file, or optionally\n"
 "by function, if a file is specified\n";
 
-static struct opbx_clicmd show_memory_allocations_cli = 
+static struct cw_clicmd show_memory_allocations_cli = 
 {
     .cmda = { "show", "memory", "allocations", NULL }, 
     .handler = handle_show_memory,
@@ -475,7 +475,7 @@ static struct opbx_clicmd show_memory_allocations_cli =
     .usage = show_memory_help,
 };
 
-static struct opbx_clicmd show_memory_summary_cli = 
+static struct cw_clicmd show_memory_summary_cli = 
 {
     .cmda = { "show", "memory", "summary", NULL }, 
     .handler = handle_show_memory_summary,
@@ -483,16 +483,16 @@ static struct opbx_clicmd show_memory_summary_cli =
     .usage = show_memory_summary_help,
 };
 
-void __opbx_mm_init(void)
+void __cw_mm_init(void)
 {
     char filename[80] = "";
-    opbx_cli_register(&show_memory_allocations_cli);
-    opbx_cli_register(&show_memory_summary_cli);
+    cw_cli_register(&show_memory_allocations_cli);
+    cw_cli_register(&show_memory_summary_cli);
     
-    snprintf(filename, sizeof(filename), "%s/mmlog", (char *) opbx_config_OPBX_LOG_DIR);
+    snprintf(filename, sizeof(filename), "%s/mmlog", (char *) cw_config_CW_LOG_DIR);
     mmlog = fopen(filename, "a+");
     if (option_verbose)
-        opbx_verbose("CallWeaver Malloc Debugger Started (see %s))\n", filename);
+        cw_verbose("CallWeaver Malloc Debugger Started (see %s))\n", filename);
     if (mmlog)
     {
         fprintf(mmlog, "%ld - New session\n", time(NULL));

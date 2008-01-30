@@ -52,7 +52,7 @@ static const char verbose_descrip[] =
 "  Always returns 0.\n";
 
 
-static int verbose_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int verbose_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static char *prefix[] = {
 		"",
@@ -71,10 +71,10 @@ static int verbose_exec(struct opbx_channel *chan, int argc, char **argv, char *
 	}
 
 	if (argc != 1 || level < 0 || level >= arraysize(prefix))
-		return opbx_function_syntax(verbose_syntax);
+		return cw_function_syntax(verbose_syntax);
 
 	LOCAL_USER_ADD(u);
-	opbx_verbose("%s%s\n", prefix[level], argv[0]);
+	cw_verbose("%s%s\n", prefix[level], argv[0]);
 	LOCAL_USER_REMOVE(u);
 
 	return 0;
@@ -84,13 +84,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(verbose_app);
+	res |= cw_unregister_function(verbose_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	verbose_app = opbx_register_function(verbose_name, verbose_exec, verbose_synopsis, verbose_syntax, verbose_descrip);
+	verbose_app = cw_register_function(verbose_name, verbose_exec, verbose_synopsis, verbose_syntax, verbose_descrip);
 	return 0;
 }
 

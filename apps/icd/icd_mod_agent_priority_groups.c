@@ -108,9 +108,9 @@ int icd_module_load(icd_config_registry * registry)
 
     module_id = icd_event_factory__add_module(module_name);
     if (module_id == 0)
-        opbx_log(OPBX_LOG_WARNING, "Unable to register Module Name[%s]", module_name);
+        cw_log(CW_LOG_WARNING, "Unable to register Module Name[%s]", module_name);
 
-    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n", icd_module_strings[module_id]);
+    cw_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n", icd_module_strings[module_id]);
 
     return 0;
 }
@@ -124,7 +124,7 @@ int icd_module_unload(void)
     icd_plugable__clear_fns(&icd_module_plugable_fns);
     icd_plugable__clear_fns(&icd_module_agent_plugable_fns);
     icd_plugable__clear_fns(&icd_module_customer_plugable_fns);
-    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[[agentprioritygroups]!\n");
+    cw_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[[agentprioritygroups]!\n");
 
     return 0;
 
@@ -181,7 +181,7 @@ static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * t
     result = icd_plugable__set_state_bridge_failed_fn(plugable_fns, icd_module__state_bridge_failed, NULL);
 
     icd_distributor__create_thread(that);
-    opbx_verbose(VERBOSE_PREFIX_3 "ICD Distributor[%s] Initialized !\n", name);
+    cw_verbose(VERBOSE_PREFIX_3 "ICD Distributor[%s] Initialized !\n", name);
 
     return ICD_SUCCESS;
 }
@@ -191,12 +191,12 @@ int icd_module_command_agtpri(int fd, int argc, char **argv)
     static char *help[2] = { "help", "agtpri" };
 
     if (argc >= 2) {
-        opbx_cli(fd, "\n");
-        opbx_cli(fd, "\n");
-        opbx_cli(fd, "ICD Module loaded a icd command interface \n");
+        cw_cli(fd, "\n");
+        cw_cli(fd, "\n");
+        cw_cli(fd, "ICD Module loaded a icd command interface \n");
 
-        opbx_cli(fd, "\n");
-        opbx_cli(fd, "\n");
+        cw_cli(fd, "\n");
+        cw_cli(fd, "\n");
     } else
         icd_command_help(fd, 2, help);
 
@@ -237,11 +237,11 @@ icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that)
     }
 
     if (plugable_fns == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     } else {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "\nCaller id[%d] [%s] using icd_module_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
+            cw_log(CW_LOG_DEBUG, "\nCaller id[%d] [%s] using icd_module_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
                 icd_caller__get_id(that), icd_caller__get_name(that), icd_plugable__get_name(plugable_fns),
                 plugable_fns->state_ready_fn, dist_name);
     }
@@ -310,7 +310,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     customer_member = icd_member_list__pop(dist->customers);
     customer_caller = icd_member__get_caller(customer_member);
     if (customer_member == NULL || customer_caller == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n",
+        cw_log(CW_LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n",
             icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
@@ -331,7 +331,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     }
     cust_id = icd_caller__get_id(customer_caller);
     if (icd_debug)
-        opbx_log(OPBX_LOG_DEBUG, "ICD AgentPriorityDist %s found customer[%s] agent_priority[%d] from list\n",
+        cw_log(CW_LOG_DEBUG, "ICD AgentPriorityDist %s found customer[%s] agent_priority[%d] from list\n",
             icd_distributor__get_name(dist), icd_caller__get_name(customer_caller), agent_priority);
 
     iter = icd_distributor__get_agent_iterator(dist);
@@ -339,13 +339,13 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
         //agent_member = icd_member_list__pop(dist->agents);
         agent_member = (icd_member *) icd_list_iterator__next(iter);
         if (agent_member == NULL) {
-            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not pop agent member from list\n",
+            cw_log(CW_LOG_ERROR, "ICD Distributor %s could not pop agent member from list\n",
                 icd_distributor__get_name(dist));
             return ICD_ERESOURCE;
         }
         agent_caller = icd_member__get_caller(agent_member);
         if (agent_caller == NULL) {
-            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s could not cast agent caller from member\n",
+            cw_log(CW_LOG_ERROR, "ICD Distributor %s could not cast agent caller from member\n",
                 icd_distributor__get_name(dist));
             return ICD_ERESOURCE;
         }
@@ -360,14 +360,14 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
                 /* found no agents to call, stick customer back on list & either timeout or get new agents */
                 icd_distributor__pushback_customer(dist, customer_member);
             }
-            opbx_log(OPBX_LOG_WARNING, "ICD AgentPriorityDist[%s] need priority[%d] found Agent[%s] WRONG Priority[%d]\n",
+            cw_log(CW_LOG_WARNING, "ICD AgentPriorityDist[%s] need priority[%d] found Agent[%s] WRONG Priority[%d]\n",
                 icd_distributor__get_name(dist), agent_priority, icd_caller__get_name(agent_caller)
                 , icd_caller__get_priority(agent_caller));
             return ICD_EEXISTS;
         }
 
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "ICD AgentPriorityDist %s found Agent Caller[%s] priority[%d] from list\n",
+            cw_log(CW_LOG_DEBUG, "ICD AgentPriorityDist %s found Agent Caller[%s] priority[%d] from list\n",
                 icd_distributor__get_name(dist), icd_caller__get_name(agent_caller),
                 icd_caller__get_priority(agent_caller));
 
@@ -399,14 +399,14 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
         /* Figure out who the bridger is, and who the bridgee is */
         result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-        opbx_verbose(VERBOSE_PREFIX_3 "Distributor[%s] Link CustomerID[%d] to AgentID[%d]\n",
+        cw_verbose(VERBOSE_PREFIX_3 "Distributor[%s] Link CustomerID[%d] to AgentID[%d]\n",
             icd_distributor__get_name(dist), cust_id, agent_id);
         if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
             result = icd_caller__bridge(customer_caller);
         } else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
             result = icd_caller__bridge(agent_caller);
         } else {
-            opbx_log(OPBX_LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n",
+            cw_log(CW_LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n",
                 icd_distributor__get_name(dist));
             icd_distributor__pushback_agent(dist, agent_member);
             icd_distributor__pushback_customer(dist, customer_member);
@@ -439,8 +439,8 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
     icd_caller *that;
     icd_caller *associate;
     icd_list_iterator *iter;
-    struct opbx_channel *chan;
-    struct opbx_channel *chan_associate;
+    struct cw_channel *chan;
+    struct cw_channel *chan_associate;
     icd_status result;
     icd_status final_result;
 
@@ -465,7 +465,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != opbx_bridged_channel(chan_associate)->name) {
+                if (chan && chan_associate && chan->name != cw_bridged_channel(chan_associate)->name) {
                     result = icd_caller__unlink_from_caller(that, associate);
                     if (result != ICD_SUCCESS)
                         final_result = result;
@@ -484,7 +484,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
         break;
 
     case ICD_BRIDGEE_ROLE:
-        opbx_log(OPBX_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_AGENT_ROLE] cant be bridgee using [%s]  \n",
+        cw_log(CW_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_AGENT_ROLE] cant be bridgee using [%s]  \n",
             icd_caller__get_id(that), icd_caller__get_name(that), module_name);
 
         break;
@@ -502,8 +502,8 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
     icd_caller *associate;
     icd_list_iterator *iter;
 
-    struct opbx_channel *chan;
-    struct opbx_channel *chan_associate;
+    struct cw_channel *chan;
+    struct cw_channel *chan_associate;
     int link_count = 0;
     icd_status result;
     icd_status final_result;
@@ -514,7 +514,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
 
     switch (icd_caller__get_roles(that)) {
     case ICD_BRIDGER_ROLE:
-        opbx_log(OPBX_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_CUSTOMER_ROLE] cant be bridger using [%s]  \n",
+        cw_log(CW_LOG_ERROR, "Caller id[%d] [%s] in role[ICD_CUSTOMER_ROLE] cant be bridger using [%s]  \n",
             icd_caller__get_id(that), icd_caller__get_name(that), module_name);
         break;
 
@@ -534,7 +534,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != opbx_bridged_channel(chan_associate)->name) {
+                if (chan && chan_associate && chan->name != cw_bridged_channel(chan_associate)->name) {
                     result = icd_caller__unlink_from_caller(that, associate);
                     if (result != ICD_SUCCESS)
                         final_result = result;

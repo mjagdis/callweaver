@@ -52,9 +52,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "say.h"
 
 /* Forward declaration */
-int wait_file(struct opbx_channel *chan, const char *ints, const char *file, const char *lang);
+int wait_file(struct cw_channel *chan, const char *ints, const char *file, const char *lang);
 
-int opbx_say_character_str_full(struct opbx_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+int cw_say_character_str_full(struct cw_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
     const char *fn;
     char fnbuf[256];
@@ -123,22 +123,22 @@ int opbx_say_character_str_full(struct opbx_channel *chan, const char *str, cons
             fn = fnbuf;
             break;
         }
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
-        opbx_stopstream(chan);
+            res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
+        cw_stopstream(chan);
         num++;
     }
 
     return res;
 }
 
-int opbx_say_character_str(struct opbx_channel *chan, const char *str, const char *ints, const char *lang)
+int cw_say_character_str(struct cw_channel *chan, const char *str, const char *ints, const char *lang)
 {
-    return opbx_say_character_str_full(chan, str, ints, lang, -1, -1);
+    return cw_say_character_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int opbx_say_phonetic_str_full(struct opbx_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+int cw_say_phonetic_str_full(struct cw_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
     const char *fn;
     char fnbuf[256];
@@ -204,22 +204,22 @@ int opbx_say_phonetic_str_full(struct opbx_channel *chan, const char *str, const
             fnbuf[9] = ltr;
             fn = fnbuf;
         }
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
-        opbx_stopstream(chan);
+            res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
+        cw_stopstream(chan);
         num++;
     }
 
     return res;
 }
 
-int opbx_say_phonetic_str(struct opbx_channel *chan, const char *str, const char *ints, const char *lang)
+int cw_say_phonetic_str(struct cw_channel *chan, const char *str, const char *ints, const char *lang)
 {
-    return opbx_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
+    return cw_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int opbx_say_digit_str_full(struct opbx_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+int cw_say_digit_str_full(struct cw_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
     const char *fn;
     char fnbuf[256];
@@ -257,10 +257,10 @@ int opbx_say_digit_str_full(struct opbx_channel *chan, const char *str, const ch
         }
         if (fn)
         {
-            res = opbx_streamfile(chan, fn, lang);
+            res = cw_streamfile(chan, fn, lang);
             if (!res)
-                res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
-            opbx_stopstream(chan);
+                res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
+            cw_stopstream(chan);
         }
         num++;
     }
@@ -268,38 +268,38 @@ int opbx_say_digit_str_full(struct opbx_channel *chan, const char *str, const ch
     return res;
 }
 
-int opbx_say_digit_str(struct opbx_channel *chan, const char *str, const char *ints, const char *lang)
+int cw_say_digit_str(struct cw_channel *chan, const char *str, const char *ints, const char *lang)
 {
-    return opbx_say_digit_str_full(chan, str, ints, lang, -1, -1);
+    return cw_say_digit_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int opbx_say_digits_full(struct opbx_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd)
+int cw_say_digits_full(struct cw_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
     char fn2[256];
 
     snprintf(fn2, sizeof(fn2), "%d", num);
-    return opbx_say_digit_str_full(chan, fn2, ints, lang, audiofd, ctrlfd);
+    return cw_say_digit_str_full(chan, fn2, ints, lang, audiofd, ctrlfd);
 }
 
-int opbx_say_digits(struct opbx_channel *chan, int num, const char *ints, const char *lang)
+int cw_say_digits(struct cw_channel *chan, int num, const char *ints, const char *lang)
 {
-    return opbx_say_digits_full(chan, num, ints, lang, -1, -1);
+    return cw_say_digits_full(chan, num, ints, lang, -1, -1);
 }
 
-int wait_file(struct opbx_channel *chan, const char *ints, const char *file, const char *lang)
+int wait_file(struct cw_channel *chan, const char *ints, const char *file, const char *lang)
 {
     int res;
 
-    if ((res = opbx_streamfile(chan, file, lang)))
-        opbx_log(OPBX_LOG_WARNING, "Unable to play message %s\n", file);
+    if ((res = cw_streamfile(chan, file, lang)))
+        cw_log(CW_LOG_WARNING, "Unable to play message %s\n", file);
     if (!res)
-        res = opbx_waitstream(chan, ints);
+        res = cw_waitstream(chan, ints);
     return res;
 }
 
-/*! \brief  opbx_say_number_full: call language-specific functions */
+/*! \brief  cw_say_number_full: call language-specific functions */
 /* Called from OGI */
-int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd)
+int cw_say_number_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd)
 {
     int i;
 
@@ -316,15 +316,15 @@ int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, c
     return lang_specific_en.say_number_full(chan, num, ints, lang, options, audiofd, ctrlfd);
 }
 
-/*! \brief  opbx_say_number: call language-specific functions without file descriptors */
-int opbx_say_number(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options)
+/*! \brief  cw_say_number: call language-specific functions without file descriptors */
+int cw_say_number(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
-    return opbx_say_number_full(chan, num, ints, language, options, -1, -1);
+    return cw_say_number_full(chan, num, ints, language, options, -1, -1);
 }
 
-/*! \brief  opbx_say_enumeration_full: call language-specific functions */
+/*! \brief  cw_say_enumeration_full: call language-specific functions */
 /* Called from OGI */
-int opbx_say_enumeration_full(struct opbx_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd)
+int cw_say_enumeration_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd)
 {
     int i;
 
@@ -341,13 +341,13 @@ int opbx_say_enumeration_full(struct opbx_channel *chan, int num, const char *in
     return lang_specific_en.say_enumeration_full(chan, num, ints, lang, options, audiofd, ctrlfd);
 }
 
-/*! \brief  opbx_say_enumeration: call language-specific functions without file descriptors */
-int opbx_say_enumeration(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options)
+/*! \brief  cw_say_enumeration: call language-specific functions without file descriptors */
+int cw_say_enumeration(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
-    return(opbx_say_enumeration_full(chan, num, ints, language, options, -1, -1));
+    return(cw_say_enumeration_full(chan, num, ints, language, options, -1, -1));
 }
 
-int opbx_say_date(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+int cw_say_date(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     int i;
 
@@ -364,7 +364,7 @@ int opbx_say_date(struct opbx_channel *chan, time_t t, const char *ints, const c
     return lang_specific_en.say_date(chan, t, ints, lang);
 }
 
-int opbx_say_date_with_format(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+int cw_say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
     int i;
 
@@ -381,7 +381,7 @@ int opbx_say_date_with_format(struct opbx_channel *chan, time_t time, const char
     return lang_specific_en.say_date_with_format(chan, time, ints, lang, format, timezone);
 }
 
-int opbx_say_time(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+int cw_say_time(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     int i;
 
@@ -398,7 +398,7 @@ int opbx_say_time(struct opbx_channel *chan, time_t t, const char *ints, const c
     return lang_specific_en.say_time(chan, t, ints, lang);
 }
 
-int opbx_say_datetime(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+int cw_say_datetime(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     int i;
 
@@ -415,7 +415,7 @@ int opbx_say_datetime(struct opbx_channel *chan, time_t t, const char *ints, con
     return lang_specific_en.say_datetime(chan, t, ints, lang);
 }
 
-int opbx_say_datetime_from_now(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+int cw_say_datetime_from_now(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     int i;
 

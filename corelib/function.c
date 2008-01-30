@@ -52,32 +52,32 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static const char *func_registry_obj_name(struct opbx_object *obj)
+static const char *func_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_func *it = container_of(obj, struct opbx_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	return it->name;
 }
 
-static int func_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int func_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-	struct opbx_func *func_a = container_of(a, struct opbx_func, obj);
-	struct opbx_func *func_b = container_of(b, struct opbx_func, obj);
+	struct cw_func *func_a = container_of(a, struct cw_func, obj);
+	struct cw_func *func_b = container_of(b, struct cw_func, obj);
 
 	return strcmp(func_a->name, func_b->name);
 }
 
-static int func_registry_obj_match(struct opbx_object *obj, const void *pattern)
+static int func_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
-	struct opbx_func *it = container_of(obj, struct opbx_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	return (!strcmp(it->name, pattern));
 }
 
-struct opbx_registry func_registry = {
+struct cw_registry func_registry = {
 	.name = "Function",
 	.obj_name = func_registry_obj_name,
 	.obj_cmp = func_registry_obj_cmp,
 	.obj_match = func_registry_obj_match,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
@@ -87,9 +87,9 @@ struct opbx_registry func_registry = {
  *
  * \return -1. Propogating this back up the call chain will hang up the current call.
  */
-int opbx_function_syntax(const char *syntax)
+int cw_function_syntax(const char *syntax)
 {
-	opbx_log(OPBX_LOG_ERROR, "Syntax: %s\n", syntax);
+	cw_log(CW_LOG_ERROR, "Syntax: %s\n", syntax);
 	return -1;
 }
 
@@ -99,28 +99,28 @@ int opbx_function_syntax(const char *syntax)
  * Look up the given hash of the function name and return
  * a pointer to the function object. The returned pointer
  * is already reference counted and must be released
- * after use by passing it to opbx_object_put().
+ * after use by passing it to cw_object_put().
  *
  * \note The name argument is only used to log "not found"
- * messages. If it is given as NULL opbx_find_function()
+ * messages. If it is given as NULL cw_find_function()
  * will fail silently.
  *
  * \param hash		the hash of the function name to find
- * 			(given by opbx_hash_app_name())
+ * 			(given by cw_hash_app_name())
  * \param name		the name of the function (may be NULL)
  *
  * \return a pointer to the function object or NULL if
  * not found
  */
-static struct opbx_func* opbx_find_function(unsigned int hash, const char *name) 
+static struct cw_func* cw_find_function(unsigned int hash, const char *name) 
 {
-	struct opbx_object *obj = opbx_registry_find(&func_registry, name);
+	struct cw_object *obj = cw_registry_find(&func_registry, name);
 
 	if (!obj)
-		opbx_log(OPBX_LOG_ERROR, "No such function \"%s\"\n", name);
+		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", name);
 
 	if (obj)
-		return container_of(obj, struct opbx_func, obj);
+		return container_of(obj, struct cw_func, obj);
 
 	return NULL;
 }
@@ -132,7 +132,7 @@ static struct opbx_func* opbx_find_function(unsigned int hash, const char *name)
  * and returns any result as a string in the given result buffer.
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from opbx_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_app_name())
  * \param name		name of function to execute
  * \param argc		the number of arguments
  * \param argv		an array of pointers to argument strings
@@ -141,16 +141,16 @@ static struct opbx_func* opbx_find_function(unsigned int hash, const char *name)
  *
  * \return 0 on success, -1 on failure
  */
-int opbx_function_exec(struct opbx_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *out, size_t outlen)
+int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *out, size_t outlen)
 {
-	struct opbx_func *func;
+	struct cw_func *func;
 	const char *saved_c_appl;
 	int ret = -1;
 
-	if (!(func = opbx_find_function(hash, name)))
+	if (!(func = cw_find_function(hash, name)))
 		goto out;
 
-	/* FIXME: The last argument to opbx_cdr_setapp should be the
+	/* FIXME: The last argument to cw_cdr_setapp should be the
 	 * argv as a comma separated string. But doing that costs.
 	 * Is it really needed? (It's for lastdata in CDR)
 	 * N.B. The reason we don't do this in the args-as-string wrapper
@@ -162,15 +162,15 @@ int opbx_function_exec(struct opbx_channel *chan, unsigned int hash, const char 
 	 * expression context function calls CDRs will always say the
 	 * last app was "CDR".
 	 */
-	if (chan->cdr && !out && !opbx_check_hangup(chan))
-		opbx_cdr_setapp(chan->cdr, name, argv[0]);
+	if (chan->cdr && !out && !cw_check_hangup(chan))
+		cw_cdr_setapp(chan->cdr, name, argv[0]);
 
 	/* save channel values - for the sake of CDR and debug output from DumpChan and the CLI <bleurgh> */
 	saved_c_appl = chan->appl;
 	chan->appl = name;
 
 	ret = (*func->handler)(chan, argc, argv, out, outlen);
-	opbx_object_put(func);
+	cw_object_put(func);
 
 	/* restore channel values */
 	chan->appl= saved_c_appl;
@@ -185,13 +185,13 @@ out:
  * and returns any result as a string in the given result buffer.
  * The argument string contains zero or more comma separated
  * arguments. Arguments may be quoted and/or contain backslash
- * escaped characters as allowed by opbx_separate_app_args().
+ * escaped characters as allowed by cw_separate_app_args().
  * They may NOT contain variables or expressions that require
  * expansion - these should have been expanded prior to calling
- * opbx_function_exec().
+ * cw_function_exec().
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from opbx_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_app_name())
  * \param name		name of function to execute
  * \param args		the argument string
  * \param result	where to write any result
@@ -199,7 +199,7 @@ out:
  *
  * \return 0 on success, -1 on failure
  */
-int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const char *name, char *args, char *out, size_t outlen)
+int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *out, size_t outlen)
 {
 	char *argv[100];
 	int ret;
@@ -211,15 +211,15 @@ int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const c
 	outlen--;
 
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "%s: Call %s(%s)\n", (chan ? chan->name : "[no channel]"), name, args);
+		cw_verbose(VERBOSE_PREFIX_3 "%s: Call %s(%s)\n", (chan ? chan->name : "[no channel]"), name, args);
 
-	ret = opbx_function_exec(chan, hash, name, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, out, outlen);
+	ret = cw_function_exec(chan, hash, name, cw_separate_app_args(args, ',', arraysize(argv), argv), argv, out, outlen);
 
 	if (out)
 		out[outlen] = '\0';
 
 	if (option_debug && option_verbose > 5)
-               	opbx_log(OPBX_LOG_DEBUG, "%s:  ret %d: %s\n",
+               	cw_log(CW_LOG_DEBUG, "%s:  ret %d: %s\n",
 			(chan ? chan->name : "[no channel]"), ret, (out ? out : ""));
 
 	return ret;
@@ -229,7 +229,7 @@ int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const c
 static char *complete_show_functions(char *line, char *word, int pos, int state)
 {
 	if (pos == 2) {
-		if (opbx_strlen_zero(word)) {
+		if (cw_strlen_zero(word)) {
 			switch (state) {
 				case 0: return strdup("like");
 				case 1: return strdup("describing");
@@ -256,9 +256,9 @@ struct funcs_print_args {
 	char **argv;
 };
 
-static int funcs_print(struct opbx_object *obj, void *data)
+static int funcs_print(struct cw_object *obj, void *data)
 {
-	struct opbx_func *it = container_of(obj, struct opbx_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	struct funcs_print_args *args = data;
 	int printapp = 1;
 
@@ -278,7 +278,7 @@ static int funcs_print(struct opbx_object *obj, void *data)
 
 	if (printapp) {
 		args->matches++;
-		opbx_cli(args->fd,"  %20s: %s\n", it->name, it->synopsis);
+		cw_cli(args->fd,"  %20s: %s\n", it->name, it->synopsis);
 	}
 
 	return 0;
@@ -298,27 +298,27 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	else if ((argc > 3) && (!strcmp(argv[2], "describing")))
 		args.describing = 1;
 
-	opbx_cli(fd, "    -= %s CallWeaver Functions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
+	cw_cli(fd, "    -= %s CallWeaver Functions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
 
-	opbx_registry_iterate(&func_registry, funcs_print, &args);
+	cw_registry_iterate(&func_registry, funcs_print, &args);
 
-	opbx_cli(fd, "    -= %d Functions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
+	cw_cli(fd, "    -= %d Functions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
 	return RESULT_SUCCESS;
 }
 
 static int handle_show_function(int fd, int argc, char *argv[])
 {
-	struct opbx_func *acf;
+	struct cw_func *acf;
 
 	if (argc < 3)
         return RESULT_SHOWUSAGE;
 
-	if (!(acf = opbx_find_function(opbx_hash_app_name(argv[2]), argv[2]))) {
-		opbx_cli(fd, "No function by that name registered.\n");
+	if (!(acf = cw_find_function(cw_hash_app_name(argv[2]), argv[2]))) {
+		cw_cli(fd, "No function by that name registered.\n");
 		return RESULT_FAILURE;
 	}
 
-	opbx_cli(fd,
+	cw_cli(fd,
              "\n  -= Info about function '%s' =- \n\n[Syntax]\n%s\n\n[Synopsis]\n%s\n\n[Description]\n%s\n",
              (acf->name)  ?  acf->name  :  "N/A",
              (acf->syntax)  ?  acf->syntax  :  "N/A",
@@ -337,9 +337,9 @@ struct complete_show_func_args {
 	int state;
 };
 
-static int complete_show_func_one(struct opbx_object *obj, void *data)
+static int complete_show_func_one(struct cw_object *obj, void *data)
 {
-	struct opbx_func *it = container_of(obj, struct opbx_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	struct complete_show_func_args *args = data;
 
 	if (((args->exact && !strncmp(args->word, it->name, args->len))
@@ -362,19 +362,19 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
 
 	/* Pass 1: Look for exact case */
 	args.exact = 1;
-	opbx_registry_iterate(&func_registry, complete_show_func_one, &args);
+	cw_registry_iterate(&func_registry, complete_show_func_one, &args);
 
 	if (!args.ret) {
 		/* Pass 2: Look for any case */
 		args.exact = 0;
-		opbx_registry_iterate(&func_registry, complete_show_func_one, &args);
+		cw_registry_iterate(&func_registry, complete_show_func_one, &args);
 	}
 
 	return args.ret; 
 }
 
 
-static struct opbx_clicmd cli_list[] = {
+static struct cw_clicmd cli_list[] = {
 	{
 		.cmda = { "show", "functions", NULL },
 		.handler = handle_show_functions,
@@ -412,7 +412,7 @@ static struct opbx_clicmd cli_list[] = {
 };
 
 
-void opbx_function_registry_initialize(void)
+void cw_function_registry_initialize(void)
 {
-	opbx_cli_register_multiple(cli_list, arraysize(cli_list));
+	cw_cli_register_multiple(cli_list, arraysize(cli_list));
 }

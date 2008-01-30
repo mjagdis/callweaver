@@ -37,9 +37,9 @@ extern "C" {
 #endif
 
 
-struct opbx_format {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+struct cw_format {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	/* Name of format */
 	char *name;
 	/* Extensions (separated by | if more than one) 
@@ -52,7 +52,7 @@ struct opbx_format {
 	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
 	void *(*rewrite)(FILE *f, const char *comment);
 	/* Write a frame to a format handler */
-	int (*write)(void *, struct opbx_frame *);
+	int (*write)(void *, struct cw_frame *);
 	/* seek num samples into file, whence(think normal seek) */
 	int (*seek)(void *, long offset, int whence);
 	/* trunc file to current position */
@@ -61,44 +61,44 @@ struct opbx_format {
 	long (*tell)(void *);
 	/* Read the next frame from the filestream (if available) and report when to get next one
 		(in samples) */
-	struct opbx_frame *(*read)(void *, int *whennext);
+	struct cw_frame *(*read)(void *, int *whennext);
 	/* Close file, and destroy filestream structure */
 	void (*close)(void *);
 	/* Retrieve file comment */
 	char *(*getcomment)(void *);
 };
 
-extern struct opbx_registry format_registry;
+extern struct cw_registry format_registry;
 
 
-#define opbx_format_register(ptr) ({ \
+#define cw_format_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&format_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&format_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_format_unregister(ptr) ({ \
+#define cw_format_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&format_registry, __ptr->reg_entry); \
+		cw_registry_del(&format_registry, __ptr->reg_entry); \
 	0; \
 })
 
 
 /*! Convenient for waiting */
-#define OPBX_DIGIT_ANY "0123456789#*ABCD"
-#define OPBX_DIGIT_ANYNUM "0123456789"
+#define CW_DIGIT_ANY "0123456789#*ABCD"
+#define CW_DIGIT_ANYNUM "0123456789"
 
 #define SEEK_FORCECUR	10
 	
 /* Defined by individual formats.  First item MUST be a
    pointer for use by the stream manager */
-struct opbx_filestream;
+struct cw_filestream;
 
 
 /*! Streams a file */
@@ -106,11 +106,11 @@ struct opbx_filestream;
  * \param c channel to stream the file to
  * \param filename the name of the file you wish to stream, minus the extension
  * \param preflang the preferred language you wish to have the file streamed to you in
- * Prepares a channel for the streaming of a file.  To start the stream, afterward do a opbx_waitstream() on the channel
+ * Prepares a channel for the streaming of a file.  To start the stream, afterward do a cw_waitstream() on the channel
  * Also, it will stop any existing streams on the channel.
  * Returns 0 on success, or -1 on failure.
  */
-int opbx_streamfile(struct opbx_channel *c, const char *filename, const char *preflang);
+int cw_streamfile(struct cw_channel *c, const char *filename, const char *preflang);
 
 /*! Stops a stream */
 /*!
@@ -118,7 +118,7 @@ int opbx_streamfile(struct opbx_channel *c, const char *filename, const char *pr
  * Stop playback of a stream 
  * Returns 0 regardless
  */
-int opbx_stopstream(struct opbx_channel *c);
+int cw_stopstream(struct cw_channel *c);
 
 /*! Checks for the existence of a given file */
 /*!
@@ -128,7 +128,7 @@ int opbx_stopstream(struct opbx_channel *c);
  * See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.
  * Returns 0 if file does not exist, non-zero positive otherwise (actually a bit vector of available formats).
  */
-int opbx_fileexists(const char *filename, const char *fmt, const char *preflang);
+int cw_fileexists(const char *filename, const char *fmt, const char *preflang);
 
 /*! Renames a file */
 /*! 
@@ -138,7 +138,7 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
  * Rename a given file in a given format, or if fmt is NULL, then do so for all 
  * Returns -1 on failure
  */
-int opbx_filerename(const char *oldname, const char *newname, const char *fmt);
+int cw_filerename(const char *oldname, const char *newname, const char *fmt);
 
 /*! Deletes a file */
 /*! 
@@ -146,7 +146,7 @@ int opbx_filerename(const char *oldname, const char *newname, const char *fmt);
  * \param format of the file
  * Delete a given file in a given format, or if fmt is NULL, then do so for all 
  */
-int opbx_filedelete(const char *filename, const char *fmt);
+int cw_filedelete(const char *filename, const char *fmt);
 
 /*! Copies a file */
 /*!
@@ -155,7 +155,7 @@ int opbx_filedelete(const char *filename, const char *fmt);
  * \param fmt the format of the file
  * Copy a given file in a given format, or if fmt is NULL, then do so for all 
  */
-int opbx_filecopy(const char *oldname, const char *newname, const char *fmt);
+int cw_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*! Waits for a stream to stop or digit to be pressed */
 /*!
@@ -165,7 +165,7 @@ int opbx_filecopy(const char *oldname, const char *newname, const char *fmt);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int opbx_waitstream(struct opbx_channel *c, const char *breakon);
+int cw_waitstream(struct cw_channel *c, const char *breakon);
 
 /*! Waits for a stream to stop or digit matching a valid one digit exten to be pressed */
 /*!
@@ -175,7 +175,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon);
  * Wait for a stream to stop or for any one of a valid extension digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int opbx_waitstream_exten(struct opbx_channel *c, const char *context);
+int cw_waitstream_exten(struct cw_channel *c, const char *context);
 
 /*! Same as waitstream but allows stream to be forwarded or rewound */
 /*!
@@ -188,11 +188,11 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
+int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
 
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */
-int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiofd, int monfd);
+int cw_waitstream_full(struct cw_channel *c, const char *breakon, int audiofd, int monfd);
 
 /*! Starts reading from a file */
 /*!
@@ -205,10 +205,10 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
  * Open an incoming file stream.  flags are flags for the open() command, and 
  * if check is non-zero, then it will not read a file if there are any files that 
  * start with that name and have an extension
- * Please note, this is a blocking function.  Program execution will not return until opbx_waitstream completes it's execution.
- * Returns a struct opbx_filestream on success, NULL on failure
+ * Please note, this is a blocking function.  Program execution will not return until cw_waitstream completes it's execution.
+ * Returns a struct cw_filestream on success, NULL on failure
  */
-struct opbx_filestream *opbx_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
+struct cw_filestream *cw_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
 
 /*! Starts writing a file */
 /*!
@@ -221,19 +221,19 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *type, co
  * Create an outgoing file stream.  oflags are flags for the open() command, and 
  * if check is non-zero, then it will not write a file if there are any files that 
  * start with that name and have an extension
- * Please note, this is a blocking function.  Program execution will not return until opbx_waitstream completes it's execution.
- * Returns a struct opbx_filestream on success, NULL on failure
+ * Please note, this is a blocking function.  Program execution will not return until cw_waitstream completes it's execution.
+ * Returns a struct cw_filestream on success, NULL on failure
  */
-struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
+struct cw_filestream *cw_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
 
 /*! Writes a frame to a stream */
 /*! 
  * \param fs filestream to write to
  * \param f frame to write to the filestream
- * Send a frame to a filestream -- note: does NOT free the frame, call opbx_fr_free manually
+ * Send a frame to a filestream -- note: does NOT free the frame, call cw_fr_free manually
  * Returns 0 on success, -1 on failure.
  */
-int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f);
+int cw_writestream(struct cw_filestream *fs, struct cw_frame *f);
 
 /*! Closes a stream */
 /*!
@@ -241,16 +241,16 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f);
  * Close a playback or recording stream
  * Returns 0 on success, -1 on failure
  */
-int opbx_closestream(struct opbx_filestream *f);
+int cw_closestream(struct cw_filestream *f);
 
 /*! Opens stream for use in seeking, playing */
 /*!
  * \param chan channel to work with
  * \param filename to use
  * \param preflang prefered language to use
- * Returns a opbx_filestream pointer if it opens the file, NULL on error
+ * Returns a cw_filestream pointer if it opens the file, NULL on error
  */
-struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *filename, const char *preflang);
+struct cw_filestream *cw_openstream(struct cw_channel *chan, const char *filename, const char *preflang);
 
 /*! Opens stream for use in seeking, playing */
 /*!
@@ -258,88 +258,88 @@ struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *f
  * \param filename to use
  * \param preflang prefered language to use
  * \param asis if set, don't clear generators
- * Returns a opbx_filestream pointer if it opens the file, NULL on error
+ * Returns a cw_filestream pointer if it opens the file, NULL on error
  */
-struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
+struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *filename, const char *preflang, int asis);
 
 /*! play a open stream on a channel. */
 /*!
- * \param opbx_filestream s to play
+ * \param cw_filestream s to play
  * Returns 0 for success, -1 on failure
  */
-int opbx_playstream(struct opbx_filestream *s);
+int cw_playstream(struct cw_filestream *s);
 
 /*! Seeks into stream */
 /*!
- * \param opbx_filestream to perform seek on
+ * \param cw_filestream to perform seek on
  * \param sample_offset numbers of samples to seek
  * \param whence SEEK_SET, SEEK_CUR, SEEK_END 
  * Returns 0 for success, or -1 for error
  */
-int opbx_seekstream(struct opbx_filestream *fs, long sample_offset, int whence);
+int cw_seekstream(struct cw_filestream *fs, long sample_offset, int whence);
 
 /*! Trunc stream at current location */
 /*!
- * \param opbx_filestream fs 
+ * \param cw_filestream fs 
  * Returns 0 for success, or -1 for error
  */
-int opbx_truncstream(struct opbx_filestream *fs);
+int cw_truncstream(struct cw_filestream *fs);
 
 /*! Fast forward stream ms */
 /*!
- * \param opbx_filestream fs filestream to act on
+ * \param cw_filestream fs filestream to act on
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int opbx_stream_fastforward(struct opbx_filestream *fs, long ms);
+int cw_stream_fastforward(struct cw_filestream *fs, long ms);
 
 /*! Rewind stream ms */
 /*!
- * \param opbx_filestream fs filestream to act on
+ * \param cw_filestream fs filestream to act on
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int opbx_stream_rewind(struct opbx_filestream *fs, long ms);
+int cw_stream_rewind(struct cw_filestream *fs, long ms);
 
 /*! Fast forward stream ms */
 /*!
- * \param opbx_filestream fs filestream to act on
+ * \param cw_filestream fs filestream to act on
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int opbx_stream_fastforward(struct opbx_filestream *fs, long ms);
+int cw_stream_fastforward(struct cw_filestream *fs, long ms);
 
 /*! Rewind stream ms */
 /*!
- * \param opbx_filestream fs filestream to act on
+ * \param cw_filestream fs filestream to act on
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int opbx_stream_rewind(struct opbx_filestream *fs, long ms);
+int cw_stream_rewind(struct cw_filestream *fs, long ms);
 
 /*! Tell where we are in a stream */
 /*!
- * \param opbx_filestream fs to act on
+ * \param cw_filestream fs to act on
  * Returns a long as a sample offset into stream
  */
-long opbx_tellstream(struct opbx_filestream *fs);
+long cw_tellstream(struct cw_filestream *fs);
 
 /*! Read a frame from a filestream */
 /*!
- * \param opbx_filestream fs to act on
+ * \param cw_filestream fs to act on
  * Returns a frame or NULL if read failed
  */ 
-struct opbx_frame *opbx_readframe(struct opbx_filestream *s);
+struct cw_frame *cw_readframe(struct cw_filestream *s);
 
 /*! Initialize file stuff */
 /*!
  * Initializes all the various file stuff.  Basically just registers the cli stuff
  * Returns 0 all the time
  */
-extern int opbx_file_init(void);
+extern int cw_file_init(void);
 
 
-#define OPBX_RESERVED_POINTERS 20
+#define CW_RESERVED_POINTERS 20
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

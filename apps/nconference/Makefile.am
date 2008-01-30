@@ -8,9 +8,9 @@ AUTOMAKE_OPTS                   = gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES             =
+cwmod_LTLIBRARIES             =
 
-opbxmod_LTLIBRARIES                     += app_nconference.la
+cwmod_LTLIBRARIES                     += app_nconference.la
 app_nconference_la_SOURCES              = frame.c conference.c member.c sounds.c dtmf.c vad.c cli.c \
 					  jitterbuffer.c \
 					  app_nconference.c 

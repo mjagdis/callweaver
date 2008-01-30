@@ -49,37 +49,37 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 
 
-static const char *imager_registry_obj_name(struct opbx_object *obj)
+static const char *imager_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_imager *it = container_of(obj, struct opbx_imager, obj);
+	struct cw_imager *it = container_of(obj, struct cw_imager, obj);
 	return it->name;
 }
 
-static int imager_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int imager_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-	struct opbx_imager *imager_a = container_of(a, struct opbx_imager, obj);
-	struct opbx_imager *imager_b = container_of(b, struct opbx_imager, obj);
+	struct cw_imager *imager_a = container_of(a, struct cw_imager, obj);
+	struct cw_imager *imager_b = container_of(b, struct cw_imager, obj);
 
 	return strcmp(imager_a->name, imager_b->name);
 }
 
-static int imager_registry_obj_match(struct opbx_object *obj, const void *pattern)
+static int imager_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
-	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	const int *format = pattern;
 	return !(img->format & *format);
 }
 
-struct opbx_registry imager_registry = {
+struct cw_registry imager_registry = {
 	.name = "Imager",
 	.obj_name = imager_registry_obj_name,
 	.obj_cmp = imager_registry_obj_cmp,
 	.obj_match = imager_registry_obj_match,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-int opbx_supports_images(struct opbx_channel *chan)
+int cw_supports_images(struct cw_channel *chan)
 {
 	if (!chan || !chan->tech)
 		return 0;
@@ -107,9 +107,9 @@ static void make_filename(char *buf, int len, char *filename, char *preflang, ch
 			snprintf(buf, len, "%s.%s", filename, ext);
 	} else {
 		if (preflang && strlen(preflang))
-			snprintf(buf, len, "%s/%s/%s-%s.%s", opbx_config_OPBX_VAR_DIR, "images", filename, preflang, ext);
+			snprintf(buf, len, "%s/%s/%s-%s.%s", cw_config_CW_VAR_DIR, "images", filename, preflang, ext);
 		else
-			snprintf(buf, len, "%s/%s/%s.%s", opbx_config_OPBX_VAR_DIR, "images", filename, ext);
+			snprintf(buf, len, "%s/%s/%s.%s", cw_config_CW_VAR_DIR, "images", filename, ext);
 	}
 }
 
@@ -117,12 +117,12 @@ struct read_image_args {
 	char *filename;
 	char *lang;
 	int format;
-	struct opbx_frame *frame;
+	struct cw_frame *frame;
 };
 
-static int read_image_try(struct opbx_object *obj, void *data)
+static int read_image_try(struct cw_object *obj, void *data)
 {
-	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	struct read_image_args *args = data;
 
 	if (img->format & args->format) {
@@ -131,7 +131,7 @@ static int read_image_try(struct opbx_object *obj, void *data)
 		char *e;
 
 		while ((e = strsep(&stringp, "|,"))) {
-			char buf[OPBX_CONFIG_MAX_PATH];
+			char buf[CW_CONFIG_MAX_PATH];
 			size_t len;
 			make_filename(buf, sizeof(buf), args->filename, args->lang, e);
 			if ((len = file_exists(buf))) {
@@ -141,10 +141,10 @@ static int read_image_try(struct opbx_object *obj, void *data)
 						lseek(fd, 0, SEEK_SET);
 						args->frame = img->read_image(fd, len); 
 					} else
-						opbx_log(OPBX_LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
+						cw_log(CW_LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
 					close(fd);
 				} else
-					opbx_log(OPBX_LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
+					cw_log(CW_LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
 				return 1;
 			}
 		}
@@ -153,29 +153,29 @@ static int read_image_try(struct opbx_object *obj, void *data)
 	return 0;
 }
 
-struct opbx_frame *opbx_read_image(char *filename, char *lang, int format)
+struct cw_frame *cw_read_image(char *filename, char *lang, int format)
 {
 	struct read_image_args args = { filename, lang, format, NULL };
 
-	if (!opbx_registry_iterate(&imager_registry, read_image_try, &args)) {
+	if (!cw_registry_iterate(&imager_registry, read_image_try, &args)) {
 		args.lang = NULL;
-		if (!opbx_registry_iterate(&imager_registry, read_image_try, &args))
-			opbx_log(OPBX_LOG_WARNING, "Image file '%s' not found\n", filename);
+		if (!cw_registry_iterate(&imager_registry, read_image_try, &args))
+			cw_log(CW_LOG_WARNING, "Image file '%s' not found\n", filename);
 	}
 	return args.frame;
 }
 
 
-int opbx_send_image(struct opbx_channel *chan, char *filename)
+int cw_send_image(struct cw_channel *chan, char *filename)
 {
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int res = -1;
 
 	if (chan->tech->send_image) {
-		f = opbx_read_image(filename, chan->language, -1);
+		f = cw_read_image(filename, chan->language, -1);
 		if (f) {
 			res = chan->tech->send_image(chan, f);
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 	}
 	return res;
@@ -185,12 +185,12 @@ int opbx_send_image(struct opbx_channel *chan, char *filename)
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
 
-static int imager_print(struct opbx_object *obj, void *data)
+static int imager_print(struct cw_object *obj, void *data)
 {
-	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	int *fd = data;
 
-	opbx_cli(*fd, FORMAT2, img->name, img->exts, img->desc, opbx_getformatname(img->format));
+	cw_cli(*fd, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));
 	return 0;
 }
 
@@ -199,12 +199,12 @@ static int show_image_formats(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	opbx_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	opbx_registry_iterate(&imager_registry, imager_print, &fd);
+	cw_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
+	cw_registry_iterate(&imager_registry, imager_print, &fd);
 	return RESULT_SUCCESS;
 }
 
-struct opbx_clicmd show_images = {
+struct cw_clicmd show_images = {
 	.cmda = { "show", "image", "formats" },
 	.handler = show_image_formats,
 	.summary = "Displays image formats",
@@ -213,8 +213,8 @@ struct opbx_clicmd show_images = {
 };
 
 
-int opbx_image_init(void)
+int cw_image_init(void)
 {
-	opbx_cli_register(&show_images);
+	cw_cli_register(&show_images);
 	return 0;
 }

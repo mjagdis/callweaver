@@ -96,7 +96,7 @@ struct mansession {
 	/*! Execution thread */
 	pthread_t t;
 	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
-	opbx_mutex_t __lock;
+	cw_mutex_t __lock;
 	/*! socket address */
 	struct sockaddr_in sin;
 	/*! TCP socket */
@@ -121,7 +121,7 @@ struct mansession {
 	int send_events;
 	/* Queued events that we've not had the ability to send yet */
 	struct eventqent *eventq;
-	/* Timeout for opbx_carefulwrite() */
+	/* Timeout for cw_carefulwrite() */
 	int writetimeout;
 	struct mansession *next;
 };
@@ -148,9 +148,9 @@ struct manager_action {
 };
 
 /* External routines may register/unregister manager callbacks this way */
-#define opbx_manager_register(a, b, c, d) opbx_manager_register2(a, b, c, d, NULL)
+#define cw_manager_register(a, b, c, d) cw_manager_register2(a, b, c, d, NULL)
 
-/* Use opbx_manager_register2 to register with help text for new manager commands */
+/* Use cw_manager_register2 to register with help text for new manager commands */
 
 /*! Register a manager command with the manager interface */
 /*! 	\param action Name of the requested Action:
@@ -159,7 +159,7 @@ struct manager_action {
 	\param synopsis Help text (one line, up to 30 chars) for CLI manager show commands
 	\param description Help text, several lines
 */
-int opbx_manager_register2( 
+int cw_manager_register2( 
 	const char *action, 
 	int authority, 
 	int (*func)(struct mansession *s, struct message *m), 
@@ -169,7 +169,7 @@ int opbx_manager_register2(
 /*! Unregister a registred manager command */
 /*!	\param action Name of registred Action:
 */
-int opbx_manager_unregister( char *action );
+int cw_manager_unregister( char *action );
 
 /*! External routines may send callweaver manager events this way */
 /*! 	\param category	Event category, matches manager authorization
@@ -183,7 +183,7 @@ extern int manager_event(int category, char *event, char *contents, ...)
 extern char *astman_get_header(struct message *m, char *var);
 
 /*! Get a linked list of the Variable: headers */
-struct opbx_variable *astman_get_variables(struct message *m);
+struct cw_variable *astman_get_variables(struct message *m);
 
 /*! Send error in manager transaction */
 extern void astman_send_error(struct mansession *s, struct message *m, char *error);

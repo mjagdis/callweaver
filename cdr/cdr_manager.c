@@ -57,23 +57,23 @@ static int enablecdr = 0;
 static void loadconfigurationfile(void)
 {
 	char *cat;
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
+	struct cw_config *cfg;
+	struct cw_variable *v;
 	
-	cfg = opbx_config_load(CONF_FILE);
+	cfg = cw_config_load(CONF_FILE);
 	if (!cfg) {
 		/* Standard configuration */
 		enablecdr = 0;
 		return;
 	}
 	
-	cat = opbx_category_browse(cfg, NULL);
+	cat = cw_category_browse(cfg, NULL);
 	while (cat) {
 		if (!strcasecmp(cat, "general")) {
-			v = opbx_variable_browse(cfg, cat);
+			v = cw_variable_browse(cfg, cat);
 			while (v) {
 				if (!strcasecmp(v->name, "enabled")) {
-					enablecdr = opbx_true(v->value);
+					enablecdr = cw_true(v->value);
 				}
 				
 				v = v->next;
@@ -81,13 +81,13 @@ static void loadconfigurationfile(void)
 		}
 	
 		/* Next category */
-		cat = opbx_category_browse(cfg, cat);
+		cat = cw_category_browse(cfg, cat);
 	}
 	
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 }
 
-static int manager_log(struct opbx_cdr *cdr)
+static int manager_log(struct cw_cdr *cdr)
 {
 	time_t t;
 	struct tm timeresult;
@@ -133,14 +133,14 @@ static int manager_log(struct opbx_cdr *cdr)
 	    "UserField: %s\r\n",
 	    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
 	    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
-	    cdr->duration, cdr->billsec, opbx_cdr_disp2str(cdr->disposition), 
-	    opbx_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
+	    cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), 
+	    cw_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
 	    	
 	return 0;
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = manager_log,
@@ -149,7 +149,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 {
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
@@ -157,7 +157,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 
 	/* Configuration file */
 	loadconfigurationfile();

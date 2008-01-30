@@ -2,10 +2,10 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES 		=
+cwmod_LTLIBRARIES 		=
 
 if WANT_CHAN_SCCP
-opbxmod_LTLIBRARIES		+= chan_sccp.la
+cwmod_LTLIBRARIES		+= chan_sccp.la
 chan_sccp_la_SOURCES		= chan_sccp.c sccp_actions.c sccp_channel.c \
 				sccp_cli.c sccp_device.c sccp_indicate.c sccp_line.c \
 				sccp_pbx.c sccp_socket.c sccp_softkeys.c sccp_utils.c

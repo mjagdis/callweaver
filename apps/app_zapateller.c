@@ -57,7 +57,7 @@ static const char zapateller_descrip[] =
 "characters\n";
 
 
-static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int zapateller_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -72,12 +72,12 @@ static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv, cha
 			nocallerid = 1;
         }
 
-	opbx_stopstream(chan);
-	if (chan->_state != OPBX_STATE_UP) {
+	cw_stopstream(chan);
+	if (chan->_state != CW_STATE_UP) {
 		if (answer) 
-			res = opbx_answer(chan);
+			res = cw_answer(chan);
 		if (!res) {
-			res = opbx_safe_sleep(chan, 500);
+			res = cw_safe_sleep(chan, 500);
 		}
 	}
 	if (chan->cid.cid_num && nocallerid) {
@@ -85,13 +85,13 @@ static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv, cha
 		return res;
 	} 
 	if (!res) 
-		res = opbx_tonepair(chan, 950, 0, 330, 0);
+		res = cw_tonepair(chan, 950, 0, 330, 0);
 	if (!res) 
-		res = opbx_tonepair(chan, 1400, 0, 330, 0);
+		res = cw_tonepair(chan, 1400, 0, 330, 0);
 	if (!res) 
-		res = opbx_tonepair(chan, 1800, 0, 330, 0);
+		res = cw_tonepair(chan, 1800, 0, 330, 0);
 	if (!res) 
-		res = opbx_tonepair(chan, 0, 0, 1000, 0);
+		res = cw_tonepair(chan, 0, 0, 1000, 0);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -100,13 +100,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(zapateller_app);
+	res |= cw_unregister_function(zapateller_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	zapateller_app = opbx_register_function(zapateller_name, zapateller_exec, zapateller_synopsis, zapateller_syntax, zapateller_descrip);
+	zapateller_app = cw_register_function(zapateller_name, zapateller_exec, zapateller_synopsis, zapateller_syntax, zapateller_descrip);
 	return 0;
 }
 

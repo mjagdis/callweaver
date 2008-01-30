@@ -72,7 +72,7 @@ static const char auth_descrip[] =
 "Default is 3, and if set to 0, no limit is enforced\n";
 
 
-static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
 {
 	int res=0;
 	int retries, trylimit=3, nolimit=0;
@@ -85,12 +85,12 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	pbx_builtin_setvar_helper(chan, auth_chanvar, "FAILURE"); /* default to fail */
 	
 	if (argc < 1 || argc > 3)
-		return opbx_function_syntax(auth_syntax);
+		return cw_function_syntax(auth_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	if (chan->_state != OPBX_STATE_UP) {
-		res = opbx_answer(chan);
+	if (chan->_state != CW_STATE_UP) {
+		res = cw_answer(chan);
 		if (res) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
@@ -107,16 +107,16 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 		else if (i > 0)
 			trylimit = i;
 		else
-			opbx_log(OPBX_LOG_ERROR,"Can't set a negative limit.\n");
+			cw_log(CW_LOG_ERROR,"Can't set a negative limit.\n");
 	}
 	
 	/* Start asking for password */
 	prompt = "agent-pass";
     if (debug)
-        opbx_verbose("Starting %s with retry limit set to %i\n", auth_name, trylimit);
+        cw_verbose("Starting %s with retry limit set to %i\n", auth_name, trylimit);
 	
 	for (retries = 0; retries < trylimit || nolimit; retries++) {
-		res = opbx_app_getdata(chan, prompt, passwd, sizeof(passwd) - 2, 0);
+		res = cw_app_getdata(chan, prompt, passwd, sizeof(passwd) - 2, 0);
 		if (res < 0)
 			break;
 		res = 0;
@@ -124,10 +124,10 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			if (argc > 1 && strchr(argv[1], 'd')) {
 				char tmp[256];
 				/* Compare against a database key */
-				if (!opbx_db_get(argv[0] + 1, passwd, tmp, sizeof(tmp))) {
+				if (!cw_db_get(argv[0] + 1, passwd, tmp, sizeof(tmp))) {
 					/* It's a good password */
 					if (argc > 1 && strchr(argv[1], 'r')) {
-						opbx_db_del(argv[0] + 1, passwd);
+						cw_db_del(argv[0] + 1, passwd);
 					}
 					break;
 				}
@@ -142,7 +142,7 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 
 					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
-						if (!feof(f) && !opbx_strlen_zero(buf)) {
+						if (!feof(f) && !cw_strlen_zero(buf)) {
 							buf[strlen(buf) - 1] = '\0';
 							if (argc > 1 && strchr(argv[1], 'm')) {
 								md5secret = strchr(buf, ':');
@@ -150,23 +150,23 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 									continue;
 								*md5secret = '\0';
 								md5secret++;
-								opbx_md5_hash(md5passwd, passwd);
+								cw_md5_hash(md5passwd, passwd);
 								if (!strcmp(md5passwd, md5secret)) {
 									if (argc > 1 && strchr(argv[1], 'a'))
-										opbx_cdr_setaccount(chan, buf);
+										cw_cdr_setaccount(chan, buf);
 									break;
 								}
 							} else {
 								if (!strcmp(passwd, buf)) {
 									if (argc > 1 && strchr(argv[1], 'a'))
-										opbx_cdr_setaccount(chan, buf);
+										cw_cdr_setaccount(chan, buf);
 									break;
 								}
 							}
 						}
 					}
 					fclose(f);
-					if (!opbx_strlen_zero(buf)) {
+					if (!cw_strlen_zero(buf)) {
 						if (argc > 1 && strchr(argv[1], 'm')) {
 							if (md5secret && !strcmp(md5passwd, md5secret))
 								break;
@@ -176,7 +176,7 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 						}
 					}
 				} else 
-					opbx_log(OPBX_LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", argv[0], strerror(errno));
+					cw_log(CW_LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", argv[0], strerror(errno));
 			}
 		} else {
 			/* Compare against a fixed password */
@@ -187,11 +187,11 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	}
 	if ((retries < trylimit) && !res) {
 		if (argc > 1 && strchr(argv[1], 'a') && !strchr(argv[1], 'm')) 
-			opbx_cdr_setaccount(chan, passwd);
-		res = opbx_streamfile(chan, "auth-thankyou", chan->language);
+			cw_cdr_setaccount(chan, passwd);
+		res = cw_streamfile(chan, "auth-thankyou", chan->language);
 		pbx_builtin_setvar_helper(chan, auth_chanvar, "SUCCESS"); /* default to fail */
 		if (!res)
-			res = opbx_waitstream(chan, "");
+			res = cw_waitstream(chan, "");
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -201,13 +201,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(auth_app);
+	res |= cw_unregister_function(auth_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	auth_app = opbx_register_function(auth_name, auth_exec, auth_synopsis, auth_syntax, auth_descrip);
+	auth_app = cw_register_function(auth_name, auth_exec, auth_synopsis, auth_syntax, auth_descrip);
 	return 0;
 }
 

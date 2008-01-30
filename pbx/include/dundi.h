@@ -18,7 +18,7 @@
 
 /*! \file
  * \brief Distributed Universal Number Discovery (DUNDi)
- * See also \ref opbxDUNDi
+ * See also \ref cwDUNDi
  */
 
 #ifndef _CALLWEAVER_DUNDI_H 
@@ -163,7 +163,7 @@ struct dundi_peer_status {
 #define DUNDI_IE_SHAREDKEY		17	/*!< RSA encrypted AES-128 key */
 #define DUNDI_IE_SIGNATURE		18	/*!< RSA Signature of encrypted shared key */
 #define DUNDI_IE_KEYCRC32		19	/*!< CRC32 of encrypted key (int) */
-#define DUNDI_IE_HINT			20	/*!< Answer hints (struct opbx_hint) */
+#define DUNDI_IE_HINT			20	/*!< Answer hints (struct cw_hint) */
 
 #define DUNDI_IE_DEPARTMENT		21	/*!< Department, for EIDQUERY (string) */
 #define DUNDI_IE_ORGANIZATION		22	/*!< Organization, for EIDQUERY (string) */
@@ -215,7 +215,7 @@ struct dundi_entity_info {
 
 /*! \brief Lookup the given number in the given dundi context (or e164 if unspecified) using the given callerid (if specified) and return up to maxret results in the array specified.
    returns the number of results found or -1 on a hangup of teh channel. */
-int dundi_lookup(struct dundi_result *result, int maxret, struct opbx_channel *chan, const char *dcontext, const char *number, int nocache);
+int dundi_lookup(struct dundi_result *result, int maxret, struct cw_channel *chan, const char *dcontext, const char *number, int nocache);
 
 /*! \brief Retrieve information on a specific EID */
 int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_eid eid);

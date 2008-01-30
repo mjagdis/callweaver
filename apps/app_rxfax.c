@@ -68,20 +68,20 @@ static const char rxfax_descrip[] =
 
 
 #define MAX_BLOCK_SIZE 240
-#define ready_to_talk(chan) ( (!chan ||  opbx_check_hangup(chan) )  ?  0  :  1)
+#define ready_to_talk(chan) ( (!chan ||  cw_check_hangup(chan) )  ?  0  :  1)
 
 static void span_message(int level, const char *msg)
 {
-    int opbx_level;
+    int cw_level;
     
     if (level == SPAN_LOG_ERROR)
-        opbx_level = __OPBX_LOG_ERROR;
+        cw_level = __CW_LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
-        opbx_level = __OPBX_LOG_WARNING;
+        cw_level = __CW_LOG_WARNING;
     else
-        opbx_level = __OPBX_LOG_DEBUG;
-    //opbx_level = __OPBX_LOG_WARNING;
-    opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
+        cw_level = __CW_LOG_DEBUG;
+    //cw_level = __CW_LOG_WARNING;
+    cw_log(cw_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -98,7 +98,7 @@ static uint64_t nowis(void)
     struct timespec ts;
     
     if (clock_gettime(CLOCK_MONOTONIC, &ts))
-        opbx_log(OPBX_LOG_WARNING, "clock_gettime returned %s\n", strerror(errno));
+        cw_log(CW_LOG_WARNING, "clock_gettime returned %s\n", strerror(errno));
     now = ts.tv_sec*1000000LL + ts.tv_nsec/1000;
 #endif
     return now;
@@ -112,15 +112,15 @@ static uint64_t nowis(void)
 
 struct faxgen_state {
     fax_state_t *fax;
-    struct opbx_frame f;
-    uint8_t buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
+    struct cw_frame f;
+    uint8_t buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
 };
 
-static void *faxgen_alloc(struct opbx_channel *chan, void *params)
+static void *faxgen_alloc(struct cw_channel *chan, void *params)
 {
     struct faxgen_state *fgs;
 
-    opbx_log(OPBX_LOG_DEBUG,"Allocating fax generator\n");
+    cw_log(CW_LOG_DEBUG,"Allocating fax generator\n");
 
     if ((fgs = malloc(sizeof(*fgs)))) {
 	    fgs->fax = params;
@@ -130,35 +130,35 @@ static void *faxgen_alloc(struct opbx_channel *chan, void *params)
 
 /*- End of function --------------------------------------------------------*/
 
-static void faxgen_release(struct opbx_channel *chan, void *data)
+static void faxgen_release(struct cw_channel *chan, void *data)
 {
-    opbx_log(OPBX_LOG_DEBUG,"Releasing fax generator\n");
+    cw_log(CW_LOG_DEBUG,"Releasing fax generator\n");
     free(data);
     return;
 }
 
 /*- End of function --------------------------------------------------------*/
 
-static struct opbx_frame *faxgen_generate(struct opbx_channel *chan, void *data, int samples)
+static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int samples)
 {
     struct faxgen_state *fgs = data;
     int len;
 
-    opbx_fr_init_ex(&fgs->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
+    cw_fr_init_ex(&fgs->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
 
     samples = (samples <= MAX_BLOCK_SIZE)  ?  samples  :  MAX_BLOCK_SIZE;
-    if ((len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*OPBX_FRIENDLY_OFFSET], samples)) > 0) {
+    if ((len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*CW_FRIENDLY_OFFSET], samples)) > 0) {
         fgs->f.datalen = len*sizeof(int16_t);
         fgs->f.samples = len;
-        fgs->f.data = &fgs->buf[2*OPBX_FRIENDLY_OFFSET];
-        fgs->f.offset = 2*OPBX_FRIENDLY_OFFSET;
+        fgs->f.data = &fgs->buf[2*CW_FRIENDLY_OFFSET];
+        fgs->f.offset = 2*CW_FRIENDLY_OFFSET;
     }
 
     return &fgs->f;
 }
 /*- End of function --------------------------------------------------------*/
 
-static struct opbx_generator faxgen = 
+static struct cw_generator faxgen = 
 {
 	alloc: 		faxgen_alloc,
 	release: 	faxgen_release,
@@ -167,7 +167,7 @@ static struct opbx_generator faxgen =
 
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 {
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     char local_ident[21];
     char far_ident[21];
     char buf[128];
@@ -176,7 +176,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 
     t30_get_transfer_statistics(s, &t);
     
-    chan = (struct opbx_channel *) user_data;
+    chan = (struct cw_channel *) user_data;
     t30_get_local_ident(s, local_ident);
     t30_get_far_ident(s, far_ident);
     pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", far_ident);
@@ -193,15 +193,15 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     mode = (chan->t38_status == T38_NEGOTIATED)  ?  "T.38"  :  "Analogue";
     pbx_builtin_setvar_helper(chan, "FAXMODE", mode);
 
-    opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
+    cw_log(CW_LOG_DEBUG, "==============================================================================\n");
     if (result == T30_ERR_OK) 
     {
-        opbx_log(OPBX_LOG_DEBUG, "Fax successfully received (%s).\n", mode);
-        opbx_log(OPBX_LOG_DEBUG, "Remote station id: %s\n", far_ident);
-        opbx_log(OPBX_LOG_DEBUG, "Local station id:  %s\n", local_ident);
-        opbx_log(OPBX_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
-        opbx_log(OPBX_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
-        opbx_log(OPBX_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
+        cw_log(CW_LOG_DEBUG, "Fax successfully received (%s).\n", mode);
+        cw_log(CW_LOG_DEBUG, "Remote station id: %s\n", far_ident);
+        cw_log(CW_LOG_DEBUG, "Local station id:  %s\n", local_ident);
+        cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
+        cw_log(CW_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
+        cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
         manager_event(EVENT_FLAG_CALL,
                       "FaxSent", "Channel: %s\nExten: %s\nCallerID: %s\nRemoteStationID: %s\nLocalStationID: %s\nPagesTransferred: %i\nResolution: %i\nTransferRate: %i\nFileName: %s\n",
                       chan->name,
@@ -216,55 +216,55 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     }
     else
     {
-        opbx_log(OPBX_LOG_DEBUG, "Fax receive not successful - result (%d) %s.\n", result, t30_completion_code_to_str(result));
+        cw_log(CW_LOG_DEBUG, "Fax receive not successful - result (%d) %s.\n", result, t30_completion_code_to_str(result));
     }	
-    opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
+    cw_log(CW_LOG_DEBUG, "==============================================================================\n");
 }
 /*- End of function --------------------------------------------------------*/
 
 static void phase_d_handler(t30_state_t *s, void *user_data, int result)
 {
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     t30_stats_t t;
     
-    chan = (struct opbx_channel *) user_data;
+    chan = (struct cw_channel *) user_data;
     if (result)
     {
         t30_get_transfer_statistics(s, &t);
-        opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
-        opbx_log(OPBX_LOG_DEBUG, "Pages transferred:  %i\n", t.pages_transferred);
-        opbx_log(OPBX_LOG_DEBUG, "Image size:         %i x %i\n", t.width, t.length);
-        opbx_log(OPBX_LOG_DEBUG, "Image resolution    %i x %i\n", t.x_resolution, t.y_resolution);
-        opbx_log(OPBX_LOG_DEBUG, "Transfer Rate:      %i\n", t.bit_rate);
-        opbx_log(OPBX_LOG_DEBUG, "Bad rows            %i\n", t.bad_rows);
-        opbx_log(OPBX_LOG_DEBUG, "Longest bad row run %i\n", t.longest_bad_row_run);
-        opbx_log(OPBX_LOG_DEBUG, "Compression type    %s\n", t4_encoding_to_str(t.encoding));
-        opbx_log(OPBX_LOG_DEBUG, "Image size (bytes)  %i\n", t.image_size);
-        opbx_log(OPBX_LOG_DEBUG, "==============================================================================\n");
+        cw_log(CW_LOG_DEBUG, "==============================================================================\n");
+        cw_log(CW_LOG_DEBUG, "Pages transferred:  %i\n", t.pages_transferred);
+        cw_log(CW_LOG_DEBUG, "Image size:         %i x %i\n", t.width, t.length);
+        cw_log(CW_LOG_DEBUG, "Image resolution    %i x %i\n", t.x_resolution, t.y_resolution);
+        cw_log(CW_LOG_DEBUG, "Transfer Rate:      %i\n", t.bit_rate);
+        cw_log(CW_LOG_DEBUG, "Bad rows            %i\n", t.bad_rows);
+        cw_log(CW_LOG_DEBUG, "Longest bad row run %i\n", t.longest_bad_row_run);
+        cw_log(CW_LOG_DEBUG, "Compression type    %s\n", t4_encoding_to_str(t.encoding));
+        cw_log(CW_LOG_DEBUG, "Image size (bytes)  %i\n", t.image_size);
+        cw_log(CW_LOG_DEBUG, "==============================================================================\n");
     }
 }
 /*- End of function --------------------------------------------------------*/
 
 static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
 {
-    struct opbx_frame outf;
-    struct opbx_channel *chan;
+    struct cw_frame outf;
+    struct cw_channel *chan;
 
-    chan = (struct opbx_channel *) user_data;
+    chan = (struct cw_channel *) user_data;
 
-    opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "RxFAX");
+    cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38, "RxFAX");
     outf.datalen = len;
     outf.data = (char *) buf;
     outf.tx_copies = count;
-    if (opbx_write(chan, &outf) < 0)
-        opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+    if (cw_write(chan, &outf) < 0)
+        cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char *file, int calling_party,int verbose, int ecm) {
+static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *file, int calling_party,int verbose, int ecm) {
     char 		*x;
-    struct opbx_frame 	*inf = NULL;
+    struct cw_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
     uint64_t 		now;
@@ -274,7 +274,7 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 
     if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to start T.38 termination.\n");
+        cw_log(CW_LOG_WARNING, "Unable to start T.38 termination.\n");
         return -1;
     }
 
@@ -318,7 +318,7 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     if (ecm) {
         t30_set_ecm_capability(&t38->t30_state, TRUE);
         t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-        opbx_log(OPBX_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
+        cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
     }
     else 
     {
@@ -334,7 +334,7 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 	if ( chan->t38_status != T38_NEGOTIATED )
 	    break;
 
-        if ((res = opbx_waitfor(chan, 20)) < 0) {
+        if ((res = cw_waitfor(chan, 20)) < 0) {
 	    ready = 0;
             break;
 	}
@@ -346,16 +346,16 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
         if ((t38->current_tx_type == T30_MODEM_DONE)  ||  (t38->current_rx_type == T30_MODEM_DONE)) 
             break;
 
-        inf = opbx_read(chan);
+        inf = cw_read(chan);
         if (inf == NULL) {
 	    ready = 0;
             break;
         }
 
-        if (inf->frametype == OPBX_FRAME_MODEM  &&  inf->subclass == OPBX_MODEM_T38)
+        if (inf->frametype == CW_FRAME_MODEM  &&  inf->subclass == CW_MODEM_T38)
     	    t38_core_rx_ifp_packet(&t38->t38, inf->data, inf->datalen, inf->seq_no);
 
-        opbx_fr_free(inf);
+        cw_fr_free(inf);
     }
 
     return ready;
@@ -363,11 +363,11 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, int calling_party,int verbose, int ecm) {
+static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, int calling_party,int verbose, int ecm) {
     char 		*x;
-    struct opbx_frame 	*inf = NULL,
+    struct cw_frame 	*inf = NULL,
 			*dspf = NULL;
-    struct opbx_frame 	outf;
+    struct cw_frame 	outf;
     int 		ready = 1,
 			samples = 0,
 			res = 0,
@@ -376,16 +376,16 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
     uint64_t		begin = 0,
 			received_frames = 0;
 
-    struct opbx_dsp *dsp = NULL;
+    struct cw_dsp *dsp = NULL;
 
-    uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
-    uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
+    uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
+    uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
 
     memset(fax, 0, sizeof(*fax));
 
     if (fax_init(fax, calling_party) == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to start FAX\n");
+        cw_log(CW_LOG_WARNING, "Unable to start FAX\n");
         return -1;
     }
     fax_set_transmit_on_idle(fax, TRUE);
@@ -424,17 +424,17 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
     if (ecm) {
         t30_set_ecm_capability(&fax->t30_state, TRUE);
         t30_set_supported_compressions(&fax->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-        opbx_log(OPBX_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
+        cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
     }
 
     /* Initializing the DSP */
 
-    if ( !( dsp = opbx_dsp_new() ) )
-        opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
+    if ( !( dsp = cw_dsp_new() ) )
+        cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
     else {
-	opbx_dsp_set_threshold(dsp, 256); 
-	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
-	opbx_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+	cw_dsp_set_threshold(dsp, 256); 
+	cw_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+	cw_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
     }
 
 
@@ -448,7 +448,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	if ( chan->t38_status == T38_NEGOTIATED )
 	    break;
 
-        if ((res = opbx_waitfor(chan, 20)) < 0) {
+        if ((res = cw_waitfor(chan, 20)) < 0) {
 	    ready = 0;
             break;
 	}
@@ -456,30 +456,30 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
             break;
 
-        inf = opbx_read(chan);
+        inf = cw_read(chan);
         if (inf == NULL) {
 	    ready = 0;
             break;
         }
 
 	/* We got a frame */
-        if (inf->frametype == OPBX_FRAME_VOICE) {
+        if (inf->frametype == CW_FRAME_VOICE) {
 	    received_frames ++;
 
-            if ((dspf = opbx_frdup(inf)))
-                dspf = opbx_dsp_process(chan, dsp, dspf);
+            if ((dspf = cw_frdup(inf)))
+                dspf = cw_dsp_process(chan, dsp, dspf);
 
-	    if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
+	    if (dspf && dspf->frametype == CW_FRAME_DTMF)
             {
                 if (dspf->subclass == 'f')
                 {
-    		    opbx_log(OPBX_LOG_DEBUG, "Fax detected in RxFax !!!\n");
-        	    opbx_app_request_t38(chan);
+    		    cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
+        	    cw_app_request_t38(chan);
 	        }
 	    }
  
             if ( dspf && (inf != dspf) ) {
-                opbx_fr_free(dspf);
+                cw_fr_free(dspf);
                 dspf = NULL;
 	    }
 
@@ -488,30 +488,30 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
                     break;
 
             samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
-            if ((len = fax_tx(fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)) > 0) {
-                opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
+            if ((len = fax_tx(fax, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)) > 0) {
+                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
                 outf.datalen = len*sizeof(int16_t);
                 outf.samples = len;
-                outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-                outf.offset = OPBX_FRIENDLY_OFFSET;
+                outf.data = &buf[CW_FRIENDLY_OFFSET];
+                outf.offset = CW_FRIENDLY_OFFSET;
 
-                if (opbx_write(chan, &outf) < 0) {
-                    opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                if (cw_write(chan, &outf) < 0) {
+                    cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                     break;
                 }
             }
 	    else 
 	    {
 	        len = samples;
-                opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
+                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
                 outf.datalen = len*sizeof(int16_t);
                 outf.samples = len;
-                outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-                outf.offset = OPBX_FRIENDLY_OFFSET;
-	        memset(&buf[OPBX_FRIENDLY_OFFSET], 0, outf.datalen);
-                if (opbx_write(chan, &outf) < 0)
+                outf.data = &buf[CW_FRIENDLY_OFFSET];
+                outf.offset = CW_FRIENDLY_OFFSET;
+	        memset(&buf[CW_FRIENDLY_OFFSET], 0, outf.datalen);
+                if (cw_write(chan, &outf) < 0)
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                    cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                     break;
                 }
 	    }
@@ -519,18 +519,18 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	else {
 	    if ( (nowis() - begin) > 1000000 ) {
 		if (received_frames < 20 ) { // just to be sure we have had no frames ...
-		    opbx_log(OPBX_LOG_NOTICE,"Switching to generator mode\n");
+		    cw_log(CW_LOG_NOTICE,"Switching to generator mode\n");
 		    generator_mode = 1;
 		    break;
 		}
 	    }
 	}
-        opbx_fr_free(inf);
+        cw_fr_free(inf);
 	inf = NULL;
     }
 
     if (inf) {
-        opbx_fr_free(inf);
+        cw_fr_free(inf);
 	inf = NULL;
     }
     // This is activated when we don't receive any frame for
@@ -539,16 +539,16 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 
     if (generator_mode) {
 	if (dsp)
-	    opbx_dsp_reset(dsp);
+	    cw_dsp_reset(dsp);
 
-	opbx_generator_activate(chan, &chan->generator, &faxgen, fax);
+	cw_generator_activate(chan, &chan->generator, &faxgen, fax);
 
 	while ( ready && ready_to_talk(chan) ) {
 
 	    if ( chan->t38_status == T38_NEGOTIATED )
 		break;
 
-	    if ((res = opbx_waitfor(chan, 20)) < 0) {
+	    if ((res = cw_waitfor(chan, 20)) < 0) {
 	        ready = 0;
         	break;
 	    }
@@ -556,28 +556,28 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
     	    if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
         	break;
 
-    	    inf = opbx_read(chan);
+    	    inf = cw_read(chan);
     	    if (inf == NULL) {
 		ready = 0;
         	break;
     	    }
 
 	    /* We got a frame */
-    	    if (inf->frametype == OPBX_FRAME_VOICE) {
-    	        if ((dspf = opbx_frdup(inf)))
-        	        dspf = opbx_dsp_process(chan, dsp, dspf);
+    	    if (inf->frametype == CW_FRAME_VOICE) {
+    	        if ((dspf = cw_frdup(inf)))
+        	        dspf = cw_dsp_process(chan, dsp, dspf);
 
-	        if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
+	        if (dspf && dspf->frametype == CW_FRAME_DTMF)
     	        {
         	    if (dspf->subclass == 'f')
         	    {
-    		        opbx_log(OPBX_LOG_DEBUG, "Fax detected in RxFax !!!\n");
-        	        opbx_app_request_t38(chan);
+    		        cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
+        	        cw_app_request_t38(chan);
 		    }
 	        }
  
     	        if ( dspf && (inf != dspf) ) {
-        	    opbx_fr_free(dspf);
+        	    cw_fr_free(dspf);
         	    dspf = NULL;
 	        }
 
@@ -588,16 +588,16 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 		}
 	    }
 
-    	    opbx_fr_free(inf);
+    	    cw_fr_free(inf);
 	    inf = NULL;
 	}
 
 	if (inf) {
-    	    opbx_fr_free(inf);
+    	    cw_fr_free(inf);
 	    inf = NULL;
 	}
 
-	opbx_generator_deactivate(&chan->generator);
+	cw_generator_deactivate(&chan->generator);
 
     }
 
@@ -605,7 +605,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     fax_state_t fax;
     t38_terminal_state_t t38;
@@ -626,7 +626,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     /* Basic initial checkings */
 
     if (chan == NULL) {
-        opbx_log(OPBX_LOG_WARNING, "Fax transmit channel is NULL. Giving up.\n");
+        cw_log(CW_LOG_WARNING, "Fax transmit channel is NULL. Giving up.\n");
         return -1;
     }
 
@@ -635,7 +635,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     memset(&t38, 0, sizeof(t38));
 
     if (argc < 1 || argc > 4)
-        return opbx_function_syntax(rxfax_syntax);
+        return cw_function_syntax(rxfax_syntax);
 
     /* Resetting channel variables related to T38 */
     
@@ -652,7 +652,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     calling_party = FALSE;
     verbose = FALSE;
 
-    opbx_copy_string(target_file, argv[0], sizeof(target_file));
+    cw_copy_string(target_file, argv[0], sizeof(target_file));
 
     while (argv++, --argc) {
 	    if (!strcmp(argv[0], "caller"))
@@ -667,14 +667,14 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 
     LOCAL_USER_ADD(u);
 
-    if (chan->_state != OPBX_STATE_UP)
+    if (chan->_state != CW_STATE_UP)
     {
         /* Shouldn't need this, but checking to see if channel is already answered
          * Theoretically the PBX should already have answered before running the app */
-        res = opbx_answer(chan);
+        res = cw_answer(chan);
 	if (!res)
 	{
-    	    opbx_log(OPBX_LOG_DEBUG, "Could not answer channel '%s'\n", chan->name);
+    	    cw_log(CW_LOG_DEBUG, "Could not answer channel '%s'\n", chan->name);
 //	    LOCAL_USER_REMOVE(u);
 //	    return res;
 	}
@@ -683,27 +683,27 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
     /* Setting read and write formats */
     
     original_read_fmt = chan->readformat;
-    if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
-        res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+        res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
         if (res < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+            cw_log(CW_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
             LOCAL_USER_REMOVE(u);
             return -1;
         }
     }
 
     original_write_fmt = chan->writeformat;
-    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_write_fmt != CW_FORMAT_SLINEAR)
     {
-        res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
+        res = cw_set_write_format(chan, CW_FORMAT_SLINEAR);
         if (res < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
-            res = opbx_set_read_format(chan, original_read_fmt);
+            cw_log(CW_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
+            res = cw_set_read_format(chan, original_read_fmt);
             if (res)
-                opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+                cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
             LOCAL_USER_REMOVE(u);
             return -1;
         }
@@ -739,15 +739,15 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 
     /* Restoring initial channel formats. */
 
-    if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_read_format(chan, original_read_fmt)))
-            opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+        if ((res = cw_set_read_format(chan, original_read_fmt)))
+            cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
     }
-    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_write_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_write_format(chan, original_write_fmt)))
-            opbx_log(OPBX_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
+        if ((res = cw_set_write_format(chan, original_write_fmt)))
+            cw_log(CW_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
     }
     return ready;
 
@@ -758,7 +758,7 @@ static int unload_module(void)
 {
     int res = 0;
 
-    res |= opbx_unregister_function(rxfax_app);
+    res |= cw_unregister_function(rxfax_app);
     return res;
 }
 /*- End of function --------------------------------------------------------*/
@@ -766,9 +766,9 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!faxgen.is_initialized)
-        opbx_object_init(&faxgen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+        cw_object_init(&faxgen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
 
-    rxfax_app = opbx_register_function(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
+    rxfax_app = cw_register_function(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
     return 0;
 }
 /*- End of function --------------------------------------------------------*/

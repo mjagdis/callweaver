@@ -39,54 +39,54 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 
 
-void opbx_slinfactory_init(struct opbx_slinfactory *sf) 
+void cw_slinfactory_init(struct cw_slinfactory *sf) 
 {
-    memset(sf, 0, sizeof(struct opbx_slinfactory));
+    memset(sf, 0, sizeof(struct cw_slinfactory));
     sf->offset = sf->hold;
     sf->queue = NULL;
-    opbx_mutex_init(&(sf->lock));
+    cw_mutex_init(&(sf->lock));
 }
 
-void opbx_slinfactory_destroy(struct opbx_slinfactory *sf) 
+void cw_slinfactory_destroy(struct cw_slinfactory *sf) 
 {
-    struct opbx_frame *f;
+    struct cw_frame *f;
 
     if (sf->trans)
     {
-        opbx_translator_free_path(sf->trans);
+        cw_translator_free_path(sf->trans);
         sf->trans = NULL;
     }
 
     while ((f = sf->queue))
     {
         sf->queue = f->next;
-        opbx_fr_free(f);
+        cw_fr_free(f);
     }
-    opbx_mutex_destroy(&(sf->lock));
+    cw_mutex_destroy(&(sf->lock));
 
 }
 
-int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
+int cw_slinfactory_feed(struct cw_slinfactory *sf, struct cw_frame *f)
 {
-    struct opbx_frame *frame;
-    struct opbx_frame *frame_ptr;
+    struct cw_frame *frame;
+    struct cw_frame *frame_ptr;
 
     if (f == NULL)
         return 0;
-    opbx_mutex_lock(&(sf->lock));
-    if (f->subclass != OPBX_FORMAT_SLINEAR)
+    cw_mutex_lock(&(sf->lock));
+    if (f->subclass != CW_FORMAT_SLINEAR)
     {
         if (sf->trans  &&  f->subclass != sf->format)
         {
-            opbx_translator_free_path(sf->trans);
+            cw_translator_free_path(sf->trans);
             sf->trans = NULL;
         }
         if (sf->trans == NULL)
         {
-            if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, f->subclass, 8000)) == NULL)
+            if ((sf->trans = cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, f->subclass, 8000)) == NULL)
             {
-                opbx_log(OPBX_LOG_WARNING, "Cannot build a path from %s to slin\n", opbx_getformatname(f->subclass));
-                opbx_mutex_unlock(&(sf->lock));
+                cw_log(CW_LOG_WARNING, "Cannot build a path from %s to slin\n", cw_getformatname(f->subclass));
+                cw_mutex_unlock(&(sf->lock));
                 return 0;
             }
             sf->format = f->subclass;
@@ -95,12 +95,12 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 
     if (sf->trans)
     {
-        if ((frame = opbx_translate(sf->trans, f, 0)))
-            frame = opbx_frdup(frame);
+        if ((frame = cw_translate(sf->trans, f, 0)))
+            frame = cw_frdup(frame);
     }
     else
     {
-        frame = opbx_frdup(f);
+        frame = cw_frdup(f);
     }
     if (frame)
     {
@@ -116,24 +116,24 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
             sf->queue = frame;
         frame->next = NULL;
         sf->size += frame->datalen;
-        opbx_mutex_unlock(&(sf->lock));
+        cw_mutex_unlock(&(sf->lock));
         return x;
     }
-    opbx_mutex_unlock(&(sf->lock));
+    cw_mutex_unlock(&(sf->lock));
 
     return 0;
 }
 
-int opbx_slinfactory_read(struct opbx_slinfactory *sf, int16_t *buf, size_t bytes) 
+int cw_slinfactory_read(struct cw_slinfactory *sf, int16_t *buf, size_t bytes) 
 {
-    struct opbx_frame *frame_ptr;
+    struct cw_frame *frame_ptr;
     int sofar;
     int ineed;
     int remain;
     int16_t *frame_data;
     int16_t *offset = buf;
     
-    opbx_mutex_lock(&(sf->lock));
+    cw_mutex_lock(&(sf->lock));
 
     sofar = 0;
     while (sofar < bytes)
@@ -183,10 +183,10 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, int16_t *buf, size_t byte
             memcpy(sf->hold, frame_data, remain);
             sf->holdlen = remain;
         }
-        opbx_fr_free(frame_ptr);
+        cw_fr_free(frame_ptr);
     }
 
     sf->size -= sofar;
-    opbx_mutex_unlock(&(sf->lock));
+    cw_mutex_unlock(&(sf->lock));
     return sofar;
 }

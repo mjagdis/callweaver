@@ -68,25 +68,25 @@ typedef enum {
 	DMODE_PLAY
 } dmodes;
 
-#define opbx_toggle_flag(it,flag) if(opbx_test_flag(it, flag)) opbx_clear_flag(it, flag); else opbx_set_flag(it, flag)
+#define cw_toggle_flag(it,flag) if(cw_test_flag(it, flag)) cw_clear_flag(it, flag); else cw_set_flag(it, flag)
 
-static int play_and_wait(struct opbx_channel *chan, char *file, char *digits) 
+static int play_and_wait(struct cw_channel *chan, char *file, char *digits) 
 {
 	int res = -1;
-	if (!opbx_streamfile(chan, file, chan->language)) {
-		res = opbx_waitstream(chan, digits);
+	if (!cw_streamfile(chan, file, chan->language)) {
+		res = cw_waitstream(chan, digits);
 	}
 	return res;
 }
 
-static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *path = NULL, filein[256];
 	char dftbase[256];
 	char *base;
-	struct opbx_flags flags = {0};
-	struct opbx_filestream *fs;
-	struct opbx_frame *f = NULL;
+	struct cw_flags flags = {0};
+	struct cw_filestream *fs;
+	struct cw_frame *f = NULL;
 	struct localuser *u;
 	int ffactor = 320 * 80,
 		res = 0,
@@ -102,22 +102,22 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 		
 	LOCAL_USER_ADD(u);
 	
-	snprintf(dftbase, sizeof(dftbase), "%s/dictate", opbx_config_OPBX_SPOOL_DIR);
+	snprintf(dftbase, sizeof(dftbase), "%s/dictate", cw_config_CW_SPOOL_DIR);
 	
 	base = (argc > 0 && argv[0][0] ? argv[0] : dftbase);
 
 	oldr = chan->readformat;
-	if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode.\n");
+	if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR)) < 0) {
+		cw_log(CW_LOG_WARNING, "Unable to set to linear mode.\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	opbx_answer(chan);
-	opbx_safe_sleep(chan, 200);
+	cw_answer(chan);
+	cw_safe_sleep(chan, 200);
 	for(res = 0; !res;) {
-		if (opbx_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
-			opbx_strlen_zero(filein)) {
+		if (cw_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
+			cw_strlen_zero(filein)) {
 			res = -1;
 			break;
 		}
@@ -133,29 +133,29 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 		}
 
 		snprintf(path, len, "%s/%s", base, filein);
-		fs = opbx_writefile(path, "wav", NULL, O_CREAT|O_APPEND, 0, 0700);
+		fs = cw_writefile(path, "wav", NULL, O_CREAT|O_APPEND, 0, 0700);
 		mode = DMODE_PLAY;
 		memset(&flags, 0, sizeof(flags));
-		opbx_set_flag(&flags, DFLAG_PAUSE);
-		digit = play_and_wait(chan, "dictate/forhelp", OPBX_DIGIT_ANY);
+		cw_set_flag(&flags, DFLAG_PAUSE);
+		digit = play_and_wait(chan, "dictate/forhelp", CW_DIGIT_ANY);
 		done = 0;
 		speed = 1;
 		res = 0;
 		lastop = 0;
 		samples = 0;
-		while (!done && ((res = opbx_waitfor(chan, -1)) > -1) && fs && (f = opbx_read(chan))) {
+		while (!done && ((res = cw_waitfor(chan, -1)) > -1) && fs && (f = cw_read(chan))) {
 			if (digit) {
-				struct opbx_frame fr = {OPBX_FRAME_DTMF, digit};
-				opbx_queue_frame(chan, &fr);
+				struct cw_frame fr = {CW_FRAME_DTMF, digit};
+				cw_queue_frame(chan, &fr);
 				digit = 0;
 			}
-			if ((f->frametype == OPBX_FRAME_DTMF)) {
+			if ((f->frametype == CW_FRAME_DTMF)) {
 				int got = 1;
 				switch(mode) {
 				case DMODE_PLAY:
 					switch(f->subclass) {
 					case '1':
-						opbx_set_flag(&flags, DFLAG_PAUSE);
+						cw_set_flag(&flags, DFLAG_PAUSE);
 						mode = DMODE_RECORD;
 						break;
 					case '2':
@@ -163,18 +163,18 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 						if (speed > 4) {
 							speed = 1;
 						}
-						res = opbx_say_number(chan, speed, OPBX_DIGIT_ANY, chan->language, (char *) NULL);
+						res = cw_say_number(chan, speed, CW_DIGIT_ANY, chan->language, (char *) NULL);
 						break;
 					case '7':
 						samples -= ffactor;
 						if(samples < 0) {
 							samples = 0;
 						}
-						opbx_seekstream(fs, samples, SEEK_SET);
+						cw_seekstream(fs, samples, SEEK_SET);
 						break;
 					case '8':
 						samples += ffactor;
-						opbx_seekstream(fs, samples, SEEK_SET);
+						cw_seekstream(fs, samples, SEEK_SET);
 						break;
 						
 					default:
@@ -184,11 +184,11 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 				case DMODE_RECORD:
 					switch(f->subclass) {
 					case '1':
-						opbx_set_flag(&flags, DFLAG_PAUSE);
+						cw_set_flag(&flags, DFLAG_PAUSE);
 						mode = DMODE_PLAY;
 						break;
 					case '8':
-						opbx_toggle_flag(&flags, DFLAG_TRUNC);
+						cw_toggle_flag(&flags, DFLAG_TRUNC);
 						lastop = 0;
 						break;
 					default:
@@ -205,26 +205,26 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 						continue;
 						break;
 					case '*':
-						opbx_toggle_flag(&flags, DFLAG_PAUSE);
-						if (opbx_test_flag(&flags, DFLAG_PAUSE)) {
-							digit = play_and_wait(chan, "dictate/pause", OPBX_DIGIT_ANY);
+						cw_toggle_flag(&flags, DFLAG_PAUSE);
+						if (cw_test_flag(&flags, DFLAG_PAUSE)) {
+							digit = play_and_wait(chan, "dictate/pause", CW_DIGIT_ANY);
 						} else {
-							digit = play_and_wait(chan, mode == DMODE_PLAY ? "dictate/playback" : "dictate/record", OPBX_DIGIT_ANY);
+							digit = play_and_wait(chan, mode == DMODE_PLAY ? "dictate/playback" : "dictate/record", CW_DIGIT_ANY);
 						}
 						break;
 					case '0':
-						opbx_set_flag(&flags, DFLAG_PAUSE);
-						digit = play_and_wait(chan, "dictate/paused", OPBX_DIGIT_ANY);
+						cw_set_flag(&flags, DFLAG_PAUSE);
+						digit = play_and_wait(chan, "dictate/paused", CW_DIGIT_ANY);
 						switch(mode) {
 						case DMODE_PLAY:
-							digit = play_and_wait(chan, "dictate/play_help", OPBX_DIGIT_ANY);
+							digit = play_and_wait(chan, "dictate/play_help", CW_DIGIT_ANY);
 							break;
 						case DMODE_RECORD:
-							digit = play_and_wait(chan, "dictate/record_help", OPBX_DIGIT_ANY);
+							digit = play_and_wait(chan, "dictate/record_help", CW_DIGIT_ANY);
 							break;
 						}
 						if (digit == 0) {
-							digit = play_and_wait(chan, "dictate/both_help", OPBX_DIGIT_ANY);
+							digit = play_and_wait(chan, "dictate/both_help", CW_DIGIT_ANY);
 						} else if (digit < 0) {
 							done = 1;
 							break;
@@ -233,40 +233,40 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 					}
 				}
 				
-			} else if (f->frametype == OPBX_FRAME_VOICE) {
+			} else if (f->frametype == CW_FRAME_VOICE) {
 				switch(mode) {
-					struct opbx_frame *fr;
+					struct cw_frame *fr;
 					int x;
 				case DMODE_PLAY:
 					if (lastop != DMODE_PLAY) {
-						if (opbx_test_flag(&flags, DFLAG_PAUSE)) {
-							digit = play_and_wait(chan, "dictate/playback_mode", OPBX_DIGIT_ANY);
+						if (cw_test_flag(&flags, DFLAG_PAUSE)) {
+							digit = play_and_wait(chan, "dictate/playback_mode", CW_DIGIT_ANY);
 							if (digit == 0) {
-								digit = play_and_wait(chan, "dictate/paused", OPBX_DIGIT_ANY);
+								digit = play_and_wait(chan, "dictate/paused", CW_DIGIT_ANY);
 							} else if (digit < 0) {
 								break;
 							}
 						}
 						if (lastop != DFLAG_PLAY) {
 							lastop = DFLAG_PLAY;
-							opbx_stopstream(chan);
-							fs = opbx_openstream(chan, path, chan->language);
-							opbx_seekstream(fs, samples, SEEK_SET);
+							cw_stopstream(chan);
+							fs = cw_openstream(chan, path, chan->language);
+							cw_seekstream(fs, samples, SEEK_SET);
 							chan->stream = NULL;
 						}
 						lastop = DMODE_PLAY;
 					}
 
-					if (!opbx_test_flag(&flags, DFLAG_PAUSE)) {
+					if (!cw_test_flag(&flags, DFLAG_PAUSE)) {
 						for (x = 0; x < speed; x++) {
-							if ((fr = opbx_readframe(fs))) {
-								opbx_write(chan, fr);
+							if ((fr = cw_readframe(fs))) {
+								cw_write(chan, fr);
 								samples += fr->samples;
-								opbx_fr_free(fr);
+								cw_fr_free(fr);
 								fr = NULL;
 							} else {
 								samples = 0;
-								opbx_seekstream(fs, 0, SEEK_SET);
+								cw_seekstream(fs, 0, SEEK_SET);
 							}
 						}
 					}
@@ -274,41 +274,41 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *
 				case DMODE_RECORD:
 					if (lastop != DMODE_RECORD) {
 						int oflags = O_CREAT | O_WRONLY;
-						if (opbx_test_flag(&flags, DFLAG_PAUSE)) {						
-							digit = play_and_wait(chan, "dictate/record_mode", OPBX_DIGIT_ANY);
+						if (cw_test_flag(&flags, DFLAG_PAUSE)) {						
+							digit = play_and_wait(chan, "dictate/record_mode", CW_DIGIT_ANY);
 							if (digit == 0) {
-								digit = play_and_wait(chan, "dictate/paused", OPBX_DIGIT_ANY);
+								digit = play_and_wait(chan, "dictate/paused", CW_DIGIT_ANY);
 							} else if (digit < 0) {
 								break;
 							}
 						}
 						lastop = DMODE_RECORD;
-						opbx_closestream(fs);
-						if ( opbx_test_flag(&flags, DFLAG_TRUNC)) {
+						cw_closestream(fs);
+						if ( cw_test_flag(&flags, DFLAG_TRUNC)) {
 							oflags |= O_TRUNC;
-							digit = play_and_wait(chan, "dictate/truncating_audio", OPBX_DIGIT_ANY);
+							digit = play_and_wait(chan, "dictate/truncating_audio", CW_DIGIT_ANY);
 						} else {
 							oflags |= O_APPEND;
 						}
-						fs = opbx_writefile(path, "wav", NULL, oflags, 0, 0700);
-						if (opbx_test_flag(&flags, DFLAG_TRUNC)) {
-							opbx_seekstream(fs, 0, SEEK_SET);
-							opbx_clear_flag(&flags, DFLAG_TRUNC);
+						fs = cw_writefile(path, "wav", NULL, oflags, 0, 0700);
+						if (cw_test_flag(&flags, DFLAG_TRUNC)) {
+							cw_seekstream(fs, 0, SEEK_SET);
+							cw_clear_flag(&flags, DFLAG_TRUNC);
 						} else {
-							opbx_seekstream(fs, 0, SEEK_END);
+							cw_seekstream(fs, 0, SEEK_END);
 						}
 					}
-					if (!opbx_test_flag(&flags, DFLAG_PAUSE)) {
-						res = opbx_writestream(fs, f);
+					if (!cw_test_flag(&flags, DFLAG_PAUSE)) {
+						res = cw_writestream(fs, f);
 					}
 					break;
 				}
 			}
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 	}
 	if (oldr) {
-		opbx_set_read_format(chan, oldr);
+		cw_set_read_format(chan, oldr);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -318,13 +318,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(dictate_app);
+	res |= cw_unregister_function(dictate_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	dictate_app = opbx_register_function(dictate_name, dictate_exec, dictate_synopsis, dictate_syntax, dictate_descrip);
+	dictate_app = cw_register_function(dictate_name, dictate_exec, dictate_synopsis, dictate_syntax, dictate_descrip);
 	return 0;
 }
 

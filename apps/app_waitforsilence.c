@@ -67,43 +67,43 @@ static const char waitforsilence_descrip[] =
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
 
 
-static int do_waiting(struct opbx_channel *chan, int maxsilence) {
+static int do_waiting(struct cw_channel *chan, int maxsilence) {
 
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0; 
 	static int silencethreshold = 64;
 	int rfmt = 0;
 	int res = 0;
-	struct opbx_dsp *sildet;	 /* silence detector dsp */
+	struct cw_dsp *sildet;	 /* silence detector dsp */
 	time_t start, now;
 	time(&start);
 
 	rfmt = chan->readformat; /* Set to linear mode */
-	res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+	res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
 	if (res < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
+		cw_log(CW_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 		return -1;
 	}
 
-	sildet = opbx_dsp_new(); /* Create the silence detector */
+	sildet = cw_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
+		cw_log(CW_LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
-	opbx_dsp_set_threshold(sildet, silencethreshold);
+	cw_dsp_set_threshold(sildet, silencethreshold);
 
 	/* Await silence... */
 	f = NULL;
 	for(;;) {
-		res = opbx_waitfor(chan, 2000);
+		res = cw_waitfor(chan, 2000);
 		if (!res) {
-			opbx_log(OPBX_LOG_WARNING, "One waitfor failed, trying another\n");
+			cw_log(CW_LOG_WARNING, "One waitfor failed, trying another\n");
 			/* Try one more time in case of masq */
-			res = opbx_waitfor(chan, 2000);
+			res = cw_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
+				cw_log(CW_LOG_WARNING, "No audio available on %s??\n", chan->name);
 				res = -1;
 			}
 		}
@@ -112,12 +112,12 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 			f = NULL;
 			break;
 		}
-		f = opbx_read(chan);
+		f = cw_read(chan);
 		if (!f)
 			break;
-		if (f->frametype == OPBX_FRAME_VOICE) {
+		if (f->frametype == CW_FRAME_VOICE) {
 			dspsilence = 0;
-			opbx_dsp_silence(sildet, f, &dspsilence);
+			cw_dsp_silence(sildet, f, &dspsilence);
 			if (dspsilence) {
 				totalsilence = dspsilence;
 				time(&start);
@@ -127,30 +127,30 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 
 			if (totalsilence >= maxsilence) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence > %dms required\n", totalsilence, maxsilence);
+					cw_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence > %dms required\n", totalsilence, maxsilence);
 				/* Ended happily with silence */
 				gotsilence = 1;
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
-				opbx_log(OPBX_LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
-				opbx_fr_free(f);
+				cw_log(CW_LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
+				cw_fr_free(f);
 				break;
 			} else if ( difftime(time(&now),start) >= maxsilence/1000 ) {
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
-				opbx_log(OPBX_LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
-				opbx_fr_free(f);
+				cw_log(CW_LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+				cw_fr_free(f);
 				break;
 			}
 		}
-		opbx_fr_free(f);
+		cw_fr_free(f);
 	}
-	if (rfmt && opbx_set_read_format(chan, rfmt)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+	if (rfmt && cw_set_read_format(chan, rfmt)) {
+		cw_log(CW_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", cw_getformatname(rfmt), chan->name);
 	}
-	opbx_dsp_free(sildet);
+	cw_dsp_free(sildet);
 	return gotsilence;
 }
 
-static int waitforsilence_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int waitforsilence_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
 {
 	int res = 1;
 	struct localuser *u;
@@ -158,17 +158,17 @@ static int waitforsilence_exec(struct opbx_channel *chan, int argc, char **argv,
 	int iterations = 1, i;
 
 	if (argc < 0 || argc > 2 || (argc > 0 && !isdigit(argv[0][0])) || (argc == 2 && !isdigit(argv[1][0])))
-		return opbx_function_syntax(waitforsilence_syntax);
+		return cw_function_syntax(waitforsilence_syntax);
 
 	maxsilence = (argc > 0 ? atoi(argv[0]) : 1000);
 	iterations = (argc > 1 ? atoi(argv[1]) : 1);
 
 	LOCAL_USER_ADD(u);
 
-	res = opbx_answer(chan); /* Answer the channel */
+	res = cw_answer(chan); /* Answer the channel */
 
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
+		cw_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
 
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
@@ -185,13 +185,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(waitforsilence_app);
+	res |= cw_unregister_function(waitforsilence_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	waitforsilence_app = opbx_register_function(waitforsilence_name, waitforsilence_exec, waitforsilence_synopsis, waitforsilence_syntax, waitforsilence_descrip);
+	waitforsilence_app = cw_register_function(waitforsilence_name, waitforsilence_exec, waitforsilence_synopsis, waitforsilence_syntax, waitforsilence_descrip);
 	return 0;
 }
 

@@ -7,7 +7,7 @@
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxlib_LTLIBRARIES = libcwjb.la
+cwlib_LTLIBRARIES = libcwjb.la
 libcwjb_la_SOURCES = jitterbuf_scx.c jitterbuf_stevek.c generic_jb.c \
 			jitterbuf_speakup.c
 

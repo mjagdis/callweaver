@@ -1103,7 +1103,7 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 		
 		ibuf->rsem=malloc(sizeof(sem_t));
 		
-		bc->opbxbuf=ibuf;
+		bc->cwbuf=ibuf;
 
 		if (sem_init(ibuf->rsem,1,0)<0)
 			sem_init(ibuf->rsem,0,0);
@@ -3850,7 +3850,7 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	}
 	
 	/* we must activate if we are deactivated */
-	clear_ibuffer(bc->opbxbuf);
+	clear_ibuffer(bc->cwbuf);
 	
 	cb_log(5, stack->port, "$$$ Bchan Activated addr %x\n", bc->addr);
 	
@@ -3902,7 +3902,7 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 
 	mISDN_read(stack->midev, buf, 128, TIMEOUT_1SEC);
 
-	clear_ibuffer(bc->opbxbuf);
+	clear_ibuffer(bc->cwbuf);
 	
 	bc_state_change(bc,BCHAN_RELEASE);
   

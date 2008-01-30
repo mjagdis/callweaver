@@ -49,13 +49,13 @@ static const char cdr_func_syntax[] = "CDR(name[, options[, value]])";
 static const char cdr_func_desc[] = "Option 'r' searches the entire stack of CDRs on the channel\n";
 
 
-static int builtin_function_cdr_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_cdr_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret;
 	int recursive = 0;
 
 	if (argc < 1 || argc > 3 || !argv[0][0])
-		return opbx_function_syntax(cdr_func_syntax);
+		return cw_function_syntax(cdr_func_syntax);
 
 	/* check for a trailing flags argument */
 	if (argc > 1) {
@@ -65,15 +65,15 @@ static int builtin_function_cdr_rw(struct opbx_channel *chan, int argc, char **a
 
 	if (argc > 2) {
 		if (!strcasecmp(argv[0], "accountcode"))
-			opbx_cdr_setaccount(chan, argv[2]);
+			cw_cdr_setaccount(chan, argv[2]);
 		else if (!strcasecmp(argv[0], "userfield"))
-			opbx_cdr_setuserfield(chan, argv[2]);
+			cw_cdr_setuserfield(chan, argv[2]);
 		else if (chan->cdr)
-			opbx_cdr_setvar(chan->cdr, argv[0], argv[2], recursive);
+			cw_cdr_setvar(chan->cdr, argv[0], argv[2], recursive);
 	}
 
 	if (buf && chan->cdr)
-		opbx_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
+		cw_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
 
 	return 0;
 }
@@ -81,12 +81,12 @@ static int builtin_function_cdr_rw(struct opbx_channel *chan, int argc, char **a
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(cdr_function);
+        return cw_unregister_function(cdr_function);
 }
 
 static int load_module(void)
 {
-        cdr_function = opbx_register_function(cdr_func_name, builtin_function_cdr_rw, cdr_func_synopsis, cdr_func_syntax, cdr_func_desc);
+        cdr_function = cw_register_function(cdr_func_name, builtin_function_cdr_rw, cdr_func_synopsis, cdr_func_syntax, cdr_func_desc);
 	return 0;
 }
 

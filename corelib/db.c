@@ -60,7 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define SQL_MAX_RETRIES 5
 #define SQL_RETRY_USEC  500000
 
-OPBX_MUTEX_DEFINE_STATIC(dblock);
+CW_MUTEX_DEFINE_STATIC(dblock);
 
 static char *create_odb_sql = 
 "create table odb (\n"
@@ -81,7 +81,7 @@ static struct {
 	char *tablename;
 } globals;
 
-struct opbx_db_data {
+struct cw_db_data {
 	char *data;
 	int datalen;
 	int rownum;
@@ -104,7 +104,7 @@ static int database_deltree(int fd, int argc, char *argv[]);
 static int sanity_check(void)
 {
 	if (!loaded) {
-		opbx_log(OPBX_LOG_ERROR, "NICE RACE CONDITION WE HAVE HERE! PUTTING THE CART BEFORE THE HORSE EH? >=0\n");
+		cw_log(CW_LOG_ERROR, "NICE RACE CONDITION WE HAVE HERE! PUTTING THE CART BEFORE THE HORSE EH? >=0\n");
 		dbinit();
 	}
 	return 0;
@@ -114,9 +114,9 @@ static int dbinit(void)
 {
 	char *sql;
 
-	opbx_mutex_lock(&dblock);
- 	globals.dbdir = opbx_config_OPBX_DB_DIR;
-	globals.dbfile = opbx_config_OPBX_DB;
+	cw_mutex_lock(&dblock);
+ 	globals.dbdir = cw_config_CW_DB_DIR;
+	globals.dbfile = cw_config_CW_DB;
 	globals.tablename = "odb";
 	
 	
@@ -127,7 +127,7 @@ static int dbinit(void)
 		loaded = 1;
 	}
 
-	opbx_mutex_unlock(&dblock);
+	cw_mutex_unlock(&dblock);
 	return loaded ? 0 : -1;
 }
 
@@ -150,7 +150,7 @@ static sqlite3 *sqlite_open_db(char *filename)
 	
 	sqlite_pick_path(filename, path, sizeof(path));
 	if (sqlite3_open(path, &db)) {
-		opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s]\n", sqlite3_errmsg(db));
+		cw_log(CW_LOG_WARNING, "SQL ERR [%s]\n", sqlite3_errmsg(db));
 		sqlite3_close(db);
 		db=NULL;
 	}
@@ -175,7 +175,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 						 );
 
 			if (errmsg) {
-				opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
+				cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
 				sqlite3_free(errmsg);
 				errmsg = NULL;
 				sqlite3_exec(
@@ -186,7 +186,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 							 &errmsg
 							 );
 				if (errmsg) {
-					opbx_log(OPBX_LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
+					cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
 					sqlite3_free(errmsg);
 					errmsg = NULL;
 				}
@@ -197,7 +197,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 
 }
 
-int opbx_db_put(const char *family, const char *keys, char *value)
+int cw_db_put(const char *family, const char *keys, char *value)
 {
 	char *sql;
 	char *zErr = 0;
@@ -211,15 +211,15 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 	}
 
 
-	if (!family || opbx_strlen_zero(family)) {
+	if (!family || cw_strlen_zero(family)) {
 		family = "_undef_";
 	}
 
-	opbx_db_del(family, keys);
+	cw_db_del(family, keys);
 
 retry_0:
 	if ((sql = sqlite3_mprintf("insert into %q values('%q','%q','%q')", globals.tablename, family, keys, value))) {
-		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
+		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 
 		res = sqlite3_exec(db,
 						   sql,
@@ -229,14 +229,14 @@ retry_0:
 						   );
 
 		if (zErr) {
-			opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Memory Error!\n");
 		res = -1;	/* Return an error */
 	}
 
@@ -250,20 +250,20 @@ retry_0:
 
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
-	struct opbx_db_data *result = pArg;
+	struct cw_db_data *result = pArg;
 
-	opbx_copy_string(result->data, argv[0], result->datalen);
+	cw_copy_string(result->data, argv[0], result->datalen);
 	result->rownum++;
 	return 0;
 }
 
-int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
+int cw_db_get(const char *family, const char *keys, char *value, int valuelen)
 {
 
 	char *sql;
 	char *zErr = 0;
 	int res = 0;
-	struct opbx_db_data result;
+	struct cw_db_data result;
 	sqlite3 *db;
 	int retry=0;
 
@@ -272,7 +272,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 		return -1;
 	}
 
-	if (!family || opbx_strlen_zero(family)) {
+	if (!family || cw_strlen_zero(family)) {
 		family = "_undef_";
 	}
 
@@ -282,7 +282,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 
 retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
-		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
+		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   get_callback,
@@ -293,9 +293,9 @@ retry_1:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_1;
 			}
@@ -307,7 +307,7 @@ retry_1:
 				res = -1;
 		}
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -320,7 +320,7 @@ retry_1:
 	return res;
 }
 
-static int opbx_db_del_main(const char *family, const char *keys, int like, const char *value)
+static int cw_db_del_main(const char *family, const char *keys, int like, const char *value)
 {
 	char *sql;
 	char *zErr = 0;
@@ -335,7 +335,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like, cons
 		return -1;
 	}
 
-	if (!family || opbx_strlen_zero(family)) {
+	if (!family || cw_strlen_zero(family)) {
 		family = "_undef_";
 	}
 
@@ -358,9 +358,9 @@ static int opbx_db_del_main(const char *family, const char *keys, int like, cons
 	if (sql) {
 retry_2:
 		if (retry)
-			opbx_log(OPBX_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
-			opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
+			cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   NULL,
@@ -371,9 +371,9 @@ retry_2:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_2;
 			}
@@ -385,7 +385,7 @@ retry_2:
 				res = 0;
 		}
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -398,26 +398,26 @@ retry_2:
 	return res;
 }
 
-int opbx_db_del(const char *family, const char *keys)
+int cw_db_del(const char *family, const char *keys)
 {
-	return opbx_db_del_main(family, keys, 0, NULL);
+	return cw_db_del_main(family, keys, 0, NULL);
 }
 
-int opbx_db_deltree(const char *family, const char *keytree)
+int cw_db_deltree(const char *family, const char *keytree)
 {
-	return opbx_db_del_main(family, keytree, 1, NULL);
+	return cw_db_del_main(family, keytree, 1, NULL);
 }
 
-int opbx_db_deltree_with_value(const char *family, const char *keytree, const char *value)
+int cw_db_deltree_with_value(const char *family, const char *keytree, const char *value)
 {
-	return opbx_db_del_main(family, keytree, 1, value);
+	return cw_db_del_main(family, keytree, 1, value);
 }
 
 static int tree_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
 	int x = 0;
 	char *keys, *values;
-	struct opbx_db_entry **treeptr = pArg,
+	struct cw_db_entry **treeptr = pArg,
 		*cur = NULL,
 		*ret = NULL;
 
@@ -425,7 +425,7 @@ static int tree_callback(void *pArg, int argc, char **argv, char **columnNames)
 		keys = argv[0];
 		values = argv[1];
 
-		cur = malloc(sizeof(struct opbx_db_entry) + strlen(keys) + strlen(values) + 2);
+		cur = malloc(sizeof(struct cw_db_entry) + strlen(keys) + strlen(values) + 2);
 		if (cur) {
 			cur->next = NULL;
 			cur->key = cur->data + strlen(values) + 1;
@@ -442,12 +442,12 @@ static int tree_callback(void *pArg, int argc, char **argv, char **columnNames)
 	return 0;
 }
 
-struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
+struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree)
 {
 	char *sql;
 	char *zErr = 0;
 	int res = 0;
-	struct opbx_db_entry *tree = NULL;
+	struct cw_db_entry *tree = NULL;
 	sqlite3 *db;
 	int retry=0;
 
@@ -456,25 +456,25 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 		return NULL;
 	}
 
-	if (!family || opbx_strlen_zero(family)) {
+	if (!family || cw_strlen_zero(family)) {
 		family = "_undef_";
 	}
 
-	if (family && keytree && !opbx_strlen_zero(keytree)) {
+	if (family && keytree && !cw_strlen_zero(keytree)) {
 		sql = sqlite3_mprintf("select keys,value from %q where family='%q' and keys like '%q%%'", globals.tablename, family, keytree);
 	} else if(family) {
 		sql = sqlite3_mprintf("select keys,value from %q where family='%q'", globals.tablename, family);
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "No parameters supplied.\n");
+		cw_log(CW_LOG_ERROR, "No parameters supplied.\n");
 		return NULL;
 	}
 
 	if (sql) {
 retry_3:
 		if (retry)
-			opbx_log(OPBX_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
-			opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
+			cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   tree_callback,
@@ -485,9 +485,9 @@ retry_3:
 		if (zErr) {
 			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
-				opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
 				usleep(SQL_RETRY_USEC);
 				goto retry_3;
 			}
@@ -496,7 +496,7 @@ retry_3:
 			res = 0;
 		}
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -510,9 +510,9 @@ retry_3:
 
 }
 
-void opbx_db_freetree(struct opbx_db_entry *dbe)
+void cw_db_freetree(struct cw_db_entry *dbe)
 {
-	struct opbx_db_entry *last;
+	struct cw_db_entry *last;
 
 	while (dbe) {
 		last = dbe;
@@ -527,7 +527,7 @@ static int show_callback(void *pArg, int argc, char **argv, char **columnNames)
 	int *fdp = pArg;
 	int fd = *fdp;
 
-	opbx_cli(fd, "/%s/%-50s: %-25s\n", argv[0], argv[1], argv[2]);
+	cw_cli(fd, "/%s/%-50s: %-25s\n", argv[0], argv[1], argv[2]);
 
 	return 0;
 }
@@ -569,7 +569,7 @@ static int database_show(int fd, int argc, char *argv[])
 	}
 
 	if (sql) {
-		opbx_log(OPBX_LOG_DEBUG, "SQL [%s]\n", sql);
+		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   show_callback,
@@ -578,14 +578,14 @@ static int database_show(int fd, int argc, char *argv[])
 						   );
 		
 		if (zErr) {
-			opbx_log(OPBX_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Memory Error!\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -605,11 +605,11 @@ static int database_put(int fd, int argc, char *argv[])
 	int res;
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	res = opbx_db_put(argv[2], argv[3], argv[4]);
+	res = cw_db_put(argv[2], argv[3], argv[4]);
 	if (res)  {
-		opbx_cli(fd, "Failed to update entry\n");
+		cw_cli(fd, "Failed to update entry\n");
 	} else {
-		opbx_cli(fd, "Updated database successfully\n");
+		cw_cli(fd, "Updated database successfully\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -620,11 +620,11 @@ static int database_get(int fd, int argc, char *argv[])
 	char tmp[256];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = opbx_db_get(argv[2], argv[3], tmp, sizeof(tmp));
+	res = cw_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) {
-		opbx_cli(fd, "Database entry not found.\n");
+		cw_cli(fd, "Database entry not found.\n");
 	} else {
-		opbx_cli(fd, "Value: %s\n", tmp);
+		cw_cli(fd, "Value: %s\n", tmp);
 	}
 	return RESULT_SUCCESS;
 }
@@ -634,11 +634,11 @@ static int database_del(int fd, int argc, char *argv[])
 	int res;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = opbx_db_del(argv[2], argv[3]);
+	res = cw_db_del(argv[2], argv[3]);
 	if (res) {
-		opbx_cli(fd, "Database entry does not exist.\n");
+		cw_cli(fd, "Database entry does not exist.\n");
 	} else {
-		opbx_cli(fd, "Database entry removed.\n");
+		cw_cli(fd, "Database entry removed.\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -649,14 +649,14 @@ static int database_deltree(int fd, int argc, char *argv[])
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
 	if (argc == 4) {
-		res = opbx_db_deltree(argv[2], argv[3]);
+		res = cw_db_deltree(argv[2], argv[3]);
 	} else {
-		res = opbx_db_deltree(argv[2], NULL);
+		res = cw_db_deltree(argv[2], NULL);
 	}
 	if (res) {
-		opbx_cli(fd, "Database entries do not exist.\n");
+		cw_cli(fd, "Database entries do not exist.\n");
 	} else {
-		opbx_cli(fd, "Database entries removed.\n");
+		cw_cli(fd, "Database entries removed.\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -687,50 +687,50 @@ static char database_deltree_usage[] =
 "       Deletes a family or specific keytree within a family\n"
 "in the CallWeaver database.\n";
 
-struct opbx_clicmd cli_database_show = {
+struct cw_clicmd cli_database_show = {
 	.cmda = { "database", "show", NULL },
 	.handler = database_show,
 	.summary = "Shows database contents",
 	.usage = database_show_usage,
 };
 
-struct opbx_clicmd cli_database_get = {
+struct cw_clicmd cli_database_get = {
 	.cmda = { "database", "get", NULL },
 	.handler = database_get,
 	.summary = "Gets database value",
 	.usage = database_get_usage,
 };
 
-struct opbx_clicmd cli_database_put = {
+struct cw_clicmd cli_database_put = {
 	.cmda = { "database", "put", NULL },
 	.handler = database_put,
 	.summary = "Adds/updates database value",
 	.usage = database_put_usage,
 };
 
-struct opbx_clicmd cli_database_del = {
+struct cw_clicmd cli_database_del = {
 	.cmda = { "database", "del", NULL },
 	.handler = database_del,
 	.summary = "Removes database key/value",
 	.usage = database_del_usage,
 };
 
-struct opbx_clicmd cli_database_deltree = {
+struct cw_clicmd cli_database_deltree = {
 	.cmda = { "database", "deltree", NULL },
 	.handler = database_deltree,
 	.summary = "Removes database keytree/values",
 	.usage = database_deltree_usage,
 };
 
-int opbxdb_init(void)
+int cwdb_init(void)
 {
 	int res = dbinit();
 	if (res == 0) {
-		opbx_cli_register(&cli_database_show);
-		opbx_cli_register(&cli_database_get);
-		opbx_cli_register(&cli_database_put);
-		opbx_cli_register(&cli_database_del);
-		opbx_cli_register(&cli_database_deltree);
+		cw_cli_register(&cli_database_show);
+		cw_cli_register(&cli_database_get);
+		cw_cli_register(&cli_database_put);
+		cw_cli_register(&cli_database_del);
+		cw_cli_register(&cli_database_deltree);
 	}
 	return res;
 }

@@ -56,47 +56,47 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
    by default, but it would also complicate virtually every application. */
    
 
-struct opbx_registry translator_registry;
+struct cw_registry translator_registry;
 
 static int translator_initialized;
 
 
-struct opbx_translator_dir
+struct cw_translator_dir
 {
-    struct opbx_translator *step; /* Next step translator */
+    struct cw_translator *step; /* Next step translator */
     int cost;                     /* Complete cost to destination */
     int steps;                    /* Number of steps it takes */
 };
 
-OPBX_MUTEX_DEFINE_STATIC(tr_matrix_lock);
-static struct opbx_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
+CW_MUTEX_DEFINE_STATIC(tr_matrix_lock);
+static struct cw_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
 
-struct opbx_frame_delivery
+struct cw_frame_delivery
 {
-    struct opbx_frame *f;
-    struct opbx_channel *chan;
+    struct cw_frame *f;
+    struct cw_channel *chan;
     int fd;
     struct translator_pvt *owner;
-    struct opbx_frame_delivery *prev;
-    struct opbx_frame_delivery *next;
+    struct cw_frame_delivery *prev;
+    struct cw_frame_delivery *next;
 };
 
 
-struct opbx_trans_pvt
+struct cw_trans_pvt
 {
-    struct opbx_translator *step;
-    struct opbx_translator_pvt *state;
-    struct opbx_trans_pvt *next;
+    struct cw_translator *step;
+    struct cw_translator_pvt *state;
+    struct cw_trans_pvt *next;
     struct timeval nextin;
     struct timeval nextout;
 };
 
 
-void opbx_translator_free_path(struct opbx_trans_pvt *p)
+void cw_translator_free_path(struct cw_trans_pvt *p)
 {
-    struct opbx_trans_pvt *pl;
-    struct opbx_trans_pvt *pn;
+    struct cw_trans_pvt *pl;
+    struct cw_trans_pvt *pn;
 
     pn = p;
     while (pn)
@@ -105,66 +105,66 @@ void opbx_translator_free_path(struct opbx_trans_pvt *p)
         pn = pn->next;
         if (pl->state  &&  pl->step->destroy)
             pl->step->destroy(pl->state);
-	opbx_object_put(pl->step);
+	cw_object_put(pl->step);
         free(pl);
     }
 }
 
 /* Build a set of translators based upon the given source and destination formats */
-struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int source, int source_rate)
+struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate)
 {
-	struct opbx_trans_pvt *tmpr = NULL;
-	struct opbx_trans_pvt **next = &tmpr;
-	struct opbx_translator *t;
+	struct cw_trans_pvt *tmpr = NULL;
+	struct cw_trans_pvt **next = &tmpr;
+	struct cw_translator *t;
 
 	source = bottom_bit(source);
 	dest = bottom_bit(dest);
     
-	opbx_mutex_lock(&tr_matrix_lock);
+	cw_mutex_lock(&tr_matrix_lock);
 
 	while (source != dest) {
-		if (!(t = opbx_object_dup(tr_matrix[source][dest].step))) {
-			opbx_log(OPBX_LOG_WARNING, "No translator path from %s to %s\n", opbx_getformatname(1 << source), opbx_getformatname(1 << dest));
-			opbx_translator_free_path(tmpr);
+		if (!(t = cw_object_dup(tr_matrix[source][dest].step))) {
+			cw_log(CW_LOG_WARNING, "No translator path from %s to %s\n", cw_getformatname(1 << source), cw_getformatname(1 << dest));
+			cw_translator_free_path(tmpr);
 			tmpr = NULL;
 			break;
 		}
 
 		if (!(*next = malloc(sizeof(*tmpr)))) {
-			opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
-			opbx_object_put(t);
-			opbx_translator_free_path(tmpr);    
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			cw_object_put(t);
+			cw_translator_free_path(tmpr);    
 			tmpr = NULL;
 			break;
 		}
 
 		(*next)->next = NULL;
-		(*next)->nextin = (*next)->nextout = opbx_tv(0, 0);
+		(*next)->nextin = (*next)->nextout = cw_tv(0, 0);
 		(*next)->step = t;
 		if (!((*next)->state = t->newpvt())) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
-			opbx_translator_free_path(tmpr);    
+			cw_log(CW_LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			cw_translator_free_path(tmpr);    
 			tmpr = NULL;
 			break;
 		}
 
 		if (option_debug)
-			opbx_log(OPBX_LOG_DEBUG, "translate %s to %s using %s\n", opbx_getformatname(1 << source), opbx_getformatname(t->dst_format), t->name);
+			cw_log(CW_LOG_DEBUG, "translate %s to %s using %s\n", cw_getformatname(1 << source), cw_getformatname(t->dst_format), t->name);
 
 		/* Keep going if this isn't the final destination */
 		source = bottom_bit((*next)->step->dst_format);
 		next = &(*next)->next;
 	}
 
-	opbx_mutex_unlock(&tr_matrix_lock);
+	cw_mutex_unlock(&tr_matrix_lock);
 
 	return tmpr;
 }
 
-struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame *f, int consume)
+struct cw_frame *cw_translate(struct cw_trans_pvt *path, struct cw_frame *f, int consume)
 {
-    struct opbx_trans_pvt *p;
-    struct opbx_frame *out;
+    struct cw_trans_pvt *p;
+    struct cw_frame *out;
     struct timeval delivery;
     int has_timing_info;
     long ts;
@@ -179,20 +179,20 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
     p = path;
     /* Feed the first frame into the first translator */
     p->step->framein(p->state, f);
-    if (!opbx_tvzero(f->delivery))
+    if (!cw_tvzero(f->delivery))
     {
-        if (!opbx_tvzero(path->nextin))
+        if (!cw_tvzero(path->nextin))
         {
             /* Make sure this is in line with what we were expecting */
-            if (!opbx_tveq(path->nextin, f->delivery))
+            if (!cw_tveq(path->nextin, f->delivery))
             {
                 /* The time has changed between what we expected and this
                    most recent time on the new packet.  If we have a
                    valid prediction adjust our output time appropriately */
-                if (!opbx_tvzero(path->nextout))
+                if (!cw_tvzero(path->nextout))
                 {
-                    path->nextout = opbx_tvadd(path->nextout,
-                                               opbx_tvsub(f->delivery, path->nextin));
+                    path->nextout = cw_tvadd(path->nextout,
+                                               cw_tvsub(f->delivery, path->nextin));
                 }
                 path->nextin = f->delivery;
             }
@@ -204,11 +204,11 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
             path->nextout = f->delivery;
         }
         /* Predict next incoming sample */
-        path->nextin = opbx_tvadd(path->nextin, opbx_samp2tv(f->samples, 8000));
+        path->nextin = cw_tvadd(path->nextin, cw_samp2tv(f->samples, 8000));
     }
     delivery = f->delivery;
     if (consume)
-        opbx_fr_free(f);
+        cw_fr_free(f);
     while (p)
     {
         /* If we get nothing out, return NULL */
@@ -222,33 +222,33 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
         }
         else
         {
-            if (!opbx_tvzero(delivery))
+            if (!cw_tvzero(delivery))
             {
                 /* Regenerate prediction after a discontinuity */
-                if (opbx_tvzero(path->nextout))
-                    path->nextout = opbx_tvnow();
+                if (cw_tvzero(path->nextout))
+                    path->nextout = cw_tvnow();
 
                 /* Use next predicted outgoing timestamp */
                 out->delivery = path->nextout;
                 
                 /* Predict next outgoing timestamp from samples in this
                    frame. */
-                path->nextout = opbx_tvadd(path->nextout, opbx_samp2tv( out->samples, 8000));
+                path->nextout = cw_tvadd(path->nextout, cw_samp2tv( out->samples, 8000));
             }
             else
             {
-                out->delivery = opbx_tv(0, 0);
+                out->delivery = cw_tv(0, 0);
             }
             /* Invalidate prediction if we're entering a silence period */
-            if (out->frametype == OPBX_FRAME_CNG)
-                path->nextout = opbx_tv(0, 0);
+            if (out->frametype == CW_FRAME_CNG)
+                path->nextout = cw_tv(0, 0);
 
             out->has_timing_info = has_timing_info;
             if (has_timing_info)
             {
                 out->ts = ts;
                 out->len = len;
-                //out->len = opbx_codec_get_samples(out)/8;
+                //out->len = cw_codec_get_samples(out)/8;
                 out->seq_no = seq_no;
             }
 
@@ -256,13 +256,13 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
         }
         p = p->next;
     }
-    opbx_log(OPBX_LOG_WARNING, "I should never get here...\n");
+    cw_log(CW_LOG_WARNING, "I should never get here...\n");
     return NULL;
 }
 
 
 struct calc_cost_args {
-	struct opbx_translator *t;
+	struct cw_translator *t;
 	int samples;
 };
 
@@ -270,10 +270,10 @@ struct calc_cost_args {
 static void *calc_cost(void *data)
 {
     struct calc_cost_args *args = data;
-    struct opbx_translator *t = args->t;
-    struct opbx_translator_pvt *pvt;
-    struct opbx_frame *f;
-    struct opbx_frame *out;
+    struct cw_translator *t = args->t;
+    struct cw_translator_pvt *pvt;
+    struct cw_frame *f;
+    struct cw_frame *out;
     struct timeval start;
     int secs = args->samples;
     int sofar;
@@ -285,47 +285,47 @@ static void *calc_cost(void *data)
     /* If they don't make samples, give them a terrible score */
     if (t->sample == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+        cw_log(CW_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
         t->cost = INT_MAX;
         return NULL;
     }
     if ((pvt = t->newpvt()) == NULL)
     {
-        opbx_log(OPBX_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
+        cw_log(CW_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
         t->cost = INT_MAX;
         return NULL;
     }
 
     t->cost = INT_MAX;
     if (!(f = t->sample())) {
-        opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+        cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
         goto out;
     }
     t->framein(pvt, f);
-    opbx_fr_free(f);
+    cw_fr_free(f);
     while ((out = t->frameout(pvt))) {
         sofar += out->samples;
-        opbx_fr_free(out);
+        cw_fr_free(out);
     }
 
-    start = opbx_tvnow();
+    start = cw_tvnow();
     /* Call the encoder until we've processed "secs" seconds of data */
     for (sofar = 0;  sofar < secs*t->dst_rate;  )
     {
         if ((f = t->sample()) == NULL)
         {
-            opbx_log(OPBX_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+            cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
             goto out;
         }
         t->framein(pvt, f);
-        opbx_fr_free(f);
+        cw_fr_free(f);
         while ((out = t->frameout(pvt)))
         {
             sofar += out->samples;
-            opbx_fr_free(out);
+            cw_fr_free(out);
         }
     }
-    cost = opbx_tvdiff(opbx_tvnow(), start);
+    cost = cw_tvdiff(cw_tvnow(), start);
     t->cost = (cost/secs + 99) / 100;
     if (t->cost <= 0)
         t->cost = 1;
@@ -335,10 +335,10 @@ out:
     return NULL;
 }
 
-static int rebuild_matrix_one(struct opbx_object *obj, void *data)
+static int rebuild_matrix_one(struct cw_object *obj, void *data)
 {
-	struct opbx_translator *t = container_of(obj, struct opbx_translator, obj);
-	struct opbx_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
+	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
+	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
 	int *samples = data;
 
 	if (*samples || !t->cost) {
@@ -348,13 +348,13 @@ static int rebuild_matrix_one(struct opbx_object *obj, void *data)
 		};
 		pthread_t tid;
 		int ret;
-		if (!(ret = opbx_pthread_create(&tid, &global_attr_fifo, calc_cost, &args)))
+		if (!(ret = cw_pthread_create(&tid, &global_attr_fifo, calc_cost, &args)))
 			pthread_join(tid, NULL);
 		else
-			opbx_log(OPBX_LOG_ERROR, "calc_cost thread: %d %s\n", ret, strerror(ret));
+			cw_log(CW_LOG_ERROR, "calc_cost thread: %d %s\n", ret, strerror(ret));
 	}
 
-	td->step = opbx_object_dup(t);
+	td->step = cw_object_dup(t);
 	td->cost = t->cost;
 	td->steps = 1;
 
@@ -363,27 +363,27 @@ static int rebuild_matrix_one(struct opbx_object *obj, void *data)
 
 static void rebuild_matrix(int samples)
 {
-    struct opbx_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
+    struct cw_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
     int changed;
     int x;
     int y;
     int z;
 
     if (option_debug)
-        opbx_log(OPBX_LOG_DEBUG, "Reseting translation matrix\n");
+        cw_log(CW_LOG_DEBUG, "Reseting translation matrix\n");
 
-    opbx_mutex_lock(&tr_matrix_lock);
+    cw_mutex_lock(&tr_matrix_lock);
 
     /* Regenerate the translation matrix then discard whatever we had before */
     for (x = 0; x < MAX_FORMAT; x++)
         for (y = 0; y < MAX_FORMAT; y++)
 		tr_old[x][y] = tr_matrix[x][y];
     memset(tr_matrix, '\0', sizeof(tr_matrix));
-    opbx_registry_iterate(&translator_registry, rebuild_matrix_one, &samples);
+    cw_registry_iterate(&translator_registry, rebuild_matrix_one, &samples);
     for (x = 0; x < MAX_FORMAT; x++) {
         for (y = 0; y < MAX_FORMAT; y++) {
             if (tr_old[x][y].step)
-                opbx_object_put(tr_old[x][y].step);
+                cw_object_put(tr_old[x][y].step);
         }
     }
 
@@ -412,11 +412,11 @@ static void rebuild_matrix(int samples)
                                 /* We can get from x to z via y with a cost that
                                    is the sum of the transition from x to y and
                                    from y to z */
-                                tr_matrix[x][z].step = opbx_object_dup(tr_matrix[x][y].step);
+                                tr_matrix[x][z].step = cw_object_dup(tr_matrix[x][y].step);
                                 tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
                                 tr_matrix[x][z].steps = tr_matrix[x][y].steps + tr_matrix[y][z].steps;
                                 if (option_debug)
-                                    opbx_log(OPBX_LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", opbx_getformatname(1 << x), opbx_getformatname(1 << z), opbx_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
+                                    cw_log(CW_LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", cw_getformatname(1 << x), cw_getformatname(1 << z), cw_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
                                 changed++;
                             }
                         }
@@ -427,7 +427,7 @@ static void rebuild_matrix(int samples)
     }
     while (changed);
 
-    opbx_mutex_unlock(&tr_matrix_lock);
+    cw_mutex_unlock(&tr_matrix_lock);
 }
 
 static int show_translation(int fd, int argc, char *argv[])
@@ -447,23 +447,23 @@ static int show_translation(int fd, int argc, char *argv[])
 
         if (z <= 0)
         {
-            opbx_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
+            cw_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
             z = 1;
         }
 
         if (z > MAX_RECALC)
         {
-            opbx_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
+            cw_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
             z = MAX_RECALC;
         }
-        opbx_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
+        cw_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
         rebuild_matrix(z);
     }
 
-    opbx_cli(fd, "         Translation times between formats (in milliseconds)\n");
-    opbx_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
+    cw_cli(fd, "         Translation times between formats (in milliseconds)\n");
+    cw_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 
-    opbx_mutex_lock(&tr_matrix_lock);
+    cw_mutex_lock(&tr_matrix_lock);
     for (x = -1;  x < SHOW_TRANS;  x++)
     {
         line[0] = ' ';
@@ -473,16 +473,16 @@ static int show_translation(int fd, int argc, char *argv[])
             if (x >= 0  &&  y >= 0  &&  tr_matrix[x][y].step)
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d.%01d", tr_matrix[x][y].cost / 10, tr_matrix[x][y].cost % 10);
             else if (((x == -1  &&  y >= 0)  ||  (y == -1  &&  x >= 0)))
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %8s", opbx_getformatname(1 << (x + y + 1)));
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %8s", cw_getformatname(1 << (x + y + 1)));
             else if (x != -1  &&  y != -1)
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), "        -");
             else
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), "         ");
         }
         snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
-        opbx_cli(fd, line);            
+        cw_cli(fd, line);            
     }
-    opbx_mutex_unlock(&tr_matrix_lock);
+    cw_mutex_unlock(&tr_matrix_lock);
     return RESULT_SUCCESS;
 }
 
@@ -493,7 +493,7 @@ static char show_trans_usage[] =
 "with optional number of seconds to test a new test will be performed\n"
 "as the chart is being displayed.\n";
 
-static struct opbx_clicmd show_trans =
+static struct cw_clicmd show_trans =
 {
     .cmda = { "show", "translation", NULL },
     .handler = show_translation,
@@ -501,7 +501,7 @@ static struct opbx_clicmd show_trans =
     .usage = show_trans_usage,
 };
 
-int opbx_translator_best_choice(int *dst, int *srcs)
+int cw_translator_best_choice(int *dst, int *srcs)
 {
     /* Calculate our best source format, given costs, and a desired destination */
     int x;
@@ -531,7 +531,7 @@ int opbx_translator_best_choice(int *dst, int *srcs)
     else
     {
         /* We will need to translate */
-        opbx_mutex_lock(&tr_matrix_lock);
+        cw_mutex_lock(&tr_matrix_lock);
         for (y = 0;  y < MAX_FORMAT;  y++)
         {
             if (cur & *dst)
@@ -554,7 +554,7 @@ int opbx_translator_best_choice(int *dst, int *srcs)
             }
             cur <<= 1;
         }
-        opbx_mutex_unlock(&tr_matrix_lock);
+        cw_mutex_unlock(&tr_matrix_lock);
     }
     if (best > -1)
     {
@@ -566,16 +566,16 @@ int opbx_translator_best_choice(int *dst, int *srcs)
 }
 
 
-static const char *translator_registry_obj_name(struct opbx_object *obj)
+static const char *translator_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_translator *it = container_of(obj, struct opbx_translator, obj);
+	struct cw_translator *it = container_of(obj, struct cw_translator, obj);
 	return it->name;
 }
 
-static int translator_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int translator_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-	struct opbx_translator *translator_a = container_of(a, struct opbx_translator, obj);
-	struct opbx_translator *translator_b = container_of(b, struct opbx_translator, obj);
+	struct cw_translator *translator_a = container_of(a, struct cw_translator, obj);
+	struct cw_translator *translator_b = container_of(b, struct cw_translator, obj);
 
 	return strcmp(translator_a->name, translator_b->name);
 }
@@ -586,19 +586,19 @@ static void translator_registry_onchange(void)
 		rebuild_matrix(0);
 }
 
-struct opbx_registry translator_registry = {
+struct cw_registry translator_registry = {
 	.name = "Translator",
 	.obj_name = translator_registry_obj_name,
 	.obj_cmp = translator_registry_obj_cmp,
 	.onchange = translator_registry_onchange,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-int opbx_translator_init(void)
+int cw_translator_init(void)
 {
 	translator_initialized = 1;
 	rebuild_matrix(0);
-	opbx_cli_register(&show_trans);
+	cw_cli_register(&show_trans);
 	return 0;
 }

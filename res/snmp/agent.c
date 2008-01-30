@@ -24,7 +24,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 
 /* Colission between Net-SNMP and CallWeaver */
-#define unload_module opbx_unload_module
+#define unload_module cw_unload_module
 #include "callweaver/module.h"
 #undef unload_module
 
@@ -37,7 +37,7 @@ int register_sysORTable(oid *, size_t, const char *);
 int unregister_sysORTable(oid *, size_t);
 
 /* Not defined in header files */
-extern char opbx_config_OPBX_SOCKET[];
+extern char cw_config_CW_SOCKET[];
 
 /* Forward declaration */
 static void init_callweaver_mib(void);
@@ -52,89 +52,89 @@ static oid callweaver_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
  * and MUST be kept in sync with the MIB for things to work as
  * expected.
  */
-#define OPBXVERSION 1
-#define OPBXVERSTRING 1
-#define OPBXVERTAG 2
+#define CWVERSION 1
+#define CWVERSTRING 1
+#define CWVERTAG 2
 
-#define OPBXCONFIGURATION 2
-#define OPBXCONFUPTIME 1
-#define OPBXCONFRELOADTIME 2
-#define OPBXCONFPID 3
-#define OPBXCONFSOCKET 4
+#define CWCONFIGURATION 2
+#define CWCONFUPTIME 1
+#define CWCONFRELOADTIME 2
+#define CWCONFPID 3
+#define CWCONFSOCKET 4
 
-#define OPBXMODULES 3
-#define OPBXMODCOUNT 1
+#define CWMODULES 3
+#define CWMODCOUNT 1
 
-#define OPBXINDICATIONS 4
-#define OPBXINDCOUNT 1
-#define OPBXINDCURRENT 2
+#define CWINDICATIONS 4
+#define CWINDCOUNT 1
+#define CWINDCURRENT 2
 
-#define OPBXINDTABLE 3
-#define OPBXINDINDEX 1
-#define OPBXINDCOUNTRY 2
-#define OPBXINDALIAS 3
-#define OPBXINDDESCRIPTION 4
+#define CWINDTABLE 3
+#define CWINDINDEX 1
+#define CWINDCOUNTRY 2
+#define CWINDALIAS 3
+#define CWINDDESCRIPTION 4
 
-#define OPBXCHANNELS 5
-#define OPBXCHANCOUNT 1
+#define CWCHANNELS 5
+#define CWCHANCOUNT 1
 
-#define OPBXCHANTABLE 2
-#define OPBXCHANINDEX 1
-#define OPBXCHANNAME 2
-#define OPBXCHANLANGUAGE 3
-#define OPBXCHANTYPE 4
-#define OPBXCHANMUSICCLASS 5
-#define OPBXCHANBRIDGE 6
-#define OPBXCHANMASQ 7
-#define OPBXCHANMASQR 8
-#define OPBXCHANWHENHANGUP 9
-#define OPBXCHANAPP 10
-#define OPBXCHANDATA 11
-#define OPBXCHANCONTEXT 12
-#define OPBXCHANPROCCONTEXT 13
-#define OPBXCHANPROCEXTEN 14
-#define OPBXCHANPROCPRI 15
-#define OPBXCHANEXTEN 16
-#define OPBXCHANPRI 17
-#define OPBXCHANACCOUNTCODE 18
-#define OPBXCHANFORWARDTO 19
-#define OPBXCHANUNIQUEID 20
-#define OPBXCHANCALLGROUP 21
-#define OPBXCHANPICKUPGROUP 22
-#define OPBXCHANSTATE 23
-#define OPBXCHANMUTED 24
-#define OPBXCHANRINGS 25
-#define OPBXCHANCIDDNID 26
-#define OPBXCHANCIDNUM 27
-#define OPBXCHANCIDNAME 28
-#define OPBXCHANCIDANI 29
-#define OPBXCHANCIDRDNIS 30
-#define OPBXCHANCIDPRES 31
-#define OPBXCHANCIDANI2 32
-#define OPBXCHANCIDTON 33
-#define OPBXCHANCIDTNS 34
-#define OPBXCHANAMAFLAGS 35
-#define OPBXCHANADSI 36
-#define OPBXCHANTONEZONE 37
-#define OPBXCHANHANGUPCAUSE 38
-#define OPBXCHANVARIABLES 39
-#define OPBXCHANFLAGS 40
-#define OPBXCHANTRANSFERCAP 41
+#define CWCHANTABLE 2
+#define CWCHANINDEX 1
+#define CWCHANNAME 2
+#define CWCHANLANGUAGE 3
+#define CWCHANTYPE 4
+#define CWCHANMUSICCLASS 5
+#define CWCHANBRIDGE 6
+#define CWCHANMASQ 7
+#define CWCHANMASQR 8
+#define CWCHANWHENHANGUP 9
+#define CWCHANAPP 10
+#define CWCHANDATA 11
+#define CWCHANCONTEXT 12
+#define CWCHANPROCCONTEXT 13
+#define CWCHANPROCEXTEN 14
+#define CWCHANPROCPRI 15
+#define CWCHANEXTEN 16
+#define CWCHANPRI 17
+#define CWCHANACCOUNTCODE 18
+#define CWCHANFORWARDTO 19
+#define CWCHANUNIQUEID 20
+#define CWCHANCALLGROUP 21
+#define CWCHANPICKUPGROUP 22
+#define CWCHANSTATE 23
+#define CWCHANMUTED 24
+#define CWCHANRINGS 25
+#define CWCHANCIDDNID 26
+#define CWCHANCIDNUM 27
+#define CWCHANCIDNAME 28
+#define CWCHANCIDANI 29
+#define CWCHANCIDRDNIS 30
+#define CWCHANCIDPRES 31
+#define CWCHANCIDANI2 32
+#define CWCHANCIDTON 33
+#define CWCHANCIDTNS 34
+#define CWCHANAMAFLAGS 35
+#define CWCHANADSI 36
+#define CWCHANTONEZONE 37
+#define CWCHANHANGUPCAUSE 38
+#define CWCHANVARIABLES 39
+#define CWCHANFLAGS 40
+#define CWCHANTRANSFERCAP 41
 
-#define OPBXCHANTYPECOUNT 3
+#define CWCHANTYPECOUNT 3
 
-#define OPBXCHANTYPETABLE 4
-#define OPBXCHANTYPEINDEX 1
-#define OPBXCHANTYPENAME 2
-#define OPBXCHANTYPEDESC 3
-#define OPBXCHANTYPEDEVSTATE 4
-#define OPBXCHANTYPEINDICATIONS 5
-#define OPBXCHANTYPETRANSFER 6
-#define OPBXCHANTYPECHANNELS 7
+#define CWCHANTYPETABLE 4
+#define CWCHANTYPEINDEX 1
+#define CWCHANTYPENAME 2
+#define CWCHANTYPEDESC 3
+#define CWCHANTYPEDEVSTATE 4
+#define CWCHANTYPEINDICATIONS 5
+#define CWCHANTYPETRANSFER 6
+#define CWCHANTYPECHANNELS 7
 
 void *agent_thread(void *arg)
 {
-    opbx_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
+    cw_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
 
     snmp_enable_stderrlog();
 
@@ -157,14 +157,14 @@ void *agent_thread(void *arg)
 
     snmp_shutdown("CallWeaver");
 
-    opbx_verbose(VERBOSE_PREFIX_2 "Terminating %sAgent\n",
+    cw_verbose(VERBOSE_PREFIX_2 "Terminating %sAgent\n",
                  res_snmp_agentx_subagent ? "Sub" : "");
 
     return NULL;
 }
 
 static u_char *
-opbx_var_channels(struct variable *vp, oid *name, size_t *length,
+cw_var_channels(struct variable *vp, oid *name, size_t *length,
                   int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
@@ -174,8 +174,8 @@ opbx_var_channels(struct variable *vp, oid *name, size_t *length,
 
     switch (vp->magic)
     {
-    case OPBXCHANCOUNT:
-        long_ret = opbx_active_channels();
+    case CWCHANCOUNT:
+        long_ret = cw_active_channels();
         return (u_char *)&long_ret;
     default:
         break;
@@ -183,26 +183,26 @@ opbx_var_channels(struct variable *vp, oid *name, size_t *length,
     return NULL;
 }
 
-static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *length,
                                        int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
     static u_char bits_ret[2];
     static char string_ret[256];
-    struct opbx_channel *chan, *bridge;
+    struct cw_channel *chan, *bridge;
     struct timeval tval;
     u_char *ret;
     int i, bit;
 
-    if (header_simple_table(vp, name, length, exact, var_len, write_method, opbx_active_channels()))
+    if (header_simple_table(vp, name, length, exact, var_len, write_method, cw_active_channels()))
         return NULL;
 
     i = name[*length - 1] - 1;
-    for (chan = opbx_channel_walk_locked(NULL);
+    for (chan = cw_channel_walk_locked(NULL);
          chan  &&  i;
-         chan = opbx_channel_walk_locked(chan), i--)
+         chan = cw_channel_walk_locked(chan), i--)
     {
-        opbx_channel_unlock(chan);
+        cw_channel_unlock(chan);
     }
     if (chan == NULL)
         return NULL;
@@ -210,12 +210,12 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
 
     switch (vp->magic)
     {
-    case OPBXCHANINDEX:
+    case CWCHANINDEX:
         long_ret = name[*length - 1];
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANNAME:
-        if (!opbx_strlen_zero(chan->name))
+    case CWCHANNAME:
+        if (!cw_strlen_zero(chan->name))
         {
             strncpy(string_ret, chan->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -225,8 +225,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANLANGUAGE:
-        if (!opbx_strlen_zero(chan->language))
+    case CWCHANLANGUAGE:
+        if (!cw_strlen_zero(chan->language))
         {
             strncpy(string_ret, chan->language, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -236,14 +236,14 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANTYPE:
+    case CWCHANTYPE:
         strncpy(string_ret, chan->tech->type, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *)string_ret;
         break;
-    case OPBXCHANMUSICCLASS:
-        if (!opbx_strlen_zero(chan->musicclass))
+    case CWCHANMUSICCLASS:
+        if (!cw_strlen_zero(chan->musicclass))
         {
             strncpy(string_ret, chan->musicclass, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -253,8 +253,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANBRIDGE:
-        if ((bridge = opbx_bridged_channel(chan)) != NULL)
+    case CWCHANBRIDGE:
+        if ((bridge = cw_bridged_channel(chan)) != NULL)
         {
             strncpy(string_ret, bridge->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -264,8 +264,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANMASQ:
-        if (chan->masq  &&  !opbx_strlen_zero(chan->masq->name))
+    case CWCHANMASQ:
+        if (chan->masq  &&  !cw_strlen_zero(chan->masq->name))
         {
             strncpy(string_ret, chan->masq->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -275,8 +275,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANMASQR:
-        if (chan->masqr  &&  !opbx_strlen_zero(chan->masqr->name))
+    case CWCHANMASQR:
+        if (chan->masqr  &&  !cw_strlen_zero(chan->masqr->name))
         {
             strncpy(string_ret, chan->masqr->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -286,7 +286,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANWHENHANGUP:
+    case CWCHANWHENHANGUP:
         if (chan->whentohangup)
         {
             gettimeofday(&tval, NULL);
@@ -298,7 +298,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANAPP:
+    case CWCHANAPP:
         if (chan->appl)
         {
             strncpy(string_ret, chan->appl, sizeof(string_ret));
@@ -309,44 +309,44 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         else
             ret = NULL;
         break;
-    case OPBXCHANDATA:
-        opbx_log(OPBX_LOG_WARNING, "OPBXCHANDATA doesn't exist anymore\n");
+    case CWCHANDATA:
+        cw_log(CW_LOG_WARNING, "CWCHANDATA doesn't exist anymore\n");
         ret = NULL;
         break;
-    case OPBXCHANCONTEXT:
+    case CWCHANCONTEXT:
         strncpy(string_ret, chan->context, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *) string_ret;
         break;
-    case OPBXCHANPROCCONTEXT:
+    case CWCHANPROCCONTEXT:
         strncpy(string_ret, chan->proc_context, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *) string_ret;
         break;
-    case OPBXCHANPROCEXTEN:
+    case CWCHANPROCEXTEN:
         strncpy(string_ret, chan->proc_exten, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *) string_ret;
         break;
-    case OPBXCHANPROCPRI:
+    case CWCHANPROCPRI:
         long_ret = chan->proc_priority;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANEXTEN:
+    case CWCHANEXTEN:
         strncpy(string_ret, chan->exten, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *) string_ret;
         break;
-    case OPBXCHANPRI:
+    case CWCHANPRI:
         long_ret = chan->priority;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANACCOUNTCODE:
-        if (!opbx_strlen_zero(chan->accountcode))
+    case CWCHANACCOUNTCODE:
+        if (!cw_strlen_zero(chan->accountcode))
         {
             strncpy(string_ret, chan->accountcode, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -358,8 +358,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANFORWARDTO:
-        if (!opbx_strlen_zero(chan->call_forward))
+    case CWCHANFORWARDTO:
+        if (!cw_strlen_zero(chan->call_forward))
         {
             strncpy(string_ret, chan->call_forward, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
@@ -371,33 +371,33 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANUNIQUEID:
+    case CWCHANUNIQUEID:
         strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
         *var_len = strlen(string_ret);
         ret = (u_char *) string_ret;
         break;
-    case OPBXCHANCALLGROUP:
+    case CWCHANCALLGROUP:
         long_ret = chan->callgroup;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANPICKUPGROUP:
+    case CWCHANPICKUPGROUP:
         long_ret = chan->pickupgroup;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANSTATE:
+    case CWCHANSTATE:
         long_ret = chan->_state & 0xffff;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANMUTED:
-        long_ret = chan->_state & OPBX_STATE_MUTE  ?  1  :  2;
+    case CWCHANMUTED:
+        long_ret = chan->_state & CW_STATE_MUTE  ?  1  :  2;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANRINGS:
+    case CWCHANRINGS:
         long_ret = chan->rings;
         ret = (u_char *) &long_ret;
         break;
-    case OPBXCHANCIDDNID:
+    case CWCHANCIDDNID:
         if (chan->cid.cid_dnid)
         {
             strncpy(string_ret, chan->cid.cid_dnid, sizeof(string_ret));
@@ -410,7 +410,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANCIDNUM:
+    case CWCHANCIDNUM:
         if (chan->cid.cid_num)
         {
             strncpy(string_ret, chan->cid.cid_num, sizeof(string_ret));
@@ -423,7 +423,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANCIDNAME:
+    case CWCHANCIDNAME:
         if (chan->cid.cid_name)
         {
             strncpy(string_ret, chan->cid.cid_name, sizeof(string_ret));
@@ -436,7 +436,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANCIDANI:
+    case CWCHANCIDANI:
         if (chan->cid.cid_ani)
         {
             strncpy(string_ret, chan->cid.cid_ani, sizeof(string_ret));
@@ -449,7 +449,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANCIDRDNIS:
+    case CWCHANCIDRDNIS:
         if (chan->cid.cid_rdnis)
         {
             strncpy(string_ret, chan->cid.cid_rdnis, sizeof(string_ret));
@@ -462,31 +462,31 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANCIDPRES:
+    case CWCHANCIDPRES:
         long_ret = chan->cid.cid_pres;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANCIDANI2:
+    case CWCHANCIDANI2:
         long_ret = chan->cid.cid_ani2;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANCIDTON:
+    case CWCHANCIDTON:
         long_ret = chan->cid.cid_ton;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANCIDTNS:
+    case CWCHANCIDTNS:
         long_ret = chan->cid.cid_tns;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANAMAFLAGS:
+    case CWCHANAMAFLAGS:
         long_ret = chan->amaflags;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANADSI:
+    case CWCHANADSI:
         long_ret = chan->adsicpe;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANTONEZONE:
+    case CWCHANTONEZONE:
         if (chan->zone)
         {
             strncpy(string_ret, chan->zone->country, sizeof(string_ret));
@@ -499,11 +499,11 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANHANGUPCAUSE:
+    case CWCHANHANGUPCAUSE:
         long_ret = chan->hangupcause;
         ret = (u_char *)&long_ret;
         break;
-    case OPBXCHANVARIABLES:
+    case CWCHANVARIABLES:
         if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret)))
         {
             *var_len = strlen(string_ret);
@@ -514,7 +514,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
             ret = NULL;
         }
         break;
-    case OPBXCHANFLAGS:
+    case CWCHANFLAGS:
         bits_ret[0] = 0;
         for (bit = 0;  bit < 8;  bit++)
             bits_ret[0] |= ((chan->flags & (1 << bit)) >> bit) << (7 - bit);
@@ -524,7 +524,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         *var_len = 2;
         ret = bits_ret;
         break;
-    case OPBXCHANTRANSFERCAP:
+    case CWCHANTRANSFERCAP:
         long_ret = chan->transfercapability;
         ret = (u_char *)&long_ret;
         break;
@@ -532,26 +532,26 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
         ret = NULL;
         break;
     }
-    opbx_channel_unlock(chan);
+    cw_channel_unlock(chan);
     return ret;
 }
 
-static u_char *opbx_var_channel_types(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_channel_types(struct variable *vp, oid *name, size_t *length,
                                       int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct opbx_variable *channel_types, *next;
+    struct cw_variable *channel_types, *next;
 
     if (header_generic(vp, name, length, exact, var_len, write_method))
         return NULL;
 
     switch (vp->magic)
     {
-    case OPBXCHANTYPECOUNT:
+    case CWCHANTYPECOUNT:
         long_ret = 0;
-        for (channel_types = next = opbx_channeltype_list();  next;  next = next->next)
+        for (channel_types = next = cw_channeltype_list();  next;  next = next->next)
             long_ret++;
-        opbx_variables_destroy(channel_types);
+        cw_variables_destroy(channel_types);
         return (u_char *)&long_ret;
     default:
         break;
@@ -559,54 +559,54 @@ static u_char *opbx_var_channel_types(struct variable *vp, oid *name, size_t *le
     return NULL;
 }
 
-static u_char *opbx_var_channel_types_table(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_channel_types_table(struct variable *vp, oid *name, size_t *length,
         int exact, size_t *var_len, WriteMethod **write_method)
 {
-    const struct opbx_channel_tech *tech = NULL;
-    struct opbx_variable *channel_types, *next;
+    const struct cw_channel_tech *tech = NULL;
+    struct cw_variable *channel_types, *next;
     static unsigned long long_ret;
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     u_long i;
 
     if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
         return NULL;
 
-    channel_types = opbx_channeltype_list();
+    channel_types = cw_channeltype_list();
     for (i = 1, next = channel_types;  next  &&  i != name[*length - 1];  next = next->next, i++)
         ;
     if (next != NULL)
-        tech = opbx_get_channel_tech(next->name);
-    opbx_variables_destroy(channel_types);
+        tech = cw_get_channel_tech(next->name);
+    cw_variables_destroy(channel_types);
     if (next == NULL  ||  tech == NULL)
         return NULL;
 
     switch (vp->magic)
     {
-    case OPBXCHANTYPEINDEX:
+    case CWCHANTYPEINDEX:
         long_ret = name[*length - 1];
         return (u_char *) &long_ret;
-    case OPBXCHANTYPENAME:
+    case CWCHANTYPENAME:
         *var_len = strlen(tech->type);
         return (u_char *) tech->type;
-    case OPBXCHANTYPEDESC:
+    case CWCHANTYPEDESC:
         *var_len = strlen(tech->description);
         return (u_char *) tech->description;
-    case OPBXCHANTYPEDEVSTATE:
+    case CWCHANTYPEDEVSTATE:
         long_ret = tech->devicestate  ?  1  :  2;
         return (u_char *) &long_ret;
-    case OPBXCHANTYPEINDICATIONS:
+    case CWCHANTYPEINDICATIONS:
         long_ret = tech->indicate  ?  1  :  2;
         return (u_char *) &long_ret;
-    case OPBXCHANTYPETRANSFER:
+    case CWCHANTYPETRANSFER:
         long_ret = tech->transfer  ?  1  :  2;
         return (u_char *) &long_ret;
-    case OPBXCHANTYPECHANNELS:
+    case CWCHANTYPECHANNELS:
         long_ret = 0;
-        for (chan = opbx_channel_walk_locked(NULL);
+        for (chan = cw_channel_walk_locked(NULL);
              chan;
-             chan = opbx_channel_walk_locked(chan))
+             chan = cw_channel_walk_locked(chan))
         {
-            opbx_channel_unlock(chan);
+            cw_channel_unlock(chan);
             if (chan->tech == tech)
                 long_ret++;
         }
@@ -617,7 +617,7 @@ static u_char *opbx_var_channel_types_table(struct variable *vp, oid *name, size
     return NULL;
 }
 
-static u_char *opbx_var_Config(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_Config(struct variable *vp, oid *name, size_t *length,
                                int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
@@ -628,30 +628,30 @@ static u_char *opbx_var_Config(struct variable *vp, oid *name, size_t *length,
 
     switch (vp->magic)
     {
-    case OPBXCONFUPTIME:
+    case CWCONFUPTIME:
         gettimeofday(&tval, NULL);
-        long_ret = difftime(tval.tv_sec, opbx_startuptime) * 100 + tval.tv_usec / 10000;
+        long_ret = difftime(tval.tv_sec, cw_startuptime) * 100 + tval.tv_usec / 10000;
         return (u_char *) &long_ret;
-    case OPBXCONFRELOADTIME:
+    case CWCONFRELOADTIME:
         gettimeofday(&tval, NULL);
-        if (opbx_lastreloadtime)
-            long_ret = difftime(tval.tv_sec, opbx_lastreloadtime) * 100 + tval.tv_usec / 10000;
+        if (cw_lastreloadtime)
+            long_ret = difftime(tval.tv_sec, cw_lastreloadtime) * 100 + tval.tv_usec / 10000;
         else
-            long_ret = difftime(tval.tv_sec, opbx_startuptime) * 100 + tval.tv_usec / 10000;
+            long_ret = difftime(tval.tv_sec, cw_startuptime) * 100 + tval.tv_usec / 10000;
         return (u_char *) &long_ret;
-    case OPBXCONFPID:
+    case CWCONFPID:
         long_ret = getpid();
         return (u_char *) &long_ret;
-    case OPBXCONFSOCKET:
-        *var_len = strlen(opbx_config_OPBX_SOCKET);
-        return (u_char *) opbx_config_OPBX_SOCKET;
+    case CWCONFSOCKET:
+        *var_len = strlen(cw_config_CW_SOCKET);
+        return (u_char *) cw_config_CW_SOCKET;
     default:
         break;
     }
     return NULL;
 }
 
-static u_char *opbx_var_indications(struct variable *vp,
+static u_char *cw_var_indications(struct variable *vp,
                                     oid *name,
                                     size_t *length,
                                     int exact,
@@ -666,13 +666,13 @@ static u_char *opbx_var_indications(struct variable *vp,
 
     switch (vp->magic)
     {
-    case OPBXINDCOUNT:
+    case CWINDCOUNT:
         long_ret = 0;
-        while ((tz = opbx_walk_indications(tz)))
+        while ((tz = cw_walk_indications(tz)))
             long_ret++;
         return (u_char *) &long_ret;
-    case OPBXINDCURRENT:
-        tz = opbx_get_indication_zone(NULL);
+    case CWINDCURRENT:
+        tz = cw_get_indication_zone(NULL);
         if (tz)
         {
             *var_len = strlen(tz->country);
@@ -686,7 +686,7 @@ static u_char *opbx_var_indications(struct variable *vp,
     return NULL;
 }
 
-static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_indications_table(struct variable *vp, oid *name, size_t *length,
         int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
@@ -697,27 +697,27 @@ static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t
         return NULL;
 
     i = name[*length - 1] - 1;
-    while ((tz = opbx_walk_indications(tz))  &&  i)
+    while ((tz = cw_walk_indications(tz))  &&  i)
         i--;
     if (tz == NULL)
         return NULL;
 
     switch (vp->magic)
     {
-    case OPBXINDINDEX:
+    case CWINDINDEX:
         long_ret = name[*length - 1];
         return (u_char *)&long_ret;
-    case OPBXINDCOUNTRY:
+    case CWINDCOUNTRY:
         *var_len = strlen(tz->country);
         return (u_char *)tz->country;
-    case OPBXINDALIAS:
+    case CWINDALIAS:
         if (tz->alias)
         {
             *var_len = strlen(tz->alias);
             return (u_char *)tz->alias;
         }
         return NULL;
-    case OPBXINDDESCRIPTION:
+    case CWINDDESCRIPTION:
         *var_len = strlen(tz->description);
         return (u_char *)tz->description;
     default:
@@ -726,7 +726,7 @@ static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t
     return NULL;
 }
 
-static u_char *opbx_var_Modules(struct variable *vp,
+static u_char *cw_var_Modules(struct variable *vp,
                                 oid *name, size_t *length,
                                 int exact,
                                 size_t *var_len,
@@ -741,8 +741,8 @@ static u_char *opbx_var_Modules(struct variable *vp,
 
     switch (vp->magic)
     {
-    case OPBXMODCOUNT:
-        long_ret = opbx_update_module_list(countmodule, NULL);
+    case CWMODCOUNT:
+        long_ret = cw_update_module_list(countmodule, NULL);
         return (u_char *) &long_ret;
     default:
         break;
@@ -751,7 +751,7 @@ static u_char *opbx_var_Modules(struct variable *vp,
     return NULL;
 }
 
-static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
+static u_char *cw_var_Version(struct variable *vp, oid *name, size_t *length,
                                 int exact, size_t *var_len, WriteMethod **write_method)
 {
     if (header_generic(vp, name, length, exact, var_len, write_method))
@@ -763,10 +763,10 @@ static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
 
     switch (vp->magic)
     {
-    case OPBXVERSTRING:
-        *var_len = strlen(OPBX_VERSION);
-        return (u_char *)OPBX_VERSION;
-    case OPBXVERTAG:
+    case CWVERSTRING:
+        *var_len = strlen(CW_VERSION);
+        return (u_char *)CW_VERSION;
+    case CWVERTAG:
         long_ret = CALLWEAVER_VERSION_NUM;
         return (u_char *)&long_ret;
     default:
@@ -786,69 +786,69 @@ static void init_callweaver_mib(void)
 {
     static struct variable4 callweaver_vars[] =
     {
-        {OPBXVERSTRING,          ASN_OCTET_STR, RONLY, opbx_var_Version,             2, {OPBXVERSION, OPBXVERSTRING}},
-        {OPBXVERTAG,             ASN_UNSIGNED,  RONLY, opbx_var_Version,             2, {OPBXVERSION, OPBXVERTAG}},
-        {OPBXCONFUPTIME,         ASN_TIMETICKS, RONLY, opbx_var_Config,              2, {OPBXCONFIGURATION, OPBXCONFUPTIME}},
-        {OPBXCONFRELOADTIME,     ASN_TIMETICKS, RONLY, opbx_var_Config,              2, {OPBXCONFIGURATION, OPBXCONFRELOADTIME}},
-        {OPBXCONFPID,            ASN_INTEGER,   RONLY, opbx_var_Config,              2, {OPBXCONFIGURATION, OPBXCONFPID}},
-        {OPBXCONFSOCKET,         ASN_OCTET_STR, RONLY, opbx_var_Config,              2, {OPBXCONFIGURATION, OPBXCONFSOCKET}},
-        {OPBXMODCOUNT,           ASN_INTEGER,   RONLY, opbx_var_Modules ,            2, {OPBXMODULES, OPBXMODCOUNT}},
-        {OPBXINDCOUNT,           ASN_INTEGER,   RONLY, opbx_var_indications,         2, {OPBXINDICATIONS, OPBXINDCOUNT}},
-        {OPBXINDCURRENT,         ASN_OCTET_STR, RONLY, opbx_var_indications,         2, {OPBXINDICATIONS, OPBXINDCURRENT}},
-        {OPBXINDINDEX,           ASN_INTEGER,   RONLY, opbx_var_indications_table,   4, {OPBXINDICATIONS, OPBXINDTABLE, 1, OPBXINDINDEX}},
-        {OPBXINDCOUNTRY,         ASN_OCTET_STR, RONLY, opbx_var_indications_table,   4, {OPBXINDICATIONS, OPBXINDTABLE, 1, OPBXINDCOUNTRY}},
-        {OPBXINDALIAS,           ASN_OCTET_STR, RONLY, opbx_var_indications_table,   4, {OPBXINDICATIONS, OPBXINDTABLE, 1, OPBXINDALIAS}},
-        {OPBXINDDESCRIPTION,     ASN_OCTET_STR, RONLY, opbx_var_indications_table,   4, {OPBXINDICATIONS, OPBXINDTABLE, 1, OPBXINDDESCRIPTION}},
-        {OPBXCHANCOUNT,          ASN_INTEGER,   RONLY, opbx_var_channels,            2, {OPBXCHANNELS, OPBXCHANCOUNT}},
-        {OPBXCHANINDEX,          ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANINDEX}},
-        {OPBXCHANNAME,           ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANNAME}},
-        {OPBXCHANLANGUAGE,       ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANLANGUAGE}},
-        {OPBXCHANTYPE,           ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANTYPE}},
-        {OPBXCHANMUSICCLASS,     ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMUSICCLASS}},
-        {OPBXCHANBRIDGE,         ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANBRIDGE}},
-        {OPBXCHANMASQ,           ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMASQ}},
-        {OPBXCHANMASQR,          ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMASQR}},
-        {OPBXCHANWHENHANGUP,     ASN_TIMETICKS, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANWHENHANGUP}},
-        {OPBXCHANAPP,            ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANAPP}},
-        {OPBXCHANDATA,           ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANDATA}},
-        {OPBXCHANCONTEXT,        ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCONTEXT}},
-        {OPBXCHANPROCCONTEXT,    ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCCONTEXT}},
-        {OPBXCHANPROCEXTEN,      ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCEXTEN}},
-        {OPBXCHANPROCPRI,        ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCPRI}},
-        {OPBXCHANEXTEN,          ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANEXTEN}},
-        {OPBXCHANPRI,            ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPRI}},
-        {OPBXCHANACCOUNTCODE,    ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANACCOUNTCODE}},
-        {OPBXCHANFORWARDTO,      ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANFORWARDTO}},
-        {OPBXCHANUNIQUEID,       ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANUNIQUEID}},
-        {OPBXCHANCALLGROUP,      ASN_UNSIGNED,  RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCALLGROUP}},
-        {OPBXCHANPICKUPGROUP,    ASN_UNSIGNED,  RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPICKUPGROUP}},
-        {OPBXCHANSTATE,          ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANSTATE}},
-        {OPBXCHANMUTED,          ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMUTED}},
-        {OPBXCHANRINGS,          ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANRINGS}},
-        {OPBXCHANCIDDNID,        ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDDNID}},
-        {OPBXCHANCIDNUM,         ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDNUM}},
-        {OPBXCHANCIDNAME,        ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDNAME}},
-        {OPBXCHANCIDANI,         ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDANI}},
-        {OPBXCHANCIDRDNIS,       ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDRDNIS}},
-        {OPBXCHANCIDPRES,        ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDPRES}},
-        {OPBXCHANCIDANI2,        ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDANI2}},
-        {OPBXCHANCIDTON,         ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDTON}},
-        {OPBXCHANCIDTNS,         ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCIDTNS}},
-        {OPBXCHANAMAFLAGS,       ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANAMAFLAGS}},
-        {OPBXCHANADSI,           ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANADSI}},
-        {OPBXCHANTONEZONE,       ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANTONEZONE}},
-        {OPBXCHANHANGUPCAUSE,    ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANHANGUPCAUSE}},
-        {OPBXCHANVARIABLES,      ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANVARIABLES}},
-        {OPBXCHANFLAGS,          ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANFLAGS}},
-        {OPBXCHANTRANSFERCAP,    ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANTRANSFERCAP}},
-        {OPBXCHANTYPECOUNT,      ASN_INTEGER,   RONLY, opbx_var_channel_types,       2, {OPBXCHANNELS, OPBXCHANTYPECOUNT}},
-        {OPBXCHANTYPEINDEX,      ASN_INTEGER,   RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPEINDEX}},
-        {OPBXCHANTYPENAME,       ASN_OCTET_STR, RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPENAME}},
-        {OPBXCHANTYPEDESC,       ASN_OCTET_STR, RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPEDESC}},
-        {OPBXCHANTYPEDEVSTATE,   ASN_INTEGER,   RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPEDEVSTATE}},
-        {OPBXCHANTYPEINDICATIONS,ASN_INTEGER,   RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPEINDICATIONS}},
-        {OPBXCHANTYPETRANSFER,   ASN_INTEGER,   RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPETRANSFER}},
-        {OPBXCHANTYPECHANNELS,   ASN_GAUGE,     RONLY, opbx_var_channel_types_table, 4, {OPBXCHANNELS, OPBXCHANTYPETABLE, 1, OPBXCHANTYPECHANNELS}},
+        {CWVERSTRING,          ASN_OCTET_STR, RONLY, cw_var_Version,             2, {CWVERSION, CWVERSTRING}},
+        {CWVERTAG,             ASN_UNSIGNED,  RONLY, cw_var_Version,             2, {CWVERSION, CWVERTAG}},
+        {CWCONFUPTIME,         ASN_TIMETICKS, RONLY, cw_var_Config,              2, {CWCONFIGURATION, CWCONFUPTIME}},
+        {CWCONFRELOADTIME,     ASN_TIMETICKS, RONLY, cw_var_Config,              2, {CWCONFIGURATION, CWCONFRELOADTIME}},
+        {CWCONFPID,            ASN_INTEGER,   RONLY, cw_var_Config,              2, {CWCONFIGURATION, CWCONFPID}},
+        {CWCONFSOCKET,         ASN_OCTET_STR, RONLY, cw_var_Config,              2, {CWCONFIGURATION, CWCONFSOCKET}},
+        {CWMODCOUNT,           ASN_INTEGER,   RONLY, cw_var_Modules ,            2, {CWMODULES, CWMODCOUNT}},
+        {CWINDCOUNT,           ASN_INTEGER,   RONLY, cw_var_indications,         2, {CWINDICATIONS, CWINDCOUNT}},
+        {CWINDCURRENT,         ASN_OCTET_STR, RONLY, cw_var_indications,         2, {CWINDICATIONS, CWINDCURRENT}},
+        {CWINDINDEX,           ASN_INTEGER,   RONLY, cw_var_indications_table,   4, {CWINDICATIONS, CWINDTABLE, 1, CWINDINDEX}},
+        {CWINDCOUNTRY,         ASN_OCTET_STR, RONLY, cw_var_indications_table,   4, {CWINDICATIONS, CWINDTABLE, 1, CWINDCOUNTRY}},
+        {CWINDALIAS,           ASN_OCTET_STR, RONLY, cw_var_indications_table,   4, {CWINDICATIONS, CWINDTABLE, 1, CWINDALIAS}},
+        {CWINDDESCRIPTION,     ASN_OCTET_STR, RONLY, cw_var_indications_table,   4, {CWINDICATIONS, CWINDTABLE, 1, CWINDDESCRIPTION}},
+        {CWCHANCOUNT,          ASN_INTEGER,   RONLY, cw_var_channels,            2, {CWCHANNELS, CWCHANCOUNT}},
+        {CWCHANINDEX,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANINDEX}},
+        {CWCHANNAME,           ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANNAME}},
+        {CWCHANLANGUAGE,       ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANLANGUAGE}},
+        {CWCHANTYPE,           ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANTYPE}},
+        {CWCHANMUSICCLASS,     ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANMUSICCLASS}},
+        {CWCHANBRIDGE,         ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANBRIDGE}},
+        {CWCHANMASQ,           ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANMASQ}},
+        {CWCHANMASQR,          ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANMASQR}},
+        {CWCHANWHENHANGUP,     ASN_TIMETICKS, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANWHENHANGUP}},
+        {CWCHANAPP,            ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANAPP}},
+        {CWCHANDATA,           ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANDATA}},
+        {CWCHANCONTEXT,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCONTEXT}},
+        {CWCHANPROCCONTEXT,    ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPROCCONTEXT}},
+        {CWCHANPROCEXTEN,      ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPROCEXTEN}},
+        {CWCHANPROCPRI,        ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPROCPRI}},
+        {CWCHANEXTEN,          ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANEXTEN}},
+        {CWCHANPRI,            ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPRI}},
+        {CWCHANACCOUNTCODE,    ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANACCOUNTCODE}},
+        {CWCHANFORWARDTO,      ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANFORWARDTO}},
+        {CWCHANUNIQUEID,       ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANUNIQUEID}},
+        {CWCHANCALLGROUP,      ASN_UNSIGNED,  RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCALLGROUP}},
+        {CWCHANPICKUPGROUP,    ASN_UNSIGNED,  RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPICKUPGROUP}},
+        {CWCHANSTATE,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANSTATE}},
+        {CWCHANMUTED,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANMUTED}},
+        {CWCHANRINGS,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANRINGS}},
+        {CWCHANCIDDNID,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDDNID}},
+        {CWCHANCIDNUM,         ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDNUM}},
+        {CWCHANCIDNAME,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDNAME}},
+        {CWCHANCIDANI,         ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDANI}},
+        {CWCHANCIDRDNIS,       ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDRDNIS}},
+        {CWCHANCIDPRES,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDPRES}},
+        {CWCHANCIDANI2,        ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDANI2}},
+        {CWCHANCIDTON,         ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDTON}},
+        {CWCHANCIDTNS,         ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDTNS}},
+        {CWCHANAMAFLAGS,       ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANAMAFLAGS}},
+        {CWCHANADSI,           ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANADSI}},
+        {CWCHANTONEZONE,       ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANTONEZONE}},
+        {CWCHANHANGUPCAUSE,    ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANHANGUPCAUSE}},
+        {CWCHANVARIABLES,      ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANVARIABLES}},
+        {CWCHANFLAGS,          ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANFLAGS}},
+        {CWCHANTRANSFERCAP,    ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANTRANSFERCAP}},
+        {CWCHANTYPECOUNT,      ASN_INTEGER,   RONLY, cw_var_channel_types,       2, {CWCHANNELS, CWCHANTYPECOUNT}},
+        {CWCHANTYPEINDEX,      ASN_INTEGER,   RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPEINDEX}},
+        {CWCHANTYPENAME,       ASN_OCTET_STR, RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPENAME}},
+        {CWCHANTYPEDESC,       ASN_OCTET_STR, RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPEDESC}},
+        {CWCHANTYPEDEVSTATE,   ASN_INTEGER,   RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPEDEVSTATE}},
+        {CWCHANTYPEINDICATIONS,ASN_INTEGER,   RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPEINDICATIONS}},
+        {CWCHANTYPETRANSFER,   ASN_INTEGER,   RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPETRANSFER}},
+        {CWCHANTYPECHANNELS,   ASN_GAUGE,     RONLY, cw_var_channel_types_table, 4, {CWCHANNELS, CWCHANTYPETABLE, 1, CWCHANTYPECHANNELS}},
     };
 
     register_sysORTable(callweaver_oid, OID_LENGTH(callweaver_oid),

@@ -68,7 +68,7 @@
 
 char global_tracefile[BUFFERSIZE+1];
 
-static struct opbx_frame nullframe = { OPBX_FRAME_NULL, };
+static struct cw_frame nullframe = { CW_FRAME_NULL, };
 
 struct misdn_jb{
 	int size;
@@ -79,7 +79,7 @@ struct misdn_jb{
 	int state_full;
 	int state_buffer;
 	int bytes_wrote;
-	opbx_mutex_t mutexjb;
+	cw_mutex_t mutexjb;
 };
 
 
@@ -120,14 +120,14 @@ enum misdn_chan_state {
 	MISDN_BRIDGED, /*!<  when bridged */
 	MISDN_CLEANING, /*!< when hangup from * but we were connected before */
 	MISDN_HUNGUP_FROM_MISDN, /*!< when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
-	MISDN_HUNGUP_FROM_OPBX, /*!< when DISCONNECT/RELEASE/REL_COMP came out of */
+	MISDN_HUNGUP_FROM_CW, /*!< when DISCONNECT/RELEASE/REL_COMP came out of */
 	/* misdn_hangup */
 	MISDN_HOLDED, /*!< if this chan is holded */
 	MISDN_HOLD_DISCONNECT /*!< if this chan is holded */
   
 };
 
-#define ORG_OPBX 1
+#define ORG_CW 1
 #define ORG_MISDN 2
 
 struct chan_list {
@@ -151,8 +151,8 @@ struct chan_list {
 	int ignore_dtmf;
 
 	int pipe[2];
-	char opbx_rd_buf[4096];
-	struct opbx_frame frame;
+	char cw_rd_buf[4096];
+	struct cw_frame frame;
 	char framedata[160];
 	int framepos;
 
@@ -161,7 +161,7 @@ struct chan_list {
 	struct timeval faxdetect_tv;
 	int faxhandled;
 
-	int opbx_dsp;
+	int cw_dsp;
 
 	int jb_len;
 	int jb_upper_threshold;
@@ -169,10 +169,10 @@ struct chan_list {
 
  	struct misdn_jb *jb_rx;
  		
-	struct opbx_dsp *dsp;
-	struct opbx_trans_pvt *trans;
+	struct cw_dsp *dsp;
+	struct cw_trans_pvt *trans;
   
-	struct opbx_channel *opbx;
+	struct cw_channel *cw;
 
 	int dummy;
   
@@ -195,7 +195,7 @@ struct chan_list {
 	
 	int overlap_dial;
 	int overlap_dial_task;
-	opbx_mutex_t overlap_tv_lock;
+	cw_mutex_t overlap_tv_lock;
 	struct timeval overlap_tv;
   
 	struct chan_list *peer;
@@ -206,8 +206,8 @@ struct chan_list {
 
 
 
-void export_ch(struct opbx_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch);
-void import_ch(struct opbx_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch);
+void export_ch(struct cw_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch);
+void import_ch(struct cw_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch);
 
 struct robin_list {
 	char *group;
@@ -220,7 +220,7 @@ static struct robin_list *robin = NULL;
 
 
 
-struct opbx_frame *process_opbx_dsp(struct chan_list *tmp, struct opbx_frame *frame);
+struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame);
 
 
 
@@ -264,18 +264,18 @@ static pthread_t misdn_tasks_thread;
 
 static void chan_misdn_log(int level, int port, char *tmpl, ...);
 
-static struct opbx_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
+static struct cw_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit );
 
 static int pbx_start_chan(struct chan_list *ch);
 
-#define OPBX_CID_P(opbx) opbx->cid.cid_num
-#define OPBX_BRIDGED_P(opbx) opbx_bridged_channel(opbx) 
-#define OPBX_LOAD_CFG opbx_config_load
-#define OPBX_DESTROY_CFG opbx_config_destroy
+#define CW_CID_P(cw) cw->cid.cid_num
+#define CW_BRIDGED_P(cw) cw_bridged_channel(cw) 
+#define CW_LOAD_CFG cw_config_load
+#define CW_DESTROY_CFG cw_config_destroy
 
-#define MISDN_CALLWEAVER_TECH_PVT(opbx) opbx->tech_pvt
-#define MISDN_CALLWEAVER_PVT(opbx) 1
+#define MISDN_CALLWEAVER_TECH_PVT(cw) cw->tech_pvt
+#define MISDN_CALLWEAVER_PVT(cw) 1
 
 #include "callweaver/strings.h"
 
@@ -292,9 +292,9 @@ static char **misdn_key_vector=NULL;
 static int misdn_key_vector_size=0;
 
 /* Only alaw and mulaw is allowed for now */
-static int prefformat =  OPBX_FORMAT_ALAW ; /*  OPBX_FORMAT_SLINEAR ;  OPBX_FORMAT_ULAW | */
+static int prefformat =  CW_FORMAT_ALAW ; /*  CW_FORMAT_SLINEAR ;  CW_FORMAT_ULAW | */
 
-static opbx_mutex_t usecnt_lock; 
+static cw_mutex_t usecnt_lock; 
 
 static int *misdn_debug;
 static int *misdn_debug_only;
@@ -307,12 +307,12 @@ static int *misdn_out_calls;
 struct chan_list dummy_cl;
 
 struct chan_list *cl_te=NULL;
-opbx_mutex_t cl_te_lock;
+cw_mutex_t cl_te_lock;
 
 static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 
-static void send_cause2opbx(struct opbx_channel *opbx, struct misdn_bchannel*bc, struct chan_list *ch);
+static void send_cause2cw(struct cw_channel *cw, struct misdn_bchannel*bc, struct chan_list *ch);
 
 static void cl_queue_chan(struct chan_list **list, struct chan_list *chan);
 static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan);
@@ -329,8 +329,8 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
-static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
@@ -346,26 +346,26 @@ void trigger_read(struct chan_list *ch, char *data, int len);
 
 /*************** Helpers *****************/
 
-static struct chan_list * get_chan_by_opbx(struct opbx_channel *opbx)
+static struct chan_list * get_chan_by_cw(struct cw_channel *cw)
 {
 	struct chan_list *tmp;
   
 	for (tmp = cl_te;  tmp;  tmp = tmp->next)
     {
-		if (tmp->opbx == opbx)
+		if (tmp->cw == cw)
             return tmp;
 	}
   
 	return NULL;
 }
 
-static struct chan_list *get_chan_by_opbx_name(char *name)
+static struct chan_list *get_chan_by_cw_name(char *name)
 {
 	struct chan_list *tmp;
   
 	for (tmp=cl_te; tmp; tmp = tmp->next)
     {
-		if ( tmp->opbx  && strcmp(tmp->opbx->name,name) == 0)
+		if ( tmp->cw  && strcmp(tmp->cw->name,name) == 0)
             return tmp;
 	}
   
@@ -454,26 +454,26 @@ static void print_bearer(struct misdn_bchannel *bc)
 }
 /*************** Helpers END *************/
 
-static inline int _misdn_tasks_add_variable (int timeout, opbx_sched_cb callback, void *data, int variable)
+static inline int _misdn_tasks_add_variable (int timeout, cw_sched_cb callback, void *data, int variable)
 {
 	if (!misdn_tasks)
 		misdn_tasks = sched_context_create();
-	return opbx_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
+	return cw_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
 }
 
-static int misdn_tasks_add (int timeout, opbx_sched_cb callback, void *data)
+static int misdn_tasks_add (int timeout, cw_sched_cb callback, void *data)
 {
 	return _misdn_tasks_add_variable(timeout, callback, data, 0);
 }
 
-static int misdn_tasks_add_variable (int timeout, opbx_sched_cb callback, void *data)
+static int misdn_tasks_add_variable (int timeout, cw_sched_cb callback, void *data)
 {
 	return _misdn_tasks_add_variable(timeout, callback, data, 1);
 }
 
 static void misdn_tasks_remove (int task_id)
 {
-	opbx_sched_del(misdn_tasks, task_id);
+	cw_sched_del(misdn_tasks, task_id);
 }
 
 static int misdn_l1_task (void *data)
@@ -496,22 +496,22 @@ static int misdn_overlap_dial_task (void *data)
 		return 0;
 	}
 	
-	opbx_mutex_lock(&ch->overlap_tv_lock);
+	cw_mutex_lock(&ch->overlap_tv_lock);
 	tv_end = ch->overlap_tv;
-	opbx_mutex_unlock(&ch->overlap_tv_lock);
+	cw_mutex_unlock(&ch->overlap_tv_lock);
 	
 	tv_end.tv_sec += ch->overlap_dial;
-	tv_now = opbx_tvnow();
+	tv_now = cw_tvnow();
 
-	diff = opbx_tvdiff_ms(tv_end, tv_now);
+	diff = cw_tvdiff_ms(tv_end, tv_now);
 
 	if (diff <= 100) {
 		/* if we are 100ms near the timeout, we are satisfied.. */
 		stop_indicate(ch);
-		if (opbx_exists_extension(ch->opbx, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
+		if (cw_exists_extension(ch->cw, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
 			ch->state=MISDN_DIALING;
 			if (pbx_start_chan(ch) < 0) {
-				chan_misdn_log(-1, ch->bc->port, "opbx_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+				chan_misdn_log(-1, ch->bc->port, "cw_pbx_start returned < 0 in misdn_overlap_dial_task\n");
 				goto misdn_overlap_dial_task_disconnect;
 			}
 		} else {
@@ -549,19 +549,19 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 		"!941+1209/100,!0/100",	/* * */
 		"!941+1477/100,!0/100"	/* # */
     };
-	struct opbx_channel *chan=cl->opbx; 
+	struct cw_channel *chan=cl->cw; 
   
 	if (digit >= '0' && digit <='9')
-		opbx_playtones_start(chan,0,dtmf_tones[digit-'0'], 0);
+		cw_playtones_start(chan,0,dtmf_tones[digit-'0'], 0);
 	else if (digit >= 'A' && digit <= 'D')
-		opbx_playtones_start(chan,0,dtmf_tones[digit-'A'+10], 0);
+		cw_playtones_start(chan,0,dtmf_tones[digit-'A'+10], 0);
 	else if (digit == '*')
-		opbx_playtones_start(chan,0,dtmf_tones[14], 0);
+		cw_playtones_start(chan,0,dtmf_tones[14], 0);
 	else if (digit == '#')
-		opbx_playtones_start(chan,0,dtmf_tones[15], 0);
+		cw_playtones_start(chan,0,dtmf_tones[15], 0);
 	else {
 		/* not handled */
-		opbx_log(OPBX_LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
+		cw_log(CW_LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
     
     
 	}
@@ -590,7 +590,7 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 						misdn_debug[i] = level;
 						misdn_debug_only[i] = only;
 					}
-					opbx_cli(fd, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
+					cw_cli(fd, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
 				}
 				break;
 		case 6: 
@@ -601,13 +601,13 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 					if (port <= 0 || port > max_ports) {
 						switch (max_ports) {
 							case 0:
-								opbx_cli(fd, "port number not valid! no ports available so you won't get lucky with any number here...\n");
+								cw_cli(fd, "port number not valid! no ports available so you won't get lucky with any number here...\n");
 								break;
 							case 1:
-								opbx_cli(fd, "port number not valid! only port 1 is availble.\n");
+								cw_cli(fd, "port number not valid! only port 1 is availble.\n");
 								break;
 							default:
-								opbx_cli(fd, "port number not valid! only ports 1 to %d are available.\n", max_ports);
+								cw_cli(fd, "port number not valid! only ports 1 to %d are available.\n", max_ports);
 							}
 							return 0;
 					}
@@ -619,7 +619,7 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 					} else
 						misdn_debug_only[port] = 0;
 					misdn_debug[port] = level;
-					opbx_cli(fd, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
+					cw_cli(fd, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
 				}
 	}
 	return 0;
@@ -721,9 +721,9 @@ static inline void show_config_description (int fd, enum misdn_cfg_elements elem
 		snprintf(section, BUFFERSIZE, "GENERAL SECTION", sizeof(section));
 
 	if (*def)
-		opbx_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
+		cw_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
 	else
-		opbx_cli(fd, "[%s] %s\n\t%s\n", section, name, desc);
+		cw_cli(fd, "[%s] %s\n\t%s\n", section, name, desc);
 }
 
 static int misdn_show_config (int fd, int argc, char *argv[])
@@ -739,7 +739,7 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 			if (argc == 5) {
 				enum misdn_cfg_elements elem = misdn_cfg_get_elem (argv[4]);
 				if (elem == MISDN_CFG_FIRST)
-					opbx_cli(fd, "Unknown element: %s\n", argv[4]);
+					cw_cli(fd, "Unknown element: %s\n", argv[4]);
 				else
 					show_config_description(fd, elem);
 				return 0;
@@ -750,57 +750,57 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "general"))) {
 				for (elem = MISDN_GEN_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
 					show_config_description(fd, elem);
-					opbx_cli(fd, "\n");
+					cw_cli(fd, "\n");
 				}
 				ok = 1;
 			}
 			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "ports"))) {
 				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST - 1 /* the ptp hack, remove the -1 when ptp is gone */; ++elem) {
 					show_config_description(fd, elem);
-					opbx_cli(fd, "\n");
+					cw_cli(fd, "\n");
 				}
 				ok = 1;
 			}
 			return ok ? 0 : RESULT_SHOWUSAGE;
 		}
 		if (!sscanf(argv[3], "%d", &onlyport) || onlyport < 0) {
-			opbx_cli(fd, "Unknown option: %s\n", argv[3]);
+			cw_cli(fd, "Unknown option: %s\n", argv[3]);
 			return RESULT_SHOWUSAGE;
 		}
 	}
 	
 	if (argc == 3 || onlyport == 0) {
-		opbx_cli(fd,"Misdn General-Config: \n"); 
-		opbx_cli(fd," -> Version: chan_misdn-" CHAN_MISDN_VERSION "\n");
+		cw_cli(fd,"Misdn General-Config: \n"); 
+		cw_cli(fd," -> Version: chan_misdn-" CHAN_MISDN_VERSION "\n");
 		for (elem = MISDN_GEN_FIRST + 1, linebreak = 1; elem < MISDN_GEN_LAST; elem++, linebreak++) {
 			misdn_cfg_get_config_string( 0, elem, buffer, BUFFERSIZE);
-			opbx_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+			cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 		}
-		opbx_cli(fd, "\n");
+		cw_cli(fd, "\n");
 	}
 
 	if (onlyport < 0) {
 		int port = misdn_cfg_get_next_port(0);
 		for (; port > 0; port = misdn_cfg_get_next_port(port)) {
-			opbx_cli(fd, "\n[PORT %d]\n", port);
+			cw_cli(fd, "\n[PORT %d]\n", port);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string( port, elem, buffer, BUFFERSIZE);
-				opbx_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			opbx_cli(fd, "\n");
+			cw_cli(fd, "\n");
 		}
 	}
 	
 	if (onlyport > 0) {
 		if (misdn_cfg_is_port_valid(onlyport)) {
-			opbx_cli(fd, "[PORT %d]\n", onlyport);
+			cw_cli(fd, "[PORT %d]\n", onlyport);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string(onlyport, elem, buffer, BUFFERSIZE);
-				opbx_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			opbx_cli(fd, "\n");
+			cw_cli(fd, "\n");
 		} else {
-			opbx_cli(fd, "Port %d is not active!\n", onlyport);
+			cw_cli(fd, "Port %d is not active!\n", onlyport);
 		}
 	}
 	return 0;
@@ -831,7 +831,7 @@ static struct state_struct state_array[] = {
 	{MISDN_HUNGUP_FROM_MISDN,"HUNGUP_FROM_MISDN"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
 	{MISDN_HOLDED,"HOLDED"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
 	{MISDN_HOLD_DISCONNECT,"HOLD_DISCONNECT"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
-	{MISDN_HUNGUP_FROM_OPBX,"HUNGUP_FROM_OPBX"} /* when DISCONNECT/RELEASE/REL_COMP came out of */
+	{MISDN_HUNGUP_FROM_CW,"HUNGUP_FROM_CW"} /* when DISCONNECT/RELEASE/REL_COMP came out of */
 	/* misdn_hangup */
 };
 
@@ -871,29 +871,29 @@ static void reload_config(void)
 
 static int misdn_reload (int fd, int argc, char *argv[])
 {
-	opbx_cli(fd, "Reloading mISDN Config\n");
+	cw_cli(fd, "Reloading mISDN Config\n");
 	reload_config();
 	return 0;
 }
 
 static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel* bc)
 {
-	struct opbx_channel *opbx=help->opbx;
-	opbx_cli(fd,
+	struct cw_channel *cw=help->cw;
+	cw_cli(fd,
 		"* Pid:%d Prt:%d Ch:%d Mode:%s Org:%s dad:%s oad:%s rad:%s ctx:%s state:%s\n",
 
 		bc->pid, bc->port, bc->channel,
 		bc->nt?"NT":"TE",
-		help->orginator == ORG_OPBX?"*":"I",
-		opbx?opbx->exten:NULL,
-		opbx?OPBX_CID_P(opbx):NULL,
+		help->orginator == ORG_CW?"*":"I",
+		cw?cw->exten:NULL,
+		cw?CW_CID_P(cw):NULL,
 		bc->rad,
-		opbx?opbx->context:NULL,
+		cw?cw->context:NULL,
 		misdn_get_ch_state(help)
 		);
 	if (misdn_debug[bc->port] > 0)
-		opbx_cli(fd,
-			"  --> opbxname: %s\n"
+		cw_cli(fd,
+			"  --> cwname: %s\n"
 			"  --> ch_l3id: %x\n"
 			"  --> ch_addr: %x\n"
 			"  --> bc_addr: %x\n"
@@ -912,7 +912,7 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 #endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d holded_bc :%d\n",
-			help->opbx->name,
+			help->cw->name,
 			help->l3id,
 			help->addr,
 			bc->addr,
@@ -941,19 +941,19 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 {
 	struct chan_list *help=cl_te;
   
-	opbx_cli(fd,"Chan List: %p\n",cl_te); 
+	cw_cli(fd,"Chan List: %p\n",cl_te); 
   
 	for (;help; help=help->next) {
 		struct misdn_bchannel *bc=help->bc;   
-		struct opbx_channel *opbx=help->opbx;
-		if (misdn_debug[0] > 2) opbx_cli(fd, "Bc:%p Opbx:%p\n", bc, opbx);
+		struct cw_channel *cw=help->cw;
+		if (misdn_debug[0] > 2) cw_cli(fd, "Bc:%p Opbx:%p\n", bc, cw);
 		if (bc) {
 			print_bc_info(fd, help, bc);
 		} else if ( (bc=help->holded_bc) ) {
 			chan_misdn_log(0, 0, "ITS A HOLDED BC:\n");
 			print_bc_info(fd, help,  bc);
 		} else {
-			opbx_cli(fd,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", opbx->exten, OPBX_CID_P(opbx));
+			cw_cli(fd,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", cw->exten, CW_CID_P(cw));
 		}
 	}
   
@@ -970,10 +970,10 @@ static int misdn_show_cl (int fd, int argc, char *argv[])
   
 	for (;help; help=help->next) {
 		struct misdn_bchannel *bc=help->bc;   
-		struct opbx_channel *opbx=help->opbx;
+		struct cw_channel *cw=help->cw;
     
-		if (bc && opbx) {
-			if (!strcasecmp(opbx->name,argv[3])) {
+		if (bc && cw) {
+			if (!strcasecmp(cw->name,argv[3])) {
 				print_bc_info(fd, help, bc);
 				break; 
 			}
@@ -984,7 +984,7 @@ static int misdn_show_cl (int fd, int argc, char *argv[])
 	return 0;
 }
 
-opbx_mutex_t lock;
+cw_mutex_t lock;
 int MAXTICS=8;
 
 static int misdn_set_tics (int fd, int argc, char *argv[])
@@ -1001,13 +1001,13 @@ static int misdn_show_stacks (int fd, int argc, char *argv[])
 {
 	int port;
 
-	opbx_cli(fd, "BEGIN STACK_LIST:\n");
+	cw_cli(fd, "BEGIN STACK_LIST:\n");
 
 	for (port=misdn_cfg_get_next_port(0); port > 0;
 	     port=misdn_cfg_get_next_port(port)) {
 		char buf[128];
 		get_show_stack_details(port,buf);
-		opbx_cli(fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
+		cw_cli(fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
 	}
 		
 	return 0;
@@ -1018,13 +1018,13 @@ static int misdn_show_ports_stats (int fd, int argc, char *argv[])
 {
 	int port;
 
-	opbx_cli(fd, "Port\tin_calls\tout_calls\n");
+	cw_cli(fd, "Port\tin_calls\tout_calls\n");
 	
 	for (port=misdn_cfg_get_next_port(0); port > 0;
 	     port=misdn_cfg_get_next_port(port)) {
-		opbx_cli(fd,"%d\t%d\t\t%d\n",port,misdn_in_calls[port],misdn_out_calls[port]);
+		cw_cli(fd,"%d\t%d\t\t%d\n",port,misdn_in_calls[port],misdn_out_calls[port]);
 	}
-	opbx_cli(fd,"\n");
+	cw_cli(fd,"\n");
 	
 	return 0;
 
@@ -1040,11 +1040,11 @@ static int misdn_show_port (int fd, int argc, char *argv[])
   
 	port = atoi(argv[3]);
   
-	opbx_cli(fd, "BEGIN STACK_LIST:\n");
+	cw_cli(fd, "BEGIN STACK_LIST:\n");
 
 	char buf[128];
 	get_show_stack_details(port,buf);
-	opbx_cli(fd,"  %s  Debug:%d%s\n",buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
+	cw_cli(fd,"  %s  Debug:%d%s\n",buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
 
 	
 	return 0;
@@ -1061,13 +1061,13 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 	channame = argv[3];
 	nr = argv[4];
 	
-	opbx_cli(fd, "Sending Calldeflection (%s) to %s\n",nr, channame);
+	cw_cli(fd, "Sending Calldeflection (%s) to %s\n",nr, channame);
 	
 	{
-		struct chan_list *tmp=get_chan_by_opbx_name(channame);
+		struct chan_list *tmp=get_chan_by_cw_name(channame);
 		
 		if (!tmp) {
-			opbx_cli(fd, "Sending CD with nr %s to %s failed Channel does not exist\n",nr, channame);
+			cw_cli(fd, "Sending CD with nr %s to %s failed Channel does not exist\n",nr, channame);
 			return 0; 
 		} else {
 			
@@ -1089,28 +1089,28 @@ static int misdn_send_digit (int fd, int argc, char *argv[])
 	channame = argv[3];
 	msg = argv[4];
 
-	opbx_cli(fd, "Sending %s to %s\n",msg, channame);
+	cw_cli(fd, "Sending %s to %s\n",msg, channame);
   
 	{
-		struct chan_list *tmp=get_chan_by_opbx_name(channame);
+		struct chan_list *tmp=get_chan_by_cw_name(channame);
     
 		if (!tmp) {
-			opbx_cli(fd, "Sending %s to %s failed Channel does not exist\n",msg, channame);
+			cw_cli(fd, "Sending %s to %s failed Channel does not exist\n",msg, channame);
 			return 0; 
 		} else {
 #if 1
 			int i;
 			int msglen = strlen(msg);
 			for (i=0; i<msglen; i++) {
-				opbx_cli(fd, "Sending: %c\n",msg[i]);
+				cw_cli(fd, "Sending: %c\n",msg[i]);
 				send_digit_to_chan(tmp, msg[i]);
-				/* res = opbx_safe_sleep(tmp->opbx, 250); */
+				/* res = cw_safe_sleep(tmp->cw, 250); */
 				usleep(250000);
-				/* res = opbx_waitfor(tmp->opbx,100); */
+				/* res = cw_waitfor(tmp->cw,100); */
 			}
 #else
 			int res;
-			res = opbx_dtmf_stream(tmp->opbx,NULL,msg,250);
+			res = cw_dtmf_stream(tmp->cw,NULL,msg,250);
 #endif
 		}
 	}
@@ -1127,13 +1127,13 @@ static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
 	
 	channame = argv[3];
   
-	opbx_cli(fd, "Toggling EchoCancel on %s\n", channame);
+	cw_cli(fd, "Toggling EchoCancel on %s\n", channame);
   
 	{
-		struct chan_list *tmp=get_chan_by_opbx_name(channame);
+		struct chan_list *tmp=get_chan_by_cw_name(channame);
     
 		if (!tmp) {
-			opbx_cli(fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
+			cw_cli(fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
 			return 0; 
 		} else {
 			
@@ -1162,16 +1162,16 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	channame = argv[3];
 	msg = argv[4];
 
-	opbx_cli(fd, "Sending %s to %s\n",msg, channame);
+	cw_cli(fd, "Sending %s to %s\n",msg, channame);
 	{
 		struct chan_list *tmp;
-		tmp=get_chan_by_opbx_name(channame);
+		tmp=get_chan_by_cw_name(channame);
     
 		if (tmp && tmp->bc) {
-			opbx_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
+			cw_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
 			misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
 		} else {
-			opbx_cli(fd,"No such channel %s\n",channame);
+			cw_cli(fd,"No such channel %s\n",channame);
 			return RESULT_FAILURE;
 		}
 	}
@@ -1181,23 +1181,23 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
-	struct opbx_channel *c;
+	struct cw_channel *c;
 	int which=0;
 	char *ret;
 	if (pos != rpos)
 		return NULL;
-	c = opbx_channel_walk_locked(NULL);
+	c = cw_channel_walk_locked(NULL);
 	while(c) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
 			if (++which > state)
 				break;
 		}
-		opbx_mutex_unlock(&c->lock);
-		c = opbx_channel_walk_locked(c);
+		cw_mutex_unlock(&c->lock);
+		c = cw_channel_walk_locked(c);
 	}
 	if (c) {
 		ret = strdup(c->name);
-		opbx_mutex_unlock(&c->lock);
+		cw_mutex_unlock(&c->lock);
 	} else
 		ret = NULL;
 	return ret;
@@ -1270,7 +1270,7 @@ static char *complete_show_config (char *line, char *word, int pos, int state)
 	return NULL;
 }
 
-static struct opbx_clicmd cli_send_cd = {
+static struct cw_clicmd cli_send_cd = {
 	.cmda = {"misdn","send","calldeflect", NULL},
 	.handler = misdn_send_cd,
 	.summary = "Sends CallDeflection to mISDN Channel", 
@@ -1278,7 +1278,7 @@ static struct opbx_clicmd cli_send_cd = {
 	.generator = complete_ch
 };
 
-static struct opbx_clicmd cli_send_digit = {
+static struct cw_clicmd cli_send_digit = {
 	.cmda = {"misdn","send","digit", NULL},
 	.handler = misdn_send_digit,
 	.summary = "Sends DTMF Digit to mISDN Channel", 
@@ -1288,7 +1288,7 @@ static struct opbx_clicmd cli_send_digit = {
 	.generator = complete_ch
 };
 
-static struct opbx_clicmd cli_toggle_echocancel = {
+static struct cw_clicmd cli_toggle_echocancel = {
 	.cmda = {"misdn","toggle","echocancel", NULL},
 	.handler = misdn_toggle_echocancel,
 	.summary = "Toggles EchoCancel on mISDN Channel", 
@@ -1296,7 +1296,7 @@ static struct opbx_clicmd cli_toggle_echocancel = {
 	.generator = complete_ch
 };
 
-static struct opbx_clicmd cli_send_display = {
+static struct cw_clicmd cli_send_display = {
 	.cmda = {"misdn","send","display", NULL},
 	.handler = misdn_send_display,
 	.summary = "Sends Text to mISDN Channel", 
@@ -1306,7 +1306,7 @@ static struct opbx_clicmd cli_send_display = {
 	.generator = complete_ch
 };
 
-static struct opbx_clicmd cli_show_config = {
+static struct cw_clicmd cli_show_config = {
 	.cmda = {"misdn","show","config", NULL},
 	.handler = misdn_show_config,
 	.summary = "Shows internal mISDN config, read from cfg-file", 
@@ -1315,28 +1315,28 @@ static struct opbx_clicmd cli_show_config = {
 	.generator = complete_show_config
 };
  
-static struct opbx_clicmd cli_reload = {
+static struct cw_clicmd cli_reload = {
 	.cmda = {"misdn","reload", NULL},
 	.handler = misdn_reload,
 	.summary = "Reloads internal mISDN config, read from cfg-file", 
 	.usage = "Usage: misdn reload\n"
 };
 
-static struct opbx_clicmd cli_set_tics = {
+static struct cw_clicmd cli_set_tics = {
 	.cmda = {"misdn","set","tics", NULL},
 	.handler = misdn_set_tics,
 	.summary = "", 
 	"\n"
 };
 
-static struct opbx_clicmd cli_show_cls = {
+static struct cw_clicmd cli_show_cls = {
 	.cmda = {"misdn","show","channels", NULL},
 	.handler = misdn_show_cls,
 	.summary = "Shows internal mISDN chan_list", 
 	.usage = "Usage: misdn show channels\n"
 };
 
-static struct opbx_clicmd cli_show_cl = {
+static struct cw_clicmd cli_show_cl = {
 	.cmda = {"misdn","show","channel", NULL},
 	.handler = misdn_show_cl,
 	.summary = "Shows internal mISDN chan_list", 
@@ -1344,14 +1344,14 @@ static struct opbx_clicmd cli_show_cl = {
 	.generator = complete_ch
 };
 
-static struct opbx_clicmd cli_port_block = {
+static struct cw_clicmd cli_port_block = {
 	.cmda = {"misdn","port","block", NULL},
 	.handler = misdn_port_block,
 	.summary = "Blocks the given port", 
 	.usage = "Usage: misdn port block\n"
 };
 
-static struct opbx_clicmd cli_port_unblock = {
+static struct cw_clicmd cli_port_unblock = {
 	.cmda = {"misdn","port","unblock", NULL},
 	.handler = misdn_port_unblock,
 	.summary = "Unblocks the given port", 
@@ -1359,21 +1359,21 @@ static struct opbx_clicmd cli_port_unblock = {
 };
 
 
-static struct opbx_clicmd cli_restart_port = {
+static struct cw_clicmd cli_restart_port = {
 	.cmda = {"misdn","restart","port", NULL},
 	.handler = misdn_restart_port,
 	.summary = "Restarts the given port", 
 	.usage = "Usage: misdn restart port\n"
 };
 
-static struct opbx_clicmd cli_port_up = {
+static struct cw_clicmd cli_port_up = {
 	.cmda = {"misdn","port","up", NULL},
 	.handler = misdn_port_up,
 	.summary = "Tries to establish L1 on the given port", 
 	.usage = "Usage: misdn port up <port>\n"
 };
 
-static struct opbx_clicmd cli_port_down = {
+static struct cw_clicmd cli_port_down = {
 	.cmda = {"misdn","port","down", NULL},
 	.handler = misdn_port_down,
 	.summary = "Tries to deacivate the L1 on the given port", 
@@ -1382,14 +1382,14 @@ static struct opbx_clicmd cli_port_down = {
 
 
 
-static struct opbx_clicmd cli_show_stacks = {
+static struct cw_clicmd cli_show_stacks = {
 	.cmda = {"misdn","show","stacks", NULL},
 	.handler = misdn_show_stacks,
 	.summary = "Shows internal mISDN stack_list", 
 	.usage = "Usage: misdn show stacks\n"
 };
 
-static struct opbx_clicmd cli_show_ports_stats = {
+static struct cw_clicmd cli_show_ports_stats = {
 	.cmda = {"misdn","show","ports","stats", NULL},
 	.handler = misdn_show_ports_stats,
 	.summary = "Shows chan_misdns call statistics per port", 
@@ -1397,14 +1397,14 @@ static struct opbx_clicmd cli_show_ports_stats = {
 };
 
 
-static struct opbx_clicmd cli_show_port = {
+static struct cw_clicmd cli_show_port = {
 	.cmda = {"misdn","show","port", NULL},
 	.handler = misdn_show_port,
 	.summary = "Shows detailed information for given port", 
 	.usage = "Usage: misdn show port <port>\n"
 };
 
-static struct opbx_clicmd cli_set_debug = {
+static struct cw_clicmd cli_set_debug = {
 	.cmda = {"misdn","set","debug", NULL},
 	.handler = misdn_set_debug,
 	.summary = "Sets Debuglevel of chan_misdn",
@@ -1412,7 +1412,7 @@ static struct opbx_clicmd cli_set_debug = {
 	.generator = complete_debug_port
 };
 
-static struct opbx_clicmd cli_set_crypt_debug = {
+static struct cw_clicmd cli_set_crypt_debug = {
 	.cmda = {"misdn","set","crypt","debug", NULL},
 	.handler = misdn_set_crypt_debug,
 	.summary = "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}", 
@@ -1424,14 +1424,14 @@ static struct opbx_clicmd cli_set_crypt_debug = {
 static int update_config (struct chan_list *ch, int orig) 
 {
 	if (!ch) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot configure without chanlist\n");
+		cw_log(CW_LOG_WARNING, "Cannot configure without chanlist\n");
 		return -1;
 	}
 	
-	struct opbx_channel *opbx=ch->opbx;
+	struct cw_channel *cw=ch->cw;
 	struct misdn_bchannel *bc=ch->bc;
-	if (! opbx || ! bc ) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot configure without opbx || bc\n");
+	if (! cw || ! bc ) {
+		cw_log(CW_LOG_WARNING, "Cannot configure without cw || bc\n");
 		return -1;
 	}
 	
@@ -1463,17 +1463,17 @@ static int update_config (struct chan_list *ch, int orig)
 		
 	if ( (pres + screen) < 0 ) {
 
-		chan_misdn_log(2,port," --> pres: %x\n", opbx->cid.cid_pres);
+		chan_misdn_log(2,port," --> pres: %x\n", cw->cid.cid_pres);
 			
-		switch (opbx->cid.cid_pres & 0x60){
+		switch (cw->cid.cid_pres & 0x60){
 				
-		case OPBX_PRES_RESTRICTED:
+		case CW_PRES_RESTRICTED:
 			bc->pres=1;
 			chan_misdn_log(2, port, " --> PRES: Restricted (0x1)\n");
 			break;
 				
 				
-		case OPBX_PRES_UNAVAILABLE:
+		case CW_PRES_UNAVAILABLE:
 			bc->pres=2;
 			chan_misdn_log(2, port, " --> PRES: Unavailable (0x2)\n");
 			break;
@@ -1483,23 +1483,23 @@ static int update_config (struct chan_list *ch, int orig)
 			chan_misdn_log(2, port, " --> PRES: Allowed (0x0)\n");
 		}
 			
-		switch (opbx->cid.cid_pres & 0x3){
+		switch (cw->cid.cid_pres & 0x3){
 				
-		case OPBX_PRES_USER_NUMBER_UNSCREENED:
+		case CW_PRES_USER_NUMBER_UNSCREENED:
 			bc->screen=0;
 			chan_misdn_log(2, port, " --> SCREEN: Unscreened (0x0)\n");
 			break;
 
-		case OPBX_PRES_USER_NUMBER_PASSED_SCREEN:
+		case CW_PRES_USER_NUMBER_PASSED_SCREEN:
 			bc->screen=1;
 			chan_misdn_log(2, port, " --> SCREEN: Passed Screen (0x1)\n");
 			break;
-		case OPBX_PRES_USER_NUMBER_FAILED_SCREEN:
+		case CW_PRES_USER_NUMBER_FAILED_SCREEN:
 			bc->screen=2;
 			chan_misdn_log(2, port, " --> SCREEN: Failed Screen (0x2)\n");
 			break;
 				
-		case OPBX_PRES_NETWORK_NUMBER:
+		case CW_PRES_NETWORK_NUMBER:
 			bc->screen=3;
 			chan_misdn_log(2, port, " --> SCREEN: Network Nr. (0x3)\n");
 			break;
@@ -1615,7 +1615,7 @@ static int update_ec_config(struct misdn_bchannel *bc)
 	misdn_cfg_get(port, MISDN_CFG_BNEC_ZEROCOEFF, &bc->bnec_zero, sizeof(int));
 
 	if (bc->bnec_tail && bc->ec_enable) {
-		opbx_log(OPBX_LOG_WARNING,"Are you sure you wan't to mix BNEC with Zapec ? This might cause bad audio quality!\n");
+		cw_log(CW_LOG_WARNING,"Are you sure you wan't to mix BNEC with Zapec ? This might cause bad audio quality!\n");
 		bc->ec_enable=0;
 	}
 #endif
@@ -1626,14 +1626,14 @@ static int update_ec_config(struct misdn_bchannel *bc)
 static int read_config(struct chan_list *ch, int orig) {
 
 	if (!ch) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot configure without chanlist\n");
+		cw_log(CW_LOG_WARNING, "Cannot configure without chanlist\n");
 		return -1;
 	}
 
-	struct opbx_channel *opbx=ch->opbx;
+	struct cw_channel *cw=ch->cw;
 	struct misdn_bchannel *bc=ch->bc;
-	if (! opbx || ! bc ) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot configure without opbx || bc\n");
+	if (! cw || ! bc ) {
+		cw_log(CW_LOG_WARNING, "Cannot configure without cw || bc\n");
 		return -1;
 	}
 	
@@ -1644,12 +1644,12 @@ static int read_config(struct chan_list *ch, int orig) {
 	char lang[BUFFERSIZE+1];
 
 	misdn_cfg_get( port, MISDN_CFG_LANGUAGE, lang, BUFFERSIZE);
-	opbx_copy_string(opbx->language, lang, sizeof(opbx->language));
+	cw_copy_string(cw->language, lang, sizeof(cw->language));
 	
 	char musicclass[BUFFERSIZE+1];
 	
 	misdn_cfg_get( port, MISDN_CFG_MUSICCLASS, musicclass, BUFFERSIZE);
-	opbx_copy_string(opbx->musicclass, musicclass, sizeof(opbx->musicclass));
+	cw_copy_string(cw->musicclass, musicclass, sizeof(cw->musicclass));
 	
 	misdn_cfg_get( port, MISDN_CFG_TXGAIN, &bc->txgain, sizeof(int));
 	misdn_cfg_get( port, MISDN_CFG_RXGAIN, &bc->rxgain, sizeof(int));
@@ -1690,7 +1690,7 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 	misdn_cfg_get( bc->port, MISDN_CFG_CONTEXT, ch->context, sizeof(ch->context));
 	
-	opbx_copy_string (opbx->context,ch->context,sizeof(opbx->context));	
+	cw_copy_string (cw->context,ch->context,sizeof(cw->context));	
 
 	update_ec_config(bc);
 
@@ -1705,17 +1705,17 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 	{
 		char buf[256];
-		opbx_group_t pg,cg;
+		cw_group_t pg,cg;
 		
 		misdn_cfg_get(port, MISDN_CFG_PICKUPGROUP, &pg, sizeof(pg));
 		misdn_cfg_get(port, MISDN_CFG_CALLGROUP, &cg, sizeof(cg));
 		
-		chan_misdn_log(5, port, " --> * CallGrp:%s PickupGrp:%s\n",opbx_print_group(buf,sizeof(buf),cg),opbx_print_group(buf,sizeof(buf),pg));
-		opbx->pickupgroup=pg;
-		opbx->callgroup=cg;
+		chan_misdn_log(5, port, " --> * CallGrp:%s PickupGrp:%s\n",cw_print_group(buf,sizeof(buf),cg),cw_print_group(buf,sizeof(buf),pg));
+		cw->pickupgroup=pg;
+		cw->callgroup=cg;
 	}
 	
-	if ( orig  == ORG_OPBX) {
+	if ( orig  == ORG_CW) {
 		misdn_cfg_get( port, MISDN_CFG_TE_CHOOSE_CHANNEL, &(bc->te_choose_channel), sizeof(int));
 
 		if (strstr(faxdetect, "outgoing") || strstr(faxdetect, "both")) {
@@ -1728,7 +1728,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		{
 			char callerid[BUFFERSIZE+1];
 			misdn_cfg_get( port, MISDN_CFG_CALLERID, callerid, BUFFERSIZE);
-			if ( ! opbx_strlen_zero(callerid) ) {
+			if ( ! cw_strlen_zero(callerid) ) {
 				chan_misdn_log(1, port, " --> * Setting Cid to %s\n", callerid);
 				{
 					int l = sizeof(bc->oad);
@@ -1780,12 +1780,12 @@ static int read_config(struct chan_list *ch, int orig) {
 			strcpy(bc->oad,tmp);
 		}
 		
-		if (!opbx_strlen_zero(bc->dad)) {
-			opbx_copy_string(bc->orig_dad,bc->dad, sizeof(bc->orig_dad));
+		if (!cw_strlen_zero(bc->dad)) {
+			cw_copy_string(bc->orig_dad,bc->dad, sizeof(bc->orig_dad));
 		}
 		
-		if ( opbx_strlen_zero(bc->dad) && !opbx_strlen_zero(bc->keypad)) {
-			opbx_copy_string(bc->dad,bc->keypad, sizeof(bc->dad));
+		if ( cw_strlen_zero(bc->dad) && !cw_strlen_zero(bc->keypad)) {
+			cw_copy_string(bc->dad,bc->keypad, sizeof(bc->dad));
 		}
 
 		prefix[0] = 0;
@@ -1809,17 +1809,17 @@ static int read_config(struct chan_list *ch, int orig) {
 			strcpy(bc->dad,tmp);
 		}
 		
-		if ( strcmp(bc->dad,opbx->exten)) {
-			opbx_copy_string(opbx->exten, bc->dad, sizeof(opbx->exten));
+		if ( strcmp(bc->dad,cw->exten)) {
+			cw_copy_string(cw->exten, bc->dad, sizeof(cw->exten));
 		}
 		
-		opbx_set_callerid(opbx, bc->oad, NULL, bc->oad);
+		cw_set_callerid(cw, bc->oad, NULL, bc->oad);
 		
-		if ( !opbx_strlen_zero(bc->rad) ) 
-			opbx->cid.cid_rdnis=strdup(bc->rad);
+		if ( !cw_strlen_zero(bc->rad) ) 
+			cw->cid.cid_rdnis=strdup(bc->rad);
 		
 		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));
-		opbx_mutex_init(&ch->overlap_tv_lock);
+		cw_mutex_init(&ch->overlap_tv_lock);
 	} /* ORIG MISDN END */
 
 	ch->overlap_dial_task = -1;
@@ -1827,11 +1827,11 @@ static int read_config(struct chan_list *ch, int orig) {
 	if (ch->faxdetect) {
 		misdn_cfg_get( port, MISDN_CFG_FAXDETECT_TIMEOUT, &ch->faxdetect_timeout, sizeof(ch->faxdetect_timeout));
 		if (!ch->dsp)
-			ch->dsp = opbx_dsp_new();
+			ch->dsp = cw_dsp_new();
 		if (ch->dsp)
-			opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+			cw_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-			ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, OPBX_FORMAT_ALAW, 8000);
+			ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, CW_FORMAT_ALAW, 8000);
 	}
 
 	return 0;
@@ -1839,14 +1839,14 @@ static int read_config(struct chan_list *ch, int orig) {
 
 
 /*****************************/
-/*** OPBX Indications Start ***/
+/*** CW Indications Start ***/
 /*****************************/
 
-static int misdn_call(struct opbx_channel *opbx, char *dest, int timeout)
+static int misdn_call(struct cw_channel *cw, char *dest, int timeout)
 {
 	int port=0;
 	int r;
-	struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(opbx);
+	struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(cw);
 	struct misdn_bchannel *newbc;
 	char *opts=NULL, *ext,*tokb;
 	char dest_cp[256];
@@ -1868,87 +1868,87 @@ static int misdn_call(struct opbx_channel *opbx, char *dest, int timeout)
 		}
 	}
 
-	if (!opbx) {
-		opbx_log(OPBX_LOG_WARNING, " --> ! misdn_call called on opbx_channel *opbx where opbx == NULL\n");
+	if (!cw) {
+		cw_log(CW_LOG_WARNING, " --> ! misdn_call called on cw_channel *cw where cw == NULL\n");
 		return -1;
 	}
 
-	if (((opbx->_state != OPBX_STATE_DOWN) && (opbx->_state != OPBX_STATE_RESERVED)) || !dest  ) {
-		opbx_log(OPBX_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", opbx->name);
-		opbx->hangupcause=41;
-		opbx_setstate(opbx, OPBX_STATE_DOWN);
+	if (((cw->_state != CW_STATE_DOWN) && (cw->_state != CW_STATE_RESERVED)) || !dest  ) {
+		cw_log(CW_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", cw->name);
+		cw->hangupcause=41;
+		cw_setstate(cw, CW_STATE_DOWN);
 		return -1;
 	}
 
 	if (!ch) {
-		opbx_log(OPBX_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", opbx->name);
-		opbx->hangupcause=41;
-		opbx_setstate(opbx, OPBX_STATE_DOWN);
+		cw_log(CW_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", cw->name);
+		cw->hangupcause=41;
+		cw_setstate(cw, CW_STATE_DOWN);
 		return -1;
 	}
 	
 	newbc=ch->bc;
 	
 	if (!newbc) {
-		opbx_log(OPBX_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", opbx->name);
-		opbx->hangupcause=41;
-		opbx_setstate(opbx, OPBX_STATE_DOWN);
+		cw_log(CW_LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", cw->name);
+		cw->hangupcause=41;
+		cw_setstate(cw, CW_STATE_DOWN);
 		return -1;
 	}
 	
 	port=newbc->port;
 	strncpy(newbc->dad,ext,sizeof( newbc->dad));
-	strncpy(opbx->exten,ext,sizeof(opbx->exten));
+	strncpy(cw->exten,ext,sizeof(cw->exten));
 
 	int exceed;
 	if ((exceed=add_out_calls(port))) {
 		char tmp[16];
 		sprintf(tmp,"%d",exceed);
-		pbx_builtin_setvar_helper(opbx,"MAX_OVERFLOW",tmp);
+		pbx_builtin_setvar_helper(cw,"MAX_OVERFLOW",tmp);
 		return -1;
 	}
 	
 	chan_misdn_log(1, port, "* CALL: %s\n",dest);
 	
-	chan_misdn_log(1, port, " --> * dad:%s tech:%s ctx:%s\n",opbx->exten,opbx->name, opbx->context);
+	chan_misdn_log(1, port, " --> * dad:%s tech:%s ctx:%s\n",cw->exten,cw->name, cw->context);
 	
-	chan_misdn_log(3, port, " --> * adding2newbc ext %s\n",opbx->exten);
-	if (opbx->exten) {
+	chan_misdn_log(3, port, " --> * adding2newbc ext %s\n",cw->exten);
+	if (cw->exten) {
 		int l = sizeof(newbc->dad);
-		strncpy(newbc->dad,opbx->exten, l);
+		strncpy(newbc->dad,cw->exten, l);
 		newbc->dad[l-1] = 0;
 	}
 	newbc->rad[0]=0;
-	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",OPBX_CID_P(opbx));
-	if (opbx_strlen_zero(newbc->oad) && OPBX_CID_P(opbx) ) {
+	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",CW_CID_P(cw));
+	if (cw_strlen_zero(newbc->oad) && CW_CID_P(cw) ) {
 
-		if (OPBX_CID_P(opbx)) {
+		if (CW_CID_P(cw)) {
 			int l = sizeof(newbc->oad);
-			strncpy(newbc->oad,OPBX_CID_P(opbx), l);
+			strncpy(newbc->oad,CW_CID_P(cw), l);
 			newbc->oad[l-1] = 0;
 		}
 	}
 	
 	{
-		struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(opbx);
-		if (!ch) { opbx_verbose("No chan_list in misdn_call"); return -1;}
+		struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(cw);
+		if (!ch) { cw_verbose("No chan_list in misdn_call"); return -1;}
 		
-		newbc->capability=opbx->transfercapability;
-		pbx_builtin_setvar_helper(opbx,"TRANSFERCAPABILITY",opbx_transfercapability2str(newbc->capability));
-		if ( opbx->transfercapability == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
+		newbc->capability=cw->transfercapability;
+		pbx_builtin_setvar_helper(cw,"TRANSFERCAPABILITY",cw_transfercapability2str(newbc->capability));
+		if ( cw->transfercapability == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
 			chan_misdn_log(2, port, " --> * Call with flag Digital\n");
 		}
 		
 
 		/* update screening and presentation */ 
-		update_config(ch,ORG_OPBX);
+		update_config(ch,ORG_CW);
 		
 		/* fill in some ies from channel vary*/
-		import_ch(opbx, newbc, ch);
+		import_ch(cw, newbc, ch);
 		
 		/* Finally The Options Override Everything */
 		if (opts)
-			misdn_set_opt_exec(opbx, 1, &opts, NULL, 0);
+			misdn_set_opt_exec(cw, 1, &opts, NULL, 0);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
@@ -1963,15 +1963,15 @@ static int misdn_call(struct opbx_channel *opbx, char *dest, int timeout)
 	if ( r == -ENOCHAN  ) {
 		chan_misdn_log(0, port, " --> * Theres no Channel at the moment .. !\n");
 		chan_misdn_log(1, port, " --> * SEND: State Down pid:%d\n",newbc?newbc->pid:-1);
-		opbx->hangupcause=34;
-		opbx_setstate(opbx, OPBX_STATE_DOWN);
+		cw->hangupcause=34;
+		cw_setstate(cw, CW_STATE_DOWN);
 		return -1;
 	}
 	
 	chan_misdn_log(1, port, " --> * SEND: State Dialing pid:%d\n",newbc?newbc->pid:1);
 
-	opbx_setstate(opbx, OPBX_STATE_DIALING);
-	opbx->hangupcause=16;
+	cw_setstate(cw, CW_STATE_DIALING);
+	cw->hangupcause=16;
 	
 	if (newbc->nt) stop_bc_tones(ch);
 	
@@ -1979,28 +1979,28 @@ static int misdn_call(struct opbx_channel *opbx, char *dest, int timeout)
 }
 
 
-static int misdn_answer(struct opbx_channel *opbx)
+static int misdn_answer(struct cw_channel *cw)
 {
 	struct chan_list *p;
 
 	
-	if (!opbx || ! (p=MISDN_CALLWEAVER_TECH_PVT(opbx)) ) return -1;
+	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw)) ) return -1;
 	
 	chan_misdn_log(1, p? (p->bc? p->bc->port : 0) : 0, "* ANSWER:\n");
 	
 	if (!p) {
-		opbx_log(OPBX_LOG_WARNING, " --> Channel not connected ??\n");
-		opbx_queue_hangup(opbx);
+		cw_log(CW_LOG_WARNING, " --> Channel not connected ??\n");
+		cw_queue_hangup(cw);
 	}
 
 	if (!p->bc) {
 		chan_misdn_log(1, 0, " --> Got Answer, but theres no bc obj ??\n");
 
-		opbx_queue_hangup(opbx);
+		cw_queue_hangup(cw);
 	}
 
 	{
-		const char *tmp_key = pbx_builtin_getvar_helper(p->opbx, "CRYPT_KEY");
+		const char *tmp_key = pbx_builtin_getvar_helper(p->cw, "CRYPT_KEY");
 		
 		if (tmp_key ) {
 			chan_misdn_log(1, p->bc->port, " --> Connection will be BF crypted\n");
@@ -2016,7 +2016,7 @@ static int misdn_answer(struct opbx_channel *opbx)
 	}
 
 	{
-		const char *nodsp=pbx_builtin_getvar_helper(opbx, "MISDN_DIGITAL_TRANS");
+		const char *nodsp=pbx_builtin_getvar_helper(cw, "MISDN_DIGITAL_TRANS");
 		if (nodsp) {
 			chan_misdn_log(1, p->bc->port, " --> Connection is transparent digital\n");
 			p->bc->nodsp=1;
@@ -2029,9 +2029,9 @@ static int misdn_answer(struct opbx_channel *opbx)
 	misdn_lib_echo(p->bc,0);
 	stop_indicate(p);
 
-	if ( opbx_strlen_zero(p->bc->cad) ) {
+	if ( cw_strlen_zero(p->bc->cad) ) {
 		chan_misdn_log(2,p->bc->port," --> empty cad using dad\n");
-		opbx_copy_string(p->bc->cad,p->bc->dad,sizeof(p->bc->cad));
+		cw_copy_string(p->bc->cad,p->bc->dad,sizeof(p->bc->cad));
 	}
 
 	misdn_lib_send_event( p->bc, EVENT_CONNECT);
@@ -2040,17 +2040,17 @@ static int misdn_answer(struct opbx_channel *opbx)
 	return 0;
 }
 
-static int misdn_digit(struct opbx_channel *opbx, char digit )
+static int misdn_digit(struct cw_channel *cw, char digit )
 {
 	struct chan_list *p;
 	
-	if (!opbx || ! (p=MISDN_CALLWEAVER_TECH_PVT(opbx))) return -1;
+	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw))) return -1;
 
 	struct misdn_bchannel *bc=p->bc;
 	chan_misdn_log(1, bc?bc->port:0, "* IND : Digit %c\n",digit);
 	
 	if (!bc) {
-		opbx_log(OPBX_LOG_WARNING, " --> !! Got Digit Event withut having bchannel Object\n");
+		cw_log(CW_LOG_WARNING, " --> !! Got Digit Event withut having bchannel Object\n");
 		return -1;
 	}
 	
@@ -2078,9 +2078,9 @@ static int misdn_digit(struct opbx_channel *opbx, char digit )
 				bc->dad[l-1] = 0;
 		}
 			{
-				int l = sizeof(p->opbx->exten);
-				strncpy(p->opbx->exten, bc->dad, l);
-				p->opbx->exten[l-1] = 0;
+				int l = sizeof(p->cw->exten);
+				strncpy(p->cw->exten, bc->dad, l);
+				p->cw->exten[l-1] = 0;
 			}
 			
 			misdn_lib_send_event( bc, EVENT_INFORMATION);
@@ -2098,15 +2098,15 @@ static int misdn_digit(struct opbx_channel *opbx, char digit )
 }
 
 
-static int misdn_fixup(struct opbx_channel *oldopbx, struct opbx_channel *opbx)
+static int misdn_fixup(struct cw_channel *oldcw, struct cw_channel *cw)
 {
 	struct chan_list *p;
 	
-	if (!opbx || ! (p=MISDN_CALLWEAVER_TECH_PVT(opbx) )) return -1;
+	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw) )) return -1;
 	
 	chan_misdn_log(1, p->bc?p->bc->port:0, "* IND: Got Fixup State:%s L3id:%x\n", misdn_get_ch_state(p), p->l3id);
 	
-	p->opbx = opbx ;
+	p->cw = cw ;
 	p->state=MISDN_CONNECTED;
   
 	return 0;
@@ -2114,45 +2114,45 @@ static int misdn_fixup(struct opbx_channel *oldopbx, struct opbx_channel *opbx)
 
 
 
-static int misdn_indication(struct opbx_channel *opbx, int cond)
+static int misdn_indication(struct cw_channel *cw, int cond)
 {
 	struct chan_list *p;
 
   
-	if (!opbx || ! (p=MISDN_CALLWEAVER_TECH_PVT(opbx))) {
-		opbx_log(OPBX_LOG_WARNING, "Returnded -1 in misdn_indication\n");
+	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw))) {
+		cw_log(CW_LOG_WARNING, "Returnded -1 in misdn_indication\n");
 		return -1;
 	}
 	
 	if (!p->bc ) {
-		chan_misdn_log(1, 0, "* IND : Indication from %s\n",opbx->exten);
-		opbx_log(OPBX_LOG_WARNING, "Private Pointer but no bc ?\n");
+		chan_misdn_log(1, 0, "* IND : Indication from %s\n",cw->exten);
+		cw_log(CW_LOG_WARNING, "Private Pointer but no bc ?\n");
 		return -1;
 	}
 	
-	chan_misdn_log(1, p->bc->port, "* IND : Indication [%d] from %s\n",cond, opbx->exten);
+	chan_misdn_log(1, p->bc->port, "* IND : Indication [%d] from %s\n",cond, cw->exten);
 	
 	switch (cond) {
-	case OPBX_CONTROL_BUSY:
+	case CW_CONTROL_BUSY:
 		chan_misdn_log(1, p->bc->port, "* IND :\tbusy\n");
 		chan_misdn_log(1, p->bc->port, " --> * SEND: State Busy pid:%d\n",p->bc?p->bc->pid:-1);
-		opbx_setstate(opbx,OPBX_STATE_BUSY);
+		cw_setstate(cw,CW_STATE_BUSY);
 
 		p->bc->out_cause=17;
 		if (p->state != MISDN_CONNECTED) {
 			start_bc_tones(p);
 			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
 		} else {
-			chan_misdn_log(-1, p->bc->port, " --> !! Got Busy in Connected State !?! opbx:%s\n", opbx->name);
+			chan_misdn_log(-1, p->bc->port, " --> !! Got Busy in Connected State !?! cw:%s\n", cw->name);
 		}
 		return -1;
 		break;
-	case OPBX_CONTROL_RING:
+	case CW_CONTROL_RING:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tring pid:%d\n",p->bc?p->bc->pid:-1);
 		return -1;
 		break;
 		
-	case OPBX_CONTROL_RINGING:
+	case CW_CONTROL_RINGING:
 		switch (p->state) {
 			case MISDN_ALERTING:
 				chan_misdn_log(1, p->bc->port, " --> * IND :\tringing pid:%d but I was Ringing before, so ignoreing it\n",p->bc?p->bc->pid:-1);
@@ -2179,7 +2179,7 @@ static int misdn_indication(struct opbx_channel *opbx, int cond)
 				}
 
 				chan_misdn_log(1, p->bc->port, " --> * SEND: State Ring pid:%d\n",p->bc?p->bc->pid:-1);
-				opbx_setstate(opbx,OPBX_STATE_RINGING);
+				cw_setstate(cw,CW_STATE_RINGING);
 			
 				if ( !p->bc->nt && (p->orginator==ORG_MISDN) && !p->incoming_early_audio ) 
 					chan_misdn_log(1,p->bc->port, " --> incoming_early_audio off\n");
@@ -2187,30 +2187,30 @@ static int misdn_indication(struct opbx_channel *opbx, int cond)
 					return -1;
 		}
 		break;
-	case OPBX_CONTROL_ANSWER:
+	case CW_CONTROL_ANSWER:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tanswer pid:%d\n",p->bc?p->bc->pid:-1);
 		start_bc_tones(p);
 		break;
-	case OPBX_CONTROL_TAKEOFFHOOK:
+	case CW_CONTROL_TAKEOFFHOOK:
 		chan_misdn_log(1, p->bc->port, " --> *\ttakeoffhook pid:%d\n",p->bc?p->bc->pid:-1);
 		return -1;
 		break;
-	case OPBX_CONTROL_OFFHOOK:
+	case CW_CONTROL_OFFHOOK:
 		chan_misdn_log(1, p->bc->port, " --> *\toffhook pid:%d\n",p->bc?p->bc->pid:-1);
 		return -1;
 		break; 
-	case OPBX_CONTROL_FLASH:
+	case CW_CONTROL_FLASH:
 		chan_misdn_log(1, p->bc->port, " --> *\tflash pid:%d\n",p->bc?p->bc->pid:-1);
 		break;
-	case OPBX_CONTROL_PROGRESS:
+	case CW_CONTROL_PROGRESS:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tprogress pid:%d\n",p->bc?p->bc->pid:-1);
 		misdn_lib_send_event( p->bc, EVENT_PROGRESS);
 		break;
-	case OPBX_CONTROL_PROCEEDING:
+	case CW_CONTROL_PROCEEDING:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tproceeding pid:%d\n",p->bc?p->bc->pid:-1);
 		misdn_lib_send_event( p->bc, EVENT_PROCEEDING);
 		break;
-	case OPBX_CONTROL_CONGESTION:
+	case CW_CONTROL_CONGESTION:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tcongestion pid:%d\n",p->bc?p->bc->pid:-1);
 
 		p->bc->out_cause=42;
@@ -2235,27 +2235,27 @@ static int misdn_indication(struct opbx_channel *opbx, int cond)
 
 		break;
 
-	case OPBX_CONTROL_HOLD:
+	case CW_CONTROL_HOLD:
 		chan_misdn_log(1, p->bc->port, " --> *\tHOLD pid:%d\n",p->bc?p->bc->pid:-1);
 		break;
-	case OPBX_CONTROL_UNHOLD:
+	case CW_CONTROL_UNHOLD:
 		chan_misdn_log(1, p->bc->port, " --> *\tUNHOLD pid:%d\n",p->bc?p->bc->pid:-1);
 		break;
 	default:
-		opbx_log(OPBX_LOG_NOTICE, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
+		cw_log(CW_LOG_NOTICE, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
 	}
   
 	return 0;
 }
 
-static int misdn_hangup(struct opbx_channel *opbx)
+static int misdn_hangup(struct cw_channel *cw)
 {
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
 	
-	if (!opbx || ! (p=MISDN_CALLWEAVER_TECH_PVT(opbx) ) ) return -1;
+	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw) ) ) return -1;
 	
-	opbx_log(OPBX_LOG_DEBUG, "misdn_hangup(%s)\n", opbx->name);
+	cw_log(CW_LOG_DEBUG, "misdn_hangup(%s)\n", cw->name);
 	
 	if (!p) {
 		chan_misdn_log(3, 0, "misdn_hangup called, without chan_list obj.\n");
@@ -2265,19 +2265,19 @@ static int misdn_hangup(struct opbx_channel *opbx)
 	bc=p->bc;
 
 	if (!bc) {
-		opbx_log(OPBX_LOG_WARNING,"Hangup with private but no bc ?\n");
+		cw_log(CW_LOG_WARNING,"Hangup with private but no bc ?\n");
 		return 0;
 	}
 
 	
-	MISDN_CALLWEAVER_TECH_PVT(opbx)=NULL;
-	p->opbx=NULL;
+	MISDN_CALLWEAVER_TECH_PVT(cw)=NULL;
+	p->cw=NULL;
 
 	bc=p->bc;
 	
-	if (opbx->_state == OPBX_STATE_RESERVED) {
+	if (cw->_state == CW_STATE_RESERVED) {
 		/* between request and call */
-		MISDN_CALLWEAVER_TECH_PVT(opbx)=NULL;
+		MISDN_CALLWEAVER_TECH_PVT(cw)=NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
 		free(p);
@@ -2298,15 +2298,15 @@ static int misdn_hangup(struct opbx_channel *opbx)
 	
 	{
 		const char *varcause=NULL;
-		bc->out_cause=opbx->hangupcause?opbx->hangupcause:16;
+		bc->out_cause=cw->hangupcause?cw->hangupcause:16;
 		
-		if ( (varcause=pbx_builtin_getvar_helper(opbx, "HANGUPCAUSE")) ||
-		     (varcause=pbx_builtin_getvar_helper(opbx, "PRI_CAUSE"))) {
+		if ( (varcause=pbx_builtin_getvar_helper(cw, "HANGUPCAUSE")) ||
+		     (varcause=pbx_builtin_getvar_helper(cw, "PRI_CAUSE"))) {
 			int tmpcause=atoi(varcause);
 			bc->out_cause=tmpcause?tmpcause:16;
 		}
     
-		chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, opbx->context, opbx->exten, OPBX_CID_P(opbx), misdn_get_ch_state(p));
+		chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, cw->context, cw->exten, CW_CID_P(cw), misdn_get_ch_state(p));
 		chan_misdn_log(2, bc->port, " --> l3id:%x\n",p->l3id);
 		chan_misdn_log(1, bc->port, " --> cause:%d\n",bc->cause);
 		chan_misdn_log(1, bc->port, " --> out_cause:%d\n",bc->out_cause);
@@ -2337,7 +2337,7 @@ static int misdn_hangup(struct opbx_channel *opbx)
 		case MISDN_ALERTING:
 		case MISDN_PROGRESS:
 		case MISDN_PROCEEDING:
-			if (p->orginator != ORG_OPBX) 
+			if (p->orginator != ORG_CW) 
 				hanguptone_indicate(p);
       
 			/*p->state=MISDN_CLEANING;*/
@@ -2359,7 +2359,7 @@ static int misdn_hangup(struct opbx_channel *opbx)
 			break;
 		case MISDN_DISCONNECTED:
 			misdn_lib_send_event( bc, EVENT_RELEASE);
-			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_OPBX; */
+			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_CW; */
 			break;
 
 		case MISDN_RELEASED:
@@ -2395,22 +2395,22 @@ static int misdn_hangup(struct opbx_channel *opbx)
 	}
 	
 
-	chan_misdn_log(1, bc->port, "Channel: %s hanguped new state:%s\n",opbx->name,misdn_get_ch_state(p));
+	chan_misdn_log(1, bc->port, "Channel: %s hanguped new state:%s\n",cw->name,misdn_get_ch_state(p));
 	
 	return 0;
 }
 
-static struct opbx_frame  *misdn_read(struct opbx_channel *opbx)
+static struct cw_frame  *misdn_read(struct cw_channel *cw)
 {
 	struct chan_list *tmp;
 	int len;
 	
-	if (!opbx) {
-		chan_misdn_log(1,0,"misdn_read called without opbx\n");
+	if (!cw) {
+		chan_misdn_log(1,0,"misdn_read called without cw\n");
 		return NULL;
 	}
-	if (! (tmp=MISDN_CALLWEAVER_TECH_PVT(opbx)) ) {
-		chan_misdn_log(1,0,"misdn_read called without opbx->pvt\n");
+	if (! (tmp=MISDN_CALLWEAVER_TECH_PVT(cw)) ) {
+		chan_misdn_log(1,0,"misdn_read called without cw->pvt\n");
 		return NULL;
 	}
 	if (!tmp->bc) {
@@ -2433,8 +2433,8 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *opbx)
 
 	/* We have got a complete frame 
 	 * tmp->framepos now has the length of the frame */
-	tmp->frame.frametype  = OPBX_FRAME_VOICE;
-	tmp->frame.subclass = OPBX_FORMAT_ALAW;
+	tmp->frame.frametype  = CW_FRAME_VOICE;
+	tmp->frame.subclass = CW_FORMAT_ALAW;
 	tmp->frame.datalen = tmp->framepos;
 	tmp->frame.samples = tmp->framepos;
 	tmp->frame.mallocd = 0;
@@ -2446,16 +2446,16 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *opbx)
 
 	if (tmp->faxdetect && !tmp->faxhandled) {
 		if (tmp->faxdetect_timeout) {
-			if (opbx_tvzero(tmp->faxdetect_tv)) {
-				tmp->faxdetect_tv = opbx_tvnow();
+			if (cw_tvzero(tmp->faxdetect_tv)) {
+				tmp->faxdetect_tv = cw_tvnow();
 				chan_misdn_log(2,tmp->bc->port,"faxdetect: starting detection with timeout: %ds ...\n", tmp->faxdetect_timeout);
-				return process_opbx_dsp(tmp, &tmp->frame);
+				return process_cw_dsp(tmp, &tmp->frame);
 			} else {
-				struct timeval tv_now = opbx_tvnow();
-				int diff = opbx_tvdiff_ms(tv_now, tmp->faxdetect_tv);
+				struct timeval tv_now = cw_tvnow();
+				int diff = cw_tvdiff_ms(tv_now, tmp->faxdetect_tv);
 				if (diff <= (tmp->faxdetect_timeout * 1000)) {
 					chan_misdn_log(5,tmp->bc->port,"faxdetect: detecting ...\n");
-					return process_opbx_dsp(tmp, &tmp->frame);
+					return process_cw_dsp(tmp, &tmp->frame);
 				} else {
 					chan_misdn_log(2,tmp->bc->port,"faxdetect: stopping detection (time ran out) ...\n");
 					tmp->faxdetect = 0;
@@ -2464,26 +2464,26 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *opbx)
 			}
 		} else {
 			chan_misdn_log(5,tmp->bc->port,"faxdetect: detecting ... (no timeout)\n");
-			return process_opbx_dsp(tmp, &tmp->frame);
+			return process_cw_dsp(tmp, &tmp->frame);
 		}
 	} else {
-		if (tmp->opbx_dsp)
-			return process_opbx_dsp(tmp, &tmp->frame);
+		if (tmp->cw_dsp)
+			return process_cw_dsp(tmp, &tmp->frame);
 		else
 			return &tmp->frame;
 	}
 }
 
 
-static int misdn_write(struct opbx_channel *opbx, struct opbx_frame *frame)
+static int misdn_write(struct cw_channel *cw, struct cw_frame *frame)
 {
 	struct chan_list *ch;
 	int i  = 0;
 	
-	if (!opbx || ! (ch=MISDN_CALLWEAVER_TECH_PVT(opbx)) ) return -1;
+	if (!cw || ! (ch=MISDN_CALLWEAVER_TECH_PVT(cw)) ) return -1;
 	
 	if (!ch->bc ) {
-		opbx_log(OPBX_LOG_WARNING, "private but no bc\n");
+		cw_log(CW_LOG_WARNING, "private but no bc\n");
 		return -1;
 	}
 	
@@ -2538,7 +2538,7 @@ static int misdn_write(struct opbx_channel *opbx, struct opbx_frame *frame)
 			break;
 		default:
 		if (!ch->dropped_frame_cnt)
-			chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x exten:%s cid:%s ch->state:%s bc_state:%d\n",frame->samples,ch->bc->addr, opbx->exten, opbx->cid.cid_num,misdn_get_ch_state( ch), ch->bc->bc_state);
+			chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x exten:%s cid:%s ch->state:%s bc_state:%d\n",frame->samples,ch->bc->addr, cw->exten, cw->cid.cid_num,misdn_get_ch_state( ch), ch->bc->bc_state);
 		
 		ch->dropped_frame_cnt++;
 		if (ch->dropped_frame_cnt > 100) {
@@ -2569,20 +2569,20 @@ static int misdn_write(struct opbx_channel *opbx, struct opbx_frame *frame)
 
 
 
-static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
-				      struct opbx_channel *c1, int flags,
-				      struct opbx_frame **fo,
-				      struct opbx_channel **rc,
+static enum cw_bridge_result  misdn_bridge (struct cw_channel *c0,
+				      struct cw_channel *c1, int flags,
+				      struct cw_frame **fo,
+				      struct cw_channel **rc,
 				      int timeoutms)
 
 {
 	struct chan_list *ch1,*ch2;
-	struct opbx_channel *carr[2], *who;
+	struct cw_channel *carr[2], *who;
 	int to=-1;
-	struct opbx_frame *f;
+	struct cw_frame *f;
   
-	ch1=get_chan_by_opbx(c0);
-	ch2=get_chan_by_opbx(c1);
+	ch1=get_chan_by_cw(c0);
+	ch2=get_chan_by_cw(c1);
 
 	carr[0]=c0;
 	carr[1]=c1;
@@ -2621,24 +2621,24 @@ static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 	chan_misdn_log(1, ch1->bc->port, "* Making Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
 
 
-	if (! (flags&OPBX_BRIDGE_DTMF_CHANNEL_0) )
+	if (! (flags&CW_BRIDGE_DTMF_CHANNEL_0) )
 		ch1->ignore_dtmf=1;
 	
-	if (! (flags&OPBX_BRIDGE_DTMF_CHANNEL_1) )
+	if (! (flags&CW_BRIDGE_DTMF_CHANNEL_1) )
 		ch2->ignore_dtmf=1;
 	
 	
 	while(1) {
 		to=-1;
-		who = opbx_waitfor_n(carr, 2, &to);
+		who = cw_waitfor_n(carr, 2, &to);
 
 		if (!who) {
-			opbx_log(OPBX_LOG_NOTICE,"misdn_bridge: empty read, breaking out\n");
+			cw_log(CW_LOG_NOTICE,"misdn_bridge: empty read, breaking out\n");
 			break;
 		}
-		f = opbx_read(who);
+		f = cw_read(who);
     
-		if (!f || f->frametype == OPBX_FRAME_CONTROL) {
+		if (!f || f->frametype == CW_FRAME_CONTROL) {
 			/* got hangup .. */
 
 			if (!f) 
@@ -2652,7 +2652,7 @@ static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 			break;
 		}
 		
-		if ( f->frametype == OPBX_FRAME_DTMF ) {
+		if ( f->frametype == CW_FRAME_DTMF ) {
 			chan_misdn_log(1,0,"Read DTMF %d from %s\n",f->subclass, who->exten);
 
 			*fo=f;
@@ -2662,12 +2662,12 @@ static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 		
 		
 		if (who == c0) {
-			opbx_write(c1,f);
+			cw_write(c1,f);
 		}
 		else {
-			opbx_write(c0,f);
+			cw_write(c0,f);
 		}
-		opbx_fr_free(f);
+		cw_fr_free(f);
 	}
 	
 	chan_misdn_log(1, ch1->bc->port, "I SEND: Splitting conference with Number:%d\n", ch1->bc->pid +1);
@@ -2675,15 +2675,15 @@ static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 	misdn_lib_split_bridge(ch1->bc,ch2->bc);
 	
 	
-	return OPBX_BRIDGE_COMPLETE;
+	return CW_BRIDGE_COMPLETE;
 }
 
-/** OPBX INDICATIONS END **/
+/** CW INDICATIONS END **/
 
 static int dialtone_indicate(struct chan_list *cl)
 {
 	const struct tone_zone_sound *ts= NULL;
-	struct opbx_channel *opbx=cl->opbx;
+	struct cw_channel *cw=cl->cw;
 
 
 	int nd=0;
@@ -2695,13 +2695,13 @@ static int dialtone_indicate(struct chan_list *cl)
 	}
 	
 	chan_misdn_log(3,cl->bc->port," --> Dial\n");
-	ts=opbx_get_indication_tone(opbx->zone,"dial");
+	ts=cw_get_indication_tone(cw->zone,"dial");
 	cl->ts=ts;	
 	
 	if (ts) {
 		cl->notxtone=0;
 		cl->norxtone=0;
-		opbx_playtones_start(opbx,0, ts->data, 0);
+		cw_playtones_start(cw,0, ts->data, 0);
 	}
 
 	return 0;
@@ -2715,10 +2715,10 @@ static int hanguptone_indicate(struct chan_list *cl)
 
 static int stop_indicate(struct chan_list *cl)
 {
-	struct opbx_channel *opbx=cl->opbx;
+	struct cw_channel *cw=cl->cw;
 	chan_misdn_log(3,cl->bc->port," --> None\n");
-	opbx_playtones_stop(opbx);
-	/*opbx_deactivate_generator(opbx);*/
+	cw_playtones_stop(cw);
+	/*cw_deactivate_generator(cw);*/
 	
 	return 0;
 }
@@ -2762,10 +2762,10 @@ static struct chan_list *init_chan_list(int orig)
 	
 }
 
-static struct opbx_channel *misdn_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *misdn_request(const char *type, int format, void *data, int *cause)
 
 {
-	struct opbx_channel *tmp = NULL;
+	struct cw_channel *tmp = NULL;
 	char group[BUFFERSIZE+1]="";
 	char buf[128];
 	char buf2[128], *ext=NULL, *port_str;
@@ -2773,10 +2773,10 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 	int channel=0, port=0;
 	struct misdn_bchannel *newbc = NULL;
 	
-	struct chan_list *cl=init_chan_list(ORG_OPBX);
+	struct chan_list *cl=init_chan_list(ORG_CW);
 	
 	sprintf(buf,"%s/%s",misdn_type,(char *) data);
-	opbx_copy_string(buf2,data, 128);
+	cw_copy_string(buf2,data, 128);
 	
 	port_str=strtok_r(buf2,"/", &tokb);
 
@@ -2803,11 +2803,11 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 		
 		
 	} else {
-		opbx_log(OPBX_LOG_WARNING, " --> ! IND : CALL dad:%s WITHOUT PORT/Group, check extension.conf\n",ext);
+		cw_log(CW_LOG_WARNING, " --> ! IND : CALL dad:%s WITHOUT PORT/Group, check extension.conf\n",ext);
 		return NULL;
 	}
 
-	if (!opbx_strlen_zero(group)) {
+	if (!cw_strlen_zero(group)) {
 	
 		char cfg_group[BUFFERSIZE+1];
 		struct robin_list *rr = NULL;
@@ -2853,7 +2853,7 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 							chan_misdn_log(1,port,"L1 is not Up on this Port\n");
 						
 						if (check && port_up<0) {
-							opbx_log(OPBX_LOG_WARNING,"This port (%d) is blocked\n", port);
+							cw_log(CW_LOG_WARNING,"This port (%d) is blocked\n", port);
 						}
 						
 						
@@ -2911,17 +2911,17 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 		return NULL;
 	}
 
-	/* create opbx_channel and link all the objects together */
+	/* create cw_channel and link all the objects together */
 	cl->bc=newbc;
 	
-	tmp = misdn_new(cl, OPBX_STATE_RESERVED, ext, NULL, format, port, channel);
-	cl->opbx=tmp;
+	tmp = misdn_new(cl, CW_STATE_RESERVED, ext, NULL, format, port, channel);
+	cl->cw=tmp;
 	
 	/* register chan in local list */
 	cl_queue_chan(&cl_te, cl) ;
 	
 	/* fill in the config into the objects */
-	read_config(cl, ORG_OPBX);
+	read_config(cl, ORG_CW);
 
 	/* important */
 	cl->need_hangup=0;
@@ -2930,25 +2930,25 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 }
 
 
-static int misdn_send_text (struct opbx_channel *chan, const char *text)
+static int misdn_send_text (struct cw_channel *chan, const char *text)
 {
 	struct chan_list *tmp=chan->tech_pvt;
 	
 	if (tmp && tmp->bc) {
-		opbx_copy_string(tmp->bc->display,text,sizeof(tmp->bc->display));
+		cw_copy_string(tmp->bc->display,text,sizeof(tmp->bc->display));
 		misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "No chan_list but send_text request?\n");
+		cw_log(CW_LOG_WARNING, "No chan_list but send_text request?\n");
 		return -1;
 	}
 	
 	return 0;
 }
 
-static struct opbx_channel_tech misdn_tech = {
+static struct cw_channel_tech misdn_tech = {
 	.type="mISDN",
 	.description="Channel driver for mISDN Support (Bri/Pri)",
-	.capabilities= OPBX_FORMAT_ALAW ,
+	.capabilities= CW_FORMAT_ALAW ,
 	.requester=misdn_request,
 	.send_digit=misdn_digit,
 	.call=misdn_call,
@@ -2963,10 +2963,10 @@ static struct opbx_channel_tech misdn_tech = {
 	.properties=0
 };
 
-static struct opbx_channel_tech misdn_tech_wo_bridge = {
+static struct cw_channel_tech misdn_tech_wo_bridge = {
 	.type="mISDN",
 	.description="Channel driver for mISDN Support (Bri/Pri)",
-	.capabilities=OPBX_FORMAT_ALAW ,
+	.capabilities=CW_FORMAT_ALAW ,
 	.requester=misdn_request,
 	.send_digit=misdn_digit,
 	.call=misdn_call,
@@ -2983,7 +2983,7 @@ static struct opbx_channel_tech misdn_tech_wo_bridge = {
 
 static int glob_channel=0;
 
-static void update_name(struct opbx_channel *tmp, int port, int c) 
+static void update_name(struct cw_channel *tmp, int port, int c) 
 {
 	int chan_offset=0;
 	int tmp_port = misdn_cfg_get_next_port(0);
@@ -3000,11 +3000,11 @@ static void update_name(struct opbx_channel *tmp, int port, int c)
 	
 }
 
-static struct opbx_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
+static struct cw_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
 {
-	struct opbx_channel *tmp;
+	struct cw_channel *tmp;
 	
-	tmp = opbx_channel_alloc(1);
+	tmp = cw_channel_alloc(1);
 	
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n",exten,callerid);
@@ -3034,20 +3034,20 @@ static struct opbx_channel *misdn_new(struct chan_list *chlist, int state,  char
 		tmp->priority=1;
 		
 		if (exten) 
-			opbx_copy_string(tmp->exten, exten,  sizeof(tmp->exten));
+			cw_copy_string(tmp->exten, exten,  sizeof(tmp->exten));
 		else
 			chan_misdn_log(1,0,"misdn_new: no exten given.\n");
 		
 		if (callerid) {
 			char *cid_name, *cid_num;
       
-			opbx_callerid_parse(callerid, &cid_name, &cid_num);
+			cw_callerid_parse(callerid, &cid_name, &cid_num);
 
-			if (!opbx_strlen_zero(cid_num)) {
+			if (!cw_strlen_zero(cid_num)) {
 				tmp->cid.cid_num = strdup(cid_num);
 				tmp->cid.cid_ani = strdup(cid_num);
 			}
-			if (!opbx_strlen_zero(cid_name))
+			if (!cw_strlen_zero(cid_name))
 				tmp->cid.cid_name = strdup(cid_name);
 		}
 
@@ -3059,8 +3059,8 @@ static struct opbx_channel *misdn_new(struct chan_list *chlist, int state,  char
 			
 		}
 		
-		opbx_setstate(tmp, state);
-		if (state == OPBX_STATE_RING)
+		cw_setstate(tmp, state);
+		if (state == CW_STATE_RING)
 			tmp->rings = 1;
 		else
 			tmp->rings = 0;
@@ -3074,29 +3074,29 @@ static struct opbx_channel *misdn_new(struct chan_list *chlist, int state,  char
 }
 
 
-struct opbx_frame *process_opbx_dsp(struct chan_list *tmp, struct opbx_frame *frame)
+struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame)
 {
-	struct opbx_frame *f,*f2;
+	struct cw_frame *f,*f2;
 
 	if (tmp->trans) {
-		f2 = opbx_translate(tmp->trans, frame, 0);
-		f = opbx_dsp_process(tmp->opbx, tmp->dsp, f2);
+		f2 = cw_translate(tmp->trans, frame, 0);
+		f = cw_dsp_process(tmp->cw, tmp->dsp, f2);
 	} else {
 		chan_misdn_log(0, tmp->bc->port, "No T-Path found\n");
 		return NULL;
 	}
 
-	if (!f || (f->frametype != OPBX_FRAME_DTMF))
+	if (!f || (f->frametype != CW_FRAME_DTMF))
 		return frame;
 
-	opbx_log(OPBX_LOG_DEBUG, "Detected inband DTMF digit: %c", f->subclass);
+	cw_log(CW_LOG_DEBUG, "Detected inband DTMF digit: %c", f->subclass);
 
 	if (tmp->faxdetect && (f->subclass == 'f')) {
 		/* Fax tone -- Handle and return NULL */
 		if (!tmp->faxhandled) {
-			struct opbx_channel *opbx = tmp->opbx;
+			struct cw_channel *cw = tmp->cw;
 			tmp->faxhandled++;
-			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", opbx->name);
+			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", cw->name);
 			tmp->bc->rxgain = 0;
 			isdn_lib_update_rxgain(tmp->bc);
 			tmp->bc->txgain = 0;
@@ -3106,33 +3106,33 @@ struct opbx_frame *process_opbx_dsp(struct chan_list *tmp, struct opbx_frame *fr
 			isdn_lib_stop_dtmf(tmp->bc);
 			switch (tmp->faxdetect) {
 			case 1:
-				if (strcmp(opbx->exten, "fax")) {
+				if (strcmp(cw->exten, "fax")) {
 					char *context;
 					char context_tmp[BUFFERSIZE];
 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
-					context = opbx_strlen_zero(context_tmp) ? (opbx_strlen_zero(opbx->proc_context) ? opbx->context : opbx->proc_context) : context_tmp;
-					if (opbx_exists_extension(opbx, context, "fax", 1, OPBX_CID_P(opbx))) {
+					context = cw_strlen_zero(context_tmp) ? (cw_strlen_zero(cw->proc_context) ? cw->context : cw->proc_context) : context_tmp;
+					if (cw_exists_extension(cw, context, "fax", 1, CW_CID_P(cw))) {
 						if (option_verbose > 2)
-							opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", opbx->name, context);
+							cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", cw->name, context);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(opbx,"FAXEXTEN",opbx->exten);
-						if (opbx_async_goto(opbx, context, "fax", 1))
-							opbx_log(OPBX_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, context);
+						pbx_builtin_setvar_helper(cw,"FAXEXTEN",cw->exten);
+						if (cw_async_goto(cw, context, "fax", 1))
+							cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, context);
 					} else
-						opbx_log(OPBX_LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, opbx->exten);
+						cw_log(CW_LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, cw->exten);
 				} else 
-					opbx_log(OPBX_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+					cw_log(CW_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 				break;
 			case 2:
-				opbx_verbose(VERBOSE_PREFIX_3 "Not redirecting %s to fax extension, nojump is set.\n", opbx->name);
+				cw_verbose(VERBOSE_PREFIX_3 "Not redirecting %s to fax extension, nojump is set.\n", cw->name);
 				break;
 			}
 		} else
-			opbx_log(OPBX_LOG_DEBUG, "Fax already handled\n");
+			cw_log(CW_LOG_DEBUG, "Fax already handled\n");
 	}
 	
-	if (tmp->opbx_dsp && (f->subclass != 'f')) {
-		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (OPBX_DSP) :%c\n", f->subclass);
+	if (tmp->cw_dsp && (f->subclass != 'f')) {
+		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (CW_DSP) :%c\n", f->subclass);
 	}
 
 	return frame;
@@ -3183,7 +3183,7 @@ static void cl_queue_chan(struct chan_list **list, struct chan_list *chan)
 {
 	chan_misdn_log(4, chan->bc? chan->bc->port : 0, "* Queuing chan %p\n",chan);
   
-	opbx_mutex_lock(&cl_te_lock);
+	cw_mutex_lock(&cl_te_lock);
 	if (!*list) {
 		*list = chan;
 	} else {
@@ -3192,27 +3192,27 @@ static void cl_queue_chan(struct chan_list **list, struct chan_list *chan)
 		help->next=chan;
 	}
 	chan->next=NULL;
-	opbx_mutex_unlock(&cl_te_lock);
+	cw_mutex_unlock(&cl_te_lock);
 }
 
 static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan) 
 {
 	if (chan->dsp) 
-		opbx_dsp_free(chan->dsp);
+		cw_dsp_free(chan->dsp);
 	if (chan->trans)
-		opbx_translator_free_path(chan->trans);
+		cw_translator_free_path(chan->trans);
 
 	
 
-	opbx_mutex_lock(&cl_te_lock);
+	cw_mutex_lock(&cl_te_lock);
 	if (!*list) {
-		opbx_mutex_unlock(&cl_te_lock);
+		cw_mutex_unlock(&cl_te_lock);
 		return;
 	}
   
 	if (*list == chan) {
 		*list=(*list)->next;
-		opbx_mutex_unlock(&cl_te_lock);
+		cw_mutex_unlock(&cl_te_lock);
 		return ;
 	}
   
@@ -3221,13 +3221,13 @@ static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan)
 		for (;help->next; help=help->next) {
 			if (help->next == chan) {
 				help->next=help->next->next;
-				opbx_mutex_unlock(&cl_te_lock);
+				cw_mutex_unlock(&cl_te_lock);
 				return;
 			}
 		}
 	}
 	
-	opbx_mutex_unlock(&cl_te_lock);
+	cw_mutex_unlock(&cl_te_lock);
 }
 
 /** Channel Queue End **/
@@ -3235,7 +3235,7 @@ static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan)
 
 static int pbx_start_chan(struct chan_list *ch)
 {
-	int ret=opbx_pbx_start(ch->opbx);	
+	int ret=cw_pbx_start(ch->cw);	
 
 	if (ret>=0) 
 		ch->need_hangup=0;
@@ -3257,11 +3257,11 @@ static void hangup_chan(struct chan_list *ch)
 	if (ch->need_hangup) 
 	{
 		cb_log(1,ch->bc->port,"-> hangup\n");
-		send_cause2opbx(ch->opbx,ch->bc,ch);
+		send_cause2cw(ch->cw,ch->bc,ch);
 		ch->need_hangup=0;
 		ch->need_queue_hangup=0;
-		if (ch->opbx)
-			opbx_hangup(ch->opbx);
+		if (ch->cw)
+			cw_hangup(ch->cw);
 		return;
 	}
 
@@ -3270,20 +3270,20 @@ static void hangup_chan(struct chan_list *ch)
 	}
 
 	ch->need_queue_hangup=0;
-	if (ch->opbx) {
-		send_cause2opbx(ch->opbx,ch->bc,ch);
+	if (ch->cw) {
+		send_cause2cw(ch->cw,ch->bc,ch);
 
-		if (ch->opbx)
-			opbx_queue_hangup(ch->opbx);
+		if (ch->cw)
+			cw_queue_hangup(ch->cw);
 		cb_log(1,ch->bc->port,"-> queue_hangup\n");
 	} else {
-		cb_log(1,ch->bc->port,"Cannot hangup chan, no opbx\n");
+		cb_log(1,ch->bc->port,"Cannot hangup chan, no cw\n");
 	}
 }
 
 /** Isdn asks us to release channel, pendant to misdn_hangup **/
 static void release_chan(struct misdn_bchannel *bc) {
-	struct opbx_channel *opbx=NULL;
+	struct cw_channel *cw=NULL;
 	{
 		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
 		if (!ch)  {
@@ -3291,8 +3291,8 @@ static void release_chan(struct misdn_bchannel *bc) {
 			return;
 		}
 		
-		if (ch->opbx) {
-			opbx=ch->opbx;
+		if (ch->cw) {
+			cw=ch->cw;
 		} 
 		
 		chan_misdn_log(1, bc->port, "release_chan: bc with l3id: %x\n",bc->l3_id);
@@ -3313,10 +3313,10 @@ static void release_chan(struct misdn_bchannel *bc) {
 				misdn_tasks_remove(ch->overlap_dial_task);
 				ch->overlap_dial_task = -1;
 			}
-			opbx_mutex_destroy(&ch->overlap_tv_lock);
+			cw_mutex_destroy(&ch->overlap_tv_lock);
 		}
 
-		if (ch->orginator == ORG_OPBX) {
+		if (ch->orginator == ORG_CW) {
 			misdn_out_calls[bc->port]--;
 		} else {
 			misdn_in_calls[bc->port]--;
@@ -3328,15 +3328,15 @@ static void release_chan(struct misdn_bchannel *bc) {
 			close(ch->pipe[1]);
 
 			
-			if (opbx && MISDN_CALLWEAVER_TECH_PVT(opbx)) {
-				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, opbx->context, opbx->exten,OPBX_CID_P(opbx),misdn_get_ch_state(ch));
+			if (cw && MISDN_CALLWEAVER_TECH_PVT(cw)) {
+				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, cw->context, cw->exten,CW_CID_P(cw),misdn_get_ch_state(ch));
 				chan_misdn_log(3, bc->port, " --> * State Down\n");
-				MISDN_CALLWEAVER_TECH_PVT(opbx)=NULL;
+				MISDN_CALLWEAVER_TECH_PVT(cw)=NULL;
 				
       
-				if (opbx->_state != OPBX_STATE_RESERVED) {
-					chan_misdn_log(3, bc->port, " --> Setting OPBX State to down\n");
-					opbx_setstate(opbx, OPBX_STATE_DOWN);
+				if (cw->_state != CW_STATE_RESERVED) {
+					chan_misdn_log(3, bc->port, " --> Setting CW State to down\n");
+					cw_setstate(cw, CW_STATE_DOWN);
 				}
 			}
 				
@@ -3353,26 +3353,26 @@ static void release_chan(struct misdn_bchannel *bc) {
 
 static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded_chan)
 {
-	chan_misdn_log(4,0,"TRANSFERING %s to %s\n",holded_chan->opbx->name, tmp_ch->opbx->name);
+	chan_misdn_log(4,0,"TRANSFERING %s to %s\n",holded_chan->cw->name, tmp_ch->cw->name);
 	
 	tmp_ch->state=MISDN_HOLD_DISCONNECT;
   
-	opbx_moh_stop(OPBX_BRIDGED_P(holded_chan->opbx));
+	cw_moh_stop(CW_BRIDGED_P(holded_chan->cw));
 
 	holded_chan->state=MISDN_CONNECTED;
 	misdn_lib_transfer(holded_chan->bc?holded_chan->bc:holded_chan->holded_bc);
-	opbx_channel_masquerade(holded_chan->opbx, OPBX_BRIDGED_P(tmp_ch->opbx));
+	cw_channel_masquerade(holded_chan->cw, CW_BRIDGED_P(tmp_ch->cw));
 }
 
 
-static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , struct opbx_channel *opbx)
+static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , struct cw_channel *cw)
 {
 	char predial[256]="";
 	char *p = predial;
   
-	struct opbx_frame fr;
+	struct cw_frame fr;
   
-	strncpy(predial, opbx->exten, sizeof(predial) -1 );
+	strncpy(predial, cw->exten, sizeof(predial) -1 );
   
 	ch->state=MISDN_DIALING;
 
@@ -3393,12 +3393,12 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 	 else  
 		dialtone_indicate(ch);
   
-	chan_misdn_log(1, bc->port, "* Starting Opbx ctx:%s dad:%s oad:%s with 's' extension\n", opbx->context, opbx->exten, OPBX_CID_P(opbx));
+	chan_misdn_log(1, bc->port, "* Starting Opbx ctx:%s dad:%s oad:%s with 's' extension\n", cw->context, cw->exten, CW_CID_P(cw));
   
-	strncpy(opbx->exten,"s", 2);
+	strncpy(cw->exten,"s", 2);
   
 	if (pbx_start_chan(ch)<0) {
-		opbx=NULL;
+		cw=NULL;
 		hangup_chan(ch);
 		hanguptone_indicate(ch);
 
@@ -3409,11 +3409,11 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 	}
   
   
-	while (!opbx_strlen_zero(p) ) {
-        opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, *p, "");
+	while (!cw_strlen_zero(p) ) {
+        cw_fr_init_ex(&fr, CW_FRAME_DTMF, *p, "");
 
-		if (ch->opbx && MISDN_CALLWEAVER_PVT(ch->opbx) && MISDN_CALLWEAVER_TECH_PVT(ch->opbx)) {
-			opbx_queue_frame(ch->opbx, &fr);
+		if (ch->cw && MISDN_CALLWEAVER_PVT(ch->cw) && MISDN_CALLWEAVER_TECH_PVT(ch->cw)) {
+			cw_queue_frame(ch->cw, &fr);
 		}
 		p++;
 	}
@@ -3421,21 +3421,21 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 
 
 
-static void send_cause2opbx(struct opbx_channel *opbx, struct misdn_bchannel*bc, struct chan_list *ch) {
-	if (!opbx) {
-		chan_misdn_log(1,0,"send_cause2opbx: No Opbx\n");
+static void send_cause2cw(struct cw_channel *cw, struct misdn_bchannel*bc, struct chan_list *ch) {
+	if (!cw) {
+		chan_misdn_log(1,0,"send_cause2cw: No Opbx\n");
 		return;
 	}
 	if (!bc) {
-		chan_misdn_log(1,0,"send_cause2opbx: No BC\n");
+		chan_misdn_log(1,0,"send_cause2cw: No BC\n");
 		return;
 	}
 	if (!ch) {
-		chan_misdn_log(1,0,"send_cause2opbx: No Ch\n");
+		chan_misdn_log(1,0,"send_cause2cw: No Ch\n");
 		return;
 	}
 	
-	opbx->hangupcause=bc->cause;
+	cw->hangupcause=bc->cause;
 	
 	switch ( bc->cause) {
 		
@@ -3452,7 +3452,7 @@ static void send_cause2opbx(struct opbx_channel *opbx, struct misdn_bchannel*bc,
 		chan_misdn_log(1, bc?bc->port:0, " --> * SEND: Queue Congestion pid:%d\n", bc?bc->pid:-1);
 		ch->state=MISDN_BUSY;
 		
-		opbx_queue_control(opbx, OPBX_CONTROL_CONGESTION);
+		cw_queue_control(cw, CW_CONTROL_CONGESTION);
 		*/
 		break;
 		
@@ -3468,7 +3468,7 @@ static void send_cause2opbx(struct opbx_channel *opbx, struct misdn_bchannel*bc,
 		
 		chan_misdn_log(1,  bc?bc->port:0, " --> * SEND: Queue Busy pid:%d\n", bc?bc->pid:-1);
 		
-		opbx_queue_control(opbx, OPBX_CONTROL_BUSY);
+		cw_queue_control(cw, CW_CONTROL_BUSY);
 		
 		ch->need_busy=0;
 		
@@ -3476,7 +3476,7 @@ static void send_cause2opbx(struct opbx_channel *opbx, struct misdn_bchannel*bc,
 	}
 }
 
-void import_ch(struct opbx_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
+void import_ch(struct cw_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
 	char *tmp;
 	tmp=pbx_builtin_getvar_helper(chan,"MISDN_PID");
@@ -3491,7 +3491,7 @@ void import_ch(struct opbx_channel *chan, struct misdn_bchannel *bc, struct chan
 	}
 }
  
-void export_ch(struct opbx_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
+void export_ch(struct cw_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
 	char tmp[32];
 
@@ -3510,7 +3510,7 @@ int add_in_calls(int port)
 	misdn_in_calls[port]++;
 
 	if (max_in_calls >=0 && max_in_calls<misdn_in_calls[port]) {
-		opbx_log(OPBX_LOG_NOTICE,"Marking Incoming Call on port[%d]\n",port);
+		cw_log(CW_LOG_NOTICE,"Marking Incoming Call on port[%d]\n",port);
 		return misdn_in_calls[port]-max_in_calls;
 	}
 	
@@ -3525,7 +3525,7 @@ int add_out_calls(int port)
 	
 
 	if (max_out_calls >=0 && max_out_calls<=misdn_out_calls[port]) {
-		opbx_log(OPBX_LOG_NOTICE,"Rejecting Outgoing Call on port[%d]\n",port);
+		cw_log(CW_LOG_NOTICE,"Rejecting Outgoing Call on port[%d]\n",port);
 		return (misdn_out_calls[port]+1)-max_out_calls;
 	}
 
@@ -3627,13 +3627,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case EVENT_RELEASE_COMPLETE:
 		case EVENT_CLEANUP:
 		case EVENT_TIMEOUT:
-			if (!ch->opbx)
-				chan_misdn_log(3,bc->port,"opbx_hangup already called, so we have no opbx ptr anymore in event(%s)\n",manager_isdn_get_info(event));
+			if (!ch->cw)
+				chan_misdn_log(3,bc->port,"cw_hangup already called, so we have no cw ptr anymore in event(%s)\n",manager_isdn_get_info(event));
 			break;
 		default:
-			if ( !ch->opbx  || !MISDN_CALLWEAVER_PVT(ch->opbx) || !MISDN_CALLWEAVER_TECH_PVT(ch->opbx)) {
+			if ( !ch->cw  || !MISDN_CALLWEAVER_PVT(ch->cw) || !MISDN_CALLWEAVER_TECH_PVT(ch->cw)) {
 				if (event!=EVENT_BCHAN_DATA)
-					opbx_log(OPBX_LOG_NOTICE, "No Opbx or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
+					cw_log(CW_LOG_NOTICE, "No Opbx or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				return -1;
 			}
 		}
@@ -3657,7 +3657,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 		
 	case EVENT_NEW_CHANNEL:
-		update_name(ch->opbx,bc->port,bc->channel);
+		update_name(ch->cw,bc->port,bc->channel);
 		break;
 		
 	case EVENT_NEW_L3ID:
@@ -3671,7 +3671,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		if (!ch) {
-			opbx_log(OPBX_LOG_WARNING,"NEW_BC without chan_list?\n");
+			cw_log(CW_LOG_WARNING,"NEW_BC without chan_list?\n");
 			break;
 		}
 
@@ -3682,12 +3682,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_DTMF_TONE:
 	{
 		/*  sending INFOS as DTMF-Frames :) */
-		struct opbx_frame fr;
+		struct cw_frame fr;
 
-        opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, bc->dtmf, "");
+        cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->dtmf, "");
 		if (!ch->ignore_dtmf) {
 			chan_misdn_log(2, bc->port, " --> DTMF:%c\n", bc->dtmf);
-			opbx_queue_frame(ch->opbx, &fr);
+			cw_queue_frame(ch->cw, &fr);
 		} else {
 			chan_misdn_log(2, bc->port, " --> Ingoring DTMF:%c due to bridge flags\n", bc->dtmf);
 		}
@@ -3714,29 +3714,29 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			
 			{
-				int l = sizeof(ch->opbx->exten);
-				strncpy(ch->opbx->exten, bc->dad, l);
-				ch->opbx->exten[l-1] = 0;
+				int l = sizeof(ch->cw->exten);
+				strncpy(ch->cw->exten, bc->dad, l);
+				ch->cw->exten[l-1] = 0;
 			}
 /*			chan_misdn_log(5, bc->port, "Can Match Extension: dad:%s oad:%s\n",bc->dad,bc->oad);*/
 			
 			/* Check for Pickup Request first */
-			if (!strcmp(ch->opbx->exten, opbx_pickup_ext())) {
+			if (!strcmp(ch->cw->exten, cw_pickup_ext())) {
 				int ret;/** Sending SETUP_ACK**/
 				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-				if (opbx_pickup_call(ch->opbx)) {
+				if (cw_pickup_call(ch->cw)) {
 					hangup_chan(ch);
 				} else {
-					struct opbx_channel *chan=ch->opbx;
+					struct cw_channel *chan=ch->cw;
 					ch->state = MISDN_CALLING_ACKNOWLEDGE;
-					opbx_setstate(chan, OPBX_STATE_DOWN);
+					cw_setstate(chan, CW_STATE_DOWN);
 					hangup_chan(ch);
-					ch->opbx=NULL;
+					ch->cw=NULL;
 					break;
 				}
 			}
 			
-			if(!opbx_canmatch_extension(ch->opbx, ch->context, bc->dad, 1, bc->oad)) {
+			if(!cw_canmatch_extension(ch->cw, ch->context, bc->dad, 1, bc->oad)) {
 
 				chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
 				if (bc->nt)
@@ -3750,9 +3750,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 
 			if (ch->overlap_dial) {
-				opbx_mutex_lock(&ch->overlap_tv_lock);
-				ch->overlap_tv = opbx_tvnow();
-				opbx_mutex_unlock(&ch->overlap_tv_lock);
+				cw_mutex_lock(&ch->overlap_tv_lock);
+				ch->overlap_tv = cw_tvnow();
+				cw_mutex_unlock(&ch->overlap_tv_lock);
 				if (ch->overlap_dial_task == -1) {
 					ch->overlap_dial_task = 
 						misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
@@ -3760,7 +3760,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 
-			if (opbx_exists_extension(ch->opbx, ch->context, bc->dad, 1, bc->oad)) {
+			if (cw_exists_extension(ch->cw, ch->context, bc->dad, 1, bc->oad)) {
 				ch->state=MISDN_DIALING;
 	  
 				stop_indicate(ch);
@@ -3768,7 +3768,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if (pbx_start_chan(ch)<0) {
 					hangup_chan(ch);
 
-					chan_misdn_log(-1, bc->port, "opbx_pbx_start returned < 0 in INFO\n");
+					chan_misdn_log(-1, bc->port, "cw_pbx_start returned < 0 in INFO\n");
 				 	if (bc->nt) hanguptone_indicate(ch);
 
 					misdn_lib_send_event(bc, EVENT_DISCONNECT );
@@ -3777,10 +3777,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 		} else {
 			/*  sending INFOS as DTMF-Frames :) */
-			struct opbx_frame fr;
+			struct cw_frame fr;
 			int digits;
 
-            opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, bc->info_dad[0], "");
+            cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->info_dad[0], "");
 			
 			misdn_cfg_get( 0, MISDN_GEN_APPEND_DIGITS2EXTEN, &digits, sizeof(int));
 			if (ch->state != MISDN_CONNECTED ) {
@@ -3788,14 +3788,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					int l = sizeof(bc->dad);
 					strncat(bc->dad,bc->info_dad, l);
 					bc->dad[l-1] = 0;
-					l = sizeof(ch->opbx->exten);
-					strncpy(ch->opbx->exten, bc->dad, l);
-					ch->opbx->exten[l-1] = 0;
+					l = sizeof(ch->cw->exten);
+					strncpy(ch->cw->exten, bc->dad, l);
+					ch->cw->exten[l-1] = 0;
 
-					opbx_cdr_update(ch->opbx);
+					cw_cdr_update(ch->cw);
 				}
 				
-				opbx_queue_frame(ch->opbx, &fr);
+				cw_queue_frame(ch->cw, &fr);
 			}
 		}
 	}
@@ -3821,7 +3821,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
     
 	{
 		struct chan_list *ch=init_chan_list(ORG_MISDN);
-		struct opbx_channel *chan;
+		struct cw_channel *chan;
 		int exceed;
 
 		if (!ch) { chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n"); return 0;}
@@ -3831,8 +3831,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->addr=bc->addr;
 		ch->orginator = ORG_MISDN;
 
-		chan=misdn_new(ch, OPBX_STATE_RESERVED,bc->dad, bc->oad, OPBX_FORMAT_ALAW, bc->port, bc->channel);
-		ch->opbx = chan;
+		chan=misdn_new(ch, CW_STATE_RESERVED,bc->dad, bc->oad, CW_FORMAT_ALAW, bc->port, bc->channel);
+		ch->cw = chan;
 
 		if ((exceed=add_in_calls(bc->port))) {
 			char tmp[16];
@@ -3844,42 +3844,42 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		export_ch(chan, bc, ch);
 
-		ch->opbx->rings=1;
-		opbx_setstate(ch->opbx, OPBX_STATE_RINGING);
+		ch->cw->rings=1;
+		cw_setstate(ch->cw, CW_STATE_RINGING);
 
 		int pres,screen;
 
 		switch (bc->pres) {
 			case 1:
-			pres=OPBX_PRES_RESTRICTED; chan_misdn_log(2,bc->port," --> PRES: Restricted (1)\n");
+			pres=CW_PRES_RESTRICTED; chan_misdn_log(2,bc->port," --> PRES: Restricted (1)\n");
 			break;
 			case 2:
-			pres=OPBX_PRES_UNAVAILABLE; chan_misdn_log(2,bc->port," --> PRES: Restricted (2)\n");
+			pres=CW_PRES_UNAVAILABLE; chan_misdn_log(2,bc->port," --> PRES: Restricted (2)\n");
 			break;
 			default:
-			pres=OPBX_PRES_ALLOWED; chan_misdn_log(2,bc->port," --> PRES: Restricted (%d)\n", bc->pres);
+			pres=CW_PRES_ALLOWED; chan_misdn_log(2,bc->port," --> PRES: Restricted (%d)\n", bc->pres);
 		}
 
 		switch (bc->screen) {
 			case 0:
-			screen=OPBX_PRES_USER_NUMBER_UNSCREENED;  chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (0)\n");
+			screen=CW_PRES_USER_NUMBER_UNSCREENED;  chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (0)\n");
 			break;
 			case 1:
-			screen=OPBX_PRES_USER_NUMBER_PASSED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: Passed screen (1)\n");
+			screen=CW_PRES_USER_NUMBER_PASSED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: Passed screen (1)\n");
 			break;
 			case 2:
-			screen=OPBX_PRES_USER_NUMBER_FAILED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: failed screen (2)\n");
+			screen=CW_PRES_USER_NUMBER_FAILED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: failed screen (2)\n");
 			break;
 			case 3:
-			screen=OPBX_PRES_NETWORK_NUMBER; chan_misdn_log(2,bc->port," --> SCREEN: Network Number (3)\n");
+			screen=CW_PRES_NETWORK_NUMBER; chan_misdn_log(2,bc->port," --> SCREEN: Network Number (3)\n");
 			break;
 			default:
-			screen=OPBX_PRES_USER_NUMBER_UNSCREENED; chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (%d)\n",bc->screen);
+			screen=CW_PRES_USER_NUMBER_UNSCREENED; chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (%d)\n",bc->screen);
 		}
 
 		chan->cid.cid_pres=pres+screen;
 
-		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", opbx_transfercapability2str(bc->capability));
+		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", cw_transfercapability2str(bc->capability));
 		chan->transfercapability=bc->capability;
 		
 		switch (bc->capability) {
@@ -3912,16 +3912,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		/* Check for Pickup Request first */
-		if (!strcmp(chan->exten, opbx_pickup_ext())) {
+		if (!strcmp(chan->exten, cw_pickup_ext())) {
 			int ret;/** Sending SETUP_ACK**/
 			ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-			if (opbx_pickup_call(chan)) {
+			if (cw_pickup_call(chan)) {
 				hangup_chan(ch);
 			} else {
 				ch->state = MISDN_CALLING_ACKNOWLEDGE;
-				opbx_setstate(chan, OPBX_STATE_DOWN);
+				cw_setstate(chan, CW_STATE_DOWN);
 				hangup_chan(ch);
-				ch->opbx=NULL;
+				ch->cw=NULL;
 				break;
 			}
 		}
@@ -3946,7 +3946,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		{
 			int im;
 			misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &im, sizeof(im));
-			if ( im && opbx_strlen_zero(bc->dad) ) {
+			if ( im && cw_strlen_zero(bc->dad) ) {
 				do_immediate_setup(bc, ch , chan);
 				break;
 			}
@@ -3954,7 +3954,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		
 			chan_misdn_log(5,bc->port,"CONTEXT:%s\n",ch->context);
-			if(!opbx_canmatch_extension(ch->opbx, ch->context, bc->dad, 1, bc->oad)) {
+			if(!cw_canmatch_extension(ch->cw, ch->context, bc->dad, 1, bc->oad)) {
 			
 			chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
 
@@ -3971,7 +3971,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 		
-		if (!ch->overlap_dial && opbx_exists_extension(ch->opbx, ch->context, bc->dad, 1, bc->oad)) {
+		if (!ch->overlap_dial && cw_exists_extension(ch->cw, ch->context, bc->dad, 1, bc->oad)) {
 			ch->state=MISDN_DIALING;
 			
 			if (bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)) ) {
@@ -3985,7 +3985,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (pbx_start_chan(ch)<0) {
 				hangup_chan(ch);
 
-				chan_misdn_log(-1, bc->port, "opbx_pbx_start returned <0 in SETUP\n");
+				chan_misdn_log(-1, bc->port, "cw_pbx_start returned <0 in SETUP\n");
 				chan=NULL;
 
 				if (bc->nt) {
@@ -4012,7 +4012,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 				int ret= misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 				if (ret == -ENOCHAN) {
-					opbx_log(OPBX_LOG_WARNING,"Channel was catched, before we could Acknowledge\n");
+					cw_log(CW_LOG_WARNING,"Channel was catched, before we could Acknowledge\n");
 					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 				}
 				/*  send tone to phone :) */
@@ -4021,7 +4021,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				
 				int stop_tone, dad_len;
 				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
-				dad_len = opbx_strlen_zero(bc->dad);
+				dad_len = cw_strlen_zero(bc->dad);
 				if ( !dad_len && stop_tone ) 
 					stop_indicate(ch);
 				else {
@@ -4031,9 +4031,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ch->state=MISDN_WAITING4DIGS;
 
 				if (ch->overlap_dial && !dad_len) {
-					opbx_mutex_lock(&ch->overlap_tv_lock);
-					ch->overlap_tv = opbx_tvnow();
-					opbx_mutex_unlock(&ch->overlap_tv_lock);
+					cw_mutex_lock(&ch->overlap_tv_lock);
+					ch->overlap_tv = cw_tvnow();
+					cw_mutex_unlock(&ch->overlap_tv_lock);
 					if (ch->overlap_dial_task == -1) {
 						ch->overlap_dial_task = 
 							misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
@@ -4049,9 +4049,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->state = MISDN_CALLING_ACKNOWLEDGE;
 
 		if (bc->channel) 
-			update_name(ch->opbx,bc->port,bc->channel);
+			update_name(ch->cw,bc->port,bc->channel);
 		
-		if (!opbx_strlen_zero(bc->infos_pending)) {
+		if (!cw_strlen_zero(bc->infos_pending)) {
 			/* TX Pending Infos */
 			
 			{
@@ -4060,9 +4060,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				bc->dad[l-1] = 0;
 			}	
 			{
-				int l = sizeof(ch->opbx->exten);
-				strncpy(ch->opbx->exten, bc->dad, l);
-				ch->opbx->exten[l-1] = 0;
+				int l = sizeof(ch->cw->exten);
+				strncpy(ch->cw->exten, bc->dad, l);
+				ch->cw->exten[l-1] = 0;
 			}
 			{
 				int l = sizeof(bc->info_dad);
@@ -4085,7 +4085,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		ch->state = MISDN_PROCEEDING;
 		
-		opbx_queue_control(ch->opbx, OPBX_CONTROL_PROCEEDING);
+		cw_queue_control(ch->cw, CW_CONTROL_PROCEEDING);
 	}
 	break;
 	case EVENT_PROGRESS:
@@ -4096,7 +4096,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				start_bc_tones(ch);
 			}
 			
-			opbx_queue_control(ch->opbx, OPBX_CONTROL_PROGRESS);
+			cw_queue_control(ch->cw, CW_CONTROL_PROGRESS);
 			
 			ch->state=MISDN_PROGRESS;
 		}
@@ -4107,8 +4107,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		ch->state = MISDN_ALERTING;
 		
-		opbx_queue_control(ch->opbx, OPBX_CONTROL_RINGING);
-		opbx_setstate(ch->opbx, OPBX_STATE_RINGING);
+		cw_queue_control(ch->cw, CW_CONTROL_RINGING);
+		cw_setstate(ch->cw, CW_STATE_RINGING);
 		
 		cb_log(1,bc->port,"Set State Ringing\n");
 		
@@ -4129,7 +4129,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		/*we answer when we've got our very new L3 ID from the NT stack */
 		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
 	
-		struct opbx_channel *bridged=OPBX_BRIDGED_P(ch->opbx);
+		struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
 		
 		misdn_lib_echo(bc,0);
 		stop_indicate(ch);
@@ -4140,7 +4140,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			chan_misdn_log(1,bc->port," --> copying cpndialplan:%d and cad:%s to the A-Channel\n",bc->cpnnumplan,bc->cad);
 			if (bridged_ch) {
 				bridged_ch->bc->cpnnumplan=bc->cpnnumplan;
-				opbx_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
+				cw_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
 			}
 		}
 	}
@@ -4157,16 +4157,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		
 		ch->state = MISDN_CONNECTED;
-		opbx_queue_control(ch->opbx, OPBX_CONTROL_ANSWER);
+		cw_queue_control(ch->cw, CW_CONTROL_ANSWER);
 	}
 	break;
 	case EVENT_DISCONNECT:
-	/*we might not have an ch->opbx ptr here anymore*/
+	/*we might not have an ch->cw ptr here anymore*/
 	if (ch) {
 		struct chan_list *holded_ch=find_holded(cl_te, bc);
 	
 		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
-		if ( ch->orginator==ORG_OPBX && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
+		if ( ch->orginator==ORG_CW && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
 			   recorded message saying what was wrong with the
 			   dialled number, or perhaps even giving an
@@ -4180,7 +4180,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		/*Check for holded channel, to implement transfer*/
-		if (holded_ch && ch->opbx ) {
+		if (holded_ch && ch->cw ) {
 			cb_log(1,bc->port," --> found holded ch\n");
 			if  (ch->state == MISDN_CONNECTED ) {
 				misdn_transfer_bc(ch, holded_ch) ;
@@ -4237,10 +4237,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_BCHAN_DATA:
 	{
 		if ( !misdn_cap_is_speech(ch->bc->capability) ) {
-			struct opbx_frame frame;
+			struct cw_frame frame;
 			/*In Data Modes we queue frames*/
-			frame.frametype  = OPBX_FRAME_VOICE; /*we have no data frames yet*/
-			frame.subclass = OPBX_FORMAT_ALAW;
+			frame.frametype  = CW_FRAME_VOICE; /*we have no data frames yet*/
+			frame.subclass = CW_FORMAT_ALAW;
 			frame.datalen = bc->bframe_len;
 			frame.samples = bc->bframe_len ;
 			frame.mallocd =0 ;
@@ -4248,17 +4248,17 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			frame.src = NULL;
 			frame.data = bc->bframe ;
 			
-			opbx_queue_frame(ch->opbx,&frame);
+			cw_queue_frame(ch->cw,&frame);
 		} else {
  			int l=misdn_jb_fill(ch->jb_rx, bc->bframe, bc->bframe_len);
  			if (l<0) {
  				cb_log(0,bc->port,"jb_fill overflow:%d\n",l);
 			}
 
-			int len = misdn_jb_empty(ch->jb_rx, ch->opbx_rd_buf,
+			int len = misdn_jb_empty(ch->jb_rx, ch->cw_rd_buf,
 						 bc->bframe_len);
 			if (len > 0) { 
-				trigger_read(ch, ch->opbx_rd_buf, len);
+				trigger_read(ch, ch->cw_rd_buf, len);
 			} else {
 				cb_log(0,ch->bc->port,"jb_read underrun: %d\n",len);
 			}
@@ -4319,15 +4319,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		ch=find_holded(cl_te, bc);
 		if (!ch) {
-			opbx_log(OPBX_LOG_WARNING, "Found no Holded channel, cannot Retrieve\n");
+			cw_log(CW_LOG_WARNING, "Found no Holded channel, cannot Retrieve\n");
 			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
 			break;
 		}
-		struct opbx_channel *hold_opbx=OPBX_BRIDGED_P(ch->opbx);
+		struct cw_channel *hold_cw=CW_BRIDGED_P(ch->cw);
 		ch->state = MISDN_CONNECTED;
 		
-		if (hold_opbx) {
-			opbx_moh_stop(hold_opbx);
+		if (hold_cw) {
+			cw_moh_stop(hold_cw);
 		}
 		
 		if ( misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0)
@@ -4360,7 +4360,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 #endif
-		struct opbx_channel *bridged=OPBX_BRIDGED_P(ch->opbx);
+		struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
 		
 		if (bridged){
 			struct chan_list *bridged_ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
@@ -4370,7 +4370,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			bc->holded_bc=bridged_ch->bc;
 			misdn_lib_send_event(bc, EVENT_HOLD_ACKNOWLEDGE);
 
-			opbx_moh_start(bridged, NULL);
+			cw_moh_start(bridged, NULL);
 		} else {
 			misdn_lib_send_event(bc, EVENT_HOLD_REJECT);
 			chan_misdn_log(0, bc->port, "We aren't bridged to anybody\n");
@@ -4384,7 +4384,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		switch (bc->fac_type) {
 		case FACILITY_CALLDEFLECT:
 		{
-			struct opbx_channel *bridged=OPBX_BRIDGED_P(ch->opbx);
+			struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
 			struct chan_list *ch;
 			
 			misdn_lib_send_event(bc, EVENT_DISCONNECT);
@@ -4415,7 +4415,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 				
 	default:
-		opbx_log(OPBX_LOG_NOTICE, "Got Unknown Event\n");
+		cw_log(CW_LOG_NOTICE, "Got Unknown Event\n");
 		break;
 	}
 	
@@ -4443,21 +4443,21 @@ static int load_module(void)
 	char ports[256]="";
 
 
-        char *test = opbx_pickup_ext();
+        char *test = cw_pickup_ext();
 	if ( test == NULL ) {
-    	    opbx_log(OPBX_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", misdn_type);
+    	    cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", misdn_type);
     	    return -1;
 	}
 
 	max_ports=misdn_lib_maxports_get();
 	
 	if (max_ports<=0) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to initialize mISDN\n");
+		cw_log(CW_LOG_ERROR, "Unable to initialize mISDN\n");
 		return -1;
 	}
 	
 	if (misdn_cfg_init(max_ports)) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to initialize misdn_config.\n");
+		cw_log(CW_LOG_ERROR, "Unable to initialize misdn_config.\n");
 		return -1;
 	}
 	g_config_initialized=1;
@@ -4484,7 +4484,7 @@ static int load_module(void)
 		misdn_out_calls[i]=0;
 	}
 	
-	opbx_mutex_init(&cl_te_lock);
+	cw_mutex_init(&cl_te_lock);
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
@@ -4514,37 +4514,37 @@ static int load_module(void)
 
 
 	{
-		if (opbx_channel_register(&misdn_tech)) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to register channel class %s\n", misdn_type);
+		if (cw_channel_register(&misdn_tech)) {
+			cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", misdn_type);
 			unload_module();
 			return -1;
 		}
 	}
   
-	opbx_cli_register(&cli_send_display);
-	opbx_cli_register(&cli_send_cd);
-	opbx_cli_register(&cli_send_digit);
-	opbx_cli_register(&cli_toggle_echocancel);
-	opbx_cli_register(&cli_set_tics);
+	cw_cli_register(&cli_send_display);
+	cw_cli_register(&cli_send_cd);
+	cw_cli_register(&cli_send_digit);
+	cw_cli_register(&cli_toggle_echocancel);
+	cw_cli_register(&cli_set_tics);
 
-	opbx_cli_register(&cli_show_cls);
-	opbx_cli_register(&cli_show_cl);
-	opbx_cli_register(&cli_show_config);
-	opbx_cli_register(&cli_show_port);
-	opbx_cli_register(&cli_show_stacks);
-	opbx_cli_register(&cli_show_ports_stats);
+	cw_cli_register(&cli_show_cls);
+	cw_cli_register(&cli_show_cl);
+	cw_cli_register(&cli_show_config);
+	cw_cli_register(&cli_show_port);
+	cw_cli_register(&cli_show_stacks);
+	cw_cli_register(&cli_show_ports_stats);
 
-	opbx_cli_register(&cli_port_block);
-	opbx_cli_register(&cli_port_unblock);
-	opbx_cli_register(&cli_restart_port);
-	opbx_cli_register(&cli_port_up);
-	opbx_cli_register(&cli_port_down);
-	opbx_cli_register(&cli_set_debug);
-	opbx_cli_register(&cli_set_crypt_debug);
-	opbx_cli_register(&cli_reload);
+	cw_cli_register(&cli_port_block);
+	cw_cli_register(&cli_port_unblock);
+	cw_cli_register(&cli_restart_port);
+	cw_cli_register(&cli_port_up);
+	cw_cli_register(&cli_port_down);
+	cw_cli_register(&cli_set_debug);
+	cw_cli_register(&cli_set_crypt_debug);
+	cw_cli_register(&cli_reload);
 
   
-	misdn_set_opt_app = opbx_register_function("MISDNSetOpt", misdn_set_opt_exec, "misdn_set_opt",
+	misdn_set_opt_app = cw_register_function("MISDNSetOpt", misdn_set_opt_exec, "misdn_set_opt",
 				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..)",
 				 "Sets mISDN opts. and optargs\n"
 				 "\n"
@@ -4561,7 +4561,7 @@ static int load_module(void)
 		);
 
 	
-	misdn_facility_app = opbx_register_function("MISDNFacility", misdn_facility_exec, "misdn_facility",
+	misdn_facility_app = cw_register_function("MISDNFacility", misdn_facility_exec, "misdn_facility",
 				 "misdn_facility(<FACILITY_TYPE>|<ARG1>|..)",
 				 "Sends the Facility Message FACILITY_TYPE with \n"
 				 "the given Arguments to the current ISDN Channel\n"
@@ -4605,7 +4605,7 @@ static int unload_module(void)
 	int res = 0;
 
 	/* First, take us out of the channel loop */
-	opbx_log(OPBX_LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	cw_log(CW_LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
 	if (misdn_tasks) {
 		sched_context_destroy(misdn_tasks);
@@ -4614,32 +4614,32 @@ static int unload_module(void)
 	
 	if (!g_config_initialized) return 0;
 	
-	opbx_cli_unregister(&cli_send_display);
+	cw_cli_unregister(&cli_send_display);
 	
-	opbx_cli_unregister(&cli_send_cd);
+	cw_cli_unregister(&cli_send_cd);
 	
-	opbx_cli_unregister(&cli_send_digit);
-	opbx_cli_unregister(&cli_toggle_echocancel);
-	opbx_cli_unregister(&cli_set_tics);
+	cw_cli_unregister(&cli_send_digit);
+	cw_cli_unregister(&cli_toggle_echocancel);
+	cw_cli_unregister(&cli_set_tics);
   
-	opbx_cli_unregister(&cli_show_cls);
-	opbx_cli_unregister(&cli_show_cl);
-	opbx_cli_unregister(&cli_show_config);
-	opbx_cli_unregister(&cli_show_port);
-	opbx_cli_unregister(&cli_show_ports_stats);
-	opbx_cli_unregister(&cli_show_stacks);
-	opbx_cli_unregister(&cli_port_block);
-	opbx_cli_unregister(&cli_port_unblock);
-	opbx_cli_unregister(&cli_restart_port);
-	opbx_cli_unregister(&cli_port_up);
-	opbx_cli_unregister(&cli_port_down);
-	opbx_cli_unregister(&cli_set_debug);
-	opbx_cli_unregister(&cli_set_crypt_debug);
-	opbx_cli_unregister(&cli_reload);
-	res |= opbx_unregister_function(misdn_set_opt_app);
-	res |= opbx_unregister_function(misdn_facility_app);
+	cw_cli_unregister(&cli_show_cls);
+	cw_cli_unregister(&cli_show_cl);
+	cw_cli_unregister(&cli_show_config);
+	cw_cli_unregister(&cli_show_port);
+	cw_cli_unregister(&cli_show_ports_stats);
+	cw_cli_unregister(&cli_show_stacks);
+	cw_cli_unregister(&cli_port_block);
+	cw_cli_unregister(&cli_port_unblock);
+	cw_cli_unregister(&cli_restart_port);
+	cw_cli_unregister(&cli_port_up);
+	cw_cli_unregister(&cli_port_down);
+	cw_cli_unregister(&cli_set_debug);
+	cw_cli_unregister(&cli_set_crypt_debug);
+	cw_cli_unregister(&cli_reload);
+	res |= cw_unregister_function(misdn_set_opt_app);
+	res |= cw_unregister_function(misdn_facility_app);
   
-	opbx_channel_unregister(&misdn_tech);
+	cw_channel_unregister(&misdn_tech);
 
 
 	free_robin_list();
@@ -4660,30 +4660,30 @@ MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)
 
 /*** SOME APPS ;)***/
 
-static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 
 	chan_misdn_log(0,0,"TYPE: %s\n",chan->tech->type);
 	
 	if (strcasecmp(chan->tech->type,"mISDN")) {
-		opbx_log(OPBX_LOG_WARNING, "misdn_facility makes only sense with chan_misdn channels!\n");
+		cw_log(CW_LOG_WARNING, "misdn_facility makes only sense with chan_misdn channels!\n");
 		return -1;
 	}
 	
 	if (argc < 1 || !argv[0][0]) {
-		opbx_log(OPBX_LOG_WARNING, "misdn_facility Requires arguments\n");
+		cw_log(CW_LOG_WARNING, "misdn_facility Requires arguments\n");
 		return -1;
 	}
 	
 	if (!strcasecmp(argv[0],"calldeflect")) {
 		if (argc < 2 || !argv[1][0])
-			opbx_log(OPBX_LOG_WARNING, "Facility: Call Defl Requires arguments\n");
+			cw_log(CW_LOG_WARNING, "Facility: Call Defl Requires arguments\n");
 		else 
 			misdn_lib_send_facility(ch->bc, FACILITY_CALLDEFLECT, argv[1]);
 		
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Unknown Facility: %s\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "Unknown Facility: %s\n", argv[0]);
 	}
 	
 	return 0;
@@ -4691,7 +4691,7 @@ static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv,
 }
 
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok,*tokb;
@@ -4701,12 +4701,12 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, 
 	int change_jitter=0;
 	
 	if (strcasecmp(chan->tech->type,"mISDN")) {
-		opbx_log(OPBX_LOG_WARNING, "misdn_set_opt makes only sense with chan_misdn channels!\n");
+		cw_log(CW_LOG_WARNING, "misdn_set_opt makes only sense with chan_misdn channels!\n");
 		return -1;
 	}
 	
 	if (argc != 1 || !argv[0][0]) {
-		opbx_log(OPBX_LOG_WARNING, "misdn_set_opt Requires arguments\n");
+		cw_log(CW_LOG_WARNING, "misdn_set_opt Requires arguments\n");
 		return -1;
 	}
 
@@ -4723,7 +4723,7 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, 
 		switch(tok[0]) {
 			
 		case 'd' :
-			opbx_copy_string(ch->bc->display,++tok,84);
+			cw_copy_string(ch->bc->display,++tok,84);
 			chan_misdn_log(1, ch->bc->port, "SETOPT: Display:%s\n",ch->bc->display);
 			break;
 			
@@ -4786,12 +4786,12 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, 
 			keyidx=atoi(++tok);
       
 			if (keyidx > misdn_key_vector_size  || keyidx < 0 ) {
-				opbx_log(OPBX_LOG_WARNING, "You entered the keyidx: %d but we have only %d keys\n",keyidx, misdn_key_vector_size );
+				cw_log(CW_LOG_WARNING, "You entered the keyidx: %d but we have only %d keys\n",keyidx, misdn_key_vector_size );
 				continue; 
 			}
       
 			{
-				opbx_copy_string(ch->bc->crypt_key,  misdn_key_vector[keyidx], sizeof(ch->bc->crypt_key));
+				cw_copy_string(ch->bc->crypt_key,  misdn_key_vector[keyidx], sizeof(ch->bc->crypt_key));
 			}
 			
 			chan_misdn_log(0, ch->bc->port, "SETOPT: crypt with key:%s\n",misdn_key_vector[keyidx]);
@@ -4840,8 +4840,8 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, 
 			break;
 
 		case 'a':
-			chan_misdn_log(1, ch->bc->port, "SETOPT: OPBX_DSP (for DTMF)\n");
-			ch->opbx_dsp=1;
+			chan_misdn_log(1, ch->bc->port, "SETOPT: CW_DSP (for DTMF)\n");
+			ch->cw_dsp=1;
 			break;
 
 		case 'p':
@@ -4866,18 +4866,18 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, 
 		config_jitterbuffer(ch);
 	
 	
-	if (ch->faxdetect || ch->opbx_dsp)
+	if (ch->faxdetect || ch->cw_dsp)
     {
 		if (!ch->dsp)
-            ch->dsp = opbx_dsp_new();
+            ch->dsp = cw_dsp_new();
 		if (ch->dsp)
-            opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+            cw_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-            ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, OPBX_FORMAT_ALAW, 8000);
+            ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, CW_FORMAT_ALAW, 8000);
 	}
 
-	if (ch->opbx_dsp) {
-		chan_misdn_log(1,ch->bc->port,"SETOPT: with OPBX_DSP we deactivate mISDN_dsp\n");
+	if (ch->cw_dsp) {
+		chan_misdn_log(1,ch->bc->port,"SETOPT: with CW_DSP we deactivate mISDN_dsp\n");
 		ch->bc->nodsp=1;
 		ch->bc->nojitter=1;
 	}
@@ -4933,7 +4933,7 @@ struct misdn_jb *misdn_jb_init(int size, int upper_threshold)
     for(i=0; i<size; i++)
  	jb->ok[i]=0;
 
-    opbx_mutex_init(&jb->mutexjb);
+    cw_mutex_init(&jb->mutexjb);
 
     return jb;
 }
@@ -4941,7 +4941,7 @@ struct misdn_jb *misdn_jb_init(int size, int upper_threshold)
 /* frees the data and destroys the given jitterbuffer struct */
 void misdn_jb_destroy(struct misdn_jb *jb)
 {
-	opbx_mutex_destroy(&jb->mutexjb);
+	cw_mutex_destroy(&jb->mutexjb);
 	
 	free(jb->samples);
 	free(jb);
@@ -4955,7 +4955,7 @@ int misdn_jb_fill(struct misdn_jb *jb, const char *data, int len)
 
     if (!jb || ! data) return 0;
 
-    opbx_mutex_lock (&jb->mutexjb);
+    cw_mutex_lock (&jb->mutexjb);
     
     wp=jb->wp;
     rp=jb->rp;
@@ -4987,7 +4987,7 @@ int misdn_jb_fill(struct misdn_jb *jb, const char *data, int len)
 	jb->state_full=0;
 	jb->state_empty=1;
 
-	opbx_mutex_unlock (&jb->mutexjb);
+	cw_mutex_unlock (&jb->mutexjb);
 	
 	return -1;
     }
@@ -5003,7 +5003,7 @@ int misdn_jb_fill(struct misdn_jb *jb, const char *data, int len)
     }
     jb->wp=wp;
 
-    opbx_mutex_unlock (&jb->mutexjb);
+    cw_mutex_unlock (&jb->mutexjb);
     
     return 0;
 }
@@ -5018,7 +5018,7 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len)
     int rp;
     int read = 0;
 
-    opbx_mutex_lock (&jb->mutexjb);
+    cw_mutex_lock (&jb->mutexjb);
 
     rp=jb->rp;
     wp=jb->wp;
@@ -5032,7 +5032,7 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len)
 		jb->rp=rp;
 		jb->state_empty=0;
 
-		opbx_mutex_unlock (&jb->mutexjb);
+		cw_mutex_unlock (&jb->mutexjb);
 		
 		return read;
 	    }
@@ -5059,7 +5059,7 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len)
     else
 	    chan_misdn_log(9,0,"misdn_jb_empty: Wait...requested:%d p:%x\n",len,jb);
     
-    opbx_mutex_unlock (&jb->mutexjb);
+    cw_mutex_unlock (&jb->mutexjb);
 
     return read;
 }
@@ -5076,7 +5076,7 @@ int misdn_jb_get_level(struct misdn_jb *jb)
 void chan_misdn_log(int level, int port, char *tmpl, ...)
 {
 	if (! ((0 <= port) && (port <= max_ports))) {
-		opbx_log(OPBX_LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
+		cw_log(CW_LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
 		port=0;
 		level=-1;
 	}
@@ -5091,17 +5091,17 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 	va_end(ap);
 
 	if (level == -1)
-		opbx_log(OPBX_LOG_WARNING, buf);
+		cw_log(CW_LOG_WARNING, buf);
 
 	else if (misdn_debug_only[port] ? 
 			(level==1 && misdn_debug[port]) || (level==misdn_debug[port]) 
 		 : level <= misdn_debug[port]) {
 		
-		opbx_console_puts(port_buf);
-		opbx_console_puts(buf);
+		cw_console_puts(port_buf);
+		cw_console_puts(buf);
 	}
 	
-	if ((level <= misdn_debug[0]) && !opbx_strlen_zero(global_tracefile) ) {
+	if ((level <= misdn_debug[0]) && !cw_strlen_zero(global_tracefile) ) {
 		time_t tm = time(NULL);
 		char *tmp=ctime(&tm),*p;
 		
@@ -5111,12 +5111,12 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 		if (p) *p=':';
 		
 		if (!fp) {
-			opbx_console_puts("Error opening Tracefile: [ ");
-			opbx_console_puts(global_tracefile);
-			opbx_console_puts(" ] ");
+			cw_console_puts("Error opening Tracefile: [ ");
+			cw_console_puts(global_tracefile);
+			cw_console_puts(" ] ");
 			
-			opbx_console_puts(strerror(errno));
-			opbx_console_puts("\n");
+			cw_console_puts(strerror(errno));
+			cw_console_puts("\n");
 			return ;
 		}
 		

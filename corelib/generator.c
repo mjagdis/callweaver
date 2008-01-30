@@ -39,11 +39,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * unavoidable mutex (un)locking around the (unused) condition will cost
  * some performance.
  */
-static void *opbx_generator_thread(void *data)
+static void *cw_generator_thread(void *data)
 {
-	struct opbx_generator_instance *gen = data;
+	struct cw_generator_instance *gen = data;
 	struct timespec tick;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 #if !defined(_POSIX_TIMERS)
 	struct timeval tv;
 #elif defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
@@ -52,14 +52,14 @@ static void *opbx_generator_thread(void *data)
 	clockid_t clk = CLOCK_REALTIME;
 #endif
 #if !defined(__USE_XOPEN2K)
-	opbx_cond_t cond;
-	opbx_mutex_t mutex;
+	cw_cond_t cond;
+	cw_mutex_t mutex;
 
-	opbx_cond_init(&cond, NULL);
-	pthread_cleanup_push(opbx_cond_destroy, &cond);
-	opbx_mutex_init(&mutex);
-	pthread_cleanup_push(opbx_mutex_destroy, &mutex);
-	opbx_mutex_lock(&mutex);
+	cw_cond_init(&cond, NULL);
+	pthread_cleanup_push(cw_cond_destroy, &cond);
+	cw_mutex_init(&mutex);
+	pthread_cleanup_push(cw_mutex_destroy, &mutex);
+	cw_mutex_lock(&mutex);
 #endif
 
 #if !defined(_POSIX_TIMERS)
@@ -73,13 +73,13 @@ static void *opbx_generator_thread(void *data)
 	}
 #endif
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator thread started\n", gen->chan->name);
+	cw_log(CW_LOG_DEBUG, "%s: Generator thread started\n", gen->chan->name);
 
 	f = gen->class->generate(gen->chan, gen->pvt, 160);
 	while (f) {
-		opbx_write(gen->chan, f);
+		cw_write(gen->chan, f);
 
-		if (!opbx_tvzero(f->delivery)) {
+		if (!cw_tvzero(f->delivery)) {
 			clk = CLOCK_REALTIME;
 			tick.tv_sec = f->delivery.tv_sec;
 			tick.tv_nsec = 1000L * f->delivery.tv_usec;
@@ -106,14 +106,14 @@ static void *opbx_generator_thread(void *data)
 			tick.tv_sec++;
 		}
 
-		opbx_fr_free(f);
+		cw_fr_free(f);
 
 		f = gen->class->generate(gen->chan, gen->pvt, 160);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 #if !defined(__USE_XOPEN2K)
-		while (opbx_cond_timedwait(&cond, &mutex, &tick) < 0 && errno == EINTR);
+		while (cw_cond_timedwait(&cond, &mutex, &tick) < 0 && errno == EINTR);
 #else
 		while (clock_nanosleep(clk, TIMER_ABSTIME, &tick, NULL) && errno == EINTR);
 #endif
@@ -121,10 +121,10 @@ static void *opbx_generator_thread(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 
-	opbx_log(OPBX_LOG_DEBUG, "%s: Generator self-deactivating\n", gen->chan->name);
+	cw_log(CW_LOG_DEBUG, "%s: Generator self-deactivating\n", gen->chan->name);
 
 	/* Next write on the channel should clean out the defunct generator */
-	opbx_set_flag(gen->chan, OPBX_FLAG_WRITE_INT);
+	cw_set_flag(gen->chan, CW_FLAG_WRITE_INT);
 
 #if !defined(__USE_XOPEN2K)
 	pthread_cleanup_pop(1);
@@ -134,60 +134,60 @@ static void *opbx_generator_thread(void *data)
 }
 
 
-void opbx_generator_deactivate(struct opbx_generator_instance *gen)
+void cw_generator_deactivate(struct cw_generator_instance *gen)
 {
 	if (!gen->chan)
 		return;
 
-	opbx_mutex_lock(&gen->chan->lock);
+	cw_mutex_lock(&gen->chan->lock);
 
-	if (!pthread_equal(gen->tid, OPBX_PTHREADT_NULL)) {
-		char name[OPBX_CHANNEL_NAME];
-		struct opbx_generator_instance generator;
+	if (!pthread_equal(gen->tid, CW_PTHREADT_NULL)) {
+		char name[CW_CHANNEL_NAME];
+		struct cw_generator_instance generator;
 
-		opbx_log(OPBX_LOG_DEBUG, "%s: Trying to deactivate generator\n", gen->chan->name);
+		cw_log(CW_LOG_DEBUG, "%s: Trying to deactivate generator\n", gen->chan->name);
 
-		opbx_copy_string(name, gen->chan->name, sizeof(name));
+		cw_copy_string(name, gen->chan->name, sizeof(name));
 		generator = *gen;
-		gen->tid = OPBX_PTHREADT_NULL;
-		opbx_clear_flag(gen->chan, OPBX_FLAG_WRITE_INT);
+		gen->tid = CW_PTHREADT_NULL;
+		cw_clear_flag(gen->chan, CW_FLAG_WRITE_INT);
 
-		opbx_mutex_unlock(&gen->chan->lock);
+		cw_mutex_unlock(&gen->chan->lock);
 
 		pthread_cancel(generator.tid);
 		pthread_join(generator.tid, NULL);
 		generator.class->release(generator.chan, generator.pvt);
-		opbx_object_put(generator.class);
-		opbx_log(OPBX_LOG_DEBUG, "%s: Generator stopped\n", name);
+		cw_object_put(generator.class);
+		cw_log(CW_LOG_DEBUG, "%s: Generator stopped\n", name);
 	} else
-		opbx_mutex_unlock(&gen->chan->lock);
+		cw_mutex_unlock(&gen->chan->lock);
 }
 
 
-int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator_instance *gen, struct opbx_generator *class, void *params)
+int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params)
 {
-	opbx_mutex_lock(&chan->lock);
+	cw_mutex_lock(&chan->lock);
 
-	while (!pthread_equal(gen->tid, OPBX_PTHREADT_NULL)) {
-		opbx_mutex_unlock(&chan->lock);
-		opbx_generator_deactivate(gen);
-		opbx_mutex_lock(&chan->lock);
+	while (!pthread_equal(gen->tid, CW_PTHREADT_NULL)) {
+		cw_mutex_unlock(&chan->lock);
+		cw_generator_deactivate(gen);
+		cw_mutex_lock(&chan->lock);
 	}
 
 	if ((gen->pvt = class->alloc(chan, params))) {
-		gen->class = opbx_object_get(class);
+		gen->class = cw_object_get(class);
 
 		gen->chan = chan;
-		if (opbx_pthread_create(&gen->tid, &global_attr_rr, opbx_generator_thread, gen)) {
-			opbx_log(OPBX_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
+		if (cw_pthread_create(&gen->tid, &global_attr_rr, cw_generator_thread, gen)) {
+			cw_log(CW_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
 			class->release(chan, gen->pvt);
-			opbx_mutex_unlock(&chan->lock);
-			opbx_object_put(class);
+			cw_mutex_unlock(&chan->lock);
+			cw_object_put(class);
 			return -1;
 		}
 	}
 	/* It's down to the class allocator to log its problem */
 
-	opbx_mutex_unlock(&chan->lock);
+	cw_mutex_unlock(&chan->lock);
 	return 0;
 }

@@ -34,22 +34,22 @@
 extern "C" {
 #endif
 
-struct opbx_slinfactory {
-	struct opbx_frame *queue;
-	struct opbx_trans_pvt *trans;
+struct cw_slinfactory {
+	struct cw_frame *queue;
+	struct cw_trans_pvt *trans;
 	short hold[1280];
 	short *offset;
 	size_t holdlen;
 	int size;
 	int format;
-	opbx_mutex_t lock;
+	cw_mutex_t lock;
 
 };
 
-void opbx_slinfactory_init(struct opbx_slinfactory *sf);
-void opbx_slinfactory_destroy(struct opbx_slinfactory *sf);
-int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f);
-int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes);
+void cw_slinfactory_init(struct cw_slinfactory *sf);
+void cw_slinfactory_destroy(struct cw_slinfactory *sf);
+int cw_slinfactory_feed(struct cw_slinfactory *sf, struct cw_frame *f);
+int cw_slinfactory_read(struct cw_slinfactory *sf, short *buf, size_t bytes);
 		 
 
 

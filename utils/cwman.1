@@ -51,28 +51,28 @@
 .ds f4\"
 '\" t 
 .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
-.TH OPBXMAN 1 "Jun 12th, 2005" "opbxman" "Linux Programmer's Manual"
+.TH CWMAN 1 "Jun 12th, 2005" "cwman" "Linux Programmer's Manual"
 .SH NAME
-.B opbxman
+.B cwman
 -- a client to callweaver's manager interface
 .SH SYNOPSIS
 .PP 
-.B opbxman
+.B cwman
 .I hostname
 
 .SH DESCRIPTION
-.B opbxman
+.B cwman
 This program is a full-screen (terminal) client for CallWeaver's manager
 interface.
 
 .SH OPTIONS
 .B hostname
 
-The host name or IP address to connect to (TCP port 5038). If opbxman 
+The host name or IP address to connect to (TCP port 5038). If cwman 
 fails to connect it will exit immidiately.
 
 .SH USAGE
-If \fBopbxman\fR has successfully cunnected to the manager port it will 
+If \fBcwman\fR has successfully cunnected to the manager port it will 
 prompt the user for a username and a secret (password) for the manager 
 interface on the remote CallWeaver manager interface. It will then be able 
 to report existing channels (calls). You will then be able to redirect 
@@ -81,7 +81,7 @@ calls to or terminate them.
 .SH "SEE ALSO" 
 callweaver(8)
 
-http://www.voip-info.org/wiki-CallWeaver+opbxman
+http://www.voip-info.org/wiki-CallWeaver+cwman
 
 .SH BUGS
 The hostname does not default to localhost.  

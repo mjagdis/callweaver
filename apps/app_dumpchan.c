@@ -59,7 +59,7 @@ static const char dumpchan_descrip[] =
 "or greater. Always returns 0.\n\n";
 
 
-static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t size)
+static int cw_serialize_showchan(struct cw_channel *c, char *buf, size_t size)
 {
 	struct timeval now;
 	long elapsed_seconds=0;
@@ -67,7 +67,7 @@ static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t siz
 	char cgrp[256];
 	char pgrp[256];
 	
-	now = opbx_tvnow();
+	now = cw_tvnow();
 	memset(buf,0,size);
 	if (!c)
 		return 0;
@@ -109,7 +109,7 @@ static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t siz
 			 (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 			 (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
 			 (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ),
-			 opbx_state2str(c->_state),
+			 cw_state2str(c->_state),
 			 c->_state,
 			 c->rings,
 			 c->nativeformats,
@@ -123,15 +123,15 @@ static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t siz
 			 c->context,
 			 c->exten,
 			 c->priority,
-			 opbx_print_group(cgrp, sizeof(cgrp), c->callgroup),
-			 opbx_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
+			 cw_print_group(cgrp, sizeof(cgrp), c->callgroup),
+			 cw_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
 			 ( c->appl ? c->appl : "(N/A)" ),
-			 (opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+			 (cw_test_flag(c, CW_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;
 }
 
-static int dumpchan_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static char *line = "================================================================================";
 	char vars[1024];
@@ -144,9 +144,9 @@ static int dumpchan_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	level = (argc > 0 ? atoi(argv[0]) : 0);
 
 	if (option_verbose >= level) {
-		opbx_serialize_showchan(chan, info, sizeof(info));
+		cw_serialize_showchan(chan, info, sizeof(info));
 		pbx_builtin_serialize_variables(chan, vars, sizeof(vars));
-		opbx_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars, line);
+		cw_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars, line);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -157,13 +157,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(dumpchan_app);
+	res |= cw_unregister_function(dumpchan_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	dumpchan_app = opbx_register_function(dumpchan_name, dumpchan_exec, dumpchan_synopsis, dumpchan_syntax, dumpchan_descrip);
+	dumpchan_app = cw_register_function(dumpchan_name, dumpchan_exec, dumpchan_synopsis, dumpchan_syntax, dumpchan_descrip);
 	return 0;
 }
 

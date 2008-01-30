@@ -74,21 +74,21 @@ struct module {
 	char resource[0];
 };
 
-OPBX_MUTEX_DEFINE_STATIC(module_lock);
+CW_MUTEX_DEFINE_STATIC(module_lock);
 static struct module *module_list = NULL;
 static int modlistver = 0;
 
-OPBX_MUTEX_DEFINE_STATIC(reloadlock);
+CW_MUTEX_DEFINE_STATIC(reloadlock);
 
 
-struct module *opbx_module_get(struct module *mod)
+struct module *cw_module_get(struct module *mod)
 {
 	if (mod)
 		atomic_inc(&mod->refs);
 	return mod;
 }
 
-static void opbx_module_release(struct module *mod)
+static void cw_module_release(struct module *mod)
 {
 	struct module **m;
 	int n;
@@ -101,11 +101,11 @@ static void opbx_module_release(struct module *mod)
 	 * are responsible or not.
 	 */
 	n = 0;
-	opbx_mutex_lock(&module_lock);
+	cw_mutex_lock(&module_lock);
 	for (m = &module_list; *m; m = &(*m)->next) {
 		if (*m == mod) {
 			if (atomic_read(&mod->refs)) {
-				opbx_mutex_unlock(&module_lock);
+				cw_mutex_unlock(&module_lock);
 				return;
 			}
 
@@ -114,50 +114,50 @@ static void opbx_module_release(struct module *mod)
 			if (mod->modinfo && mod->modinfo->release)
 				mod->modinfo->release();
 
-			opbx_mutex_destroy(&mod->modinfo->localuser_lock);
+			cw_mutex_destroy(&mod->modinfo->localuser_lock);
 			atomic_destroy(&mod->refs);
 			lt_dlclose(mod->lib);
-			opbx_mutex_unlock(&module_lock);
+			cw_mutex_unlock(&module_lock);
 			free(mod);
 			if (option_verbose)
-				opbx_verbose(VERBOSE_PREFIX_1 "Module %s closed and unloaded\n", mod->resource);
+				cw_verbose(VERBOSE_PREFIX_1 "Module %s closed and unloaded\n", mod->resource);
 			break;
 		}
 	}
 }
 
-void opbx_module_put(struct module *mod)
+void cw_module_put(struct module *mod)
 {
 	if (mod && atomic_dec_and_test(&mod->refs))
-		opbx_module_release(mod);
+		cw_module_release(mod);
 }
 
 
-int opbx_unload_resource(const char *resource_name, int hangup)
+int cw_unload_resource(const char *resource_name, int hangup)
 {
 	struct module *mod;
 	int res = -1;
 
-	opbx_mutex_lock(&module_lock);
+	cw_mutex_lock(&module_lock);
 
 	for (mod = module_list; mod; mod = mod->next) {
 		if (!strcasecmp(mod->resource, resource_name)) {
-			opbx_module_get(mod);
+			cw_module_get(mod);
 			res = mod->modinfo->deregister();
-			opbx_mutex_unlock(&module_lock);
+			cw_mutex_unlock(&module_lock);
 			if (hangup) {
 				struct localuser *u;
-				opbx_mutex_lock(&mod->modinfo->localuser_lock);
+				cw_mutex_lock(&mod->modinfo->localuser_lock);
 				for (u = mod->modinfo->localusers; u; u = u->next)
-					opbx_softhangup(u->chan, OPBX_SOFTHANGUP_APPUNLOAD);
-				opbx_mutex_unlock(&mod->modinfo->localuser_lock);
+					cw_softhangup(u->chan, CW_SOFTHANGUP_APPUNLOAD);
+				cw_mutex_unlock(&mod->modinfo->localuser_lock);
 			}
-			opbx_module_put(mod);
+			cw_module_put(mod);
 			return 0;
 		}
 	}
 
-	opbx_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&module_lock);
 	return -1;
 }
 
@@ -167,7 +167,7 @@ static char *module_generator(char *line, char *word, int pos, int state)
 	int which = 0;
 	char *ret = NULL;
 
-	opbx_mutex_lock(&module_lock);
+	cw_mutex_lock(&module_lock);
 
 	m = module_list;
 	while (m) {
@@ -180,11 +180,11 @@ static char *module_generator(char *line, char *word, int pos, int state)
 		m = m->next;
 	}
 
-	opbx_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&module_lock);
 	return ret;
 }
 
-int opbx_module_reload(const char *name)
+int cw_module_reload(const char *name)
 {
 	struct module *m;
 	int reloaded = 0;
@@ -192,8 +192,8 @@ int opbx_module_reload(const char *name)
 	int (*reload)(void);
 	/* We'll do the logger and manager the favor of calling its reload here first */
 
-	if (opbx_mutex_trylock(&reloadlock)) {
-		opbx_verbose("The previous reload command didn't finish yet\n");
+	if (cw_mutex_trylock(&reloadlock)) {
+		cw_verbose("The previous reload command didn't finish yet\n");
 		return -1;
 	}
 	if (!name || !strcasecmp(name, "extconfig")) {
@@ -201,20 +201,20 @@ int opbx_module_reload(const char *name)
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "cdr")) {
-		opbx_cdr_engine_reload();
+		cw_cdr_engine_reload();
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "enum")) {
-		opbx_enum_reload();
+		cw_enum_reload();
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "rtp")) {
-		opbx_rtp_reload();
+		cw_rtp_reload();
 		reloaded = 2;
 	}
-	time(&opbx_lastreloadtime);
+	time(&cw_lastreloadtime);
 
-	opbx_mutex_lock(&module_lock);
+	cw_mutex_lock(&module_lock);
 	oldversion = modlistver;
 	m = module_list;
 	while(m) {
@@ -222,25 +222,25 @@ int opbx_module_reload(const char *name)
 			if (reloaded < 1)
 				reloaded = 1;
 			reload = m->modinfo->reconfig;
-			opbx_mutex_unlock(&module_lock);
+			cw_mutex_unlock(&module_lock);
 			if (reload) {
 				reloaded = 2;
 				if (option_verbose > 2) 
-					opbx_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->modinfo->description);
+					cw_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->modinfo->description);
 				reload();
 			}
-			opbx_mutex_lock(&module_lock);
+			cw_mutex_lock(&module_lock);
 			if (oldversion != modlistver)
 				break;
 		}
 		m = m->next;
 	}
-	opbx_mutex_unlock(&module_lock);
-	opbx_mutex_unlock(&reloadlock);
+	cw_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&reloadlock);
 	return reloaded;
 }
 
-int opbx_load_resource(const char *resource_name)
+int cw_load_resource(const char *resource_name)
 {
 	struct module *newmod, *mod, **m;
 	struct modinfo *(*modinfo)(void);
@@ -249,18 +249,18 @@ int opbx_load_resource(const char *resource_name)
 	res = strlen(resource_name) + 1;
 
 	if (!(newmod = mod = malloc(sizeof(struct module) + res))) {
-		opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
 	memcpy(mod->resource, resource_name, res);
 
-	opbx_mutex_lock(&module_lock);
+	cw_mutex_lock(&module_lock);
 
 	mod->lib = lt_dlopen(resource_name);
 	if (!mod->lib) {
-		opbx_mutex_unlock(&module_lock);
-		opbx_log(OPBX_LOG_ERROR, "%s\n", lt_dlerror());
+		cw_mutex_unlock(&module_lock);
+		cw_log(CW_LOG_ERROR, "%s\n", lt_dlerror());
 		free(mod);
 		return -1;
 	}
@@ -270,8 +270,8 @@ int opbx_load_resource(const char *resource_name)
 		modinfo = lt_dlsym(mod->lib, "_get_modinfo");
 	if (modinfo == NULL) {
 		lt_dlclose(mod->lib);
-		opbx_mutex_unlock(&module_lock);
-		opbx_log(OPBX_LOG_ERROR, "No get_modinfo in module %s\n", resource_name);
+		cw_mutex_unlock(&module_lock);
+		cw_log(CW_LOG_ERROR, "No get_modinfo in module %s\n", resource_name);
 		free(mod);
 		return -1;
 	}
@@ -293,13 +293,13 @@ int opbx_load_resource(const char *resource_name)
 		/* Start with one ref - that's us */
 		atomic_set(&mod->refs, 1);
 		mod->modinfo->self = mod;
-		opbx_mutex_init(&mod->modinfo->localuser_lock);
+		cw_mutex_init(&mod->modinfo->localuser_lock);
 		mod->next = *m;
 		*m = mod;
 	} else {
 		lt_dlclose(mod->lib);
 		free(mod);
-		mod = opbx_module_get(*m);
+		mod = cw_module_get(*m);
 	}
 
 	/* The init has to happen within the lock otherwise we have races
@@ -308,21 +308,21 @@ int opbx_load_resource(const char *resource_name)
 	res = mod->modinfo->init();
 
 	modlistver++;
-	opbx_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&module_lock);
 
 	if (!fully_booted) {
 		if (option_verbose) {
-			opbx_verbose("[%s] => (%s)\n", resource_name, mod->modinfo->description);
+			cw_verbose("[%s] => (%s)\n", resource_name, mod->modinfo->description);
 		} else if (option_console || option_nofork)
-			opbx_verbose( ".");
+			cw_verbose( ".");
 	} else {
 		if (option_verbose)
-			opbx_verbose(VERBOSE_PREFIX_1 "%s %s => (%s)\n", (mod == newmod ? "Loaded" : "Reregistered"), resource_name, mod->modinfo->description);
+			cw_verbose(VERBOSE_PREFIX_1 "%s %s => (%s)\n", (mod == newmod ? "Loaded" : "Reregistered"), resource_name, mod->modinfo->description);
 	}
 
 	if (res) {
-		opbx_log(OPBX_LOG_WARNING, "%s: register failed, returned %d\n", resource_name, res);
-		opbx_unload_resource(resource_name, 0);
+		cw_log(CW_LOG_WARNING, "%s: register failed, returned %d\n", resource_name, res);
+		cw_unload_resource(resource_name, 0);
 		return -1;
 	}
 
@@ -331,22 +331,22 @@ int opbx_load_resource(const char *resource_name)
 	 * Otherwise there has to be one or more unregisters plus everything
 	 * with a reference has to release it.
 	 */
-	opbx_module_put(mod);
+	cw_module_put(mod);
 	return 0;
 }
 
-static int opbx_resource_exists(const char *resource)
+static int cw_resource_exists(const char *resource)
 {
 	struct module *m;
-	if (opbx_mutex_lock(&module_lock))
-		opbx_log(OPBX_LOG_WARNING, "Failed to lock\n");
+	if (cw_mutex_lock(&module_lock))
+		cw_log(CW_LOG_WARNING, "Failed to lock\n");
 	m = module_list;
 	while(m) {
 		if (!strcasecmp(resource, m->resource))
 			break;
 		m = m->next;
 	}
-	opbx_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&module_lock);
 	if (m)
 		return -1;
 	else
@@ -362,7 +362,7 @@ static const char *loadorder[] =
 };
 
 struct load_modules_one_args {
-	struct opbx_config *cfg;
+	struct cw_config *cfg;
 	int prefix;
 	int prefix_len;
 };
@@ -380,21 +380,21 @@ static int load_modules_one(const char *filename, lt_ptr data)
 	 */
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
 	&& (!loadorder[args->prefix] || !strncasecmp(basename, loadorder[args->prefix], args->prefix_len))
-	&& (snprintf(soname, sizeof(soname), "%s.so", basename), !opbx_resource_exists(soname))) {
-		struct opbx_variable *v;
+	&& (snprintf(soname, sizeof(soname), "%s.so", basename), !cw_resource_exists(soname))) {
+		struct cw_variable *v;
 
 		/* It's a shared library -- Just be sure we're allowed to load it -- kinda
 		   an inefficient way to do it, but oh well. */
 		v = NULL;
 		if (args->cfg) {
-			for (v = opbx_variable_browse(args->cfg, "modules");
+			for (v = cw_variable_browse(args->cfg, "modules");
 				v && (strcasecmp(v->name, "noload") || strcasecmp(v->value, soname));
 				v = v->next);
 			if (option_verbose && v)
-				opbx_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
+				cw_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
 		}
 		if (!v)
-			opbx_load_resource(soname);
+			cw_load_resource(soname);
 	}
 
 	return 0;
@@ -402,22 +402,22 @@ static int load_modules_one(const char *filename, lt_ptr data)
 
 int load_modules(const int preload_only)
 {
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
+	struct cw_config *cfg;
+	struct cw_variable *v;
 
 	if (option_verbose) {
 		if (preload_only)
-			opbx_verbose("CallWeaver Dynamic Loader loading preload modules:\n");
+			cw_verbose("CallWeaver Dynamic Loader loading preload modules:\n");
 		else
-			opbx_verbose("CallWeaver Dynamic Loader Starting:\n");
+			cw_verbose("CallWeaver Dynamic Loader Starting:\n");
 	}
 
-	cfg = opbx_config_load(OPBX_MODULE_CONFIG);
+	cfg = cw_config_load(CW_MODULE_CONFIG);
 	if (cfg) {
 		int doload;
 
 		/* Load explicitly defined modules */
-		for (v = opbx_variable_browse(cfg, "modules"); v; v = v->next) {
+		for (v = cw_variable_browse(cfg, "modules"); v; v = v->next) {
 			doload = 0;
 
 			if (preload_only)
@@ -427,10 +427,10 @@ int load_modules(const int preload_only)
 
 		       if (doload) {
 				if (option_debug && !option_verbose)
-					opbx_log(OPBX_LOG_DEBUG, "Loading module %s\n", v->value);
-				if (opbx_load_resource(v->value)) {
-					opbx_log(OPBX_LOG_WARNING, "Loading module %s failed!\n", v->value);
-					opbx_config_destroy(cfg);
+					cw_log(CW_LOG_DEBUG, "Loading module %s\n", v->value);
+				if (cw_load_resource(v->value)) {
+					cw_log(CW_LOG_WARNING, "Loading module %s failed!\n", v->value);
+					cw_config_destroy(cfg);
 					return -1;
 				}
 			}
@@ -438,11 +438,11 @@ int load_modules(const int preload_only)
 	}
 
 	if (preload_only) {
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		return 0;
 	}
 
-	if (!cfg || opbx_true(opbx_variable_retrieve(cfg, "modules", "autoload"))) {
+	if (!cfg || cw_true(cw_variable_retrieve(cfg, "modules", "autoload"))) {
 		struct load_modules_one_args args;
 		args.cfg = cfg;
 		for (args.prefix = 0; args.prefix < arraysize(loadorder); args.prefix++) {
@@ -451,7 +451,7 @@ int load_modules(const int preload_only)
 			lt_dlforeachfile(lt_dlgetsearchpath(), load_modules_one, &args);
 		}
 	} 
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 	return 0;
 }
 
@@ -470,21 +470,21 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		like = argv[3];
 	}
 
-	opbx_cli(fd, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
+	cw_cli(fd, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
 
-	opbx_mutex_trylock(&module_lock);
+	cw_mutex_trylock(&module_lock);
 
 	count = 0;
 	for (m = module_list; m; m = m->next) {
 		if (!like || strcasestr(m->resource, like) ) {
 			count++;
-			opbx_cli(fd, "%-30s %-40.40s %10d %10d\n",
+			cw_cli(fd, "%-30s %-40.40s %10d %10d\n",
 				m->resource, m->modinfo->description, atomic_read(&m->refs), m->modinfo->localusecnt);
 		}
 	}
-	opbx_cli(fd, "%d modules loaded\n", count);
+	cw_cli(fd, "%d modules loaded\n", count);
 
-	opbx_mutex_unlock(&module_lock);
+	cw_mutex_unlock(&module_lock);
 	return RESULT_SUCCESS;
 }
 
@@ -494,8 +494,8 @@ static int handle_load(int fd, int argc, char *argv[])
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 
-	if (opbx_load_resource(argv[1])) {
-		opbx_cli(fd, "Unable to load module %s\n", argv[1]);
+	if (cw_load_resource(argv[1])) {
+		cw_cli(fd, "Unable to load module %s\n", argv[1]);
 		return RESULT_FAILURE;
 	}
 
@@ -524,7 +524,7 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 				memcpy(args->ret + l, ".so\000", 4);
 				return 1;
 			}
-			opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 			return 1;
 		}
 		args->state--;
@@ -541,7 +541,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 
 	if (pos == 1) {
 		if (word[0] == '/') {
-			opbx_copy_string(filename, word, sizeof(filename));
+			cw_copy_string(filename, word, sizeof(filename));
 			args.ret = (char*)rl_filename_completion_function(filename, state);
 			if (args.ret)
 				args.ret = strdup(args.ret);
@@ -565,18 +565,18 @@ static int handle_reload(int fd, int argc, char *argv[])
 
 	if (argc > 1) { 
 		for (x = 1; x < argc; x++) {
-			int res = opbx_module_reload(argv[x]);
+			int res = cw_module_reload(argv[x]);
 			switch (res) {
 			case 0:
-				opbx_cli(fd, "No such module '%s'\n", argv[x]);
+				cw_cli(fd, "No such module '%s'\n", argv[x]);
 				break;
 			case 1:
-				opbx_cli(fd, "Module '%s' does not support reload\n", argv[x]);
+				cw_cli(fd, "Module '%s' does not support reload\n", argv[x]);
 				break;
 			}
 		}
 	} else
-		opbx_module_reload(NULL);
+		cw_module_reload(NULL);
 
 	return RESULT_SUCCESS;
 }
@@ -630,8 +630,8 @@ static int handle_unload(int fd, int argc, char *argv[])
 			}
 		} else if (x !=  argc - 1) 
 			return RESULT_SHOWUSAGE;
-		else if (opbx_unload_resource(argv[x], hangup)) {
-			opbx_cli(fd, "Unable to unload resource %s\n", argv[x]);
+		else if (cw_unload_resource(argv[x], hangup)) {
+			cw_cli(fd, "Unable to unload resource %s\n", argv[x]);
 			return RESULT_FAILURE;
 		}
 	}
@@ -667,7 +667,7 @@ static char unload_help[] =
 "       It is always safe to call unload multiple times on a module.\n";
 
 
-static struct opbx_clicmd clicmds[] = {
+static struct cw_clicmd clicmds[] = {
 	{
 		.cmda = { "show", "modules", NULL },
 		.handler = handle_modlist,
@@ -705,7 +705,7 @@ static struct opbx_clicmd clicmds[] = {
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(loader_mutex);
+CW_MUTEX_DEFINE_STATIC(loader_mutex);
 static pthread_key_t loader_err_key;
 struct loader_err {
 	int have_err;
@@ -714,12 +714,12 @@ struct loader_err {
 
 static void loader_lock(void)
 {
-	opbx_mutex_lock(&loader_mutex);
+	cw_mutex_lock(&loader_mutex);
 }
 
 static void loader_unlock(void)
 {
-	opbx_mutex_unlock(&loader_mutex);
+	cw_mutex_unlock(&loader_mutex);
 }
 
 static void loader_seterr(const char *err)
@@ -744,7 +744,7 @@ static const char *loader_geterr(void)
 }
 
 
-void opbx_loader_init(void)
+void cw_loader_init(void)
 {
 	if (pthread_key_create(&loader_err_key, &free)) {
 		perror("pthread_key_create");
@@ -757,8 +757,8 @@ void opbx_loader_init(void)
 }
 
 
-int opbx_loader_cli_init(void)
+int cw_loader_cli_init(void)
 {
-	opbx_cli_register_multiple(clicmds, arraysize(clicmds));
+	cw_cli_register_multiple(clicmds, arraysize(clicmds));
 	return 0;
 }

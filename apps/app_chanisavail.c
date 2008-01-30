@@ -66,16 +66,16 @@ static const char chanisavail_descrip[] =
 "when the channel is in use at all, even if it can take another call.\n";
 
 
-static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int chanavail_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
 	struct localuser *u;
-	struct opbx_channel *tempchan;
+	struct cw_channel *tempchan;
 	int status;
 	int res=-1, inuse=-1, option_state=0;
 
 	if (argc < 0 || argc > 2)
-		return opbx_function_syntax(chanisavail_syntax);
+		return cw_function_syntax(chanisavail_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -95,7 +95,7 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 			tech = cur;
 			number = strchr(tech, '/');
 			if (!number) {
-				opbx_log(OPBX_LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				cw_log(CW_LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
 				LOCAL_USER_REMOVE(u);
 				pbx_builtin_setvar_helper(chan, "AVAILSTATUS", "NONEAVAILABLE");
 				return 0;
@@ -109,16 +109,16 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char
 	 			   channel can permit more calls (ie callwaiting, sip calls, etc).  */
                                
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
-				status = inuse = opbx_device_state(trychan);
+				status = inuse = cw_device_state(trychan);
 			}
-			if ((inuse <= 1) && (tempchan = opbx_request(tech, chan->nativeformats, number, &status))) {
+			if ((inuse <= 1) && (tempchan = cw_request(tech, chan->nativeformats, number, &status))) {
 					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					/* Store the originally used channel too */
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
 					pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp);
 					snprintf(tmp, sizeof(tmp), "%d", status);
 					pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp);
-					opbx_hangup(tempchan);
+					cw_hangup(tempchan);
 					tempchan = NULL;
 					res = 1;
 					break;
@@ -144,13 +144,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(chanisavail_app);
+	res |= cw_unregister_function(chanisavail_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	chanisavail_app = opbx_register_function(chanisavail_name, chanavail_exec, chanisavail_synopsis, chanisavail_syntax, chanisavail_descrip);
+	chanisavail_app = cw_register_function(chanisavail_name, chanavail_exec, chanisavail_synopsis, chanisavail_syntax, chanisavail_descrip);
 	return 0;
 }
 

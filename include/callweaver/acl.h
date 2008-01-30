@@ -31,23 +31,23 @@ extern "C" {
 #include <netinet/in.h>
 #include "callweaver/io.h"
 
-#define OPBX_SENSE_DENY                  0
-#define OPBX_SENSE_ALLOW                 1
+#define CW_SENSE_DENY                  0
+#define CW_SENSE_ALLOW                 1
 
 /* Host based access control */
 
-struct opbx_ha;
+struct cw_ha;
 
-extern void opbx_free_ha(struct opbx_ha *ha);
-extern struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path);
-extern int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin);
-extern int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
-#define opbx_get_ip(sin, value) opbx_get_ip_or_srv((sin), (value), NULL)
-extern int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us);
-extern int opbx_lookup_iface(char *iface, struct in_addr *address);
-extern struct opbx_ha *opbx_duplicate_ha_list(struct opbx_ha *original);
-extern int opbx_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
-extern int opbx_str2tos(const char *value, int *tos);
+extern void cw_free_ha(struct cw_ha *ha);
+extern struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path);
+extern int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin);
+extern int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+#define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)
+extern int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);
+extern int cw_lookup_iface(char *iface, struct in_addr *address);
+extern struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original);
+extern int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+extern int cw_str2tos(const char *value, int *tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

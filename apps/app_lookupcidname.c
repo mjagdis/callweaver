@@ -60,17 +60,17 @@ static const char descrip[] =
   "calls.  Always returns 0.\n";
 
 
-static int lookupcidname_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
   char dbname[64];
   struct localuser *u;
 
   LOCAL_USER_ADD (u);
   if (chan->cid.cid_num) {
-	if (!opbx_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
-		opbx_set_callerid (chan, NULL, dbname, NULL);
+	if (!cw_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
+		cw_set_callerid (chan, NULL, dbname, NULL);
 		  if (option_verbose > 2)
-		    opbx_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
+		    cw_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
 				 dbname);
 	}
   }
@@ -83,14 +83,14 @@ static unload_module (void)
 {
   int res = 0;
 
-  res |= opbx_unregister_function (app);
+  res |= cw_unregister_function (app);
   return res;
 }
 
 int
 static load_module (void)
 {
-  app = opbx_register_function(name, lookupcidname_exec, synopsis, syntax, descrip);
+  app = cw_register_function(name, lookupcidname_exec, synopsis, syntax, descrip);
   return 0;
 }
 

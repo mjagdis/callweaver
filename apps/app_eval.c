@@ -57,7 +57,7 @@ static const char eval_descrip[] =
 "the first time as part of the normal dialplan, and the second using Eval.\n";
 
 
-static int eval_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int eval_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static int dep_warning = 0;
 	char tmp[MAXRESULT];
@@ -66,7 +66,7 @@ static int eval_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int res = 0;
 
 	if (!dep_warning) {
-		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
+		cw_log(CW_LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
 		dep_warning = 1;
 	}
 
@@ -89,13 +89,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(eval_app);
+	res |= cw_unregister_function(eval_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	eval_app = opbx_register_function(eval_name, eval_exec, eval_synopsis, eval_syntax, eval_descrip);
+	eval_app = cw_register_function(eval_name, eval_exec, eval_synopsis, eval_syntax, eval_descrip);
 	return 0;
 }
 

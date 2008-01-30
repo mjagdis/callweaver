@@ -126,10 +126,10 @@ char *icd_thread_state_strings[] = {
     "ICD_THREAD_STATE_RUNNING", "ICD_THREAD_STATE_FINISHED"
 };
 
-char *opbx_state_strings[] = {
-    " OPBX_STATE_DOWN", " OPBX_STATE_RESERVED", " OPBX_STATE_OFFHOOK",
-    " OPBX_STATE_DIALING", " OPBX_STATE_RING", " OPBX_STATE_RINGING",
-    " OPBX_STATE_UP", " OPBX_STATE_BUSY", " OPBX_STATE_DIALING_OFFHOOK"
+char *cw_state_strings[] = {
+    " CW_STATE_DOWN", " CW_STATE_RESERVED", " CW_STATE_OFFHOOK",
+    " CW_STATE_DIALING", " CW_STATE_RING", " CW_STATE_RINGING",
+    " CW_STATE_UP", " CW_STATE_BUSY", " CW_STATE_DIALING_OFFHOOK"
 };
 
 /*
@@ -187,7 +187,7 @@ icd_caller_group *create_icd_caller_group(char *name, icd_caller * owner)
 
     group = (icd_caller_group *) ICD_STD_MALLOC(sizeof(icd_caller_group));
     if (group == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Caller Group\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Caller Group\n");
         return NULL;
     }
     memset(group, 0, sizeof(icd_caller_group));
@@ -294,7 +294,7 @@ void icd_caller__group_chanup(icd_caller_group * group)
 {
     icd_list_iterator *iter;
     icd_caller *caller;
-    opbx_channel *chan;
+    cw_channel *chan;
 
     assert(group != NULL);
 
@@ -348,7 +348,7 @@ icd_caller *create_icd_caller(icd_config * data)
     /* make a new caller from scratch */
     caller = (icd_caller *) ICD_STD_MALLOC(sizeof(icd_caller));
     if (caller == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Caller\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Caller\n");
         return NULL;
     }
     caller->state = ICD_CALLER_STATE_CREATED;
@@ -383,7 +383,7 @@ icd_status destroy_icd_caller(icd_caller ** callp)
         icd_event_factory__generate(event_factory, *callp, (*callp)->name, module_id, ICD_EVENT_DESTROY, NULL,
         (*callp)->listeners, NULL);
     if (vetoed == ICD_EVETO) {
-        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Caller %s has been vetoed\n", icd_caller__get_name(*callp));
+        cw_log(CW_LOG_NOTICE, "Destruction of ICD Caller %s has been vetoed\n", icd_caller__get_name(*callp));
         return ICD_EVETO;
     }
 
@@ -434,7 +434,7 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
     that->am_clone = 0;
     }
 
-    that->chan = (struct opbx_channel *)icd_config__get_value(data, "chan");
+    that->chan = (struct cw_channel *)icd_config__get_value(data, "chan");
     that->distributor = NULL;
 */
 
@@ -476,33 +476,33 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
         fieldint *= 1000;
     if (fieldint > 2000 && fieldint < 240000) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] has a time out of %d\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] has a time out of %d\n", icd_caller__get_id(that),
                 icd_caller__get_name(that), fieldint);
         that->timeout = fieldint;
     } else {
-        opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] sanity check Invalid timeout %d\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] sanity check Invalid timeout %d\n", icd_caller__get_id(that),
             icd_caller__get_name(that), fieldint);
     }
 
     fieldstr = icd_config__get_value(data, "onhook");
-    if (fieldstr != NULL && opbx_true(fieldstr)) {
+    if (fieldstr != NULL && cw_true(fieldstr)) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] has been identified as onhook\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] has been identified as onhook\n", icd_caller__get_id(that),
                 icd_caller__get_name(that));
         that->onhook = 1;
     }
     that->dynamic = 0;
     fieldstr = icd_config__get_value(data, "dynamic");
-    if (fieldstr != NULL && opbx_true(fieldstr)) {
+    if (fieldstr != NULL && cw_true(fieldstr)) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] has been identified as dynamic not from icd_agents.conf\n",
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] has been identified as dynamic not from icd_agents.conf\n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
         that->dynamic = 1;
     }
     fieldstr = icd_config__get_value(data, "acknowledge_call");
-    if (fieldstr != NULL && opbx_true(fieldstr)) {
+    if (fieldstr != NULL && cw_true(fieldstr)) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] has been identified as requiring acknowledgement\n",
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] has been identified as requiring acknowledgement\n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
         that->acknowledge_call = 1;
     }
@@ -536,13 +536,13 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
 
     that->listeners = create_icd_listeners();
 
-    opbx_mutex_init(&(that->lock));
+    cw_mutex_init(&(that->lock));
     that->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
     that->using_caller_thread = 0;
 
     /* Create the condition that wakes up the thread running in __run() */
     result = pthread_condattr_init(&condattr);
-    result = opbx_cond_init(&(that->wakeup), &condattr);
+    result = cw_cond_init(&(that->wakeup), &condattr);
     result = pthread_condattr_destroy(&condattr);
 
     vetoed = icd_event__generate(ICD_EVENT_INIT, NULL);
@@ -589,13 +589,13 @@ icd_status icd_caller__clear(icd_caller * that)
     /* Notify event hooks and listeners */
     vetoed = icd_event__generate(ICD_EVENT_CLEAR, NULL);
     if (vetoed == ICD_EVETO) {
-        opbx_log(OPBX_LOG_WARNING, "Clearing of ICD Caller %s has been vetoed\n", icd_caller__get_name(that));
+        cw_log(CW_LOG_WARNING, "Clearing of ICD Caller %s has been vetoed\n", icd_caller__get_name(that));
         return ICD_EVETO;
     }
 
     icd_caller__set_state(that, ICD_CALLER_STATE_CLEARED);
     if (that->params && that->params->allocated) {
-        /*opbx_log(OPBX_LOG_WARNING,"caller clear() freeing hash memory\n"); */
+        /*cw_log(CW_LOG_WARNING,"caller clear() freeing hash memory\n"); */
         vh_destroy(&(that->params));
     }
 
@@ -618,8 +618,8 @@ icd_status icd_caller__clear(icd_caller * that)
     if (that->using_caller_thread) {
         pthread_cancel(that->thread);
     }
-    opbx_cond_destroy(&(that->wakeup));
-    opbx_mutex_destroy(&(that->lock));
+    cw_cond_destroy(&(that->wakeup));
+    cw_mutex_destroy(&(that->lock));
 
     that->owner = NULL;
     that->authorization = NULL;
@@ -644,7 +644,7 @@ icd_status icd_caller__clear(icd_caller * that)
     that->dump_fn = NULL;
     that->dump_fn_extra = NULL;
     if (icd_debug)
-        opbx_log(OPBX_LOG_DEBUG, "ICD Caller id[%d] [%s] has been cleared\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_DEBUG, "ICD Caller id[%d] [%s] has been cleared\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
 
     if (that->name != NULL) {
@@ -687,7 +687,7 @@ icd_status icd_caller__clear_suspend(icd_caller * that)
     }	
 
     if (icd_debug)
-        opbx_log(OPBX_LOG_DEBUG, "ICD Caller id[%d] [%s] has been suspend - cleared\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_DEBUG, "ICD Caller id[%d] [%s] has been suspend - cleared\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
 
     return ICD_SUCCESS;
@@ -712,7 +712,7 @@ icd_status icd_caller__add_to_queue(icd_caller * that, icd_queue * queue)
     /* Check to see if already in queue, return EEXISTS if so */
     member = icd_member_list__get_for_queue(that->memberships, queue);
     if (member != NULL) {
-        opbx_log(OPBX_LOG_NOTICE, "Attempted to add caller %s twice into the same queue %s\n", icd_caller__get_name(that),
+        cw_log(CW_LOG_NOTICE, "Attempted to add caller %s twice into the same queue %s\n", icd_caller__get_name(that),
             icd_queue__get_name(queue));
         return ICD_EEXISTS;
     }
@@ -751,7 +751,7 @@ icd_status icd_caller__remove_from_queue(icd_caller * that, icd_queue * queue)
     /* Make sure it is actually in the queue */
     member = icd_member_list__get_for_queue(that->memberships, queue);
     if (member == NULL) {
-        opbx_log(OPBX_LOG_WARNING, "Attempted to remove caller %s from non-member queue %s", icd_caller__get_name(that),
+        cw_log(CW_LOG_WARNING, "Attempted to remove caller %s from non-member queue %s", icd_caller__get_name(that),
             icd_queue__get_name(queue));
         return ICD_ENOTFOUND;
     }
@@ -809,7 +809,7 @@ icd_status icd_caller__removed_from_distributor(icd_caller * that, icd_distribut
 }
 
 /* Attach a channel to the caller structure. */
-icd_status icd_caller__assign_channel(icd_caller * that, opbx_channel * chan)
+icd_status icd_caller__assign_channel(icd_caller * that, cw_channel * chan)
 {
     icd_status vetoed;
     icd_plugable_fn *icd_run;
@@ -946,7 +946,7 @@ icd_status icd_caller__add_role(icd_caller * that, icd_role role)
         icd_caller__unlock(that);
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to add role\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to add role\n",
         icd_caller__get_name(that));
     return ICD_ELOCK;
 }
@@ -963,7 +963,7 @@ icd_status icd_caller__clear_role(icd_caller * that, icd_role role)
             icd_caller__unlock(that);
             return ICD_SUCCESS;
         }
-        opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear role\n",
+        cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear role\n",
             icd_caller__get_name(that));
         return ICD_ELOCK;
     }
@@ -989,7 +989,7 @@ icd_status icd_caller__clear_roles(icd_caller * that)
         icd_caller__unlock(that);
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear all roles\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear all roles\n",
         icd_caller__get_name(that));
     return ICD_ELOCK;
 }
@@ -1015,7 +1015,7 @@ icd_status icd_caller__add_flag(icd_caller * that, icd_flag flag)
         icd_caller__unlock(that);
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to add flag\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to add flag\n",
         icd_caller__get_name(that));
     return ICD_ELOCK;
 }
@@ -1032,7 +1032,7 @@ icd_status icd_caller__clear_flag(icd_caller * that, icd_flag flag)
             icd_caller__unlock(that);
             return ICD_SUCCESS;
         }
-        opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear flag\n",
+        cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear flag\n",
             icd_caller__get_name(that));
         return ICD_ELOCK;
     }
@@ -1058,7 +1058,7 @@ icd_status icd_caller__clear_flags(icd_caller * that)
         icd_caller__unlock(that);
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear all flags\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on ICD Caller %s in order to clear all flags\n",
         icd_caller__get_name(that));
     return ICD_ELOCK;
 }
@@ -1127,7 +1127,7 @@ icd_status icd_caller__start_caller_response(icd_caller * that)
     that->thread_state = ICD_THREAD_STATE_RUNNING;
     /* either we verbose here or icd_caller__create_thread not both */
     if (icd_verbose > 4)
-        opbx_verbose(VERBOSE_PREFIX_1 "Started thread for caller id[%d] [%s]\n", icd_caller__get_id(that),
+        cw_verbose(VERBOSE_PREFIX_1 "Started thread for caller id[%d] [%s]\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     return ICD_SUCCESS;
 }
@@ -1417,12 +1417,12 @@ icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state)
         that->state = state;
         time(&that->last_mod);
         time(&that->last_state_change);
-        opbx_cond_signal(&(that->wakeup));
+        cw_cond_signal(&(that->wakeup));
         icd_caller__unlock(that);
 
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Unable to get a lock on Caller id[%d] [%s] in order to set state\n",
+    cw_log(CW_LOG_WARNING, "Unable to get a lock on Caller id[%d] [%s] in order to set state\n",
         icd_caller__get_id(that), icd_caller__get_name(that));
     return ICD_ELOCK;
 }
@@ -1461,7 +1461,7 @@ void *icd_caller__get_owner(icd_caller * that)
 }
 
 /* Set the channel for that caller call */
-icd_status icd_caller__set_channel(icd_caller * that, opbx_channel * chan)
+icd_status icd_caller__set_channel(icd_caller * that, cw_channel * chan)
 {
     assert(that != NULL);
 
@@ -1471,7 +1471,7 @@ icd_status icd_caller__set_channel(icd_caller * that, opbx_channel * chan)
 }
 
 /* Get the channel for that caller call */
-opbx_channel *icd_caller__get_channel(icd_caller * that)
+cw_channel *icd_caller__get_channel(icd_caller * that)
 {
     assert(that != NULL);
 
@@ -1804,22 +1804,22 @@ icd_status icd_caller__lock(icd_caller * that)
     assert(that != NULL);
 
     if (that->state == ICD_CALLER_STATE_CLEARED || that->state == ICD_CALLER_STATE_DESTROYED) {
-        opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] Lock failed due to state cleared or destroyed (%d)\n",
+        cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Lock failed due to state cleared or destroyed (%d)\n",
             icd_caller__get_id(that), icd_caller__get_name(that), that->state);
         return ICD_ERESOURCE;
     }
    if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] Try to Lock\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] Try to Lock\n", icd_caller__get_id(that),
                 icd_caller__get_name(that));
-    retval = opbx_mutex_lock(&that->lock);
+    retval = cw_mutex_lock(&that->lock);
 
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded\n", icd_caller__get_id(that),
                 icd_caller__get_name(that));
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d\n", icd_caller__get_id(that),
+    cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d\n", icd_caller__get_id(that),
         icd_caller__get_name(that), retval);
     return ICD_ELOCK;
 }
@@ -1832,21 +1832,21 @@ icd_status icd_caller__unlock(icd_caller * that)
     assert(that != NULL);
 
     if (that->state == ICD_CALLER_STATE_DESTROYED) {
-        opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] Unlock failed due to state destroyed (%d)\n",
+        cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Unlock failed due to state destroyed (%d)\n",
             icd_caller__get_id(that), icd_caller__get_name(that), that->state);
         return ICD_ERESOURCE;
     }
    if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] Try to UnLock\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] Try to UnLock\n", icd_caller__get_id(that),
                 icd_caller__get_name(that));
-    retval = opbx_mutex_unlock(&that->lock);
+    retval = cw_mutex_unlock(&that->lock);
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded\n", icd_caller__get_id(that),
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded\n", icd_caller__get_id(that),
                 icd_caller__get_name(that));
         return ICD_SUCCESS;
     }
-    opbx_log(OPBX_LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d\n", icd_caller__get_id(that),
+    cw_log(CW_LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d\n", icd_caller__get_id(that),
         icd_caller__get_name(that), retval);
     return ICD_ELOCK;
 }
@@ -1918,7 +1918,7 @@ int icd_caller__authenticate_by_keypad(icd_caller * caller, void *authenticate_t
 {
     char *password;
     char entry_buf[20];
-    int opbx_result;
+    int cw_result;
 
     assert(caller != NULL);
     assert(caller->chan != NULL);
@@ -1926,8 +1926,8 @@ int icd_caller__authenticate_by_keypad(icd_caller * caller, void *authenticate_t
 
     password = (char *) authenticate_token;
     memset(entry_buf, 0, sizeof(entry_buf));
-    opbx_result = opbx_app_getdata(caller->chan, "agent-pass", entry_buf, sizeof(entry_buf) - 1, 0);
-    if (opbx_result == 0) {
+    cw_result = cw_app_getdata(caller->chan, "agent-pass", entry_buf, sizeof(entry_buf) - 1, 0);
+    if (cw_result == 0) {
         if (strcmp(password, entry_buf) == 0) {
         }
     }
@@ -1941,7 +1941,7 @@ int icd_caller__play_logged_in_message(icd_event * event, void *extra)
 {
     icd_caller *that;
     icd_status result;
-    int opbx_result;
+    int cw_result;
 
     assert(event != NULL);
 
@@ -1957,9 +1957,9 @@ int icd_caller__play_logged_in_message(icd_event * event, void *extra)
         /* What can we do? The channel didn't come up for some reason. */
         return 0;
     }
-    opbx_result = opbx_streamfile(that->chan, "agent-loginok", that->chan->language);
-    if (opbx_result == 0) {
-        opbx_result = opbx_waitstream(that->chan,  OPBX_DIGIT_ANY);
+    cw_result = cw_streamfile(that->chan, "agent-loginok", that->chan->language);
+    if (cw_result == 0) {
+        cw_result = cw_waitstream(that->chan,  CW_DIGIT_ANY);
     }
     return 0;
 }
@@ -2078,7 +2078,7 @@ int icd_caller__deldist_notify_hook(icd_event * event, void *extra)
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
 
-    opbx_log(OPBX_LOG_WARNING, "Caller %d [%s] is hung up. \n", icd_caller__get_id(that), icd_caller__get_name(that));
+    cw_log(CW_LOG_WARNING, "Caller %d [%s] is hung up. \n", icd_caller__get_id(that), icd_caller__get_name(that));
 
     if (that == NULL || icd_caller__get_state(that) == ICD_CALLER_STATE_CALL_END) {
         /* Nothing to be done. */
@@ -2142,7 +2142,7 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
     /* You play hold music and listen on channel for offhook only */
     if (icd_caller__get_onhook(that)) {
         if (icd_verbose > 4)
-            opbx_log(OPBX_LOG_NOTICE, "Caller id[%d] [%s] is an onhook agent so hangs up immediately.  \n",
+            cw_log(CW_LOG_NOTICE, "Caller id[%d] [%s] is an onhook agent so hangs up immediately.  \n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
         return 0;
     }
@@ -2153,7 +2153,7 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
         } else if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
             icd_bridge__wait_call_agent(that);
         } else {
-            opbx_log(OPBX_LOG_WARNING, "Invalid role not a customer or an agent...\n");
+            cw_log(CW_LOG_WARNING, "Invalid role not a customer or an agent...\n");
             icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
             return -1;          /* does anybody care what I return? */
         }
@@ -2256,7 +2256,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             		associate = (icd_caller *) icd_list_iterator__next(iter);
     				no_ack = icd_caller__get_param(associate, "no_ack");
     				if (no_ack != NULL)
-    					if(opbx_true(no_ack)) {
+    					if(cw_true(no_ack)) {
     						ack_wait = 0;
     						break;
     				}
@@ -2287,7 +2287,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
         while (icd_list_iterator__has_more_nolock(iter)) {
 
             associate = (icd_caller *) icd_list_iterator__next(iter);
-                opbx_log(OPBX_LOG_WARNING, "\nCallers %d and %d are about to be bridged\n", icd_caller__get_id(that),
+                cw_log(CW_LOG_WARNING, "\nCallers %d and %d are about to be bridged\n", icd_caller__get_id(that),
                                             icd_caller__get_id(associate));
 
             /* Try to create a channel if not present. */
@@ -2316,7 +2316,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
         link_count = icd_list__count(live_associations);
 
         if (link_count <= 0) {
-            	opbx_log(OPBX_LOG_WARNING, "No associations are found, setting our state to channel failed\n");
+            	cw_log(CW_LOG_WARNING, "No associations are found, setting our state to channel failed\n");
             	icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
         	destroy_icd_list(&live_associations);
     		return 0;
@@ -2330,8 +2330,8 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             associate = (icd_caller *) icd_list__peek((icd_list *) live_associations);
             if (icd_verbose > 4) {
 	            if(icd_caller_list__caller_position(that->associations, associate) >=0){ 
-                	opbx_log(OPBX_LOG_NOTICE, "%s=%s -> %s=%s\n\n", that->chan->name, opbx_state_strings[that->chan->_state],
-                    associate->chan->name, opbx_state_strings[associate->chan->_state]);
+                	cw_log(CW_LOG_NOTICE, "%s=%s -> %s=%s\n\n", that->chan->name, cw_state_strings[that->chan->_state],
+                    associate->chan->name, cw_state_strings[associate->chan->_state]);
             	}
 	    }
 
@@ -2345,13 +2345,13 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 		   || icd_caller__has_flag(associate, ICD_ACK_EXTERN_FLAG)){
 		    break;
 		}    
-	        res = opbx_waitfordigit(that->chan, 200);
+	        res = cw_waitfordigit(that->chan, 200);
                 if (res < 0) {
                     break;
                 }
             }
             if(res <0){
-                opbx_log(OPBX_LOG_WARNING, "Channel of bridger [%s] failed while waiting for bridgee[%s]\n", icd_caller__get_name(that), icd_caller__get_name(associate));
+                cw_log(CW_LOG_WARNING, "Channel of bridger [%s] failed while waiting for bridgee[%s]\n", icd_caller__get_name(that), icd_caller__get_name(associate));
                 icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
                 icd_list__unlock((icd_list *) (that->associations));
                 icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED);
@@ -2359,7 +2359,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 		return 1;
 	    }	
             if(it>100){
-                opbx_log(OPBX_LOG_WARNING, "Bridger [%s] waited too long for bridgee [%s] prompt to be finished\n", icd_caller__get_name(that), icd_caller__get_name(associate));
+                cw_log(CW_LOG_WARNING, "Bridger [%s] waited too long for bridgee [%s] prompt to be finished\n", icd_caller__get_name(that), icd_caller__get_name(associate));
                 icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
                 icd_list__unlock((icd_list *) (that->associations));
                 icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED);
@@ -2396,7 +2396,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
                     }
                 }
                 if (conf) {
-                    opbx_log(OPBX_LOG_NOTICE, "Conference Located....%d\n", conf->ztc.confno);
+                    cw_log(CW_LOG_NOTICE, "Conference Located....%d\n", conf->ztc.confno);
                     icd_conference__associate(that, conf, 1);
                     icd_conference__associate(associate, conf, 0);
                     icd_caller__set_state(that, ICD_CALLER_STATE_CONFERENCED);
@@ -2603,7 +2603,7 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
         }
     }
 
-    if (entertain != NULL && opbx_true(entertain)) {
+    if (entertain != NULL && cw_true(entertain)) {
         icd_caller__start_waiting(that);
         cleanup_required = 1;
     }
@@ -2626,7 +2626,7 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
         icd_caller__set_state(that, ICD_CALLER_STATE_READY);
     } else if ((strcmp(action, "listen") == 0) && (icd_caller__get_onhook(that) == 0)) {
         while (pos == NULL) {
-            res = opbx_waitfordigit(that->chan, waittime);
+            res = cw_waitfordigit(that->chan, waittime);
             if (res < 1) {
                 if (wakeup == NULL || strlen(wakeup) == 0) {
                     break;
@@ -2711,16 +2711,16 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd,
     }
     /* should be assume verbosity = -1 means debug ??
        if (skip_opening == 0) {
-       opbx_cli(fd,"\nDumping icd_caller {\n");
+       cw_cli(fd,"\nDumping icd_caller {\n");
        }
      */
     icd_caller__dump_debug_fd(caller, fd, "      ");
     /*
-       opbx_cli(fd,"      name=%s\n", icd_caller__get_name(caller));
-       opbx_cli(fd,"    id=%d\n", caller->id);
+       cw_cli(fd,"      name=%s\n", icd_caller__get_name(caller));
+       cw_cli(fd,"    id=%d\n", caller->id);
      */
     /* TBD Write some of these out, too
-       struct opbx_channel *chan;
+       struct cw_channel *chan;
        void *owner;
        void *authorization;
        icd_caller_list *associations;
@@ -2743,7 +2743,7 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd,
        int allocated;
        int (*auth_fn)(icd_caller *, void *);
        int (*state_fn)(icd_caller *, int, int);
-       int (*chan_fn)(icd_caller *, opbx_channel *);
+       int (*chan_fn)(icd_caller *, cw_channel *);
        int (*added_fn)(icd_caller *, icd_caller_list *);
        int (*link_fn)(icd_caller *, icd_caller *);
        int (*bridge_fn)(icd_caller *, icd_caller *);
@@ -2754,7 +2754,7 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd,
      */
     /*
        if (skip_opening == 0) {
-       opbx_cli(fd,"}\n");
+       cw_cli(fd,"}\n");
        }
      */
     return ICD_SUCCESS;
@@ -2949,9 +2949,9 @@ static icd_status icd_caller__create_thread(icd_caller * that)
     /* Adjust the thread state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    opbx_pthread_create(&(that->thread), &global_attr_rr_detached, icd_caller__run, that);
+    cw_pthread_create(&(that->thread), &global_attr_rr_detached, icd_caller__run, that);
     that->using_caller_thread = 1;
-    opbx_verbose(VERBOSE_PREFIX_2 "Spawn thread for Caller id[%d] [%s]\n", icd_caller__get_id(that),
+    cw_verbose(VERBOSE_PREFIX_2 "Spawn thread for Caller id[%d] [%s]\n", icd_caller__get_id(that),
         icd_caller__get_name(that));
     return ICD_SUCCESS;
 }
@@ -2975,41 +2975,41 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
     icd_list_iterator *iter;
 
     if (indent) {
-        opbx_cli(fd, "%s", indent);
+        cw_cli(fd, "%s", indent);
     }
 
     if (that->chan != NULL && that->chan->name) {
-        opbx_cli(fd, "Chan[%s] ", that->chan->name);
+        cw_cli(fd, "Chan[%s] ", that->chan->name);
     }
     if (that->chan_string) {
-        opbx_cli(fd, "ChanStr[%s]", icd_caller__get_channel_string(that));
+        cw_cli(fd, "ChanStr[%s]", icd_caller__get_channel_string(that));
     } else {
-        opbx_cli(fd, "ChanStr[]");
+        cw_cli(fd, "ChanStr[]");
     }
 
     if (icd_caller__get_onhook(that)) {
-        opbx_cli(fd, " OnHook[YES]");
+        cw_cli(fd, " OnHook[YES]");
     } else {
-        opbx_cli(fd, " OnHook[NO]");
+        cw_cli(fd, " OnHook[NO]");
     }
 
     if (icd_caller__get_dynamic(that)) {
-        opbx_cli(fd, " Dynamic[YES]");
+        cw_cli(fd, " Dynamic[YES]");
     } else {
-        opbx_cli(fd, " Dynamic[NO]");
+        cw_cli(fd, " Dynamic[NO]");
     }
 
     if (icd_caller__get_pushback(that)) {
-        opbx_cli(fd, " PushBack[YES]");
+        cw_cli(fd, " PushBack[YES]");
     } else {
-        opbx_cli(fd, " PushBack[NO]");
+        cw_cli(fd, " PushBack[NO]");
     }
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
         /* Agent specfic attributes */
-        opbx_cli(fd, " Timeout[%d]", icd_caller__get_timeout(that));
-        opbx_cli(fd, " AckCall[%d]", icd_caller__get_acknowledge_call(that));
-        opbx_cli(fd, " Priority[%d]", icd_caller__get_priority(that));
+        cw_cli(fd, " Timeout[%d]", icd_caller__get_timeout(that));
+        cw_cli(fd, " AckCall[%d]", icd_caller__get_acknowledge_call(that));
+        cw_cli(fd, " Priority[%d]", icd_caller__get_priority(that));
 
         action = vh_read(that->params, "suspend.action");
         entertain = vh_read(that->params, "suspend.entertain");
@@ -3019,11 +3019,11 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
         if (wait != NULL) {
             waittime = atoi(wait);
         }
-        opbx_cli(fd, " Entertain[%s]", entertain);
-        opbx_cli(fd, " WrapUp[%d]", waittime);
+        cw_cli(fd, " Entertain[%s]", entertain);
+        cw_cli(fd, " WrapUp[%d]", waittime);
     }
-    /*%TC remove opbx_log in icd_[blah]_get_plugable_fns since that dumps here */
-    opbx_cli(fd, "plugable_fns[%s] FnCount[%d]", icd_plugable__get_name(that->get_plugable_fn(that)),
+    /*%TC remove cw_log in icd_[blah]_get_plugable_fns since that dumps here */
+    cw_cli(fd, "plugable_fns[%s] FnCount[%d]", icd_plugable__get_name(that->get_plugable_fn(that)),
         icd_plugable_fn_list_count(that->plugable_fns_list));
 
     if (that->memberships != NULL) {
@@ -3032,7 +3032,7 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
         while (icd_list_iterator__has_more(iter)) {
             member = icd_list_iterator__next(iter);
             queue = icd_member__get_queue(member);
-            opbx_cli(fd, " Q[%s][%d/%d]", icd_queue__get_name(queue), icd_caller__get_position(that, member),
+            cw_cli(fd, " Q[%s][%d/%d]", icd_queue__get_name(queue), icd_caller__get_position(that, member),
                 icd_caller__get_pending(that, member)
                 );
         }
@@ -3041,58 +3041,58 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
 
     ptr = icd_caller__get_name(that);
     if (strlen(ptr) > 0) {
-        opbx_cli(fd, " [%s]", ptr);
+        cw_cli(fd, " [%s]", ptr);
     } else {
-        opbx_cli(fd, " [no-name]");
+        cw_cli(fd, " [no-name]");
     }
 
-    opbx_cli(fd, " ID[%d] STATE[%s] ", that->id, icd_caller_state_strings[that->state]);
-    opbx_cli(fd, "Role[%d] -> ", that->role);
+    cw_cli(fd, " ID[%d] STATE[%s] ", that->id, icd_caller_state_strings[that->state]);
+    cw_cli(fd, "Role[%d] -> ", that->role);
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
-        opbx_cli(fd, "[AGENT]");
+        cw_cli(fd, "[AGENT]");
     }
     if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)) {
-        opbx_cli(fd, "[CUSTOMER]");
+        cw_cli(fd, "[CUSTOMER]");
     }
     if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
-        opbx_cli(fd, "[BRIDGER]");
+        cw_cli(fd, "[BRIDGER]");
     }
     if (icd_caller__has_role(that, ICD_BRIDGEE_ROLE)) {
-        opbx_cli(fd, "[BRIDGEE]");
+        cw_cli(fd, "[BRIDGEE]");
     }
     if (icd_caller__has_role(that, ICD_LOOPER_ROLE)) {
-        opbx_cli(fd, "[LOOPER]");
+        cw_cli(fd, "[LOOPER]");
     }
     if (icd_caller__has_role(that, ICD_CLONER_ROLE)) {
-        opbx_cli(fd, "[CLONER]");
+        cw_cli(fd, "[CLONER]");
     }
     if (icd_caller__has_role(that, ICD_CLONE_ROLE)) {
-        opbx_cli(fd, "[CLONE]");
+        cw_cli(fd, "[CLONE]");
     }
     if (icd_caller__has_role(that, ICD_INVALID_ROLE)) {
-        opbx_cli(fd, "[INVALID]");
+        cw_cli(fd, "[INVALID]");
     }
 
-    opbx_cli(fd, "Flag[%d] -> ", that->flag);
+    cw_cli(fd, "Flag[%d] -> ", that->flag);
 
     if (icd_caller__has_flag(that, ICD_MONITOR_FLAG)) {
-        opbx_cli(fd, "[MONITOR]");
+        cw_cli(fd, "[MONITOR]");
     }
     if (icd_caller__has_flag(that, ICD_CONF_MEMBER_FLAG)) {
-        opbx_cli(fd, "[CONF_MEMBER]");
+        cw_cli(fd, "[CONF_MEMBER]");
     }
     if (icd_caller__has_flag(that, ICD_NOHANGUP_FLAG)) {
-        opbx_cli(fd, "[NOHANGUP]");
+        cw_cli(fd, "[NOHANGUP]");
     }
 
-    opbx_cli(fd, "\n");
+    cw_cli(fd, "\n");
 }
 
-/* Equivalent to opbx_request() */
-opbx_channel *icd_caller__create_channel(icd_caller * that)
+/* Equivalent to cw_request() */
+cw_channel *icd_caller__create_channel(icd_caller * that)
 {
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     char *chanstring;
     char *context;
     char *priority;
@@ -3109,7 +3109,7 @@ opbx_channel *icd_caller__create_channel(icd_caller * that)
     priority = icd_caller__get_param(that, "priority");
     extension = icd_caller__get_param(that, "extension");
     if (icd_debug)
-        opbx_log(OPBX_LOG_DEBUG, "Creating Channel for caller %d [%s]  chan=%s, c=%s, p=%s, e=%s\n",
+        cw_log(CW_LOG_DEBUG, "Creating Channel for caller %d [%s]  chan=%s, c=%s, p=%s, e=%s\n",
             icd_caller__get_id(that), icd_caller__get_name(that), chanstring, context, priority, extension);
 
     chan = icd_bridge_get_callweaver_channel(chanstring, context, priority, extension);
@@ -3129,9 +3129,9 @@ opbx_channel *icd_caller__create_channel(icd_caller * that)
         if (extension == NULL) {
             extension = "null";
         }
-        opbx_log(OPBX_LOG_WARNING, "Channel for caller %d [%s] could not be created\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_WARNING, "Channel for caller %d [%s] could not be created\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
-        opbx_log(OPBX_LOG_WARNING, "    channel=[%s] context=[%s] priority=[%s] extension=[%s]", chanstring, context,
+        cw_log(CW_LOG_WARNING, "    channel=[%s] context=[%s] priority=[%s] extension=[%s]", chanstring, context,
             priority, extension);
     }
     that->owns_channel = 1;
@@ -3152,25 +3152,25 @@ icd_status icd_caller__dial_channel(icd_caller * that)
     assert(that != NULL);
     assert(that->chan != NULL);
 
-    if (that->chan->_state == OPBX_STATE_UP) {
+    if (that->chan->_state == CW_STATE_UP) {
         return ICD_SUCCESS;
     }
     /* Deal with issue in callweaver that leaves state in RINGING */
-    result = opbx_answer(that->chan);
-    if (that->chan->_state == OPBX_STATE_UP) {
+    result = cw_answer(that->chan);
+    if (that->chan->_state == CW_STATE_UP) {
         return ICD_SUCCESS;
     }
 
     /* If we got here, our channel is definitely down so we need to ring it */
     if (icd_debug)
-        opbx_log(OPBX_LOG_NOTICE, "Attempting to dial channel for caller %d [%s] \n", icd_caller__get_id(that),
+        cw_log(CW_LOG_NOTICE, "Attempting to dial channel for caller %d [%s] \n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     chanstring = icd_caller__get_channel_string(that);
     timeout = that->timeout;
     result = icd_bridge_dial_callweaver_channel(that, chanstring, timeout);
-    if (that->chan != NULL && that->chan->_state == OPBX_STATE_UP) {
-        opbx_set_read_format(that->chan, opbx_best_codec(that->chan->nativeformats));
-        opbx_set_write_format(that->chan, that->chan->readformat);
+    if (that->chan != NULL && that->chan->_state == CW_STATE_UP) {
+        cw_set_read_format(that->chan, cw_best_codec(that->chan->nativeformats));
+        cw_set_write_format(that->chan, that->chan->readformat);
         /* do we raise icd channel up here or down in icd_bridge done in bridge for now
            icd_event__generate(ICD_EVENT_CHANNEL_UP, NULL);
          */
@@ -3178,30 +3178,30 @@ icd_status icd_caller__dial_channel(icd_caller * that)
         verify_app_arg = icd_caller__get_param(that, "verify_app_arg");
         result = 0;
         if (verify_app) {
-            result = opbx_function_exec_str(that->chan, opbx_hash_app_name(verify_app), verify_app, verify_app_arg, NULL, 0);
+            result = cw_function_exec_str(that->chan, cw_hash_app_name(verify_app), verify_app, verify_app_arg, NULL, 0);
         }
         if (result == 0 && that->chan) {
             return ICD_SUCCESS;
         } else if (that->chan) {
-            opbx_hangup(that->chan);
+            cw_hangup(that->chan);
             that->chan = NULL;
         }
 
     }
 
     if (that->chan == NULL) {
-        opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] channel just went away\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] channel just went away\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     } else {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller id[%d] [%s] channel state is %d [%s]\n", icd_caller__get_id(that),
-                icd_caller__get_name(that), that->chan->_state, opbx_state2str(that->chan->_state));
+            cw_log(CW_LOG_DEBUG, "Caller id[%d] [%s] channel state is %d [%s]\n", icd_caller__get_id(that),
+                icd_caller__get_name(that), that->chan->_state, cw_state2str(that->chan->_state));
     }
 
     if (chanstring == NULL) {
         chanstring = "null";
     }
-    opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] channel[%s] did not come up timeout[%d] \n", icd_caller__get_id(that),
+    cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] channel[%s] did not come up timeout[%d] \n", icd_caller__get_id(that),
         icd_caller__get_name(that), chanstring, timeout);
     return ICD_EGENERAL;
 }
@@ -3316,7 +3316,7 @@ icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate)
     icd_queue *queue;
 
     if (icd_debug)
-        opbx_log(OPBX_LOG_DEBUG, "CROSS-LINK: %d to %d\n", that->id, associate->id);
+        cw_log(CW_LOG_DEBUG, "CROSS-LINK: %d to %d\n", that->id, associate->id);
 /*We remove callers from all distributors */
  	
     icd_list__lock((icd_list *) (that->memberships));
@@ -3411,10 +3411,10 @@ icd_status icd_caller__standard_start_waiting(icd_caller * caller)
     moh = icd_caller__get_moh(caller);
     if (caller->entertained == ICD_ENTERTAIN_NONE) {
         if (!strcmp(moh, "ringing") && caller->chan) {
-            opbx_indicate(caller->chan,  OPBX_CONTROL_RINGING);
+            cw_indicate(caller->chan,  CW_CONTROL_RINGING);
             caller->entertained = ICD_ENTERTAIN_RING;
         } else if (caller->chan) {
-            opbx_moh_start(caller->chan, moh);
+            cw_moh_start(caller->chan, moh);
             caller->entertained = ICD_ENTERTAIN_MOH;
         }
     }
@@ -3434,9 +3434,9 @@ icd_status icd_caller__play_sound_file(icd_caller *caller, char *file)
     if (caller->chan == NULL || !file || !strlen(file))
         res = -1;
     else {
-        res = opbx_streamfile(caller->chan, file, caller->chan->language);
+        res = cw_streamfile(caller->chan, file, caller->chan->language);
         if (!res) {
-            res = opbx_waitstream(caller->chan,  OPBX_DIGIT_ANY);
+            res = cw_waitstream(caller->chan,  CW_DIGIT_ANY);
         }
     }
 
@@ -3457,12 +3457,12 @@ icd_status icd_caller__standard_stop_waiting(icd_caller * caller)
         return ICD_SUCCESS;
 
     if (caller->chan) {
-        opbx_clear_flag(caller->chan,  OPBX_FLAG_BLOCKING);
+        cw_clear_flag(caller->chan,  CW_FLAG_BLOCKING);
 
-        opbx_moh_stop(caller->chan);
+        cw_moh_stop(caller->chan);
 
         if (caller->chan->stream) {
-            opbx_stopstream(caller->chan);       /* cut off any files that are playing */
+            cw_stopstream(caller->chan);       /* cut off any files that are playing */
         }
     }
     caller->entertained = ICD_ENTERTAIN_NONE;
@@ -3514,7 +3514,7 @@ icd_status icd_caller__set_plugable_fn_ptr(icd_caller * that, icd_plugable_fn * 
     //icd_plugable__set_fn(that->get_plugable_fn ,get_plugable_fn);
     that->get_plugable_fn = get_plugable_fn;
     if (icd_debug)
-        opbx_log(OPBX_LOG_NOTICE, "\nCaller %d [%s] SET plugable_fn_ptr[%s] ready_fn[%p]\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_NOTICE, "\nCaller %d [%s] SET plugable_fn_ptr[%s] ready_fn[%p]\n", icd_caller__get_id(that),
             icd_caller__get_name(that), icd_plugable__get_name(that->get_plugable_fn(that)),
             that->get_plugable_fn(that)->state_ready_fn);
 
@@ -3553,11 +3553,11 @@ icd_plugable_fn *icd_caller_get_plugable_fns(icd_caller * that)
             plugable_fns = &icd_caller_plugable_fns;
     }
     if (plugable_fns == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_ERROR, "Caller %d [%s] has no plugable fn aborting ala crash\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     } else {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "\nCaller id[%d] [%s] using plugable_fns[%s] ready_fn[%p]\n",
+            cw_log(CW_LOG_DEBUG, "\nCaller id[%d] [%s] using plugable_fns[%s] ready_fn[%p]\n",
                 icd_caller__get_id(that), icd_caller__get_name(that), icd_plugable__get_name(plugable_fns),
                 plugable_fns->state_ready_fn);
     }
@@ -3663,9 +3663,9 @@ void *icd_caller__standard_run(void *ptr)
 
     /*
        if(setjmp(env) == SIGSEGV) {
-       opbx_log(OPBX_LOG_WARNING,"DANGER WILL ROBINSON! This caller created a SEGV\n");
+       cw_log(CW_LOG_WARNING,"DANGER WILL ROBINSON! This caller created a SEGV\n");
        if(that != NULL) {
-       opbx_verbose("Let's Not use this caller.\n");
+       cw_verbose("Let's Not use this caller.\n");
        // dis guy iz trubble forgedd aboudit
        icd_bridge__safe_hangup(that);
        if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
@@ -3700,7 +3700,7 @@ void *icd_caller__standard_run(void *ptr)
                      *  When the following state change happens, it means that the
                      *  caller has a thread in its run() method.
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] in state - ICD_CALLER_STATE_INITIALIZED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] in state - ICD_CALLER_STATE_INITIALIZED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that));
                      */
                     icd_caller__set_state(that, ICD_CALLER_STATE_READY);
@@ -3711,7 +3711,7 @@ void *icd_caller__standard_run(void *ptr)
                      * distributor to link. If not in this state,
                      * distributor discards member when popped.
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - READY \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - READY \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_ready_fn);
                      */
 
@@ -3731,7 +3731,7 @@ void *icd_caller__standard_run(void *ptr)
                      * No action is usually required. This is a thread information state.
                      * standard plugable function is icd_caller__standard_state_distribute
                      if (icd_verbose > 4)*/
-                     opbx_log(OPBX_LOG_NOTICE, "Caller id[%d] name[%s] caller_id[%s] run[%p] in state - DISTRIBUTING \n",
+                     cw_log(CW_LOG_NOTICE, "Caller id[%d] name[%s] caller_id[%s] run[%p] in state - DISTRIBUTING \n",
                      icd_caller__get_id(that), icd_caller__get_name(that), icd_caller__get_caller_id(that), icd_run->state_distribute_fn);
                      
                      
@@ -3744,7 +3744,7 @@ void *icd_caller__standard_run(void *ptr)
                      * bringing up channels if required to make a bridged call
                      * standard plugable function is icd_caller__standard_state_get_channels
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - GET_CHANNELS_AND_BRIDGE \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - GET_CHANNELS_AND_BRIDGE \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_get_channels_fn );
                      */
                     icd_event__notify(ICD_EVENT_GET_CHANNELS, NULL, icd_run->state_get_channels_fn,
@@ -3759,10 +3759,10 @@ void *icd_caller__standard_run(void *ptr)
                      until one of the members of the conference exits.
                      The fisrt one out will tell everyone else to exit too (for now).
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CONFERENCED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CONFERENCED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_conference_fn);
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] finished Conference \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] finished Conference \n",
                      icd_caller__get_id(that), icd_caller__get_name(that));
                      */
                     icd_event__notify(ICD_EVENT_CONFERENCE, NULL, icd_run->state_conference_fn,
@@ -3774,7 +3774,7 @@ void *icd_caller__standard_run(void *ptr)
                      * No action is usually required. This is a thread information state.
                      * standard plugable function is icd_caller__standard_state_bridged
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - BRIDGED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - BRIDGED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_bridged_fn);
                      */
                     vetoed =
@@ -3786,7 +3786,7 @@ void *icd_caller__standard_run(void *ptr)
                      *may occur from waiting turn, attemping to bridge etc
                      * standard plugable function is icd_caller__standard_state_bridge_end
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CALL_END \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CALL_END \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_call_end_fn);
                      */
                     icd_event__notify(ICD_EVENT_BRIDGE_END, NULL, icd_run->state_call_end_fn,
@@ -3796,10 +3796,10 @@ void *icd_caller__standard_run(void *ptr)
                     /* Actions to perform when caller suspend action in the queue like warpup time
                      * standard plugable function is icd_caller__standard_state_suspend
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - STATE_SUSPEND \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - STATE_SUSPEND \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_suspend_fn);
                      */
-                    opbx_log(OPBX_LOG_NOTICE," Caller id[%d] name[%s] caller_id[%s] state - SUSPEND \n",icd_caller__get_id(that), icd_caller__get_name(that), icd_caller__get_caller_id(that));
+                    cw_log(CW_LOG_NOTICE," Caller id[%d] name[%s] caller_id[%s] state - SUSPEND \n",icd_caller__get_id(that), icd_caller__get_name(that), icd_caller__get_caller_id(that));
                     icd_event__notify(ICD_EVENT_SUSPEND, NULL, icd_run->state_suspend_fn,
                         icd_run->state_suspend_fn_extra);
                     break;
@@ -3807,7 +3807,7 @@ void *icd_caller__standard_run(void *ptr)
                     /*Last state of the caller no plugable actions allowed */
                     /*
                        if (icd_verbose > 4)
-                       opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] about to be stopped in state CLEARED \n",
+                       cw_log(CW_LOG_NOTICE, "Caller %d [%s] about to be stopped in state CLEARED \n",
                        icd_caller__get_id(that), icd_caller__get_name(that));
                      */
                     icd_caller__stop_caller_response(that);
@@ -3819,7 +3819,7 @@ void *icd_caller__standard_run(void *ptr)
                      * standard plugable function is icd_caller__standard_state_bridge_failed
                      * Needed? Does Bridge Failed work instead? TBD
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - BRIDGE_FAILED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - BRIDGE_FAILED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_bridge_failed_fn);
                      */
                     icd_event__notify(ICD_EVENT_BRIDGE_FAILED, NULL, icd_run->state_bridge_failed_fn,
@@ -3830,7 +3830,7 @@ void *icd_caller__standard_run(void *ptr)
                      * standard plugable function is icd_caller__standard_state_channel_failed
                      * Needed? Does Bridge Failed work instead? TBD
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CHANNEL_FAILED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - CHANNEL_FAILED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_channel_failed_fn);
                      */
                     icd_event__notify(ICD_EVENT_CHANNEL_FAILED, NULL, icd_run->state_channel_failed_fn,
@@ -3841,7 +3841,7 @@ void *icd_caller__standard_run(void *ptr)
                      * standard plugable function is icd_caller__standard_state_associate_failed
                      * Needed? Does Bridge Failed work instead?
                      if (icd_verbose > 4)
-                     opbx_log(OPBX_LOG_NOTICE, "Caller %d [%s] run[%p] in state - ASSOCIATE_FAILED \n",
+                     cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - ASSOCIATE_FAILED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_associate_failed_fn);
                      */
                     icd_event__notify(ICD_EVENT_ASSOC_FAILED, NULL, icd_run->state_associate_failed_fn,
@@ -3849,10 +3849,10 @@ void *icd_caller__standard_run(void *ptr)
                     break;
 
                 default:
-                    opbx_log(OPBX_LOG_WARNING, "Unrecognized Caller State");
+                    cw_log(CW_LOG_WARNING, "Unrecognized Caller State");
                 }
             } else {
-                opbx_cond_wait(&(that->wakeup), &(that->lock));      /* wait for signal */
+                cw_cond_wait(&(that->wakeup), &(that->lock));      /* wait for signal */
                 result = icd_caller__unlock(that);
             }
         } else {
@@ -4035,7 +4035,7 @@ icd_status icd_caller__valid_state_change(icd_caller * that, struct icd_caller_s
     default:
         break;
     }
-    opbx_log(OPBX_LOG_WARNING, "Invalid state change attempted on caller %s: %s to %s\n", icd_caller__get_name(that),
+    cw_log(CW_LOG_WARNING, "Invalid state change attempted on caller %s: %s to %s\n", icd_caller__get_name(that),
         icd_caller_state_strings[states->oldstate], icd_caller_state_strings[states->newstate]);
     return ICD_ESTATE;
 }

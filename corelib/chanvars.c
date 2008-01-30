@@ -47,47 +47,47 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * are no longer case insensitive. If the old behaviour is desired, this file
  * should be compiled with the following macro defined:
  *
- *		o  OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+ *		o  CW_USE_CASE_INSENSITIVE_VAR_NAMES
  *
  */
 
 
-#ifdef OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
-#define opbx_hash_var_name(x)	opbx_hash_string_toupper(x)
+#ifdef CW_USE_CASE_INSENSITIVE_VAR_NAMES
+#define cw_hash_var_name(x)	cw_hash_string_toupper(x)
 #else
-#define opbx_hash_var_name(x)	opbx_hash_string(x)
+#define cw_hash_var_name(x)	cw_hash_string(x)
 #endif
 
 
-struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
+struct cw_var_t *cw_var_assign(const char *name, const char *value)
 {
 	int i;
-	struct opbx_var_t *var;
-	unsigned int hash = opbx_hash_var_name(name);
+	struct cw_var_t *var;
+	unsigned int hash = cw_hash_var_name(name);
 	
-	var = calloc(sizeof(struct opbx_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
+	var = calloc(sizeof(struct cw_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
 
 	if (var == NULL) {
-		opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 
 	var->hash = hash;
 	i = strlen(name) + 1;
-	opbx_copy_string(var->name, name, i);
+	cw_copy_string(var->name, name, i);
 	var->value = var->name + i;
-	opbx_copy_string(var->value, value, strlen(value) + 1);
+	cw_copy_string(var->value, value, strlen(value) + 1);
 	
 	return var;
 }	
 	
-void opbx_var_delete(struct opbx_var_t *var)
+void cw_var_delete(struct cw_var_t *var)
 {
 	if (var)
 		free(var);
 }
 
-char *opbx_var_name(struct opbx_var_t *var)
+char *cw_var_name(struct cw_var_t *var)
 {
 	char *name;
 
@@ -106,12 +106,12 @@ char *opbx_var_name(struct opbx_var_t *var)
 	return name;
 }
 
-char *opbx_var_full_name(struct opbx_var_t *var)
+char *cw_var_full_name(struct cw_var_t *var)
 {
 	return (var ? var->name : NULL);
 }
 
-char *opbx_var_value(struct opbx_var_t *var)
+char *cw_var_value(struct cw_var_t *var)
 {
 	return (var ? var->value : NULL);
 }

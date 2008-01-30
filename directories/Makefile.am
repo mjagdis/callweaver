@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS 		        = gnu
 
-opbxmod_LTLIBRARIES             = direngine_embedded.la
+cwmod_LTLIBRARIES             = direngine_embedded.la
 
 direngine_embedded_la_SOURCES 	= direngine_embedded.c
 direngine_embedded_la_LDFLAGS   = -module -avoid-version @NO_UNDEFINED@

@@ -89,8 +89,8 @@ static uint8_t alaw_ex[] =
  */
 struct alaw_encoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];   /* Space to build offset */
     uint8_t outbuf[BUFFER_SIZE];            /* Encoded alaw, two nibbles to a word */
     int tail;
 };
@@ -100,8 +100,8 @@ struct alaw_encoder_pvt
  */
 struct ulaw_encoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];   /* Space to build offset */
     uint8_t outbuf[BUFFER_SIZE];            /* Encoded ulaw values */
     int tail;
 };
@@ -126,7 +126,7 @@ static void *ulawtoalaw_new(void)
     return tmp;
 }
 
-static int alawtoulaw_framein(void *pvt, struct opbx_frame *f)
+static int alawtoulaw_framein(void *pvt, struct cw_frame *f)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
     int x;
@@ -134,7 +134,7 @@ static int alawtoulaw_framein(void *pvt, struct opbx_frame *f)
 
     if ((tmp->tail + f->datalen)> sizeof(tmp->outbuf))
     {
-          opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+          cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
@@ -147,24 +147,24 @@ static int alawtoulaw_framein(void *pvt, struct opbx_frame *f)
     return 0;
 }
 
-static struct opbx_frame *alawtoulaw_frameout(void *pvt)
+static struct cw_frame *alawtoulaw_frameout(void *pvt)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail;
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
     tmp->tail = 0;
     return &tmp->f;
 }
 
-static int ulawtoalaw_framein(void *pvt, struct opbx_frame *f)
+static int ulawtoalaw_framein(void *pvt, struct cw_frame *f)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
     int x;
@@ -172,7 +172,7 @@ static int ulawtoalaw_framein(void *pvt, struct opbx_frame *f)
 
     if (tmp->tail + f->datalen >= sizeof(tmp->outbuf))
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     s = f->data;
@@ -193,15 +193,15 @@ static int ulawtoalaw_framein(void *pvt, struct opbx_frame *f)
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *ulawtoalaw_frameout(void *pvt)
+static struct cw_frame *ulawtoalaw_frameout(void *pvt)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
     if (tmp->tail)
     {
-        opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, __PRETTY_FUNCTION__);
+        cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ALAW, __PRETTY_FUNCTION__);
         tmp->f.samples = tmp->tail;
-        tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->f.offset = CW_FRIENDLY_OFFSET;
         tmp->f.data = tmp->outbuf;
         tmp->f.datalen = tmp->tail;
 
@@ -214,22 +214,22 @@ static struct opbx_frame *ulawtoalaw_frameout(void *pvt)
 /*
  * alawtoulaw_sample
  */
-static struct opbx_frame *alawtoulaw_sample(void)
+static struct cw_frame *alawtoulaw_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (ulaw_ex);
     f.samples = sizeof(ulaw_ex);
     f.data = ulaw_ex;
     return &f;
 }
 
-static struct opbx_frame *ulawtoalaw_sample(void)
+static struct cw_frame *ulawtoalaw_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (alaw_ex);
     f.samples = sizeof(alaw_ex);
     f.data = alaw_ex;
@@ -239,12 +239,12 @@ static struct opbx_frame *ulawtoalaw_sample(void)
 /*
  * The complete translator for alawtoulaw.
  */
-static opbx_translator_t alawtoulaw =
+static cw_translator_t alawtoulaw =
 {
     .name = "alawtoulaw",
-    .src_format = OPBX_FORMAT_ALAW,
+    .src_format = CW_FORMAT_ALAW,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_ULAW,
+    .dst_format = CW_FORMAT_ULAW,
     .dst_rate = 8000,
     .newpvt = alawtoulaw_new,
     .framein = alawtoulaw_framein,
@@ -256,12 +256,12 @@ static opbx_translator_t alawtoulaw =
 /*
  * The complete translator for ulawtoalaw.
  */
-static opbx_translator_t ulawtoalaw =
+static cw_translator_t ulawtoalaw =
 {
     .name = "ulawtoalaw",
-    .src_format = OPBX_FORMAT_ULAW,
+    .src_format = CW_FORMAT_ULAW,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_ALAW,
+    .dst_format = CW_FORMAT_ALAW,
     .dst_rate = 8000,
     .newpvt = ulawtoalaw_new,
     .framein = ulawtoalaw_framein,
@@ -272,8 +272,8 @@ static opbx_translator_t ulawtoalaw =
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&alawtoulaw);
-    opbx_translator_unregister(&ulawtoalaw);
+    cw_translator_unregister(&alawtoulaw);
+    cw_translator_unregister(&ulawtoalaw);
     return 0;
 }
 
@@ -286,8 +286,8 @@ static int load_module(void)
         mu2a[x] = ulaw_to_alaw(x);
         a2mu[x] = alaw_to_ulaw(x);
     }
-    opbx_translator_register(&alawtoulaw);
-    opbx_translator_register(&ulawtoalaw);
+    cw_translator_register(&alawtoulaw);
+    cw_translator_register(&ulawtoalaw);
     return 0;
 }
 

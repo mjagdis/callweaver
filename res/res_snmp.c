@@ -23,7 +23,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char tdesc[] = "SNMP [Sub]Agent for Callweaver";
 
-static pthread_t thread = OPBX_PTHREADT_NULL;
+static pthread_t thread = CW_PTHREADT_NULL;
 
 int res_snmp_agentx_subagent;
 int res_snmp_dont_stop;
@@ -33,57 +33,57 @@ int res_snmp_enabled;
 static char *app_1 = "URLFetch";
 static char *synopsis_1 = "Fetch Data from a URL";
 static char *desc_1 = "  URLFetch(<url>)\n"
-"load a url that returns opbx_config and set according chanvars\n"
+"load a url that returns cw_config and set according chanvars\n"
 ;
 */
 
 static int load_config(void)
 {
-	struct opbx_variable *var;
-	struct opbx_config *cfg;
+	struct cw_variable *var;
+	struct cw_config *cfg;
 	char *cat;
 
 	res_snmp_enabled = 0;
 	res_snmp_agentx_subagent = 1;
-	cfg = opbx_config_load("res_snmp.conf");
+	cfg = cw_config_load("res_snmp.conf");
 	if (!cfg) {
-		opbx_log(OPBX_LOG_WARNING, "Could not load res_snmp.conf\n");
+		cw_log(CW_LOG_WARNING, "Could not load res_snmp.conf\n");
 		return 0;
 	}
-	cat = opbx_category_browse(cfg, NULL);
+	cat = cw_category_browse(cfg, NULL);
 	while (cat) {
-		var = opbx_variable_browse(cfg, cat);
+		var = cw_variable_browse(cfg, cat);
 
 		if (strcasecmp(cat, "general") == 0) {
 			while (var) {
 				if (strcasecmp(var->name, "subagent") == 0) {
-					if (opbx_true(var->value))
+					if (cw_true(var->value))
 						res_snmp_agentx_subagent = 1;
-					else if (opbx_false(var->value))
+					else if (cw_false(var->value))
 						res_snmp_agentx_subagent = 0;
 					else {
-						opbx_log(OPBX_LOG_ERROR, "Value '%s' does not evaluate to true or false.\n", var->value);
-						opbx_config_destroy(cfg);
+						cw_log(CW_LOG_ERROR, "Value '%s' does not evaluate to true or false.\n", var->value);
+						cw_config_destroy(cfg);
 						return 1;
 					}
 				} else if (strcasecmp(var->name, "enabled") == 0) {
-					res_snmp_enabled = opbx_true(var->value);
+					res_snmp_enabled = cw_true(var->value);
 				} else {
-					opbx_log(OPBX_LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n", var->name, cat);
-					opbx_config_destroy(cfg);
+					cw_log(CW_LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n", var->name, cat);
+					cw_config_destroy(cfg);
 					return 1;
 				}
 				var = var->next;
 			}
 		} else {
-			opbx_log(OPBX_LOG_ERROR, "Unrecognized category '%s'\n", cat);
-			opbx_config_destroy(cfg);
+			cw_log(CW_LOG_ERROR, "Unrecognized category '%s'\n", cat);
+			cw_config_destroy(cfg);
 			return 1;
 		}
 
-		cat = opbx_category_browse(cfg, cat);
+		cat = cw_category_browse(cfg, cat);
 	}
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 	return 1;
 }
 
@@ -92,35 +92,35 @@ static int load_module(void)
 	if (!load_config())
 		return -1;
 
-	opbx_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
+	cw_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(&thread, &global_attr_default, agent_thread, NULL);
+		return cw_pthread_create(&thread, &global_attr_default, agent_thread, NULL);
 	return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
+	cw_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
-	return (!pthread_equal(thread, OPBX_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
+	return (!pthread_equal(thread, CW_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
 static int reload_module(void)
 {
-	opbx_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
+	cw_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
-	if (!pthread_equal(thread, OPBX_PTHREADT_NULL))
+	if (!pthread_equal(thread, CW_PTHREADT_NULL))
 		pthread_join(thread, NULL);
-	thread = OPBX_PTHREADT_NULL;
+	thread = CW_PTHREADT_NULL;
 	load_config();
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(&thread, &global_attr_default, agent_thread, NULL);
+		return cw_pthread_create(&thread, &global_attr_default, agent_thread, NULL);
 	return 0;
 }
 

@@ -47,14 +47,14 @@
 
 #define EDIR_DB_FAMILY  "EDIR"
 
-#define edir_log(lev,fmt,...) if ( option_debug > 4 ) opbx_log(lev,fmt, __VA_ARGS__ )
+#define edir_log(lev,fmt,...) if ( option_debug > 4 ) cw_log(lev,fmt, __VA_ARGS__ )
 
 #define safe_free(val) if (val) {free(val);val=NULL;}
 
 static char             *edir_config_file;      /* Our config file we are parsing to retrieve our values */
-static opbx_mutex_t	edir_mutex;             /* To prevent multiple accesses */
+static cw_mutex_t	edir_mutex;             /* To prevent multiple accesses */
 static hash_table_t 	edir_domain_hash;       /* Our domain list */
-static opbx_mpool_t     *edir_pool;             /* Our memory pool */
+static cw_mpool_t     *edir_pool;             /* Our memory pool */
 
 directory_entry_t *root_entry;
 
@@ -81,25 +81,25 @@ static int edir_init(char *config_file) {
 		values 		= NULL,
 		attribute	= NULL;
 
-    opbx_log(OPBX_LOG_DEBUG,"Initializing Embedded directory engine engine\n");
+    cw_log(CW_LOG_DEBUG,"Initializing Embedded directory engine engine\n");
 
-    opbx_mutex_init(&edir_mutex);
+    cw_mutex_init(&edir_mutex);
     hash_init_table( &edir_domain_hash, HASH_STRING_KEYS );
 
-    edir_pool = opbx_mpool_open(pool_flags, 0, NULL, &pool_ret);
+    edir_pool = cw_mpool_open(pool_flags, 0, NULL, &pool_ret);
     
     if ( !edir_pool ) {
-	opbx_log(OPBX_LOG_DEBUG,"Cannot initialize Embedded directory engine. Memory pool error\n");
+	cw_log(CW_LOG_DEBUG,"Cannot initialize Embedded directory engine. Memory pool error\n");
 	return 0;
     }
 
     if ( !( cfg = cwxml_parse_file( config_file ) ) ) {
-    	opbx_log(OPBX_LOG_ERROR, "Open of '%s' failed. Leaving default values.\n", config_file);
+    	cw_log(CW_LOG_ERROR, "Open of '%s' failed. Leaving default values.\n", config_file);
 	goto error;
     }
 
     // Saving config file for future use.
-    edir_config_file = opbx_mpool_strdup(edir_pool, config_file);
+    edir_config_file = cw_mpool_strdup(edir_pool, config_file);
 
     xml=cfg;
 
@@ -110,7 +110,7 @@ static int edir_init(char *config_file) {
 		char *var = (char *) cwxml_attr_soft(param, "name");
 		char *val = (char *) cwxml_attr_soft(param, "value");
 
-		opbx_log(OPBX_LOG_DEBUG,"setting: %s=%s\n", var, val);
+		cw_log(CW_LOG_DEBUG,"setting: %s=%s\n", var, val);
 /*
 TODO
 	        if (!strcasecmp(var, "disabled")) {
@@ -126,22 +126,22 @@ TODO
 		char *domain_name = (char *) cwxml_attr_soft(domain, "name");
 
                 if ( !strlen(domain_name) ) {
-		    opbx_log(OPBX_LOG_WARNING,"Cannot evaluate domain with empty name.\n");	    
+		    cw_log(CW_LOG_WARNING,"Cannot evaluate domain with empty name.\n");	    
                     break;
                 }
 
                 directory_domain_t *domainentry;
-                domainentry = (directory_domain_t *) opbx_mpool_alloc(edir_pool, sizeof(*domainentry), &pool_ret);
+                domainentry = (directory_domain_t *) cw_mpool_alloc(edir_pool, sizeof(*domainentry), &pool_ret);
 
                 if ( !domainentry) {
-                    opbx_log(OPBX_LOG_DEBUG,"Cannot alloc pool memory for this domain entry.");
+                    cw_log(CW_LOG_DEBUG,"Cannot alloc pool memory for this domain entry.");
                     break;
                 }
 
-		opbx_log(OPBX_LOG_DEBUG,"Parsing domain '%s'\n",domain_name);	    
+		cw_log(CW_LOG_DEBUG,"Parsing domain '%s'\n",domain_name);	    
 
                 // Adding domain to the hashtable.
-                opbx_core_hash_insert ( &edir_domain_hash, domain_name, (void *) domainentry );
+                cw_core_hash_insert ( &edir_domain_hash, domain_name, (void *) domainentry );
 
 		char d_context[80];
 		char d_subcontext[80];
@@ -151,7 +151,7 @@ TODO
 		    char *name 	= (char *) cwxml_attr_soft(settings, "name");
 		    char *value	= (char *) cwxml_attr_soft(settings, "value");
 
-		    opbx_log(OPBX_LOG_DEBUG,"setting: %s=%s\n", name, value);
+		    cw_log(CW_LOG_DEBUG,"setting: %s=%s\n", name, value);
 
 			if      ( !strcmp(name,"context") ) {
                             strncpy( d_context, value, sizeof(d_context));
@@ -165,10 +165,10 @@ TODO
 
 		}
 
-                domainentry->name               = opbx_mpool_strdup( edir_pool, domain_name);
-                domainentry->context            = opbx_mpool_strdup( edir_pool, d_context);
-                domainentry->subscribecontext   = opbx_mpool_strdup( edir_pool, d_subcontext);
-                domainentry->language           = opbx_mpool_strdup( edir_pool, d_language);
+                domainentry->name               = cw_mpool_strdup( edir_pool, domain_name);
+                domainentry->context            = cw_mpool_strdup( edir_pool, d_context);
+                domainentry->subscribecontext   = cw_mpool_strdup( edir_pool, d_subcontext);
+                domainentry->language           = cw_mpool_strdup( edir_pool, d_language);
                 hash_init_table( &domainentry->entries, HASH_STRING_KEYS );
 
                 /* Loop through all users */
@@ -181,19 +181,19 @@ TODO
 		    char *context = (char *) cwxml_attr_soft(user, "context");
 
                     directory_entry_t *direntry;
-                    direntry = (directory_entry_t *) opbx_mpool_alloc(edir_pool, sizeof(*direntry), &pool_ret);
+                    direntry = (directory_entry_t *) cw_mpool_alloc(edir_pool, sizeof(*direntry), &pool_ret);
 
                     if ( !direntry) {
-                        opbx_log(OPBX_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
+                        cw_log(CW_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
                         break;
                     }
 
-		    edir_log(OPBX_LOG_DEBUG,"adding user '%s' (context: %s)\n", name, ( strlen(context) ) ? context : d_context ) ;
+		    edir_log(CW_LOG_DEBUG,"adding user '%s' (context: %s)\n", name, ( strlen(context) ) ? context : d_context ) ;
 
-                    direntry->user      = opbx_mpool_strdup( edir_pool, name);
-                    direntry->domain    = opbx_mpool_strdup( edir_pool, domain_name);
-                    direntry->password  = opbx_mpool_strdup( edir_pool, password);
-                    direntry->context   = (strlen(context)) ? opbx_mpool_strdup( edir_pool, context) : opbx_mpool_strdup( edir_pool, d_context);
+                    direntry->user      = cw_mpool_strdup( edir_pool, name);
+                    direntry->domain    = cw_mpool_strdup( edir_pool, domain_name);
+                    direntry->password  = cw_mpool_strdup( edir_pool, password);
+                    direntry->context   = (strlen(context)) ? cw_mpool_strdup( edir_pool, context) : cw_mpool_strdup( edir_pool, d_context);
                     direntry->attributes = NULL;
 
                     directory_entry_attribute_t *attr;
@@ -205,16 +205,16 @@ TODO
 			    char *avar 	  = (char *) cwxml_attr_soft(attribute, "name");
 			    char *aval 	  = (char *) cwxml_attr_soft(attribute, "value");
 
-                            attr = (directory_entry_attribute_t *) opbx_mpool_alloc(edir_pool, sizeof(*attr), &pool_ret);
+                            attr = (directory_entry_attribute_t *) cw_mpool_alloc(edir_pool, sizeof(*attr), &pool_ret);
                             if ( !attr) {
-                                opbx_log(OPBX_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
+                                cw_log(CW_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
                                 break;
                             }
 
-	                    edir_log(OPBX_LOG_DEBUG," - attribute '%s'='%s'\n", avar, aval);
+	                    edir_log(CW_LOG_DEBUG," - attribute '%s'='%s'\n", avar, aval);
 
-                            attr->name  = opbx_mpool_strdup( edir_pool, avar);
-                            attr->value = opbx_mpool_strdup( edir_pool, aval);
+                            attr->name  = cw_mpool_strdup( edir_pool, avar);
+                            attr->value = cw_mpool_strdup( edir_pool, aval);
 
                             attr->next = direntry->attributes;                            
                             direntry->attributes = attr;
@@ -224,12 +224,12 @@ TODO
                         // We have added the attributes, now. We should load the DB saved ones.
 
                         char tmp[512];
-                        struct opbx_db_entry *db_tree;
-                        struct opbx_db_entry *entry;
+                        struct cw_db_entry *db_tree;
+                        struct cw_db_entry *entry;
 
                         snprintf(tmp, sizeof(tmp), "%s/%s", domain_name, name );
 
-                        db_tree = opbx_db_gettree( EDIR_DB_FAMILY, NULL);
+                        db_tree = cw_db_gettree( EDIR_DB_FAMILY, NULL);
                         for (entry = db_tree; entry; entry = entry->next)
                         {
                             if ( !strncmp(tmp, entry->key, strlen(tmp) ) ) {
@@ -242,15 +242,15 @@ TODO
                                         if ( (s3 = strchr( s2, '/' )) ) {
                                             *s3 = '\0';
                                         }
-                                        //edir_log(OPBX_LOG_DEBUG,"****OK***** %s = %s\n", s2, entry->data);
+                                        //edir_log(CW_LOG_DEBUG,"****OK***** %s = %s\n", s2, entry->data);
                                         // Let's store this attribute.
-                                        attr = (directory_entry_attribute_t *) opbx_mpool_alloc(edir_pool, sizeof(*attr), &pool_ret);
+                                        attr = (directory_entry_attribute_t *) cw_mpool_alloc(edir_pool, sizeof(*attr), &pool_ret);
                                         if ( !attr) {
-                                            opbx_log(OPBX_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
+                                            cw_log(CW_LOG_WARNING,"Cannot alloc pool memory for this directory entry.\n");
                                             break;
                                         }
-                                        attr->name  = opbx_mpool_strdup( edir_pool, s2);
-                                        attr->value = opbx_mpool_strdup( edir_pool, entry->data);
+                                        attr->name  = cw_mpool_strdup( edir_pool, s2);
+                                        attr->value = cw_mpool_strdup( edir_pool, entry->data);
 
                                         attr->next = direntry->attributes;                            
                                         direntry->attributes = attr;
@@ -260,15 +260,15 @@ TODO
                             }
                         }
 
-                        opbx_db_freetree(db_tree);
+                        cw_db_freetree(db_tree);
 
                         /* It's time to add the user to the domain hashtable */
-                        opbx_core_hash_insert ( &domainentry->entries, name, direntry );
+                        cw_core_hash_insert ( &domainentry->entries, name, direntry );
 
 		    } // If strlen(name)
                     else 
                     {
-    			opbx_log(OPBX_LOG_WARNING,"Skipping user with no name.");
+    			cw_log(CW_LOG_WARNING,"Skipping user with no name.");
                     }
 
 		}
@@ -276,12 +276,12 @@ TODO
 
 	}
 	else {
-	    opbx_log(OPBX_LOG_ERROR,"Embedded directory engine: settings not found...\n");
+	    cw_log(CW_LOG_ERROR,"Embedded directory engine: settings not found...\n");
 	    goto error;
 	}
     } 
     else {
-	opbx_log(OPBX_LOG_ERROR,"Embedded directory engine: config stanza not found.\n");
+	cw_log(CW_LOG_ERROR,"Embedded directory engine: config stanza not found.\n");
         goto error;
     }
 
@@ -293,9 +293,9 @@ TODO
     return 1;
 
 error:
-    opbx_mpool_close( &edir_pool );
+    cw_mpool_close( &edir_pool );
     if ( enabled == 0) 
-	opbx_log(OPBX_LOG_NOTICE,"Embedded directory engine: disabled.\n");
+	cw_log(CW_LOG_NOTICE,"Embedded directory engine: disabled.\n");
 
     return 0;
 }
@@ -303,15 +303,15 @@ error:
 static int edir_release(void) {
 
     hash_delete_table( &edir_domain_hash );
-    opbx_mpool_close(&edir_pool);       // All memory used is released.
+    cw_mpool_close(&edir_pool);       // All memory used is released.
 
-    opbx_mutex_destroy(&edir_mutex);    // Ok. Release the mutex. Directory is no more avalaible.
+    cw_mutex_destroy(&edir_mutex);    // Ok. Release the mutex. Directory is no more avalaible.
 
     return 0;
 }
 
 static int edir_reload(void) {
-    opbx_log(OPBX_LOG_ERROR,"edir_reload: Not implemented\n");
+    cw_log(CW_LOG_ERROR,"edir_reload: Not implemented\n");
     //TODO
     return 0;
 }
@@ -319,17 +319,17 @@ static int edir_reload(void) {
 static directory_domain_t *edir_search_domain( char *domain ) {
     int found;
 
-    edir_log(OPBX_LOG_DEBUG,"edir_search: domain %s\n", domain);
+    edir_log(CW_LOG_DEBUG,"edir_search: domain %s\n", domain);
 
     if ( !domain ) 
         return NULL;
 
     directory_domain_t *domain_data = NULL;
 
-    found = opbx_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
+    found = cw_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
     
     if ( found && domain_data ) {
-        edir_log(OPBX_LOG_DEBUG,"domain '%s' found\n", domain_data->name );
+        edir_log(CW_LOG_DEBUG,"domain '%s' found\n", domain_data->name );
         return domain_data;
     }
 
@@ -337,7 +337,7 @@ static directory_domain_t *edir_search_domain( char *domain ) {
 }
 
 static directory_entry_t *edir_search_user( char *user, char *domain ) {
-    edir_log(OPBX_LOG_DEBUG,"edir_search_user: domain %s - user %s\n", domain, user);
+    edir_log(CW_LOG_DEBUG,"edir_search_user: domain %s - user %s\n", domain, user);
 
     int found;
     directory_entry_t *res = NULL;
@@ -347,19 +347,19 @@ static directory_entry_t *edir_search_user( char *user, char *domain ) {
 
     directory_domain_t *domain_data = NULL;
 
-    found = opbx_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
+    found = cw_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
     
     if ( found && domain_data ) {
-        edir_log(OPBX_LOG_DEBUG,"edir_search_user: domain '%s' found\n", domain_data->name );
+        edir_log(CW_LOG_DEBUG,"edir_search_user: domain '%s' found\n", domain_data->name );
 
         if (user && strlen(user)) {
             hash_table_t *dh = &domain_data->entries;
             directory_entry_t *entry = NULL;
 
-            found = opbx_core_hash_get ( dh, user, (void *) &entry );
+            found = cw_core_hash_get ( dh, user, (void *) &entry );
 
             if ( found && entry ) {
-                edir_log(OPBX_LOG_DEBUG,"edir_search_user: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
+                edir_log(CW_LOG_DEBUG,"edir_search_user: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
 
                 res = malloc( sizeof(directory_entry_t) );
                 if (!res)
@@ -405,27 +405,27 @@ static int edir_user_add_attribute( char *domain, char *user, char *name, char *
     if ( !user ) 
         return 0;
 
-    found = opbx_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
+    found = cw_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
 
     if ( found && domain_data ) {
-        edir_log(OPBX_LOG_DEBUG,"edir_user_add_attribute: domain '%s' found\n", domain_data->name );
+        edir_log(CW_LOG_DEBUG,"edir_user_add_attribute: domain '%s' found\n", domain_data->name );
 
         if (user && strlen(user)) {
             hash_table_t *dh = &domain_data->entries;
             directory_entry_t *entry = NULL;
 
-            found = opbx_core_hash_get ( dh, user, (void *) &entry );
+            found = cw_core_hash_get ( dh, user, (void *) &entry );
 
             if ( found && entry ) {
-                edir_log(OPBX_LOG_DEBUG,"edir_user_add_attribute: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
+                edir_log(CW_LOG_DEBUG,"edir_user_add_attribute: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
 
                 if (name && val) {
                     directory_entry_attribute_t *attr;
 
-                    attr = opbx_mpool_alloc( edir_pool, sizeof(directory_entry_attribute_t), &pool_ret );
+                    attr = cw_mpool_alloc( edir_pool, sizeof(directory_entry_attribute_t), &pool_ret );
                     if (attr) {
-                        attr->name = opbx_mpool_strdup( edir_pool, name );
-                        attr->value= opbx_mpool_strdup( edir_pool, val );
+                        attr->name = cw_mpool_strdup( edir_pool, name );
+                        attr->value= cw_mpool_strdup( edir_pool, val );
                         attr->next = entry->attributes;
                         entry->attributes = attr;
 
@@ -433,9 +433,9 @@ static int edir_user_add_attribute( char *domain, char *user, char *name, char *
                         // It's time to save it to the persistent storage.
                         if ( persistant ) {
                             char tmp[512];
-                            snprintf( tmp,sizeof(tmp),"%s/%s/%s/%04X",domain,user,name, (unsigned int) opbx_random() );
-                            opbx_db_put( EDIR_DB_FAMILY, tmp, val);
-                            edir_log(OPBX_LOG_DEBUG,"Adding %s \n", tmp);
+                            snprintf( tmp,sizeof(tmp),"%s/%s/%s/%04X",domain,user,name, (unsigned int) cw_random() );
+                            cw_db_put( EDIR_DB_FAMILY, tmp, val);
+                            edir_log(CW_LOG_DEBUG,"Adding %s \n", tmp);
                         }
 
                         return 1;
@@ -473,19 +473,19 @@ static int edir_user_del_attribute( char *domain, char *user, char *name, char *
     if ( !name ) 
         return 0;
 
-    found = opbx_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
+    found = cw_core_hash_get ( &edir_domain_hash, domain, (void *) &domain_data );
 
     if ( found && domain_data ) {
-        edir_log(OPBX_LOG_DEBUG,"edir_user_del_attribute: domain '%s' found\n", domain_data->name );
+        edir_log(CW_LOG_DEBUG,"edir_user_del_attribute: domain '%s' found\n", domain_data->name );
 
         if (user && strlen(user)) {
             hash_table_t *dh = &domain_data->entries;
             directory_entry_t *entry = NULL;
 
-            found = opbx_core_hash_get ( dh, user, (void *) &entry );
+            found = cw_core_hash_get ( dh, user, (void *) &entry );
 
             if ( found && entry ) {
-                edir_log(OPBX_LOG_DEBUG,"edir_user_del_attribute: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
+                edir_log(CW_LOG_DEBUG,"edir_user_del_attribute: found (%s, %s, %s)\n", entry->user, entry->domain, entry->context);
 
                 if ( name ) {
                     directory_entry_attribute_t *attr ,*prev, *tobedel;
@@ -517,18 +517,18 @@ static int edir_user_del_attribute( char *domain, char *user, char *name, char *
 next:       
                         if ( found ) {
 
-                            edir_log(OPBX_LOG_DEBUG,"* deleting attribute %s => %s \n", attr->name, attr->value);
+                            edir_log(CW_LOG_DEBUG,"* deleting attribute %s => %s \n", attr->name, attr->value);
                             // Now let's remove the item from the DB
                             char tmp[128];
                             snprintf(tmp,sizeof(tmp),"%s/%s/%s/", domain, user, name);
 
-                            opbx_db_deltree_with_value(EDIR_DB_FAMILY, tmp, value);
+                            cw_db_deltree_with_value(EDIR_DB_FAMILY, tmp, value);
 
                             attr=attr->next;
-                            opbx_mpool_free( edir_pool, tobedel, sizeof(directory_entry_attribute_t) );
+                            cw_mpool_free( edir_pool, tobedel, sizeof(directory_entry_attribute_t) );
                         }
                         else {
-                            edir_log(OPBX_LOG_DEBUG,"* skipping attribute %s => %s (not matching with %s)\n", attr->name, attr->value, value);
+                            edir_log(CW_LOG_DEBUG,"* skipping attribute %s => %s (not matching with %s)\n", attr->name, attr->value, value);
                             prev=attr;
                             attr=attr->next;
                         }
@@ -565,7 +565,7 @@ direngine_t directory_embedded_engine = {
 static int load_module(void)
 {
     //TODO should we allow to unload this ?
-    opbx_module_get(get_modinfo()->self);
+    cw_module_get(get_modinfo()->self);
 
     return !direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/directory.xml" ); 
     //TODO it's hardcoded fix it.
@@ -590,49 +590,49 @@ sofia_directory_entry_attribute_t *a;
 sofia_directory_entry_t  *user = NULL;
 sofia_directory_domain_t *domain = NULL;
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 domain = sofia_direngine_domain_search("navynet.it");
-opbx_log(OPBX_LOG_DEBUG,"------------> %s\n", domain->name);
+cw_log(CW_LOG_DEBUG,"------------> %s\n", domain->name);
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 user = sofia_direngine_user_search("navynet.it","523");
-opbx_log(OPBX_LOG_DEBUG,"------------> %s\n", user->user);
+cw_log(CW_LOG_DEBUG,"------------> %s\n", user->user);
 a = user->attributes;
 while ( a ) {
-    opbx_log(OPBX_LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
+    cw_log(CW_LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
     a=a->next;
 }
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 a=sofia_direngine_attribute_search("navynet.it","523","accountno");
 if (a) {
-    opbx_log(OPBX_LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
+    cw_log(CW_LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
 }
 sofia_direngine_release_attr_result(a);
 
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 sofia_direngine_user_add_attribute_persistant("navynet.it","523","foo","bar");
 sofia_direngine_user_add_attribute("navynet.it","523","foo3","bar3");
 sofia_direngine_user_add_attribute("navynet.it","523","foo","bar2");
-opbx_log(OPBX_LOG_WARNING,"---------------------\n");
+cw_log(CW_LOG_WARNING,"---------------------\n");
 sofia_direngine_user_del_attribute("navynet.it","523","foo","bar");
 
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 user   = sofia_direngine_user_search("navynet.it","523");
-opbx_log(OPBX_LOG_DEBUG,"------------> %s\n", user->user);
+cw_log(CW_LOG_DEBUG,"------------> %s\n", user->user);
 a = user->attributes;
 while ( a ) {
-    opbx_log(OPBX_LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
+    cw_log(CW_LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
     a=a->next;
 }
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 a=sofia_direngine_attribute_search("navynet.it","523","foo");
 if (a) {
     while (a) {
-        opbx_log(OPBX_LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
+        cw_log(CW_LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
         a=a->next;
     }
 }
@@ -640,7 +640,7 @@ sofia_direngine_release_attr_result(a);
 
 
 
-opbx_log(OPBX_LOG_DEBUG,"\n\n\n\n");
+cw_log(CW_LOG_DEBUG,"\n\n\n\n");
 sofia_direngine_release_user_result(user);
 sofia_direngine_release_domain_result(domain);
         return -1;

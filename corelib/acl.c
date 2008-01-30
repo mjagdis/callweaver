@@ -73,15 +73,15 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/srv.h"
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-OPBX_MUTEX_DEFINE_STATIC(routeseq_lock);
+CW_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
-struct opbx_ha {
+struct cw_ha {
 	/* Host access rule */
 	struct in_addr netaddr;
 	struct in_addr netmask;
 	int sense;
-	struct opbx_ha *next;
+	struct cw_ha *next;
 };
 
 /* Default IP - if not otherwise set, don't breathe garbage */
@@ -93,9 +93,9 @@ struct my_ifreq {
 };
 
 /* Free HA structure */
-void opbx_free_ha(struct opbx_ha *ha)
+void cw_free_ha(struct cw_ha *ha)
 {
-	struct opbx_ha *hal;
+	struct cw_ha *hal;
 	while(ha) {
 		hal = ha;
 		ha = ha->next;
@@ -104,7 +104,7 @@ void opbx_free_ha(struct opbx_ha *ha)
 }
 
 /* Copy HA structure */
-static void opbx_copy_ha(struct opbx_ha *from, struct opbx_ha *to)
+static void cw_copy_ha(struct cw_ha *from, struct cw_ha *to)
 {
 	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
 	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
@@ -112,25 +112,25 @@ static void opbx_copy_ha(struct opbx_ha *from, struct opbx_ha *to)
 }
 
 /* Create duplicate of ha structure */
-static struct opbx_ha *opbx_duplicate_ha(struct opbx_ha *original)
+static struct cw_ha *cw_duplicate_ha(struct cw_ha *original)
 {
-	struct opbx_ha *new_ha = malloc(sizeof(struct opbx_ha));
+	struct cw_ha *new_ha = malloc(sizeof(struct cw_ha));
 	/* Copy from original to new object */
-	opbx_copy_ha(original, new_ha); 
+	cw_copy_ha(original, new_ha); 
 
 	return new_ha;
 }
 
 /* Create duplicate HA link list */
 /*  Used in chan_sip2 templates */
-struct opbx_ha *opbx_duplicate_ha_list(struct opbx_ha *original)
+struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original)
 {
-	struct opbx_ha *start=original;
-	struct opbx_ha *ret = NULL;
-	struct opbx_ha *link,*prev=NULL;
+	struct cw_ha *start=original;
+	struct cw_ha *ret = NULL;
+	struct cw_ha *link,*prev=NULL;
 
 	while (start) {
-		link = opbx_duplicate_ha(start);  /* Create copy of this object */
+		link = cw_duplicate_ha(start);  /* Create copy of this object */
 		if (prev)
 			prev->next = link;		/* Link previous to this object */
 
@@ -143,13 +143,13 @@ struct opbx_ha *opbx_duplicate_ha_list(struct opbx_ha *original)
 	return ret;    			/* Return start of list */
 }
 
-struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
+struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path)
 {
-	struct opbx_ha *ha = malloc(sizeof(struct opbx_ha));
+	struct cw_ha *ha = malloc(sizeof(struct cw_ha));
 	char *nm = "255.255.255.255";
 	char tmp[256];
-	struct opbx_ha *prev = NULL;
-	struct opbx_ha *ret;
+	struct cw_ha *prev = NULL;
+	struct cw_ha *ret;
 	int x, z;
 	unsigned int y;
 	ret = path;
@@ -158,7 +158,7 @@ struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
 		path = path->next;
 	}
 	if (ha) {
-		opbx_copy_string(tmp, stuff, sizeof(tmp));
+		cw_copy_string(tmp, stuff, sizeof(tmp));
 		nm = strchr(tmp, '/');
 		if (!nm) {
 			nm = "255.255.255.255";
@@ -176,20 +176,20 @@ struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
 				ha->netmask.s_addr = htonl(y);
 			}
 		} else if (!inet_aton(nm, &ha->netmask)) {
-			opbx_log(OPBX_LOG_WARNING, "%s is not a valid netmask\n", nm);
+			cw_log(CW_LOG_WARNING, "%s is not a valid netmask\n", nm);
 			free(ha);
 			return ret;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
-			opbx_log(OPBX_LOG_WARNING, "%s is not a valid IP\n", tmp);
+			cw_log(CW_LOG_WARNING, "%s is not a valid IP\n", tmp);
 			free(ha);
 			return ret;
 		}
 		ha->netaddr.s_addr &= ha->netmask.s_addr;
 		if (!strncasecmp(sense, "p", 1)) {
-			ha->sense = OPBX_SENSE_ALLOW;
+			ha->sense = CW_SENSE_ALLOW;
 		} else {
-			ha->sense = OPBX_SENSE_DENY;
+			ha->sense = CW_SENSE_DENY;
 		}
 		ha->next = NULL;
 		if (prev) {
@@ -198,14 +198,14 @@ struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path)
 			ret = ha;
 		}
 	}
-	opbx_log(OPBX_LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
+	cw_log(CW_LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
 	return ret;
 }
 
-int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
+int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin)
 {
 	/* Start optimistic */
-	int res = OPBX_SENSE_ALLOW;
+	int res = CW_SENSE_ALLOW;
 	while (ha) {
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
@@ -216,10 +216,10 @@ int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
 			res = ha->sense;
 		/* DEBUG */
                 if (option_debug > 5)
-		opbx_log(OPBX_LOG_DEBUG,
+		cw_log(CW_LOG_DEBUG,
 			"##### Testing %s with %s. Result %d\n",
-			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
-			opbx_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr),
+			cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
+			cw_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr),
 			res
 		);
 		ha = ha->next;
@@ -227,10 +227,10 @@ int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
 	return res;
 }
 
-int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service)
+int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service)
 {
 	struct hostent *hp;
-	struct opbx_hostent ahp;
+	struct cw_hostent ahp;
 	char srv[256];
 	char host[256];
 	int tportno = ntohs(sin->sin_port);
@@ -242,13 +242,13 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 
 	if (service) {
 		snprintf(srv, sizeof(srv), "%s.%s", service, value);
-		if (opbx_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
+		if (cw_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
 			sin->sin_port = htons(tportno);
 			value = host;
 		}
 	}
 
-	hp = opbx_gethostbyname(value, &ahp);
+	hp = cw_gethostbyname(value, &ahp);
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 		return 0;
@@ -257,7 +257,7 @@ int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *s
 	return -1;
 }
 
-int opbx_str2tos(const char *value, int *tos)
+int cw_str2tos(const char *value, int *tos)
 {
 	int fval;
 	if (sscanf(value, "%i", &fval) == 1)
@@ -278,20 +278,20 @@ int opbx_str2tos(const char *value, int *tos)
 }
 
 /* iface is the interface (e.g. eth0); address is the return value */
-int opbx_lookup_iface(char *iface, struct in_addr *address) 
+int cw_lookup_iface(char *iface, struct in_addr *address) 
 {
 	int mysock, res = 0;
 	struct my_ifreq ifreq;
 
 	memset(&ifreq, 0, sizeof(ifreq));
-	opbx_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
+	cw_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
 
 	mysock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	res = ioctl(mysock, SIOCGIFADDR, &ifreq);
 
 	close(mysock);
 	if (res < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
 		memcpy((char *)address, (char *)&__ourip, sizeof(__ourip));
 		return -1;
 	} else {
@@ -300,7 +300,7 @@ int opbx_lookup_iface(char *iface, struct in_addr *address)
 	}
 }
 
-int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us)
+int cw_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
 	int s;
 	struct sockaddr_in sin;
@@ -308,20 +308,20 @@ int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us)
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot create socket\n");
+		cw_log(CW_LOG_WARNING, "Cannot create socket\n");
 		return -1;
 	}
 	sin.sin_family = AF_INET;
 	sin.sin_port = 5060;
 	sin.sin_addr = *them;
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin))) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot connect\n");
+		cw_log(CW_LOG_WARNING, "Cannot connect\n");
 		close(s);
 		return -1;
 	}
 	slen = sizeof(sin);
 	if (getsockname(s, (struct sockaddr *)&sin, &slen)) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot get socket name\n");
+		cw_log(CW_LOG_WARNING, "Cannot get socket name\n");
 		close(s);
 		return -1;
 	}
@@ -330,10 +330,10 @@ int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	return 0;
 }
 
-int opbx_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
+int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 {
 	char ourhost[MAXHOSTNAMELEN] = "";
-	struct opbx_hostent ahp;
+	struct cw_hostent ahp;
 	struct hostent *hp;
 	struct in_addr saddr;
 
@@ -344,16 +344,16 @@ int opbx_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	}
 	/* try to use our hostname */
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to get hostname\n");
+		cw_log(CW_LOG_WARNING, "Unable to get hostname\n");
 	} else {
-		hp = opbx_gethostbyname(ourhost, &ahp);
+		hp = cw_gethostbyname(ourhost, &ahp);
 		if (hp) {
 			memcpy(ourip, hp->h_addr, sizeof(*ourip));
 			return 0;
 		}
 	}
 	/* A.ROOT-SERVERS.NET. */
-	if (inet_aton("198.41.0.4", &saddr) && !opbx_ouraddrfor(&saddr, ourip))
+	if (inet_aton("198.41.0.4", &saddr) && !cw_ouraddrfor(&saddr, ourip))
 		return 0;
 	return -1;
 }

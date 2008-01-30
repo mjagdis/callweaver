@@ -164,8 +164,8 @@ typedef struct sms_s
     uint8_t ibith;         /* history of last bits */
     uint8_t ibitt;         /* total of 1's in last 3 bites */
 
-    struct opbx_frame f;
-    int16_t buf[OPBX_FRIENDLY_OFFSET / sizeof(int16_t) + 800];
+    struct cw_frame f;
+    int16_t buf[CW_FRIENDLY_OFFSET / sizeof(int16_t) + 800];
 } sms_t;
 
 /* different types of encoding */
@@ -178,12 +178,12 @@ typedef struct sms_s
 
 static void put_message(sms_t *h, const uint8_t *msg, int len);
 
-static void *sms_alloc(struct opbx_channel *chan, void *params)
+static void *sms_alloc(struct cw_channel *chan, void *params)
 {
     return params;
 }
 
-static void sms_release(struct opbx_channel *chan, void *data)
+static void sms_release(struct cw_channel *chan, void *data)
 {
     return;
 }
@@ -219,7 +219,7 @@ static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
     int file;
     sms_t *h;
 
-    opbx_log(OPBX_LOG_EVENT, "Good message received (%d bytes)\n", len);
+    cw_log(CW_LOG_EVENT, "Good message received (%d bytes)\n", len);
 
     h = (sms_t *) user_data;
 #if 0
@@ -240,11 +240,11 @@ static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
             {
                 memcpy(body, field_body, field_len);
                 body[field_len] = '\0';
-                opbx_log(OPBX_LOG_EVENT, "Type %x, len %d, '%s'\n", field_type, field_len, body);
+                cw_log(CW_LOG_EVENT, "Type %x, len %d, '%s'\n", field_type, field_len, body);
             }
             else
             {
-                opbx_log(OPBX_LOG_EVENT, "Message type %x\n", field_type);
+                cw_log(CW_LOG_EVENT, "Message type %x\n", field_type);
                 switch (field_type)
                 {
                 case DLL_SMS_P2_INFO_MO:
@@ -904,7 +904,7 @@ static void sms_readfile(sms_t *h, char *fn)
     FILE *s;
     char dcsset = 0;                 /* if DSC set */
 
-    opbx_log(OPBX_LOG_EVENT, "Sending %s\n", fn);
+    cw_log(CW_LOG_EVENT, "Sending %s\n", fn);
     h->rx =
     h->udl =
     h->oa[0] =
@@ -958,7 +958,7 @@ static void sms_readfile(sms_t *h, char *fn)
                         h->ud[o++] = utf8decode(pp);
                     h->udl = o;
                     if (*p)
-                        opbx_log(OPBX_LOG_WARNING, "UD too long in %s\n", fn);
+                        cw_log(CW_LOG_WARNING, "UD too long in %s\n", fn);
                 }
                 else
                 {
@@ -1005,12 +1005,12 @@ static void sms_readfile(sms_t *h, char *fn)
                             t.tm_isdst = -1;
                             h->scts = mktime(&t);
                             if (h->scts == (time_t) - 1)
-                                opbx_log(OPBX_LOG_WARNING, "Bad date/timein %s: %s", fn, p);
+                                cw_log(CW_LOG_WARNING, "Bad date/timein %s: %s", fn, p);
                         }
                     }
                     else
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Cannot parse in %s: %s=%si\n", fn, line, p);
+                        cw_log(CW_LOG_WARNING, "Cannot parse in %s: %s=%si\n", fn, line, p);
                     }
                 }
             }
@@ -1038,11 +1038,11 @@ static void sms_readfile(sms_t *h, char *fn)
                         }
                         h->udl = o;
                         if (*p)
-                            opbx_log(OPBX_LOG_WARNING, "UD too long / invalid UCS-2 hex in %s\n", fn);
+                            cw_log(CW_LOG_WARNING, "UD too long / invalid UCS-2 hex in %s\n", fn);
                     }
                     else
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Only ud can use ## format, %s\n", fn);
+                        cw_log(CW_LOG_WARNING, "Only ud can use ## format, %s\n", fn);
                     }
                 }
                 else if (!strcmp(line, "ud"))
@@ -1059,7 +1059,7 @@ static void sms_readfile(sms_t *h, char *fn)
                     }
                     h->udl = o;
                     if (*p)
-                        opbx_log(OPBX_LOG_WARNING, "UD too long / invalid UCS-1 hex in %s\n", fn);
+                        cw_log(CW_LOG_WARNING, "UD too long / invalid UCS-1 hex in %s\n", fn);
                 }
                 else if (!strcmp(line, "udh"))
                 {
@@ -1076,16 +1076,16 @@ static void sms_readfile(sms_t *h, char *fn)
                     }
                     h->udhl = o;
                     if (*p)
-                        opbx_log(OPBX_LOG_WARNING, "UDH too long / invalid hex in %s\n", fn);
+                        cw_log(CW_LOG_WARNING, "UDH too long / invalid hex in %s\n", fn);
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Only ud and udh can use # format, %s\n", fn);
+                    cw_log(CW_LOG_WARNING, "Only ud and udh can use # format, %s\n", fn);
                 }
             }
             else
             {
-                opbx_log(OPBX_LOG_WARNING, "Cannot parse in %s: %s\n", fn, line);
+                cw_log(CW_LOG_WARNING, "Cannot parse in %s: %s\n", fn, line);
             }
         }
         fclose(s);
@@ -1095,26 +1095,26 @@ static void sms_readfile(sms_t *h, char *fn)
             {
                 if (packsms16(0, h->udhl, h->udh, h->udl, h->ud) < 0)
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Invalid UTF-8 message even for UCS-2 (%s)\n", fn);
+                    cw_log(CW_LOG_WARNING, "Invalid UTF-8 message even for UCS-2 (%s)\n", fn);
                 }
                 else
                 {
                     h->dcs = 0x08;    /* default to 16 bit */
-                    opbx_log(OPBX_LOG_WARNING, "Sending in 16 bit format (%s)\n", fn);
+                    cw_log(CW_LOG_WARNING, "Sending in 16 bit format (%s)\n", fn);
                 }
             }
             else
             {
                 h->dcs = 0xF5;        /* default to 8 bit */
-                opbx_log(OPBX_LOG_WARNING, "Sending in 8 bit format (%s)\n", fn);
+                cw_log(CW_LOG_WARNING, "Sending in 8 bit format (%s)\n", fn);
             }
         }
         if (is7bit(h->dcs)  &&  packsms7(0, h->udhl, h->udh, h->udl, h->ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 7 bit GSM data %s\n", fn);
+            cw_log(CW_LOG_WARNING, "Invalid 7 bit GSM data %s\n", fn);
         if (is8bit(h->dcs)  &&  packsms8(0, h->udhl, h->udh, h->udl, h->ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 8 bit data %s\n", fn);
+            cw_log(CW_LOG_WARNING, "Invalid 8 bit data %s\n", fn);
         if (is16bit(h->dcs)  &&  packsms16(0, h->udhl, h->udh, h->udl, h->ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 16 bit data %s\n", fn);
+            cw_log(CW_LOG_WARNING, "Invalid 16 bit data %s\n", fn);
     }
 }
 
@@ -1127,11 +1127,11 @@ static void sms_writefile(sms_t *h)
     unsigned int p;
     uint16_t v;
 
-    opbx_copy_string(fn, spool_dir, sizeof(fn));
+    cw_copy_string(fn, spool_dir, sizeof(fn));
     mkdir(fn, 0777);            /* ensure it exists */
     snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
     mkdir(fn, 0777);            /* ensure it exists */
-    opbx_copy_string(fn2, fn, sizeof(fn2));
+    cw_copy_string(fn2, fn, sizeof(fn2));
     snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
     snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
     o = fopen(fn, "w");
@@ -1215,7 +1215,7 @@ static void sms_writefile(sms_t *h)
         if (rename(fn, fn2))
             unlink(fn);
         else
-            opbx_log(OPBX_LOG_EVENT, "Received to %s\n", fn2);
+            cw_log(CW_LOG_EVENT, "Received to %s\n", fn2);
     }
 }
 
@@ -1248,7 +1248,7 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
             h->srr = ((msg[2] & 0x20)  ?  1  :  0);
             h->udhi = ((msg[2] & 0x40)  ?  1  :  0);
             h->rp = ((msg[2] & 0x80)  ?  1  :  0);
-            opbx_copy_string(h->oa, h->cli, sizeof(h->oa));
+            cw_copy_string(h->oa, h->cli, sizeof(h->oa));
             h->scts = time(NULL);
             h->mr = msg[p++];
             p += unpackaddress(h->da, msg + p);
@@ -1275,13 +1275,13 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
             sms_writefile(h);      /* write the file */
             if (p != msg[1] + 2)
             {
-                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
+                cw_log(CW_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
                 return 0xFF;          /* duh! */
             }
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
+            cw_log(CW_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
             return 0xFF;
         }
     }
@@ -1306,13 +1306,13 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
             sms_writefile(h);      /* write the file */
             if (p != msg[1] + 2)
             {
-                opbx_log(OPBX_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
+                cw_log(CW_LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, msg[1] + 2);
                 return 0xFF;          /* duh! */
             }
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
+            cw_log(CW_LOG_WARNING, "Unknown message type %02X\n", msg[2]);
             return 0xFF;
         }
     }
@@ -1332,7 +1332,7 @@ static void sms_nextoutgoing(sms_t *h)
     uint8_t tx_msg[256];
     struct dirent *f;
 
-    opbx_copy_string(fn, spool_dir, sizeof(fn));
+    cw_copy_string(fn, spool_dir, sizeof(fn));
     mkdir(fn, 0777);                /* ensure it exists */
     h->rx = 0;                      /* outgoing message */
     snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc  ?  "mttx"  :  "motx");
@@ -1417,7 +1417,7 @@ static void sms_debug(char *dir, const uint8_t *msg, int len)
     if (q < len)
         sprintf(p, "...");
     if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "SMS %s%s\n", dir, txt);
+        cw_verbose(VERBOSE_PREFIX_3 "SMS %s%s\n", dir, txt);
 }
 
 static void put_adsi_msg_prot1(void *user_data, const uint8_t *msg, int len)
@@ -1500,7 +1500,7 @@ static void put_message(sms_t *h, const uint8_t *msg, int len)
     h->tx_active = TRUE;
 }
 
-static struct opbx_frame *sms_generate(struct opbx_channel *chan, void *data, int samples)
+static struct cw_frame *sms_generate(struct cw_channel *chan, void *data, int samples)
 {
     sms_t *h = (sms_t *) data;
     int i;
@@ -1509,11 +1509,11 @@ static struct opbx_frame *sms_generate(struct opbx_channel *chan, void *data, in
 
     if (samples > sizeof(h->buf) / sizeof(h->buf[0]))
         samples = sizeof(h->buf) / sizeof(h->buf[0]);
-    len = samples * sizeof(h->buf[0]) + OPBX_FRIENDLY_OFFSET;
+    len = samples * sizeof(h->buf[0]) + CW_FRIENDLY_OFFSET;
 
-    opbx_fr_init_ex(&h->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "app_sms");
-    h->f.offset = OPBX_FRIENDLY_OFFSET;
-    h->f.data = ((char *) h->buf) + OPBX_FRIENDLY_OFFSET;
+    cw_fr_init_ex(&h->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "app_sms");
+    h->f.offset = CW_FRIENDLY_OFFSET;
+    h->f.data = ((char *) h->buf) + CW_FRIENDLY_OFFSET;
     if (h->opause)
     {
         i = (h->opause >= samples)  ?  samples  :  h->opause;
@@ -1661,7 +1661,7 @@ static void sms_process(sms_t *h, const int16_t *data, int samples)
             if (h->idle++ == 80000)
             {
                 /* Nothing happening */
-                opbx_log(OPBX_LOG_EVENT, "No data, hanging up\n");
+                cw_log(CW_LOG_EVENT, "No data, hanging up\n");
                 h->hangup = 1;
                 h->err = 1;
             }
@@ -1683,7 +1683,7 @@ static void sms_process(sms_t *h, const int16_t *data, int samples)
     }
 }
 
-static struct opbx_generator smsgen =
+static struct cw_generator smsgen =
 {
 alloc:
     sms_alloc,
@@ -1693,12 +1693,12 @@ generate:
     sms_generate,
 };
 
-static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sms_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     sms_t h = { 0 };
     int res = -1;
     struct localuser *u;
-    struct opbx_frame *f;
+    struct cw_frame *f;
     char *d;
     int answer;
     int original_read_fmt;
@@ -1706,7 +1706,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     uint8_t tx_msg[256];
 
     if (argc < 1  ||  argc > 2)
-        return opbx_function_syntax(sms_syntax);
+        return cw_function_syntax(sms_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -1715,13 +1715,13 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     h.dcs = 0xF1;       /* default */
 
     if (chan->cid.cid_num)
-        opbx_copy_string(h.cli, chan->cid.cid_num, sizeof(h.cli));
+        cw_copy_string(h.cli, chan->cid.cid_num, sizeof(h.cli));
 
     answer = 0;
 
     if (strlen(argv[0]) >= sizeof(h.queue))
     {
-        opbx_log(OPBX_LOG_ERROR, "Queue name too long\n");
+        cw_log(CW_LOG_ERROR, "Queue name too long\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
@@ -1791,25 +1791,25 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
             *p++ = 0;
         if (strlen((char *) d) >= sizeof(h.oa))
         {
-            opbx_log(OPBX_LOG_ERROR, "Address too long %s\n", d);
+            cw_log(CW_LOG_ERROR, "Address too long %s\n", d);
             return 0;
         }
         if (h.smsc)
-            opbx_copy_string(h.oa, (char *) d, sizeof(h.oa));
+            cw_copy_string(h.oa, (char *) d, sizeof(h.oa));
         else
-            opbx_copy_string(h.da, (char *) d, sizeof(h.da));
+            cw_copy_string(h.da, (char *) d, sizeof(h.da));
         if (!h.smsc)
-            opbx_copy_string(h.oa, h.cli, sizeof(h.oa));
+            cw_copy_string(h.oa, h.cli, sizeof(h.oa));
         d = p;
         h.udl = 0;
         while (*p  &&  h.udl < SMSLEN)
             h.ud[h.udl++] = utf8decode((uint8_t **) &p);
         if (is7bit(h.dcs)  &&  packsms7(0, h.udhl, h.udh, h.udl, h.ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 7 bit GSM data\n");
+            cw_log(CW_LOG_WARNING, "Invalid 7 bit GSM data\n");
         if (is8bit(h.dcs)  &&  packsms8(0, h.udhl, h.udh, h.udl, h.ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 8 bit data\n");
+            cw_log(CW_LOG_WARNING, "Invalid 8 bit data\n");
         if (is16bit(h.dcs)  &&  packsms16(0, h.udhl, h.udh, h.udl, h.ud) < 0)
-            opbx_log(OPBX_LOG_WARNING, "Invalid 16 bit data\n");
+            cw_log(CW_LOG_WARNING, "Invalid 16 bit data\n");
         h.rx = 0;                  /* sent message */
         h.mr = -1;
         sms_writefile(&h);
@@ -1831,33 +1831,33 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
         }
     }
 
-    if (chan->_state != OPBX_STATE_UP)
-        opbx_answer(chan);
+    if (chan->_state != CW_STATE_UP)
+        cw_answer(chan);
 
     original_read_fmt = chan->readformat;
-    if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0)
+        if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR)) < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+            cw_log(CW_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
             return -1;
         }
     }
     original_write_fmt = chan->writeformat;
-    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_write_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) < 0)
+        if ((res = cw_set_write_format(chan, CW_FORMAT_SLINEAR)) < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
-            if ((res = opbx_set_read_format(chan, original_read_fmt)))
-                opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+            cw_log(CW_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
+            if ((res = cw_set_read_format(chan, original_read_fmt)))
+                cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
             return -1;
         }
     }
 
     if (res < 0)
     {
-        opbx_log(OPBX_LOG_ERROR, "Unable to set to linear mode, giving up\n");
+        cw_log(CW_LOG_ERROR, "Unable to set to linear mode, giving up\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
@@ -1866,30 +1866,30 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *resu
     adsi_tx_set_preamble(&h.tx_adsi, (h.protocol == '2')  ?  -1  :  0, -1, -1, -1);
     adsi_rx_init(&h.rx_adsi, ADSI_STANDARD_CLIP, (h.protocol == '2')  ?  put_adsi_msg_prot2  :  put_adsi_msg_prot1, &h);
     
-    if (opbx_generator_activate(chan, &chan->generator, &smsgen, &h) < 0)
+    if (cw_generator_activate(chan, &chan->generator, &smsgen, &h) < 0)
     {
-        opbx_log(OPBX_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+        cw_log(CW_LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
         LOCAL_USER_REMOVE(u);
         return -1;
     }
 
-    while (opbx_waitfor(chan, -1) > -1  &&  !h.hangup)
+    while (cw_waitfor(chan, -1) > -1  &&  !h.hangup)
     {
-        if ((f = opbx_read(chan)) == NULL)
+        if ((f = cw_read(chan)) == NULL)
             break;
-        if (f->frametype == OPBX_FRAME_VOICE)
+        if (f->frametype == CW_FRAME_VOICE)
             sms_process(&h, (int16_t *) f->data, f->samples);
-        opbx_fr_free(f);
+        cw_fr_free(f);
     }
-    if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_read_format(chan, original_read_fmt)))
-            opbx_log(OPBX_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+        if ((res = cw_set_read_format(chan, original_read_fmt)))
+            cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
     }
-    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    if (original_write_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = opbx_set_write_format(chan, original_write_fmt)))
-            opbx_log(OPBX_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
+        if ((res = cw_set_write_format(chan, original_write_fmt)))
+            cw_log(CW_LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
     }
 
     sms_log(&h, '?');              /* log incomplete message */
@@ -1902,18 +1902,18 @@ static int unload_module(void)
 {
     int res = 0;
 
-    res |= opbx_unregister_function(sms_app);
+    res |= cw_unregister_function(sms_app);
     return res;
 }
 
 static int load_module(void)
 {
     if (!smsgen.is_initialized)
-        opbx_object_init(&smsgen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+        cw_object_init(&smsgen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
 
-    snprintf(log_file, sizeof(log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
-    snprintf(spool_dir, sizeof(spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
-    sms_app = opbx_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
+    snprintf(log_file, sizeof(log_file), "%s/sms", cw_config_CW_LOG_DIR);
+    snprintf(spool_dir, sizeof(spool_dir), "%s/sms", cw_config_CW_SPOOL_DIR);
+    sms_app = cw_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
     return 0;
 }
 

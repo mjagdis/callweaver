@@ -49,14 +49,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "say.h"
 
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int playh = 0;
     char fn[256] = "";
 
     if (!num)
-        return opbx_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+        return cw_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
     while (!res  &&  (num  ||  playh))
     {
@@ -113,7 +113,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
                     }
                     else
                     {
-                        opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
+                        cw_log(CW_LOG_DEBUG, "Number '%d' is too big for me\n", num);
                         res = -1;
                     }
                 }
@@ -121,20 +121,20 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         }
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd  > -1) && (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
     }
     return res;
 }
 
-static int say_enumeration_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_enumeration_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int t = 0;
@@ -229,56 +229,56 @@ static int say_enumeration_full(struct opbx_channel *chan, int num, const char *
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
+            cw_log(CW_LOG_DEBUG, "Number '%d' is too big for me\n", num);
             res = -1;
         }
 
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd > -1) && (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
     }
     return res;
 }
 
-static int say_date(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_date(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     struct tm tm;
     char fn[256];
     int res = 0;
 
-    opbx_localtime(&t, &tm, NULL);
+    cw_localtime(&t, &tm, NULL);
     if (!res)
     {
         snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (!res)
     {
         snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (!res)
-        res = opbx_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
     if (!res)
-        res = opbx_waitstream(chan, ints);
+        res = cw_waitstream(chan, ints);
     if (!res)
-        res = opbx_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
     return res;
 }
 
-static int say_date_with_format(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
     struct tm tm;
     int res = 0;
@@ -287,11 +287,11 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
     char sndfile[256];
     char nextmsg[256];
 
-    opbx_localtime(&time, &tm, timezone);
+    cw_localtime(&time, &tm, timezone);
 
     for (offset = 0;  format[offset] != '\0';  offset++)
     {
-        opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+        cw_log(CW_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
         switch (format[offset])
         {
             /* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
@@ -318,18 +318,18 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             break;
         case 'm':
             /* Month enumerated */
-            res = opbx_say_enumeration(chan, (tm.tm_mon + 1), ints, lang, (char *) NULL);
+            res = cw_say_enumeration(chan, (tm.tm_mon + 1), ints, lang, (char *) NULL);
             break;
         case 'd':
         case 'e':
             /* First - Thirtyfirst */
-            res = opbx_say_enumeration(chan, tm.tm_mday, ints, lang, (char *) NULL);
+            res = cw_say_enumeration(chan, tm.tm_mday, ints, lang, (char *) NULL);
             break;
         case 'Y':
             /* Year */
             if (tm.tm_year > 99)
             {
-                res = opbx_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+                res = cw_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
             }
             else
             {
@@ -453,7 +453,7 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             }
             else
             {
-                res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+                res = cw_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
             }
             break;
         case 'P':
@@ -473,9 +473,9 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             time_t beg_today;
 
             gettimeofday(&now,NULL);
-            opbx_localtime(&now.tv_sec,&tmnow,timezone);
+            cw_localtime(&now.tv_sec,&tmnow,timezone);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
-            /* In any case, it saves not having to do opbx_mktime() */
+            /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
             if (beg_today < time)
             {
@@ -489,7 +489,7 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             }
             else
             {
-                res = opbx_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+                res = cw_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
             }
         }
         break;
@@ -501,9 +501,9 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             time_t beg_today;
 
             gettimeofday(&now,NULL);
-            opbx_localtime(&now.tv_sec,&tmnow,timezone);
+            cw_localtime(&now.tv_sec,&tmnow,timezone);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
-            /* In any case, it saves not having to do opbx_mktime() */
+            /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
             if (beg_today < time)
             {
@@ -517,16 +517,16 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             else if (beg_today - 86400 * 6 < time)
             {
                 /* Within the last week */
-                res = opbx_say_date_with_format(chan, time, ints, lang, "A", timezone);
+                res = cw_say_date_with_format(chan, time, ints, lang, "A", timezone);
             }
             else
             {
-                res = opbx_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+                res = cw_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
             }
         }
         break;
         case 'R':
-            res = opbx_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+            res = cw_say_date_with_format(chan, time, ints, lang, "HM", timezone);
             break;
         case 'S':
             /* Seconds */
@@ -546,11 +546,11 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             }
             else
             {
-                res = opbx_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
+                res = cw_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
             }
             break;
         case 'T':
-            res = opbx_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+            res = cw_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
             break;
         case ' ':
         case '	':
@@ -558,7 +558,7 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             break;
         default:
             /* Unknown character */
-            opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+            cw_log(CW_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
         }
         /* Jump out on DTMF */
         if (res)
@@ -567,7 +567,7 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
     return res;
 }
 
-static int say_time(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_time(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     struct tm tm;
     int res = 0;
@@ -586,45 +586,45 @@ static int say_time(struct opbx_channel *chan, time_t t, const char *ints, const
         pm = 1;
     }
     if (!res)
-        res = opbx_say_number(chan, hour, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, hour, ints, lang, (char *) NULL);
 
     if (tm.tm_min > 9)
     {
         if (!res)
-            res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+            res = cw_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
     }
     else if (tm.tm_min)
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/oh", lang);
+            res = cw_streamfile(chan, "digits/oh", lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
         if (!res)
-            res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+            res = cw_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
     }
     else
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/oclock", lang);
+            res = cw_streamfile(chan, "digits/oclock", lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (pm)
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/p-m", lang);
+            res = cw_streamfile(chan, "digits/p-m", lang);
     }
     else
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/a-m", lang);
+            res = cw_streamfile(chan, "digits/a-m", lang);
     }
     if (!res)
-        res = opbx_waitstream(chan, ints);
+        res = cw_waitstream(chan, ints);
     return res;
 }
 
-static int say_datetime(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_datetime(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     struct tm tm;
     char fn[256];
@@ -636,19 +636,19 @@ static int say_datetime(struct opbx_channel *chan, time_t t, const char *ints, c
     if (!res)
     {
         snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (!res)
     {
         snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
-        res = opbx_streamfile(chan, fn, lang);
+        res = cw_streamfile(chan, fn, lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (!res)
-        res = opbx_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
 
     hour = tm.tm_hour;
     if (!hour)
@@ -661,47 +661,47 @@ static int say_datetime(struct opbx_channel *chan, time_t t, const char *ints, c
         pm = 1;
     }
     if (!res)
-        res = opbx_say_number(chan, hour, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, hour, ints, lang, (char *) NULL);
 
     if (tm.tm_min > 9)
     {
         if (!res)
-            res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+            res = cw_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
     }
     else if (tm.tm_min)
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/oh", lang);
+            res = cw_streamfile(chan, "digits/oh", lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
         if (!res)
-            res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+            res = cw_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
     }
     else
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/oclock", lang);
+            res = cw_streamfile(chan, "digits/oclock", lang);
         if (!res)
-            res = opbx_waitstream(chan, ints);
+            res = cw_waitstream(chan, ints);
     }
     if (pm)
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/p-m", lang);
+            res = cw_streamfile(chan, "digits/p-m", lang);
     }
     else
     {
         if (!res)
-            res = opbx_streamfile(chan, "digits/a-m", lang);
+            res = cw_streamfile(chan, "digits/a-m", lang);
     }
     if (!res)
-        res = opbx_waitstream(chan, ints);
+        res = cw_waitstream(chan, ints);
     if (!res)
-        res = opbx_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+        res = cw_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
     return res;
 }
 
-static int say_datetime_from_now(struct opbx_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_datetime_from_now(struct cw_channel *chan, time_t t, const char *ints, const char *lang)
 {
     int res = 0;
     time_t nowt;
@@ -721,12 +721,12 @@ static int say_datetime_from_now(struct opbx_channel *chan, time_t t, const char
         if (!res)
         {
             snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
-            res = opbx_streamfile(chan, fn, lang);
+            res = cw_streamfile(chan, fn, lang);
             if (!res)
-                res = opbx_waitstream(chan, ints);
+                res = cw_waitstream(chan, ints);
         }
         if (!res)
-            res = opbx_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+            res = cw_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
     }
     else if (daydiff)
     {
@@ -734,13 +734,13 @@ static int say_datetime_from_now(struct opbx_channel *chan, time_t t, const char
         if (!res)
         {
             snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
-            res = opbx_streamfile(chan, fn, lang);
+            res = cw_streamfile(chan, fn, lang);
             if (!res)
-                res = opbx_waitstream(chan, ints);
+                res = cw_waitstream(chan, ints);
         }
     } /* Otherwise, it was today */
     if (!res)
-        res = opbx_say_time(chan, t, ints, lang);
+        res = cw_say_time(chan, t, ints, lang);
     return res;
 }
 

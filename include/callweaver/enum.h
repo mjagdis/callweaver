@@ -40,7 +40,7 @@
        \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
 
 */
-extern int opbx_get_enum(struct opbx_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
+extern int cw_get_enum(struct cw_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
 
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
@@ -52,9 +52,9 @@ extern int opbx_get_enum(struct opbx_channel *chan, const char *number, char *lo
 	\param txt	Text string (return value)
 	\param maxtxt	Max length of "txt"
 */
-extern int opbx_get_txt(struct opbx_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char *txt, int maxtxt);
+extern int cw_get_txt(struct cw_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char *txt, int maxtxt);
 
-extern int opbx_enum_init(void);
-extern int opbx_enum_reload(void);
+extern int cw_enum_init(void);
+extern int cw_enum_reload(void);
 
 #endif /* _CALLWEAVER_ENUM_H */

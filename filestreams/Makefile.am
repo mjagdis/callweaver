@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS 		        = gnu
 
-opbxmod_LTLIBRARIES             = filestream_sndfile.la
+cwmod_LTLIBRARIES             = filestream_sndfile.la
 
 
 

@@ -60,7 +60,7 @@ static void mix_slinear_frames(int16_t *dst, const int16_t *src, int samples, in
 
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
     if (vdebug) 
-        opbx_log(OPBX_CONF_DEBUG, 
+        cw_log(CW_CONF_DEBUG, 
                  "STARTING TO MIX: " 
                  "SRC at %p   DST at %p   BUFFERSIZE: %d Samples %d  STARTINDEX: %d\n",        
                  src,                   dst,                cbuffersize,  samples,         startindex
@@ -82,14 +82,14 @@ static void mix_slinear_frames(int16_t *dst, const int16_t *src, int samples, in
 
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
         if (vdebug) 
-            opbx_log(OPBX_CONF_DEBUG,
+            cw_log(CW_CONF_DEBUG,
                 "start %d - DST(%3d) %08d (at %p)   SRC(%3d) %08d (at %p) VAL: %08d \n", 
                 startindex, i_dst,  v1 ,&dst[i_dst],i_src,  v2,  &src[i_src], val);
 #endif
     }
 }
 
-struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx_conf_member* member, int samples ) 
+struct cw_frame* get_outgoing_frame( struct cw_conference *conf, struct cw_conf_member* member, int samples ) 
 {
     //
     // sanity checks
@@ -98,20 +98,20 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
     // check on conf
     if ( conf == NULL ) 
     {
-        opbx_log(OPBX_LOG_ERROR, "unable to queue null conference\n" ) ;
+        cw_log(CW_LOG_ERROR, "unable to queue null conference\n" ) ;
         return NULL ;
     }
 
     if ( conf->memberlist == NULL ) 
     {
-        opbx_log(OPBX_LOG_ERROR, "unable to queue for a null memberlist\n" ) ;
+        cw_log(CW_LOG_ERROR, "unable to queue for a null memberlist\n" ) ;
         return NULL ;
     }
 
     // check on member
     if ( member == NULL )
     {
-        opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null member\n" ) ;
+        cw_log(CW_LOG_ERROR, "unable to queue frame for null member\n" ) ;
         return NULL ;
     }
 
@@ -122,8 +122,8 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
     // ***********************************
 
     int members =0;
-    struct opbx_frame *f = NULL;
-    struct opbx_conf_member *mixmember;
+    struct cw_frame *f = NULL;
+    struct cw_conf_member *mixmember;
     int16_t *dst = member->framedata;
     int16_t *src = NULL;
 
@@ -141,11 +141,11 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
                 src = mixmember->cbuf->buffer8k;
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
             if(vdebug) 
-            opbx_log(OPBX_CONF_DEBUG,
+            cw_log(CW_CONF_DEBUG,
                 "Mixing memb %s Chan %s Ind %d Samples %d "
                 " bufpos: %p with offset %p  FOR MEMBER %s\n", 
                 mixmember->id, mixmember->chan->name, mixmember->cbuf->index8k, samples,
-                member->framedata, member->framedata + OPBX_FRIENDLY_OFFSET/sizeof(int16_t),
+                member->framedata, member->framedata + CW_FRIENDLY_OFFSET/sizeof(int16_t),
                 member->chan->name
             );
 #endif
@@ -158,9 +158,9 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
     }
 
     //Building the frame
-    f = calloc(1, sizeof(struct opbx_frame));
+    f = calloc(1, sizeof(struct cw_frame));
     if (f != NULL) {
-        opbx_fr_init_ex(f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "Nconf");
+        cw_fr_init_ex(f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "Nconf");
         f->data = member->framedata;
         f->datalen = samples*sizeof(int16_t);
         f->samples = samples;
@@ -172,16 +172,16 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
     if (vdebug && members) {
         int count=0;
         int16_t *msrc;
-        msrc = f->data + OPBX_FRIENDLY_OFFSET;
+        msrc = f->data + CW_FRIENDLY_OFFSET;
 
-        if (vdebug) opbx_log(OPBX_CONF_DEBUG,
+        if (vdebug) cw_log(CW_CONF_DEBUG,
                         "Offset %d  OFO: %d    Data at %p  SRC at %p memberdata at %p \n",
-                        f->offset, OPBX_FRIENDLY_OFFSET,
+                        f->offset, CW_FRIENDLY_OFFSET,
                         f->data, &msrc, member->framedata 
                     );
 
         for( count=0; count<f->samples; count++ ) {
-                opbx_log(OPBX_CONF_DEBUG,
+                cw_log(CW_CONF_DEBUG,
                 "DUMP POS %04d VALUE %08d    at %p \n",
                           count, msrc[count], &msrc[count] );
         }
@@ -191,7 +191,7 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
 }
 
 
-static void copy_frame_content( struct member_cbuffer *cbuf, struct opbx_frame *sfr ) 
+static void copy_frame_content( struct member_cbuffer *cbuf, struct cw_frame *sfr ) 
 {
     int count=0;
 
@@ -206,10 +206,10 @@ static void copy_frame_content( struct member_cbuffer *cbuf, struct opbx_frame *
     
     for( count=0; count<sfr->samples; count++ ) {
         i_src = count;
-        i_dst = (cbuf->index8k+count) % OPBX_CONF_CBUFFER_8K_SIZE;
+        i_dst = (cbuf->index8k+count) % CW_CONF_CBUFFER_8K_SIZE;
 
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
-        if (vdebug) opbx_log(OPBX_CONF_DEBUG,
+        if (vdebug) cw_log(CW_CONF_DEBUG,
             "(%d)POSITION from %04d   (at %p)   to %04d (at %p)     VALUE %08d \n",
             count,          i_src,&(dst[i_dst]), i_dst,&(src[i_src]), src[i_src] );
 #endif
@@ -217,15 +217,15 @@ static void copy_frame_content( struct member_cbuffer *cbuf, struct opbx_frame *
         dst[i_dst] = src[i_src];
     }
 
-    cbuf->index8k=( i_dst + 1 ) % OPBX_CONF_CBUFFER_8K_SIZE;
+    cbuf->index8k=( i_dst + 1 ) % CW_CONF_CBUFFER_8K_SIZE;
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
-    if (vdebug) opbx_log(OPBX_CONF_DEBUG,"Set index to %d \n", cbuf->index8k);
+    if (vdebug) cw_log(CW_CONF_DEBUG,"Set index to %d \n", cbuf->index8k);
 #endif
 }
 
 
 
-int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr ) 
+int queue_incoming_frame( struct cw_conf_member *member, struct cw_frame *fr ) 
 {
     //
     // sanity checks
@@ -234,21 +234,21 @@ int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr
     // check on frame
     if ( fr == NULL ) 
     {
-            opbx_log(OPBX_LOG_ERROR, "unable to queue null frame\n" ) ;
+            cw_log(CW_LOG_ERROR, "unable to queue null frame\n" ) ;
             return -1 ;
     }
         
     // check on member
     if ( member == NULL )
     {
-            opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null member\n" ) ;
+            cw_log(CW_LOG_ERROR, "unable to queue frame for null member\n" ) ;
             return -1 ;
     }
 
     // check on circular buffer
     if ( member->cbuf == NULL )
     {
-            opbx_log(OPBX_LOG_ERROR, "unable to queue frame for null circular buffer\n" ) ;
+            cw_log(CW_LOG_ERROR, "unable to queue frame for null circular buffer\n" ) ;
             return -1 ;
     }
 
@@ -257,20 +257,20 @@ int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr
     //
 
     int res = 0;
-    struct opbx_frame *sfr;
+    struct cw_frame *sfr;
 
 //    copy_frame_content(member->cbuf, fr); return 0; // This code is to bypass the Smoother on the input frames
 
     // Feed the smoother if exists
     if ( member->inSmoother != NULL )
-        res = opbx_smoother_feed( member->inSmoother, fr );
+        res = cw_smoother_feed( member->inSmoother, fr );
 
     if ( !res && member->inSmoother ) {
-        while ( ( sfr = opbx_smoother_read( member->inSmoother ) ) ) {
+        while ( ( sfr = cw_smoother_read( member->inSmoother ) ) ) {
             copy_frame_content(member->cbuf, sfr);
-            opbx_fr_free(sfr);
+            cw_fr_free(sfr);
         }
-        opbx_smoother_reset(member->inSmoother, member->smooth_size_in);
+        cw_smoother_reset(member->inSmoother, member->smooth_size_in);
     } 
     else {
         copy_frame_content(member->cbuf, fr);
@@ -280,13 +280,13 @@ int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr
 }
 
 
-int queue_incoming_silent_frame( struct opbx_conf_member *member, int count) {
-    struct opbx_frame f;
+int queue_incoming_silent_frame( struct cw_conf_member *member, int count) {
+    struct cw_frame f;
     int t = 0;
 
     memset(member->framedata,0,sizeof(member->framedata));
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "Nconf");
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "Nconf");
     f.data = member->framedata;
     f.datalen = member->samples * sizeof(int16_t);
     f.samples = member->samples;
@@ -312,7 +312,7 @@ long usecdiff( struct timeval* timeA, struct timeval* timeB )
     return u_secs;
 }
 
-int set_talk_volume(struct opbx_conf_member *member, struct opbx_frame *f, int is_talk)
+int set_talk_volume(struct cw_conf_member *member, struct cw_frame *f, int is_talk)
 {
     int ret = 0;
     signed char gain_adjust;
@@ -324,17 +324,17 @@ int set_talk_volume(struct opbx_conf_member *member, struct opbx_frame *f, int i
         /* Attempt to make the adjustment in the channel driver first */
         if (member->talk_volume_adjust == 0)
         {
-            ret = opbx_channel_setoption(member->chan, OPBX_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+            ret = cw_channel_setoption(member->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
             if (ret)
                 member->talk_volume_adjust = 1;
         }
         if (member->talk_volume_adjust  &&  f)
-            ret = opbx_frame_adjust_volume(f, gain_adjust);
+            ret = cw_frame_adjust_volume(f, gain_adjust);
     }
     else
     {
         /* Listen volume */
-        ret = opbx_frame_adjust_volume(f, gain_adjust);
+        ret = cw_frame_adjust_volume(f, gain_adjust);
     }
     return ret;
 }

@@ -1,7 +1,7 @@
 #!/bin/sh
 # $Id$
 # lame quickie script to snarf a core of a hung callweaver process.
-# bugs to opbx_grab_core, blinky-lights.org  (derrick daugherty)
+# bugs to cw_grab_core, blinky-lights.org  (derrick daugherty)
 
 DATE=`date +%Y%m%d%H%M`
 DUMPDIR=/var/tmp
@@ -10,12 +10,12 @@ ADMINEMAIL="root@localhost"
 
 #the following should be improved
 if [ -e /etc/callweaver/callweaver.conf ]; then
-	RUNDIR=`awk -F"=>" '/opbxrundir/ {print $2}' /etc/callweaver/callweaver.conf`
+	RUNDIR=`awk -F"=>" '/cwrundir/ {print $2}' /etc/callweaver/callweaver.conf`
 	PID=`cat ${RUNDIR}/callweaver.pid`
 elif [ -e /var/run/callweaver.pid ] ; then 
 	PID=`cat /var/run/callweaver.pid`
 else 
-	echo Could not find an callweaver.conf definition for opbxrundir,  using \'ps\'
+	echo Could not find an callweaver.conf definition for cwrundir,  using \'ps\'
 	echo to try and determine process ID.  This is not reliable.
 	PID=`ps auxwf|grep callweaver|grep vv|head -1|awk '{print $2}'`
 fi

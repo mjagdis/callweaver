@@ -1,14 +1,14 @@
 # LSB-ROMFS directory layout
 helpstring="for Linux embedded devices with ROM filesystems"
-opbxprefix=/usr/local
-opbxexecdir=${sbindir}
-opbxutilsdir=${sbindir}
-opbxconfdir=${sysconfdir}/callweaver
-opbxlibdir=${libdir}/callweaver
-opbxvardir=${localstatedir}/lib/callweaver
-opbxdatadir=${datadir}/callweaver
-opbxlogdir=${localstatedir}/log/callweaver
-opbxrundir=${localstatedir}/run/callweaver
-opbxspooldir=${localstatedir}/spool/callweaver
-opbxmandir=${mandir}
-opbxdocdir=${opbxdatadir}/doc
+cwprefix=/usr/local
+cwexecdir=${sbindir}
+cwutilsdir=${sbindir}
+cwconfdir=${sysconfdir}/callweaver
+cwlibdir=${libdir}/callweaver
+cwvardir=${localstatedir}/lib/callweaver
+cwdatadir=${datadir}/callweaver
+cwlogdir=${localstatedir}/log/callweaver
+cwrundir=${localstatedir}/run/callweaver
+cwspooldir=${localstatedir}/spool/callweaver
+cwmandir=${mandir}
+cwdocdir=${cwdatadir}/doc

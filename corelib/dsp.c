@@ -118,9 +118,9 @@ static struct progress
 #define BUSYDETECT_MARTIN
 #endif
 
-struct opbx_dsp
+struct cw_dsp
 {
-    struct opbx_frame f;
+    struct cw_frame f;
     int threshold;
     int totalsilence;
     int totalnoise;
@@ -168,7 +168,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
     return 1;
 }
 
-static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
+static int __cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
 {
     int x;
     int y;
@@ -256,7 +256,7 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
                     newstate = DSP_TONE_STATE_HUNGUP;
                 break;
             default:
-                opbx_log(OPBX_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+                cw_log(CW_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
                 break;
             }
             if (newstate == dsp->tstate)
@@ -268,34 +268,34 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
                             && 
                         dsp->tstate == DSP_TONE_STATE_BUSY)
                     {
-                        res = OPBX_CONTROL_BUSY;
+                        res = CW_CONTROL_BUSY;
                         dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
                     }
                     else if ((dsp->features & DSP_PROGRESS_TALK)
                              && 
                              dsp->tstate == DSP_TONE_STATE_TALKING)
                     {
-                        res = OPBX_CONTROL_ANSWER;
+                        res = CW_CONTROL_ANSWER;
                         dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
                     }
                     else if ((dsp->features & DSP_PROGRESS_RINGING)
                              && 
                              dsp->tstate == DSP_TONE_STATE_RINGING)
                     {
-                        res = OPBX_CONTROL_RINGING;
+                        res = CW_CONTROL_RINGING;
                     }
                     else if ((dsp->features & DSP_PROGRESS_CONGESTION)
                              && 
                              dsp->tstate == DSP_TONE_STATE_SPECIAL3)
                     {
-                        res = OPBX_CONTROL_CONGESTION;
+                        res = CW_CONTROL_CONGESTION;
                         dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
                     }
                     else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)
                              &&
                              dsp->tstate == DSP_TONE_STATE_HUNGUP)
                     {
-                        res = OPBX_CONTROL_HANGUP;
+                        res = CW_CONTROL_HANGUP;
                         dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
                     }
                 }
@@ -316,22 +316,22 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
     return res;
 }
 
-int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
+int cw_dsp_call_progress(struct cw_dsp *dsp, struct cw_frame *inf)
 {
-    if (inf->frametype != OPBX_FRAME_VOICE)
+    if (inf->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can't check call progress of non-voice frames\n");
+        cw_log(CW_LOG_WARNING, "Can't check call progress of non-voice frames\n");
         return 0;
     }
-    if (inf->subclass != OPBX_FORMAT_SLINEAR)
+    if (inf->subclass != CW_FORMAT_SLINEAR)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can only check call progress in signed-linear frames\n");
+        cw_log(CW_LOG_WARNING, "Can only check call progress in signed-linear frames\n");
         return 0;
     }
-    return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen/sizeof(int16_t));
+    return __cw_dsp_call_progress(dsp, inf->data, inf->datalen/sizeof(int16_t));
 }
 
-static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int *totalsilence)
+static int __cw_dsp_silence(struct cw_dsp *dsp, int16_t amp[], int len, int *totalsilence)
 {
     int accum;
     int x;
@@ -385,7 +385,7 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int 
 }
 
 #ifdef BUSYDETECT_MARTIN
-int opbx_dsp_busydetect(struct opbx_dsp *dsp)
+int cw_dsp_busydetect(struct cw_dsp *dsp)
 {
     int res = 0;
     int x;
@@ -463,14 +463,14 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
     }
 #if 1
     if (res)
-        opbx_log(OPBX_LOG_DEBUG, "opbx_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+        cw_log(CW_LOG_DEBUG, "cw_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 #endif
     return res;
 }
 #endif
 
 #ifdef BUSYDETECT
-int opbx_dsp_busydetect(struct opbx_dsp *dsp)
+int cw_dsp_busydetect(struct cw_dsp *dsp)
 {
     int x;
     int res;
@@ -501,43 +501,43 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 }
 #endif
 
-int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilence)
+int cw_dsp_silence(struct cw_dsp *dsp, struct cw_frame *f, int *totalsilence)
 {
     int16_t *amp;
     uint8_t *data;
     int len;
     int x;
 
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
+        cw_log(CW_LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
         return 0;
     }
     data = f->data;
     len = 0;
     switch (f->subclass)
     {
-    case OPBX_FORMAT_SLINEAR:
+    case CW_FORMAT_SLINEAR:
         amp = f->data;
         len = f->datalen/sizeof(int16_t);
         break;
-    case OPBX_FORMAT_ULAW:
+    case CW_FORMAT_ULAW:
         amp = alloca(f->datalen*sizeof(int16_t));
         len = f->datalen;
         for (x = 0;  x < len;  x++) 
-            amp[x] = OPBX_MULAW(data[x]);
+            amp[x] = CW_MULAW(data[x]);
         break;
-    case OPBX_FORMAT_ALAW:
+    case CW_FORMAT_ALAW:
         amp = alloca(f->datalen*sizeof(int16_t));
         len = f->datalen;
         for (x = 0;  x < len;  x++) 
-            amp[x] = OPBX_ALAW(data[x]);
+            amp[x] = CW_ALAW(data[x]);
         break;
     default:
-        opbx_log(OPBX_LOG_WARNING, "Silence detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(f->subclass));
+        cw_log(CW_LOG_WARNING, "Silence detection is not supported on codec %s. Use RFC2833\n", cw_getformatname(f->subclass));
         return 0;
     }
-    return __opbx_dsp_silence(dsp, amp, len, totalsilence);
+    return __cw_dsp_silence(dsp, amp, len, totalsilence);
 }
 
 #define FIX_INF(inf) \
@@ -547,20 +547,20 @@ do \
     { \
         switch(inf->subclass) \
         { \
-        case OPBX_FORMAT_ULAW: \
+        case CW_FORMAT_ULAW: \
             for (x = 0;  x < len;  x++) \
-                odata[x] = OPBX_LIN2MU(amp[x]); \
+                odata[x] = CW_LIN2MU(amp[x]); \
             break; \
-        case OPBX_FORMAT_ALAW: \
+        case CW_FORMAT_ALAW: \
             for (x = 0;  x < len;  x++) \
-                odata[x] = OPBX_LIN2A(amp[x]); \
+                odata[x] = CW_LIN2A(amp[x]); \
             break; \
         } \
     } \
 } \
 while(0) 
 
-struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *dsp, struct opbx_frame *af)
+struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, struct cw_frame *af)
 {
     int silence;
     int res;
@@ -575,43 +575,43 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 
     if (af == NULL)
         return NULL;
-    if (af->frametype != OPBX_FRAME_VOICE)
+    if (af->frametype != CW_FRAME_VOICE)
         return af;
     odata = af->data;
     len = af->datalen;
     /* Make sure we have short data */
     switch (af->subclass)
     {
-    case OPBX_FORMAT_SLINEAR:
+    case CW_FORMAT_SLINEAR:
         amp = af->data;
         len = af->datalen/sizeof(int16_t);
         break;
-    case OPBX_FORMAT_ULAW:
+    case CW_FORMAT_ULAW:
         amp = alloca(af->datalen*sizeof(int16_t));
         for (x = 0;  x < len;  x++) 
-            amp[x] = OPBX_MULAW(odata[x]);
+            amp[x] = CW_MULAW(odata[x]);
         break;
-    case OPBX_FORMAT_ALAW:
+    case CW_FORMAT_ALAW:
         amp = alloca(af->datalen*sizeof(int16_t));
         for (x = 0;  x < len;  x++) 
-            amp[x] = OPBX_ALAW(odata[x]);
+            amp[x] = CW_ALAW(odata[x]);
         break;
     default:
-        opbx_log(OPBX_LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
+        cw_log(CW_LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", cw_getformatname(af->subclass));
         return af;
     }
-    silence = __opbx_dsp_silence(dsp, amp, len, NULL);
+    silence = __cw_dsp_silence(dsp, amp, len, NULL);
     if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS)  &&  silence)
     {
-        opbx_fr_init(&dsp->f);
-        dsp->f.frametype = OPBX_FRAME_NULL;
+        cw_fr_init(&dsp->f);
+        dsp->f.frametype = CW_FRAME_NULL;
         return &dsp->f;
     }
-    if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  opbx_dsp_busydetect(dsp))
+    if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  cw_dsp_busydetect(dsp))
     {
-        chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
-        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, OPBX_CONTROL_BUSY, NULL);
-        opbx_log(OPBX_LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+        chan->_softhangup |= CW_SOFTHANGUP_DEV;
+        cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, CW_CONTROL_BUSY, NULL);
+        cw_log(CW_LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
         return &dsp->f;
     }
     if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
@@ -621,10 +621,10 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             bell_mf_rx(&dsp->bell_mf_rx, amp, len);
             if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
             {
-                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, digit_buf[0], NULL);
+                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, digit_buf[0], NULL);
                 if (chan)
-                    opbx_queue_frame(chan, af);
-                opbx_fr_free(af);
+                    cw_queue_frame(chan, af);
+                cw_fr_free(af);
                 return &dsp->f;
             }
         }
@@ -647,13 +647,13 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                     dsp->possible_digit = FALSE;
                     if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
                     {
-                        opbx_fr_init(&dsp->f);
-                        dsp->f.frametype = OPBX_FRAME_DTMF;
+                        cw_fr_init(&dsp->f);
+                        dsp->f.frametype = CW_FRAME_DTMF;
                         dsp->f.subclass = 'u';
                         FIX_INF(af);
                         if (chan)
-                            opbx_queue_frame(chan, af);
-                        opbx_fr_free(af);
+                            cw_queue_frame(chan, af);
+                        cw_fr_free(af);
                         return &dsp->f;
                     }
                 }
@@ -664,8 +664,8 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 {
                     FIX_INF(af);
                     if (chan)
-                        opbx_queue_frame(chan, af);
-                    opbx_fr_free(af);
+                        cw_queue_frame(chan, af);
+                    cw_fr_free(af);
                 }
                 else
                 {
@@ -674,22 +674,22 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                         /* Looks like we might have something.  
                            Request a conference mute for the moment */
                         dsp->possible_digit = TRUE;
-                        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
+                        cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'm', NULL);
                         FIX_INF(af);
                         if (chan)
-                            opbx_queue_frame(chan, af);
-                        opbx_fr_free(af);
+                            cw_queue_frame(chan, af);
+                        cw_fr_free(af);
                         return &dsp->f;
                     }
                 }
             }
             if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
             {
-                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, buf[0], NULL);
+                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, buf[0], NULL);
                 FIX_INF(af);
                 if (chan)
-                    opbx_queue_frame(chan, af);
-                opbx_fr_free(af);
+                    cw_queue_frame(chan, af);
+                cw_fr_free(af);
                 return &dsp->f;
             }
         }
@@ -699,11 +699,11 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
         if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
         {
-            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'f', NULL);
+            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'f', NULL);
             FIX_INF(af);
             if (chan)
-                opbx_queue_frame(chan, af);
-            opbx_fr_free(af);
+                cw_queue_frame(chan, af);
+            cw_fr_free(af);
             return &dsp->f;
         }
     }
@@ -712,31 +712,31 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         modem_connect_tones_rx(&dsp->fax_ced_rx, amp, len);
         if (modem_connect_tones_rx_get(&dsp->fax_ced_rx))
         {
-            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'F', NULL);
+            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'F', NULL);
             FIX_INF(af);
             if (chan)
-                opbx_queue_frame(chan, af);
-            opbx_fr_free(af);
+                cw_queue_frame(chan, af);
+            cw_fr_free(af);
             return &dsp->f;
         }
     }
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
     {
-        if ((res = __opbx_dsp_call_progress(dsp, amp, len)))
+        if ((res = __cw_dsp_call_progress(dsp, amp, len)))
         {
             switch (res)
             {
-            case OPBX_CONTROL_ANSWER:
-            case OPBX_CONTROL_BUSY:
-            case OPBX_CONTROL_RINGING:
-            case OPBX_CONTROL_CONGESTION:
-            case OPBX_CONTROL_HANGUP:
-                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, res, "dsp_progress");
+            case CW_CONTROL_ANSWER:
+            case CW_CONTROL_BUSY:
+            case CW_CONTROL_RINGING:
+            case CW_CONTROL_CONGESTION:
+            case CW_CONTROL_HANGUP:
+                cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, res, "dsp_progress");
                 if (chan) 
-                    opbx_queue_frame(chan, &dsp->f);
+                    cw_queue_frame(chan, &dsp->f);
                 break;
             default:
-                opbx_log(OPBX_LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
+                cw_log(CW_LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
                 break;
             }
         }
@@ -745,7 +745,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     return af;
 }
 
-static void opbx_dsp_prog_reset(struct opbx_dsp *dsp)
+static void cw_dsp_prog_reset(struct cw_dsp *dsp)
 {
     goertzel_descriptor_t desc;
     int max;
@@ -766,9 +766,9 @@ static void opbx_dsp_prog_reset(struct opbx_dsp *dsp)
     dsp->freqcount = max;
 }
 
-struct opbx_dsp *opbx_dsp_new(void)
+struct cw_dsp *cw_dsp_new(void)
 {
-    struct opbx_dsp *dsp;
+    struct cw_dsp *dsp;
 
     if ((dsp = malloc(sizeof(*dsp))))
     {
@@ -790,27 +790,27 @@ struct opbx_dsp *opbx_dsp_new(void)
                                     NULL);
 
         /* Initialize initial DSP progress detect parameters */
-        opbx_dsp_prog_reset(dsp);
+        cw_dsp_prog_reset(dsp);
     }
     return dsp;
 }
 
-void opbx_dsp_free(struct opbx_dsp *dsp)
+void cw_dsp_free(struct cw_dsp *dsp)
 {
     free(dsp);
 }
 
-void opbx_dsp_set_features(struct opbx_dsp *dsp, int features)
+void cw_dsp_set_features(struct cw_dsp *dsp, int features)
 {
     dsp->features = features;
 }
 
-void opbx_dsp_set_threshold(struct opbx_dsp *dsp, int threshold)
+void cw_dsp_set_threshold(struct cw_dsp *dsp, int threshold)
 {
     dsp->threshold = threshold;
 }
 
-void opbx_dsp_set_busy_count(struct opbx_dsp *dsp, int cadences)
+void cw_dsp_set_busy_count(struct cw_dsp *dsp, int cadences)
 {
     if (cadences < 4)
         cadences = 4;
@@ -819,14 +819,14 @@ void opbx_dsp_set_busy_count(struct opbx_dsp *dsp, int cadences)
     dsp->busycount = cadences;
 }
 
-void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietlength)
+void cw_dsp_set_busy_pattern(struct cw_dsp *dsp, int tonelength, int quietlength)
 {
     dsp->busy_tonelength = tonelength;
     dsp->busy_quietlength = quietlength;
-    opbx_log(OPBX_LOG_DEBUG, "DSP busy pattern set to %d,%d\n", tonelength, quietlength);
+    cw_log(CW_LOG_DEBUG, "DSP busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
-void opbx_dsp_digitreset(struct opbx_dsp *dsp)
+void cw_dsp_digitreset(struct cw_dsp *dsp)
 {
     dsp->possible_digit = FALSE;
     if (dsp->digit_mode & DSP_DIGITMODE_MF)
@@ -844,7 +844,7 @@ void opbx_dsp_digitreset(struct opbx_dsp *dsp)
                                 NULL);
 }
 
-void opbx_dsp_reset(struct opbx_dsp *dsp)
+void cw_dsp_reset(struct cw_dsp *dsp)
 {
     int x;
     
@@ -856,7 +856,7 @@ void opbx_dsp_reset(struct opbx_dsp *dsp)
     memset(dsp->noise_history, 0, sizeof(dsp->noise_history));    
 }
 
-int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digit_mode)
+int cw_dsp_digitmode(struct cw_dsp *dsp, int digit_mode)
 {
     int new_mode;
     int old_mode;
@@ -885,7 +885,7 @@ int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digit_mode)
     return 0;
 }
 
-int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
+int cw_dsp_set_call_progress_zone(struct cw_dsp *dsp, char *zone)
 {
     int x;
     
@@ -894,7 +894,7 @@ int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
         if (strcasecmp(aliases[x].name, zone) == 0)
         {
             dsp->progmode = aliases[x].mode;
-            opbx_dsp_prog_reset(dsp);
+            cw_dsp_prog_reset(dsp);
             return 0;
         }
     }

@@ -62,7 +62,7 @@ static const char desc[] = "SQLite CDR Backend";
 static const char name[] = "sqlite";
 static struct sqlite3 *db = NULL;
 
-OPBX_MUTEX_DEFINE_STATIC(sqlite3_lock);
+CW_MUTEX_DEFINE_STATIC(sqlite3_lock);
 
 /*! \brief SQL table format */
 static char sql_create_table[] = "CREATE TABLE cdr ("
@@ -91,7 +91,7 @@ static char sql_create_table[] = "CREATE TABLE cdr ("
 #endif
 ");";
 
-static int sqlite_log(struct opbx_cdr *cdr)
+static int sqlite_log(struct cw_cdr *cdr)
 {
 	int res = 0;
 	char *zErr = 0;
@@ -102,13 +102,13 @@ static int sqlite_log(struct opbx_cdr *cdr)
 	char fn[PATH_MAX];
 	char *sql;
 
-	opbx_mutex_lock(&sqlite3_lock);
+	cw_mutex_lock(&sqlite3_lock);
 
 	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/cdr.db", opbx_config_OPBX_LOG_DIR);
+	snprintf(fn, sizeof(fn), "%s/cdr.db", cw_config_CW_LOG_DIR);
 	sqlite3_open(fn, &db);
 	if (!db) {
-		opbx_log(OPBX_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);
 		return -1;
 	}
@@ -165,7 +165,7 @@ static int sqlite_log(struct opbx_cdr *cdr)
 				,cdr->userfield
 #				endif
 			);
-		opbx_log(OPBX_LOG_DEBUG, "CDR SQLITE3 SQL [%s]\n", sql);
+		cw_log(CW_LOG_DEBUG, "CDR SQLITE3 SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   NULL,
@@ -188,13 +188,13 @@ static int sqlite_log(struct opbx_cdr *cdr)
 	}
 	
 	if (zErr) {
-		opbx_log(OPBX_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);
 	}
 
 	if (db) sqlite3_close(db);
 
-	opbx_mutex_unlock(&sqlite3_lock);
+	cw_mutex_unlock(&sqlite3_lock);
 	return res;
 }
 
@@ -205,7 +205,7 @@ static void release(void)
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = sqlite_log,
@@ -214,7 +214,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 {
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
@@ -225,10 +225,10 @@ static int load_module(void)
 	int res;
 
 	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/cdr.db", opbx_config_OPBX_LOG_DIR);
+	snprintf(fn, sizeof(fn), "%s/cdr.db", cw_config_CW_LOG_DIR);
 	sqlite3_open(fn, &db);
 	if (!db) {
-		opbx_log(OPBX_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);
 		return -1;
 	}
@@ -238,7 +238,7 @@ static int load_module(void)
 	if (res) {
 		res = sqlite3_exec(db, sql_create_table, NULL, NULL, &zErr);
 		if (res) {
-			opbx_log(OPBX_LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
+			cw_log(CW_LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
 			free(zErr);
 			goto err;
 		}
@@ -248,7 +248,7 @@ static int load_module(void)
 	
 	if (db) sqlite3_close(db);
 
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 
 	return 0;
 

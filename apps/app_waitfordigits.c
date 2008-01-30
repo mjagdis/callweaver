@@ -37,10 +37,10 @@
 #include <callweaver/utils.h>
 #include <callweaver/cli.h>
 
-#ifdef OPBX_MODULE_INFO
-#define OPBX_VERSION_1_4
+#ifdef CW_MODULE_INFO
+#define CW_VERSION_1_4
 #else
-#define OPBX_VERSION_1_2
+#define CW_VERSION_1_2
 #endif
 
 static const char tdesc[] = "Waits for overlap dialed digits";
@@ -62,7 +62,7 @@ static const char waitfordigits_descrip[] =
 " 		to the predialed extension. Note that this is not necessary\n"
 "		for mISDN channels, they add overlap digits automatically\n"
 "\n"
-" [control] -	this option allows you to send a OPBX_CONTROL_XX frame\n"
+" [control] -	this option allows you to send a CW_CONTROL_XX frame\n"
 " 		after the timeout has expired.\n" 
 "		see (include/callweaver/frame.h) for possible values\n"
 " 		this is useful for mISDN channels to send a PROCEEDING\n"
@@ -96,7 +96,7 @@ static const char waitfordigits_descrip[] =
 
 
 
-static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -118,7 +118,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 	
 	if (argc < 1 || argc > 5)
 	{
-		opbx_log(OPBX_LOG_ERROR, "Syntax: %s\n", waitfordigits_syntax);
+		cw_log(CW_LOG_ERROR, "Syntax: %s\n", waitfordigits_syntax);
 		return -1;
 	}
 
@@ -136,7 +136,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 	}
 	else
 	{
-		opbx_log(OPBX_LOG_WARNING, "WaitForDigits was passed invalid data '%s'. The timeout must be a positive integer.\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "WaitForDigits was passed invalid data '%s'. The timeout must be a positive integer.\n", argv[0]);
 	}
 	if (argv[0] == NULL || timeout <= 0)
 
@@ -163,11 +163,11 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 		nextprio=atoi(argv[4]);
 	}
 
-	opbx_verbose("You passed timeout:%d maxnum:%d addexten:%d control:%d\n",
+	cw_verbose("You passed timeout:%d maxnum:%d addexten:%d control:%d\n",
 	      timeout, maxnum, addexten, control);
 	
 	/** Check wether we have something to do **/
-	if (chan->_state == OPBX_STATE_UP || aw > 0 )
+	if (chan->_state == CW_STATE_UP || aw > 0 )
 	{
 	  LOCAL_USER_REMOVE(u);
 	  return 0;
@@ -177,18 +177,18 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 	  
 	/** Saving predialed Extension **/
 	strcpy(numsubst, chan->exten);
-	while ( (strlen(numsubst)< maxnum) && (dig=opbx_waitfordigit(chan, timeout)))
+	while ( (strlen(numsubst)< maxnum) && (dig=cw_waitfordigit(chan, timeout)))
 	{
 		int l=strlen(numsubst); 
 		if (dig<=0)
 		{
 			if (dig ==-1)
 			{
-				opbx_log(OPBX_LOG_NOTICE, "Timeout reached.\n ");
+				cw_log(CW_LOG_NOTICE, "Timeout reached.\n ");
 			}
 			else
 			{
-				opbx_log(OPBX_LOG_NOTICE, "Error at adding dig: %c!\n",dig);
+				cw_log(CW_LOG_NOTICE, "Error at adding dig: %c!\n",dig);
 				res=-1;
 			}
 			break;
@@ -200,30 +200,30 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 		  
 		numsubst[l]=dig;
 		numsubst[l+1]=0;
-		//opbx_log(OPBX_LOG_NOTICE, "Adding Dig to Chan: %c\n",dig);
+		//cw_log(CW_LOG_NOTICE, "Adding Dig to Chan: %c\n",dig);
 	}
 	  
 	/** Restoring Extension if requested **/
 	if (addexten)
 	{
-		opbx_verbose("Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
+		cw_verbose("Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
 		strcpy(chan->exten, numsubst);
 	}
 	else
 	{
-		opbx_verbose( "Not Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
+		cw_verbose( "Not Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
 	}
 	  
 	/** Posting Exten to Var: NEWEXTEN **/
 	pbx_builtin_setvar_helper(chan,"NEWEXTEN",numsubst);
   
-	if (chan->_state != OPBX_STATE_UP && (control>0) ) {
-		opbx_verbose( "Sending CONTROL: %d  to Channel %s\n",control, chan->exten);
-		opbx_indicate(chan, control);
+	if (chan->_state != CW_STATE_UP && (control>0) ) {
+		cw_verbose( "Sending CONTROL: %d  to Channel %s\n",control, chan->exten);
+		cw_indicate(chan, control);
 	}
 	else
 	{
-		opbx_verbose( "Not Sending any control to Channel %s state is %d\n",chan->exten, chan->_state);
+		cw_verbose( "Not Sending any control to Channel %s state is %d\n",chan->exten, chan->_state);
 	}
 	
 	if (nextprio>0)
@@ -238,12 +238,12 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 
 static int unload_module(void)
 {
-	return opbx_unregister_function(waitfordigits_app);
+	return cw_unregister_function(waitfordigits_app);
 }
 
 static int load_module(void)
 {
-	waitfordigits_app = opbx_register_function(waitfordigits_name, waitfordigits_exec, waitfordigits_synopsis, waitfordigits_syntax, waitfordigits_descrip);
+	waitfordigits_app = cw_register_function(waitfordigits_name, waitfordigits_exec, waitfordigits_synopsis, waitfordigits_syntax, waitfordigits_descrip);
 	return 0;
 }
 

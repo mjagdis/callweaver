@@ -32,14 +32,14 @@ extern "C" {
 #include "callweaver/utils.h"
 
 
-typedef struct opbx_resampler_s opbx_resampler_t;
+typedef struct cw_resampler_s cw_resampler_t;
 
-opbx_resampler_t *opbx_resample_create( int from_rate, int to_rate, opbx_mpool_t *usepool );
+cw_resampler_t *cw_resample_create( int from_rate, int to_rate, cw_mpool_t *usepool );
 
-int opbx_resample_destroy( opbx_resampler_t *resampler );
+int cw_resample_destroy( cw_resampler_t *resampler );
 
-uint32_t opbx_resample_execute( 
-                            opbx_resampler_t *resampler, 
+uint32_t cw_resample_execute( 
+                            cw_resampler_t *resampler, 
                             int16_t *from, 
                             uint32_t from_len, 
                             int16_t *to, 

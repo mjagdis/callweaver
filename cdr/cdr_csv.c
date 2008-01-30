@@ -22,7 +22,7 @@
  *
  * \brief Comma Separated Value CDR records.
  * 
- * \arg See also \ref opbxCDR
+ * \arg See also \ref cwCDR
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -138,7 +138,7 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 	t = tv.tv_sec;
 	if (strlen(buf) > bufsize - 3)
 		return -1;
-	if (opbx_tvzero(tv)) {
+	if (cw_tvzero(tv)) {
 		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}
@@ -147,7 +147,7 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 	return append_string(buf, tmp, bufsize);
 }
 
-static int build_csv_record(char *buf, size_t bufsize, struct opbx_cdr *cdr)
+static int build_csv_record(char *buf, size_t bufsize, struct cw_cdr *cdr)
 {
 
 	buf[0] = '\0';
@@ -180,9 +180,9 @@ static int build_csv_record(char *buf, size_t bufsize, struct opbx_cdr *cdr)
 	/* Billable seconds */
 	append_int(buf, cdr->billsec, bufsize);
 	/* Disposition */
-	append_string(buf, opbx_cdr_disp2str(cdr->disposition), bufsize);
+	append_string(buf, cw_cdr_disp2str(cdr->disposition), bufsize);
 	/* AMA Flags */
-	append_string(buf, opbx_cdr_flags2str(cdr->amaflags), bufsize);
+	append_string(buf, cw_cdr_flags2str(cdr->amaflags), bufsize);
 
 #ifdef CSV_LOGUNIQUEID
 	/* Unique ID */
@@ -204,13 +204,13 @@ static int build_csv_record(char *buf, size_t bufsize, struct opbx_cdr *cdr)
 
 static int writefile(char *s, char *acc)
 {
-	char tmp[OPBX_CONFIG_MAX_PATH];
+	char tmp[CW_CONFIG_MAX_PATH];
 	FILE *f;
 	if (strchr(acc, '/') || (acc[0] == '.')) {
-		opbx_log(OPBX_LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
+		cw_log(CW_LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
 		return -1;
 	}
-	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)opbx_config_OPBX_LOG_DIR,CSV_LOG_DIR, acc);
+	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)cw_config_CW_LOG_DIR,CSV_LOG_DIR, acc);
 	f = fopen(tmp, "a");
 	if (!f)
 		return -1;
@@ -221,24 +221,24 @@ static int writefile(char *s, char *acc)
 }
 
 
-static int csv_log(struct opbx_cdr *cdr)
+static int csv_log(struct cw_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[1024];
-	char csvmaster[OPBX_CONFIG_MAX_PATH];
-	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", opbx_config_OPBX_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
+	char csvmaster[CW_CONFIG_MAX_PATH];
+	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 #if 0
-	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, opbx_cdr_disp2str(cdr->disposition), opbx_cdr_flags2str(cdr->amaflags), cdr->accountcode);
+	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cw_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif
 	if (build_csv_record(buf, sizeof(buf), cdr)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
+		cw_log(CW_LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
 	} else {
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,
 		   we open write and close the log file each time */
 		mf = fopen(csvmaster, "a");
 		if (!mf) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
+			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 		}
 		if (mf) {
 			fputs(buf, mf);
@@ -246,9 +246,9 @@ static int csv_log(struct opbx_cdr *cdr)
 			fclose(mf);
 			mf = NULL;
 		}
-		if (!opbx_strlen_zero(cdr->accountcode)) {
+		if (!cw_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
-				opbx_log(OPBX_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
+				cw_log(CW_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 		}
 	}
 	return 0;
@@ -264,7 +264,7 @@ static void release(void)
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = csv_log,
@@ -273,13 +273,13 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 {
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
 static int load_module(void)
 {
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 	return 0;
 }
 

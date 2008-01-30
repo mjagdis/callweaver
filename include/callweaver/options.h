@@ -29,8 +29,8 @@ extern "C" {
 
 #include <time.h>
 
-#define OPBX_CACHE_DIR_LEN 512
-#define OPBX_FILENAME_MAX	80
+#define CW_CACHE_DIR_LEN 512
+#define CW_FILENAME_MAX	80
 
 extern int option_verbose;
 extern int option_debug;
@@ -51,11 +51,11 @@ extern double option_maxload;
 extern int option_dontwarn;
 extern int option_priority_jumping;
 extern char defaultlanguage[];
-extern time_t opbx_startuptime;
-extern time_t opbx_lastreloadtime;
-extern int opbx_mainpid;
-extern char record_cache_dir[OPBX_CACHE_DIR_LEN];
-extern char debug_filename[OPBX_FILENAME_MAX];
+extern time_t cw_startuptime;
+extern time_t cw_lastreloadtime;
+extern int cw_mainpid;
+extern char record_cache_dir[CW_CACHE_DIR_LEN];
+extern char debug_filename[CW_FILENAME_MAX];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

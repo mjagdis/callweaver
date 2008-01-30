@@ -15,15 +15,15 @@
  */
 
 
-struct opbx_conf_soundq 
+struct cw_conf_soundq 
 {
 	char name[256];
-//	struct opbx_filestream *stream; // the stream
-	struct opbx_conf_soundq *next;
+//	struct cw_filestream *stream; // the stream
+	struct cw_conf_soundq *next;
 };
 
 
-int conf_play_soundqueue( struct opbx_conf_member *member );
-int conference_queue_sound( struct opbx_conf_member *member, char *soundfile );
-int conference_queue_number( struct opbx_conf_member *member, char *str );
-int conference_stop_sounds( struct opbx_conf_member *member );
+int conf_play_soundqueue( struct cw_conf_member *member );
+int conference_queue_sound( struct cw_conf_member *member, char *soundfile );
+int conference_queue_number( struct cw_conf_member *member, char *str );
+int conference_stop_sounds( struct cw_conf_member *member );

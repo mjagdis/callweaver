@@ -26,16 +26,16 @@
  */
 /*! \page DevDoc CallWeaver Developer's Documentation - appendices
  *  \arg \ref CodeGuide 
- *  \arg \ref OPBXAPI
- *  \arg \ref OPBXDebug
- *  \arg \ref OPBXAMI
- *  \arg \ref OPBXARA
- *  \arg \ref OPBXDUNDi
- *  \arg \ref OPBXCDR
- *  \arg \ref OPBXREADME
- *  \arg \ref OPBXCREDITS
- *  \arg \ref OPBXVar
- *  \arg \ref OPBXENUM
+ *  \arg \ref CWAPI
+ *  \arg \ref CWDebug
+ *  \arg \ref CWAMI
+ *  \arg \ref CWARA
+ *  \arg \ref CWDUNDi
+ *  \arg \ref CWCDR
+ *  \arg \ref CWREADME
+ *  \arg \ref CWCREDITS
+ *  \arg \ref CWVar
+ *  \arg \ref CWENUM
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles
  * \section wwwsites Web sites
@@ -53,7 +53,7 @@
  *  \verbinclude CODING-GUIDELINES
  */
 
-/*! \page OPBXAPI CallWeaver API
+/*! \page CWAPI CallWeaver API
  *  \section CallWeaverapi CallWeaver API
  *  This programmer's documentation covers the generic API.
  *  \subsection generic Generic Model
@@ -62,19 +62,19 @@
  *  \verbinclude channel.txt
  */
 
-/*! \page OPBXDebug Debugging
+/*! \page CWDebug Debugging
  *  \section debug Debugging
  *  \verbinclude README.backtrace
  */
 
-/*! \page OPBXAMI AMI - The Manager Interface
+/*! \page CWAMI AMI - The Manager Interface
  *  \section ami AMI - The manager Interface
  *  \arg \link Config_ami Configuration file \endlink
  * \arg \ref manager.c
  *  \verbinclude manager.txt
  */
 
-/*!  \page OPBXARA ARA - The CallWeaver Realtime Interface
+/*!  \page CWARA ARA - The CallWeaver Realtime Interface
  *  \section realtime ARA - a generic API to storage and retrieval
  *  Implemented in \ref config.c 
  *  Implemented in \ref pbx_realtime.c 
@@ -82,7 +82,7 @@
  *  \verbinclude README.extconfig
  */
 
-/*!  \page OPBXDUNDi DUNDi
+/*!  \page CWDUNDi DUNDi
 DUNDi is a peer-to-peer system for locating Internet gateways to telephony services. Unlike traditional centralized services (such as the remarkably simple and concise ENUM standard), DUNDi is fully-distributed with no centralized authority whatsoever.
 
 DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it publishes routes which are in turn accessed via industry standard protocols such as IAX, SIP and H.323. 
@@ -92,26 +92,26 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  	\arg Configuration in \link Config_dun dundi.conf \endlink
  */
 
-/*! \page OPBXCDR CDR - Call Data Records and billing
+/*! \page CWCDR CDR - Call Data Records and billing
  * \section cdr Call Data Records
  *  \verbinclude README.cdr
  * \arg \ref cdr.c
  * \arg \ref Config_cdr CDR configuration files
  */
-/*! \page OPBXREADME README - the general administrator introduction
+/*! \page CWREADME README - the general administrator introduction
  *  \verbinclude README
  */
  
-/*! \page OPBXCREDITS CREDITS
+/*! \page CWCREDITS CREDITS
  *  \verbinclude CREDITS
  */
 
-/*! \page OPBXVar Global channel variables
+/*! \page CWVar Global channel variables
  * \section globchan Global Channel Variables
  *  \verbinclude README.variables
  */
 
-/*! \page OPBXENUM ENUM
+/*! \page CWENUM ENUM
  * \section enumreadme ENUM
  * \arg Configuration: \ref Config_enum
  * \arg \ref enum.c
@@ -233,7 +233,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_dun Dundi Configuration
- * \arg See also \ref OPBXDundi
+ * \arg See also \ref CWDundi
  * \section dundiconf dundi.conf
  * \verbinclude dundi.conf.sample
  */
@@ -259,7 +259,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude cdr_custom.conf.sample
  * \section cdrami Manager CDR driver configuration
  * See also:
- * \arg \ref OPBXAMI
+ * \arg \ref CWAMI
  * \arg \ref cdr_manager.c
  * \verbinclude cdr_manager.conf.sample
  * \section cdrodbc ODBC CDR driver configuration
@@ -294,13 +294,13 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_ara REALTIME Configuration
- * \arg See also: \OPBXARA
+ * \arg See also: \CWARA
  * \section extconf extconfig.conf
  * \verbinclude extconfig.conf.sample
  */
 
 /*! \page Config_ami AMI configuration
- * \arg See also: \OPBXAMI
+ * \arg See also: \CWAMI
  * \section amiconf manager.conf
  * \verbinclude manager.conf.sample
  */

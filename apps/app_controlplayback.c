@@ -67,7 +67,7 @@ static int is_on_phonepad(char key)
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
-static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int controlplayback_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	int skipms = 0;
@@ -75,7 +75,7 @@ static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv
 	int i;
 
 	if (argc < 1 || argc > 7)
-		return opbx_function_syntax(controlplayback_syntax);
+		return cw_function_syntax(controlplayback_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -90,7 +90,7 @@ static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv
 	if (!argv[2]) argv[2] = "#";
 	if (!argv[3]) argv[2] = "*";
 
-	res = opbx_control_streamfile(chan, argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], skipms);
+	res = cw_control_streamfile(chan, argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], skipms);
 
 	/* If we stopped on one of our stop keys, return 0  */
 	if (argv[4] && strchr(argv[4], res)) 
@@ -112,13 +112,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(controlplayback_app);
+	res |= cw_unregister_function(controlplayback_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	controlplayback_app = opbx_register_function(controlplayback_name, controlplayback_exec, controlplayback_synopsis, controlplayback_syntax, controlplayback_descrip);
+	controlplayback_app = cw_register_function(controlplayback_name, controlplayback_exec, controlplayback_synopsis, controlplayback_syntax, controlplayback_descrip);
 	return 0;
 }
 

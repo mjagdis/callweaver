@@ -46,7 +46,7 @@ typedef struct {
    double  Time;
 } rsdata;
 
-opbx_core_resampler_t *resample_dup(const opbx_core_resampler_t *handle)
+cw_core_resampler_t *resample_dup(const cw_core_resampler_t *handle)
 {
    const rsdata *cpy = (const rsdata *)handle;
    rsdata *hp = (rsdata *)malloc(sizeof(rsdata));
@@ -77,7 +77,7 @@ opbx_core_resampler_t *resample_dup(const opbx_core_resampler_t *handle)
    return (void *)hp;
 }
 
-opbx_core_resampler_t *resample_open(int highQuality, double minFactor, double maxFactor)
+cw_core_resampler_t *resample_open(int highQuality, double minFactor, double maxFactor)
 {
    double *Imp64;
    double Rolloff, Beta;
@@ -161,13 +161,13 @@ opbx_core_resampler_t *resample_open(int highQuality, double minFactor, double m
    return (void *)hp;
 }
 
-int resample_get_filter_width(const opbx_core_resampler_t *handle)
+int resample_get_filter_width(const cw_core_resampler_t *handle)
 {
    const rsdata *hp = (const rsdata *)handle;
    return hp->Xoff;
 }
 
-int resample_process(opbx_core_resampler_t   *handle,
+int resample_process(cw_core_resampler_t   *handle,
                      double  factor,
                      float  *inBuffer,
                      int     inBufferLen,
@@ -335,7 +335,7 @@ int resample_process(opbx_core_resampler_t   *handle,
    return outSampleCount;
 }
 
-void resample_close(opbx_core_resampler_t *handle)
+void resample_close(cw_core_resampler_t *handle)
 {
    rsdata *hp = (rsdata *)handle;
    free(hp->X);

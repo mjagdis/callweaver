@@ -69,11 +69,11 @@ static const char muxmon_descrip[] =
     "";
 
 
-OPBX_MUTEX_DEFINE_STATIC(modlock);
+CW_MUTEX_DEFINE_STATIC(modlock);
 
 struct muxmon
 {
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
     char *filename;
     char *post_process;
     unsigned int flags;
@@ -92,7 +92,7 @@ typedef enum
 } muxflags;
 
 
-OPBX_DECLARE_OPTIONS(muxmon_opts,{
+CW_DECLARE_OPTIONS(muxmon_opts,{
     ['a'] = { MUXFLAG_APPEND },
     ['b'] = { MUXFLAG_BRIDGED },
     ['v'] = { MUXFLAG_READVOLUME, 1 },
@@ -114,17 +114,17 @@ static __inline__ int db_to_scaling_factor(int db)
     return (int) (powf(10.0f, db/10.0f)*32768.0f);
 }
 
-static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy) 
+static void stopmon(struct cw_channel *chan, struct cw_channel_spy *spy) 
 {
-    struct opbx_channel_spy *cptr = NULL;
-    struct opbx_channel_spy *prev = NULL;
+    struct cw_channel_spy *cptr = NULL;
+    struct cw_channel_spy *prev = NULL;
     int count = 0;
 
     if (chan)
     {
         if (chan->spiers == NULL)
             return;
-        while (opbx_mutex_trylock(&chan->lock))
+        while (cw_mutex_trylock(&chan->lock))
         {
 /*
             if (chan->spiers == spy)
@@ -135,7 +135,7 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 */            
             if (++count > 10)
             {
-                opbx_log(OPBX_LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
+                cw_log(CW_LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
                 chan->spiers = NULL;
                 return;
             }
@@ -155,19 +155,19 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
             prev = cptr;
         }
 
-        opbx_mutex_unlock(&chan->lock);
+        cw_mutex_unlock(&chan->lock);
     }
 }
 
-static void startmon(struct opbx_channel *chan, struct opbx_channel_spy *spy) 
+static void startmon(struct cw_channel *chan, struct cw_channel_spy *spy) 
 {
 
-    struct opbx_channel_spy *cptr = NULL;
-    struct opbx_channel *peer;
+    struct cw_channel_spy *cptr = NULL;
+    struct cw_channel *peer;
 
     if (chan)
     {
-        opbx_mutex_lock(&chan->lock);
+        cw_mutex_lock(&chan->lock);
         if (chan->spiers)
         {
             for (cptr = chan->spiers;  cptr  &&  cptr->next;  cptr = cptr->next);
@@ -177,36 +177,36 @@ static void startmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
         {
             chan->spiers = spy;
         }
-        opbx_mutex_unlock(&chan->lock);
+        cw_mutex_unlock(&chan->lock);
         
-        if (opbx_test_flag(chan, OPBX_FLAG_NBRIDGE)  &&  (peer = opbx_bridged_channel(chan)))
-            opbx_softhangup(peer, OPBX_SOFTHANGUP_UNBRIDGE);    
+        if (cw_test_flag(chan, CW_FLAG_NBRIDGE)  &&  (peer = cw_bridged_channel(chan)))
+            cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);    
     }
 }
 
-static int spy_queue_translate(struct opbx_channel_spy *spy,
-                               struct opbx_slinfactory *slinfactory0,
-                               struct opbx_slinfactory *slinfactory1)
+static int spy_queue_translate(struct cw_channel_spy *spy,
+                               struct cw_slinfactory *slinfactory0,
+                               struct cw_slinfactory *slinfactory1)
 {
     int res = 0;
-    struct opbx_frame *f;
+    struct cw_frame *f;
     
-    opbx_mutex_lock(&spy->lock);
+    cw_mutex_lock(&spy->lock);
     while ((f = spy->queue[0]))
     {
         spy->queue[0] = f->next;
-        opbx_slinfactory_feed(slinfactory0, f);
-        opbx_fr_free(f);
+        cw_slinfactory_feed(slinfactory0, f);
+        cw_fr_free(f);
     }
-    opbx_mutex_unlock(&spy->lock);
-    opbx_mutex_lock(&spy->lock);
+    cw_mutex_unlock(&spy->lock);
+    cw_mutex_lock(&spy->lock);
     while ((f = spy->queue[1]))
     {
         spy->queue[1] = f->next;
-        opbx_slinfactory_feed(slinfactory1, f);
-        opbx_fr_free(f);
+        cw_slinfactory_feed(slinfactory1, f);
+        cw_fr_free(f);
     }
-    opbx_mutex_unlock(&spy->lock);
+    cw_mutex_unlock(&spy->lock);
     return res;
 }
 
@@ -221,29 +221,29 @@ static void *muxmon_thread(void *obj)
     int minsamp;
     int x = 0;
     short buf0[1280], buf1[1280], buf[1280];
-    struct opbx_frame frame;
+    struct cw_frame frame;
     struct muxmon *muxmon = obj;
-    struct opbx_channel_spy spy;
-    struct opbx_filestream *fs = NULL;
+    struct cw_channel_spy spy;
+    struct cw_filestream *fs = NULL;
     char *ext;
     char *name;
     unsigned int oflags;
-    struct opbx_slinfactory slinfactory[2];
+    struct cw_slinfactory slinfactory[2];
     char post_process[1024] = "";
     
-    name = opbx_strdupa(muxmon->chan->name);
+    name = cw_strdupa(muxmon->chan->name);
 
     framelen = 160*sizeof(int16_t);
-    opbx_fr_init_ex(&frame, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+    cw_fr_init_ex(&frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
     frame.data = buf;
-    opbx_set_flag(muxmon, MUXFLAG_RUNNING);
+    cw_set_flag(muxmon, MUXFLAG_RUNNING);
     oflags = O_CREAT|O_WRONLY;
-    opbx_slinfactory_init(&slinfactory[0]);
-    opbx_slinfactory_init(&slinfactory[1]);
+    cw_slinfactory_init(&slinfactory[0]);
+    cw_slinfactory_init(&slinfactory[1]);
 
     /* For efficiency, use a flag to bypass volume logic when it's not needed */
     if (muxmon->readvol  ||  muxmon->writevol)
-        opbx_set_flag(muxmon, MUXFLAG_VOLUME);
+        cw_set_flag(muxmon, MUXFLAG_VOLUME);
 
     if ((ext = strrchr(muxmon->filename, '.')))
         *(ext++) = '\0';
@@ -253,26 +253,26 @@ static void *muxmon_thread(void *obj)
     memset(&spy, 0, sizeof(spy));
     spy.status = CHANSPY_RUNNING;
     spy.next = NULL;
-    opbx_mutex_init(&spy.lock);
+    cw_mutex_init(&spy.lock);
     startmon(muxmon->chan, &spy);
-    if (opbx_test_flag(muxmon, MUXFLAG_RUNNING))
+    if (cw_test_flag(muxmon, MUXFLAG_RUNNING))
     {
         if (option_verbose > 1)
-            opbx_verbose(VERBOSE_PREFIX_2 "Begin Recording %s\n", name);
+            cw_verbose(VERBOSE_PREFIX_2 "Begin Recording %s\n", name);
 
-        oflags |= opbx_test_flag(muxmon, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+        oflags |= cw_test_flag(muxmon, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
         
-        if (!(fs = opbx_writefile(muxmon->filename, ext, NULL, oflags, 0, 0644)))
+        if (!(fs = cw_writefile(muxmon->filename, ext, NULL, oflags, 0, 0644)))
         {
-            opbx_log(OPBX_LOG_ERROR, "Cannot open %s\n", muxmon->filename);
+            cw_log(CW_LOG_ERROR, "Cannot open %s\n", muxmon->filename);
             spy.status = CHANSPY_DONE;
         }
         else
         {
-            if (opbx_test_flag(muxmon, MUXFLAG_APPEND))
-                opbx_seekstream(fs, 0, SEEK_END);
+            if (cw_test_flag(muxmon, MUXFLAG_APPEND))
+                cw_seekstream(fs, 0, SEEK_END);
 
-            while (opbx_test_flag(muxmon, MUXFLAG_RUNNING))
+            while (cw_test_flag(muxmon, MUXFLAG_RUNNING))
             {
                 samp0 =
                 samp1 =
@@ -282,16 +282,16 @@ static void *muxmon_thread(void *obj)
                 /* In case of hapgup it is safer to start from testing this */  
                 if (spy.status != CHANSPY_RUNNING)
                 {
-                    opbx_clear_flag(muxmon, MUXFLAG_RUNNING);
+                    cw_clear_flag(muxmon, MUXFLAG_RUNNING);
                     break;
                 }
-                if (opbx_check_hangup(muxmon->chan))
+                if (cw_check_hangup(muxmon->chan))
                 {
-                    opbx_clear_flag(muxmon, MUXFLAG_RUNNING);
+                    cw_clear_flag(muxmon, MUXFLAG_RUNNING);
                     break;
                 }
 
-                if (opbx_test_flag(muxmon, MUXFLAG_BRIDGED)  &&  !opbx_bridged_channel(muxmon->chan))
+                if (cw_test_flag(muxmon, MUXFLAG_BRIDGED)  &&  !cw_bridged_channel(muxmon->chan))
                 {
                     usleep(1000);
                     sched_yield();
@@ -307,11 +307,11 @@ static void *muxmon_thread(void *obj)
                     continue;
                 }
 
-                len0 = opbx_slinfactory_read(&slinfactory[0], buf0, framelen);
+                len0 = cw_slinfactory_read(&slinfactory[0], buf0, framelen);
                 samp0 = len0/sizeof(int16_t);
-                len1 = opbx_slinfactory_read(&slinfactory[1], buf1, framelen);
+                len1 = cw_slinfactory_read(&slinfactory[1], buf1, framelen);
                 samp1 = len1/sizeof(int16_t);
-                if (opbx_test_flag(muxmon, MUXFLAG_VOLUME))
+                if (cw_test_flag(muxmon, MUXFLAG_VOLUME))
                 {
                     for (x = 0;  x < samp0;  x++)
                         buf0[x] = saturate((buf0[x]*muxmon->readvol) >> 11);
@@ -348,7 +348,7 @@ static void *muxmon_thread(void *obj)
 
                 frame.samples = x;
                 frame.datalen = x*sizeof(int16_t);
-                opbx_writestream(fs, &frame);
+                cw_writestream(fs, &frame);
         
                 usleep(1000);
                 sched_yield();
@@ -372,14 +372,14 @@ static void *muxmon_thread(void *obj)
     if (spy.status == CHANSPY_RUNNING)
          stopmon(muxmon->chan, &spy);  
     if (option_verbose > 1)
-        opbx_verbose(VERBOSE_PREFIX_2 "Finished Recording %s\n", name);
-    opbx_mutex_destroy(&spy.lock);
+        cw_verbose(VERBOSE_PREFIX_2 "Finished Recording %s\n", name);
+    cw_mutex_destroy(&spy.lock);
     
     if (fs)
-        opbx_closestream(fs);
+        cw_closestream(fs);
     
-    opbx_slinfactory_destroy(&slinfactory[0]);
-    opbx_slinfactory_destroy(&slinfactory[1]);
+    cw_slinfactory_destroy(&slinfactory[0]);
+    cw_slinfactory_destroy(&slinfactory[1]);
 
     if (muxmon)
     {
@@ -388,17 +388,17 @@ static void *muxmon_thread(void *obj)
         free(muxmon);
     }
 
-    if (!opbx_strlen_zero(post_process))
+    if (!cw_strlen_zero(post_process))
     {
         if (option_verbose > 2)
-            opbx_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process);
-        opbx_safe_system(post_process);
+            cw_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process);
+        cw_safe_system(post_process);
     }
 
     return NULL;
 }
 
-static void launch_monitor_thread(struct opbx_channel *chan, char *filename, unsigned int flags, int readvol, int writevol, char *post_process) 
+static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsigned int flags, int readvol, int writevol, char *post_process) 
 {
     pthread_t tid;
     struct muxmon *muxmon;
@@ -406,7 +406,7 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
 
     if (!(muxmon = malloc(sizeof(struct muxmon))))
     {
-        opbx_log(OPBX_LOG_ERROR, "Memory Error!\n");
+        cw_log(CW_LOG_ERROR, "Memory Error!\n");
         return;
     }
 
@@ -419,13 +419,13 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
     muxmon->writevol = writevol;
     muxmon->flags = flags;
 
-    opbx_pthread_create(&tid, &global_attr_rr_detached, muxmon_thread, muxmon);
+    cw_pthread_create(&tid, &global_attr_rr_detached, muxmon_thread, muxmon);
 }
 
 
-static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    struct opbx_flags flags = {0};
+    struct cw_flags flags = {0};
     struct localuser *u;
     int res = 0;
     int x = 0;
@@ -433,36 +433,36 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *r
     int writevol = 0;
 
     if (argc < 1 || argc > 3)
-        return opbx_function_syntax(muxmon_syntax);
+        return cw_function_syntax(muxmon_syntax);
 
     LOCAL_USER_ADD(u);
 
     if (argc > 1  &&  argv[1][0])
     {
         char *opts[3] = {};
-        opbx_parseoptions(muxmon_opts, &flags, opts, argv[1]);
+        cw_parseoptions(muxmon_opts, &flags, opts, argv[1]);
 
-        if (opbx_test_flag(&flags, MUXFLAG_READVOLUME)  &&  opts[0])
+        if (cw_test_flag(&flags, MUXFLAG_READVOLUME)  &&  opts[0])
         {
             if (sscanf(opts[0], "%d", &x) != 1)
-                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                cw_log(CW_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
                 readvol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
         
-        if (opbx_test_flag(&flags, MUXFLAG_WRITEVOLUME)  &&  opts[1])
+        if (cw_test_flag(&flags, MUXFLAG_WRITEVOLUME)  &&  opts[1])
         {
             if (sscanf(opts[1], "%d", &x) != 1)
-                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                cw_log(CW_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
                 writevol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
 
-        if (opbx_test_flag(&flags, MUXFLAG_VOLUME)  &&  opts[2])
+        if (cw_test_flag(&flags, MUXFLAG_VOLUME)  &&  opts[2])
         {
             if (sscanf(opts[2], "%d", &x) != 1)
             {
-                opbx_log(OPBX_LOG_NOTICE, "volume must be a number between -24 and 24\n");
+                cw_log(CW_LOG_NOTICE, "volume must be a number between -24 and 24\n");
             }
             else
             {
@@ -480,21 +480,21 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 }
 
 
-static struct opbx_channel *local_channel_walk(struct opbx_channel *chan) 
+static struct cw_channel *local_channel_walk(struct cw_channel *chan) 
 {
-    struct opbx_channel *ret;
-    opbx_mutex_lock(&modlock);    
-    if ((ret = opbx_channel_walk_locked(chan)))
-        opbx_mutex_unlock(&ret->lock);
-    opbx_mutex_unlock(&modlock);            
+    struct cw_channel *ret;
+    cw_mutex_lock(&modlock);    
+    if ((ret = cw_channel_walk_locked(chan)))
+        cw_mutex_unlock(&ret->lock);
+    cw_mutex_unlock(&modlock);            
     return ret;
 }
 
-static struct opbx_channel *local_get_channel_begin_name(char *name) 
+static struct cw_channel *local_get_channel_begin_name(char *name) 
 {
-    struct opbx_channel *chan;
-    struct opbx_channel *ret = NULL;
-    opbx_mutex_lock(&modlock);
+    struct cw_channel *chan;
+    struct cw_channel *ret = NULL;
+    cw_mutex_lock(&modlock);
     chan = local_channel_walk(NULL);
     while (chan)
     {
@@ -505,7 +505,7 @@ static struct opbx_channel *local_get_channel_begin_name(char *name)
         }
         chan = local_channel_walk(chan);
     }
-    opbx_mutex_unlock(&modlock);
+    cw_mutex_unlock(&modlock);
     
     return ret;
 }
@@ -514,7 +514,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 {
     char *op;
     char *chan_name = NULL;
-    struct opbx_channel *chan;
+    struct cw_channel *chan;
 
     if (argc > 2)
     {
@@ -523,7 +523,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 
         if (!(chan = local_get_channel_begin_name(chan_name)))
         {
-            opbx_cli(fd, "Invalid Channel!\n");
+            cw_cli(fd, "Invalid Channel!\n");
             return -1;
         }
 
@@ -533,15 +533,15 @@ static int muxmon_cli(int fd, int argc, char **argv)
         }
         else if (!strcasecmp(op, "stop"))
         {
-            struct opbx_channel_spy *cptr = NULL;
+            struct cw_channel_spy *cptr = NULL;
             int count = 0;
             
-            while (opbx_mutex_trylock(&chan->lock))
+            while (cw_mutex_trylock(&chan->lock))
             {
                 count++;
                 if (count > 10)
                 {
-                    opbx_cli(fd, "Cannot Lock Channel!\n");
+                    cw_cli(fd, "Cannot Lock Channel!\n");
                     return -1;
                 }
                 usleep(1000);
@@ -553,17 +553,17 @@ static int muxmon_cli(int fd, int argc, char **argv)
                 cptr->status = CHANSPY_DONE;
             }
             chan->spiers = NULL;
-            opbx_mutex_unlock(&chan->lock);
+            cw_mutex_unlock(&chan->lock);
         }
         return 0;
     }
 
-    opbx_cli(fd, "Usage: muxmon <start|stop> <chan_name> <args>\n");
+    cw_cli(fd, "Usage: muxmon <start|stop> <chan_name> <args>\n");
     return -1;
 }
 
 
-static struct opbx_clicmd cli_muxmon = {
+static struct cw_clicmd cli_muxmon = {
     .cmda = { "muxmon", NULL, NULL },
     .handler = muxmon_cli, 
     .summary = "Execute a monitor command",
@@ -575,15 +575,15 @@ static int unload_module(void)
 {
     int res = 0;
 
-    opbx_cli_unregister(&cli_muxmon);
-    res |= opbx_unregister_function(muxmon_app);
+    cw_cli_unregister(&cli_muxmon);
+    res |= cw_unregister_function(muxmon_app);
     return res;
 }
 
 static int load_module(void)
 {
-    opbx_cli_register(&cli_muxmon);
-    muxmon_app = opbx_register_function(muxmon_name, muxmon_exec, muxmon_synopsis, muxmon_syntax, muxmon_descrip);
+    cw_cli_register(&cli_muxmon);
+    muxmon_app = cw_register_function(muxmon_name, muxmon_exec, muxmon_synopsis, muxmon_syntax, muxmon_descrip);
     return 0;
 }
 

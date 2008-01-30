@@ -348,11 +348,11 @@ static unsigned char speex_ex[] =
 struct speex_coder_pvt
 {
     void *speex;
-    struct opbx_frame f;
+    struct cw_frame f;
     SpeexBits bits;
     int framesize;
     /* Space to build offset */
-    char offset[OPBX_FRIENDLY_OFFSET];
+    char offset[CW_FRIENDLY_OFFSET];
 #ifdef _SPEEX_TYPES_H
     SpeexPreprocessState *pp;
     /* Buffer for our outgoing frame */
@@ -438,11 +438,11 @@ static void *speextolin_new(void)
     return tmp;
 }
 
-static struct opbx_frame *lintospeex_sample(void)
+static struct cw_frame *lintospeex_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -450,11 +450,11 @@ static struct opbx_frame *lintospeex_sample(void)
     return &f;
 }
 
-static struct opbx_frame *speextolin_sample(void)
+static struct cw_frame *speextolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SPEEX, __PRETTY_FUNCTION__);
     f.datalen = sizeof(speex_ex);
     /* All frames are 20 ms long */
     f.samples = 160;
@@ -462,7 +462,7 @@ static struct opbx_frame *speextolin_sample(void)
     return &f;
 }
 
-static struct opbx_frame *speextolin_frameout(void *pvt)
+static struct cw_frame *speextolin_frameout(void *pvt)
 {
     struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
 
@@ -471,11 +471,11 @@ static struct opbx_frame *speextolin_frameout(void *pvt)
 
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     /* Assume 8000 Hz */
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->buf;
 
     /* Reset tail pointer */
@@ -483,7 +483,7 @@ static struct opbx_frame *speextolin_frameout(void *pvt)
     return &tmp->f;    
 }
 
-static int speextolin_framein(void *pvt, struct opbx_frame *f)
+static int speextolin_framein(void *pvt, struct cw_frame *f)
 {
     struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
     /* Assuming there's space left, decode into the current buffer at
@@ -501,7 +501,7 @@ static int speextolin_framein(void *pvt, struct opbx_frame *f)
         /* Native PLC interpolation */
         if (tmp->tail + tmp->framesize > sizeof(tmp->buf) / 2)
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
 #ifdef _SPEEX_TYPES_H
@@ -542,7 +542,7 @@ static int speextolin_framein(void *pvt, struct opbx_frame *f)
         }
         else
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         
@@ -550,7 +550,7 @@ static int speextolin_framein(void *pvt, struct opbx_frame *f)
     return 0;
 }
 
-static int lintospeex_framein(void *pvt, struct opbx_frame *f)
+static int lintospeex_framein(void *pvt, struct cw_frame *f)
 {
     struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
 
@@ -565,13 +565,13 @@ static int lintospeex_framein(void *pvt, struct opbx_frame *f)
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     return 0;
 }
 
-static struct opbx_frame *lintospeex_frameout(void *pvt)
+static struct cw_frame *lintospeex_frameout(void *pvt)
 {
     struct speex_coder_pvt *tmp = (struct speex_coder_pvt *)pvt;
 #ifndef _SPEEX_TYPES_H
@@ -585,8 +585,8 @@ static struct opbx_frame *lintospeex_frameout(void *pvt)
     /* We can't work on anything less than a frame in size */
     if (tmp->tail < tmp->framesize)
         return NULL;
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SPEEX, __PRETTY_FUNCTION__);
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     speex_bits_reset(&tmp->bits);
     while (tmp->tail >= tmp->framesize)
@@ -621,14 +621,14 @@ static struct opbx_frame *lintospeex_frameout(void *pvt)
         y++;
     }
 
-    /* Use OPBX_FRAME_CNG to signify the start of any silence period */
+    /* Use CW_FRAME_CNG to signify the start of any silence period */
     if (!is_speech)
     {
         if (tmp->silent_state)
             return NULL;
         tmp->silent_state = 1;
         speex_bits_reset(&tmp->bits);
-        tmp->f.frametype = OPBX_FRAME_CNG;
+        tmp->f.frametype = CW_FRAME_CNG;
     }
     else
     {
@@ -680,12 +680,12 @@ static void lintospeex_destroy(void *pvt)
     free(tmp);
 }
 
-static opbx_translator_t speextolin =
+static cw_translator_t speextolin =
 {
     .name = "speextolin", 
-    .src_format = OPBX_FORMAT_SPEEX, 
+    .src_format = CW_FORMAT_SPEEX, 
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = speextolin_new,
     .framein = speextolin_framein,
@@ -694,12 +694,12 @@ static opbx_translator_t speextolin =
     .sample = speextolin_sample
 };
 
-static opbx_translator_t lintospeex =
+static cw_translator_t lintospeex =
 {
     .name = "lintospeex", 
-    .src_format = OPBX_FORMAT_SLINEAR, 
+    .src_format = CW_FORMAT_SLINEAR, 
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SPEEX,
+    .dst_format = CW_FORMAT_SPEEX,
     .dst_rate = 8000,
     .newpvt = lintospeex_new,
     .framein = lintospeex_framein,
@@ -710,14 +710,14 @@ static opbx_translator_t lintospeex =
 
 static void parse_config(void) 
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
+    struct cw_config *cfg;
+    struct cw_variable *var;
     int res;
     float res_f;
 
-    if ((cfg = opbx_config_load("codecs.conf")))
+    if ((cfg = cw_config_load("codecs.conf")))
     {
-        if ((var = opbx_variable_browse(cfg, "speex")))
+        if ((var = cw_variable_browse(cfg, "speex")))
         {
             while (var)
             {
@@ -727,11 +727,11 @@ static void parse_config(void)
                     if (res > -1 && res < 11)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
                         quality = res;
                     }
                     else 
-                        opbx_log(OPBX_LOG_ERROR,"Error Quality must be 0-10\n");
+                        cw_log(CW_LOG_ERROR,"Error Quality must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "complexity"))
                 {
@@ -739,38 +739,38 @@ static void parse_config(void)
                     if (res > -1 && res < 11)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
                         complexity = res;
                     }
                     else 
-                        opbx_log(OPBX_LOG_ERROR,"Error! Complexity must be 0-10\n");
+                        cw_log(CW_LOG_ERROR,"Error! Complexity must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "vbr_quality"))
                 {
                     if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0 && res_f <= 10)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
                         vbr_quality = res_f;
                     }
                     else
-                        opbx_log(OPBX_LOG_ERROR,"Error! VBR Quality must be 0-10\n");
+                        cw_log(CW_LOG_ERROR,"Error! VBR Quality must be 0-10\n");
                 }
                 else if (!strcasecmp(var->name, "abr_quality"))
                 {
-                    opbx_log(OPBX_LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
+                    cw_log(CW_LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
                 }
                 else if (!strcasecmp(var->name, "enhancement"))
                 {
-                    enhancement = opbx_true(var->value) ? 1 : 0;
+                    enhancement = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "vbr"))
                 {
-                    vbr = opbx_true(var->value) ? 1 : 0;
+                    vbr = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "abr"))
                 {
@@ -780,93 +780,93 @@ static void parse_config(void)
                         if (option_verbose > 2)
                         {
                             if (res > 0)
-                                opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
+                                cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
                             else
-                                opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
+                                cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
                         }
                         abr = res;
                     }
                     else 
-                        opbx_log(OPBX_LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
+                        cw_log(CW_LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "vad"))
                 {
-                    vad = opbx_true(var->value) ? 1 : 0;
+                    vad = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "dtx"))
                 {
-                    dtx = opbx_true(var->value) ? 1 : 0;
+                    dtx = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "preprocess"))
                 {
-                    preproc = opbx_true(var->value) ? 1 : 0;
+                    preproc = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "pp_vad"))
                 {
-                    pp_vad = opbx_true(var->value) ? 1 : 0;
+                    pp_vad = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "pp_agc"))
                 {
-                    pp_agc = opbx_true(var->value) ? 1 : 0;
+                    pp_agc = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "pp_agc_level"))
                 {
                     if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
                         pp_agc_level = res_f;
                     }
                     else
-                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
+                        cw_log(CW_LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "pp_denoise"))
                 {
-                    pp_denoise = opbx_true(var->value) ? 1 : 0;
+                    pp_denoise = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb"))
                 {
-                    pp_dereverb = opbx_true(var->value) ? 1 : 0;
+                    pp_dereverb = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
+                        cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb_decay"))
                 {
                     if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
                         pp_dereverb_decay = res_f;
                     } else
-                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
+                        cw_log(CW_LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
                 }
                 else if (!strcasecmp(var->name, "pp_dereverb_level"))
                 {
                     if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0)
                     {
                         if (option_verbose > 2)
-                            opbx_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
+                            cw_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
                         pp_dereverb_level = res_f;
                     }
                     else
-                        opbx_log(OPBX_LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
+                        cw_log(CW_LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
                 }
                 var = var->next;
             }
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
@@ -878,16 +878,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&speextolin);
-    opbx_translator_unregister(&lintospeex);
+    cw_translator_unregister(&speextolin);
+    cw_translator_unregister(&lintospeex);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&speextolin);
-    opbx_translator_register(&lintospeex);
+    cw_translator_register(&speextolin);
+    cw_translator_register(&lintospeex);
     return 0;
 }
 

@@ -2,7 +2,7 @@ AUTOMAKE_OPTS		= gnu foreign
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
+cwmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \
 			  codec_g722.la codec_g722_16k_8k.la codec_g726_32kbps.la \
 			  codec_gsm.la
@@ -41,7 +41,7 @@ codec_g726_32kbps_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
 codec_g726_32kbps_la_LIBADD	= -lspandsp -ltiff @CALLWEAVER_LIB@
 
 if WANT_CODEC_SPEEX
-opbxmod_LTLIBRARIES	+= codec_speex.la
+cwmod_LTLIBRARIES	+= codec_speex.la
 codec_speex_la_SOURCES	= codec_speex.c
 codec_speex_la_LIBADD	= -lspeex @CALLWEAVER_LIB@
 codec_speex_la_CFLAGS	= $(AM_CFLAGS) @SPEEX_CFLAGS@

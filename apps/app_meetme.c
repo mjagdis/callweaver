@@ -133,16 +133,16 @@ static char descrip3[] =
 static unsigned int hash_ogi;
 
 
-static struct opbx_conference
+static struct cw_conference
 {
-    char confno[OPBX_MAX_EXTENSION];        /* Conference */
-    struct opbx_channel *chan;  /* Announcements channel */
+    char confno[CW_MAX_EXTENSION];        /* Conference */
+    struct cw_channel *chan;  /* Announcements channel */
     int fd;                     /* Announcements fd */
     int zapconf;                /* Zaptel Conf # */
     int users;                  /* Number of active users */
     int markedusers;            /* Number of marked users */
-    struct opbx_conf_user *firstuser;  /* Pointer to the first user struct */
-    struct opbx_conf_user *lastuser;   /* Pointer to the last user struct */
+    struct cw_conf_user *firstuser;  /* Pointer to the first user struct */
+    struct cw_conf_user *lastuser;   /* Pointer to the last user struct */
     time_t start;               /* Start time (s) */
     int recording;              /* recording status */
     int isdynamic;              /* Created on the fly? */
@@ -150,9 +150,9 @@ static struct opbx_conference
     pthread_t recordthread;     /* thread for recording */
     char *recordingfilename;    /* Filename to record the Conference into */
     char *recordingformat;      /* Format to record the Conference in */
-    char pin[OPBX_MAX_EXTENSION];            /* If protected by a PIN */
-    char pinadmin[OPBX_MAX_EXTENSION];    /* If protected by a admin PIN */
-    struct opbx_conference *next;
+    char pin[CW_MAX_EXTENSION];            /* If protected by a PIN */
+    char pinadmin[CW_MAX_EXTENSION];    /* If protected by a admin PIN */
+    struct cw_conference *next;
 } *confs;
 
 struct volume
@@ -161,18 +161,18 @@ struct volume
     int actual;                 /* Actual volume adjustment (for channels that can't adjust) */
 };
 
-struct opbx_conf_user
+struct cw_conf_user
 {
     int user_no;                /* User Number */
-    struct opbx_conf_user *prevuser;        /* Pointer to the previous user */
-    struct opbx_conf_user *nextuser;        /* Pointer to the next user */
+    struct cw_conf_user *prevuser;        /* Pointer to the previous user */
+    struct cw_conf_user *nextuser;        /* Pointer to the next user */
     int userflags;              /* Flags as set in the conference */
     int adminflags;             /* Flags set by the Admin */
-    struct opbx_channel *chan;  /* Connected channel */
+    struct cw_channel *chan;  /* Connected channel */
     int talking;                /* Is user talking */
     int zapchannel;             /* Is a Zaptel channel */
     char usrvalue[50];          /* Custom User Value */
-    char namerecloc[OPBX_MAX_EXTENSION];    /* Name Recorded file Location */
+    char namerecloc[CW_MAX_EXTENSION];    /* Name Recorded file Location */
     time_t jointime;            /* Time the user joined the conference */
     struct volume talk;
     struct volume listen;
@@ -189,9 +189,9 @@ enum volume_action
     VOL_DOWN,
 };
 
-OPBX_MUTEX_DEFINE_STATIC(conflock);
+CW_MUTEX_DEFINE_STATIC(conflock);
 
-static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
 
 static void *recordthread(void *args);
 
@@ -231,7 +231,7 @@ static void *recordthread(void *args);
 #define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22) /* If set, when user joins the conference, they will be told the number of users that are already in */
 
 
-OPBX_DECLARE_OPTIONS(meetme_opts,{
+CW_DECLARE_OPTIONS(meetme_opts,{
     ['a'] = { CONFFLAG_ADMIN },
     ['c'] = { CONFFLAG_ANNOUNCEUSERCOUNT },
     ['T'] = { CONFFLAG_MONITORTALKER },
@@ -279,7 +279,7 @@ static int careful_write(int fd, unsigned char *data, int len)
         {
             if (errno != EAGAIN)
             {
-                opbx_log(OPBX_LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
+                cw_log(CW_LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
                 return -1;
             }
             return 0;
@@ -311,7 +311,7 @@ static signed char gain_map[] =
     15
 };
 
-static int set_talk_volume(struct opbx_conf_user *user, int volume)
+static int set_talk_volume(struct cw_conf_user *user, int volume)
 {
     signed char gain_adjust;
 
@@ -319,10 +319,10 @@ static int set_talk_volume(struct opbx_conf_user *user, int volume)
        if successful, don't adjust in the frame reading routine
     */
     gain_adjust = gain_map[volume + 5];
-    return opbx_channel_setoption(user->chan, OPBX_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+    return cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
 }
 
-static int set_listen_volume(struct opbx_conf_user *user, int volume)
+static int set_listen_volume(struct cw_conf_user *user, int volume)
 {
     signed char gain_adjust;
 
@@ -330,7 +330,7 @@ static int set_listen_volume(struct opbx_conf_user *user, int volume)
        if successful, don't adjust in the frame reading routine
     */
     gain_adjust = gain_map[volume + 5];
-    return opbx_channel_setoption(user->chan, OPBX_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+    return cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
 }
 
 static void tweak_volume(struct volume *vol, enum volume_action action)
@@ -371,7 +371,7 @@ static void tweak_volume(struct volume *vol, enum volume_action action)
     }
 }
 
-static void tweak_talk_volume(struct opbx_conf_user *user, enum volume_action action)
+static void tweak_talk_volume(struct cw_conf_user *user, enum volume_action action)
 {
     tweak_volume(&user->talk, action);
     /* attempt to make the adjustment in the channel driver;
@@ -383,7 +383,7 @@ static void tweak_talk_volume(struct opbx_conf_user *user, enum volume_action ac
         user->talk.actual = user->talk.desired;
 }
 
-static void tweak_listen_volume(struct opbx_conf_user *user, enum volume_action action)
+static void tweak_listen_volume(struct cw_conf_user *user, enum volume_action action)
 {
     tweak_volume(&user->listen, action);
     /* attempt to make the adjustment in the channel driver;
@@ -395,23 +395,23 @@ static void tweak_listen_volume(struct opbx_conf_user *user, enum volume_action 
         user->listen.actual = user->listen.desired;
 }
 
-static void reset_volumes(struct opbx_conf_user *user)
+static void reset_volumes(struct cw_conf_user *user)
 {
     signed char zero_volume = 0;
 
-    opbx_channel_setoption(user->chan, OPBX_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
-    opbx_channel_setoption(user->chan, OPBX_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
+    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
 }
 
-static void conf_play(struct opbx_channel *chan, struct opbx_conference *conf, int sound)
+static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int sound)
 {
     unsigned char *data;
     int len;
     int res=-1;
 
     if (!chan->_softhangup)
-        res = opbx_autoservice_start(chan);
-    opbx_mutex_lock(&conflock);
+        res = cw_autoservice_start(chan);
+    cw_mutex_lock(&conflock);
     switch (sound)
     {
     case ENTER:
@@ -428,16 +428,16 @@ static void conf_play(struct opbx_channel *chan, struct opbx_conference *conf, i
     }
     if (data)
         careful_write(conf->fd, data, len);
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     if (!res)
-        opbx_autoservice_stop(chan);
+        cw_autoservice_stop(chan);
 }
 
-static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
+static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
 {
-    struct opbx_conference *cnf;
+    struct cw_conference *cnf;
     struct zt_confinfo ztc;
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     cnf = confs;
     while (cnf)
     {
@@ -447,27 +447,27 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
     }
     if (!cnf && (make || dynamic))
     {
-        cnf = malloc(sizeof(struct opbx_conference));
+        cnf = malloc(sizeof(struct cw_conference));
         if (cnf)
         {
             /* Make a new one */
-            memset(cnf, 0, sizeof(struct opbx_conference));
-            opbx_copy_string(cnf->confno, confno, sizeof(cnf->confno));
-            opbx_copy_string(cnf->pin, pin, sizeof(cnf->pin));
-            opbx_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
+            memset(cnf, 0, sizeof(struct cw_conference));
+            cw_copy_string(cnf->confno, confno, sizeof(cnf->confno));
+            cw_copy_string(cnf->pin, pin, sizeof(cnf->pin));
+            cw_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
             cnf->markedusers = 0;
-            cnf->chan = opbx_request("zap", OPBX_FORMAT_ULAW, "pseudo", NULL);
+            cnf->chan = cw_request("zap", CW_FORMAT_ULAW, "pseudo", NULL);
             if (cnf->chan)
             {
                 cnf->fd = cnf->chan->fds[0];    /* for use by conf_play() */
             }
             else
             {
-                opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel - trying device\n");
+                cw_log(CW_LOG_WARNING, "Unable to open pseudo channel - trying device\n");
                 cnf->fd = open("/dev/zap/pseudo", O_RDWR);
                 if (cnf->fd < 0)
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo device\n");
+                    cw_log(CW_LOG_WARNING, "Unable to open pseudo device\n");
                     free(cnf);
                     cnf = NULL;
                     goto cnfout;
@@ -480,9 +480,9 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
             ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
             if (ioctl(cnf->fd, ZT_SETCONF, &ztc))
             {
-                opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                cw_log(CW_LOG_WARNING, "Error setting conference\n");
                 if (cnf->chan)
-                    opbx_hangup(cnf->chan);
+                    cw_hangup(cnf->chan);
                 else
                     close(cnf->fd);
                 free(cnf);
@@ -497,28 +497,28 @@ static struct opbx_conference *build_conf(char *confno, char *pin, char *pinadmi
             cnf->lastuser = NULL;
             cnf->locked = 0;
             if (option_verbose > 2)
-                opbx_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+                cw_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
             cnf->next = confs;
             confs = cnf;
         }
         else
-            opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+            cw_log(CW_LOG_WARNING, "Out of memory\n");
     }
 cnfout:
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     return cnf;
 }
 
 static int confs_show(int fd, int argc, char **argv)
 {
-    opbx_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
+    cw_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
     return RESULT_SUCCESS;
 }
 
 static char show_confs_usage[] =
     "Deprecated! Please use 'meetme' instead.\n";
 
-static struct opbx_clicmd cli_show_confs =
+static struct cw_clicmd cli_show_confs =
 {
     .cmda = {"show", "conferences", NULL},
     .handler = confs_show,
@@ -532,19 +532,19 @@ static int conf_cmd(int fd, int argc, char **argv)
     char buf[1024] = "";
     char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
     char *data_format = "%-12.12s   %4.4d          %4.4s       %02d:%02d:%02d  %-8s\n";
-    struct opbx_conference *cnf;
-    struct opbx_conf_user *user;
+    struct cw_conference *cnf;
+    struct cw_conf_user *user;
     int hr, min, sec;
     int i = 0, total = 0;
     time_t now;
 
     if (argc > 8)
-        opbx_cli(fd, "Invalid Arguments.\n");
+        cw_cli(fd, "Invalid Arguments.\n");
     /* Check for length so no buffer will overflow... */
     for (i = 0; i < argc; i++)
     {
         if (strlen(argv[i]) > 100)
-            opbx_cli(fd, "Invalid Arguments.\n");
+            cw_cli(fd, "Invalid Arguments.\n");
     }
     if (argc == 1)
     {
@@ -553,10 +553,10 @@ static int conf_cmd(int fd, int argc, char **argv)
         cnf = confs;
         if (!cnf)
         {
-            opbx_cli(fd, "No active MeetMe conferences.\n");
+            cw_cli(fd, "No active MeetMe conferences.\n");
             return RESULT_SUCCESS;
         }
-        opbx_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
+        cw_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
         while (cnf)
         {
             if (cnf->markedusers == 0)
@@ -567,12 +567,12 @@ static int conf_cmd(int fd, int argc, char **argv)
             min = ((now - cnf->start) % 3600) / 60;
             sec = (now - cnf->start) % 60;
 
-            opbx_cli(fd, data_format, cnf->confno, cnf->users, buf, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
+            cw_cli(fd, data_format, cnf->confno, cnf->users, buf, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
 
             total += cnf->users;
             cnf = cnf->next;
         }
-        opbx_cli(fd, "* Total number of MeetMe users: %d\n", total);
+        cw_cli(fd, "* Total number of MeetMe users: %d\n", total);
         return RESULT_SUCCESS;
     }
     if (argc < 3)
@@ -641,7 +641,7 @@ static int conf_cmd(int fd, int argc, char **argv)
         /* List all the users in a conference */
         if (!confs)
         {
-            opbx_cli(fd, "No active conferences.\n");
+            cw_cli(fd, "No active conferences.\n");
             return RESULT_SUCCESS;
         }
         cnf = confs;
@@ -656,7 +656,7 @@ static int conf_cmd(int fd, int argc, char **argv)
             }
             else
             {
-                opbx_cli(fd, "No such conference: %s.\n",argv[2]);
+                cw_cli(fd, "No such conference: %s.\n",argv[2]);
                 return RESULT_SUCCESS;
             }
         }
@@ -664,10 +664,10 @@ static int conf_cmd(int fd, int argc, char **argv)
         user = cnf->firstuser;
         while (user)
         {
-            opbx_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n", user->user_no, user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>", user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>", user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
+            cw_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n", user->user_no, user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>", user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>", user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
             user = user->nextuser;
         }
-        opbx_cli(fd,"%d users in that conference.\n",cnf->users);
+        cw_cli(fd,"%d users in that conference.\n",cnf->users);
         return RESULT_SUCCESS;
     }
     else
@@ -681,8 +681,8 @@ static char *complete_confcmd(char *line, char *word, int pos, int state)
 {
 #define CONF_COMMANDS 6
     int which = 0, x = 0;
-    struct opbx_conference *cnf = NULL;
-    struct opbx_conf_user *usr = NULL;
+    struct cw_conference *cnf = NULL;
+    struct cw_conf_user *usr = NULL;
     char *confno = NULL;
     char usrno[50] = "";
     char cmds[CONF_COMMANDS][20] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
@@ -705,7 +705,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state)
     else if (pos == 2)
     {
         /* Conference Number */
-        opbx_mutex_lock(&conflock);
+        cw_mutex_lock(&conflock);
         cnf = confs;
         while (cnf)
         {
@@ -716,7 +716,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state)
             }
             cnf = cnf->next;
         }
-        opbx_mutex_unlock(&conflock);
+        cw_mutex_unlock(&conflock);
         return cnf ? strdup(cnf->confno) : NULL;
     }
     else if (pos == 3)
@@ -729,11 +729,11 @@ static char *complete_confcmd(char *line, char *word, int pos, int state)
                 return strdup("all");
             }
             which++;
-            opbx_mutex_lock(&conflock);
+            cw_mutex_lock(&conflock);
             cnf = confs;
 
             /* TODO: Find the conf number from the cmdline (ignore spaces) <- test this and make it fail-safe! */
-            myline = opbx_strdupa(line);
+            myline = cw_strdupa(line);
             if (strsep(&myline, " ") && strsep(&myline, " ") && !confno)
             {
                 while ((confno = strsep(&myline, " ")) && (strcmp(confno, " ") == 0))
@@ -761,7 +761,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state)
                     usr = usr->nextuser;
                 }
             }
-            opbx_mutex_unlock(&conflock);
+            cw_mutex_unlock(&conflock);
             return usr ? strdup(usrno) : NULL;
         }
     }
@@ -772,7 +772,7 @@ static char conf_usage[] =
     "Usage: meetme  (un)lock|(un)mute|kick|list <confno> <usernumber>\n"
     "       Executes a command for the conference or on a conferee\n";
 
-static struct opbx_clicmd cli_conf = {
+static struct cw_clicmd cli_conf = {
         .cmda = { "meetme", NULL, NULL },
         .handler = conf_cmd,
         .summary = "Execute a command on a conference or conferee",
@@ -785,14 +785,14 @@ static void conf_flush(int fd)
     int x;
     x = ZT_FLUSH_ALL;
     if (ioctl(fd, ZT_FLUSH, &x))
-        opbx_log(OPBX_LOG_WARNING, "Error flushing channel\n");
+        cw_log(CW_LOG_WARNING, "Error flushing channel\n");
 }
 
 /* Remove the conference from the list and free it.
    We assume that this was called while holding conflock. */
-static int conf_free(struct opbx_conference *conf)
+static int conf_free(struct cw_conference *conf)
 {
-    struct opbx_conference *prev = NULL, *cur = confs;
+    struct cw_conference *prev = NULL, *cur = confs;
 
     while (cur)
     {
@@ -809,23 +809,23 @@ static int conf_free(struct opbx_conference *conf)
     }
 
     if (!cur)
-        opbx_log(OPBX_LOG_WARNING, "Conference not found\n");
+        cw_log(CW_LOG_WARNING, "Conference not found\n");
 
     if (conf->recording == MEETME_RECORD_ACTIVE)
     {
         conf->recording = MEETME_RECORD_TERMINATE;
-        opbx_mutex_unlock(&conflock);
+        cw_mutex_unlock(&conflock);
         while (1)
         {
-            opbx_mutex_lock(&conflock);
+            cw_mutex_lock(&conflock);
             if (conf->recording == MEETME_RECORD_OFF)
                 break;
-            opbx_mutex_unlock(&conflock);
+            cw_mutex_unlock(&conflock);
         }
     }
 
     if (conf->chan)
-        opbx_hangup(conf->chan);
+        cw_hangup(conf->chan);
     else
         close(conf->fd);
 
@@ -834,15 +834,15 @@ static int conf_free(struct opbx_conference *conf)
     return 0;
 }
 
-static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int confflags)
+static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int confflags)
 {
-    struct opbx_conf_user *user = malloc(sizeof(struct opbx_conf_user));
-    struct opbx_conf_user *usr = NULL;
+    struct cw_conf_user *user = malloc(sizeof(struct cw_conf_user));
+    struct cw_conf_user *usr = NULL;
     int fd;
     struct zt_confinfo ztc, ztc_empty;
-    struct opbx_frame *f;
-    struct opbx_channel *c;
-    struct opbx_frame fr;
+    struct cw_frame *f;
+    struct cw_channel *c;
+    struct cw_frame fr;
     int outfd;
     int ms;
     int nfds;
@@ -860,25 +860,25 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     int menu_active = 0;
     int using_pseudo = 0;
     int duration=20;
-    struct opbx_dsp *dsp=NULL;
+    struct cw_dsp *dsp=NULL;
 
     char *ogifile;
     char *ogifiledefault = "conf-background.ogi";
     char meetmesecs[30] = "";
-    char exitcontext[OPBX_MAX_CONTEXT] = "";
-    char recordingtmp[OPBX_MAX_EXTENSION] = "";
+    char exitcontext[CW_MAX_CONTEXT] = "";
+    char recordingtmp[CW_MAX_EXTENSION] = "";
     int dtmf;
 
     ZT_BUFFERINFO bi;
-    char __buf[CONF_SIZE + OPBX_FRIENDLY_OFFSET];
-    char *buf = __buf + OPBX_FRIENDLY_OFFSET;
+    char __buf[CONF_SIZE + CW_FRIENDLY_OFFSET];
+    char *buf = __buf + CW_FRIENDLY_OFFSET;
 
     if (!user)
     {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
         return(ret);
     }
-    memset(user, 0, sizeof(struct opbx_conf_user));
+    memset(user, 0, sizeof(struct cw_conf_user));
 
     if (confflags & CONFFLAG_RECORDCONF && conf->recording !=MEETME_RECORD_ACTIVE)
     {
@@ -886,16 +886,16 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         if (!conf->recordingfilename)
         {
             snprintf(recordingtmp,sizeof(recordingtmp),"meetme-conf-rec-%s-%s",conf->confno,chan->uniqueid);
-            conf->recordingfilename = opbx_strdupa(recordingtmp);
+            conf->recordingfilename = cw_strdupa(recordingtmp);
         }
         conf->recordingformat = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT");
         if (!conf->recordingformat)
         {
             snprintf(recordingtmp,sizeof(recordingtmp), "wav");
-            conf->recordingformat = opbx_strdupa(recordingtmp);
+            conf->recordingformat = cw_strdupa(recordingtmp);
         }
-        opbx_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
-        opbx_pthread_create(&conf->recordthread, &global_attr_detached, recordthread, conf);
+        cw_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
+        cw_pthread_create(&conf->recordthread, &global_attr_detached, recordthread, conf);
     }
 
     user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
@@ -905,15 +905,15 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     if (conf->locked)
     {
         /* Sorry, but this confernce is locked! */
-        if (!opbx_streamfile(chan, "conf-locked", chan->language))
-            opbx_waitstream(chan, "");
+        if (!cw_streamfile(chan, "conf-locked", chan->language))
+            cw_waitstream(chan, "");
         goto outrun;
     }
 
     if (confflags & CONFFLAG_MARKEDUSER)
         conf->markedusers++;
 
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     if (conf->firstuser == NULL)
     {
         /* Fill the first new User struct */
@@ -931,8 +931,8 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         user->nextuser = NULL;
         if (conf->lastuser->nextuser != NULL)
         {
-            opbx_log(OPBX_LOG_WARNING, "Error in User Management!\n");
-            opbx_mutex_unlock(&conflock);
+            cw_log(CW_LOG_WARNING, "Error in User Management!\n");
+            cw_mutex_unlock(&conflock);
             goto outrun;
         }
         else
@@ -945,22 +945,22 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     user->userflags = confflags;
     user->adminflags = 0;
     user->talking = -1;
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     origquiet = confflags & CONFFLAG_QUIET;
     if (confflags & CONFFLAG_EXIT_CONTEXT)
     {
         if ((ogifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT")))
-            opbx_copy_string(exitcontext, ogifile, sizeof(exitcontext));
-        else if (!opbx_strlen_zero(chan->proc_context))
-            opbx_copy_string(exitcontext, chan->proc_context, sizeof(exitcontext));
+            cw_copy_string(exitcontext, ogifile, sizeof(exitcontext));
+        else if (!cw_strlen_zero(chan->proc_context))
+            cw_copy_string(exitcontext, chan->proc_context, sizeof(exitcontext));
         else
-            opbx_copy_string(exitcontext, chan->context, sizeof(exitcontext));
+            cw_copy_string(exitcontext, chan->context, sizeof(exitcontext));
     }
 
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER))
     {
-        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",opbx_config_OPBX_SPOOL_DIR,conf->confno,user->user_no);
-        opbx_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
+        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",cw_config_CW_SPOOL_DIR,conf->confno,user->user_no);
+        cw_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
     }
 
     conf->users++;
@@ -968,11 +968,11 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     if (!(confflags & CONFFLAG_QUIET))
     {
         if (conf->users == 1 && !(confflags & CONFFLAG_WAITMARKED))
-            if (!opbx_streamfile(chan, "conf-onlyperson", chan->language))
-                opbx_waitstream(chan, "");
+            if (!cw_streamfile(chan, "conf-onlyperson", chan->language))
+                cw_waitstream(chan, "");
         if ((confflags & CONFFLAG_WAITMARKED) && conf->markedusers == 0)
-            if (!opbx_streamfile(chan, "conf-waitforleader", chan->language))
-                opbx_waitstream(chan, "");
+            if (!cw_streamfile(chan, "conf-waitforleader", chan->language))
+                cw_waitstream(chan, "");
     }
 
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_ANNOUNCEUSERCOUNT) && conf->users > 1)
@@ -981,9 +981,9 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 
         if (conf->users == 2)
         {
-            if (!opbx_streamfile(chan,"conf-onlyone",chan->language))
+            if (!cw_streamfile(chan,"conf-onlyone",chan->language))
             {
-                res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                res = cw_waitstream(chan, CW_DIGIT_ANY);
                 if (res > 0)
                     keepplaying=0;
                 else if (res == -1)
@@ -992,9 +992,9 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         }
         else
         {
-            if (!opbx_streamfile(chan, "conf-thereare", chan->language))
+            if (!cw_streamfile(chan, "conf-thereare", chan->language))
             {
-                res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                res = cw_waitstream(chan, CW_DIGIT_ANY);
                 if (res > 0)
                     keepplaying=0;
                 else if (res == -1)
@@ -1002,15 +1002,15 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
             }
             if (keepplaying)
             {
-                res = opbx_say_number(chan, conf->users - 1, OPBX_DIGIT_ANY, chan->language, (char *) NULL);
+                res = cw_say_number(chan, conf->users - 1, CW_DIGIT_ANY, chan->language, (char *) NULL);
                 if (res > 0)
                     keepplaying=0;
                 else if (res == -1)
                     goto outrun;
             }
-            if (keepplaying && !opbx_streamfile(chan, "conf-otherinparty", chan->language))
+            if (keepplaying && !cw_streamfile(chan, "conf-otherinparty", chan->language))
             {
-                res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                res = cw_waitstream(chan, CW_DIGIT_ANY);
                 if (res > 0)
                     keepplaying=0;
                 else if (res == -1)
@@ -1020,19 +1020,19 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     }
 
     /* Set it into linear mode (write) */
-    if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR) < 0)
+    if (cw_set_write_format(chan, CW_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
+        cw_log(CW_LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
         goto outrun;
     }
 
     /* Set it into linear mode (read) */
-    if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR) < 0)
+    if (cw_set_read_format(chan, CW_FORMAT_SLINEAR) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
+        cw_log(CW_LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
         goto outrun;
     }
-    opbx_indicate(chan, -1);
+    cw_indicate(chan, -1);
     retryzap = strcasecmp(chan->type, "Zap");
     user->zapchannel = !retryzap;
 zapretry:
@@ -1042,7 +1042,7 @@ zapretry:
         fd = open("/dev/zap/pseudo", O_RDWR);
         if (fd < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
             goto outrun;
         }
         using_pseudo = 1;
@@ -1050,13 +1050,13 @@ zapretry:
         flags = fcntl(fd, F_GETFL);
         if (flags < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
         if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
@@ -1068,14 +1068,14 @@ zapretry:
         bi.numbufs = 4;
         if (ioctl(fd, ZT_SET_BUFINFO, &bi))
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
         x = 1;
         if (ioctl(fd, ZT_SETLINEAR, &x))
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
@@ -1093,7 +1093,7 @@ zapretry:
     ztc.chan = 0;
     if (ioctl(fd, ZT_GETCONF, &ztc))
     {
-        opbx_log(OPBX_LOG_WARNING, "Error getting conference\n");
+        cw_log(CW_LOG_WARNING, "Error getting conference\n");
         close(fd);
         goto outrun;
     }
@@ -1102,7 +1102,7 @@ zapretry:
         /* Whoa, already in a conference...  Retry... */
         if (!retryzap)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+            cw_log(CW_LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
             retryzap = 1;
             goto zapretry;
         }
@@ -1111,15 +1111,15 @@ zapretry:
     /* Add us to the conference */
     ztc.chan = 0;
     ztc.confno = conf->zapconf;
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1)
     {
-        if (conf->chan && opbx_fileexists(user->namerecloc, NULL, NULL))
+        if (conf->chan && cw_fileexists(user->namerecloc, NULL, NULL))
         {
-            if (!opbx_streamfile(conf->chan, user->namerecloc, chan->language))
-                opbx_waitstream(conf->chan, "");
-            if (!opbx_streamfile(conf->chan, "conf-hasjoin", chan->language))
-                opbx_waitstream(conf->chan, "");
+            if (!cw_streamfile(conf->chan, user->namerecloc, chan->language))
+                cw_waitstream(conf->chan, "");
+            if (!cw_streamfile(conf->chan, "conf-hasjoin", chan->language))
+                cw_waitstream(conf->chan, "");
         }
     }
 
@@ -1132,12 +1132,12 @@ zapretry:
 
     if (ioctl(fd, ZT_SETCONF, &ztc))
     {
-        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+        cw_log(CW_LOG_WARNING, "Error setting conference\n");
         close(fd);
-        opbx_mutex_unlock(&conflock);
+        cw_mutex_unlock(&conflock);
         goto outrun;
     }
-    opbx_log(OPBX_LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+    cw_log(CW_LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
     manager_event(EVENT_FLAG_CALL, "MeetmeJoin",
                   "Channel: %s\r\n"
@@ -1154,7 +1154,7 @@ zapretry:
                 conf_play(chan, conf, ENTER);
     }
     conf_flush(fd);
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     if (confflags & CONFFLAG_OGI)
     {
 
@@ -1162,19 +1162,19 @@ zapretry:
         {
             /*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
             x = 1;
-            opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
         }
         /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
           or use default filename of conf-background.ogi */
         ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
         ogifile = strdup(ogifile ? ogifile : ogifiledefault);
-        ret = opbx_function_exec_str(chan, hash_ogi, "OGI", ogifile, NULL, 0);
+        ret = cw_function_exec_str(chan, hash_ogi, "OGI", ogifile, NULL, 0);
         free(ogifile);
         if (user->zapchannel)
         {
             /*  Remove CONFMUTE mode on Zap channel */
             x = 0;
-            opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
         }
     }
     else
@@ -1183,11 +1183,11 @@ zapretry:
         {
             /*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
             x = 1;
-            opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
         }
-        if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = opbx_dsp_new()))
+        if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = cw_dsp_new()))
         {
-            opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
+            cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
             res = -1;
         }
         for(;;)
@@ -1210,24 +1210,24 @@ zapretry:
             {
                 if (currentmarked == 1 && conf->users > 1)
                 {
-                    opbx_say_number(chan, conf->users - 1, OPBX_DIGIT_ANY, chan->language, (char *) NULL);
+                    cw_say_number(chan, conf->users - 1, CW_DIGIT_ANY, chan->language, (char *) NULL);
                     if (conf->users - 1 == 1)
                     {
-                        if (!opbx_streamfile(chan, "conf-userwilljoin", chan->language))
-                            opbx_waitstream(chan, "");
+                        if (!cw_streamfile(chan, "conf-userwilljoin", chan->language))
+                            cw_waitstream(chan, "");
                     }
                     else
                     {
-                        if (!opbx_streamfile(chan, "conf-userswilljoin", chan->language))
-                            opbx_waitstream(chan, "");
+                        if (!cw_streamfile(chan, "conf-userswilljoin", chan->language))
+                            cw_waitstream(chan, "");
                     }
                 }
                 if (conf->users == 1 && ! (confflags & CONFFLAG_MARKEDUSER))
-                    if (!opbx_streamfile(chan, "conf-onlyperson", chan->language))
-                        opbx_waitstream(chan, "");
+                    if (!cw_streamfile(chan, "conf-onlyperson", chan->language))
+                        cw_waitstream(chan, "");
             }
 
-            c = opbx_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+            c = cw_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 
             /* Update the struct with the actual confflags */
             user->userflags = confflags;
@@ -1239,8 +1239,8 @@ zapretry:
                     if (lastmarked != 0)
                     {
                         if (!(confflags & CONFFLAG_QUIET))
-                            if (!opbx_streamfile(chan, "conf-leaderhasleft", chan->language))
-                                opbx_waitstream(chan, "");
+                            if (!cw_streamfile(chan, "conf-leaderhasleft", chan->language))
+                                cw_waitstream(chan, "");
                         if(confflags & CONFFLAG_MARKEDEXIT)
                             break;
                         else
@@ -1248,7 +1248,7 @@ zapretry:
                             ztc.confmode = ZT_CONF_CONF;
                             if (ioctl(fd, ZT_SETCONF, &ztc))
                             {
-                                opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                                cw_log(CW_LOG_WARNING, "Error setting conference\n");
                                 close(fd);
                                 goto outrun;
                             }
@@ -1256,7 +1256,7 @@ zapretry:
                     }
                     if (musiconhold == 0 && (confflags & CONFFLAG_MOH))
                     {
-                        opbx_moh_start(chan, NULL);
+                        cw_moh_start(chan, NULL);
                         musiconhold = 1;
                     }
                     else
@@ -1264,7 +1264,7 @@ zapretry:
                         ztc.confmode = ZT_CONF_CONF;
                         if (ioctl(fd, ZT_SETCONF, &ztc))
                         {
-                            opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                            cw_log(CW_LOG_WARNING, "Error setting conference\n");
                             close(fd);
                             goto outrun;
                         }
@@ -1280,19 +1280,19 @@ zapretry:
                         ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                        cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
                         goto outrun;
                     }
                     if (musiconhold && (confflags & CONFFLAG_MOH))
                     {
-                        opbx_moh_stop(chan);
+                        cw_moh_stop(chan);
                         musiconhold = 0;
                     }
                     if ( !(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MARKEDUSER))
                     {
-                        if (!opbx_streamfile(chan, "conf-placeintoconf", chan->language))
-                            opbx_waitstream(chan, "");
+                        if (!cw_streamfile(chan, "conf-placeintoconf", chan->language))
+                            cw_waitstream(chan, "");
                         conf_play(chan, conf, ENTER);
                     }
                 }
@@ -1305,7 +1305,7 @@ zapretry:
                 {
                     if (musiconhold == 0)
                     {
-                        opbx_moh_start(chan, NULL);
+                        cw_moh_start(chan, NULL);
                         musiconhold = 1;
                     }
                 }
@@ -1313,7 +1313,7 @@ zapretry:
                 {
                     if (musiconhold)
                     {
-                        opbx_moh_stop(chan);
+                        cw_moh_stop(chan);
                         musiconhold = 0;
                     }
                 }
@@ -1335,7 +1335,7 @@ zapretry:
                     ztc.confmode ^= ZT_CONF_TALKER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
+                        cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
                         break;
                     }
@@ -1345,7 +1345,7 @@ zapretry:
                     ztc.confmode |= ZT_CONF_TALKER;
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
+                        cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
                         break;
                     }
@@ -1353,8 +1353,8 @@ zapretry:
                 if (user->adminflags & ADMINFLAG_KICKME)
                 {
                     /* You have been kicked. */
-                    if (!opbx_streamfile(chan, "conf-kicked", chan->language))
-                        opbx_waitstream(chan, "");
+                    if (!cw_streamfile(chan, "conf-kicked", chan->language))
+                        cw_waitstream(chan, "");
                     ret = 0;
                     break;
                 }
@@ -1364,7 +1364,7 @@ zapretry:
                 ztc.confmode |= ZT_CONF_TALKER;
                 if (ioctl(fd, ZT_SETCONF, &ztc))
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
+                    cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                     ret = -1;
                     break;
                 }
@@ -1380,18 +1380,18 @@ zapretry:
                         close(fd);
                         using_pseudo = 0;
                     }
-                    opbx_log(OPBX_LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+                    cw_log(CW_LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
                     retryzap = strcasecmp(c->type, "Zap");
                     user->zapchannel = !retryzap;
                     goto zapretry;
                 }
-                f = opbx_read(c);
+                f = cw_read(c);
                 if (!f)
                     break;
-                if ((f->frametype == OPBX_FRAME_VOICE) && (f->subclass == OPBX_FORMAT_SLINEAR))
+                if ((f->frametype == CW_FRAME_VOICE) && (f->subclass == CW_FORMAT_SLINEAR))
                 {
                     if (user->talk.actual)
-                        opbx_frame_adjust_volume(f, user->talk.actual);
+                        cw_frame_adjust_volume(f, user->talk.actual);
 
                     if (confflags &  CONFFLAG_MONITORTALKER)
                     {
@@ -1399,7 +1399,7 @@ zapretry:
                         if (user->talking == -1)
                             user->talking = 0;
 
-                        res = opbx_dsp_silence(dsp, f, &totalsilence);
+                        res = cw_dsp_silence(dsp, f, &totalsilence);
                         if (!user->talking && totalsilence < MEETME_DELAYDETECTTALK)
                         {
                             user->talking = 1;
@@ -1427,32 +1427,32 @@ zapretry:
                         careful_write(fd, f->data, f->datalen);
                     }
                 }
-                else if ((f->frametype == OPBX_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT))
+                else if ((f->frametype == CW_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT))
                 {
                     char tmp[2];
 
                     tmp[0] = f->subclass;
                     tmp[1] = '\0';
-                    if (opbx_goto_if_exists(chan, exitcontext, tmp, 1))
+                    if (cw_goto_if_exists(chan, exitcontext, tmp, 1))
                     {
                         ret = 0;
                         break;
                     }
                     else if (option_debug > 1)
-                        opbx_log(OPBX_LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
+                        cw_log(CW_LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
                 }
-                else if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT))
+                else if ((f->frametype == CW_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT))
                 {
                     ret = 0;
                     break;
                 }
-                else if (((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == OPBX_FRAME_DTMF) && menu_active))
+                else if (((f->frametype == CW_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == CW_FRAME_DTMF) && menu_active))
                 {
                     if (ioctl(fd, ZT_SETCONF, &ztc_empty))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                        cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
-                        opbx_mutex_unlock(&conflock);
+                        cw_mutex_unlock(&conflock);
                         goto outrun;
                     }
 
@@ -1463,7 +1463,7 @@ zapretry:
                         set_talk_volume(user, 0);
 
                     if (musiconhold)
-                        opbx_moh_stop(chan);
+                        cw_moh_stop(chan);
                     if ((confflags & CONFFLAG_ADMIN))
                     {
                         /* Admin menu */
@@ -1471,8 +1471,8 @@ zapretry:
                         {
                             menu_active = 1;
                             /* Record this sound! */
-                            if (!opbx_streamfile(chan, "conf-adminmenu", chan->language))
-                                dtmf = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                            if (!cw_streamfile(chan, "conf-adminmenu", chan->language))
+                                dtmf = cw_waitstream(chan, CW_DIGIT_ANY);
                             else
                                 dtmf = 0;
                         }
@@ -1498,19 +1498,19 @@ zapretry:
                                 }
                                 if (ioctl(fd, ZT_SETCONF, &ztc))
                                 {
-                                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
+                                    cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
                                 if (ztc.confmode & ZT_CONF_TALKER)
                                 {
-                                    if (!opbx_streamfile(chan, "conf-unmuted", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-unmuted", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 else
                                 {
-                                    if (!opbx_streamfile(chan, "conf-muted", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-muted", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 break;
                             case '2': /* Un/Lock the Conference */
@@ -1518,14 +1518,14 @@ zapretry:
                                 if (conf->locked)
                                 {
                                     conf->locked = 0;
-                                    if (!opbx_streamfile(chan, "conf-unlockednow", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-unlockednow", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 else
                                 {
                                     conf->locked = 1;
-                                    if (!opbx_streamfile(chan, "conf-lockednow", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-lockednow", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 break;
                             case '3': /* Eject last user */
@@ -1533,12 +1533,12 @@ zapretry:
                                 usr = conf->lastuser;
                                 if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN))
                                 {
-                                    if(!opbx_streamfile(chan, "conf-errormenu", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if(!cw_streamfile(chan, "conf-errormenu", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 else
                                     usr->adminflags |= ADMINFLAG_KICKME;
-                                opbx_stopstream(chan);
+                                cw_stopstream(chan);
                                 break;
                             case '4':
                                 tweak_listen_volume(user, VOL_DOWN);
@@ -1558,8 +1558,8 @@ zapretry:
                             default:
                                 menu_active = 0;
                                 /* Play an error message! */
-                                if (!opbx_streamfile(chan, "conf-errormenu", chan->language))
-                                    opbx_waitstream(chan, "");
+                                if (!cw_streamfile(chan, "conf-errormenu", chan->language))
+                                    cw_waitstream(chan, "");
                                 break;
                             }
                         }
@@ -1571,8 +1571,8 @@ zapretry:
                         {
                             menu_active = 1;
                             /* Record this sound! */
-                            if (!opbx_streamfile(chan, "conf-usermenu", chan->language))
-                                dtmf = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                            if (!cw_streamfile(chan, "conf-usermenu", chan->language))
+                                dtmf = cw_waitstream(chan, CW_DIGIT_ANY);
                             else
                                 dtmf = 0;
                         }
@@ -1598,19 +1598,19 @@ zapretry:
                                 }
                                 if (ioctl(fd, ZT_SETCONF, &ztc))
                                 {
-                                    opbx_log(OPBX_LOG_WARNING, "Error setting conference - Un/Mute \n");
+                                    cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
                                 if (ztc.confmode & ZT_CONF_TALKER)
                                 {
-                                    if (!opbx_streamfile(chan, "conf-unmuted", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-unmuted", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 else
                                 {
-                                    if (!opbx_streamfile(chan, "conf-muted", chan->language))
-                                        opbx_waitstream(chan, "");
+                                    if (!cw_streamfile(chan, "conf-muted", chan->language))
+                                        cw_waitstream(chan, "");
                                 }
                                 break;
                             case '4':
@@ -1631,51 +1631,51 @@ zapretry:
                             default:
                                 menu_active = 0;
                                 /* Play an error message! */
-                                if (!opbx_streamfile(chan, "conf-errormenu", chan->language))
-                                    opbx_waitstream(chan, "");
+                                if (!cw_streamfile(chan, "conf-errormenu", chan->language))
+                                    cw_waitstream(chan, "");
                                 break;
                             }
                         }
                     }
                     if (musiconhold)
-                        opbx_moh_start(chan, NULL);
+                        cw_moh_start(chan, NULL);
 
                     if (ioctl(fd, ZT_SETCONF, &ztc))
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+                        cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
-                        opbx_mutex_unlock(&conflock);
+                        cw_mutex_unlock(&conflock);
                         goto outrun;
                     }
                     conf_flush(fd);
                 }
                 else if (option_debug)
                 {
-                    opbx_log(OPBX_LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
+                    cw_log(CW_LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
                 }
-                opbx_fr_free(f);
+                cw_fr_free(f);
             }
             else if (outfd > -1)
             {
                 res = read(outfd, buf, CONF_SIZE);
                 if (res > 0)
                 {
-                    opbx_fr_init_ex(&fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+                    cw_fr_init_ex(&fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
                     fr.datalen = res;
                     fr.samples = res/2;
                     fr.data = buf;
-                    fr.offset = OPBX_FRIENDLY_OFFSET;
+                    fr.offset = CW_FRIENDLY_OFFSET;
                     if (user->listen.actual)
-                        opbx_frame_adjust_volume(&fr, user->listen.actual);
-                    if (opbx_write(chan, &fr) < 0)
+                        cw_frame_adjust_volume(&fr, user->listen.actual);
+                    if (cw_write(chan, &fr) < 0)
                     {
-                        opbx_log(OPBX_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+                        cw_log(CW_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                         /* break; */
                     }
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+                    cw_log(CW_LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
                 }
             }
             lastmarked = currentmarked;
@@ -1691,37 +1691,37 @@ zapretry:
         ztc.confmode = 0;
         if (ioctl(fd, ZT_SETCONF, &ztc))
         {
-            opbx_log(OPBX_LOG_WARNING, "Error setting conference\n");
+            cw_log(CW_LOG_WARNING, "Error setting conference\n");
         }
     }
 
     reset_volumes(user);
 
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
         conf_play(chan, conf, LEAVE);
 
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER))
     {
-        if (opbx_fileexists(user->namerecloc, NULL, NULL))
+        if (cw_fileexists(user->namerecloc, NULL, NULL))
         {
             if ((conf->chan) && (conf->users > 1))
             {
-                if (!opbx_streamfile(conf->chan, user->namerecloc, chan->language))
-                    opbx_waitstream(conf->chan, "");
-                if (!opbx_streamfile(conf->chan, "conf-hasleft", chan->language))
-                    opbx_waitstream(conf->chan, "");
+                if (!cw_streamfile(conf->chan, user->namerecloc, chan->language))
+                    cw_waitstream(conf->chan, "");
+                if (!cw_streamfile(conf->chan, "conf-hasleft", chan->language))
+                    cw_waitstream(conf->chan, "");
             }
-            opbx_filedelete(user->namerecloc, NULL);
+            cw_filedelete(user->namerecloc, NULL);
         }
     }
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
 
 
 outrun:
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     if (confflags & CONFFLAG_MONITORTALKER && dsp)
-        opbx_dsp_free(dsp);
+        cw_dsp_free(dsp);
 
     if (user->user_no)
     { /* Only cleanup users who really joined! */
@@ -1762,7 +1762,7 @@ outrun:
                 if (user->prevuser)
                     user->prevuser->nextuser = NULL;
                 else
-                    opbx_log(OPBX_LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
+                    cw_log(CW_LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
                 conf->lastuser = user->prevuser;
             }
             else
@@ -1770,11 +1770,11 @@ outrun:
                 if (user->nextuser)
                     user->nextuser->prevuser = user->prevuser;
                 else
-                    opbx_log(OPBX_LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
+                    cw_log(CW_LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
                 if (user->prevuser)
                     user->prevuser->nextuser = user->nextuser;
                 else
-                    opbx_log(OPBX_LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
+                    cw_log(CW_LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
             }
         }
         /* Return the number of seconds the user was in the conf */
@@ -1782,18 +1782,18 @@ outrun:
         pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
     }
     free(user);
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     return ret;
 }
 
-static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
+static struct cw_conference *find_conf(struct cw_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
-    struct opbx_conference *cnf;
+    struct cw_config *cfg;
+    struct cw_variable *var;
+    struct cw_conference *cnf;
 
     /* Check first in the conference list */
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
     cnf = confs;
     while (cnf)
     {
@@ -1801,20 +1801,20 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
             break;
         cnf = cnf->next;
     }
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
 
     if (!cnf)
     {
         if (dynamic)
         {
             /* No need to parse meetme.conf */
-            opbx_log(OPBX_LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
+            cw_log(CW_LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
             if (dynamic_pin)
             {
                 if (dynamic_pin[0] == 'q')
                 {
                     /* Query the user to enter a PIN */
-                    opbx_app_getdata(chan, "conf-getpin", dynamic_pin, OPBX_MAX_EXTENSION - 1, 0);
+                    cw_app_getdata(chan, "conf-getpin", dynamic_pin, CW_MAX_EXTENSION - 1, 0);
                 }
                 cnf = build_conf(confno, dynamic_pin, "", make, dynamic);
             }
@@ -1826,13 +1826,13 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
         else
         {
             /* Check the config */
-            cfg = opbx_config_load("meetme.conf");
+            cfg = cw_config_load("meetme.conf");
             if (!cfg)
             {
-                opbx_log(OPBX_LOG_WARNING, "No meetme.conf file :(\n");
+                cw_log(CW_LOG_WARNING, "No meetme.conf file :(\n");
                 return NULL;
             }
-            var = opbx_variable_browse(cfg, "rooms");
+            var = cw_variable_browse(cfg, "rooms");
             while (var)
             {
                 if (!strcasecmp(var->name, "conf"))
@@ -1840,7 +1840,7 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
                     /* Separate the PIN */
                     char *pin, *pinadmin, *conf;
 
-                    pinadmin = opbx_strdupa(var->value);
+                    pinadmin = cw_strdupa(var->value);
                     conf = strsep(&pinadmin, "|,");
                     pin = strsep(&pinadmin, "|,");
                     if (!strcasecmp(conf, confno))
@@ -1863,9 +1863,9 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
             }
             if (!var)
             {
-                opbx_log(OPBX_LOG_DEBUG, "%s isn't a valid conference\n", confno);
+                cw_log(CW_LOG_DEBUG, "%s isn't a valid conference\n", confno);
             }
-            opbx_config_destroy(cfg);
+            cw_config_destroy(cfg);
         }
     }
     else if (dynamic_pin)
@@ -1880,17 +1880,17 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
 }
 
 /*--- count_exec: The MeetmeCount application */
-static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     static int deprecated_var = 0;
     char val[80] = "0";
     struct localuser *u;
     int res = 0;
-    struct opbx_conference *conf;
+    struct cw_conference *conf;
     int count;
 
     if (argc < 1 || argc > 2)
-        return opbx_function_syntax(syntax2);
+        return cw_function_syntax(syntax2);
 
     LOCAL_USER_ADD(u);
 
@@ -1908,7 +1908,7 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
     {
         if (!deprecated_var)
         {
-            opbx_log(OPBX_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", name2);
+            cw_log(CW_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", name2);
             deprecated_var = 1;
         }
         snprintf(val, sizeof(val), "%d",count);
@@ -1916,9 +1916,9 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
     }
     else
     {
-        if (chan->_state != OPBX_STATE_UP)
-            opbx_answer(chan);
-        res = opbx_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
+        if (chan->_state != CW_STATE_UP)
+            cw_answer(chan);
+        res = cw_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
     }
 
     LOCAL_USER_REMOVE(u);
@@ -1926,15 +1926,15 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
 }
 
 /*--- conf_exec: The meetme() application */
-static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    char confno[OPBX_MAX_EXTENSION] = "";
-    char the_pin[OPBX_MAX_EXTENSION] = "";
-    struct opbx_flags confflags =
+    char confno[CW_MAX_EXTENSION] = "";
+    char the_pin[CW_MAX_EXTENSION] = "";
+    struct cw_flags confflags =
         {
             0
         };
-    struct opbx_conference *cnf;
+    struct cw_conference *cnf;
     struct localuser *u;
     int res=-1;
     int allowretry = 0;
@@ -1944,31 +1944,31 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
     int always_prompt = 0;
 
     if (argc > 3)
-        return opbx_function_syntax(syntax);
+        return cw_function_syntax(syntax);
 
     LOCAL_USER_ADD(u);
 
     if (argc == 0 || !argv[0][0])
         allowretry = 1;
-    opbx_copy_string(confno, argv[0], sizeof(confno));
+    cw_copy_string(confno, argv[0], sizeof(confno));
 
     if (argc > 2)
-        opbx_copy_string(the_pin, argv[2], sizeof(the_pin));
+        cw_copy_string(the_pin, argv[2], sizeof(the_pin));
 
     if (argc > 1 && argv[1][0])
     {
-        opbx_parseoptions(meetme_opts, &confflags, NULL, argv[1]);
-        dynamic = opbx_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
-        if (opbx_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && (argc < 3 || !argv[2][0]))
+        cw_parseoptions(meetme_opts, &confflags, NULL, argv[1]);
+        dynamic = cw_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
+        if (cw_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && (argc < 3 || !argv[2][0]))
             strcpy(the_pin, "q");
 
-        empty = opbx_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
-        empty_no_pin = opbx_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
-        always_prompt = opbx_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT);
+        empty = cw_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
+        empty_no_pin = cw_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
+        always_prompt = cw_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT);
     }
 
-    if (chan->_state != OPBX_STATE_UP)
-        opbx_answer(chan);
+    if (chan->_state != CW_STATE_UP)
+        cw_answer(chan);
 
     do
     {
@@ -1977,13 +1977,13 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
         if (empty)
         {
             int i, map[1024];
-            struct opbx_config *cfg;
-            struct opbx_variable *var;
+            struct cw_config *cfg;
+            struct cw_variable *var;
             int confno_int;
 
             memset(map, 0, sizeof(map));
 
-            opbx_mutex_lock(&conflock);
+            cw_mutex_lock(&conflock);
             cnf = confs;
             while (cnf)
             {
@@ -1995,20 +1995,20 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                 }
                 cnf = cnf->next;
             }
-            opbx_mutex_unlock(&conflock);
+            cw_mutex_unlock(&conflock);
 
             /* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
             if ((empty_no_pin) || (!dynamic))
             {
-                cfg = opbx_config_load("meetme.conf");
+                cfg = cw_config_load("meetme.conf");
                 if (cfg)
                 {
-                    var = opbx_variable_browse(cfg, "rooms");
+                    var = cw_variable_browse(cfg, "rooms");
                     while (var)
                     {
                         if (!strcasecmp(var->name, "conf"))
                         {
-                            char *stringp = opbx_strdupa(var->value);
+                            char *stringp = cw_strdupa(var->value);
                             char *confno_tmp = strsep(&stringp, "|,");
                             int found = 0;
                             if (sscanf(confno_tmp, "%d", &confno_int) == 1)
@@ -2024,7 +2024,7 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                             if (! dynamic)
                             {
                                 /* For static:  run through the list and see if this conference is empty */
-                                opbx_mutex_lock(&conflock);
+                                cw_mutex_lock(&conflock);
                                 cnf = confs;
                                 while (cnf)
                                 {
@@ -2036,7 +2036,7 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                                     }
                                     cnf = cnf->next;
                                 }
-                                opbx_mutex_unlock(&conflock);
+                                cw_mutex_unlock(&conflock);
                                 if (!found)
                                 {
                                     /* At this point, we have a confno_tmp (static conference) that is empty */
@@ -2046,7 +2046,7 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                                          * Case 2:  empty_no_pin and pin is blank (but not NULL)
                                          * Case 3:  not empty_no_pin
                                          */
-                                        opbx_copy_string(confno, confno_tmp, sizeof(confno));
+                                        cw_copy_string(confno, confno_tmp, sizeof(confno));
                                         break;
                                         /* XXX the map is not complete (but we do have a confno) */
                                     }
@@ -2055,11 +2055,11 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                         }
                         var = var->next;
                     }
-                    opbx_config_destroy(cfg);
+                    cw_config_destroy(cfg);
                 }
             }
             /* Select first conference number not in use */
-            if (opbx_strlen_zero(confno) && dynamic)
+            if (cw_strlen_zero(confno) && dynamic)
             {
                 for (i=0;i<1024;i++)
                 {
@@ -2072,33 +2072,33 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
             }
 
             /* Not found? */
-            if (opbx_strlen_zero(confno))
+            if (cw_strlen_zero(confno))
             {
-                res = opbx_streamfile(chan, "conf-noempty", chan->language);
+                res = cw_streamfile(chan, "conf-noempty", chan->language);
                 if (!res)
-                    opbx_waitstream(chan, "");
+                    cw_waitstream(chan, "");
             }
             else
             {
                 if (sscanf(confno, "%d", &confno_int) == 1)
                 {
-                    res = opbx_streamfile(chan, "conf-enteringno", chan->language);
+                    res = cw_streamfile(chan, "conf-enteringno", chan->language);
                     if (!res)
                     {
-                        opbx_waitstream(chan, "");
-                        res = opbx_say_digits(chan, confno_int, "", chan->language);
+                        cw_waitstream(chan, "");
+                        res = cw_say_digits(chan, confno_int, "", chan->language);
                     }
                 }
                 else
                 {
-                    opbx_log(OPBX_LOG_ERROR, "Could not scan confno '%s'\n", confno);
+                    cw_log(CW_LOG_ERROR, "Could not scan confno '%s'\n", confno);
                 }
             }
         }
-        while (allowretry && (opbx_strlen_zero(confno)) && (++retrycnt < 4))
+        while (allowretry && (cw_strlen_zero(confno)) && (++retrycnt < 4))
         {
             /* Prompt user for conference number */
-            res = opbx_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
+            res = cw_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
             if (res < 0)
             {
                 /* Don't try to validate when we catch an error */
@@ -2113,18 +2113,18 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
             cnf = find_conf(chan, confno, 1, dynamic, the_pin);
             if (!cnf)
             {
-                res = opbx_streamfile(chan, "conf-invalid", chan->language);
+                res = cw_streamfile(chan, "conf-invalid", chan->language);
                 if (!res)
-                    opbx_waitstream(chan, "");
+                    cw_waitstream(chan, "");
                 res = -1;
                 if (allowretry)
                     confno[0] = '\0';
             }
             else
             {
-                if ((!opbx_strlen_zero(cnf->pin) &&  !opbx_test_flag(&confflags, CONFFLAG_ADMIN)) || (!opbx_strlen_zero(cnf->pinadmin) && opbx_test_flag(&confflags, CONFFLAG_ADMIN)))
+                if ((!cw_strlen_zero(cnf->pin) &&  !cw_test_flag(&confflags, CONFFLAG_ADMIN)) || (!cw_strlen_zero(cnf->pinadmin) && cw_test_flag(&confflags, CONFFLAG_ADMIN)))
                 {
-                    char pin[OPBX_MAX_EXTENSION]="";
+                    char pin[CW_MAX_EXTENSION]="";
                     int j;
 
                     /* Allow the pin to be retried up to 3 times */
@@ -2132,23 +2132,23 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                     {
                         if (*the_pin && (always_prompt==0))
                         {
-                            opbx_copy_string(pin, the_pin, sizeof(pin));
+                            cw_copy_string(pin, the_pin, sizeof(pin));
                             res = 0;
                         }
                         else
                         {
                             /* Prompt user for pin if pin is required */
-                            res = opbx_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
+                            res = cw_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
                         }
                         if (res >= 0)
                         {
-                            if (!strcasecmp(pin, cnf->pin)  || (!opbx_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)))
+                            if (!strcasecmp(pin, cnf->pin)  || (!cw_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)))
                             {
 
                                 /* Pin correct */
                                 allowretry = 0;
-                                if (!opbx_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin))
-                                    opbx_set_flag(&confflags, CONFFLAG_ADMIN);
+                                if (!cw_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin))
+                                    cw_set_flag(&confflags, CONFFLAG_ADMIN);
                                 /* Run the conference */
                                 res = conf_run(chan, cnf, confflags.flags);
                                 break;
@@ -2156,9 +2156,9 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                             else
                             {
                                 /* Pin invalid */
-                                res = opbx_streamfile(chan, "conf-invalidpin", chan->language);
+                                res = cw_streamfile(chan, "conf-invalidpin", chan->language);
                                 if (!res)
-                                    opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                                    cw_waitstream(chan, CW_DIGIT_ANY);
                                 if (res < 0)
                                     break;
                                 pin[0] = res;
@@ -2174,12 +2174,12 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
                             res = -1;
                             allowretry = 0;
                             /* see if we need to get rid of the conference */
-                            opbx_mutex_lock(&conflock);
+                            cw_mutex_lock(&conflock);
                             if (!cnf->users)
                             {
                                 conf_free(cnf);
                             }
-                            opbx_mutex_unlock(&conflock);
+                            cw_mutex_unlock(&conflock);
                             break;
                         }
 
@@ -2208,9 +2208,9 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
     return res;
 }
 
-static struct opbx_conf_user* find_user(struct opbx_conference *conf, char *callerident)
+static struct cw_conf_user* find_user(struct cw_conference *conf, char *callerident)
 {
-    struct opbx_conf_user *user = NULL;
+    struct cw_conf_user *user = NULL;
     char usrno[1024] = "";
     if (conf && callerident)
     {
@@ -2228,17 +2228,17 @@ static struct opbx_conf_user* find_user(struct opbx_conference *conf, char *call
 
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    struct opbx_conference *cnf;
-    struct opbx_conf_user *user;
+    struct cw_conference *cnf;
+    struct cw_conf_user *user;
     struct localuser *u;
 
     if (argc < 2 || argc > 3)
-        return opbx_function_syntax(syntax3);
+        return cw_function_syntax(syntax3);
 
     LOCAL_USER_ADD(u);
-    opbx_mutex_lock(&conflock);
+    cw_mutex_lock(&conflock);
 
     cnf = confs;
     while (cnf)
@@ -2282,14 +2282,14 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
                 user->adminflags |= ADMINFLAG_KICKME;
                 break;
             }
-            opbx_log(OPBX_LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+            cw_log(CW_LOG_NOTICE, "Not kicking last user, is an Admin!\n");
             break;
         case 'M':
             /* M: Mute */
             if (user)
                 user->adminflags |= ADMINFLAG_MUTED;
             else
-                opbx_log(OPBX_LOG_NOTICE, "Specified User not found!\n");
+                cw_log(CW_LOG_NOTICE, "Specified User not found!\n");
             break;
         case 'N':
             /* N: Mute all users */
@@ -2309,7 +2309,7 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
             if (user && (user->adminflags & ADMINFLAG_MUTED))
                 user->adminflags ^= ADMINFLAG_MUTED;
             else
-                opbx_log(OPBX_LOG_NOTICE, "Specified User not found or he muted himself!");
+                cw_log(CW_LOG_NOTICE, "Specified User not found or he muted himself!");
             break;
         case 'n':
             /* n: Unmute all users */
@@ -2329,64 +2329,64 @@ static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *bu
             if (user)
                 user->adminflags |= ADMINFLAG_KICKME;
             else
-                opbx_log(OPBX_LOG_NOTICE, "Specified User not found!");
+                cw_log(CW_LOG_NOTICE, "Specified User not found!");
             break;
         }
     }
     else
     {
-        opbx_log(OPBX_LOG_NOTICE, "Conference Number not found\n");
+        cw_log(CW_LOG_NOTICE, "Conference Number not found\n");
     }
 
-    opbx_mutex_unlock(&conflock);
+    cw_mutex_unlock(&conflock);
     LOCAL_USER_REMOVE(u);
     return 0;
 }
 
 static void *recordthread(void *args)
 {
-    struct opbx_conference *cnf;
-    struct opbx_frame *f=NULL;
+    struct cw_conference *cnf;
+    struct cw_frame *f=NULL;
     int flags;
-    struct opbx_filestream *s;
+    struct cw_filestream *s;
     int res=0;
 
-    cnf = (struct opbx_conference *)args;
+    cnf = (struct cw_conference *)args;
     if( !cnf || !cnf->chan )
     {
         pthread_exit(0);
     }
-    opbx_stopstream(cnf->chan);
+    cw_stopstream(cnf->chan);
     flags = O_CREAT|O_TRUNC|O_WRONLY;
-    s = opbx_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, 0644);
+    s = cw_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, 0644);
 
     if (s)
     {
         cnf->recording = MEETME_RECORD_ACTIVE;
-        while (opbx_waitfor(cnf->chan, -1) > -1)
+        while (cw_waitfor(cnf->chan, -1) > -1)
         {
-            f = opbx_read(cnf->chan);
+            f = cw_read(cnf->chan);
             if (!f)
             {
                 res = -1;
                 break;
             }
-            if (f->frametype == OPBX_FRAME_VOICE)
+            if (f->frametype == CW_FRAME_VOICE)
             {
-                res = opbx_writestream(s, f);
+                res = cw_writestream(s, f);
                 if (res)
                     break;
             }
-            opbx_fr_free(f);
+            cw_fr_free(f);
             if (cnf->recording == MEETME_RECORD_TERMINATE)
             {
-                opbx_mutex_lock(&conflock);
-                opbx_mutex_unlock(&conflock);
+                cw_mutex_lock(&conflock);
+                cw_mutex_unlock(&conflock);
                 break;
             }
         }
         cnf->recording = MEETME_RECORD_OFF;
-        opbx_closestream(s);
+        cw_closestream(s);
     }
     pthread_exit(0);
 }
@@ -2394,23 +2394,23 @@ static void *recordthread(void *args)
 static int unload_module(void)
 {
     int res = 0;
-    opbx_cli_unregister(&cli_show_confs);
-    opbx_cli_unregister(&cli_conf);
-    res |= opbx_unregister_function(app3);
-    res |= opbx_unregister_function(app2);
-    res |= opbx_unregister_function(app);
+    cw_cli_unregister(&cli_show_confs);
+    cw_cli_unregister(&cli_conf);
+    res |= cw_unregister_function(app3);
+    res |= cw_unregister_function(app2);
+    res |= cw_unregister_function(app);
     return res;
 }
 
 static int load_module(void)
 {
-    hash_ogi = opbx_hash_app_name("OGI");
+    hash_ogi = cw_hash_app_name("OGI");
 
-    opbx_cli_register(&cli_show_confs);
-    opbx_cli_register(&cli_conf);
-    app3 = opbx_register_function(name3, admin_exec, synopsis3, syntax3, descrip3);
-    app2 = opbx_register_function(name2, count_exec, synopsis2, syntax2, descrip2);
-    app = opbx_register_function(name, conf_exec, synopsis, syntax, descrip);
+    cw_cli_register(&cli_show_confs);
+    cw_cli_register(&cli_conf);
+    app3 = cw_register_function(name3, admin_exec, synopsis3, syntax3, descrip3);
+    app2 = cw_register_function(name2, count_exec, synopsis2, syntax2, descrip2);
+    app = cw_register_function(name, conf_exec, synopsis, syntax, descrip);
     return 0;
 }
 

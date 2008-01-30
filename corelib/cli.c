@@ -51,16 +51,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "libltdl/ltdl.h"
 
 
-static const char *clicmd_registry_obj_name(struct opbx_object *obj)
+static const char *clicmd_registry_obj_name(struct cw_object *obj)
 {
-    struct opbx_clicmd *it = container_of(obj, struct opbx_clicmd, obj);
+    struct cw_clicmd *it = container_of(obj, struct cw_clicmd, obj);
     return it->summary;
 }
 
-static int clicmd_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int clicmd_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-    struct opbx_clicmd *clicmd_a = container_of(a, struct opbx_clicmd, obj);
-    struct opbx_clicmd *clicmd_b = container_of(b, struct opbx_clicmd, obj);
+    struct cw_clicmd *clicmd_a = container_of(a, struct cw_clicmd, obj);
+    struct cw_clicmd *clicmd_b = container_of(b, struct cw_clicmd, obj);
     int m, i;
 
     m = 0;
@@ -84,9 +84,9 @@ struct match_args {
     int exact;
 };
 
-static int clicmd_registry_obj_match(struct opbx_object *obj, const void *pattern)
+static int clicmd_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
-    struct opbx_clicmd *clicmd = container_of(obj, struct opbx_clicmd, obj);
+    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     const struct match_args *args = pattern;
     int m, i;
 
@@ -111,29 +111,29 @@ static int clicmd_registry_obj_match(struct opbx_object *obj, const void *patter
     return m;
 }
 
-struct opbx_registry clicmd_registry = {
+struct cw_registry clicmd_registry = {
     .name = "CLI Command",
     .obj_name = clicmd_registry_obj_name,
     .obj_cmp = clicmd_registry_obj_cmp,
     .obj_match = clicmd_registry_obj_match,
-    .lock = OPBX_MUTEX_INIT_VALUE,
+    .lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-static struct opbx_clicmd *find_cli(char *cmds[], int exact)
+static struct cw_clicmd *find_cli(char *cmds[], int exact)
 {
     struct match_args args = {
         .cmds = cmds,
         .exact = exact,
     };
-    struct opbx_object *obj;
+    struct cw_object *obj;
 
     for (args.ncmds = 0; cmds[args.ncmds]; args.ncmds++);
 
     for (; args.ncmds; args.ncmds--) {
-        obj = opbx_registry_find(&clicmd_registry, &args);
+        obj = cw_registry_find(&clicmd_registry, &args);
         if (obj) {
-            return container_of(obj, struct opbx_clicmd, obj);
+            return container_of(obj, struct cw_clicmd, obj);
         }
     }
     return NULL;
@@ -142,7 +142,7 @@ static struct opbx_clicmd *find_cli(char *cmds[], int exact)
 
 extern unsigned long global_fin, global_fout;
 
-void opbx_cli(int fd, char *fmt, ...)
+void cw_cli(int fd, char *fmt, ...)
 {
     char *stuff;
     int res = 0;
@@ -152,9 +152,9 @@ void opbx_cli(int fd, char *fmt, ...)
     res = vasprintf(&stuff, fmt, ap);
     va_end(ap);
     if (res == -1) {
-        opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
     } else {
-        opbx_carefulwrite(fd, stuff, strlen(stuff), 100);
+        cw_carefulwrite(fd, stuff, strlen(stuff), 100);
         free(stuff);
     }
 }
@@ -210,11 +210,11 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
             option_verbose = val;
     }
     if (oldval != option_verbose && option_verbose > 0)
-        opbx_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
+        cw_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
     else if (oldval > 0 && option_verbose > 0)
-        opbx_cli(fd, "Verbosity is at least %d\n", option_verbose);
+        cw_cli(fd, "Verbosity is at least %d\n", option_verbose);
     else if (oldval > 0 && option_verbose == 0)
-        opbx_cli(fd, "Verbosity is now OFF\n");
+        cw_cli(fd, "Verbosity is now OFF\n");
     return RESULT_SUCCESS;
 }
 
@@ -236,11 +236,11 @@ static int handle_set_debug(int fd, int argc, char *argv[])
             option_debug = val;
     }
     if (oldval != option_debug && option_debug > 0)
-        opbx_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
+        cw_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
     else if (oldval > 0 && option_debug > 0)
-        opbx_cli(fd, "Core debug is at least %d\n", option_debug);
+        cw_cli(fd, "Core debug is at least %d\n", option_debug);
     else if (oldval > 0 && option_debug == 0)
-        opbx_cli(fd, "Core debug is now OFF\n");
+        cw_cli(fd, "Core debug is now OFF\n");
     return RESULT_SUCCESS;
 }
 
@@ -342,26 +342,26 @@ static int handle_showuptime(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 
     time(&curtime);
-    if (opbx_startuptime) {
-        tmptime = curtime - opbx_startuptime;
+    if (cw_startuptime) {
+        tmptime = curtime - cw_startuptime;
         if (printsec) {
-            opbx_cli(fd, "System uptime: %lu\n",tmptime);
+            cw_cli(fd, "System uptime: %lu\n",tmptime);
         } else {
             timestr = format_uptimestr(tmptime);
             if (timestr) {
-                opbx_cli(fd, "System uptime: %s\n", timestr);
+                cw_cli(fd, "System uptime: %s\n", timestr);
                 free(timestr);
             }
         }
     }       
-    if (opbx_lastreloadtime) {
-        tmptime = curtime - opbx_lastreloadtime;
+    if (cw_lastreloadtime) {
+        tmptime = curtime - cw_lastreloadtime;
         if (printsec) {
-            opbx_cli(fd, "Last reload: %lu\n", tmptime);
+            cw_cli(fd, "Last reload: %lu\n", tmptime);
         } else {
             timestr = format_uptimestr(tmptime);
             if ((timestr) && (!printsec)) {
-                opbx_cli(fd, "Last reload: %s\n", timestr);
+                cw_cli(fd, "Last reload: %s\n", timestr);
                 free(timestr);
             } 
         }
@@ -373,7 +373,7 @@ static int handle_version(int fd, int argc, char *argv[])
 {
     if (argc != 2)
         return RESULT_SHOWUSAGE;
-    opbx_cli(fd, "%s\n", OPBX_VERSION_INFO);
+    cw_cli(fd, "%s\n", CW_VERSION_INFO);
     return RESULT_SUCCESS;
 }
 static int handle_chanlist(int fd, int argc, char *argv[])
@@ -384,8 +384,8 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
-    struct opbx_channel *c = NULL;
-    struct opbx_channel *bc = NULL;
+    struct cw_channel *c = NULL;
+    struct cw_channel *bc = NULL;
     char durbuf[10] = "-";
     char locbuf[40];
     char appdata[40];
@@ -405,7 +405,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 
     if (!concise  &&  !verbose)
     {
-        opbx_cli(fd,
+        cw_cli(fd,
                  FORMAT_STRING2,
                  "Channel",
                  "Location",
@@ -414,7 +414,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
     }
     else if (verbose)
     {
-        opbx_cli(fd,
+        cw_cli(fd,
                  VERBOSE_FORMAT_STRING2,
                  "Channel",
                  "Context",
@@ -427,12 +427,12 @@ static int handle_chanlist(int fd, int argc, char *argv[])
                  "Accountcode",
                  "BridgedTo");
     }
-    while ((c = opbx_channel_walk_locked(c)))
+    while ((c = cw_channel_walk_locked(c)))
     {
-        bc = opbx_bridged_channel(c);
-        if ((concise  ||  verbose)  &&  c->cdr  &&  !opbx_tvzero(c->cdr->start))
+        bc = cw_bridged_channel(c);
+        if ((concise  ||  verbose)  &&  c->cdr  &&  !cw_tvzero(c->cdr->start))
         {
-            duration = (int)(opbx_tvdiff_ms(opbx_tvnow(), c->cdr->start) / 1000);
+            duration = (int)(cw_tvdiff_ms(cw_tvnow(), c->cdr->start) / 1000);
             if (verbose)
             {
                 durh = duration / 3600;
@@ -451,38 +451,38 @@ static int handle_chanlist(int fd, int argc, char *argv[])
         }
         if (concise)
         {
-            opbx_cli(fd,
+            cw_cli(fd,
                      CONCISE_FORMAT_STRING,
                      c->name,
                      c->context,
                      c->exten,
                      c->priority,
-                     opbx_state2str(c->_state),
+                     cw_state2str(c->_state),
                      c->appl  ?  c->appl  :  "(None)",
-                     (c->cid.cid_num  &&  !opbx_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
-                     (c->accountcode  &&  !opbx_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
+                     (c->cid.cid_num  &&  !cw_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
+                     (c->accountcode  &&  !cw_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
                      c->amaflags,
                      durbuf,
                      bc  ?  bc->name  :  "(None)");
         }
         else if (verbose)
         {
-            opbx_cli(fd,
+            cw_cli(fd,
                      VERBOSE_FORMAT_STRING,
                      c->name,
                      c->context,
                      c->exten,
                      c->priority,
-                     opbx_state2str(c->_state),
+                     cw_state2str(c->_state),
                      c->appl  ?  c->appl : "(None)",
-                     (c->cid.cid_num  &&  !opbx_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
+                     (c->cid.cid_num  &&  !cw_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
                      durbuf,
-                     (c->accountcode  &&  !opbx_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
+                     (c->accountcode  &&  !cw_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
                      bc  ?  bc->name  :  "(None)");
         }
         else
         {
-            if (!opbx_strlen_zero(c->context)  &&  !opbx_strlen_zero(c->exten))
+            if (!cw_strlen_zero(c->context)  &&  !cw_strlen_zero(c->exten))
                 snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
             else
                 strcpy(locbuf, "(None)");
@@ -490,26 +490,26 @@ static int handle_chanlist(int fd, int argc, char *argv[])
                 snprintf(appdata, sizeof(appdata), "%s", c->appl);
             else
                 strcpy(appdata, "(None)");
-            opbx_cli(fd, FORMAT_STRING, c->name, locbuf, opbx_state2str(c->_state), appdata);
+            cw_cli(fd, FORMAT_STRING, c->name, locbuf, cw_state2str(c->_state), appdata);
         }
         numchans++;
-        opbx_mutex_unlock(&c->lock);
+        cw_mutex_unlock(&c->lock);
     }
     if (!concise)
     {
-        opbx_cli(fd, "%d active channel%s\n", numchans, (numchans != 1)  ?  "s"  :  "");
+        cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1)  ?  "s"  :  "");
         if (option_maxcalls)
         {
-            opbx_cli(fd,
+            cw_cli(fd,
                      "%d of %d max active call%s (%5.2f%% of capacity)\n",
-                     opbx_active_calls(),
+                     cw_active_calls(),
                      option_maxcalls,
-                     (opbx_active_calls() != 1)  ?  "s"  :  "",
-                     ((float) opbx_active_calls() / (float) option_maxcalls)*100.0);
+                     (cw_active_calls() != 1)  ?  "s"  :  "",
+                     ((float) cw_active_calls() / (float) option_maxcalls)*100.0);
         }
         else
         {
-            opbx_cli(fd, "%d active call%s\n", opbx_active_calls(), (opbx_active_calls() != 1)  ?  "s"  :  "");
+            cw_cli(fd, "%d active call%s\n", cw_active_calls(), (cw_active_calls() != 1)  ?  "s"  :  "");
         }
     }
     return RESULT_SUCCESS;
@@ -555,16 +555,16 @@ static char commandmatchesarray_help[] =
 
 static int handle_softhangup(int fd, int argc, char *argv[])
 {
-    struct opbx_channel *c=NULL;
+    struct cw_channel *c=NULL;
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    c = opbx_get_channel_by_name_locked(argv[2]);
+    c = cw_get_channel_by_name_locked(argv[2]);
     if (c) {
-        opbx_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
-        opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
-        opbx_mutex_unlock(&c->lock);
+        cw_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
+        cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
+        cw_mutex_unlock(&c->lock);
     } else
-        opbx_cli(fd, "%s is not a known channel\n", argv[2]);
+        cw_cli(fd, "%s is not a known channel\n", argv[2]);
     return RESULT_SUCCESS;
 }
 
@@ -582,7 +582,7 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
     if (!buf)
         return RESULT_FAILURE;
     buf[len] = '\0';
-    matches = opbx_cli_completion_matches(argv[2], argv[3]);
+    matches = cw_cli_completion_matches(argv[2], argv[3]);
     if (matches) {
         for (x=0; matches[x]; x++) {
 #if 0
@@ -609,10 +609,10 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #endif
     
     if (buf) {
-        opbx_cli(fd, "%s%s",buf, OPBX_CLI_COMPLETE_EOF);
+        cw_cli(fd, "%s%s",buf, CW_CLI_COMPLETE_EOF);
         free(buf);
     } else
-        opbx_cli(fd, "NULL\n");
+        cw_cli(fd, "NULL\n");
 
     return RESULT_SUCCESS;
 }
@@ -626,12 +626,12 @@ static int handle_commandnummatches(int fd, int argc, char *argv[])
     if (argc != 4)
         return RESULT_SHOWUSAGE;
 
-    matches = opbx_cli_generatornummatches(argv[2], argv[3]);
+    matches = cw_cli_generatornummatches(argv[2], argv[3]);
 
 #if 0
     printf("Search for '%s' %s got '%d'\n", argv[2], argv[3], matches);
 #endif
-    opbx_cli(fd, "%d", matches);
+    cw_cli(fd, "%d", matches);
 
     return RESULT_SUCCESS;
 }
@@ -644,15 +644,15 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 #endif  
     if (argc != 5)
         return RESULT_SHOWUSAGE;
-    buf = opbx_cli_generator(argv[2], argv[3], atoi(argv[4]));
+    buf = cw_cli_generator(argv[2], argv[3], atoi(argv[4]));
 #if 0
     printf("Search for '%s' %s %d got '%s'\n", argv[2], argv[3], atoi(argv[4]), buf);
 #endif  
     if (buf) {
-        opbx_cli(fd, buf);
+        cw_cli(fd, buf);
         free(buf);
     } else
-        opbx_cli(fd, "NULL\n");
+        cw_cli(fd, "NULL\n");
     return RESULT_SUCCESS;
 }
 
@@ -667,11 +667,11 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
     option_debug = newlevel;
     if (argc == 4) {
         filename = argv[3];
-        opbx_copy_string(debug_filename, filename, sizeof(debug_filename));
+        cw_copy_string(debug_filename, filename, sizeof(debug_filename));
     } else {
         debug_filename[0] = '\0';
     }
-    opbx_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
+    cw_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
     return RESULT_SUCCESS;
 }
 
@@ -679,7 +679,7 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 /* XXX todo: merge next two functions!!! */
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
-    struct opbx_channel *c=NULL;
+    struct cw_channel *c=NULL;
     int is_all;
     if (argc != 3)
         return RESULT_SHOWUSAGE;
@@ -688,30 +688,30 @@ static int handle_debugchan(int fd, int argc, char *argv[])
     if (is_all) {
         global_fin |= DEBUGCHAN_FLAG;
         global_fout |= DEBUGCHAN_FLAG;
-        c = opbx_channel_walk_locked(NULL);
+        c = cw_channel_walk_locked(NULL);
     } else {
-        c = opbx_get_channel_by_name_locked(argv[2]);
+        c = cw_get_channel_by_name_locked(argv[2]);
         if (c == NULL)
-            opbx_cli(fd, "No such channel %s\n", argv[2]);
+            cw_cli(fd, "No such channel %s\n", argv[2]);
     }
     while(c) {
         if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
             c->fin |= DEBUGCHAN_FLAG;
             c->fout |= DEBUGCHAN_FLAG;
-            opbx_cli(fd, "Debugging enabled on channel %s\n", c->name);
+            cw_cli(fd, "Debugging enabled on channel %s\n", c->name);
         }
-        opbx_mutex_unlock(&c->lock);
+        cw_mutex_unlock(&c->lock);
         if (!is_all)
             break;
-        c = opbx_channel_walk_locked(c);
+        c = cw_channel_walk_locked(c);
     }
-    opbx_cli(fd, "Debugging on new channels is enabled\n");
+    cw_cli(fd, "Debugging on new channels is enabled\n");
     return RESULT_SUCCESS;
 }
 
 static int handle_nodebugchan(int fd, int argc, char *argv[])
 {
-    struct opbx_channel *c=NULL;
+    struct cw_channel *c=NULL;
     int is_all;
     if (argc != 4)
         return RESULT_SHOWUSAGE;
@@ -719,24 +719,24 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
     if (is_all) {
         global_fin &= ~DEBUGCHAN_FLAG;
         global_fout &= ~DEBUGCHAN_FLAG;
-        c = opbx_channel_walk_locked(NULL);
+        c = cw_channel_walk_locked(NULL);
     } else {
-        c = opbx_get_channel_by_name_locked(argv[3]);
+        c = cw_get_channel_by_name_locked(argv[3]);
         if (c == NULL)
-            opbx_cli(fd, "No such channel %s\n", argv[3]);
+            cw_cli(fd, "No such channel %s\n", argv[3]);
     }
     while(c) {
         if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
             c->fin &= ~DEBUGCHAN_FLAG;
             c->fout &= ~DEBUGCHAN_FLAG;
-            opbx_cli(fd, "Debugging disabled on channel %s\n", c->name);
+            cw_cli(fd, "Debugging disabled on channel %s\n", c->name);
         }
-        opbx_mutex_unlock(&c->lock);
+        cw_mutex_unlock(&c->lock);
         if (!is_all)
             break;
-        c = opbx_channel_walk_locked(c);
+        c = cw_channel_walk_locked(c);
     }
-    opbx_cli(fd, "Debugging on new channels is disabled\n");
+    cw_cli(fd, "Debugging on new channels is disabled\n");
     return RESULT_SUCCESS;
 }
         
@@ -744,7 +744,7 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 
 static int handle_showchan(int fd, int argc, char *argv[])
 {
-    struct opbx_channel *c=NULL;
+    struct cw_channel *c=NULL;
     struct timeval now;
     char buf[2048];
     char cdrtime[256];
@@ -753,10 +753,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
     
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    now = opbx_tvnow();
-    c = opbx_get_channel_by_name_locked(argv[2]);
+    now = cw_tvnow();
+    c = cw_get_channel_by_name_locked(argv[2]);
     if (!c) {
-        opbx_cli(fd, "%s is not a known channel\n", argv[2]);
+        cw_cli(fd, "%s is not a known channel\n", argv[2]);
         return RESULT_SUCCESS;
     }
     if(c->cdr) {
@@ -767,7 +767,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
         snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
     } else
         strcpy(cdrtime, "N/A");
-    opbx_cli(fd, 
+    cw_cli(fd, 
         " -- General --\n"
         "           Name: %s\n"
         "           Type: %s\n"
@@ -806,10 +806,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
         c->name, c->type, c->uniqueid,
         (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
         (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-        (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), opbx_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+        (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), cw_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
         c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
         c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-        cdrtime, c->_bridge ? c->_bridge->name : "<none>", opbx_bridged_channel(c) ? opbx_bridged_channel(c)->name : "<none>", 
+        cdrtime, c->_bridge ? c->_bridge->name : "<none>", cw_bridged_channel(c) ? cw_bridged_channel(c)->name : "<none>", 
         c->jb.conf.impl,
         c->jb.conf.flags,
         c->jb.conf.max_size,
@@ -818,16 +818,16 @@ static int handle_showchan(int fd, int argc, char *argv[])
         c->jb.flags,
         c->context, c->exten, c->priority, (int)c->callgroup, 
         (int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-        (opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"),
+        (cw_test_flag(c, CW_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"),
         c->t38_status
         );
     
     if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-        opbx_cli(fd,"      Variables:\n%s\n",buf);
-    if(c->cdr && opbx_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
-        opbx_cli(fd,"  CDR Variables:\n%s\n",buf);
+        cw_cli(fd,"      Variables:\n%s\n",buf);
+    if(c->cdr && cw_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
+        cw_cli(fd,"  CDR Variables:\n%s\n",buf);
     
-    opbx_mutex_unlock(&c->lock);
+    cw_mutex_unlock(&c->lock);
     return RESULT_SUCCESS;
 }
 
@@ -849,21 +849,21 @@ static char *complete_show_channels(char *line, char *word, int pos, int state)
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
-    struct opbx_channel *c = NULL;
+    struct cw_channel *c = NULL;
     int which=0;
     char *ret = NULL;
 
     if (pos != rpos)
         return NULL;
-    while ( (c = opbx_channel_walk_locked(c)) != NULL) {
+    while ( (c = cw_channel_walk_locked(c)) != NULL) {
         if (!strncasecmp(word, c->name, strlen(word))) {
             if (++which > state) {
                 ret = strdup(c->name);
-                opbx_mutex_unlock(&c->lock);
+                cw_mutex_unlock(&c->lock);
                 break;
             }
         }
-        opbx_mutex_unlock(&c->lock);
+        cw_mutex_unlock(&c->lock);
     }
     return ret;
 }
@@ -881,7 +881,7 @@ static char *complete_ch_4(char *line, char *word, int pos, int state)
 
 static int handle_help(int fd, int argc, char *argv[]);
 
-static struct opbx_clicmd builtins[] = {
+static struct cw_clicmd builtins[] = {
     {
         .cmda = { "_command", "complete", NULL },
         .handler = handle_commandcomplete,
@@ -987,25 +987,25 @@ static void join(char *dest, size_t destsize, char *w[], int tws)
             strncat(dest, " ", destsize - strlen(dest) - 1);
         strncat(dest, w[x], destsize - strlen(dest) - 1);
     }
-    if (tws && !opbx_strlen_zero(dest))
+    if (tws && !cw_strlen_zero(dest))
         strncat(dest, " ", destsize - strlen(dest) - 1);
 }
 
 static char *find_best(char *argv[])
 {
     static char cmdline[80];
-    struct opbx_clicmd *clicmd;
+    struct cw_clicmd *clicmd;
     int x;
 
     /* See how close we get, then print the  */
-    char *myargv[OPBX_MAX_CMD_LEN];
-    for (x=0;x<OPBX_MAX_CMD_LEN;x++)
+    char *myargv[CW_MAX_CMD_LEN];
+    for (x=0;x<CW_MAX_CMD_LEN;x++)
         myargv[x]=NULL;
     for (x=0;argv[x];x++) {
         myargv[x] = argv[x];
         if (!(clicmd = find_cli(myargv, -1)))
             break;
-        opbx_object_put(clicmd);
+        cw_object_put(clicmd);
     }
     join(cmdline, sizeof(cmdline), myargv, 0);
     return cmdline;
@@ -1018,10 +1018,10 @@ struct help_workhorse_args {
     int match;
 };
 
-static int help_workhorse_one(struct opbx_object *obj, void *data)
+static int help_workhorse_one(struct cw_object *obj, void *data)
 {
     char fullcmd[80];
-    struct opbx_clicmd *clicmd = container_of(obj, struct opbx_clicmd, obj);
+    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct help_workhorse_args *args = data;
 
     /* Hide commands that start with '_' */
@@ -1029,7 +1029,7 @@ static int help_workhorse_one(struct opbx_object *obj, void *data)
         join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
 
         if (!args->match || !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr)))
-            opbx_cli(args->fd, "%25.25s  %s\n", fullcmd, clicmd->summary);
+            cw_cli(args->fd, "%25.25s  %s\n", fullcmd, clicmd->summary);
     }
 
     return 0;
@@ -1048,12 +1048,12 @@ static int help_workhorse(int fd, char *match[])
         join(args.matchstr, sizeof(args.matchstr), match, 0);
     }
 
-    opbx_registry_iterate(&clicmd_registry, help_workhorse_one, &args);
+    cw_registry_iterate(&clicmd_registry, help_workhorse_one, &args);
     return 0;
 }
 
 static int handle_help(int fd, int argc, char *argv[]) {
-    struct opbx_clicmd *clicmd;
+    struct cw_clicmd *clicmd;
     int ret;
 
     ret = RESULT_SHOWUSAGE;
@@ -1064,17 +1064,17 @@ static int handle_help(int fd, int argc, char *argv[]) {
         clicmd = find_cli(argv + 1, 1);
         if (clicmd) {
             if (clicmd->usage)
-                opbx_cli(fd, "%s", clicmd->usage);
+                cw_cli(fd, "%s", clicmd->usage);
             else
-                opbx_cli(fd, "No help available\n");
-            opbx_object_put(clicmd);
+                cw_cli(fd, "No help available\n");
+            cw_object_put(clicmd);
         } else {
             clicmd = find_cli(argv + 1, -1);
             if (clicmd) {
                 ret = help_workhorse(fd, argv + 1);
-                opbx_object_put(clicmd);
+                cw_object_put(clicmd);
             } else
-                opbx_cli(fd, "No such command\n");
+                cw_cli(fd, "No such command\n");
         }
     } else
         ret = help_workhorse(fd, NULL);
@@ -1101,7 +1101,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
             if (quoted & whitespace) {
                 /* If we're starting a quoted string, coming off white space, start a new argument */
                 if (x >= (max - 1)) {
-                    opbx_log(OPBX_LOG_WARNING, "Too many arguments, truncating\n");
+                    cw_log(CW_LOG_WARNING, "Too many arguments, truncating\n");
                     break;
                 }
                 argv[x++] = cur;
@@ -1123,7 +1123,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
             if (whitespace) {
                 /* If we are coming out of whitespace, start a new argument */
                 if (x >= (max - 1)) {
-                    opbx_log(OPBX_LOG_WARNING, "Too many arguments, truncating\n");
+                    cw_log(CW_LOG_WARNING, "Too many arguments, truncating\n");
                     break;
                 }
                 argv[x++] = cur;
@@ -1143,12 +1143,12 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
 }
 
 /* This returns the number of unique matches for the generator */
-int opbx_cli_generatornummatches(char *text, char *word)
+int cw_cli_generatornummatches(char *text, char *word)
 {
     int matches = 0, i = 0;
     char *buf = NULL, *oldbuf = NULL;
 
-    while ( (buf = opbx_cli_generator(text, word, i++)) ) {
+    while ( (buf = cw_cli_generator(text, word, i++)) ) {
         if (!oldbuf || strcmp(buf,oldbuf))
             matches++;
         if (oldbuf)
@@ -1160,14 +1160,14 @@ int opbx_cli_generatornummatches(char *text, char *word)
     return matches;
 }
 
-char **opbx_cli_completion_matches(char *text, char *word)
+char **cw_cli_completion_matches(char *text, char *word)
 {
     char **match_list = NULL, *retstr, *prevstr;
     size_t match_list_len, max_equal, which, i;
     int matches = 0;
 
     match_list_len = 1;
-    while ((retstr = opbx_cli_generator(text, word, matches)) != NULL) {
+    while ((retstr = cw_cli_generator(text, word, matches)) != NULL) {
         if (matches + 1 >= match_list_len) {
             match_list_len <<= 1;
             match_list = realloc(match_list, match_list_len * sizeof(char *));
@@ -1201,7 +1201,7 @@ char **opbx_cli_completion_matches(char *text, char *word)
 
 
 struct cli_generator_args {
-    char *argv[OPBX_MAX_ARGS];
+    char *argv[CW_MAX_ARGS];
     char matchstr[80];
     char *word;
     char *res;
@@ -1211,10 +1211,10 @@ struct cli_generator_args {
     int matchnum;
 };
 
-static int cli_generator_one(struct opbx_object *obj, void *data)
+static int cli_generator_one(struct cw_object *obj, void *data)
 {
     char fullcmd[80] = "";
-    struct opbx_clicmd *clicmd = container_of(obj, struct opbx_clicmd, obj);
+    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct cli_generator_args *args = data;
     char *res;
 
@@ -1223,7 +1223,7 @@ static int cli_generator_one(struct opbx_object *obj, void *data)
     if ((fullcmd[0] != '_') && !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr))) {
         /* We contain the first part of one or more commands */
         /* Now, what we're supposed to return is the next word... */
-        if (!opbx_strlen_zero(args->word) && args->argc > 0)
+        if (!cw_strlen_zero(args->word) && args->argc > 0)
             res = clicmd->cmda[args->argc - 1];
         else
             res = clicmd->cmda[args->argc];
@@ -1240,7 +1240,7 @@ static int cli_generator_one(struct opbx_object *obj, void *data)
     if (clicmd->generator && !strncasecmp(args->matchstr, fullcmd, strlen(fullcmd)) && (args->matchstr[strlen(fullcmd)] < 33)) {
         /* We have a command in its entirity within us -- theoretically only one
            command can have this occur */
-        args->res = clicmd->generator(args->matchstr, args->word, (!opbx_strlen_zero(args->word) ? args->argc - 1 : args->argc), args->state);
+        args->res = clicmd->generator(args->matchstr, args->word, (!cw_strlen_zero(args->word) ? args->argc - 1 : args->argc), args->state);
         if (args->res)
             return 1;
     }
@@ -1248,7 +1248,7 @@ static int cli_generator_one(struct opbx_object *obj, void *data)
     return 0;
 }
 
-char *opbx_cli_generator(char *text, char *word, int state)
+char *cw_cli_generator(char *text, char *word, int state)
 {
     struct cli_generator_args args = {
         .word = word,
@@ -1260,7 +1260,7 @@ char *opbx_cli_generator(char *text, char *word, int state)
     if ((dup = parse_args(text, &args.argc, args.argv, arraysize(args.argv), &args.tws))) {
         join(args.matchstr, sizeof(args.matchstr), args.argv, args.tws);
         args.matchnum = 0;
-        opbx_registry_iterate(&clicmd_registry, cli_generator_one, &args);
+        cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
         free(dup);
     }
 
@@ -1268,10 +1268,10 @@ char *opbx_cli_generator(char *text, char *word, int state)
 }
 
 
-int opbx_cli_command(int fd, char *s)
+int cw_cli_command(int fd, char *s)
 {
-    char *argv[OPBX_MAX_ARGS];
-    struct opbx_clicmd *clicmd;
+    char *argv[CW_MAX_ARGS];
+    struct cw_clicmd *clicmd;
     int x;
     char *dup;
     int tws;
@@ -1283,23 +1283,23 @@ int opbx_cli_command(int fd, char *s)
             if (clicmd) {
                 switch(clicmd->handler(fd, x, argv)) {
                 case RESULT_SHOWUSAGE:
-                    opbx_cli(fd, "%s", clicmd->usage);
+                    cw_cli(fd, "%s", clicmd->usage);
                     break;
                 }
-                opbx_object_put(clicmd);
+                cw_object_put(clicmd);
             } else 
-                opbx_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+                cw_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
         }
         free(dup);
     } else {
-        opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+        cw_log(CW_LOG_WARNING, "Out of memory\n");
         return -1;
     }
     return 0;
 }
 
 
-void opbx_cli_init(void)
+void cw_cli_init(void)
 {
-    opbx_cli_register_multiple(builtins, arraysize(builtins));
+    cw_cli_register_multiple(builtins, arraysize(builtins));
 }

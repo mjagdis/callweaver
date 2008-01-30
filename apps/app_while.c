@@ -75,18 +75,18 @@ static const char endwhile_desc[] =
 static const char tdesc[] = "While Loops and Conditional Execution";
 
 
-static int execif_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int execif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
 
 	if (argc < 2 || !argv[0][0] || !argv[1][0])
-		return opbx_function_syntax(execif_syntax);
+		return cw_function_syntax(execif_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	if (opbx_true(argv[0]))
-		res = opbx_function_exec(chan, opbx_hash_app_name(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
+	if (cw_true(argv[0]))
+		res = cw_function_exec(chan, cw_hash_app_name(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
 		
 	ALL_DONE(u,res);
 }
@@ -94,31 +94,31 @@ static int execif_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 #define VAR_SIZE 64
 
 
-static char *get_index(struct opbx_channel *chan, const char *prefix, int index) {
+static char *get_index(struct cw_channel *chan, const char *prefix, int index) {
 	char varname[VAR_SIZE];
 
 	snprintf(varname, VAR_SIZE, "%s_%d", prefix, index);
 	return pbx_builtin_getvar_helper(chan, varname);
 }
 
-static struct opbx_exten *find_matching_priority(struct opbx_context *c, const char *exten, int priority, const char *callerid)
+static struct cw_exten *find_matching_priority(struct cw_context *c, const char *exten, int priority, const char *callerid)
 {
-	struct opbx_exten *e;
-	struct opbx_include *i;
-	struct opbx_context *c2;
-	struct opbx_exten *p;
+	struct cw_exten *e;
+	struct cw_include *i;
+	struct cw_context *c2;
+	struct cw_exten *p;
     int hit;
 
-	for (e = opbx_walk_context_extensions(c, NULL);  e;  e = opbx_walk_context_extensions(c, e))
+	for (e = cw_walk_context_extensions(c, NULL);  e;  e = cw_walk_context_extensions(c, e))
     {
-        switch (opbx_extension_pattern_match(exten, opbx_get_extension_name(e)))
+        switch (cw_extension_pattern_match(exten, cw_get_extension_name(e)))
         {
         case EXTENSION_MATCH_EXACT:
         case EXTENSION_MATCH_STRETCHABLE:
         case EXTENSION_MATCH_POSSIBLE:
-			if (opbx_get_extension_matchcid(e))
+			if (cw_get_extension_matchcid(e))
             {
-                switch (opbx_extension_pattern_match(callerid, opbx_get_extension_cidmatch(e)))
+                switch (cw_extension_pattern_match(callerid, cw_get_extension_cidmatch(e)))
                 {
                 case EXTENSION_MATCH_EXACT:
                 case EXTENSION_MATCH_STRETCHABLE:
@@ -137,9 +137,9 @@ static struct opbx_exten *find_matching_priority(struct opbx_context *c, const c
 			if (hit)
             {
 				/* This is the matching extension we want */
-				for (p = opbx_walk_extension_priorities(e, NULL);  p;  p = opbx_walk_extension_priorities(e, p))
+				for (p = cw_walk_extension_priorities(e, NULL);  p;  p = cw_walk_extension_priorities(e, p))
                 {
-					if (priority != opbx_get_extension_priority(p))
+					if (priority != cw_get_extension_priority(p))
 						continue;
 					return p;
 				}
@@ -149,11 +149,11 @@ static struct opbx_exten *find_matching_priority(struct opbx_context *c, const c
 	}
 
 	/* No match; run through includes */
-	for (i = opbx_walk_context_includes(c, NULL);  i;  i = opbx_walk_context_includes(c, i))
+	for (i = cw_walk_context_includes(c, NULL);  i;  i = cw_walk_context_includes(c, i))
     {
-		for (c2 = opbx_walk_contexts(NULL);  c2;  c2 = opbx_walk_contexts(c2))
+		for (c2 = cw_walk_contexts(NULL);  c2;  c2 = cw_walk_contexts(c2))
         {
-			if (!strcmp(opbx_get_context_name(c2), opbx_get_include_name(i)))
+			if (!strcmp(cw_get_context_name(c2), cw_get_include_name(i)))
             {
 				if ((e = find_matching_priority(c2, exten, priority, callerid)))
 					return e;
@@ -163,29 +163,29 @@ static struct opbx_exten *find_matching_priority(struct opbx_context *c, const c
 	return NULL;
 }
 
-static int find_matching_endwhile(struct opbx_channel *chan)
+static int find_matching_endwhile(struct cw_channel *chan)
 {
-	struct opbx_context *c;
+	struct cw_context *c;
 	int res = -1;
 
-	if (opbx_lock_contexts())
+	if (cw_lock_contexts())
     {
-		opbx_log(OPBX_LOG_ERROR, "Failed to lock contexts list\n");
+		cw_log(CW_LOG_ERROR, "Failed to lock contexts list\n");
 		return -1;
 	}
 
-	for (c=opbx_walk_contexts(NULL); c; c=opbx_walk_contexts(c)) {
-		struct opbx_exten *e;
+	for (c=cw_walk_contexts(NULL); c; c=cw_walk_contexts(c)) {
+		struct cw_exten *e;
 
-		if (!opbx_lock_context(c)) {
-			if (!strcmp(opbx_get_context_name(c), chan->context)) {
+		if (!cw_lock_context(c)) {
+			if (!strcmp(cw_get_context_name(c), chan->context)) {
 				/* This is the matching context we want */
 				int cur_priority = chan->priority + 1, level=1;
 
 				for (e = find_matching_priority(c, chan->exten, cur_priority, chan->cid.cid_num); e; e = find_matching_priority(c, chan->exten, ++cur_priority, chan->cid.cid_num)) {
-					if (!strcasecmp(opbx_get_extension_app(e), "WHILE")) {
+					if (!strcasecmp(cw_get_extension_app(e), "WHILE")) {
 						level++;
-					} else if (!strcasecmp(opbx_get_extension_app(e), "ENDWHILE")) {
+					} else if (!strcasecmp(cw_get_extension_app(e), "ENDWHILE")) {
 						level--;
 					}
 
@@ -195,17 +195,17 @@ static int find_matching_endwhile(struct opbx_channel *chan)
 					}
 				}
 			}
-			opbx_unlock_context(c);
+			cw_unlock_context(c);
 			if (res > 0) {
 				break;
 			}
 		}
 	}
-	opbx_unlock_contexts();
+	cw_unlock_contexts();
 	return res;
 }
 
-static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max, int end)
+static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max, int end)
 {
 	int res=0;
 	struct localuser *u;
@@ -219,7 +219,7 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	char used_index[VAR_SIZE] = "0", new_index[VAR_SIZE] = "0";
 
 	if (!end && argc != 1)
-		return opbx_function_syntax(while_syntax);
+		return cw_function_syntax(while_syntax);
 
 	if (!chan) {
 		/* huh ? */
@@ -231,7 +231,7 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	/* dont want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
 	*/
-	if (opbx_waitfordigit(chan,1) < 0)
+	if (cw_waitfordigit(chan,1) < 0)
 		ALL_DONE(u,-1);
 
 
@@ -249,7 +249,7 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	my_name = alloca(size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
-	if (opbx_strlen_zero(label)) {
+	if (cw_strlen_zero(label)) {
 		if (end) 
 			label = used_index;
 		else if (!(label = pbx_builtin_getvar_helper(chan, my_name))) {
@@ -267,22 +267,22 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	}
 	
 
-	if (!end && !opbx_true(argv[0])) {
+	if (!end && !cw_true(argv[0])) {
 		/* Condition Met (clean up helper vars) */
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
 		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
-			opbx_parseable_goto(chan, goto_str);
+			cw_parseable_goto(chan, goto_str);
 		} else {
 			int pri = find_matching_endwhile(chan);
 			if (pri > 0) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Jumping to priority %d\n", pri);
+					cw_verbose(VERBOSE_PREFIX_3 "Jumping to priority %d\n", pri);
 				chan->priority = pri;
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
+				cw_log(CW_LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
 			}
 		}
 		ALL_DONE(u,res);
@@ -304,7 +304,7 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
-		opbx_parseable_goto(chan, while_pri);
+		cw_parseable_goto(chan, while_pri);
 	}
 	
 
@@ -313,11 +313,11 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	ALL_DONE(u, res);
 }
 
-static int while_start_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+static int while_start_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) {
 	return _while_exec(chan, argc, argv, NULL, 0, 0);
 }
 
-static int while_end_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+static int while_end_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) {
 	return _while_exec(chan, argc, argv, NULL, 0, 1);
 }
 
@@ -326,17 +326,17 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(while_app);
-	res |= opbx_unregister_function(execif_app);
-	res |= opbx_unregister_function(endwhile_app);
+	res |= cw_unregister_function(while_app);
+	res |= cw_unregister_function(execif_app);
+	res |= cw_unregister_function(endwhile_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	while_app = opbx_register_function(while_name, while_start_exec, while_synopsis, while_syntax, while_desc);
-	execif_app = opbx_register_function(execif_name, execif_exec, execif_synopsis, execif_syntax, execif_desc);
-	endwhile_app = opbx_register_function(endwhile_name, while_end_exec, endwhile_synopsis, endwhile_syntax, endwhile_desc);
+	while_app = cw_register_function(while_name, while_start_exec, while_synopsis, while_syntax, while_desc);
+	execif_app = cw_register_function(execif_name, execif_exec, execif_synopsis, execif_syntax, execif_desc);
+	endwhile_app = cw_register_function(endwhile_name, while_end_exec, endwhile_synopsis, endwhile_syntax, endwhile_desc);
 	return 0;
 }
 

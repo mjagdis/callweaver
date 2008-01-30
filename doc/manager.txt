@@ -215,14 +215,14 @@ Some standard AMI headers:
  Events: <eventmask>		-- Eventmask filter ("on", "off", "system", "call", "log")
  Exten:				-- Extension (Redirect command)
  Extension:			-- Extension (Status)
- Family: <string>		-- opbxdb key family
+ Family: <string>		-- cwdb key family
  File: <filename>		-- Filename (monitor)
  Format: <format>		-- Format of sound file (monitor)
  From: <time>			--  Parking time (ParkedCall event)
  Hint:				-- Extension hint
  Incominglimit:			-- SIP Peer incoming limit
  Key:
- Key:				-- opbxdb Database key
+ Key:				-- cwdb Database key
  LastApplication:		-- Last application executed (cdr_manager)
  LastCall: <num>		-- Last call in queue
  LastData:			-- Data for last application (cdr_manager)
@@ -287,7 +287,7 @@ Some standard AMI headers:
  Uniqueid2:			-- Channel 2 Unique ID (Link event)
  User:				-- Username (SIP registry)
  UserField:			-- CDR userfield (cdr_manager)
- Val:				-- Value to set/read in opbxdb
+ Val:				-- Value to set/read in cwdb
  Variable:			-- Variable AND value to set (multiple separated with | in Originate)
  Variable: <name>		-- For channel variables
  Value: <value>			-- Value to set

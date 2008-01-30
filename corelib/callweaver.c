@@ -29,7 +29,7 @@
  *  Copyright (C) 1999 - 2005, Digium, Inc.
  * Asterisk is a trade mark registered by Digium, Inc.
  *
- * Also see \ref opbxCREDITS
+ * Also see \ref cwCREDITS
  *
  * \section license License
  * See http://www.callweaver.org for more information about
@@ -147,7 +147,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define PF_LOCAL PF_UNIX
 #endif
 
-#define OPBX_MAX_CONNECTS 128
+#define CW_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
 
@@ -175,112 +175,112 @@ double option_maxload = 0.0;
 int option_dontwarn = 0;
 int option_priority_jumping = 1;
 int fully_booted = 0;
-char record_cache_dir[OPBX_CACHE_DIR_LEN] = opbxtmpdir_default;
-char debug_filename[OPBX_FILENAME_MAX] = "";
+char record_cache_dir[CW_CACHE_DIR_LEN] = cwtmpdir_default;
+char debug_filename[CW_FILENAME_MAX] = "";
 
-int opbx_mainpid;
+int cw_mainpid;
 struct console {
 	int fd;				/*!< File descriptor */
 	int p[2];			/*!< Pipe */
 	pthread_t t;			/*!< Thread of handler */
 };
 
-time_t opbx_startuptime;
-time_t opbx_lastreloadtime;
+time_t cw_startuptime;
+time_t cw_lastreloadtime;
 
-struct console consoles[OPBX_MAX_CONNECTS];
+struct console consoles[CW_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_LOG_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_OGI_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_DB[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_DB_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_PID[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_SOCKET[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_RUN_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_RUN_USER[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_RUN_GROUP[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
-char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
-char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "callweaver.ctl";
-char opbx_config_OPBX_SYSTEM_NAME[20] = "";
-char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD[20] = "";
+char cw_config_CW_CONFIG_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_CONFIG_FILE[CW_CONFIG_MAX_PATH];
+char cw_config_CW_SPOOL_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_MONITOR_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_VAR_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_LOG_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_OGI_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_DB[CW_CONFIG_MAX_PATH];
+char cw_config_CW_DB_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_KEY_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_PID[CW_CONFIG_MAX_PATH];
+char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
+char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_RUN_USER[CW_CONFIG_MAX_PATH];
+char cw_config_CW_RUN_GROUP[CW_CONFIG_MAX_PATH];
+char cw_config_CW_CTL_PERMISSIONS[CW_CONFIG_MAX_PATH];
+char cw_config_CW_CTL_OWNER[CW_CONFIG_MAX_PATH] = "\0";
+char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH] = "\0";
+char cw_config_CW_CTL[CW_CONFIG_MAX_PATH] = "callweaver.ctl";
+char cw_config_CW_SYSTEM_NAME[20] = "";
+char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
+char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20] = "";
 
 static char *_argv[256];
 static int restart = 0;
-static pthread_t consolethread = OPBX_PTHREADT_NULL;
+static pthread_t consolethread = CW_PTHREADT_NULL;
 
 static char random_state[256];
 
-static pthread_t lthread = OPBX_PTHREADT_NULL;
+static pthread_t lthread = CW_PTHREADT_NULL;
 
 
-static const char *atexit_registry_obj_name(struct opbx_object *obj)
+static const char *atexit_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_atexit *it = container_of(obj, struct opbx_atexit, obj);
+	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
 	return it->name;
 }
 
-static int atexit_registry_obj_match(struct opbx_object *obj, const void *pattern)
+static int atexit_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
-	struct opbx_atexit *it = container_of(obj, struct opbx_atexit, obj);
+	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
 	return (it->function == pattern);
 }
 
-struct opbx_registry atexit_registry = {
+struct cw_registry atexit_registry = {
 	.name = "At Exit",
 	.obj_name = atexit_registry_obj_name,
 	.obj_match = atexit_registry_obj_match,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
-static int opbx_run_atexit_one(struct opbx_object *obj, void *data)
+static int cw_run_atexit_one(struct cw_object *obj, void *data)
 {
-	struct opbx_atexit *it = container_of(obj, struct opbx_atexit, obj);
+	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "atexit: run \"%s\"\n", it->name);
+		cw_verbose(VERBOSE_PREFIX_3 "atexit: run \"%s\"\n", it->name);
 	/* Get the module now so it's pinned (atexits don't hold counted refs
 	 * while registered)
 	 */
-	opbx_module_get(it->obj.module);
+	cw_module_get(it->obj.module);
 	it->function();
 	/* We'd prefer not to put the module. If we are running atexits we're
 	 * shutting down so there's no need to release modules. However, shutdowns
 	 * can be cancelled...
 	 */
-	opbx_module_put(it->obj.module);
+	cw_module_put(it->obj.module);
 	return 0;
 }
 
-static void opbx_run_atexits(void)
+static void cw_run_atexits(void)
 {
-	opbx_registry_iterate(&atexit_registry, opbx_run_atexit_one, NULL);
+	cw_registry_iterate(&atexit_registry, cw_run_atexit_one, NULL);
 }
 
 
 #if !defined(LOW_MEMORY)
 
-static const char *file_version_registry_obj_name(struct opbx_object *obj)
+static const char *file_version_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_file_version *it = container_of(obj, struct opbx_file_version, obj);
+	struct cw_file_version *it = container_of(obj, struct cw_file_version, obj);
 	return it->file;
 }
 
 int file_version_registry_initialized = 0;
 
-struct opbx_registry file_version_registry = {
+struct cw_registry file_version_registry = {
 	.name = "Files",
 	.obj_name = file_version_registry_obj_name,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 static char show_version_files_help[] = 
@@ -299,9 +299,9 @@ struct handle_show_version_files_args {
 
 #define FORMAT "%-8.*s %.*s\n"
 
-static int handle_show_version_files_one(struct opbx_object *obj, void *data)
+static int handle_show_version_files_one(struct cw_object *obj, void *data)
 {
-	struct opbx_file_version *filever = container_of(obj, struct opbx_file_version, obj);
+	struct cw_file_version *filever = container_of(obj, struct cw_file_version, obj);
 	struct handle_show_version_files_args *args = data;
 
 	if (!((args->name && strcasecmp(filever->file, args->name))
@@ -323,7 +323,7 @@ static int handle_show_version_files_one(struct opbx_object *obj, void *data)
 			verlen -= 11 + 2;
 		}
 
-		opbx_cli(args->fd, FORMAT, verlen, ver, filelen, file);
+		cw_cli(args->fd, FORMAT, verlen, ver, filelen, file);
 		args->count_files++;
 		if (args->name)
 			return 1;
@@ -359,12 +359,12 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	}
 
-	opbx_cli(fd, FORMAT, 8, "Revision", 8, "SVN Path");
-	opbx_cli(fd, FORMAT, 8, "--------", 8, "--------");
-	opbx_registry_iterate(&file_version_registry, handle_show_version_files_one, &args);
+	cw_cli(fd, FORMAT, 8, "Revision", 8, "SVN Path");
+	cw_cli(fd, FORMAT, 8, "--------", 8, "--------");
+	cw_registry_iterate(&file_version_registry, handle_show_version_files_one, &args);
 
 	if (!args.name)
-		opbx_cli(fd, "%d files listed.\n", args.count_files);
+		cw_cli(fd, "%d files listed.\n", args.count_files);
 
 	if (args.havepattern)
 		regfree(&args.regexbuf);
@@ -383,9 +383,9 @@ struct complete_show_version_files_args {
 	char *ret;
 };
 
-static int complete_show_version_files_one(struct opbx_object *obj, void *data)
+static int complete_show_version_files_one(struct cw_object *obj, void *data)
 {
-	struct opbx_file_version *filever = container_of(obj, struct opbx_file_version, obj);
+	struct cw_file_version *filever = container_of(obj, struct cw_file_version, obj);
 	struct complete_show_version_files_args *args = data;
 
 	if (!strncasecmp(args->word, filever->file, args->wordlen)) {
@@ -411,7 +411,7 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 	if (pos != 3)
 		return NULL;
 
-	opbx_registry_iterate(&file_version_registry, complete_show_version_files_one, &args);
+	cw_registry_iterate(&file_version_registry, complete_show_version_files_one, &args);
 	return args.ret;
 }
 
@@ -423,11 +423,11 @@ static void null_sig_handler(int signal)
 {
 }
 
-OPBX_MUTEX_DEFINE_STATIC(safe_system_lock);
+CW_MUTEX_DEFINE_STATIC(safe_system_lock);
 static unsigned int safe_system_level = 0;
 static struct sigaction safe_system_prev_handler;
 
-int opbx_safe_system(const char *s)
+int cw_safe_system(const char *s)
 {
     struct sigaction sa;
     pid_t pid;
@@ -437,10 +437,10 @@ int opbx_safe_system(const char *s)
     int status;
     unsigned int level;
 
-    /* keep track of how many opbx_safe_system() functions
+    /* keep track of how many cw_safe_system() functions
        are running at this moment
     */
-    opbx_mutex_lock(&safe_system_lock);
+    cw_mutex_lock(&safe_system_lock);
     level = safe_system_level++;
 
     /* only replace the handler if it has not already been done */
@@ -451,7 +451,7 @@ int opbx_safe_system(const char *s)
         sigaction(SIGCHLD, &sa, &safe_system_prev_handler);
     }
 
-    opbx_mutex_unlock(&safe_system_lock);
+    cw_mutex_unlock(&safe_system_lock);
 
     pid = fork();
 
@@ -479,18 +479,18 @@ int opbx_safe_system(const char *s)
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Fork failed: %s\n", strerror(errno));
+        cw_log(CW_LOG_WARNING, "Fork failed: %s\n", strerror(errno));
         res = -1;
     }
 
-    opbx_mutex_lock(&safe_system_lock);
+    cw_mutex_lock(&safe_system_lock);
     level = --safe_system_level;
 
     /* only restore the handler if we are the last one */
     if (level == 0)
         sigaction(SIGCHLD, &safe_system_prev_handler, NULL);
 
-    opbx_mutex_unlock(&safe_system_lock);
+    cw_mutex_unlock(&safe_system_lock);
 
     return res;
 }
@@ -499,7 +499,7 @@ int opbx_safe_system(const char *s)
 /*! Urgent handler
  Called by soft_hangup to interrupt the poll, read, or other
  system call.  We don't actually need to do anything though.  
- Remember: Cannot EVER opbx_log from within a signal handler 
+ Remember: Cannot EVER cw_log from within a signal handler 
  */
 static void urg_handler(int num)
 {
@@ -516,7 +516,7 @@ static void child_handler(int sig)
 
 /*! We set ourselves to a high priority, that we might pre-empt everything
    else.  If your PBX has heavy activity on it, this is a good thing.  */
-int opbx_set_priority(int pri)
+int cw_set_priority(int pri)
 {
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
@@ -524,29 +524,29 @@ int opbx_set_priority(int pri)
 	if (pri) {  
 		sched.sched_priority = 10;
 		if (sched_setscheduler(0, SCHED_RR, &sched)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set high priority\n");
+			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
-				opbx_verbose("Set to realtime thread\n");
+				cw_verbose("Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
 		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set normal priority\n");
+			cw_log(CW_LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
 #else
 	if (pri) {
 		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set high priority\n");
+			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
-				opbx_verbose("Set to high priority\n");
+				cw_verbose("Set to high priority\n");
 	} else {
 		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set normal priority\n");
+			cw_log(CW_LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
@@ -724,33 +724,33 @@ static void quit_handler(void *data)
 	local_restart = restart;
 
 	if (option_verbose)
-		opbx_verbose("Executing last minute cleanups\n");
+		cw_verbose("Executing last minute cleanups\n");
 
-	opbx_cdr_engine_term();
+	cw_cdr_engine_term();
 
-	opbx_run_atexits();
+	cw_run_atexits();
 
 	if (option_verbose && (option_console || option_nofork))
-		opbx_verbose("CallWeaver %s ending.\n", opbx_active_channels() ? "uncleanly" : "cleanly");
+		cw_verbose("CallWeaver %s ending.\n", cw_active_channels() ? "uncleanly" : "cleanly");
 	if (option_debug)
-		opbx_log(OPBX_LOG_DEBUG, "CallWeaver ending.\n");
+		cw_log(CW_LOG_DEBUG, "CallWeaver ending.\n");
 
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (opbx_active_channels() ? "Uncleanly" : "Cleanly"), (local_restart ? "True" : "False"));
+	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (cw_active_channels() ? "Uncleanly" : "Cleanly"), (local_restart ? "True" : "False"));
 
-	if (!pthread_equal(lthread, OPBX_PTHREADT_NULL)) {
+	if (!pthread_equal(lthread, CW_PTHREADT_NULL)) {
 		pthread_cancel(lthread);
-		unlink(opbx_config_OPBX_SOCKET);
+		unlink(cw_config_CW_SOCKET);
 	}
 
 	if (option_verbose || option_console || option_nofork)
-		opbx_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
+		cw_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
 
 	if (!option_remote)
-		lockfile_release(opbx_config_OPBX_PID);
+		lockfile_release(cw_config_CW_PID);
 
 	close_logger();
 
-	if (!pthread_equal(consolethread, OPBX_PTHREADT_NULL)) {
+	if (!pthread_equal(consolethread, CW_PTHREADT_NULL)) {
 		pthread_t tid = consolethread;
 
 		option_reconnect = 0;
@@ -794,7 +794,7 @@ static void *quit_when_idle(void *data)
 
 		s = e;
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-		n = opbx_active_channels();
+		n = cw_active_channels();
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		pthread_testcancel();
@@ -824,12 +824,12 @@ static void *quit_when_idle(void *data)
 	 * the shutdown/restart.
 	 */
 	if (state->timeout == 0 && state->nice) {
-		opbx_log(OPBX_LOG_NOTICE, "Timeout waiting for idle. Initiating immediate %s\n", (restart ? "restart" : "shutdown"));
+		cw_log(CW_LOG_NOTICE, "Timeout waiting for idle. Initiating immediate %s\n", (restart ? "restart" : "shutdown"));
 		pthread_detach(pthread_self());
-		state->tid = OPBX_PTHREADT_NULL;
+		state->tid = CW_PTHREADT_NULL;
 		shutdown_restart(-1, 1, 0, -1);
 	} else {
-		opbx_log(OPBX_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
+		cw_log(CW_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
 		quit_handler(NULL);
 	}
 
@@ -839,64 +839,64 @@ static void *quit_when_idle(void *data)
 
 static void shutdown_restart(int fd, int doit, int nice, int timeout)
 {
-	static opbx_mutex_t lock = OPBX_MUTEX_INIT_VALUE;
+	static cw_mutex_t lock = CW_MUTEX_INIT_VALUE;
 	static struct shutdown_state state = {
-		.tid = OPBX_PTHREADT_NULL,
+		.tid = CW_PTHREADT_NULL,
 		.nice = 0,
 		.timeout = 0,
 	};
 
-	opbx_mutex_lock(&lock);
+	cw_mutex_lock(&lock);
 
 	if (doit >= 0) {
-		if (!pthread_equal(state.tid, OPBX_PTHREADT_NULL)) {
+		if (!pthread_equal(state.tid, CW_PTHREADT_NULL)) {
 			pthread_cancel(state.tid);
 			pthread_join(state.tid, NULL);
-			state.tid = OPBX_PTHREADT_NULL;
+			state.tid = CW_PTHREADT_NULL;
 		}
 
 		if (doit) {
 			if (nice < 2) {
-				opbx_begin_shutdown((nice ? 0 : 1));
+				cw_begin_shutdown((nice ? 0 : 1));
 
 				if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-					opbx_cli(fd, "Blocked new calls\n");
+					cw_cli(fd, "Blocked new calls\n");
 				if (!option_remote)
-					opbx_log(OPBX_LOG_NOTICE, "Blocked new calls\n");
+					cw_log(CW_LOG_NOTICE, "Blocked new calls\n");
 
 				if (nice < 1) {
 					if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-						opbx_cli(fd, "Hanging up active calls\n");
+						cw_cli(fd, "Hanging up active calls\n");
 					if (!option_remote)
-						opbx_log(OPBX_LOG_NOTICE, "Hanging up active calls\n");
+						cw_log(CW_LOG_NOTICE, "Hanging up active calls\n");
 				}
 			}
 
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-				opbx_cli(fd, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
+				cw_cli(fd, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 			if (!option_remote)
-				opbx_log(OPBX_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
+				cw_log(CW_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 
 			state.nice = nice;
 			state.timeout = (nice ? (timeout >= 0 ? timeout : -1 ) : 15);
-			opbx_pthread_create(&state.tid, &global_attr_default, quit_when_idle, &state);
+			cw_pthread_create(&state.tid, &global_attr_default, quit_when_idle, &state);
 		} else {
 			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-				opbx_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
+				cw_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 			if (!option_remote)
-				opbx_log(OPBX_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
+				cw_log(CW_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 		}
 	} else {
-		if (!pthread_equal(state.tid, OPBX_PTHREADT_NULL)) {
+		if (!pthread_equal(state.tid, CW_PTHREADT_NULL)) {
 			if (state.timeout == -1)
-				opbx_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
 			else
-				opbx_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
 		} else
-			opbx_cli(fd, "No shutdown or restart pending\n");
+			cw_cli(fd, "No shutdown or restart pending\n");
 	}
 
-	opbx_mutex_unlock(&lock);
+	cw_mutex_unlock(&lock);
 }
 
 
@@ -1037,7 +1037,7 @@ static int handle_shutdown_restart_cancel(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	opbx_cancel_shutdown();
+	cw_cancel_shutdown();
 	shutdown_restart(fd, 0, 0, -1);
 	return RESULT_SUCCESS;
 }
@@ -1055,7 +1055,7 @@ static int handle_bang(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_clicmd core_cli[] = {
+static struct cw_clicmd core_cli[] = {
 	{
 		.cmda = { "stop", "status", NULL },
 		.handler = handle_shutdown_restart_status,
@@ -1145,7 +1145,7 @@ static struct opbx_clicmd core_cli[] = {
 static void boot(void)
 {
 	if ((option_console || option_nofork) && !option_verbose) 
-		opbx_verbose("[ Booting...");
+		cw_verbose("[ Booting...");
 
 	/* ensure that the random number generators are seeded with a different value every time
 	   CallWeaver is started
@@ -1154,39 +1154,39 @@ static void boot(void)
 	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
 
 	if (init_logger()
-	|| opbx_crypto_init()
-	|| opbx_loader_cli_init()
+	|| cw_crypto_init()
+	|| cw_loader_cli_init()
 	|| load_modules(1)
-	|| opbx_channels_init()
-	|| opbx_cdr_engine_init()
+	|| cw_channels_init()
+	|| cw_cdr_engine_init()
 	|| init_manager()
-	|| opbx_device_state_engine_init()
-	|| opbx_rtp_init()
-	|| opbx_udptl_init()
-	|| opbx_stun_init()
+	|| cw_device_state_engine_init()
+	|| cw_rtp_init()
+	|| cw_udptl_init()
+	|| cw_stun_init()
 	|| direngine_list_init()
-	|| opbx_image_init()
-	|| opbx_file_init()
+	|| cw_image_init()
+	|| cw_file_init()
 	|| load_pbx()
-	|| opbxdb_init()
+	|| cwdb_init()
 	|| init_framer()
 	|| load_modules(0)
-	|| opbx_enum_init()
-	|| opbx_translator_init()) {
+	|| cw_enum_init()
+	|| cw_translator_init()) {
 	    exit(1);
 	}
 
-#ifdef __OPBX_DEBUG_MALLOC
-	__opbx_mm_init();
+#ifdef __CW_DEBUG_MALLOC
+	__cw_mm_init();
 #endif	
-	opbx_cli_register_multiple(core_cli, arraysize(core_cli));
+	cw_cli_register_multiple(core_cli, arraysize(core_cli));
 
 	if ((option_console || option_nofork) && !option_verbose)
-		opbx_verbose(" ]\n");
+		cw_verbose(" ]\n");
 
-	time(&opbx_startuptime);
+	time(&cw_startuptime);
 	if (option_verbose || option_console || option_nofork)
-		opbx_verbose("CallWeaver Ready\n");
+		cw_verbose("CallWeaver Ready\n");
 
 	fully_booted = 1;
 }
@@ -1196,7 +1196,7 @@ static void boot(void)
  * write the string to the console, and all attached
  * console clients
  */
-void opbx_console_puts(const char *string)
+void cw_console_puts(const char *string)
 {
 	int i;
 
@@ -1218,7 +1218,7 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 		s = t;
 	}
 	if (complete)
-		opbx_console_puts(s);
+		cw_console_puts(s);
 }
 
 
@@ -1240,7 +1240,7 @@ static void *netconsole(void *vconsole)
 		res = poll(fds, 2, -1);
 		if (res < 0) {
 			if (errno != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+				cw_log(CW_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
 			sleep(1);
 			continue;
 		}
@@ -1250,12 +1250,12 @@ static void *netconsole(void *vconsole)
 				break;
 			}
 			tmp[res] = 0;
-			opbx_cli_command(con->fd, tmp);
+			cw_cli_command(con->fd, tmp);
 		}
 		if (fds[1].revents) {
 			res = read(con->p[0], tmp, sizeof(tmp));
 			if (res < 1) {
-				opbx_log(OPBX_LOG_ERROR, "read returned %d\n", res);
+				cw_log(CW_LOG_ERROR, "read returned %d\n", res);
 				break;
 			}
 			res = write(con->fd, tmp, res);
@@ -1264,7 +1264,7 @@ static void *netconsole(void *vconsole)
 		}
 	}
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
+		cw_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
 	close(con->fd);
 	close(con->p[0]);
 	close(con->p[1]);
@@ -1296,24 +1296,24 @@ static void *listener(void *data)
 
 		if (n <= 0) {
 			if (x != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
+				cw_log(CW_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
 		} else if (s < 0) {
 			if (x != EINTR)
-				opbx_log(OPBX_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
+				cw_log(CW_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
 		} else {
 			for (x = 0; x < arraysize(consoles); x++) {
 				if (consoles[x].fd < 0) {
 					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
-						opbx_log(OPBX_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
+						cw_log(CW_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						close(s);
 						break;
 					}
 
 #ifndef RELEASE_TARBALL	
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
 #else
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING );
 #endif
 					write(s, buf, n);
 
@@ -1322,8 +1322,8 @@ static void *listener(void *data)
 					fcntl(consoles[x].p[0], F_SETFD, fcntl(consoles[x].p[0], F_GETFD, 0) | FD_CLOEXEC);
 					fcntl(consoles[x].p[1], F_SETFD, fcntl(consoles[x].p[1], F_GETFD, 0) | FD_CLOEXEC);
 					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
-					if (opbx_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
-						opbx_log(OPBX_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
+					if (cw_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
+						cw_log(CW_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						close(s);
 					} else if (!fully_booted)
@@ -1332,18 +1332,18 @@ static void *listener(void *data)
 				}
 			}
 			if (x >= arraysize(consoles)) {
-				opbx_log(OPBX_LOG_WARNING, "No more connections allowed\n");
+				cw_log(CW_LOG_WARNING, "No more connections allowed\n");
 				close(s);
 			} else if (consoles[x].fd > -1) {
 				if (option_verbose > 2) 
-					opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
+					cw_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
 			}
 		}
 	}
 	return NULL;
 }
 
-static int opbx_makesocket(char *spec)
+static int cw_makesocket(char *spec)
 {
 	union {
 		struct sockaddr sa;
@@ -1356,53 +1356,53 @@ static int opbx_makesocket(char *spec)
 
 	memset(&u, 0, sizeof(u));
 	u.sun.sun_family = AF_LOCAL;
-	opbx_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
+	cw_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
 	salen = sizeof(u.sun);
 
 	if ((sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create socket for %s: %s\n", spec, strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to create socket for %s: %s\n", spec, strerror(errno));
 		return -1;
 	}		
 	if (bind(sock, &u.sa, salen)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to bind socket to %s: %s\n", spec, strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to bind socket to %s: %s\n", spec, strerror(errno));
 		close(sock);
 		return -1;
 	}
 	if (listen(sock, 1024) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to listen on socket %s: %s\n", spec, strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to listen on socket %s: %s\n", spec, strerror(errno));
 		close(sock);
 		return -1;
 	}
 
 	fcntl(sock, F_SETFD, fcntl(sock, F_GETFD, 0) | FD_CLOEXEC);
 
-	opbx_pthread_create(&lthread, &global_attr_default, listener, (void *)sock);
+	cw_pthread_create(&lthread, &global_attr_default, listener, (void *)sock);
 
 	if (u.sa.sa_family == AF_LOCAL) {
-		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
+		if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
 			struct passwd *pw;
-			if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL)
-				opbx_log(OPBX_LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
+			if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
+				cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
 			else
 				uid = pw->pw_uid;
 		}
 		
-		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
+		if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
 			struct group *grp;
-			if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL)
-				opbx_log(OPBX_LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
+			if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
+				cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
 			else
 				gid = grp->gr_gid;
 		}
 
-		if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
-			opbx_log(OPBX_LOG_WARNING, "Unable to change ownership of %s: %s\n", spec, strerror(errno));
+		if (chown(cw_config_CW_SOCKET, uid, gid) < 0)
+			cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", spec, strerror(errno));
 
-		if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
+		if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
 			mode_t p;
-			sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
+			sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
 			if ((chmod(spec, p)) < 0)
-				opbx_log(OPBX_LOG_WARNING, "Unable to change file permissions of %s: %s\n", spec, strerror(errno));
+				cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", spec, strerror(errno));
 		}
 	}
 
@@ -1452,144 +1452,144 @@ static int show_cli_help(void) {
 	return 0;
 }
 
-static void opbx_readconfig(void) {
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
-	char *config = opbx_config_OPBX_CONFIG_FILE;
+static void cw_readconfig(void) {
+	struct cw_config *cfg;
+	struct cw_variable *v;
+	char *config = cw_config_CW_CONFIG_FILE;
 
 	if (option_overrideconfig == 1) {
-		cfg = opbx_config_load(opbx_config_OPBX_CONFIG_FILE);
+		cfg = cw_config_load(cw_config_CW_CONFIG_FILE);
 		if (!cfg)
-			opbx_log(OPBX_LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", opbx_config_OPBX_CONFIG_FILE);
+			cw_log(CW_LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", cw_config_CW_CONFIG_FILE);
 	} else {
-		cfg = opbx_config_load(config);
+		cfg = cw_config_load(config);
 	}
 
 	/* init with buildtime config */
 
-	opbx_copy_string(opbx_config_OPBX_RUN_USER, opbxrunuser_default, sizeof(opbx_config_OPBX_RUN_USER));
-	opbx_copy_string(opbx_config_OPBX_RUN_GROUP, opbxrungroup_default, sizeof(opbx_config_OPBX_RUN_GROUP));
-	opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, opbxconfdir_default, sizeof(opbx_config_OPBX_CONFIG_DIR));
-	opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, opbxspooldir_default, sizeof(opbx_config_OPBX_SPOOL_DIR));
-	lt_dlsetsearchpath(opbxmoddir_default);
- 	snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", opbx_config_OPBX_SPOOL_DIR);
-	opbx_copy_string(opbx_config_OPBX_VAR_DIR, opbxvardir_default, sizeof(opbx_config_OPBX_VAR_DIR));
-	opbx_copy_string(opbx_config_OPBX_LOG_DIR, opbxlogdir_default, sizeof(opbx_config_OPBX_LOG_DIR));
-	opbx_copy_string(opbx_config_OPBX_OGI_DIR, opbxogidir_default, sizeof(opbx_config_OPBX_OGI_DIR));
-	opbx_copy_string(opbx_config_OPBX_DB, opbxdbfile_default, sizeof(opbx_config_OPBX_DB));
-	opbx_copy_string(opbx_config_OPBX_DB_DIR, opbxdbdir_default, sizeof(opbx_config_OPBX_DB_DIR));
-	opbx_copy_string(opbx_config_OPBX_KEY_DIR, opbxkeydir_default, sizeof(opbx_config_OPBX_KEY_DIR));
-	opbx_copy_string(opbx_config_OPBX_PID, opbxpidfile_default, sizeof(opbx_config_OPBX_PID));
-	opbx_copy_string(opbx_config_OPBX_SOCKET, opbxsocketfile_default, sizeof(opbx_config_OPBX_SOCKET));
-	opbx_copy_string(opbx_config_OPBX_RUN_DIR, opbxrundir_default, sizeof(opbx_config_OPBX_RUN_DIR));
-	opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, opbxsoundsdir_default, sizeof(opbx_config_OPBX_SOUNDS_DIR));
+	cw_copy_string(cw_config_CW_RUN_USER, cwrunuser_default, sizeof(cw_config_CW_RUN_USER));
+	cw_copy_string(cw_config_CW_RUN_GROUP, cwrungroup_default, sizeof(cw_config_CW_RUN_GROUP));
+	cw_copy_string(cw_config_CW_CONFIG_DIR, cwconfdir_default, sizeof(cw_config_CW_CONFIG_DIR));
+	cw_copy_string(cw_config_CW_SPOOL_DIR, cwspooldir_default, sizeof(cw_config_CW_SPOOL_DIR));
+	lt_dlsetsearchpath(cwmoddir_default);
+ 	snprintf(cw_config_CW_MONITOR_DIR, sizeof(cw_config_CW_MONITOR_DIR) - 1, "%s/monitor", cw_config_CW_SPOOL_DIR);
+	cw_copy_string(cw_config_CW_VAR_DIR, cwvardir_default, sizeof(cw_config_CW_VAR_DIR));
+	cw_copy_string(cw_config_CW_LOG_DIR, cwlogdir_default, sizeof(cw_config_CW_LOG_DIR));
+	cw_copy_string(cw_config_CW_OGI_DIR, cwogidir_default, sizeof(cw_config_CW_OGI_DIR));
+	cw_copy_string(cw_config_CW_DB, cwdbfile_default, sizeof(cw_config_CW_DB));
+	cw_copy_string(cw_config_CW_DB_DIR, cwdbdir_default, sizeof(cw_config_CW_DB_DIR));
+	cw_copy_string(cw_config_CW_KEY_DIR, cwkeydir_default, sizeof(cw_config_CW_KEY_DIR));
+	cw_copy_string(cw_config_CW_PID, cwpidfile_default, sizeof(cw_config_CW_PID));
+	cw_copy_string(cw_config_CW_SOCKET, cwsocketfile_default, sizeof(cw_config_CW_SOCKET));
+	cw_copy_string(cw_config_CW_RUN_DIR, cwrundir_default, sizeof(cw_config_CW_RUN_DIR));
+	cw_copy_string(cw_config_CW_SOUNDS_DIR, cwsoundsdir_default, sizeof(cw_config_CW_SOUNDS_DIR));
 
 	/* no callweaver.conf? no problem, use buildtime config! */
 	if (!cfg) {
 		return;
 	}
-	v = opbx_variable_browse(cfg, "general");
+	v = cw_variable_browse(cfg, "general");
 	while (v) {
 		if (!strcasecmp(v->name, "cwrunuser")) {
-			opbx_copy_string(opbx_config_OPBX_RUN_USER, v->value, sizeof(opbx_config_OPBX_RUN_USER));
+			cw_copy_string(cw_config_CW_RUN_USER, v->value, sizeof(cw_config_CW_RUN_USER));
 		} else if (!strcasecmp(v->name, "cwrungroup")) {
-			opbx_copy_string(opbx_config_OPBX_RUN_GROUP, v->value, sizeof(opbx_config_OPBX_RUN_GROUP));
+			cw_copy_string(cw_config_CW_RUN_GROUP, v->value, sizeof(cw_config_CW_RUN_GROUP));
 		}
 		v = v->next;
 	}
-	v = opbx_variable_browse(cfg, "files");
+	v = cw_variable_browse(cfg, "files");
 	while (v) {
 		if (!strcasecmp(v->name, "cwctlpermissions")) {
-			opbx_copy_string(opbx_config_OPBX_CTL_PERMISSIONS, v->value, sizeof(opbx_config_OPBX_CTL_PERMISSIONS));
+			cw_copy_string(cw_config_CW_CTL_PERMISSIONS, v->value, sizeof(cw_config_CW_CTL_PERMISSIONS));
 		} else if (!strcasecmp(v->name, "cwctlowner")) {
-			opbx_copy_string(opbx_config_OPBX_CTL_OWNER, v->value, sizeof(opbx_config_OPBX_CTL_OWNER));
+			cw_copy_string(cw_config_CW_CTL_OWNER, v->value, sizeof(cw_config_CW_CTL_OWNER));
 		} else if (!strcasecmp(v->name, "cwctlgroup")) {
-			opbx_copy_string(opbx_config_OPBX_CTL_GROUP, v->value, sizeof(opbx_config_OPBX_CTL_GROUP));
+			cw_copy_string(cw_config_CW_CTL_GROUP, v->value, sizeof(cw_config_CW_CTL_GROUP));
 		} else if (!strcasecmp(v->name, "cwctl")) {
-			opbx_copy_string(opbx_config_OPBX_CTL, v->value, sizeof(opbx_config_OPBX_CTL));
+			cw_copy_string(cw_config_CW_CTL, v->value, sizeof(cw_config_CW_CTL));
 		} else if (!strcasecmp(v->name, "cwdb")) {
-			opbx_copy_string(opbx_config_OPBX_DB, v->value, sizeof(opbx_config_OPBX_DB));
+			cw_copy_string(cw_config_CW_DB, v->value, sizeof(cw_config_CW_DB));
 		}
 		v = v->next;
 	}
-	v = opbx_variable_browse(cfg, "directories");
+	v = cw_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "cwetcdir")) {
-			opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, v->value, sizeof(opbx_config_OPBX_CONFIG_DIR));
+			cw_copy_string(cw_config_CW_CONFIG_DIR, v->value, sizeof(cw_config_CW_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "cwspooldir")) {
-			opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, v->value, sizeof(opbx_config_OPBX_SPOOL_DIR));
-			snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", v->value);
+			cw_copy_string(cw_config_CW_SPOOL_DIR, v->value, sizeof(cw_config_CW_SPOOL_DIR));
+			snprintf(cw_config_CW_MONITOR_DIR, sizeof(cw_config_CW_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "cwvarlibdir")) {
-			opbx_copy_string(opbx_config_OPBX_VAR_DIR, v->value, sizeof(opbx_config_OPBX_VAR_DIR));
+			cw_copy_string(cw_config_CW_VAR_DIR, v->value, sizeof(cw_config_CW_VAR_DIR));
 		} else if (!strcasecmp(v->name, "cwdbdir")) {
-			opbx_copy_string(opbx_config_OPBX_DB_DIR, v->value, sizeof(opbx_config_OPBX_DB_DIR));
+			cw_copy_string(cw_config_CW_DB_DIR, v->value, sizeof(cw_config_CW_DB_DIR));
 		} else if (!strcasecmp(v->name, "cwlogdir")) {
-			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
+			cw_copy_string(cw_config_CW_LOG_DIR, v->value, sizeof(cw_config_CW_LOG_DIR));
 		} else if (!strcasecmp(v->name, "cwogidir")) {
-			opbx_copy_string(opbx_config_OPBX_OGI_DIR, v->value, sizeof(opbx_config_OPBX_OGI_DIR));
+			cw_copy_string(cw_config_CW_OGI_DIR, v->value, sizeof(cw_config_CW_OGI_DIR));
 		} else if (!strcasecmp(v->name, "cwsoundsdir")) {
-			opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, v->value, sizeof(opbx_config_OPBX_SOUNDS_DIR));
+			cw_copy_string(cw_config_CW_SOUNDS_DIR, v->value, sizeof(cw_config_CW_SOUNDS_DIR));
 		} else if (!strcasecmp(v->name, "cwrundir")) {
-			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "callweaver.pid");
-			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
-			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
+			snprintf(cw_config_CW_PID, sizeof(cw_config_CW_PID), "%s/%s", v->value, "callweaver.pid");
+			snprintf(cw_config_CW_SOCKET, sizeof(cw_config_CW_SOCKET), "%s/%s", v->value, cw_config_CW_CTL);
+			cw_copy_string(cw_config_CW_RUN_DIR, v->value, sizeof(cw_config_CW_RUN_DIR));
 		} else if (!strcasecmp(v->name, "cwmoddir")) {
 			lt_dlsetsearchpath(v->value);
 		} else if (!strcasecmp(v->name, "cwkeydir")) { 
-			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_KEY_DIR)); 
+			cw_copy_string(cw_config_CW_KEY_DIR, v->value, sizeof(cw_config_CW_KEY_DIR)); 
 		}
 		v = v->next;
 	}
-	v = opbx_variable_browse(cfg, "options");
+	v = cw_variable_browse(cfg, "options");
 	while(v) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose = atoi(v->value);
 		/* whether or not to force timestamping. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
-			option_timestamp = opbx_true(v->value);
+			option_timestamp = cw_true(v->value);
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
-			option_exec_includes = opbx_true(v->value);
+			option_exec_includes = cw_true(v->value);
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
 			if (sscanf(v->value, "%d", &option_debug) != 1) {
-				option_debug = opbx_true(v->value);
+				option_debug = cw_true(v->value);
 			}
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
-			option_nofork = opbx_true(v->value);
+			option_nofork = cw_true(v->value);
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
-			option_quiet = opbx_true(v->value);
+			option_quiet = cw_true(v->value);
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
-			option_console = opbx_true(v->value);
+			option_console = cw_true(v->value);
 		/* Run with highg priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
-			option_highpriority = opbx_true(v->value);
+			option_highpriority = cw_true(v->value);
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
-			option_initcrypto = opbx_true(v->value);
+			option_initcrypto = cw_true(v->value);
 		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
-			option_nocolor = opbx_true(v->value);
+			option_nocolor = cw_true(v->value);
 		/* Disable some usage warnings for picky people :p */
 		} else if (!strcasecmp(v->name, "dontwarn")) {
-			option_dontwarn = opbx_true(v->value);
+			option_dontwarn = cw_true(v->value);
 		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
-			option_dumpcore = opbx_true(v->value);
+			option_dumpcore = cw_true(v->value);
 		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
-			option_cache_record_files = opbx_true(v->value);
+			option_cache_record_files = cw_true(v->value);
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
-			opbx_copy_string(record_cache_dir, v->value, OPBX_CACHE_DIR_LEN);
+			cw_copy_string(record_cache_dir, v->value, CW_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
-			option_transcode_slin = opbx_true(v->value);
+			option_transcode_slin = cw_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
@@ -1598,21 +1598,21 @@ static void opbx_readconfig(void) {
 			double test[1];
 
 			if (getloadavg(test, 1) == -1) {
-				opbx_log(OPBX_LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
+				cw_log(CW_LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
 				option_maxload = 0.0;
 			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
 		} else if (!strcasecmp(v->name, "systemname")) {
-			opbx_copy_string(opbx_config_OPBX_SYSTEM_NAME, v->value, sizeof(opbx_config_OPBX_SYSTEM_NAME));
+			cw_copy_string(cw_config_CW_SYSTEM_NAME, v->value, sizeof(cw_config_CW_SYSTEM_NAME));
 		}
 		else if (!strcasecmp(v->name, "enableunsafeunload"))
 		{
-			opbx_copy_string(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, v->value, sizeof(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD));
+			cw_copy_string(cw_config_CW_ENABLE_UNSAFE_UNLOAD, v->value, sizeof(cw_config_CW_ENABLE_UNSAFE_UNLOAD));
 		}
 		v = v->next;
 	}
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 }
 
 
@@ -1628,7 +1628,7 @@ int callweaver_main(int argc, char *argv[])
 
 
 	/* init with default */
-	opbx_copy_string(opbx_config_OPBX_CONFIG_FILE, opbxconffile_default, sizeof(opbx_config_OPBX_CONFIG_FILE));
+	cw_copy_string(cw_config_CW_CONFIG_FILE, cwconffile_default, sizeof(cw_config_CW_CONFIG_FILE));
 	
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -1648,10 +1648,10 @@ int callweaver_main(int argc, char *argv[])
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
 
-	opbx_mainpid = getpid();
-	opbx_ulaw_init();
-	opbx_alaw_init();
-	opbx_utils_init();
+	cw_mainpid = getpid();
+	cw_ulaw_init();
+	cw_alaw_init();
+	cw_utils_init();
 
 	/* When CallWeaver restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
@@ -1712,7 +1712,7 @@ int callweaver_main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			opbx_copy_string((char *)opbx_config_OPBX_CONFIG_FILE,optarg,sizeof(opbx_config_OPBX_CONFIG_FILE));
+			cw_copy_string((char *)cw_config_CW_CONFIG_FILE,optarg,sizeof(cw_config_CW_CONFIG_FILE));
 			option_overrideconfig++;
 			break;
 		case 'i':
@@ -1740,7 +1740,7 @@ int callweaver_main(int argc, char *argv[])
 
 	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
 
-	opbx_loader_init();
+	cw_loader_init();
 
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
@@ -1753,8 +1753,8 @@ int callweaver_main(int argc, char *argv[])
 	}
 
 	if ((option_console || option_nofork) && !option_verbose) 
-		opbx_verbose("[ Reading Master Configuration ]");
-	opbx_readconfig();
+		cw_verbose("[ Reading Master Configuration ]");
+	cw_readconfig();
 
 	if (option_dumpcore) {
 		struct rlimit l;
@@ -1762,19 +1762,19 @@ int callweaver_main(int argc, char *argv[])
 		l.rlim_cur = RLIM_INFINITY;
 		l.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &l)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
 
 
-	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
+	if (!is_child_of_nonroot && cw_set_priority(option_highpriority)) {
 		exit(1);
 	}
 
 	if (!runuser)
-		runuser = opbx_config_OPBX_RUN_USER;
+		runuser = cw_config_CW_RUN_USER;
 	if (!rungroup)
-		rungroup = opbx_config_OPBX_RUN_GROUP;
+		rungroup = cw_config_CW_RUN_GROUP;
 	if (!is_child_of_nonroot) {
 		struct group *gr;
 		struct passwd *pw;
@@ -1788,29 +1788,29 @@ int callweaver_main(int argc, char *argv[])
 		 * uid but we fix them up afterwards ourself.
 		 */
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
 		}
 #endif
 
 		gr = getgrnam(rungroup);
 		if (!gr) {
-			opbx_log(OPBX_LOG_ERROR, "No such group '%s'!\n", rungroup);
+			cw_log(CW_LOG_ERROR, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
 		pw = getpwnam(runuser);
 		if (!pw) {
-			opbx_log(OPBX_LOG_ERROR, "No such user '%s'!\n", runuser);
+			cw_log(CW_LOG_ERROR, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
 		
 		if (gr->gr_gid != getegid() )
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
+			cw_log(CW_LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(1);
 		}
 
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
+			cw_log(CW_LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
 		if (option_verbose) {
@@ -1821,19 +1821,19 @@ int callweaver_main(int argc, char *argv[])
 
 			gr2 = getgrgid(getegid());
 			if (gr2) {
-				opbx_verbose("Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+				cw_verbose("Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
 			} else {
-				opbx_verbose("Now running as group '' (%d)\n", getegid());
+				cw_verbose("Now running as group '' (%d)\n", getegid());
 			}
 
-			opbx_verbose("Supplementary groups:\n");
+			cw_verbose("Supplementary groups:\n");
 			ngroups = getgroups(NGROUPS_MAX, gid_list);
 			for (i = 0; i < ngroups; i++) {
 				gr2 = getgrgid(gid_list[i]);
 				if (gr2) {
-					opbx_verbose("   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+					cw_verbose("   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
 				} else {
-					opbx_verbose("   '' (%d)\n", gid_list[i]);
+					cw_verbose("   '' (%d)\n", gid_list[i]);
 				}
 			}
 		}
@@ -1842,7 +1842,7 @@ int callweaver_main(int argc, char *argv[])
 #else
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 #endif
-			opbx_log(OPBX_LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
+			cw_log(CW_LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(1);
 		}
 		setenv("CALLWEAVER_ALREADY_NONROOT","yes",1);
@@ -1850,9 +1850,9 @@ int callweaver_main(int argc, char *argv[])
 			struct passwd *pw2;
 			pw2 = getpwuid(geteuid());
 			if (pw2) {
-				opbx_verbose("Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
+				cw_verbose("Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
 			} else {
-				opbx_verbose("Now running as user '' (%d)\n", getegid());
+				cw_verbose("Now running as user '' (%d)\n", getegid());
 			}
 		}
 
@@ -1872,10 +1872,10 @@ int callweaver_main(int argc, char *argv[])
 	/* Check if we're root */
 	if (!geteuid()) {
 #ifdef VERY_SECURE
-        opbx_log(OPBX_LOG_ERROR, "Running as root has been disabled\n");
+        cw_log(CW_LOG_ERROR, "Running as root has been disabled\n");
         exit(1);
 #else
-		opbx_log(OPBX_LOG_ERROR, "Running as root has been enabled\n");
+		cw_log(CW_LOG_ERROR, "Running as root has been enabled\n");
 #endif /* VERY_SECURE */
 	}
 
@@ -1886,23 +1886,23 @@ int callweaver_main(int argc, char *argv[])
 	   so we set it again to get core dumps */
 	if (option_dumpcore) {
 		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) == -1) {
-			opbx_log(OPBX_LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
+			cw_log(CW_LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
 #endif
 
 	if ((option_console || option_nofork) && !option_verbose) 
-		opbx_verbose("[ Initializing Custom Configuration Options ]");
+		cw_verbose("[ Initializing Custom Configuration Options ]");
 
-	opbx_registry_init(&atexit_registry);
-	opbx_registry_init(&cdrbe_registry);
-	opbx_registry_init(&clicmd_registry);
-	opbx_registry_init(&config_engine_registry);
-	opbx_registry_init(&format_registry);
-	opbx_registry_init(&func_registry);
-	opbx_registry_init(&imager_registry);
-	opbx_registry_init(&switch_registry);
-	opbx_registry_init(&translator_registry);
+	cw_registry_init(&atexit_registry);
+	cw_registry_init(&cdrbe_registry);
+	cw_registry_init(&clicmd_registry);
+	cw_registry_init(&config_engine_registry);
+	cw_registry_init(&format_registry);
+	cw_registry_init(&func_registry);
+	cw_registry_init(&imager_registry);
+	cw_registry_init(&switch_registry);
+	cw_registry_init(&translator_registry);
 
 	/* custom config setup */
 	register_config_cli();
@@ -1910,14 +1910,14 @@ int callweaver_main(int argc, char *argv[])
 
 	if (option_remote || option_exec) {
 		if (option_exec)
-			exit(console_oneshot(opbx_config_OPBX_SOCKET, xarg));
-		console(opbx_config_OPBX_SOCKET);
+			exit(console_oneshot(cw_config_CW_SOCKET, xarg));
+		console(cw_config_CW_SOCKET);
 		exit(0);
 	}
 
-	switch (lockfile_claim(opbx_config_OPBX_PID)) {
+	switch (lockfile_claim(cw_config_CW_PID)) {
 		case 0: /* Already running */
-			opbx_log(OPBX_LOG_ERROR, "CallWeaver already running.  Use 'callweaver -r' to connect.\n");
+			cw_log(CW_LOG_ERROR, "CallWeaver already running.  Use 'callweaver -r' to connect.\n");
 			/* Fall through */
 		case -1: /* Interrupted before claim */
 			exit(1);
@@ -1926,15 +1926,15 @@ int callweaver_main(int argc, char *argv[])
 	if (!option_console && !option_nofork) {
 		pid_t pid = fork();
 		if (pid == -1) {
-			opbx_log(OPBX_LOG_ERROR, "fork failed: %s\n", strerror(errno));
+			cw_log(CW_LOG_ERROR, "fork failed: %s\n", strerror(errno));
 			exit(1);
 		} else if (pid) {
 			/* We, the parent, are going to die and our child takes
 			 * over all future responsibilities. Update the pid file
 			 * accordingly.
 			 */
-			if (lockfile_rewrite(opbx_config_OPBX_PID, pid))
-				opbx_log(OPBX_LOG_WARNING, "Unable to rewrite pid file '%s' after forking: %s\n", opbx_config_OPBX_PID, strerror(errno));
+			if (lockfile_rewrite(cw_config_CW_PID, pid))
+				cw_log(CW_LOG_WARNING, "Unable to rewrite pid file '%s' after forking: %s\n", cw_config_CW_PID, strerror(errno));
 			_exit(0);
 		}
 
@@ -1946,16 +1946,16 @@ int callweaver_main(int argc, char *argv[])
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
-		opbx_verbose("Warning! CallWeaver is not thread safe.\n");
+		cw_verbose("Warning! CallWeaver is not thread safe.\n");
 
 	for (x = 0; x < arraysize(consoles); x++)	
 		consoles[x].fd = -1;
 
-	unlink(opbx_config_OPBX_SOCKET);
+	unlink(cw_config_CW_SOCKET);
 
-	opbx_makesocket(opbx_config_OPBX_SOCKET);
+	cw_makesocket(cw_config_CW_SOCKET);
 
-	opbx_register_verbose(network_verboser);
+	cw_register_verbose(network_verboser);
 
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
@@ -1980,11 +1980,11 @@ int callweaver_main(int argc, char *argv[])
 	/* Console start up needs core CLI commands in place because
 	 * the console will request debug and verbose settings
 	 */
-	opbx_cli_init();
+	cw_cli_init();
 
 	if (option_console || option_nofork) {
-		if (opbx_pthread_create(&consolethread, &global_attr_default, console, opbx_config_OPBX_SOCKET)) {
-			opbx_log(OPBX_LOG_ERROR, "Failed to start console - console is not available\n");
+		if (cw_pthread_create(&consolethread, &global_attr_default, console, cw_config_CW_SOCKET)) {
+			cw_log(CW_LOG_ERROR, "Failed to start console - console is not available\n");
 			option_console = 0;
 			option_nofork = 1;
 		}
@@ -2003,7 +2003,7 @@ int callweaver_main(int argc, char *argv[])
 			case SIGHUP:
 				if (option_verbose > 1) 
 					printf("Received HUP signal -- Reloading configs\n");
-				opbx_module_reload(NULL);
+				cw_module_reload(NULL);
 				break;
 			case SIGTERM:
 			case SIGINT:

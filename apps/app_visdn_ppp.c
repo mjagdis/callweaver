@@ -60,7 +60,7 @@ static int get_max_fds(void)
 #endif
 }
 
-static pid_t spawn_ppp(struct opbx_channel *chan, const char *argv[])
+static pid_t spawn_ppp(struct cw_channel *chan, const char *argv[])
 {
 	/* Start by forking */
 	pid_t pid = fork();
@@ -85,36 +85,36 @@ static pid_t spawn_ppp(struct opbx_channel *chan, const char *argv[])
 }
 
 
-static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct visdn_chan *visdn_chan;
 	const char **nargv;
 	struct localuser *u;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int res=-1;
 
 	LOCAL_USER_ADD(u);
 
-	if (chan->_state != OPBX_STATE_UP)
-		opbx_answer(chan);
+	if (chan->_state != CW_STATE_UP)
+		cw_answer(chan);
 
-	opbx_mutex_lock(&chan->lock);
+	cw_mutex_lock(&chan->lock);
 
 	if (strcmp(chan->type, "VISDN")) {
-		opbx_log(OPBX_LOG_WARNING,
+		cw_log(CW_LOG_WARNING,
 			"Only VISDN channels may be connected to"
 			" this application\n");
 
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 		return -1;
 	}
 
 	visdn_chan = to_visdn_chan(chan);
 
 	if (!visdn_chan->bearer_channel_id) {
-		opbx_log(OPBX_LOG_WARNING,
+		cw_log(CW_LOG_WARNING,
 			"vISDN crossconnector channel ID not present\n");
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 		return -1;
 	}
 
@@ -132,12 +132,12 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 	nargv[2 + argc + 2] = chan_id_arg;
 	nargv[2 + argc + 3] = NULL;
 
-	opbx_mutex_unlock(&chan->lock);
+	cw_mutex_unlock(&chan->lock);
 
 #if 0
 	int i;
 	for (i=0;i<argc;i++) {
-		opbx_log(OPBX_LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
+		cw_log(CW_LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
 	}
 #endif
 
@@ -145,15 +145,15 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 
 	pid_t pid = spawn_ppp(chan, nargv);
 	if (pid < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to spawn pppd\n");
+		cw_log(CW_LOG_WARNING, "Failed to spawn pppd\n");
 		return -1;
 	}
 
-	while(opbx_waitfor(chan, -1) > -1) {
+	while(cw_waitfor(chan, -1) > -1) {
 
-		f = opbx_read(chan);
+		f = cw_read(chan);
 		if (!f) {
-			opbx_log(OPBX_LOG_NOTICE,
+			cw_log(CW_LOG_NOTICE,
 				"Channel '%s' hungup."
 				" Signalling PPP at %d to die...\n",
 				chan->name, pid);
@@ -163,12 +163,12 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 			break;
 		}
 
-		opbx_fr_free(f);
+		cw_fr_free(f);
 
 		int status;
 		res = wait4(pid, &status, WNOHANG, NULL);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"wait4 returned %d: %s\n",
 				res, strerror(errno));
 
@@ -176,15 +176,15 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char
 		} else if (res > 0) {
 			if (option_verbose > 2) {
 				if (WIFEXITED(status)) {
-					opbx_verbose(VERBOSE_PREFIX_3
+					cw_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated with status %d\n",
 						chan->name, WEXITSTATUS(status));
 				} else if (WIFSIGNALED(status)) {
-					opbx_verbose(VERBOSE_PREFIX_3
+					cw_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated with signal %d\n", 
 						chan->name, WTERMSIG(status));
 				} else {
-					opbx_verbose(VERBOSE_PREFIX_3
+					cw_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated weirdly.\n", chan->name);
 				}
 			}
@@ -201,13 +201,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(visdn_ppp_app);
+	res |= cw_unregister_function(visdn_ppp_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	visdn_ppp_app = opbx_register_function(visdn_ppp_name, visdn_ppp_exec, visdn_ppp_synopsis, visdn_ppp_syntax, visdn_ppp_descrip);
+	visdn_ppp_app = cw_register_function(visdn_ppp_name, visdn_ppp_exec, visdn_ppp_synopsis, visdn_ppp_syntax, visdn_ppp_descrip);
 	return 0;
 }
 

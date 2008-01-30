@@ -36,14 +36,14 @@ extern "C" {
 #endif
 
 typedef enum {
-	__OPBX_LOG_DEBUG   = 0,
-	__OPBX_LOG_EVENT   = 1,
-	__OPBX_LOG_NOTICE  = 2,
-	__OPBX_LOG_WARNING = 3,
-	__OPBX_LOG_ERROR   = 4,
-	__OPBX_LOG_VERBOSE = 5,
-	__OPBX_LOG_DTMF    = 6
-} opbx_log_level;
+	__CW_LOG_DEBUG   = 0,
+	__CW_LOG_EVENT   = 1,
+	__CW_LOG_NOTICE  = 2,
+	__CW_LOG_WARNING = 3,
+	__CW_LOG_ERROR   = 4,
+	__CW_LOG_VERBOSE = 5,
+	__CW_LOG_DTMF    = 6
+} cw_log_level;
 
 #define EVENTLOG "event_log"
 
@@ -54,7 +54,7 @@ typedef enum {
 /*! Used for sending a log message */
 /*!
 	\brief This is the standard logger function.  Probably the only way you will invoke it would be something like this:
-	opbx_log(OPBX_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
+	cw_log(CW_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
 	where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending
 	on which log you wish to output to. These are implemented as macros, that
 	will provide the function with the needed arguments.
@@ -65,38 +65,38 @@ typedef enum {
 	\param function	Will be provided by the LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
-extern void opbx_log(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
+extern void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
-extern void opbx_backtrace(int levels);
+extern void cw_backtrace(int levels);
 
-extern void opbx_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+extern void cw_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
 /*! Send a verbose message (based on verbose level) 
- 	\brief This works like opbx_log, but prints verbose messages to the console depending on verbosity level set.
- 	opbx_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
+ 	\brief This works like cw_log, but prints verbose messages to the console depending on verbosity level set.
+ 	cw_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
  	This will print the message to the console if the verbose level is set to a level >= 3
  	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-extern void opbx_verbose(const char *fmt, ...)
+extern void cw_verbose(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-extern int opbx_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int opbx_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int opbx_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern void opbx_console_puts(const char *string);
+extern int cw_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+extern int cw_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+extern int cw_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+extern void cw_console_puts(const char *string);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
-#define OPBX_LOG_DEBUG      __OPBX_LOG_DEBUG,   _A_
-#define OPBX_LOG_EVENT      __OPBX_LOG_EVENT,   _A_
-#define OPBX_LOG_NOTICE     __OPBX_LOG_NOTICE,  _A_
-#define OPBX_LOG_WARNING    __OPBX_LOG_WARNING, _A_
-#define OPBX_LOG_ERROR      __OPBX_LOG_ERROR,   _A_
-#define OPBX_LOG_VERBOSE    __OPBX_LOG_VERBOSE, _A_
-#define OPBX_LOG_DTMF       __OPBX_LOG_DTMF,    _A_
+#define CW_LOG_DEBUG      __CW_LOG_DEBUG,   _A_
+#define CW_LOG_EVENT      __CW_LOG_EVENT,   _A_
+#define CW_LOG_NOTICE     __CW_LOG_NOTICE,  _A_
+#define CW_LOG_WARNING    __CW_LOG_WARNING, _A_
+#define CW_LOG_ERROR      __CW_LOG_ERROR,   _A_
+#define CW_LOG_VERBOSE    __CW_LOG_VERBOSE, _A_
+#define CW_LOG_DTMF       __CW_LOG_DTMF,    _A_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

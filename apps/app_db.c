@@ -89,13 +89,13 @@ static const char dt_descrip[] =
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 
-static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int deltree_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *family, *keytree;
 	struct localuser *u;
 
 	if (argc != 1)
-		return opbx_function_syntax(dt_syntax);
+		return cw_function_syntax(dt_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -103,11 +103,11 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *
 		family = strsep(&argv[0], "/");
 		keytree = strsep(&argv[0], "\0");
 			if (!family || !keytree) {
-				opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+				cw_log(CW_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 				LOCAL_USER_REMOVE(u);
 				return 0;
 			}
-		if (opbx_strlen_zero(keytree))
+		if (cw_strlen_zero(keytree))
 			keytree = 0;
 	} else {
 		family = argv[0];
@@ -116,14 +116,14 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *
 
 	if (option_verbose > 2)	{
 		if (keytree)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
+			cw_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
 		else
-			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
+			cw_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
 	}
 
-	if (opbx_db_deltree(family, keytree)) {
+	if (cw_db_deltree(family, keytree)) {
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
+			cw_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		} else {
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
@@ -134,13 +134,13 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *
 	return 0;
 }
 
-static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int del_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *family, *key;
 	struct localuser *u;
 
 	if (argc != 1)
-		return opbx_function_syntax(d_syntax);
+		return cw_function_syntax(d_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -148,21 +148,21 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		family = strsep(&argv[0], "/");
 		key = strsep(&argv[0], "\0");
 		if (!family || !key) {
-			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			cw_log(CW_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
-		if (opbx_db_del(family, key)) {
+			cw_verbose(VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
+		if (cw_db_del(family, key)) {
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
+				cw_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		} else {
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		}
 	} else {
-		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
+		cw_log(CW_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -170,19 +170,19 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 	return 0;
 }
 
-static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int put_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *val, *family, *key;
 	static int dep_warning = 0;
 	struct localuser *u;
 
 	if (!dep_warning) {
-		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
 	if (argc != 1)
-		return opbx_function_syntax(p_syntax);
+		return cw_function_syntax(p_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -191,22 +191,22 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		key = strsep(&argv[0], "=");
 		val = strsep(&argv[0], "\0");
 		if (!val || !family || !key) {
-			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			cw_log(CW_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, val);
-		if (opbx_db_put(family, key, val)) {
+			cw_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, val);
+		if (cw_db_put(family, key, val)) {
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
+				cw_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		} else {
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		}
 
 	} else	{
-		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
+		cw_log(CW_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -214,7 +214,7 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 	return 0;
 }
 
-static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int get_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *varname, *family, *key;
 	char dbresult[256];
@@ -222,12 +222,12 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 	struct localuser *u;
 
 	if (!dep_warning) {
-		opbx_log(OPBX_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(g_syntax);
+		return cw_function_syntax(g_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -236,24 +236,24 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf,
 		family = strsep(&argv[0], "/");
 		key = strsep(&argv[0], "\0");
 		if (!varname || !family || !key) {
-			opbx_log(OPBX_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			cw_log(CW_LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
-		if (!opbx_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
+			cw_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
+		if (!cw_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
 			pbx_builtin_setvar_helper(chan, varname, dbresult);
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
+				cw_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		} else {
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
+				cw_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		}
 	} else {
-		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
+		cw_log(CW_LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -265,19 +265,19 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(dt_app);
-	res |= opbx_unregister_function(d_app);
-	res |= opbx_unregister_function(p_app);
-	res |= opbx_unregister_function(g_app);
+	res |= cw_unregister_function(dt_app);
+	res |= cw_unregister_function(d_app);
+	res |= cw_unregister_function(p_app);
+	res |= cw_unregister_function(g_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	g_app = opbx_register_function(g_name, get_exec, g_synopsis, g_syntax, g_descrip);
-	p_app = opbx_register_function(p_name, put_exec, p_synopsis, p_syntax, p_descrip);
-	d_app = opbx_register_function(d_name, del_exec, d_synopsis, d_syntax, d_descrip);
-	dt_app = opbx_register_function(dt_name, deltree_exec, dt_synopsis, dt_syntax, dt_descrip);
+	g_app = cw_register_function(g_name, get_exec, g_synopsis, g_syntax, g_descrip);
+	p_app = cw_register_function(p_name, put_exec, p_synopsis, p_syntax, p_descrip);
+	d_app = cw_register_function(d_name, del_exec, d_synopsis, d_syntax, d_descrip);
+	dt_app = cw_register_function(dt_name, deltree_exec, dt_synopsis, dt_syntax, dt_descrip);
 	return 0;
 }
 

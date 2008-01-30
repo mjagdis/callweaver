@@ -40,7 +40,7 @@
 
 #include "callweaver/udpfromto.h"
 
-int opbx_udpfromto_init(int s)
+int cw_udpfromto_init(int s)
 {
 #if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_RECVDSTADDR)
     static const int opt = 1;
@@ -64,7 +64,7 @@ int opbx_udpfromto_init(int s)
 #endif
 }
 	
-int opbx_recvfromto(int s,
+int cw_recvfromto(int s,
                     void *buf,
                     size_t len,
                     int flags,
@@ -176,7 +176,7 @@ int opbx_recvfromto(int s,
 #endif
 }
 
-int opbx_sendfromto(int s,
+int cw_sendfromto(int s,
                     void *buf,
                     size_t len,
                     int flags,

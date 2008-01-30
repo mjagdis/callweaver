@@ -46,7 +46,7 @@
 #include "callweaver/strings.h"
 
 enum valtype {
-	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
+	CW_EXPR_integer, CW_EXPR_numeric_string, CW_EXPR_string
 } ;
 
 struct val {
@@ -67,13 +67,13 @@ struct val {
 
 #define SET_STRING	do {		\
 	yylval_param->val = calloc(1, sizeof(struct val));	\
-	yylval_param->val->type = OPBX_EXPR_string;		\
+	yylval_param->val->type = CW_EXPR_string;		\
 	yylval_param->val->u.s = strdup(yytext);		\
 	} while (0)
 
 #define SET_NUMERIC_STRING	do {	\
 	yylval_param->val = calloc(1, sizeof(struct val));	\
-	yylval_param->val->type = OPBX_EXPR_numeric_string;	\
+	yylval_param->val->type = CW_EXPR_numeric_string;	\
 	yylval_param->val->u.s = strdup(yytext);	\
 	} while (0)
 
@@ -84,13 +84,13 @@ struct parse_io
 	yyscan_t scanner;
 };
  
-void opbx_yyset_column(int column_no, yyscan_t yyscanner);
-int opbx_yyget_column(yyscan_t yyscanner);
+void cw_yyset_column(int column_no, yyscan_t yyscanner);
+int cw_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(char *mess);
 %}
 
-%option prefix="opbx_yy"
+%option prefix="cw_yy"
 %option batch
 %option outfile="callweaver_expr2f.c"
 %option reentrant
@@ -205,13 +205,13 @@ static char *expr2_token_subst(char *mess);
 /* I'm putting the interface routine to the whole parse here in the flexer input file
    mainly because of all the flexer initialization that has to be done. Shouldn't matter
    where it is, as long as it's somewhere. I didn't want to define a prototype for the
-   opbx_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
+   cw_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
 	UGH! that would be inappropriate. */
 
-int opbx_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
-int opbx_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
+int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
+int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int opbx_expr(char *expr, char *buf, int length)
+int cw_expr(char *expr, char *buf, int length)
 {
 	struct parse_io io;
 	int return_value = 0;
@@ -219,13 +219,13 @@ int opbx_expr(char *expr, char *buf, int length)
 	memset(&io, 0, sizeof(io));
 	io.string = expr;  /* to pass to the error routine */
 	
-	opbx_yylex_init(&io.scanner);
+	cw_yylex_init(&io.scanner);
 	
-	opbx_yy_scan_string(expr, io.scanner);
+	cw_yy_scan_string(expr, io.scanner);
 	
-	opbx_yyparse ((void *) &io);
+	cw_yyparse ((void *) &io);
 
-	opbx_yylex_destroy(io.scanner);
+	cw_yylex_destroy(io.scanner);
 
 	if (!io.val) {
 		if (length > 1) {
@@ -233,7 +233,7 @@ int opbx_expr(char *expr, char *buf, int length)
 			return_value = 1;
 		}
 	} else {
-		if (io.val->type == OPBX_EXPR_integer) {
+		if (io.val->type == CW_EXPR_integer) {
 			int res_length;
 
 			res_length = snprintf(buf, length, "%ld", (long int) io.val->u.i);
@@ -242,7 +242,7 @@ int opbx_expr(char *expr, char *buf, int length)
 #ifdef STANDALONE
 			strncpy(buf, io.val->u.s, length - 1);
 #else /* !STANDALONE */
-			opbx_copy_string(buf, io.val->u.s, length);
+			cw_copy_string(buf, io.val->u.s, length);
 #endif /* STANDALONE */
 			return_value = strlen(buf);
 			free(io.val->u.s);
@@ -255,16 +255,16 @@ int opbx_expr(char *expr, char *buf, int length)
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;
-void  opbx_expr_register_extra_error_info(char *message);
-void  opbx_expr_clear_extra_error_info(void);
+void  cw_expr_register_extra_error_info(char *message);
+void  cw_expr_clear_extra_error_info(void);
 
-void  opbx_expr_register_extra_error_info(char *message)
+void  cw_expr_register_extra_error_info(char *message)
 {
        extra_error_message_supplied=1;
        strcpy(extra_error_message, message);
 }
 
-void  opbx_expr_clear_extra_error_info(void)
+void  cw_expr_clear_extra_error_info(void)
 {
        extra_error_message_supplied=0;
        extra_error_message[0] = 0;
@@ -364,7 +364,7 @@ static char *expr2_token_subst(char *mess)
 	return res;
 }
 
-int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
+int cw_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 {	
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	char spacebuf[8000]; /* best safe than sorry */
@@ -389,14 +389,14 @@ int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 
 #ifdef STANDALONE3
 	/* easier to read in the standalone version */
-	printf("opbx_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
+	printf("cw_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #else
-	opbx_log(OPBX_LOG_WARNING,"opbx_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
+	cw_log(CW_LOG_WARNING,"cw_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	opbx_log(OPBX_LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
+	cw_log(CW_LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
 #endif
 	free(s2);
 	return(0);

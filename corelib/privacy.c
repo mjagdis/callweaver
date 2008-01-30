@@ -50,7 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 
-int opbx_privacy_check(char *dest, char *cid)
+int cw_privacy_check(char *dest, char *cid)
 {
 	char tmp[256] = "";
 	char *trimcid = "";
@@ -58,35 +58,35 @@ int opbx_privacy_check(char *dest, char *cid)
 	int res;
 	char key[256], result[256];
 	if (cid)
-		opbx_copy_string(tmp, cid, sizeof(tmp));
-	opbx_callerid_parse(tmp, &n, &l);
+		cw_copy_string(tmp, cid, sizeof(tmp));
+	cw_callerid_parse(tmp, &n, &l);
 	if (l) {
-		opbx_shrink_phone_number(l);
+		cw_shrink_phone_number(l);
 		trimcid = l;
 	}
 	snprintf(key, sizeof(key), "%s/%s", dest, trimcid);
-	res = opbx_db_get("privacy", key, result, sizeof(result));
+	res = cw_db_get("privacy", key, result, sizeof(result));
 	if (!res) {
 		if (!strcasecmp(result, "allow"))
-			return OPBX_PRIVACY_ALLOW;
+			return CW_PRIVACY_ALLOW;
 		if (!strcasecmp(result, "deny"))
-			return OPBX_PRIVACY_DENY;
+			return CW_PRIVACY_DENY;
 		if (!strcasecmp(result, "kill"))
-			return OPBX_PRIVACY_KILL;
+			return CW_PRIVACY_KILL;
 		if (!strcasecmp(result, "torture"))
-			return OPBX_PRIVACY_TORTURE;
+			return CW_PRIVACY_TORTURE;
 	}
-	return OPBX_PRIVACY_UNKNOWN;
+	return CW_PRIVACY_UNKNOWN;
 }
 
-int opbx_privacy_reset(char *dest)
+int cw_privacy_reset(char *dest)
 {
 	if (!dest)
 		return -1;
-	return opbx_db_deltree("privacy", dest);
+	return cw_db_deltree("privacy", dest);
 }
 
-int opbx_privacy_set(char *dest, char *cid, int status)
+int cw_privacy_set(char *dest, char *cid, int status)
 {
 	char tmp[256] = "";
 	char *trimcid = "";
@@ -94,27 +94,27 @@ int opbx_privacy_set(char *dest, char *cid, int status)
 	int res;
 	char key[256];
 	if (cid)
-		opbx_copy_string(tmp, cid, sizeof(tmp));
-	opbx_callerid_parse(tmp, &n, &l);
+		cw_copy_string(tmp, cid, sizeof(tmp));
+	cw_callerid_parse(tmp, &n, &l);
 	if (l) {
-		opbx_shrink_phone_number(l);
+		cw_shrink_phone_number(l);
 		trimcid = l;
 	}
-	if (opbx_strlen_zero(trimcid)) {
+	if (cw_strlen_zero(trimcid)) {
 		/* Don't store anything for empty Caller*ID */
 		return 0;
 	}
 	snprintf(key, sizeof(key), "%s/%s", dest, trimcid);
-	if (status == OPBX_PRIVACY_UNKNOWN) 
-		res = opbx_db_del("privacy", key);
-	else if (status == OPBX_PRIVACY_ALLOW)
-		res = opbx_db_put("privacy", key, "allow");
-	else if (status == OPBX_PRIVACY_DENY)
-		res = opbx_db_put("privacy", key, "deny");
-	else if (status == OPBX_PRIVACY_KILL)
-		res = opbx_db_put("privacy", key, "kill");
-	else if (status == OPBX_PRIVACY_TORTURE)
-		res = opbx_db_put("privacy", key, "torture");
+	if (status == CW_PRIVACY_UNKNOWN) 
+		res = cw_db_del("privacy", key);
+	else if (status == CW_PRIVACY_ALLOW)
+		res = cw_db_put("privacy", key, "allow");
+	else if (status == CW_PRIVACY_DENY)
+		res = cw_db_put("privacy", key, "deny");
+	else if (status == CW_PRIVACY_KILL)
+		res = cw_db_put("privacy", key, "kill");
+	else if (status == CW_PRIVACY_TORTURE)
+		res = cw_db_put("privacy", key, "torture");
 	else
 		res = -1;
 	return res;

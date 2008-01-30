@@ -80,7 +80,7 @@ icd_metalist *create_icd_metalist(icd_config * data)
     ICD_MALLOC(list, sizeof(icd_metalist));
 
     if (list == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Metalist\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Metalist\n");
         return NULL;
     }
     result = init_icd_metalist(list, data);

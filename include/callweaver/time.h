@@ -31,8 +31,8 @@
    struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
    they are just a long. */
 extern struct timeval tv;
-typedef typeof(tv.tv_sec) opbx_time_t;
-typedef typeof(tv.tv_usec) opbx_suseconds_t;
+typedef typeof(tv.tv_sec) cw_time_t;
+typedef typeof(tv.tv_usec) cw_suseconds_t;
 
 /*!
  * \brief Computes the difference (in microseconds) between two \c struct \c timeval instances.
@@ -40,8 +40,8 @@ typedef typeof(tv.tv_usec) opbx_suseconds_t;
  * \param start the end of the time period
  * \return the difference in microseconds
  */
-OPBX_INLINE_API(
-int opbx_tvdiff(struct timeval end, struct timeval start),
+CW_INLINE_API(
+int cw_tvdiff(struct timeval end, struct timeval start),
 {
 	/* the offset by 1,000,000 below is intentional...
 	   it avoids differences in the way that division
@@ -59,8 +59,8 @@ int opbx_tvdiff(struct timeval end, struct timeval start),
  * \param start the end of the time period
  * \return the difference in milliseconds
  */
-OPBX_INLINE_API(
-int opbx_tvdiff_ms(struct timeval end, struct timeval start),
+CW_INLINE_API(
+int cw_tvdiff_ms(struct timeval end, struct timeval start),
 {
 	/* the offset by 1,000,000 below is intentional...
 	   it avoids differences in the way that division
@@ -75,8 +75,8 @@ int opbx_tvdiff_ms(struct timeval end, struct timeval start),
 /*!
  * \brief Returns true if the argument is 0,0
  */
-OPBX_INLINE_API(
-int opbx_tvzero(const struct timeval t),
+CW_INLINE_API(
+int cw_tvzero(const struct timeval t),
 {
 	return (t.tv_sec == 0 && t.tv_usec == 0);
 }
@@ -86,8 +86,8 @@ int opbx_tvzero(const struct timeval t),
  * \brief Compres two \c struct \c timeval instances returning
  * -1, 0, 1 if the first arg is smaller, equal or greater to the second.
  */
-OPBX_INLINE_API(
-int opbx_tvcmp(struct timeval _a, struct timeval _b),
+CW_INLINE_API(
+int cw_tvcmp(struct timeval _a, struct timeval _b),
 {
 	if (_a.tv_sec < _b.tv_sec)
 		return -1;
@@ -105,8 +105,8 @@ int opbx_tvcmp(struct timeval _a, struct timeval _b),
 /*!
  * \brief Returns true if the two \c struct \c timeval arguments are equal.
  */
-OPBX_INLINE_API(
-int opbx_tveq(struct timeval _a, struct timeval _b),
+CW_INLINE_API(
+int cw_tveq(struct timeval _a, struct timeval _b),
 {
 	return (_a.tv_sec == _b.tv_sec && _a.tv_usec == _b.tv_usec);
 }
@@ -115,8 +115,8 @@ int opbx_tveq(struct timeval _a, struct timeval _b),
 /*!
  * \brief Returns current timeval. Meant to replace calls to gettimeofday().
  */
-OPBX_INLINE_API(
-struct timeval opbx_tvnow(void),
+CW_INLINE_API(
+struct timeval cw_tvnow(void),
 {
 	struct timeval t;
 	gettimeofday(&t, NULL);
@@ -127,27 +127,27 @@ struct timeval opbx_tvnow(void),
 /*!
  * \brief Returns the sum of two timevals a + b
  */
-struct timeval opbx_tvadd(struct timeval a, struct timeval b);
+struct timeval cw_tvadd(struct timeval a, struct timeval b);
 
 /*!
  * \brief Returns the difference of two timevals a - b
  */
-struct timeval opbx_tvsub(struct timeval a, struct timeval b);
+struct timeval cw_tvsub(struct timeval a, struct timeval b);
 
 /*!
  * \brief Returns a timeval from sec, usec
  */
 #if 0
-OPBX_INLINE_API(
-struct timeval opbx_tv(int sec, int usec),
+CW_INLINE_API(
+struct timeval cw_tv(int sec, int usec),
 {
 	struct timeval t = { sec, usec};
 	return t;
 }
 )
 #endif
-OPBX_INLINE_API(
-struct timeval opbx_tv(opbx_time_t sec, opbx_suseconds_t usec),
+CW_INLINE_API(
+struct timeval cw_tv(cw_time_t sec, cw_suseconds_t usec),
 {
 	struct timeval t;
 	t.tv_sec = sec;
@@ -159,12 +159,12 @@ struct timeval opbx_tv(opbx_time_t sec, opbx_suseconds_t usec),
 /*!
  * \brief Returns a timeval corresponding to the duration of n samples at rate r.
  * Useful to convert samples to timevals, or even milliseconds to timevals
- * in the form opbx_samp2tv(milliseconds, 1000)
+ * in the form cw_samp2tv(milliseconds, 1000)
  */
-OPBX_INLINE_API(
-struct timeval opbx_samp2tv(unsigned int _nsamp, unsigned int _rate),
+CW_INLINE_API(
+struct timeval cw_samp2tv(unsigned int _nsamp, unsigned int _rate),
 {
-	return opbx_tv(_nsamp / _rate, (_nsamp % _rate) * (1000000 / _rate));
+	return cw_tv(_nsamp / _rate, (_nsamp % _rate) * (1000000 / _rate));
 }
 )
 

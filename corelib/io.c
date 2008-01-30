@@ -49,7 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * Kept for each file descriptor
  */
 struct io_rec {
-	opbx_io_cb callback;		/* What is to be called */
+	cw_io_cb callback;		/* What is to be called */
 	void *data; 				/* Data to be passed */
 	int *id; 					/* ID number */
 };
@@ -126,7 +126,7 @@ static int io_grow(struct io_context *ioc)
 	 * -1 on failure
 	 */
 	void *tmp;
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "io_grow()\n"));
+	DEBUG_LOG(cw_log(CW_LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
 	tmp = realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(struct io_rec));
 	if (tmp) {
@@ -154,7 +154,7 @@ static int io_grow(struct io_context *ioc)
 	return 0;
 }
 
-int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short events, void *data)
+int *cw_io_add(struct io_context *ioc, int fd, cw_io_cb callback, short events, void *data)
 {
 	/*
 	 * Add a new I/O entry for this file descriptor
@@ -162,7 +162,7 @@ int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short even
 	 * data as an argument.  Returns NULL on failure.
 	 */
 	int *ret;
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_io_add()\n"));
+	DEBUG_LOG(cw_log(CW_LOG_DEBUG, "cw_io_add()\n"));
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
@@ -192,7 +192,7 @@ int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short even
 	return ret;
 }
 
-int *opbx_io_change(struct io_context *ioc, int *id, int fd, opbx_io_cb callback, short events, void *data)
+int *cw_io_change(struct io_context *ioc, int *id, int fd, cw_io_cb callback, short events, void *data)
 {
 	if (*id < ioc->fdcnt) {
 		if (fd > -1)
@@ -235,11 +235,11 @@ static int io_shrink(struct io_context *ioc)
 	return 0;
 }
 
-int opbx_io_remove(struct io_context *ioc, int *_id)
+int cw_io_remove(struct io_context *ioc, int *_id)
 {
 	int x;
 	if (!_id) {
-		opbx_log(OPBX_LOG_WARNING, "Asked to remove NULL?\n");
+		cw_log(CW_LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
 	for (x = 0; x < ioc->fdcnt; x++) {
@@ -256,11 +256,11 @@ int opbx_io_remove(struct io_context *ioc, int *_id)
 		}
 	}
 	
-	opbx_log(OPBX_LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
+	cw_log(CW_LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
 	return -1;
 }
 
-int opbx_io_wait(struct io_context *ioc, int howlong)
+int cw_io_wait(struct io_context *ioc, int howlong)
 {
 	/*
 	 * Make the poll call, and call
@@ -270,7 +270,7 @@ int opbx_io_wait(struct io_context *ioc, int howlong)
 	int res;
 	int x;
 	int origcnt;
-	DEBUG_LOG(opbx_log(OPBX_LOG_DEBUG, "opbx_io_wait()\n"));
+	DEBUG_LOG(cw_log(CW_LOG_DEBUG, "cw_io_wait()\n"));
 	res = poll(ioc->fds, ioc->fdcnt, howlong);
 	if (res > 0) {
 		/*
@@ -286,7 +286,7 @@ int opbx_io_wait(struct io_context *ioc, int howlong)
 				if (ioc->ior[x].callback) {
 					if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
 						/* Time to delete them since they returned a 0 */
-						opbx_io_remove(ioc, ioc->ior[x].id);
+						cw_io_remove(ioc, ioc->ior[x].id);
 					}
 				}
 				ioc->current_ioc = -1;
@@ -298,31 +298,31 @@ int opbx_io_wait(struct io_context *ioc, int howlong)
 	return res;
 }
 
-void opbx_io_dump(struct io_context *ioc)
+void cw_io_dump(struct io_context *ioc)
 {
 	/*
 	 * Print some debugging information via
 	 * the logger interface
 	 */
 	int x;
-	opbx_log(OPBX_LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
-	opbx_log(OPBX_LOG_DEBUG, "================================================\n");
-	opbx_log(OPBX_LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
-	opbx_log(OPBX_LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
+	cw_log(CW_LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	cw_log(CW_LOG_DEBUG, "================================================\n");
+	cw_log(CW_LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
+	cw_log(CW_LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
 	for (x = 0; x < ioc->fdcnt; x++) {
-		opbx_log(OPBX_LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
+		cw_log(CW_LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,
 				ioc->ior[x].data,
 				ioc->fds[x].events);
 	}
-	opbx_log(OPBX_LOG_DEBUG, "================================================\n");
+	cw_log(CW_LOG_DEBUG, "================================================\n");
 }
 
 /* Unrelated I/O functions */
 
-int opbx_hide_password(int fd)
+int cw_hide_password(int fd)
 {
 	struct termios tios;
 	int res;
@@ -341,7 +341,7 @@ int opbx_hide_password(int fd)
 	return old;
 }
 
-int opbx_restore_tty(int fd, int oldstate)
+int cw_restore_tty(int fd, int oldstate)
 {
 	int res;
 	struct termios tios;
@@ -358,7 +358,7 @@ int opbx_restore_tty(int fd, int oldstate)
 	return 0;
 }
 
-int opbx_get_termcols(int fd)
+int cw_get_termcols(int fd)
 {
 	struct winsize win;
 	int cols = 0;

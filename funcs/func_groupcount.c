@@ -69,7 +69,7 @@ static const char group_list_func_syntax[] = "GROUP_LIST()";
 static const char group_list_func_desc[] = "Gets a list of the groups set on a channel.\n";
 
 
-static int group_count_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int count;
 	char group[80] = "";
@@ -77,33 +77,33 @@ static int group_count_function_read(struct opbx_channel *chan, int argc, char *
 	char *grp;
 
 	if (buf) {
-		opbx_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
+		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
-		if (opbx_strlen_zero(group)) {
+		if (cw_strlen_zero(group)) {
 			if ((grp = pbx_builtin_getvar_helper(chan, category)))
-				opbx_copy_string(group, grp, sizeof(group));
+				cw_copy_string(group, grp, sizeof(group));
 			else
-				opbx_log(OPBX_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
+				cw_log(CW_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 		}
 
-		count = opbx_app_group_get_count(group, category);
+		count = cw_app_group_get_count(group, category);
 		snprintf(buf, len, "%d", count);
 	}
 
 	return 0;
 }
 
-static int group_match_count_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int count;
 	char group[80] = "";
 	char category[80] = "";
 
 	if (buf) {
-		opbx_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
+		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
-		if (!opbx_strlen_zero(group)) {
-			count = opbx_app_group_match_get_count(group, category);
+		if (!cw_strlen_zero(group)) {
+			count = cw_app_group_match_get_count(group, category);
 			snprintf(buf, len, "%d", count);
 		}
 	}
@@ -111,7 +111,7 @@ static int group_match_count_function_read(struct opbx_channel *chan, int argc, 
 	return 0;
 }
 
-static int group_function_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_function_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *group;
 
@@ -121,11 +121,11 @@ static int group_function_rw(struct opbx_channel *chan, int argc, char **argv, c
 		if (argc > 1 && argv[1][0]) {
 			snprintf(tmp, sizeof(tmp), "%s@%s", argv[1], argv[0]);
 		} else {
-			opbx_copy_string(tmp, argv[0], sizeof(tmp));
+			cw_copy_string(tmp, argv[0], sizeof(tmp));
 		}
 
-        	if (opbx_app_group_set_channel(chan, tmp)) {
-                	opbx_log(OPBX_LOG_WARNING, "Setting a group requires an argument (group name)\n");
+        	if (cw_app_group_set_channel(chan, tmp)) {
+                	cw_log(CW_LOG_WARNING, "Setting a group requires an argument (group name)\n");
 			return -1;
 		}
 	}
@@ -134,12 +134,12 @@ static int group_function_rw(struct opbx_channel *chan, int argc, char **argv, c
 		if (argc > 0 && argv[0][0]) {
 			snprintf(buf, len, "%s_%s", GROUP_CATEGORY_PREFIX, argv[0]);
 		} else {
-			opbx_copy_string(buf, GROUP_CATEGORY_PREFIX, len);
+			cw_copy_string(buf, GROUP_CATEGORY_PREFIX, len);
 		}
 
 		group = pbx_builtin_getvar_helper(chan, buf);
 		if (group)
-			opbx_copy_string(buf, group, len);
+			cw_copy_string(buf, group, len);
 		else
 			*buf = '\0';
 	}
@@ -147,33 +147,33 @@ static int group_function_rw(struct opbx_channel *chan, int argc, char **argv, c
 	return 0;
 }
 
-static int group_list_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct opbx_var_t *current;
+	struct cw_var_t *current;
 	struct varshead *headp;
 	char tmp1[1024] = "";
 	char tmp2[1024] = "";
 
 	if (buf) {
 		headp=&chan->varshead;
-		OPBX_LIST_TRAVERSE(headp,current,entries) {
-			if (!strncmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-				if (!opbx_strlen_zero(tmp1)) {
-					opbx_copy_string(tmp2, tmp1, sizeof(tmp2));
-					snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, opbx_var_value(current), (opbx_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+		CW_LIST_TRAVERSE(headp,current,entries) {
+			if (!strncmp(cw_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+				if (!cw_strlen_zero(tmp1)) {
+					cw_copy_string(tmp2, tmp1, sizeof(tmp2));
+					snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, cw_var_value(current), (cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
 				} else {
-					snprintf(tmp1, sizeof(tmp1), "%s@%s", opbx_var_value(current), (opbx_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+					snprintf(tmp1, sizeof(tmp1), "%s@%s", cw_var_value(current), (cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
 				}
-			} else if (!strcmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX)) {
-				if (!opbx_strlen_zero(tmp1)) {
-					opbx_copy_string(tmp2, tmp1, sizeof(tmp2));
-					snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, opbx_var_value(current));
+			} else if (!strcmp(cw_var_name(current), GROUP_CATEGORY_PREFIX)) {
+				if (!cw_strlen_zero(tmp1)) {
+					cw_copy_string(tmp2, tmp1, sizeof(tmp2));
+					snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, cw_var_value(current));
 				} else {
-					snprintf(tmp1, sizeof(tmp1), "%s", opbx_var_value(current));
+					snprintf(tmp1, sizeof(tmp1), "%s", cw_var_value(current));
 				}
 			}
 		}
-		opbx_copy_string(buf, tmp1, len);
+		cw_copy_string(buf, tmp1, len);
 	}
 
 	return 0;
@@ -185,19 +185,19 @@ static int unload_module(void)
 {
         int res = 0;
 
-	res |= opbx_unregister_function(group_count_function);
-	res |= opbx_unregister_function(group_match_count_function);
-	res |= opbx_unregister_function(group_function);
-	res |= opbx_unregister_function(group_list_function);
+	res |= cw_unregister_function(group_count_function);
+	res |= cw_unregister_function(group_match_count_function);
+	res |= cw_unregister_function(group_function);
+	res |= cw_unregister_function(group_list_function);
         return res;
 }
 
 static int load_module(void)
 {
-	group_count_function = opbx_register_function(group_count_func_name, group_count_function_read, group_count_func_synopsis, group_count_func_syntax, group_count_func_desc);
-	group_match_count_function = opbx_register_function(group_match_count_func_name, group_match_count_function_read, group_match_count_func_synopsis, group_match_count_func_syntax, group_match_count_func_desc);
-	group_function = opbx_register_function(group_func_name, group_function_rw, group_func_synopsis, group_func_syntax, group_func_desc);
-	group_list_function = opbx_register_function(group_list_func_name, group_list_function_read, group_list_func_synopsis, group_list_func_syntax, group_list_func_desc);
+	group_count_function = cw_register_function(group_count_func_name, group_count_function_read, group_count_func_synopsis, group_count_func_syntax, group_count_func_desc);
+	group_match_count_function = cw_register_function(group_match_count_func_name, group_match_count_function_read, group_match_count_func_synopsis, group_match_count_func_syntax, group_match_count_func_desc);
+	group_function = cw_register_function(group_func_name, group_function_rw, group_func_synopsis, group_func_syntax, group_func_desc);
+	group_list_function = cw_register_function(group_list_func_name, group_list_function_read, group_list_func_synopsis, group_list_func_syntax, group_list_func_desc);
         return 0;
 }
 

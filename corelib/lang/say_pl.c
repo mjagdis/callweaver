@@ -80,22 +80,22 @@ static char *pl_append(char* buffer, char* str)
     return buffer;
 }
 
-static void pl_odtworz_plik(struct opbx_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, char *fn)
+static void pl_odtworz_plik(struct cw_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, char *fn)
 {
     char file_name[255] = "digits/";
     strcat(file_name, fn);
-    opbx_log(OPBX_LOG_DEBUG, "Trying to play: %s\n", file_name);
-    if (!opbx_streamfile(chan, file_name, language))
+    cw_log(CW_LOG_DEBUG, "Trying to play: %s\n", file_name);
+    if (!cw_streamfile(chan, file_name, language))
     {
         if ((audiofd > -1) && (ctrlfd > -1))
-            opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+            cw_waitstream_full(chan, ints, audiofd, ctrlfd);
         else
-            opbx_waitstream(chan, ints);
+            cw_waitstream(chan, ints);
     }
-    opbx_stopstream(chan);
+    cw_stopstream(chan);
 }
 
-static void powiedz(struct opbx_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, odmiana *odm, int rzad, int i)
+static void powiedz(struct cw_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, odmiana *odm, int rzad, int i)
 {
     /* Initialise variables to allow compilation on Debian-stable, etc */
     int m1000E6 = 0;
@@ -175,7 +175,7 @@ static void powiedz(struct opbx_channel *chan, const char *language, int audiofd
         pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, pl_rzad_na_tekst(odm, i, rzad));
 }
 
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 /*
 Sounds needed:
 0		zero

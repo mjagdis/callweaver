@@ -108,10 +108,10 @@ static char *cli_prompt(void)
 						t++;
 #if 0
 						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
-							strncat(p, opbx_term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
+							strncat(p, cw_term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
 						} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
-							strncat(p, opbx_term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
+							strncat(p, cw_term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
 						}
 
@@ -125,7 +125,7 @@ static char *cli_prompt(void)
 						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = opbx_tvnow();
+						tv = cw_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 						}
@@ -172,7 +172,7 @@ static char *cli_prompt(void)
 #endif
 					case 't': /* time */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = opbx_tvnow();
+						tv = cw_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 						}
@@ -204,7 +204,7 @@ static char *cli_prompt(void)
 		if (color_used) {
 			/* Force colors back to normal at end */
 #if 0
-			opbx_term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
+			cw_term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
 			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
 				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
 			} else {
@@ -221,7 +221,7 @@ static char *cli_prompt(void)
 }
 
 
-static char **opbx_rl_strtoarr(char *buf)
+static char **cw_rl_strtoarr(char *buf)
 {
 	char **match_list = NULL, *retstr;
 	size_t match_list_len;
@@ -230,7 +230,7 @@ static char **opbx_rl_strtoarr(char *buf)
 	match_list_len = 1;
 	while ( (retstr = strsep(&buf, " ")) != NULL) {
 
-		if (!strcmp(retstr, OPBX_CLI_COMPLETE_EOF))
+		if (!strcmp(retstr, CW_CLI_COMPLETE_EOF))
 			break;
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
@@ -291,7 +291,7 @@ static char **cli_completion(const char *text, int start, int end)
                 write(console_sock, buf, res);
                 res = 0;
 
-                while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1)
+                while (!strstr(mbuf, CW_CLI_COMPLETE_EOF) && res != -1)
                 {
                     if (mlen + 1024 > maxmbuf)
                     {
@@ -308,7 +308,7 @@ static char **cli_completion(const char *text, int start, int end)
                 }
                 mbuf[mlen] = '\0';
 
-                matches = opbx_rl_strtoarr(mbuf);
+                matches = cw_rl_strtoarr(mbuf);
             }
             free(mbuf);
         }
@@ -316,10 +316,10 @@ static char **cli_completion(const char *text, int start, int end)
     }
     else
     {
-        nummatches = opbx_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
+        nummatches = cw_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
 
         if (nummatches > 0 )
-            matches = opbx_cli_completion_matches((char*)rl_line_buffer, (char*)text);
+            matches = cw_cli_completion_matches((char*)rl_line_buffer, (char*)text);
     }
     return (matches);
 }
@@ -356,15 +356,15 @@ static void console_handler(char *s)
 
 			if (s[0] == '!') {
 				if (s[1])
-					opbx_safe_system(s+1);
+					cw_safe_system(s+1);
 				else
-					opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+					cw_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			} else if (option_remote && (!strcasecmp(s, "quit") || !strcasecmp(s, "exit"))) {
 				console_cleanup(NULL);
 				exit(0);
 			} else {
 				if (write(console_sock, s, strlen(s) + 1) < 1) {
-					opbx_log(OPBX_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
+					cw_log(CW_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					pthread_detach(pthread_self());
 					pthread_cancel(pthread_self());
 				}

@@ -100,7 +100,7 @@ static const char group_match_count_descrip[] =
 "GroupMatchCount.\n";
 
 
-static int group_count_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -112,23 +112,23 @@ static int group_count_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int count;
 
 	if (!deprecation_warning) {
-	        opbx_log(OPBX_LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
+	        cw_log(CW_LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(group_count_syntax);
+		return cw_function_syntax(group_count_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	opbx_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
+	cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
-	if (opbx_strlen_zero(group)) {
+	if (cw_strlen_zero(group)) {
 		grp = pbx_builtin_getvar_helper(chan, category);
 		strncpy(group, grp, sizeof(group) - 1);
 	}
 
-	count = opbx_app_group_get_count(group, category);
+	count = cw_app_group_get_count(group, category);
 	snprintf(ret, sizeof(ret), "%d", count);
 	pbx_builtin_setvar_helper(chan, "GROUPCOUNT", ret);
 
@@ -137,7 +137,7 @@ static int group_count_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	return res;
 }
 
-static int group_match_count_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -148,19 +148,19 @@ static int group_match_count_exec(struct opbx_channel *chan, int argc, char **ar
 	int count;
 
 	if (!deprecation_warning) {
-	        opbx_log(OPBX_LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
+	        cw_log(CW_LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(group_match_count_syntax);
+		return cw_function_syntax(group_match_count_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	opbx_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
+	cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
-	if (!opbx_strlen_zero(group)) {
-		count = opbx_app_group_match_get_count(group, category);
+	if (!cw_strlen_zero(group)) {
+		count = cw_app_group_match_get_count(group, category);
 		snprintf(ret, sizeof(ret), "%d", count);
 		pbx_builtin_setvar_helper(chan, "GROUPCOUNT", ret);
 	}
@@ -170,30 +170,30 @@ static int group_match_count_exec(struct opbx_channel *chan, int argc, char **ar
 	return res;
 }
 
-static int group_set_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_set_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static int deprecation_warning = 0;
 	struct localuser *u;
 	int res = 0;
 
 	if (!deprecation_warning) {
-	        opbx_log(OPBX_LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
+	        cw_log(CW_LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
 		deprecation_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(group_set_syntax);
+		return cw_function_syntax(group_set_syntax);
 
 	LOCAL_USER_ADD(u);
 	
-	if (opbx_app_group_set_channel(chan, argv[0]))
-		opbx_log(OPBX_LOG_WARNING, "SetGroup requires an argument (group name)\n");
+	if (cw_app_group_set_channel(chan, argv[0]))
+		cw_log(CW_LOG_WARNING, "SetGroup requires an argument (group name)\n");
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int group_check_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static int deprecation_warning = 0;
 	char limit[80]="";
@@ -203,26 +203,26 @@ static int group_check_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int max, count;
 
 	if (!deprecation_warning) {
-	        opbx_log(OPBX_LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
+	        cw_log(CW_LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
 		deprecation_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(group_check_syntax);
+		return cw_function_syntax(group_check_syntax);
 
 	LOCAL_USER_ADD(u);
 
-  	opbx_app_group_split_group(argv[0], limit, sizeof(limit), category, sizeof(category));
+  	cw_app_group_split_group(argv[0], limit, sizeof(limit), category, sizeof(category));
 
  	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
-		count = opbx_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
+		count = cw_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
 			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "OK");
 		} else {
 			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "MAX_EXCEEDED");
 		}
 	} else
-		opbx_log(OPBX_LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
+		cw_log(CW_LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -232,9 +232,9 @@ static int group_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-	struct opbx_channel *c = NULL;
+	struct cw_channel *c = NULL;
 	int numchans = 0;
-	struct opbx_var_t *current;
+	struct cw_var_t *current;
 	struct varshead *headp;
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -248,31 +248,31 @@ static int group_show_channels(int fd, int argc, char *argv[])
 		havepattern = 1;
 	}
 
-	opbx_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
-	while ( (c = opbx_channel_walk_locked(c)) != NULL) {
+	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
+	while ( (c = cw_channel_walk_locked(c)) != NULL) {
 		headp=&c->varshead;
-		OPBX_LIST_TRAVERSE(headp,current,entries) {
-			if (!strncmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-				if (!havepattern || !regexec(&regexbuf, opbx_var_value(current), 0, NULL, 0)) {
-					opbx_cli(fd, FORMAT_STRING, c->name, opbx_var_value(current),
-						(opbx_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+		CW_LIST_TRAVERSE(headp,current,entries) {
+			if (!strncmp(cw_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+				if (!havepattern || !regexec(&regexbuf, cw_var_value(current), 0, NULL, 0)) {
+					cw_cli(fd, FORMAT_STRING, c->name, cw_var_value(current),
+						(cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
 					numchans++;
 				}
-			} else if (!strcmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX)) {
-				if (!havepattern || !regexec(&regexbuf, opbx_var_value(current), 0, NULL, 0)) {
-					opbx_cli(fd, FORMAT_STRING, c->name, opbx_var_value(current), "(default)");
+			} else if (!strcmp(cw_var_name(current), GROUP_CATEGORY_PREFIX)) {
+				if (!havepattern || !regexec(&regexbuf, cw_var_value(current), 0, NULL, 0)) {
+					cw_cli(fd, FORMAT_STRING, c->name, cw_var_value(current), "(default)");
 					numchans++;
 				}
 			}
 		}
 		numchans++;
-		opbx_mutex_unlock(&c->lock);
+		cw_mutex_unlock(&c->lock);
 	}
 
 	if (havepattern)
 		regfree(&regexbuf);
 
-	opbx_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 #undef FORMAT_STRING
 }
@@ -283,7 +283,7 @@ static char show_channels_usage[] =
 "       Lists all currently active channels with channel group(s) specified.\n"
 "       Optional regular expression pattern is matched to group names for each channel.\n";
 
-static struct opbx_clicmd cli_show_channels = {
+static struct cw_clicmd cli_show_channels = {
 	.cmda = { "group", "show", "channels", NULL },
 	.handler = group_show_channels,
 	.summary = "Show active channels with group(s)",
@@ -294,21 +294,21 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	opbx_cli_unregister(&cli_show_channels);
-	res |= opbx_unregister_function(group_count_app);
-	res |= opbx_unregister_function(group_set_app);
-	res |= opbx_unregister_function(group_check_app);
-	res |= opbx_unregister_function(group_match_count_app);
+	cw_cli_unregister(&cli_show_channels);
+	res |= cw_unregister_function(group_count_app);
+	res |= cw_unregister_function(group_set_app);
+	res |= cw_unregister_function(group_check_app);
+	res |= cw_unregister_function(group_match_count_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	group_count_app = opbx_register_function(group_count_name, group_count_exec, group_count_synopsis, group_count_syntax, group_count_descrip);
-	group_set_app = opbx_register_function(group_set_name, group_set_exec, group_set_synopsis, group_set_syntax, group_set_descrip);
-	group_check_app = opbx_register_function(group_check_name, group_check_exec, group_check_synopsis, group_check_syntax, group_check_descrip);
-	group_match_count_app = opbx_register_function(group_match_count_name, group_match_count_exec, group_match_count_syntax, group_match_count_synopsis, group_match_count_descrip);
-	opbx_cli_register(&cli_show_channels);
+	group_count_app = cw_register_function(group_count_name, group_count_exec, group_count_synopsis, group_count_syntax, group_count_descrip);
+	group_set_app = cw_register_function(group_set_name, group_set_exec, group_set_synopsis, group_set_syntax, group_set_descrip);
+	group_check_app = cw_register_function(group_check_name, group_check_exec, group_check_synopsis, group_check_syntax, group_check_descrip);
+	group_match_count_app = cw_register_function(group_match_count_name, group_match_count_exec, group_match_count_syntax, group_match_count_synopsis, group_match_count_descrip);
+	cw_cli_register(&cli_show_channels);
 	return 0;
 }
 

@@ -56,11 +56,11 @@ struct pvt
 #ifdef REALTIME_WRITE
     unsigned long start_time;
 #endif
-    struct opbx_frame fr;                       /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + BUF_SIZE];                      /* Output Buffer */
+    struct cw_frame fr;                       /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + BUF_SIZE];                      /* Output Buffer */
 };
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Raw aLaw 8kHz PCM audio support";
 
@@ -74,7 +74,7 @@ static unsigned long get_time(void)
     cur = times(&buf);
     if (cur < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Cannot get current time\n");
+        cw_log(CW_LOG_WARNING, "Cannot get current time\n");
         return 0;
     }
     return cur * 1000 / sysconf(_SC_CLK_TCK);
@@ -88,16 +88,16 @@ static void *pcm_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_ALAW, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
 #ifdef REALTIME_WRITE
         tmp->start_time = get_time();
 #endif
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -114,7 +114,7 @@ static void *pcm_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -126,7 +126,7 @@ static void pcm_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *pcm_read(void *data, int *whennext)
+static struct cw_frame *pcm_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -134,7 +134,7 @@ static struct opbx_frame *pcm_read(void *data, int *whennext)
     if ((res = fread(pvt->fr.data, 1, BUF_SIZE, pvt->f)) < 1)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     pvt->fr.samples = res;
@@ -143,7 +143,7 @@ static struct opbx_frame *pcm_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int pcm_write(void *data, struct opbx_frame *f)
+static int pcm_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
@@ -153,14 +153,14 @@ static int pcm_write(void *data, struct opbx_frame *f)
     struct stat stat_buf;
 #endif
 
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_ALAW)
+    if (f->subclass != CW_FORMAT_ALAW)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-alaw frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-alaw frame (%d)!\n", f->subclass);
         return -1;
     }
 
@@ -187,7 +187,7 @@ static int pcm_write(void *data, struct opbx_frame *f)
         cur = stat_buf.st_size;
         if (fseek(pvt->f, cur, SEEK_SET) < 0)
         {
-            opbx_log(OPBX_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
+            cw_log(CW_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
             return -1;
         }
         memset(buf, 0x55, 512);
@@ -204,14 +204,14 @@ static int pcm_write(void *data, struct opbx_frame *f)
 
     if (fseek(pvt->f, fpos, SEEK_SET) < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
+        cw_log(CW_LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno));
         return -1;
     }
 #endif    /* REALTIME_WRITE */
     
     if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
     return 0;
@@ -260,11 +260,11 @@ static char *pcm_getcomment(void *data)
     return NULL;
 }
 
-static struct opbx_format format =
+static struct cw_format format =
 {
     .name = "alaw",
     .exts = "alaw|al",
-    .format = OPBX_FORMAT_ALAW,
+    .format = CW_FORMAT_ALAW,
     .open = pcm_open,
     .rewrite = pcm_rewrite,
     .write = pcm_write,
@@ -278,13 +278,13 @@ static struct opbx_format format =
 
 static int load_module(void)
 {
-    opbx_format_register(&format);
+    cw_format_register(&format);
     return 0;
 }
 
 static int unload_module(void)
 {
-    opbx_format_unregister(&format);
+    cw_format_unregister(&format);
     return 0;
 }
 

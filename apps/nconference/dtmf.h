@@ -14,4 +14,4 @@
  *
  */
 
-int parse_dtmf_option( struct opbx_conf_member *member, int subclass );
+int parse_dtmf_option( struct cw_conf_member *member, int subclass );

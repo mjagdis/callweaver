@@ -44,58 +44,58 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static void registry_purge(struct opbx_registry *registry)
+static void registry_purge(struct cw_registry *registry)
 {
-	struct opbx_list *list;
+	struct cw_list *list;
 
-	opbx_mutex_lock(&registry->lock);
+	cw_mutex_lock(&registry->lock);
 	list = registry->list.del;
 	registry->list.del = NULL;
-	opbx_mutex_unlock(&registry->lock);
+	cw_mutex_unlock(&registry->lock);
 
 	while (list) {
-		struct opbx_registry_entry *entry = container_of(list, struct opbx_registry_entry, list);
+		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 		list = list->del;
-		if (opbx_object_put_obj(entry->obj) && option_verbose > 1)
-			opbx_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, registry->obj_name(entry->obj));
+		if (cw_object_put_obj(entry->obj) && option_verbose > 1)
+			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, registry->obj_name(entry->obj));
 		free(entry);
 	}
 }
 
-struct opbx_registry_entry *opbx_registry_add(struct opbx_registry *registry, struct opbx_object *obj)
+struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct cw_object *obj)
 {
-	struct opbx_registry_entry *entry = malloc(sizeof(*entry));
+	struct cw_registry_entry *entry = malloc(sizeof(*entry));
 
 	if (entry) {
-		opbx_list_init(&entry->list);
-		entry->obj = opbx_object_get_obj(obj);
+		cw_list_init(&entry->list);
+		entry->obj = cw_object_get_obj(obj);
 
-		opbx_mutex_lock(&registry->lock);
-		opbx_list_add(&registry->list, &entry->list);
-		opbx_mutex_unlock(&registry->lock);
+		cw_mutex_lock(&registry->lock);
+		cw_list_add(&registry->list, &entry->list);
+		cw_mutex_unlock(&registry->lock);
 
 		if (option_verbose > 1)
-			opbx_verbose(VERBOSE_PREFIX_2 "Registry %s: registered %s\n", registry->name, registry->obj_name(entry->obj));
+			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: registered %s\n", registry->name, registry->obj_name(entry->obj));
 
 		if (registry->onchange)
 			registry->onchange();
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 	}
 
 	return entry;
 }
 
-int opbx_registry_del(struct opbx_registry *registry, struct opbx_registry_entry *entry)
+int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry)
 {
 	atomic_inc(&registry->inuse);
 
-	opbx_mutex_lock(&registry->lock);
-	opbx_list_del(&registry->list, &entry->list);
-	opbx_mutex_unlock(&registry->lock);
+	cw_mutex_lock(&registry->lock);
+	cw_list_del(&registry->list, &entry->list);
+	cw_mutex_unlock(&registry->lock);
 
 	if (option_verbose > 1 && entry->obj)
-		opbx_verbose(VERBOSE_PREFIX_2 "Registry %s: unregistered %s\n", registry->name, registry->obj_name(entry->obj));
+		cw_verbose(VERBOSE_PREFIX_2 "Registry %s: unregistered %s\n", registry->name, registry->obj_name(entry->obj));
 
 	if (registry->onchange)
 		registry->onchange();
@@ -107,16 +107,16 @@ int opbx_registry_del(struct opbx_registry *registry, struct opbx_registry_entry
 }
 
 
-int opbx_registry_iterate(struct opbx_registry *registry, int (*func)(struct opbx_object *, void *), void *data)
+int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data)
 {
-	struct opbx_list *list;
-	struct opbx_registry_entry *entry;
+	struct cw_list *list;
+	struct cw_registry_entry *entry;
 	int ret = 0;
 
 	atomic_inc(&registry->inuse);
 
-	opbx_list_for_each(list, &registry->list) {
-		entry = container_of(list, struct opbx_registry_entry, list);
+	cw_list_for_each(list, &registry->list) {
+		entry = container_of(list, struct cw_registry_entry, list);
 		if ((ret = func(entry->obj, data)))
 			break;
 	}
@@ -128,19 +128,19 @@ int opbx_registry_iterate(struct opbx_registry *registry, int (*func)(struct opb
 }
 
 
-struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const void *pattern)
+struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern)
 {
-	struct opbx_object *obj = NULL;
+	struct cw_object *obj = NULL;
 
 	if (registry->obj_match) {
-		struct opbx_list *list;
+		struct cw_list *list;
 
 		atomic_inc(&registry->inuse);
 
-		opbx_list_for_each(list, &registry->list) {
-			struct opbx_registry_entry *entry = container_of(list, struct opbx_registry_entry, list);
+		cw_list_for_each(list, &registry->list) {
+			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 			if (registry->obj_match(entry->obj, pattern)) {
-				obj = opbx_object_dup_obj(entry->obj);
+				obj = cw_object_dup_obj(entry->obj);
 				break;
 			}
 		}
@@ -153,9 +153,9 @@ struct opbx_object *opbx_registry_find(struct opbx_registry *registry, const voi
 }
 
 
-void opbx_registry_init(struct opbx_registry *registry)
+void cw_registry_init(struct cw_registry *registry)
 {
-	opbx_mutex_init(&registry->lock);
-	opbx_list_init(&registry->list);
+	cw_mutex_init(&registry->lock);
+	cw_list_init(&registry->list);
 	atomic_set(&registry->inuse, 0);
 }

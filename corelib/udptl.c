@@ -83,13 +83,13 @@ static int udptlmaxdatagram = 0;
 
 #define UDPTL_BUF_MASK              15
 
-struct opbx_udptl_s
+struct cw_udptl_s
 {
     udp_state_t *udptl_sock_info;
     char resp;
-    struct opbx_frame f[16];
+    struct cw_frame f[16];
     int f_no;
-    uint8_t rawdata[8192 + OPBX_FRIENDLY_OFFSET];
+    uint8_t rawdata[8192 + CW_FRIENDLY_OFFSET];
     uint32_t lasteventseqn;
     int nat;
     int flags;
@@ -97,7 +97,7 @@ struct opbx_udptl_s
     struct sched_context *sched;
     struct io_context *io;
     void *data;
-    opbx_udptl_callback callback;
+    cw_udptl_callback callback;
     int udptl_offered_from_local;
 
     int created_sock_info;
@@ -109,9 +109,9 @@ struct opbx_udptl_s
     udptl_state_t state;
 };
 
-static struct opbx_udptl_protocol *protos = NULL;
+static struct cw_udptl_protocol *protos = NULL;
 
-static int cw_udptl_rx_packet(opbx_udptl_t *s, const uint8_t buf[], int len);
+static int cw_udptl_rx_packet(cw_udptl_t *s, const uint8_t buf[], int len);
 
 static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
 {
@@ -131,11 +131,11 @@ static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
 
 static int udptl_rx_packet_handler(void *user_data, const uint8_t msg[], int len, int seq_no)
 {
-    opbx_udptl_t *s;
+    cw_udptl_t *s;
     
-    s = (opbx_udptl_t *) user_data;
-    s->f[s->f_no].frametype = OPBX_FRAME_MODEM;
-    s->f[s->f_no].subclass = OPBX_MODEM_T38;
+    s = (cw_udptl_t *) user_data;
+    s->f[s->f_no].frametype = CW_FRAME_MODEM;
+    s->f[s->f_no].subclass = CW_MODEM_T38;
     s->f[s->f_no].mallocd = 0;
 
     s->f[s->f_no].seq_no = seq_no;
@@ -154,7 +154,7 @@ static int udptl_rx_packet_handler(void *user_data, const uint8_t msg[], int len
     return 0;
 }
 
-static int cw_udptl_rx_packet(opbx_udptl_t *s, const uint8_t buf[], int len)
+static int cw_udptl_rx_packet(cw_udptl_t *s, const uint8_t buf[], int len)
 {
     s->f[0].prev = NULL;
     s->f[0].next = NULL;
@@ -163,12 +163,12 @@ static int cw_udptl_rx_packet(opbx_udptl_t *s, const uint8_t buf[], int len)
     return 0;
 }
 
-int opbx_udptl_fd(opbx_udptl_t *udptl)
+int cw_udptl_fd(cw_udptl_t *udptl)
 {
     return udp_socket_fd(udptl->udptl_sock_info);
 }
 
-udp_state_t *opbx_udptl_udp_socket(opbx_udptl_t *udptl,
+udp_state_t *cw_udptl_udp_socket(cw_udptl_t *udptl,
                                    udp_state_t *sock_info)
 {
     udp_state_t *old;
@@ -179,17 +179,17 @@ udp_state_t *opbx_udptl_udp_socket(opbx_udptl_t *udptl,
     return old;
 }
 
-void opbx_udptl_set_data(opbx_udptl_t *udptl, void *data)
+void cw_udptl_set_data(cw_udptl_t *udptl, void *data)
 {
     udptl->data = data;
 }
 
-void opbx_udptl_set_callback(opbx_udptl_t *udptl, opbx_udptl_callback callback)
+void cw_udptl_set_callback(cw_udptl_t *udptl, cw_udptl_callback callback)
 {
     udptl->callback = callback;
 }
 
-void opbx_udptl_setnat(opbx_udptl_t *udptl, int nat)
+void cw_udptl_setnat(cw_udptl_t *udptl, int nat)
 {
     udptl->nat = nat;
     udp_socket_set_nat(udptl->udptl_sock_info, nat);
@@ -197,10 +197,10 @@ void opbx_udptl_setnat(opbx_udptl_t *udptl, int nat)
 
 static int udptlread(int *id, int fd, short events, void *cbdata)
 {
-    opbx_udptl_t *udptl = cbdata;
-    struct opbx_frame *f;
+    cw_udptl_t *udptl = cbdata;
+    struct cw_frame *f;
 
-    if ((f = opbx_udptl_read(udptl)))
+    if ((f = cw_udptl_read(udptl)))
     {
         if (udptl->callback)
             udptl->callback(udptl, f, udptl->data);
@@ -208,7 +208,7 @@ static int udptlread(int *id, int fd, short events, void *cbdata)
     return 1;
 }
 
-struct opbx_frame *opbx_udptl_read(opbx_udptl_t *udptl)
+struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 {
     int res;
     int actions;
@@ -216,66 +216,66 @@ struct opbx_frame *opbx_udptl_read(opbx_udptl_t *udptl)
     socklen_t len;
     char iabuf[INET_ADDRSTRLEN];
     uint16_t *udptlheader;
-    static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
+    static struct cw_frame null_frame = { CW_FRAME_NULL, };
 
     len = sizeof(sin);
     
     /* Cache where the header will go */
     res = udp_socket_recvfrom(udptl->udptl_sock_info,
-                              udptl->rawdata + OPBX_FRIENDLY_OFFSET,
-                              sizeof(udptl->rawdata) - OPBX_FRIENDLY_OFFSET,
+                              udptl->rawdata + CW_FRIENDLY_OFFSET,
+                              sizeof(udptl->rawdata) - CW_FRIENDLY_OFFSET,
                               0,
                               (struct sockaddr *) &sin,
                               &len,
                               &actions);
-    udptlheader = (uint16_t *)(udptl->rawdata + OPBX_FRIENDLY_OFFSET);
+    udptlheader = (uint16_t *)(udptl->rawdata + CW_FRIENDLY_OFFSET);
     if (res < 0)
     {
         if (errno != EAGAIN)
         {
             if (errno == EBADF)
             {
-                opbx_log(OPBX_LOG_ERROR, "UDPTL read error: %s\n", strerror(errno));
-                opbx_udptl_set_active(udptl, 0);
+                cw_log(CW_LOG_ERROR, "UDPTL read error: %s\n", strerror(errno));
+                cw_udptl_set_active(udptl, 0);
             }
             else
-                opbx_log(OPBX_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
+                cw_log(CW_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
         }
         return &null_frame;
     }
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
-            opbx_log(OPBX_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
+            cw_log(CW_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
     }
 
     if (udptl_debug_test_addr(&sin))
     {
-        opbx_verbose("Got UDPTL packet from %s:%d (len %d)\n",
-            opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
+        cw_verbose("Got UDPTL packet from %s:%d (len %d)\n",
+            cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
     }
 #if 0
-    printf("Got UDPTL packet from %s:%d (len %d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
+    printf("Got UDPTL packet from %s:%d (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 #endif
-    cw_udptl_rx_packet(udptl, udptl->rawdata + OPBX_FRIENDLY_OFFSET, res);
+    cw_udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res);
 
     return &udptl->f[0];
 }
 
-void opbx_udptl_offered_from_local(opbx_udptl_t *udptl, int local)
+void cw_udptl_offered_from_local(cw_udptl_t *udptl, int local)
 {
     if (udptl)
         udptl->udptl_offered_from_local = local;
     else
-        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+        cw_log(CW_LOG_WARNING, "udptl structure is null\n");
 }
 
-int opbx_udptl_get_preferred_error_correction_scheme(opbx_udptl_t *udptl)
+int cw_udptl_get_preferred_error_correction_scheme(cw_udptl_t *udptl)
 {
     return udptlfectype;
 }
 
-int opbx_udptl_get_current_error_correction_scheme(opbx_udptl_t *udptl)
+int cw_udptl_get_current_error_correction_scheme(cw_udptl_t *udptl)
 {
     int ec_scheme;
 
@@ -287,11 +287,11 @@ int opbx_udptl_get_current_error_correction_scheme(opbx_udptl_t *udptl)
                                    NULL);
         return ec_scheme;
     }
-    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+    cw_log(CW_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
-void opbx_udptl_set_error_correction_scheme(opbx_udptl_t *udptl, int ec)
+void cw_udptl_set_error_correction_scheme(cw_udptl_t *udptl, int ec)
 {
     if (udptl)
     {
@@ -306,58 +306,58 @@ void opbx_udptl_set_error_correction_scheme(opbx_udptl_t *udptl, int ec)
                                        udptlfecentries);
             break;
         default:
-            opbx_log(OPBX_LOG_WARNING, "error correction parameter invalid");
+            cw_log(CW_LOG_WARNING, "error correction parameter invalid");
             break;
         }
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+        cw_log(CW_LOG_WARNING, "udptl structure is null\n");
     }
 }
 
-int opbx_udptl_get_local_max_datagram(opbx_udptl_t *udptl)
+int cw_udptl_get_local_max_datagram(cw_udptl_t *udptl)
 {
     if (udptl)
         return udptl_get_local_max_datagram(&udptl->state);
-    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+    cw_log(CW_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
-int opbx_udptl_get_far_max_datagram(opbx_udptl_t *udptl)
+int cw_udptl_get_far_max_datagram(cw_udptl_t *udptl)
 {
     if (udptl)
         return udptl_get_far_max_datagram(&udptl->state);
-    opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+    cw_log(CW_LOG_WARNING, "udptl structure is null\n");
     return -1;
 }
 
-void opbx_udptl_set_local_max_datagram(opbx_udptl_t *udptl, int max_datagram)
+void cw_udptl_set_local_max_datagram(cw_udptl_t *udptl, int max_datagram)
 {
     if (udptl)
         udptl_set_local_max_datagram(&udptl->state, max_datagram);
     else
-        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+        cw_log(CW_LOG_WARNING, "udptl structure is null\n");
 }
 
-void opbx_udptl_set_far_max_datagram(opbx_udptl_t *udptl, int max_datagram)
+void cw_udptl_set_far_max_datagram(cw_udptl_t *udptl, int max_datagram)
 {
     if (udptl)
         udptl_set_far_max_datagram(&udptl->state, max_datagram);
     else
-        opbx_log(OPBX_LOG_WARNING, "udptl structure is null\n");
+        cw_log(CW_LOG_WARNING, "udptl structure is null\n");
 }
 
-opbx_udptl_t *opbx_udptl_new_with_sock_info(struct sched_context *sched,
+cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
                                             struct io_context *io,
                                             int callbackmode,
                                             udp_state_t *sock_info)
 {
-    opbx_udptl_t *udptl;
+    cw_udptl_t *udptl;
 
-    if ((udptl = malloc(sizeof(opbx_udptl_t))) == NULL)
+    if ((udptl = malloc(sizeof(cw_udptl_t))) == NULL)
         return NULL;
-    memset(udptl, 0, sizeof(opbx_udptl_t));
+    memset(udptl, 0, sizeof(cw_udptl_t));
 
     udptl_init(&udptl->state,
                udptlfectype,
@@ -382,20 +382,20 @@ opbx_udptl_t *opbx_udptl_new_with_sock_info(struct sched_context *sched,
     return udptl;
 }
 
-int opbx_udptl_set_active(opbx_udptl_t *udptl, int active)
+int cw_udptl_set_active(cw_udptl_t *udptl, int active)
 {
     if (udptl->sched  &&  udptl->io)
     {
         if (active)
         {
             if (udptl->ioid == NULL)
-                udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
+                udptl->ioid = cw_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, CW_IO_IN, udptl);
         }
         else
         {
             if (udptl->ioid)
             {
-                opbx_io_remove(udptl->io, udptl->ioid);
+                cw_io_remove(udptl->io, udptl->ioid);
                 udptl->ioid = NULL;
             }
         }
@@ -403,48 +403,48 @@ int opbx_udptl_set_active(opbx_udptl_t *udptl, int active)
     return 0;
 }
 
-int opbx_udptl_settos(opbx_udptl_t *udptl, int tos)
+int cw_udptl_settos(cw_udptl_t *udptl, int tos)
 {
     return udp_socket_set_tos(udptl->udptl_sock_info, tos);
 }
 
-void opbx_udptl_set_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
+void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
 {
     udp_socket_set_far(udptl->udptl_sock_info, them);
 }
 
-void opbx_udptl_get_peer(opbx_udptl_t *udptl, struct sockaddr_in *them)
+void cw_udptl_get_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
 {
     memcpy(them, udp_socket_get_far(udptl->udptl_sock_info), sizeof(*them));
 }
 
-void opbx_udptl_get_us(opbx_udptl_t *udptl, struct sockaddr_in *us)
+void cw_udptl_get_us(cw_udptl_t *udptl, struct sockaddr_in *us)
 {
     memcpy(us, udp_socket_get_apparent_local(udptl->udptl_sock_info), sizeof(*us));
 }
 
-int opbx_udptl_get_stunstate(opbx_udptl_t *udptl)
+int cw_udptl_get_stunstate(cw_udptl_t *udptl)
 {
     if (udptl)
         return udp_socket_get_rfc3489_state(udptl->udptl_sock_info);
     return 0;
 }
 
-void opbx_udptl_stop(opbx_udptl_t *udptl)
+void cw_udptl_stop(cw_udptl_t *udptl)
 {
     udp_socket_restart(udptl->udptl_sock_info);
 }
 
-void opbx_udptl_destroy(opbx_udptl_t *udptl)
+void cw_udptl_destroy(cw_udptl_t *udptl)
 {
     if (udptl->ioid)
-        opbx_io_remove(udptl->io, udptl->ioid);
+        cw_io_remove(udptl->io, udptl->ioid);
     //if (udptl->created_sock_info)
     //    udp_socket_destroy_group(udptl->udptl_sock_info);
     free(udptl);
 }
 
-int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
+int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
 {
     int len;
     int res;
@@ -464,9 +464,9 @@ int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
     if (f->datalen == 0)
         return 0;
     
-    if (f->frametype != OPBX_FRAME_MODEM)
+    if (f->frametype != CW_FRAME_MODEM)
     {
-        opbx_log(OPBX_LOG_WARNING, "UDPTL can only send T.38 data\n");
+        cw_log(CW_LOG_WARNING, "UDPTL can only send T.38 data\n");
         return -1;
     }
     /* Cook up the UDPTL packet, with the relevant EC info. */
@@ -475,21 +475,21 @@ int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
     if (len > 0  &&  them->sin_port  &&  them->sin_addr.s_addr)
     {
 #if 0
-        printf("Sending %d copies of %d bytes of UDPTL data to %s:%d\n", f->state.tx_copies, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+        printf("Sending %d copies of %d bytes of UDPTL data to %s:%d\n", f->state.tx_copies, len, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
         copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
         for (i = 0;  i < copies;  i++)
         {
             if ((res = udp_socket_send(s->udptl_sock_info, buf, len, 0)) < 0)
-                opbx_log(OPBX_LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
         }
 #if 0
-        printf("Sent %d bytes of UDPTL data to %s:%d\n", res, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+        printf("Sent %d bytes of UDPTL data to %s:%d\n", res, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
         if (udptl_debug_test_addr(them))
         {
-            opbx_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
-                         opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+            cw_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
+                         cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
                          ntohs(them->sin_port),
                          (s->state.tx_seq_no - 1) & 0xFFFF,
                          len);
@@ -498,12 +498,12 @@ int opbx_udptl_write(opbx_udptl_t *s, struct opbx_frame *f)
     return 0;
 }
 
-void opbx_udptl_proto_unregister(struct opbx_udptl_protocol *proto)
+void cw_udptl_proto_unregister(struct cw_udptl_protocol *proto)
 {
-    struct opbx_udptl_protocol *cur;
-    struct opbx_udptl_protocol *prev;
+    struct cw_udptl_protocol *cur;
+    struct cw_udptl_protocol *prev;
 
-    opbx_log(OPBX_LOG_NOTICE,"Unregistering UDPTL protocol.\n");
+    cw_log(CW_LOG_NOTICE,"Unregistering UDPTL protocol.\n");
     for (cur = protos, prev = NULL;  cur;  prev = cur, cur = cur->next)
     {
         if (cur == proto)
@@ -517,16 +517,16 @@ void opbx_udptl_proto_unregister(struct opbx_udptl_protocol *proto)
     }
 }
 
-int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto)
+int cw_udptl_proto_register(struct cw_udptl_protocol *proto)
 {
-    struct opbx_udptl_protocol *cur;
+    struct cw_udptl_protocol *cur;
 
-    opbx_log(OPBX_LOG_NOTICE,"Registering UDPTL protocol.\n");
+    cw_log(CW_LOG_NOTICE,"Registering UDPTL protocol.\n");
     for (cur = protos;  cur;  cur = cur->next)
     {
         if (cur->type == proto->type)
         {
-            opbx_log(OPBX_LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+            cw_log(CW_LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
             return -1;
         }
     }
@@ -535,9 +535,9 @@ int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto)
     return 0;
 }
 
-static struct opbx_udptl_protocol *get_proto(struct opbx_channel *chan)
+static struct cw_udptl_protocol *get_proto(struct cw_channel *chan)
 {
-    struct opbx_udptl_protocol *cur;
+    struct cw_udptl_protocol *cur;
 
     for (cur = protos;  cur;  cur = cur->next)
     {
@@ -547,15 +547,15 @@ static struct opbx_udptl_protocol *get_proto(struct opbx_channel *chan)
     return NULL;
 }
 
-enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
+enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc)
 {
-    struct opbx_frame *f;
-    struct opbx_channel *who;
-    struct opbx_channel *cs[3];
-    opbx_udptl_t *p0;
-    opbx_udptl_t *p1;
-    struct opbx_udptl_protocol *pr0;
-    struct opbx_udptl_protocol *pr1;
+    struct cw_frame *f;
+    struct cw_channel *who;
+    struct cw_channel *cs[3];
+    cw_udptl_t *p0;
+    cw_udptl_t *p1;
+    struct cw_udptl_protocol *pr0;
+    struct cw_udptl_protocol *pr1;
     struct sockaddr_in ac0;
     struct sockaddr_in ac1;
     struct sockaddr_in t0;
@@ -565,28 +565,28 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
     void *pvt1;
     int to;
     
-    opbx_mutex_lock(&c0->lock);
-    while (opbx_mutex_trylock(&c1->lock))
+    cw_mutex_lock(&c0->lock);
+    while (cw_mutex_trylock(&c1->lock))
     {
-        opbx_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c0->lock);
         usleep(1);
-        opbx_mutex_lock(&c0->lock);
+        cw_mutex_lock(&c0->lock);
     }
     pr0 = get_proto(c0);
     pr1 = get_proto(c1);
     if (!pr0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-        opbx_mutex_unlock(&c0->lock);
-        opbx_mutex_unlock(&c1->lock);
-        return OPBX_BRIDGE_FAILED;
+        cw_log(CW_LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+        cw_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c1->lock);
+        return CW_BRIDGE_FAILED;
     }
     if (!pr1)
     {
-        opbx_log(OPBX_LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-        opbx_mutex_unlock(&c0->lock);
-        opbx_mutex_unlock(&c1->lock);
-        return OPBX_BRIDGE_FAILED;
+        cw_log(CW_LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+        cw_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c1->lock);
+        return CW_BRIDGE_FAILED;
     }
     pvt0 = c0->tech_pvt;
     pvt1 = c1->tech_pvt;
@@ -595,30 +595,30 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
     if (!p0  ||  !p1)
     {
         /* Somebody doesn't want to play... */
-        opbx_mutex_unlock(&c0->lock);
-        opbx_mutex_unlock(&c1->lock);
-        return OPBX_BRIDGE_FAILED_NOWARN;
+        cw_mutex_unlock(&c0->lock);
+        cw_mutex_unlock(&c1->lock);
+        return CW_BRIDGE_FAILED_NOWARN;
     }
     if (pr0->set_udptl_peer(c0, p1))
     {
-        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+        cw_log(CW_LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
     }
     else
     {
         /* Store UDPTL peer */
-        opbx_udptl_get_peer(p1, &ac1);
+        cw_udptl_get_peer(p1, &ac1);
     }
     if (pr1->set_udptl_peer(c1, p0))
     {
-        opbx_log(OPBX_LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+        cw_log(CW_LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
     }
     else
     {
         /* Store UDPTL peer */
-        opbx_udptl_get_peer(p0, &ac0);
+        cw_udptl_get_peer(p0, &ac0);
     }
-    opbx_mutex_unlock(&c0->lock);
-    opbx_mutex_unlock(&c1->lock);
+    cw_mutex_unlock(&c0->lock);
+    cw_mutex_unlock(&c1->lock);
     cs[0] = c0;
     cs[1] = c1;
     cs[2] = NULL;
@@ -630,66 +630,66 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
             ||
             (c0->masq  ||  c0->masqr  ||  c1->masq  ||  c1->masqr))
         {
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, something is weird, backing out\n");
+            cw_log(CW_LOG_DEBUG, "Oooh, something is weird, backing out\n");
             /* Tell it to try again later */
-            return OPBX_BRIDGE_RETRY;
+            return CW_BRIDGE_RETRY;
         }
         to = -1;
-        opbx_udptl_get_peer(p1, &t1);
-        opbx_udptl_get_peer(p0, &t0);
+        cw_udptl_get_peer(p1, &t1);
+        cw_udptl_get_peer(p0, &t0);
         if (inaddrcmp(&t1, &ac1))
         {
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-                c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-                c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+                c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+                c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
             memcpy(&ac1, &t1, sizeof(ac1));
         }
         if (inaddrcmp(&t0, &ac0))
         {
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-                c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-                c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+                c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+                c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
             memcpy(&ac0, &t0, sizeof(ac0));
         }
-        if ((who = opbx_waitfor_n(cs, 2, &to)) == 0)
+        if ((who = cw_waitfor_n(cs, 2, &to)) == 0)
         {
-            opbx_log(OPBX_LOG_DEBUG, "Ooh, empty read...\n");
+            cw_log(CW_LOG_DEBUG, "Ooh, empty read...\n");
             /* Check for hangup / whentohangup */
-            if (opbx_check_hangup(c0)  ||  opbx_check_hangup(c1))
+            if (cw_check_hangup(c0)  ||  cw_check_hangup(c1))
                 break;
             continue;
         }
-        if ((f = opbx_read(who)) == 0)
+        if ((f = cw_read(who)) == 0)
         {
             *fo = f;
             *rc = who;
-            opbx_log(OPBX_LOG_DEBUG, "Oooh, got a %s\n", (f)  ?  "digit"  :  "hangup");
+            cw_log(CW_LOG_DEBUG, "Oooh, got a %s\n", (f)  ?  "digit"  :  "hangup");
             /* That's all we needed */
-            return OPBX_BRIDGE_COMPLETE;
+            return CW_BRIDGE_COMPLETE;
         }
-        if (f->frametype == OPBX_FRAME_MODEM)
+        if (f->frametype == CW_FRAME_MODEM)
         {
             /* Forward T.38 frames if they happen upon us */
             if (who == c0)
-                opbx_write(c1, f);
+                cw_write(c1, f);
             else if (who == c1)
-                opbx_write(c0, f);
+                cw_write(c0, f);
         }
-        opbx_fr_free(f);
+        cw_fr_free(f);
         /* Swap priority. Not that it's a big deal at this point */
         cs[2] = cs[0];
         cs[0] = cs[1];
         cs[1] = cs[2];
     }
-    return OPBX_BRIDGE_FAILED;
+    return CW_BRIDGE_FAILED;
 }
 
 static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 {
     struct hostent *hp;
-    struct opbx_hostent ahp;
+    struct cw_hostent ahp;
     char iabuf[INET_ADDRSTRLEN];
     int port;
     char *p;
@@ -706,16 +706,16 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
         p++;
         port = atoi(p);
     }
-    hp = opbx_gethostbyname(arg, &ahp);
+    hp = cw_gethostbyname(arg, &ahp);
     if (hp == NULL)
         return RESULT_SHOWUSAGE;
     udptldebugaddr.sin_family = AF_INET;
     memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
     udptldebugaddr.sin_port = htons(port);
     if (port == 0)
-        opbx_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
+        cw_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
     else
-        opbx_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
+        cw_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
     udptldebug = 1;
     return RESULT_SUCCESS;
 }
@@ -730,7 +730,7 @@ static int udptl_do_debug(int fd, int argc, char *argv[])
     }
     udptldebug = 1;
     memset(&udptldebugaddr, 0, sizeof(udptldebugaddr));
-    opbx_cli(fd, "UDPTL Debugging Enabled\n");
+    cw_cli(fd, "UDPTL Debugging Enabled\n");
     return RESULT_SUCCESS;
 }
    
@@ -739,7 +739,7 @@ static int udptl_no_debug(int fd, int argc, char *argv[])
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     udptldebug = 0;
-    opbx_cli(fd, "UDPTL Debugging Disabled\n");
+    cw_cli(fd, "UDPTL Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 
@@ -751,7 +751,7 @@ static char no_debug_usage[] =
     "Usage: udptl no debug\n"
     "       Disable all UDPTL debugging\n";
 
-static struct opbx_clicmd  cli_debug_ip =
+static struct cw_clicmd  cli_debug_ip =
 {
 	.cmda = { "udptl", "debug", "ip", NULL },
 	.handler = udptl_do_debug,
@@ -759,7 +759,7 @@ static struct opbx_clicmd  cli_debug_ip =
 	.usage = debug_usage,
 };
 
-static struct opbx_clicmd  cli_debug =
+static struct cw_clicmd  cli_debug =
 {
 	.cmda = { "udptl", "debug", NULL },
 	.handler = udptl_do_debug,
@@ -767,7 +767,7 @@ static struct opbx_clicmd  cli_debug =
 	.usage = debug_usage,
 };
 
-static struct opbx_clicmd  cli_no_debug =
+static struct cw_clicmd  cli_no_debug =
 {
 	.cmda = { "udptl", "no", "debug", NULL },
 	.handler = udptl_no_debug,
@@ -775,9 +775,9 @@ static struct opbx_clicmd  cli_no_debug =
 	.usage = no_debug_usage,
 };
 
-void opbx_udptl_reload(void)
+void cw_udptl_reload(void)
 {
-    struct opbx_config *cfg;
+    struct cw_config *cfg;
     char *s;
 
     udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
@@ -785,28 +785,28 @@ void opbx_udptl_reload(void)
     udptlfecspan = 0;
     udptlmaxdatagram = 0;
 
-    if ((cfg = opbx_config_load("udptl.conf")))
+    if ((cfg = cw_config_load("udptl.conf")))
     {
-        if ((s = opbx_variable_retrieve(cfg, "general", "udptlchecksums")))
+        if ((s = cw_variable_retrieve(cfg, "general", "udptlchecksums")))
         {
 #ifdef SO_NO_CHECK
-            if (opbx_false(s))
+            if (cw_false(s))
                 nochecksums = 1;
             else
                 nochecksums = 0;
 #else
-            if (opbx_false(s))
-                opbx_log(OPBX_LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
+            if (cw_false(s))
+                cw_log(CW_LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
 #endif
         }
-        if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC")))
+        if ((s = cw_variable_retrieve(cfg, "general", "T38FaxUdpEC")))
         {
             if (strcmp(s, "t38UDPFEC") == 0)
                 udptlfectype = UDPTL_ERROR_CORRECTION_FEC;
             else if (strcmp(s, "t38UDPRedundancy") == 0)
                 udptlfectype = UDPTL_ERROR_CORRECTION_REDUNDANCY;
         }
-        if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxMaxDatagram")))
+        if ((s = cw_variable_retrieve(cfg, "general", "T38FaxMaxDatagram")))
         {
             udptlmaxdatagram = atoi(s);
             if (udptlmaxdatagram < 0)
@@ -814,7 +814,7 @@ void opbx_udptl_reload(void)
             if (udptlmaxdatagram > LOCAL_FAX_MAX_DATAGRAM)
                 udptlmaxdatagram = LOCAL_FAX_MAX_DATAGRAM;
         }
-        if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECentries")))
+        if ((s = cw_variable_retrieve(cfg, "general", "UDPTLFECentries")))
         {
             udptlfecentries = atoi(s);
             if (udptlfecentries < 0)
@@ -822,7 +822,7 @@ void opbx_udptl_reload(void)
             if (udptlfecentries > LOCAL_FAX_MAX_FEC_PACKETS)
                 udptlfecentries = LOCAL_FAX_MAX_FEC_PACKETS;
         }
-        if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECspan")))
+        if ((s = cw_variable_retrieve(cfg, "general", "UDPTLFECspan")))
         {
             udptlfecspan = atoi(s);
             if (udptlfecspan < 0)
@@ -830,15 +830,15 @@ void opbx_udptl_reload(void)
             if (udptlfecspan > LOCAL_FAX_MAX_FEC_SPAN)
                 udptlfecspan = LOCAL_FAX_MAX_FEC_SPAN;
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
-int opbx_udptl_init(void)
+int cw_udptl_init(void)
 {
-    opbx_cli_register(&cli_debug);
-    opbx_cli_register(&cli_debug_ip);
-    opbx_cli_register(&cli_no_debug);
-    opbx_udptl_reload();
+    cw_cli_register(&cli_debug);
+    cw_cli_register(&cli_debug_ip);
+    cw_cli_register(&cli_no_debug);
+    cw_udptl_reload();
     return 0;
 }

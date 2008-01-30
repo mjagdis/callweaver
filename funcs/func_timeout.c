@@ -73,13 +73,13 @@ static const char timeout_func_desc[] =
 	"	   terminated.  The default timeout is 10 seconds.\n";
 
 
-static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc < 1 || argc > 2 || !argv[0][0])
-		return opbx_function_syntax(timeout_func_syntax);
+		return cw_function_syntax(timeout_func_syntax);
 
         if (!chan) {
-                opbx_log(OPBX_LOG_ERROR, "No channel! Timeout only works on channels\n");
+                cw_log(CW_LOG_ERROR, "No channel! Timeout only works on channels\n");
                 return -1;
         }
 
@@ -89,15 +89,15 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 		switch (argv[0][0]) {
 		case 'a':
 		case 'A':
-			opbx_channel_setwhentohangup(chan, x);
+			cw_channel_setwhentohangup(chan, x);
 			if (option_verbose > 2) {
 				if (chan->whentohangup) {
 					char timestr[64];
 					struct tm myt;
 					strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC", gmtime_r(&chan->whentohangup, &myt));
-					opbx_verbose( VERBOSE_PREFIX_3 "%s will hangup at %s.\n", chan->name, timestr);
+					cw_verbose( VERBOSE_PREFIX_3 "%s will hangup at %s.\n", chan->name, timestr);
 				} else {
-					opbx_verbose( VERBOSE_PREFIX_3 "%s hangup cancelled.\n", chan->name);
+					cw_verbose( VERBOSE_PREFIX_3 "%s hangup cancelled.\n", chan->name);
 				} 
 			}
 			break;
@@ -107,7 +107,7 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 			if (chan->pbx) {
 				chan->pbx->rtimeout = x;
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_3 "%s response timeout set to %d\n", chan->name, chan->pbx->rtimeout);
+					cw_verbose( VERBOSE_PREFIX_3 "%s response timeout set to %d\n", chan->name, chan->pbx->rtimeout);
 			}
 			break;
 
@@ -116,12 +116,12 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 			if (chan->pbx) {
 				chan->pbx->dtimeout = x;
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_3 "%s digit timeout set to %d\n", chan->name, chan->pbx->dtimeout);
+					cw_verbose( VERBOSE_PREFIX_3 "%s digit timeout set to %d\n", chan->name, chan->pbx->dtimeout);
 			}
 			break;
 
 		default:
-			return opbx_function_syntax(timeout_func_syntax);
+			return cw_function_syntax(timeout_func_syntax);
 		}
 	}
 	
@@ -130,7 +130,7 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 		case 'a':
 		case 'A':
 			if (chan->whentohangup == 0)
-				opbx_copy_string(buf, "0", len);
+				cw_copy_string(buf, "0", len);
 			else
 				snprintf(buf, len, "%d", (int) (chan->whentohangup - time(NULL)));
 			break;
@@ -148,7 +148,7 @@ static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char
 			break;
 
 		default:
-			return opbx_function_syntax(timeout_func_syntax);
+			return cw_function_syntax(timeout_func_syntax);
 		}
 	}
 
@@ -160,12 +160,12 @@ static const char tdesc[] = "string functions";
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(timeout_function);
+        return cw_unregister_function(timeout_function);
 }
 
 static int load_module(void)
 {
-        timeout_function = opbx_register_function(timeout_func_name, builtin_function_timeout_rw, timeout_func_synopsis, timeout_func_syntax, timeout_func_desc);
+        timeout_function = cw_register_function(timeout_func_name, builtin_function_timeout_rw, timeout_func_synopsis, timeout_func_syntax, timeout_func_desc);
 	return 0;
 }
 

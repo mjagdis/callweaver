@@ -26,7 +26,7 @@
  *	and cdr_sqlite by Holger Schurig <hs4233@mail.mn-solutions.de>
  *	
  *
- * \arg See also \ref opbxCDR
+ * \arg See also \ref cwCDR
  *
  *
  * \ingroup cdr_drivers
@@ -59,7 +59,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/options.h"
 
-OPBX_MUTEX_DEFINE_STATIC(lock);
+CW_MUTEX_DEFINE_STATIC(lock);
 
 static const char config_file[] = "cdr_sqlite3_custom.conf";
 
@@ -73,15 +73,15 @@ static char values[1024];
 
 static int load_config(int reload)
 {
-	struct opbx_config *cfg;
-	struct opbx_variable *mappingvar;
+	struct cw_config *cfg;
+	struct cw_variable *mappingvar;
 	const char *tmp;
 
-	if (!(cfg = opbx_config_load(config_file))) {
+	if (!(cfg = cw_config_load(config_file))) {
 		if (reload)
-			opbx_log(OPBX_LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
+			cw_log(CW_LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
 		else {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 					"%s: Failed to load configuration file. Module not activated.\n",
 					name);
 		}
@@ -89,46 +89,46 @@ static int load_config(int reload)
 	}
 
 	if (!reload)
-		opbx_mutex_lock(&lock);
+		cw_mutex_lock(&lock);
 
-	if (!(mappingvar = opbx_variable_browse(cfg, "master"))) {
+	if (!(mappingvar = cw_variable_browse(cfg, "master"))) {
 		/* nothing configured */
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		return 0;
 	}
 	
 	/* Mapping must have a table name */
-	tmp = opbx_variable_retrieve(cfg, "master", "table");
-	if (!opbx_strlen_zero(tmp))
-		opbx_copy_string(table, tmp, sizeof(table));
+	tmp = cw_variable_retrieve(cfg, "master", "table");
+	if (!cw_strlen_zero(tmp))
+		cw_copy_string(table, tmp, sizeof(table));
 	else {
-		opbx_log(OPBX_LOG_WARNING, "%s: Table name not specified.  Assuming cdr.\n", name);
+		cw_log(CW_LOG_WARNING, "%s: Table name not specified.  Assuming cdr.\n", name);
 		strcpy(table, "cdr");
 	}
 
-	tmp = opbx_variable_retrieve(cfg, "master", "columns");
-	if (!opbx_strlen_zero(tmp))
-		opbx_copy_string(columns, tmp, sizeof(columns));
+	tmp = cw_variable_retrieve(cfg, "master", "columns");
+	if (!cw_strlen_zero(tmp))
+		cw_copy_string(columns, tmp, sizeof(columns));
 	else {
-		opbx_log(OPBX_LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
+		cw_log(CW_LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
 				name);
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		return -1;
 	}
 
-	tmp = opbx_variable_retrieve(cfg, "master", "values");
-	if (!opbx_strlen_zero(tmp))
-		opbx_copy_string(values, tmp, sizeof(values));
+	tmp = cw_variable_retrieve(cfg, "master", "values");
+	if (!cw_strlen_zero(tmp))
+		cw_copy_string(values, tmp, sizeof(values));
 	else {
-		opbx_log(OPBX_LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
-		opbx_config_destroy(cfg);
+		cw_log(CW_LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
+		cw_config_destroy(cfg);
 		return -1;
 	}
 
 	if (!reload)
-		opbx_mutex_unlock(&lock);
+		cw_mutex_unlock(&lock);
 
-	opbx_config_destroy(cfg);
+	cw_config_destroy(cfg);
 
 	return 0;
 }
@@ -148,12 +148,12 @@ static int do_escape(char *to, const char *from)
         return 0;
 }
 
-static int sqlite3_log(struct opbx_cdr *cdr)
+static int sqlite3_log(struct cw_cdr *cdr)
 {
 	int res = 0;
 	char *zErr = 0;
 	char *sql_cmd;
-	struct opbx_channel dummy;
+	struct cw_channel dummy;
 	int count;
 
 	{ /* Make it obvious that only sql_cmd should be used outside of this block */
@@ -167,7 +167,7 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 		do_escape(sql_cmd, sql_insert_cmd);
 	}
 
-	opbx_mutex_lock(&lock);
+	cw_mutex_lock(&lock);
 
 	for (count = 0; count < 5; count++) {
 		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
@@ -177,11 +177,11 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 	}
 
 	if (zErr) {
-		opbx_log(OPBX_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
+		cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
 		sqlite3_free(zErr);
 	}
 
-	opbx_mutex_unlock(&lock);
+	cw_mutex_unlock(&lock);
 
 	return res;
 }
@@ -194,7 +194,7 @@ static void release(void)
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = sqlite3_log,
@@ -202,7 +202,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 {
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
@@ -217,10 +217,10 @@ static int load_module(void)
 		return -1;
 
 	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/master.db", opbx_config_OPBX_LOG_DIR);
+	snprintf(fn, sizeof(fn), "%s/master.db", cw_config_CW_LOG_DIR);
 	res = sqlite3_open(fn, &db);
 	if (!db) {
-		opbx_log(OPBX_LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
+		cw_log(CW_LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
 		sqlite3_free(zErr);
 		return -1;
 	}
@@ -234,13 +234,13 @@ static int load_module(void)
 		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
 		sqlite3_free(sql_cmd);
 		if (zErr) {
-			opbx_log(OPBX_LOG_WARNING, "%s: %s.\n", name, zErr);
+			cw_log(CW_LOG_WARNING, "%s: %s.\n", name, zErr);
 			sqlite3_free(zErr);
 			return 0;
 		}
 
 		if (res) {
-			opbx_log(OPBX_LOG_ERROR, "%s: Unable to create table '%s': %s.\n", name, table, zErr);
+			cw_log(CW_LOG_ERROR, "%s: Unable to create table '%s': %s.\n", name, table, zErr);
 			sqlite3_free(zErr);
 			if (db)
 				sqlite3_close(db);
@@ -248,7 +248,7 @@ static int load_module(void)
 		}
 	}
 
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 
 	return 0;
 }
@@ -257,9 +257,9 @@ static int reload_module(void)
 {
 	int res;
 
-	opbx_mutex_lock(&lock);
+	cw_mutex_lock(&lock);
 	res = load_config(1);
-	opbx_mutex_unlock(&lock);
+	cw_mutex_unlock(&lock);
 
 	return res;
 }

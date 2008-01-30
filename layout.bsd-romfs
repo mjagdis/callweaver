@@ -1,14 +1,14 @@
 # BSD-ROMFS directory layout
 helpstring="for BSD embedded devices with ROM filesystems"
-opbxprefix=
-opbxexecdir=/usr/libexec
-opbxutilsdir=/usr/sbin
-opbxconfdir=/etc/callweaver
-opbxlibdir=/usr/lib/callweaver
-opbxvardir=/var/lib/callweaver
-opbxdatadir=/usr/share/callweaver
-opbxlogdir=/var/log/callweaver
-opbxrundir=/var/run
-opbxspooldir=/var/spool/callweaver
-opbxmandir=/usr/share/man
-opbxdocdir=/usr/share/doc
+cwprefix=
+cwexecdir=/usr/libexec
+cwutilsdir=/usr/sbin
+cwconfdir=/etc/callweaver
+cwlibdir=/usr/lib/callweaver
+cwvardir=/var/lib/callweaver
+cwdatadir=/usr/share/callweaver
+cwlogdir=/var/log/callweaver
+cwrundir=/var/run
+cwspooldir=/var/spool/callweaver
+cwmandir=/usr/share/man
+cwdocdir=/usr/share/doc

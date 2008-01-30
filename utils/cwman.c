@@ -53,46 +53,46 @@
  */
 #define _NEWT_CAST (void *)
 
-static struct opbx_mansession {
+static struct cw_mansession {
 	struct sockaddr_in sin;
 	int fd;
 	char inbuf[MAX_LEN];
 	int inlen;
 } session;
 
-static struct opbx_chan {
+static struct cw_chan {
 	char name[80];
 	char exten[20];
 	char context[20];
 	char priority[20];
 	char callerid[40];
 	char state[10];
-	struct opbx_chan *next;
+	struct cw_chan *next;
 } *chans;
 
 /* dummy functions to be compatible with the CallWeaver core for md5.c */
-void opbx_register_file_version(const char *file, const char *version);
-void opbx_register_file_version(const char *file, const char *version)
+void cw_register_file_version(const char *file, const char *version);
+void cw_register_file_version(const char *file, const char *version)
 {
 }
 
-void opbx_unregister_file_version(const char *file);
-void opbx_unregister_file_version(const char *file)
+void cw_unregister_file_version(const char *file);
+void cw_unregister_file_version(const char *file)
 {
 }
 
-static struct opbx_chan *find_chan(char *name)
+static struct cw_chan *find_chan(char *name)
 {
-	struct opbx_chan *prev = NULL, *chan = chans;
+	struct cw_chan *prev = NULL, *chan = chans;
 	while(chan) {
 		if (!strcmp(name, chan->name))
 			return chan;
 		prev = chan;
 		chan = chan->next;
 	}
-	chan = malloc(sizeof(struct opbx_chan));
+	chan = malloc(sizeof(struct cw_chan));
 	if (chan) {
-		memset(chan, 0, sizeof(struct opbx_chan));
+		memset(chan, 0, sizeof(struct cw_chan));
 		strncpy(chan->name, name, sizeof(chan->name) - 1);
 		if (prev) 
 			prev->next = chan;
@@ -104,7 +104,7 @@ static struct opbx_chan *find_chan(char *name)
 
 static void del_chan(char *name)
 {
-	struct opbx_chan *prev = NULL, *chan = chans;
+	struct cw_chan *prev = NULL, *chan = chans;
 	while(chan) {
 		if (!strcmp(name, chan->name)) {
 			if (prev)
@@ -139,17 +139,17 @@ static char *get_header(struct message *m, char *var)
 	return "";
 }
 
-static int event_newstate(struct opbx_mansession *s, struct message *m)
+static int event_newstate(struct cw_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	return 0;
 }
 
-static int event_newexten(struct opbx_mansession *s, struct message *m)
+static int event_newexten(struct cw_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->exten, get_header(m, "Extension"), sizeof(chan->exten) - 1);
 	strncpy(chan->context, get_header(m, "Context"), sizeof(chan->context) - 1);
@@ -157,18 +157,18 @@ static int event_newexten(struct opbx_mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_newchannel(struct opbx_mansession *s, struct message *m)
+static int event_newchannel(struct cw_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	strncpy(chan->callerid, get_header(m, "Callerid"), sizeof(chan->callerid) - 1);
 	return 0;
 }
 
-static int event_status(struct opbx_mansession *s, struct message *m)
+static int event_status(struct cw_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	strncpy(chan->callerid, get_header(m, "Callerid"), sizeof(chan->callerid) - 1);
@@ -178,27 +178,27 @@ static int event_status(struct opbx_mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_hangup(struct opbx_mansession *s, struct message *m)
+static int event_hangup(struct cw_mansession *s, struct message *m)
 {
 	del_chan(get_header(m, "Channel"));
 	return 0;
 }
 
-static int event_ignore(struct opbx_mansession *s, struct message *m)
+static int event_ignore(struct cw_mansession *s, struct message *m)
 {
 	return 0;
 }
 
-static int event_rename(struct opbx_mansession *s, struct message *m)
+static int event_rename(struct cw_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	chan = find_chan(get_header(m, "Oldname"));
 	strncpy(chan->name, get_header(m, "Newname"), sizeof(chan->name) - 1);
 	return 0;
 }
 static struct event {
 	char *event;
-	int (*func)(struct opbx_mansession *s, struct message *m);
+	int (*func)(struct cw_mansession *s, struct message *m);
 } events[] = {
 	{ "Newstate", event_newstate },
 	{ "Newchannel", event_newchannel },
@@ -211,7 +211,7 @@ static struct event {
 	{ "StatusComplete", event_ignore }
 };
 
-static int process_message(struct opbx_mansession *s, struct message *m)
+static int process_message(struct cw_mansession *s, struct message *m)
 {
 	int x;
 	char event[80] = "";
@@ -240,7 +240,7 @@ static int process_message(struct opbx_mansession *s, struct message *m)
 static void rebuild_channels(newtComponent c)
 {
 	void *prev = NULL;
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	char tmpn[42];
 	char tmp[256];
 	int x=0;
@@ -265,7 +265,7 @@ static void rebuild_channels(newtComponent c)
 	newtListboxSetCurrentByKey(c, prev);
 }
 
-static int has_input(struct opbx_mansession *s)
+static int has_input(struct cw_mansession *s)
 {
 	int x;
 	for (x=1;x<s->inlen;x++) 
@@ -274,7 +274,7 @@ static int has_input(struct opbx_mansession *s)
 	return 0;
 }
 
-static int get_input(struct opbx_mansession *s, char *output)
+static int get_input(struct cw_mansession *s, char *output)
 {
 	/* output must have at least sizeof(s->inbuf) space */
 	int res;
@@ -295,7 +295,7 @@ static int get_input(struct opbx_mansession *s, char *output)
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
 		char tmp[32];
-		fprintf(stderr, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(tmp, sizeof(tmp), s->sin.sin_addr), s->inbuf);
+		fprintf(stderr, "Dumping long line with no return from %s: %s\n", cw_inet_ntoa(tmp, sizeof(tmp), s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	FD_ZERO(&fds);
@@ -315,7 +315,7 @@ static int get_input(struct opbx_mansession *s, char *output)
 	return 0;
 }
 
-static int input_check(struct opbx_mansession *s, struct message **mout)
+static int input_check(struct cw_mansession *s, struct message **mout)
 {
 	static struct message m;
 	int res;
@@ -376,7 +376,7 @@ static struct message *wait_for_response(int timeout)
 
 static int manager_action(char *action, char *fmt, ...)
 {
-	struct opbx_mansession *s;
+	struct cw_mansession *s;
 	char tmp[4096];
 	va_list ap;
 
@@ -445,7 +445,7 @@ static void try_status(void)
 
 static void try_hangup(newtComponent c)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	struct message *m;
 
 	chan = newtListboxGetCurrent(c);
@@ -491,7 +491,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 
 static void try_redirect(newtComponent c)
 {
-	struct opbx_chan *chan;
+	struct cw_chan *chan;
 	char dest[256];
 	struct message *m;
 	char channame[256];
@@ -656,7 +656,7 @@ static int login(char *hostname)
 			if (m && !strcasecmp(get_header(m, "Response"), "Success")) {
 				char *challenge = get_header(m, "Challenge");
 				char md5key[256] = "";
-				opbx_md5_hash_two(md5key, challenge, pass);
+				cw_md5_hash_two(md5key, challenge, pass);
 				manager_action("Login",
 						"AuthType: MD5\r\n"
 						"Username: %s\r\n"
@@ -694,7 +694,7 @@ static int login(char *hostname)
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
-		fprintf(stderr, "Usage: opbxman <host>\n");
+		fprintf(stderr, "Usage: cwman <host>\n");
 		exit(1);
 	}
 	newtInit();

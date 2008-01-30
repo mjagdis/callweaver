@@ -59,8 +59,8 @@ void sched_context_destroy(struct sched_context *c);
  * returns a 0 if it should not be run again, or non-zero if it should be
  * rescheduled to run again
  */
-typedef int (*opbx_sched_cb)(void *data);
-#define OPBX_SCHED_CB(a) ((opbx_sched_cb)(a))
+typedef int (*cw_sched_cb)(void *data);
+#define CW_SCHED_CB(a) ((cw_sched_cb)(a))
 
 /*!Adds a scheduled event */
 /*! 
@@ -74,7 +74,7 @@ typedef int (*opbx_sched_cb)(void *data);
  * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
-extern int opbx_sched_add(struct sched_context *con, int when, opbx_sched_cb callback, void *data);
+extern int cw_sched_add(struct sched_context *con, int when, cw_sched_cb callback, void *data);
 
 /*!Adds a scheduled event */
 /*! 
@@ -90,7 +90,7 @@ extern int opbx_sched_add(struct sched_context *con, int when, opbx_sched_cb cal
  * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
-extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb callback, void *data, int variable);
+extern int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable);
 
 /*! Deletes a scheduled event */
 /*!
@@ -100,22 +100,22 @@ extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sch
  * own event, but return 0 instead.
  * Returns 0 on success, -1 on failure
  */
-extern int opbx_sched_del(struct sched_context *con, int id);
+extern int cw_sched_del(struct sched_context *con, int id);
 
 /*! Atomically modifies a scheduled event or adds it if the ID did not exist.
- * \param con,id See opbx_sched_del
- * \param ...    See opbx_sched_add
+ * \param con,id See cw_sched_del
+ * \param ...    See cw_sched_add
  * Returns a new schedule item ID on success, -1 on failure
  */
-extern int opbx_sched_modify(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data);
-extern int opbx_sched_modify_variable(struct sched_context *con, int id, int when, opbx_sched_cb callback, void *data, int variable);
+extern int cw_sched_modify(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data);
+extern int cw_sched_modify_variable(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data, int variable);
 
 /*!Returns the number of seconds before an event takes place */
 /*!
  * \param con Context to use
  * \param id Id to dump
  */
-extern long opbx_sched_when(struct sched_context *con,int id);
+extern long cw_sched_when(struct sched_context *con,int id);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

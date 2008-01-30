@@ -64,11 +64,11 @@ static char g_descrip[] =
 	"Example: Set(EXTSTATE=${GetExtState(715&523, default)}\n";
 
 
-static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int get_extstate(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	static int deprecated_var = 0;
 	char hints[1024] = "";
-	char hint[OPBX_MAX_EXTENSION] = "";
+	char hint[CW_MAX_EXTENSION] = "";
 	struct localuser *u;
 	char *cur, *rest;
 	int res = -1;
@@ -76,7 +76,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 	int busy = 0, inuse = 0, ring = 0;
 			
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
-		return opbx_function_syntax(g_syntax);
+		return cw_function_syntax(g_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -88,20 +88,20 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 			*rest = 0;
 			rest++;
 		}
-	    opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, argv[1], cur);
-	    //opbx_log(OPBX_LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
-	    if (!opbx_strlen_zero(hint)) {
+	    cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, argv[1], cur);
+	    //cw_log(CW_LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
+	    if (!cw_strlen_zero(hint)) {
 		//let's concat hints!
 		if ( strlen(hint)+strlen(hints)+2<sizeof(hints) ) {
 		    if ( strlen(hints) ) strcat(hints,"&");
 		    strcat(hints,hint);
 		}
 	    }
-	    //opbx_log(OPBX_LOG_DEBUG,"HINTS: %s \n",hints);
+	    //cw_log(CW_LOG_DEBUG,"HINTS: %s \n",hints);
 	    cur=rest;
 	} while (cur);
-	//res=opbx_device_state(hint);
-	//res=opbx_extension_state2(hint);
+	//res=cw_device_state(hint);
+	//res=cw_extension_state2(hint);
 
 	cur=hints;
 	do {
@@ -111,30 +111,30 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 			rest++;
 		}
 	
-		res = opbx_device_state(cur);
-		//opbx_log(OPBX_LOG_DEBUG,"Ext: %s State: %d \n",cur,res);
+		res = cw_device_state(cur);
+		//cw_log(CW_LOG_DEBUG,"Ext: %s State: %d \n",cur,res);
 		switch (res) {
-		case OPBX_DEVICE_NOT_INUSE:
+		case CW_DEVICE_NOT_INUSE:
 			allunavailable = 0;
 			allbusy = 0;
 			break;
-		case OPBX_DEVICE_INUSE:
+		case CW_DEVICE_INUSE:
 			inuse = 1;
 			allunavailable = 0;
 			allfree = 0;
 			break;
-		case OPBX_DEVICE_RINGING:
+		case CW_DEVICE_RINGING:
 			ring = 1;
 			allunavailable = 0;
 			allfree = 0;
 			break;
-		case OPBX_DEVICE_BUSY:
+		case CW_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;
 			busy = 1;
 			break;
-		case OPBX_DEVICE_UNAVAILABLE:
-		case OPBX_DEVICE_INVALID:
+		case CW_DEVICE_UNAVAILABLE:
+		case CW_DEVICE_INVALID:
 			allbusy = 0;
 			allfree = 0;
 			break;
@@ -147,7 +147,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 	} while (cur);
 
         // 0-idle; 1-inuse; 2-busy; 4-unavail 8-ringing
-	//opbx_log(OPBX_LOG_VERBOSE, "allunavailable %d, allbusy %d, allfree %d, busy %d, inuse %d, ring %d \n", allunavailable, allbusy, allfree, busy, inuse, ring );
+	//cw_log(CW_LOG_VERBOSE, "allunavailable %d, allbusy %d, allfree %d, busy %d, inuse %d, ring %d \n", allunavailable, allbusy, allfree, busy, inuse, ring );
 	if      (!inuse && ring)
 		res=8;
 	else if (inuse && ring)
@@ -169,7 +169,7 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *
 	} else {
 		char resc[8];
 		if (!deprecated_var) {
-			opbx_log(OPBX_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
+			cw_log(CW_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
 			deprecated_var = 1;
 		}
 		snprintf(resc, sizeof(resc), "%d", res);
@@ -185,13 +185,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(g_app);
+	res |= cw_unregister_function(g_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	g_app = opbx_register_function(g_name, get_extstate, g_synopsis, g_syntax, g_descrip);
+	g_app = cw_register_function(g_name, get_extstate, g_synopsis, g_syntax, g_descrip);
 	return 0;
 }
 

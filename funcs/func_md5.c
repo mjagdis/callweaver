@@ -55,31 +55,31 @@ static const char checkmd5_func_syntax[] = "CHECK_MD5(digest, data)";
 static const char checkmd5_func_desc[] = "Returns 1 on a match, 0 otherwise\n";
 
 
-static int builtin_function_md5(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char md5[33];
 
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(md5_func_syntax);
+		return cw_function_syntax(md5_func_syntax);
 
 	if (buf) {
-		opbx_md5_hash(md5, argv[0]);
-		opbx_copy_string(buf, md5, len);
+		cw_md5_hash(md5, argv[0]);
+		cw_copy_string(buf, md5, len);
 	}
 
 	return 0;
 }
 
-static int builtin_function_checkmd5(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char newmd5[33];
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
-		return opbx_function_syntax(checkmd5_func_syntax);
+		return cw_function_syntax(checkmd5_func_syntax);
 
 	if (buf) {
-		opbx_md5_hash(newmd5, argv[1]);
-		opbx_copy_string(buf, (strcasecmp(newmd5, argv[0]) ? "0" : "1"), len);
+		cw_md5_hash(newmd5, argv[1]);
+		cw_copy_string(buf, (strcasecmp(newmd5, argv[0]) ? "0" : "1"), len);
 	}
 
 	return 0;
@@ -92,16 +92,16 @@ static int unload_module(void)
 {
         int res = 0;
 
-	res |= opbx_unregister_function(md5_function);
-	res |= opbx_unregister_function(checkmd5_function);
+	res |= cw_unregister_function(md5_function);
+	res |= cw_unregister_function(checkmd5_function);
 
         return res;
 }
 
 static int load_module(void)
 {
-        md5_function = opbx_register_function(md5_func_name, builtin_function_md5, md5_func_synopsis, md5_func_syntax, md5_func_desc);
-        checkmd5_function = opbx_register_function(checkmd5_func_name, builtin_function_checkmd5, checkmd5_func_synopsis, checkmd5_func_syntax, checkmd5_func_desc);
+        md5_function = cw_register_function(md5_func_name, builtin_function_md5, md5_func_synopsis, md5_func_syntax, md5_func_desc);
+        checkmd5_function = cw_register_function(checkmd5_func_name, builtin_function_checkmd5, checkmd5_func_synopsis, checkmd5_func_syntax, checkmd5_func_desc);
 
         return 0;
 }

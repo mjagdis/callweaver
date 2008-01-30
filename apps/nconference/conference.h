@@ -14,9 +14,9 @@
  *
  */
 
-extern opbx_mutex_t conflist_lock;
+extern cw_mutex_t conflist_lock;
 
-extern struct opbx_conference *conflist;
+extern struct cw_conference *conflist;
 extern int conference_count;
 
 
@@ -29,7 +29,7 @@ enum conf_actions {
     CONF_ACTION_PLAYMOH
 };
 
-struct opbx_conf_command_queue 
+struct cw_conf_command_queue 
 {
     // The command issued
     int  command;
@@ -41,13 +41,13 @@ struct opbx_conf_command_queue
     char param_text[80];
 
     // The member who ordered this command
-    struct opbx_conf_member *issuedby;
+    struct cw_conf_member *issuedby;
 
     // The next command in the list
-    struct opbx_conf_command_queue *next;
+    struct cw_conf_command_queue *next;
 };
 
-struct opbx_conference 
+struct cw_conference 
 {
 	// conference name
 	char name[128]; 
@@ -59,33 +59,33 @@ struct opbx_conference
 	short is_locked;
 
 	//Command queue to be executed on all members
-	struct opbx_conf_command_queue *command_queue;
+	struct cw_conf_command_queue *command_queue;
 	// single-linked list of members in conference
-	struct opbx_conf_member* memberlist ;
+	struct cw_conf_member* memberlist ;
 	int membercount ;
 	
 	// conference thread id
 	pthread_t conference_thread ;
 	// conference data mutex
-	opbx_mutex_t lock ;
+	cw_mutex_t lock ;
 	
 	// pointer to next conference in single-linked list
-	struct opbx_conference* next ;
+	struct cw_conference* next ;
 
 } ;
 
 void init_conference( void ) ;
 
 int add_command_to_queue ( 
-	struct opbx_conference *conf, struct opbx_conf_member *member ,
+	struct cw_conference *conf, struct cw_conf_member *member ,
 	int command, int param_number, char *param_text 
 	) ;
 
 
-struct opbx_conference* start_conference( struct opbx_conf_member* member ) ;
-void remove_conf( struct opbx_conference *conf );
-struct opbx_conf_member *find_member( struct opbx_conference *conf, const char* name ) ;
-struct opbx_conference *find_conf( const char* name );
+struct cw_conference* start_conference( struct cw_conf_member* member ) ;
+void remove_conf( struct cw_conference *conf );
+struct cw_conf_member *find_member( struct cw_conference *conf, const char* name ) ;
+struct cw_conference *find_conf( const char* name );
 
-int conference_parse_admin_command(struct opbx_conf_member *member);
+int conference_parse_admin_command(struct cw_conf_member *member);
 

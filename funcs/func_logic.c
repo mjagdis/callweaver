@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
-#include "callweaver/config.h"		/* for opbx_true */
+#include "callweaver/config.h"		/* for cw_true */
 
 static void *isnull_function;
 static const char isnull_func_name[] = "ISNULL";
@@ -73,41 +73,41 @@ static const char if_time_func_desc[] =
 "NOTE: Both true and false are evaluated regardless of which is to be returned\n";
 
 
-static int builtin_function_isnull(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	opbx_copy_string(buf, (argc > 0 && argv[0][0] ? "0" : "1"), len);
+	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "0" : "1"), len);
 	return 0;
 }
 
-static int builtin_function_exists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	opbx_copy_string(buf, (argc > 0 && argv[0][0] ? "1" : "0"), len);
+	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "1" : "0"), len);
 	return 0;
 }
 
-static int builtin_function_iftime(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct opbx_timing timing;
+	struct cw_timing timing;
 	char *s, *q, **a;
 	int i, n, l, first;
 
 	/* First argument is "<timespec ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
-		return opbx_function_syntax(if_time_func_syntax);
+		return cw_function_syntax(if_time_func_syntax);
 
 	/* Trim trailing space from the timespec */
 	q = s;
 	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
-	if (!opbx_build_timing(&timing, argv[0])) {
-		opbx_log(OPBX_LOG_ERROR, "Invalid time specification\n");
+	if (!cw_build_timing(&timing, argv[0])) {
+		cw_log(CW_LOG_ERROR, "Invalid time specification\n");
 		return -1;
 	}
 
 	if (buf) {
 		do { *(s++) = '\0'; } while (isspace(*s));
 		n = 0;
-		if (opbx_check_timing(&timing)) {
+		if (cw_check_timing(&timing)) {
 			/* True: we want everything between '?' and ':' */
 			argv[0] = s;
 			a = argv;
@@ -155,14 +155,14 @@ static int builtin_function_iftime(struct opbx_channel *chan, int argc, char **a
 	return 0;
 }
 
-static int builtin_function_if(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *s, *q, **a;
 	int i, n, l, first;
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
-		return opbx_function_syntax(if_func_syntax);
+		return cw_function_syntax(if_func_syntax);
 
 	if (buf) {
 		/* Trim trailing space from the condition */
@@ -172,7 +172,7 @@ static int builtin_function_if(struct opbx_channel *chan, int argc, char **argv,
 		do { *(s++) = '\0'; } while (isspace(*s));
 
 		n = 0;
-		if (opbx_true(argv[0])) {
+		if (cw_true(argv[0])) {
 			/* True: we want everything between '?' and ':' */
 			argv[0] = s;
 			a = argv;
@@ -226,19 +226,19 @@ static int unload_module(void)
 {
         int res = 0;
 
-	res |= opbx_unregister_function(isnull_function);
-	res |= opbx_unregister_function(exists_function);
-	res |= opbx_unregister_function(if_function);
-	res |= opbx_unregister_function(if_time_function);
+	res |= cw_unregister_function(isnull_function);
+	res |= cw_unregister_function(exists_function);
+	res |= cw_unregister_function(if_function);
+	res |= cw_unregister_function(if_time_function);
         return res;
 }
 
 static int load_module(void)
 {
-	isnull_function = opbx_register_function(isnull_func_name, builtin_function_isnull, isnull_func_synopsis, isnull_func_syntax, isnull_func_desc);
-        exists_function = opbx_register_function(exists_func_name, builtin_function_exists, exists_func_synopsis, exists_func_syntax, exists_func_desc);
-        if_function = opbx_register_function(if_func_name, builtin_function_if, if_func_synopsis, if_func_syntax, if_func_desc);
-        if_time_function = opbx_register_function(if_time_func_name, builtin_function_iftime, if_time_func_synopsis, if_time_func_syntax, if_time_func_desc);
+	isnull_function = cw_register_function(isnull_func_name, builtin_function_isnull, isnull_func_synopsis, isnull_func_syntax, isnull_func_desc);
+        exists_function = cw_register_function(exists_func_name, builtin_function_exists, exists_func_synopsis, exists_func_syntax, exists_func_desc);
+        if_function = cw_register_function(if_func_name, builtin_function_if, if_func_synopsis, if_func_syntax, if_func_desc);
+        if_time_function = cw_register_function(if_time_func_name, builtin_function_iftime, if_time_func_synopsis, if_time_func_syntax, if_time_func_desc);
         return 0;
 }
 

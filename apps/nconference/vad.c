@@ -37,7 +37,7 @@ static int detect_silence(char *buf, int len, int threshold)
 	    totover++;
 	}
     }
-    //opbx_log(OPBX_LOG_WARNING,"THR: %d %d\n", (max-min), threshold );
+    //cw_log(CW_LOG_WARNING,"THR: %d %d\n", (max-min), threshold );
     if( totover > len % 5)
 	return 0;
 

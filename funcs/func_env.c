@@ -47,12 +47,12 @@ static const char env_func_syntax[] = "ENV(envname[, value])";
 static const char env_func_desc[] = "";
 
 
-static int builtin_function_env_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret;
 
 	if (argc < 1 || argc > 2 || !argv[0][0])
-		return opbx_function_syntax(env_func_syntax);
+		return cw_function_syntax(env_func_syntax);
 
 	/* FIXME: getenv/setenv are not reentrant. We should lock... */
 	if (argc > 1) {
@@ -65,7 +65,7 @@ static int builtin_function_env_rw(struct opbx_channel *chan, int argc, char **a
 
 	if (buf) {
 		if ((ret = getenv(argv[0])))
-			opbx_copy_string(buf, ret, len);
+			cw_copy_string(buf, ret, len);
 	}
 
 	return 0;
@@ -76,12 +76,12 @@ static const char tdesc[] = "Get or set environment variables.";
 
 static int unload_module(void)
 {
-       return opbx_unregister_function(env_function);
+       return cw_unregister_function(env_function);
 }
 
 static int load_module(void)
 {
-       env_function = opbx_register_function(env_func_name, builtin_function_env_rw, env_func_synopsis, env_func_syntax, env_func_desc);
+       env_function = cw_register_function(env_func_name, builtin_function_env_rw, env_func_synopsis, env_func_syntax, env_func_desc);
        return 0;
 }
 

@@ -46,13 +46,13 @@ static void *app_1;
 static const char name_1[] = "URLFetch";
 static const char synopsis_1[] = "Fetch Data from a URL";
 static const char syntax_1[] = "URLFetch(<url>)";
-static const char desc_1[] = "load a url that returns opbx_config and set according chanvars\n"
+static const char desc_1[] = "load a url that returns cw_config and set according chanvars\n"
 ;
 
 
 struct config_data {
-	struct opbx_variable *vars;
-	struct opbx_config *cfg;
+	struct cw_variable *vars;
+	struct cw_config *cfg;
 	const char *table;
 	const char *database;
 	const char *keyfield;
@@ -74,7 +74,7 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 	size_t len;
 	char *line = NULL, *newline = NULL, *nextline = NULL;
 	
-	if ((line = opbx_strdupa((char *) ptr))) {
+	if ((line = cw_strdupa((char *) ptr))) {
 		while (line) {
 
 			if ((nextline = strchr(line, '\n'))) {
@@ -83,7 +83,7 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 			}
 			if (!strcmp(line, ";OK;")) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Open file %s\n", config_data->cachefile);
+					cw_verbose(VERBOSE_PREFIX_3 "Open file %s\n", config_data->cachefile);
 				if (!config_data->fd) 
 					config_data->fd = open(config_data->cachefile, O_WRONLY | O_TRUNC | O_CREAT, 0600);
 			} else {
@@ -99,7 +99,7 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 			line = nextline;
 		}
 	} else 
-		opbx_log(OPBX_LOG_ERROR, "Memory Allocation Failed.\n");
+		cw_log(CW_LOG_ERROR, "Memory Allocation Failed.\n");
 	
 	if (config_data->fd)
 		close(config_data->fd);
@@ -111,8 +111,8 @@ static void curl_process(struct config_data *config_data) {
 	CURL *curl_handle = NULL;
 	const char *param = NULL, *val = NULL;
 	int x = 0, offset=0;
-	struct opbx_config *cfg; 
-	struct opbx_variable *v, *vp;
+	struct cw_config *cfg; 
+	struct cw_variable *v, *vp;
 	struct stat sbuf;
 	int elapsed = 0;
 	int perform = 1;
@@ -173,14 +173,14 @@ static void curl_process(struct config_data *config_data) {
 
 		if (elapsed < global_cache_time) {
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "CURL config engine using cached file for %d more seconds\n", global_cache_time - elapsed);
+				cw_verbose(VERBOSE_PREFIX_3 "CURL config engine using cached file for %d more seconds\n", global_cache_time - elapsed);
 			perform  = 0;
 		}
 	}
 	
 	if (perform) {
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "CURL config engine fetching [%s]\n", config_data->url);
+			cw_verbose(VERBOSE_PREFIX_3 "CURL config engine fetching [%s]\n", config_data->url);
 
 		curl_global_init(CURL_GLOBAL_ALL);
 		curl_handle = curl_easy_init();
@@ -195,26 +195,26 @@ static void curl_process(struct config_data *config_data) {
 		curl_easy_perform(curl_handle);
 		curl_easy_cleanup(curl_handle);
 	}
-	if (!opbx_strlen_zero(config_data->cachefile) && !strncmp(config_data->action, "realtime", 8) &&
-		(cfg = opbx_config_load(config_data->cachefile))) {
+	if (!cw_strlen_zero(config_data->cachefile) && !strncmp(config_data->action, "realtime", 8) &&
+		(cfg = cw_config_load(config_data->cachefile))) {
 		vp = config_data->vars;
-		for(v = opbx_variable_browse(cfg, "realtime") ; v ; v = v->next) {
-			vp->next = opbx_variable_new(v->name, v->value);
+		for(v = cw_variable_browse(cfg, "realtime") ; v ; v = v->next) {
+			vp->next = cw_variable_new(v->name, v->value);
 			vp = vp->next;
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		cfg = NULL;
-	} else if (!opbx_strlen_zero(config_data->cachefile) && 
-			   (cfg = opbx_config_internal_load(config_data->cachefile, config_data->cfg)))
+	} else if (!cw_strlen_zero(config_data->cachefile) && 
+			   (cfg = cw_config_internal_load(config_data->cachefile, config_data->cfg)))
 		config_data->cfg = cfg;
 	
-	if (global_no_cache_neg && !opbx_strlen_zero(config_data->cachefile) && !config_data->vars && !config_data->cfg)
+	if (global_no_cache_neg && !cw_strlen_zero(config_data->cachefile) && !config_data->vars && !config_data->cfg)
 		unlink(config_data->cachefile);
 
 }
 
 
-static struct opbx_variable *realtime_curl(const char *database, const char *table, va_list ap)
+static struct cw_variable *realtime_curl(const char *database, const char *table, va_list ap)
 {
 
 	struct config_data config_data;
@@ -229,10 +229,10 @@ static struct opbx_variable *realtime_curl(const char *database, const char *tab
 	return config_data.vars;
 }
 
-static int realtime_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int realtime_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct config_data config_data;
-	struct opbx_variable *v;
+	struct cw_variable *v;
 
 	memset(&config_data, 0, sizeof(config_data));
 	config_data.database = argv[0];
@@ -245,20 +245,20 @@ static int realtime_exec(struct opbx_channel *chan, int argc, char **argv, char 
 			if(strncmp(v->name, "private_", 8))
 				pbx_builtin_setvar_helper(chan, v->name, v->value);
 		}
-		opbx_variables_destroy(config_data.vars);
+		cw_variables_destroy(config_data.vars);
 	}
 	return 0;
 }
 
 
 
-static struct opbx_config *realtime_multi_curl(const char *database, const char *table, va_list ap)
+static struct cw_config *realtime_multi_curl(const char *database, const char *table, va_list ap)
 {
 	struct config_data config_data;
 	
 	memset(&config_data, 0, sizeof(config_data));
 	va_copy(config_data.aq, ap);
-	config_data.cfg = opbx_config_new();
+	config_data.cfg = cw_config_new();
 	config_data.database = database;
 	config_data.table = table;
 	config_data.action = "realtime_multi_lookup";
@@ -270,7 +270,7 @@ static struct opbx_config *realtime_multi_curl(const char *database, const char 
 static int update_curl(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
 {
 	struct config_data config_data;
-	struct opbx_variable *v;
+	struct cw_variable *v;
 	int res = -1;
 	memset(&config_data, 0, sizeof(config_data));
 	va_copy(config_data.aq, ap);
@@ -284,15 +284,15 @@ static int update_curl(const char *database, const char *table, const char *keyf
 	if (config_data.vars) {
 		for (v = config_data.vars; v; v = v->next) {
 			if (!strcmp(v->name, "result")) {
-				res = opbx_true(v->value) ? 0 : -1;
+				res = cw_true(v->value) ? 0 : -1;
 			}
 		}
-		opbx_variables_destroy(config_data.vars);
+		cw_variables_destroy(config_data.vars);
 	}
 	return res;
 }
 
-static struct opbx_config *config_curl (const char *database, const char *table, const char *file, struct opbx_config *cfg)
+static struct cw_config *config_curl (const char *database, const char *table, const char *file, struct cw_config *cfg)
 {
 	struct config_data config_data;
 	/* can't configure myself */
@@ -306,7 +306,7 @@ static struct opbx_config *config_curl (const char *database, const char *table,
 	config_data.file = file;
 	
 	if (!config_data.cfg)
-		config_data.cfg = opbx_config_new();
+		config_data.cfg = cw_config_new();
     curl_process(&config_data);
 	
     return config_data.cfg;
@@ -314,24 +314,24 @@ static struct opbx_config *config_curl (const char *database, const char *table,
 }
 
 static void load_config(void) {
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
+	struct cw_config *cfg;
+	struct cw_variable *v;
 
 	
-	if ( (cfg = opbx_config_load(global_config_file)) ) {
-		for (v = opbx_variable_browse(cfg, "config"); v ; v = v->next)
+	if ( (cfg = cw_config_load(global_config_file)) ) {
+		for (v = cw_variable_browse(cfg, "config"); v ; v = v->next)
 			if (!strcasecmp(v->name, "cache_time"))
 				global_cache_time = atoi(v->value);
 			else if (!strcasecmp(v->name, "no_cache_neg"))
 				global_no_cache_neg = atoi(v->value);
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		cfg = NULL;
 	}
 
 }
 
 
-static struct opbx_config_engine curl_engine = {
+static struct cw_config_engine curl_engine = {
 	.name = "curl",
 	.load_func = config_curl,
 	.realtime_func =  realtime_curl,
@@ -349,8 +349,8 @@ static int unload_module (void)
 {
 	int res = 0;
 
-	opbx_config_engine_unregister(&curl_engine);
-	res |= opbx_unregister_function(app_1);
+	cw_config_engine_unregister(&curl_engine);
+	res |= cw_unregister_function(app_1);
 	return res;
 }
 
@@ -360,13 +360,13 @@ static int load_module (void)
 	char cmd[128];
 
 	/* We should never be unloaded */
-	opbx_module_get(get_modinfo()->self);
+	cw_module_get(get_modinfo()->self);
 
 	snprintf(cmd, 128, "/bin/rm -fr %s ; /bin/mkdir -p %s", global_tmp_prefix, global_tmp_prefix);
 	system(cmd);
 	load_config();
-	opbx_config_engine_register(&curl_engine);
-	app_1 = opbx_register_function(name_1, realtime_exec, synopsis_1, syntax_1, desc_1);
+	cw_config_engine_register(&curl_engine);
+	app_1 = cw_register_function(name_1, realtime_exec, synopsis_1, syntax_1, desc_1);
 	return 0;
 }
 

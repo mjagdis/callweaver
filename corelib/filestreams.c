@@ -34,14 +34,14 @@
 #include "callweaver/frame.h"
 #include "callweaver/app.h"
 
-//#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(lev, fmt, __VA_ARGS__ )
-#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(OPBX_LOG_WARNING,"Filestream Engine: " fmt, __VA_ARGS__ )
+//#define fse_log(lev,fmt,...) if ( option_debug > 3 ) cw_log(lev, fmt, __VA_ARGS__ )
+#define fse_log(lev,fmt,...) if ( option_debug > 3 ) cw_log(CW_LOG_WARNING,"Filestream Engine: " fmt, __VA_ARGS__ )
 
 /*
     !\brief opaque structure that holds what's needed to stream/record a file
 */
 
-struct opbx_filestream_session {
+struct cw_filestream_session {
     // We can both open files and URIS
     // examples:        file:beep
     //                  http://10.1.1.1/uri/to/a/stream
@@ -52,7 +52,7 @@ struct opbx_filestream_session {
     char                                *tmp_filename;
 
     /* The channel we are working with */
-    opbx_channel_t                      *channel;
+    cw_channel_t                      *channel;
 
     /* 
         The channel original formats. In the hope to remove the corresponding values from the 
@@ -62,16 +62,16 @@ struct opbx_filestream_session {
     int                                 channel_old_write_format;
 
     /*  The pointer to the implementation this session is using */
-    opbx_filestream_implementation_t    *implementation;
+    cw_filestream_implementation_t    *implementation;
 
     /* Eventual translator, if needed */
-    struct opbx_trans_pvt               *translator;
+    struct cw_trans_pvt               *translator;
 
     /* Eventual resampler, if needed, when it will exist */
-    /* struct opbx_trans_pvt               *translator; */
+    /* struct cw_trans_pvt               *translator; */
 
     /* The pool used by the session (and passed to the implementation) */
-    opbx_mpool_t                        *pool;
+    cw_mpool_t                        *pool;
 
     /* Private data used by the implementation session */
     void                                *pvt;
@@ -80,26 +80,26 @@ struct opbx_filestream_session {
 
 /* ************************************************************************* */
 
-OPBX_MUTEX_DEFINE_STATIC(implementation_lock);
+CW_MUTEX_DEFINE_STATIC(implementation_lock);
 
-static opbx_filestream_implementation_t *implementations = NULL;
+static cw_filestream_implementation_t *implementations = NULL;
 
 /* *************************************************************************
         REGISTERING FUNCTIONS ( used by the core )
    ************************************************************************* */
 
-int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
+int cw_filestream_register( cw_filestream_implementation_t *implementation )
 {
     int res = -1;
-    opbx_filestream_implementation_t *tmp;
+    cw_filestream_implementation_t *tmp;
 
     if ( !implementation ) {
-	opbx_log(OPBX_LOG_ERROR, "Unable to register a NULL implementation\n");
+	cw_log(CW_LOG_ERROR, "Unable to register a NULL implementation\n");
 	return res;
     }
 
-    if (opbx_mutex_lock(&implementation_lock)) {
-	opbx_log(OPBX_LOG_ERROR, "Unable to lock format list\n");
+    if (cw_mutex_lock(&implementation_lock)) {
+	cw_log(CW_LOG_ERROR, "Unable to lock format list\n");
 	return res;
     }
 
@@ -107,7 +107,7 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
 
     while ( tmp ) {
 	if (!strcasecmp(implementation->engine_name, tmp->engine_name)) {
-	    opbx_log(OPBX_LOG_WARNING, "Tried to register filestream '%s' but it's already registered\n", implementation->engine_name);
+	    cw_log(CW_LOG_WARNING, "Tried to register filestream '%s' but it's already registered\n", implementation->engine_name);
             goto done;
 	}
         tmp = tmp->next;
@@ -116,26 +116,26 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
     implementation->next=implementations;
     implementations = implementation;
     res = 0;
-    opbx_log(OPBX_LOG_DEBUG, "Registered filestream %s\n", implementation->engine_name );
+    cw_log(CW_LOG_DEBUG, "Registered filestream %s\n", implementation->engine_name );
 
 done:
-    opbx_mutex_unlock(&implementation_lock);
+    cw_mutex_unlock(&implementation_lock);
     
     return res;
 }
 
-int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation )
+int cw_filestream_unregister( cw_filestream_implementation_t *implementation )
 {
     int res = -1;
-    opbx_filestream_implementation_t *tmp = NULL, *prev = NULL;
+    cw_filestream_implementation_t *tmp = NULL, *prev = NULL;
 
     if ( !implementation ) {
-	opbx_log(OPBX_LOG_ERROR, "Unable to register a NULL implementation\n");
+	cw_log(CW_LOG_ERROR, "Unable to register a NULL implementation\n");
 	return res;
     }
 
-    if (opbx_mutex_lock(&implementation_lock)) {
-	opbx_log(OPBX_LOG_ERROR, "Unable to lock format list\n");
+    if (cw_mutex_lock(&implementation_lock)) {
+	cw_log(CW_LOG_ERROR, "Unable to lock format list\n");
 	return res;
     }
 
@@ -156,7 +156,7 @@ int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation
     }
 
 done:
-    opbx_mutex_unlock(&implementation_lock);
+    cw_mutex_unlock(&implementation_lock);
 
     return res;
 }
@@ -165,24 +165,24 @@ done:
         ACCESS TO PRIVATE DATA FUNCTIONS
    ************************************************************************* */
 
-opbx_channel_t *opbx_filestream_session_get_channel( opbx_filestream_session_t *fs ) {
+cw_channel_t *cw_filestream_session_get_channel( cw_filestream_session_t *fs ) {
     return fs->channel;
 }
 
-const char *opbx_filestream_session_get_uri( opbx_filestream_session_t *fs ) {
+const char *cw_filestream_session_get_uri( cw_filestream_session_t *fs ) {
     return fs->uri;
 }
 
-opbx_mpool_t *opbx_filestream_session_get_pool( opbx_filestream_session_t *fs ) {
+cw_mpool_t *cw_filestream_session_get_pool( cw_filestream_session_t *fs ) {
     return fs->pool;
 }
 
-filestream_result_value opbx_filestream_session_set_pvt( opbx_filestream_session_t *fs, void *pvt ) {
+filestream_result_value cw_filestream_session_set_pvt( cw_filestream_session_t *fs, void *pvt ) {
     fs->pvt = pvt;
     return FS_RESULT_SUCCESS;
 }
 
-void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs ) {
+void *cw_filestream_session_get_pvt( cw_filestream_session_t *fs ) {
     return (void*) fs->pvt;
 }
 
@@ -191,13 +191,13 @@ void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs ) {
         Creation and destruction of a filestream
    ************************************************************************* */
 
-static opbx_filestream_implementation_t *find_suitable_implementation( opbx_filestream_session_t *fs, const char *uri, char *requested_impl, filestream_result_value *mode) {
+static cw_filestream_implementation_t *find_suitable_implementation( cw_filestream_session_t *fs, const char *uri, char *requested_impl, filestream_result_value *mode) {
     char        *types[16], 
                 *tmp, *tmpuri, *type, *file;
     int         maxsize = 15,
                 nstrings,
                 t;
-    opbx_filestream_implementation_t    *impl, 
+    cw_filestream_implementation_t    *impl, 
                                         *ret = NULL;;
     filestream_result_value             match = FS_RESULT_FILE_NOT_FOUND,
                                         ret_weight = FS_RESULT_FILE_NOT_FOUND;
@@ -206,7 +206,7 @@ static opbx_filestream_implementation_t *find_suitable_implementation( opbx_file
 
     impl = implementations;
 
-    tmpuri = opbx_mpool_strdup( fs->pool, (char *) uri );
+    tmpuri = cw_mpool_strdup( fs->pool, (char *) uri );
     type = tmpuri;
 
     if ( (file = strcasestr( tmpuri, "://" )) ) {
@@ -221,9 +221,9 @@ static opbx_filestream_implementation_t *find_suitable_implementation( opbx_file
     }
 
     while ( impl ) {
-        tmp = opbx_mpool_strdup( fs->pool, (char *) impl->supported_stream_types );
+        tmp = cw_mpool_strdup( fs->pool, (char *) impl->supported_stream_types );
 
-        nstrings = opbx_separate_app_args( tmp, ',', maxsize, types );
+        nstrings = cw_separate_app_args( tmp, ',', maxsize, types );
 
         for ( t=0; t<nstrings; t++ ) {
             fse_log(LOG_DEBUG,"Comparing  '%s' to '%s' for file %s ]\n", types[t], type, file );
@@ -278,13 +278,13 @@ static opbx_filestream_implementation_t *find_suitable_implementation( opbx_file
 
     switch ( ret_weight ) {
         case FS_RESULT_FILE_EXISTS_NATIVE:
-            opbx_log(OPBX_LOG_DEBUG,"found suitable file native.\n");
+            cw_log(CW_LOG_DEBUG,"found suitable file native.\n");
             break;
         case FS_RESULT_FILE_EXISTS_NON_NATIVE:
-            opbx_log(OPBX_LOG_DEBUG,"found suitable file non native.\n");
+            cw_log(CW_LOG_DEBUG,"found suitable file non native.\n");
             break;
         case FS_RESULT_FILE_NOT_FOUND:
-            opbx_log(OPBX_LOG_DEBUG,"not found suitable file\n");
+            cw_log(CW_LOG_DEBUG,"not found suitable file\n");
             // do nothing
             break;
         default:
@@ -295,26 +295,26 @@ static opbx_filestream_implementation_t *find_suitable_implementation( opbx_file
     return ret;
 }
 
-opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const char *uri )
+cw_filestream_session_t *cw_filestream_create( cw_channel_t *chan, const char *uri )
 {
-    opbx_filestream_implementation_t *impl;
-    opbx_filestream_session_t *fs;
+    cw_filestream_implementation_t *impl;
+    cw_filestream_session_t *fs;
     filestream_result_value mode;
-    opbx_mpool_t *pool;
+    cw_mpool_t *pool;
     int pool_err;
 
     fse_log(LOG_DEBUG,"Creating filestream session.%s","\n" );
 
     //create the pool then
-    pool = opbx_mpool_open( 0, 0, NULL, &pool_err);
+    pool = cw_mpool_open( 0, 0, NULL, &pool_err);
 
     //create our stream, assign our pool to it and set the defaults.
 
-    fs = opbx_mpool_alloc( pool, sizeof(opbx_filestream_session_t), &pool_err ); //TODO BETTER
+    fs = cw_mpool_alloc( pool, sizeof(cw_filestream_session_t), &pool_err ); //TODO BETTER
     fs->pool = pool;
 
     fs->channel=chan;
-    fs->uri=opbx_mpool_strdup( pool, (char *) uri);
+    fs->uri=cw_mpool_strdup( pool, (char *) uri);
     fs->implementation=NULL;
     fs->translator=NULL;
     fs->pvt=NULL;
@@ -325,14 +325,14 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
     impl = find_suitable_implementation( fs, uri, NULL, &mode );
 
     if ( !impl ) {
-        opbx_log(OPBX_LOG_ERROR,"Cannot find any suitable filestream to play requested uri: %s \n", uri);
-        opbx_mpool_close( pool );
+        cw_log(CW_LOG_ERROR,"Cannot find any suitable filestream to play requested uri: %s \n", uri);
+        cw_mpool_close( pool );
         return NULL;
     }
 
     if (  ( impl->init( fs, impl ) != FS_RESULT_SUCCESS ) ) {
-        opbx_log(OPBX_LOG_ERROR,"Cannot initialize filestream engine '%s' to play requested uri: %s \n", impl->engine_name ,uri);
-        opbx_mpool_close( pool );
+        cw_log(CW_LOG_ERROR,"Cannot initialize filestream engine '%s' to play requested uri: %s \n", impl->engine_name ,uri);
+        cw_mpool_close( pool );
         return NULL;
     }
 
@@ -341,14 +341,14 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
     return fs;
 }
 
-filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs ) 
+filestream_result_value cw_filestream_destroy( cw_filestream_session_t *fs ) 
 {
-    opbx_mpool_t *pool;
+    cw_mpool_t *pool;
 
     fse_log(LOG_DEBUG,"Closing filestream session.%s","\n" );
 
     if ( !fs ) {
-        opbx_log(OPBX_LOG_WARNING,"Cannot destroy NULL filestream.\n");
+        cw_log(CW_LOG_WARNING,"Cannot destroy NULL filestream.\n");
         return FS_RESULT_FAILURE_GENERIC;
     }
 
@@ -361,7 +361,7 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
     if ( fs && fs->implementation && fs->implementation->close )
         fs->implementation->close();
 
-    opbx_mpool_close( pool );
+    cw_mpool_close( pool );
 
     return FS_RESULT_SUCCESS;
 }
@@ -372,26 +372,26 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
         ( only the ones relating with each implementation )
    ************************************************************************* */
 
-struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *fs )
+struct cw_frame       *cw_filestream_readframe( cw_filestream_session_t *fs )
 {
     
 
     return NULL;
 }
 
-filestream_result_value opbx_filestream_writeframe( opbx_filestream_session_t *fs, struct opbx_frame *f )
+filestream_result_value cw_filestream_writeframe( cw_filestream_session_t *fs, struct cw_frame *f )
 {
     return FS_RESULT_SUCCESS;
 }
 
-long                    opbx_filestream_tell( struct opbx_filestream *fs )
+long                    cw_filestream_tell( struct cw_filestream *fs )
 {
     return -1;
 }
 
 
 
-filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, long sample_offset, filestream_seek whence )
+filestream_result_value cw_filestream_seek( cw_filestream_session_t *fs, long sample_offset, filestream_seek whence )
 {
     if ( fs && fs->implementation) {
         if ( fs->implementation->seek )
@@ -402,7 +402,7 @@ filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, lon
     return FS_RESULT_FAILURE_GENERIC;
 }
 
-filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs )
+filestream_result_value cw_filestream_trunc( cw_filestream_session_t *fs )
 {
     if ( fs && fs->implementation) {
         if ( fs->implementation->trunc )
@@ -413,7 +413,7 @@ filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs )
     return FS_RESULT_FAILURE_GENERIC;
 }
 
-filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *fs, long ms )
+filestream_result_value cw_filestream_fastforward( cw_filestream_session_t *fs, long ms )
 {
     if ( fs && fs->implementation ) {
         if ( fs->implementation->seek ) {
@@ -425,7 +425,7 @@ filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *
     return FS_RESULT_FAILURE_GENERIC;
 }
 
-filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, long ms )
+filestream_result_value cw_filestream_rewind( cw_filestream_session_t *fs, long ms )
 {
     if ( fs && fs->implementation ) {
         if ( fs->implementation->seek ) {
@@ -443,32 +443,32 @@ filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, l
         ( higher level functions )
    ************************************************************************* */
 
-filestream_result_value opbx_filestream_wait( opbx_filestream_session_t *fs, const char *break_on_char )
+filestream_result_value cw_filestream_wait( cw_filestream_session_t *fs, const char *break_on_char )
 {
     return FS_RESULT_SUCCESS;
 }
 
-filestream_result_value opbx_filestream_wait_valid_exten( opbx_filestream_session_t *fs, const char *context )
+filestream_result_value cw_filestream_wait_valid_exten( cw_filestream_session_t *fs, const char *context )
 {
     return FS_RESULT_SUCCESS;
 }
 
-filestream_result_value opbx_filestream_wait_controlling( opbx_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms )
+filestream_result_value cw_filestream_wait_controlling( cw_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms )
 {
     return FS_RESULT_SUCCESS;
 }
 
-filestream_result_value opbx_filestream_full( opbx_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd )
+filestream_result_value cw_filestream_full( cw_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd )
 {
     return FS_RESULT_SUCCESS;
 }
 
-filestream_result_value opbx_filestream_stream_start( opbx_filestream_session_t *fs, long ms )
+filestream_result_value cw_filestream_stream_start( cw_filestream_session_t *fs, long ms )
 {
     return FS_RESULT_SUCCESS;
 }
 
-filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *fs )
+filestream_result_value cw_filestream_stream_stop( cw_filestream_session_t *fs )
 {
     return FS_RESULT_SUCCESS;
 }
@@ -478,17 +478,17 @@ filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *
         Check if those are needed or not.
    ************************************************************************* */
 
-int opbx_filestream_rename(const char *oldname, const char *newname, const char *fmt)
+int cw_filestream_rename(const char *oldname, const char *newname, const char *fmt)
 {
     return FS_RESULT_SUCCESS;
 }
 
-int opbx_filestream_delete(const char *filename, const char *fmt)
+int cw_filestream_delete(const char *filename, const char *fmt)
 {
     return FS_RESULT_SUCCESS;
 }
 
-int opbx_filestream_copy(const char *oldname, const char *newname, const char *fmt)
+int cw_filestream_copy(const char *oldname, const char *newname, const char *fmt)
 {
     return FS_RESULT_SUCCESS;
 }

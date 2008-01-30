@@ -23,9 +23,9 @@
 
  Directory layout profiles contain a list of key=value pairs, *without* any
  spaces or tabs, one pair per line. The following keys are defined:
-  opbxprefix, opbxexecdir, opbxutilsdir, opbxconfdir, opbxlibdir,
-  opbxvardir, opbxlogdir, opbxrundir, opbxspooldir, opbxdatadir,
-  opbxmandir and  opbxdocdir
+  cwprefix, cwexecdir, cwutilsdir, cwconfdir, cwlibdir,
+  cwvardir, cwlogdir, cwrundir, cwspooldir, cwdatadir,
+  cwmandir and  cwdocdir
 
  Values are the full pathnames for the respective directories *without* any
  quotation marks. Any lines with a leading # character and lines containing

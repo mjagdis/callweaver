@@ -75,10 +75,10 @@ typedef enum {
     // probably more needed
 } filestream_result_value ;
 
-typedef struct opbx_filestream_implementation opbx_filestream_implementation_t;
-typedef struct opbx_filestream_session opbx_filestream_session_t;
+typedef struct cw_filestream_implementation cw_filestream_implementation_t;
+typedef struct cw_filestream_session cw_filestream_session_t;
 
-struct opbx_filestream_implementation {
+struct cw_filestream_implementation {
     const char  *engine_name;
     const char  *description;
 
@@ -94,16 +94,16 @@ struct opbx_filestream_implementation {
     //same code, can be set up to work with different codecs/rates.
     //Those informations are contained in the impl. structure so we want to have it.
 
-    filestream_result_value (*init)( opbx_filestream_session_t *session, opbx_filestream_implementation_t *impl );
+    filestream_result_value (*init)( cw_filestream_session_t *session, cw_filestream_implementation_t *impl );
 
     /* Check if a suitable file exists and can be played with this implementation */
-    filestream_result_value (*findsuitablefile)( opbx_filestream_implementation_t *impl, char *type, char *file );
+    filestream_result_value (*findsuitablefile)( cw_filestream_implementation_t *impl, char *type, char *file );
 
     /* Read the next frame from the filestream (if available) and report back when to get next one (in ms) */
-    struct opbx_frame *(*read)( int *whennext );
+    struct cw_frame *(*read)( int *whennext );
 
     /* Write a frame to a session */
-    filestream_result_value (*write)( struct opbx_frame * );
+    filestream_result_value (*write)( struct cw_frame * );
 
     /* OLD API. Do we needit ? */
     filestream_result_value (*rewrite)( FILE *f );
@@ -124,7 +124,7 @@ struct opbx_filestream_implementation {
 
 
     /* Linked list pointer. Must NOT be used and MUST be set to NULL when initializing. */
-    opbx_filestream_implementation_t *next;
+    cw_filestream_implementation_t *next;
     
 };
 
@@ -138,26 +138,26 @@ struct opbx_filestream_implementation {
     \param implementation is the implementation to register
     \return 0 on failure - not 0 on success
 */
-int opbx_filestream_register( opbx_filestream_implementation_t *implementation );
+int cw_filestream_register( cw_filestream_implementation_t *implementation );
 
 
 /*! \brief Unregisters a filestream format */
-int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation );
+int cw_filestream_unregister( cw_filestream_implementation_t *implementation );
 
 
 /* *************************************************************************
         ACCESS TO PRIVATE DATA FUNCTIONS
    ************************************************************************* */
 
-opbx_channel_t *opbx_filestream_session_get_channel( opbx_filestream_session_t *fs );
+cw_channel_t *cw_filestream_session_get_channel( cw_filestream_session_t *fs );
 
-const char *opbx_filestream_session_get_uri( opbx_filestream_session_t *fs );
+const char *cw_filestream_session_get_uri( cw_filestream_session_t *fs );
 
-opbx_mpool_t *opbx_filestream_session_get_pool( opbx_filestream_session_t *fs );
+cw_mpool_t *cw_filestream_session_get_pool( cw_filestream_session_t *fs );
 
-filestream_result_value opbx_filestream_session_set_pvt( opbx_filestream_session_t *fs, void *pvt );
+filestream_result_value cw_filestream_session_set_pvt( cw_filestream_session_t *fs, void *pvt );
 
-void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs );
+void *cw_filestream_session_get_pvt( cw_filestream_session_t *fs );
 
 
 /* *************************************************************************
@@ -165,10 +165,10 @@ void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs );
    ************************************************************************* */
 
 /*! \brief basing on the channel read/write codec, this function */
-opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const char *uri );
+cw_filestream_session_t *cw_filestream_create( cw_channel_t *chan, const char *uri );
 
 /*! \brief destroys our filestream */
-filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs );
+filestream_result_value cw_filestream_destroy( cw_filestream_session_t *fs );
 
 
 /* *************************************************************************
@@ -177,25 +177,25 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
    ************************************************************************* */
 
 /*! \brief */
-struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *fs );
+struct cw_frame       *cw_filestream_readframe( cw_filestream_session_t *fs );
 
 /*! \brief Writes a frame to a file */
-filestream_result_value opbx_filestream_writeframe( opbx_filestream_session_t *fs, struct opbx_frame *f );
+filestream_result_value cw_filestream_writeframe( cw_filestream_session_t *fs, struct cw_frame *f );
 
 /*! \brief */
-long                    opbx_filestream_tell( struct opbx_filestream *fs );
+long                    cw_filestream_tell( struct cw_filestream *fs );
 
 /*! \brief Seeks into stream */
-filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, long sample_offset, filestream_seek whence );
+filestream_result_value cw_filestream_seek( cw_filestream_session_t *fs, long sample_offset, filestream_seek whence );
 
 /*! \brief Trunc stream at current location */
-filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs );
+filestream_result_value cw_filestream_trunc( cw_filestream_session_t *fs );
 
 /*! \brief */
-filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *fs, long ms );
+filestream_result_value cw_filestream_fastforward( cw_filestream_session_t *fs, long ms );
 
 /*! \brief */
-filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, long ms );
+filestream_result_value cw_filestream_rewind( cw_filestream_session_t *fs, long ms );
 
 
 /* *************************************************************************
@@ -204,21 +204,21 @@ filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, l
    ************************************************************************* */
 
 /*! \brief */
-filestream_result_value opbx_filestream_wait( opbx_filestream_session_t *fs, const char *break_on_char );
+filestream_result_value cw_filestream_wait( cw_filestream_session_t *fs, const char *break_on_char );
 
 /*! \brief */
-filestream_result_value opbx_filestream_wait_valid_exten( opbx_filestream_session_t *fs, const char *context );
+filestream_result_value cw_filestream_wait_valid_exten( cw_filestream_session_t *fs, const char *context );
 
-filestream_result_value opbx_filestream_wait_controlling( opbx_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms );
-
-/*! \brief */
-filestream_result_value opbx_filestream_full( opbx_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd );
+filestream_result_value cw_filestream_wait_controlling( cw_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms );
 
 /*! \brief */
-filestream_result_value opbx_filestream_stream_start( opbx_filestream_session_t *fs, long ms );
+filestream_result_value cw_filestream_full( cw_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd );
+
+/*! \brief */
+filestream_result_value cw_filestream_stream_start( cw_filestream_session_t *fs, long ms );
 
 /*! \brief Stops playback */
-filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *fs );
+filestream_result_value cw_filestream_stream_stop( cw_filestream_session_t *fs );
 
 /* *************************************************************************
         functions to manage simple files ...
@@ -226,20 +226,20 @@ filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *
    ************************************************************************* */
 
 /*! \brief */
-int opbx_filestream_rename(const char *oldname, const char *newname, const char *fmt);
+int cw_filestream_rename(const char *oldname, const char *newname, const char *fmt);
 
 /*! \brief */
-int opbx_filestream_delete(const char *filename, const char *fmt);
+int cw_filestream_delete(const char *filename, const char *fmt);
 
 /*! \brief */
-int opbx_filestream_copy(const char *oldname, const char *newname, const char *fmt);
+int cw_filestream_copy(const char *oldname, const char *newname, const char *fmt);
 
 
 
 
 // I need to check how those are used in the core to propose a more suitable API
 /*
-opbx_filestream_session_t *opbx_filestream_readfile(
+cw_filestream_session_t *cw_filestream_readfile(
         const char *filename, 
         const char *type, 
         const char *comment, 
@@ -247,7 +247,7 @@ opbx_filestream_session_t *opbx_filestream_readfile(
         int check, 
         mode_t mode );
 
-opbx_filestream_session_t *opbx_filestream_writefile(
+cw_filestream_session_t *cw_filestream_writefile(
         const char *filename, 
         const char *type, 
         const char *comment, 
@@ -260,12 +260,12 @@ opbx_filestream_session_t *opbx_filestream_writefile(
 // Probably are not needed anymore.
 
 /*! \brief Like prepare??*/
-//opbx_filestream_session_t *opbx_filestream_open(struct opbx_channel *chan, const char *filename);
-//As opbx_filestream_open without _full but doesn't stops generator
-//struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
+//cw_filestream_session_t *cw_filestream_open(struct cw_channel *chan, const char *filename);
+//As cw_filestream_open without _full but doesn't stops generator
+//struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *filename, const char *preflang, int asis);
 /*! \brief play a open stream on a channel. */
 // Used only by OGI. rewirkable with higher levels
-//int opbx_playstream(struct opbx_filestream *s);
+//int cw_playstream(struct cw_filestream *s);
 
 /*! \brief Checks if a suitable file implementation exists for a given channel.
     \param channel
@@ -273,12 +273,12 @@ opbx_filestream_session_t *opbx_filestream_writefile(
     \return file path if exists, null otherwise.
     \remark channel structure already contains the preferred format, language and sample rate.
 */
-//char * opbx_filestream_suitablefile_exists(opbx_channel_t *channel, const char *filename);
+//char * cw_filestream_suitablefile_exists(cw_channel_t *channel, const char *filename);
 
 
 /* ************************************************************************* */
 /*
-static int opbx_filestream_check_implementation_support( opbx_filestream_implementation_t *impl, char *filename ) {
+static int cw_filestream_check_implementation_support( cw_filestream_implementation_t *impl, char *filename ) {
     // Check for URI support
     // Check for sample rate support
     // Check for file size support

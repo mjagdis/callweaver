@@ -44,7 +44,7 @@ extern char icd_delimiter;
 extern icd_config_registry *app_icd_config_registry;
 
 /* This is the lock customers add, remove and seek */
-extern opbx_mutex_t customers_lock;
+extern cw_mutex_t customers_lock;
 
 /* %TC should this not be in here rather than icd_event.h
 extern icd_event_factory *event_factory;

@@ -2212,7 +2212,7 @@ yyreduce:
 		strcat(bufx,")");
 #ifdef AAL_ARGCHECK
 		if ( !ael_is_funcname(yyvsp[-4].pval->u1.str) )
-			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
+			cw_log(CW_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
 				my_file, yylsp[-4].first_line, yylsp[-4].first_column, yylsp[-4].last_column, yyvsp[-4].pval->u1.str);
 #endif
 		yyval.pval->u1.str = bufx;
@@ -2367,7 +2367,7 @@ yyreduce:
 		if (strcasecmp(yyvsp[-2].str,"goto") == 0) {
 			yyval.pval = npval2(PV_GOTO, &yylsp[-2], &yylsp[-1]);
 			free(yyvsp[-2].str); /* won't be using this */
-			opbx_log(OPBX_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, yylsp[-2].first_line, yylsp[-2].first_column, yylsp[-2].last_column );
+			cw_log(CW_LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, yylsp[-2].first_line, yylsp[-2].first_column, yylsp[-2].last_column );
 		} else {
 			yyval.pval= npval2(PV_APPLICATION_CALL, &yylsp[-2], &yylsp[-1]);
 			yyval.pval->u1.str = yyvsp[-2].str;
@@ -2899,9 +2899,9 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 {
 	char *s2 = ael_token_subst((char *)s);
 	if (locp->first_line == locp->last_line) {
-		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
+		cw_log(CW_LOG_ERROR, "==== File: %s, Line %d, Cols: %d-%d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_column, s2);
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
+		cw_log(CW_LOG_ERROR, "==== File: %s, Line %d Col %d  to Line %d Col %d: Error: %s\n", my_file, locp->first_line, locp->first_column, locp->last_line, locp->last_column, s2);
 	}
 	free(s2);
 	parseio->syntax_error_count++;

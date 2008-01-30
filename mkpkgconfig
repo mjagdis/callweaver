@@ -19,19 +19,19 @@ LOCAL_CFLAGS=`echo $CFLAGS | $(SED) -e 's/\s*-pipe\s*//g' | $(SED) -e 's/-[Wmp]\
   $(SED) -r -e 's/-I(include|\.\.\/include) //g' | \
   $(SED) -e 's/-DINSTALL_PREFIX=\S* //g' | \
   $(SED) -r -e 's/-DCALLWEAVER_VERSION=\S* //g' | \
-  $(SED) -r -e 's/-DOPBXT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|OGIDIR)=\S* //g'`
+  $(SED) -r -e 's/-DCWT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|OGIDIR)=\S* //g'`
 
 
 cat <<EOF > $PPATH/callweaver.pc
 install_prefix=$INSTALL_PREFIX
 version_number=$CALLWEAVERVERSIONNUM
-etcdir=$OPBXETCDIR
-libdir=$OPBXLIBDIR
-varlibdir=$OPBXVARLIBDIR
-varrundir=$OPBXVARRUNDIR
-spooldir=$OPBXSPOOLDIR
-logdir=$OPBXLOGDIR
-confpath=$OPBXCONFPATH
+etcdir=$CWETCDIR
+libdir=$CWLIBDIR
+varlibdir=$CWVARLIBDIR
+varrundir=$CWVARRUNDIR
+spooldir=$CWSPOOLDIR
+logdir=$CWLOGDIR
+confpath=$CWCONFPATH
 moddir=$MODULES_DIR
 ogidir=$OGI_DIR
 

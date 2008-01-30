@@ -2,7 +2,7 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES		= app_icd.la
+cwmod_LTLIBRARIES		= app_icd.la
 
 app_icd_la_SOURCES		= app_icd.c icd_agent.c icd_bridge.c icd_caller.c icd_caller_list.c icd_command.c \
  	        icd_conference.c icd_config.c icd_customer.c icd_distributor.c icd_distributor_list.c \
@@ -12,7 +12,7 @@ app_icd_la_SOURCES		= app_icd.c icd_agent.c icd_bridge.c icd_caller.c icd_caller
 app_icd_la_LDFLAGS						= -module -avoid-version @NO_UNDEFINED@
 app_icd_la_LIBADD						= @CALLWEAVER_LIB@
 
-opbxicdmod_LTLIBRARIES	= icd_mod_agent_priority_groups.la icd_mod_event_cwmgr.la \
+cwicdmod_LTLIBRARIES	= icd_mod_agent_priority_groups.la icd_mod_event_cwmgr.la \
 			icd_mod_event_cli.la icd_mod_external.la icd_mod_matchagent.la
 			
 icd_mod_agent_priority_groups_la_SOURCES	= icd_mod_agent_priority_groups.c

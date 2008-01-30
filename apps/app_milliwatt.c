@@ -58,12 +58,12 @@ static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
 struct gen_state {
 	int index;
-	struct opbx_frame f;
-	uint8_t buf[640 + OPBX_FRIENDLY_OFFSET];
+	struct cw_frame f;
+	uint8_t buf[640 + CW_FRIENDLY_OFFSET];
 };
 
 
-static void *milliwatt_alloc(struct opbx_channel *chan, void *params)
+static void *milliwatt_alloc(struct cw_channel *chan, void *params)
 {
 	struct gen_state *state;
 
@@ -72,61 +72,61 @@ static void *milliwatt_alloc(struct opbx_channel *chan, void *params)
 	return state;
 }
 
-static void milliwatt_release(struct opbx_channel *chan, void *data)
+static void milliwatt_release(struct cw_channel *chan, void *data)
 {
 	free(data);
 	return;
 }
 
-static struct opbx_frame *milliwatt_generate(struct opbx_channel *chan, void *data, int samples)
+static struct cw_frame *milliwatt_generate(struct cw_channel *chan, void *data, int samples)
 {
 	struct gen_state *state = data;
 	int i;
 
-	if (samples > sizeof(state->buf) - OPBX_FRIENDLY_OFFSET)
-		samples = sizeof(state->buf) - OPBX_FRIENDLY_OFFSET;
+	if (samples > sizeof(state->buf) - CW_FRIENDLY_OFFSET)
+		samples = sizeof(state->buf) - CW_FRIENDLY_OFFSET;
 
-	opbx_fr_init_ex(&state->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, "app_milliwatt");
-	state->f.offset = OPBX_FRIENDLY_OFFSET;
-	state->f.data = state->buf + OPBX_FRIENDLY_OFFSET;
+	cw_fr_init_ex(&state->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, "app_milliwatt");
+	state->f.offset = CW_FRIENDLY_OFFSET;
+	state->f.data = state->buf + CW_FRIENDLY_OFFSET;
 	state->f.datalen = state->f.samples = samples;
 	/* create a buffer containing the digital milliwatt pattern */
 	for (i = 0;  i < samples;  i++)
 	{
-		state->buf[OPBX_FRIENDLY_OFFSET + i] = digital_milliwatt[state->index];
+		state->buf[CW_FRIENDLY_OFFSET + i] = digital_milliwatt[state->index];
 		state->index = (state->index + 1) & 7;
 	}
 	return &state->f;
 }
 
-static struct opbx_generator milliwattgen = 
+static struct cw_generator milliwattgen = 
 {
 	alloc: milliwatt_alloc,
 	release: milliwatt_release,
 	generate: milliwatt_generate,
 } ;
 
-static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int milliwatt_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
 
-	opbx_set_write_format(chan, OPBX_FORMAT_ULAW);
-	opbx_set_read_format(chan, OPBX_FORMAT_ULAW);
-	if (chan->_state != OPBX_STATE_UP)
+	cw_set_write_format(chan, CW_FORMAT_ULAW);
+	cw_set_read_format(chan, CW_FORMAT_ULAW);
+	if (chan->_state != CW_STATE_UP)
 	{
-		opbx_answer(chan);
+		cw_answer(chan);
 	}
-	if (opbx_generator_activate(chan, &chan->generator, &milliwattgen, "milliwatt") < 0)
+	if (cw_generator_activate(chan, &chan->generator, &milliwattgen, "milliwatt") < 0)
 	{
-		opbx_log(OPBX_LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		cw_log(CW_LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	while(!opbx_safe_sleep(chan, 10000));
+	while(!cw_safe_sleep(chan, 10000));
 
-	opbx_generator_deactivate(&chan->generator);
+	cw_generator_deactivate(&chan->generator);
 	LOCAL_USER_REMOVE(u);
 	return -1;
 }
@@ -135,16 +135,16 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(milliwatt_app);
+	res |= cw_unregister_function(milliwatt_app);
 	return res;
 }
 
 static int load_module(void)
 {
 	if (!milliwattgen.is_initialized)
-		opbx_object_init(&milliwattgen, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+		cw_object_init(&milliwattgen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
 
-	milliwatt_app = opbx_register_function(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
+	milliwatt_app = cw_register_function(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
 	return 0;
 }
 

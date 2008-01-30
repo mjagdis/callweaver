@@ -23,7 +23,7 @@
 #ifndef _CALLWEAVER_SRV_H
 #define _CALLWEAVER_SRV_H
 
-struct opbx_channel;
+struct cw_channel;
 
 /*!
   \file srv.h
@@ -42,6 +42,6 @@ struct opbx_channel;
 	\param	port Port number (return value)
 	\param service Service tag for SRV lookup (like "_sip._udp" or "_stun._udp"
 */
-extern int opbx_get_srv(struct opbx_channel *chan, char *host, int hostlen, int *port, const char *service);
+extern int cw_get_srv(struct cw_channel *chan, char *host, int hostlen, int *port, const char *service);
 
 #endif

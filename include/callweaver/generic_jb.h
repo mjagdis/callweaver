@@ -33,16 +33,16 @@
 extern "C" {
 #endif
 
-struct opbx_channel;
-struct opbx_frame;
+struct cw_channel;
+struct cw_frame;
 
 
 /* Configuration flags */
-#define OPBX_GENERIC_JB_ENABLED         (1 << 0)
-#define OPBX_GENERIC_JB_FORCED          (1 << 1)
-#define OPBX_GENERIC_JB_LOG             (1 << 2)
+#define CW_GENERIC_JB_ENABLED         (1 << 0)
+#define CW_GENERIC_JB_FORCED          (1 << 1)
+#define CW_GENERIC_JB_LOG             (1 << 2)
 
-#define OPBX_GENERIC_JB_IMPL_NAME_SIZE 12
+#define CW_GENERIC_JB_IMPL_NAME_SIZE 12
 
     /* How much too late a request for a frame may be accepted */
 #define JB_LATENESS_TOLERANCE 0.25
@@ -50,9 +50,9 @@ struct opbx_frame;
 /*!
  * \brief General jitterbuffer configuration.
  */
-struct opbx_jb_conf
+struct cw_jb_conf
 {
-    /*! \brief Combination of the OPBX_GENERIC_JB_ENABLED, OPBX_GENERIC_JB_FORCED and OPBX_GENERIC_JB_LOG flags. */
+    /*! \brief Combination of the CW_GENERIC_JB_ENABLED, CW_GENERIC_JB_FORCED and CW_GENERIC_JB_LOG flags. */
     unsigned int flags;
     /*! \brief Minimum size of the jitterbuffer implementation. */
     long min_size;
@@ -63,34 +63,34 @@ struct opbx_jb_conf
     /*! \brief Timing compensation (in ms) */
     long timing_compensation;
     /*! \brief Name of the jitterbuffer implementation to be used. */
-     char impl[OPBX_GENERIC_JB_IMPL_NAME_SIZE];
+     char impl[CW_GENERIC_JB_IMPL_NAME_SIZE];
 };
 
 
 /* Jitterbuffer configuration property names */
-#define OPBX_GENERIC_JB_CONF_PREFIX "jb-"
-#define OPBX_GENERIC_JB_CONF_ENABLE "enable"
-#define OPBX_GENERIC_JB_CONF_FORCE "force"
-#define OPBX_GENERIC_JB_CONF_MIN_SIZE "min-size"
-#define OPBX_GENERIC_JB_CONF_MAX_SIZE "max-size"
-#define OPBX_GENERIC_JB_CONF_RESYNCH_THRESHOLD "resynch-threshold"
-#define OPBX_GENERIC_JB_CONF_TIMING_COMP "timing-compensation"
-#define OPBX_GENERIC_JB_CONF_IMPL "impl"
-#define OPBX_GENERIC_JB_CONF_LOG "log"
+#define CW_GENERIC_JB_CONF_PREFIX "jb-"
+#define CW_GENERIC_JB_CONF_ENABLE "enable"
+#define CW_GENERIC_JB_CONF_FORCE "force"
+#define CW_GENERIC_JB_CONF_MIN_SIZE "min-size"
+#define CW_GENERIC_JB_CONF_MAX_SIZE "max-size"
+#define CW_GENERIC_JB_CONF_RESYNCH_THRESHOLD "resynch-threshold"
+#define CW_GENERIC_JB_CONF_TIMING_COMP "timing-compensation"
+#define CW_GENERIC_JB_CONF_IMPL "impl"
+#define CW_GENERIC_JB_CONF_LOG "log"
 
 
-struct opbx_jb_impl;
+struct cw_jb_impl;
 
 
 /*!
  * \brief General jitterbuffer state.
  */
-struct opbx_jb
+struct cw_jb
 {
     /*! \brief Jitterbuffer configuration. */
-    struct opbx_jb_conf conf;
+    struct cw_jb_conf conf;
     /*! \brief Jitterbuffer implementation to be used. */
-    struct opbx_jb_impl *impl;
+    struct cw_jb_impl *impl;
     /*! \brief Jitterbuffer object, passed to the implementation. */
     void *jbobj;
     /*! \brief The time the jitterbuffer was created. */
@@ -105,7 +105,7 @@ struct opbx_jb
     unsigned int flags;
 };
 
-typedef struct opbx_jb_info
+typedef struct cw_jb_info
 {
     /* statistics */
     long frames_in;         /* number of frames input to the jitterbuffer.*/
@@ -135,7 +135,7 @@ typedef struct opbx_jb_info
     long frames_dropped_twice;  /* Number of frames that were dropped because this timestamp was already in the jitterbuffer */
     short silence;          /* If we are in silence 1-yes 0-no */
     long iqr;               /* Inter Quartile Range of current history, if the squareroot is taken it is a good estimate of jitter */
-} opbx_jb_info;
+} cw_jb_info;
 
 typedef struct jb_frame
 {
@@ -153,13 +153,13 @@ typedef struct jb_frame
  * \param c0 first bridged channel.
  * \param c1 second bridged channel.
  *
- * Called from opbx_generic_bridge() when two channels are entering in a bridge.
+ * Called from cw_generic_bridge() when two channels are entering in a bridge.
  * The function checks the need of a jitterbuffer, depending on both channel's
  * configuration and technology properties. As a result, this function sets
  * appropriate internal jb flags to the channels, determining further behaviour
  * of the bridged jitterbuffers.
  */
-void opbx_jb_do_usecheck(struct opbx_channel *c0, struct opbx_channel *c1);
+void cw_jb_do_usecheck(struct cw_channel *c0, struct cw_channel *c1);
 
 
 /*!
@@ -168,13 +168,13 @@ void opbx_jb_do_usecheck(struct opbx_channel *c0, struct opbx_channel *c1);
  * \param c1 second bridged channel.
  * \param time_left bridge time limit, or -1 if not set.
  *
- * Called from opbx_generic_bridge() to determine the maximum time to wait for
- * activity in opbx_waitfor_n() call. If neihter of the channels is using jb,
+ * Called from cw_generic_bridge() to determine the maximum time to wait for
+ * activity in cw_waitfor_n() call. If neihter of the channels is using jb,
  * this function returns the time limit passed.
  *
  * \return maximum time to wait.
  */
-int opbx_jb_get_when_to_wakeup(struct opbx_channel *c0, struct opbx_channel *c1, int time_left);
+int cw_jb_get_when_to_wakeup(struct cw_channel *c0, struct cw_channel *c1, int time_left);
 
 
 /*!
@@ -183,10 +183,10 @@ int opbx_jb_get_when_to_wakeup(struct opbx_channel *c0, struct opbx_channel *c1,
  * \param frame frame.
  * \param codec the codec in use.
  *
- * Called from opbx_generic_bridge() to put a frame into a channel's jitterbuffer.
+ * Called from cw_generic_bridge() to put a frame into a channel's jitterbuffer.
  * The function will successfuly enqueue a frame if and only if:
- * 1. the channel is using a jitterbuffer (as determined by opbx_jb_do_usecheck()),
- * 2. the frame's type is OPBX_FRAME_VOICE,
+ * 1. the channel is using a jitterbuffer (as determined by cw_jb_do_usecheck()),
+ * 2. the frame's type is CW_FRAME_VOICE,
  * 3. the frame has timing info set and has length >= 2 ms,
  * 4. there is no some internal error happened (like failed memory allocation).
  * Frames, successfuly queued, should be delivered by the channel's jitterbuffer,
@@ -197,7 +197,7 @@ int opbx_jb_get_when_to_wakeup(struct opbx_channel *c0, struct opbx_channel *c1,
  *
  * \return zero if the frame was queued, -1 if not.
  */
-int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec);
+int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec);
 
 
 /*!
@@ -205,21 +205,21 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec);
  * \param c0 first bridged channel.
  * \param c1 second bridged channel.
  *
- * Called from opbx_generic_bridge() to deliver any frames, that should be delivered
+ * Called from cw_generic_bridge() to deliver any frames, that should be delivered
  * for the moment of invocation. Does nothing if neihter of the channels is using jb
- * or has any frames currently queued in. The function delivers frames usig opbx_write()
+ * or has any frames currently queued in. The function delivers frames usig cw_write()
  * each of the channels.
  */
-void opbx_jb_get_and_deliver(struct opbx_channel *c0, struct opbx_channel *c1);
+void cw_jb_get_and_deliver(struct cw_channel *c0, struct cw_channel *c1);
 
 
 /*!
  * \brief Destroys jitterbuffer on a channel.
  * \param chan channel.
  *
- * Called from opbx_channel_free() when a channel is destroyed.
+ * Called from cw_channel_free() when a channel is destroyed.
  */
-void opbx_jb_destroy(struct opbx_channel *chan);
+void cw_jb_destroy(struct cw_channel *chan);
 
 /*!
  * \brief Sets default jitterbuffer data.
@@ -229,7 +229,7 @@ void opbx_jb_destroy(struct opbx_channel *chan);
  * default configuration data.
  * returns nothing.
  */
-void opbx_jb_default_config(struct opbx_jb_conf *conf);
+void cw_jb_default_config(struct cw_jb_conf *conf);
 
 
 /*!
@@ -246,7 +246,7 @@ void opbx_jb_default_config(struct opbx_jb_conf *conf);
  *
  * \return zero if the property was set to the configuration, -1 if not.
  */
-int opbx_jb_read_conf(struct opbx_jb_conf *conf, char *varname, char *value);
+int cw_jb_read_conf(struct cw_jb_conf *conf, char *varname, char *value);
 
 
 /*!
@@ -257,7 +257,7 @@ int opbx_jb_read_conf(struct opbx_jb_conf *conf, char *varname, char *value);
  * Called from a channel driver when a channel is created and its jitterbuffer needs
  * to be configured.
  */
-void opbx_jb_configure(struct opbx_channel *chan, struct opbx_jb_conf *conf);
+void cw_jb_configure(struct cw_channel *chan, struct cw_jb_conf *conf);
 
 
 /*!
@@ -265,20 +265,20 @@ void opbx_jb_configure(struct opbx_channel *chan, struct opbx_jb_conf *conf);
  * \param chan channel.
  * \param conf destination.
  */
-void opbx_jb_get_config(struct opbx_channel *chan, struct opbx_jb_conf *conf);
+void cw_jb_get_config(struct cw_channel *chan, struct cw_jb_conf *conf);
 
 /*!
  * \brief Get jitter buffer stats
  * \param chan channel.
  * \param info destination stats structure.
  */
-void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info);
+void cw_jb_get_info(struct cw_channel *chan, cw_jb_info *info);
 
 /*!
  * \brief Check if jitterbuffer is active
  * \param chan channel.
  */
-int opbx_jb_is_active(struct opbx_channel *chan);
+int cw_jb_is_active(struct cw_channel *chan);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

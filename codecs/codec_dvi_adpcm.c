@@ -86,8 +86,8 @@ static uint8_t adpcm_ex[] =
  */
 struct dvi_adpcm_encoder_pvt
 {
-    struct opbx_frame f;
-    char offset[OPBX_FRIENDLY_OFFSET];  /* Space to build offset */
+    struct cw_frame f;
+    char offset[CW_FRIENDLY_OFFSET];  /* Space to build offset */
     int16_t inbuf[BUFFER_SIZE];         /* Unencoded signed linear values */
     uint8_t outbuf[BUFFER_SIZE];        /* Encoded ADPCM, two nibbles to a word */
     ima_adpcm_state_t dvi_state;
@@ -99,8 +99,8 @@ struct dvi_adpcm_encoder_pvt
  */
 struct dvi_adpcm_decoder_pvt
 {
-    struct opbx_frame f;
-    char offset[OPBX_FRIENDLY_OFFSET];  /* Space to build offset */
+    struct cw_frame f;
+    char offset[CW_FRIENDLY_OFFSET];  /* Space to build offset */
     int16_t outbuf[BUFFER_SIZE];        /* Decoded signed linear values */
     ima_adpcm_state_t dvi_state;
     int tail;
@@ -163,7 +163,7 @@ static void *lintodviadpcm_new(void)
  *  tmp->tail is the number of packed values in the buffer.
  */
 
-static int dviadpcmtolin_framein(void *pvt, struct opbx_frame *f)
+static int dviadpcmtolin_framein(void *pvt, struct cw_frame *f)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
 
@@ -172,7 +172,7 @@ static int dviadpcmtolin_framein(void *pvt, struct opbx_frame *f)
         /* perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160) > sizeof(tmp->outbuf)/sizeof(int16_t))
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -185,7 +185,7 @@ static int dviadpcmtolin_framein(void *pvt, struct opbx_frame *f)
 
     if (f->datalen*4 + tmp->tail*2 > sizeof(tmp->outbuf))
     {
-          opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+          cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
 
@@ -208,16 +208,16 @@ static int dviadpcmtolin_framein(void *pvt, struct opbx_frame *f)
  *  None.
  */
 
-static struct opbx_frame *dviadpcmtolin_frameout(void *pvt)
+static struct cw_frame *dviadpcmtolin_frameout(void *pvt)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
     tmp->tail = 0;
@@ -235,7 +235,7 @@ static struct opbx_frame *dviadpcmtolin_frameout(void *pvt)
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int lintodviadpcm_framein(void *pvt, struct opbx_frame *f)
+static int lintodviadpcm_framein(void *pvt, struct cw_frame *f)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
 
@@ -246,7 +246,7 @@ static int lintodviadpcm_framein(void *pvt, struct opbx_frame *f)
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     return 0;
@@ -264,7 +264,7 @@ static int lintodviadpcm_framein(void *pvt, struct opbx_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct opbx_frame *lintodviadpcm_frameout(void *pvt)
+static struct cw_frame *lintodviadpcm_frameout(void *pvt)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
     int i_max;
@@ -274,9 +274,9 @@ static struct opbx_frame *lintodviadpcm_frameout(void *pvt)
 
     i_max = tmp->tail & ~1; /* atomic size is 2 samples */
     ima_adpcm_encode(&tmp->dvi_state, tmp->outbuf, tmp->inbuf, i_max);
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_DVI_ADPCM, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_DVI_ADPCM, __PRETTY_FUNCTION__);
     tmp->f.samples = i_max;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     tmp->f.datalen = i_max/2;
 
@@ -299,11 +299,11 @@ static struct opbx_frame *lintodviadpcm_frameout(void *pvt)
 /*
  * adpcmtolin_sample
  */
-static struct opbx_frame *dviadpcmtolin_sample(void)
+static struct cw_frame *dviadpcmtolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_DVI_ADPCM, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_DVI_ADPCM, __PRETTY_FUNCTION__);
     f.datalen = sizeof (adpcm_ex);
     f.samples = sizeof(adpcm_ex)*2;
     f.data = adpcm_ex;
@@ -313,11 +313,11 @@ static struct opbx_frame *dviadpcmtolin_sample(void)
 /*
  * lintoadpcm_sample
  */
-static struct opbx_frame *lintodviadpcm_sample(void)
+static struct cw_frame *lintodviadpcm_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof (slin_ex)/sizeof(int16_t);
@@ -328,12 +328,12 @@ static struct opbx_frame *lintodviadpcm_sample(void)
 /*
  * The complete translator for ADPCMToLin.
  */
-static opbx_translator_t dviadpcmtolin =
+static cw_translator_t dviadpcmtolin =
 {
     .name = "dviadpcmtolin",
-    .src_format = OPBX_FORMAT_DVI_ADPCM,
+    .src_format = CW_FORMAT_DVI_ADPCM,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = dviadpcmtolin_new,
     .framein = dviadpcmtolin_framein,
@@ -345,12 +345,12 @@ static opbx_translator_t dviadpcmtolin =
 /*
  * The complete translator for LinToADPCM.
  */
-static opbx_translator_t lintodviadpcm =
+static cw_translator_t lintodviadpcm =
 {
     .name = "lintodviadpcm",
-    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_format = CW_FORMAT_SLINEAR,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_DVI_ADPCM,
+    .dst_format = CW_FORMAT_DVI_ADPCM,
     .dst_rate = 8000,
     .newpvt = lintodviadpcm_new,
     .framein = lintodviadpcm_framein,
@@ -361,25 +361,25 @@ static opbx_translator_t lintodviadpcm =
 
 static void parse_config(void)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
+    struct cw_config *cfg;
+    struct cw_variable *var;
   
-    if ((cfg = opbx_config_load("codecs.conf")))
+    if ((cfg = cw_config_load("codecs.conf")))
     {
-        if ((var = opbx_variable_browse(cfg, "plc")))
+        if ((var = cw_variable_browse(cfg, "plc")))
         {
             while (var)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value) ? 1 : 0;
+                    useplc = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_adpcm: %susing generic PLC\n", useplc ? "" : "not ");
+                        cw_verbose(VERBOSE_PREFIX_3 "codec_adpcm: %susing generic PLC\n", useplc ? "" : "not ");
                 }
                 var = var->next;
             }
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
@@ -391,16 +391,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&dviadpcmtolin);
-    opbx_translator_unregister(&lintodviadpcm);
+    cw_translator_unregister(&dviadpcmtolin);
+    cw_translator_unregister(&lintodviadpcm);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&dviadpcmtolin);
-    opbx_translator_register(&lintodviadpcm);
+    cw_translator_register(&dviadpcmtolin);
+    cw_translator_register(&lintodviadpcm);
     return 0;
 }
 

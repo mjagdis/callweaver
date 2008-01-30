@@ -191,7 +191,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 			maxlen = strlen(src) - 1;
 		memcpy(out, src, maxlen);
 		((char *)out)[maxlen] = '\0';
-	} else if (!opbx_strlen_zero(src) && (src[0] == '\\')) {
+	} else if (!cw_strlen_zero(src) && (src[0] == '\\')) {
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Octal value */
@@ -211,7 +211,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 			/* Convert */
 			*((unsigned int *)out) = htonl(*((unsigned int *)out));
 		}
-	} else if ((!opbx_strlen_zero(src) && isdigit(src[0]))) {
+	} else if ((!cw_strlen_zero(src) && isdigit(src[0]))) {
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Hex value */
@@ -244,7 +244,7 @@ static char *get_token(char **buf, char *script, int lineno)
 		tmp++;
 	}
 	if (quoted) {
-		opbx_log(OPBX_LOG_WARNING, "Mismatched quotes at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Mismatched quotes at line %d of %s\n", lineno, script);
 		return NULL;
 	}
 	*tmp = '\0';
@@ -265,11 +265,11 @@ static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_scri
 	int bytes=0;
 	a = get_token(&args, script, lineno);
 	if (!a) {
-		opbx_log(OPBX_LOG_WARNING, "Expecting something to send for SENDDTMF at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting something to send for SENDDTMF at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(dtmfstr, a, sizeof(dtmfstr) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid token for SENDDTMF at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid token for SENDDTMF at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	a = dtmfstr;
@@ -279,7 +279,7 @@ static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_scri
 			buf++;
 			bytes++;
 		} else
-			opbx_log(OPBX_LOG_WARNING, "'%c' is not a valid DTMF tone at line %d of %s\n", *a, lineno, script);
+			cw_log(CW_LOG_WARNING, "'%c' is not a valid DTMF tone at line %d of %s\n", *a, lineno, script);
 		a++;
 	}
 	return bytes;
@@ -294,7 +294,7 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 	page = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
 	if (!page || !gline) {
-		opbx_log(OPBX_LOG_WARNING, "Expecting page and line number for GOTOLINE at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting page and line number for GOTOLINE at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (!strcasecmp(page, "INFO")) {
@@ -302,11 +302,11 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 	} else if (!strcasecmp(page, "COMM")) {
 		cmd = 0x80;
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Expecting either 'INFO' or 'COMM' page, got got '%s' at line %d of %s\n", page, lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting either 'INFO' or 'COMM' page, got got '%s' at line %d of %s\n", page, lineno, script);
 		return 0;
 	}
 	if (process_token(&line, gline, sizeof(line), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
 		return 0;
 	}
 	cmd |= line;
@@ -324,7 +324,7 @@ static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_
 	dir = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
 	if (!dir || !gline) {
-		opbx_log(OPBX_LOG_WARNING, "Expecting direction and number of lines for GOTOLINEREL at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting direction and number of lines for GOTOLINEREL at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (!strcasecmp(dir, "UP")) {
@@ -332,11 +332,11 @@ static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_
 	} else if (!strcasecmp(dir, "DOWN")) {
 		cmd = 0x20;
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Expecting either 'UP' or 'DOWN' direction, got '%s' at line %d of %s\n", dir, lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting either 'UP' or 'DOWN' direction, got '%s' at line %d of %s\n", dir, lineno, script);
 		return 0;
 	}
 	if (process_token(&line, gline, sizeof(line), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
 		return 0;
 	}
 	cmd |= line;
@@ -351,11 +351,11 @@ static int send_delay(char *buf, char *name, int id, char *args, struct adsi_scr
 	int ms;
 	gtime = get_token(&args, script, lineno);
 	if (!gtime) {
-		opbx_log(OPBX_LOG_WARNING, "Expecting number of milliseconds to wait at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting number of milliseconds to wait at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(&ms, gtime, sizeof(ms), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid delay milliseconds '%s' at line %d of %s\n", gtime, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid delay milliseconds '%s' at line %d of %s\n", gtime, lineno, script);
 		return 0;
 	}
 	buf[0] = 0x90;
@@ -372,11 +372,11 @@ static int set_state(char *buf, char *name, int id, char *args, struct adsi_scri
 	int state;
 	gstate = get_token(&args, script, lineno);
 	if (!gstate) {
-		opbx_log(OPBX_LOG_WARNING, "Expecting state number at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Expecting state number at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(&state, gstate, sizeof(state), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid state number '%s' at line %d of %s\n", gstate, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid state number '%s' at line %d of %s\n", gstate, lineno, script);
 		return 0;
 	}
 	buf[0] = id;
@@ -389,7 +389,7 @@ static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_scr
 	char *tok;
 	tok = get_token(&args, script, lineno);
 	if (tok) 
-		opbx_log(OPBX_LOG_WARNING, "Clearing timer requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Clearing timer requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
 	/* For some reason the clear code is different slightly */
@@ -410,10 +410,10 @@ static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, ch
 	if (!create)
 		return NULL;
 	if (state->numflags > 6) {
-		opbx_log(OPBX_LOG_WARNING, "No more flag space at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "No more flag space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	opbx_copy_string(state->flags[state->numflags].vname, name, sizeof(state->flags[state->numflags].vname));
+	cw_copy_string(state->flags[state->numflags].vname, name, sizeof(state->flags[state->numflags].vname));
 	state->flags[state->numflags].id = state->numflags + 1;
 	state->numflags++;
 	return &state->flags[state->numflags-1];
@@ -426,16 +426,16 @@ static int setflag(char *buf, char *name, int id, char *args, struct adsi_script
 	struct adsi_flag *flag;
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Setting flag requires a flag number at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Setting flag requires a flag number at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(sname, tok, sizeof(sname) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 	flag = getflagbyname(state, sname, script, lineno, 0);
 	if (!flag) {
-		opbx_log(OPBX_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
+		cw_log(CW_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
 		return 0;
 	}
 	buf[0] = id;
@@ -450,16 +450,16 @@ static int clearflag(char *buf, char *name, int id, char *args, struct adsi_scri
 	char sname[80];
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Clearing flag requires a flag number at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Clearing flag requires a flag number at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(sname, tok, sizeof(sname) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 	flag = getflagbyname(state, sname, script, lineno, 0);
 	if (!flag) {
-		opbx_log(OPBX_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
+		cw_log(CW_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
 		return 0;
 	}
 	buf[0] = id;
@@ -473,11 +473,11 @@ static int starttimer(char *buf, char *name, int id, char *args, struct adsi_scr
 	int secs;
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Missing number of seconds at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Missing number of seconds at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(&secs, tok, sizeof(secs), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 	buf[0] = id;
@@ -513,10 +513,10 @@ static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name,
 		if (!strcasecmp(state->keys[x].vname, name)) 
 			return &state->keys[x];
 	if (state->numkeys > 61) {
-		opbx_log(OPBX_LOG_WARNING, "No more key space at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "No more key space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	opbx_copy_string(state->keys[state->numkeys].vname, name, sizeof(state->keys[state->numkeys].vname));
+	cw_copy_string(state->keys[state->numkeys].vname, name, sizeof(state->keys[state->numkeys].vname));
 	state->keys[state->numkeys].id = state->numkeys + 2;
 	state->numkeys++;
 	return &state->keys[state->numkeys-1];
@@ -529,10 +529,10 @@ static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name
 		if (!strcasecmp(state->subs[x].vname, name)) 
 			return &state->subs[x];
 	if (state->numsubs > 127) {
-		opbx_log(OPBX_LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	opbx_copy_string(state->subs[state->numsubs].vname, name, sizeof(state->subs[state->numsubs].vname));
+	cw_copy_string(state->subs[state->numsubs].vname, name, sizeof(state->subs[state->numsubs].vname));
 	state->subs[state->numsubs].id = state->numsubs;
 	state->numsubs++;
 	return &state->subs[state->numsubs-1];
@@ -548,10 +548,10 @@ static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, 
 	if (!create)
 		return NULL;
 	if (state->numstates > 253) {
-		opbx_log(OPBX_LOG_WARNING, "No more state space at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "No more state space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	opbx_copy_string(state->states[state->numstates].vname, name, sizeof(state->states[state->numstates].vname));
+	cw_copy_string(state->states[state->numstates].vname, name, sizeof(state->states[state->numstates].vname));
 	state->states[state->numstates].id = state->numstates + 1;
 	state->numstates++;
 	return &state->states[state->numstates-1];
@@ -567,10 +567,10 @@ static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *na
 	if (!create)
 		return NULL;
 	if (state->numdisplays > 61) {
-		opbx_log(OPBX_LOG_WARNING, "No more display space at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "No more display space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	opbx_copy_string(state->displays[state->numdisplays].vname, name, sizeof(state->displays[state->numdisplays].vname));
+	cw_copy_string(state->displays[state->numdisplays].vname, name, sizeof(state->displays[state->numdisplays].vname));
 	state->displays[state->numdisplays].id = state->numdisplays + 1;
 	state->numdisplays++;
 	return &state->displays[state->numdisplays-1];
@@ -596,23 +596,23 @@ static int showkeys(char *buf, char *name, int id, char *args, struct adsi_scrip
 			/* Check for trailing UNLESS flag */
 			tok = get_token(&args, script, lineno);
 			if (!tok) {
-				opbx_log(OPBX_LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
 			} else if (process_token(newkey, tok, sizeof(newkey) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "Invalid flag name '%s' at line %d of %s\n", tok, lineno, script);
+				cw_log(CW_LOG_WARNING, "Invalid flag name '%s' at line %d of %s\n", tok, lineno, script);
 			} else if (!(flag = getflagbyname(state, newkey, script, lineno, 0))) {
-				opbx_log(OPBX_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", newkey, lineno, script);
+				cw_log(CW_LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", newkey, lineno, script);
 			} else
 				flagid = flag->id;
 			if ((tok = get_token(&args, script, lineno)))
-				opbx_log(OPBX_LOG_WARNING, "Extra arguments after UNLESS clause: '%s' at line %d of %s\n", tok, lineno, script);
+				cw_log(CW_LOG_WARNING, "Extra arguments after UNLESS clause: '%s' at line %d of %s\n", tok, lineno, script);
 			break;
 		}
 		if (x > 5) {
-			opbx_log(OPBX_LOG_WARNING, "Only 6 keys can be defined, ignoring '%s' at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "Only 6 keys can be defined, ignoring '%s' at line %d of %s\n", tok, lineno, script);
 			break;
 		}
 		if (process_token(newkey, tok, sizeof(newkey) - 1, ARG_STRING)) {
-			opbx_log(OPBX_LOG_WARNING, "Invalid token for key name: %s\n", tok);	
+			cw_log(CW_LOG_WARNING, "Invalid token for key name: %s\n", tok);	
 			continue;
 		}
 				   
@@ -641,24 +641,24 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 	/* Get display */
 	tok = get_token(&args, script, lineno);
 	if (!tok || process_token(dispname, tok, sizeof(dispname) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid display name: %s at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid display name: %s at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
 		return 0;
 	}
 	disp = getdisplaybyname(state, dispname, script, lineno, 0);
 	if (!disp) {
-		opbx_log(OPBX_LOG_WARNING, "Display '%s' is undefined at line %d of %s\n", dispname, lineno, script);
+		cw_log(CW_LOG_WARNING, "Display '%s' is undefined at line %d of %s\n", dispname, lineno, script);
 		return 0;
 	}
 
 	tok = get_token(&args, script, lineno);
 	if (!tok || strcasecmp(tok, "AT")) {
-		opbx_log(OPBX_LOG_WARNING, "Missing token 'AT' at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Missing token 'AT' at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	/* Get line number */
 	tok = get_token(&args, script, lineno);
 	if (!tok || process_token(&line, tok, sizeof(line), ARG_NUMBER)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid line: '%s' at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid line: '%s' at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
 		return 0;
 	}
 	tok = get_token(&args, script, lineno);
@@ -670,12 +670,12 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 		/* Check for trailing UNLESS flag */
 		tok = get_token(&args, script, lineno);
 		if (!tok) {
-			opbx_log(OPBX_LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
+			cw_log(CW_LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
 		} else if (process_token(&flag, tok, sizeof(flag), ARG_NUMBER)) {
-			opbx_log(OPBX_LOG_WARNING, "Invalid flag number '%s' at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "Invalid flag number '%s' at line %d of %s\n", tok, lineno, script);
 		}
 		if ((tok = get_token(&args, script, lineno)))
-			opbx_log(OPBX_LOG_WARNING, "Extra arguments after UNLESS clause: '%s' at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "Extra arguments after UNLESS clause: '%s' at line %d of %s\n", tok, lineno, script);
 	}
 				   
 	buf[0] = id;
@@ -689,7 +689,7 @@ static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_s
 	char *tok;
 	tok = get_token(&args, script, lineno);
 	if (tok) 
-		opbx_log(OPBX_LOG_WARNING, "Clearing display requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Clearing display requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
 	buf[1] = 0x00;
@@ -701,7 +701,7 @@ static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_sc
 	char *tok;
 	tok = get_token(&args, script, lineno);
 	if (tok) 
-		opbx_log(OPBX_LOG_WARNING, "Digitdirect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Digitdirect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
 	buf[1] = 0x7;
@@ -713,7 +713,7 @@ static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_scr
 	char *tok;
 	tok = get_token(&args, script, lineno);
 	if (tok)
-		opbx_log(OPBX_LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
 	buf[1] = 0;
@@ -725,7 +725,7 @@ static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_s
 	char *tok;
 	tok = get_token(&args, script, lineno);
 	if (tok) 
-		opbx_log(OPBX_LOG_WARNING, "Digitcollect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Digitcollect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
 	buf[1] = 0xf;
@@ -739,11 +739,11 @@ static int subscript(char *buf, char *name, int id, char *args, struct adsi_scri
 	struct adsi_subscript *sub;
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 	sub = getsubbyname(state, subscript, script, lineno);
@@ -767,12 +767,12 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 	struct adsi_subscript *sub;
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Missing event for 'ONEVENT' at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Missing event for 'ONEVENT' at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	event = geteventbyname(tok);
 	if (event < 1) {
-		opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid event name, at line %d of %s\n", args, lineno, script);
+		cw_log(CW_LOG_WARNING, "'%s' is not a valid event name, at line %d of %s\n", args, lineno, script);
 		return 0;
 	}
 	tok = get_token(&args, script, lineno);
@@ -780,17 +780,17 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 	       (sawin && !strcasecmp(tok, "OR"))) {
 		sawin = 1;
 		if (scnt > 7) {
-			opbx_log(OPBX_LOG_WARNING, "No more than 8 states may be specified for inclusion at line %d of %s\n", lineno, script);
+			cw_log(CW_LOG_WARNING, "No more than 8 states may be specified for inclusion at line %d of %s\n", lineno, script);
 			return 0;
 		}
 		/* Process 'in' things */
 		tok = get_token(&args, script, lineno);
 		if (process_token(sname, tok, sizeof(sname), ARG_STRING)) {
-			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid state name at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "'%s' is not a valid state name at line %d of %s\n", tok, lineno, script);
 			return 0;
 		}
 		if ((snums[scnt] = getstatebyname(state, sname, script, lineno, 0) == NULL)) {
-			opbx_log(OPBX_LOG_WARNING, "State '%s' not declared at line %d of %s\n", sname, lineno, script);
+			cw_log(CW_LOG_WARNING, "State '%s' not declared at line %d of %s\n", sname, lineno, script);
 			return 0;
 		}
 		scnt++;
@@ -802,17 +802,17 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 		if (!tok)
 			tok = "<nothing>";
 		if (sawin) 
-			opbx_log(OPBX_LOG_WARNING, "Got '%s' while looking for 'GOTO' or 'OR' at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "Got '%s' while looking for 'GOTO' or 'OR' at line %d of %s\n", tok, lineno, script);
 		else
-			opbx_log(OPBX_LOG_WARNING, "Got '%s' while looking for 'GOTO' or 'IN' at line %d of %s\n", tok, lineno, script);
+			cw_log(CW_LOG_WARNING, "Got '%s' while looking for 'GOTO' or 'IN' at line %d of %s\n", tok, lineno, script);
 	}
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
-		opbx_log(OPBX_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
+		cw_log(CW_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
 	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
-		opbx_log(OPBX_LOG_WARNING, "Invalid subscript '%s' at line %d of %s\n", tok, lineno, script);
+		cw_log(CW_LOG_WARNING, "Invalid subscript '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 	sub = getsubbyname(state, subscript, script, lineno);
@@ -907,15 +907,15 @@ static int process_returncode(struct adsi_soft_key *key, char *code, char *args,
 				if ((key->retstrlen + res - key->initlen) <= MAX_RET_CODE) 
 					key->retstrlen += res;
 				else 
-					opbx_log(OPBX_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", kcmds[x].name, key->vname, lineno, script);
+					cw_log(CW_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", kcmds[x].name, key->vname, lineno, script);
 			} else {
 				if ((unused = get_token(&args, script, lineno))) 
-					opbx_log(OPBX_LOG_WARNING, "'%s' takes no arguments at line %d of %s (token is '%s')\n", kcmds[x].name, lineno, script, unused);
+					cw_log(CW_LOG_WARNING, "'%s' takes no arguments at line %d of %s (token is '%s')\n", kcmds[x].name, lineno, script, unused);
 				if ((key->retstrlen + 1 - key->initlen) <= MAX_RET_CODE) {
 					key->retstr[key->retstrlen] = kcmds[x].id;
 					key->retstrlen++;
 				} else 
-					opbx_log(OPBX_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", kcmds[x].name, key->vname, lineno, script);
+					cw_log(CW_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", kcmds[x].name, key->vname, lineno, script);
 			}
 			return 0;
 		}
@@ -937,17 +937,17 @@ static int process_opcode(struct adsi_subscript *sub, char *code, char *args, st
 				if ((sub->datalen + res + 1) <= max) 
 					sub->datalen += res;
 				else {
-					opbx_log(OPBX_LOG_WARNING, "No space for '%s' code in subscript '%s' at line %d of %s\n", opcmds[x].name, sub->vname, lineno, script);
+					cw_log(CW_LOG_WARNING, "No space for '%s' code in subscript '%s' at line %d of %s\n", opcmds[x].name, sub->vname, lineno, script);
 					return -1;
 				}
 			} else {
 				if ((unused = get_token(&args, script, lineno))) 
-					opbx_log(OPBX_LOG_WARNING, "'%s' takes no arguments at line %d of %s (token is '%s')\n", opcmds[x].name, lineno, script, unused);
+					cw_log(CW_LOG_WARNING, "'%s' takes no arguments at line %d of %s (token is '%s')\n", opcmds[x].name, lineno, script, unused);
 				if ((sub->datalen + 2) <= max) {
 					sub->data[sub->datalen] = opcmds[x].id;
 					sub->datalen++;
 				} else {
-					opbx_log(OPBX_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", opcmds[x].name, sub->vname, lineno, script);
+					cw_log(CW_LOG_WARNING, "No space for '%s' code in key '%s' at line %d of %s\n", opcmds[x].name, sub->vname, lineno, script);
 					return -1;
 				}
 			}
@@ -983,87 +983,87 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			args = get_token(&buf, script, lineno);
 			if (args) {
 				if (process_token(state->desc, args, sizeof(state->desc) - 1, ARG_STRING))
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for DESCRIPTION at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid token for DESCRIPTION at line %d of %s\n", args, lineno, script);
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Missing argument for DESCRIPTION at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing argument for DESCRIPTION at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "VERSION")) {
 			args = get_token(&buf, script, lineno);
 			if (args) {
 				if (process_token(&state->ver, args, sizeof(state->ver) - 1, ARG_NUMBER))
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for VERSION at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid token for VERSION at line %d of %s\n", args, lineno, script);
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Missing argument for VERSION at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing argument for VERSION at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "SECURITY")) {
 			args = get_token(&buf, script, lineno);
 			if (args) {
 				if (process_token(state->sec, args, sizeof(state->sec) - 1, ARG_STRING | ARG_NUMBER))
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for SECURITY at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid token for SECURITY at line %d of %s\n", args, lineno, script);
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Missing argument for SECURITY at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing argument for SECURITY at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "FDN")) {
 			args = get_token(&buf, script, lineno);
 			if (args) {
 				if (process_token(state->fdn, args, sizeof(state->fdn) - 1, ARG_STRING | ARG_NUMBER))
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for FDN at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid token for FDN at line %d of %s\n", args, lineno, script);
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Missing argument for FDN at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing argument for FDN at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "KEY")) {
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "KEY definition missing name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "KEY definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			state->key = getkeybyname(state, vname, script, lineno);
 			if (!state->key) {
-				opbx_log(OPBX_LOG_WARNING, "Out of key space at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Out of key space at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (state->key->defined) {
-				opbx_log(OPBX_LOG_WARNING, "Cannot redefine key '%s' at line %d of %s\n", vname, lineno, script);
+				cw_log(CW_LOG_WARNING, "Cannot redefine key '%s' at line %d of %s\n", vname, lineno, script);
 				break;
 			}
 			args = get_token(&buf, script, lineno);
 			if (!args || strcasecmp(args, "IS")) {
-				opbx_log(OPBX_LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
+				cw_log(CW_LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
 				break;
 			}
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "KEY definition missing short name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "KEY definition missing short name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(tmp, args, sizeof(tmp) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a KEY short name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a KEY short name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			args = get_token(&buf, script, lineno);
 			if (args) {
 				if (strcasecmp(args, "OR")) {
-					opbx_log(OPBX_LOG_WARNING, "Expecting 'OR' but got '%s' instead at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "Expecting 'OR' but got '%s' instead at line %d of %s\n", args, lineno, script);
 					break;
 				}
 				args = get_token(&buf, script, lineno);
 				if (!args) {
-					opbx_log(OPBX_LOG_WARNING, "KEY definition missing optional long name at line %d of %s\n", lineno, script);
+					cw_log(CW_LOG_WARNING, "KEY definition missing optional long name at line %d of %s\n", lineno, script);
 					break;
 				}
 				if (process_token(tmp2, args, sizeof(tmp2) - 1, ARG_STRING)) {
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a KEY long name at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a KEY long name at line %d of %s\n", args, lineno, script);
 					break;
 				}
 			} else {
-				opbx_copy_string(tmp2, tmp, sizeof(tmp2));
+				cw_copy_string(tmp2, tmp, sizeof(tmp2));
 			}
 			if (strlen(tmp2) > 18) {
-				opbx_log(OPBX_LOG_WARNING, "Truncating full name to 18 characters at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Truncating full name to 18 characters at line %d of %s\n", lineno, script);
 				tmp2[18] = '\0';
 			}
 			if (strlen(tmp) > 7) {
-				opbx_log(OPBX_LOG_WARNING, "Truncating short name to 7 bytes at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Truncating short name to 7 bytes at line %d of %s\n", lineno, script);
 				tmp[7] = '\0';
 			}
 			/* Setup initial stuff */
@@ -1088,20 +1088,20 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 		} else if (!strcasecmp(keyword, "SUB")) {
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			state->sub = getsubbyname(state, vname, script, lineno);
 			if (!state->sub) {
-				opbx_log(OPBX_LOG_WARNING, "Out of subroutine space at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Out of subroutine space at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (state->sub->defined) {
-				opbx_log(OPBX_LOG_WARNING, "Cannot redefine subroutine '%s' at line %d of %s\n", vname, lineno, script);
+				cw_log(CW_LOG_WARNING, "Cannot redefine subroutine '%s' at line %d of %s\n", vname, lineno, script);
 				break;
 			}
 			/* Setup sub */
@@ -1119,37 +1119,37 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			}
 			args = get_token(&buf, script, lineno);
 			if (!args || strcasecmp(args, "IS")) {
-				opbx_log(OPBX_LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
+				cw_log(CW_LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
 				break;
 			}
 			state->state = STATE_INSUB;
  		} else if (!strcasecmp(keyword, "STATE")) {
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "STATE definition missing name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "STATE definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a STATE name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a STATE name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getstatebyname(state, vname, script, lineno, 0)) {
-				opbx_log(OPBX_LOG_WARNING, "State '%s' is already defined at line %d of %s\n", vname, lineno, script);
+				cw_log(CW_LOG_WARNING, "State '%s' is already defined at line %d of %s\n", vname, lineno, script);
 				break;
 			}
 			getstatebyname(state, vname, script, lineno, 1);
  		} else if (!strcasecmp(keyword, "FLAG")) {
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "FLAG definition missing name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "FLAG definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a FLAG name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a FLAG name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getflagbyname(state, vname, script, lineno, 0)) {
-				opbx_log(OPBX_LOG_WARNING, "Flag '%s' is already defined\n", vname);
+				cw_log(CW_LOG_WARNING, "Flag '%s' is already defined\n", vname);
 				break;
 			}
 			getflagbyname(state, vname, script, lineno, 1);
@@ -1158,15 +1158,15 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			wi = 0;
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getdisplaybyname(state, vname, script, lineno, 0)) {
-				opbx_log(OPBX_LOG_WARNING, "State '%s' is already defined\n", vname);
+				cw_log(CW_LOG_WARNING, "State '%s' is already defined\n", vname);
 				break;
 			}
 			disp = getdisplaybyname(state, vname, script, lineno, 1);
@@ -1174,20 +1174,20 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			args = get_token(&buf, script, lineno);
 			if (!args || strcasecmp(args, "IS")) {
-				opbx_log(OPBX_LOG_WARNING, "Missing 'IS' at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing 'IS' at line %d of %s\n", lineno, script);
 				break;
 			}
 			args = get_token(&buf, script, lineno);
 			if (!args) {
-				opbx_log(OPBX_LOG_WARNING, "Missing Column 1 text at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Missing Column 1 text at line %d of %s\n", lineno, script);
 				break;
 			}
 			if (process_token(tmp, args, sizeof(tmp) - 1, ARG_STRING)) {
-				opbx_log(OPBX_LOG_WARNING, "Token '%s' is not valid column 1 text at line %d of %s\n", args, lineno, script);
+				cw_log(CW_LOG_WARNING, "Token '%s' is not valid column 1 text at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (strlen(tmp) > 20) {
-				opbx_log(OPBX_LOG_WARNING, "Truncating column one to 20 characters at line %d of %s\n", lineno, script);
+				cw_log(CW_LOG_WARNING, "Truncating column one to 20 characters at line %d of %s\n", lineno, script);
 				tmp[20] = '\0';
 			}
 			memcpy(disp->data + 5, tmp, strlen(tmp));
@@ -1198,7 +1198,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			if (args && !process_token(tmp, args, sizeof(tmp) - 1, ARG_STRING)) {
 				/* Got a column two */
 				if (strlen(tmp) > 20) {
-					opbx_log(OPBX_LOG_WARNING, "Truncating column two to 20 characters at line %d of %s\n", lineno, script);
+					cw_log(CW_LOG_WARNING, "Truncating column two to 20 characters at line %d of %s\n", lineno, script);
 					tmp[20] = '\0';
 				}
 				memcpy(disp->data + disp->datalen, tmp, strlen(tmp));
@@ -1209,18 +1209,18 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				if (!strcasecmp(args, "JUSTIFY")) {
 					args = get_token(&buf, script, lineno);
 					if (!args) {
-						opbx_log(OPBX_LOG_WARNING, "Qualifier 'JUSTIFY' requires an argument at line %d of %s\n", lineno, script);
+						cw_log(CW_LOG_WARNING, "Qualifier 'JUSTIFY' requires an argument at line %d of %s\n", lineno, script);
 						break;
 					}
 					lrci = getjustifybyname(args);
 					if (lrci < 0) {
-						opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid justification at line %d of %s\n", args, lineno, script);
+						cw_log(CW_LOG_WARNING, "'%s' is not a valid justification at line %d of %s\n", args, lineno, script);
 						break;
 					}
 				} else if (!strcasecmp(args, "WRAP")) {
 					wi = 0x80;
 				} else {
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a known qualifier at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a known qualifier at line %d of %s\n", args, lineno, script);
 					break;
 				}
 				args = get_token(&buf, script, lineno);
@@ -1235,7 +1235,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			disp->data[3] = wi;
 			disp->data[4] = 0xff;
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "Invalid or Unknown keyword '%s' in PROGRAM\n", keyword);
+			cw_log(CW_LOG_WARNING, "Invalid or Unknown keyword '%s' in PROGRAM\n", keyword);
 		}
 		break;
 	case STATE_INKEY:
@@ -1247,7 +1247,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				state->key->retstr[1] = state->key->retstrlen - 2;
 				state->key = NULL;
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Invalid or Unknown keyword '%s' in SOFTKEY definition at line %d of %s\n", keyword, lineno, script);
+				cw_log(CW_LOG_WARNING, "Invalid or Unknown keyword '%s' in SOFTKEY definition at line %d of %s\n", keyword, lineno, script);
 			}
 		}
 		break;
@@ -1262,11 +1262,11 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			} else if (!strcasecmp(keyword, "GOTO")) {
 				args = get_token(&buf, script, lineno);
 				if (!args) {
-					opbx_log(OPBX_LOG_WARNING, "GOTO clause missing Subscript name at line %d of %s\n", lineno, script);
+					cw_log(CW_LOG_WARNING, "GOTO clause missing Subscript name at line %d of %s\n", lineno, script);
 					break;
 				}
 				if (process_token(tmp, args, sizeof(tmp) - 1, ARG_STRING)) {
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid subscript name token at line %d of %s\n", args, lineno, script);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid subscript name token at line %d of %s\n", args, lineno, script);
 					break;
 				}
 				newsub = getsubbyname(state, tmp, script, lineno);
@@ -1282,7 +1282,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				state->sub->inscount++;
 				state->sub->ifinscount++;
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Invalid or Unknown keyword '%s' in IF clause at line %d of %s\n", keyword, lineno, script);
+				cw_log(CW_LOG_WARNING, "Invalid or Unknown keyword '%s' in IF clause at line %d of %s\n", keyword, lineno, script);
 			}
 		} else
 			state->sub->ifinscount++;
@@ -1303,17 +1303,17 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			} else if (!strcasecmp(keyword, "IFEVENT")) {
 				args = get_token(&buf, script, lineno);
 				if (!args) {
-					opbx_log(OPBX_LOG_WARNING, "IFEVENT clause missing Event name at line %d of %s\n", lineno, script);
+					cw_log(CW_LOG_WARNING, "IFEVENT clause missing Event name at line %d of %s\n", lineno, script);
 					break;
 				}
 				event = geteventbyname(args);
 				if (event < 1) {
-					opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid event\n", args);
+					cw_log(CW_LOG_WARNING, "'%s' is not a valid event\n", args);
 					break;
 				}
 				args = get_token(&buf, script, lineno);
 				if (!args || strcasecmp(args, "THEN")) {
-					opbx_log(OPBX_LOG_WARNING, "IFEVENT clause missing 'THEN' at line %d of %s\n", lineno, script);
+					cw_log(CW_LOG_WARNING, "IFEVENT clause missing 'THEN' at line %d of %s\n", lineno, script);
 					break;
 				}
 				state->sub->ifinscount = 0;
@@ -1329,12 +1329,12 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				state->sub->inscount++;
 				state->state = STATE_INIF;
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Invalid or Unknown keyword '%s' in SUB definition at line %d of %s\n", keyword, lineno, script);
+				cw_log(CW_LOG_WARNING, "Invalid or Unknown keyword '%s' in SUB definition at line %d of %s\n", keyword, lineno, script);
 			}
 		}
 		break;
 	default:
-		opbx_log(OPBX_LOG_WARNING, "Can't process keyword '%s' in weird state %d\n", keyword, state->state);
+		cw_log(CW_LOG_WARNING, "Can't process keyword '%s' in weird state %d\n", keyword, state->state);
 	}
 	return 0;
 }
@@ -1349,18 +1349,18 @@ static struct adsi_script *compile_script(char *script)
 	int x, err;
 	struct adsi_script *scr;
 	if (script[0] == '/')
-		opbx_copy_string(fn, script, sizeof(fn));
+		cw_copy_string(fn, script, sizeof(fn));
 	else
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)opbx_config_OPBX_CONFIG_DIR, script);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)cw_config_CW_CONFIG_DIR, script);
 	f = fopen(fn, "r");
 	if (!f) {
-		opbx_log(OPBX_LOG_WARNING, "Can't open file '%s'\n", fn);
+		cw_log(CW_LOG_WARNING, "Can't open file '%s'\n", fn);
 		return NULL;
 	}
 	scr = malloc(sizeof(struct adsi_script));
 	if (!scr) {
 		fclose(f);
-		opbx_log(OPBX_LOG_WARNING, "Out of memory loading script '%s'\n", fn);
+		cw_log(CW_LOG_WARNING, "Out of memory loading script '%s'\n", fn);
 		return NULL;
 	}
 	memset(scr, 0, sizeof(struct adsi_script));
@@ -1376,7 +1376,7 @@ static struct adsi_script *compile_script(char *script)
 			/* Strip comments */
 			if (c)
 				*c = '\0';
-			if (!opbx_strlen_zero(buf))
+			if (!cw_strlen_zero(buf))
 				adsi_process(scr, buf, script, lineno);
 		}
 	}
@@ -1386,11 +1386,11 @@ static struct adsi_script *compile_script(char *script)
 	case STATE_NORMAL:
 		break;
 	case STATE_INSUB:
-		opbx_log(OPBX_LOG_WARNING, "Missing ENDSUB at end of file %s\n", script);
+		cw_log(CW_LOG_WARNING, "Missing ENDSUB at end of file %s\n", script);
 		free(scr);
 		return NULL;
 	case STATE_INKEY:
-		opbx_log(OPBX_LOG_WARNING, "Missing ENDKEY at end of file %s\n", script);
+		cw_log(CW_LOG_WARNING, "Missing ENDKEY at end of file %s\n", script);
 		free(scr);
 		return NULL;
 	}
@@ -1399,7 +1399,7 @@ static struct adsi_script *compile_script(char *script)
 	/* Resolve all keys and record their lengths */
 	for (x=0;x<scr->numkeys;x++) {
 		if (!scr->keys[x].defined) {
-			opbx_log(OPBX_LOG_WARNING, "Key '%s' referenced but never defined in file %s\n", scr->keys[x].vname, fn);
+			cw_log(CW_LOG_WARNING, "Key '%s' referenced but never defined in file %s\n", scr->keys[x].vname, fn);
 			err++;
 		}
 	}
@@ -1407,7 +1407,7 @@ static struct adsi_script *compile_script(char *script)
 	/* Resolve all subs */
 	for (x=0;x<scr->numsubs;x++) {
 		if (!scr->subs[x].defined) {
-			opbx_log(OPBX_LOG_WARNING, "Subscript '%s' referenced but never defined in file %s\n", scr->subs[x].vname, fn);
+			cw_log(CW_LOG_WARNING, "Subscript '%s' referenced but never defined in file %s\n", scr->subs[x].vname, fn);
 			err++;
 		}
 		if (x == (scr->numsubs - 1)) {
@@ -1434,7 +1434,7 @@ static void dump_message(char *type, char *vname, unsigned char *buf, int buflen
 }
 #endif
 
-static int adsi_prog(struct opbx_channel *chan, char *script)
+static int adsi_prog(struct cw_channel *chan, char *script)
 {
 	struct adsi_script *scr;
 	int x;
@@ -1452,8 +1452,8 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	if (adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
 		/* User rejected us for some reason */
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "User rejected download attempt\n");
-		opbx_log(OPBX_LOG_NOTICE, "User rejected download on channel %s\n", chan->name);
+			cw_verbose(VERBOSE_PREFIX_3 "User rejected download attempt\n");
+		cw_log(CW_LOG_NOTICE, "User rejected download on channel %s\n", chan->name);
 		free(scr);
 		return -1;
 	}
@@ -1464,7 +1464,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 		if (bytes + scr->keys[x].retstrlen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+				cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
 			bytes =0;
@@ -1477,7 +1477,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	}
 	if (bytes) {
 		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+			cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
 	}
@@ -1488,7 +1488,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 		if (bytes + scr->displays[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+				cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
 			bytes =0;
@@ -1501,7 +1501,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	}
 	if (bytes) {
 		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+			cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
 	}
@@ -1512,7 +1512,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 		if (bytes + scr->subs[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+				cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
 			bytes =0;
@@ -1525,7 +1525,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	}
 	if (bytes) {
 		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
+			cw_log(CW_LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
 	}
@@ -1539,8 +1539,8 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	if (adsi_end_download(chan)) {
 		/* Download failed for some reason */
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Download attempt failed\n");
-		opbx_log(OPBX_LOG_NOTICE, "Download failed on %s\n", chan->name);
+			cw_verbose(VERBOSE_PREFIX_3 "Download attempt failed\n");
+		cw_log(CW_LOG_NOTICE, "Download failed on %s\n", chan->name);
 		free(scr);
 		return -1;
 	}
@@ -1549,7 +1549,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int adsi_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res=0;
 	struct localuser *u;
@@ -1561,10 +1561,10 @@ static int adsi_exec(struct opbx_channel *chan, int argc, char **argv, char *buf
 	
 	if (!adsi_available(chan)) {
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "ADSI Unavailable on CPE.  Not bothering to try.\n");
+			cw_verbose(VERBOSE_PREFIX_3 "ADSI Unavailable on CPE.  Not bothering to try.\n");
 	} else {
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
+			cw_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
 		for (; argc; argv++, argc--)
 			res = adsi_prog(chan, argv[0]);
 	}
@@ -1578,13 +1578,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(adsi_app);
+	res |= cw_unregister_function(adsi_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	adsi_app = opbx_register_function(adsi_name, adsi_exec, adsi_synopsis, adsi_syntax, adsi_descrip);
+	adsi_app = cw_register_function(adsi_name, adsi_exec, adsi_synopsis, adsi_syntax, adsi_descrip);
 	return 0;
 }
 

@@ -49,25 +49,25 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char desc[] = "JPEG (Joint Picture Experts Group) Image Format";
 
-static struct opbx_frame *jpeg_read_image(int fd, int len)
+static struct cw_frame *jpeg_read_image(int fd, int len)
 {
-    struct opbx_frame fr;
+    struct cw_frame fr;
     int res;
     char buf[65536];
     
     if (len > sizeof(buf)  ||  len < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "JPEG image too large to read\n");
+        cw_log(CW_LOG_WARNING, "JPEG image too large to read\n");
         return NULL;
     }
     if ((res = read(fd, buf, len)) < len)
     {
-        opbx_log(OPBX_LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
     }
-    opbx_fr_init_ex(&fr, OPBX_FRAME_IMAGE, OPBX_FORMAT_JPEG, "JPEG Read");
+    cw_fr_init_ex(&fr, CW_FRAME_IMAGE, CW_FORMAT_JPEG, "JPEG Read");
     fr.data = buf;
     fr.datalen = len;
-    return opbx_frisolate(&fr);
+    return cw_frisolate(&fr);
 }
 
 static int jpeg_identify(int fd)
@@ -83,18 +83,18 @@ static int jpeg_identify(int fd)
     return 1;
 }
 
-static int jpeg_write_image(int fd, struct opbx_frame *fr)
+static int jpeg_write_image(int fd, struct cw_frame *fr)
 {
     int res = 0;
 
-    if (fr->frametype != OPBX_FRAME_IMAGE)
+    if (fr->frametype != CW_FRAME_IMAGE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Not an image\n");
+        cw_log(CW_LOG_WARNING, "Not an image\n");
         return -1;
     }
-    if (fr->subclass != OPBX_FORMAT_JPEG)
+    if (fr->subclass != CW_FORMAT_JPEG)
     {
-        opbx_log(OPBX_LOG_WARNING, "Not a jpeg image\n");
+        cw_log(CW_LOG_WARNING, "Not a jpeg image\n");
         return -1;
     }
     if (fr->datalen)
@@ -102,19 +102,19 @@ static int jpeg_write_image(int fd, struct opbx_frame *fr)
         res = write(fd, fr->data, fr->datalen);
         if (res != fr->datalen)
         {
-            opbx_log(OPBX_LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
             return -1;
         }
     }
     return res;
 }
 
-static struct opbx_imager jpeg_format =
+static struct cw_imager jpeg_format =
 {
 	.name = "jpg",
 	.desc = "JPEG (Joint Picture Experts Group)",
 	.exts = "jpg|jpeg",
-	.format = OPBX_FORMAT_JPEG,
+	.format = CW_FORMAT_JPEG,
 	.read_image = jpeg_read_image,
 	.identify = jpeg_identify,
 	.write_image = jpeg_write_image,
@@ -122,12 +122,12 @@ static struct opbx_imager jpeg_format =
 
 static int load_module(void)
 {
-	return opbx_image_register(&jpeg_format);
+	return cw_image_register(&jpeg_format);
 }
 
 static int unload_module(void)
 {
-	return opbx_image_unregister(&jpeg_format);
+	return cw_image_unregister(&jpeg_format);
 }
 
 

@@ -96,38 +96,38 @@ static const char descrip3[] =
 static int str2cause(char *cause)
 {
 	if (!strcasecmp(cause, "BUSY"))
-		return OPBX_CAUSE_BUSY;
+		return CW_CAUSE_BUSY;
 	if (!strcasecmp(cause, "CONGESTION"))
-		return OPBX_CAUSE_CONGESTION;
+		return CW_CAUSE_CONGESTION;
 	if (!strcasecmp(cause, "ANSWER"))
-		return OPBX_CAUSE_NORMAL;
+		return CW_CAUSE_NORMAL;
 	if (!strcasecmp(cause, "CANCEL"))
-		return OPBX_CAUSE_NORMAL;
+		return CW_CAUSE_NORMAL;
 	if (!strcasecmp(cause, "NOANSWER"))
-		return OPBX_CAUSE_NOANSWER;
+		return CW_CAUSE_NOANSWER;
 	if (!strcasecmp(cause, "NOCHANAVAIL"))
-		return OPBX_CAUSE_CONGESTION;
-	opbx_log(OPBX_LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
-	return OPBX_CAUSE_NORMAL;
+		return CW_CAUSE_CONGESTION;
+	cw_log(CW_LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
+	return CW_CAUSE_NORMAL;
 }
 
-static int osplookup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct opbx_osp_result ospres;
+	struct cw_osp_result ospres;
 	struct localuser *u;
 	char *provider;
 	int res = 0;
 
 	if (argc < 1 || argc > 3)
-		return opbx_function_syntax(syntax);
+		return cw_function_syntax(syntax);
 
 	LOCAL_USER_ADD(u);
 
 	provider = (argc > 1 && argv[1][0] ? argv[1] : NULL);
 	/* There are no options supported?!? */
 
-	opbx_log(OPBX_LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", argv[0], provider ? provider : "<default>");
-	if ((res = opbx_osp_lookup(chan, provider, argv[0], chan->cid.cid_num, &ospres)) > 0) {
+	cw_log(CW_LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", argv[0], provider ? provider : "<default>");
+	if ((res = cw_osp_lookup(chan, provider, argv[0], chan->cid.cid_num, &ospres)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", ospres.handle);
 		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -139,37 +139,37 @@ static int osplookup_exec(struct opbx_channel *chan, int argc, char **argv, char
 
 	} else {
 		if (!res)
-			opbx_log(OPBX_LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", argv[0], provider ? provider : "<default>");
+			cw_log(CW_LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", argv[0], provider ? provider : "<default>");
 		else
-			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, argv[0], provider ? provider : "<default>" );
+			cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, argv[0], provider ? provider : "<default>" );
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int ospnext_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct opbx_osp_result ospres;
+	struct cw_osp_result ospres;
 	struct localuser *u;
 	char *temp;
 	int cause;
 	int res = 0;
 
 	if (argc != 1)
-		return opbx_function_syntax(syntax2);
+		return cw_function_syntax(syntax2);
 
 	LOCAL_USER_ADD(u);
 
 	cause = str2cause(argv[0]);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	ospres.handle = -1;
-	if (!opbx_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
-		if ((res = opbx_osp_next(&ospres, cause)) > 0) {
+	if (!cw_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
+		if ((res = cw_osp_next(&ospres, cause)) > 0) {
 			char tmp[80];
 			snprintf(tmp, sizeof(tmp), "%d", ospres.handle);
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -182,24 +182,24 @@ static int ospnext_exec(struct opbx_channel *chan, int argc, char **argv, char *
 	} else {
 		if (!res) {
 			if (ospres.handle < 0)
-				opbx_log(OPBX_LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
+				cw_log(CW_LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
 			else
-				opbx_log(OPBX_LOG_DEBUG, "No OSP handle specified\n");
+				cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
+			cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct opbx_osp_result ospres;
+	struct cw_osp_result ospres;
 	struct localuser *u;
 	char *temp;
 	time_t start=0, duration=0;
@@ -207,7 +207,7 @@ static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int res=0;
 
 	if (argc != 1)
-		return opbx_function_syntax(syntax3);
+		return cw_function_syntax(syntax3);
 
 	LOCAL_USER_ADD(u);	
 
@@ -218,28 +218,28 @@ static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv, ch
 		else
 			duration = 0;
 	} else
-		opbx_log(OPBX_LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
+		cw_log(CW_LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
 	cause = str2cause(argv[0]);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	ospres.handle = -1;
-	if (!opbx_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
-		if (!opbx_osp_terminate(ospres.handle, cause, start, duration)) {
+	if (!cw_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
+		if (!cw_osp_terminate(ospres.handle, cause, start, duration)) {
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 			res = 1;
 		}
 	} else {
 		if (!res) {
 			if (ospres.handle > -1)
-				opbx_log(OPBX_LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
+				cw_log(CW_LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
 			else
-				opbx_log(OPBX_LOG_DEBUG, "No OSP handle specified\n");
+				cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			opbx_log(OPBX_LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
+			cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -251,17 +251,17 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(app3);
-	res |= opbx_unregister_function(app2);
-	res |= opbx_unregister_function(app);
+	res |= cw_unregister_function(app3);
+	res |= cw_unregister_function(app2);
+	res |= cw_unregister_function(app);
 	return res;
 }
 
 static int load_module(void)
 {
-	app = opbx_register_function(name, osplookup_exec, synopsis, syntax, descrip);
-	app2 = opbx_register_function(name2, ospnext_exec, synopsis2, syntax2, descrip2);
-	app3 = opbx_register_function(name3, ospfinished_exec, synopsis3, syntax3, descrip3);
+	app = cw_register_function(name, osplookup_exec, synopsis, syntax, descrip);
+	app2 = cw_register_function(name2, ospnext_exec, synopsis2, syntax2, descrip2);
+	app3 = cw_register_function(name3, ospfinished_exec, synopsis3, syntax3, descrip3);
 	return 0;
 }
 

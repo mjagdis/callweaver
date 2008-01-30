@@ -62,9 +62,9 @@ struct visdn_huntgroup *visdn_hg_get(struct visdn_huntgroup *hg)
 	assert(hg);
 	assert(hg->refcnt > 0);
 
-	opbx_mutex_lock(&visdn.usecnt_lock);
+	cw_mutex_lock(&visdn.usecnt_lock);
 	hg->refcnt++;
-	opbx_mutex_unlock(&visdn.usecnt_lock);
+	cw_mutex_unlock(&visdn.usecnt_lock);
 
 	return hg;
 }
@@ -74,9 +74,9 @@ void visdn_hg_put(struct visdn_huntgroup *hg)
 	assert(hg);
 	assert(hg->refcnt > 0);
 
-	opbx_mutex_lock(&visdn.usecnt_lock);
+	cw_mutex_lock(&visdn.usecnt_lock);
 	hg->refcnt--;
-	opbx_mutex_unlock(&visdn.usecnt_lock);
+	cw_mutex_unlock(&visdn.usecnt_lock);
 
 	if (!hg->refcnt)
 		free(hg);
@@ -86,16 +86,16 @@ struct visdn_huntgroup *visdn_hg_get_by_name(const char *name)
 {
 	struct visdn_huntgroup *hg;
 
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 	
 	list_for_each_entry(hg, &visdn.huntgroups_list, node) {
 		if (!strcasecmp(hg->name, name)) {
-			opbx_mutex_unlock(&visdn.lock);
+			cw_mutex_unlock(&visdn.lock);
 			return visdn_hg_get(hg);
 		}
 	}
 
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 
 	return NULL;
 }
@@ -122,7 +122,7 @@ static enum visdn_huntgroup_mode
 	else if (!strcasecmp(str, "cyclic"))
 		return VISDN_HUNTGROUP_MODE_CYCLIC;
 	else {
-		opbx_log(OPBX_LOG_ERROR,
+		cw_log(CW_LOG_ERROR,
 			"Unknown huntgroup mode '%s'\n",
 			str);
 
@@ -164,7 +164,7 @@ static void visdn_hg_parse_members(
 		struct visdn_intf *intf;
 		intf = visdn_intf_get_by_name(tok);
 		if (!intf) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"Huntgroup member %s not found\n",
 				tok);
 
@@ -188,7 +188,7 @@ static void visdn_hg_parse_members(
 
 static int visdn_hg_from_var(
 	struct visdn_huntgroup *hg,
-	struct opbx_variable *var)
+	struct cw_variable *var)
 {
 	if (!strcasecmp(var->name, "mode")) {
 		hg->mode = visdn_hg_string_to_mode(var->value);
@@ -202,7 +202,7 @@ static int visdn_hg_from_var(
 }
 
 static void visdn_hg_reconfigure(
-	struct opbx_config *cfg,
+	struct cw_config *cfg,
 	const char *cat,
 	const char *name)
 {
@@ -213,11 +213,11 @@ static void visdn_hg_reconfigure(
 
 	hg->configured = TRUE;
 
-	struct opbx_variable *var;
-	var = opbx_variable_browse(cfg, (char *)cat);
+	struct cw_variable *var;
+	var = cw_variable_browse(cfg, (char *)cat);
 	while (var) {
 		if (visdn_hg_from_var(hg, var) < 0) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"Unknown configuration variable %s\n",
 				var->name);
 		}
@@ -225,7 +225,7 @@ static void visdn_hg_reconfigure(
 		var = var->next;
 	}
 
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 
 	struct visdn_huntgroup *old_hg, *tpos;
 	list_for_each_entry_safe(old_hg, tpos, &visdn.huntgroups_list, node) {
@@ -240,12 +240,12 @@ static void visdn_hg_reconfigure(
 
 	list_add_tail(&visdn_hg_get(hg)->node, &visdn.huntgroups_list);
 
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 }
 
-void visdn_hg_reload(struct opbx_config *cfg)
+void visdn_hg_reload(struct cw_config *cfg)
 {
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 
 	/*
 	struct visdn_huntgroup *hg;
@@ -254,8 +254,8 @@ void visdn_hg_reload(struct opbx_config *cfg)
 	}*/
 
 	const char *cat;
-	for (cat = opbx_category_browse(cfg, NULL); cat;
-	     cat = opbx_category_browse(cfg, (char *)cat)) {
+	for (cat = cw_category_browse(cfg, NULL); cat;
+	     cat = cw_category_browse(cfg, (char *)cat)) {
 
 		if (!strcasecmp(cat, "general") ||
 		    !strcasecmp(cat, "global") ||
@@ -264,7 +264,7 @@ void visdn_hg_reload(struct opbx_config *cfg)
 			continue;
 
 		if (strlen(cat) <= strlen(VISDN_HUNTGROUP_PREFIX)) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"Empty huntgroup name in configuration\n");
 
 			continue;
@@ -274,7 +274,7 @@ void visdn_hg_reload(struct opbx_config *cfg)
 			cat + strlen(VISDN_HUNTGROUP_PREFIX));
 	}
 
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -287,17 +287,17 @@ static char *complete_show_visdn_huntgroups(
 
 	int which = 0;
 
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 	struct visdn_huntgroup *huntgroup;
 	list_for_each_entry(huntgroup, &visdn.huntgroups_list, node) {
 		if (!strncasecmp(word, huntgroup->name, strlen(word))) {
 			if (++which > state) {
-				opbx_mutex_unlock(&visdn.lock);
+				cw_mutex_unlock(&visdn.lock);
 				return strdup(huntgroup->name);
 			}
 		}
 	}
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 
 	return NULL;
 }
@@ -305,22 +305,22 @@ static char *complete_show_visdn_huntgroups(
 static void do_show_visdn_huntgroups_details(
 	int fd, struct visdn_huntgroup *hg)
 {
-	opbx_cli(fd, "\n-- '%s'--\n", hg->name);
+	cw_cli(fd, "\n-- '%s'--\n", hg->name);
 
-	opbx_cli(fd, "Mode: %s\n",
+	cw_cli(fd, "Mode: %s\n",
 		visdn_huntgroup_mode_to_text(hg->mode));
 
-	opbx_cli(fd, "Members: ");
+	cw_cli(fd, "Members: ");
 	struct visdn_huntgroup_member *hgm;
 	list_for_each_entry(hgm, &hg->members, node) {
-		opbx_cli(fd, "%s, ", hgm->intf->name);
+		cw_cli(fd, "%s, ", hgm->intf->name);
 	}
-	opbx_cli(fd, "\n");
+	cw_cli(fd, "\n");
 }
 
 static int do_show_visdn_huntgroups(int fd, int argc, char *argv[])
 {
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 
 	struct visdn_huntgroup *hg;
 	list_for_each_entry(hg, &visdn.huntgroups_list, node) {
@@ -328,7 +328,7 @@ static int do_show_visdn_huntgroups(int fd, int argc, char *argv[])
 			do_show_visdn_huntgroups_details(fd, hg);
 	}
 
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 
 	return RESULT_SUCCESS;
 }
@@ -338,7 +338,7 @@ static char show_visdn_huntgroups_help[] =
 "	Displays detailed informations on vISDN's huntgroup or lists all the\n"
 "	available huntgroups if <huntgroup> has not been specified.\n";
 
-static struct opbx_cli_entry show_visdn_huntgroups =
+static struct cw_cli_entry show_visdn_huntgroups =
 {
 	{ "show", "visdn", "huntgroups", NULL },
 	do_show_visdn_huntgroups,
@@ -368,7 +368,7 @@ static struct visdn_huntgroup_member *visdn_hg_next_member(
 {
 	struct visdn_huntgroup_member *memb;
 
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 
 	if (cur_memb->node.next == &hg->members)
 		memb = list_entry(hg->members.next,
@@ -377,7 +377,7 @@ static struct visdn_huntgroup_member *visdn_hg_next_member(
 		memb = list_entry(cur_memb->node.next,
 			struct visdn_huntgroup_member, node);
 
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 
 	return memb;
 }
@@ -387,7 +387,7 @@ struct visdn_intf *visdn_hg_hunt(
 	struct visdn_intf *cur_intf,
 	struct visdn_intf *first_intf)
 {
-	opbx_mutex_lock(&visdn.lock);
+	cw_mutex_lock(&visdn.lock);
 
 	if (list_empty(&hg->members)) {
 		visdn_debug("No interfaces in huntgroup '%s'\n", hg->name);
@@ -452,7 +452,7 @@ struct visdn_intf *visdn_hg_hunt(
 						"Huntgroup: found interface"
 					       	" '%s'\n", hgm->intf->name);
 
-					opbx_mutex_unlock(&visdn.lock);
+					cw_mutex_unlock(&visdn.lock);
 
 					return visdn_intf_get(hgm->intf);
 				}
@@ -468,17 +468,17 @@ struct visdn_intf *visdn_hg_hunt(
 	} while(hgm != starting_hgm);
 
 err_no_interfaces:
-	opbx_mutex_unlock(&visdn.lock);
+	cw_mutex_unlock(&visdn.lock);
 
 	return NULL;
 }
 
 void visdn_hg_cli_register(void)
 {
-	opbx_cli_register(&show_visdn_huntgroups);
+	cw_cli_register(&show_visdn_huntgroups);
 }
 
 void visdn_hg_cli_unregister(void)
 {
-	opbx_cli_unregister(&show_visdn_huntgroups);
+	cw_cli_unregister(&show_visdn_huntgroups);
 }

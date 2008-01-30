@@ -46,14 +46,14 @@ static const char nocdr_syntax[] = "NoCDR()";
 static const char nocdr_descrip[] = "Makes sure there won't be any CDR written for a certain call";
 
 
-static int nocdr_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int nocdr_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr) {
-		opbx_cdr_free(chan->cdr);
+		cw_cdr_free(chan->cdr);
 		chan->cdr = NULL;
 	}
 
@@ -66,13 +66,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(nocdr_app);
+	res |= cw_unregister_function(nocdr_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	nocdr_app = opbx_register_function(nocdr_name, nocdr_exec, nocdr_synopsis, nocdr_syntax, nocdr_descrip);
+	nocdr_app = cw_register_function(nocdr_name, nocdr_exec, nocdr_synopsis, nocdr_syntax, nocdr_descrip);
 	return 0;
 }
 

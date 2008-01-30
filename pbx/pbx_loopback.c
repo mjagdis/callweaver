@@ -80,29 +80,29 @@ static const char tdesc[] = "Loopback Switch";
 	char *newpattern=NULL; \
 	loopback_helper(buf, sizeof(buf), exten, context, priority, data); \
 	loopback_subst(&newexten, &newcontext, &newpriority, &newpattern, buf); \
-	opbx_log(OPBX_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
+	cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
 	if (!strcasecmp(newcontext, context)) return -1
 
 
 static char *loopback_helper(char *buf, int buflen, const char *exten, const char *context, int priority, const char *data)
 {
-	struct opbx_var_t *newvariable;
+	struct cw_var_t *newvariable;
 	struct varshead headp;
 	char tmp[80];
 
 	snprintf(tmp, sizeof(tmp), "%d", priority);
-	OPBX_LIST_HEAD_INIT_NOLOCK(&headp);
-	newvariable = opbx_var_assign("EXTEN", exten);
-	OPBX_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = opbx_var_assign("CONTEXT", context);
-	OPBX_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = opbx_var_assign("PRIORITY", tmp);
-	OPBX_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	CW_LIST_HEAD_INIT_NOLOCK(&headp);
+	newvariable = cw_var_assign("EXTEN", exten);
+	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	newvariable = cw_var_assign("CONTEXT", context);
+	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	newvariable = cw_var_assign("PRIORITY", tmp);
+	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
 	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
 	/* Substitute variables */
-	while (!OPBX_LIST_EMPTY(&headp)) {           /* List Deletion. */
-		newvariable = OPBX_LIST_REMOVE_HEAD(&headp, entries);
-		opbx_var_delete(newvariable);
+	while (!CW_LIST_EMPTY(&headp)) {           /* List Deletion. */
+		newvariable = CW_LIST_REMOVE_HEAD(&headp, entries);
+		cw_var_delete(newvariable);
 	}
 	return buf;
 }
@@ -123,22 +123,22 @@ static void loopback_subst(char **newexten, char **newcontext, int *priority, ch
 		pri = strchr(con, ':');
 	} else
 		pri = strchr(buf, ':');
-	if (!opbx_strlen_zero(buf))
+	if (!cw_strlen_zero(buf))
 		*newexten = buf;
-	if (con && !opbx_strlen_zero(con))
+	if (con && !cw_strlen_zero(con))
 		*newcontext = con;
-	if (pri && !opbx_strlen_zero(pri))
+	if (pri && !cw_strlen_zero(pri))
 		sscanf(pri, "%d", priority);
 }
 
-static int loopback_exists(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int loopback_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
 
-	res = opbx_exists_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = cw_exists_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern)
     {
-        switch (opbx_extension_pattern_match(exten, newpattern))
+        switch (cw_extension_pattern_match(exten, newpattern))
         {
         case EXTENSION_MATCH_EXACT:
         case EXTENSION_MATCH_STRETCHABLE:
@@ -152,14 +152,14 @@ static int loopback_exists(struct opbx_channel *chan, const char *context, const
     return res;
 }
 
-static int loopback_canmatch(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int loopback_canmatch(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
 
-	res = opbx_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = cw_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern)
     {
-        switch (opbx_extension_pattern_match(exten, newpattern))
+        switch (cw_extension_pattern_match(exten, newpattern))
         {
         case EXTENSION_MATCH_EXACT:
         case EXTENSION_MATCH_STRETCHABLE:
@@ -173,14 +173,14 @@ static int loopback_canmatch(struct opbx_channel *chan, const char *context, con
 	return res;
 }
 
-static int loopback_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int loopback_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
 
-	res = opbx_exec_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = cw_exec_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern)
     {
-        switch (opbx_extension_pattern_match(exten, newpattern))
+        switch (cw_extension_pattern_match(exten, newpattern))
         {
         case EXTENSION_MATCH_EXACT:
         case EXTENSION_MATCH_STRETCHABLE:
@@ -194,14 +194,14 @@ static int loopback_exec(struct opbx_channel *chan, const char *context, const c
 	return res;
 }
 
-static int loopback_matchmore(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int loopback_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
 
-	res = opbx_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = cw_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern)
     {
-        switch (opbx_extension_pattern_match(exten, newpattern))
+        switch (cw_extension_pattern_match(exten, newpattern))
         {
         case EXTENSION_MATCH_EXACT:
         case EXTENSION_MATCH_STRETCHABLE:
@@ -215,7 +215,7 @@ static int loopback_matchmore(struct opbx_channel *chan, const char *context, co
 	return res;
 }
 
-static struct opbx_switch loopback_switch =
+static struct cw_switch loopback_switch =
 {
         name:                   "Loopback",
         description:   		"Loopback Dialplan Switch",
@@ -228,13 +228,13 @@ static struct opbx_switch loopback_switch =
 
 static int unload_module(void)
 {
-	opbx_switch_unregister(&loopback_switch);
+	cw_switch_unregister(&loopback_switch);
 	return 0;
 }
 
 static int load_module(void)
 {
-	opbx_switch_register(&loopback_switch);
+	cw_switch_register(&loopback_switch);
 	return 0;
 }
 

@@ -41,12 +41,12 @@
 
 
 static int supports_overlapping(
-	struct opbx_channel *chan,
+	struct cw_channel *chan,
 	char *called_number)
 {
 	char hint[32];
 
-	if (!opbx_get_hint(hint, sizeof(hint), NULL, 0, NULL,
+	if (!cw_get_hint(hint, sizeof(hint), NULL, 0, NULL,
 			chan->context, called_number))
 		return FALSE;
 
@@ -69,13 +69,13 @@ static int supports_overlapping(
 		struct visdn_huntgroup *hg;
 		hg = visdn_hg_get_by_name(hg_name);
 		if (!hg) {
-			opbx_log(OPBX_LOG_NOTICE,
+			cw_log(CW_LOG_NOTICE,
 				"No huntgroup '%s' in hint\n", hg_name);
 			return FALSE;
 		}
 
 		if (list_empty(&hg->members)) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"No interfaces in huntgroup '%s'\n",
 				hg->name);
 
@@ -93,7 +93,7 @@ static int supports_overlapping(
 	} else {
 		struct visdn_intf *intf = visdn_intf_get_by_name(intf_name);
 		if (!intf) {
-			opbx_log(OPBX_LOG_WARNING,
+			cw_log(CW_LOG_WARNING,
 				"No interface '%s' in hint\n", intf_name);
 			return FALSE;
 		}
@@ -106,20 +106,20 @@ static int supports_overlapping(
 }
 
 static int new_digit(
-	struct opbx_channel *chan,
+	struct cw_channel *chan,
 	char *called_number,
 	int called_number_size,
 	char digit, int *retval)
 {
-	opbx_setstate(chan, OPBX_STATE_DIALING);
+	cw_setstate(chan, CW_STATE_DIALING);
 
 	if (digit) {
 		if(strlen(called_number) >= called_number_size - 1) {
-			opbx_log(OPBX_LOG_NOTICE,
+			cw_log(CW_LOG_NOTICE,
 				"Maximum number of digits exceeded\n");
 
 			chan->hangupcause =
-				OPBX_CAUSE_INVALID_NUMBER_FORMAT;
+				CW_CAUSE_INVALID_NUMBER_FORMAT;
 			*retval = 0;
 			return TRUE;
 		}
@@ -135,13 +135,13 @@ static int new_digit(
 	}
 
 	if (sending_complete) {
-		if (opbx_exists_extension(NULL,
+		if (cw_exists_extension(NULL,
 				chan->context,
 				called_number, 1,
 				chan->cid.cid_num)) {
 
-			opbx_indicate(chan,
-				OPBX_CONTROL_PROCEEDING);
+			cw_indicate(chan,
+				CW_CONTROL_PROCEEDING);
 
 			chan->priority = 0;
 			strncpy(chan->exten, called_number,
@@ -153,14 +153,14 @@ static int new_digit(
 			*retval = 0;
 			return TRUE;
 #if 0
-		} else if (opbx_canmatch_extension(NULL,
+		} else if (cw_canmatch_extension(NULL,
 				chan->context,
 				"pippo", 1,
 //				called_number, 1, // FIXME!!!!!!!!!!!!1
 				chan->cid.cid_num)) {
 
-			opbx_indicate(chan,
-				OPBX_CONTROL_PROCEEDING);
+			cw_indicate(chan,
+				CW_CONTROL_PROCEEDING);
 
 			chan->priority = 0;
 //			strncpy(chan->exten, called_number,
@@ -171,8 +171,8 @@ static int new_digit(
 			return TRUE;
 #endif
 		} else {
-			chan->hangupcause = OPBX_CAUSE_INVALID_NUMBER_FORMAT;
-			opbx_indicate(chan, OPBX_CONTROL_DISCONNECT);
+			chan->hangupcause = CW_CAUSE_INVALID_NUMBER_FORMAT;
+			cw_indicate(chan, CW_CONTROL_DISCONNECT);
 
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN",
 					called_number);
@@ -195,14 +195,14 @@ static int new_digit(
 			*retval = 0;
 			return TRUE;
 		} else {
-			if (!opbx_canmatch_extension(NULL,
+			if (!cw_canmatch_extension(NULL,
 					chan->context,
 					called_number, 1,
 					chan->cid.cid_num)) {
 
 				chan->hangupcause =
-					OPBX_CAUSE_INVALID_NUMBER_FORMAT;
-				opbx_indicate(chan, OPBX_CONTROL_DISCONNECT);
+					CW_CAUSE_INVALID_NUMBER_FORMAT;
+				cw_indicate(chan, CW_CONTROL_DISCONNECT);
 
 				pbx_builtin_setvar_helper(chan, "INVALID_EXTEN",
 						called_number);
@@ -214,13 +214,13 @@ static int new_digit(
 				return TRUE;
 			}
 
-			if (!opbx_matchmore_extension(NULL,
+			if (!cw_matchmore_extension(NULL,
 				chan->context,
 				called_number, 1,
 				chan->cid.cid_num)) {
 
-				opbx_setstate(chan, OPBX_STATE_RING);
-				opbx_indicate(chan, OPBX_CONTROL_PROCEEDING);
+				cw_setstate(chan, CW_STATE_RING);
+				cw_indicate(chan, CW_CONTROL_PROCEEDING);
 
 				chan->priority = 0;
 				strncpy(chan->exten, called_number,
@@ -238,7 +238,7 @@ static int new_digit(
 	return FALSE;
 }
 
-static int visdn_exec_overlap_dial(struct opbx_channel *chan, int argc, char **argv)
+static int visdn_exec_overlap_dial(struct cw_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	int retval = -1;
@@ -247,18 +247,18 @@ static int visdn_exec_overlap_dial(struct opbx_channel *chan, int argc, char **a
 
 	char called_number[32] = "";
 
-	while(opbx_waitfor(chan, -1) > -1 && !do_exit) {
-		struct opbx_frame *f;
-		f = opbx_read(chan);
+	while(cw_waitfor(chan, -1) > -1 && !do_exit) {
+		struct cw_frame *f;
+		f = cw_read(chan);
 		if (!f)
 			break;
 
-		if (f->frametype == OPBX_FRAME_DTMF)
+		if (f->frametype == CW_FRAME_DTMF)
 			 do_exit = new_digit(chan, called_number,
 					 sizeof(called_number),
 					 f->subclass, &retval);
 
-		opbx_fr_free(f);
+		cw_fr_free(f);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -270,7 +270,7 @@ static char *visdn_overlap_dial_descr =
 
 void visdn_overlap_register(void)
 {
-	opbx_register_application(
+	cw_register_application(
 		"VISDNOverlapDial",
 		visdn_exec_overlap_dial,
 		"Plays dialtone and waits for digits",
@@ -280,5 +280,5 @@ void visdn_overlap_register(void)
 
 void visdn_overlap_unregister(void)
 {
-	opbx_unregister_application("VISDNOverlapDial");
+	cw_unregister_application("VISDNOverlapDial");
 }

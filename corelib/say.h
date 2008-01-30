@@ -66,27 +66,27 @@
 
 */
 
-typedef int (*opbx_say_number_full_t)(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
-typedef int (*opbx_say_enumeration_full_t)(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
-typedef int (*opbx_say_date_t)(struct opbx_channel *chan, time_t t, const char *ints, const char *lang);
-typedef int (*opbx_say_time_t)(struct opbx_channel *chan, time_t t, const char *ints, const char *lang);
-typedef int (*opbx_say_datetime_t)(struct opbx_channel *chan, time_t t, const char *ints, const char *lang);
-typedef int (*opbx_say_datetime_from_now_t)(struct opbx_channel *chan, time_t t, const char *ints, const char *lang);
-typedef int (*opbx_say_date_with_format_t)(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
+typedef int (*cw_say_number_full_t)(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+typedef int (*cw_say_enumeration_full_t)(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+typedef int (*cw_say_date_t)(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+typedef int (*cw_say_time_t)(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+typedef int (*cw_say_datetime_t)(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+typedef int (*cw_say_datetime_from_now_t)(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+typedef int (*cw_say_date_with_format_t)(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 
 typedef struct
 {
     const char tag[5 + 1];
-    opbx_say_number_full_t say_number_full;
-    opbx_say_enumeration_full_t say_enumeration_full;
-    opbx_say_date_t say_date;
-    opbx_say_time_t say_time;
-    opbx_say_datetime_t say_datetime;
-    opbx_say_datetime_from_now_t say_datetime_from_now;
-    opbx_say_date_with_format_t say_date_with_format;
+    cw_say_number_full_t say_number_full;
+    cw_say_enumeration_full_t say_enumeration_full;
+    cw_say_date_t say_date;
+    cw_say_time_t say_time;
+    cw_say_datetime_t say_datetime;
+    cw_say_datetime_from_now_t say_datetime_from_now;
+    cw_say_date_with_format_t say_date_with_format;
 } lang_specific_speech_t;
 
-int wait_file(struct opbx_channel *chan, const char *ints, const char *file, const char *lang);
+int wait_file(struct cw_channel *chan, const char *ints, const char *file, const char *lang);
 
 extern lang_specific_speech_t lang_specific_br;
 extern lang_specific_speech_t lang_specific_cz;

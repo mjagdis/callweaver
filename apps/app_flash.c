@@ -69,7 +69,7 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-static int flash_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int flash_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct zt_params ztp;
 	struct localuser *u;
@@ -89,17 +89,17 @@ static int flash_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 						/* Wait for the event to finish */
 						zt_wait_event(chan->fds[0]);
 					}
-					res = opbx_safe_sleep(chan, 1000);
+					res = cw_safe_sleep(chan, 1000);
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
+						cw_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
 				} else
-					opbx_log(OPBX_LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
+					cw_log(CW_LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
 			} else
-				opbx_log(OPBX_LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
+				cw_log(CW_LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
 		} else
-			opbx_log(OPBX_LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
+			cw_log(CW_LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
 	} else
-		opbx_log(OPBX_LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+		cw_log(CW_LOG_WARNING, "%s is not a Zap channel\n", chan->name);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -108,13 +108,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(flash_app);
+	res |= cw_unregister_function(flash_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	flash_app = opbx_register_function(flash_name, flash_exec, flash_synopsis, flash_syntax, flash_descrip);
+	flash_app = cw_register_function(flash_name, flash_exec, flash_synopsis, flash_syntax, flash_descrip);
 	return 0;
 }
 

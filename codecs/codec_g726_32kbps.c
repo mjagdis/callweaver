@@ -88,8 +88,8 @@ static const uint8_t g726_ex[] =
  */
 struct g726_encoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];   /* Space to build offset */
     uint8_t outbuf[BUFFER_SIZE];  /* Encoded G726, two nibbles to a word */
     uint8_t next_flag;
     g726_state_t g726_state;
@@ -101,8 +101,8 @@ struct g726_encoder_pvt
  */
 struct g726_decoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];    /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];    /* Space to build offset */
     int16_t outbuf[BUFFER_SIZE];    /* Decoded signed linear values */
     g726_state_t g726_state;
     int tail;
@@ -161,7 +161,7 @@ static void *lintog726_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-static int g726tolin_framein(void *pvt, struct opbx_frame *f)
+static int g726tolin_framein(void *pvt, struct cw_frame *f)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
@@ -170,7 +170,7 @@ static int g726tolin_framein(void *pvt, struct opbx_frame *f)
         /* Perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160) > BUFFER_SIZE)
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -183,7 +183,7 @@ static int g726tolin_framein(void *pvt, struct opbx_frame *f)
     {
         if ((tmp->tail + f->datalen*2) > BUFFER_SIZE)
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         tmp->tail += g726_decode(&(tmp->g726_state),
@@ -206,17 +206,17 @@ static int g726tolin_framein(void *pvt, struct opbx_frame *f)
  * Side effects:
  *  None.
  */
-static struct opbx_frame *g726tolin_frameout(void *pvt)
+static struct cw_frame *g726tolin_frameout(void *pvt)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*2;
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
     tmp->tail = 0;
@@ -232,13 +232,13 @@ static struct opbx_frame *g726tolin_frameout(void *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-static int lintog726_framein(void *pvt, struct opbx_frame *f)
+static int lintog726_framein(void *pvt, struct cw_frame *f)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
     if ((tmp->tail + f->datalen/(2*sizeof(int16_t)) + 1) > BUFFER_SIZE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     tmp->tail += g726_encode(&(tmp->g726_state),
@@ -258,15 +258,15 @@ static int lintog726_framein(void *pvt, struct opbx_frame *f)
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-static struct opbx_frame *lintog726_frameout(void *pvt)
+static struct cw_frame *lintog726_frameout(void *pvt)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
     if (tmp->tail == 0)
         return NULL;
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_G726, __PRETTY_FUNCTION__);
     tmp->f.samples = tmp->tail*2;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     tmp->f.datalen = tmp->tail;
 
@@ -274,22 +274,22 @@ static struct opbx_frame *lintog726_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct opbx_frame *g726tolin_sample(void)
+static struct cw_frame *g726tolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
  
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G726, __PRETTY_FUNCTION__);
     f.datalen = sizeof(g726_ex);
     f.samples = sizeof(g726_ex)*2;
     f.data = (uint8_t *) g726_ex;
     return &f;
 }
 
-static struct opbx_frame *lintog726_sample(void)
+static struct cw_frame *lintog726_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof (slin_ex)/sizeof(int16_t);
@@ -300,12 +300,12 @@ static struct opbx_frame *lintog726_sample(void)
 /*
  * The complete translator for g726tolin.
  */
-static opbx_translator_t g726tolin =
+static cw_translator_t g726tolin =
 {
     .name = "g726tolin",
-    .src_format = OPBX_FORMAT_G726,
+    .src_format = CW_FORMAT_G726,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = g726tolin_new,
     .framein = g726tolin_framein,
@@ -317,12 +317,12 @@ static opbx_translator_t g726tolin =
 /*
  * The complete translator for lintog726.
  */
-static opbx_translator_t lintog726 =
+static cw_translator_t lintog726 =
 {
     .name = "lintog726",
-    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_format = CW_FORMAT_SLINEAR,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_G726,
+    .dst_format = CW_FORMAT_G726,
     .dst_rate = 8000,
     .newpvt = lintog726_new,
     .framein = lintog726_framein,
@@ -333,25 +333,25 @@ static opbx_translator_t lintog726 =
 
 static void parse_config(void)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
+    struct cw_config *cfg;
+    struct cw_variable *var;
   
-    if ((cfg = opbx_config_load("codecs.conf")))
+    if ((cfg = cw_config_load("codecs.conf")))
     {
-        if ((var = opbx_variable_browse(cfg, "plc")))
+        if ((var = cw_variable_browse(cfg, "plc")))
         {
             while (var)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value)  ?  1  :  0;
+                    useplc = cw_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g726_32kbps: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                        cw_verbose(VERBOSE_PREFIX_3 "codec_g726_32kbps: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }
                 var = var->next;
             }
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
@@ -363,16 +363,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&g726tolin);
-    opbx_translator_unregister(&lintog726);
+    cw_translator_unregister(&g726tolin);
+    cw_translator_unregister(&lintog726);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&g726tolin);
-    opbx_translator_register(&lintog726);
+    cw_translator_register(&g726tolin);
+    cw_translator_register(&lintog726);
     return 0;
 }
 

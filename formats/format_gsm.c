@@ -60,12 +60,12 @@ static const uint8_t gsm_silence[] = /* 33 */
 struct pvt
 {
     FILE *f;                                /* Descriptor */
-    struct opbx_frame fr;                   /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + 66];                        /* Two GSM Frames */
+    struct cw_frame fr;                   /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + 66];                        /* Two GSM Frames */
 };
 
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Raw GSM data";
 
@@ -87,13 +87,13 @@ static void *gsm_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_GSM, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -107,7 +107,7 @@ static void *gsm_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -119,7 +119,7 @@ static void gsm_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *gsm_read(void *data, int *whennext)
+static struct cw_frame *gsm_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -129,7 +129,7 @@ static struct opbx_frame *gsm_read(void *data, int *whennext)
     if ((res = fread(pvt->fr.data, 1, 33, pvt->f)) != 33)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
 
@@ -137,20 +137,20 @@ static struct opbx_frame *gsm_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int gsm_write(void *data, struct opbx_frame *f)
+static int gsm_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
     int len;
     
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_GSM)
+    if (f->subclass != CW_FORMAT_GSM)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
         return -1;
     }
     if (!(f->datalen % 65))
@@ -162,7 +162,7 @@ static int gsm_write(void *data, struct opbx_frame *f)
             repack_gsm0610_wav49_to_voip(pvt->buf, f->data + len);
             if ((res = fwrite(pvt->buf, 1, 66, pvt->f)) != 66)
             {
-                opbx_log(OPBX_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
+                cw_log(CW_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
                 return -1;
             }
         }
@@ -171,12 +171,12 @@ static int gsm_write(void *data, struct opbx_frame *f)
     {
         if (f->datalen % 33)
         {
-            opbx_log(OPBX_LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
+            cw_log(CW_LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
             return -1;
         }
         if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
         {
-            opbx_log(OPBX_LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
             return -1;
         }
     }
@@ -240,11 +240,11 @@ static char *gsm_getcomment(void *data)
     return NULL;
 }
 
-static struct opbx_format format =
+static struct cw_format format =
 {
     .name = "gsm",
     .exts = "gsm",
-    .format = OPBX_FORMAT_GSM,
+    .format = CW_FORMAT_GSM,
     .open = gsm_open,
     .rewrite = gsm_rewrite,
     .write = gsm_write,
@@ -258,13 +258,13 @@ static struct opbx_format format =
 
 static int load_module(void)
 {
-    opbx_format_register(&format);
+    cw_format_register(&format);
     return 0;
 }
 
 static int unload_module(void)
 {
-    opbx_format_unregister(&format);
+    cw_format_unregister(&format);
     return 0;
 }
 

@@ -16,7 +16,7 @@
 #define assert(cond)							\
 	do {								\
 		if (!(cond)) {						\
-			opbx_log(OPBX_LOG_ERROR,				\
+			cw_log(CW_LOG_ERROR,				\
 				"assertion (" #cond ") failed\n");	\
 			abort();					\
 		}							\
@@ -35,7 +35,7 @@
 #ifdef DEBUG_CODE
 #define visdn_debug(format, arg...)			\
 	if (visdn.debug)				\
-		opbx_verbose(VERBOSE_PREFIX_3		\
+		cw_verbose(VERBOSE_PREFIX_3		\
 			format,				\
 			## arg)
 

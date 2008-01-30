@@ -146,7 +146,7 @@ void sccp_dev_build_buttontemplate(sccp_device_t *d, btnlist * btn) {
 sccp_moo_t * sccp_build_packet(sccp_message_t t, size_t pkt_len) {
 	sccp_moo_t * r = malloc(sizeof(sccp_moo_t));
 	if (!r) {
-		opbx_log(OPBX_LOG_WARNING, "SCCP: Packet memory allocation error\n");
+		cw_log(CW_LOG_WARNING, "SCCP: Packet memory allocation error\n");
 		return NULL;
 	}
 	memset(r, 0,  pkt_len + 12);
@@ -180,11 +180,11 @@ int sccp_session_send(sccp_session_t * s, sccp_moo_t * r) {
 
 	res = 1;
 	/* sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending Packet Type %s (%d bytes)\n", s->device->id, sccpmsg2str(letohl(r->lel_messageId)), r->length); */
-	opbx_mutex_lock(&s->lock);
+	cw_mutex_lock(&s->lock);
 	res = write(s->fd, r, (size_t)(r->length + 8));
-	opbx_mutex_unlock(&s->lock);
+	cw_mutex_unlock(&s->lock);
 	if (res != (ssize_t)(r->length+8)) {
-/*		opbx_log(OPBX_LOG_WARNING, "SCCP: Only managed to send %d bytes (out of %d): %s\n", res, r->length+8, strerror(errno)); */
+/*		cw_log(CW_LOG_WARNING, "SCCP: Only managed to send %d bytes (out of %d): %s\n", res, r->length+8, strerror(errno)); */
 		res = 0;
 	}
 
@@ -225,7 +225,7 @@ void sccp_dev_set_keyset(sccp_device_t * d, uint8_t line, uint32_t callid, uint8
 
 	r->msg.SelectSoftKeysMessage.les_validKeyMask = 0xFFFFFFFF; /* htolel(65535); */
 
-	if ((opt == KEYMODE_ONHOOK || opt == KEYMODE_OFFHOOK || opt == KEYMODE_OFFHOOKFEAT) && (opbx_strlen_zero(d->lastNumber)))
+	if ((opt == KEYMODE_ONHOOK || opt == KEYMODE_OFFHOOK || opt == KEYMODE_OFFHOOKFEAT) && (cw_strlen_zero(d->lastNumber)))
 		r->msg.SelectSoftKeysMessage.les_validKeyMask &= htolel(~(1<<0));
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Send softkeyset to %s(%d) on line %d  and call %d\n", d->id, skinny_softkeyset2str(opt), opt, line, callid);
@@ -370,14 +370,14 @@ void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, ch
 		return;
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
-	if (!msg || opbx_strlen_zero(msg))
+	if (!msg || cw_strlen_zero(msg))
 		return;
 
 	REQ(r, DisplayPromptStatusMessage);
 	r->msg.DisplayPromptStatusMessage.lel_messageTimeout = htolel(timeout);
 	r->msg.DisplayPromptStatusMessage.lel_callReference = htolel(callid);
 	r->msg.DisplayPromptStatusMessage.lel_lineInstance = htolel(line);
-	opbx_copy_string(r->msg.DisplayPromptStatusMessage.promptMessage, msg, sizeof(r->msg.DisplayPromptStatusMessage.promptMessage));
+	cw_copy_string(r->msg.DisplayPromptStatusMessage.promptMessage, msg, sizeof(r->msg.DisplayPromptStatusMessage.promptMessage));
 	sccp_dev_send(d, r);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Display prompt on line %d, callid %d, timeout %d\n", d->id, line, callid, timeout);
 }
@@ -400,11 +400,11 @@ void sccp_dev_display(sccp_device_t * d, char * msg) {
 
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
-	if (!msg || opbx_strlen_zero(msg))
+	if (!msg || cw_strlen_zero(msg))
 		return;
 
 	REQ(r, DisplayTextMessage);
-	opbx_copy_string(r->msg.DisplayTextMessage.displayMessage, msg, sizeof(r->msg.DisplayTextMessage.displayMessage));
+	cw_copy_string(r->msg.DisplayTextMessage.displayMessage, msg, sizeof(r->msg.DisplayTextMessage.displayMessage));
 
 	sccp_dev_send(d, r);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Display text\n", d->id);
@@ -427,12 +427,12 @@ void sccp_dev_displaynotify(sccp_device_t * d, char * msg, uint32_t timeout) {
 		return;
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
-	if (!msg || opbx_strlen_zero(msg))
+	if (!msg || cw_strlen_zero(msg))
 		return;
 
 	REQ(r, DisplayNotifyMessage);
 	r->msg.DisplayNotifyMessage.lel_displayTimeout = htolel(timeout);
-	opbx_copy_string(r->msg.DisplayNotifyMessage.displayMessage, msg, sizeof(r->msg.DisplayNotifyMessage.displayMessage));
+	cw_copy_string(r->msg.DisplayNotifyMessage.displayMessage, msg, sizeof(r->msg.DisplayNotifyMessage.displayMessage));
 	sccp_dev_send(d, r);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Display notify with timeout %d\n", d->id, timeout);
 }
@@ -455,12 +455,12 @@ void sccp_dev_displayprinotify(sccp_device_t * d, char * msg, uint32_t priority,
 
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
-	if (!msg || opbx_strlen_zero(msg))
+	if (!msg || cw_strlen_zero(msg))
 		return;
 
 	REQ(r, DisplayPriNotifyMessage);
 	r->msg.DisplayPriNotifyMessage.lel_displayTimeout = htolel(timeout);
-	opbx_copy_string(r->msg.DisplayPriNotifyMessage.displayMessage, msg, sizeof(r->msg.DisplayPriNotifyMessage.displayMessage));
+	cw_copy_string(r->msg.DisplayPriNotifyMessage.displayMessage, msg, sizeof(r->msg.DisplayPriNotifyMessage.displayMessage));
 	sccp_dev_send(d, r);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Display notify with timeout %d and priority %d\n", d->id, timeout, priority);
 }
@@ -509,9 +509,9 @@ void sccp_dev_set_activeline(sccp_line_t * l) {
 		return;
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Send the active line %s\n", d->id, l->name);
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->currentLine = l;
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	return;
 }
 
@@ -524,15 +524,15 @@ void sccp_dev_check_mwi(sccp_device_t * d) {
 	if (!d || !d->session)
 		return;
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	l = d->lines;
 	while (l) {
 		linehasmsgs = 0;
-		opbx_mutex_lock(&l->lock);
+		cw_mutex_lock(&l->lock);
 		if (l->channels && !d->mwioncall)
 			devicehaschannels = 1;
-		else if (!opbx_strlen_zero(l->mailbox)) {
-			if (opbx_app_has_voicemail(l->mailbox, NULL)) {
+		else if (!cw_strlen_zero(l->mailbox)) {
+			if (cw_app_has_voicemail(l->mailbox, NULL)) {
 				linehasmsgs = 1;
 			}
 			if (linehasmsgs != l->mwilight) {
@@ -543,7 +543,7 @@ void sccp_dev_check_mwi(sccp_device_t * d) {
 		}
 		if (linehasmsgs)
 			devicehasmsgs = 1;
-		opbx_mutex_unlock(&l->lock);
+		cw_mutex_unlock(&l->lock);
 		l = l->next_on_device;
 	}
 
@@ -551,7 +551,7 @@ void sccp_dev_check_mwi(sccp_device_t * d) {
 		if (devicehasmsgs != d->mwilight)
 			sccp_dev_set_mwi(d, NULL, devicehasmsgs);
 	}
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 }
 
 /*
@@ -560,7 +560,7 @@ uint8_t sccp_dev_check_idle(sccp_device_t * d) {
 	uint8_t res = 0;
 	if (!d || !d->session)
 		return 0;
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	if (d->state == SCCP_DEVICESTATE_OFFHOOK)
 		goto OUT;
 	if (d->active_channel)
@@ -576,7 +576,7 @@ uint8_t sccp_dev_check_idle(sccp_device_t * d) {
 		l = l->next_on_device;
 	}
 OUT:
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	return res;
 }
 */
@@ -590,7 +590,7 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	if (!d || !d->session)
 		return;
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 
 	sccp_dev_clearprompt(d, 0, 0);
 	sccp_dev_displayprompt(d, 0, 0, SKINNY_DISP_YOUR_CURRENT_OPTIONS, 0);
@@ -631,11 +631,11 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 		goto OUT;
 	}
 
-	if (!opbx_db_get("SCCP/message", "timeout", tmp, sizeof(tmp))) {
+	if (!cw_db_get("SCCP/message", "timeout", tmp, sizeof(tmp))) {
 		sscanf(tmp, "%i", &timeout);
 	}
-	if (!opbx_db_get("SCCP/message", "text", tmp, sizeof(tmp))) {
-		if (!opbx_strlen_zero(tmp)) {
+	if (!cw_db_get("SCCP/message", "text", tmp, sizeof(tmp))) {
+		if (!cw_strlen_zero(tmp)) {
 			/* sccp_dev_displayprompt(d, 0, 0, tmp, timeout); */
 			sccp_dev_displayprinotify(d, tmp, 5, timeout);
 			goto OUT;
@@ -649,7 +649,7 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	}
 	/* when we are here, there's nothing to display */
 OUT:
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 }
 
 void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
@@ -674,7 +674,7 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 
 		chan = sccp_channel_allocate(wanted);
 		if (!chan) {
-			opbx_log(OPBX_LOG_ERROR, "%s: Failed to allocate SCCP channel.\n", d->id);
+			cw_log(CW_LOG_ERROR, "%s: Failed to allocate SCCP channel.\n", d->id);
 			return;
 		}
 
@@ -689,7 +689,7 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 	} else {
 
 	// Otherwise, just select the callplane
-	opbx_log(OPBX_LOG_WARNING, "%s: Unknown status while trying to select line %s.  Current line is %s\n", d->id, wanted->name, current->name);
+	cw_log(CW_LOG_WARNING, "%s: Unknown status while trying to select line %s.  Current line is %s\n", d->id, wanted->name, current->name);
 	}
 }
 
@@ -722,11 +722,11 @@ void sccp_dev_forward_status(sccp_line_t * l) {
 	switch (l->cfwd_type) {
 		case SCCP_CFWD_ALL:
 			r1->msg.ForwardStatMessage.lel_cfwdallstatus = htolel(1);
-			opbx_copy_string(r1->msg.ForwardStatMessage.cfwdallnumber,l->cfwd_num, sizeof(r1->msg.ForwardStatMessage.cfwdallnumber));
+			cw_copy_string(r1->msg.ForwardStatMessage.cfwdallnumber,l->cfwd_num, sizeof(r1->msg.ForwardStatMessage.cfwdallnumber));
 			break;
 		case SCCP_CFWD_BUSY:
 			r1->msg.ForwardStatMessage.lel_cfwdbusystatus = htolel(1);
-			opbx_copy_string(r1->msg.ForwardStatMessage.cfwdbusynumber, l->cfwd_num, sizeof(r1->msg.ForwardStatMessage.cfwdbusynumber));
+			cw_copy_string(r1->msg.ForwardStatMessage.cfwdbusynumber, l->cfwd_num, sizeof(r1->msg.ForwardStatMessage.cfwdbusynumber));
 	}
 	sccp_dev_send(d, r1);
 	if (l->cfwd_type == SCCP_CFWD_ALL)
@@ -738,13 +738,13 @@ void sccp_dev_forward_status(sccp_line_t * l) {
 int sccp_device_check_ringback(sccp_device_t * d) {
 	sccp_channel_t * c;
 
-	opbx_mutex_lock(&d->lock);
+	cw_mutex_lock(&d->lock);
 	d->needcheckringback = 0;
 	if (d->state == SCCP_DEVICESTATE_OFFHOOK) {
-		opbx_mutex_unlock(&d->lock);
+		cw_mutex_unlock(&d->lock);
 		return 0;
 	}
-	opbx_mutex_unlock(&d->lock);
+	cw_mutex_unlock(&d->lock);
 	c = sccp_channel_find_bystate_on_device(d, SCCP_CHANNELSTATE_CALLTRANSFER);
 	if (!c)
 		c = sccp_channel_find_bystate_on_device(d, SCCP_CHANNELSTATE_RINGIN);
@@ -764,7 +764,7 @@ void * sccp_dev_postregistration(void *data) {
 	sccp_hint_t * h = NULL;
 	sccp_line_t * l = NULL;
 	sccp_channel_t * c = NULL;
-	int state = OPBX_EXTENSION_NOT_INUSE;
+	int state = CW_EXTENSION_NOT_INUSE;
 
 	if (!d || !d->session)
 		return NULL;
@@ -780,16 +780,16 @@ void * sccp_dev_postregistration(void *data) {
 	h = d->hints;
 	while (h) {
 		/* force the hint state for non SCCP (or mixed) devices */
-		state = opbx_extension_state(NULL, h->context, h->exten);
+		state = cw_extension_state(NULL, h->context, h->exten);
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: %s@%s is on state %d\n", d->id, h->exten, h->context, state);
-		if (state != OPBX_EXTENSION_NOT_INUSE)
+		if (state != CW_EXTENSION_NOT_INUSE)
 			sccp_hint_state(NULL, NULL, state, h);
 		h = h->next;
 	}
 
 	/* poll the state of the SCCP monitored lines */
 
-	opbx_mutex_lock(&GLOB(lines_lock));
+	cw_mutex_lock(&GLOB(lines_lock));
 	l = GLOB(lines);
 	while(l) {
 		/* turn off the device MWI light */
@@ -818,7 +818,7 @@ void * sccp_dev_postregistration(void *data) {
 		}
 		l = l->next;
 	}
-	opbx_mutex_unlock(&GLOB(lines_lock));
+	cw_mutex_unlock(&GLOB(lines_lock));
 	sccp_dev_check_mwi(d);
 	sccp_dev_check_displayprompt(d);
 
@@ -843,7 +843,7 @@ void sccp_dev_clean(sccp_device_t * d) {
 	while (d->hints) {
 		h = d->hints;
 		if (h->hintid > -1)
-			opbx_extension_state_del(h->hintid, NULL);
+			cw_extension_state_del(h->hintid, NULL);
 		d->hints = d->hints->next;
 		free(h);
 	}
@@ -853,5 +853,5 @@ void sccp_dev_clean(sccp_device_t * d) {
 		free(permithost);
 	}
 	if (d->ha)
-		opbx_free_ha(d->ha);
+		cw_free_ha(d->ha);
 }

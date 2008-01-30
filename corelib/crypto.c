@@ -74,16 +74,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * XXXX
  */
 
-OPBX_MUTEX_DEFINE_STATIC(keylock);
+CW_MUTEX_DEFINE_STATIC(keylock);
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
-struct opbx_key {
+struct cw_key {
 	/* Name of entity */
 	char name[80];
 	/* File name */
 	char fn[256];
-	/* Key type (OPBX_KEY_PUB or OPBX_KEY_PRIV, along with flags from above) */
+	/* Key type (CW_KEY_PUB or CW_KEY_PRIV, along with flags from above) */
 	int ktype;
 	/* RSA structure (if successfully loaded) */
 	RSA *rsa;
@@ -94,13 +94,13 @@ struct opbx_key {
 	/* FD for output */
 	int outfd;
 	/* Last MD5 Digest */
-	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned char md_value[CW_MAX_BINARY_MD_SIZE];
 	unsigned int md_len;
 	/* Next key */
-	struct opbx_key *next;
+	struct cw_key *next;
 };
 
-static struct opbx_key *keys = NULL;
+static struct cw_key *keys = NULL;
 
 #if 0
 static int fdprint(int fd, char *s)
@@ -110,19 +110,19 @@ static int fdprint(int fd, char *s)
 #endif
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
-	struct opbx_key *key = (struct opbx_key *)userdata;
+	struct cw_key *key = (struct cw_key *)userdata;
 	char prompt[256];
 	int res;
 	int tmp;
 	if (key->infd > -1) {
 		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
-			 key->ktype == OPBX_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
+			 key->ktype == CW_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
 		write(key->outfd, prompt, strlen(prompt));
 		memset(buf, 0, sizeof(buf));
-		tmp = opbx_hide_password(key->infd);
+		tmp = cw_hide_password(key->infd);
 		memset(buf, 0, size);
 		res = read(key->infd, buf, size);
-		opbx_restore_tty(key->infd, tmp);
+		cw_restore_tty(key->infd, tmp);
 		if (buf[strlen(buf) -1] == '\n')
 			buf[strlen(buf) - 1] = '\0';
 		return strlen(buf);
@@ -133,10 +133,10 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 	return -1;
 }
 
-struct opbx_key *opbx_key_get(const char *kname, int ktype)
+struct cw_key *cw_key_get(const char *kname, int ktype)
 {
-	struct opbx_key *key;
-	opbx_mutex_lock(&keylock);
+	struct cw_key *key;
+	cw_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		if (!strcmp(kname, key->name) &&
@@ -144,36 +144,36 @@ struct opbx_key *opbx_key_get(const char *kname, int ktype)
 			break;
 		key = key->next;
 	}
-	opbx_mutex_unlock(&keylock);
+	cw_mutex_unlock(&keylock);
 	return key;
 }
 
-static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
+static struct cw_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0;
 	char *c = NULL;
 	char ffname[256];
 	FILE *f;
 	EVP_MD_CTX mdctx;
-	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned char md_value[CW_MAX_BINARY_MD_SIZE];
 	unsigned int md_len;
-	struct opbx_key *key;
+	struct cw_key *key;
 	static int notice = 0;
 	int found = 0;
 
 	/* Make sure its name is a public or private key */
 
 	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
-		ktype = OPBX_KEY_PUBLIC;
+		ktype = CW_KEY_PUBLIC;
 	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
-		ktype = OPBX_KEY_PRIVATE;
+		ktype = CW_KEY_PRIVATE;
 	} else
 		return NULL;
 
 	/* Get actual filename */
 	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
 
-	opbx_mutex_lock(&keylock);
+	cw_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		/* Look for an existing version already */
@@ -181,12 +181,12 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 			break;
 		key = key->next;
 	}
-	opbx_mutex_unlock(&keylock);
+	cw_mutex_unlock(&keylock);
 
 	/* Open file */
 	f = fopen(ffname, "r");
 	if (!f) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
 		return NULL;
 	}
 	EVP_DigestInit(&mdctx, EVP_md5());
@@ -219,23 +219,23 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 	/* Make fname just be the normal name now */
 	*c = '\0';
 	if (!key) {
-		key = (struct opbx_key *)malloc(sizeof(struct opbx_key));
+		key = (struct cw_key *)malloc(sizeof(struct cw_key));
 		if (!key) {
-			opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			fclose(f);
 			return NULL;
 		}
-		memset(key, 0, sizeof(struct opbx_key));
+		memset(key, 0, sizeof(struct cw_key));
 	}
 	/* At this point we have a key structure (old or new).  Time to
 	   fill it with what we know */
 	/* Gotta lock if this one already exists */
 	if (found)
-		opbx_mutex_lock(&keylock);
+		cw_mutex_lock(&keylock);
 	/* First the filename */
-	opbx_copy_string(key->fn, ffname, sizeof(key->fn));
+	cw_copy_string(key->fn, ffname, sizeof(key->fn));
 	/* Then the name */
-	opbx_copy_string(key->name, fname, sizeof(key->name));
+	cw_copy_string(key->name, fname, sizeof(key->name));
 	key->ktype = ktype;
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
@@ -248,7 +248,7 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 	/* Reset the file back to the beginning */
 	rewind(f);
 	/* Now load the key with the right method */
-	if (ktype == OPBX_KEY_PUBLIC)
+	if (ktype == CW_KEY_PUBLIC)
 		key->rsa = PEM_read_RSA_PUBKEY(f, NULL, pw_cb, key);
 	else
 		key->rsa = PEM_read_RSAPrivateKey(f, NULL, pw_cb, key);
@@ -258,24 +258,24 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 			/* Key loaded okay */
 			key->ktype &= ~KEY_NEEDS_PASSCODE;
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+				cw_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == CW_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 			if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
+				cw_log(CW_LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
 			key->delme = 0;
 		} else
-			opbx_log(OPBX_LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
+			cw_log(CW_LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
 	} else if (key->infd != -2) {
-		opbx_log(OPBX_LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+		cw_log(CW_LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == CW_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 		if (ofd > -1) {
 			ERR_print_errors_fp(stderr);
 		} else
 			ERR_print_errors_fp(stderr);
 	} else {
-		opbx_log(OPBX_LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
+		cw_log(CW_LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
 		key->ktype |= KEY_NEEDS_PASSCODE;
 		if (!notice) {
 			if (!option_initcrypto) 
-				opbx_log(OPBX_LOG_NOTICE, "Add the '-i' flag to the callweaver command line if you want to automatically initialize passcodes at launch.\n");
+				cw_log(CW_LOG_NOTICE, "Add the '-i' flag to the callweaver command line if you want to automatically initialize passcodes at launch.\n");
 			notice++;
 		}
 		/* Keep it anyway */
@@ -284,12 +284,12 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 		*not2 = 1;
 	}
 	if (found)
-		opbx_mutex_unlock(&keylock);
+		cw_mutex_unlock(&keylock);
 	if (!found) {
-		opbx_mutex_lock(&keylock);
+		cw_mutex_lock(&keylock);
 		key->next = keys;
 		keys = key;
-		opbx_mutex_unlock(&keylock);
+		cw_mutex_unlock(&keylock);
 	}
 	return key;
 }
@@ -320,14 +320,14 @@ static char *binary(int y, int len)
 
 #endif
 
-int opbx_sign_bin(struct opbx_key *key, const char *msg, int msglen, unsigned char *dsig)
+int cw_sign_bin(struct cw_key *key, const char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	unsigned int siglen = 128;
 	int res;
 
-	if (key->ktype != OPBX_KEY_PRIVATE) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot sign with a public key\n");
+	if (key->ktype != CW_KEY_PRIVATE) {
+		cw_log(CW_LOG_WARNING, "Cannot sign with a public key\n");
 		return -1;
 	}
 
@@ -338,12 +338,12 @@ int opbx_sign_bin(struct opbx_key *key, const char *msg, int msglen, unsigned ch
 	res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa);
 	
 	if (!res) {
-		opbx_log(OPBX_LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
+		cw_log(CW_LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
 		return -1;
 	}
 
 	if (siglen != 128) {
-		opbx_log(OPBX_LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
+		cw_log(CW_LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
 		return -1;
 	}
 
@@ -351,17 +351,17 @@ int opbx_sign_bin(struct opbx_key *key, const char *msg, int msglen, unsigned ch
 	
 }
 
-int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
+int cw_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key)
 {
 	int res;
 	int pos = 0;
-	if (key->ktype != OPBX_KEY_PRIVATE) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot decrypt with a public key\n");
+	if (key->ktype != CW_KEY_PRIVATE) {
+		cw_log(CW_LOG_WARNING, "Cannot decrypt with a public key\n");
 		return -1;
 	}
 
 	if (srclen % 128) {
-		opbx_log(OPBX_LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
+		cw_log(CW_LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
 		return -1;
 	}
 	while(srclen) {
@@ -377,13 +377,13 @@ int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, s
 	return pos;
 }
 
-int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
+int cw_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key)
 {
 	int res;
 	int bytes;
 	int pos = 0;
-	if (key->ktype != OPBX_KEY_PUBLIC) {
-		opbx_log(OPBX_LOG_WARNING, "Cannot encrypt with a private key\n");
+	if (key->ktype != CW_KEY_PUBLIC) {
+		cw_log(CW_LOG_WARNING, "Cannot encrypt with a private key\n");
 		return -1;
 	}
 	
@@ -394,7 +394,7 @@ int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, s
 		/* Process chunks 128-41 bytes at a time */
 		res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
 		if (res != 128) {
-			opbx_log(OPBX_LOG_NOTICE, "How odd, encrypted size is %d\n", res);
+			cw_log(CW_LOG_NOTICE, "How odd, encrypted size is %d\n", res);
 			return -1;
 		}
 		src += bytes;
@@ -405,28 +405,28 @@ int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, s
 	return pos;
 }
 
-int opbx_sign(struct opbx_key *key, char *msg, char *sig)
+int cw_sign(struct cw_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
 	int siglen = sizeof(dsig);
 	int res;
-	res = opbx_sign_bin(key, msg, strlen(msg), dsig);
+	res = cw_sign_bin(key, msg, strlen(msg), dsig);
 	if (!res)
 		/* Success -- encode (256 bytes max as documented) */
-		opbx_base64encode(sig, dsig, siglen, 256);
+		cw_base64encode(sig, dsig, siglen, 256);
 	return res;
 	
 }
 
-int opbx_check_signature_bin(struct opbx_key *key, const char *msg, int msglen, const unsigned char *dsig)
+int cw_check_signature_bin(struct cw_key *key, const char *msg, int msglen, const unsigned char *dsig)
 {
 	unsigned char digest[20];
 	int res;
 
-	if (key->ktype != OPBX_KEY_PUBLIC) {
+	if (key->ktype != CW_KEY_PUBLIC) {
 		/* Okay, so of course you really *can* but for our purposes
 		   we're going to say you can't */
-		opbx_log(OPBX_LOG_WARNING, "Cannot check message signature with a private key\n");
+		cw_log(CW_LOG_WARNING, "Cannot check message signature with a private key\n");
 		return -1;
 	}
 
@@ -437,61 +437,61 @@ int opbx_check_signature_bin(struct opbx_key *key, const char *msg, int msglen, 
 	res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *) dsig, 128, key->rsa);
 	
 	if (!res) {
-		opbx_log(OPBX_LOG_DEBUG, "Key failed verification: %s\n", key->name);
+		cw_log(CW_LOG_DEBUG, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
 	/* Pass */
 	return 0;
 }
 
-int opbx_check_signature(struct opbx_key *key, const char *msg, const char *sig)
+int cw_check_signature(struct cw_key *key, const char *msg, const char *sig)
 {
 	unsigned char dsig[128];
 	int res;
 
 	/* Decode signature */
-	res = opbx_base64decode(dsig, sig, sizeof(dsig));
+	res = cw_base64decode(dsig, sig, sizeof(dsig));
 	if (res != sizeof(dsig)) {
-		opbx_log(OPBX_LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
+		cw_log(CW_LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
-	res = opbx_check_signature_bin(key, msg, strlen(msg), dsig);
+	res = cw_check_signature_bin(key, msg, strlen(msg), dsig);
 	return res;
 }
 
 static void crypto_load(int ifd, int ofd)
 {
-	struct opbx_key *key, *nkey, *last;
+	struct cw_key *key, *nkey, *last;
 	DIR *dir = NULL;
 	struct dirent *ent;
 	int note = 0;
 	/* Mark all keys for deletion */
-	opbx_mutex_lock(&keylock);
+	cw_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		key->delme = 1;
 		key = key->next;
 	}
-	opbx_mutex_unlock(&keylock);
+	cw_mutex_unlock(&keylock);
 	/* Load new keys */
-	dir = opendir((char *)opbx_config_OPBX_KEY_DIR);
+	dir = opendir((char *)cw_config_CW_KEY_DIR);
 	if (dir) {
 		while((ent = readdir(dir))) {
-			try_load_key((char *)opbx_config_OPBX_KEY_DIR, ent->d_name, ifd, ofd, &note);
+			try_load_key((char *)cw_config_CW_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
-		opbx_log(OPBX_LOG_WARNING, "Unable to open key directory '%s'\n", (char *)opbx_config_OPBX_KEY_DIR);
+		cw_log(CW_LOG_WARNING, "Unable to open key directory '%s'\n", (char *)cw_config_CW_KEY_DIR);
 	if (note) {
-		opbx_log(OPBX_LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
+		cw_log(CW_LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
 	}
-	opbx_mutex_lock(&keylock);
+	cw_mutex_lock(&keylock);
 	key = keys;
 	last = NULL;
 	while(key) {
 		nkey = key->next;
 		if (key->delme) {
-			opbx_log(OPBX_LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
+			cw_log(CW_LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
 			/* Do the delete */
 			if (last)
 				last->next = nkey;
@@ -504,35 +504,35 @@ static void crypto_load(int ifd, int ofd)
 			last = key;
 		key = nkey;
 	}
-	opbx_mutex_unlock(&keylock);
+	cw_mutex_unlock(&keylock);
 }
 
 static int show_keys(int fd, int argc, char *argv[])
 {
-	struct opbx_key *key;
+	struct cw_key *key;
 	char sum[16 * 2 + 1];
 	int count_keys = 0;
 
-	opbx_mutex_lock(&keylock);
+	cw_mutex_lock(&keylock);
 	key = keys;
-	opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
+	cw_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
 	while(key) {
-		opbx_hash_to_hex(sum, key->md_value, key->md_len);
-		opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
-			(key->ktype & 0xf) == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
+		cw_hash_to_hex(sum, key->md_value, key->md_len);
+		cw_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
+			(key->ktype & 0xf) == CW_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
 				
 		key = key->next;
 		count_keys++;
 	}
-	opbx_mutex_unlock(&keylock);
-	opbx_cli(fd, "%d known RSA keys.\n", count_keys);
+	cw_mutex_unlock(&keylock);
+	cw_cli(fd, "%d known RSA keys.\n", count_keys);
 	return RESULT_SUCCESS;
 }
 
 static int init_keys(int fd, int argc, char *argv[])
 {
-	struct opbx_key *key;
+	struct cw_key *key;
 	int ign;
 	char *kn;
 	char tmp[256] = "";
@@ -541,9 +541,9 @@ static int init_keys(int fd, int argc, char *argv[])
 	while(key) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
-			kn = key->fn + strlen(opbx_config_OPBX_KEY_DIR) + 1;
-			opbx_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *)opbx_config_OPBX_KEY_DIR, tmp, fd, fd, &ign);
+			kn = key->fn + strlen(cw_config_CW_KEY_DIR) + 1;
+			cw_copy_string(tmp, kn, sizeof(tmp));
+			try_load_key((char *)cw_config_CW_KEY_DIR, tmp, fd, fd, &ign);
 		}
 		key = key->next;
 	}
@@ -558,26 +558,26 @@ static char init_keys_usage[] =
 "Usage: init keys\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 
-static struct opbx_clicmd cli_show_keys = {
+static struct cw_clicmd cli_show_keys = {
 	.cmda = { "show", "keys", NULL },
 	.handler = show_keys,
 	.summary = "Displays RSA key information",
 	.usage = show_key_usage,
 };
 
-static struct opbx_clicmd cli_init_keys = {
+static struct cw_clicmd cli_init_keys = {
 	.cmda = { "init", "keys", NULL },
 	.handler = init_keys,
 	.summary = "Initialize RSA key passcodes",
 	.usage = init_keys_usage,
 };
 
-int opbx_crypto_init(void)
+int cw_crypto_init(void)
 {
 	SSL_library_init();
 	ERR_load_crypto_strings();
-	opbx_cli_register(&cli_show_keys);
-	opbx_cli_register(&cli_init_keys);
+	cw_cli_register(&cli_show_keys);
+	cw_cli_register(&cli_init_keys);
 
 	if (option_initcrypto)
 		crypto_load(STDIN_FILENO, STDOUT_FILENO);
@@ -587,7 +587,7 @@ int opbx_crypto_init(void)
 	return 0;
 }
 
-int opbx_crypto_reload(void)
+int cw_crypto_reload(void)
 {
 	crypto_load(-1, -1);
 	return 0;

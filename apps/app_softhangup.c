@@ -54,18 +54,18 @@ static const char softhangup_descrip[] =
 "     'a' : hang up all channels on a specified device instead of a single resource\n";
 
 
-static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	struct opbx_channel *c=NULL;
+	struct cw_channel *c=NULL;
 	char *cut;
-	char name[OPBX_CHANNEL_NAME] = "";
+	char name[CW_CHANNEL_NAME] = "";
 	int all = 0;
 	
 	if (argc == 0) {
 		if (chan){
-			opbx_log(OPBX_LOG_WARNING, "Soft hanging %s up.\n",chan->name);
-			opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+			cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n",chan->name);
+			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 			/* To allow other possible threads finish their work */
 			/*usleep(50000);*/
 		}
@@ -76,7 +76,7 @@ static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 
 	all = (argc > 1 && strchr(argv[1], 'a'));
 
-	c = opbx_channel_walk_locked(NULL);
+	c = cw_channel_walk_locked(NULL);
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
 		if (all) {
@@ -90,14 +90,14 @@ static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 			if (cut)
 				*cut = 0;
 		}
-		opbx_mutex_unlock(&c->lock);
+		cw_mutex_unlock(&c->lock);
 		if (!strcasecmp(name, argv[0])) {
-			opbx_log(OPBX_LOG_WARNING, "Soft hanging %s up.\n",c->name);
-			opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
+			cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n",c->name);
+			cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
 			if(!all)
 				break;
 		}
-		c = opbx_channel_walk_locked(c);
+		c = cw_channel_walk_locked(c);
 	}
 	
 	LOCAL_USER_REMOVE(u);
@@ -109,13 +109,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(softhangup_app);
+	res |= cw_unregister_function(softhangup_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	softhangup_app = opbx_register_function(softhangup_name, softhangup_exec, softhangup_synopsis, softhangup_syntax, softhangup_descrip);
+	softhangup_app = cw_register_function(softhangup_name, softhangup_exec, softhangup_synopsis, softhangup_syntax, softhangup_descrip);
 	return 0;
 }
 

@@ -43,47 +43,47 @@
 extern "C" {
 #endif
 
-/* Codes for RTP-specific data - not defined by our OPBX_FORMAT codes */
+/* Codes for RTP-specific data - not defined by our CW_FORMAT codes */
 /*! DTMF (RFC2833) */
-#define OPBX_RTP_DTMF            (1 << 0)
+#define CW_RTP_DTMF            (1 << 0)
 /*! 'Comfort Noise' (RFC3389) */
-#define OPBX_RTP_CN              (1 << 1)
+#define CW_RTP_CN              (1 << 1)
 /*! DTMF (Cisco Proprietary) */
-#define OPBX_RTP_CISCO_DTMF      (1 << 2)
+#define CW_RTP_CISCO_DTMF      (1 << 2)
 /*! Maximum RTP-specific code */
-#define OPBX_RTP_MAX             OPBX_RTP_CISCO_DTMF
+#define CW_RTP_MAX             CW_RTP_CISCO_DTMF
 
 #define MAX_RTP_PT 256
 
-struct opbx_rtp_protocol
+struct cw_rtp_protocol
 {
 	/* Get RTP struct, or NULL if unwilling to transfer */
-	struct opbx_rtp *(* const get_rtp_info)(struct opbx_channel *chan);
+	struct cw_rtp *(* const get_rtp_info)(struct cw_channel *chan);
 	/* Get RTP struct, or NULL if unwilling to transfer */
-	struct opbx_rtp *(* const get_vrtp_info)(struct opbx_channel *chan);
+	struct cw_rtp *(* const get_vrtp_info)(struct cw_channel *chan);
 	/* Set RTP peer */
-	int (* const set_rtp_peer)(struct opbx_channel *chan, struct opbx_rtp *peer, struct opbx_rtp *vpeer, int codecs, int nat_active);
-	int (* const get_codec)(struct opbx_channel *chan);
+	int (* const set_rtp_peer)(struct cw_channel *chan, struct cw_rtp *peer, struct cw_rtp *vpeer, int codecs, int nat_active);
+	int (* const get_codec)(struct cw_channel *chan);
 	const char * const type;
-	struct opbx_rtp_protocol *next;
+	struct cw_rtp_protocol *next;
 };
 
-typedef int (*opbx_rtp_callback)(struct opbx_rtp *rtp, struct opbx_frame *f, void *data);
+typedef int (*cw_rtp_callback)(struct cw_rtp *rtp, struct cw_frame *f, void *data);
 
 /* The value of each payload format mapping: */
 struct rtpPayloadType
 {
-	int is_opbx_format; 	/* whether the following code is an OPBX_FORMAT */
+	int is_cw_format; 	/* whether the following code is an CW_FORMAT */
 	int code;
 };
 
-struct opbx_rtp
+struct cw_rtp
 {
     udp_state_t *rtp_sock_info;
     udp_state_t *rtcp_sock_info;
 	char resp;
-	struct opbx_frame f;
-	uint8_t rawdata[8192 + OPBX_FRIENDLY_OFFSET];
+	struct cw_frame f;
+	uint8_t rawdata[8192 + CW_FRIENDLY_OFFSET];
 	uint32_t ssrc;
 	uint32_t lastts;
 	uint32_t lastrxts;
@@ -106,16 +106,16 @@ struct opbx_rtp
 	struct timeval rxcore;
 	struct timeval txcore;
 	struct timeval dtmfmute;
-	struct opbx_smoother *smoother;
+	struct cw_smoother *smoother;
 	int *ioid;
 	uint16_t seqno;
 	uint16_t rxseqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
-	opbx_rtp_callback callback;
+	cw_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	int rtp_lookup_code_cache_is_opbx_format;	/* a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_is_cw_format;	/* a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
@@ -126,127 +126,127 @@ struct opbx_rtp
 };
 
 
-struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
+struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
-void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them);
+void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
 
-void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them);
+void cw_rtp_get_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
 
-void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us);
+void cw_rtp_get_us(struct cw_rtp *rtp, struct sockaddr_in *us);
 
-int opbx_rtp_get_stunstate(struct opbx_rtp *rtp);
+int cw_rtp_get_stunstate(struct cw_rtp *rtp);
 
-void opbx_rtp_destroy(struct opbx_rtp *rtp);
+void cw_rtp_destroy(struct cw_rtp *rtp);
 
-void opbx_rtp_reset(struct opbx_rtp *rtp);
+void cw_rtp_reset(struct cw_rtp *rtp);
 
-void opbx_rtp_set_callback(struct opbx_rtp *rtp, opbx_rtp_callback callback);
+void cw_rtp_set_callback(struct cw_rtp *rtp, cw_rtp_callback callback);
 
-void opbx_rtp_set_data(struct opbx_rtp *rtp, void *data);
+void cw_rtp_set_data(struct cw_rtp *rtp, void *data);
 
-int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *f);
+int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *f);
 
-struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp);
+struct cw_frame *cw_rtp_read(struct cw_rtp *rtp);
 
-struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp);
+struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp);
 
-int opbx_rtp_fd(struct opbx_rtp *rtp);
+int cw_rtp_fd(struct cw_rtp *rtp);
 
-int opbx_rtcp_fd(struct opbx_rtp *rtp);
+int cw_rtcp_fd(struct cw_rtp *rtp);
 
-udp_state_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
+udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
                                  udp_state_t *sock_info);
 
-udp_state_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
+udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
                                   udp_state_t *sock_info);
 
-int opbx_rtp_senddigit(struct opbx_rtp *const rtp, char digit);
+int cw_rtp_senddigit(struct cw_rtp *const rtp, char digit);
 
-int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level);
+int cw_rtp_sendcng(struct cw_rtp *rtp, int level);
 
-int opbx_rtp_set_active(struct opbx_rtp *rtp, int active);
+int cw_rtp_set_active(struct cw_rtp *rtp, int active);
 
-int opbx_rtp_settos(struct opbx_rtp *rtp, int tos);
+int cw_rtp_settos(struct cw_rtp *rtp, int tos);
 
 /*  Setting RTP payload types from lines in a SDP description: */
-void opbx_rtp_pt_clear(struct opbx_rtp* rtp);
+void cw_rtp_pt_clear(struct cw_rtp* rtp);
 /* Set payload types to defaults */
-void opbx_rtp_pt_default(struct opbx_rtp* rtp);
-void opbx_rtp_set_m_type(struct opbx_rtp* rtp, int pt);
-void opbx_rtp_set_rtpmap_type(struct opbx_rtp* rtp, int pt,
+void cw_rtp_pt_default(struct cw_rtp* rtp);
+void cw_rtp_set_m_type(struct cw_rtp* rtp, int pt);
+void cw_rtp_set_rtpmap_type(struct cw_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype);
 
 /*  Mapping between RTP payload format codes and CallWeaver codes: */
-struct rtpPayloadType opbx_rtp_lookup_pt(struct opbx_rtp* rtp, int pt);
-int opbx_rtp_lookup_code(struct opbx_rtp* rtp, int is_opbx_format, int code);
-void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local);
+struct rtpPayloadType cw_rtp_lookup_pt(struct cw_rtp* rtp, int pt);
+int cw_rtp_lookup_code(struct cw_rtp* rtp, int is_cw_format, int code);
+void cw_rtp_offered_from_local(struct cw_rtp* rtp, int local);
 
-void opbx_rtp_get_current_formats(struct opbx_rtp* rtp,
-			     int* opbx_formats, int* non_opbx_formats);
+void cw_rtp_get_current_formats(struct cw_rtp* rtp,
+			     int* cw_formats, int* non_cw_formats);
 
 /*  Mapping an CallWeaver code into a MIME subtype (string): */
-char* opbx_rtp_lookup_mime_subtype(int is_opbx_format, int code);
+char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */
-char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_opbx_format);
+char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format);
 
-void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat);
+void cw_rtp_setnat(struct cw_rtp *rtp, int nat);
 
-int opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
+int cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 
-int opbx_rtp_proto_register(struct opbx_rtp_protocol *proto);
+int cw_rtp_proto_register(struct cw_rtp_protocol *proto);
 
-void opbx_rtp_proto_unregister(struct opbx_rtp_protocol *proto);
+void cw_rtp_proto_unregister(struct cw_rtp_protocol *proto);
 
-void opbx_rtp_stop(struct opbx_rtp *rtp);
+void cw_rtp_stop(struct cw_rtp *rtp);
 
-int opbx_rtp_init(void);
+int cw_rtp_init(void);
 
-void opbx_rtp_reload(void);
+void cw_rtp_reload(void);
 
-int opbx_rtp_set_framems(struct opbx_rtp *rtp, int ms);
+int cw_rtp_set_framems(struct cw_rtp *rtp, int ms);
 
 #ifdef ENABLE_SRTP
 
 /* Crypto suites */
-#define OPBX_AES_CM_128_HMAC_SHA1_80 1
-#define OPBX_AES_CM_128_HMAC_SHA1_32 2
-#define OPBX_F8_128_HMAC_SHA1_80     3
+#define CW_AES_CM_128_HMAC_SHA1_80 1
+#define CW_AES_CM_128_HMAC_SHA1_32 2
+#define CW_F8_128_HMAC_SHA1_80     3
 
 #define MIKEY_SRTP_EALG_NULL     0
 #define MIKEY_SRTP_EALG_AESCM    1
 #define MIKEY_SRTP_AALG_NULL     0
 #define MIKEY_SRTP_AALG_SHA1HMAC 1
 
-typedef struct opbx_policy opbx_policy_t;
-typedef int (*rtp_generate_key_cb)(struct opbx_rtp *rtp,
+typedef struct cw_policy cw_policy_t;
+typedef int (*rtp_generate_key_cb)(struct cw_rtp *rtp,
                                    uint32_t ssrc,
                                    void *data);
 
-unsigned int opbx_rtp_get_ssrc(struct opbx_rtp *rtp);
-void opbx_rtp_set_generate_key_cb(struct opbx_rtp *rtp,
+unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp);
+void cw_rtp_set_generate_key_cb(struct cw_rtp *rtp,
 				  rtp_generate_key_cb cb);
-int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy);
-opbx_policy_t *opbx_policy_alloc(void);
-int opbx_policy_set_suite(opbx_policy_t *policy, int suite);
-int opbx_policy_set_master_key(opbx_policy_t *policy,
+int cw_rtp_add_policy(struct cw_rtp *rtp, cw_policy_t *policy);
+cw_policy_t *cw_policy_alloc(void);
+int cw_policy_set_suite(cw_policy_t *policy, int suite);
+int cw_policy_set_master_key(cw_policy_t *policy,
 			      const unsigned char *key, size_t key_len,
 			      const unsigned char *salt, size_t salt_len);
-int opbx_policy_set_encr_alg(opbx_policy_t *policy, int ealg);
-int opbx_policy_set_auth_alg(opbx_policy_t *policy, int aalg);
-void opbx_policy_set_encr_keylen(opbx_policy_t *policy, int ekeyl);
-void opbx_policy_set_auth_keylen(opbx_policy_t *policy, int akeyl);
-void opbx_policy_set_srtp_auth_taglen(opbx_policy_t *policy, int autht);
-void opbx_policy_set_srtp_encr_enable(opbx_policy_t *policy, int enable);
-void opbx_policy_set_srtcp_encr_enable(opbx_policy_t *policy, int enable);
-void opbx_policy_set_srtp_auth_enable(opbx_policy_t *policy, int enable);
-void opbx_policy_set_ssrc(opbx_policy_t *policy,
-                          struct opbx_rtp *rtp, 
+int cw_policy_set_encr_alg(cw_policy_t *policy, int ealg);
+int cw_policy_set_auth_alg(cw_policy_t *policy, int aalg);
+void cw_policy_set_encr_keylen(cw_policy_t *policy, int ekeyl);
+void cw_policy_set_auth_keylen(cw_policy_t *policy, int akeyl);
+void cw_policy_set_srtp_auth_taglen(cw_policy_t *policy, int autht);
+void cw_policy_set_srtp_encr_enable(cw_policy_t *policy, int enable);
+void cw_policy_set_srtcp_encr_enable(cw_policy_t *policy, int enable);
+void cw_policy_set_srtp_auth_enable(cw_policy_t *policy, int enable);
+void cw_policy_set_ssrc(cw_policy_t *policy,
+                          struct cw_rtp *rtp, 
 			              uint32_t ssrc,
                           int inbound);
     
-void opbx_policy_destroy(opbx_policy_t *policy);
-int opbx_get_random(unsigned char *key, size_t len);
+void cw_policy_destroy(cw_policy_t *policy);
+int cw_get_random(unsigned char *key, size_t len);
 
 #endif	/* ENABLE_SRTP */
 

@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief ENUM Functions
- * \arg See also opbxENUM
+ * \arg See also cwENUM
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -69,14 +69,14 @@ static const char txtcidname_func_desc[] = "This function looks up the given pho
 		"found in the TXT record in DNS.\n";
 
 
-static int function_enum(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_enum(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
        char tech[80];
        struct localuser *u;
        char *p, *s;
 
        if (argc < 1 || argc == arraysize(argv) || !argv[0][0])
-               return opbx_function_syntax(enum_func_syntax);
+               return cw_function_syntax(enum_func_syntax);
 
        /* A certain application from which CallWeaver was originally
 	* derived changed argument parsing at some stage and, possibly
@@ -88,7 +88,7 @@ static int function_enum(struct opbx_channel *chan, int argc, char **argv, char 
 	*/
 	if (argc >= 4) {
 		if ((!argv[2][0] && isdigit(argv[3][0])) || (argv[2][0] && !argv[3][0])) {
-			opbx_log(OPBX_LOG_WARNING, "options and record# are the same argument!\n");
+			cw_log(CW_LOG_WARNING, "options and record# are the same argument!\n");
 			if (!argv[2][0])
 				argv[2] = argv[3];
 			argv[3] = argv[4];
@@ -112,27 +112,27 @@ static int function_enum(struct opbx_channel *chan, int argc, char **argv, char 
 				*(p++) = *s;
 		*p = '\0';
 
-		opbx_copy_string(tech, argv[1], sizeof(tech));
+		cw_copy_string(tech, argv[1], sizeof(tech));
 
 		LOCAL_USER_ADD(u);
 
-		/* N.B. The oly reason opbx_get_enum returns tech is to support
+		/* N.B. The oly reason cw_get_enum returns tech is to support
 		 * the old (and deprecated) apps/app_enum which hardcodes a mapping
 		 * from enum method to channel technology. With funcs/func_enum
 		 * you're expected to do it yourself in the dialplan.
 		 */
-		opbx_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
+		cw_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
 
 		LOCAL_USER_REMOVE(u);
 
 		if ((p = strchr(buf, ':')) && strcasecmp(argv[1], "ALL"))
-			opbx_copy_string(buf, p+1, len);
+			cw_copy_string(buf, p+1, len);
 	}
 
        return 0;
 }
 
-static int function_txtcidname(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res;
 	char tech[80];
@@ -141,15 +141,15 @@ static int function_txtcidname(struct opbx_channel *chan, int argc, char **argv,
 	struct localuser *u;
 
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(txtcidname_func_syntax);
+		return cw_function_syntax(txtcidname_func_syntax);
 
 	if (buf) {
 		LOCAL_USER_ADD(u);
 
-		res = opbx_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+		res = cw_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
 
-		if (!opbx_strlen_zero(txt))
-	        	opbx_copy_string(buf, txt, len);
+		if (!cw_strlen_zero(txt))
+	        	cw_copy_string(buf, txt, len);
 
 		LOCAL_USER_REMOVE(u);
 	}
@@ -164,15 +164,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(enum_function);
-	res |= opbx_unregister_function(txtcidname_function);
+	res |= cw_unregister_function(enum_function);
+	res |= cw_unregister_function(txtcidname_function);
 	return res;
 }
 
 static int load_module(void)
 {
-	enum_function = opbx_register_function(enum_func_name, function_enum, enum_func_synopsis, enum_func_syntax, enum_func_desc);
-	txtcidname_function = opbx_register_function(txtcidname_func_name, function_txtcidname, txtcidname_func_synopsis, txtcidname_func_syntax, txtcidname_func_desc);
+	enum_function = cw_register_function(enum_func_name, function_enum, enum_func_synopsis, enum_func_syntax, enum_func_desc);
+	txtcidname_function = cw_register_function(txtcidname_func_name, function_txtcidname, txtcidname_func_synopsis, txtcidname_func_syntax, txtcidname_func_desc);
 	return 0;
 }
 

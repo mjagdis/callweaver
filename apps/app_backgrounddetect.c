@@ -90,13 +90,13 @@ static const char background_detect_descrip[] =
 #define CALLERID_FIELD cid.cid_num
 
 
-static int background_detect_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int background_detect_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char dtmf_did[256] = "\0";
 	struct timeval start = { 0, 0};
-	struct opbx_dsp *dsp;
+	struct cw_dsp *dsp;
 	struct localuser *u;
-	struct opbx_frame *fr = NULL, *fr2 = NULL;
+	struct cw_frame *fr = NULL, *fr2 = NULL;
 	int res = 0;
 	int notsilent = 0;
 	int sil;
@@ -119,7 +119,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 	
 	if (argc < 1 || argc > 5)
-		return opbx_function_syntax(background_detect_syntax);
+		return cw_function_syntax(background_detect_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -139,19 +139,19 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	min = (argc > 3 ? atoi(argv[3]) : 100);
 	max = (argc > 4 ? atoi(argv[4]) : -1);
 
-	opbx_log(OPBX_LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", argv[0], sil, min, max);
+	cw_log(CW_LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", argv[0], sil, min, max);
 
-	if (chan->_state != OPBX_STATE_UP && !skipanswer) {
+	if (chan->_state != CW_STATE_UP && !skipanswer) {
 		// Otherwise answer unless we're supposed to send this while on-hook 
-		res = opbx_answer(chan);
+		res = cw_answer(chan);
 	}
 	if (!res) {
 		origrformat = chan->readformat;
-		if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR))) 
-			opbx_log(OPBX_LOG_WARNING, "Unable to set read format to linear!\n");
+		if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR))) 
+			cw_log(CW_LOG_WARNING, "Unable to set read format to linear!\n");
 	}
-	if (!(dsp = opbx_dsp_new())) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to allocate DSP!\n");
+	if (!(dsp = cw_dsp_new())) {
+		cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
 		res = -1;
 	}
 
@@ -163,97 +163,97 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 		//if (!ignoredtmf)
 			features |= DSP_FEATURE_DTMF_DETECT;
 
-		opbx_dsp_set_threshold(dsp, 256);
-		opbx_dsp_set_features(dsp, features | DSP_DIGITMODE_RELAXDTMF);
-		opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF);
+		cw_dsp_set_threshold(dsp, 256);
+		cw_dsp_set_features(dsp, features | DSP_DIGITMODE_RELAXDTMF);
+		cw_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF);
 	}
 
 	if (!res) {
-		opbx_stopstream(chan);
-		res = opbx_streamfile(chan, argv[0], chan->language);
+		cw_stopstream(chan);
+		res = cw_streamfile(chan, argv[0], chan->language);
 		if (!res) {
 			while(chan->stream) {
 				/* Check for a T38 switchover */
 				if (chan->t38_status == T38_NEGOTIATED && !ignorefax) {
-				    opbx_log(OPBX_LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
+				    cw_log(CW_LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
 				    pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
 				    pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
 				    if (!ignorejump) {
 					if (strcmp(chan->exten, "fax")) {
-					    opbx_log(OPBX_LOG_NOTICE, "Redirecting %s to fax extension [T38]\n", chan->name);
-					    if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
+					    cw_log(CW_LOG_NOTICE, "Redirecting %s to fax extension [T38]\n", chan->name);
+					    if (cw_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
 						chan->priority = 0;									
 					    } else
-						opbx_log(OPBX_LOG_WARNING, "Fax detected, but no fax extension\n");
+						cw_log(CW_LOG_WARNING, "Fax detected, but no fax extension\n");
 					} else
-			    		    opbx_log(OPBX_LOG_WARNING, "Already in a fax extension, not redirecting\n");
+			    		    cw_log(CW_LOG_WARNING, "Already in a fax extension, not redirecting\n");
 				    }
 				    res = 0;
 				    break;
 				}
 
 				// NOW let's check for incoming RTP audio
-				res = opbx_waitfor(chan, 10000);
+				res = cw_waitfor(chan, 10000);
 
 				if (res < 0) {
-					opbx_log(OPBX_LOG_WARNING, "Waitfor failed on %s\n", chan->name);
+					cw_log(CW_LOG_WARNING, "Waitfor failed on %s\n", chan->name);
 					break;
 				} else if (res > 0) {
-					fr = opbx_read(chan);
+					fr = cw_read(chan);
 					if (!fr) {
-						opbx_log(OPBX_LOG_DEBUG, "Got hangup\n");
+						cw_log(CW_LOG_DEBUG, "Got hangup\n");
 						res = -1;
 						break;
 					}
 
-					fr2 = opbx_dsp_process(chan, dsp, fr);
+					fr2 = cw_dsp_process(chan, dsp, fr);
 					if (!fr2) {
-						opbx_log(OPBX_LOG_WARNING, "Bad DSP received (what happened?)\n");
+						cw_log(CW_LOG_WARNING, "Bad DSP received (what happened?)\n");
 						fr2 = fr;
 					}
 
-					if (fr2->frametype == OPBX_FRAME_DTMF) {
+					if (fr2->frametype == CW_FRAME_DTMF) {
 					    if (fr2->subclass == 'f' && !ignorefax) {
 						// Fax tone -- Handle and return NULL
-						opbx_log(OPBX_LOG_DEBUG, "Fax detected on %s\n", chan->name);
+						cw_log(CW_LOG_DEBUG, "Fax detected on %s\n", chan->name);
 						pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
 						pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
 						if (!ignorejump) {
 						    if (strcmp(chan->exten, "fax")) {
-							opbx_log(OPBX_LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
-							if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
+							cw_log(CW_LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
+							if (cw_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
 							    // Save the DID/DNIS when we transfer the fax call to a "fax" extension 
 							    strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
 							    chan->priority = 0;
 							} else
-							    opbx_log(OPBX_LOG_WARNING, "Fax detected, but no fax extension\n");
+							    cw_log(CW_LOG_WARNING, "Fax detected, but no fax extension\n");
 						    } else
-							opbx_log(OPBX_LOG_WARNING, "Already in a fax extension, not redirecting\n");
+							cw_log(CW_LOG_WARNING, "Already in a fax extension, not redirecting\n");
 						}
 						res = 0;
-						opbx_fr_free(fr);
+						cw_fr_free(fr);
 						break;
 					    } else if (!ignoredtmf) {
 						char t[2];
 						t[0] = fr2->subclass;
 						t[1] = '\0';
-						opbx_log(OPBX_LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
+						cw_log(CW_LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
 						if (
-						    ( noextneeded || opbx_canmatch_extension(chan, chan->context, t, 1, chan->CALLERID_FIELD) )
+						    ( noextneeded || cw_canmatch_extension(chan, chan->context, t, 1, chan->CALLERID_FIELD) )
 							&& !longdtmf
 						    ) {
 						    // They entered a valid extension, or might be anyhow 
 						    if (noextneeded) {
-							opbx_log(OPBX_LOG_NOTICE, "DTMF received (not matching to exten)\n");
+							cw_log(CW_LOG_NOTICE, "DTMF received (not matching to exten)\n");
 							res = 0;
 						    } else {
-							opbx_log(OPBX_LOG_NOTICE, "DTMF received (matching to exten)\n");
+							cw_log(CW_LOG_NOTICE, "DTMF received (matching to exten)\n");
 							res = fr2->subclass;
 						    }
 						    pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
-						    opbx_fr_free(fr);
+						    cw_fr_free(fr);
 						    break;
 						} else {
 						    if (strcmp(t,"#") || !longdtmf) {
@@ -261,72 +261,72 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 						    } else {
 							pbx_builtin_setvar_helper(chan, "DTMF_DID", dtmf_did);
 							pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
-							if (!ignorejump && opbx_canmatch_extension(chan, chan->context, dtmf_did, 1, chan->CALLERID_FIELD) ) {
+							if (!ignorejump && cw_canmatch_extension(chan, chan->context, dtmf_did, 1, chan->CALLERID_FIELD) ) {
 							    strncpy(chan->exten, dtmf_did, sizeof(chan->exten)-1);
 							    chan->priority = 0;
 							}
 							res=0;
-							opbx_fr_free(fr);
+							cw_fr_free(fr);
 							break;
 						    }
-						    opbx_log(OPBX_LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
+						    cw_log(CW_LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
 						}
 					    }
-					} else if ((fr->frametype == OPBX_FRAME_VOICE) && (fr->subclass == OPBX_FORMAT_SLINEAR)) {
+					} else if ((fr->frametype == CW_FRAME_VOICE) && (fr->subclass == CW_FORMAT_SLINEAR)) {
 						int totalsilence;
 						int ms;
-						res = opbx_dsp_silence(dsp, fr, &totalsilence);
+						res = cw_dsp_silence(dsp, fr, &totalsilence);
 						if (res && (totalsilence > sil)) {
 							/* We've been quiet a little while */
 							if (notsilent) {
 								/* We had heard some talking */
-								ms = opbx_tvdiff_ms(opbx_tvnow(), start);
+								ms = cw_tvdiff_ms(cw_tvnow(), start);
 								ms -= sil;
 								if (ms < 0)
 									ms = 0;
 								if ((ms > min) && ((max < 0) || (ms < max))) {
 									char ms_str[10];
-									opbx_log(OPBX_LOG_DEBUG, "Found qualified token of %d ms\n", ms);
+									cw_log(CW_LOG_DEBUG, "Found qualified token of %d ms\n", ms);
 
 									/* Save detected talk time (in milliseconds) */ 
 									sprintf(ms_str, "%d", ms );	
 									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 									
-									opbx_goto_if_exists(chan, chan->context, "talk", 1);
+									cw_goto_if_exists(chan, chan->context, "talk", 1);
 									res = 0;
-									opbx_fr_free(fr);
+									cw_fr_free(fr);
 									break;
 								} else
-									opbx_log(OPBX_LOG_DEBUG, "Found unqualified token of %d ms\n", ms);
+									cw_log(CW_LOG_DEBUG, "Found unqualified token of %d ms\n", ms);
 								notsilent = 0;
 							}
 						} else {
 							if (!notsilent) {
 								/* Heard some audio, mark the begining of the token */
-								start = opbx_tvnow();
-								opbx_log(OPBX_LOG_DEBUG, "Start of voice token!\n");
+								start = cw_tvnow();
+								cw_log(CW_LOG_DEBUG, "Start of voice token!\n");
 								notsilent = 1;
 							}
 						}
 						
 					}
-					opbx_fr_free(fr);
+					cw_fr_free(fr);
 				}
 			}
-			opbx_stopstream(chan);
+			cw_stopstream(chan);
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
+			cw_log(CW_LOG_WARNING, "cw_streamfile failed on %s for %s\n", chan->name, argv[0]);
 			res = 0;
 		}
 	}
 	if (res > -1) {
-		if (origrformat && opbx_set_read_format(chan, origrformat)) {
-			opbx_log(OPBX_LOG_WARNING, "Failed to restore read format for %s to %s\n", 
-				chan->name, opbx_getformatname(origrformat));
+		if (origrformat && cw_set_read_format(chan, origrformat)) {
+			cw_log(CW_LOG_WARNING, "Failed to restore read format for %s to %s\n", 
+				chan->name, cw_getformatname(origrformat));
 		}
 	}
 	if (dsp)
-		opbx_dsp_free(dsp);
+		cw_dsp_free(dsp);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -335,13 +335,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(background_detect_app);
+	res |= cw_unregister_function(background_detect_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	background_detect_app = opbx_register_function(background_detect_name, background_detect_exec, background_detect_synopsis, background_detect_syntax, background_detect_descrip);
+	background_detect_app = cw_register_function(background_detect_name, background_detect_exec, background_detect_synopsis, background_detect_syntax, background_detect_descrip);
 	return 0;
 }
 

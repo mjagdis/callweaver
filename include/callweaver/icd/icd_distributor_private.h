@@ -61,9 +61,9 @@ struct icd_distributor {
     icd_distributor_state state;
     icd_thread_state thread_state;
     icd_listeners *listeners;
-    opbx_mutex_t lock;
+    cw_mutex_t lock;
     pthread_t thread;
-    opbx_cond_t wakeup;
+    cw_cond_t wakeup;
     icd_memory *memory;
     void_hash_table *params;
 /* This is for distibutor to know that link_fn call is needed  */    

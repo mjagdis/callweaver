@@ -47,7 +47,7 @@
 
 
 
-struct opbx_resampler_s {
+struct cw_resampler_s {
     int                         rate_from;
     int                         rate_to;
 
@@ -59,8 +59,8 @@ struct opbx_resampler_s {
     uint32_t                    buffer_in_len;
     uint32_t                    buffer_out_len;
 
-    opbx_core_resampler_t       *resampler;
-    opbx_mpool_t                *pool;
+    cw_core_resampler_t       *resampler;
+    cw_mpool_t                *pool;
     int                         pool_is_mine;
 };
 
@@ -95,28 +95,28 @@ static void int16t_to_float ( uint32_t len, int16_t *in, float *out) {
     INTERFACE FUNCTIONS 
 */
 
-opbx_resampler_t *opbx_resample_create( int from_rate, int to_rate, opbx_mpool_t *usepool ) {
+cw_resampler_t *cw_resample_create( int from_rate, int to_rate, cw_mpool_t *usepool ) {
     int                 pool_flags = 0,
                         pool_ret;
-    opbx_resampler_t    *resampler;
-    opbx_mpool_t        *pool = NULL;
+    cw_resampler_t    *resampler;
+    cw_mpool_t        *pool = NULL;
 
     if ( from_rate == 0 ) {
         return NULL;
     }
 
     if ( !usepool ) {
-        pool = opbx_mpool_open(pool_flags, 0, NULL, &pool_ret);
+        pool = cw_mpool_open(pool_flags, 0, NULL, &pool_ret);
         //check pool exists
     }
     else
         pool = usepool;
 
-    resampler = opbx_mpool_alloc( pool, sizeof(opbx_resampler_t), &pool_ret );  //TODO check pool_ret
+    resampler = cw_mpool_alloc( pool, sizeof(cw_resampler_t), &pool_ret );  //TODO check pool_ret
 
     if ( !resampler ) {
         if ( !usepool )
-            opbx_mpool_close(pool);
+            cw_mpool_close(pool);
         return NULL;
     }
 
@@ -135,8 +135,8 @@ opbx_resampler_t *opbx_resample_create( int from_rate, int to_rate, opbx_mpool_t
     return resampler;
 }
 
-uint32_t opbx_resample_execute( 
-                            opbx_resampler_t *resampler, 
+uint32_t cw_resample_execute( 
+                            cw_resampler_t *resampler, 
                             int16_t *from, 
                             uint32_t from_len, 
                             int16_t *to, 
@@ -146,7 +146,7 @@ uint32_t opbx_resample_execute(
     int pool_err;
 
     if ( !resampler && !resampler->pool ) {
-        opbx_log(OPBX_LOG_ERROR, "Cannot resample without a memory pool.\n");
+        cw_log(CW_LOG_ERROR, "Cannot resample without a memory pool.\n");
         return 0;                
     }
     
@@ -156,15 +156,15 @@ uint32_t opbx_resample_execute(
      */
 
     if ( resampler->buffer_in && ( resampler->buffer_in_len < from_len ) ) {
-        opbx_log(OPBX_LOG_ERROR, "Resizing the input buffer.\n");
+        cw_log(CW_LOG_ERROR, "Resizing the input buffer.\n");
 
-        resampler->buffer_in = opbx_mpool_resize( 
+        resampler->buffer_in = cw_mpool_resize( 
                                     resampler->pool, 
                                     resampler->buffer_in, 
                                     resampler->buffer_in_len, from_len * sizeof(float),
                                     &pool_err );
         if ( !resampler->buffer_in ) {
-            opbx_log(OPBX_LOG_ERROR,"Cannot resample input buffer.\n");
+            cw_log(CW_LOG_ERROR,"Cannot resample input buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);
@@ -172,9 +172,9 @@ uint32_t opbx_resample_execute(
 
     if ( !resampler->buffer_in ) {
         // create it
-        resampler->buffer_in = opbx_mpool_alloc( resampler->pool, from_len * sizeof(float), &pool_err );
+        resampler->buffer_in = cw_mpool_alloc( resampler->pool, from_len * sizeof(float), &pool_err );
         if ( !resampler->buffer_in ) {
-            opbx_log(OPBX_LOG_ERROR,"Cannot create input buffer.\n");
+            cw_log(CW_LOG_ERROR,"Cannot create input buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);        
@@ -183,15 +183,15 @@ uint32_t opbx_resample_execute(
     /* The same applies to our output buffer */
 
     if ( resampler->buffer_out && ( resampler->buffer_out_len < to_len ) ) {
-        opbx_log(OPBX_LOG_ERROR, "Resizing the output buffer.\n");
+        cw_log(CW_LOG_ERROR, "Resizing the output buffer.\n");
 
-        resampler->buffer_out = opbx_mpool_resize( 
+        resampler->buffer_out = cw_mpool_resize( 
                                     resampler->pool, 
                                     resampler->buffer_out, 
                                     resampler->buffer_out_len, to_len * sizeof(float),
                                     &pool_err );
         if ( !resampler->buffer_out ) {
-            opbx_log(OPBX_LOG_ERROR,"Cannot resample output buffer.\n");
+            cw_log(CW_LOG_ERROR,"Cannot resample output buffer.\n");
             return 0;
         }
         resampler->buffer_in_len = from_len * sizeof(float);
@@ -199,9 +199,9 @@ uint32_t opbx_resample_execute(
 
     if ( !resampler->buffer_out ) {
         // create it
-        resampler->buffer_out = opbx_mpool_alloc( resampler->pool, to_len * sizeof(float), &pool_err );
+        resampler->buffer_out = cw_mpool_alloc( resampler->pool, to_len * sizeof(float), &pool_err );
         if ( !resampler->buffer_out ) {
-            opbx_log(OPBX_LOG_ERROR,"Cannot create output buffer.\n");
+            cw_log(CW_LOG_ERROR,"Cannot create output buffer.\n");
             return 0;
         }
         resampler->buffer_out_len = to_len * sizeof(float);        
@@ -231,18 +231,18 @@ uint32_t opbx_resample_execute(
     float_to_int16t ( MIN(tot,to_len), resampler->buffer_out, to);
 
     if ( tot!=to_len ) {
-        opbx_log(OPBX_LOG_WARNING,"Uh... weird... resampling buffer != to buffer ( %d != %d )\n", tot,to_len);
+        cw_log(CW_LOG_WARNING,"Uh... weird... resampling buffer != to buffer ( %d != %d )\n", tot,to_len);
     }
 
     return MIN(tot,to_len);
 }
 
-int opbx_resample_destroy( opbx_resampler_t *resampler ) {
+int cw_resample_destroy( cw_resampler_t *resampler ) {
 
     resample_close(resampler->resampler);
 
     if ( resampler->pool_is_mine )
-        opbx_mpool_close(resampler->pool);
+        cw_mpool_close(resampler->pool);
 
     return 0;
 }

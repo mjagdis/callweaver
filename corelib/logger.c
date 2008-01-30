@@ -45,7 +45,7 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
-/* Callweaver includes are going to redefine these for opbx_log use
+/* Callweaver includes are going to redefine these for cw_log use
  * so we need to build this map _before_ any callweaver includes.
  */
 static int syslog_level_map[] = {
@@ -89,8 +89,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
 
-OPBX_MUTEX_DEFINE_STATIC(msglist_lock);
-OPBX_MUTEX_DEFINE_STATIC(loglock);
+CW_MUTEX_DEFINE_STATIC(msglist_lock);
+CW_MUTEX_DEFINE_STATIC(loglock);
 static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
@@ -150,19 +150,19 @@ static int make_components(char *s, int lineno)
 		while(*w && (*w < 33))
 			w++;
 		if (!strcasecmp(w, "error")) 
-			res |= (1 << __OPBX_LOG_ERROR);
+			res |= (1 << __CW_LOG_ERROR);
 		else if (!strcasecmp(w, "warning"))
-			res |= (1 << __OPBX_LOG_WARNING);
+			res |= (1 << __CW_LOG_WARNING);
 		else if (!strcasecmp(w, "notice"))
-			res |= (1 << __OPBX_LOG_NOTICE);
+			res |= (1 << __CW_LOG_NOTICE);
 		else if (!strcasecmp(w, "event"))
-			res |= (1 << __OPBX_LOG_EVENT);
+			res |= (1 << __CW_LOG_EVENT);
 		else if (!strcasecmp(w, "debug"))
-			res |= (1 << __OPBX_LOG_DEBUG);
+			res |= (1 << __CW_LOG_DEBUG);
 		else if (!strcasecmp(w, "verbose"))
-			res |= (1 << __OPBX_LOG_VERBOSE);
+			res |= (1 << __CW_LOG_VERBOSE);
 		else if (!strcasecmp(w, "dtmf"))
-			res |= (1 << __OPBX_LOG_DTMF);
+			res |= (1 << __CW_LOG_DTMF);
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
@@ -179,7 +179,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	CODE *cptr;
 #endif
 
-	if (opbx_strlen_zero(channel))
+	if (cw_strlen_zero(channel))
 		return NULL;
 	chan = malloc(sizeof(struct logchannel));
 
@@ -264,17 +264,17 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
 		if (channel[0] == '/') {
-			if(!opbx_strlen_zero(hostname)) { 
+			if(!cw_strlen_zero(hostname)) { 
 				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
 			} else {
-				opbx_copy_string(chan->filename, channel, sizeof(chan->filename));
+				cw_copy_string(chan->filename, channel, sizeof(chan->filename));
 			}
 		}		  
 		
-		if(!opbx_strlen_zero(hostname)) {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)opbx_config_OPBX_LOG_DIR, channel, hostname);
+		if(!cw_strlen_zero(hostname)) {
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)cw_config_CW_LOG_DIR, channel, hostname);
 		} else {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, channel);
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
 		}
 		chan->fileptr = fopen(chan->filename, "a");
 		if (!chan->fileptr) {
@@ -290,12 +290,12 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 static void init_logger_chain(void)
 {
 	struct logchannel *chan, *cur;
-	struct opbx_config *cfg;
-	struct opbx_variable *var;
+	struct cw_config *cfg;
+	struct cw_variable *var;
 	char *s;
 
 	/* delete our list of log channels */
-	opbx_mutex_lock(&loglock);
+	cw_mutex_lock(&loglock);
 	chan = logchannels;
 	while (chan) {
 		cur = chan->next;
@@ -303,41 +303,41 @@ static void init_logger_chain(void)
 		chan = cur;
 	}
 	logchannels = NULL;
-	opbx_mutex_unlock(&loglock);
+	cw_mutex_unlock(&loglock);
 	
 	global_logmask = 0;
 	/* close syslog */
 	closelog();
 	
-	cfg = opbx_config_load("logger.conf");
+	cfg = cw_config_load("logger.conf");
 	
 	/* If no config file, we're fine */
 	if (!cfg)
 		return;
 	
-	opbx_mutex_lock(&loglock);
-	if ((s = opbx_variable_retrieve(cfg, "general", "appendhostname"))) {
-		if(opbx_true(s)) {
+	cw_mutex_lock(&loglock);
+	if ((s = cw_variable_retrieve(cfg, "general", "appendhostname"))) {
+		if(cw_true(s)) {
 			if(gethostname(hostname, sizeof(hostname)-1)) {
-				opbx_copy_string(hostname, "unknown", sizeof(hostname));
-				opbx_log(OPBX_LOG_WARNING, "What box has no hostname???\n");
+				cw_copy_string(hostname, "unknown", sizeof(hostname));
+				cw_log(CW_LOG_WARNING, "What box has no hostname???\n");
 			}
 		} else
 			hostname[0] = '\0';
 	} else
 		hostname[0] = '\0';
-	if ((s = opbx_variable_retrieve(cfg, "general", "dateformat"))) {
-		opbx_copy_string(dateformat, s, sizeof(dateformat));
+	if ((s = cw_variable_retrieve(cfg, "general", "dateformat"))) {
+		cw_copy_string(dateformat, s, sizeof(dateformat));
 	} else
-		opbx_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
-	if ((s = opbx_variable_retrieve(cfg, "general", "queue_log"))) {
-		logfiles.queue_log = opbx_true(s);
+		cw_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
+	if ((s = cw_variable_retrieve(cfg, "general", "queue_log"))) {
+		logfiles.queue_log = cw_true(s);
 	}
-	if ((s = opbx_variable_retrieve(cfg, "general", "event_log"))) {
-		logfiles.event_log = opbx_true(s);
+	if ((s = cw_variable_retrieve(cfg, "general", "event_log"))) {
+		logfiles.event_log = cw_true(s);
 	}
 
-	var = opbx_variable_browse(cfg, "logfiles");
+	var = cw_variable_browse(cfg, "logfiles");
 	while(var) {
 		chan = make_logchannel(var->name, var->value, var->lineno);
 		if (chan) {
@@ -348,17 +348,17 @@ static void init_logger_chain(void)
 		var = var->next;
 	}
 
-	opbx_config_destroy(cfg);
-	opbx_mutex_unlock(&loglock);
+	cw_config_destroy(cfg);
+	cw_mutex_unlock(&loglock);
 }
 
 static FILE *qlog = NULL;
-OPBX_MUTEX_DEFINE_STATIC(qloglock);
+CW_MUTEX_DEFINE_STATIC(qloglock);
 
-void opbx_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+void cw_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;
-	opbx_mutex_lock(&qloglock);
+	cw_mutex_lock(&qloglock);
 	if (qlog) {
 		va_start(ap, fmt);
 		fprintf(qlog, "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
@@ -367,7 +367,7 @@ void opbx_queue_log(const char *queuename, const char *callid, const char *agent
 		va_end(ap);
 		fflush(qlog);
 	}
-	opbx_mutex_unlock(&qloglock);
+	cw_mutex_unlock(&qloglock);
 }
 
 static void queue_log_init(void)
@@ -375,45 +375,45 @@ static void queue_log_init(void)
 	char filename[256];
 	int reloaded = 0;
 
-	opbx_mutex_lock(&qloglock);
+	cw_mutex_lock(&qloglock);
 	if (qlog) {
 		reloaded = 1;
 		fclose(qlog);
 		qlog = NULL;
 	}
-	snprintf(filename, sizeof(filename), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, "queue_log");
+	snprintf(filename, sizeof(filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, "queue_log");
 	if (logfiles.queue_log) {
 		qlog = fopen(filename, "a");
 	}
-	opbx_mutex_unlock(&qloglock);
+	cw_mutex_unlock(&qloglock);
 	if (reloaded) 
-		opbx_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
+		cw_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 	else
-		opbx_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
+		cw_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
 }
 
 int reload_logger(int rotate)
 {
-	char old[OPBX_CONFIG_MAX_PATH] = "";
-	char new[OPBX_CONFIG_MAX_PATH];
+	char old[CW_CONFIG_MAX_PATH] = "";
+	char new[CW_CONFIG_MAX_PATH];
 	struct logchannel *f;
 	FILE *myf;
 	int x;
 
-	opbx_mutex_lock(&loglock);
+	cw_mutex_lock(&loglock);
 	if (eventlog) 
 		fclose(eventlog);
 	else 
 		rotate = 0;
 	eventlog = NULL;
 
-	mkdir((char *)opbx_config_OPBX_LOG_DIR, 0755);
-	snprintf(old, sizeof(old), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
+	mkdir((char *)cw_config_CW_LOG_DIR, 0755);
+	snprintf(old, sizeof(old), "%s/%s", (char *)cw_config_CW_LOG_DIR, EVENTLOG);
 
 	if (logfiles.event_log) {
 		if (rotate) {
 			for (x=0;;x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG,x);
+				snprintf(new, sizeof(new), "%s/%s.%d", (char *)cw_config_CW_LOG_DIR, EVENTLOG,x);
 				myf = fopen((char *)new, "r");
 				if (myf) 	/* File exists */
 					fclose(myf);
@@ -439,7 +439,7 @@ int reload_logger(int rotate)
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
 			if(rotate) {
-				opbx_copy_string(old, f->filename, sizeof(old));
+				cw_copy_string(old, f->filename, sizeof(old));
 	
 				for(x=0;;x++) {
 					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
@@ -459,7 +459,7 @@ int reload_logger(int rotate)
 		f = f->next;
 	}
 
-	opbx_mutex_unlock(&loglock);
+	cw_mutex_unlock(&loglock);
 
 	filesize_reload_needed = 0;
 
@@ -468,12 +468,12 @@ int reload_logger(int rotate)
 
 	if (logfiles.event_log) {
 		if (eventlog) {
-			opbx_log(OPBX_LOG_EVENT, "Restarted CallWeaver Event Logger\n");
+			cw_log(CW_LOG_EVENT, "Restarted CallWeaver Event Logger\n");
 			if (option_verbose)
-				opbx_verbose("CallWeaver Event Logger restarted\n");
+				cw_verbose("CallWeaver Event Logger restarted\n");
 			return 0;
 		} else 
-			opbx_log(OPBX_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			cw_log(CW_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else 
 		return 0;
 	return -1;
@@ -482,7 +482,7 @@ int reload_logger(int rotate)
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
 	if(reload_logger(0)) {
-		opbx_cli(fd, "Failed to reload the logger\n");
+		cw_cli(fd, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
@@ -490,9 +490,9 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
-	opbx_log(OPBX_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
+	cw_log(CW_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
-		opbx_cli(fd, "Failed to reload the logger and rotate log files\n");
+		cw_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
@@ -505,37 +505,37 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
 	struct logchannel *chan;
 
-	opbx_mutex_lock(&loglock);
+	cw_mutex_lock(&loglock);
 
 	chan = logchannels;
-	opbx_cli(fd,FORMATL, "Channel", "Type", "Status");
-	opbx_cli(fd, "Configuration\n");
-	opbx_cli(fd,FORMATL, "-------", "----", "------");
-	opbx_cli(fd, "-------------\n");
+	cw_cli(fd,FORMATL, "Channel", "Type", "Status");
+	cw_cli(fd, "Configuration\n");
+	cw_cli(fd,FORMATL, "-------", "----", "------");
+	cw_cli(fd, "-------------\n");
 	while (chan) {
-		opbx_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
+		cw_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
-		opbx_cli(fd, " - ");
-		if (chan->logmask & (1 << __OPBX_LOG_DEBUG)) 
-			opbx_cli(fd, "Debug ");
-		if (chan->logmask & (1 << __OPBX_LOG_DTMF)) 
-			opbx_cli(fd, "DTMF ");
-		if (chan->logmask & (1 << __OPBX_LOG_VERBOSE)) 
-			opbx_cli(fd, "Verbose ");
-		if (chan->logmask & (1 << __OPBX_LOG_WARNING)) 
-			opbx_cli(fd, "Warning ");
-		if (chan->logmask & (1 << __OPBX_LOG_NOTICE)) 
-			opbx_cli(fd, "Notice ");
-		if (chan->logmask & (1 << __OPBX_LOG_ERROR)) 
-			opbx_cli(fd, "Error ");
-		if (chan->logmask & (1 << __OPBX_LOG_EVENT)) 
-			opbx_cli(fd, "Event ");
-		opbx_cli(fd, "\n");
+		cw_cli(fd, " - ");
+		if (chan->logmask & (1 << __CW_LOG_DEBUG)) 
+			cw_cli(fd, "Debug ");
+		if (chan->logmask & (1 << __CW_LOG_DTMF)) 
+			cw_cli(fd, "DTMF ");
+		if (chan->logmask & (1 << __CW_LOG_VERBOSE)) 
+			cw_cli(fd, "Verbose ");
+		if (chan->logmask & (1 << __CW_LOG_WARNING)) 
+			cw_cli(fd, "Warning ");
+		if (chan->logmask & (1 << __CW_LOG_NOTICE)) 
+			cw_cli(fd, "Notice ");
+		if (chan->logmask & (1 << __CW_LOG_ERROR)) 
+			cw_cli(fd, "Error ");
+		if (chan->logmask & (1 << __CW_LOG_EVENT)) 
+			cw_cli(fd, "Event ");
+		cw_cli(fd, "\n");
 		chan = chan->next;
 	}
-	opbx_cli(fd, "\n");
+	cw_cli(fd, "\n");
 
-	opbx_mutex_unlock(&loglock);
+	cw_mutex_unlock(&loglock);
  		
 	return RESULT_SUCCESS;
 }
@@ -558,21 +558,21 @@ static char logger_show_channels_help[] =
 "Usage: logger show channels\n"
 "       Show configured logger channels.\n";
 
-static struct opbx_clicmd logger_show_channels_cli = {
+static struct cw_clicmd logger_show_channels_cli = {
 	.cmda = { "logger", "show", "channels", NULL }, 
 	.handler = handle_logger_show_channels,
 	.summary = "List configured log channels",
 	.usage = logger_show_channels_help,
 };
 
-static struct opbx_clicmd reload_logger_cli = {
+static struct cw_clicmd reload_logger_cli = {
 	.cmda = { "logger", "reload", NULL }, 
 	.handler = handle_logger_reload,
 	.summary = "Reopens the log files",
 	.usage = logger_reload_help,
 };
 
-static struct opbx_clicmd rotate_logger_cli = {
+static struct cw_clicmd rotate_logger_cli = {
 	.cmda = { "logger", "rotate", NULL }, 
 	.handler = handle_logger_rotate,
 	.summary = "Rotates and reopens the log files",
@@ -594,9 +594,9 @@ int init_logger(void)
 	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
 
 	/* register the relaod logger cli command */
-	opbx_cli_register(&reload_logger_cli);
-	opbx_cli_register(&rotate_logger_cli);
-	opbx_cli_register(&logger_show_channels_cli);
+	cw_cli_register(&reload_logger_cli);
+	cw_cli_register(&rotate_logger_cli);
+	cw_cli_register(&logger_show_channels_cli);
 
 	/* initialize queue logger */
 	queue_log_init();
@@ -606,16 +606,16 @@ int init_logger(void)
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
-		mkdir((char *)opbx_config_OPBX_LOG_DIR, 0755);
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
+		mkdir((char *)cw_config_CW_LOG_DIR, 0755);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)cw_config_CW_LOG_DIR, EVENTLOG);
 		eventlog = fopen((char *)tmp, "a");
 		if (eventlog) {
-			opbx_log(OPBX_LOG_EVENT, "Started CallWeaver Event Logger\n");
+			cw_log(CW_LOG_EVENT, "Started CallWeaver Event Logger\n");
 			if (option_verbose)
-				opbx_verbose("CallWeaver Event Logger Started %s\n",(char *)tmp);
+				cw_verbose("CallWeaver Event Logger Started %s\n",(char *)tmp);
 			return 0;
 		} else 
-			opbx_log(OPBX_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			cw_log(CW_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else
 		return 0;
 
@@ -626,7 +626,7 @@ void close_logger(void)
 {
 	struct msglist *m, *tmp;
 
-	opbx_mutex_lock(&msglist_lock);
+	cw_mutex_lock(&msglist_lock);
 	m = list;
 	while(m) {
 		if (m->msg) {
@@ -638,26 +638,26 @@ void close_logger(void)
 	}
 	list = last = NULL;
 	msgcnt = 0;
-	opbx_mutex_unlock(&msglist_lock);
+	cw_mutex_unlock(&msglist_lock);
 	return;
 }
 
-static void opbx_log_vsyslog(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
 	char *s;
 
 	if (level >= SYSLOG_NLEVELS) {
-		/* we are locked here, so cannot opbx_log() */
-		fprintf(stderr, "opbx_log_vsyslog called with bogus level: %d\n", level);
+		/* we are locked here, so cannot cw_log() */
+		fprintf(stderr, "cw_log_vsyslog called with bogus level: %d\n", level);
 		return;
 	}
-	if (level == __OPBX_LOG_VERBOSE) {
+	if (level == __CW_LOG_VERBOSE) {
 		snprintf(buf, sizeof(buf), "VERBOSE[" TIDFMT "]: ", GETTID());
-		level = __OPBX_LOG_DEBUG;
-	} else if (level == __OPBX_LOG_DTMF) {
+		level = __CW_LOG_DEBUG;
+	} else if (level == __CW_LOG_DTMF) {
 		snprintf(buf, sizeof(buf), "DTMF[" TIDFMT "]: ", GETTID());
-		level = __OPBX_LOG_DEBUG;
+		level = __CW_LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[" TIDFMT "]: %s:%d in %s: ",
 			 levels[level], GETTID(), file, line, function);
@@ -670,7 +670,7 @@ static void opbx_log_vsyslog(opbx_log_level level, const char *file, int line, c
 /*
  * send log messages to syslog and/or the console
  */
-void opbx_log(opbx_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
+void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	struct logchannel *chan;
 	char buf[BUFSIZ];
@@ -686,7 +686,7 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 	   LOG_DEBUG messages to be displayed, if the logmask on any channel
 	   allows it)
 	*/
-	if (!option_verbose && !option_debug && (level == __OPBX_LOG_DEBUG)) {
+	if (!option_verbose && !option_debug && (level == __CW_LOG_DEBUG)) {
 		return;
 	}
 
@@ -695,17 +695,17 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 		return;
 	
 	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == __OPBX_LOG_DEBUG) && !opbx_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
+	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
 	/* begin critical section */
-	opbx_mutex_lock(&loglock);
+	cw_mutex_lock(&loglock);
 
 	time(&t);
 	localtime_r(&t, &tm);
 	strftime(date, sizeof(date), dateformat, &tm);
 
-	if (logfiles.event_log && level == __OPBX_LOG_EVENT) {
+	if (logfiles.event_log && level == __CW_LOG_EVENT) {
 		va_start(ap, fmt);
 
 		fprintf(eventlog, "%s callweaver[%d]: ", date, getpid());
@@ -713,7 +713,7 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 		fflush(eventlog);
 
 		va_end(ap);
-		opbx_mutex_unlock(&loglock);
+		cw_mutex_unlock(&loglock);
 		return;
 	}
 
@@ -723,17 +723,17 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
 				va_start(ap, fmt);
-				opbx_log_vsyslog(level, file, line, function, fmt, ap);
+				cw_log_vsyslog(level, file, line, function, fmt, ap);
 				va_end(ap);
 			/* Console channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
-				if (level != __OPBX_LOG_VERBOSE) {
+				if (level != __CW_LOG_VERBOSE) {
 					snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
-					opbx_console_puts(buf);
+					cw_console_puts(buf);
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);
 					va_end(ap);
-					opbx_console_puts(buf);
+					cw_console_puts(buf);
 				}
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
@@ -764,7 +764,7 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout 
 		*/
-		if (level != __OPBX_LOG_VERBOSE) {
+		if (level != __CW_LOG_VERBOSE) {
 			fprintf(stdout, (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
 			va_start(ap, fmt);
 			vfprintf(stdout, fmt, ap);
@@ -772,17 +772,17 @@ void opbx_log(opbx_log_level level, const char *file, int line, const char *func
 		}
 	}
 
-	opbx_mutex_unlock(&loglock);
+	cw_mutex_unlock(&loglock);
 	/* end critical section */
 	if (filesize_reload_needed) {
 		reload_logger(1);
-		opbx_log(OPBX_LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+		cw_log(CW_LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
-			opbx_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+			cw_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 }
 
-void opbx_backtrace(int levels)
+void cw_backtrace(int levels)
 {
 #if defined(STACK_BACKTRACES) && defined(__linux__)
 	int count=0, i=0;
@@ -794,24 +794,24 @@ void opbx_backtrace(int levels)
 		count = backtrace(addresses, levels);
 		strings = backtrace_symbols(addresses, count);
 		if (strings) {
-			opbx_log(OPBX_LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			cw_log(CW_LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
-				opbx_log(OPBX_LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+				cw_log(CW_LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
 			}
 			free(strings);
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "Could not allocate memory for backtrace\n");
+			cw_log(CW_LOG_WARNING, "Could not allocate memory for backtrace\n");
 		}
 		free(addresses);
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Could not allocate memory for backtrace\n");
+		cw_log(CW_LOG_WARNING, "Could not allocate memory for backtrace\n");
 	}
 #else
-	opbx_log(OPBX_LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
+	cw_log(CW_LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
 #endif
 }
 
-void opbx_verbose(const char *fmt, ...)
+void cw_verbose(const char *fmt, ...)
 {
 	static char stuff[4096];
 	static int len = 0;
@@ -843,7 +843,7 @@ void opbx_verbose(const char *fmt, ...)
 	   being in this function at the same time, so it must be
 	   held before any of the static variables are accessed
 	*/
-	opbx_mutex_lock(&msglist_lock);
+	cw_mutex_lock(&msglist_lock);
 
 	/* there is a potential security problem here: if formatting
 	   the current date using 'dateformat' results in a string
@@ -886,7 +886,7 @@ void opbx_verbose(const char *fmt, ...)
 				last = m;
 			} else {
 				msgcnt--;
-				opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+				cw_log(CW_LOG_ERROR, "Out of memory\n");
 				free(m);
 			}
 		}
@@ -895,7 +895,7 @@ void opbx_verbose(const char *fmt, ...)
 	for (v = verboser; v; v = v->next)
 		v->verboser(stuff, olen, replacelast, complete);
 
-	opbx_log(OPBX_LOG_VERBOSE, "%s", stuff);
+	cw_log(CW_LOG_VERBOSE, "%s", stuff);
 
 	if (len) {
 		if (!complete)
@@ -904,31 +904,31 @@ void opbx_verbose(const char *fmt, ...)
 			replacelast = len = 0;
 	}
 
-	opbx_mutex_unlock(&msglist_lock);
+	cw_mutex_unlock(&msglist_lock);
 }
 
-int opbx_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
+int cw_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
-	opbx_mutex_lock(&msglist_lock);
+	cw_mutex_lock(&msglist_lock);
 	m = list;
 	while(m) {
 		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
 		v(m->msg, 0, 0, 1);
 		m = m->next;
 	}
-	opbx_mutex_unlock(&msglist_lock);
+	cw_mutex_unlock(&msglist_lock);
 	return 0;
 }
 
-int opbx_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
+int cw_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
 {
 	struct msglist *m;
 	struct verb *tmp;
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
 	if ((tmp = malloc(sizeof (struct verb)))) {
 		tmp->verboser = v;
-		opbx_mutex_lock(&msglist_lock);
+		cw_mutex_lock(&msglist_lock);
 		tmp->next = verboser;
 		verboser = tmp;
 		m = list;
@@ -937,17 +937,17 @@ int opbx_register_verbose(void (*v)(const char *string, int opos, int replacelas
 			v(m->msg, 0, 0, 1);
 			m = m->next;
 		}
-		opbx_mutex_unlock(&msglist_lock);
+		cw_mutex_unlock(&msglist_lock);
 		return 0;
 	}
 	return -1;
 }
 
-int opbx_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
+int cw_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	int res = -1;
 	struct verb *tmp, *tmpl=NULL;
-	opbx_mutex_lock(&msglist_lock);
+	cw_mutex_lock(&msglist_lock);
 	tmp = verboser;
 	while(tmp) {
 		if (tmp->verboser == v)	{
@@ -963,6 +963,6 @@ int opbx_unregister_verbose(void (*v)(const char *string, int opos, int replacel
 	}
 	if (tmp)
 		res = 0;
-	opbx_mutex_unlock(&msglist_lock);
+	cw_mutex_unlock(&msglist_lock);
 	return res;
 }

@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-int opbx_expr(char *expr, char *buf, int length);
+int cw_expr(char *expr, char *buf, int length);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -34,75 +34,75 @@ extern "C" {
 #include "callweaver/module.h"
 
 
-struct opbx_config;
+struct cw_config;
 
-struct opbx_category;
+struct cw_category;
 
-struct opbx_variable {
+struct cw_variable {
 	char *name;
 	char *value;
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
 	int blanklines; 	/*!< Number of blanklines following entry */
-	struct opbx_comment *precomments;
-	struct opbx_comment *sameline;
-	struct opbx_variable *next;
+	struct cw_comment *precomments;
+	struct cw_comment *sameline;
+	struct cw_variable *next;
 	char stuff[0];
 };
 
-typedef struct opbx_config *config_load_func(const char *database, const char *table, const char *configfile, struct opbx_config *config);
-typedef struct opbx_variable *realtime_var_get(const char *database, const char *table, va_list ap);
-typedef struct opbx_config *realtime_multi_get(const char *database, const char *table, va_list ap);
+typedef struct cw_config *config_load_func(const char *database, const char *table, const char *configfile, struct cw_config *config);
+typedef struct cw_variable *realtime_var_get(const char *database, const char *table, va_list ap);
+typedef struct cw_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 
-struct opbx_config_engine {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+struct cw_config_engine {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	char *name;
 	config_load_func *load_func;
 	realtime_var_get *realtime_func;
 	realtime_multi_get *realtime_multi_func;
 	realtime_update *update_func;
-	struct opbx_config_engine *next;
+	struct cw_config_engine *next;
 };
 
 
-extern struct opbx_registry config_engine_registry;
+extern struct cw_registry config_engine_registry;
 
 
-#define opbx_config_engine_register(ptr) ({ \
+#define cw_config_engine_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&config_engine_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&config_engine_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_config_engine_unregister(ptr) ({ \
+#define cw_config_engine_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&config_engine_registry, __ptr->reg_entry); \
+		cw_registry_del(&config_engine_registry, __ptr->reg_entry); \
 	0; \
 })
 
 
 /*! \brief Load a config file 
- * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to OPBX_CONFIG_DIR
+ * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to CW_CONFIG_DIR
  * Create a config structure from a given configuration file.
  *
- * Returns NULL on error, or an opbx_config data structure on success
+ * Returns NULL on error, or an cw_config data structure on success
  */
-struct opbx_config *opbx_config_load(const char *filename);
+struct cw_config *cw_config_load(const char *filename);
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure
  * Free memory associated with a given config
  *
  */
-void opbx_config_destroy(struct opbx_config *config);
+void cw_config_destroy(struct cw_config *config);
 
 /*! \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
@@ -111,15 +111,15 @@ void opbx_config_destroy(struct opbx_config *config);
  *
  * Returns a category on success, or NULL on failure/no-more-categories
  */
-char *opbx_category_browse(struct opbx_config *config, const char *prev);
+char *cw_category_browse(struct cw_config *config, const char *prev);
 
 /*! \brief Goes through variables
- * Somewhat similar in intent as the opbx_category_browse.
+ * Somewhat similar in intent as the cw_category_browse.
  * List variables of config file category
  *
- * Returns opbx_variable list on success, or NULL on failure
+ * Returns cw_variable list on success, or NULL on failure
  */
-struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, const char *category);
+struct cw_variable *cw_variable_browse(const struct cw_config *config, const char *category);
 
 /*! \brief Gets a variable 
  * \param config which (opened) config to use
@@ -129,7 +129,7 @@ struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, con
  *
  * Returns the variable value on success, or NULL if unable to find it.
  */
-char *opbx_variable_retrieve(const struct opbx_config *config, const char *category, const char *variable);
+char *cw_variable_retrieve(const struct cw_config *config, const char *category, const char *variable);
 
 /*! \brief Retrieve a category if it exists
  * \param config which config to use
@@ -138,7 +138,7 @@ char *opbx_variable_retrieve(const struct opbx_config *config, const char *categ
  *
  * Returns pointer to category if found, NULL if not.
  */
-struct opbx_category *opbx_category_get(const struct opbx_config *config, const char *category_name);
+struct cw_category *cw_category_get(const struct cw_config *config, const char *category_name);
 
 /*! \brief Check for category duplicates 
  * \param config which config to use
@@ -147,7 +147,7 @@ struct opbx_category *opbx_category_get(const struct opbx_config *config, const 
  *
  * Return non-zero if found
  */
-int opbx_category_exist(const struct opbx_config *config, const char *category_name);
+int cw_category_exist(const struct cw_config *config, const char *category_name);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
@@ -155,10 +155,10 @@ int opbx_category_exist(const struct opbx_config *config, const char *category_n
  * \param lookup which value to look for in the key field to match the entry.
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters.  Note
- * that unlike the variables in opbx_config, the resulting list of variables
- * MUST be fred with opbx_free_runtime() as there is no container.
+ * that unlike the variables in cw_config, the resulting list of variables
+ * MUST be fred with cw_free_runtime() as there is no container.
  */
-struct opbx_variable *opbx_load_realtime(const char *family, ...);
+struct cw_variable *cw_load_realtime(const char *family, ...);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
@@ -166,11 +166,11 @@ struct opbx_variable *opbx_load_realtime(const char *family, ...);
  * \param lookup which value to look for in the key field to match the entry.
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters. Unlike
- * the opbx_load_realtime, this function can return more than one entry and
- * is thus stored inside a taditional opbx_config structure rather than 
+ * the cw_load_realtime, this function can return more than one entry and
+ * is thus stored inside a taditional cw_config structure rather than 
  * just returning a linked list of variables.
  */
-struct opbx_config *opbx_load_realtime_multientry(const char *family, ...);
+struct cw_config *cw_load_realtime_multientry(const char *family, ...);
 
 /*! \brief Update realtime configuration 
  * \param family which family/config to be updated
@@ -181,41 +181,41 @@ struct opbx_config *opbx_load_realtime_multientry(const char *family, ...);
  * This function is used to update a parameter in realtime configuration space.
  *
  */
-int opbx_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+int cw_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
 /*! \brief Check if realtime engine is configured for family 
  * returns 1 if family is configured in realtime and engine exists
  * \param family which family/config to be checked
 */
-int opbx_check_realtime(const char *family);
+int cw_check_realtime(const char *family);
 
 /*! \brief Free variable list 
  * \param var the linked list of variables to free
  * This function frees a list of variables.
  */
-void opbx_variables_destroy(struct opbx_variable *var);
+void cw_variables_destroy(struct cw_variable *var);
 
 int register_config_cli(void);
 void read_config_maps(void);
 
-struct opbx_config *opbx_config_new(void);
-struct opbx_category *opbx_config_get_current_category(const struct opbx_config *cfg);
-void opbx_config_set_current_category(struct opbx_config *cfg, const struct opbx_category *cat);
+struct cw_config *cw_config_new(void);
+struct cw_category *cw_config_get_current_category(const struct cw_config *cfg);
+void cw_config_set_current_category(struct cw_config *cfg, const struct cw_category *cat);
 
-struct opbx_category *opbx_category_new(const char *name);
-void opbx_category_append(struct opbx_config *config, struct opbx_category *cat);
-int opbx_category_delete(struct opbx_config *cfg, char *category);
-void opbx_category_destroy(struct opbx_category *cat);
-struct opbx_variable *opbx_category_detach_variables(struct opbx_category *cat);
-void opbx_category_rename(struct opbx_category *cat, const char *name);
+struct cw_category *cw_category_new(const char *name);
+void cw_category_append(struct cw_config *config, struct cw_category *cat);
+int cw_category_delete(struct cw_config *cfg, char *category);
+void cw_category_destroy(struct cw_category *cat);
+struct cw_variable *cw_category_detach_variables(struct cw_category *cat);
+void cw_category_rename(struct cw_category *cat, const char *name);
 
-struct opbx_variable *opbx_variable_new(const char *name, const char *value);
-void opbx_variable_append(struct opbx_category *category, struct opbx_variable *variable);
-int opbx_variable_delete(struct opbx_config *cfg, char *category, char *variable, char *value);
+struct cw_variable *cw_variable_new(const char *name, const char *value);
+void cw_variable_append(struct cw_category *category, struct cw_variable *variable);
+int cw_variable_delete(struct cw_config *cfg, char *category, char *variable, char *value);
 
-int config_text_file_save(const char *filename, const struct opbx_config *cfg, const char *generator);
+int config_text_file_save(const char *filename, const struct cw_config *cfg, const char *generator);
 
-struct opbx_config *opbx_config_internal_load(const char *configfile, struct opbx_config *cfg);
+struct cw_config *cw_config_internal_load(const char *configfile, struct cw_config *cfg);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

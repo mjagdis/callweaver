@@ -58,12 +58,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 struct pvt
 {
     FILE *f;                            /* Descriptor */
-    struct opbx_frame fr;               /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + BUF_SIZE];
+    struct cw_frame fr;               /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + BUF_SIZE];
 };
 
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Sun Microsystems AU format (signed linear)";
 
@@ -104,13 +104,13 @@ static int check_header(FILE *f)
 
     if (fread(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (header)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (header)\n");
         return -1;
     }
     magic = ltohl(header[AU_HDR_MAGIC_OFF]);
     if (magic != (u_int32_t) AU_MAGIC)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad magic: 0x%x\n", magic);
+        cw_log(CW_LOG_WARNING, "Bad magic: 0x%x\n", magic);
     }
 /*  hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
     if (hdr_size < AU_HEADER_SIZE)*/
@@ -119,19 +119,19 @@ static int check_header(FILE *f)
     encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
     if (encoding != AU_ENC_8BIT_ULAW)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
+        cw_log(CW_LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
         return -1;
     }
     sample_rate = ltohl(header[AU_HDR_SAMPLE_RATE_OFF]);
     if (sample_rate != 8000)
     {
-        opbx_log(OPBX_LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
+        cw_log(CW_LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
         return -1;
     }
     channels = ltohl(header[AU_HDR_CHANNELS_OFF]);
     if (channels != 1)
     {
-        opbx_log(OPBX_LOG_WARNING, "Not in mono: channels=%d\n", channels);
+        cw_log(CW_LOG_WARNING, "Not in mono: channels=%d\n", channels);
         return -1;
     }
     /* Skip to data */
@@ -139,7 +139,7 @@ static int check_header(FILE *f)
     data_size = ftell(f) - hdr_size;
     if (fseek(f, hdr_size, SEEK_SET) == -1)
     {
-        opbx_log(OPBX_LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
+        cw_log(CW_LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
         return -1;
     }
     return data_size;
@@ -160,22 +160,22 @@ static int update_header(FILE *f)
 
     if (cur < 0)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to find our position\n");
+        cw_log(CW_LOG_WARNING, "Unable to find our position\n");
         return -1;
     }
     if (fseek(f, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set our position\n");
+        cw_log(CW_LOG_WARNING, "Unable to set our position\n");
         return -1;
     }
     if (fwrite(&datalen, 1, sizeof(datalen), f) != sizeof(datalen))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set write file size\n");
+        cw_log(CW_LOG_WARNING, "Unable to set write file size\n");
         return -1;
     }
     if (fseek(f, cur, SEEK_SET))
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to return to position\n");
+        cw_log(CW_LOG_WARNING, "Unable to return to position\n");
         return -1;
     }
     return 0;
@@ -196,7 +196,7 @@ static int write_header(FILE *f)
     fseek(f, 0, SEEK_SET);
     if (fwrite(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     return 0;
@@ -212,13 +212,13 @@ static void *au_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_ULAW, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -237,7 +237,7 @@ static void *au_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -248,7 +248,7 @@ static void au_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *au_read(void *data, int *whennext)
+static struct cw_frame *au_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -257,7 +257,7 @@ static struct opbx_frame *au_read(void *data, int *whennext)
     if ((res = fread(pvt->fr.data, 1, BUF_SIZE, pvt->f)) < 1)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     pvt->fr.datalen = pvt->fr.samples = res;
@@ -267,24 +267,24 @@ static struct opbx_frame *au_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int au_write(void *data, struct opbx_frame *f)
+static int au_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
 
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_ULAW)
+    if (f->subclass != CW_FORMAT_ULAW)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
     update_header(pvt->f);
@@ -339,11 +339,11 @@ static char *au_getcomment(void *data)
     return NULL;
 }
 
-static struct opbx_format format =
+static struct cw_format format =
 {
     .name = "au",
     .exts = "au",
-    .format = OPBX_FORMAT_ULAW,
+    .format = CW_FORMAT_ULAW,
     .open = au_open,
     .rewrite = au_rewrite,
     .write = au_write,
@@ -357,13 +357,13 @@ static struct opbx_format format =
 
 static int load_module(void)
 {
-    opbx_format_register(&format);
+    cw_format_register(&format);
     return 0;
 }
 
 static int unload_module(void)
 {
-    opbx_format_unregister(&format);
+    cw_format_unregister(&format);
     return 0;
 }
 

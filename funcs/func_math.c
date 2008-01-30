@@ -83,7 +83,7 @@ enum TypeOfResult
 };
 
 
-static int builtin_function_math(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_math(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	double fnum1;
 	double fnum2;
@@ -94,7 +94,7 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 	int type_of_result = FLOAT_RESULT;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
-		return opbx_function_syntax(math_func_syntax);
+		return cw_function_syntax(math_func_syntax);
 
 	if (buf) {
 		if (!strcasecmp(argv[1],"float") || !strcasecmp(argv[1],"f"))
@@ -106,8 +106,8 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 		else if (!strcasecmp(argv[1],"char") || !strcasecmp(argv[1],"c"))
 			type_of_result=CHAR_RESULT;
 		else {
-			opbx_log(OPBX_LOG_ERROR, "Unknown type of result requested '%s'\n", argv[1]);
-			return opbx_function_syntax(math_func_syntax);
+			cw_log(CW_LOG_ERROR, "Unknown type of result requested '%s'\n", argv[1]);
+			return cw_function_syntax(math_func_syntax);
 		}
 
 		mvalue1 = argv[0];
@@ -155,17 +155,17 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			mvalue2 = op + 1;
 
 		if (!mvalue1 || !mvalue2) {
-			opbx_log(OPBX_LOG_WARNING, "Supply all the parameters - just this once, please\n");
+			cw_log(CW_LOG_WARNING, "Supply all the parameters - just this once, please\n");
 			return -1;
 		}
 
 		if (sscanf(mvalue1, "%lf", &fnum1) != 1) {
-			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
+			cw_log(CW_LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 			return -1;
 		}
 
 		if (sscanf(mvalue2, "%lf", &fnum2) != 1) {
-			opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
+			cw_log(CW_LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 			return -1;
 		}
 
@@ -195,22 +195,22 @@ static int builtin_function_math(struct opbx_channel *chan, int argc, char **arg
 			break;
 		}
 		case GTFUNCTION :
-			opbx_copy_string (buf, (fnum1 > fnum2)?"TRUE":"FALSE", len);
+			cw_copy_string (buf, (fnum1 > fnum2)?"TRUE":"FALSE", len);
 			break;
 		case LTFUNCTION :
-			opbx_copy_string (buf, (fnum1 < fnum2)?"TRUE":"FALSE", len);
+			cw_copy_string (buf, (fnum1 < fnum2)?"TRUE":"FALSE", len);
 			break;
 		case GTEFUNCTION :
-			opbx_copy_string (buf, (fnum1 >= fnum2)?"TRUE":"FALSE", len);
+			cw_copy_string (buf, (fnum1 >= fnum2)?"TRUE":"FALSE", len);
 			break;
 		case LTEFUNCTION :
-			opbx_copy_string (buf, (fnum1 <= fnum2)?"TRUE":"FALSE", len);
+			cw_copy_string (buf, (fnum1 <= fnum2)?"TRUE":"FALSE", len);
 			break;					
 		case EQFUNCTION :
-			opbx_copy_string (buf, (fnum1 == fnum2)?"TRUE":"FALSE", len);
+			cw_copy_string (buf, (fnum1 == fnum2)?"TRUE":"FALSE", len);
 			break;
 		default :
-			opbx_log(OPBX_LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
+			cw_log(CW_LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
 			return -1;
 		}
 
@@ -234,12 +234,12 @@ static const char tdesc[] = "math functions";
 
 static int unload_module(void)
 {
-        return opbx_unregister_function(math_function);
+        return cw_unregister_function(math_function);
 }
 
 static int load_module(void)
 {
-        math_function = opbx_register_function(math_func_name, builtin_function_math, math_func_synopsis, math_func_syntax, math_func_desc);
+        math_function = cw_register_function(math_func_name, builtin_function_math, math_func_synopsis, math_func_syntax, math_func_desc);
 	return 0;
 }
 

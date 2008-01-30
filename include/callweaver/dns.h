@@ -24,7 +24,7 @@
 #ifndef _CALLWEAVER_DNS_H
 #define _CALLWEAVER_DNS_H
 
-struct opbx_channel;
+struct cw_channel;
 
 /*!	\brief	Perform DNS lookup (used by enum and SRV lookups) 
 	\param	context
@@ -33,7 +33,7 @@ struct opbx_channel;
 	\param	type	Record type (see "man res_search")
 	\param	callback Callback function for handling DNS result
 */
-extern int opbx_search_dns(void *context, const char *dname, int class, int type,
+extern int cw_search_dns(void *context, const char *dname, int class, int type,
 	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
 
 #endif /* _CALLWEAVER_DNS_H */

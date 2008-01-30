@@ -52,46 +52,46 @@ static const char echo_descrip[] =
 "if the user exits with the '#' key, or -1 if the user hangs up.\n";
 
 
-static int echo_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int echo_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	int res = -1;
 
 	if (argc != 0)
-		return opbx_function_syntax(echo_syntax);
+		return cw_function_syntax(echo_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
-	opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
+	cw_set_write_format(chan, cw_best_codec(chan->nativeformats));
+	cw_set_read_format(chan, cw_best_codec(chan->nativeformats));
 	/* Do our thing here */
     f = NULL;
-	while(opbx_waitfor(chan, -1) > -1) {
-		f = opbx_read(chan);
+	while(cw_waitfor(chan, -1) > -1) {
+		f = cw_read(chan);
 		if (!f)
 			break;
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
-		if (f->frametype == OPBX_FRAME_VOICE) {
-			if (opbx_write(chan, f)) 
+		if (f->frametype == CW_FRAME_VOICE) {
+			if (cw_write(chan, f)) 
 				break;
-		} else if (f->frametype == OPBX_FRAME_VIDEO) {
-			if (opbx_write(chan, f)) 
+		} else if (f->frametype == CW_FRAME_VIDEO) {
+			if (cw_write(chan, f)) 
 				break;
-		} else if (f->frametype == OPBX_FRAME_DTMF) {
+		} else if (f->frametype == CW_FRAME_DTMF) {
 			if (f->subclass == '#') {
 				res = 0;
 				break;
 			} else
-				if (opbx_write(chan, f))
+				if (cw_write(chan, f))
 					break;
 		}
-		opbx_fr_free(f);
+		cw_fr_free(f);
         f = NULL;
 	}
 	if (f)
-		opbx_fr_free(f);
+		cw_fr_free(f);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -101,13 +101,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(echo_app);
+	res |= cw_unregister_function(echo_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	echo_app = opbx_register_function(echo_name, echo_exec, echo_synopsis, echo_syntax, echo_descrip);
+	echo_app = cw_register_function(echo_name, echo_exec, echo_synopsis, echo_syntax, echo_descrip);
 	return 0;
 }
 

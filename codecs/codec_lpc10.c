@@ -92,9 +92,9 @@ struct lpc10_coder_pvt
         lpc10_encode_state_t *enc;
         lpc10_decode_state_t *dec;
     } lpc10;
-    struct opbx_frame f;
+    struct cw_frame f;
     /* Space to build offset */
-    char offset[OPBX_FRIENDLY_OFFSET];
+    char offset[CW_FRIENDLY_OFFSET];
     /* Buffer for our outgoing frame */
     int16_t outbuf[8000];
     /* Enough to store a full second */
@@ -138,11 +138,11 @@ static void *lpc10_dec_new(void)
     return tmp;
 }
 
-static struct opbx_frame *lintolpc10_sample(void)
+static struct cw_frame *lintolpc10_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -150,11 +150,11 @@ static struct opbx_frame *lintolpc10_sample(void)
     return &f;
 }
 
-static struct opbx_frame *lpc10tolin_sample(void)
+static struct cw_frame *lpc10tolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
 
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_LPC10, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_LPC10, __PRETTY_FUNCTION__);
     f.datalen = sizeof(lpc10_ex);
     /* All frames are 22 ms long (maybe a little more -- why did he choose
        LPC10_SAMPLES_PER_FRAME sample frames anyway?? */
@@ -163,7 +163,7 @@ static struct opbx_frame *lpc10tolin_sample(void)
     return &f;
 }
 
-static struct opbx_frame *lpc10tolin_frameout(void *pvt)
+static struct cw_frame *lpc10tolin_frameout(void *pvt)
 {
     struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     if (tmp->tail == 0)
@@ -171,11 +171,11 @@ static struct opbx_frame *lpc10tolin_frameout(void *pvt)
 
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     /* Assume 8000 Hz */
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->buf;
     /* Reset tail pointer */
     tmp->tail = 0;
@@ -183,7 +183,7 @@ static struct opbx_frame *lpc10tolin_frameout(void *pvt)
     return &tmp->f;    
 }
 
-static int lpc10tolin_framein(void *pvt, struct opbx_frame *f)
+static int lpc10tolin_framein(void *pvt, struct cw_frame *f)
 {
     struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     /* Assuming there's space left, decode into the current buffer at
@@ -196,7 +196,7 @@ static int lpc10tolin_framein(void *pvt, struct opbx_frame *f)
         /* Perform PLC with nominal framesize of LPC10_SAMPLES_PER_FRAME */
         if ((tmp->tail + LPC10_SAMPLES_PER_FRAME) > sizeof(tmp->buf)/sizeof(int16_t))
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -211,13 +211,13 @@ static int lpc10tolin_framein(void *pvt, struct opbx_frame *f)
     {
         if (tmp->tail + LPC10_SAMPLES_PER_FRAME >= sizeof(tmp->buf)/sizeof(int16_t))
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         sd = tmp->buf + tmp->tail;
         if (lpc10_decode(tmp->lpc10.dec, sd, f->data + len, 1) < LPC10_SAMPLES_PER_FRAME)
         {
-            opbx_log(OPBX_LOG_WARNING, "Invalid lpc10 data\n");
+            cw_log(CW_LOG_WARNING, "Invalid lpc10 data\n");
             return -1;
         }
         if (useplc)
@@ -227,11 +227,11 @@ static int lpc10tolin_framein(void *pvt, struct opbx_frame *f)
         len += LPC10_BYTES_IN_COMPRESSED_FRAME;
     }
     if (len != f->datalen) 
-        opbx_log(OPBX_LOG_WARNING, "Decoded %d, expected %d\n", len, f->datalen);
+        cw_log(CW_LOG_WARNING, "Decoded %d, expected %d\n", len, f->datalen);
     return 0;
 }
 
-static int lintolpc10_framein(void *pvt, struct opbx_frame *f)
+static int lintolpc10_framein(void *pvt, struct cw_frame *f)
 {
     struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     /* Just add the frames to our stream */
@@ -240,7 +240,7 @@ static int lintolpc10_framein(void *pvt, struct opbx_frame *f)
        get artifacts of earlier talk that do not belong */
     if (tmp->tail + f->datalen > sizeof(tmp->buf)/sizeof(int16_t))
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
@@ -248,7 +248,7 @@ static int lintolpc10_framein(void *pvt, struct opbx_frame *f)
     return 0;
 }
 
-static struct opbx_frame *lintolpc10_frameout(void *pvt)
+static struct cw_frame *lintolpc10_frameout(void *pvt)
 {
     struct lpc10_coder_pvt *tmp = (struct lpc10_coder_pvt *)pvt;
     int consumed = 0;
@@ -257,12 +257,12 @@ static struct opbx_frame *lintolpc10_frameout(void *pvt)
     if (tmp->tail < LPC10_SAMPLES_PER_FRAME)
         return NULL;
     /* Start with an empty frame */
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_LPC10, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_LPC10, __PRETTY_FUNCTION__);
     while (tmp->tail >=  LPC10_SAMPLES_PER_FRAME)
     {
         if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf))
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return NULL;
         }
         /* Encode a frame of data */
@@ -280,7 +280,7 @@ static struct opbx_frame *lintolpc10_frameout(void *pvt)
         consumed += LPC10_SAMPLES_PER_FRAME;
     }
     tmp->f.mallocd = 0;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
     /* Move the data at the end of the buffer to the front */
@@ -298,12 +298,12 @@ static void lpc10_destroy(void *pvt)
     free(tmp);
 }
 
-static opbx_translator_t lpc10tolin =
+static cw_translator_t lpc10tolin =
 {
     .name = "lpc10tolin", 
-    .src_format = OPBX_FORMAT_LPC10,
+    .src_format = CW_FORMAT_LPC10,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = lpc10_dec_new,
     .framein = lpc10tolin_framein,
@@ -312,12 +312,12 @@ static opbx_translator_t lpc10tolin =
     .sample = lpc10tolin_sample
 };
 
-static opbx_translator_t lintolpc10 =
+static cw_translator_t lintolpc10 =
 {
     .name = "lintolpc10", 
-    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_format = CW_FORMAT_SLINEAR,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_LPC10,
+    .dst_format = CW_FORMAT_LPC10,
     .dst_rate = 8000,
     .newpvt = lpc10_enc_new,
     .framein = lintolpc10_framein,
@@ -328,20 +328,20 @@ static opbx_translator_t lintolpc10 =
 
 static void parse_config(void)
 {
-        struct opbx_config *cfg;
-        struct opbx_variable *var;
-        if ((cfg = opbx_config_load("codecs.conf"))) {
-                if ((var = opbx_variable_browse(cfg, "plc"))) {
+        struct cw_config *cfg;
+        struct cw_variable *var;
+        if ((cfg = cw_config_load("codecs.conf"))) {
+                if ((var = cw_variable_browse(cfg, "plc"))) {
                         while (var) {
                                if (!strcasecmp(var->name, "genericplc")) {
-                                       useplc = opbx_true(var->value) ? 1 : 0;
+                                       useplc = cw_true(var->value) ? 1 : 0;
                                        if (option_verbose > 2)
-                                               opbx_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n", useplc ? "" : "not ");
+                                               cw_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n", useplc ? "" : "not ");
                                }
                                var = var->next;
                         }
                 }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
         }
 }
 
@@ -353,16 +353,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&lpc10tolin);
-    opbx_translator_unregister(&lintolpc10);
+    cw_translator_unregister(&lpc10tolin);
+    cw_translator_unregister(&lintolpc10);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&lpc10tolin);
-    opbx_translator_register(&lintolpc10);
+    cw_translator_register(&lpc10tolin);
+    cw_translator_register(&lintolpc10);
     return 0;
 }
 

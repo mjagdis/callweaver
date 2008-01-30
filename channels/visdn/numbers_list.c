@@ -55,7 +55,7 @@ int visdn_numbers_list_match(
 {
 	struct visdn_number *num;
 	list_for_each_entry(num, list, node) {
-		if (opbx_extension_match(num->number, number))
+		if (cw_extension_match(num->number, number))
 			return TRUE;
 	}
 

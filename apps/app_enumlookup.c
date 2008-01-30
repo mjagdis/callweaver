@@ -71,7 +71,7 @@ static char h323driver[80] = "";
 
 
 /*--- enumlookup_exec: Look up number in ENUM and return result */
-static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static int dep_warning = 0;
 	char tech[80];
@@ -82,18 +82,18 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 	int res = 0;
 
 	if (!dep_warning) {
-		opbx_log(OPBX_LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
+		cw_log(CW_LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
 		dep_warning = 1;
 	}
 
 	if (argc != 1)
-		return opbx_function_syntax(enumlookup_syntax);
+		return cw_function_syntax(enumlookup_syntax);
 		
 	LOCAL_USER_ADD(u);
 
 	tech[0] = '\0';
 
-	res = opbx_get_enum(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
+	res = cw_get_enum(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
 	
 	if (!res) {	/* Failed to do a lookup */
 		/* Look for a "busy" place */
@@ -138,7 +138,7 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 				c += 4;
 
 			if (c[0] != '+') {
-				opbx_log(OPBX_LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
+				cw_log(CW_LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
 				res = 0;
 			} else {
 /* now copy over the number, skipping all non-digits and stop at ; or NULL */
@@ -150,10 +150,10 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 				}
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-				opbx_log(OPBX_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
+				cw_log(CW_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
 			}
-		} else if (!opbx_strlen_zero(tech)) {
-			opbx_log(OPBX_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
+		} else if (!cw_strlen_zero(tech)) {
+			cw_log(CW_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
 			pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
 			res = 0;
 		}
@@ -167,20 +167,20 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, cha
 /*--- load_config: Load enum.conf and find out how to handle H.323 */
 static int load_config(void)
 {
-	struct opbx_config *cfg;
+	struct cw_config *cfg;
 	char *s;
 
-	cfg = opbx_config_load(ENUM_CONFIG);
+	cfg = cw_config_load(ENUM_CONFIG);
 	if (cfg) {
-		if (!(s=opbx_variable_retrieve(cfg, "general", "h323driver"))) {
+		if (!(s=cw_variable_retrieve(cfg, "general", "h323driver"))) {
 			strncpy(h323driver, H323DRIVERDEFAULT, sizeof(h323driver) - 1);
 		} else {
 			strncpy(h323driver, s, sizeof(h323driver) - 1);
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		return 0;
 	}
-	opbx_log(OPBX_LOG_NOTICE, "No ENUM Config file, using defaults\n");
+	cw_log(CW_LOG_NOTICE, "No ENUM Config file, using defaults\n");
 	return 0;
 }
 
@@ -190,14 +190,14 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(enumlookup_app);
+	res |= cw_unregister_function(enumlookup_app);
 	return res;
 }
 
 /*--- load_module: Load this application into PBX */
 static int load_module(void)
 {
-	enumlookup_app = opbx_register_function(enumlookup_name, enumlookup_exec, enumlookup_synopsis, enumlookup_syntax, enumlookup_descrip);
+	enumlookup_app = cw_register_function(enumlookup_name, enumlookup_exec, enumlookup_synopsis, enumlookup_syntax, enumlookup_descrip);
 	return 0;
 }
 

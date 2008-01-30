@@ -28,15 +28,15 @@
 #include "callweaver/module.h"
 
 
-struct opbx_channel;
+struct cw_channel;
 
 
 /*! \brief structure associated with registering a function */
-struct opbx_func {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+struct cw_func {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	unsigned int hash;
-	int (*handler)(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+	int (*handler)(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
 	const char *name;
 	const char *synopsis;
 	const char *syntax;
@@ -44,49 +44,49 @@ struct opbx_func {
 };
 
 
-extern struct opbx_registry func_registry;
+extern struct cw_registry func_registry;
 
 
-#define opbx_function_register(ptr) ({ \
+#define cw_function_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&func_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&func_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_function_unregister(ptr) ({ \
+#define cw_function_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&func_registry, __ptr->reg_entry); \
+		cw_registry_del(&func_registry, __ptr->reg_entry); \
 	0; \
 })
 
 
 /* Backwards compatibility */
-#define opbx_register_function(f_name, f_handler, f_synopsis, f_syntax, f_description) ({ \
-	static struct opbx_func f = { \
+#define cw_register_function(f_name, f_handler, f_synopsis, f_syntax, f_description) ({ \
+	static struct cw_func f = { \
 		.name = (f_name), \
 		.handler = (f_handler), \
 		.synopsis = (f_synopsis), \
 		.syntax = (f_syntax), \
 		.description = (f_description), \
 	}; \
-	opbx_function_register(&f); \
+	cw_function_register(&f); \
 	&f; \
 })
-#define opbx_unregister_function(func) ({ \
-	const struct opbx_func *__func = (func); \
+#define cw_unregister_function(func) ({ \
+	const struct cw_func *__func = (func); \
 	if (__func) \
-		opbx_function_unregister(__func); \
+		cw_function_unregister(__func); \
 	0; \
 })
 
 
-extern void opbx_function_registry_initialize(void);
+extern void cw_function_registry_initialize(void);
 
 
 #endif /* _CALLWEAVER_FUNCTION_H */

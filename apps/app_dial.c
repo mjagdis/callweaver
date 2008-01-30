@@ -177,49 +177,49 @@ static unsigned int hash_proc;
 #define DIAL_NOFORWARDHTML		(1 << 13)
 
 struct outchan {
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	unsigned int flags;
 	int forwards;
 	struct outchan *next;
 };
 
 
-static void hanguptree(struct outchan *outgoing, struct opbx_channel *exception)
+static void hanguptree(struct outchan *outgoing, struct cw_channel *exception)
 {
 	/* Hang up a tree of stuff */
 	struct outchan *oo;
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception))
-			opbx_hangup(outgoing->chan);
+			cw_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing=outgoing->next;
 		free(oo);
 	}
 }
 
-#define OPBX_MAX_FORWARDS   8
+#define CW_MAX_FORWARDS   8
 
-#define OPBX_MAX_WATCHERS 256
+#define CW_MAX_WATCHERS 256
 
 #define HANDLE_CAUSE(cause, chan) do { \
 	switch(cause) { \
-	case OPBX_CAUSE_BUSY: \
+	case CW_CAUSE_BUSY: \
 		if (chan->cdr) \
-			opbx_cdr_busy(chan->cdr); \
+			cw_cdr_busy(chan->cdr); \
 		numbusy++; \
 		break; \
-	case OPBX_CAUSE_CONGESTION: \
+	case CW_CAUSE_CONGESTION: \
 		if (chan->cdr) \
-			opbx_cdr_busy(chan->cdr); \
+			cw_cdr_busy(chan->cdr); \
 		numcongestion++; \
 		break; \
-	case OPBX_CAUSE_UNREGISTERED: \
+	case CW_CAUSE_UNREGISTERED: \
 		if (chan->cdr) \
-			opbx_cdr_busy(chan->cdr); \
+			cw_cdr_busy(chan->cdr); \
 		numnochan++; \
 		break; \
-	case OPBX_CAUSE_NORMAL_CLEARING: \
+	case CW_CAUSE_NORMAL_CLEARING: \
 		break; \
 	default: \
 		numnochan++; \
@@ -228,18 +228,18 @@ static void hanguptree(struct outchan *outgoing, struct opbx_channel *exception)
 } while (0)
 
 
-static int onedigit_goto(struct opbx_channel *chan, char *context, char exten, int pri) 
+static int onedigit_goto(struct cw_channel *chan, char *context, char exten, int pri) 
 {
 	char rexten[2] = { exten, '\0' };
 
 	if (context) {
-		if (!opbx_goto_if_exists(chan, context, rexten, pri))
+		if (!cw_goto_if_exists(chan, context, rexten, pri))
 			return 1;
 	} else {
-		if (!opbx_goto_if_exists(chan, chan->context, rexten, pri))
+		if (!cw_goto_if_exists(chan, chan->context, rexten, pri))
 			return 1;
-		else if (!opbx_strlen_zero(chan->proc_context)) {
-			if (!opbx_goto_if_exists(chan, chan->proc_context, rexten, pri))
+		else if (!cw_strlen_zero(chan->proc_context)) {
+			if (!cw_goto_if_exists(chan, chan->proc_context, rexten, pri))
 				return 1;
 		}
 	}
@@ -247,27 +247,27 @@ static int onedigit_goto(struct opbx_channel *chan, char *context, char exten, i
 }
 
 
-static char *get_cid_name(char *name, int namelen, struct opbx_channel *chan)
+static char *get_cid_name(char *name, int namelen, struct cw_channel *chan)
 {
 	char *context;
 	char *exten;
-	if (!opbx_strlen_zero(chan->proc_context))
+	if (!cw_strlen_zero(chan->proc_context))
 		context = chan->proc_context;
 	else
 		context = chan->context;
 
-	if (!opbx_strlen_zero(chan->proc_exten))
+	if (!cw_strlen_zero(chan->proc_exten))
 		exten = chan->proc_exten;
 	else
 		exten = chan->exten;
 
-	if (opbx_get_hint(NULL, 0, name, namelen, chan, context, exten))
+	if (cw_get_hint(NULL, 0, name, namelen, chan, context, exten))
 		return name;
 	else
 		return "";
 }
 
-static void senddialevent(struct opbx_channel *src, struct opbx_channel *dst)
+static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 {
 	manager_event(EVENT_FLAG_CALL, "Dial", 
 			   "Source: %s\r\n"
@@ -281,7 +281,7 @@ static void senddialevent(struct opbx_channel *src, struct opbx_channel *dst)
 			   dst->uniqueid);
 }
 
-static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outchan *outgoing, int *to, struct opbx_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
+static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan *outgoing, int *to, struct cw_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
 	struct outchan *o;
 	int found;
@@ -292,22 +292,22 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 	int prestart = busystart + congestionstart + nochanstart;
 	int cause;
 	int orig = *to;
-	struct opbx_frame *f;
-	struct opbx_channel *peer = NULL;
-	struct opbx_channel *watchers[OPBX_MAX_WATCHERS];
+	struct cw_frame *f;
+	struct cw_channel *peer = NULL;
+	struct cw_channel *watchers[CW_MAX_WATCHERS];
 	int pos;
 	int single;
-	struct opbx_channel *winner;
+	struct cw_channel *winner;
 	char *context = NULL;
-	char cidname[OPBX_MAX_EXTENSION];
+	char cidname[CW_MAX_EXTENSION];
 
-	single = (outgoing && !outgoing->next && !opbx_test_flag(outgoing, DIAL_MUSICONHOLD | DIAL_RINGBACKONLY));
+	single = (outgoing && !outgoing->next && !cw_test_flag(outgoing, DIAL_MUSICONHOLD | DIAL_RINGBACKONLY));
 	
 	if (single) {
 		/* Turn off hold music, etc */
-		opbx_generator_deactivate(&in->generator);
+		cw_generator_deactivate(&in->generator);
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
-		opbx_channel_make_compatible(outgoing->chan, in);
+		cw_channel_make_compatible(outgoing->chan, in);
 	}
 	
 	
@@ -319,7 +319,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 		watchers[0] = in;
 		while (o) {
 			/* Keep track of important channels */
-			if (opbx_test_flag(o, DIAL_STILLGOING) && o->chan) {
+			if (cw_test_flag(o, DIAL_STILLGOING) && o->chan) {
 				watchers[pos++] = o->chan;
 				found = 1;
 			}
@@ -329,7 +329,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 		if (found < 0) {
 			if (numlines == (numbusy + numcongestion + numnochan)) {
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					cw_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 				if (numbusy)
 					strcpy(status, "BUSY");	
 				else if (numcongestion)
@@ -338,27 +338,27 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 					strcpy(status, "CHANUNAVAIL");
 			} else {
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					cw_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 			}
 			*to = 0;
 			return NULL;
 		}
-		winner = opbx_waitfor_n(watchers, pos, to);
+		winner = cw_waitfor_n(watchers, pos, to);
 		o = outgoing;
 		while (o) {
-			if (opbx_test_flag(o, DIAL_STILLGOING) && o->chan && (o->chan->_state == OPBX_STATE_UP)) {
+			if (cw_test_flag(o, DIAL_STILLGOING) && o->chan && (o->chan->_state == CW_STATE_UP)) {
 				if (!peer) {
 					if (option_verbose > 2)
-						opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+						cw_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					opbx_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
+					cw_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
 				}
 			} else if (o->chan && (o->chan == winner)) {
-				if (!opbx_strlen_zero(o->chan->call_forward)) {
+				if (!cw_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256];
 					char *stuff;
 					char *tech;
-					opbx_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
+					cw_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff = '\0';
 						stuff++;
@@ -370,21 +370,21 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 					}
 					/* Before processing channel, go ahead and check for forwarding */
 					o->forwards++;
-					if (o->forwards < OPBX_MAX_FORWARDS) {
+					if (o->forwards < CW_MAX_FORWARDS) {
 						if (option_verbose > 2)
-							opbx_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
+							cw_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 						/* Setup parameters */
-						o->chan = opbx_request(tech, in->nativeformats, stuff, &cause);
+						o->chan = cw_request(tech, in->nativeformats, stuff, &cause);
 						if (!o->chan)
-							opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+							cw_log(CW_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 					} else {
 						if (option_verbose > 2)
-							opbx_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
-						cause = OPBX_CAUSE_CONGESTION;
+							cw_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
+						cause = CW_CAUSE_CONGESTION;
 						o->chan = NULL;
 					}
 					if (!o->chan) {
-						opbx_clear_flag(o, DIAL_STILLGOING);	
+						cw_clear_flag(o, DIAL_STILLGOING);	
 						HANDLE_CAUSE(cause, in);
 					} else {
 						if (o->chan->cid.cid_num)
@@ -394,30 +394,30 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 							free(o->chan->cid.cid_name);
 						o->chan->cid.cid_name = NULL;
 
-						if (opbx_test_flag(o, DIAL_FORCECALLERID)) {
+						if (cw_test_flag(o, DIAL_FORCECALLERID)) {
 							char *newcid = NULL;
 
-							if (!opbx_strlen_zero(in->proc_exten))
+							if (!cw_strlen_zero(in->proc_exten))
 								newcid = in->proc_exten;
 							else
 								newcid = in->exten;
 							o->chan->cid.cid_num = strdup(newcid);
-							opbx_copy_string(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode));
+							cw_copy_string(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = winner->cdrflags;
 							if (!o->chan->cid.cid_num)
-								opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+								cw_log(CW_LOG_WARNING, "Out of memory\n");
 						} else {
 							if (in->cid.cid_num) {
 								o->chan->cid.cid_num = strdup(in->cid.cid_num);
 								if (!o->chan->cid.cid_num)
-									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");	
+									cw_log(CW_LOG_WARNING, "Out of memory\n");	
 							}
 							if (in->cid.cid_name) {
 								o->chan->cid.cid_name = strdup(in->cid.cid_name);
 								if (!o->chan->cid.cid_name)
-									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");	
+									cw_log(CW_LOG_WARNING, "Out of memory\n");	
 							}
-							opbx_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
+							cw_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = in->cdrflags;
 						}
 
@@ -426,201 +426,201 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 								free(o->chan->cid.cid_ani);
 								o->chan->cid.cid_ani = strdup(in->cid.cid_ani);
 								if (!o->chan->cid.cid_ani)
-									opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+									cw_log(CW_LOG_WARNING, "Out of memory\n");
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
-						if (!opbx_strlen_zero(in->proc_exten))
+						if (!cw_strlen_zero(in->proc_exten))
 							o->chan->cid.cid_rdnis = strdup(in->proc_exten);
 						else
 							o->chan->cid.cid_rdnis = strdup(in->exten);
-						if (opbx_call(o->chan, tmpchan, 0)) {
-							opbx_log(OPBX_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
-							opbx_clear_flag(o, DIAL_STILLGOING);	
-							opbx_hangup(o->chan);
+						if (cw_call(o->chan, tmpchan, 0)) {
+							cw_log(CW_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+							cw_clear_flag(o, DIAL_STILLGOING);	
+							cw_hangup(o->chan);
 							o->chan = NULL;
 							numnochan++;
 						} else {
 							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
-							if (!opbx_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-								opbx_set_callerid(o->chan, opbx_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+							if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
+								cw_set_callerid(o->chan, cw_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
-					opbx_hangup(winner);
+					cw_hangup(winner);
 					continue;
 				}
-				f = opbx_read(winner);
+				f = cw_read(winner);
 				if (f) {
-					if (f->frametype == OPBX_FRAME_CONTROL) {
+					if (f->frametype == CW_FRAME_CONTROL) {
 						switch(f->subclass) {
-						case OPBX_CONTROL_ANSWER:
+						case CW_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
 								if (option_verbose > 2)
-									opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+									cw_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								opbx_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
+								cw_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
 							}
 							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
-							in->hangupcause = OPBX_CAUSE_NORMAL_CLEARING;
-							o->chan->hangupcause = OPBX_CAUSE_NORMAL_CLEARING;
+							in->hangupcause = CW_CAUSE_NORMAL_CLEARING;
+							o->chan->hangupcause = CW_CAUSE_NORMAL_CLEARING;
 							break;
-						case OPBX_CONTROL_BUSY:
+						case CW_CONTROL_BUSY:
 							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
+								cw_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
 							in->hangupcause = o->chan->hangupcause;
-							opbx_hangup(o->chan);
+							cw_hangup(o->chan);
 							o->chan = NULL;
-							opbx_clear_flag(o, DIAL_STILLGOING);	
-							HANDLE_CAUSE(OPBX_CAUSE_BUSY, in);
+							cw_clear_flag(o, DIAL_STILLGOING);	
+							HANDLE_CAUSE(CW_CAUSE_BUSY, in);
 							break;
-						case OPBX_CONTROL_CONGESTION:
+						case CW_CONTROL_CONGESTION:
 							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
+								cw_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
 							in->hangupcause = o->chan->hangupcause;
-							opbx_hangup(o->chan);
+							cw_hangup(o->chan);
 							o->chan = NULL;
-							opbx_clear_flag(o, DIAL_STILLGOING);
-							HANDLE_CAUSE(OPBX_CAUSE_CONGESTION, in);
+							cw_clear_flag(o, DIAL_STILLGOING);
+							HANDLE_CAUSE(CW_CAUSE_CONGESTION, in);
 							break;
-						case OPBX_CONTROL_RINGING:
+						case CW_CONTROL_RINGING:
 							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							if (!(*sentringing) && !opbx_test_flag(outgoing, DIAL_MUSICONHOLD)) {
-								opbx_indicate(in, OPBX_CONTROL_RINGING);
+								cw_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
+							if (!(*sentringing) && !cw_test_flag(outgoing, DIAL_MUSICONHOLD)) {
+								cw_indicate(in, CW_CONTROL_RINGING);
 								(*sentringing)++;
 							}
 							break;
-						case OPBX_CONTROL_PROGRESS:
+						case CW_CONTROL_PROGRESS:
 							if (option_verbose > 2)
-								opbx_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							if (!opbx_test_flag(outgoing, DIAL_RINGBACKONLY))
-								opbx_indicate(in, OPBX_CONTROL_PROGRESS);
+								cw_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
+							if (!cw_test_flag(outgoing, DIAL_RINGBACKONLY))
+								cw_indicate(in, CW_CONTROL_PROGRESS);
 							break;
-						case OPBX_CONTROL_VIDUPDATE:
+						case CW_CONTROL_VIDUPDATE:
 							if (option_verbose > 2)
-								opbx_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", o->chan->name,in->name);
-							opbx_indicate(in, OPBX_CONTROL_VIDUPDATE);
+								cw_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", o->chan->name,in->name);
+							cw_indicate(in, CW_CONTROL_VIDUPDATE);
 							break;
-						case OPBX_CONTROL_PROCEEDING:
+						case CW_CONTROL_PROCEEDING:
 							if (option_verbose > 2)
-								opbx_verbose ( VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", o->chan->name,in->name);
-							if (!opbx_test_flag(outgoing, DIAL_RINGBACKONLY))
-								opbx_indicate(in, OPBX_CONTROL_PROCEEDING);
+								cw_verbose ( VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", o->chan->name,in->name);
+							if (!cw_test_flag(outgoing, DIAL_RINGBACKONLY))
+								cw_indicate(in, CW_CONTROL_PROCEEDING);
 							break;
-						case OPBX_CONTROL_HOLD:
+						case CW_CONTROL_HOLD:
 							if (option_verbose > 2)
-								opbx_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", o->chan->name);
-							opbx_indicate(in, OPBX_CONTROL_HOLD);
+								cw_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", o->chan->name);
+							cw_indicate(in, CW_CONTROL_HOLD);
 							break;
-						case OPBX_CONTROL_UNHOLD:
+						case CW_CONTROL_UNHOLD:
 							if (option_verbose > 2)
-								opbx_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", o->chan->name);
-							opbx_indicate(in, OPBX_CONTROL_UNHOLD);
+								cw_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", o->chan->name);
+							cw_indicate(in, CW_CONTROL_UNHOLD);
 							break;
-						case OPBX_CONTROL_OFFHOOK:
-						case OPBX_CONTROL_FLASH:
+						case CW_CONTROL_OFFHOOK:
+						case CW_CONTROL_FLASH:
 							/* Ignore going off hook and flash */
 							break;
 						case -1:
-							if (!opbx_test_flag(outgoing, DIAL_RINGBACKONLY | DIAL_MUSICONHOLD)) {
+							if (!cw_test_flag(outgoing, DIAL_RINGBACKONLY | DIAL_MUSICONHOLD)) {
 								if (option_verbose > 2)
-									opbx_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
-								opbx_indicate(in, -1);
+									cw_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
+								cw_indicate(in, -1);
 								(*sentringing) = 0;
 							}
 							break;
 						default:
-							opbx_log(OPBX_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+							cw_log(CW_LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
-					} else if (single && (f->frametype == OPBX_FRAME_VOICE) && 
-								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (opbx_write(in, f)) 
-							opbx_log(OPBX_LOG_DEBUG, "Unable to forward frame\n");
-					} else if (single && (f->frametype == OPBX_FRAME_IMAGE) && 
-								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (opbx_write(in, f))
-							opbx_log(OPBX_LOG_DEBUG, "Unable to forward image\n");
-					} else if (single && (f->frametype == OPBX_FRAME_TEXT) && 
-								!(opbx_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (opbx_write(in, f))
-							opbx_log(OPBX_LOG_DEBUG, "Unable to text\n");
-					} else if (single && (f->frametype == OPBX_FRAME_HTML) && !opbx_test_flag(outgoing, DIAL_NOFORWARDHTML))
-						opbx_channel_sendhtml(in, f->subclass, f->data, f->datalen);
+					} else if (single && (f->frametype == CW_FRAME_VOICE) && 
+								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
+						if (cw_write(in, f)) 
+							cw_log(CW_LOG_DEBUG, "Unable to forward frame\n");
+					} else if (single && (f->frametype == CW_FRAME_IMAGE) && 
+								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
+						if (cw_write(in, f))
+							cw_log(CW_LOG_DEBUG, "Unable to forward image\n");
+					} else if (single && (f->frametype == CW_FRAME_TEXT) && 
+								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
+						if (cw_write(in, f))
+							cw_log(CW_LOG_DEBUG, "Unable to text\n");
+					} else if (single && (f->frametype == CW_FRAME_HTML) && !cw_test_flag(outgoing, DIAL_NOFORWARDHTML))
+						cw_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 
-					opbx_fr_free(f);
+					cw_fr_free(f);
 				} else {
 					in->hangupcause = o->chan->hangupcause;
-					opbx_hangup(o->chan);
+					cw_hangup(o->chan);
 					o->chan = NULL;
-					opbx_clear_flag(o, DIAL_STILLGOING);
+					cw_clear_flag(o, DIAL_STILLGOING);
 					HANDLE_CAUSE(in->hangupcause, in);
 				}
 			}
 			o = o->next;
 		}
 		if (winner == in) {
-			f = opbx_read(in);
+			f = cw_read(in);
 #if 0
-			if (f && (f->frametype != OPBX_FRAME_VOICE))
+			if (f && (f->frametype != CW_FRAME_VOICE))
 				printf("Frame type: %d, %d\n", f->frametype, f->subclass);
-			else if (!f || (f->frametype != OPBX_FRAME_VOICE))
+			else if (!f || (f->frametype != CW_FRAME_VOICE))
 				printf("Hangup received on %s\n", in->name);
 #endif
-			if (!f || ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_HANGUP))) {
+			if (!f || ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
 				strcpy(status, "CANCEL");
 				if (f)
-					opbx_fr_free(f);
+					cw_fr_free(f);
 				return NULL;
 			}
 
-			if (f && (f->frametype == OPBX_FRAME_DTMF)) {
-				if (opbx_test_flag(peerflags, DIAL_HALT_ON_DTMF)) {
+			if (f && (f->frametype == CW_FRAME_DTMF)) {
+				if (cw_test_flag(peerflags, DIAL_HALT_ON_DTMF)) {
 					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
 					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
 						if (option_verbose > 3)
-							opbx_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+							cw_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 						*to=0;
 						*result = f->subclass;
 						strcpy(status, "CANCEL");
-						opbx_fr_free(f);
+						cw_fr_free(f);
 						return NULL;
 					}
 				}
 
-				if (opbx_test_flag(peerflags, DIAL_ALLOWDISCONNECT_OUT) && 
+				if (cw_test_flag(peerflags, DIAL_ALLOWDISCONNECT_OUT) && 
 						  (f->subclass == '*')) { /* hmm it it not guarenteed to be '*' anymore. */
 					if (option_verbose > 3)
-						opbx_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+						cw_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 					*to=0;
 					strcpy(status, "CANCEL");
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					return NULL;
 				}
 			}
 
 			/* Forward HTML stuff */
-			if (single && f && (f->frametype == OPBX_FRAME_HTML) && !opbx_test_flag(outgoing, DIAL_NOFORWARDHTML)) 
-				opbx_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen);
+			if (single && f && (f->frametype == CW_FRAME_HTML) && !cw_test_flag(outgoing, DIAL_NOFORWARDHTML)) 
+				cw_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen);
 			
 
-			if (single && ((f->frametype == OPBX_FRAME_VOICE) || (f->frametype == OPBX_FRAME_DTMF)))  {
-				if (opbx_write(outgoing->chan, f))
-					opbx_log(OPBX_LOG_WARNING, "Unable to forward voice\n");
+			if (single && ((f->frametype == CW_FRAME_VOICE) || (f->frametype == CW_FRAME_DTMF)))  {
+				if (cw_write(outgoing->chan, f))
+					cw_log(CW_LOG_WARNING, "Unable to forward voice\n");
 			}
-			if (single && (f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_VIDUPDATE)) {
+			if (single && (f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_VIDUPDATE)) {
 				if (option_verbose > 2)
-					opbx_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", in->name,outgoing->chan->name);
-				opbx_indicate(outgoing->chan, OPBX_CONTROL_VIDUPDATE);
+					cw_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", in->name,outgoing->chan->name);
+				cw_indicate(outgoing->chan, CW_CONTROL_VIDUPDATE);
 			}
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 		if (!*to && (option_verbose > 2))
-			opbx_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+			cw_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
 	}
 
 	return peer;
@@ -628,7 +628,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outc
 }
 
 
-static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, struct opbx_flags *peerflags)
+static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct cw_flags *peerflags)
 {
 	int res=-1;
 	struct localuser *u;
@@ -639,7 +639,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	char  announcemsg[256] = "", *ann;
 	int inputkey;
 	struct outchan *outgoing=NULL, *tmp;
-	struct opbx_channel *peer;
+	struct cw_channel *peer;
 	int to;
 	int hasmacro = 0;
 	int privacy=0;
@@ -653,9 +653,9 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	int numcongestion = 0;
 	int numnochan = 0;
 	int cause;
-	char numsubst[OPBX_MAX_EXTENSION];
-	char restofit[OPBX_MAX_EXTENSION];
-	char cidname[OPBX_MAX_EXTENSION];
+	char numsubst[CW_MAX_EXTENSION];
+	char restofit[CW_MAX_EXTENSION];
+	char cidname[CW_MAX_EXTENSION];
 	char *options = NULL;
 	char *newnum;
 	char *l;
@@ -664,7 +664,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	unsigned int calldurationlimit=0;
 	char *cdl;
 	time_t now;
-	struct opbx_bridge_config config;
+	struct cw_bridge_config config;
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq=0;
@@ -689,7 +689,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	char *dblgoto = NULL;
 
 	if (argc < 1 || argc > 4)
-		return opbx_function_syntax(dial_syntax);
+		return cw_function_syntax(dial_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -700,9 +700,9 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 
 	if (option_debug) {
 		if (url)
-			opbx_log(OPBX_LOG_DEBUG, "DIAL WITH URL=%s\n", url);
+			cw_log(CW_LOG_DEBUG, "DIAL WITH URL=%s\n", url);
 		else
-			opbx_log(OPBX_LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+			cw_log(CW_LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
 	}
 
 	if (options) {
@@ -711,12 +711,12 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if ((cdl = strstr(options, "S("))) {
 			calldurationlimit=atoi(cdl+2);
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);			
+				cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);			
 		} 
 
 		/* Extract DTMF strings to send upon successfull connect */
 		if ((sdtmfptr = strstr(options, "D("))) {
-			dtmfcalled = opbx_strdupa(sdtmfptr + 2);
+			dtmfcalled = cw_strdupa(sdtmfptr + 2);
 			dtmfcalling = strchr(dtmfcalled, ')');
 			if (dtmfcalling)
 				*dtmfcalling = '\0';
@@ -731,12 +731,12 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (*sdtmfptr)
 				*sdtmfptr = 'X';
 			else 
-				opbx_log(OPBX_LOG_WARNING, "D( Data lacking trailing ')'\n");
+				cw_log(CW_LOG_WARNING, "D( Data lacking trailing ')'\n");
 		}
   
 		/* XXX LIMIT SUPPORT */
 		if ((limitptr = strstr(options, "L("))) {
-			opbx_copy_string(limitdata, limitptr + 2, sizeof(limitdata));
+			cw_copy_string(limitdata, limitptr + 2, sizeof(limitdata));
 			/* Overwrite with X's what was the limit info */
 			while (*limitptr && (*limitptr != ')')) 
 				*(limitptr++) = 'X';
@@ -747,13 +747,13 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (limitptr)
 				*limitptr = '\0';
 			else
-				opbx_log(OPBX_LOG_WARNING, "Limit Data lacking trailing ')'\n");
+				cw_log(CW_LOG_WARNING, "Limit Data lacking trailing ')'\n");
 
 			var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
-			play_to_caller = var ? opbx_true(var) : 1;
+			play_to_caller = var ? cw_true(var) : 1;
 		  
 			var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLEE");
-			play_to_callee = var ? opbx_true(var) : 0;
+			play_to_callee = var ? cw_true(var) : 0;
 		  
 			if (!play_to_caller && !play_to_callee)
 				play_to_caller=1;
@@ -796,17 +796,17 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				calldurationlimit = timelimit/1000;
 				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
+					cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
 			} else if (option_verbose > 2) {
-				opbx_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
-				opbx_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
-				opbx_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
-				opbx_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", play_to_caller ? "yes" : "no");
-				opbx_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", play_to_callee ? "yes" : "no");
-				opbx_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
-				opbx_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", start_sound ? start_sound : "UNDEF");
-				opbx_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
-				opbx_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
+				cw_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
+				cw_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
+				cw_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", play_to_caller ? "yes" : "no");
+				cw_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", play_to_callee ? "yes" : "no");
+				cw_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
+				cw_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", start_sound ? start_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
 			}
 		}
 		
@@ -818,7 +818,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		/* XXX ANNOUNCE SUPPORT */
 		if ((ann = strstr(options, "A("))) {
 			announce = 1;
-			opbx_copy_string(announcemsg, ann + 2, sizeof(announcemsg));
+			cw_copy_string(announcemsg, ann + 2, sizeof(announcemsg));
 			/* Overwrite with X's what was the announce info */
 			while (*ann && (*ann != ')')) 
 				*(ann++) = 'X';
@@ -829,7 +829,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (ann)
 				*ann = '\0';
 			else {
-				opbx_log(OPBX_LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
+				cw_log(CW_LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
 				announce = 0;
 			}
 		}
@@ -838,7 +838,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if ((mac = strstr(options, "G("))) {
 
 
-			dblgoto = opbx_strdupa(mac + 2);
+			dblgoto = cw_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
 			if (*mac) {
@@ -847,11 +847,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(OPBX_LOG_WARNING, "Goto flag set without trailing ')'\n");
+					cw_log(CW_LOG_WARNING, "Goto flag set without trailing ')'\n");
 					dblgoto = NULL;
 				}
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Could not find exten to which we should jump.\n");
+				cw_log(CW_LOG_WARNING, "Could not find exten to which we should jump.\n");
 				dblgoto = NULL;
 			}
 		}
@@ -859,7 +859,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		/* Get the proc name from the dial option string */
 		if ((mac = strstr(options, "M("))) {
 			hasmacro = 1;
-			proc_name = opbx_strdupa(mac + 2);
+			proc_name = cw_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
 			if (*mac) {
@@ -868,17 +868,17 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(OPBX_LOG_WARNING, "Proc flag set without trailing ')'\n");
+					cw_log(CW_LOG_WARNING, "Proc flag set without trailing ')'\n");
 					hasmacro = 0;
 				}
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Could not find macro to which we should jump.\n");
+				cw_log(CW_LOG_WARNING, "Could not find macro to which we should jump.\n");
 				hasmacro = 0;
 			}
 		}
 		/* Get music on hold class */
 		if ((mac = strstr(options, "m("))) {
-			mohclass = opbx_strdupa(mac + 2);
+			mohclass = cw_strdupa(mac + 2);
 			mac++; /* Leave the "m" in the string */
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
@@ -888,18 +888,18 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(OPBX_LOG_WARNING, "Music on hold class specified without trailing ')'\n");
+					cw_log(CW_LOG_WARNING, "Music on hold class specified without trailing ')'\n");
 					mohclass = NULL;
 				}
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
+				cw_log(CW_LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
 				mohclass=NULL;
 			}
 		}
 		/* Extract privacy info from transfer */
 		if ((s = strstr(options, "P("))) {
 			privacy = 1;
-			opbx_copy_string(privdb, s + 2, sizeof(privdb));
+			cw_copy_string(privdb, s + 2, sizeof(privdb));
 			/* Overwrite with X's what was the privacy info */
 			while (*s && (*s != ')')) 
 				*(s++) = 'X';
@@ -910,7 +910,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (s)
 				*s = '\0';
 			else {
-				opbx_log(OPBX_LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
+				cw_log(CW_LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
 				privacy = 0;
 			}
 		} else if (strchr(options, 'P')) {
@@ -929,62 +929,62 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		}
 	}
 	if (resetcdr && chan->cdr)
-		opbx_cdr_reset(chan->cdr, 0);
-	if (privacy && opbx_strlen_zero(privdb)) {
+		cw_cdr_reset(chan->cdr, 0);
+	if (privacy && cw_strlen_zero(privdb)) {
 		/* If privdb is not specified and we are using privacy, copy from extension */
-		opbx_copy_string(privdb, chan->exten, sizeof(privdb));
+		cw_copy_string(privdb, chan->exten, sizeof(privdb));
 	}
 	if (privacy || screen) {
 		char callerid[60];
 
 		l = chan->cid.cid_num;
-		if (!opbx_strlen_zero(l)) {
-			opbx_shrink_phone_number(l);
+		if (!cw_strlen_zero(l)) {
+			cw_shrink_phone_number(l);
 			if( privacy ) {
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_3  "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
-				privdb_val = opbx_privacy_check(privdb, l);
+					cw_verbose( VERBOSE_PREFIX_3  "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
+				privdb_val = cw_privacy_check(privdb, l);
 			}
 			else {
 				if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_3  "Privacy Screening, clid is '%s'\n", l);
-				privdb_val = OPBX_PRIVACY_UNKNOWN;
+					cw_verbose( VERBOSE_PREFIX_3  "Privacy Screening, clid is '%s'\n", l);
+				privdb_val = CW_PRIVACY_UNKNOWN;
 			}
 		} else {
 			char *tnam, *tn2;
 
-			tnam = opbx_strdupa(chan->name);
+			tnam = cw_strdupa(chan->name);
 			/* clean the channel name so slashes don't try to end up in disk file name */
 			for(tn2 = tnam; *tn2; tn2++) {
 				if( *tn2=='/')
 					*tn2 = '=';  /* any other chars to be afraid of? */
 			}
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3  "Privacy-- callerid is empty\n");
+				cw_verbose( VERBOSE_PREFIX_3  "Privacy-- callerid is empty\n");
 
 			snprintf(callerid, sizeof(callerid), "NOCALLERID_%s%s", chan->exten, tnam);
 			l = callerid;
-			privdb_val = OPBX_PRIVACY_UNKNOWN;
+			privdb_val = CW_PRIVACY_UNKNOWN;
 		}
 		
-		opbx_copy_string(privcid,l,sizeof(privcid));
+		cw_copy_string(privcid,l,sizeof(privcid));
 
 		if( strncmp(privcid,"NOCALLERID",10) != 0 && no_screen_callerid ) { /* if callerid is set, and no_screen_callerid is set also */  
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", privcid);
-			privdb_val = OPBX_PRIVACY_ALLOW;
+				cw_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", privcid);
+			privdb_val = CW_PRIVACY_ALLOW;
 		}
 		else if( no_screen_callerid && strncmp(privcid,"NOCALLERID",10) == 0 ) {
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", privdb_val);
+				cw_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", privdb_val);
 		}
 		
-		if( privdb_val == OPBX_PRIVACY_DENY ) {
-			opbx_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
+		if( privdb_val == CW_PRIVACY_DENY ) {
+			cw_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
 			res=0;
 			goto out;
 		}
-		else if( privdb_val == OPBX_PRIVACY_UNKNOWN ) {
+		else if( privdb_val == CW_PRIVACY_UNKNOWN ) {
 			/* Get the user's intro, store it in priv-callerintros/$CID, 
 			   unless it is already there-- this should be done before the 
 			   call is actually dialed  */
@@ -992,7 +992,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			/* make sure the priv-callerintros dir exists? */
 
 			snprintf(privintro,sizeof(privintro),"priv-callerintros/%s", privcid);
-			if( opbx_fileexists(privintro,NULL,NULL ) && strncmp(privcid,"NOCALLERID",10) != 0) {
+			if( cw_fileexists(privintro,NULL,NULL ) && strncmp(privcid,"NOCALLERID",10) != 0) {
 				/* the DELUX version of this code would allow this caller the
 				   option to hear and retape their previously recorded intro.
 				*/
@@ -1007,16 +1007,16 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 
 				*/
 
-				res = opbx_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to */
+				res = cw_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to */
 															/* 4 sec don't think we'll need a lock removed, we 
 															   took care of conflicts by naming the privintro file */
 				if (res == -1) {
 					/* Delete the file regardless since they hung up during recording */
-                                        opbx_filedelete(privintro, NULL);
-                                        if( opbx_fileexists(privintro,NULL,NULL ) )
-                                                opbx_log(OPBX_LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+                                        cw_filedelete(privintro, NULL);
+                                        if( cw_fileexists(privintro,NULL,NULL ) )
+                                                cw_log(CW_LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
                                         else if (option_verbose > 2)
-                                                opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+                                                cw_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
 					goto out;
 				}
 															/* don't think we'll need a lock removed, we took care of
@@ -1040,48 +1040,48 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		tech = cur;
 		number = strchr(tech, '/');
 		if (!number) {
-			opbx_log(OPBX_LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...,optional timeout)\n");
+			cw_log(CW_LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...,optional timeout)\n");
 			goto out;
 		}
 		*number = '\0';
 		number++;
 		tmp = malloc(sizeof(struct outchan));
 		if (!tmp) {
-			opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
 		memset(tmp, 0, sizeof(struct outchan));
 		if (options) {
-			opbx_set2_flag(tmp, strchr(options, 't'), DIAL_ALLOWREDIRECT_IN);
-			opbx_set2_flag(tmp, strchr(options, 'T'), DIAL_ALLOWREDIRECT_OUT);
-			opbx_set2_flag(tmp, strchr(options, 'r'), DIAL_RINGBACKONLY);	
-			opbx_set2_flag(tmp, strchr(options, 'm'), DIAL_MUSICONHOLD);	
-			opbx_set2_flag(tmp, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			opbx_set2_flag(peerflags, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			opbx_set2_flag(tmp, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			opbx_set2_flag(peerflags, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			opbx_set2_flag(tmp, strchr(options, 'f'), DIAL_FORCECALLERID);	
-			opbx_set2_flag(tmp, url, DIAL_NOFORWARDHTML);	
-			opbx_set2_flag(peerflags, strchr(options, 'w'), DIAL_MONITOR_IN);	
-			opbx_set2_flag(peerflags, strchr(options, 'W'), DIAL_MONITOR_OUT);	
-			opbx_set2_flag(peerflags, strchr(options, 'd'), DIAL_HALT_ON_DTMF);	
-			opbx_set2_flag(peerflags, strchr(options, 'g'), DIAL_GO_ON);	
-			opbx_set2_flag(peerflags, strchr(options, 'o'), DIAL_PRESERVE_CALLERID);	
+			cw_set2_flag(tmp, strchr(options, 't'), DIAL_ALLOWREDIRECT_IN);
+			cw_set2_flag(tmp, strchr(options, 'T'), DIAL_ALLOWREDIRECT_OUT);
+			cw_set2_flag(tmp, strchr(options, 'r'), DIAL_RINGBACKONLY);	
+			cw_set2_flag(tmp, strchr(options, 'm'), DIAL_MUSICONHOLD);	
+			cw_set2_flag(tmp, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
+			cw_set2_flag(peerflags, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
+			cw_set2_flag(tmp, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
+			cw_set2_flag(peerflags, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
+			cw_set2_flag(tmp, strchr(options, 'f'), DIAL_FORCECALLERID);	
+			cw_set2_flag(tmp, url, DIAL_NOFORWARDHTML);	
+			cw_set2_flag(peerflags, strchr(options, 'w'), DIAL_MONITOR_IN);	
+			cw_set2_flag(peerflags, strchr(options, 'W'), DIAL_MONITOR_OUT);	
+			cw_set2_flag(peerflags, strchr(options, 'd'), DIAL_HALT_ON_DTMF);	
+			cw_set2_flag(peerflags, strchr(options, 'g'), DIAL_GO_ON);	
+			cw_set2_flag(peerflags, strchr(options, 'o'), DIAL_PRESERVE_CALLERID);	
 		}
-		opbx_copy_string(numsubst, number, sizeof(numsubst));
+		cw_copy_string(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
 			/* strlen("BYEXTENSION") == 11 */
-			opbx_copy_string(restofit, newnum + 11, sizeof(restofit));
+			cw_copy_string(restofit, newnum + 11, sizeof(restofit));
 			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
 			if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "Dialing by extension %s\n", numsubst);
+				cw_log(CW_LOG_DEBUG, "Dialing by extension %s\n", numsubst);
 		}
 		/* Request the peer */
-		tmp->chan = opbx_request(tech, chan->nativeformats, numsubst, &cause);
+		tmp->chan = cw_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			opbx_log(OPBX_LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, opbx_cause2str(cause));
+			cw_log(CW_LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, cw_cause2str(cause));
 			free(tmp);
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
@@ -1090,11 +1090,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			continue;
 		}
 		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
-		if (!opbx_strlen_zero(tmp->chan->call_forward)) {
+		if (!cw_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256];
 			char *stuff;
 			char *tech;
-			opbx_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));
+			cw_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));
 			if ((stuff = strchr(tmpchan, '/'))) {
 				*stuff = '\0';
 				stuff++;
@@ -1105,20 +1105,20 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				tech = "Local";
 			}
 			tmp->forwards++;
-			if (tmp->forwards < OPBX_MAX_FORWARDS) {
+			if (tmp->forwards < CW_MAX_FORWARDS) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
-				opbx_hangup(tmp->chan);
+					cw_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
+				cw_hangup(tmp->chan);
 				/* Setup parameters */
-				tmp->chan = opbx_request(tech, chan->nativeformats, stuff, &cause);
+				tmp->chan = cw_request(tech, chan->nativeformats, stuff, &cause);
 				if (!tmp->chan)
-					opbx_log(OPBX_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+					cw_log(CW_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 			} else {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
-				opbx_hangup(tmp->chan);
+					cw_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
+				cw_hangup(tmp->chan);
 				tmp->chan = NULL;
-				cause = OPBX_CAUSE_CONGESTION;
+				cause = CW_CAUSE_CONGESTION;
 			}
 			if (!tmp->chan) {
 				free(tmp);
@@ -1129,7 +1129,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		}
 
 		/* Inherit specially named variables from parent channel */
-		opbx_channel_inherit_variables(chan, tmp->chan);
+		cw_channel_inherit_variables(chan, tmp->chan);
 
 		tmp->chan->appl = "AppDial (Outgoing Line)";
 		tmp->chan->whentohangup = 0;
@@ -1151,11 +1151,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			tmp->chan->cid.cid_ani = strdup(chan->cid.cid_ani);
 		
 		/* Copy language from incoming to outgoing */
-		opbx_copy_string(tmp->chan->language, chan->language, sizeof(tmp->chan->language));
-		opbx_copy_string(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode));
+		cw_copy_string(tmp->chan->language, chan->language, sizeof(tmp->chan->language));
+		cw_copy_string(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode));
 		tmp->chan->cdrflags = chan->cdrflags;
-		if (opbx_strlen_zero(tmp->chan->musicclass))
-			opbx_copy_string(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass));
+		if (cw_strlen_zero(tmp->chan->musicclass))
+			cw_copy_string(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass));
 		if (chan->cid.cid_rdnis)
 			tmp->chan->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */
@@ -1171,62 +1171,62 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
-			opbx_app_group_set_channel(tmp->chan, outbound_group);
+			cw_app_group_set_channel(tmp->chan, outbound_group);
 
 		/* Place the call, but don't wait on the answer */
-		res = opbx_call(tmp->chan, numsubst, 0);
+		res = cw_call(tmp->chan, numsubst, 0);
 
 		/* Save the info in cdr's that we called them */
 		if (chan->cdr)
-			opbx_cdr_setdestchan(chan->cdr, tmp->chan->name);
+			cw_cdr_setdestchan(chan->cdr, tmp->chan->name);
 
-		/* check the results of opbx_call */
+		/* check the results of cw_call */
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
-				opbx_log(OPBX_LOG_DEBUG, "ast call on peer returned %d\n", res);
+				cw_log(CW_LOG_DEBUG, "ast call on peer returned %d\n", res);
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
-			opbx_hangup(tmp->chan);
+				cw_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
+			cw_hangup(tmp->chan);
 			free(tmp);
 			cur = rest;
 			continue;
 		} else {
 			senddialevent(chan, tmp->chan);
 			if (option_verbose > 2)
-				opbx_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
-			if (!opbx_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-				opbx_set_callerid(tmp->chan, opbx_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
+				cw_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
+			if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
+				cw_set_callerid(tmp->chan, cw_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
-		opbx_set_flag(tmp, DIAL_STILLGOING);	
+		cw_set_flag(tmp, DIAL_STILLGOING);	
 		tmp->next = outgoing;
 		outgoing = tmp;
 		/* If this line is up, don't try anybody else */
-		if (outgoing->chan->_state == OPBX_STATE_UP)
+		if (outgoing->chan->_state == CW_STATE_UP)
 			break;
 		cur = rest;
 	} while (cur);
 	
-	if (!opbx_strlen_zero(timeout)) {
+	if (!cw_strlen_zero(timeout)) {
 		to = atoi(timeout);
 		if (to > 0)
 			to *= 1000;
 		else
-			opbx_log(OPBX_LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
+			cw_log(CW_LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
 	} else
 		to = -1;
 
 	if (outgoing) {
 		/* Our status will at least be NOANSWER */
 		strcpy(status, "NOANSWER");
-		if (opbx_test_flag(outgoing, DIAL_MUSICONHOLD)) {
+		if (cw_test_flag(outgoing, DIAL_MUSICONHOLD)) {
 			moh=1;
-			opbx_moh_start(chan, mohclass);
-		} else if (opbx_test_flag(outgoing, DIAL_RINGBACKONLY)) {
-			opbx_indicate(chan, OPBX_CONTROL_RINGING);
+			cw_moh_start(chan, mohclass);
+		} else if (cw_test_flag(outgoing, DIAL_RINGBACKONLY)) {
+			cw_indicate(chan, CW_CONTROL_RINGING);
 			sentringing++;
 		}
 	} else
@@ -1261,7 +1261,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		outgoing = NULL;
 		/* If appropriate, log that we have a destination channel */
 		if (chan->cdr)
-			opbx_cdr_setdestchan(chan->cdr, peer->name);
+			cw_cdr_setdestchan(chan->cdr, peer->name);
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 
@@ -1269,14 +1269,14 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (!number)
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
- 		if (!opbx_strlen_zero(url) && opbx_channel_supports_html(peer) ) {
- 			opbx_log(OPBX_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
- 			opbx_channel_sendurl( peer, url );
+ 		if (!cw_strlen_zero(url) && cw_channel_supports_html(peer) ) {
+ 			cw_log(CW_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
+ 			cw_channel_sendurl( peer, url );
  		}
 		if (privacy || screen) {
 			int res2;
 			int loopcount = 0;
-			if( privdb_val == OPBX_PRIVACY_UNKNOWN ) {
+			if( privdb_val == CW_PRIVACY_UNKNOWN ) {
 
 				/* Get the user's intro, store it in priv-callerintros/$CID, 
 				   unless it is already there-- this should be done before the 
@@ -1287,20 +1287,20 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				   time and make the caller believe the peer hasn't picked up yet */
 
 				if ( strchr(options, 'm') ) {
-					opbx_indicate(chan, -1);
-					opbx_moh_start(chan, mohclass);
+					cw_indicate(chan, -1);
+					cw_moh_start(chan, mohclass);
 				} else if ( strchr(options, 'r') ) {
-					opbx_indicate(chan, OPBX_CONTROL_RINGING);
+					cw_indicate(chan, CW_CONTROL_RINGING);
 					sentringing++;
 				}
 
 				/* Start autoservice on the other chan ?? */
-				res2 = opbx_autoservice_start(chan);
+				res2 = cw_autoservice_start(chan);
 				/* Now Stream the File */
 				if (!res2) {
 					do {
 						if (!res2)
-							res2 = opbx_play_and_wait(peer,"priv-callpending");
+							res2 = cw_play_and_wait(peer,"priv-callpending");
 						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						
@@ -1308,15 +1308,15 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 						   "I have a caller waiting, who introduces themselves as:"
 						*/
 						if (!res2)
-							res2 = opbx_play_and_wait(peer,privintro);
+							res2 = cw_play_and_wait(peer,privintro);
 						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						/* now get input from the called party, as to their choice */
 						if( !res2 ) {
 							if( privacy )
-								res2 = opbx_play_and_wait(peer,"priv-callee-options");
+								res2 = cw_play_and_wait(peer,"priv-callee-options");
 							if( screen )
-								res2 = opbx_play_and_wait(peer,"screen-callee-options");
+								res2 = cw_play_and_wait(peer,"screen-callee-options");
 						}
 						/* priv-callee-options script:
 							"Dial 1 if you wish this caller to reach you directly in the future,
@@ -1337,7 +1337,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 						*/
 						if( !res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4') ) {
 							/* invalid option */
-							res2 = opbx_play_and_wait(peer,"vm-sorry");
+							res2 = cw_play_and_wait(peer,"vm-sorry");
 						}
 						loopcount++; /* give the callee a couple chances to make a choice */
 					} while( (!res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4')) && loopcount < 2 );
@@ -1347,79 +1347,79 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				case '1':
 					if( privacy ) {
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
-						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_ALLOW);
+							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
+						cw_privacy_set(privdb,privcid,CW_PRIVACY_ALLOW);
 					}
 					break;
 				case '2':
 					if( privacy ) {
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n", privdb, privcid);
-						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_DENY);
+							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n", privdb, privcid);
+						cw_privacy_set(privdb,privcid,CW_PRIVACY_DENY);
 					}
 					if ( strchr(options, 'm') ) {
-						opbx_moh_stop(chan);
+						cw_moh_stop(chan);
 					} else if ( strchr(options, 'r') ) {
-						opbx_indicate(chan, -1);
+						cw_indicate(chan, -1);
 						sentringing=0;
 					}
-					res2 = opbx_autoservice_stop(chan);
-					opbx_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+					res2 = cw_autoservice_stop(chan);
+					cw_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
 					res=0;
 					goto out;
 					break;
 				case '3':
 					if( privacy ) {
-						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_TORTURE);
+						cw_privacy_set(privdb,privcid,CW_PRIVACY_TORTURE);
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n", privdb, privcid);
+							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n", privdb, privcid);
 					}
-					opbx_copy_string(status, "TORTURE", sizeof(status));
+					cw_copy_string(status, "TORTURE", sizeof(status));
 					
 					res = 0;
 					if ( strchr(options, 'm') ) {
-						opbx_moh_stop(chan);
+						cw_moh_stop(chan);
 					} else if ( strchr(options, 'r') ) {
-						opbx_indicate(chan, -1);
+						cw_indicate(chan, -1);
 						sentringing=0;
 					}
-					res2 = opbx_autoservice_stop(chan);
-					opbx_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+					res2 = cw_autoservice_stop(chan);
+					cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 					goto out; /* Is this right? */
 					break;
 				case '4':
 					if( privacy ) {
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n", privdb, privcid);
-						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_KILL);
+							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n", privdb, privcid);
+						cw_privacy_set(privdb,privcid,CW_PRIVACY_KILL);
 					}
 
-					opbx_copy_string(status, "DONTCALL", sizeof(status));
+					cw_copy_string(status, "DONTCALL", sizeof(status));
 					res = 0;
 					if ( strchr(options, 'm') ) {
-						opbx_moh_stop(chan);
+						cw_moh_stop(chan);
 					} else if ( strchr(options, 'r') ) {
-						opbx_indicate(chan, -1);
+						cw_indicate(chan, -1);
 						sentringing=0;
 					}
-					res2 = opbx_autoservice_stop(chan);
-					opbx_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+					res2 = cw_autoservice_stop(chan);
+					cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 					goto out; /* Is this right? */
 					break;
 				case '5':
 					if( privacy ) {
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
-						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_ALLOW);
+							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
+						cw_privacy_set(privdb,privcid,CW_PRIVACY_ALLOW);
 					
 						if ( strchr(options, 'm') ) {
-							opbx_moh_stop(chan);
+							cw_moh_stop(chan);
 						} else if ( strchr(options, 'r') ) {
-							opbx_indicate(chan, -1);
+							cw_indicate(chan, -1);
 							sentringing=0;
 						}
-						res2 = opbx_autoservice_stop(chan);
-						opbx_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+						res2 = cw_autoservice_stop(chan);
+						cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 						res=0;
 						goto out;
 						break;
@@ -1430,50 +1430,50 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				                  or,... put 'em thru to voicemail. */
 					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
 					if (option_verbose > 2)
-						opbx_log(OPBX_LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
+						cw_log(CW_LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
 					if ( strchr(options, 'm') ) {
-						opbx_moh_stop(chan);
+						cw_moh_stop(chan);
 					} else if ( strchr(options, 'r') ) {
-						opbx_indicate(chan, -1);
+						cw_indicate(chan, -1);
 						sentringing=0;
 					}
-					res2 = opbx_autoservice_stop(chan);
-					opbx_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+					res2 = cw_autoservice_stop(chan);
+					cw_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
 					res=0;
 					goto out;
 					break;
 				}
 				if ( strchr(options, 'm') ) {
-					opbx_moh_stop(chan);
+					cw_moh_stop(chan);
 				} else if ( strchr(options, 'r') ) {
-					opbx_indicate(chan, -1);
+					cw_indicate(chan, -1);
 					sentringing=0;
 				}
-				res2 = opbx_autoservice_stop(chan);
+				res2 = cw_autoservice_stop(chan);
 				/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
 				   just clog things up, and it's not useful information, not being tied to a CID */
 				if( strncmp(privcid,"NOCALLERID",10) == 0 || no_save_intros ) {
-					opbx_filedelete(privintro, NULL);
-					if( opbx_fileexists(privintro,NULL,NULL ) )
-						opbx_log(OPBX_LOG_NOTICE,"privacy: opbx_filedelete didn't do its job on %s\n", privintro);
+					cw_filedelete(privintro, NULL);
+					if( cw_fileexists(privintro,NULL,NULL ) )
+						cw_log(CW_LOG_NOTICE,"privacy: cw_filedelete didn't do its job on %s\n", privintro);
 					else if (option_verbose > 2)
-						opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+						cw_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
 				}
 			}
 		}
 		if (announce && announcemsg) {
 			/* Start autoservice on the other chan */
-			res = opbx_autoservice_start(chan);
+			res = cw_autoservice_start(chan);
 			/* Now Stream the File */
 			if (!res)
-				res = opbx_streamfile(peer, announcemsg, peer->language);
+				res = cw_streamfile(peer, announcemsg, peer->language);
 			if (!res) {
-				digit = opbx_waitstream(peer, OPBX_DIGIT_ANY); 
+				digit = cw_waitstream(peer, CW_DIGIT_ANY); 
 			}
 			/* Ok, done. stop autoservice */
-			res = opbx_autoservice_stop(chan);
+			res = cw_autoservice_stop(chan);
 			if (digit > 0 && !res)
-				res = opbx_senddigit(chan, digit); 
+				res = cw_senddigit(chan, digit); 
 			else
 				res = digit;
 
@@ -1486,19 +1486,19 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 					*mac = ',';
 				}
 			}
-			opbx_parseable_goto(chan, dblgoto);
-			opbx_parseable_goto(peer, dblgoto);
+			cw_parseable_goto(chan, dblgoto);
+			cw_parseable_goto(peer, dblgoto);
 			peer->priority++;
-			opbx_pbx_start(peer);
+			cw_pbx_start(peer);
 			hanguptree(outgoing, NULL);
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 
 		if (hasmacro && proc_name) {
-			res = opbx_autoservice_start(chan);
+			res = cw_autoservice_start(chan);
 			if (res) {
-				opbx_log(OPBX_LOG_ERROR, "Unable to start autoservice on calling channel\n");
+				cw_log(CW_LOG_ERROR, "Unable to start autoservice on calling channel\n");
 				res = -1;
 			}
 
@@ -1506,24 +1506,24 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				for (res = 0;  res < strlen(proc_name);  res++)
 					if (proc_name[res] == '^')
 						proc_name[res] = ',';
-				res = opbx_function_exec_str(peer, hash_proc, "Proc", proc_name, NULL, 0);
+				res = cw_function_exec_str(peer, hash_proc, "Proc", proc_name, NULL, 0);
 				res = 0;
 			}
 
-			if (opbx_autoservice_stop(chan) < 0) {
-				opbx_log(OPBX_LOG_ERROR, "Could not stop autoservice on calling channel\n");
+			if (cw_autoservice_stop(chan) < 0) {
+				cw_log(CW_LOG_ERROR, "Could not stop autoservice on calling channel\n");
 				res = -1;
 			}
 
 			if (!res) {
 				if ((proc_result = pbx_builtin_getvar_helper(peer, "PROC_RESULT"))) {
 					if (!strcasecmp(proc_result, "BUSY")) {
-						opbx_copy_string(status, proc_result, sizeof(status));
+						cw_copy_string(status, proc_result, sizeof(status));
 						res = -1;
 					}
 					else if (!strcasecmp(proc_result, "CONGESTION") || !strcasecmp(proc_result, "CHANUNAVAIL")) {
-						opbx_copy_string(status, proc_result, sizeof(status));
-						opbx_set_flag(peerflags, DIAL_GO_ON);	
+						cw_copy_string(status, proc_result, sizeof(status));
+						cw_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
 					}
 					else if (!strcasecmp(proc_result, "CONTINUE")) {
@@ -1531,12 +1531,12 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
 						*/
-						opbx_set_flag(peerflags, DIAL_GO_ON);	
+						cw_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
 					} else if (!strcasecmp(proc_result, "ABORT")) {
 						/* Hangup both ends unless the caller has the g flag */
 						res = -1;
-					} else if (!strncasecmp(proc_result, "GOTO:",5) && (proc_transfer_dest = opbx_strdupa(proc_result + 5))) {
+					} else if (!strncasecmp(proc_result, "GOTO:",5) && (proc_transfer_dest = cw_strdupa(proc_result + 5))) {
 						res = -1;
 						/* perform a transfer to a new extension */
 						if (strchr(proc_transfer_dest,'^')) { /* context^exten^priority*/
@@ -1545,8 +1545,8 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 								if (proc_transfer_dest[res] == '^')
 									proc_transfer_dest[res] = ',';
 
-							if (!opbx_parseable_goto(chan, proc_transfer_dest))
-								opbx_set_flag(peerflags, DIAL_GO_ON);
+							if (!cw_parseable_goto(chan, proc_transfer_dest))
+								cw_set_flag(peerflags, DIAL_GO_ON);
 
 						}
 					}
@@ -1554,11 +1554,11 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			}
 		}
 		if (waitpound) {
-			opbx_indicate(chan, OPBX_CONTROL_RINGING);
-			inputkey = opbx_waitfordigit(peer, 6000);
+			cw_indicate(chan, CW_CONTROL_RINGING);
+			inputkey = cw_waitfordigit(peer, 6000);
 			if (inputkey != '#') {
 				strncpy(status, "NOANSWER", sizeof(status) - 1);
-				opbx_hangup(peer);
+				cw_hangup(peer);
 				return 0;
 			}
 		}		
@@ -1567,36 +1567,36 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				time(&now);
 				peer->whentohangup = now + calldurationlimit;
 			}
-			if (!opbx_strlen_zero(dtmfcalled)) { 
+			if (!cw_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n",dtmfcalled);
-				res = opbx_dtmf_stream(peer,chan,dtmfcalled,250);
+					cw_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n",dtmfcalled);
+				res = cw_dtmf_stream(peer,chan,dtmfcalled,250);
 			}
-			if (!opbx_strlen_zero(dtmfcalling)) {
+			if (!cw_strlen_zero(dtmfcalling)) {
 				if (option_verbose > 2)
-					opbx_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n",dtmfcalling);
-				res = opbx_dtmf_stream(chan,peer,dtmfcalling,250);
+					cw_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n",dtmfcalling);
+				res = cw_dtmf_stream(chan,peer,dtmfcalling,250);
 			}
 		}
 		
 		if (!res) {
-			memset(&config,0,sizeof(struct opbx_bridge_config));
+			memset(&config,0,sizeof(struct cw_bridge_config));
 			if (play_to_caller)
-				opbx_set_flag(&(config.features_caller), OPBX_FEATURE_PLAY_WARNING);
+				cw_set_flag(&(config.features_caller), CW_FEATURE_PLAY_WARNING);
 			if (play_to_callee)
-				opbx_set_flag(&(config.features_callee), OPBX_FEATURE_PLAY_WARNING);
-			if (opbx_test_flag(peerflags, DIAL_ALLOWREDIRECT_IN))
-				opbx_set_flag(&(config.features_callee), OPBX_FEATURE_REDIRECT);
-			if (opbx_test_flag(peerflags, DIAL_ALLOWREDIRECT_OUT))
-				opbx_set_flag(&(config.features_caller), OPBX_FEATURE_REDIRECT);
-			if (opbx_test_flag(peerflags, DIAL_ALLOWDISCONNECT_IN))
-				opbx_set_flag(&(config.features_callee), OPBX_FEATURE_DISCONNECT);
-			if (opbx_test_flag(peerflags, DIAL_ALLOWDISCONNECT_OUT))
-				opbx_set_flag(&(config.features_caller), OPBX_FEATURE_DISCONNECT);
-			if (opbx_test_flag(peerflags, DIAL_MONITOR_IN))
-				opbx_set_flag(&(config.features_callee), OPBX_FEATURE_AUTOMON);
-			if (opbx_test_flag(peerflags, DIAL_MONITOR_OUT)) 
-				opbx_set_flag(&(config.features_caller), OPBX_FEATURE_AUTOMON);
+				cw_set_flag(&(config.features_callee), CW_FEATURE_PLAY_WARNING);
+			if (cw_test_flag(peerflags, DIAL_ALLOWREDIRECT_IN))
+				cw_set_flag(&(config.features_callee), CW_FEATURE_REDIRECT);
+			if (cw_test_flag(peerflags, DIAL_ALLOWREDIRECT_OUT))
+				cw_set_flag(&(config.features_caller), CW_FEATURE_REDIRECT);
+			if (cw_test_flag(peerflags, DIAL_ALLOWDISCONNECT_IN))
+				cw_set_flag(&(config.features_callee), CW_FEATURE_DISCONNECT);
+			if (cw_test_flag(peerflags, DIAL_ALLOWDISCONNECT_OUT))
+				cw_set_flag(&(config.features_caller), CW_FEATURE_DISCONNECT);
+			if (cw_test_flag(peerflags, DIAL_MONITOR_IN))
+				cw_set_flag(&(config.features_callee), CW_FEATURE_AUTOMON);
+			if (cw_test_flag(peerflags, DIAL_MONITOR_OUT)) 
+				cw_set_flag(&(config.features_caller), CW_FEATURE_AUTOMON);
 
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
@@ -1606,22 +1606,22 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			config.start_sound = start_sound;
 			if (moh) {
 				moh = 0;
-				opbx_moh_stop(chan);
+				cw_moh_stop(chan);
 			} else if (sentringing) {
 				sentringing = 0;
-				opbx_indicate(chan, -1);
+				cw_indicate(chan, -1);
 			}
 			/* Be sure no generators are left on it */
-			opbx_generator_deactivate(&chan->generator);
+			cw_generator_deactivate(&chan->generator);
 			/* Make sure channels are compatible */
-			res = opbx_channel_make_compatible(chan, peer);
+			res = cw_channel_make_compatible(chan, peer);
 			if (res < 0) {
-				opbx_log(OPBX_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
-				opbx_hangup(peer);
+				cw_log(CW_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
+				cw_hangup(peer);
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
-			res = opbx_bridge_call(chan,peer,&config);
+			res = cw_bridge_call(chan,peer,&config);
 			time(&end_time);
 			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
 			pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
@@ -1631,25 +1631,25 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		} else 
 			res = -1;
 		
-		if (res != OPBX_PBX_NO_HANGUP_PEER) {
+		if (res != CW_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
 				chan->hangupcause = peer->hangupcause;
-			opbx_hangup(peer);
+			cw_hangup(peer);
 		}
 	}	
 out:
 	if (moh) {
 		moh = 0;
-		opbx_moh_stop(chan);
+		cw_moh_stop(chan);
 	} else if (sentringing) {
 		sentringing = 0;
-		opbx_indicate(chan, -1);
+		cw_indicate(chan, -1);
 	}
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
-	opbx_log(OPBX_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
+	cw_log(CW_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
-	if ((opbx_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != OPBX_PBX_KEEPALIVE))
+	if ((cw_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != CW_PBX_KEEPALIVE))
 		res=0;
 
 	LOCAL_USER_REMOVE(u);
@@ -1657,22 +1657,22 @@ out:
 	return res;
 }
 
-static int dial_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct opbx_flags peerflags;
+	struct cw_flags peerflags;
 	memset(&peerflags, 0, sizeof(peerflags));
 	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
-static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *announce = NULL, *context = NULL;
 	int sleep = 0, loops = 0, res = 0;
 	struct localuser *u;
-	struct opbx_flags peerflags;
+	struct cw_flags peerflags;
 	
 	if (argc < 4 || argc > 7)
-		return opbx_function_syntax(retrydial_syntax);
+		return cw_function_syntax(retrydial_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -1688,26 +1688,26 @@ static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv, char
 	context = pbx_builtin_getvar_helper(chan, "EXITCONTEXT");
 	
 	while (loops) {
-		if (opbx_test_flag(chan, OPBX_FLAG_MOH))
-			opbx_moh_stop(chan);
+		if (cw_test_flag(chan, CW_FLAG_MOH))
+			cw_moh_stop(chan);
 
 		if ((res = dial_exec_full(chan, argc, argv, &peerflags)) == 0) {
-			if (opbx_test_flag(&peerflags, DIAL_HALT_ON_DTMF)) {
-				if (!(res = opbx_streamfile(chan, announce, chan->language)))
-					res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+			if (cw_test_flag(&peerflags, DIAL_HALT_ON_DTMF)) {
+				if (!(res = cw_streamfile(chan, announce, chan->language)))
+					res = cw_waitstream(chan, CW_DIGIT_ANY);
 				if (!res && sleep) {
-					if (!opbx_test_flag(chan, OPBX_FLAG_MOH))
-						opbx_moh_start(chan, NULL);
-					res = opbx_waitfordigit(chan, sleep);
+					if (!cw_test_flag(chan, CW_FLAG_MOH))
+						cw_moh_start(chan, NULL);
+					res = cw_waitfordigit(chan, sleep);
 				}
 			} else {
-				if (!(res = opbx_streamfile(chan, announce, chan->language)))
-					res = opbx_waitstream(chan, "");
+				if (!(res = cw_streamfile(chan, announce, chan->language)))
+					res = cw_waitstream(chan, "");
 				if (sleep) {
-					if (!opbx_test_flag(chan, OPBX_FLAG_MOH))
-						opbx_moh_start(chan, NULL);
+					if (!cw_test_flag(chan, CW_FLAG_MOH))
+						cw_moh_start(chan, NULL);
 					if (!res) 
-						res = opbx_waitfordigit(chan, sleep);
+						res = cw_waitfordigit(chan, sleep);
 				}
 			}
 		}
@@ -1723,8 +1723,8 @@ static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv, char
 		loops--;
 	}
 	
-	if (opbx_test_flag(chan, OPBX_FLAG_MOH))
-		opbx_moh_stop(chan);
+	if (cw_test_flag(chan, CW_FLAG_MOH))
+		cw_moh_stop(chan);
 
 	LOCAL_USER_REMOVE(u);
 	return loops ? res : 0;
@@ -1735,17 +1735,17 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(dial_app);
-	res |= opbx_unregister_function(retrydial_app);
+	res |= cw_unregister_function(dial_app);
+	res |= cw_unregister_function(retrydial_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	hash_proc = opbx_hash_app_name("Proc");
+	hash_proc = cw_hash_app_name("Proc");
 
-	dial_app = opbx_register_function(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
-	retrydial_app = opbx_register_function(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
+	dial_app = cw_register_function(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
+	retrydial_app = cw_register_function(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
 	return 0;
 }
 

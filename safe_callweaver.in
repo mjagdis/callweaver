@@ -4,8 +4,8 @@ CALLWEAVER_TTY=9			# CALLWEAVER_TTY (if you want one) for CallWeaver to run on
 CALLWEAVER_CONSOLE=yes		# Whether or not you want a console
 #CALLWEAVER_NOTIFY=ben@alkaloid.net	# Who to notify about crashes
 CALLWEAVER_MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
-OPBXSBINDIR=@sbindir@
-OPBXVARDIR=@opbxvardir@
+CWSBINDIR=@sbindir@
+CWVARDIR=@cwvardir@
 
 [ -r /etc/sysconfig/callweaver ] && . /etc/sysconfig/callweaver
 [ -r /etc/default/callweaver ] && . /etc/default/callweaver
@@ -21,17 +21,17 @@ logmsg()
 
 mvcore()
 {
-	if [ "`echo ${OPBXVARDIR}/core/core*`" != "${OPBXVARDIR}/core/core*" ]; then
-		COREDIR="${OPBXVARDIR}/core/`date '+%Y-%m-%d-%H:%M:%S'`"
+	if [ "`echo ${CWVARDIR}/core/core*`" != "${CWVARDIR}/core/core*" ]; then
+		COREDIR="${CWVARDIR}/core/`date '+%Y-%m-%d-%H:%M:%S'`"
 		mkdir ${COREDIR}
-		mv ${OPBXVARDIR}/core/core* ${COREDIR} && logmsg "Found and moved core dumps to $COREDIR"
+		mv ${CWVARDIR}/core/core* ${COREDIR} && logmsg "Found and moved core dumps to $COREDIR"
 	fi
 }
 
 #
 # Don't fork when running "safely"
 #
-OPBXARGS=""
+CWARGS=""
 if [ "$CALLWEAVER_TTY" != "" ]; then
 	if [ -c /dev/tty${CALLWEAVER_TTY} -a -w /dev/tty${CALLWEAVER_TTY} ]; then
 		CALLWEAVER_TTY=tty${CALLWEAVER_TTY}
@@ -41,18 +41,18 @@ if [ "$CALLWEAVER_TTY" != "" ]; then
 		logmsg "Cannot find your CALLWEAVER_TTY (${CALLWEAVER_TTY})" >&2
 		exit 1
 	fi
-	OPBXARGS="${OPBXARGS} -vvvg"
+	CWARGS="${CWARGS} -vvvg"
 	if [ "$CALLWEAVER_CONSOLE" != "no" ]; then
-		OPBXARGS="${OPBXARGS} -c"
+		CWARGS="${CWARGS} -c"
 	else
-		OPBXARGS="${OPBXARGS} -f"
+		CWARGS="${CWARGS} -f"
 	fi
 else
-	OPBXARGS="${OPBXARGS} -f"
+	CWARGS="${CWARGS} -f"
 fi
 
-if [ ! -w ${OPBXVARDIR}/core ]; then	
-	logmsg "Cannot write to ${OPBXVARDIR}/core/" >&2
+if [ ! -w ${CWVARDIR}/core ]; then	
+	logmsg "Cannot write to ${CWVARDIR}/core/" >&2
 	exit 1
 fi
 
@@ -65,12 +65,12 @@ run_callweaver()
 {
 	while :; do 
 
-		cd ${OPBXVARDIR}/core
+		cd ${CWVARDIR}/core
 		if [ "$CALLWEAVER_TTY" != "" ]; then
 			stty sane < /dev/${CALLWEAVER_TTY}
-			${OPBXSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${OPBXARGS} > /dev/${CALLWEAVER_TTY} 2>&1 < /dev/${CALLWEAVER_TTY}
+			${CWSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${CWARGS} > /dev/${CALLWEAVER_TTY} 2>&1 < /dev/${CALLWEAVER_TTY}
 		else
-			${OPBXSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${OPBXARGS}
+			${CWSBINDIR}/callweaver ${CALLWEAVER_CLIARGS} ${CWARGS}
 		fi
 		EXITSTATUS=$?
 		logmsg "CallWeaver ended with exit status $EXITSTATUS"

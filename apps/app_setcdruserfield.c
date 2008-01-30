@@ -77,34 +77,34 @@ static const char appendcdruserfield_descrip[] =
 
 static int action_setcdruserfield(struct mansession *s, struct message *m)
 {
-	struct opbx_channel *c = NULL;
+	struct cw_channel *c = NULL;
 	char *userfield = astman_get_header(m, "UserField");
 	char *channel = astman_get_header(m, "Channel");
 	char *append = astman_get_header(m, "Append");
 
-	if (opbx_strlen_zero(channel)) {
+	if (cw_strlen_zero(channel)) {
 		astman_send_error(s, m, "No Channel specified");
 		return 0;
 	}
-	if (opbx_strlen_zero(userfield)) {
+	if (cw_strlen_zero(userfield)) {
 		astman_send_error(s, m, "No UserField specified");
 		return 0;
 	}
-	c = opbx_get_channel_by_name_locked(channel);
+	c = cw_get_channel_by_name_locked(channel);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if (opbx_true(append))
-		opbx_cdr_appenduserfield(c, userfield);
+	if (cw_true(append))
+		cw_cdr_appenduserfield(c, userfield);
 	else
-		opbx_cdr_setuserfield(c, userfield);
-	opbx_mutex_unlock(&c->lock);
+		cw_cdr_setuserfield(c, userfield);
+	cw_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "CDR Userfield Set");
 	return 0;
 }
 
-static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res = 0;
@@ -112,7 +112,7 @@ static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && argc && argv[0][0]) {
-		opbx_cdr_setuserfield(chan, argv[0]);
+		cw_cdr_setuserfield(chan, argv[0]);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -120,7 +120,7 @@ static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv
 	return res;
 }
 
-static int appendcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res = 0;
@@ -128,7 +128,7 @@ static int appendcdruserfield_exec(struct opbx_channel *chan, int argc, char **a
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && argc && argv[0][0]) {
-		opbx_cdr_appenduserfield(chan, argv[0]);
+		cw_cdr_appenduserfield(chan, argv[0]);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -140,17 +140,17 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(setcdruserfield_app);
-	res |= opbx_unregister_function(appendcdruserfield_app);
-	opbx_manager_unregister("SetCDRUserField");
+	res |= cw_unregister_function(setcdruserfield_app);
+	res |= cw_unregister_function(appendcdruserfield_app);
+	cw_manager_unregister("SetCDRUserField");
 	return res;
 }
 
 static int load_module(void)
 {
-	setcdruserfield_app = opbx_register_function(setcdruserfield_name, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_syntax, setcdruserfield_descrip);
-	appendcdruserfield_app = opbx_register_function(appendcdruserfield_name, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_syntax, appendcdruserfield_descrip);
-	opbx_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
+	setcdruserfield_app = cw_register_function(setcdruserfield_name, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_syntax, setcdruserfield_descrip);
+	appendcdruserfield_app = cw_register_function(appendcdruserfield_name, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_syntax, appendcdruserfield_descrip);
+	cw_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
 	return 0;
 }
 

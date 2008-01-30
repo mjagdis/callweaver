@@ -61,28 +61,28 @@ static const char sendtext_descrip[] =
 "At this moment, text is supposed to be 7 bit ASCII in most channels.\n";
 
 
-static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sendtext_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
 	struct localuser *u;
 		
 	if (argc == 0)
-		return opbx_function_syntax(sendtext_syntax);
+		return cw_function_syntax(sendtext_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	opbx_mutex_lock(&chan->lock);
+	cw_mutex_lock(&chan->lock);
 	if (!chan->tech->send_text) {
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 		/* Does not support transport */
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	opbx_mutex_unlock(&chan->lock);
+	cw_mutex_unlock(&chan->lock);
 
 	res = 0;
 	for (; !res && argc; argv++, argc--)
-		res = opbx_sendtext(chan, argv[0]);
+		res = cw_sendtext(chan, argv[0]);
 
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", (res ? "FAILURE" : "SUCCESS"));
 
@@ -94,13 +94,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(sendtext_app);
+	res |= cw_unregister_function(sendtext_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	sendtext_app = opbx_register_function(sendtext_name, sendtext_exec, sendtext_synopsis, sendtext_syntax, sendtext_descrip);
+	sendtext_app = cw_register_function(sendtext_name, sendtext_exec, sendtext_synopsis, sendtext_syntax, sendtext_descrip);
 	return 0;
 }
 

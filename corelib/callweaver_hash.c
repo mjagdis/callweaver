@@ -1,6 +1,6 @@
 /* API to use string hashes for keywords in place of strcmp()
  *
- *  opbx_hash.c
+ *  cw_hash.c
  *  CallWeaver Keywords
  *
  * Hash functions
@@ -62,15 +62,15 @@
 
 
 // --------------------------------------------------------------------------
-// function:  opbx_hash_string(string)
+// function:  cw_hash_string(string)
 // --------------------------------------------------------------------------
 //
 // Returns the hash value of the null terminated C string 'string' using the
 // SDBM hash algorithm. The number of significant characters for which the
-// hash value will be calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// hash value will be calculated is limited to CWHASH_SIGNIFICANT_CHARS.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int opbx_hash_string(const char *string) {
+unsigned int cw_hash_string(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 	
@@ -78,8 +78,8 @@ unsigned int opbx_hash_string(const char *string) {
 		return 0;
 
 	len = strlen(string);
-	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
-		len = OPBXHASH_SIGNIFICANT_CHARS;
+	if (len > CWHASH_SIGNIFICANT_CHARS) {
+		len = CWHASH_SIGNIFICANT_CHARS;
 	} // end if
 	
 	// PUBLIC DOMAIN ALGORITHM FOLLOWS
@@ -89,21 +89,21 @@ unsigned int opbx_hash_string(const char *string) {
 	} // end for
 	
 	return (hash & 0x7FFFFFFF);
-} // end opbx_hash_string
+} // end cw_hash_string
 
 
 // --------------------------------------------------------------------------
-// function:  opbx_hash_string_tolower(string)
+// function:  cw_hash_string_tolower(string)
 // --------------------------------------------------------------------------
 //
 // Returns the hash value of the null terminated C string 'string' using the
 // SDBM hash algorithm after converting 'string' to its lowercase equivalent.
 // Case conversion is limited to characters in the ASCII range 'A' to 'Z'.
 // The number of significant characters for which the hash value will be
-// calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int opbx_hash_string_tolower(const char *string) {
+unsigned int cw_hash_string_tolower(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 	
@@ -111,8 +111,8 @@ unsigned int opbx_hash_string_tolower(const char *string) {
 		return 0;
 
 	len = strlen(string);
-	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
-		len = OPBXHASH_SIGNIFICANT_CHARS;
+	if (len > CWHASH_SIGNIFICANT_CHARS) {
+		len = CWHASH_SIGNIFICANT_CHARS;
 	} // end if
 	
 	for (index = 0; index < len; index++) {
@@ -125,21 +125,21 @@ unsigned int opbx_hash_string_tolower(const char *string) {
 	} // end for
 	
 	return (hash & 0x7FFFFFFF);
-} // end opbx_hash_string_tolower
+} // end cw_hash_string_tolower
 
 
 // --------------------------------------------------------------------------
-// function:  opbx_hash_string_toupper(string)
+// function:  cw_hash_string_toupper(string)
 // --------------------------------------------------------------------------
 //
 // Returns the hash value of the null terminated C string 'string' using the
 // SDBM hash algorithm after converting 'string' to its uppercase equivalent.
 // Case conversion is limited to characters in the ASCII range 'a' to 'z'.
 // The number of significant characters for which the hash value will be
-// calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int opbx_hash_string_toupper(const char *string) {
+unsigned int cw_hash_string_toupper(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 	
@@ -147,8 +147,8 @@ unsigned int opbx_hash_string_toupper(const char *string) {
 		return 0;
 
 	len = strlen(string);
-	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
-		len = OPBXHASH_SIGNIFICANT_CHARS;
+	if (len > CWHASH_SIGNIFICANT_CHARS) {
+		len = CWHASH_SIGNIFICANT_CHARS;
 	} // end if
 	
 	for (index = 0; index < len; index++) {
@@ -160,11 +160,11 @@ unsigned int opbx_hash_string_toupper(const char *string) {
 	} // end for
 	
 	return (hash & 0x7FFFFFFF);
-} // end opbx_hash_string_toupper
+} // end cw_hash_string_toupper
 
 
 // --------------------------------------------------------------------------
-// function:  opbx_hash_string_with_limit(string, limit)
+// function:  cw_hash_string_with_limit(string, limit)
 // --------------------------------------------------------------------------
 //
 // Returns the hash value of the null terminated C string 'string' using the
@@ -172,7 +172,7 @@ unsigned int opbx_hash_string_toupper(const char *string) {
 // hash value will be calculated is limited to 'limit'.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int opbx_hash_string_with_limit(const char *string, unsigned int limit) {
+unsigned int cw_hash_string_with_limit(const char *string, unsigned int limit) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 
@@ -191,7 +191,7 @@ unsigned int opbx_hash_string_with_limit(const char *string, unsigned int limit)
 	} // end for
 	
 	return (hash & 0x7FFFFFFF);
-} // end opbx_hash_string_with_limit
+} // end cw_hash_string_with_limit
 
 
 // END OF FILE

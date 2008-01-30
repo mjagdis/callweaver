@@ -70,7 +70,7 @@ static const char datetime_descrip[] =
 "  Returns 0 or -1 on hangup.\n";
 
 
-static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct timeval tv;
 	time_t unixtime;
@@ -79,12 +79,12 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv, ch
 	int res=0;
 
 	if (argc > 3)
-		return opbx_function_syntax(sayunixtime_syntax);
+		return cw_function_syntax(sayunixtime_syntax);
 
 	LOCAL_USER_ADD(u);
 
 	if (argc > 0 && !(unixtime = (time_t)atol(argv[0]))) {
-		tv = opbx_tvnow();
+		tv = cw_tvnow();
 		unixtime = (time_t)tv.tv_sec;
 	}
 
@@ -98,11 +98,11 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv, ch
 		format = "ABdY 'digits/at' IMp";
 	} 
 
-	if (chan->_state != OPBX_STATE_UP)
-		res = opbx_answer(chan);
+	if (chan->_state != CW_STATE_UP)
+		res = cw_answer(chan);
 
 	if (!res)
-		res = opbx_say_date_with_format(chan, unixtime, OPBX_DIGIT_ANY, chan->language, format, (argc > 1 && argv[1][0] ? argv[1] : NULL));
+		res = cw_say_date_with_format(chan, unixtime, CW_DIGIT_ANY, chan->language, format, (argc > 1 && argv[1][0] ? argv[1] : NULL));
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -112,15 +112,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(sayunixtime_app);
-	res |= opbx_unregister_function(datetime_app);
+	res |= cw_unregister_function(sayunixtime_app);
+	res |= cw_unregister_function(datetime_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	sayunixtime_app = opbx_register_function(sayunixtime_name, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_syntax, sayunixtime_descrip);
-	datetime_app = opbx_register_function(datetime_name, sayunixtime_exec, sayunixtime_synopsis, datetime_syntax, datetime_descrip);
+	sayunixtime_app = cw_register_function(sayunixtime_name, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_syntax, sayunixtime_descrip);
+	datetime_app = cw_register_function(datetime_name, sayunixtime_exec, sayunixtime_synopsis, datetime_syntax, datetime_descrip);
 	return 0;
 }
 

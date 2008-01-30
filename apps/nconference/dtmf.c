@@ -26,7 +26,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
-int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
+int parse_dtmf_option( struct cw_conf_member *member, int subclass ) {
 
 
     if ( !member->dtmf_admin_mode && !member->dtmf_long_insert )
@@ -39,25 +39,25 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    break;
 		member->dtmf_admin_mode=1;
 		member->dtmf_buffer[0]='\0';
-		opbx_log(OPBX_CONF_DEBUG,"Dialplan admin mode activated\n" );
+		cw_log(CW_CONF_DEBUG,"Dialplan admin mode activated\n" );
 		conference_queue_sound( member, "conf-sysop" );
 		break;
 	    case '#': 
-		opbx_log(OPBX_CONF_DEBUG,"Disconnecting member from conference %s after request\n",member->chan->name);
+		cw_log(CW_CONF_DEBUG,"Disconnecting member from conference %s after request\n",member->chan->name);
 		member->force_remove_flag = 1 ;
-		opbx_softhangup(member->chan,OPBX_SOFTHANGUP_SHUTDOWN);
+		cw_softhangup(member->chan,CW_SOFTHANGUP_SHUTDOWN);
 		break;
 	    case '1': 
 		conference_queue_sound( member, "beep" );
 		member->talk_volume = (member->talk_volume > -5) ? member->talk_volume-1 : member->talk_volume;
-		opbx_log(OPBX_CONF_DEBUG,"TALK Volume DOWN to %d\n",member->talk_volume);
+		cw_log(CW_CONF_DEBUG,"TALK Volume DOWN to %d\n",member->talk_volume);
 		if (member->talk_volume) set_talk_volume(member, NULL, 1);
 		break;
 	    case '2': 
 		member->talk_mute = (member->talk_mute == 0 ) ? 1 : 0;
 		queue_incoming_silent_frame(member,3);
 		if ( member->talk_mute == 1) {
-    		    opbx_moh_start(member->chan,"");
+    		    cw_moh_start(member->chan,"");
 		    if ( member->is_speaking == 1 ) { 
 #if ENABLE_VAD
 			member->is_speaking = 0;
@@ -66,15 +66,15 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    }
 		} 
 		else {
-    		    opbx_moh_stop(member->chan);
-		    opbx_generator_activate(member->chan, &member->chan->generator, &membergen, member);
+    		    cw_moh_stop(member->chan);
+		    cw_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 		}
-		opbx_log(OPBX_CONF_DEBUG,"Volume MUTE (muted: %d)\n",member->talk_mute);
+		cw_log(CW_CONF_DEBUG,"Volume MUTE (muted: %d)\n",member->talk_mute);
 		break;
 	    case '3': 
 		conference_queue_sound( member, "beep" );
 		member->talk_volume = (member->talk_volume < 5) ? member->talk_volume+1 : member->talk_volume;
-		opbx_log(OPBX_CONF_DEBUG,"TALK Volume UP %d\n",member->talk_volume);
+		cw_log(CW_CONF_DEBUG,"TALK Volume UP %d\n",member->talk_volume);
 		if (member->talk_volume) set_talk_volume(member, NULL, 1);
 		break;
 	    case '4': 
@@ -87,11 +87,11 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 			conference_queue_sound( member, "disabled" );
 		    } else 
 			conference_queue_sound( member, "enabled" );
-		    opbx_log(OPBX_CONF_DEBUG,"Member VAD set to %d\n",member->enable_vad);
+		    cw_log(CW_CONF_DEBUG,"Member VAD set to %d\n",member->enable_vad);
 		}
 		else
 #endif
-		    opbx_log(OPBX_CONF_DEBUG,"Member not enabled for VAD\n");
+		    cw_log(CW_CONF_DEBUG,"Member not enabled for VAD\n");
 		break;
 	    case '5':
 		queue_incoming_silent_frame(member,3);
@@ -100,11 +100,11 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    conference_queue_sound( member, "conf-muted" );
 		else
 		    conference_queue_sound( member, "conf-unmuted" );
-		opbx_log(OPBX_CONF_DEBUG,"Member Talk MUTE set to %d\n",member->dont_play_any_sound);
+		cw_log(CW_CONF_DEBUG,"Member Talk MUTE set to %d\n",member->dont_play_any_sound);
 		break;
 	    case '6':
 		member->dont_play_any_sound =  !(member->dont_play_any_sound);
-		opbx_log(OPBX_CONF_DEBUG,"Member dont_play_any_sound set to %d\n",member->dont_play_any_sound);
+		cw_log(CW_CONF_DEBUG,"Member dont_play_any_sound set to %d\n",member->dont_play_any_sound);
 		if (!member->dont_play_any_sound)
 		    conference_queue_sound(member,"beep");
 		break;
@@ -123,8 +123,8 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		break;
 
 	    default:
-		//opbx_log(OPBX_CONF_DEBUG, "DTMF received - Key %c\n",f->subclass);
-		opbx_log(OPBX_CONF_DEBUG,"Don't know how to manage %c DTMF\n",subclass);
+		//cw_log(CW_CONF_DEBUG, "DTMF received - Key %c\n",f->subclass);
+		cw_log(CW_CONF_DEBUG,"Don't know how to manage %c DTMF\n",subclass);
 		break;
 	}
     else if ( !member->dtmf_admin_mode && member->dtmf_long_insert ) {
@@ -134,7 +134,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    break;
 		case '#':
 		    member->dtmf_long_insert=0;
-		    opbx_log(OPBX_CONF_DEBUG,"Pin entered %s does match ?\n",member->dtmf_buffer);
+		    cw_log(CW_CONF_DEBUG,"Pin entered %s does match ?\n",member->dtmf_buffer);
 		    if ( strcmp( member->dtmf_buffer, member->conf->pin ) )
 			conference_queue_sound(member,"conf-invalidpin");
 		    else {
@@ -150,7 +150,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    if ( strlen(member->dtmf_buffer)+1 < sizeof(member->dtmf_buffer)  ) {
 			strcat(member->dtmf_buffer,t);
 		    }
-		    opbx_log(OPBX_CONF_DEBUG,"DTMF Buffer: %s \n",member->dtmf_buffer);
+		    cw_log(CW_CONF_DEBUG,"DTMF Buffer: %s \n",member->dtmf_buffer);
 		    }
 		    break;
 	    }
@@ -162,16 +162,16 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 
 	    if ( subclass == '*' ) { 
 		member->dtmf_admin_mode=0;
-		opbx_log(OPBX_CONF_DEBUG,"Dialplan admin mode deactivated\n" );
+		cw_log(CW_CONF_DEBUG,"Dialplan admin mode deactivated\n" );
 	    } 
 	    else if ( subclass == '#' ) { 
 		member->dtmf_admin_mode=0;
 		if ( strlen(member->dtmf_buffer) >= 1 ) {
-		    opbx_log(OPBX_CONF_DEBUG,"Admin mode. Trying to parse command %s\n",member->dtmf_buffer );
+		    cw_log(CW_CONF_DEBUG,"Admin mode. Trying to parse command %s\n",member->dtmf_buffer );
 		    conference_parse_admin_command(member);
 		}
 		else
-		    opbx_log(OPBX_CONF_DEBUG,"Admin mode. Invalid empty command (%s)\n",member->dtmf_buffer );
+		    cw_log(CW_CONF_DEBUG,"Admin mode. Invalid empty command (%s)\n",member->dtmf_buffer );
 	    } 
 	    else {
 		char t[2];
@@ -180,7 +180,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		if ( strlen(member->dtmf_buffer)+1 < sizeof(member->dtmf_buffer)  ) {
 		    strcat(member->dtmf_buffer,t);
 		}
-		opbx_log(OPBX_CONF_DEBUG,"DTMF Buffer: %s \n",member->dtmf_buffer);
+		cw_log(CW_CONF_DEBUG,"DTMF Buffer: %s \n",member->dtmf_buffer);
 
 	    }
     }

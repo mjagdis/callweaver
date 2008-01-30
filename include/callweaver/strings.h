@@ -33,7 +33,7 @@
 #include "callweaver/inline_api.h"
 #include "callweaver/compiler.h"
 
-static inline int opbx_strlen_zero(const char *s)
+static inline int cw_strlen_zero(const char *s)
 {
 	return (!s || (*s == '\0'));
 }
@@ -43,8 +43,8 @@ static inline int opbx_strlen_zero(const char *s)
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
-OPBX_INLINE_API(
-char *opbx_skip_blanks(char *str),
+CW_INLINE_API(
+char *cw_skip_blanks(char *str),
 {
 	while (*str && *str < 33)
 		str++;
@@ -57,15 +57,15 @@ char *opbx_skip_blanks(char *str),
   \param str the input string
   \return a pointer to the NULL following the string
  */
-OPBX_INLINE_API(
-char *opbx_trim_blanks(char *str),
+CW_INLINE_API(
+char *cw_trim_blanks(char *str),
 {
 	char *work = str;
 
 	if (work) {
 		work += strlen(work) - 1;
 		/* It's tempting to only want to erase after we exit this loop, 
-		   but since opbx_trim_blanks *could* receive a constant string
+		   but since cw_trim_blanks *could* receive a constant string
 		   (which we presumably wouldn't have to touch), we shouldn't
 		   actually set anything unless we must, and it's easier just
 		   to set each position to \0 than to keep track of a variable
@@ -82,8 +82,8 @@ char *opbx_trim_blanks(char *str),
   \param str the input string
   \return a pointer to the first whitespace character
  */
-OPBX_INLINE_API(
-char *opbx_skip_nonblanks(char *str),
+CW_INLINE_API(
+char *cw_skip_nonblanks(char *str),
 {
 	while (*str && *str > 32)
 		str++;
@@ -100,12 +100,12 @@ char *opbx_skip_nonblanks(char *str),
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
-OPBX_INLINE_API(
-char *opbx_strip(char *s),
+CW_INLINE_API(
+char *cw_strip(char *s),
 {
-	s = opbx_skip_blanks(s);
+	s = cw_skip_blanks(s);
 	if (s)
-		opbx_trim_blanks(s);
+		cw_trim_blanks(s);
 	return s;
 } 
 )
@@ -125,8 +125,8 @@ char *opbx_strip(char *s),
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
 */
-OPBX_INLINE_API(
-void opbx_copy_string(char *dst, const char *src, size_t size),
+CW_INLINE_API(
+void cw_copy_string(char *dst, const char *src, size_t size),
 {
 	while (*src && size) {
 		*dst++ = *src++;
@@ -149,7 +149,7 @@ void opbx_copy_string(char *dst, const char *src, size_t size),
   \param space remaining space in buffer (will be updated on return)
   \param fmt printf-style format string
 */
-int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int cw_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
@@ -163,7 +163,7 @@ int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...) __attr
   \param fmt printf-style format string
   \param ap varargs list of arguments for format
 */
-int opbx_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
+int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
 
 /*! Make sure something is true */
 /*!
@@ -172,7 +172,7 @@ int opbx_build_string_va(char **buffer, size_t *space, const char *fmt, va_list 
  *
  * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
  */
-int opbx_true(const char *val);
+int cw_true(const char *val);
 
 /*! Make sure something is false */
 /*!
@@ -181,14 +181,14 @@ int opbx_true(const char *val);
  *
  * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
  */
-int opbx_false(const char *val);
+int cw_false(const char *val);
 
 
 #ifndef HAVE_STRCASESTR
 char *strcasestr(const char *, const char *);
 #endif
 
-#if !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC)
+#if !defined(HAVE_STRNDUP) && !defined(__CW_DEBUG_MALLOC)
 char *strndup(const char *, size_t);
 #endif
 
@@ -196,7 +196,7 @@ char *strndup(const char *, size_t);
 size_t strnlen(const char *, size_t);
 #endif
 
-#if !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC)
+#if !defined(HAVE_VASPRINTF) && !defined(__CW_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 

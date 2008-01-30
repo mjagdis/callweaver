@@ -57,7 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
       "short-and", "million", "millions"
    Play a short "and" after each tens (20, 30,...,90 ) and each hundreds (100, 200,...,900) if continue
 */
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int playa = 0;     /* play short-and */
@@ -65,7 +65,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
     char fn[256] = "";
 
     if (!num)
-        return opbx_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+        return cw_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
     if (options  &&  !strncasecmp(options, "f", 1))
         mf = -1;
@@ -138,24 +138,24 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
+            cw_log(CW_LOG_DEBUG, "Number '%d' is too big for me\n", num);
             res = -1;
         }
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd > -1) && (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
         if (!res  &&  playa)
         {
             res = wait_file(chan, ints, "digits/short-and", language);
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
             playa = 0;
         }
     }

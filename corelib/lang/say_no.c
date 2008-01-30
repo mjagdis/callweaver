@@ -52,7 +52,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* New files:
  In addition to American English, the following sounds are required:  "and", "1N"
  */
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int playh = 0;
@@ -61,7 +61,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
     char fn[256] = "";
 
     if (!num)
-        return opbx_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+        return cw_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
     if (options  &&  !strncasecmp(options, "n", 1))
         cn = -1;
@@ -143,20 +143,20 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
+            cw_log(CW_LOG_DEBUG, "Number '%d' is too big for me\n", num);
             res = -1;
         }
 
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd > -1)  &&  (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
     }
     return res;

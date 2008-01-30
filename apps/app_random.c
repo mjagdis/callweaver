@@ -51,7 +51,7 @@ static const char random_descrip[] =
 "  probability := INTEGER in the range 1 to 100\n";
 
 
-static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int random_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -59,7 +59,7 @@ static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	int probint;
 	
 	if (argc < 1 || argc > 3)
-		return opbx_function_syntax(random_syntax);
+		return cw_function_syntax(random_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -72,9 +72,9 @@ static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 	if ((random() % 100) + probint > 100) {
 		exten = (argc > 1 ? argv[argc-2] : NULL);
 		context = (argc > 2 ? argv[argc-3] : NULL);
-		res = opbx_explicit_gotolabel(chan, context, exten, argv[argc-1]);
+		res = cw_explicit_gotolabel(chan, context, exten, argv[argc-1]);
 		if (!res && option_verbose > 2)
-			opbx_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
+			cw_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);
 	}
 
@@ -84,13 +84,13 @@ static int random_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 
 static int unload_module(void)
 {
-	opbx_unregister_function(random_app);
+	cw_unregister_function(random_app);
 	return 0;
 }
 
 static int load_module(void)
 {
-	random_app = opbx_register_function(random_name, random_exec, random_synopsis, random_syntax, random_descrip);
+	random_app = cw_register_function(random_name, random_exec, random_synopsis, random_syntax, random_descrip);
 	return 0;
 }
 

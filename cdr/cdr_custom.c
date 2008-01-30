@@ -22,7 +22,7 @@
  *
  * \brief Custom Comma Separated Value CDR records.
  * 
- * \arg See also \ref opbxCDR
+ * \arg See also \ref cwCDR
  *
  * Logs in LOG_DIR/cdr_custom
  */
@@ -57,7 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <unistd.h>
 #include <time.h>
 
-OPBX_MUTEX_DEFINE_STATIC(lock);
+CW_MUTEX_DEFINE_STATIC(lock);
 
 static const char desc[] = "Customizable Comma Separated Values CDR Backend";
 
@@ -65,41 +65,41 @@ static const char name[] = "cdr-custom";
 
 static FILE *mf = NULL;
 
-static char master[OPBX_CONFIG_MAX_PATH];
+static char master[CW_CONFIG_MAX_PATH];
 static char format[1024]="";
 
 static int load_config(int reload) 
 {
-	struct opbx_config *cfg;
-	struct opbx_variable *var;
+	struct cw_config *cfg;
+	struct cw_variable *var;
 	int res = -1;
 
 	strcpy(format, "");
 	strcpy(master, "");
-	if((cfg = opbx_config_load("cdr_custom.conf"))) {
-		var = opbx_variable_browse(cfg, "mappings");
+	if((cfg = cw_config_load("cdr_custom.conf"))) {
+		var = cw_variable_browse(cfg, "mappings");
 		while(var) {
-			opbx_mutex_lock(&lock);
-			if (!opbx_strlen_zero(var->name) && !opbx_strlen_zero(var->value)) {
+			cw_mutex_lock(&lock);
+			if (!cw_strlen_zero(var->name) && !cw_strlen_zero(var->value)) {
 				if (strlen(var->value) > (sizeof(format) - 2))
-					opbx_log(OPBX_LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
+					cw_log(CW_LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				strncpy(format, var->value, sizeof(format) - 2);
 				strcat(format,"\n");
-				snprintf(master, sizeof(master),"%s/%s/%s", opbx_config_OPBX_LOG_DIR, name, var->name);
-				opbx_mutex_unlock(&lock);
+				snprintf(master, sizeof(master),"%s/%s/%s", cw_config_CW_LOG_DIR, name, var->name);
+				cw_mutex_unlock(&lock);
 			} else
-				opbx_log(OPBX_LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
+				cw_log(CW_LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
 			if (var->next)
-				opbx_log(OPBX_LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+				cw_log(CW_LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
 			var = var->next;
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 		res = 0;
 	} else {
 		if (reload)
-			opbx_log(OPBX_LOG_WARNING, "Failed to reload configuration file.\n");
+			cw_log(CW_LOG_WARNING, "Failed to reload configuration file.\n");
 		else
-			opbx_log(OPBX_LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+			cw_log(CW_LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
 	
 	return res;
@@ -107,17 +107,17 @@ static int load_config(int reload)
 
 
 
-static int custom_log(struct opbx_cdr *cdr)
+static int custom_log(struct cw_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[2048];
-	struct opbx_channel dummy;
+	struct cw_channel dummy;
 
 	/* Abort if no master file is specified */
-	if (opbx_strlen_zero(master))
+	if (cw_strlen_zero(master))
 		return 0;
 
-	/* Quite possibly the first use of a static struct opbx_channel, we need it so the var funcs will work */
+	/* Quite possibly the first use of a static struct cw_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;
 	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf));
@@ -127,7 +127,7 @@ static int custom_log(struct opbx_cdr *cdr)
 	   we open write and close the log file each time */
 	mf = fopen(master, "a");
 	if (!mf) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
 	}
 	if (mf) {
 		fputs(buf, mf);
@@ -147,7 +147,7 @@ static void release(void)
 }
 
 
-static struct opbx_cdrbe cdrbe = {
+static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
 	.handler = custom_log,
@@ -156,7 +156,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int unload_module(void)
 {
-	opbx_cdrbe_unregister(&cdrbe);
+	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
@@ -164,7 +164,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	opbx_cdrbe_register(&cdrbe);
+	cw_cdrbe_register(&cdrbe);
 	res |= load_config(0);
 	return res;
 }

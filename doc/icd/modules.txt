@@ -377,7 +377,7 @@ The functions of icd_caller are:
   icd_status icd_caller__clear(icd_caller *that);
 
   /* Actions */
-  icd_status icd_caller__assign_channel(icd_caller *that, opbx_channelx *chan, void *extra);
+  icd_status icd_caller__assign_channel(icd_caller *that, cw_channelx *chan, void *extra);
   icd_status icd_caller__link_to_caller(icd_caller *that, icd_caller *associate);
   icd_status icd_caller__bridge(icd_caller *that);
   icd_status icd_caller__authenticate(icd_caller *that, void *extra);
@@ -401,8 +401,8 @@ The functions of icd_caller are:
   int icd_caller__get_state(icd_caller *that);
   icd_status icd_caller__set_owner(icd_caller *that, int);
   int icd_caller__get_owner(icd_caller *that);
-  icd_status icd_caller__set_channel(icd_caller *that, char *opbx_channelx);
-  opbx_channelx *icd_caller_get_channel(icd_caller *that);
+  icd_status icd_caller__set_channel(icd_caller *that, char *cw_channelx);
+  cw_channelx *icd_caller_get_channel(icd_caller *that);
   icd_status icd_caller__set_id(icd_caller *that, int);
   int icd_caller__get_id(icd_caller *that);
   icd_status icd_caller__set_timeout(icd_caller *that, int);
@@ -423,7 +423,7 @@ The functions of icd_caller are:
   /* Callback Setters */
   icd_status icd_caller__set_authenticate_fn(icd_caller *that, int (*auth_fn)(icd_caller *, void *));
   icd_status icd_caller__set_state_change_notify_fn(icd_caller *that, int (*state_fn)(icd_caller *, int, int));
-  icd_status icd_caller__set_channel_assigned_notify_fn(icd_caller *that, int (*chan_fn)(icd_caller *, opbx_channelx *));
+  icd_status icd_caller__set_channel_assigned_notify_fn(icd_caller *that, int (*chan_fn)(icd_caller *, cw_channelx *));
   icd_status icd_caller__set_added_to_list_notify_fn(icd_caller *that, int (*added_fn)(icd_caller *, icd_caller_list *));
   icd_status icd_caller__set_linked_notify_fn(icd_caller *that, int (*link_fn)(icd_caller *, icd_caller *));
   icd_status icd_caller__set_bridged_notify_fn(icd_caller *that, int (*bridge_fn)(icd_caller *, icd_caller *));
@@ -440,7 +440,7 @@ The functions of icd_caller are:
   /* Predefined Pluggable Actions */
   int icd_caller__authenticate_always_succeeds(icd_caller *, void *);
   int icd_caller__dummy_state_notify_hook(icd_caller *, int, int);
-  int icd_caller__dummy_channel_notify_hook(icd_caller *, opbx_channelx *);
+  int icd_caller__dummy_channel_notify_hook(icd_caller *, cw_channelx *);
   int icd_caller__dummy_caller_notify_hook(icd_caller *, icd_caller *);
   int icd_caller__dummy_auth_notify_hook(icd_caller *, int);
 
@@ -521,7 +521,7 @@ The functions of icd_caller_list are:
 
   /* Callback Setters */
   icd_status icd_caller_list__set_state_change_notify_fn(icd_caller_list *that, int (*state_fn)(icd_caller *, int, int));
-  icd_status icd_caller_list__set_channel_attached_notify_fn(icd_caller_list *that, int (*chan_fn)(icd_caller *, opbx_channelx *));
+  icd_status icd_caller_list__set_channel_attached_notify_fn(icd_caller_list *that, int (*chan_fn)(icd_caller *, cw_channelx *));
   icd_status icd_caller_list__set_linked_notify_fn(icd_caller_list *that, int (*link_fn)(icd_caller *, icd_caller *));
   icd_status icd_caller_list__set_bridged_notify_fn(icd_caller_list *that, int (*bridge_fn)(icd_caller *, icd_caller *));
   icd_status icd_caller_list__set_authenticate_notify_fn(icd_caller_list *that, int (*authn_fn)(icd_caller *, int));

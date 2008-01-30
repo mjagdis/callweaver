@@ -124,7 +124,7 @@ install: build
 	
 	# Add here commands to install the package into debian/tmp.
 	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-#	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_callweaver > \
+#	sed -e "s,__CW_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_callweaver > \
 #	        debian/tmp/usr/sbin/safe_callweaver
 
 # Build architecture-independent files here.

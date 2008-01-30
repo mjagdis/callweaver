@@ -55,11 +55,11 @@ extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
 enum valtype {
-	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
+	CW_EXPR_integer, CW_EXPR_numeric_string, CW_EXPR_string
 } ;
 
 #ifdef STANDALONE
-void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void cw_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 #endif
 
 struct val {
@@ -125,20 +125,20 @@ typedef struct yyltype
 /* we will get warning about no prototype for yylex! But we can't
    define it here, we have no definition yet for YYSTYPE. */
 
-int		opbx_yyerror(const char *,YYLTYPE *, struct parse_io *);
+int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
  
 /* I wanted to add args to the yyerror routine, so I could print out
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
-#define opbx_yyerror(x) opbx_yyerror(x,&yyloc,parseio)
-#define DESTROY(x) {if((x)->type == OPBX_EXPR_numeric_string || (x)->type == OPBX_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
+#define cw_yyerror(x) cw_yyerror(x,&yyloc,parseio)
+#define DESTROY(x) {if((x)->type == CW_EXPR_numeric_string || (x)->type == CW_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 %}
  
 %pure-parser
 %locations
 /* %debug  for when you are having big problems */
 
-/* %name-prefix="opbx_yy" */
+/* %name-prefix="cw_yy" */
 
 %union
 {
@@ -146,7 +146,7 @@ int		opbx_yyerror(const char *,YYLTYPE *, struct parse_io *);
 }
 
 %{
-extern int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
+extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %}
 %left <val> TOK_COND TOK_COLONCOLON
 %left <val> TOK_OR
@@ -171,14 +171,14 @@ extern int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = $1->type;
-              if( $1->type == OPBX_EXPR_integer )
+              if( $1->type == CW_EXPR_integer )
 				  ((struct parse_io *)parseio)->val->u.i = $1->u.i;
               else
 				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
 			  free($1);
 			}
 	| {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
-              ((struct parse_io *)parseio)->val->type = OPBX_EXPR_string;
+              ((struct parse_io *)parseio)->val->type = CW_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
 			}
 
@@ -273,11 +273,11 @@ make_integer (quad_t i)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		opbx_log(OPBX_LOG_WARNING, "malloc() failed\n");
+		cw_log(CW_LOG_WARNING, "malloc() failed\n");
 		return(NULL);
 	}
 
-	vp->type = OPBX_EXPR_integer;
+	vp->type = CW_EXPR_integer;
 	vp->u.i  = i;
 	return vp; 
 }
@@ -291,7 +291,7 @@ make_str (const char *s)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		opbx_log(OPBX_LOG_WARNING,"malloc() failed\n");
+		cw_log(CW_LOG_WARNING,"malloc() failed\n");
 		return(NULL);
 	}
 
@@ -304,9 +304,9 @@ make_str (const char *s)
 	}
 
 	if (isint)
-		vp->type = OPBX_EXPR_numeric_string;
+		vp->type = CW_EXPR_numeric_string;
 	else	
-		vp->type = OPBX_EXPR_string;
+		vp->type = CW_EXPR_string;
 
 	return vp;
 }
@@ -318,7 +318,7 @@ free_value (struct val *vp)
 	if (vp==NULL) {
 		return;
 	}
-	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
+	if (vp->type == CW_EXPR_string || vp->type == CW_EXPR_numeric_string)
 		free (vp->u.s);	
 	free(vp);
 }
@@ -330,35 +330,35 @@ to_integer (struct val *vp)
 	quad_t i;
 	
 	if (vp == NULL) {
-		opbx_log(OPBX_LOG_WARNING,"vp==NULL in to_integer()\n");
+		cw_log(CW_LOG_WARNING,"vp==NULL in to_integer()\n");
 		return(0);
 	}
 
-	if (vp->type == OPBX_EXPR_integer)
+	if (vp->type == CW_EXPR_integer)
 		return 1;
 
-	if (vp->type == OPBX_EXPR_string)
+	if (vp->type == CW_EXPR_string)
 		return 0;
 
-	/* vp->type == OPBX_EXPR_numeric_string, make it numeric */
+	/* vp->type == CW_EXPR_numeric_string, make it numeric */
 	errno = 0;
 	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
-		opbx_log(OPBX_LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
+		cw_log(CW_LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
 		free(vp->u.s);
 		vp->u.s = 0;
 		return(0);
 	}
 	free (vp->u.s);
 	vp->u.i = i;
-	vp->type = OPBX_EXPR_integer;
+	vp->type = CW_EXPR_integer;
 	return 1;
 }
 
 static void
 strip_quotes(struct val *vp)
 {
-	if (vp->type != OPBX_EXPR_string && vp->type != OPBX_EXPR_numeric_string)
+	if (vp->type != CW_EXPR_string && vp->type != CW_EXPR_numeric_string)
 		return;
 	
 	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
@@ -383,17 +383,17 @@ to_string (struct val *vp)
 {
 	char *tmp;
 
-	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
+	if (vp->type == CW_EXPR_string || vp->type == CW_EXPR_numeric_string)
 		return;
 
 	tmp = malloc ((size_t)25);
 	if (tmp == NULL) {
-		opbx_log(OPBX_LOG_WARNING,"malloc() failed\n");
+		cw_log(CW_LOG_WARNING,"malloc() failed\n");
 		return;
 	}
 
 	sprintf(tmp, "%ld", (long int) vp->u.i);
-	vp->type = OPBX_EXPR_string;
+	vp->type = CW_EXPR_string;
 	vp->u.s  = tmp;
 }
 
@@ -402,14 +402,14 @@ static int
 isstring (struct val *vp)
 {
 	/* only TRUE if this string is not a valid integer */
-	return (vp->type == OPBX_EXPR_string);
+	return (vp->type == CW_EXPR_string);
 }
 
 
 static int
 is_zero_or_null (struct val *vp)
 {
-	if (vp->type == OPBX_EXPR_integer) {
+	if (vp->type == CW_EXPR_integer) {
 		return (vp->u.i == 0);
 	} else {
 		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
@@ -419,7 +419,7 @@ is_zero_or_null (struct val *vp)
 
 #ifdef STANDALONE
 
-void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void cw_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
@@ -455,7 +455,7 @@ int main(int argc,char **argv) {
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
 			
-			ret = opbx_expr(s, out, sizeof(out));
+			ret = cw_expr(s, out, sizeof(out));
 			printf("Expression: %s    Result: [%d] '%s'\n",
 				   s, ret, out);
 		}
@@ -463,7 +463,7 @@ int main(int argc,char **argv) {
 	}
 	else
 	{
-		if (opbx_expr(argv[1], s, sizeof(s)))
+		if (cw_expr(argv[1], s, sizeof(s)))
 			printf("=====%s======\n",s);
 		else
 			printf("No result\n");
@@ -472,10 +472,10 @@ int main(int argc,char **argv) {
 
 #endif
 
-#undef opbx_yyerror
-#define opbx_yyerror(x) opbx_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
+#undef cw_yyerror
+#define cw_yyerror(x) cw_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
 
-/* I put the opbx_yyerror func in the flex input file,
+/* I put the cw_yyerror func in the flex input file,
    because it refers to the buffer state. Best to
    let it access the BUFFER stuff there and not trying
    define all the structs, macros etc. in this file! */
@@ -523,7 +523,7 @@ op_eq (struct val *a, struct val *b)
 		(void)to_integer(a);
 		(void)to_integer(b);
 #ifdef DEBUG_FOR_CONVERSIONS
-		opbx_log(OPBX_LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
+		cw_log(CW_LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
 #endif
 		r = make_integer ((quad_t)(a->u.i == b->u.i));
 	}
@@ -692,7 +692,7 @@ op_plus (struct val *a, struct val *b)
 
 	if (!to_integer (a)) {
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING,"non-numeric argument\n");
+			cw_log(CW_LOG_WARNING,"non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -708,7 +708,7 @@ op_plus (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(OPBX_LOG_WARNING,"overflow\n");
+		cw_log(CW_LOG_WARNING,"overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -736,7 +736,7 @@ op_minus (struct val *a, struct val *b)
 
 	if (!to_integer (a)) {
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -749,14 +749,14 @@ op_minus (struct val *a, struct val *b)
 		}
 	} else if (!to_integer(b)) {
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(OPBX_LOG_WARNING, "overflow\n");
+		cw_log(CW_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -771,13 +771,13 @@ op_negate (struct val *a)
 	if (!to_integer (a) ) {
 		free_value(a);
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	}
 
 	r = make_integer (/*(quad_t)*/(- a->u.i));
 	if (chk_minus (0, a->u.i, r->u.i)) {
-		opbx_log(OPBX_LOG_WARNING, "overflow\n");
+		cw_log(CW_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	return r;
@@ -797,12 +797,12 @@ op_compl (struct val *a)
 	{
 		switch( a->type )
 		{
-		case OPBX_EXPR_integer:
+		case CW_EXPR_integer:
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
 			
-		case OPBX_EXPR_string:
+		case CW_EXPR_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -814,7 +814,7 @@ op_compl (struct val *a)
 			}
 			break;
 			
-		case OPBX_EXPR_numeric_string:
+		case CW_EXPR_numeric_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -854,13 +854,13 @@ op_times (struct val *a, struct val *b)
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		return(make_integer(0));
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		opbx_log(OPBX_LOG_WARNING, "overflow\n");
+		cw_log(CW_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -887,18 +887,18 @@ op_div (struct val *a, struct val *b)
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	} else if (!to_integer (b)) {
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		return make_integer(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
-		opbx_log(OPBX_LOG_WARNING, "division by zero\n");		
+		cw_log(CW_LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
 		return make_integer(INT_MAX);
@@ -906,7 +906,7 @@ op_div (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
-		opbx_log(OPBX_LOG_WARNING, "overflow\n");
+		cw_log(CW_LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -920,14 +920,14 @@ op_rem (struct val *a, struct val *b)
 
 	if (!to_integer (a) || !to_integer (b)) {
 		if( !extra_error_message_supplied )
-			opbx_log(OPBX_LOG_WARNING, "non-numeric argument\n");
+			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
 		return make_integer(0);
 	}
 
 	if (b->u.i == 0) {
-		opbx_log(OPBX_LOG_WARNING, "div by zero\n");
+		cw_log(CW_LOG_WARNING, "div by zero\n");
 		free_value(a);
 		return(b);
 	}
@@ -958,7 +958,7 @@ op_colon (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		opbx_log(OPBX_LOG_WARNING,"regcomp() error : %s",errbuf);
+		cw_log(CW_LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
@@ -1009,7 +1009,7 @@ op_eqtilde (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		opbx_log(OPBX_LOG_WARNING,"regcomp() error : %s",errbuf);
+		cw_log(CW_LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		

@@ -69,17 +69,17 @@ static const char setcallerid_pres_descrip[] =
 ;
 
 
-static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	int pres = -1;
 
 	LOCAL_USER_ADD(u);
 	
-	pres = opbx_parse_caller_presentation(argv[0]);
+	pres = cw_parse_caller_presentation(argv[0]);
 
 	if (pres < 0) {
-		opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", argv[0]);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -94,13 +94,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(setcallerid_pres_app);
+	res |= cw_unregister_function(setcallerid_pres_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	setcallerid_pres_app = opbx_register_function(setcallerid_pres_name, setcallerid_pres_exec, setcallerid_pres_synopsis, setcallerid_pres_syntax, setcallerid_pres_descrip);
+	setcallerid_pres_app = cw_register_function(setcallerid_pres_name, setcallerid_pres_exec, setcallerid_pres_synopsis, setcallerid_pres_syntax, setcallerid_pres_descrip);
 	return 0;
 }
 

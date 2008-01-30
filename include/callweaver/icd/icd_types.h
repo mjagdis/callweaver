@@ -40,7 +40,7 @@
 #define ICD_STRING_LEN 255
 
 /* CallWeaver specific pieces */
-typedef struct opbx_channel opbx_channel;
+typedef struct cw_channel cw_channel;
 
 /* Infrastructure pieces */
 typedef struct icd_listeners icd_listeners;
@@ -212,7 +212,7 @@ typedef enum {
 
 extern char *icd_thread_state_strings[];        /* Kept in icd_caller.c */
 
-extern char *opbx_state_strings[];       /* Kept in icd_caller.c */
+extern char *cw_state_strings[];       /* Kept in icd_caller.c */
 
 /* Generic list of void pointers to stuff several things into 1 obj */
 

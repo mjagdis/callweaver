@@ -35,8 +35,8 @@
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 
 #define JABBER_MSG_SIZE 512
-#define OPBX_FLAG_APP (1 << 30)
-#define OPBX_FLAG_EXTEN (1 << 31)
+#define CW_FLAG_APP (1 << 30)
+#define CW_FLAG_EXTEN (1 << 31)
 #define JABBER_STRLEN 512
 #define JABBER_ARRAY_LEN 50
 #define JABBER_BODYLEN 2048
@@ -49,9 +49,9 @@
 #define JABBER_RECORD_SEPERATOR "\n\n"
 #define JABBER_DYNAMIC 
 
-OPBX_MUTEX_DEFINE_STATIC(global_lock);
-OPBX_MUTEX_DEFINE_STATIC(port_lock);
-OPBX_MUTEX_DEFINE_STATIC(callid_lock);
+CW_MUTEX_DEFINE_STATIC(global_lock);
+CW_MUTEX_DEFINE_STATIC(port_lock);
+CW_MUTEX_DEFINE_STATIC(callid_lock);
 
 static const char tdesc[] = "res_jabber";
 
@@ -116,7 +116,7 @@ struct jabber_message {
 
 struct jabber_profile {
 	unsigned int flags;
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	int timeout;
 	time_t toolate;
 	char *master;
@@ -131,14 +131,14 @@ struct jabber_profile {
 	gchar *passwd;
 	gchar *resource;
 
-	struct opbx_frame *frame_queue;
-	opbx_mutex_t fr_qlock;
+	struct cw_frame *frame_queue;
+	cw_mutex_t fr_qlock;
 
 	struct jabber_message_node *ib_message_queue;
-	opbx_mutex_t ib_qlock;
+	cw_mutex_t ib_qlock;
 
 	struct jabber_message_node *ob_message_queue;
-	opbx_mutex_t ob_qlock;
+	cw_mutex_t ob_qlock;
 
 	int media_socket;
 	struct sockaddr_in media_send_addr;
@@ -171,8 +171,8 @@ static int next_callid(void);
 static void media_close(int *socket);
 static void authentication_cb (LmConnection *connection, gboolean result, gpointer ud);
 static void connection_open_cb (LmConnection *connection, gboolean result, struct jabber_profile *profile);
-static int jabber_profile_queue_frame(struct jabber_profile *profile, struct opbx_frame *frame);
-static struct opbx_frame *jabber_profile_shift_frame(struct jabber_profile *profile);
+static int jabber_profile_queue_frame(struct jabber_profile *profile, struct cw_frame *frame);
+static struct cw_frame *jabber_profile_shift_frame(struct jabber_profile *profile);
 static int jabber_message_node_push(struct jabber_profile *profile, struct jabber_message_node *node,  QT qt);
 static struct jabber_message_node *jabber_message_node_shift(struct jabber_profile *profile, QT qt);
 static struct jabber_message_node *jabber_message_node_unshift(struct jabber_profile *profile, struct jabber_message_node *node, QT qt);
@@ -192,11 +192,11 @@ static void *jabber_pbx_session(void *obj);
 #ifdef JABBER_DYNAMIC
 static struct jabber_profile *jabber_profile_new(void);
 #endif
-static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct opbx_channel *chan, unsigned int flags);
+static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct cw_channel *chan, unsigned int flags);
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
-static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
 static void *cli_command_thread(void *cli_command);
@@ -223,11 +223,11 @@ static int jabber_manager_event(int category, char *event, char *body)
 static int next_callid(void)
 {
 	int callid;
-	opbx_mutex_lock(&callid_lock);
+	cw_mutex_lock(&callid_lock);
 	/*******************LOCK*********************/
 	callid = CALLID++;
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(&callid_lock);
+	cw_mutex_unlock(&callid_lock);
 	return callid;
 }
 
@@ -235,13 +235,13 @@ static int next_media_port(void)
 {
 	int port = MEDIA_PORT++;
 
-	opbx_mutex_lock(&port_lock);
+	cw_mutex_lock(&port_lock);
 	/*******************LOCK*********************/
 	if (port >= JABBER_MAX_MEDIA_PORT) {
 		MEDIA_PORT = JABBER_MIN_MEDIA_PORT;
 	}
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(&port_lock);
+	cw_mutex_unlock(&port_lock);
 
 	return port;
 }
@@ -262,7 +262,7 @@ static void authentication_cb (LmConnection *connection, gboolean result, gpoint
     profile = (struct jabber_profile *) ud;
 
 
-	opbx_log(OPBX_LOG_DEBUG, "Auth: %d\n", result);
+	cw_log(CW_LOG_DEBUG, "Auth: %d\n", result);
 
 	if (result == TRUE) {
 		LmMessage *m;
@@ -270,13 +270,13 @@ static void authentication_cb (LmConnection *connection, gboolean result, gpoint
 		m = lm_message_new_with_sub_type (NULL,
 										  LM_MESSAGE_TYPE_PRESENCE,
 										  LM_MESSAGE_SUB_TYPE_AVAILABLE);
-		opbx_log(OPBX_LOG_DEBUG, ":: %s\n", lm_message_node_to_string (m->node));
+		cw_log(CW_LOG_DEBUG, ":: %s\n", lm_message_node_to_string (m->node));
 		
 		lm_connection_send (connection, m, NULL);
 		lm_message_unref (m);
-		opbx_set_flag(profile, JFLAG_AUTHED);
+		cw_set_flag(profile, JFLAG_AUTHED);
 
-		if (opbx_test_flag(profile, JFLAG_MAIN)) {
+		if (cw_test_flag(profile, JFLAG_MAIN)) {
 			if ((node = jabber_message_node_printf(profile->master,
 												   "Event",
 												   "EVENT STARTUP\n"
@@ -291,17 +291,17 @@ static void authentication_cb (LmConnection *connection, gboolean result, gpoint
 
 static void connection_open_cb (LmConnection *connection, gboolean result, struct jabber_profile *profile)
 {
-	opbx_log(OPBX_LOG_DEBUG, "Connected callback\n");
+	cw_log(CW_LOG_DEBUG, "Connected callback\n");
 	lm_connection_authenticate (connection, profile->login, profile->passwd, profile->resource, authentication_cb, profile, FALSE,  NULL);
-	opbx_log(OPBX_LOG_DEBUG, "Sent auth message\n");
+	cw_log(CW_LOG_DEBUG, "Sent auth message\n");
 }
 
-static int jabber_profile_queue_frame(struct jabber_profile *profile, struct opbx_frame *frame)
+static int jabber_profile_queue_frame(struct jabber_profile *profile, struct cw_frame *frame)
 {
-	struct opbx_frame *fp;
+	struct cw_frame *fp;
 	int cnt = 0;
 
-	opbx_mutex_lock(&profile->fr_qlock);
+	cw_mutex_lock(&profile->fr_qlock);
 	/*******************LOCK*********************/
 	for (fp = profile->frame_queue ; fp && fp->next ; fp = fp->next) { 
 		cnt++;
@@ -314,15 +314,15 @@ static int jabber_profile_queue_frame(struct jabber_profile *profile, struct opb
 		fp->next = frame;
 	}
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(&profile->fr_qlock);
+	cw_mutex_unlock(&profile->fr_qlock);
 	return cnt;
 }
 						  
-static struct opbx_frame *jabber_profile_shift_frame(struct jabber_profile *profile)
+static struct cw_frame *jabber_profile_shift_frame(struct jabber_profile *profile)
 {
-	struct opbx_frame *fp = NULL;
+	struct cw_frame *fp = NULL;
 
-	opbx_mutex_lock(&profile->fr_qlock);
+	cw_mutex_lock(&profile->fr_qlock);
 	/*******************LOCK*********************/
 	if (profile->frame_queue) {
         fp = profile->frame_queue;
@@ -330,7 +330,7 @@ static struct opbx_frame *jabber_profile_shift_frame(struct jabber_profile *prof
         fp->next = NULL;
     }
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(&profile->fr_qlock);
+	cw_mutex_unlock(&profile->fr_qlock);
 	return fp;
 }
 						  
@@ -340,7 +340,7 @@ static int jabber_message_node_push(struct jabber_profile *profile, struct jabbe
 {
 	int cnt = 0;
 	struct jabber_message_node **head, *np;
-	opbx_mutex_t *lock;
+	cw_mutex_t *lock;
 
 	switch(qt) {
 	case Q_INBOUND:
@@ -353,7 +353,7 @@ static int jabber_message_node_push(struct jabber_profile *profile, struct jabbe
 		break;
 	}
 
-	opbx_mutex_lock(lock);
+	cw_mutex_lock(lock);
 	/*******************LOCK*********************/
 	for (np = *head ; np && np->next ; np = np->next) { 
 		cnt++;
@@ -366,7 +366,7 @@ static int jabber_message_node_push(struct jabber_profile *profile, struct jabbe
 		np->next = node;
 	}
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(lock);
+	cw_mutex_unlock(lock);
 
 
 	return cnt;
@@ -375,7 +375,7 @@ static int jabber_message_node_push(struct jabber_profile *profile, struct jabbe
 static struct jabber_message_node *jabber_message_node_shift(struct jabber_profile *profile, QT qt)
 {
 	struct jabber_message_node **head, *ret = NULL;
-	opbx_mutex_t *lock;
+	cw_mutex_t *lock;
 
 	switch(qt) {
 	case Q_INBOUND:
@@ -388,7 +388,7 @@ static struct jabber_message_node *jabber_message_node_shift(struct jabber_profi
 		break;
 	}
 
-	opbx_mutex_lock(lock);
+	cw_mutex_lock(lock);
 	/*******************LOCK*********************/
 	if (*head) {
 		ret = *head;
@@ -396,7 +396,7 @@ static struct jabber_message_node *jabber_message_node_shift(struct jabber_profi
 		ret->next = NULL;
 	}
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(lock);
+	cw_mutex_unlock(lock);
 
 	return ret;
 }
@@ -404,7 +404,7 @@ static struct jabber_message_node *jabber_message_node_shift(struct jabber_profi
 static struct jabber_message_node *jabber_message_node_unshift(struct jabber_profile *profile, struct jabber_message_node *node, QT qt)
 {
 	struct jabber_message_node **head, *ret = NULL;
-	opbx_mutex_t *lock;
+	cw_mutex_t *lock;
 	
 	switch(qt) {
 	case Q_INBOUND:
@@ -417,12 +417,12 @@ static struct jabber_message_node *jabber_message_node_unshift(struct jabber_pro
 		break;
 	}
 
-	opbx_mutex_lock(lock);
+	cw_mutex_lock(lock);
 	/*******************LOCK*********************/
 	node->next = *head;
 	*head = node;
 	/*******************LOCK*********************/
-	opbx_mutex_unlock(lock);
+	cw_mutex_unlock(lock);
 
 	return ret;
 }
@@ -480,12 +480,12 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	char *from;
 	char *body;
 	struct jabber_profile *profile;
-	struct opbx_frame fr = {OPBX_FRAME_NULL};
-	struct opbx_frame *frx;
+	struct cw_frame fr = {CW_FRAME_NULL};
+	struct cw_frame *frx;
 
 	profile = (struct jabber_profile *) user_data;
 	lmnode = lm_message_node_get_child (m->node, "body");
-	body = opbx_strdupa(lmnode->value);
+	body = cw_strdupa(lmnode->value);
 	from = (char *) lm_message_node_get_attribute (m->node, "from");
 
 
@@ -497,10 +497,10 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 
 	if (profile->chan)
     {
-        if ((frx = opbx_frdup(&fr)))
-    		opbx_queue_frame(profile->chan, frx);
+        if ((frx = cw_frdup(&fr)))
+    		cw_queue_frame(profile->chan, frx);
         else
-    		opbx_log(OPBX_LOG_WARNING, "Unable to duplicate frame\n");
+    		cw_log(CW_LOG_WARNING, "Unable to duplicate frame\n");
 	}
 
 
@@ -510,8 +510,8 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 static void jabber_disconnect(struct jabber_profile *profile)
 {
 	lm_connection_close (profile->connection, NULL);
-	opbx_clear_flag(profile, JFLAG_RUNNING);
-	opbx_set_flag(profile, JFLAG_SHUTDOWN);
+	cw_clear_flag(profile, JFLAG_RUNNING);
+	cw_set_flag(profile, JFLAG_SHUTDOWN);
 }
 
 static int jabber_connect(struct jabber_profile *profile)
@@ -526,8 +526,8 @@ static int jabber_connect(struct jabber_profile *profile)
 	lm_message_handler_unref (handler);	
 
 	if ((result = lm_connection_open (profile->connection, (LmResultFunction) connection_open_cb, profile, NULL, NULL))) {
-		opbx_set_flag((profile), JFLAG_RUNNING);
-		opbx_clear_flag((profile), JFLAG_ERROR);
+		cw_set_flag((profile), JFLAG_RUNNING);
+		cw_clear_flag((profile), JFLAG_ERROR);
 		res = 0;
 	}
 
@@ -548,11 +548,11 @@ static int check_outbound_message_queue(struct jabber_profile *profile)
 		lm_message_node_add_child (message->node, "body", node->body);
 		lm_message_node_add_child (message->node, "subject", node->subject);
 		if (!(result = lm_connection_send(profile->connection, message, &error))) {
-			opbx_log(OPBX_LOG_ERROR, "Cannot Send Message! DOH!\n");
+			cw_log(CW_LOG_ERROR, "Cannot Send Message! DOH!\n");
 			jabber_message_node_unshift(profile, node, Q_OUTBOUND);
 			lm_message_unref (message);
-			opbx_set_flag(profile, JFLAG_ERROR);
-			opbx_clear_flag(profile, JFLAG_AUTHED);
+			cw_set_flag(profile, JFLAG_ERROR);
+			cw_clear_flag(profile, JFLAG_AUTHED);
 			ret = -1;
 			break;
 		}
@@ -572,19 +572,19 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 	char *cur, *cr, *next = NULL, *buf, *body;
 	
 	memset(jmsg, 0, sizeof(*jmsg));
-	buf = opbx_strdupa(node->body);
+	buf = cw_strdupa(node->body);
 
-	opbx_log(OPBX_LOG_DEBUG, "Message:\n[%s]\n==========\n%s\n==========\n", node->jabber_id, buf);
+	cw_log(CW_LOG_DEBUG, "Message:\n[%s]\n==========\n%s\n==========\n", node->jabber_id, buf);
 
 	next = buf;
 
-	opbx_copy_string(jmsg->subject, node->subject, sizeof(jmsg->subject));
-	opbx_copy_string(jmsg->jabber_id, node->jabber_id, sizeof(jmsg->jabber_id));
+	cw_copy_string(jmsg->subject, node->subject, sizeof(jmsg->subject));
+	cw_copy_string(jmsg->jabber_id, node->jabber_id, sizeof(jmsg->jabber_id));
 	
 	if ((body = strstr(buf, JABBER_RECORD_SEPERATOR))) {
 		body += strlen(JABBER_RECORD_SEPERATOR);
-		opbx_copy_string(jmsg->body, body, sizeof(jmsg->body));
-		opbx_set_flag(jmsg, MFLAG_CONTENT);
+		cw_copy_string(jmsg->body, body, sizeof(jmsg->body));
+		cw_set_flag(jmsg, MFLAG_CONTENT);
 	}
 	
 	while ((cur = next)) {
@@ -601,7 +601,7 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 
 		if (!jmsg->last) {
 			char *p;
-			opbx_set_flag(jmsg, MFLAG_EXISTS);
+			cw_set_flag(jmsg, MFLAG_EXISTS);
 			
 			if ((p = strchr(cur, ' '))) {
 				*p++ = '\0';
@@ -631,7 +631,7 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 
 	jmsg->last--;
 
-	return opbx_test_flag(jmsg, MFLAG_EXISTS);
+	return cw_test_flag(jmsg, MFLAG_EXISTS);
 
 }
 
@@ -659,7 +659,7 @@ static int jabber_context_open(struct jabber_profile *profile)
 		g_main_context_acquire(profile->context);
 		g_main_context_ref(profile->context);
 	} else {
-		opbx_log(OPBX_LOG_ERROR, "Error Acquiring Context\n");
+		cw_log(CW_LOG_ERROR, "Error Acquiring Context\n");
 		res = -1;
 	}
 	return res;
@@ -698,24 +698,24 @@ static void *jabber_thread(void *obj)
 	
 	for (;;) {
 		if (jabber_connect(profile) < 0) {
-			opbx_log(OPBX_LOG_NOTICE, "Jabber reconnect attempt\n");
+			cw_log(CW_LOG_NOTICE, "Jabber reconnect attempt\n");
                        	usleep(2000000);
                        	sched_yield();
 			continue;
 		}
-		while (opbx_test_flag(profile, JFLAG_RUNNING) && !opbx_test_flag(profile, JFLAG_ERROR)){
+		while (cw_test_flag(profile, JFLAG_RUNNING) && !cw_test_flag(profile, JFLAG_ERROR)){
 			
 			g_main_context_iteration(profile->context, FALSE);
 		
-			if (opbx_test_flag(profile, JFLAG_AUTHED)) {
+			if (cw_test_flag(profile, JFLAG_AUTHED)) {
 				check_outbound_message_queue(profile);
 			}else {
-                               	opbx_log(OPBX_LOG_ERROR, "Jabber - not authed\n");
+                               	cw_log(CW_LOG_ERROR, "Jabber - not authed\n");
                         }
 
 			if ((node = jabber_message_node_shift(profile, Q_INBOUND))) {
 				if (jabber_message_parse(node, &jmsg)) {
-					opbx_log(OPBX_LOG_DEBUG, "Message From %s\n", node->jabber_id);
+					cw_log(CW_LOG_DEBUG, "Message From %s\n", node->jabber_id);
 					res = parse_jabber_command_main(&jmsg);
 				}
 				free_jabber_message_node(&node);
@@ -725,7 +725,7 @@ static void *jabber_thread(void *obj)
 		}
 		jabber_disconnect(profile);
 	
-		if (opbx_test_flag(profile, JFLAG_ERROR)) {
+		if (cw_test_flag(profile, JFLAG_ERROR)) {
 			continue;
 		}
 
@@ -734,7 +734,7 @@ static void *jabber_thread(void *obj)
 
 	g_main_context_unref(profile->context);
 
-	opbx_log(OPBX_LOG_DEBUG, "Closing Main Thread\n");
+	cw_log(CW_LOG_DEBUG, "Closing Main Thread\n");
 	//jabber_context_close(profile);
 	return NULL;
 }
@@ -765,18 +765,18 @@ static void *media_receive_thread(void *obj)
 	struct jabber_profile *profile = obj;
 	g_main_context_ref(profile->context);
 
-	struct opbx_channel *chan = profile->chan;
-	struct opbx_frame write_frame = {OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR};
+	struct cw_channel *chan = profile->chan;
+	struct cw_frame write_frame = {CW_FRAME_VOICE, CW_FORMAT_SLINEAR};
 	char buf[1024];
 	int err = 0;
 	unsigned int fromlen;
 	int socket = profile->media_socket;
-	char *name = opbx_strdupa(chan->name);
-	struct opbx_frame *frx;
+	char *name = cw_strdupa(chan->name);
+	struct cw_frame *frx;
 
-	opbx_set_flag(profile, JFLAG_RECEIVEMEDIA);
-	opbx_log(OPBX_LOG_DEBUG, "MEDIA UP %s\n", name);
-	while (opbx_test_flag(profile, JFLAG_RUNNING) && opbx_test_flag(profile, JFLAG_RECEIVEMEDIA) && socket > -1) {
+	cw_set_flag(profile, JFLAG_RECEIVEMEDIA);
+	cw_log(CW_LOG_DEBUG, "MEDIA UP %s\n", name);
+	while (cw_test_flag(profile, JFLAG_RUNNING) && cw_test_flag(profile, JFLAG_RECEIVEMEDIA) && socket > -1) {
 		fromlen = sizeof(struct sockaddr_in);
 		
 		if((res = waitfor_socket(socket, 100)) < 0) {
@@ -786,26 +786,26 @@ static void *media_receive_thread(void *obj)
 			continue;
 		}
 
-		if (!opbx_test_flag(profile, JFLAG_RUNNING)) {
+		if (!cw_test_flag(profile, JFLAG_RUNNING)) {
 			break;
 		}
 
 		if ((res = recvfrom(socket, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1)
         {
-			//opbx_verbose("PACKET\n");
+			//cw_verbose("PACKET\n");
 			if (res == 6 && !strncmp(buf, "HANGUP", 6)) {
-				opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+				cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 				break;
 			}
 
-			write_frame.subclass = chan->readformat || OPBX_FORMAT_SLINEAR;
+			write_frame.subclass = chan->readformat || CW_FORMAT_SLINEAR;
 			write_frame.data = buf;
 			write_frame.datalen = res;
 			write_frame.samples = res / 2;
-            if ((frx = opbx_frdup(&write_frame)))
+            if ((frx = cw_frdup(&write_frame)))
     			jabber_profile_queue_frame(profile, frx);
             else
-        		opbx_log(OPBX_LOG_WARNING, "Unable to duplicate frame\n");
+        		cw_log(CW_LOG_WARNING, "Unable to duplicate frame\n");
 		}
         else
         {
@@ -814,9 +814,9 @@ static void *media_receive_thread(void *obj)
 		}
 	}
 
-	opbx_clear_flag(profile, JFLAG_RECEIVEMEDIA);
+	cw_clear_flag(profile, JFLAG_RECEIVEMEDIA);
 	media_close(&socket);
-	opbx_log(OPBX_LOG_DEBUG, "MEDIA DOWN %s\n", name);
+	cw_log(CW_LOG_DEBUG, "MEDIA DOWN %s\n", name);
 	g_main_context_unref(profile->context);
 	return NULL;
 }
@@ -828,14 +828,14 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 
 	char *arg = NULL;
 	struct jabber_message_node *node;
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	int res = 0;
 
 	assert(profile != NULL);
 	chan = profile->chan;
 
-	if(!opbx_strlen_zero(jmsg->command_args)) {
-		arg = opbx_strdupa(jmsg->command_args);
+	if(!cw_strlen_zero(jmsg->command_args)) {
+		arg = cw_strdupa(jmsg->command_args);
 	}
 	
 
@@ -848,7 +848,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		if (arg) {
 			app = arg;
 		} else {
-			opbx_log(OPBX_LOG_WARNING, "this command requires an argument\n");
+			cw_log(CW_LOG_WARNING, "this command requires an argument\n");
 			return 0;
 		}
 
@@ -858,7 +858,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			data = "";
 		}
 		
-		res = opbx_function_exec_str(chan, opbx_hash_app_name(app), app, data, NULL, 0);
+		res = cw_function_exec_str(chan, cw_hash_app_name(app), app, data, NULL, 0);
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
 											   "EVENT ENDAPP\n"
@@ -879,14 +879,14 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
 	} else if (!strcasecmp(jmsg->command, "hangup")) {
-		opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+		cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 	} else if (!strcasecmp(jmsg->command, "answer")) {
 		profile_answer(profile);
 	} else if (!strcasecmp(jmsg->command, "stream") && arg) {
-		opbx_openstream(chan, arg, chan->language);
+		cw_openstream(chan, arg, chan->language);
 		pbx_builtin_setvar_helper(chan, "STREAMFILE", arg);
 	} else if (!strcasecmp(jmsg->command, "stopstream")) {
-		opbx_stopstream(chan);
+		cw_stopstream(chan);
 		chan->stream = NULL;
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
@@ -927,7 +927,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		char *porta = jabber_message_header(jmsg, "port");
 		int port;
 		struct hostent *hp;
-		struct opbx_hostent ahp;
+		struct cw_hostent ahp;
 
 		if (!ip) {
 			ip = "127.0.0.1";
@@ -937,12 +937,12 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			porta = arg;
 		}
 
-		if (porta && (hp = opbx_gethostbyname(ip, &ahp))) {
+		if (porta && (hp = cw_gethostbyname(ip, &ahp))) {
 			port = atoi(porta);
 			profile->media_send_addr.sin_family = hp->h_addrtype;
 			memcpy((char *) &profile->media_send_addr.sin_addr.s_addr, hp->h_addr_list[0], hp->h_length);
 			profile->media_send_addr.sin_port = htons(port);
-			opbx_set_flag(profile, JFLAG_FORWARDMEDIA);
+			cw_set_flag(profile, JFLAG_FORWARDMEDIA);
 			if ((node = jabber_message_node_printf(profile->master,
 												   "Event",
 												   "EVENT FORWARDMEDIA\n"
@@ -998,7 +998,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 				break;
 			}
 			if((tries++) >= 2000) {
-				opbx_log(OPBX_LOG_ERROR, "Error! 2000 port failures in a row!\n");
+				cw_log(CW_LOG_ERROR, "Error! 2000 port failures in a row!\n");
 				break;
 			}
 
@@ -1008,7 +1008,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 
 		if(profile->media_socket > -1) {
 			pthread_t tid;
-			opbx_log(OPBX_LOG_DEBUG, "open socket %d on %s:%d for media\n", profile->media_socket, ip, port);
+			cw_log(CW_LOG_DEBUG, "open socket %d on %s:%d for media\n", profile->media_socket, ip, port);
 			if ((node = jabber_message_node_printf(profile->master, 
 												   "Event",
 												   "EVENT RECEIVEMEDIA\n"
@@ -1026,7 +1026,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 												   port))) {
 				jabber_message_node_push(profile, node, Q_OUTBOUND);
 			}
-			opbx_pthread_create(&tid, &global_attr_rr_detached, media_receive_thread, profile);
+			cw_pthread_create(&tid, &global_attr_rr_detached, media_receive_thread, profile);
 			
 			if (bridgetome) {
 				bridgeto = jmsg->jabber_id;
@@ -1069,7 +1069,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 
 				
 		} else {
-			opbx_log(OPBX_LOG_ERROR, "Error opening media socket %s:%d\n", ip, port);
+			cw_log(CW_LOG_ERROR, "Error opening media socket %s:%d\n", ip, port);
 			if ((node = jabber_message_node_printf(profile->master, 
 												   "Event",
 												   "EVENT MEDIASOCKETFAIL\n"
@@ -1091,20 +1091,20 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		}
 		
 	} else if (!strcasecmp(jmsg->command, "pausereceivemedia")) {
-		opbx_clear_flag(profile, JFLAG_RECEIVEMEDIA);
+		cw_clear_flag(profile, JFLAG_RECEIVEMEDIA);
 	} else if (!strcasecmp(jmsg->command, "resumereceivemedia")) {
 		if (profile->media_socket > -1) {
-			opbx_set_flag(profile, JFLAG_RECEIVEMEDIA);
+			cw_set_flag(profile, JFLAG_RECEIVEMEDIA);
 		}
 	} else if (!strcasecmp(jmsg->command, "pauseforwardmedia")) {
-		opbx_clear_flag(profile, JFLAG_FORWARDMEDIA);
+		cw_clear_flag(profile, JFLAG_FORWARDMEDIA);
 	} else if (!strcasecmp(jmsg->command, "resumeforwardmedia")) {
 		if (profile->media_send_addr.sin_port) {
-			opbx_set_flag(profile, JFLAG_FORWARDMEDIA);
+			cw_set_flag(profile, JFLAG_FORWARDMEDIA);
 		}
 	} else if (!strcasecmp(jmsg->command, "noreceivemedia")) {
 		media_close(&profile->media_socket);
-		opbx_clear_flag(profile, JFLAG_RECEIVEMEDIA);
+		cw_clear_flag(profile, JFLAG_RECEIVEMEDIA);
 		if ((node = jabber_message_node_printf(profile->master, 
 											   "Event",
 											   "EVENT NOREVEIVEMEDIA\n"
@@ -1121,7 +1121,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
 	} else if (!strcasecmp(jmsg->command, "noforwardmedia")) {
-		opbx_clear_flag(profile, JFLAG_FORWARDMEDIA);
+		cw_clear_flag(profile, JFLAG_FORWARDMEDIA);
 		if ((node = jabber_message_node_printf(profile->master, 
 											   "Event",
 											   "EVENT NOFORWARDMEDIA\n"
@@ -1153,7 +1153,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 											   ))) {
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
-		opbx_moh_start(chan, arg);
+		cw_moh_start(chan, arg);
 	} else if (!strcasecmp(jmsg->command, "stopmoh")) {
 		if ((node = jabber_message_node_printf(profile->master, 
 											   "Event",
@@ -1170,20 +1170,20 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 											   ))) {
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
-		opbx_moh_stop(chan);
+		cw_moh_stop(chan);
 		
 	} else if (!strcasecmp(jmsg->command, "setreadformat") && arg) {
 		int format;
-		if ((format=opbx_getformatbyname(arg))) {
-			opbx_set_read_format(chan, format);
+		if ((format=cw_getformatbyname(arg))) {
+			cw_set_read_format(chan, format);
 		}
 	} else if (!strcasecmp(jmsg->command, "setwriteformat") && arg) {
 		int format;
-		if ((format=opbx_getformatbyname(arg))) {
-			opbx_set_write_format(chan, format);
+		if ((format=cw_getformatbyname(arg))) {
+			cw_set_write_format(chan, format);
 		}
 	} else if (!strcasecmp(jmsg->command, "setmaster") && arg) {
-		char *oldmaster = opbx_strdupa(profile->master);
+		char *oldmaster = cw_strdupa(profile->master);
 		g_free_if_exists (profile->master);
 		profile->master = g_strdup(arg);
 		
@@ -1230,41 +1230,41 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 	return res;
 }
 
-static void setup_cdr(struct opbx_channel *chan) 
+static void setup_cdr(struct cw_channel *chan) 
 {
 	if (chan->cdr) {
 		return;
 	}
 
-	chan->cdr = opbx_cdr_alloc();
+	chan->cdr = cw_cdr_alloc();
 	if (chan->cdr) {
-		opbx_cdr_init(chan->cdr, chan);
+		cw_cdr_init(chan->cdr, chan);
 	}
 	if (chan->cdr) {
-		opbx_cdr_setapp(chan->cdr, name, "");
-		opbx_cdr_update(chan);
-		opbx_cdr_start(chan->cdr);
-		opbx_cdr_end(chan->cdr);
+		cw_cdr_setapp(chan->cdr, name, "");
+		cw_cdr_update(chan);
+		cw_cdr_start(chan->cdr);
+		cw_cdr_end(chan->cdr);
 	} 
 }
 
 static void profile_answer(struct jabber_profile *profile)
 {
-	struct opbx_channel *chan = profile->chan;
+	struct cw_channel *chan = profile->chan;
 
 	profile->chanstate = CHANSTATE_ANSWER;
 	setup_cdr(chan);
-	opbx_answer(chan);
+	cw_answer(chan);
 	profile->timeout = -1;
 }
 
 static void *jabber_pbx_session(void *obj)
 {
 	struct jabber_profile *profile = obj;
-	struct opbx_channel *chan = profile->chan;
+	struct cw_channel *chan = profile->chan;
 	struct jabber_message_node *node;
 	struct jabber_message jmsg;
-	struct opbx_frame *f, *sf;
+	struct cw_frame *f, *sf;
 	time_t start, now;
 	int res = 0;
 	int readformat;
@@ -1274,12 +1274,12 @@ static void *jabber_pbx_session(void *obj)
 	jabber_context_open(profile);
 	
 
-	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) {
-		opbx_log(OPBX_LOG_ERROR, "Error Setting Read Format.\n");
+	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR)) {
+		cw_log(CW_LOG_ERROR, "Error Setting Read Format.\n");
 		return NULL;
 	}
-	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
-		opbx_log(OPBX_LOG_ERROR, "Error Setting Write Format.\n");
+	if (cw_set_write_format(chan, CW_FORMAT_SLINEAR)) {
+		cw_log(CW_LOG_ERROR, "Error Setting Write Format.\n");
 		return NULL;
 	}
 
@@ -1295,7 +1295,7 @@ static void *jabber_pbx_session(void *obj)
     }
 
 	time(&start);
-	while (!opbx_test_flag(profile, JFLAG_AUTHED)) {
+	while (!cw_test_flag(profile, JFLAG_AUTHED)) {
 		time(&now);
 		if ((now - start) > 20) {
 			goto punt;
@@ -1304,12 +1304,12 @@ static void *jabber_pbx_session(void *obj)
 	}
 	check_outbound_message_queue(profile);
 
-	if (chan->_state == OPBX_STATE_UP) {
+	if (chan->_state == CW_STATE_UP) {
 		profile->timeout = -1;
 	}
 
-	while (opbx_test_flag(profile, JFLAG_RUNNING) && 
-		   (res = opbx_waitfor(chan, profile->timeout)) > -1) {
+	while (cw_test_flag(profile, JFLAG_RUNNING) && 
+		   (res = cw_waitfor(chan, profile->timeout)) > -1) {
 
 		if (profile->timeout > -1) {
 			if (!res) {
@@ -1318,16 +1318,16 @@ static void *jabber_pbx_session(void *obj)
 			profile->timeout = res;
 		}
 		
-		if (!(f=opbx_read(chan))) {
+		if (!(f=cw_read(chan))) {
 			break;
 		}
 
 		if (chan->stream) {
-			if ((sf = opbx_readframe(chan->stream))) {
-				opbx_write(chan, sf);
-				opbx_fr_free(sf);
+			if ((sf = cw_readframe(chan->stream))) {
+				cw_write(chan, sf);
+				cw_fr_free(sf);
 			} else {
-				opbx_stopstream(chan);
+				cw_stopstream(chan);
 				chan->stream = NULL;
 				if ((node = jabber_message_node_printf(profile->master,
 													   "Event",
@@ -1375,21 +1375,21 @@ static void *jabber_pbx_session(void *obj)
 
 		switch (f->frametype) {
 
-		case OPBX_FRAME_CONTROL:
+		case CW_FRAME_CONTROL:
 			switch (f->subclass) {
-			case OPBX_CONTROL_BUSY:
-			case OPBX_CONTROL_CONGESTION:
+			case CW_CONTROL_BUSY:
+			case CW_CONTROL_CONGESTION:
 				profile->chanstate = CHANSTATE_BUSY;
-				opbx_clear_flag(profile, JFLAG_RUNNING);
+				cw_clear_flag(profile, JFLAG_RUNNING);
 				continue;
 				break;
-			case OPBX_CONTROL_ANSWER:
+			case CW_CONTROL_ANSWER:
 				profile_answer(profile);
 				continue;
 				break;
 			}
 			break;
-		case OPBX_FRAME_DTMF:
+		case CW_FRAME_DTMF:
 			if ((node = jabber_message_node_printf(profile->master, 
 												   "Event",
 												   "EVENT DTMF\n"
@@ -1406,7 +1406,7 @@ static void *jabber_pbx_session(void *obj)
 				jabber_message_node_push(profile, node, Q_OUTBOUND);
 			}
 			break;
-		case OPBX_FRAME_VOICE:
+		case CW_FRAME_VOICE:
 			if (readformat != chan->readformat) {
 				if ((node = jabber_message_node_printf(profile->master, 
 													   "Event",
@@ -1420,7 +1420,7 @@ static void *jabber_pbx_session(void *obj)
 													   profile->resource,
 													   profile->identifier,
 													   profile->callid,
-													   opbx_getformatname(chan->readformat)))) {
+													   cw_getformatname(chan->readformat)))) {
 					jabber_message_node_push(profile, node, Q_OUTBOUND);
 					readformat = chan->readformat;
 				}
@@ -1438,7 +1438,7 @@ static void *jabber_pbx_session(void *obj)
 													   profile->resource,
 													   profile->identifier,
 													   profile->callid,
-													   opbx_getformatname(chan->writeformat)))) {
+													   cw_getformatname(chan->writeformat)))) {
 					jabber_message_node_push(profile, node, Q_OUTBOUND);
 					writeformat = chan->writeformat;
 				}
@@ -1446,18 +1446,18 @@ static void *jabber_pbx_session(void *obj)
 
 			if (profile->media_socket > -1) {
 
-				if (opbx_test_flag(profile, JFLAG_RECEIVEMEDIA)) {
-					struct opbx_frame *f;
+				if (cw_test_flag(profile, JFLAG_RECEIVEMEDIA)) {
+					struct cw_frame *f;
 
 					while ((f=jabber_profile_shift_frame(profile))) {
 						if (!chan->stream) { /* for now we'll ignore voice while a file plays */
-							opbx_write(chan, f);
+							cw_write(chan, f);
 						}
-						opbx_fr_free(f);
+						cw_fr_free(f);
 					}
 				}
 
-				if (chan->_state == OPBX_STATE_UP && opbx_test_flag(profile, JFLAG_FORWARDMEDIA)) {
+				if (chan->_state == CW_STATE_UP && cw_test_flag(profile, JFLAG_FORWARDMEDIA)) {
 					int i;
 
 					i = sendto(profile->media_socket,
@@ -1467,8 +1467,8 @@ static void *jabber_pbx_session(void *obj)
 							   (struct sockaddr *) &profile->media_send_addr, 
 							   sizeof(profile->media_send_addr));
 					if (i < 0) {
-						opbx_log(OPBX_LOG_ERROR, "Error sending media\n");
-						opbx_clear_flag(profile, JFLAG_FORWARDMEDIA);
+						cw_log(CW_LOG_ERROR, "Error sending media\n");
+						cw_clear_flag(profile, JFLAG_FORWARDMEDIA);
 					}
 				}
 			}
@@ -1478,7 +1478,7 @@ static void *jabber_pbx_session(void *obj)
 
 		}
 
-		opbx_fr_free(f);
+		cw_fr_free(f);
 		res = 0;
 		g_main_context_iteration(profile->context, FALSE);
 		
@@ -1490,22 +1490,22 @@ static void *jabber_pbx_session(void *obj)
 			free_jabber_message_node(&node);
 		}
 		
-		if (opbx_test_flag(profile, JFLAG_AUTHED)) {
+		if (cw_test_flag(profile, JFLAG_AUTHED)) {
             check_outbound_message_queue(profile);
         }
 
-		if (opbx_test_flag(profile, JFLAG_ERROR)) {
+		if (cw_test_flag(profile, JFLAG_ERROR)) {
 			jabber_connect(profile);
 			continue;
 		}
 
-		if (res < 0 || opbx_check_hangup(chan)) {
+		if (res < 0 || cw_check_hangup(chan)) {
 			break;
 		}
 
 	}
 
-	if (opbx_test_flag(profile, JFLAG_FORWARDMEDIA)) {
+	if (cw_test_flag(profile, JFLAG_FORWARDMEDIA)) {
 		int i;
 		
 		i = sendto(profile->media_socket,
@@ -1515,8 +1515,8 @@ static void *jabber_pbx_session(void *obj)
 				   (struct sockaddr *) &profile->media_send_addr, 
 				   sizeof(profile->media_send_addr));
 		if (i < 0) {
-			opbx_log(OPBX_LOG_ERROR, "Error sending media\n");
-			opbx_clear_flag(profile, JFLAG_FORWARDMEDIA);
+			cw_log(CW_LOG_ERROR, "Error sending media\n");
+			cw_clear_flag(profile, JFLAG_FORWARDMEDIA);
 		}
 	}
 	
@@ -1554,18 +1554,18 @@ static void *jabber_pbx_session(void *obj)
 	jabber_disconnect(profile);
 	media_close(&profile->media_socket);
 	
-	if (chan && opbx_test_flag(profile, JFLAG_MALLOC)) {
-		opbx_hangup(chan);
+	if (chan && cw_test_flag(profile, JFLAG_MALLOC)) {
+		cw_hangup(chan);
 		chan = NULL;
 	}
 
 	res = 0;
-	while (opbx_test_flag(profile, JFLAG_RECEIVEMEDIA)) {
+	while (cw_test_flag(profile, JFLAG_RECEIVEMEDIA)) {
 		res++;
 		usleep(1000);
 		sched_yield();
 		if (res > 100000) {
-			opbx_log(OPBX_LOG_ERROR, "Error Waiting for media thread\n");
+			cw_log(CW_LOG_ERROR, "Error Waiting for media thread\n");
 			break;
 		}
 	}
@@ -1584,19 +1584,19 @@ static struct jabber_profile *jabber_profile_new(void)
 	struct jabber_profile *profile = NULL;
 	if ((profile=malloc(sizeof(*profile)))) {
 		memset(profile, 0, sizeof(*profile));
-		opbx_set_flag(profile, JFLAG_MALLOC);
+		cw_set_flag(profile, JFLAG_MALLOC);
 	}
 	return profile;
 }
 
 #endif
 
-static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct opbx_channel *chan, unsigned int flags)
+static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct cw_channel *chan, unsigned int flags)
 {
 	memset(profile, 0, sizeof(*profile));
-	opbx_mutex_init(&profile->ib_qlock);
-	opbx_mutex_init(&profile->ob_qlock);
-	opbx_mutex_init(&profile->fr_qlock);
+	cw_mutex_init(&profile->ib_qlock);
+	cw_mutex_init(&profile->ob_qlock);
+	cw_mutex_init(&profile->fr_qlock);
 	profile->master =  g_strdup (globals.master);
 	profile->server = g_strdup (globals.server);
 	profile->login = g_strdup (globals.login);
@@ -1606,7 +1606,7 @@ static void jabber_profile_init(struct jabber_profile *profile, char *resource, 
 	profile->identifier = g_strdup(identifier);
 	profile->callid = next_callid();
 
-	opbx_set_flag(profile, flags);
+	cw_set_flag(profile, flags);
 	profile->media_socket = -1;
 	if (chan) {
 		profile->chan = chan;
@@ -1616,9 +1616,9 @@ static void jabber_profile_init(struct jabber_profile *profile, char *resource, 
 
 static void jabber_profile_destroy(struct jabber_profile *profile)
 {
-	opbx_mutex_destroy(&profile->ib_qlock);
-	opbx_mutex_destroy(&profile->ob_qlock);
-	opbx_mutex_destroy(&profile->fr_qlock);
+	cw_mutex_destroy(&profile->ib_qlock);
+	cw_mutex_destroy(&profile->ob_qlock);
+	cw_mutex_destroy(&profile->fr_qlock);
 	g_free_if_exists(profile->login);
 	g_free_if_exists(profile->passwd);
 	g_free_if_exists(profile->resource);
@@ -1627,7 +1627,7 @@ static void jabber_profile_destroy(struct jabber_profile *profile)
 	g_free_if_exists(profile->bridgeto);
 	g_free_if_exists(profile->identifier);
 
-	if (opbx_test_flag(profile, JFLAG_MALLOC)) {
+	if (cw_test_flag(profile, JFLAG_MALLOC)) {
 		free(profile);
 	}
 }
@@ -1687,7 +1687,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
   {
   int rc, sd = 0;
   struct hostent *hp;
-  struct opbx_hostent ahp;
+  struct cw_hostent ahp;
   struct sockaddr_in servAddr, *addr, cliAddr;
 	
   if(sockaddr) {
@@ -1697,7 +1697,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
   }
 	
   if ((sd = socket(AF_INET, SOCK_DGRAM, 0))) {
-  if ((hp = opbx_gethostbyname(ip, &ahp))) {
+  if ((hp = cw_gethostbyname(ip, &ahp))) {
   addr->sin_family = hp->h_addrtype;
   memcpy((char *) &addr->sin_addr.s_addr, hp->h_addr_list[0], hp->h_length);
   addr->sin_port = htons(port);
@@ -1710,7 +1710,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
   rc = bind(sd, (struct sockaddr *) addr, sizeof(cliAddr));
   }
   if(rc < 0) {
-  opbx_log(OPBX_LOG_ERROR,"Error opening udp socket\n");
+  cw_log(CW_LOG_ERROR,"Error opening udp socket\n");
   media_close(&sd);
   }
   }
@@ -1723,7 +1723,7 @@ static void *cli_command_thread(void *cli_command)
 {
  	int fd;
    	fd = fileno(stderr);
-   	opbx_cli_command(fd, (char *)cli_command);
+   	cw_cli_command(fd, (char *)cli_command);
 /*   	free(cli_command);	 */
 	return NULL;
 }	
@@ -1734,8 +1734,8 @@ static void launch_cli_thread(char *cli_command)
 	char *cli_command_dup;
 	struct jabber_message_node *node;
 
-    if(!opbx_strlen_zero(cli_command)) {
-        cli_command_dup = opbx_strdupa(cli_command);
+    if(!cw_strlen_zero(cli_command)) {
+        cli_command_dup = cw_strdupa(cli_command);
     }
     else {
     	return;
@@ -1747,7 +1747,7 @@ static void launch_cli_thread(char *cli_command)
 												))) {
 				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 	}
-	opbx_pthread_create(&tid, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
+	cw_pthread_create(&tid, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
 }
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)
@@ -1756,13 +1756,13 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 	char *arg = NULL;
 	struct jabber_message_node *node;
 
-	if(!opbx_test_flag(jmsg, MFLAG_EXISTS)) {
+	if(!cw_test_flag(jmsg, MFLAG_EXISTS)) {
 		return 0;
 	}
 
 
-    if(!opbx_strlen_zero(jmsg->command_args)) {
-        arg = opbx_strdupa(jmsg->command_args);
+    if(!cw_strlen_zero(jmsg->command_args)) {
+        arg = cw_strdupa(jmsg->command_args);
     }
 
     if (!strcasecmp(jmsg->command, "call")) {
@@ -1783,16 +1783,16 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 		
 		timeout = toa ? atoi(toa) : 60000;
-		format = formata ? opbx_getformatbyname(formata) : OPBX_FORMAT_SLINEAR;
+		format = formata ? cw_getformatbyname(formata) : CW_FORMAT_SLINEAR;
 
 		if(type && data) {
-			struct opbx_channel *chan;
+			struct cw_channel *chan;
 			struct jabber_profile *profile;
 			char callida[80];
 
-			if((chan = opbx_request(type, format, data, &reason))) {
-				opbx_set_callerid(chan, cid_num, cid_name, cid_num);
-				if (!opbx_call(chan, data, timeout)) {
+			if((chan = cw_request(type, format, data, &reason))) {
+				cw_set_callerid(chan, cid_num, cid_name, cid_num);
+				if (!cw_call(chan, data, timeout)) {
 
 					if(!pname) {
 						pname = chan->name;
@@ -1852,14 +1852,14 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 							}
 						}
 						
-						opbx_pthread_create(&tid, &global_attr_rr_detached, jabber_pbx_session, profile);
+						cw_pthread_create(&tid, &global_attr_rr_detached, jabber_pbx_session, profile);
 
 					} else {
-						opbx_hangup(chan);
+						cw_hangup(chan);
 						chan = NULL;
 					}
 				} else {
-					opbx_hangup(chan);
+					cw_hangup(chan);
 					chan = NULL;
 				}
 			}
@@ -1875,19 +1875,19 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 
 
-static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct jabber_message_node *node;
 	struct jabber_profile profile;
 	char *name, *master;
 
-	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) {
-		opbx_log(OPBX_LOG_ERROR, "Error Setting Read Format.\n");
+	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR)) {
+		cw_log(CW_LOG_ERROR, "Error Setting Read Format.\n");
 		return -1;
 	}
-	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
-		opbx_log(OPBX_LOG_ERROR, "Error Setting Write Format.\n");
+	if (cw_set_write_format(chan, CW_FORMAT_SLINEAR)) {
+		cw_log(CW_LOG_ERROR, "Error Setting Write Format.\n");
 		return -1;
 	}
 
@@ -1939,24 +1939,24 @@ static int unload_module(void)
 {
 #ifdef PATCHED_MANAGER
 	if (globals.event_master) {
-		opbx_log(OPBX_LOG_NOTICE, "Un-Registering Manager Event Hook\n");
+		cw_log(CW_LOG_NOTICE, "Un-Registering Manager Event Hook\n");
 		del_manager_hook(&jabber_hook);
 	}
 #endif
 
-	opbx_clear_flag((&global_profile), JFLAG_RUNNING);
-	while (!opbx_test_flag((&global_profile), JFLAG_SHUTDOWN)) {
+	cw_clear_flag((&global_profile), JFLAG_RUNNING);
+	while (!cw_test_flag((&global_profile), JFLAG_SHUTDOWN)) {
 		usleep(1000);
 		sched_yield();
 	}
 	jabber_profile_destroy(&global_profile);
-	return opbx_unregister_function(app);
+	return cw_unregister_function(app);
 }
 
 static void init_globals(int do_free) 
 {
 	if (do_free) {
-		opbx_mutex_lock(&global_lock);
+		cw_mutex_lock(&global_lock);
 		/*******************LOCK*********************/
 		g_free_if_exists(globals.master);
 		g_free_if_exists(globals.server);
@@ -1966,7 +1966,7 @@ static void init_globals(int do_free)
 		g_free_if_exists(globals.media_ip);
 		g_free_if_exists(globals.event_master);
 		/*******************LOCK*********************/
-		opbx_mutex_unlock(&global_lock);
+		cw_mutex_unlock(&global_lock);
 	}
 
 	memset(&globals, 0, sizeof(globals));
@@ -1975,17 +1975,17 @@ static void init_globals(int do_free)
 
 static int config_jabber(int reload) 
 {
-	struct opbx_config *cfg;
+	struct cw_config *cfg;
 	char *entry;
-	struct opbx_variable *v;
+	struct cw_variable *v;
 	int count = 0;
 
 	init_globals(reload);
 	
-	if ((cfg = opbx_config_load(configfile))) {
-		for (entry = opbx_category_browse(cfg, NULL); entry != NULL; entry = opbx_category_browse(cfg, entry)) {
+	if ((cfg = cw_config_load(configfile))) {
+		for (entry = cw_category_browse(cfg, NULL); entry != NULL; entry = cw_category_browse(cfg, entry)) {
 			if (!strcmp(entry, "settings")) {
-				for (v = opbx_variable_browse(cfg, entry); v ; v = v->next) {
+				for (v = cw_variable_browse(cfg, entry); v ; v = v->next) {
 					if (!strcmp(v->name, "master")) {
 						globals.master = g_strdup(v->value);
 					} else if (!strcmp(v->name, "server")) {
@@ -2005,7 +2005,7 @@ static int config_jabber(int reload)
 			} 
 		}
 		count++;
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 	} else {
 		return 0;
 	}
@@ -2031,14 +2031,14 @@ static int load_module(void)
 	config_jabber(0);
 	
 	jabber_profile_init(&global_profile, globals.resource, globals.resource, NULL, JFLAG_MAIN);
-	opbx_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
+	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 #ifdef PATCHED_MANAGER
 	if (globals.event_master) {
-		opbx_log(OPBX_LOG_NOTICE, "Registering Manager Event Hook\n");
+		cw_log(CW_LOG_NOTICE, "Registering Manager Event Hook\n");
 		add_manager_hook(&jabber_hook);
 	}
 #endif
-	app = opbx_register_function(name, res_jabber_exec, synopsis, syntax, desc);
+	app = cw_register_function(name, res_jabber_exec, synopsis, syntax, desc);
 	return 0;
 }
 

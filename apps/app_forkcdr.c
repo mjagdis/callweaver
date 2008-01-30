@@ -53,24 +53,24 @@ static const char forkcdr_descrip[] =
 "If the option 'v' is passed all cdr variables will be passed along also.\n";
 
 
-static void opbx_cdr_fork(struct opbx_channel *chan) 
+static void cw_cdr_fork(struct cw_channel *chan) 
 {
-	struct opbx_cdr *cdr;
-	struct opbx_cdr *newcdr;
+	struct cw_cdr *cdr;
+	struct cw_cdr *newcdr;
 	if (!chan || !(cdr = chan->cdr))
 		return;
 	while (cdr->next)
 		cdr = cdr->next;
-	if (!(newcdr = opbx_cdr_dup(cdr)))
+	if (!(newcdr = cw_cdr_dup(cdr)))
 		return;
-	opbx_cdr_append(cdr, newcdr);
-	opbx_cdr_reset(newcdr, OPBX_CDR_FLAG_KEEP_VARS);
-	if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_KEEP_VARS))
-		opbx_cdr_free_vars(cdr, 0);
-	opbx_set_flag(cdr, OPBX_CDR_FLAG_CHILD | OPBX_CDR_FLAG_LOCKED);
+	cw_cdr_append(cdr, newcdr);
+	cw_cdr_reset(newcdr, CW_CDR_FLAG_KEEP_VARS);
+	if (!cw_test_flag(cdr, CW_CDR_FLAG_KEEP_VARS))
+		cw_cdr_free_vars(cdr, 0);
+	cw_set_flag(cdr, CW_CDR_FLAG_CHILD | CW_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int forkcdr_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res=0;
@@ -78,9 +78,9 @@ static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv, char *
 	LOCAL_USER_ADD(u);
 
 	if (argc > 0)
-		opbx_set2_flag(chan->cdr, strchr(argv[0], 'v'), OPBX_CDR_FLAG_KEEP_VARS);
+		cw_set2_flag(chan->cdr, strchr(argv[0], 'v'), CW_CDR_FLAG_KEEP_VARS);
 	
-	opbx_cdr_fork(chan);
+	cw_cdr_fork(chan);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -90,13 +90,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(forkcdr_app);
+	res |= cw_unregister_function(forkcdr_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	forkcdr_app = opbx_register_function(forkcdr_name, forkcdr_exec, forkcdr_synopsis, forkcdr_syntax, forkcdr_descrip);
+	forkcdr_app = cw_register_function(forkcdr_name, forkcdr_exec, forkcdr_synopsis, forkcdr_syntax, forkcdr_descrip);
 	return 0;
 }
 

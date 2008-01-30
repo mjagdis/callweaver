@@ -72,7 +72,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len);
 static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int *len);
 
-OPBX_MUTEX_DEFINE_STATIC(osplock);
+CW_MUTEX_DEFINE_STATIC(osplock);
 
 static int initialized = 0;
 static int hardware = 0;
@@ -97,11 +97,11 @@ struct osp_provider {
 };
 static struct osp_provider *providers;
 
-static int osp_build(struct opbx_config *cfg, char *cat)
+static int osp_build(struct cw_config *cfg, char *cat)
 {
 	OSPTCERT TheAuthCert[MAX_CERTS];
 	unsigned char Reqbuf[4096],LocalBuf[4096],AuthBuf[MAX_CERTS][4096];
-	struct opbx_variable *v;
+	struct cw_variable *v;
 	struct osp_provider *osp;
 	int x,length,errorcode=0;
 	int mallocd=0,i;
@@ -113,87 +113,87 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 
 	
 	
-	opbx_mutex_lock(&osplock);
+	cw_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
 		if (!strcasecmp(osp->name, cat))
 			break;
 		osp = osp->next;
 	}
-	opbx_mutex_unlock(&osplock);
+	cw_mutex_unlock(&osplock);
 	if (!osp) {
 		mallocd = 1;
 		osp = malloc(sizeof(struct osp_provider));
 		if (!osp) {
-			opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory!\n");
 			return -1;
 		}
 		memset(osp, 0, sizeof(struct osp_provider));
 		osp->handle = -1;
 	}
-	opbx_copy_string(osp->name, cat, sizeof(osp->name));
-	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", opbx_config_OPBX_KEY_DIR, cat);
-	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", opbx_config_OPBX_KEY_DIR, cat);
+	cw_copy_string(osp->name, cat, sizeof(osp->name));
+	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", cw_config_CW_KEY_DIR, cat);
+	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", cw_config_CW_KEY_DIR, cat);
 	osp->maxconnections=OSP_DEFAULT_MAX_CONNECTIONS;
 	osp->retrydelay = OSP_DEFAULT_RETRY_DELAY;
 	osp->retrylimit = OSP_DEFAULT_RETRY_LIMIT;
 	osp->timeout = OSP_DEFAULT_TIMEOUT;
 	osp->source[0] = '\0';
-	opbx_log(OPBX_LOG_DEBUG, "Building OSP Provider '%s'\n", cat);
-	v = opbx_variable_browse(cfg, cat);
+	cw_log(CW_LOG_DEBUG, "Building OSP Provider '%s'\n", cat);
+	v = cw_variable_browse(cfg, cat);
 	while(v) {
 		if (!strcasecmp(v->name, "privatekey")) {
 			if (v->value[0] == '/')
-				opbx_copy_string(osp->localpvtkey, v->value, sizeof(osp->localpvtkey));
+				cw_copy_string(osp->localpvtkey, v->value, sizeof(osp->localpvtkey));
 			else
-				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", opbx_config_OPBX_KEY_DIR , v->value);
+				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", cw_config_CW_KEY_DIR , v->value);
 		} else if (!strcasecmp(v->name, "localcert")) {
 			if (v->value[0] == '/')
-				opbx_copy_string(osp->localcert, v->value, sizeof(osp->localcert));
+				cw_copy_string(osp->localcert, v->value, sizeof(osp->localcert));
 			else
-				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", opbx_config_OPBX_KEY_DIR, v->value);
+				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", cw_config_CW_KEY_DIR, v->value);
 		} else if (!strcasecmp(v->name, "cacert")) {
 			if (osp->cacount < MAX_CERTS) {
 				if (v->value[0] == '/')
-					opbx_copy_string(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]));
+					cw_copy_string(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]));
 				else
-					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", opbx_config_OPBX_KEY_DIR, v->value);
+					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", cw_config_CW_KEY_DIR, v->value);
 				osp->cacount++;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
+				cw_log(CW_LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "servicepoint")) {
 			if (osp->spcount < MAX_SERVICEPOINTS) {
-				opbx_copy_string(osp->servicepoints[osp->spcount], v->value, sizeof(osp->servicepoints[0]));
+				cw_copy_string(osp->servicepoints[osp->spcount], v->value, sizeof(osp->servicepoints[0]));
 				osp->spcount++;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
+				cw_log(CW_LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "maxconnections")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x <= 1000)) {
 				osp->maxconnections = x;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "maxconnections should be an integer from 1 to 1000, not '%s' at line %d\n", v->value, v->lineno);
+				cw_log(CW_LOG_WARNING, "maxconnections should be an integer from 1 to 1000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrydelay")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 10)) {
 				osp->retrydelay = x;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "retrydelay should be an integer from 0 to 10, not '%s' at line %d\n", v->value, v->lineno);
+				cw_log(CW_LOG_WARNING, "retrydelay should be an integer from 0 to 10, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrylimit")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 100)) {
 				osp->retrylimit = x;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "retrylimit should be an integer from 0 to 100, not '%s' at line %d\n", v->value, v->lineno);
+				cw_log(CW_LOG_WARNING, "retrylimit should be an integer from 0 to 100, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "timeout")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 200) && (x <= 10000)) {
 				osp->timeout = x;
 			} else
-				opbx_log(OPBX_LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
+				cw_log(CW_LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "source")) {
-			opbx_copy_string(osp->source, v->value, sizeof(osp->source));
+			cw_copy_string(osp->source, v->value, sizeof(osp->source));
 		}
 		v = v->next;
 	}
 	if (osp->cacount < 1) {
-		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s-cacert.pem", opbx_config_OPBX_KEY_DIR, cat);
+		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s-cacert.pem", cw_config_CW_KEY_DIR, cat);
 		osp->cacount++;
 	}
 	for (x=0;x<osp->cacount;x++)
@@ -201,16 +201,16 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 	for (x=0;x<osp->spcount;x++)
 		servicepoints[x] = osp->servicepoints[x];
 	
-	opbx_mutex_lock(&osplock);
+	cw_mutex_lock(&osplock);
 	osp->dead = 0;
 	if (osp->handle > -1) {
-		opbx_log(OPBX_LOG_DEBUG, "Deleting old handle for '%s'\n", osp->name);
+		cw_log(CW_LOG_DEBUG, "Deleting old handle for '%s'\n", osp->name);
 		OSPPProviderDelete(osp->handle, 0);
 	}
 		
 
     length = 0;
-	opbx_log(OPBX_LOG_DEBUG, "Loading private key for '%s' (%s)\n", osp->name, osp->localpvtkey);
+	cw_log(CW_LOG_DEBUG, "Loading private key for '%s' (%s)\n", osp->name, osp->localpvtkey);
     errorcode = loadPemPrivateKey(osp->localpvtkey,Reqbuf,&length);
     if (errorcode == 0)
     {
@@ -223,7 +223,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
     }
 
     length = 0;
-	opbx_log(OPBX_LOG_DEBUG, "Loading local cert for '%s' (%s)\n", osp->name, osp->localcert);
+	cw_log(CW_LOG_DEBUG, "Loading local cert for '%s' (%s)\n", osp->name, osp->localcert);
     errorcode = loadPemCert(osp->localcert,LocalBuf,&length);
     if (errorcode == 0)
     {
@@ -238,7 +238,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
     for (i=0;i<osp->cacount;i++)
     {
         length = 0;
-		opbx_log(OPBX_LOG_DEBUG, "Loading CA cert %d for '%s' (%s)\n", i + 1, osp->name, osp->cacerts[i]);
+		cw_log(CW_LOG_DEBUG, "Loading CA cert %d for '%s' (%s)\n", i + 1, osp->name, osp->cacerts[i]);
         errorcode = loadPemCert(osp->cacerts[i],AuthBuf[i],&length);
         if (errorcode == 0)
         {
@@ -252,9 +252,9 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 		}
     }
 	
-	opbx_log(OPBX_LOG_DEBUG, "Creating provider handle for '%s'\n", osp->name);
+	cw_log(CW_LOG_DEBUG, "Creating provider handle for '%s'\n", osp->name);
 	
-	opbx_log(OPBX_LOG_DEBUG, "Service point '%s %d'\n", servicepoints[0], osp->spcount);
+	cw_log(CW_LOG_DEBUG, "Service point '%s %d'\n", servicepoints[0], osp->spcount);
 	
 	if (OSPPProviderNew(osp->spcount, 
 					    servicepoints, 
@@ -274,7 +274,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 					   "", 
 					   "", 
 					   &osp->handle)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to initialize provider '%s'\n", cat);
+		cw_log(CW_LOG_WARNING, "Unable to initialize provider '%s'\n", cat);
 		osp->dead = 1;
 	}
 	
@@ -282,7 +282,7 @@ static int osp_build(struct opbx_config *cfg, char *cat)
 		osp->next = providers;
 		providers = osp;
 	}
-	opbx_mutex_unlock(&osplock);	
+	cw_mutex_unlock(&osplock);	
 	return 0;
 }
 
@@ -311,38 +311,38 @@ static int show_osp(int fd, int argc, char *argv[])
 				tokenalgo = "Signed";
 				break;
 		}
-		opbx_cli(fd, "OSP: %s %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal", tokenalgo);
+		cw_cli(fd, "OSP: %s %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal", tokenalgo);
 	}
 
-	opbx_mutex_lock(&osplock);
+	cw_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
 		if (!search || !strcasecmp(osp->name, search)) {
 			if (found)
-				opbx_cli(fd, "\n");
-			opbx_cli(fd, " == OSP Provider '%s' ==\n", osp->name);
-			opbx_cli(fd, "Local Private Key: %s\n", osp->localpvtkey);
-			opbx_cli(fd, "Local Certificate: %s\n", osp->localcert);
+				cw_cli(fd, "\n");
+			cw_cli(fd, " == OSP Provider '%s' ==\n", osp->name);
+			cw_cli(fd, "Local Private Key: %s\n", osp->localpvtkey);
+			cw_cli(fd, "Local Certificate: %s\n", osp->localcert);
 			for (x=0;x<osp->cacount;x++)
-				opbx_cli(fd, "CA Certificate %d:  %s\n", x + 1, osp->cacerts[x]);
+				cw_cli(fd, "CA Certificate %d:  %s\n", x + 1, osp->cacerts[x]);
 			for (x=0;x<osp->spcount;x++)
-				opbx_cli(fd, "Service Point %d:   %s\n", x + 1, osp->servicepoints[x]);
-			opbx_cli(fd, "Max Connections:   %d\n", osp->maxconnections);
-			opbx_cli(fd, "Retry Delay:       %d seconds\n", osp->retrydelay);
-			opbx_cli(fd, "Retry Limit:       %d\n", osp->retrylimit);
-			opbx_cli(fd, "Timeout:           %d milliseconds\n", osp->timeout);
-			opbx_cli(fd, "Source:            %s\n", strlen(osp->source) ? osp->source : "<unspecified>");
-			opbx_cli(fd, "OSP Handle:        %d\n", osp->handle);
+				cw_cli(fd, "Service Point %d:   %s\n", x + 1, osp->servicepoints[x]);
+			cw_cli(fd, "Max Connections:   %d\n", osp->maxconnections);
+			cw_cli(fd, "Retry Delay:       %d seconds\n", osp->retrydelay);
+			cw_cli(fd, "Retry Limit:       %d\n", osp->retrylimit);
+			cw_cli(fd, "Timeout:           %d milliseconds\n", osp->timeout);
+			cw_cli(fd, "Source:            %s\n", strlen(osp->source) ? osp->source : "<unspecified>");
+			cw_cli(fd, "OSP Handle:        %d\n", osp->handle);
 			found++;
 		}
 		osp = osp->next;
 	}
-	opbx_mutex_unlock(&osplock);
+	cw_mutex_unlock(&osplock);
 	if (!found) {
 		if (search) 
-			opbx_cli(fd, "Unable to find OSP provider '%s'\n", search);
+			cw_cli(fd, "Unable to find OSP provider '%s'\n", search);
 		else
-			opbx_cli(fd, "No OSP providers configured\n");
+			cw_cli(fd, "No OSP providers configured\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -363,7 +363,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
     bioIn = BIO_new_file((const char*)FileName,"r");
     if (bioIn == NULL)
     {
-		opbx_log(OPBX_LOG_WARNING,"Failed to find the File - %s \n",FileName);
+		cw_log(CW_LOG_WARNING,"Failed to find the File - %s \n",FileName);
 		return -1;
     }
     else
@@ -371,7 +371,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
         cert = PEM_read_bio_X509(bioIn,NULL,NULL,NULL);
         if (cert == NULL)
         {
-			opbx_log(OPBX_LOG_WARNING,"Failed to parse the Certificate from the File - %s \n",FileName);
+			cw_log(CW_LOG_WARNING,"Failed to parse the Certificate from the File - %s \n",FileName);
 			return -1;
         }
         else
@@ -379,7 +379,7 @@ static int loadPemCert(unsigned char *FileName, unsigned char *buffer, int *len)
             length = i2d_X509(cert,&temp);
             if (cert == 0)
             {
-				opbx_log(OPBX_LOG_WARNING,"Failed to parse the Certificate from the File - %s, Length=0 \n",FileName);
+				cw_log(CW_LOG_WARNING,"Failed to parse the Certificate from the File - %s, Length=0 \n",FileName);
 				return -1;
             }
             else
@@ -417,7 +417,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
     bioIn = BIO_new_file((const char*)FileName,"r");
     if (bioIn == NULL)
     {
-		opbx_log(OPBX_LOG_WARNING,"Failed to find the File - %s \n",FileName);
+		cw_log(CW_LOG_WARNING,"Failed to find the File - %s \n",FileName);
 		return -1;
     }
     else
@@ -425,7 +425,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
         pKey = PEM_read_bio_RSAPrivateKey(bioIn,NULL,NULL,NULL);
         if (pKey == NULL)
         {
-			opbx_log(OPBX_LOG_WARNING,"Failed to parse the Private Key from the File - %s \n",FileName);
+			cw_log(CW_LOG_WARNING,"Failed to parse the Private Key from the File - %s \n",FileName);
 			return -1;
         }
         else
@@ -433,7 +433,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
             length = i2d_RSAPrivateKey(pKey,&temp);
             if (length == 0)
             {
-				opbx_log(OPBX_LOG_WARNING,"Failed to parse the Private Key from the File - %s, Length=0 \n",FileName);
+				cw_log(CW_LOG_WARNING,"Failed to parse the Private Key from the File - %s, Length=0 \n",FileName);
 				return -1;
             }
             else
@@ -454,7 +454,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
     return retVal;
 }
 
-int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, char *callerid, struct in_addr addr, char *extension)
+int cw_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, char *callerid, struct in_addr addr, char *extension)
 {
 	char tmp[256]="", *l, *n;
 	char iabuf[INET_ADDRSTRLEN];
@@ -468,44 +468,44 @@ int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *ti
 	if (!provider || !strlen(provider))
 		provider = "default";
 
-	token2 = opbx_strdupa(token);
-	tokenlen = opbx_base64decode(token2, token, strlen(token));
+	token2 = cw_strdupa(token);
+	tokenlen = cw_base64decode(token2, token, strlen(token));
 	*handle = -1;
 	if (!callerid)
 		callerid = "";
-	opbx_copy_string(tmp, callerid, sizeof(tmp));
-	opbx_callerid_parse(tmp, &n, &l);
+	cw_copy_string(tmp, callerid, sizeof(tmp));
+	cw_callerid_parse(tmp, &n, &l);
 	if (!l)
 		l = "";
 	else {
-		opbx_shrink_phone_number(l);
-		if (!opbx_isphonenumber(l))
+		cw_shrink_phone_number(l);
+		if (!cw_isphonenumber(l))
 			l = "";
 	}
 	callerid = l;
-	opbx_mutex_lock(&osplock);
-	opbx_inet_ntoa(iabuf, sizeof(iabuf), addr);
+	cw_mutex_lock(&osplock);
+	cw_inet_ntoa(iabuf, sizeof(iabuf), addr);
 	osp = providers;
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {
 			if (OSPPTransactionNew(osp->handle, handle)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
+				cw_log(CW_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
-				opbx_copy_string(source, osp->source, sizeof(source));
+				cw_copy_string(source, osp->source, sizeof(source));
 				res = 1;
 			}
 			break;
 		}
 		osp = osp->next;
 	}
-	opbx_mutex_unlock(&osplock);
+	cw_mutex_unlock(&osplock);
 	if (res) {
 		res = 0;
 		dummy = 0;
 		if (!OSPPTransactionValidateAuthorisation(*handle, iabuf, source, NULL, NULL, 
 			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, tokenformat)) {
 			if (authorised) {
-				opbx_log(OPBX_LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
+				cw_log(CW_LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
 				res = 1;
 			}
 		}
@@ -513,7 +513,7 @@ int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *ti
 	return res;	
 }
 
-int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, char *callerid, struct opbx_osp_result *result)
+int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char *callerid, struct cw_osp_result *result)
 {
 	int cres;
 	int res = 0;
@@ -545,37 +545,37 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 
 	if (!callerid)
 		callerid = "";
-	opbx_copy_string(tmp, callerid, sizeof(tmp));
-	opbx_callerid_parse(tmp, &n, &l);
+	cw_copy_string(tmp, callerid, sizeof(tmp));
+	cw_callerid_parse(tmp, &n, &l);
 	if (!l)
 		l = "";
 	else {
-		opbx_shrink_phone_number(l);
-		if (!opbx_isphonenumber(l))
+		cw_shrink_phone_number(l);
+		if (!cw_isphonenumber(l))
 			l = "";
 	}
 	callerid = l;
 
 	if (chan) {
-		cres = opbx_autoservice_start(chan);
+		cres = cw_autoservice_start(chan);
 		if (cres < 0)
 			return cres;
 	}
-	opbx_mutex_lock(&osplock);
+	cw_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {
 			if (OSPPTransactionNew(osp->handle, &result->handle)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
+				cw_log(CW_LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
-				opbx_copy_string(source, osp->source, sizeof(source));
+				cw_copy_string(source, osp->source, sizeof(source));
 				res = 1;
 			}
 			break;
 		}
 		osp = osp->next;
 	}
-	opbx_mutex_unlock(&osplock);
+	cw_mutex_unlock(&osplock);
 	if (res) {
 		res = 0;
 		/* No more than 10 back */
@@ -593,18 +593,18 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 				callidlen = sizeof(callidstr);
 				if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 					sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-					opbx_log(OPBX_LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
+					cw_log(CW_LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
 						destination, callednum, callingnum, extension, provider);
 					/* Only support OSP server with only one duration limit */
-					if (opbx_channel_cmpwhentohangup (chan, timelimit) < 0) {
-						opbx_channel_setwhentohangup (chan, timelimit);	
+					if (cw_channel_cmpwhentohangup (chan, timelimit) < 0) {
+						cw_channel_setwhentohangup (chan, timelimit);	
 					}
 					do {
 						if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
 							result->token[0] = 0;
 						}
 						else {
-							opbx_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+							cw_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
 						}
 						if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
 							res = 1;
@@ -612,19 +612,19 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 							destination[strlen(destination) - 1] = '\0';
 							switch(prot) {
 							case OSPE_DEST_PROT_H323_SETUP:
-								opbx_copy_string(result->tech, "H323", sizeof(result->tech));
+								cw_copy_string(result->tech, "H323", sizeof(result->tech));
 								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 								break;
 							case OSPE_DEST_PROT_SIP:
-								opbx_copy_string(result->tech, "SIP", sizeof(result->tech));
+								cw_copy_string(result->tech, "SIP", sizeof(result->tech));
 								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 								break;
 							case OSPE_DEST_PROT_IAX:
-								opbx_copy_string(result->tech, "IAX", sizeof(result->tech));
+								cw_copy_string(result->tech, "IAX", sizeof(result->tech));
 								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 								break;
 							default:
-								opbx_log(OPBX_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+								cw_log(CW_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
 								res = 0;
 							}
 							if (!res && result->numresults) {
@@ -636,7 +636,7 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 								}
 							}
 						} else {
-							opbx_log(OPBX_LOG_DEBUG, "Missing destination protocol\n");
+							cw_log(CW_LOG_DEBUG, "Missing destination protocol\n");
 							break;
 						}
 					} while(!res && result->numresults);
@@ -651,16 +651,16 @@ int opbx_osp_lookup(struct opbx_channel *chan, char *provider, char *extension, 
 		
 	}
 	if (!osp) 
-		opbx_log(OPBX_LOG_NOTICE, "OSP Provider '%s' does not exist!\n", provider);
+		cw_log(CW_LOG_NOTICE, "OSP Provider '%s' does not exist!\n", provider);
 	if (chan) {
-		cres = opbx_autoservice_stop(chan);
+		cres = cw_autoservice_stop(chan);
 		if (cres < 0)
 			return cres;
 	}
 	return res;
 }
 
-int opbx_osp_next(struct opbx_osp_result *result, int cause)
+int cw_osp_next(struct cw_osp_result *result, int cause)
 {
 	int res = 0;
 	int tokenlen;
@@ -692,7 +692,7 @@ int opbx_osp_next(struct opbx_osp_result *result, int cause)
 						result->token[0] = 0;
 					}
 					else {
-						opbx_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+						cw_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
 					}
 					if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
 						res = 1;
@@ -700,23 +700,23 @@ int opbx_osp_next(struct opbx_osp_result *result, int cause)
 						destination[strlen(destination) - 1] = '\0';
 						switch(prot) {
 						case OSPE_DEST_PROT_H323_SETUP:
-							opbx_copy_string(result->tech, "H323", sizeof(result->tech));
+							cw_copy_string(result->tech, "H323", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						case OSPE_DEST_PROT_SIP:
-							opbx_copy_string(result->tech, "SIP", sizeof(result->tech));
+							cw_copy_string(result->tech, "SIP", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						case OSPE_DEST_PROT_IAX:
-							opbx_copy_string(result->tech, "IAX", sizeof(result->tech));
+							cw_copy_string(result->tech, "IAX", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						default:
-							opbx_log(OPBX_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+							cw_log(CW_LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
 							res = 0;
 						}
 					} else {
-						opbx_log(OPBX_LOG_DEBUG, "Missing destination protocol\n");
+						cw_log(CW_LOG_DEBUG, "Missing destination protocol\n");
 						break;
 					}
 				}
@@ -735,23 +735,23 @@ int opbx_osp_next(struct opbx_osp_result *result, int cause)
 static enum OSPEFAILREASON cause2reason(int cause)
 {
 	switch(cause) {
-	case OPBX_CAUSE_BUSY:
+	case CW_CAUSE_BUSY:
 		return OSPC_FAIL_USER_BUSY;
-	case OPBX_CAUSE_CONGESTION:
+	case CW_CAUSE_CONGESTION:
 		return OSPC_FAIL_SWITCHING_EQUIPMENT_CONGESTION;
-	case OPBX_CAUSE_UNALLOCATED:
+	case CW_CAUSE_UNALLOCATED:
 		return OSPC_FAIL_UNALLOC_NUMBER;
-	case OPBX_CAUSE_NOTDEFINED:
+	case CW_CAUSE_NOTDEFINED:
 		return OSPC_FAIL_NORMAL_UNSPECIFIED;
-	case OPBX_CAUSE_NOANSWER:
+	case CW_CAUSE_NOANSWER:
 		return OSPC_FAIL_NO_ANSWER_FROM_USER;
-	case OPBX_CAUSE_NORMAL:
+	case CW_CAUSE_NORMAL:
 	default:
 		return OSPC_FAIL_NORMAL_CALL_CLEARING;
 	}
 }
 
-int opbx_osp_terminate(int handle, int cause, time_t start, time_t duration)
+int cw_osp_terminate(int handle, int cause, time_t start, time_t duration)
 {
 	unsigned int dummy = 0;
 	int res = -1;
@@ -767,13 +767,13 @@ int opbx_osp_terminate(int handle, int cause, time_t start, time_t duration)
 	
 	reason = cause2reason(cause);
 	if (OSPPTransactionRecordFailure(handle, reason))
-		opbx_log(OPBX_LOG_WARNING, "Failed to record call termination for handle %d\n", handle);
+		cw_log(CW_LOG_WARNING, "Failed to record call termination for handle %d\n", handle);
 	else if (OSPPTransactionReportUsage(handle, duration, start,
 			       endTime,alertTime,connectTime,isPddInfoPresent,pdd,releaseSource,confId,
 		       	       0, 0, 0, 0, &dummy, NULL))
-		opbx_log(OPBX_LOG_WARNING, "Failed to report duration for handle %d\n", handle);
+		cw_log(CW_LOG_WARNING, "Failed to report duration for handle %d\n", handle);
 	else {
-		opbx_log(OPBX_LOG_DEBUG, "Completed recording handle %d\n", handle);
+		cw_log(CW_LOG_DEBUG, "Completed recording handle %d\n", handle);
 		OSPPTransactionDelete(handle);
 		res = 0;
 	}
@@ -782,23 +782,23 @@ int opbx_osp_terminate(int handle, int cause, time_t start, time_t duration)
 
 static int config_load(void)
 {
-	struct opbx_config *cfg;
+	struct cw_config *cfg;
 	char *cat;
 	struct osp_provider *osp, *prev = NULL, *next;
-	opbx_mutex_lock(&osplock);
+	cw_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
 		osp->dead = 1;
 		osp = osp->next;
 	}
-	opbx_mutex_unlock(&osplock);
-	cfg = opbx_config_load("osp.conf");
+	cw_mutex_unlock(&osplock);
+	cfg = cw_config_load("osp.conf");
 	if (cfg) {
 		if (!initialized) {
-			cat = opbx_variable_retrieve(cfg, "general", "accelerate");
-			if (cat && opbx_true(cat))
+			cat = cw_variable_retrieve(cfg, "general", "accelerate");
+			if (cat && cw_true(cat))
 				if (OSPPInit(1)) {
-					opbx_log(OPBX_LOG_WARNING, "Failed to enable hardware accelleration, falling back to software mode\n");
+					cw_log(CW_LOG_WARNING, "Failed to enable hardware accelleration, falling back to software mode\n");
 					OSPPInit(0);
 				} else
 					hardware = 1;
@@ -806,23 +806,23 @@ static int config_load(void)
 				OSPPInit(0);
 			initialized = 1;
 		}
-		cat = opbx_variable_retrieve(cfg, "general", "tokenformat");
+		cat = cw_variable_retrieve(cfg, "general", "tokenformat");
 		if (cat) {
 			if ((sscanf(cat, "%d", &tokenformat) != 1) || (tokenformat < TOKEN_ALGO_SIGNED) || (tokenformat > TOKEN_ALGO_BOTH)) {
 				tokenformat = TOKEN_ALGO_SIGNED;
-				opbx_log(OPBX_LOG_WARNING, "tokenformat should be an integer from 0 to 2, not '%s'\n", cat);
+				cw_log(CW_LOG_WARNING, "tokenformat should be an integer from 0 to 2, not '%s'\n", cat);
 			}
 		}
-		cat = opbx_category_browse(cfg, NULL);
+		cat = cw_category_browse(cfg, NULL);
 		while(cat) {
 			if (strcasecmp(cat, "general"))
 				osp_build(cfg, cat);
-			cat = opbx_category_browse(cfg, cat);
+			cat = cw_category_browse(cfg, cat);
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 	} else
-		opbx_log(OPBX_LOG_NOTICE, "No OSP configuration found.  OSP support disabled\n");
-	opbx_mutex_lock(&osplock);
+		cw_log(CW_LOG_NOTICE, "No OSP configuration found.  OSP support disabled\n");
+	cw_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
 		next = osp->next;
@@ -837,7 +837,7 @@ static int config_load(void)
 			prev = osp;
 		osp = next;
 	}
-	opbx_mutex_unlock(&osplock);
+	cw_mutex_unlock(&osplock);
 	return 0;
 }
 
@@ -845,7 +845,7 @@ static char show_osp_usage[] =
 "Usage: show osp\n"
 "       Displays information on Open Settlement Protocol\n";
 
-static struct opbx_clicmd cli_show_osp = {
+static struct cw_clicmd cli_show_osp = {
 	.cmda = { "show", "osp", NULL },
 	.handler = show_osp,
 	.summary = "Displays OSP information",
@@ -855,17 +855,17 @@ static struct opbx_clicmd cli_show_osp = {
 static int reload_module(void)
 {
 	config_load();
-	opbx_log(OPBX_LOG_NOTICE, "XXX Should reload OSP config XXX\n");
+	cw_log(CW_LOG_NOTICE, "XXX Should reload OSP config XXX\n");
 	return 0;
 }
 
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	opbx_module_get(get_modinfo()->self);
+	cw_module_get(get_modinfo()->self);
 
 	config_load();
-	opbx_cli_register(&cli_show_osp);
+	cw_cli_register(&cli_show_osp);
 	return 0;
 }
 

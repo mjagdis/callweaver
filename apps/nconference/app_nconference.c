@@ -66,14 +66,14 @@ static const char conference_description[] =
 static int unload_module( void ) {
 	int res = 0;
 	unregister_conference_cli();
-	res |= opbx_unregister_function( conference_app ) ;
+	res |= cw_unregister_function( conference_app ) ;
 	return res;
 }
 
 static int load_module( void ) {
 	init_conference() ;
 	register_conference_cli();
-	conference_app = opbx_register_function( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;
+	conference_app = cw_register_function( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;
 	return 0;
 }
 
@@ -85,7 +85,7 @@ MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
  *        Main Conference function
  ***********************************************************/
 
-int app_conference_main( struct opbx_channel* chan, int argc, char **argv, char *result, size_t result_max) {
+int app_conference_main( struct cw_channel* chan, int argc, char **argv, char *result, size_t result_max) {
 	int res = 0 ;
 	struct localuser *u ;
 	LOCAL_USER_ADD( u ) ; 

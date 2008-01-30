@@ -59,7 +59,7 @@ static const char lookupblacklist_descrip[] =
   "number was found, or FALSE otherwise.\n"
   "Example: database put blacklist <name/number> 1\n";
 
-static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char blacklist[1];
 	struct localuser *u;
@@ -70,18 +70,18 @@ static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **arg
 
 	if (chan->cid.cid_num)
 	{
-		if (!opbx_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
+		if (!cw_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
 		{
 			if (option_verbose > 2)
-				opbx_log(OPBX_LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
+				cw_log(CW_LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
 			bl = 1;
 		}
 	}
 	if (chan->cid.cid_name) {
-		if (!opbx_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
+		if (!cw_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
 		{
 			if (option_verbose > 2)
-				opbx_log(OPBX_LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
+				cw_log(CW_LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
 			bl = 1;
 		}
 	}
@@ -100,13 +100,13 @@ static int unload_module (void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(lookupblacklist_app);
+	res |= cw_unregister_function(lookupblacklist_app);
 	return res;
 }
 
 static int load_module (void)
 {
-	lookupblacklist_app = opbx_register_function(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
+	lookupblacklist_app = cw_register_function(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
 	return 0;
 }
 

@@ -71,11 +71,11 @@ static int do_backticks(char *command, char *buf, size_t len)
 	int n, ret = -1;
 
         if (pipe(fds)) {
-                opbx_log(OPBX_LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
+                cw_log(CW_LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
         } else {
                 pid = fork();
                 if (pid < 0) {
-                        opbx_log(OPBX_LOG_ERROR, "Fork failed: %s\n", strerror(errno));
+                        cw_log(CW_LOG_ERROR, "Fork failed: %s\n", strerror(errno));
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
@@ -100,7 +100,7 @@ static int do_backticks(char *command, char *buf, size_t len)
                         dup2(fds[1], STDOUT_FILENO);
 
                         system(command);
-                        opbx_log(OPBX_LOG_ERROR, "system(\"%s\") failed\n", command);
+                        cw_log(CW_LOG_ERROR, "system(\"%s\") failed\n", command);
                         _exit(0);
                 }
         }
@@ -108,13 +108,13 @@ static int do_backticks(char *command, char *buf, size_t len)
         return ret;
 }
 
-static int backticks_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int backticks_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[1024] = "";
 	struct localuser *u;
 
 	if (argc != 2)
-		return opbx_function_syntax(backticks_syntax);
+		return cw_function_syntax(backticks_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -126,7 +126,7 @@ static int backticks_exec(struct opbx_channel *chan, int argc, char **argv, char
 }
 
 
-static int function_backticks(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_backticks(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
         if (argc > 0)
 		do_backticks(argv[0], buf, len);
@@ -139,15 +139,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-        opbx_unregister_function(backticks_function);
-        res |= opbx_unregister_function(backticks_app);
+        cw_unregister_function(backticks_function);
+        res |= cw_unregister_function(backticks_app);
 	return res;
 }
 
 static int load_module(void)
 {
-        backticks_function = opbx_register_function(backticks_func_name, function_backticks, backticks_func_synopsis, backticks_func_syntax, backticks_func_descrip);
-        backticks_app = opbx_register_function(backticks_name, backticks_exec, backticks_synopsis, backticks_syntax, backticks_descrip);
+        backticks_function = cw_register_function(backticks_func_name, function_backticks, backticks_func_synopsis, backticks_func_syntax, backticks_func_descrip);
+        backticks_app = cw_register_function(backticks_name, backticks_exec, backticks_synopsis, backticks_syntax, backticks_descrip);
 	return 0;
 }
 

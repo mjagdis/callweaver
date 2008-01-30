@@ -62,7 +62,7 @@ static const char g_descrip[] =
 	"Example: GetDevState(SIP/715)\n";
 
 
-static int get_devstate(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int get_devstate(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res=-1;
@@ -71,11 +71,11 @@ static int get_devstate(struct opbx_channel *chan, int argc, char **argv, char *
 	LOCAL_USER_ADD(u);
 
 	if (argc > 0 && argv[0][0])
-		res = opbx_device_state(argv[0]);	
+		res = cw_device_state(argv[0]);	
 	else
-		opbx_log(OPBX_LOG_DEBUG, "Ignoring, no parameters\n");
+		cw_log(CW_LOG_DEBUG, "Ignoring, no parameters\n");
 
-        opbx_log(OPBX_LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
+        cw_log(CW_LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
                res, argv[0]);
 
 	snprintf(resc,sizeof(resc),"%d",res);
@@ -90,13 +90,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(g_app);
+	res |= cw_unregister_function(g_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	g_app = opbx_register_function(g_name, get_devstate, g_synopsis, g_syntax, g_descrip);
+	g_app = cw_register_function(g_name, get_devstate, g_synopsis, g_syntax, g_descrip);
 	return 0;
 }
 

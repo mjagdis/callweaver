@@ -54,12 +54,12 @@ struct pvt
        weird MS format */
     FILE *f; /* Descriptor */
     unsigned int lastts;
-    struct opbx_frame fr;                /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + 16384];                /* Four Real h263 Frames */
+    struct cw_frame fr;                /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + 16384];                /* Four Real h263 Frames */
 };
 
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Raw h263 data";
 
@@ -72,20 +72,20 @@ static void *h263_open(FILE *f)
 
     if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts))
     {
-        opbx_log(OPBX_LOG_WARNING, "Empty file!\n");
+        cw_log(CW_LOG_WARNING, "Empty file!\n");
         return NULL;
     }
         
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VIDEO, CW_FORMAT_H263, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -99,7 +99,7 @@ static void *h263_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -111,7 +111,7 @@ static void h263_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *h263_read(void *data, int *whennext)
+static struct cw_frame *h263_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -126,16 +126,16 @@ static struct opbx_frame *h263_read(void *data, int *whennext)
     mark = len & 0x8000;
     len &= 0x7fff;
 
-    if (len > sizeof(pvt->buf) - OPBX_FRIENDLY_OFFSET)
+    if (len > sizeof(pvt->buf) - CW_FRIENDLY_OFFSET)
     {
-        opbx_log(OPBX_LOG_WARNING, "Length %d is too long\n", len);
+        cw_log(CW_LOG_WARNING, "Length %d is too long\n", len);
         return NULL;
     }
 
     if ((res = fread(pvt->fr.data, 1, len, pvt->f)) != len)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
 
@@ -156,7 +156,7 @@ static struct opbx_frame *h263_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int h263_write(void *data, struct opbx_frame *f)
+static int h263_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
@@ -165,35 +165,35 @@ static int h263_write(void *data, struct opbx_frame *f)
     int subclass;
     int mark = 0;
 
-    if (f->frametype != OPBX_FRAME_VIDEO)
+    if (f->frametype != CW_FRAME_VIDEO)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-video frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-video frame!\n");
         return -1;
     }
     subclass = f->subclass;
     if (subclass & 0x1)
         mark=0x8000;
     subclass &= ~0x1;
-    if (subclass != OPBX_FORMAT_H263)
+    if (subclass != CW_FORMAT_H263)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-h263 frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-h263 frame (%d)!\n", f->subclass);
         return -1;
     }
     ts = htonl(f->samples);
     if ((res = fwrite(&ts, 1, sizeof(ts), pvt->f)) != sizeof(ts))
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
         return -1;
     }
     len = htons(f->datalen | mark);
     if ((res = fwrite(&len, 1, sizeof(len), pvt->f)) != sizeof(len))
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+        cw_log(CW_LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
         return -1;
     }
     return 0;
@@ -228,10 +228,10 @@ static long h263_tell(void *data)
 }
 
 
-static struct opbx_format format = {
+static struct cw_format format = {
 	.name = "h263",
 	.exts = "h263",
-	.format = OPBX_FORMAT_H263,
+	.format = CW_FORMAT_H263,
 	.open = h263_open,
 	.rewrite = h263_rewrite,
 	.write = h263_write,
@@ -246,13 +246,13 @@ static struct opbx_format format = {
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
+	cw_format_register(&format);
 	return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
+	cw_format_unregister(&format);
 	return 0;
 }
 

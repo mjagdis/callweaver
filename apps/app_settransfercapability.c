@@ -60,15 +60,15 @@ static const char settransfercapability_descrip[] =
 
 
 static struct {	int val; char *name; } transcaps[] = {
-	{ OPBX_TRANS_CAP_SPEECH,				"SPEECH" },
-	{ OPBX_TRANS_CAP_DIGITAL,			"DIGITAL" },
-	{ OPBX_TRANS_CAP_RESTRICTED_DIGITAL,	"RESTRICTED_DIGITAL" },
-	{ OPBX_TRANS_CAP_3_1K_AUDIO,			"3K1AUDIO" },
-	{ OPBX_TRANS_CAP_DIGITAL_W_TONES,	"DIGITAL_W_TONES" },
-	{ OPBX_TRANS_CAP_VIDEO,				"VIDEO" },
+	{ CW_TRANS_CAP_SPEECH,				"SPEECH" },
+	{ CW_TRANS_CAP_DIGITAL,			"DIGITAL" },
+	{ CW_TRANS_CAP_RESTRICTED_DIGITAL,	"RESTRICTED_DIGITAL" },
+	{ CW_TRANS_CAP_3_1K_AUDIO,			"3K1AUDIO" },
+	{ CW_TRANS_CAP_DIGITAL_W_TONES,	"DIGITAL_W_TONES" },
+	{ CW_TRANS_CAP_VIDEO,				"VIDEO" },
 };
 
-static int settransfercapability_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int settransfercapability_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	int x;
@@ -83,7 +83,7 @@ static int settransfercapability_exec(struct opbx_channel *chan, int argc, char 
 		}
 	}
 	if (transfercapability < 0) {
-		opbx_log(OPBX_LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", argv[0]);
+		cw_log(CW_LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", argv[0]);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -91,7 +91,7 @@ static int settransfercapability_exec(struct opbx_channel *chan, int argc, char 
 	chan->transfercapability = (unsigned short)transfercapability;
 	
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, argv[0]);
+		cw_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, argv[0]);
 
 	LOCAL_USER_REMOVE(u);
 
@@ -103,13 +103,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(settransfercapability_app);
+	res |= cw_unregister_function(settransfercapability_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	settransfercapability_app = opbx_register_function(settransfercapability_name, settransfercapability_exec, settransfercapability_synopsis, settransfercapability_syntax, settransfercapability_descrip);
+	settransfercapability_app = cw_register_function(settransfercapability_name, settransfercapability_exec, settransfercapability_synopsis, settransfercapability_syntax, settransfercapability_descrip);
 	return 0;
 }
 

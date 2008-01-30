@@ -50,13 +50,13 @@ static char *sgr, *setaf, *setab;
 static struct {
 	char *on, *off;
 } level_attr[] = {
-	[__OPBX_LOG_DEBUG] = { NULL, NULL },
-	[__OPBX_LOG_EVENT] = { NULL, NULL },
-	[__OPBX_LOG_NOTICE] = { NULL, NULL },
-	[__OPBX_LOG_WARNING] = { NULL, NULL },
-	[__OPBX_LOG_ERROR] = { NULL, NULL },
-	[__OPBX_LOG_VERBOSE] = { NULL, NULL },
-	[__OPBX_LOG_DTMF] = { NULL, NULL },
+	[__CW_LOG_DEBUG] = { NULL, NULL },
+	[__CW_LOG_EVENT] = { NULL, NULL },
+	[__CW_LOG_NOTICE] = { NULL, NULL },
+	[__CW_LOG_WARNING] = { NULL, NULL },
+	[__CW_LOG_ERROR] = { NULL, NULL },
+	[__CW_LOG_VERBOSE] = { NULL, NULL },
+	[__CW_LOG_DTMF] = { NULL, NULL },
 };
 
 static char *col_defaults;
@@ -219,10 +219,10 @@ void terminal_init(void)
 			} else
 				sgr = NULL;
 
-			highlight(&level_attr[__OPBX_LOG_DEBUG].on, &level_attr[__OPBX_LOG_DEBUG].off, "fg=blue,bold");
-			highlight(&level_attr[__OPBX_LOG_NOTICE].on, &level_attr[__OPBX_LOG_NOTICE].off, "fg=green,bold");
-			highlight(&level_attr[__OPBX_LOG_WARNING].on, &level_attr[__OPBX_LOG_WARNING].off, "fg=yellow,bold");
-			highlight(&level_attr[__OPBX_LOG_ERROR].on, &level_attr[__OPBX_LOG_ERROR].off, "fg=red,bold");
+			highlight(&level_attr[__CW_LOG_DEBUG].on, &level_attr[__CW_LOG_DEBUG].off, "fg=blue,bold");
+			highlight(&level_attr[__CW_LOG_NOTICE].on, &level_attr[__CW_LOG_NOTICE].off, "fg=green,bold");
+			highlight(&level_attr[__CW_LOG_WARNING].on, &level_attr[__CW_LOG_WARNING].off, "fg=yellow,bold");
+			highlight(&level_attr[__CW_LOG_ERROR].on, &level_attr[__CW_LOG_ERROR].off, "fg=red,bold");
 		}
 	}
 }
@@ -291,22 +291,22 @@ void terminal_write(const char *buf, int len)
 
 		if (len || windex < sizeof(word)/sizeof(word[0])) {
 #if 1
-			int i = __OPBX_LOG_VERBOSE;
+			int i = __CW_LOG_VERBOSE;
 
 			if (!strncmp(word, "DEBUG", windex))
-				i = __OPBX_LOG_DEBUG;
+				i = __CW_LOG_DEBUG;
 			else if (!strncmp(word, "EVENT", windex))
-				i = __OPBX_LOG_EVENT;
+				i = __CW_LOG_EVENT;
 			else if (!strncmp(word, "NOTICE", windex))
-				i = __OPBX_LOG_NOTICE;
+				i = __CW_LOG_NOTICE;
 			else if (!strncmp(word, "WARNING", windex))
-				i = __OPBX_LOG_WARNING;
+				i = __CW_LOG_WARNING;
 			else if (!strncmp(word, "ERROR", windex))
-				i = __OPBX_LOG_ERROR;
+				i = __CW_LOG_ERROR;
 			else if (!strncmp(word, "VERBOSE", windex))
-				i = __OPBX_LOG_VERBOSE;
+				i = __CW_LOG_VERBOSE;
 			else if (!strncmp(word, "DTMF", windex))
-				i = __OPBX_LOG_DTMF;
+				i = __CW_LOG_DTMF;
 
 			if (level_attr[i].on)
 				putp(level_attr[i].on);

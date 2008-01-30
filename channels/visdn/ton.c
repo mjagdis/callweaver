@@ -31,7 +31,7 @@ enum visdn_type_of_number visdn_ton_from_string(const char *str)
 	else if (!strcasecmp(str, "abbreviated"))
 		return VISDN_TYPE_OF_NUMBER_ABBREVIATED;
 	else {
-		opbx_log(OPBX_LOG_ERROR,
+		cw_log(CW_LOG_ERROR,
 			"Unknown type_of_number '%s'\n",
 			str);
 

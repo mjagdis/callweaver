@@ -67,8 +67,8 @@ enum misdn_cfg_elements {
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
-	MISDN_CFG_CALLGROUP,           /* opbx_group_t */
-	MISDN_CFG_PICKUPGROUP,         /* opbx_group_t */
+	MISDN_CFG_CALLGROUP,           /* cw_group_t */
+	MISDN_CFG_PICKUPGROUP,         /* cw_group_t */
 	MISDN_CFG_MAX_IN,              /* int */
 	MISDN_CFG_MAX_OUT,             /* int */
 	MISDN_CFG_FAXDETECT,           /* char[] */

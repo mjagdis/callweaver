@@ -58,7 +58,7 @@ AC_PROG_INSTALL
 AC_FUNC_STRERROR_R
 
 
-dnl SVN Revision number, needed for OPBX_VERSION and inclusion into files version number
+dnl SVN Revision number, needed for CW_VERSION and inclusion into files version number
 if test -n "$SVNVERSION" ; then
 	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${CAT} SVNVERSION`",[Which Subversion revision are we building here?])
 	AC_SUBST([SVN_VERSION])
@@ -233,9 +233,9 @@ dnl ##########################
 #
 # Directory layout profiles contain a list of key=value pairs, *without* any
 # spaces or tabs, one pair per line. The following keys are defined:
-#  opbxprefix, opbxexecdir, opbxutilsdir, opbxconfdir, opbxlibdir,
-#  opbxvardir, opbxlogdir, opbxrundir, opbxspooldir, opbxdatadir,
-#  opbxmandir and  opbxdocdir
+#  cwprefix, cwexecdir, cwutilsdir, cwconfdir, cwlibdir,
+#  cwvardir, cwlogdir, cwrundir, cwspooldir, cwdatadir,
+#  cwmandir and  cwdocdir
 #
 # Values are the full pathnames for the respective directories *without* any
 # quotation marks. Any lines with a leading # character and lines containing
@@ -276,28 +276,28 @@ isavail_directory_layout() {
 # ----------------------------------------------------------
 # List of valid install directory variables separated by LF
 # ----------------------------------------------------------
-opbxdirs=`${CAT} << EOF
-opbxprefix
-opbxexecdir
-opbxutilsdir
-opbxconfdir
-opbxlibdir
-opbxvardir
-opbxlogdir
-opbxrundir
-opbxspooldir
-opbxdatadir
-opbxmandir
-opbxdocdir
+cwdirs=`${CAT} << EOF
+cwprefix
+cwexecdir
+cwutilsdir
+cwconfdir
+cwlibdir
+cwvardir
+cwlogdir
+cwrundir
+cwspooldir
+cwdatadir
+cwmandir
+cwdocdir
 EOF`
 # END list
 
 # ----------------------------------------------------------
-# Function is_opbx_dir()
+# Function is_cw_dir()
 # ----------------------------------------------------------
 # synopsis:
 #   test whether a given name is a valid install directory
-#   variable as defined in the variable opbxdirs
+#   variable as defined in the variable cwdirs
 #
 # input parameter:
 #   $1 - name to be checked
@@ -306,22 +306,22 @@ EOF`
 #   0 - input name is not an install directory variable
 #   1 - input name is an install directory variable
 # ----------------------------------------------------------
-is_opbx_dir() {
+is_cw_dir() {
 # return 0 if no parameter is passed to this function
    if test -z "$1"; then
         return 0;
    fi
-# test parameter against each variable name in opbxdirs
-   for var in $opbxdirs;
+# test parameter against each variable name in cwdirs
+   for var in $cwdirs;
    do
         if test $1 = $var; then
              return 1;
         fi
    done
-# parameter not found in opbxdirs
+# parameter not found in cwdirs
    return 0;
 }
-# END is_opbx_dirs
+# END is_cw_dirs
 
 # ----------------------------------------------------------
 # Function load_directory_profile()
@@ -348,14 +348,14 @@ load_directory_profile() {
 #   helpstr=`echo $helpstr | ${SED} -e 's/^"//' | ${SED} -e 's/"$//'`
 #
 # read all directory variables from the profile
-#   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^opbx.*="`
-   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/[[:blank:]]*=[[:blank:]]*/=/' -e 's/\\\\ /|/g' -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//' | ${GREP} "^opbx.*="`
+#   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^cw.*="`
+   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/[[:blank:]]*=[[:blank:]]*/=/' -e 's/\\\\ /|/g' -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//' | ${GREP} "^cw.*="`
 
    for line in $profile;
    do
         key=`echo "$line" | ${SED} -e 's/=.*$//'`;
         value=`echo "$line" | ${SED} -e 's/^[[a-z]]*=[['\''"]]*//' -e 's/[['\''"]]$//' -e 's/|/ /g'`;
-        is_opbx_dir ${key}
+        is_cw_dir ${key}
         if test $? -ne 1; then
              echo "ignoring '${key}' in ${srcdir}/layout.$1 because it is not a valid install directory variable" >&2;
         else
@@ -403,17 +403,17 @@ if test "${with_directory_layout}" = "singledir"; then
 	ac_default_prefix='/opt/callweaver'
     fi
     # set directory variables
-    opbxexecdir='${prefix}/sbin'
-    opbxutilsdir='${prefix}/bin'
-    opbxconfdir='${prefix}/etc'
-    opbxlibdir='${prefix}/lib'
-    opbxvardir='${prefix}/var'
-    opbxlogdir='${prefix}/var/log'
-    opbxrundir='${prefix}/var/run'
-    opbxspooldir='${prefix}/var/spool'
-    opbxdatadir='${prefix}/var/data'
-    opbxmandir='${prefix}/share/man'
-    opbxdocdir='${prefix}/doc'
+    cwexecdir='${prefix}/sbin'
+    cwutilsdir='${prefix}/bin'
+    cwconfdir='${prefix}/etc'
+    cwlibdir='${prefix}/lib'
+    cwvardir='${prefix}/var'
+    cwlogdir='${prefix}/var/log'
+    cwrundir='${prefix}/var/run'
+    cwspooldir='${prefix}/var/spool'
+    cwdatadir='${prefix}/var/data'
+    cwmandir='${prefix}/share/man'
+    cwdocdir='${prefix}/doc'
 else
 
 # all other profiles ...
@@ -427,139 +427,139 @@ isavail_directory_layout ${with_directory_layout}
     layout_upper=`echo ${with_directory_layout} | ${TR} '[a-z]' '[A-Z]'`
     AC_MSG_NOTICE([Selected directory layout is ${layout_upper}])
     load_directory_profile ${with_directory_layout}
-    if test -n "${opbxprefix}"; then
-	ac_default_prefix=${opbxprefix}
+    if test -n "${cwprefix}"; then
+	ac_default_prefix=${cwprefix}
     fi
 fi
 
 # directory for the main executable
-AC_SUBST([opbxexecdir])
+AC_SUBST([cwexecdir])
 
 # directory for commandline utilities
-AC_SUBST([opbxutilsdir])
+AC_SUBST([cwutilsdir])
 
 # directory for configuration files
-AC_SUBST([opbxconfdir])
+AC_SUBST([cwconfdir])
 
 # path to master configuration file
-if test -z "${opbxconffile}"; then
-    opbxconffile='${opbxconfdir}/callweaver.conf'
+if test -z "${cwconffile}"; then
+    cwconffile='${cwconfdir}/callweaver.conf'
 fi
-AC_SUBST([opbxconffile])
+AC_SUBST([cwconffile])
 
 # directory for libraries
-AC_SUBST([opbxlibdir])
+AC_SUBST([cwlibdir])
 
 # directory for modules
-if test -z "${opbxmoddir}"; then
-	opbxmoddir='${opbxlibdir}/modules'
+if test -z "${cwmoddir}"; then
+	cwmoddir='${cwlibdir}/modules'
 fi
-AC_SUBST([opbxmoddir])
+AC_SUBST([cwmoddir])
 
 # directory for add-on modules
-if test -z "${opbxaddondir}"; then
-	opbxaddondir='${opbxlibdir}/add-on'
+if test -z "${cwaddondir}"; then
+	cwaddondir='${cwlibdir}/add-on'
 fi
-AC_SUBST([opbxaddondir])
+AC_SUBST([cwaddondir])
 
 # directory for ICD modules
-if test -z "${opbxicdmoddir}"; then
-	opbxicdmoddir='${opbxmoddir}/icd'
+if test -z "${cwicdmoddir}"; then
+	cwicdmoddir='${cwmoddir}/icd'
 fi
-AC_SUBST([opbxicdmoddir])
+AC_SUBST([cwicdmoddir])
 
 # directory for mutable data
-AC_SUBST([opbxvardir])
+AC_SUBST([cwvardir])
 
 # directory for database file of internal db
-if test -z "${opbxdbdir}"; then
-	opbxdbdir='${opbxvardir}'
+if test -z "${cwdbdir}"; then
+	cwdbdir='${cwvardir}'
 fi
-AC_SUBST([opbxdbdir])
+AC_SUBST([cwdbdir])
 
 # path to database file of internal db
-if test -z "${opbxdbfile}"; then
-	opbxdbfile='callweaverdb'
+if test -z "${cwdbfile}"; then
+	cwdbfile='callweaverdb'
 fi
-AC_SUBST([opbxdbfile])
+AC_SUBST([cwdbfile])
 
 # directory for temporary files
-if test -z "${opbxtmpdir}"; then
-	opbxtmpdir='${opbxvardir}/tmp'
+if test -z "${cwtmpdir}"; then
+	cwtmpdir='${cwvardir}/tmp'
 fi
-AC_SUBST([opbxtmpdir])
+AC_SUBST([cwtmpdir])
 
 # directory for pid file and console socket
-AC_SUBST([opbxrundir])
+AC_SUBST([cwrundir])
 
 # path to pid file
-if test -z "${opbxpidfile}"; then
-	opbxpidfile='${opbxrundir}/callweaver.pid'
+if test -z "${cwpidfile}"; then
+	cwpidfile='${cwrundir}/callweaver.pid'
 fi
-AC_SUBST([opbxpidfile])
+AC_SUBST([cwpidfile])
 
 # path to console socket
-if test -z "${opbxsocketfile}"; then
-	opbxsocketfile='${opbxrundir}/callweaver.ctl'
+if test -z "${cwsocketfile}"; then
+	cwsocketfile='${cwrundir}/callweaver.ctl'
 fi
-AC_SUBST([opbxsocketfile])
+AC_SUBST([cwsocketfile])
 
 # directory for log files
-AC_SUBST([opbxlogdir])
+AC_SUBST([cwlogdir])
 
 # directory for spool files
-AC_SUBST([opbxspooldir])
+AC_SUBST([cwspooldir])
 
 # directory for immutable data
-AC_SUBST([opbxdatadir])
+AC_SUBST([cwdatadir])
 
 # directory for man pages
-AC_SUBST([opbxmandir])
+AC_SUBST([cwmandir])
 
 # directory for license, credits and read-me files
-AC_SUBST([opbxdocdir])
+AC_SUBST([cwdocdir])
 
 # directory for crypto keys
-if test -z "${opbxkeydir}"; then
-	opbxkeydir='${opbxdatadir}/keys'
+if test -z "${cwkeydir}"; then
+	cwkeydir='${cwdatadir}/keys'
 fi
-AC_SUBST([opbxkeydir])
+AC_SUBST([cwkeydir])
 
 # directory for sqlite database file
-if test -z "${opbxsqlitedir}"; then
-	opbxsqlitedir='${opbxdbdir}'
+if test -z "${cwsqlitedir}"; then
+	cwsqlitedir='${cwdbdir}'
 fi
-AC_SUBST([opbxsqlitedir])
+AC_SUBST([cwsqlitedir])
 
 # directory for OGI scripts
-if test -z "${opbxogidir}"; then
-	opbxogidir='${opbxdatadir}/ogi'
+if test -z "${cwogidir}"; then
+	cwogidir='${cwdatadir}/ogi'
 fi
-AC_SUBST([opbxogidir])
+AC_SUBST([cwogidir])
 
 # directory for sound files
-if test -z "${opbxsoundsdir}"; then
-	opbxsoundsdir='${opbxdatadir}/sounds'
+if test -z "${cwsoundsdir}"; then
+	cwsoundsdir='${cwdatadir}/sounds'
 fi
-AC_SUBST([opbxsoundsdir])
+AC_SUBST([cwsoundsdir])
 
 # directory for images
-if test -z "${opbximagesdir}"; then
-	opbximagesdir='${opbxdatadir}/images'
+if test -z "${cwimagesdir}"; then
+	cwimagesdir='${cwdatadir}/images'
 fi
-AC_SUBST([opbximagesdir])
+AC_SUBST([cwimagesdir])
 
 # directory for on-hold music files
-if test -z "${opbxmohdir}"; then
-	opbxmohdir='${opbxdatadir}/moh'
+if test -z "${cwmohdir}"; then
+	cwmohdir='${cwdatadir}/moh'
 fi
-AC_SUBST([opbxmohdir])
+AC_SUBST([cwmohdir])
 
 # include directory
-if test -z "${opbxincludedir}"; then
-	opbxincludedir='${includedir}/callweaver'
+if test -z "${cwincludedir}"; then
+	cwincludedir='${includedir}/callweaver'
 fi
-AC_SUBST([opbxincludedir])
+AC_SUBST([cwincludedir])
 
 ######
 #
@@ -878,24 +878,24 @@ if test "${enable_low_memory}" = "yes"; then
 fi
 
 dnl set user and group
-opbxrunuser="callweaver"
-opbxrungroup="callweaver"
+cwrunuser="callweaver"
+cwrungroup="callweaver"
 
 AC_ARG_WITH(callweaver-user,
 	[AC_HELP_STRING([--with-callweaver-user=USER],[Run as USER (default=callweaver)])],,[with_callweaver_user="callweaver"])
 
 if test "${with_callweaver_user}" != "no" -a "${with_callweaver_user}" != "yes"; then
-	opbxrunuser="$with_callweaver_user"
+	cwrunuser="$with_callweaver_user"
 fi
 
 AC_ARG_WITH(callweaver-group,
 	[AC_HELP_STRING([--with-callweaver-group=GROUP],[Run as GROUP (default=callweaver)])],,[with_callweaver_group="callweaver"])
 
 if test "${with_callweaver_group}" != "no" -a "${with_callweaver_group}" != "yes"; then
-	opbxrungroup="$with_callweaver_group"
+	cwrungroup="$with_callweaver_group"
 fi
-AC_SUBST(opbxrunuser)
-AC_SUBST(opbxrungroup)  
+AC_SUBST(cwrunuser)
+AC_SUBST(cwrungroup)  
 
 dnl ###########################################################################
 
@@ -2316,7 +2316,7 @@ AC_ARG_WITH([debug_malloc],
 	[AC_HELP_STRING([--with-debug_malloc],[Enable debug malloc (default=no)])],,[with_debug_malloc="no"])
 
 if test "$with_debug_malloc" = "yes" ; then
-    AC_DEFINE([__OPBX_DEBUG_MALLOC], [1], [We want malloc debug ...])
+    AC_DEFINE([__CW_DEBUG_MALLOC], [1], [We want malloc debug ...])
 fi
 
 dnl ###########################################################################
@@ -2556,32 +2556,32 @@ echo "includedir:       ${includedir}"
 echo ""
 echo "directory-layout: ${with_directory_layout}"
 echo ""
-echo "opbxexecdir:      ${opbxexecdir}"
-echo "opbxutilsdir:     ${opbxutilsdir}"
-echo "opbxconfdir:      ${opbxconfdir}"
-echo "opbxconffile:     ${opbxconffile}"
-echo "opbxlibdir:       ${opbxlibdir}"
-echo "opbxmoddir:       ${opbxmoddir}"
-echo "opbxaddondir:     ${opbxaddondir}"
-echo "opbxvardir:       ${opbxvardir}"
-echo "opbxdbdir:        ${opbxdbdir}"
-echo "opbxdbfile:       ${opbxdbfile}"
-echo "opbxtmpdir:       ${opbxtmpdir}"
-echo "opbxrundir:       ${opbxrundir}"
-echo "opbxpidfile:      ${opbxpidfile}"
-echo "opbxsocketfile:   ${opbxsocketfile}"
-echo "opbxlogdir:       ${opbxlogdir}"
-echo "opbxspooldir:     ${opbxspooldir}"
-echo "opbxdatadir:      ${opbxdatadir}"
-echo "opbxmandir:       ${opbxmandir}"
-echo "opbxdocdir:       ${opbxdocdir}"
-echo "opbxkeydir:       ${opbxkeydir}"
-echo "opbxsqlitedir:    ${opbxsqlitedir}"
-echo "opbxogidir:       ${opbxogidir}"
-echo "opbxsoundsdir:    ${opbxsoundsdir}"
-echo "opbximagesdir:    ${opbximagesdir}"
-echo "opbxmohdir:       ${opbxmohdir}"
-echo "opbxincludedir:   ${opbxincludedir}"
+echo "cwexecdir:      ${cwexecdir}"
+echo "cwutilsdir:     ${cwutilsdir}"
+echo "cwconfdir:      ${cwconfdir}"
+echo "cwconffile:     ${cwconffile}"
+echo "cwlibdir:       ${cwlibdir}"
+echo "cwmoddir:       ${cwmoddir}"
+echo "cwaddondir:     ${cwaddondir}"
+echo "cwvardir:       ${cwvardir}"
+echo "cwdbdir:        ${cwdbdir}"
+echo "cwdbfile:       ${cwdbfile}"
+echo "cwtmpdir:       ${cwtmpdir}"
+echo "cwrundir:       ${cwrundir}"
+echo "cwpidfile:      ${cwpidfile}"
+echo "cwsocketfile:   ${cwsocketfile}"
+echo "cwlogdir:       ${cwlogdir}"
+echo "cwspooldir:     ${cwspooldir}"
+echo "cwdatadir:      ${cwdatadir}"
+echo "cwmandir:       ${cwmandir}"
+echo "cwdocdir:       ${cwdocdir}"
+echo "cwkeydir:       ${cwkeydir}"
+echo "cwsqlitedir:    ${cwsqlitedir}"
+echo "cwogidir:       ${cwogidir}"
+echo "cwsoundsdir:    ${cwsoundsdir}"
+echo "cwimagesdir:    ${cwimagesdir}"
+echo "cwmohdir:       ${cwmohdir}"
+echo "cwincludedir:   ${cwincludedir}"
 
 echo ""
 echo "*******************************************************"

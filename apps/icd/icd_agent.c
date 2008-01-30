@@ -104,7 +104,7 @@ icd_agent *create_icd_agent(icd_config * data)
     ICD_MALLOC(agent, sizeof(icd_agent));
 
     if (agent == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Agent\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Agent\n");
         return NULL;
     }
     ((icd_caller *) agent)->state = ICD_CALLER_STATE_CREATED;
@@ -126,7 +126,7 @@ icd_status destroy_icd_agent(icd_agent ** agentp)
     assert((*agentp) != NULL);
 
     if ((*agentp)->caller.params) {
-        /*      opbx_log(OPBX_LOG_WARNING,"caller destroyer freeing hash memory\n"); */
+        /*      cw_log(CW_LOG_WARNING,"caller destroyer freeing hash memory\n"); */
         vh_destroy(&(*agentp)->caller.params);
     }
 
@@ -199,7 +199,7 @@ icd_status init_icd_agent(icd_agent * that, icd_config * data)
     init = (icd_status(*)(icd_agent * that, icd_config * data))
         icd_config__get_value(data, "agents.init");
     if (init != NULL) {
-        opbx_verbose(VERBOSE_PREFIX_1 "Agent plugable init for [%s] \n", icd_caller__get_name(caller));
+        cw_verbose(VERBOSE_PREFIX_1 "Agent plugable init for [%s] \n", icd_caller__get_name(caller));
         return init(that, data);
     }
 
@@ -331,11 +331,11 @@ icd_plugable_fn *icd_agent_get_plugable_fns(icd_caller * that)
 
     if (plugable_fns == NULL) {
         if (icd_verbose > 4)
-            opbx_log(OPBX_LOG_NOTICE, "Agent Caller %d [%s] has no plugable fn aborting ala crash\n",
+            cw_log(CW_LOG_NOTICE, "Agent Caller %d [%s] has no plugable fn aborting ala crash\n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
     } else {
         if (icd_verbose > 4)
-            opbx_log(OPBX_LOG_NOTICE,
+            cw_log(CW_LOG_NOTICE,
                 "\nAgent Caller %d [%s] using icd_agent_get_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
                 icd_caller__get_id(that), icd_caller__get_name(that), icd_plugable__get_name(plugable_fns),
                 plugable_fns->state_ready_fn, dist_name);
@@ -415,7 +415,7 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
     }
     /* so we are now either a (onHook with or w/o channel) or (OffHook with a channel) */
     if (icd_debug)
-        opbx_log(OPBX_LOG_WARNING, "Caller id[%d] [%s] Set Push Back\n", icd_caller__get_id(that),
+        cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Set Push Back\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
     icd_caller__set_pushback(that);
 
@@ -468,7 +468,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
     char res;
     char *pos = NULL;
     int cleanup_required = 0;
-    opbx_channel * chan;
+    cw_channel * chan;
     
     assert(event != NULL);
     that = icd_event__get_source(event);
@@ -482,18 +482,18 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
 //    icd_bridge__safe_hangup(that);
     chan = icd_caller__get_channel(that);
     if (/*icd_caller__get_onhook(that) == 0 && */ chan){
-//        opbx_stopstream(chan);
-//        opbx_generator_deactivate(&chan->generator);
-//        opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
-//        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
-//        opbx_hangup(chan );
+//        cw_stopstream(chan);
+//        cw_generator_deactivate(&chan->generator);
+//        cw_clear_flag(chan ,  CW_FLAG_BLOCKING);
+//        cw_softhangup(chan ,  CW_SOFTHANGUP_EXPLICIT);
+//        cw_hangup(chan );
 //        icd_caller__set_channel(that, NULL);
      };	 
 /*    
     if (that->chan != NULL) {
-        opbx_clear_flag(that->chan ,  OPBX_FLAG_BLOCKING);
-        opbx_softhangup(that->chan ,  OPBX_SOFTHANGUP_EXPLICIT);
-        opbx_hangup(that->chan );
+        cw_clear_flag(that->chan ,  CW_FLAG_BLOCKING);
+        cw_softhangup(that->chan ,  CW_SOFTHANGUP_EXPLICIT);
+        cw_hangup(that->chan );
         icd_caller__set_channel(that, NULL);
     }
 */
@@ -516,7 +516,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
         }
     }
 
-    if (entertain != NULL && opbx_true(entertain)) {
+    if (entertain != NULL && cw_true(entertain)) {
         icd_caller__start_waiting(that);
         cleanup_required = 1;
     }
@@ -541,7 +541,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
         icd_run->cleanup_caller_fn(that);   /* default is icd_agent__standard_cleanup_caller(that)  READY or CLEAR */
     } else if ((strcmp(action, "listen") == 0) && (icd_caller__get_onhook(that) == 0)) {
         while (pos == NULL) {
-            res = opbx_waitfordigit(that->chan, waittime);
+            res = cw_waitfordigit(that->chan, waittime);
             if (res < 1) {
                 if (wakeup == NULL || strlen(wakeup) == 0) {
                     break;
@@ -563,7 +563,7 @@ icd_status icd_agent__standard_cleanup_caller(icd_caller * that)
 
     if (icd_caller__get_pushback(that)) {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller %d [%s] has agent role with push back trying to add it to the queue \n",
+            cw_log(CW_LOG_DEBUG, "Caller %d [%s] has agent role with push back trying to add it to the queue \n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
         if (icd_caller__get_onhook(that)) {
             icd_bridge__safe_hangup(that);
@@ -580,7 +580,7 @@ icd_status icd_agent__standard_cleanup_caller(icd_caller * that)
 //        icd_caller__reset_pushback(that);
     } else {
         if (icd_debug)
-            opbx_log(OPBX_LOG_DEBUG, "Caller %d [%s] has agent role with no pushback needed, exit icd thread finished \n",
+            cw_log(CW_LOG_DEBUG, "Caller %d [%s] has agent role with no pushback needed, exit icd thread finished \n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
         icd_bridge__safe_hangup(that);
         that->thread_state = ICD_THREAD_STATE_FINISHED;
@@ -630,14 +630,14 @@ icd_agent *icd_agent__generate_queued_call(char *id, char *queuename, char *dial
     char key[30];
 
     if (!queuename || !dialstr) {
-        opbx_log(OPBX_LOG_ERROR, "Invalid Parameters\n");
+        cw_log(CW_LOG_ERROR, "Invalid Parameters\n");
         return NULL;
     }
     strncpy(buf, dialstr, sizeof(buf));
 
     queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
     if (queue == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "AGENT FAILURE! Agent assigned to undefined Queue [%s]\n", queuename);
+        cw_log(CW_LOG_ERROR, "AGENT FAILURE! Agent assigned to undefined Queue [%s]\n", queuename);
         return NULL;
     }
     arghash = vh_init("args");

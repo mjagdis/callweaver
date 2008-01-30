@@ -28,15 +28,15 @@
  * that utilize these fields.
  */
 
-#define OPBX_TRANS_CAP_SPEECH				0x0
-#define OPBX_TRANS_CAP_DIGITAL				0x08
-#define OPBX_TRANS_CAP_RESTRICTED_DIGITAL		0x09
-#define OPBX_TRANS_CAP_3_1K_AUDIO			0x10
-#define OPBX_TRANS_CAP_7K_AUDIO				0x11	/* Depriciated ITU Q.931 (05/1998)*/
-#define OPBX_TRANS_CAP_DIGITAL_W_TONES			0x11
-#define OPBX_TRANS_CAP_VIDEO				0x18
+#define CW_TRANS_CAP_SPEECH				0x0
+#define CW_TRANS_CAP_DIGITAL				0x08
+#define CW_TRANS_CAP_RESTRICTED_DIGITAL		0x09
+#define CW_TRANS_CAP_3_1K_AUDIO			0x10
+#define CW_TRANS_CAP_7K_AUDIO				0x11	/* Depriciated ITU Q.931 (05/1998)*/
+#define CW_TRANS_CAP_DIGITAL_W_TONES			0x11
+#define CW_TRANS_CAP_VIDEO				0x18
 
 #define IS_DIGITAL(cap)\
-	(cap) & OPBX_TRANS_CAP_DIGITAL ? 1 : 0
+	(cap) & CW_TRANS_CAP_DIGITAL ? 1 : 0
 
 #endif /* _CALLWEAVER_TRANSCAP_H */

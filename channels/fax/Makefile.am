@@ -2,10 +2,10 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-opbxmod_LTLIBRARIES 		=
+cwmod_LTLIBRARIES 		=
 
 if WANT_CHAN_FAX
-opbxmod_LTLIBRARIES		+= chan_fax.la
+cwmod_LTLIBRARIES		+= chan_fax.la
 chan_fax_la_SOURCES		= chan_fax.c faxmodem.c faxmodem.h
 
 chan_fax_la_CFLAGS		= $(AM_CFLAGS)

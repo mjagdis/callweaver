@@ -42,17 +42,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "core/ulaw.h"
 
-uint8_t __opbx_lin2mu[16384];
-int16_t __opbx_mulaw[256];
+uint8_t __cw_lin2mu[16384];
+int16_t __cw_mulaw[256];
 
-void opbx_ulaw_init(void)
+void cw_ulaw_init(void)
 {
 	int i;
 
 	/* Set up mu-law conversion table */
 	for (i = 0;  i < 256;  i++)
-        __opbx_mulaw[i] = ulaw_to_linear(i);
+        __cw_mulaw[i] = ulaw_to_linear(i);
 	/* Set up the reverse (mu-law) conversion table */
 	for (i = -32768;  i < 32768;  i++)
-		__opbx_lin2mu[((uint16_t) i) >> 2] = linear_to_ulaw(i);
+		__cw_lin2mu[((uint16_t) i) >> 2] = linear_to_ulaw(i);
 }

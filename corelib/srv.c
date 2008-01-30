@@ -22,7 +22,7 @@
  *
  * \brief DNS SRV Record Lookup Support for CallWeaver
  * 
- * \arg See also \ref opbxENUM
+ * \arg See also \ref cwENUM
  *
  */
 #ifdef HAVE_CONFIG_H
@@ -69,21 +69,21 @@ static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len
 	char repl[256] = "";
 
 	if (len < sizeof(struct srv)) {
-		opbx_log(OPBX_LOG_WARNING, "Supplied buffer length too short (%d < %lu)\n", len, sizeof(struct srv));
+		cw_log(CW_LOG_WARNING, "Supplied buffer length too short (%d < %lu)\n", len, sizeof(struct srv));
 		return -1;
 	}
 	answer += sizeof(struct srv);
 	len -= sizeof(struct srv);
 
 	if ((res = dn_expand((unsigned char *)msg, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to expand hostname\n");
+		cw_log(CW_LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
 	if (res && strcmp(repl, ".")) {
 		if (option_verbose > 3)
-			opbx_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
+			cw_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
 		if (host) {
-			opbx_copy_string(host, repl, hostlen);
+			cw_copy_string(host, repl, hostlen);
 			host[hostlen-1] = '\0';
 		}
 		if (portno)
@@ -104,17 +104,17 @@ static int srv_callback(void *context, char *answer, int len, char *fullanswer)
 	struct srv_context *c = (struct srv_context *)context;
 
 	if (parse_srv(c->host, c->hostlen, c->port, answer, len, fullanswer)) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to parse srv\n");
+		cw_log(CW_LOG_WARNING, "Failed to parse srv\n");
 		return -1;
 	}
 
-	if (!opbx_strlen_zero(c->host))
+	if (!cw_strlen_zero(c->host))
 		return 1;
 
 	return 0;
 }
 
-int opbx_get_srv(struct opbx_channel *chan, char *host, int hostlen, int *port, const char *service)
+int cw_get_srv(struct cw_channel *chan, char *host, int hostlen, int *port, const char *service)
 {
 	struct srv_context context;
 	int ret;
@@ -123,13 +123,13 @@ int opbx_get_srv(struct opbx_channel *chan, char *host, int hostlen, int *port, 
 	context.hostlen = hostlen;
 	context.port = port;
 
-	if (chan && opbx_autoservice_start(chan) < 0)
+	if (chan && cw_autoservice_start(chan) < 0)
 		return -1;
 
-	ret = opbx_search_dns(&context, service, C_IN, T_SRV, srv_callback);
+	ret = cw_search_dns(&context, service, C_IN, T_SRV, srv_callback);
 
 	if (chan)
-		ret |= opbx_autoservice_stop(chan);
+		ret |= cw_autoservice_stop(chan);
 
 	if (ret <= 0) {
 		host[0] = '\0';

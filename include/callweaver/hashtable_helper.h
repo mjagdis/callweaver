@@ -26,9 +26,9 @@
 #include "callweaver/hashtable.h"
 
 
-int opbx_core_hash_insert ( hash_table_t *hash, char *key, void *data );
-int opbx_core_hash_get ( hash_table_t *hash, char *key, void **data );
-int opbx_core_hash_delete (hash_table_t *hash, char *key, int mustfree );
+int cw_core_hash_insert ( hash_table_t *hash, char *key, void *data );
+int cw_core_hash_get ( hash_table_t *hash, char *key, void **data );
+int cw_core_hash_delete (hash_table_t *hash, char *key, int mustfree );
 
 
 

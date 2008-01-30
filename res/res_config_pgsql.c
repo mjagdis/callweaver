@@ -45,7 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char tdesc[] = "PostgreSQL Configuration";
 
-OPBX_MUTEX_DEFINE_STATIC(pgsql_lock);
+CW_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 static char conninfo[512];
 static PGconn *conn = NULL;
@@ -56,26 +56,26 @@ static int pgsql_reconnect(const char *database);
 
 static int parse_config(void)
 {
-	struct opbx_config *config;
+	struct cw_config *config;
 	char *s;
 
-	config = opbx_config_load(RES_CONFIG_PGSQL_CONF);
+	config = cw_config_load(RES_CONFIG_PGSQL_CONF);
 
 	if (config) {
 
 		/* get the database host */
-		s = opbx_variable_retrieve(config, "general", "dsn");
+		s = cw_variable_retrieve(config, "general", "dsn");
 		if (s == NULL) {
-			opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
+			cw_log(CW_LOG_WARNING, "PgSQL RealTime: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
 			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
 		} else {
 			strncpy(conninfo, s, sizeof(conninfo));
 		}
 
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime config file (%s) not found.\n", RES_CONFIG_PGSQL_CONF);
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime config file (%s) not found.\n", RES_CONFIG_PGSQL_CONF);
 	}
-	opbx_config_destroy(config);
+	cw_config_destroy(config);
 
 	return 1;
 }
@@ -87,18 +87,18 @@ static int pgsql_reconnect(const char *database)
 		if (PQstatus(conn) == CONNECTION_OK) {
 			return 1;
 		} else {
-			opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Existing database connection broken. Trying to reset.\n");
+			cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Existing database connection broken. Trying to reset.\n");
 
 			/* try to reset the connection */
 			PQreset(conn);
 
 			/* check the connection status again */
 			if (PQstatus(conn) == CONNECTION_OK) {
-				opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Existing database connection reset ok.\n");
+				cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Existing database connection reset ok.\n");
 				return 1;
 			} else {
 				/* still no luck, tear down the connection and we'll make a new connection */
-				opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Unable to reset existing database connection.\n");
+				cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Unable to reset existing database connection.\n");
 				PQfinish(conn);
 			}
 		}
@@ -107,17 +107,17 @@ static int pgsql_reconnect(const char *database)
 	conn = PQconnectdb(conninfo);
 
 	if (PQstatus(conn) == CONNECTION_OK) {
-		opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Successfully connected to PostgreSQL database.\n");
+		cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Successfully connected to PostgreSQL database.\n");
 		return 1;
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Couldn't establish DB connection. Check debug.\n");
-		opbx_log(OPBX_LOG_ERROR, "PgSQL RealTime: reason %s\n", PQerrorMessage(conn));
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Couldn't establish DB connection. Check debug.\n");
+		cw_log(CW_LOG_ERROR, "PgSQL RealTime: reason %s\n", PQerrorMessage(conn));
 	}		
 
 	return -1;
 }
 
-static struct opbx_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
+static struct cw_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *res;
 	long int row, rowcount = 0;
@@ -127,10 +127,10 @@ static struct opbx_variable *realtime_pgsql(const char *database, const char *ta
 	char *chunk;
 	char *op;	
 	const char *newparam, *newval;
-	struct opbx_variable *var=NULL, *prev=NULL;
+	struct cw_variable *var=NULL, *prev=NULL;
 
 	if (!table) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
 		return NULL;
 	}
 
@@ -138,7 +138,7 @@ static struct opbx_variable *realtime_pgsql(const char *database, const char *ta
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval)  {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		return NULL;
 	}
 
@@ -155,22 +155,22 @@ static struct opbx_variable *realtime_pgsql(const char *database, const char *ta
 	}
 	va_end(ap);
 
-	opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Retrieve SQL: %s\n", sql);
+	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Retrieve SQL: %s\n", sql);
 
 	/* SQL statement is ready, check database connection is still good */
 	if (!pgsql_reconnect(database)) {
 		return NULL;
 	}
 
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	res = PQexec(conn, sql);
 
 	if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
-		opbx_mutex_unlock(&pgsql_lock);
+		cw_mutex_unlock(&pgsql_lock);
 		return NULL;
 	}
 
@@ -184,30 +184,30 @@ static struct opbx_variable *realtime_pgsql(const char *database, const char *ta
 				
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !opbx_strlen_zero(opbx_strip(chunk))) {
+					if (chunk && !cw_strlen_zero(cw_strip(chunk))) {
 						if (prev) {
-							prev->next = opbx_variable_new(PQfname(res, col), chunk);
+							prev->next = cw_variable_new(PQfname(res, col), chunk);
 							if (prev->next) {
 								prev = prev->next;
 							}
 						} else {
-							prev = var = opbx_variable_new(PQfname(res, col), chunk);
+							prev = var = cw_variable_new(PQfname(res, col), chunk);
 						}
 					}
 				}
 			}
 		}
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Could not find any rows in table %s.\n", table);
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	PQclear(res);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 
 	return var;
 }
 
-static struct opbx_config *realtime_multi_pgsql(const char *database, const char *table, va_list ap)
+static struct cw_config *realtime_multi_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *res;
 	long int row, rowcount = 0;
@@ -218,19 +218,19 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 	char *chunk;
 	char *op;
 	const char *newparam, *newval;
-	struct opbx_variable *var=NULL;
-	struct opbx_config *cfg = NULL;
-	struct opbx_category *cat = NULL;
+	struct cw_variable *var=NULL;
+	struct cw_config *cfg = NULL;
+	struct cw_category *cat = NULL;
 
 	if(!table) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
 		return NULL;
 	}
 
-	cfg = opbx_config_new();
+	cfg = cw_config_new();
 	if (!cfg) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */
-		opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory!\n");
 		return NULL;
 	}
 
@@ -238,11 +238,11 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval)  {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		return NULL;
 	}
 
-	initfield = opbx_strdupa(newparam);
+	initfield = cw_strdupa(newparam);
 	if ((op = strchr(initfield, ' ')))
 		*op = '\0';
 
@@ -264,22 +264,22 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 
 	va_end(ap);
 
-	opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Retrieve SQL: %s\n", sql);
+	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Retrieve SQL: %s\n", sql);
 
 	/* SQL statement is ready, check database connection is still good */
 	if (!pgsql_reconnect(database)) {
 		return NULL;
 	}
 
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	res = PQexec(conn, sql);
 	
 	if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
-		opbx_mutex_unlock(&pgsql_lock);
+		cw_mutex_unlock(&pgsql_lock);
 		return NULL;
 	}
 
@@ -290,9 +290,9 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 		for (row = 0; row < rowcount; row++) {
 
 			var = NULL;
-			cat = opbx_category_new("");
+			cat = cw_category_new("");
 			if (!cat) {
-				opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory!\n");
 				continue;
 			}
 
@@ -300,23 +300,23 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 				stringp = PQgetvalue(res, row, col);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !opbx_strlen_zero(opbx_strip(chunk))) {
+					if (chunk && !cw_strlen_zero(cw_strip(chunk))) {
 						if (initfield && !strcmp(initfield, PQfname(res, col))) {
-							opbx_category_rename(cat, chunk);
+							cw_category_rename(cat, chunk);
 						}
-						var = opbx_variable_new(PQfname(res, col), chunk);
-						opbx_variable_append(cat, var);
+						var = cw_variable_new(PQfname(res, col), chunk);
+						cw_variable_append(cat, var);
 					}
 				}
 			}
-			opbx_category_append(cfg, cat);
+			cw_category_append(cfg, cat);
 		}
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Could not find any rows in table %s.\n", table);
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	PQclear(res);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 
 	return cfg;
 }
@@ -329,7 +329,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	const char *newparam, *newval;
 
 	if (!table) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
 		return -1;
 	}
 
@@ -337,7 +337,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval)  {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		return -1;
 	}
 
@@ -352,31 +352,31 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	va_end(ap);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s = '%s'", keyfield, lookup);
 
-	opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Update SQL: %s\n", sql);
+	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Update SQL: %s\n", sql);
 
 	/* SQL statement is ready, check database connection is still good */
 	if (!pgsql_reconnect(database)) {
 		return -1;
 	}
 
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	res = PQexec(conn, sql);
 	
 	if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
-		opbx_mutex_unlock(&pgsql_lock);
+		cw_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
 	rowcount = atol(PQcmdTuples(res));
 
 	PQclear(res);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 
-	opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Updated %lu rows on table: %s\n", rowcount, table);
+	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Updated %lu rows on table: %s\n", rowcount, table);
 
 	if (rowcount >= 0)
 		return (int)rowcount;
@@ -384,84 +384,84 @@ static int update_pgsql(const char *database, const char *table, const char *key
 		return -1;
 }
 
-static struct opbx_config *config_pgsql(const char *database, const char *table, const char *file, struct opbx_config *cfg)
+static struct cw_config *config_pgsql(const char *database, const char *table, const char *file, struct cw_config *cfg)
 {
 	PGresult *res;
 	long int row, rowcount = 0;
 	int colcount = 0;
 	char sql[1024];
 	char last[128] = "";
-	struct opbx_category *cur_cat = NULL;
-	struct opbx_variable *new_v;
+	struct cw_category *cur_cat = NULL;
+	struct cw_variable *new_v;
 	int last_cat_metric = 0;
 
 	if (!file || !strcmp(file, RES_CONFIG_PGSQL_CONF)) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Cannot configure myself.\n");
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Cannot configure myself.\n");
 		return NULL;		
 	}
 
 	snprintf(sql, sizeof(sql), "SELECT category, var_name, var_val, cat_metric FROM %s WHERE filename='%s' and commented=0 ORDER BY filename, cat_metric DESC, var_metric ASC, category, var_name, var_val, id", table, file);
 
-	opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Static SQL: %s\n", sql);
+	cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Static SQL: %s\n", sql);
 
 	/* SQL statement is ready, check database connection is still good */
 	if (!pgsql_reconnect(database)) {
 		return NULL;
 	}
 
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	res = PQexec(conn, sql);
 	
 	if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
-		opbx_log(OPBX_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Failed to query database. Check debug for more info.\n");
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query: %s\n", sql);
+		cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Query failed because: %s\n", PQresultErrorMessage(res));
 		PQclear(res);
-		opbx_mutex_unlock(&pgsql_lock);
+		cw_mutex_unlock(&pgsql_lock);
 		return NULL;
 	}
 
 	rowcount = PQntuples(res);
 	if (rowcount > 0) {
 
-		opbx_log(OPBX_LOG_NOTICE, "PgSQL RealTime: Found %lu rows.\n", rowcount);
+		cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Found %lu rows.\n", rowcount);
 		colcount = PQnfields(res);
 		for (row = 0; row < rowcount; row++) {
 			if (!strcmp(PQgetvalue(res, row, 1), "#include")) {
-				if (!opbx_config_internal_load(PQgetvalue(res, row, 2), cfg)) {
+				if (!cw_config_internal_load(PQgetvalue(res, row, 2), cfg)) {
 					PQclear(res);
-					opbx_mutex_unlock(&pgsql_lock);
+					cw_mutex_unlock(&pgsql_lock);
 					return NULL;
 				}
 				continue;
 			}
 
 			if (strcmp(last, PQgetvalue(res, row, 0)) || last_cat_metric != atoi(PQgetvalue(res, row, 3))) {
-				cur_cat = opbx_category_new(PQgetvalue(res, row, 0));
+				cur_cat = cw_category_new(PQgetvalue(res, row, 0));
 				if (!cur_cat) {
-					opbx_log(OPBX_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory!\n");
 					break;
 				}
 				strcpy(last, PQgetvalue(res, row, 0));
 				last_cat_metric = atoi(PQgetvalue(res, row, 3));
-				opbx_category_append(cfg, cur_cat);
+				cw_category_append(cfg, cur_cat);
 			}
-			new_v = opbx_variable_new(PQgetvalue(res, row, 1), PQgetvalue(res, row, 2));
-			opbx_variable_append(cur_cat, new_v);
+			new_v = cw_variable_new(PQgetvalue(res, row, 1), PQgetvalue(res, row, 2));
+			cw_variable_append(cur_cat, new_v);
 
 		}
 
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "PgSQL RealTime: Could not find config '%s' in database.\n", file);
+		cw_log(CW_LOG_WARNING, "PgSQL RealTime: Could not find config '%s' in database.\n", file);
 	}
 
 	PQclear(res);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 
 	return cfg;
 }
 
-static struct opbx_config_engine pgsql_engine = {
+static struct cw_config_engine pgsql_engine = {
 	.name = "pgsql",
 	.load_func = config_pgsql,
 	.realtime_func = realtime_pgsql,
@@ -471,20 +471,20 @@ static struct opbx_config_engine pgsql_engine = {
 
 static void release(void)
 {
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 	PQfinish(conn);
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 }
 
 static int unload_module(void)
 {
 	/* acquire control before doing anything to the module itself */
-	opbx_mutex_lock(&pgsql_lock);
+	cw_mutex_lock(&pgsql_lock);
 
-	opbx_config_engine_unregister(&pgsql_engine);
+	cw_config_engine_unregister(&pgsql_engine);
 
 	/* Unlock so something else can destroy the lock */
-	opbx_mutex_unlock(&pgsql_lock);
+	cw_mutex_unlock(&pgsql_lock);
 
 	return 0;
 }
@@ -492,9 +492,9 @@ static int unload_module(void)
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	opbx_module_get(get_modinfo()->self);
+	cw_module_get(get_modinfo()->self);
 
-	opbx_config_engine_register(&pgsql_engine);
+	cw_config_engine_register(&pgsql_engine);
 
 	parse_config();
 

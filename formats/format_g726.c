@@ -72,11 +72,11 @@ struct pvt
 {
     FILE *f;                                /* Open file descriptor */
     int rate;                               /* RATE_* defines */
-    struct opbx_frame fr;                   /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + FRAME_TIME * 5];           /* G.726 encoded voice */
+    struct cw_frame fr;                   /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + FRAME_TIME * 5];           /* G.726 encoded voice */
 };
 
-static struct opbx_format format40, format32, format24, format16;
+static struct cw_format format40, format32, format24, format16;
 
 static const char desc[] = "Raw G.726 (16/24/32/40kbps) data";
 
@@ -91,13 +91,13 @@ static void *g726_open(FILE *f, int rate, char *name)
     {
         tmp->f = f;
         tmp->rate = rate;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_G726, name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return tmp;
 }
 
@@ -133,7 +133,7 @@ static void *g726_rewrite(FILE *f, int rate, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -169,7 +169,7 @@ static void g726_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *g726_read(void *data, int *whennext)
+static struct cw_frame *g726_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
@@ -180,38 +180,38 @@ static struct opbx_frame *g726_read(void *data, int *whennext)
     if ((res = fread(pvt->fr.data, 1, pvt->fr.datalen, pvt->f)) != pvt->fr.datalen)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
     *whennext = pvt->fr.samples;
     return &pvt->fr;
 }
 
-static int g726_write(void *data, struct opbx_frame *f)
+static int g726_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res;
     
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_G726)
+    if (f->subclass != CW_FORMAT_G726)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-G726 frame (%d)!\n", 
+        cw_log(CW_LOG_WARNING, "Asked to write non-G726 frame (%d)!\n", 
                  f->subclass);
         return -1;
     }
     if (f->datalen % frame_size[pvt->rate])
     {
-        opbx_log(OPBX_LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
+        cw_log(CW_LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
                  f->datalen, frame_size[pvt->rate]);
         return -1;
     }
     if ((res = fwrite(f->data, 1, f->datalen, pvt->f)) != f->datalen)
     {
-        opbx_log(OPBX_LOG_WARNING, "Bad write (%d/%d): %s\n", 
+        cw_log(CW_LOG_WARNING, "Bad write (%d/%d): %s\n", 
                  res, frame_size[pvt->rate], strerror(errno));
         return -1;
     }
@@ -238,11 +238,11 @@ static long g726_tell(void *data)
     return -1;
 }
 
-static struct opbx_format format40 =
+static struct cw_format format40 =
 {
     .name = "g726-40",
     .exts = "g726-40",
-    .format = OPBX_FORMAT_G726,
+    .format = CW_FORMAT_G726,
     .open = g726_40_open,
     .rewrite = g726_40_rewrite,
     .write = g726_write,
@@ -254,11 +254,11 @@ static struct opbx_format format40 =
     .getcomment = g726_getcomment,
 };
 
-static struct opbx_format format32 =
+static struct cw_format format32 =
 {
     .name = "g726-32",
     .exts = "g726-32",
-    .format = OPBX_FORMAT_G726,
+    .format = CW_FORMAT_G726,
     .open = g726_32_open,
     .rewrite = g726_32_rewrite,
     .write = g726_write,
@@ -270,11 +270,11 @@ static struct opbx_format format32 =
     .getcomment = g726_getcomment,
 };
 
-static struct opbx_format format24 =
+static struct cw_format format24 =
 {
     .name = "g726-24",
     .exts = "g726-24",
-    .format = OPBX_FORMAT_G726,
+    .format = CW_FORMAT_G726,
     .open = g726_24_open,
     .rewrite = g726_24_rewrite,
     .write = g726_write,
@@ -286,11 +286,11 @@ static struct opbx_format format24 =
     .getcomment = g726_getcomment,
 };
 
-static struct opbx_format format16 =
+static struct cw_format format16 =
 {
     .name = "g726-16",
     .exts = "g726-16",
-    .format = OPBX_FORMAT_G726,
+    .format = CW_FORMAT_G726,
     .open = g726_16_open,
     .rewrite = g726_16_rewrite,
     .write = g726_write,
@@ -307,19 +307,19 @@ static struct opbx_format format16 =
  */
 static int load_module(void)
 {
-    opbx_format_register(&format40);
-    opbx_format_register(&format32);
-    opbx_format_register(&format24);
-    opbx_format_register(&format16);
+    cw_format_register(&format40);
+    cw_format_register(&format32);
+    cw_format_register(&format24);
+    cw_format_register(&format16);
     return 0;
 }
 
 static int unload_module(void)
 {
-    opbx_format_unregister(&format40);
-    opbx_format_unregister(&format32);
-    opbx_format_unregister(&format24);
-    opbx_format_unregister(&format16);
+    cw_format_unregister(&format40);
+    cw_format_unregister(&format32);
+    cw_format_unregister(&format24);
+    cw_format_unregister(&format16);
     return 0;
 }
 

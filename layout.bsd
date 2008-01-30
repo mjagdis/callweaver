@@ -1,14 +1,14 @@
 # BSD directory layout
 helpstring="follow the BSD ports system convention"
-opbxprefix=/usr/local
-opbxexecdir=${prefix}/libexec
-opbxutilsdir=${prefix}/sbin
-opbxconfdir=${prefix}/etc/callweaver
-opbxlibdir=${prefix}/lib/callweaver
-opbxvardir=${prefix}/var/lib/callweaver
-opbxdatadir=${prefix}/share/callweaver
-opbxlogdir=${prefix}/var/log
-opbxrundir=${prefix}/var/run
-opbxspooldir=${prefix}/var/spool/callweaver
-opbxmandir=${prefix}/man
-opbxdocdir=${prefix}/share/doc/callweaver
+cwprefix=/usr/local
+cwexecdir=${prefix}/libexec
+cwutilsdir=${prefix}/sbin
+cwconfdir=${prefix}/etc/callweaver
+cwlibdir=${prefix}/lib/callweaver
+cwvardir=${prefix}/var/lib/callweaver
+cwdatadir=${prefix}/share/callweaver
+cwlogdir=${prefix}/var/log
+cwrundir=${prefix}/var/run
+cwspooldir=${prefix}/var/spool/callweaver
+cwmandir=${prefix}/man
+cwdocdir=${prefix}/share/doc/callweaver

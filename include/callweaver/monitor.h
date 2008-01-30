@@ -27,33 +27,33 @@
 
 #include "callweaver/channel.h"
 
-struct opbx_channel;
+struct cw_channel;
 
 /*! Responsible for channel monitoring data */
-struct opbx_channel_monitor
+struct cw_channel_monitor
 {
-	struct opbx_filestream *read_stream;
-	struct opbx_filestream *write_stream;
+	struct cw_filestream *read_stream;
+	struct cw_filestream *write_stream;
 	char read_filename[ FILENAME_MAX ];
 	char write_filename[ FILENAME_MAX ];
 	char filename_base[ FILENAME_MAX ];
 	int filename_changed;
 	char *format;
 	int joinfiles;
-	int (*stop)( struct opbx_channel *chan, int need_lock);
+	int (*stop)( struct cw_channel *chan, int need_lock);
 };
 
 /* Start monitoring a channel */
-extern int (*opbx_monitor_start)(	struct opbx_channel *chan, const char *format_spec,
+extern int (*cw_monitor_start)(	struct cw_channel *chan, const char *format_spec,
 						const char *fname_base, int need_lock );
 
 /* Stop monitoring a channel */
-extern int (*opbx_monitor_stop)( struct opbx_channel *chan, int need_lock);
+extern int (*cw_monitor_stop)( struct cw_channel *chan, int need_lock);
 
 /* Change monitoring filename of a channel */
-extern int (*opbx_monitor_change_fname)(	struct opbx_channel *chan,
+extern int (*cw_monitor_change_fname)(	struct cw_channel *chan,
 								const char *fname_base, int need_lock );
 
-extern void (*opbx_monitor_setjoinfiles)(struct opbx_channel *chan, int turnon);
+extern void (*cw_monitor_setjoinfiles)(struct cw_channel *chan, int turnon);
 
 #endif /* _CALLWEAVER_MONITOR_H */

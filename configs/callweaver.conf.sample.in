@@ -1,20 +1,20 @@
 [general]
 ;user to run callweaver (this can not be root/UID 0)
-cwrunuser => @opbxrunuser@
+cwrunuser => @cwrunuser@
 ;group to run callweaver (this can not be root wheel or GID 0)
-cwrungroup => @opbxrunuser@
+cwrungroup => @cwrunuser@
 
 [directories]
-cwetcdir => @opbxconfdir@
-cwmoddir => @opbxmoddir@:@opbxaddondir@
-cwvarlibdir => @opbxvardir@
-cwdbdir => @opbxdbdir@
-cwogidir => @opbxogidir@
-cwspooldir => @opbxspooldir@
-cwrundir => @opbxrundir@
-cwlogdir => @opbxlogdir@
-cwsoundsdir => @opbxsoundsdir@
-cwkeydir => @opbxkeydir@
+cwetcdir => @cwconfdir@
+cwmoddir => @cwmoddir@:@cwaddondir@
+cwvarlibdir => @cwvardir@
+cwdbdir => @cwdbdir@
+cwogidir => @cwogidir@
+cwspooldir => @cwspooldir@
+cwrundir => @cwrundir@
+cwlogdir => @cwlogdir@
+cwsoundsdir => @cwsoundsdir@
+cwkeydir => @cwkeydir@
 
 [options]
 systemname => mycallweaverbox
@@ -26,4 +26,4 @@ enableunsafeunload => no
 ;cwctlowner = root
 ;cwctlgroup = apache
 ;cwctl = callweaver.ctl
-;cwdb = @opbxdbfile@
+;cwdb = @cwdbfile@

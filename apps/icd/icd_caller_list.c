@@ -89,7 +89,7 @@ icd_caller_list *create_icd_caller_list(char *name, icd_config * data)
     assert(data != NULL);
     ICD_MALLOC(list, sizeof(icd_caller_list));
     if (list == NULL) {
-        opbx_log(OPBX_LOG_ERROR, "No memory available to create a new ICD Caller List\n");
+        cw_log(CW_LOG_ERROR, "No memory available to create a new ICD Caller List\n");
         return NULL;
     }
     list->allocated = 1;
@@ -124,7 +124,7 @@ icd_status destroy_icd_caller_list(icd_caller_list ** listp)
     that = (icd_list *) (*listp);
     vetoed = icd_event__notify(ICD_EVENT_DESTROY, NULL, that->dstry_fn, that->dstry_fn_extra);
     if (vetoed == ICD_EVETO) {
-        opbx_log(OPBX_LOG_NOTICE, "Destruction of ICD Caller List %s has been vetoed\n",
+        cw_log(CW_LOG_NOTICE, "Destruction of ICD Caller List %s has been vetoed\n",
             icd_caller_list__get_name(*listp));
         return ICD_EVETO;
     }
@@ -430,16 +430,16 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
 
     call_list = (icd_caller_list *) list;
 
-    //opbx_cli(fd,"\nDumping icd_caller list {\n");
+    //cw_cli(fd,"\nDumping icd_caller list {\n");
     //icd_list__standard_dump(list, verbosity, fd, ((void *)&skipconst));
-    //opbx_cli(fd,"       moh=%s\n", icd_caller_list__get_moh(call_list));
-    //opbx_cli(fd,"   context=%s\n", icd_caller_list__get_context(call_list));
-    //opbx_cli(fd,"  announce=%s\n", icd_caller_list__get_announce(call_list));
+    //cw_cli(fd,"       moh=%s\n", icd_caller_list__get_moh(call_list));
+    //cw_cli(fd,"   context=%s\n", icd_caller_list__get_context(call_list));
+    //cw_cli(fd,"  announce=%s\n", icd_caller_list__get_announce(call_list));
 
     /* TBD Print these as well (though don't descend on dist)
        icd_distributor *dist;
        int (*state_fn)(icd_caller *caller, int oldstate, int newstate);
-       int (*chan_fn)(icd_caller *caller, opbx_channel *chan);
+       int (*chan_fn)(icd_caller *caller, cw_channel *chan);
        int (*link_fn)(icd_caller *caller, icd_caller *associate);
        int (*bridge_fn)(icd_caller *caller, icd_caller *bridged_to);
        int (*authn_fn)(icd_caller *caller, int id);
@@ -447,7 +447,7 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
      */
 
     if (verbosity > 1) {
-        opbx_cli(fd, "    caller {\n");
+        cw_cli(fd, "    caller {\n");
         iter = icd_list__get_iterator(list);
         if (iter == NULL) {
             return ICD_ERESOURCE;
@@ -457,7 +457,7 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
             icd_caller__dump(caller, verbosity - 1, fd);
         }
         destroy_icd_list_iterator(&iter);
-        opbx_cli(fd, "    }\n");
+        cw_cli(fd, "    }\n");
     } else {
         iter = icd_list__get_iterator(list);
         if (iter == NULL) {

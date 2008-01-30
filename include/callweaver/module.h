@@ -36,18 +36,18 @@ extern "C" {
 struct module;
 
 
-#define OPBX_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
+#define CW_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 
 
 /*!
  * \brief Get a reference to a module
  */
-extern struct module *opbx_module_get(struct module *mod);
+extern struct module *cw_module_get(struct module *mod);
 
 /*!
  * \brief Put a reference to a module
  */
-extern void opbx_module_put(struct module *mod);
+extern void cw_module_put(struct module *mod);
 
 /*! 
  * \brief Load a module.
@@ -59,7 +59,7 @@ extern void opbx_module_put(struct module *mod);
  *
  * \return Zero on success, -1 on error.
  */
-int opbx_load_resource(const char *resource_name);
+int cw_load_resource(const char *resource_name);
 
 /*! 
  * \brief Unloads a module.
@@ -74,11 +74,11 @@ int opbx_load_resource(const char *resource_name);
  *
  * \return Zero on success, -1 on error.
  */
-int opbx_unload_resource(const char *resource_name, int hangup);
+int cw_unload_resource(const char *resource_name, int hangup);
 
 
-void opbx_loader_init(void);
-int opbx_loader_cli_init(void);
+void cw_loader_init(void);
+int cw_loader_cli_init(void);
 
 
 /*! 
@@ -95,7 +95,7 @@ int opbx_loader_cli_init(void);
  * found but cannot be reloaded, -1 if a reload operation is already in
  * progress, and 2 if the specfied module was found and reloaded.
  */
-int opbx_module_reload(const char *name);
+int cw_module_reload(const char *name);
 
 
 struct localuser;
@@ -152,7 +152,7 @@ struct modinfo {
 	/*! \brief Provides a description of the module. */
 	const char *description;
 
-	opbx_mutex_t localuser_lock;
+	cw_mutex_t localuser_lock;
 	struct localuser *localusers;
 	int localusecnt;
 };
@@ -176,7 +176,7 @@ extern struct modinfo *get_modinfo(void);
    they're in use at the time they have been requested to be removed */
 
 struct localuser {
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	struct localuser *next;
 };
 
@@ -191,18 +191,18 @@ struct localuser {
  *
  * \return nothing
  */
-static inline void opbx_module_user_add(struct modinfo *modinfo, struct opbx_channel *chan, struct localuser *u) {
-	opbx_mutex_lock(&modinfo->localuser_lock);
+static inline void cw_module_user_add(struct modinfo *modinfo, struct cw_channel *chan, struct localuser *u) {
+	cw_mutex_lock(&modinfo->localuser_lock);
 	u->chan = chan;
 	u->next = modinfo->localusers;
 	modinfo->localusers = u;
 	modinfo->localusecnt++;
-	opbx_mutex_unlock(&modinfo->localuser_lock);
+	cw_mutex_unlock(&modinfo->localuser_lock);
 }
 /*!
  * [DEPRECATED]
  * This macro adds a localuser to the list of users and increments the
- * usecount.  It expects a variable named \p chan of type \p opbx_channel in the
+ * usecount.  It expects a variable named \p chan of type \p cw_channel in the
  * current scope.
  *
  * \note This function dynamically allocates memory.  If this operation fails
@@ -210,10 +210,10 @@ static inline void opbx_module_user_add(struct modinfo *modinfo, struct opbx_cha
  */
 #define LOCAL_USER_ADD(u) { \
 	if (!(u = malloc(sizeof(*u)))) { \
-		opbx_log(OPBX_LOG_WARNING, "Out of memory\n"); \
+		cw_log(CW_LOG_WARNING, "Out of memory\n"); \
 		return -1; \
 	} \
-	opbx_module_user_add(get_modinfo(), chan, u); \
+	cw_module_user_add(get_modinfo(), chan, u); \
 }
 
 /*! 
@@ -224,9 +224,9 @@ static inline void opbx_module_user_add(struct modinfo *modinfo, struct opbx_cha
  * Removes a channel from the list of users and decrements the
  * usecount.
  */
-static inline void opbx_module_user_del(struct modinfo *modinfo, struct localuser *u) {
+static inline void cw_module_user_del(struct modinfo *modinfo, struct localuser *u) {
 	struct localuser **uc;
-	opbx_mutex_lock(&modinfo->localuser_lock);
+	cw_mutex_lock(&modinfo->localuser_lock);
 	for (uc = &modinfo->localusers; *uc; uc = &(*uc)->next) {
 		if (*uc == u) {
 			*uc = (*uc)->next;
@@ -234,7 +234,7 @@ static inline void opbx_module_user_del(struct modinfo *modinfo, struct localuse
 		}
 	}
 	modinfo->localusecnt--;
-	opbx_mutex_unlock(&modinfo->localuser_lock);
+	cw_mutex_unlock(&modinfo->localuser_lock);
 }
 /*!
  * [DEPRECATED]
@@ -242,7 +242,7 @@ static inline void opbx_module_user_del(struct modinfo *modinfo, struct localuse
  * usecount.
  */
 #define LOCAL_USER_REMOVE(u) { \
-	opbx_module_user_del(get_modinfo(), u); \
+	cw_module_user_del(get_modinfo(), u); \
 	free(u); \
 }
 

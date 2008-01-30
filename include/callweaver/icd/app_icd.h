@@ -131,25 +131,25 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
         icd_fieldset * outstanding_members);
 
 /* Adds a customer to the ICD system */
-int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Starts up an agent in the ICD system */
-int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Logs out an agent in the ICD system */
-int app_icd__logout_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Add an agent as a member to a queue */
-int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Remove an agent as a member of a queue */
-int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Agent callback login */
-int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* Customer callback login */
-int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
+int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* dunno where this belongs but useful every where : */
 int icd_instr(char *bigstr, char *smallstr, char delimit);

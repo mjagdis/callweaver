@@ -58,7 +58,7 @@ static const char exec_descrip[] =
 "app returns or a non-zero value if the app cannot be found.\n";
 
 
-static int exec_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int exec_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -68,7 +68,7 @@ static int exec_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 
 	/* Check and parse arguments */
 	if (argc > 0) {
-		s = opbx_strdupa(argv[0]);
+		s = cw_strdupa(argv[0]);
 		appname = strsep(&s, "(");
 		if (s) {
 			endargs = strrchr(s, ')');
@@ -77,7 +77,7 @@ static int exec_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			pbx_substitute_variables_helper(chan, s, args, sizeof(args));
 		}
 		if (appname)
-			res = opbx_function_exec_str(chan, opbx_hash_app_name(appname), appname, args, NULL, 0);
+			res = cw_function_exec_str(chan, cw_hash_app_name(appname), appname, args, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -88,13 +88,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(exec_app);
+	res |= cw_unregister_function(exec_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	exec_app = opbx_register_function(name_exec, exec_exec, exec_synopsis, exec_syntax, exec_descrip);
+	exec_app = cw_register_function(name_exec, exec_exec, exec_synopsis, exec_syntax, exec_descrip);
 	return 0;
 }
 

@@ -55,30 +55,30 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 
 
-static const char *format_registry_obj_name(struct opbx_object *obj)
+static const char *format_registry_obj_name(struct cw_object *obj)
 {
-	struct opbx_format *it = container_of(obj, struct opbx_format, obj);
+	struct cw_format *it = container_of(obj, struct cw_format, obj);
 	return it->name;
 }
 
-static int format_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+static int format_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 {
-	struct opbx_format *format_a = container_of(a, struct opbx_format, obj);
-	struct opbx_format *format_b = container_of(b, struct opbx_format, obj);
+	struct cw_format *format_a = container_of(a, struct cw_format, obj);
+	struct cw_format *format_b = container_of(b, struct cw_format, obj);
 
 	return strcmp(format_a->name, format_b->name);
 }
 
-struct opbx_registry format_registry = {
+struct cw_registry format_registry = {
 	.name = "Format",
 	.obj_name = format_registry_obj_name,
 	.obj_cmp = format_registry_obj_cmp,
-	.lock = OPBX_MUTEX_INIT_VALUE,
+	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-struct opbx_filestream {
-	struct opbx_format *fmt;
+struct cw_filestream {
+	struct cw_format *fmt;
 	void *pvt;
 	atomic_t running;
 	int flags;
@@ -86,13 +86,13 @@ struct opbx_filestream {
 	char *filename;
 	char *realfilename;
 	/* Video file stream */
-	struct opbx_filestream *vfs;
+	struct cw_filestream *vfs;
 	/* Transparently translate from another format -- just once */
-	struct opbx_trans_pvt *trans;
-	struct opbx_tranlator_pvt *tr;
+	struct cw_trans_pvt *trans;
+	struct cw_tranlator_pvt *tr;
 	int lastwriteformat;
 	int lasttimeout;
-	struct opbx_channel *owner;
+	struct cw_channel *owner;
 	/* Currently the generator instance is only used for video
 	 * streams, audio streams use the generator instance in the
 	 * channel struct. This is because channels are not currently
@@ -101,83 +101,83 @@ struct opbx_filestream {
 	 * (At the moment you cannot have a video stream unless there
 	 * is an accompanying audio stream)
 	 */
-	struct opbx_generator_instance generator;
+	struct cw_generator_instance generator;
 };
 
 
-int opbx_stopstream(struct opbx_channel *chan)
+int cw_stopstream(struct cw_channel *chan)
 {
-	struct opbx_filestream *fs;
+	struct cw_filestream *fs;
 
 	/* Stop a running stream if there is one */
 	if ((fs = chan->stream)) {
 		chan->stream = NULL;
 
-		opbx_generator_deactivate(&fs->owner->generator);
+		cw_generator_deactivate(&fs->owner->generator);
 		if (fs->vfs)
-			opbx_generator_deactivate(&fs->vfs->generator);
+			cw_generator_deactivate(&fs->vfs->generator);
 
-		if (chan->oldwriteformat && opbx_set_write_format(chan, chan->oldwriteformat))
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore format back to %d\n", chan->oldwriteformat);
+		if (chan->oldwriteformat && cw_set_write_format(chan, chan->oldwriteformat))
+			cw_log(CW_LOG_WARNING, "Unable to restore format back to %d\n", chan->oldwriteformat);
 
-		opbx_closestream(fs);
+		cw_closestream(fs);
 	}
 	return 0;
 }
 
-int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
+int cw_writestream(struct cw_filestream *fs, struct cw_frame *f)
 {
-	struct opbx_frame *trf;
+	struct cw_frame *trf;
 	int res = -1;
 	int alt=0;
-	if (f->frametype == OPBX_FRAME_VIDEO) {
-		if (fs->fmt->format < OPBX_FORMAT_MAX_AUDIO) {
+	if (f->frametype == CW_FRAME_VIDEO) {
+		if (fs->fmt->format < CW_FORMAT_MAX_AUDIO) {
 			/* This is the audio portion.  Call the video one... */
 			if (!fs->vfs && fs->filename) {
 				/* XXX Support other video formats XXX */
 				const char *type = "h263";
-				fs->vfs = opbx_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
-				opbx_log(OPBX_LOG_DEBUG, "Opened video output file\n");
+				fs->vfs = cw_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
+				cw_log(CW_LOG_DEBUG, "Opened video output file\n");
 			}
 			if (fs->vfs)
-				return opbx_writestream(fs->vfs, f);
+				return cw_writestream(fs->vfs, f);
 			/* Ignore */
 			return 0;				
 		} else {
 			/* Might / might not have mark set */
 			alt = 1;
 		}
-	} else if (f->frametype != OPBX_FRAME_VOICE) {
-		opbx_log(OPBX_LOG_WARNING, "Tried to write non-voice frame\n");
+	} else if (f->frametype != CW_FRAME_VOICE) {
+		cw_log(CW_LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
 	}
 	if (((fs->fmt->format | alt) & f->subclass) == f->subclass) {
 		res =  fs->fmt->write(fs->pvt, f);
 		if (res < 0) 
-			opbx_log(OPBX_LOG_WARNING, "Natural write failed\n");
+			cw_log(CW_LOG_WARNING, "Natural write failed\n");
 		if (res > 0)
-			opbx_log(OPBX_LOG_WARNING, "Huh??\n");
+			cw_log(CW_LOG_WARNING, "Huh??\n");
 		return res;
 	} else {
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
 		       the one we've setup a translator for, we do the "wrong thing" XXX */
 		if (fs->trans && (f->subclass != fs->lastwriteformat)) {
-			opbx_translator_free_path(fs->trans);
+			cw_translator_free_path(fs->trans);
 			fs->trans = NULL;
 		}
 		if (!fs->trans) 
-			fs->trans = opbx_translator_build_path(fs->fmt->format, 8000, f->subclass, 8000);
+			fs->trans = cw_translator_build_path(fs->fmt->format, 8000, f->subclass, 8000);
 		if (!fs->trans)
-			opbx_log(OPBX_LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, opbx_getformatname(f->subclass));
+			cw_log(CW_LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, cw_getformatname(f->subclass));
 		else {
 			fs->lastwriteformat = f->subclass;
 			res = 0;
 			/* Get the translated frame but don't consume the original in case they're using it on another stream */
-			trf = opbx_translate(fs->trans, f, 0);
+			trf = cw_translate(fs->trans, f, 0);
 			if (trf) {
 				res = fs->fmt->write(fs->pvt, trf);
 				if (res) 
-					opbx_log(OPBX_LOG_WARNING, "Translated frame write failed\n");
+					cw_log(CW_LOG_WARNING, "Translated frame write failed\n");
 			} else
 				res = 0;
 		}
@@ -194,18 +194,18 @@ static int copy(const char *infile, const char *outfile)
 	char buf[4096];
 
 	if ((ifd = open(infile, O_RDONLY)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+		cw_log(CW_LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
 		return -1;
 	}
 	if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+		cw_log(CW_LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
 		close(ifd);
 		return -1;
 	}
 	do {
 		len = read(ifd, buf, sizeof(buf));
 		if (len < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+			cw_log(CW_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
 			close(ifd);
 			close(ofd);
 			unlink(outfile);
@@ -213,7 +213,7 @@ static int copy(const char *infile, const char *outfile)
 		if (len) {
 			res = write(ofd, buf, len);
 			if (res != len) {
-				opbx_log(OPBX_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+				cw_log(CW_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
 				close(ifd);
 				close(ofd);
 				unlink(outfile);
@@ -231,9 +231,9 @@ static char *build_filename(const char *filename, const char *ext)
 	int fnsize = 0;
 
 	if (!strcmp(ext, "wav49")) {
-		opbx_copy_string(type, "WAV", sizeof(type));
+		cw_copy_string(type, "WAV", sizeof(type));
 	} else {
-		opbx_copy_string(type, ext, sizeof(type));
+		cw_copy_string(type, ext, sizeof(type));
 	}
 
 	if (filename[0] == '/') {
@@ -242,10 +242,10 @@ static char *build_filename(const char *filename, const char *ext)
 		if (fn)
 			snprintf(fn, fnsize, "%s.%s", filename, type);
 	} else {
-		fnsize = strlen(opbx_config_OPBX_SOUNDS_DIR) + strlen(filename) + strlen(type) + 3;
+		fnsize = strlen(cw_config_CW_SOUNDS_DIR) + strlen(filename) + strlen(type) + 3;
 		fn = malloc(fnsize);
 		if (fn)
-			snprintf(fn, fnsize, "%s/%s.%s", opbx_config_OPBX_SOUNDS_DIR, filename, type);
+			snprintf(fn, fnsize, "%s/%s.%s", cw_config_CW_SOUNDS_DIR, filename, type);
 	}
 
 	return fn;
@@ -256,7 +256,7 @@ static int exts_compare(const char *exts, const char *type)
 	char *stringp = NULL, *ext;
 	char tmp[256];
 
-	opbx_copy_string(tmp, exts, sizeof(tmp));
+	cw_copy_string(tmp, exts, sizeof(tmp));
 	stringp = tmp;
 	while ((ext = strsep(&stringp, "|,"))) {
 		if (!strcmp(ext, type)) {
@@ -280,14 +280,14 @@ struct filehelper_args {
 	int res;
 };
 
-static int filehelper_one(struct opbx_object *obj, void *data)
+static int filehelper_one(struct cw_object *obj, void *data)
 {
-	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct cw_format *f = container_of(obj, struct cw_format, obj);
 	struct filehelper_args *args = data;
 
 	/* Check for a specific format */
 	if (!args->fmt || exts_compare(f->exts, args->fmt)) {
-		char *exts = opbx_strdupa(f->exts);
+		char *exts = cw_strdupa(f->exts);
 		char *ext;
 		/* Try each kind of extension */
 		for (ext = strsep(&exts, "|,"); ext; ext = strsep(&exts, "|,")) {
@@ -303,35 +303,35 @@ static int filehelper_one(struct opbx_object *obj, void *data)
 					case ACTION_DELETE:
 						if (unlink(fn)) {
 							args->res = -1;
-							opbx_log(OPBX_LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
+							cw_log(CW_LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
 						}
 						break;
 					case ACTION_RENAME:
 						if ((nfn = build_filename(args->filename2, ext))) {
 							if (rename(fn, nfn)) {
 								args->res = -1;
-								opbx_log(OPBX_LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+								cw_log(CW_LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 							}
 							free(nfn);
 						} else {
 							args->res = -1;
-							opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+							cw_log(CW_LOG_WARNING, "Out of memory\n");
 						}
 						break;
 					case ACTION_COPY:
 						if ((nfn = build_filename(args->filename2, ext))) {
 							if (copy(fn, nfn)) {
 								args->res = -1;
-								opbx_log(OPBX_LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+								cw_log(CW_LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 							}
 							free(nfn);
 						} else {
 							args->res = -1;
-							opbx_log(OPBX_LOG_WARNING, "Out of memory\n");
+							cw_log(CW_LOG_WARNING, "Out of memory\n");
 						}
 						break;
 					default:
-						opbx_log(OPBX_LOG_WARNING, "Unknown helper %d\n", args->action);
+						cw_log(CW_LOG_WARNING, "Unknown helper %d\n", args->action);
 						break;
 					}
 				}
@@ -343,37 +343,37 @@ static int filehelper_one(struct opbx_object *obj, void *data)
 	return 0;
 }
 
-static int opbx_filehelper(const char *filename, const char *filename2, const char *fmt, int action)
+static int cw_filehelper(const char *filename, const char *filename2, const char *fmt, int action)
 {
 	struct filehelper_args args = {
 		filename, filename2, fmt, action, 0
 	};
 
 	args.res = (action == ACTION_EXISTS ? 0 : -1);
-	opbx_registry_iterate(&format_registry, filehelper_one, &args);
+	cw_registry_iterate(&format_registry, filehelper_one, &args);
 	return args.res;
 }
 
 
 struct fileopen_args {
 	const char *filename;
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	const char *fmt;
-	struct opbx_filestream *s;
+	struct cw_filestream *s;
 };
 
-static int fileopen_one(struct opbx_object *obj, void *data)
+static int fileopen_one(struct cw_object *obj, void *data)
 {
-	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct cw_format *f = container_of(obj, struct cw_format, obj);
 	struct fileopen_args *args = data;
 	FILE *bfile;
 
-	if (args->chan && (!(args->chan->writeformat & f->format) && !((f->format >= OPBX_FORMAT_MAX_AUDIO) && args->fmt)))
+	if (args->chan && (!(args->chan->writeformat & f->format) && !((f->format >= CW_FORMAT_MAX_AUDIO) && args->fmt)))
 		return 0;
 
 	/* Check for a specific format */
 	if (!args->fmt || exts_compare(f->exts, args->fmt)) {
-		char *exts = opbx_strdupa(f->exts);
+		char *exts = cw_strdupa(f->exts);
 		char *ext;
 		/* Try each kind of extension */
 		for (ext = strsep(&exts, "|,"); ext; ext = strsep(&exts, "|,")) {
@@ -381,7 +381,7 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 			if ((fn = build_filename(args->filename, ext))) {
 				if ((bfile = fopen(fn, "r"))) {
 					if ((args->s->pvt = f->open(bfile))) {
-						args->s->fmt = opbx_object_dup(f);
+						args->s->fmt = cw_object_dup(f);
 						args->s->owner = args->chan;
 						args->s->lasttimeout = -1;
 						free(fn);
@@ -397,7 +397,7 @@ static int fileopen_one(struct opbx_object *obj, void *data)
 	return 0;
 }
 
-static struct opbx_filestream *opbx_fileopen(struct opbx_channel *chan, const char *filename, const char *fmt)
+static struct cw_filestream *cw_fileopen(struct cw_channel *chan, const char *filename, const char *fmt)
 {
 	struct fileopen_args args = {
 		.filename = filename,
@@ -406,13 +406,13 @@ static struct opbx_filestream *opbx_fileopen(struct opbx_channel *chan, const ch
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);
-	args.s->generator.tid = OPBX_PTHREADT_NULL;
+	args.s->generator.tid = CW_PTHREADT_NULL;
 
-	opbx_registry_iterate(&format_registry, fileopen_one, &args);
+	cw_registry_iterate(&format_registry, fileopen_one, &args);
 	if (args.s->fmt)
 		return args.s;
 
@@ -421,12 +421,12 @@ static struct opbx_filestream *opbx_fileopen(struct opbx_channel *chan, const ch
 }
 
 
-struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *filename, const char *preflang)
+struct cw_filestream *cw_openstream(struct cw_channel *chan, const char *filename, const char *preflang)
 {
-	return opbx_openstream_full(chan, filename, preflang, 0);
+	return cw_openstream_full(chan, filename, preflang, 0);
 }
 
-struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis)
+struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *filename, const char *preflang, int asis)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -447,24 +447,24 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 
 	if (!asis) {
 		/* do this first, otherwise we detect the wrong writeformat */
-		opbx_stopstream(chan);
-		opbx_generator_deactivate(&chan->generator);
+		cw_stopstream(chan);
+		cw_generator_deactivate(&chan->generator);
 	}
-	if (opbx_strlen_zero(preflang)) {
+	if (cw_strlen_zero(preflang)) {
 		preflang = DEFAULT_LANGUAGE;
 	}
 
 	/* Verify custom prompt first so it override default one */
 	snprintf(filename2, sizeof(filename2), "%s-custom/%s", preflang, filename);
-	fmts = opbx_fileexists(filename2, NULL, NULL);
-	if (!fmts && preflang && !opbx_strlen_zero(preflang)) {
+	fmts = cw_fileexists(filename2, NULL, NULL);
+	if (!fmts && preflang && !cw_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
-		fmts = opbx_fileexists(filename2, NULL, NULL);
+		fmts = cw_fileexists(filename2, NULL, NULL);
 	}
 				
 	
 	/* previous way to check sounds location (to keep backward compability, including voicemail) */
-	if (!fmts && preflang && !opbx_strlen_zero(preflang)) {
+	if (!fmts && preflang && !cw_strlen_zero(preflang)) {
 		strncpy(filename3, filename, sizeof(filename3) - 1);
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
@@ -475,25 +475,25 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 
 		strncpy(filename2, filename, sizeof(filename2)-1);
-		fmts = opbx_fileexists(filename2, NULL, NULL);
+		fmts = cw_fileexists(filename2, NULL, NULL);
 	}
 	if (!fmts) {
-		opbx_log(OPBX_LOG_WARNING, "File %s does not exist in any format\n", filename);
+		cw_log(CW_LOG_WARNING, "File %s does not exist in any format\n", filename);
 		return NULL;
 	}
 	chan->oldwriteformat = chan->writeformat;
 	/* Set the channel to a format we can work with */
-	res = opbx_set_write_format(chan, fmts);
+	res = cw_set_write_format(chan, fmts);
 	
- 	chan->stream = opbx_fileopen(chan, filename2, NULL);
+ 	chan->stream = cw_fileopen(chan, filename2, NULL);
 	if (chan->stream)
 		return chan->stream;
 
-	opbx_set_write_format(chan, chan->oldwriteformat);
+	cw_set_write_format(chan, chan->oldwriteformat);
 	return NULL;
 }
 
-static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang)
+static struct cw_filestream *cw_openvstream(struct cw_channel *chan, const char *filename, const char *preflang)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -511,37 +511,37 @@ static struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
-	struct opbx_filestream *fs;
+	struct cw_filestream *fs;
 	int fmts = 0;
 
-	if (!opbx_strlen_zero(preflang)) {
+	if (!cw_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
-		fmts = opbx_fileexists(filename2, fmt, NULL);
+		fmts = cw_fileexists(filename2, fmt, NULL);
 		if (!fmts) {
-			opbx_copy_string(lang2, preflang, sizeof(lang2));
+			cw_copy_string(lang2, preflang, sizeof(lang2));
 			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
-			fmts = opbx_fileexists(filename2, fmt, NULL);
+			fmts = cw_fileexists(filename2, fmt, NULL);
 		}
 	}
 	if (!fmts) {
-		opbx_copy_string(filename2, filename, sizeof(filename2));
-		fmts = opbx_fileexists(filename2, fmt, NULL);
+		cw_copy_string(filename2, filename, sizeof(filename2));
+		fmts = cw_fileexists(filename2, fmt, NULL);
 	}
 	if (!fmts) {
 		return NULL;
 	}
 
- 	fs = opbx_fileopen(chan, filename2, fmt);
+ 	fs = cw_fileopen(chan, filename2, fmt);
 	if (fs)
 		return fs;
 
-	opbx_log(OPBX_LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
+	cw_log(CW_LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
 }
 
-struct opbx_frame *opbx_readframe(struct opbx_filestream *s)
+struct cw_frame *cw_readframe(struct cw_filestream *s)
 {
-	struct opbx_frame *f = NULL;
+	struct cw_frame *f = NULL;
 	int whennext = 0;	
 	if (s && s->fmt)
 		f = s->fmt->read(s->pvt, &whennext);
@@ -549,23 +549,23 @@ struct opbx_frame *opbx_readframe(struct opbx_filestream *s)
 }
 
 
-static void filestream_release(struct opbx_channel *chan, void *params)
+static void filestream_release(struct cw_channel *chan, void *params)
 {
-//	struct opbx_filestream *fs = params;
+//	struct cw_filestream *fs = params;
 }
 
-static void *filestream_alloc(struct opbx_channel *chan, void *params)
+static void *filestream_alloc(struct cw_channel *chan, void *params)
 {
-	struct opbx_filestream *fs = params;
+	struct cw_filestream *fs = params;
 
 	atomic_inc(&fs->running);
 	return fs;
 }
 
-static struct opbx_frame *filestream_generate(struct opbx_channel *chan, void *data, int samples)
+static struct cw_frame *filestream_generate(struct cw_channel *chan, void *data, int samples)
 {
-	struct opbx_filestream *fs = data;
-	struct opbx_frame *f;
+	struct cw_filestream *fs = data;
+	struct cw_frame *f;
 	int whennext = 0;
 
 	f = fs->fmt->read(fs->pvt, &whennext);
@@ -574,7 +574,7 @@ static struct opbx_frame *filestream_generate(struct opbx_channel *chan, void *d
 	return f;
 }
 
-static struct opbx_generator filestream_generator =
+static struct cw_generator filestream_generator =
 {
 	alloc: filestream_alloc,
 	release: filestream_release,
@@ -582,61 +582,61 @@ static struct opbx_generator filestream_generator =
 };
 
 
-int opbx_playstream(struct opbx_filestream *fs)
+int cw_playstream(struct cw_filestream *fs)
 {
 	if (fs->vfs)
-		opbx_generator_activate(fs->vfs->owner, &fs->vfs->generator, &filestream_generator, fs->vfs);
-	opbx_generator_activate(fs->owner, &fs->owner->generator, &filestream_generator, fs);
+		cw_generator_activate(fs->vfs->owner, &fs->vfs->generator, &filestream_generator, fs->vfs);
+	cw_generator_activate(fs->owner, &fs->owner->generator, &filestream_generator, fs);
 	return 0;
 }
 
-int opbx_seekstream(struct opbx_filestream *fs, long sample_offset, int whence)
+int cw_seekstream(struct cw_filestream *fs, long sample_offset, int whence)
 {
 	return fs->fmt->seek(fs->pvt, sample_offset, whence);
 }
 
-int opbx_truncstream(struct opbx_filestream *fs)
+int cw_truncstream(struct cw_filestream *fs)
 {
 	return fs->fmt->trunc(fs->pvt);
 }
 
-long opbx_tellstream(struct opbx_filestream *fs)
+long cw_tellstream(struct cw_filestream *fs)
 {
 	return fs->fmt->tell(fs->pvt);
 }
 
-int opbx_stream_fastforward(struct opbx_filestream *fs, long ms)
+int cw_stream_fastforward(struct cw_filestream *fs, long ms)
 {
 	/* I think this is right, 8000 samples per second, 1000 ms a second so 8
 	 * samples per ms  */
 	long samples = ms * 8;
-	return opbx_seekstream(fs, samples, SEEK_CUR);
+	return cw_seekstream(fs, samples, SEEK_CUR);
 }
 
-int opbx_stream_rewind(struct opbx_filestream *fs, long ms)
+int cw_stream_rewind(struct cw_filestream *fs, long ms)
 {
 	long samples = ms * 8;
 	samples = samples * -1;
-	return opbx_seekstream(fs, samples, SEEK_CUR);
+	return cw_seekstream(fs, samples, SEEK_CUR);
 }
 
-int opbx_closestream(struct opbx_filestream *f)
+int cw_closestream(struct cw_filestream *f)
 {
 	char *cmd = NULL;
 	size_t size = 0;
 
 	if (f->vfs)
-		opbx_closestream(f->vfs);
+		cw_closestream(f->vfs);
 
 	if (f->trans)
-		opbx_translator_free_path(f->trans);
+		cw_translator_free_path(f->trans);
 
 	if (f->realfilename && f->filename) {
 		size = strlen(f->filename) + strlen(f->realfilename) + 15;
 		cmd = alloca(size);
 		memset(cmd,0,size);
 		snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
-		opbx_safe_system(cmd);
+		cw_safe_system(cmd);
 	}
 
 	if (f->filename)
@@ -645,13 +645,13 @@ int opbx_closestream(struct opbx_filestream *f)
 		free(f->realfilename);
 
 	f->fmt->close(f->pvt);
-	opbx_object_put(f->fmt);
+	cw_object_put(f->fmt);
 	free(f);
 	return 0;
 }
 
 
-int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
+int cw_fileexists(const char *filename, const char *fmt, const char *preflang)
 {
 	char filename2[256];
 	char tmp[256];
@@ -661,9 +661,9 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 	char lang2[MAX_LANGUAGE];
 	int res = 0;
 
-	if (!opbx_strlen_zero(preflang)) {
+	if (!cw_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
-		opbx_copy_string(tmp, filename, sizeof(tmp));
+		cw_copy_string(tmp, filename, sizeof(tmp));
 		c = strrchr(tmp, '/');
 		if (c) {
 			*c = '\0';
@@ -675,69 +675,69 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 			prefix="";
 			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, postfix);
 		}
-		res = opbx_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
+		res = cw_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res == 0) {
 			char *stringp=NULL;
-			opbx_copy_string(lang2, preflang, sizeof(lang2));
+			cw_copy_string(lang2, preflang, sizeof(lang2));
 			stringp=lang2;
 			strsep(&stringp, "_");
 			/* If language is a specific locality of a language (like es_MX), strip the locality and try again */
 			if (strcmp(lang2, preflang)) {
-				if (opbx_strlen_zero(prefix)) {
+				if (cw_strlen_zero(prefix)) {
 					snprintf(filename2, sizeof(filename2), "%s/%s", lang2, postfix);
 				} else {
 					snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
 				}
-				res = opbx_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
+				res = cw_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 			}
 		}
 	}
 
 	/* Fallback to no language (usually winds up being American English) */
 	if (res == 0) {
-		res = opbx_filehelper(filename, NULL, fmt, ACTION_EXISTS);
+		res = cw_filehelper(filename, NULL, fmt, ACTION_EXISTS);
 	}
 	return res;
 }
 
-int opbx_filedelete(const char *filename, const char *fmt)
+int cw_filedelete(const char *filename, const char *fmt)
 {
-	return opbx_filehelper(filename, NULL, fmt, ACTION_DELETE);
+	return cw_filehelper(filename, NULL, fmt, ACTION_DELETE);
 }
 
-int opbx_filerename(const char *filename, const char *filename2, const char *fmt)
+int cw_filerename(const char *filename, const char *filename2, const char *fmt)
 {
-	return opbx_filehelper(filename, filename2, fmt, ACTION_RENAME);
+	return cw_filehelper(filename, filename2, fmt, ACTION_RENAME);
 }
 
-int opbx_filecopy(const char *filename, const char *filename2, const char *fmt)
+int cw_filecopy(const char *filename, const char *filename2, const char *fmt)
 {
-	return opbx_filehelper(filename, filename2, fmt, ACTION_COPY);
+	return cw_filehelper(filename, filename2, fmt, ACTION_COPY);
 }
 
-int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char *preflang)
+int cw_streamfile(struct cw_channel *chan, const char *filename, const char *preflang)
 {
-	struct opbx_filestream *fs;
+	struct cw_filestream *fs;
 
-	fs = opbx_openstream(chan, filename, preflang);
-	fs->vfs = opbx_openvstream(chan, filename, preflang);
+	fs = cw_openstream(chan, filename, preflang);
+	fs->vfs = cw_openvstream(chan, filename, preflang);
 	if (fs->vfs)
-		opbx_log(OPBX_LOG_DEBUG, "Ooh, found a video stream, too\n");
+		cw_log(CW_LOG_DEBUG, "Ooh, found a video stream, too\n");
 	if (fs){
-		if (opbx_playstream(fs))
+		if (cw_playstream(fs))
 			return -1;
 #if 1
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Playing '%s' (language '%s')\n", filename, preflang ? preflang : "default");
+			cw_verbose(VERBOSE_PREFIX_3 "Playing '%s' (language '%s')\n", filename, preflang ? preflang : "default");
 #endif
 		return 0;
 	}
-	opbx_log(OPBX_LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, opbx_getformatname(chan->nativeformats), strerror(errno));
+	cw_log(CW_LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, cw_getformatname(chan->nativeformats), strerror(errno));
 	return -1;
 }
 
 
-struct opbx_filestream *opbx_readfile(const char *filename, const char *fmt, const char *comment, int flags, int check, mode_t mode)
+struct cw_filestream *cw_readfile(const char *filename, const char *fmt, const char *comment, int flags, int check, mode_t mode)
 {
 	struct fileopen_args args = {
 		.filename = filename,
@@ -745,13 +745,13 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *fmt, con
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);
-	args.s->generator.tid = OPBX_PTHREADT_NULL;
+	args.s->generator.tid = CW_PTHREADT_NULL;
 
-	opbx_registry_iterate(&format_registry, fileopen_one, &args);
+	cw_registry_iterate(&format_registry, fileopen_one, &args);
 	if (args.s->fmt)
 		return args.s;
 
@@ -766,12 +766,12 @@ struct writefile_args {
 	const char *comment;
 	int flags, myflags;
 	mode_t mode;
-	struct opbx_filestream *s;
+	struct cw_filestream *s;
 };
 
-static int writefile_one(struct opbx_object *obj, void *data)
+static int writefile_one(struct cw_object *obj, void *data)
 {
-	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct cw_format *f = container_of(obj, struct cw_format, obj);
 	struct writefile_args *args = data;
 	/* compiler claims this variable can be used before initialization... */
 	FILE *bfile = NULL;
@@ -786,7 +786,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 				/* fdopen() the resulting file stream */
 				bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
 				if (!bfile) {
-					opbx_log(OPBX_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+					cw_log(CW_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
 					close(fd);
 					fd = -1;
 				}
@@ -800,7 +800,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 				  We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
 				  What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
 				*/
-				orig_fn = opbx_strdupa(fn);
+				orig_fn = cw_strdupa(fn);
 				for (c = fn; *c; c++)
 					if (*c == '/')
 						*c = '_';
@@ -817,7 +817,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					/* fdopen() the resulting file stream */
 					bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
 					if (!bfile) {
-						opbx_log(OPBX_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+						cw_log(CW_LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
 						close(fd);
 						fd = -1;
 					}
@@ -825,7 +825,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 			}
 			if (fd > -1) {
 				if ((args->s->pvt = f->rewrite(bfile, args->comment))) {
-					args->s->fmt = opbx_object_dup(f);
+					args->s->fmt = cw_object_dup(f);
 					args->s->trans = NULL;
 					args->s->flags = args->flags;
 					args->s->mode = args->mode;
@@ -838,7 +838,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					}
 					args->s->vfs = NULL;
 				} else {
-					opbx_log(OPBX_LOG_WARNING, "Unable to rewrite %s\n", fn);
+					cw_log(CW_LOG_WARNING, "Unable to rewrite %s\n", fn);
 					close(fd);
 					if (orig_fn) {
 						unlink(fn);
@@ -846,7 +846,7 @@ static int writefile_one(struct opbx_object *obj, void *data)
 					}
 				}
 			} else if (errno != EEXIST) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+				cw_log(CW_LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
 				if (orig_fn)
 					unlink(orig_fn);
 			}
@@ -854,14 +854,14 @@ static int writefile_one(struct opbx_object *obj, void *data)
 			if (!buf)
 				free(fn);
 		} else
-			opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return 1;
 	}
 
 	return 0;
 }
 
-struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
+struct cw_filestream *cw_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	struct writefile_args args = {
 		.filename = filename,
@@ -873,11 +873,11 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		opbx_log(OPBX_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);
-	args.s->generator.tid = OPBX_PTHREADT_NULL;
+	args.s->generator.tid = CW_PTHREADT_NULL;
 
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified
 	 * We really can't use O_APPEND as it will break WAV header updates
@@ -887,74 +887,74 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	else
 		args.myflags |= O_TRUNC;
 
-	opbx_registry_iterate(&format_registry, writefile_one, &args);
+	cw_registry_iterate(&format_registry, writefile_one, &args);
 
 	if (args.s->fmt)
 		return args.s;
 
-	opbx_log(OPBX_LOG_WARNING, "No such format '%s'\n", type);
+	cw_log(CW_LOG_WARNING, "No such format '%s'\n", type);
 	return NULL;
 }
 
 
-int opbx_waitstream(struct opbx_channel *c, const char *breakon)
+int cw_waitstream(struct cw_channel *c, const char *breakon)
 {
-	/* XXX Maybe I should just front-end opbx_waitstream_full ? XXX */
+	/* XXX Maybe I should just front-end cw_waitstream_full ? XXX */
 	int res;
-	struct opbx_frame *fr;
+	struct cw_frame *fr;
 
 	if (!breakon)
 		breakon = "";
 
 	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
-		res = opbx_waitfor(c, 10000);
+		res = cw_waitfor(c, 10000);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else if (res > 0) {
-			fr = opbx_read(c);
+			fr = cw_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
+				cw_log(CW_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
 			
 			switch(fr->frametype) {
-			case OPBX_FRAME_DTMF:
+			case CW_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(breakon, res)) {
-					opbx_fr_free(fr);
+					cw_fr_free(fr);
 					return res;
 				}
 				break;
-			case OPBX_FRAME_CONTROL:
+			case CW_FRAME_CONTROL:
 				switch(fr->subclass) {
-				case OPBX_CONTROL_HANGUP:
-                                case OPBX_CONTROL_BUSY:
-                                case OPBX_CONTROL_CONGESTION:
-					opbx_fr_free(fr);
+				case CW_CONTROL_HANGUP:
+                                case CW_CONTROL_BUSY:
+                                case CW_CONTROL_CONGESTION:
+					cw_fr_free(fr);
 					return -1;
-				case OPBX_CONTROL_RINGING:
-				case OPBX_CONTROL_ANSWER:
-				case OPBX_CONTROL_VIDUPDATE:
+				case CW_CONTROL_RINGING:
+				case CW_CONTROL_ANSWER:
+				case CW_CONTROL_VIDUPDATE:
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */
-			opbx_fr_free(fr);
+			cw_fr_free(fr);
 		}
 	}
 	return (c->_softhangup ? -1 : 0);
 }
 
-int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)
+int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)
 {
 	int res;
-	struct opbx_frame *fr;
+	struct cw_frame *fr;
 
 	if (!breakon)
 		breakon = "";
@@ -964,171 +964,171 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 		rewind = "";
 	
 	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
-		res = opbx_waitfor(c, 10000);
+		res = cw_waitfor(c, 10000);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else if (res > 0) {
-			fr = opbx_read(c);
+			fr = cw_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
+				cw_log(CW_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
 			
 			switch(fr->frametype) {
-			case OPBX_FRAME_DTMF:
+			case CW_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(forward,res)) {
-					opbx_stream_fastforward(c->stream, ms);
+					cw_stream_fastforward(c->stream, ms);
 				} else if (strchr(rewind,res)) {
-					opbx_stream_rewind(c->stream, ms);
+					cw_stream_rewind(c->stream, ms);
 				} else if (strchr(breakon, res)) {
-					opbx_fr_free(fr);
+					cw_fr_free(fr);
 					return res;
 				}					
 				break;
-			case OPBX_FRAME_CONTROL:
+			case CW_FRAME_CONTROL:
 				switch(fr->subclass) {
-			    	case OPBX_CONTROL_HANGUP:
-                                case OPBX_CONTROL_BUSY:
-                                case OPBX_CONTROL_CONGESTION:
-					opbx_fr_free(fr);
+			    	case CW_CONTROL_HANGUP:
+                                case CW_CONTROL_BUSY:
+                                case CW_CONTROL_CONGESTION:
+					cw_fr_free(fr);
 					return -1;
-				case OPBX_CONTROL_RINGING:
-				case OPBX_CONTROL_ANSWER:
+				case CW_CONTROL_RINGING:
+				case CW_CONTROL_ANSWER:
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */
-			opbx_fr_free(fr);
+			cw_fr_free(fr);
 		}
 	}
 	return (c->_softhangup ? -1 : 0);
 }
 
-int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiofd, int cmdfd)
+int cw_waitstream_full(struct cw_channel *c, const char *breakon, int audiofd, int cmdfd)
 {
 	int res;
 	int ms;
 	int outfd;
-	struct opbx_frame *fr;
-	struct opbx_channel *rchan;
+	struct cw_frame *fr;
+	struct cw_channel *rchan;
 
 	if (!breakon)
 		breakon = "";
 	
 	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		ms = 10000;
-		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
+		rchan = cw_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
 			/* Continue */
 			if (errno == EINTR)
 				continue;
-			opbx_log(OPBX_LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		} else if (outfd > -1) {
 			/* The FD we were watching has something waiting */
 			return 1;
 		} else if (rchan) {
-			fr = opbx_read(c);
+			fr = cw_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
+				cw_log(CW_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
 			
 			switch(fr->frametype) {
-			case OPBX_FRAME_DTMF:
+			case CW_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(breakon, res)) {
-					opbx_fr_free(fr);
+					cw_fr_free(fr);
 					return res;
 				}
 				break;
-			case OPBX_FRAME_CONTROL:
+			case CW_FRAME_CONTROL:
 				switch(fr->subclass) {
-				case OPBX_CONTROL_HANGUP:
-                                case OPBX_CONTROL_BUSY:
-                                case OPBX_CONTROL_CONGESTION:
-					opbx_fr_free(fr);
+				case CW_CONTROL_HANGUP:
+                                case CW_CONTROL_BUSY:
+                                case CW_CONTROL_CONGESTION:
+					cw_fr_free(fr);
 					return -1;
-				case OPBX_CONTROL_RINGING:
-				case OPBX_CONTROL_ANSWER:
+				case CW_CONTROL_RINGING:
+				case CW_CONTROL_ANSWER:
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
-			case OPBX_FRAME_VOICE:
+			case CW_FRAME_VOICE:
 				/* Write audio if appropriate */
 				if (audiofd > -1)
 					write(audiofd, fr->data, fr->datalen);
 			}
 			/* Ignore */
-			opbx_fr_free(fr);
+			cw_fr_free(fr);
 		}
 	}
 	return (c->_softhangup ? -1 : 0);
 }
 
-int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
+int cw_waitstream_exten(struct cw_channel *c, const char *context)
 {
 	/* Waitstream, with return in the case of a valid 1 digit extension */
 	/* in the current or specified context being pressed */
-	/* XXX Maybe I should just front-end opbx_waitstream_full ? XXX */
+	/* XXX Maybe I should just front-end cw_waitstream_full ? XXX */
 	int res;
-	struct opbx_frame *fr;
-	char exten[OPBX_MAX_EXTENSION];
+	struct cw_frame *fr;
+	char exten[CW_MAX_EXTENSION];
 
 	if (!context)
 		context = c->context;
 
 	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
-		res = opbx_waitfor(c, 10000);
+		res = cw_waitfor(c, 10000);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
 		} else if (res > 0) {
-			fr = opbx_read(c);
+			fr = cw_read(c);
 			if (!fr) {
 #if 0
-				opbx_log(OPBX_LOG_DEBUG, "Got hung up\n");
+				cw_log(CW_LOG_DEBUG, "Got hung up\n");
 #endif
 				return -1;
 			}
 			
 			switch(fr->frametype) {
-			case OPBX_FRAME_DTMF:
+			case CW_FRAME_DTMF:
 				res = fr->subclass;
 				snprintf(exten, sizeof(exten), "%c", res);
-				if (opbx_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
-					opbx_fr_free(fr);
+				if (cw_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
+					cw_fr_free(fr);
 					return res;
 				}
 				break;
-			case OPBX_FRAME_CONTROL:
+			case CW_FRAME_CONTROL:
 				switch(fr->subclass) {
-				case OPBX_CONTROL_HANGUP:
-                                case OPBX_CONTROL_BUSY:
-                                case OPBX_CONTROL_CONGESTION:
-					opbx_fr_free(fr);
+				case CW_CONTROL_HANGUP:
+                                case CW_CONTROL_BUSY:
+                                case CW_CONTROL_CONGESTION:
+					cw_fr_free(fr);
 					return -1;
-				case OPBX_CONTROL_RINGING:
-				case OPBX_CONTROL_ANSWER:
+				case CW_CONTROL_RINGING:
+				case CW_CONTROL_ANSWER:
 					/* Unimportant */
 					break;
 				default:
-					opbx_log(OPBX_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
 			}
 			/* Ignore */
-			opbx_fr_free(fr);
+			cw_fr_free(fr);
 		}
 	}
 	return (c->_softhangup ? -1 : 0);
@@ -1143,12 +1143,12 @@ struct show_file_formats_args {
 	int count;
 };
 
-static int show_file_formats_one(struct opbx_object *obj, void *data)
+static int show_file_formats_one(struct cw_object *obj, void *data)
 {
-	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct cw_format *f = container_of(obj, struct cw_format, obj);
 	struct show_file_formats_args *args = data;
 
-	opbx_cli(args->fd, FORMAT2, opbx_getformatname(f->format), f->name, f->exts);
+	cw_cli(args->fd, FORMAT2, cw_getformatname(f->format), f->name, f->exts);
 	args->count++;
 	return 0;
 }
@@ -1160,9 +1160,9 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	opbx_cli(fd, FORMAT, "Format", "Name", "Extensions");
-	opbx_registry_iterate(&format_registry, show_file_formats_one, &args);
-	opbx_cli(fd, "%d file formats registered.\n", args.count);
+	cw_cli(fd, FORMAT, "Format", "Name", "Extensions");
+	cw_registry_iterate(&format_registry, show_file_formats_one, &args);
+	cw_cli(fd, "%d file formats registered.\n", args.count);
 
 	return RESULT_SUCCESS;
 }
@@ -1171,7 +1171,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 #undef FORMAT2
 
 
-struct opbx_clicmd show_file = {
+struct cw_clicmd show_file = {
 	.cmda = { "show", "file", "formats" },
 	.handler = show_file_formats,
 	.summary = "Displays file formats",
@@ -1179,11 +1179,11 @@ struct opbx_clicmd show_file = {
 	"       displays currently registered file formats (if any)\n",
 };
 
-int opbx_file_init(void)
+int cw_file_init(void)
 {
 	if (!filestream_generator.is_initialized)
-		opbx_object_init(&filestream_generator, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS);
+		cw_object_init(&filestream_generator, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
 
-	opbx_cli_register(&show_file);
+	cw_cli_register(&show_file);
 	return 0;
 }

@@ -78,7 +78,7 @@ static int exp10_int(int power)
  * thousand, milion are  gender male, so 1 and 2 is 1m 2m
  * miliard is gender female, so 1 and 2 is 1w 2w
  */
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int playh = 0;
@@ -92,7 +92,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         options = "w";
 
     if (!num)
-        return opbx_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+        return cw_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
     while (!res  &&  (num  ||  playh))
     {
@@ -183,14 +183,14 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         }
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd > -1)  &&  (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
     }
     return res;

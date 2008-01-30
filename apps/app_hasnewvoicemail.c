@@ -65,7 +65,7 @@ static int hasvoicemail_internal(char *context, char *box, char *folder)
 	struct dirent *vment;
 	int count=0;
 
-	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)opbx_config_OPBX_SPOOL_DIR, context, box, folder);
+	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)cw_config_CW_SPOOL_DIR, context, box, folder);
 	if ((vmdir = opendir(vmpath))) {
 		/* No matter what the format of VM, there will always be a .txt file for each message. */
 		while ((vment = readdir(vmdir))) {
@@ -79,13 +79,13 @@ static int hasvoicemail_internal(char *context, char *box, char *folder)
 	return count;
 }
 
-static int acf_vmcount_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *context;
 
 	if (argc < 1 || argc > 2 || !argv[0][0])
-		return opbx_function_syntax(vmcount_func_syntax);
+		return cw_function_syntax(vmcount_func_syntax);
 
 	if (!result)
 		return 0;
@@ -107,13 +107,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(vmcount_function);
+	res |= cw_unregister_function(vmcount_function);
 	return res;
 }
 
 static int load_module(void)
 {
-	vmcount_function = opbx_register_function(vmcount_func_name, acf_vmcount_exec, vmcount_func_synopsis, vmcount_func_syntax, vmcount_func_desc);
+	vmcount_function = cw_register_function(vmcount_func_name, acf_vmcount_exec, vmcount_func_synopsis, vmcount_func_syntax, vmcount_func_desc);
 	return 0;
 }
 

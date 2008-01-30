@@ -1,14 +1,14 @@
 # old singledir directory layout
 helpstring="use the old singledir layout"
-opbxprefix=/opt/callweaver
-opbxexecdir=${prefix}/sbin
-opbxutilsdir=${prefix}/bin
-opbxconfdir=${prefix}/etc
-opbxlibdir=${prefix}/lib
-opbxvardir=${prefix}/var
-opbxdatadir=${prefix}/var/data
-opbxlogdir=${prefix}/var/log
-opbxrundir=${prefix}/var/run
-opbxspooldir=${prefix}/var/spool
-opbxmandir=${prefix}/share/man
-opbxdocdir=${prefix}/doc
+cwprefix=/opt/callweaver
+cwexecdir=${prefix}/sbin
+cwutilsdir=${prefix}/bin
+cwconfdir=${prefix}/etc
+cwlibdir=${prefix}/lib
+cwvardir=${prefix}/var
+cwdatadir=${prefix}/var/data
+cwlogdir=${prefix}/var/log
+cwrundir=${prefix}/var/run
+cwspooldir=${prefix}/var/spool
+cwmandir=${prefix}/share/man
+cwdocdir=${prefix}/doc

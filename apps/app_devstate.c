@@ -47,7 +47,7 @@ static char devstate_cli_usage[] =
 "       Generate a device state change event given the input parameters.\n Mainly used for lighting the LEDs on the snoms.\n";
 
 static int devstate_cli(int fd, int argc, char *argv[]);
-static struct opbx_clicmd  cli_dev_state = {
+static struct cw_clicmd  cli_dev_state = {
 	.cmda = { "devstate", NULL },
 	.handler = devstate_cli,
 	.summary = "Set the device state on one of the \"pseudo devices\".",
@@ -60,29 +60,29 @@ static int devstate_cli(int fd, int argc, char *argv[])
     if ((argc != 3) && (argc != 4) && (argc != 5))
         return RESULT_SHOWUSAGE;
 
-    if (opbx_db_put("DEVSTATES", argv[1], argv[2]))
+    if (cw_db_put("DEVSTATES", argv[1], argv[2]))
     {
-        opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
+        cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
     }
-	opbx_device_state_changed("DS/%s", argv[1]);
+	cw_device_state_changed("DS/%s", argv[1]);
     
     return RESULT_SUCCESS;
 }
 
-static int devstate_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int devstate_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
 
     if (argc != 2)
-        return opbx_function_syntax(devstate_syntax);
+        return cw_function_syntax(devstate_syntax);
 
     LOCAL_USER_ADD(u);
     
-    if (opbx_db_put("DEVSTATES", argv[0], argv[1])) {
-        opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
+    if (cw_db_put("DEVSTATES", argv[0], argv[1])) {
+        cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
     }
 
-    opbx_device_state_changed("DS/%s", argv[0]);
+    cw_device_state_changed("DS/%s", argv[0]);
 
     LOCAL_USER_REMOVE(u);
     return 0;
@@ -93,23 +93,23 @@ static int ds_devicestate(void *data)
 {
     char *dest = data;
     char stateStr[16];
-    if (opbx_db_get("DEVSTATES", dest, stateStr, sizeof(stateStr)))
+    if (cw_db_get("DEVSTATES", dest, stateStr, sizeof(stateStr)))
     {
-        opbx_log(OPBX_LOG_DEBUG, "ds_devicestate couldnt get state in opbxdb\n");
+        cw_log(CW_LOG_DEBUG, "ds_devicestate couldnt get state in cwdb\n");
         return 0;
     }
     else
     {
-        opbx_log(OPBX_LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n",
+        cw_log(CW_LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n",
                dest, atoi(stateStr));
         return (atoi(stateStr));
     }
 }
 
-static struct opbx_channel_tech devstate_tech = {
+static struct cw_channel_tech devstate_tech = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = ((OPBX_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = ((CW_FORMAT_MAX_AUDIO << 1) - 1),
 	.devicestate = ds_devicestate,
 	.requester = NULL,
 	.send_digit = NULL,
@@ -127,7 +127,7 @@ static struct opbx_channel_tech devstate_tech = {
 };
 
 static char mandescr_devstate[] = 
-"Description: Put a value into opbxdb\n"
+"Description: Put a value into cwdb\n"
 "Variables: \n"
 "	Family: ...\n"
 "	Key: ...\n"
@@ -148,28 +148,28 @@ static int action_devstate(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-        if (!opbx_db_put("DEVSTATES", devstate, value)) {
-	    opbx_device_state_changed("DS/%s", devstate);
-	    opbx_cli(s->fd, "Response: Success\r\n");
+        if (!cw_db_put("DEVSTATES", devstate, value)) {
+	    cw_device_state_changed("DS/%s", devstate);
+	    cw_cli(s->fd, "Response: Success\r\n");
 	} else {
-	    opbx_log(OPBX_LOG_DEBUG, "opbx_db_put failed\n");
-	    opbx_cli(s->fd, "Response: Failed\r\n");
+	    cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
+	    cw_cli(s->fd, "Response: Failed\r\n");
 	}
-	if (id && !opbx_strlen_zero(id))
-		opbx_cli(s->fd, "ActionID: %s\r\n",id);
-	opbx_cli(s->fd, "\r\n");
+	if (id && !cw_strlen_zero(id))
+		cw_cli(s->fd, "ActionID: %s\r\n",id);
+	cw_cli(s->fd, "\r\n");
 	return 0;
 }
 
 static int load_module(void)
 {
-    if (opbx_channel_register(&devstate_tech)) {
-        opbx_log(OPBX_LOG_DEBUG, "Unable to register channel class %s\n", type);
+    if (cw_channel_register(&devstate_tech)) {
+        cw_log(CW_LOG_DEBUG, "Unable to register channel class %s\n", type);
         return -1;
     }
-    opbx_cli_register(&cli_dev_state);  
-    opbx_manager_register2( "Devstate", EVENT_FLAG_CALL, action_devstate, "Change a device state", mandescr_devstate );
-    devstate_app = opbx_register_function(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
+    cw_cli_register(&cli_dev_state);  
+    cw_manager_register2( "Devstate", EVENT_FLAG_CALL, action_devstate, "Change a device state", mandescr_devstate );
+    devstate_app = cw_register_function(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
     return 0;
 }
 
@@ -177,10 +177,10 @@ static int unload_module(void)
 {
     int res = 0;
 
-    opbx_manager_unregister( "Devstate");
-    opbx_cli_unregister(&cli_dev_state);
-    res |= opbx_unregister_function(devstate_app);
-    opbx_channel_unregister(&devstate_tech);    
+    cw_manager_unregister( "Devstate");
+    cw_cli_unregister(&cli_dev_state);
+    res |= cw_unregister_function(devstate_app);
+    cw_channel_unregister(&devstate_tech);    
     return res;
 }
 

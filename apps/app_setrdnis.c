@@ -58,28 +58,28 @@ static const char setrdnis_descrip[] =
 "CALLERID(rdnis)\n";
 
 
-static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *n, *l;
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		opbx_log(OPBX_LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
+		cw_log(CW_LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 
 	LOCAL_USER_ADD(u);
 
 	n = l = NULL;
-	opbx_callerid_parse(argv[0], &n, &l);
+	cw_callerid_parse(argv[0], &n, &l);
 	if (l) {
-		opbx_shrink_phone_number(l);
-		opbx_mutex_lock(&chan->lock);
+		cw_shrink_phone_number(l);
+		cw_mutex_lock(&chan->lock);
 		if (chan->cid.cid_rdnis)
 			free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = (l[0]) ? strdup(l) : NULL;
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -91,13 +91,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(setrdnis_app);
+	res |= cw_unregister_function(setrdnis_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	setrdnis_app = opbx_register_function(setrdnis_name, setrdnis_exec, setrdnis_synopsis, setrdnis_syntax, setrdnis_descrip);
+	setrdnis_app = cw_register_function(setrdnis_name, setrdnis_exec, setrdnis_synopsis, setrdnis_syntax, setrdnis_descrip);
 	return 0;
 }
 

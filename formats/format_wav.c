@@ -59,12 +59,12 @@ struct pvt
     int lasttimeout;
     int maxlen;
     struct timeval last;
-    struct opbx_frame fr;                   /* Frame information */
-    uint8_t buf[OPBX_FRIENDLY_OFFSET + BLOCKSIZE * sizeof(int16_t)];    
+    struct cw_frame fr;                   /* Frame information */
+    uint8_t buf[CW_FRIENDLY_OFFSET + BLOCKSIZE * sizeof(int16_t)];    
 };
 
 
-static struct opbx_format format;
+static struct cw_format format;
 
 static const char desc[] = "Microsoft WAV format (8000hz Signed Linear)";
 
@@ -103,87 +103,87 @@ static int check_header(FILE *f)
     int freq;
     int data;
     if (fread(&type, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (type)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (type)\n");
         return -1;
     }
     if (fread(&size, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (size)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (size)\n");
         return -1;
     }
     size = ltohl(size);
     if (fread(&formtype, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (formtype)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (formtype)\n");
         return -1;
     }
     if (memcmp(&type, "RIFF", 4)) {
-        opbx_log(OPBX_LOG_WARNING, "Does not begin with RIFF\n");
+        cw_log(CW_LOG_WARNING, "Does not begin with RIFF\n");
         return -1;
     }
     if (memcmp(&formtype, "WAVE", 4)) {
-        opbx_log(OPBX_LOG_WARNING, "Does not contain WAVE\n");
+        cw_log(CW_LOG_WARNING, "Does not contain WAVE\n");
         return -1;
     }
     if (fread(&fmt, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (fmt)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (fmt)\n");
         return -1;
     }
     if (memcmp(&fmt, "fmt ", 4)) {
-        opbx_log(OPBX_LOG_WARNING, "Does not say fmt\n");
+        cw_log(CW_LOG_WARNING, "Does not say fmt\n");
         return -1;
     }
     if (fread(&hsize, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (formtype)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (formtype)\n");
         return -1;
     }
     if (ltohl(hsize) < 16) {
-        opbx_log(OPBX_LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
+        cw_log(CW_LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
         return -1;
     }
     if (fread(&format, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (format)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
     if (ltohs(format) != 1) {
-        opbx_log(OPBX_LOG_WARNING, "Not a wav file %d\n", ltohs(format));
+        cw_log(CW_LOG_WARNING, "Not a wav file %d\n", ltohs(format));
         return -1;
     }
     if (fread(&chans, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (format)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
     if (ltohs(chans) != 1) {
-        opbx_log(OPBX_LOG_WARNING, "Not in mono %d\n", ltohs(chans));
+        cw_log(CW_LOG_WARNING, "Not in mono %d\n", ltohs(chans));
         return -1;
     }
     if (fread(&freq, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (freq)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (freq)\n");
         return -1;
     }
     if (ltohl(freq) != 8000) {
-        opbx_log(OPBX_LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
+        cw_log(CW_LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
         return -1;
     }
     /* Ignore the byte frequency */
     if (fread(&bysec, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (BYTES_PER_SECOND)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (BYTES_PER_SECOND)\n");
         return -1;
     }
     /* Check bytes per sample */
     if (fread(&bysam, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (BYTES_PER_SAMPLE)\n");
+        cw_log(CW_LOG_WARNING, "Read failed (BYTES_PER_SAMPLE)\n");
         return -1;
     }
     if (ltohs(bysam) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Can only handle 16bits per sample: %d\n", ltohs(bysam));
+        cw_log(CW_LOG_WARNING, "Can only handle 16bits per sample: %d\n", ltohs(bysam));
         return -1;
     }
     if (fread(&bisam, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
+        cw_log(CW_LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
         return -1;
     }
     /* Skip any additional header */
     if (fseek(f,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
-        opbx_log(OPBX_LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
+        cw_log(CW_LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
         return -1;
     }
     /* Skip any facts and get the first data block */
@@ -193,23 +193,23 @@ static int check_header(FILE *f)
         
         /* Begin data chunk */
         if (fread(&buf, 1, 4, f) != 4) {
-            opbx_log(OPBX_LOG_WARNING, "Read failed (data)\n");
+            cw_log(CW_LOG_WARNING, "Read failed (data)\n");
             return -1;
         }
         /* Data has the actual length of data in it */
         if (fread(&data, 1, 4, f) != 4) {
-            opbx_log(OPBX_LOG_WARNING, "Read failed (data)\n");
+            cw_log(CW_LOG_WARNING, "Read failed (data)\n");
             return -1;
         }
         data = ltohl(data);
         if(memcmp(buf, "data", 4) == 0 ) 
             break;
         if(memcmp(buf, "fact", 4) != 0 ) {
-            opbx_log(OPBX_LOG_WARNING, "Unknown block - not fact or data\n");
+            cw_log(CW_LOG_WARNING, "Unknown block - not fact or data\n");
             return -1;
         }
         if (fseek(f,data,SEEK_CUR) == -1 ) {
-            opbx_log(OPBX_LOG_WARNING, "Failed to skip fact block: %d\n", data );
+            cw_log(CW_LOG_WARNING, "Failed to skip fact block: %d\n", data );
             return -1;
         }
     }
@@ -238,27 +238,27 @@ static int update_header(FILE *f)
     filelen = htoll(36 + bytes);
     
     if (cur < 0) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to find our position\n");
+        cw_log(CW_LOG_WARNING, "Unable to find our position\n");
         return -1;
     }
     if (fseek(f, 4, SEEK_SET)) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set our position\n");
+        cw_log(CW_LOG_WARNING, "Unable to set our position\n");
         return -1;
     }
     if (fwrite(&filelen, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set write file size\n");
+        cw_log(CW_LOG_WARNING, "Unable to set write file size\n");
         return -1;
     }
     if (fseek(f, 40, SEEK_SET)) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set our position\n");
+        cw_log(CW_LOG_WARNING, "Unable to set our position\n");
         return -1;
     }
     if (fwrite(&datalen, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to set write datalen\n");
+        cw_log(CW_LOG_WARNING, "Unable to set write datalen\n");
         return -1;
     }
     if (fseek(f, cur, SEEK_SET)) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to return to position\n");
+        cw_log(CW_LOG_WARNING, "Unable to return to position\n");
         return -1;
     }
     return 0;
@@ -277,51 +277,51 @@ static int write_header(FILE *f)
     /* Write a wav header, ignoring sizes which will be filled in later */
     fseek(f,0,SEEK_SET);
     if (fwrite("RIFF", 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&size, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite("WAVEfmt ", 1, 8, f) != 8) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&hs, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&fmt, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&chans, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&hz, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&bhz, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&bysam, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&bisam, 1, 2, f) != 2) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite("data", 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     if (fwrite(&size, 1, 4, f) != 4) {
-        opbx_log(OPBX_LOG_WARNING, "Unable to write header\n");
+        cw_log(CW_LOG_WARNING, "Unable to write header\n");
         return -1;
     }
     return 0;
@@ -340,14 +340,14 @@ static void *wav_open(FILE *f)
         tmp->f = f;
         tmp->maxlen = maxlen;
         tmp->needsgain = 1;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
-        tmp->fr.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->fr.data = &tmp->buf[OPBX_FRIENDLY_OFFSET];
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, format.name);
+        tmp->fr.offset = CW_FRIENDLY_OFFSET;
+        tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         tmp->bytes = 0;
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -366,7 +366,7 @@ static void *wav_rewrite(FILE *f, const char *comment)
         return tmp;
     }
 
-    opbx_log(OPBX_LOG_ERROR, "Out of memory\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 
@@ -385,13 +385,13 @@ static void wav_close(void *data)
     free(pvt);
 }
 
-static struct opbx_frame *wav_read(void *data, int *whennext)
+static struct cw_frame *wav_read(void *data, int *whennext)
 {
     struct pvt *pvt = data;
     int res;
     int delay;
     int x;
-    int16_t tmp[(sizeof(pvt->buf) - OPBX_FRIENDLY_OFFSET) / sizeof(int16_t)];
+    int16_t tmp[(sizeof(pvt->buf) - CW_FRIENDLY_OFFSET) / sizeof(int16_t)];
     int16_t *out = (int16_t *)pvt->fr.data;
     int bytes = sizeof(tmp);
     off_t here;
@@ -406,7 +406,7 @@ static struct opbx_frame *wav_read(void *data, int *whennext)
     if ((res = fread(tmp, 1, bytes, pvt->f)) <= 0)
     {
         if (res)
-            opbx_log(OPBX_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+            cw_log(CW_LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
         return NULL;
     }
 
@@ -445,7 +445,7 @@ static struct opbx_frame *wav_read(void *data, int *whennext)
     return &pvt->fr;
 }
 
-static int wav_write(void *data, struct opbx_frame *f)
+static int wav_write(void *data, struct cw_frame *f)
 {
     struct pvt *pvt = data;
     int res = 0;
@@ -454,19 +454,19 @@ static int wav_write(void *data, struct opbx_frame *f)
     int16_t *tmpi;
     float tmpf;
 
-    if (f->frametype != OPBX_FRAME_VOICE)
+    if (f->frametype != CW_FRAME_VOICE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-voice frame!\n");
+        cw_log(CW_LOG_WARNING, "Asked to write non-voice frame!\n");
         return -1;
     }
-    if (f->subclass != OPBX_FORMAT_SLINEAR)
+    if (f->subclass != CW_FORMAT_SLINEAR)
     {
-        opbx_log(OPBX_LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
+        cw_log(CW_LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
         return -1;
     }
     if (f->datalen > sizeof(tmp))
     {
-        opbx_log(OPBX_LOG_WARNING, "Data length is too long\n");
+        cw_log(CW_LOG_WARNING, "Data length is too long\n");
         return -1;
     }
     if (!f->datalen)
@@ -499,14 +499,14 @@ static int wav_write(void *data, struct opbx_frame *f)
         {
             if ((fwrite(tmp, 1, f->datalen, pvt->f) != f->datalen))
             {
-                opbx_log(OPBX_LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
+                cw_log(CW_LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
                 return -1;
             }
         }
     }
     else
     {
-        opbx_log(OPBX_LOG_WARNING, "Cannot write data to file.\n");
+        cw_log(CW_LOG_WARNING, "Cannot write data to file.\n");
         return -1;
     }
     
@@ -566,10 +566,10 @@ static char *wav_getcomment(void *data)
 }
 
 
-static struct opbx_format format = {
+static struct cw_format format = {
 	.name = "wav",
 	.exts = "wav",
-	.format = OPBX_FORMAT_SLINEAR,
+	.format = CW_FORMAT_SLINEAR,
 	.open = wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,
@@ -584,13 +584,13 @@ static struct opbx_format format = {
 
 static int load_module(void)
 {
-	opbx_format_register(&format);
+	cw_format_register(&format);
 	return 0;
 }
 
 static int unload_module(void)
 {
-	opbx_format_unregister(&format);
+	cw_format_unregister(&format);
 	return 0;
 }    
 

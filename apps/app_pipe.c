@@ -61,7 +61,7 @@ static int pipeencode(char *filename, char *argument, int fdin, int fdout)
 	int x;
 	res = fork();
 	if (res < 0) 
-		opbx_log(OPBX_LOG_WARNING, "Fork failed\n");
+		cw_log(CW_LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
 	dup2(fdin, STDIN_FILENO);
@@ -70,9 +70,9 @@ static int pipeencode(char *filename, char *argument, int fdin, int fdout)
 		if ((x != STDIN_FILENO && x != STDOUT_FILENO) || STDERR_FILENO == x)
 			close(x);
 	}
-	opbx_log(OPBX_LOG_WARNING, "Launching '%s' '%s'\n", filename, argument);
+	cw_log(CW_LOG_WARNING, "Launching '%s' '%s'\n", filename, argument);
 	execlp(filename, "TEST", argument, (char *)NULL);
-	opbx_log(OPBX_LOG_WARNING, "Execute of %s failed\n", filename);
+	cw_log(CW_LOG_WARNING, "Execute of %s failed\n", filename);
 	return -1;
 }
 
@@ -84,14 +84,14 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 	fds[0].events = POLLIN;
 	res = poll(fds, 1, timeout);
 	if (res < 1) {
-		opbx_log(OPBX_LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
+		cw_log(CW_LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
 		return -1;
 	}
 	return read(fd, data, datalen);
 
 }
 
-static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -102,10 +102,10 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int oreadformat;
 	int timeout = 2000;
 	struct timeval last;
-	struct opbx_frame *f;
+	struct cw_frame *f;
 	struct myframe {
-		struct opbx_frame f;
-		char offset[OPBX_FRIENDLY_OFFSET];
+		struct cw_frame f;
+		char offset[CW_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
 
@@ -113,12 +113,12 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	last.tv_sec = 0;
 
 	if (argc < 2 || argc > 3)
-		return opbx_function_syntax(pipe_syntax);
+		return cw_function_syntax(pipe_syntax);
 
 	LOCAL_USER_ADD(u);
 
 	if (pipe(fds)) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create pipe\n");
+		cw_log(CW_LOG_WARNING, "Unable to create pipe\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -130,29 +130,29 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 //	flags = fcntl(fds[0], F_GETFL);
 //	fcntl(fds[0], F_SETFL, flags | O_NONBLOCK);
 
-	opbx_stopstream(chan);
+	cw_stopstream(chan);
 
-	if (chan->_state != OPBX_STATE_UP)
-		res = opbx_answer(chan);
+	if (chan->_state != CW_STATE_UP)
+		res = cw_answer(chan);
 		
 	if (res) {
 		close(fds[0]);
 		close(fds[1]);
-		opbx_log(OPBX_LOG_WARNING, "Answer failed!\n");
+		cw_log(CW_LOG_WARNING, "Answer failed!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	oreadformat = chan->readformat;
-	res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+	res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
 
 	owriteformat = chan->writeformat;
-	res += opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
+	res += cw_set_write_format(chan, CW_FORMAT_SLINEAR);
 
 	if (res < 0) {
 		close(fds[0]);
 		close(fds[1]);
-		opbx_log(OPBX_LOG_WARNING, "Unable to set write format to signed linear\n");
+		cw_log(CW_LOG_WARNING, "Unable to set write format to signed linear\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -160,7 +160,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	res = pipeencode(argv[1], argv[2], fds[0], fds[1]);
 
 	if (res >= 0) {
-	   last = opbx_tvnow();
+	   last = cw_tvnow();
 	   last.tv_sec += 1;
 
 		pid = res;
@@ -168,80 +168,80 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 			/* Wait for audio, and stream */
 			if (argv[0][0] == '0') {
 				/* START WRITE TO FD */
-				ms = opbx_waitfor(chan, 10);
+				ms = cw_waitfor(chan, 10);
 				if (ms < 0) {
-					opbx_log(OPBX_LOG_DEBUG, "Hangup detected\n");
+					cw_log(CW_LOG_DEBUG, "Hangup detected\n");
 					res = -1;
 					break;
 				} else if (ms > 0) {
-					f = opbx_read(chan);
+					f = cw_read(chan);
 					if (!f) {
-						opbx_log(OPBX_LOG_DEBUG, "Null frame == hangup() detected\n");
+						cw_log(CW_LOG_DEBUG, "Null frame == hangup() detected\n");
 						res = -1;
 						break;
 					}
-					if (f->frametype == OPBX_FRAME_DTMF) {
-						opbx_log(OPBX_LOG_DEBUG, "User pressed a key\n");
-						opbx_fr_free(f);
+					if (f->frametype == CW_FRAME_DTMF) {
+						cw_log(CW_LOG_DEBUG, "User pressed a key\n");
+						cw_fr_free(f);
 						res = 0;
 						break;
 					}
-					if (f->frametype == OPBX_FRAME_VOICE) {
+					if (f->frametype == CW_FRAME_VOICE) {
 						res = write(fds[1], f->data, f->datalen);
 						if (res < 0) {
 							if (errno != EAGAIN) {
-								opbx_log(OPBX_LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
-                                opbx_fr_free(f);
+								cw_log(CW_LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
+                                cw_fr_free(f);
 								res = -1;
 								break;
 							}
 						}
 					}
-					opbx_fr_free(f);
+					cw_fr_free(f);
 				} /* END WRITE TO FD */
 			} else {
 				/* START WRITE CHANNEL */
-				ms = opbx_tvdiff_ms(last, opbx_tvnow());
+				ms = cw_tvdiff_ms(last, cw_tvnow());
 				if (ms <= 0) {
 					res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 					if (res > 0) {
-                        opbx_fr_init_ex(&myf.f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+                        cw_fr_init_ex(&myf.f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 						myf.f.datalen = res;
 						myf.f.samples = res/sizeof(int16_t);
-						myf.f.offset = OPBX_FRIENDLY_OFFSET;
+						myf.f.offset = CW_FRIENDLY_OFFSET;
 						myf.f.data = myf.frdata;
-						if (opbx_write(chan, &myf.f) < 0)
+						if (cw_write(chan, &myf.f) < 0)
                         {
 							res = -1;
 							break;
 						}
 					} else {
-						opbx_log(OPBX_LOG_DEBUG, "No more stream\n");
+						cw_log(CW_LOG_DEBUG, "No more stream\n");
 						res = 0;
 						break;
 					}
-					last = opbx_tvadd(last, opbx_samp2tv(myf.f.samples, 8000));
+					last = cw_tvadd(last, cw_samp2tv(myf.f.samples, 8000));
 				} else {
-					ms = opbx_waitfor(chan, ms);
+					ms = cw_waitfor(chan, ms);
 					if (ms < 0) {
-						opbx_log(OPBX_LOG_DEBUG, "Hangup detected\n");
+						cw_log(CW_LOG_DEBUG, "Hangup detected\n");
 						res = -1;
 						break;
 					}
 					if (ms) {
-						f = opbx_read(chan);
+						f = cw_read(chan);
 						if (!f) {
-							opbx_log(OPBX_LOG_DEBUG, "Null frame == hangup() detected\n");
+							cw_log(CW_LOG_DEBUG, "Null frame == hangup() detected\n");
 							res = -1;
 							break;
 						}
-						if (f->frametype == OPBX_FRAME_DTMF) {
-							opbx_log(OPBX_LOG_DEBUG, "User pressed a key\n");
-							opbx_fr_free(f);
+						if (f->frametype == CW_FRAME_DTMF) {
+							cw_log(CW_LOG_DEBUG, "User pressed a key\n");
+							cw_fr_free(f);
 							res = 0;
 							break;
 						}
-						opbx_fr_free(f);
+						cw_fr_free(f);
 					}
 				}
 				/* END WRITE CHANNEL */
@@ -255,9 +255,9 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)
-		opbx_set_read_format(chan, oreadformat);
+		cw_set_read_format(chan, oreadformat);
 	if (!res && owriteformat)
-		opbx_set_write_format(chan, owriteformat);
+		cw_set_write_format(chan, owriteformat);
 
 	return res;
 }
@@ -266,13 +266,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(pipe_app);
+	res |= cw_unregister_function(pipe_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	pipe_app = opbx_register_function(pipe_name, pipe_exec, pipe_synopsis, pipe_syntax, pipe_descrip);
+	pipe_app = cw_register_function(pipe_name, pipe_exec, pipe_synopsis, pipe_syntax, pipe_descrip);
 	return 0;
 }
 

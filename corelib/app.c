@@ -62,7 +62,7 @@ which must be a pointer to a **pre-initilized** array of char having a
 size of 'size' suitable for writing to.  It will collect no more than the smaller 
 of 'maxlen' or 'size' minus the original strlen() of collect digits.
 */
-int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
+int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
 	struct tone_zone_sound *ts;
 	int res=0, x=0;
@@ -75,20 +75,20 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
 	else if(!timeout)
 		timeout = 5;
 	
-	ts = opbx_get_indication_tone(chan->zone,"dial");
+	ts = cw_get_indication_tone(chan->zone,"dial");
 	if (ts && ts->data[0])
-		res = opbx_playtones_start(chan, 0, ts->data, 0);
+		res = cw_playtones_start(chan, 0, ts->data, 0);
 	else 
-		opbx_log(OPBX_LOG_NOTICE,"Huh....? no dial for indications?\n");
+		cw_log(CW_LOG_NOTICE,"Huh....? no dial for indications?\n");
 	
 	for (x = strlen(collect); strlen(collect) < maxlen; ) {
-		res = opbx_waitfordigit(chan, timeout);
-		if (!opbx_ignore_pattern(context, collect))
-			opbx_playtones_stop(chan);
+		res = cw_waitfordigit(chan, timeout);
+		if (!cw_ignore_pattern(context, collect))
+			cw_playtones_stop(chan);
 		if (res < 1)
 			break;
 		collect[x++] = res;
-		if (!opbx_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num)) {
+		if (!cw_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num)) {
 			if (collect[x-1] == '#') {
 				/* Not a valid extension, ending in #, assume the # was to finish dialing */
 				collect[x-1] = '\0';
@@ -97,7 +97,7 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
 		}
 	}
 	if (res >= 0) {
-		if (opbx_exists_extension(chan, context, collect, 1, chan->cid.cid_num))
+		if (cw_exists_extension(chan, context, collect, 1, chan->cid.cid_num))
 			res = 1;
 		else
 			res = 0;
@@ -105,14 +105,14 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
 	return res;
 }
 
-int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout)
+int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout)
 {
 	int res,to,fto;
 	/* XXX Merge with full version? XXX */
 	if (maxlen)
 		s[0] = '\0';
 	if (prompt) {
-		res = opbx_streamfile(c, prompt, c->language);
+		res = cw_streamfile(c, prompt, c->language);
 		if (res < 0)
 			return res;
 		}
@@ -123,16 +123,16 @@ int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, 
 		fto = to = timeout;
 	if (timeout < 0)
 		fto = to = 1000000000;
-	res = opbx_readstring(c, s, maxlen, to, fto, "#");
+	res = cw_readstring(c, s, maxlen, to, fto, "#");
 	return res;
 } 
 
 
-int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
+int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
 {
 	int res,to,fto;
 	if (prompt) {
-		res = opbx_streamfile(c, prompt, c->language);
+		res = cw_streamfile(c, prompt, c->language);
 		if (res < 0)
 			return res;
 	}
@@ -142,125 +142,125 @@ int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, int max
 		fto = to = timeout;
 	if (timeout < 0) 
 		fto = to = 1000000000;
-	res = opbx_readstring_full(c, s, maxlen, to, fto, "#", audiofd, ctrlfd);
+	res = cw_readstring_full(c, s, maxlen, to, fto, "#", audiofd, ctrlfd);
 	return res;
 }
 
-static int (*opbx_has_request_t38_func)(const struct opbx_channel *chan) = NULL;
+static int (*cw_has_request_t38_func)(const struct cw_channel *chan) = NULL;
 
-void opbx_install_t38_functions( int (*has_request_t38_func)(const struct opbx_channel *chan) )
+void cw_install_t38_functions( int (*has_request_t38_func)(const struct cw_channel *chan) )
 {
-	opbx_has_request_t38_func = has_request_t38_func;
+	cw_has_request_t38_func = has_request_t38_func;
 }
 
-void opbx_uninstall_t38_functions(void)
+void cw_uninstall_t38_functions(void)
 {
-	opbx_has_request_t38_func = NULL;
+	cw_has_request_t38_func = NULL;
 }
 
-int opbx_app_request_t38(const struct opbx_channel *chan)
+int cw_app_request_t38(const struct cw_channel *chan)
 {
-    if (opbx_has_request_t38_func)
-		return opbx_has_request_t38_func(chan);
+    if (cw_has_request_t38_func)
+		return cw_has_request_t38_func(chan);
     return 0;
 }
 
 
 
-static int (*opbx_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
-static int (*opbx_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+static int (*cw_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
+static int (*cw_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
 
-void opbx_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
+void cw_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs))
 {
-	opbx_has_voicemail_func = has_voicemail_func;
-	opbx_messagecount_func = messagecount_func;
+	cw_has_voicemail_func = has_voicemail_func;
+	cw_messagecount_func = messagecount_func;
 }
 
-void opbx_uninstall_vm_functions(void)
+void cw_uninstall_vm_functions(void)
 {
-	opbx_has_voicemail_func = NULL;
-	opbx_messagecount_func = NULL;
+	cw_has_voicemail_func = NULL;
+	cw_messagecount_func = NULL;
 }
 
-int opbx_app_has_voicemail(const char *mailbox, const char *folder)
+int cw_app_has_voicemail(const char *mailbox, const char *folder)
 {
 	static int warned = 0;
-	if (opbx_has_voicemail_func)
-		return opbx_has_voicemail_func(mailbox, folder);
+	if (cw_has_voicemail_func)
+		return cw_has_voicemail_func(mailbox, folder);
 
 	if ((option_verbose > 2) && !warned) {
-		opbx_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.\n", mailbox, folder ? folder : "INBOX");
+		cw_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.\n", mailbox, folder ? folder : "INBOX");
 		warned++;
 	}
 	return 0;
 }
 
 
-int opbx_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+int cw_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	static int warned = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
 		*oldmsgs = 0;
-	if (opbx_messagecount_func)
-		return opbx_messagecount_func(mailbox, newmsgs, oldmsgs);
+	if (cw_messagecount_func)
+		return cw_messagecount_func(mailbox, newmsgs, oldmsgs);
 
 	if (!warned && (option_verbose > 2)) {
 		warned++;
-		opbx_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.\n", mailbox);
+		cw_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.\n", mailbox);
 	}
 
 	return 0;
 }
 
-int opbx_dtmf_stream(struct opbx_channel *chan,struct opbx_channel *peer,char *digits,int between) 
+int cw_dtmf_stream(struct cw_channel *chan,struct cw_channel *peer,char *digits,int between) 
 {
 	char *ptr;
 	int res = 0;
-	struct opbx_frame f;
+	struct cw_frame f;
 	if (!between)
 		between = 100;
 
 	if (peer)
-		res = opbx_autoservice_start(peer);
+		res = cw_autoservice_start(peer);
 
 	if (!res) {
-		res = opbx_waitfor(chan,100);
+		res = cw_waitfor(chan,100);
 		if (res > -1) {
 			for (ptr=digits; *ptr; ptr++) {
 				if (*ptr == 'w') {
-					res = opbx_safe_sleep(chan, 500);
+					res = cw_safe_sleep(chan, 500);
 					if (res) 
 						break;
 					continue;
 				}
-                opbx_fr_init_ex(&f, OPBX_FRAME_DTMF, *ptr, NULL);
-				f.src = "opbx_dtmf_stream";
+                cw_fr_init_ex(&f, CW_FRAME_DTMF, *ptr, NULL);
+				f.src = "cw_dtmf_stream";
 				if (strchr("0123456789*#abcdABCD",*ptr) == NULL)
                 {
-					opbx_log(OPBX_LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
+					cw_log(CW_LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
 				}
                 else
                 {
-					res = opbx_write(chan, &f);
+					res = cw_write(chan, &f);
 					if (res) 
 						break;
 					/* pause between digits */
-					res = opbx_safe_sleep(chan,between);
+					res = cw_safe_sleep(chan,between);
 					if (res) 
 						break;
 				}
 			}
 		}
 		if (peer)
-			res = opbx_autoservice_stop(peer);
+			res = cw_autoservice_stop(peer);
 	}
 	return res;
 }
 
-int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
+int cw_control_streamfile(struct cw_channel *chan, const char *file,
 			   const char *fwd, const char *rev,
 			   const char *stop, const char *pause,
 			   const char *restart, int skipms) 
@@ -288,11 +288,11 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 		if (restart)
 			strcat(breaks, restart);
 	}
-	if (chan->_state != OPBX_STATE_UP)
-		res = opbx_answer(chan);
+	if (chan->_state != CW_STATE_UP)
+		res = cw_answer(chan);
 
 	if (chan)
-		opbx_stopstream(chan);
+		cw_stopstream(chan);
 
 	if (file) {
 		if ((end = strchr(file,':'))) {
@@ -304,23 +304,23 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 	}
 
 	for (;;) {
-		struct timeval started = opbx_tvnow();
+		struct timeval started = cw_tvnow();
 
 		if (chan)
-			opbx_stopstream(chan);
-		res = opbx_streamfile(chan, file, chan->language);
+			cw_stopstream(chan);
+		res = cw_streamfile(chan, file, chan->language);
 		if (!res) {
 			if (end) {
-				opbx_seekstream(chan->stream, 0, SEEK_END);
+				cw_seekstream(chan->stream, 0, SEEK_END);
 				end=NULL;
 			}
 			res = 1;
 			if (elapsed) {
-				opbx_stream_fastforward(chan->stream, elapsed);
+				cw_stream_fastforward(chan->stream, elapsed);
 				last_elapsed = elapsed - 200;
 			}
 			if (res)
-				res = opbx_waitstream_fr(chan, breaks, fwd, rev, skipms);
+				res = cw_waitstream_fr(chan, breaks, fwd, rev, skipms);
 			else
 				break;
 		}
@@ -330,17 +330,17 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 
 		/* We go at next loop if we got the restart char */
 		if (restart && strchr(restart, res)) {
-			opbx_log(OPBX_LOG_DEBUG, "we'll restart the stream here at next loop\n");
+			cw_log(CW_LOG_DEBUG, "we'll restart the stream here at next loop\n");
 			elapsed=0; /* To make sure the next stream will start at beginning */
 			continue;
 		}
 
 		if (pause != NULL && strchr(pause, res)) {
-			elapsed = opbx_tvdiff_ms(opbx_tvnow(), started) + last_elapsed;
+			elapsed = cw_tvdiff_ms(cw_tvnow(), started) + last_elapsed;
 			for(;;) {
 				if (chan)
-					opbx_stopstream(chan);
-				res = opbx_waitfordigit(chan, 1000);
+					cw_stopstream(chan);
+				res = cw_waitfordigit(chan, 1000);
 				if (res == 0)
 					continue;
 				else if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
@@ -361,37 +361,37 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 		}
 	}
 	if (chan)
-		opbx_stopstream(chan);
+		cw_stopstream(chan);
 
 	return res;
 }
 
-int opbx_play_and_wait(struct opbx_channel *chan, const char *fn)
+int cw_play_and_wait(struct cw_channel *chan, const char *fn)
 {
 	int d;
-	d = opbx_streamfile(chan, fn, chan->language);
+	d = cw_streamfile(chan, fn, chan->language);
 	if (d)
 		return d;
-	d = opbx_waitstream(chan, OPBX_DIGIT_ANY);
-	opbx_stopstream(chan);
+	d = cw_waitstream(chan, CW_DIGIT_ANY);
+	cw_stopstream(chan);
 	return d;
 }
 
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
-int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
+int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
 {
 	int d;
 	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
-	struct opbx_frame *f;
-	struct opbx_filestream *others[MAX_OTHER_FORMATS];
+	struct cw_frame *f;
+	struct cw_filestream *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
 	char *stringp=NULL;
 	time_t start, end;
-	struct opbx_dsp *sildet=NULL;   	/* silence detector dsp */
+	struct cw_dsp *sildet=NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
@@ -405,43 +405,43 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(OPBX_LOG_WARNING, "Error play_and_record called without duration pointer\n");
+		cw_log(CW_LOG_WARNING, "Error play_and_record called without duration pointer\n");
 		return -1;
 	}
 
-	opbx_log(OPBX_LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	cw_log(CW_LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile) {
-		d = opbx_play_and_wait(chan, playfile);
+		d = cw_play_and_wait(chan, playfile);
 		if (d > -1)
-			d = opbx_streamfile(chan, "beep",chan->language);
+			d = cw_streamfile(chan, "beep",chan->language);
 		if (!d)
-			d = opbx_waitstream(chan,"");
+			d = cw_waitstream(chan,"");
 		if (d < 0)
 			return -1;
 	}
 
-	fmts = opbx_strdupa(fmt);
+	fmts = cw_strdupa(fmt);
 
 	stringp=fmts;
 	strsep(&stringp, "|,");
-	opbx_log(OPBX_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
-	sfmt[0] = opbx_strdupa(fmts);
+	cw_log(CW_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
+	sfmt[0] = cw_strdupa(fmts);
 
 	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			opbx_log(OPBX_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			cw_log(CW_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
 		}
-		sfmt[fmtcnt++] = opbx_strdupa(fmt);
+		sfmt[fmtcnt++] = cw_strdupa(fmt);
 	}
 
 	time(&start);
 	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
-		others[x] = opbx_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		opbx_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
+		others[x] = cw_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
+		cw_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
 
 		if (!others[x]) {
 			break;
@@ -449,40 +449,40 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 	}
 
 	if (path)
-		opbx_unlock_path(path);
+		cw_unlock_path(path);
 
 
 	
 	if (maxsilence > 0) {
-		sildet = opbx_dsp_new(); /* Create the silence detector */
+		sildet = cw_dsp_new(); /* Create the silence detector */
 		if (!sildet) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
+			cw_log(CW_LOG_WARNING, "Unable to create silence detector :(\n");
 			return -1;
 		}
-		opbx_dsp_set_threshold(sildet, silencethreshold);
+		cw_dsp_set_threshold(sildet, silencethreshold);
 		rfmt = chan->readformat;
-		res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+		res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
-			opbx_dsp_free(sildet);
+			cw_log(CW_LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			cw_dsp_free(sildet);
 			return -1;
 		}
 	}
 	/* Request a video update */
-	opbx_indicate(chan, OPBX_CONTROL_VIDUPDATE);
+	cw_indicate(chan, CW_CONTROL_VIDUPDATE);
 
 	if (x == fmtcnt) {
 	/* Loop forever, writing the packets we read to the writer(s), until
 	   we read a # or get a hangup */
 		f = NULL;
 		for(;;) {
-		 	res = opbx_waitfor(chan, 2000);
+		 	res = cw_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(OPBX_LOG_DEBUG, "One waitfor failed, trying another\n");
+				cw_log(CW_LOG_DEBUG, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
-			 	res = opbx_waitfor(chan, 2000);
+			 	res = cw_waitfor(chan, 2000);
 				if (!res) {
-					opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
+					cw_log(CW_LOG_WARNING, "No audio available on %s??\n", chan->name);
 					res = -1;
 				}
 			}
@@ -491,19 +491,19 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 				f = NULL;
 				break;
 			}
-			f = opbx_read(chan);
+			f = cw_read(chan);
 			if (!f)
 				break;
-			if (f->frametype == OPBX_FRAME_VOICE) {
+			if (f->frametype == CW_FRAME_VOICE) {
 				/* write each format */
 				for (x=0;x<fmtcnt;x++) {
-					res = opbx_writestream(others[x], f);
+					res = cw_writestream(others[x], f);
 				}
 
 				/* Silence Detection */
 				if (maxsilence > 0) {
 					dspsilence = 0;
-					opbx_dsp_silence(sildet, f, &dspsilence);
+					cw_dsp_silence(sildet, f, &dspsilence);
 					if (dspsilence)
 						totalsilence = dspsilence;
 					else
@@ -512,8 +512,8 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 					if (totalsilence > maxsilence) {
 						/* Ended happily with silence */
 						if (option_verbose > 2)
-							opbx_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-						opbx_fr_free(f);
+							cw_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
+						cw_fr_free(f);
 						gotsilence = 1;
 						outmsg=2;
 						break;
@@ -521,29 +521,29 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 				}
 				/* Exit on any error */
 				if (res) {
-					opbx_log(OPBX_LOG_WARNING, "Error writing frame\n");
-					opbx_fr_free(f);
+					cw_log(CW_LOG_WARNING, "Error writing frame\n");
+					cw_fr_free(f);
 					break;
 				}
-			} else if (f->frametype == OPBX_FRAME_VIDEO) {
+			} else if (f->frametype == CW_FRAME_VIDEO) {
 				/* Write only once */
-				opbx_writestream(others[0], f);
-			} else if (f->frametype == OPBX_FRAME_DTMF) {
+				cw_writestream(others[0], f);
+			} else if (f->frametype == CW_FRAME_DTMF) {
 				if (f->subclass == '#') {
 					if (option_verbose > 2)
-						opbx_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+						cw_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 					res = '#';
 					outmsg = 2;
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					break;
 				}
 				if (f->subclass == '0') {
 				/* Check for a '0' during message recording also, in case caller wants operator */
 					if (option_verbose > 2)
-						opbx_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
+						cw_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
 					res = '0';
 					outmsg = 0;
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					break;
 				}
 			}
@@ -551,24 +551,24 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 				time(&end);
 				if (maxtime < (end - start)) {
 					if (option_verbose > 2)
-						opbx_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
+						cw_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
 					outmsg = 2;
 					res = 't';
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					break;
 				}
 			}
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 		if (end == start) time(&end);
 		if (!f) {
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3 "User hung up\n");
+				cw_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 			res = -1;
 			outmsg=1;
 		}
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
+		cw_log(CW_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
 
 	*duration = end - start;
@@ -578,41 +578,41 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 			break;
 		if (res > 0) {
 			if (totalsilence)
-				opbx_stream_rewind(others[x], totalsilence-200);
+				cw_stream_rewind(others[x], totalsilence-200);
 			else
-				opbx_stream_rewind(others[x], 200);
+				cw_stream_rewind(others[x], 200);
 		}
-		opbx_truncstream(others[x]);
-		opbx_closestream(others[x]);
+		cw_truncstream(others[x]);
+		cw_closestream(others[x]);
 	}
 	if (rfmt) {
-		if (opbx_set_read_format(chan, rfmt)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+		if (cw_set_read_format(chan, rfmt)) {
+			cw_log(CW_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", cw_getformatname(rfmt), chan->name);
 		}
 	}
 	if (outmsg > 1) {
 		/* Let them know recording is stopped */
-		if(!opbx_streamfile(chan, "auth-thankyou", chan->language))
-			opbx_waitstream(chan, "");
+		if(!cw_streamfile(chan, "auth-thankyou", chan->language))
+			cw_waitstream(chan, "");
 	}
 	if (sildet)
-		opbx_dsp_free(sildet);
+		cw_dsp_free(sildet);
 	return res;
 }
 
-int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
+int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
 {
 	int d = 0;
 	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
-	struct opbx_frame *f;
-	struct opbx_filestream *others[MAX_OTHER_FORMATS];
-	struct opbx_filestream *realfiles[MAX_OTHER_FORMATS];
+	struct cw_frame *f;
+	struct cw_filestream *others[MAX_OTHER_FORMATS];
+	struct cw_filestream *realfiles[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
 	char *stringp=NULL;
 	time_t start, end;
-	struct opbx_dsp *sildet;   	/* silence detector dsp */
+	struct cw_dsp *sildet;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
@@ -627,63 +627,63 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(OPBX_LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
+		cw_log(CW_LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
 		return -1;
 	}
 
-	opbx_log(OPBX_LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	cw_log(CW_LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile || beep) {	
 		if (!beep)
-			d = opbx_play_and_wait(chan, playfile);
+			d = cw_play_and_wait(chan, playfile);
 		if (d > -1)
-			d = opbx_streamfile(chan, "beep",chan->language);
+			d = cw_streamfile(chan, "beep",chan->language);
 		if (!d)
-			d = opbx_waitstream(chan,"");
+			d = cw_waitstream(chan,"");
 		if (d < 0)
 			return -1;
 	}
-	opbx_copy_string(prependfile, recordfile, sizeof(prependfile));	
+	cw_copy_string(prependfile, recordfile, sizeof(prependfile));	
 	strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
 			
-	fmts = opbx_strdupa(fmt);
+	fmts = cw_strdupa(fmt);
 	
 	stringp=fmts;
 	strsep(&stringp, "|,");
-	opbx_log(OPBX_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
-	sfmt[0] = opbx_strdupa(fmts);
+	cw_log(CW_LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
+	sfmt[0] = cw_strdupa(fmts);
 	
 	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			opbx_log(OPBX_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			cw_log(CW_LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
 		}
-		sfmt[fmtcnt++] = opbx_strdupa(fmt);
+		sfmt[fmtcnt++] = cw_strdupa(fmt);
 	}
 
 	time(&start);
 	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
-		others[x] = opbx_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		opbx_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
+		others[x] = cw_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
+		cw_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
 		if (!others[x]) {
 			break;
 		}
 	}
 	
-	sildet = opbx_dsp_new(); /* Create the silence detector */
+	sildet = cw_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
-		opbx_log(OPBX_LOG_WARNING, "Unable to create silence detector :(\n");
+		cw_log(CW_LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
-	opbx_dsp_set_threshold(sildet, silencethreshold);
+	cw_dsp_set_threshold(sildet, silencethreshold);
 
 	if (maxsilence > 0) {
 		rfmt = chan->readformat;
-		res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
+		res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
 		if (res < 0) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			cw_log(CW_LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			return -1;
 		}
 	}
@@ -693,13 +693,13 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 	   we read a # or get a hangup */
 		f = NULL;
 		for(;;) {
-		 	res = opbx_waitfor(chan, 2000);
+		 	res = cw_waitfor(chan, 2000);
 			if (!res) {
-				opbx_log(OPBX_LOG_DEBUG, "One waitfor failed, trying another\n");
+				cw_log(CW_LOG_DEBUG, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
-			 	res = opbx_waitfor(chan, 2000);
+			 	res = cw_waitfor(chan, 2000);
 				if (!res) {
-					opbx_log(OPBX_LOG_WARNING, "No audio available on %s??\n", chan->name);
+					cw_log(CW_LOG_WARNING, "No audio available on %s??\n", chan->name);
 					res = -1;
 				}
 			}
@@ -708,21 +708,21 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 				f = NULL;
 				break;
 			}
-			f = opbx_read(chan);
+			f = cw_read(chan);
 			if (!f)
 				break;
-			if (f->frametype == OPBX_FRAME_VOICE) {
+			if (f->frametype == CW_FRAME_VOICE) {
 				/* write each format */
 				for (x=0;x<fmtcnt;x++) {
 					if (!others[x])
 						break;
-					res = opbx_writestream(others[x], f);
+					res = cw_writestream(others[x], f);
 				}
 				
 				/* Silence Detection */
 				if (maxsilence > 0) {
 					dspsilence = 0;
-					opbx_dsp_silence(sildet, f, &dspsilence);
+					cw_dsp_silence(sildet, f, &dspsilence);
 					if (dspsilence)
 						totalsilence = dspsilence;
 					else
@@ -731,8 +731,8 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 					if (totalsilence > maxsilence) {
 					/* Ended happily with silence */
 					if (option_verbose > 2) 
-						opbx_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-					opbx_fr_free(f);
+						cw_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
+					cw_fr_free(f);
 					gotsilence = 1;
 					outmsg=2;
 					break;
@@ -740,40 +740,40 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 				}
 				/* Exit on any error */
 				if (res) {
-					opbx_log(OPBX_LOG_WARNING, "Error writing frame\n");
-					opbx_fr_free(f);
+					cw_log(CW_LOG_WARNING, "Error writing frame\n");
+					cw_fr_free(f);
 					break;
 				}
-			} else if (f->frametype == OPBX_FRAME_VIDEO) {
+			} else if (f->frametype == CW_FRAME_VIDEO) {
 				/* Write only once */
-				opbx_writestream(others[0], f);
-			} else if (f->frametype == OPBX_FRAME_DTMF) {
+				cw_writestream(others[0], f);
+			} else if (f->frametype == CW_FRAME_DTMF) {
 				/* stop recording with any digit */
 				if (option_verbose > 2) 
-					opbx_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+					cw_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 				res = 't';
 				outmsg = 2;
-				opbx_fr_free(f);
+				cw_fr_free(f);
 				break;
 			}
 			if (maxtime) {
 				time(&end);
 				if (maxtime < (end - start)) {
 					if (option_verbose > 2)
-						opbx_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
+						cw_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
 					res = 't';
 					outmsg=2;
-					opbx_fr_free(f);
+					cw_fr_free(f);
 					break;
 				}
 			}
-			opbx_fr_free(f);
+			cw_fr_free(f);
 		}
 		if (end == start)
             time(&end);
 		if (!f) {
 			if (option_verbose > 2) 
-				opbx_verbose( VERBOSE_PREFIX_3 "User hung up\n");
+				cw_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 			res = -1;
 			outmsg=1;
 #if 0
@@ -781,13 +781,13 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 			for (x=0;x<fmtcnt;x++) {
 				if (!others[x])
 					break;
-				opbx_closestream(others[x]);
-				opbx_filedelete(prependfile, sfmt[x]);
+				cw_closestream(others[x]);
+				cw_filedelete(prependfile, sfmt[x]);
 			}
 #endif
 		}
 	} else {
-		opbx_log(OPBX_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
+		cw_log(CW_LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
 	}
 	*duration = end - start;
 #if 0
@@ -795,40 +795,40 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 #else
 	if (outmsg) {
 #endif
-		struct opbx_frame *fr;
+		struct cw_frame *fr;
 		for (x=0;x<fmtcnt;x++) {
 			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);
-			realfiles[x] = opbx_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
+			realfiles[x] = cw_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
 			if (!others[x] || !realfiles[x])
 				break;
 			if (totalsilence)
-				opbx_stream_rewind(others[x], totalsilence-200);
+				cw_stream_rewind(others[x], totalsilence-200);
 			else
-				opbx_stream_rewind(others[x], 200);
-			opbx_truncstream(others[x]);
+				cw_stream_rewind(others[x], 200);
+			cw_truncstream(others[x]);
 			/* add the original file too */
-			while ((fr = opbx_readframe(realfiles[x]))) {
-				opbx_writestream(others[x],fr);
+			while ((fr = cw_readframe(realfiles[x]))) {
+				cw_writestream(others[x],fr);
 			}
-			opbx_closestream(others[x]);
-			opbx_closestream(realfiles[x]);
-			opbx_filerename(prependfile, recordfile, sfmt[x]);
+			cw_closestream(others[x]);
+			cw_closestream(realfiles[x]);
+			cw_filerename(prependfile, recordfile, sfmt[x]);
 #if 0
-			opbx_verbose("Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x],prependfile,recordfile);
+			cw_verbose("Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x],prependfile,recordfile);
 #endif
-			opbx_filedelete(prependfile, sfmt[x]);
+			cw_filedelete(prependfile, sfmt[x]);
 		}
 	}
 	if (rfmt) {
-		if (opbx_set_read_format(chan, rfmt)) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);
+		if (cw_set_read_format(chan, rfmt)) {
+			cw_log(CW_LOG_WARNING, "Unable to restore format %s to channel '%s'\n", cw_getformatname(rfmt), chan->name);
 		}
 	}
 	if (outmsg) {
 		if (outmsg > 1) {
 			/* Let them know it worked */
-			opbx_streamfile(chan, "auth-thankyou", chan->language);
-			opbx_waitstream(chan, "");
+			cw_streamfile(chan, "auth-thankyou", chan->language);
+			cw_waitstream(chan, "");
 		}
 	}	
 	return res;
@@ -836,14 +836,14 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 
 /* Channel group core functions */
 
-int opbx_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
+int cw_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
 {
 	int res=0;
 	char tmp[256];
 	char *grp=NULL, *cat=NULL;
 
-	if (!opbx_strlen_zero(data)) {
-		opbx_copy_string(tmp, data, sizeof(tmp));
+	if (!cw_strlen_zero(data)) {
+		cw_copy_string(tmp, data, sizeof(tmp));
 		grp = tmp;
 		cat = strchr(tmp, '@');
 		if (cat) {
@@ -852,26 +852,26 @@ int opbx_app_group_split_group(char *data, char *group, int group_max, char *cat
 		}
 	}
 
-	if (!opbx_strlen_zero(grp))
-		opbx_copy_string(group, grp, group_max);
+	if (!cw_strlen_zero(grp))
+		cw_copy_string(group, grp, group_max);
 	else
 		res = -1;
 
 	if (cat)
 		snprintf(category, category_max, "%s_%s", GROUP_CATEGORY_PREFIX, cat);
 	else
-		opbx_copy_string(category, GROUP_CATEGORY_PREFIX, category_max);
+		cw_copy_string(category, GROUP_CATEGORY_PREFIX, category_max);
 
 	return res;
 }
 
-int opbx_app_group_set_channel(struct opbx_channel *chan, char *data)
+int cw_app_group_set_channel(struct cw_channel *chan, char *data)
 {
 	int res=0;
 	char group[80] = "";
 	char category[80] = "";
 
-	if (!opbx_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
+	if (!cw_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
 		pbx_builtin_setvar_helper(chan, category, group);
 	} else
 		res = -1;
@@ -879,56 +879,56 @@ int opbx_app_group_set_channel(struct opbx_channel *chan, char *data)
 	return res;
 }
 
-int opbx_app_group_get_count(char *group, char *category)
+int cw_app_group_get_count(char *group, char *category)
 {
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	int count = 0;
 	char *test;
 	char cat[80];
 	char *s;
 
-	if (opbx_strlen_zero(group))
+	if (cw_strlen_zero(group))
 		return 0;
 
- 	s = (!opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
-	opbx_copy_string(cat, s, sizeof(cat));
+ 	s = (!cw_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	cw_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;
-	while ((chan = opbx_channel_walk_locked(chan)) != NULL) {
+	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
  		test = pbx_builtin_getvar_helper(chan, cat);
 		if (test && !strcasecmp(test, group))
  			count++;
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	}
 
 	return count;
 }
 
-int opbx_app_group_match_get_count(char *groupmatch, char *category)
+int cw_app_group_match_get_count(char *groupmatch, char *category)
 {
 	regex_t regexbuf;
-	struct opbx_channel *chan;
+	struct cw_channel *chan;
 	int count = 0;
 	char *test;
 	char cat[80];
 	char *s;
 
-	if (opbx_strlen_zero(groupmatch))
+	if (cw_strlen_zero(groupmatch))
 		return 0;
 
 	/* if regex compilation fails, return zero matches */
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = (!opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
-	opbx_copy_string(cat, s, sizeof(cat));
+	s = (!cw_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	cw_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;
-	while ((chan = opbx_channel_walk_locked(chan)) != NULL) {
+	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
 		test = pbx_builtin_getvar_helper(chan, cat);
 		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
 			count++;
-		opbx_mutex_unlock(&chan->lock);
+		cw_mutex_unlock(&chan->lock);
 	}
 
 	regfree(&regexbuf);
@@ -936,14 +936,14 @@ int opbx_app_group_match_get_count(char *groupmatch, char *category)
 	return count;
 }
 
-int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
+int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 {
 	char *start;
 	int argc;
 	char c;
 
 	if (option_debug && option_verbose > 6)
-		opbx_log(OPBX_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
+		cw_log(CW_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
 
 	/* The last argv is reserved for NULL. This is required if you want
 	 * to hand off an argv to exec(2) for example.
@@ -1012,16 +1012,16 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 
 	if (option_debug && option_verbose > 5) {
 		int i;
-		opbx_log(OPBX_LOG_DEBUG, "argc: %d\n", argc);
+		cw_log(CW_LOG_DEBUG, "argc: %d\n", argc);
 		for (i=0; i<argc; i++)
-			opbx_log(OPBX_LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
+			cw_log(CW_LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
 	}
 
 	return argc;
 }
 
 
-enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
+enum CW_LOCK_RESULT cw_lock_path(const char *path)
 {
 	char *s;
 	char *fs;
@@ -1032,11 +1032,11 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	s = alloca(strlen(path) + 10);
 	fs = alloca(strlen(path) + 20);
 
-	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, opbx_random());
+	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, cw_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		opbx_log(OPBX_LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
-		return OPBX_LOCK_PATH_NOT_FOUND;
+		cw_log(CW_LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
+		return CW_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
 
@@ -1048,16 +1048,16 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	unlink(fs);
 
 	if (res) {
-		opbx_log(OPBX_LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
-		return OPBX_LOCK_TIMEOUT;
+		cw_log(CW_LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
+		return CW_LOCK_TIMEOUT;
 	} else {
 		unlink(fs);
-		opbx_log(OPBX_LOG_DEBUG, "Locked path '%s'\n", path);
-		return OPBX_LOCK_SUCCESS;
+		cw_log(CW_LOG_DEBUG, "Locked path '%s'\n", path);
+		return CW_LOCK_SUCCESS;
 	}
 }
 
-int opbx_unlock_path(const char *path)
+int cw_unlock_path(const char *path)
 {
 	char *s;
 	int res;
@@ -1066,14 +1066,14 @@ int opbx_unlock_path(const char *path)
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 
 	if ((res = unlink(s)))
-		opbx_log(OPBX_LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
 	else
-		opbx_log(OPBX_LOG_DEBUG, "Unlocked path '%s'\n", path);
+		cw_log(CW_LOG_DEBUG, "Unlocked path '%s'\n", path);
 
 	return res;
 }
 
-int opbx_record_review(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
+int cw_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
 {
 	int silencethreshold = 128; 
 	int maxsilence=0;
@@ -1087,7 +1087,7 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
-		opbx_log(OPBX_LOG_WARNING, "Error opbx_record_review called without duration pointer\n");
+		cw_log(CW_LOG_WARNING, "Error cw_record_review called without duration pointer\n");
 		return -1;
 	}
 
@@ -1101,26 +1101,26 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 				cmd = '3';
 				break;
 			} else {
-				opbx_streamfile(chan, "vm-msgsaved", chan->language);
-				opbx_waitstream(chan, "");
+				cw_streamfile(chan, "vm-msgsaved", chan->language);
+				cw_waitstream(chan, "");
 				cmd = 't';
 				return res;
 			}
 		case '2':
 			/* Review */
-			opbx_verbose(VERBOSE_PREFIX_3 "Reviewing the recording\n");
-			opbx_streamfile(chan, recordfile, chan->language);
-			cmd = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+			cw_verbose(VERBOSE_PREFIX_3 "Reviewing the recording\n");
+			cw_streamfile(chan, recordfile, chan->language);
+			cmd = cw_waitstream(chan, CW_DIGIT_ANY);
 			break;
 		case '3':
 			message_exists = 0;
 			/* Record */
 			if (recorded == 1)
-				opbx_verbose(VERBOSE_PREFIX_3 "Re-recording\n");
+				cw_verbose(VERBOSE_PREFIX_3 "Re-recording\n");
 			else	
-				opbx_verbose(VERBOSE_PREFIX_3 "Recording\n");
+				cw_verbose(VERBOSE_PREFIX_3 "Recording\n");
 			recorded = 1;
-			cmd = opbx_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, path);
+			cmd = cw_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, path);
 			if (cmd == -1) {
 			/* User has hung up, no options to give */
 				return cmd;
@@ -1144,20 +1144,20 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 		case '9':
 		case '*':
 		case '#':
-			cmd = opbx_play_and_wait(chan, "vm-sorry");
+			cmd = cw_play_and_wait(chan, "vm-sorry");
 			break;
 		default:
 			if (message_exists) {
-				cmd = opbx_play_and_wait(chan, "vm-review");
+				cmd = cw_play_and_wait(chan, "vm-review");
 			}
 			else {
-				cmd = opbx_play_and_wait(chan, "vm-torerecord");
+				cmd = cw_play_and_wait(chan, "vm-torerecord");
 				if (!cmd)
-					cmd = opbx_waitfordigit(chan, 600);
+					cmd = cw_waitfordigit(chan, 600);
 			}
 			
 			if (!cmd)
-				cmd = opbx_waitfordigit(chan, 6000);
+				cmd = cw_waitfordigit(chan, 6000);
 			if (!cmd) {
 				attempts++;
 			}
@@ -1172,7 +1172,7 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 }
 
 
-int opbx_parseoptions(const struct opbx_option *options, struct opbx_flags *flags, char **args, char *optstr)
+int cw_parseoptions(const struct cw_option *options, struct cw_flags *flags, char **args, char *optstr)
 {
 	char *s;
 	int curarg;
@@ -1202,7 +1202,7 @@ int opbx_parseoptions(const struct opbx_option *options, struct opbx_flags *flag
 				*s = '\0';
 				s++;
 			} else {
-				opbx_log(OPBX_LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
+				cw_log(CW_LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
 				res = -1;
 			}
 		} else if (argloc)

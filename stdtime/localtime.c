@@ -86,9 +86,9 @@ static const char	elsieid[] = "@(#)localtime.c	7.57";
 #ifndef WILDABBR
 /*
 ** Someone might make incorrect use of a time zone abbreviation:
-**	1.	They might reference tzname[0] before calling opbx_tzset (explicitly
+**	1.	They might reference tzname[0] before calling cw_tzset (explicitly
 **		or implicitly).
-**	2.	They might reference tzname[1] before calling opbx_tzset (explicitly
+**	2.	They might reference tzname[1] before calling cw_tzset (explicitly
 **		or implicitly).
 **	3.	They might reference tzname[1] after setting to a time zone
 **		in which Daylight Saving Time is never observed.
@@ -213,10 +213,10 @@ static struct state *	gmtptr      = NULL;
 
 static int		gmt_is_set;
 #ifdef	_THREAD_SAFE
-OPBX_MUTEX_DEFINE_STATIC(lcl_mutex);
-OPBX_MUTEX_DEFINE_STATIC(tzset_mutex);
-OPBX_MUTEX_DEFINE_STATIC(tzsetwall_mutex);
-OPBX_MUTEX_DEFINE_STATIC(gmt_mutex);
+CW_MUTEX_DEFINE_STATIC(lcl_mutex);
+CW_MUTEX_DEFINE_STATIC(tzset_mutex);
+CW_MUTEX_DEFINE_STATIC(tzsetwall_mutex);
+CW_MUTEX_DEFINE_STATIC(gmt_mutex);
 #endif
 
 /*
@@ -863,16 +863,16 @@ struct state * const	sp;
 }
 
 /*
-** A non-static declaration of opbx_tzsetwall in a system header file
+** A non-static declaration of cw_tzsetwall in a system header file
 ** may cause a warning about this upcoming static declaration...
 */
 static
 #ifdef	_THREAD_SAFE
 int
-opbx_tzsetwall_basic P((void))
+cw_tzsetwall_basic P((void))
 #else
 int
-opbx_tzsetwall P((void))
+cw_tzsetwall P((void))
 #endif
 {
 	struct state *cur_state = lclptr;
@@ -893,7 +893,7 @@ opbx_tzsetwall P((void))
 	if (tzload((char *) NULL, cur_state) != 0)
 #ifdef DEBUG
 	{
-		fprintf(stderr, "opbx_tzsetwall: calling gmtload()\n");
+		fprintf(stderr, "cw_tzsetwall: calling gmtload()\n");
 #endif
 		gmtload(cur_state);
 #ifdef DEBUG
@@ -910,28 +910,28 @@ opbx_tzsetwall P((void))
 
 #ifdef	_THREAD_SAFE
 int
-opbx_tzsetwall P((void))
+cw_tzsetwall P((void))
 {
-	opbx_mutex_lock(&tzsetwall_mutex);
-	opbx_tzsetwall_basic();
-	opbx_mutex_unlock(&tzsetwall_mutex);
+	cw_mutex_lock(&tzsetwall_mutex);
+	cw_tzsetwall_basic();
+	cw_mutex_unlock(&tzsetwall_mutex);
 	return 0;
 }
 #endif
 
 #ifdef	_THREAD_SAFE
 static int
-opbx_tzset_basic P((const char *name))
+cw_tzset_basic P((const char *name))
 #else
 int
-opbx_tzset P((const char *name))
+cw_tzset P((const char *name))
 #endif
 {
 	struct state *cur_state = lclptr;
 
 	/* Not set at all */
 	if (name == NULL) {
-		return opbx_tzsetwall();
+		return cw_tzsetwall();
 	}
 
 	/* Find the appropriate structure, if already parsed */
@@ -980,11 +980,11 @@ opbx_tzset P((const char *name))
 
 #ifdef	_THREAD_SAFE
 void
-opbx_tzset P((const char *name))
+cw_tzset P((const char *name))
 {
-	opbx_mutex_lock(&tzset_mutex);
-	opbx_tzset_basic(name);
-	opbx_mutex_unlock(&tzset_mutex);
+	cw_mutex_lock(&tzset_mutex);
+	cw_tzset_basic(name);
+	cw_mutex_unlock(&tzset_mutex);
 }
 #endif
 
@@ -1022,7 +1022,7 @@ const char * const	zone;
 		}
 
 	if (sp == NULL) {
-		opbx_tzsetwall();
+		cw_tzsetwall();
 		sp = lclptr;
 		/* Find the default zone record */
 		while (sp != NULL) {
@@ -1066,18 +1066,18 @@ const char * const	zone;
 }
 
 struct tm *
-opbx_localtime(timep, p_tm, zone)
+cw_localtime(timep, p_tm, zone)
 const time_t * const	timep;
 struct tm *p_tm;
 const char * const	zone;
 {
 #ifdef _THREAD_SAFE
-	opbx_mutex_lock(&lcl_mutex);
+	cw_mutex_lock(&lcl_mutex);
 #endif
-	opbx_tzset(zone);
+	cw_tzset(zone);
 	localsub(timep, 0L, p_tm, zone);
 #ifdef _THREAD_SAFE
-	opbx_mutex_unlock(&lcl_mutex);
+	cw_mutex_unlock(&lcl_mutex);
 #endif
 	return(p_tm);
 }
@@ -1094,7 +1094,7 @@ struct tm * const	tmp;
 const char * const	zone;
 {
 #ifdef	_THREAD_SAFE
-	opbx_mutex_lock(&gmt_mutex);
+	cw_mutex_lock(&gmt_mutex);
 #endif
 	if (!gmt_is_set) {
 		gmt_is_set = TRUE;
@@ -1102,7 +1102,7 @@ const char * const	zone;
 		if (gmtptr != NULL)
 			gmtload(gmtptr);
 	}
-	opbx_mutex_unlock(&gmt_mutex);
+	cw_mutex_unlock(&gmt_mutex);
 	timesub(timep, offset, gmtptr, tmp);
 #ifdef TM_ZONE
 	/*
@@ -1217,7 +1217,7 @@ register struct tm * const		tmp;
 }
 
 char *
-opbx_ctime(timep)
+cw_ctime(timep)
 const time_t * const	timep;
 {
 /*
@@ -1230,7 +1230,7 @@ const time_t * const	timep;
 }
 
 char *
-opbx_ctime_r(timep, buf)
+cw_ctime_r(timep, buf)
 const time_t * const	timep;
 char *buf;
 {
@@ -1510,18 +1510,18 @@ const char * const	zone;
 }
 
 time_t
-opbx_mktime(tmp,zone)
+cw_mktime(tmp,zone)
 struct tm * const	tmp;
 const char * const	zone;
 {
 	time_t mktime_return_value;
 #ifdef	_THREAD_SAFE
-	opbx_mutex_lock(&lcl_mutex);
+	cw_mutex_lock(&lcl_mutex);
 #endif
-	opbx_tzset(zone);
+	cw_tzset(zone);
 	mktime_return_value = time1(tmp, localsub, 0L, zone);
 #ifdef	_THREAD_SAFE
-	opbx_mutex_unlock(&lcl_mutex);
+	cw_mutex_unlock(&lcl_mutex);
 #endif
 	return(mktime_return_value);
 }

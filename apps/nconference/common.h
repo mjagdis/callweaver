@@ -52,15 +52,15 @@
 #include <spandsp.h>
 #include <pthread.h>
 
-extern opbx_mutex_t conflist_lock;
+extern cw_mutex_t conflist_lock;
 
 // debug logging level
 #define APP_NCONFERENCE_DEBUG	0
 
 #if (APP_NCONFERENCE_DEBUG == 0)
-#define OPBX_CONF_DEBUG 	OPBX_LOG_NOTICE
+#define CW_CONF_DEBUG 	CW_LOG_NOTICE
 #else
-#define OPBX_CONF_DEBUG 	OPBX_LOG_NOTICE
+#define CW_CONF_DEBUG 	CW_LOG_NOTICE
 #endif
 
 
@@ -74,22 +74,22 @@ extern opbx_mutex_t conflist_lock;
 #define ENABLE_VAD		1
 #define ENABLE AUTOGAIN		0	// Not used yet
 
-// sample information for OPBX_FORMAT_SLINEAR format
-#define OPBX_CONF_SAMPLE_RATE_8K 	8000
-#define OPBX_CONF_SAMPLE_RATE_16K 	16000
-#define OPBX_CONF_SAMPLE_RATE 		OPBX_CONF_SAMPLE_RATE_8K
+// sample information for CW_FORMAT_SLINEAR format
+#define CW_CONF_SAMPLE_RATE_8K 	8000
+#define CW_CONF_SAMPLE_RATE_16K 	16000
+#define CW_CONF_SAMPLE_RATE 		CW_CONF_SAMPLE_RATE_8K
 
 // Time to wait while reading a channel
-#define OPBX_CONF_WAITFOR_TIME 40 
+#define CW_CONF_WAITFOR_TIME 40 
 
 // Time to destroy empty conferences (seconds)
-#define OPBX_CONF_DESTROY_TIME 300
+#define CW_CONF_DESTROY_TIME 300
 
 // -----------------------------------------------
-#define OPBX_CONF_SKIP_MS_AFTER_VOICE_DETECTION 	210
-#define OPBX_CONF_SKIP_MS_WHEN_SILENT     		90
+#define CW_CONF_SKIP_MS_AFTER_VOICE_DETECTION 	210
+#define CW_CONF_SKIP_MS_WHEN_SILENT     		90
 
-#define OPBX_CONF_CBUFFER_8K_SIZE 3072
+#define CW_CONF_CBUFFER_8K_SIZE 3072
 
 
 // Timelog functions
@@ -105,7 +105,7 @@ extern opbx_mutex_t conflist_lock;
 		func; \
 		gettimeofday(&t2,NULL); \
 		if((diff = usecdiff(&t2, &t1)) > min) \
-			opbx_log( OPBX_CONF_DEBUG, "TimeLog: %s: %d ms\n", message, diff); \
+			cw_log( CW_CONF_DEBUG, "TimeLog: %s: %d ms\n", message, diff); \
 	} while (0)
 
 #else

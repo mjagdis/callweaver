@@ -118,7 +118,7 @@ void gen_tabs(void);
 
 #ifdef  AES_ENCRYPT
 
-#define aes_encrypt opbx_aes_encrypt
+#define aes_encrypt cw_aes_encrypt
 
 typedef struct  
 {   aes_32t ks[KS_LENGTH];
@@ -145,7 +145,7 @@ aes_rval aes_encrypt(const void *in_blk, void *out_blk, const aes_encrypt_ctx cx
 
 #ifdef AES_DECRYPT
 
-#define aes_decrypt opbx_aes_decrypt
+#define aes_decrypt cw_aes_decrypt
 
 typedef struct  
 {   aes_32t ks[KS_LENGTH];

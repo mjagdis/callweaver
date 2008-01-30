@@ -36,7 +36,7 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 
 EXTRA_DIST = substitute.mak
 
-utilitydir = ${opbxutilsdir}
+utilitydir = ${cwutilsdir}
 utility_SCRIPTS = callweaver_cli safe_callweaver
 CLEANFILES = $(utility_SCRIPTS)
 
@@ -56,16 +56,16 @@ safe_callweaver:
 
 install-man-pages:
 if WANT_MAN_PAGES
-	if test ! -d $(DESTDIR)${opbxmandir}/man8; then \
-		mkdir -p $(DESTDIR)${opbxmandir}/man8 ; \
+	if test ! -d $(DESTDIR)${cwmandir}/man8; then \
+		mkdir -p $(DESTDIR)${cwmandir}/man8 ; \
 	fi ; \
-	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ; \
-	cp $(top_srcdir)/safe_callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ;
+	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${cwmandir}/man8/. ; \
+	cp $(top_srcdir)/safe_callweaver.8 $(DESTDIR)${cwmandir}/man8/. ;
 endif
 
 uninstall-man-pages:
-	if test -d $(DESTDIR)${opbxmandir}/man8; then \
-		rm -rf $(DESTDIR)${opbxmandir}/man8/*callweaver.8 ; \
+	if test -d $(DESTDIR)${cwmandir}/man8; then \
+		rm -rf $(DESTDIR)${cwmandir}/man8/*callweaver.8 ; \
 	fi ;
 
 ##############
@@ -75,67 +75,67 @@ uninstall-man-pages:
 install-docs: install-readme install-license install-credits install-sgml-docs
 
 uninstall-docs:
-	if test -d $(DESTDIR)${opbxdocdir}; then \
-		rm -rf $(DESTDIR)${opbxdocdir} ; \
+	if test -d $(DESTDIR)${cwdocdir}; then \
+		rm -rf $(DESTDIR)${cwdocdir} ; \
 	fi ;
 
 # README file
 install-readme:
 if WANT_README
-	if test ! -d $(DESTDIR)${opbxdocdir}; then \
-		mkdir -p $(DESTDIR)${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${cwdocdir}; then \
+		mkdir -p $(DESTDIR)${cwdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/README $(DESTDIR)${opbxdocdir}/. ;
+	cp $(top_srcdir)/README $(DESTDIR)${cwdocdir}/. ;
 endif
 
 uninstall-readme:
-	if test -f $(DESTDIR)${opbxdocdir}/README; then \
-		if test ! -d $(DESTDIR)${opbxdocdir}; then \
-			mkdir -p $(DESTDIR)${opbxdocdir} ; \
+	if test -f $(DESTDIR)${cwdocdir}/README; then \
+		if test ! -d $(DESTDIR)${cwdocdir}; then \
+			mkdir -p $(DESTDIR)${cwdocdir} ; \
 		fi ; \
-		rm -f $(DESTDIR)${opbxdocdir}/README ; \
+		rm -f $(DESTDIR)${cwdocdir}/README ; \
 	fi ;
 
 # LICENSE file
 install-license:
 if WANT_LICENSE
-	if test ! -d $(DESTDIR)${opbxdocdir}; then \
-		mkdir -p $(DESTDIR)${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${cwdocdir}; then \
+		mkdir -p $(DESTDIR)${cwdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/LICENSE $(DESTDIR)${opbxdocdir}/. ;
+	cp $(top_srcdir)/LICENSE $(DESTDIR)${cwdocdir}/. ;
 endif
 
 uninstall-license:
-	if test -f $(DESTDIR)${opbxdocdir}/LICENSE; then \
-		rm -f $(DESTDIR)${opbxdocdir}/LICENSE ; \
+	if test -f $(DESTDIR)${cwdocdir}/LICENSE; then \
+		rm -f $(DESTDIR)${cwdocdir}/LICENSE ; \
 	fi ;
 
 # CREDITS file
 install-credits:
 if WANT_CREDITS
-	if test ! -d $(DESTDIR)${opbxdocdir}; then \
-		mkdir -p $(DESTDIR)${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${cwdocdir}; then \
+		mkdir -p $(DESTDIR)${cwdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/CREDITS $(DESTDIR)${opbxdocdir}/. ;
+	cp $(top_srcdir)/CREDITS $(DESTDIR)${cwdocdir}/. ;
 endif
 
 uninstall-credits:
-	if test -f $(DESTDIR)${opbxdocdir}/CREDITS; then \
-		rm -f $(DESTDIR)${opbxdocdir}/CREDITS ; \
+	if test -f $(DESTDIR)${cwdocdir}/CREDITS; then \
+		rm -f $(DESTDIR)${cwdocdir}/CREDITS ; \
 	fi ;
 
 # SGML docs
 install-sgml-docs:
 if WANT_SGML_DOCS
-	if test ! -d $(DESTDIR)${opbxdocdir}; then \
-		mkdir -p $(DESTDIR)${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${cwdocdir}; then \
+		mkdir -p $(DESTDIR)${cwdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/callweaver.sgml $(DESTDIR)${opbxdocdir}/. ;
+	cp $(top_srcdir)/callweaver.sgml $(DESTDIR)${cwdocdir}/. ;
 endif
 
 uninstall-sgml-docs:
-	if test -f $(DESTDIR)${opbxdocdir}/callweaver.sgml; then \
-		rm -f $(DESTDIR)${opbxdocdir}/callweaver.sgml ; \
+	if test -f $(DESTDIR)${cwdocdir}/callweaver.sgml; then \
+		rm -f $(DESTDIR)${cwdocdir}/callweaver.sgml ; \
 	fi ;
 
 ###################
@@ -151,35 +151,35 @@ SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
 ############################
 
 # mutable data
-INSTALL_DIRS =	$(opbxvardir) $(opbxvardir)/core
+INSTALL_DIRS =	$(cwvardir) $(cwvardir)/core
 
 # built-in database
-INSTALL_DIRS +=	$(opbxdbdir) $(opbxsqlitedir)
+INSTALL_DIRS +=	$(cwdbdir) $(cwsqlitedir)
 
 # loadable modules
-INSTALL_DIRS +=	$(opbxmoddir) $(opbxicdmoddir)
+INSTALL_DIRS +=	$(cwmoddir) $(cwicdmoddir)
 
 # CDRs and log files
-INSTALL_DIRS +=	$(opbxlogdir) $(opbxlogdir)/cdr-custom $(opbxlogdir)/cdr-csv
+INSTALL_DIRS +=	$(cwlogdir) $(cwlogdir)/cdr-custom $(cwlogdir)/cdr-csv
 
 # pid file and console socket
-INSTALL_DIRS +=	$(opbxrundir)
+INSTALL_DIRS +=	$(cwrundir)
 
 # spool files
-INSTALL_DIRS +=	$(opbxspooldir) $(opbxspooldir)/outgoing $(opbxspooldir)/voicemail
+INSTALL_DIRS +=	$(cwspooldir) $(cwspooldir)/outgoing $(cwspooldir)/voicemail
 
 # on-hold music
-INSTALL_DIRS +=	$(opbxmohdir)
+INSTALL_DIRS +=	$(cwmohdir)
 
 # crypto keys
-INSTALL_DIRS +=	$(opbxkeydir)
+INSTALL_DIRS +=	$(cwkeydir)
 
 # images
-INSTALL_DIRS +=	$(opbximagesdir)
+INSTALL_DIRS +=	$(cwimagesdir)
 
 # create directories, set ownership and permissions
 install-data-hook:
-	rm -fr "$(opbxlibdir)"/libcallweaver.* "$(opbxmoddir)"; \
+	rm -fr "$(cwlibdir)"/libcallweaver.* "$(cwmoddir)"; \
 	for install_dir in $(INSTALL_DIRS); \
 	do \
 		if test ! -d "$(DESTDIR)$${install_dir}"; \
@@ -189,7 +189,7 @@ install-data-hook:
 		fi; \
 		if test -z "$(DESTDIR)"; \
 		then \
-			chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)$${install_dir}; \
+			chown ${cwrunuser}:${cwrungroup} $(DESTDIR)$${install_dir}; \
 		fi; \
 	done
 

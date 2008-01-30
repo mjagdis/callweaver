@@ -828,7 +828,7 @@ int jb_getall(jitterbuf *jb, jb_frame *frameout)
 }
 
 
-int jb_getinfo(jitterbuf *jb, opbx_jb_info *stats) 
+int jb_getinfo(jitterbuf *jb, cw_jb_info *stats) 
 {
 
 	history_get(jb);

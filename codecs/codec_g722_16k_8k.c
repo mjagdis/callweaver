@@ -93,8 +93,8 @@ static const uint8_t g722_ex[] =
  */
 struct g722_encoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];   /* Space to build offset */
     uint8_t outbuf[BUFFER_SIZE];  /* Encoded G722, two nibbles to a word */
     uint8_t next_flag;
     g722_encode_state_t g722_state;
@@ -106,8 +106,8 @@ struct g722_encoder_pvt
  */
 struct g722_decoder_pvt
 {
-    struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];    /* Space to build offset */
+    struct cw_frame f;
+    uint8_t offset[CW_FRIENDLY_OFFSET];    /* Space to build offset */
     int16_t outbuf[BUFFER_SIZE];    /* Decoded signed linear values */
     g722_decode_state_t g722_state;
     int tail;
@@ -167,7 +167,7 @@ static void *lintog722_new(void)
  *  tmp->tail is the number of packed values in the buffer.
  */
 
-static int g722tolin_framein(void *pvt, struct opbx_frame *f)
+static int g722tolin_framein(void *pvt, struct cw_frame *f)
 {
     struct g722_decoder_pvt *tmp = (struct g722_decoder_pvt *) pvt;
 
@@ -176,7 +176,7 @@ static int g722tolin_framein(void *pvt, struct opbx_frame *f)
         /* Perform PLC with nominal framesize of 20ms/160 samples */
         if ((tmp->tail + 160) > BUFFER_SIZE)
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         if (useplc)
@@ -189,7 +189,7 @@ static int g722tolin_framein(void *pvt, struct opbx_frame *f)
     {
         if ((tmp->tail + f->datalen*2) > BUFFER_SIZE)
         {
-            opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+            cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
         tmp->tail += g722_decode(&(tmp->g722_state),
@@ -213,17 +213,17 @@ static int g722tolin_framein(void *pvt, struct opbx_frame *f)
  *  None.
  */
 
-static struct opbx_frame *g722tolin_frameout(void *pvt)
+static struct cw_frame *g722tolin_frameout(void *pvt)
 {
     struct g722_decoder_pvt *tmp = (struct g722_decoder_pvt *) pvt;
 
     if (tmp->tail == 0)
         return NULL;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*2;
     tmp->f.samples = tmp->tail;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 
     tmp->tail = 0;
@@ -240,13 +240,13 @@ static struct opbx_frame *g722tolin_frameout(void *pvt)
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int lintog722_framein(void *pvt, struct opbx_frame *f)
+static int lintog722_framein(void *pvt, struct cw_frame *f)
 {
     struct g722_encoder_pvt *tmp = (struct g722_encoder_pvt *) pvt;
   
     if ((tmp->tail + f->datalen/(2*sizeof(int16_t)) + 1) > BUFFER_SIZE)
     {
-        opbx_log(OPBX_LOG_WARNING, "Out of buffer space\n");
+        cw_log(CW_LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     tmp->tail += g722_encode(&(tmp->g722_state),
@@ -267,16 +267,16 @@ static int lintog722_framein(void *pvt, struct opbx_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct opbx_frame *lintog722_frameout(void *pvt)
+static struct cw_frame *lintog722_frameout(void *pvt)
 {
     struct g722_encoder_pvt *tmp = (struct g722_encoder_pvt *) pvt;
   
     if (tmp->tail == 0)
         return NULL;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_G722, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_G722, __PRETTY_FUNCTION__);
     tmp->f.samples = tmp->tail*2;
-    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     tmp->f.datalen = tmp->tail;
 
@@ -284,22 +284,22 @@ static struct opbx_frame *lintog722_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct opbx_frame *g722tolin_sample(void)
+static struct cw_frame *g722tolin_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
  
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_G722, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G722, __PRETTY_FUNCTION__);
     f.datalen = sizeof(g722_ex);
     f.samples = sizeof(g722_ex)*2;
     f.data = (uint8_t *) g722_ex;
     return &f;
 }
 
-static struct opbx_frame *lintog722_sample(void)
+static struct cw_frame *lintog722_sample(void)
 {
-    static struct opbx_frame f;
+    static struct cw_frame f;
   
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof (slin_ex)/sizeof(int16_t);
@@ -310,12 +310,12 @@ static struct opbx_frame *lintog722_sample(void)
 /*
  * The complete translator for g722tolin.
  */
-static opbx_translator_t g722tolin =
+static cw_translator_t g722tolin =
 {
     .name = "g722tolin8k",
-    .src_format = OPBX_FORMAT_G722,
+    .src_format = CW_FORMAT_G722,
     .src_rate = 16000,
-    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_format = CW_FORMAT_SLINEAR,
     .dst_rate = 8000,
     .newpvt = g722tolin_new,
     .framein = g722tolin_framein,
@@ -327,12 +327,12 @@ static opbx_translator_t g722tolin =
 /*
  * The complete translator for lintog722.
  */
-static opbx_translator_t lintog722 =
+static cw_translator_t lintog722 =
 {
     .name = "lin8ktog722",
-    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_format = CW_FORMAT_SLINEAR,
     .src_rate = 8000,
-    .dst_format = OPBX_FORMAT_G722,
+    .dst_format = CW_FORMAT_G722,
     .dst_rate = 16000,
     .newpvt = lintog722_new,
     .framein = lintog722_framein,
@@ -343,25 +343,25 @@ static opbx_translator_t lintog722 =
 
 static void parse_config(void)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
+    struct cw_config *cfg;
+    struct cw_variable *var;
   
-    if ((cfg = opbx_config_load("codecs.conf")))
+    if ((cfg = cw_config_load("codecs.conf")))
     {
-        if ((var = opbx_variable_browse(cfg, "plc")))
+        if ((var = cw_variable_browse(cfg, "plc")))
         {
             while (var)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value) ? 1 : 0;
+                    useplc = cw_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g722_16k_8k: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                        cw_verbose(VERBOSE_PREFIX_3 "codec_g722_16k_8k: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }
                 var = var->next;
             }
         }
-        opbx_config_destroy(cfg);
+        cw_config_destroy(cfg);
     }
 }
 
@@ -373,16 +373,16 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-    opbx_translator_unregister(&g722tolin);
-    opbx_translator_unregister(&lintog722);
+    cw_translator_unregister(&g722tolin);
+    cw_translator_unregister(&lintog722);
     return 0;
 }
 
 static int load_module(void)
 {
     parse_config();
-    opbx_translator_register(&g722tolin);
-    opbx_translator_register(&lintog722);
+    cw_translator_register(&g722tolin);
+    cw_translator_register(&lintog722);
     return 0;
 }
 

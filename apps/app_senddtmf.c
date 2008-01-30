@@ -56,14 +56,14 @@ static const char senddtmf_descrip[] =
 " Returns 0 on success or -1 on a hangup.\n";
 
 
-static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int senddtmf_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
 	int timeout = 250;
 
 	if (argc < 1 || argc > 2 || !argv[0][0])
-		return opbx_function_syntax(senddtmf_syntax);
+		return cw_function_syntax(senddtmf_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -71,7 +71,7 @@ static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv, char 
 	if (timeout <= 0)
 		timeout = 250;
 
-	res = opbx_dtmf_stream(chan, NULL, argv[0], timeout);
+	res = cw_dtmf_stream(chan, NULL, argv[0], timeout);
 		
 	LOCAL_USER_REMOVE(u);
 
@@ -82,13 +82,13 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_function(senddtmf_app);
+	res |= cw_unregister_function(senddtmf_app);
 	return res;
 }
 
 static int load_module(void)
 {
-	senddtmf_app = opbx_register_function(senddtmf_name, senddtmf_exec, senddtmf_synopsis, senddtmf_syntax, senddtmf_descrip);
+	senddtmf_app = cw_register_function(senddtmf_name, senddtmf_exec, senddtmf_synopsis, senddtmf_syntax, senddtmf_descrip);
 	return 0;
 }
 

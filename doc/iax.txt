@@ -42,13 +42,13 @@ sequence number.
 
 See iax.h for a description of the frame formats. 
 
-IAX internal frames use the OPBX_FRAME_IAX type.  The subclass of these
+IAX internal frames use the CW_FRAME_IAX type.  The subclass of these
 frames is the IAX control number, as seen in iax.h.  The first frame sent
-must be an OPBX_FRAME_IAX with the control OPBX_IAX_CONTROL_NEW.  
+must be an CW_FRAME_IAX with the control CW_IAX_CONTROL_NEW.  
 
-The OPBX_IAX_CONTROL_NEW establishes a new connection.  
+The CW_IAX_CONTROL_NEW establishes a new connection.  
 
-The first frame sent MUST be an OPBX_CONTROL_NEW to start a connection.
+The first frame sent MUST be an CW_CONTROL_NEW to start a connection.
 
 IAX connnections may require authentication using either simple plaintext
 passwords or an md5 challenge/response pair.

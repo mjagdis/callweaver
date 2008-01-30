@@ -92,18 +92,18 @@ What about:
 'tesha' (9, F)?
 */
 #define SAY_NUM_BUF_SIZE 256
-static int say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
     int res = 0;
     int state = 0; /* no need to save anything */
     int mf = 1;    /* +1 = Masculin; -1 = Feminin */
     char fn[SAY_NUM_BUF_SIZE] = "";
 
-    opbx_verbose(VERBOSE_PREFIX_3 "opbx_say_digits_full: started. "
+    cw_verbose(VERBOSE_PREFIX_3 "cw_say_digits_full: started. "
                  "num: %d, options=\"%s\"\n",
                  num, options);
     if (!num)
-        return opbx_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+        return cw_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
     if (options && !strncasecmp(options, "f", 1))
         mf = -1;
@@ -118,7 +118,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
          * state==0 is the normal mode and it means that we continue
          * to check if the number num has yet anything left.
          */
-        opbx_verbose(VERBOSE_PREFIX_3 "opbx_say_digits_full: num: %d, "
+        cw_verbose(VERBOSE_PREFIX_3 "cw_say_digits_full: num: %d, "
                      "state=%d, options=\"%s\", mf=%d\n",
                      num, state, options, mf);
         if (state == 1)
@@ -202,19 +202,19 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
         }
         else
         {
-            opbx_log(OPBX_LOG_DEBUG, "Number '%d' is too big for me\n", num);
+            cw_log(CW_LOG_DEBUG, "Number '%d' is too big for me\n", num);
             res = -1;
         }
         if (!res)
         {
-            if (!opbx_streamfile(chan, fn, language))
+            if (!cw_streamfile(chan, fn, language))
             {
                 if ((audiofd > -1)  &&  (ctrlfd > -1))
-                    res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);
+                    res = cw_waitstream_full(chan, ints, audiofd, ctrlfd);
                 else
-                    res = opbx_waitstream(chan, ints);
+                    res = cw_waitstream(chan, ints);
             }
-            opbx_stopstream(chan);
+            cw_stopstream(chan);
         }
     }
     return res;
@@ -224,7 +224,7 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
 
 /*
  *
- * @seealso opbx_say_date_with_format_en for the details of the options
+ * @seealso cw_say_date_with_format_en for the details of the options
  *
  * Changes from the English version:
  *
@@ -243,10 +243,10 @@ static int say_number_full(struct opbx_channel *chan, int num, const char *ints,
 #define IL_DATE_STR "AdBY"
 #define IL_TIME_STR "IMp"
 #define IL_DATE_STR_FULL IL_DATE_STR " 'digits/at' " IL_TIME_STR
-static int say_date_with_format(struct opbx_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
     /* TODO: This whole function is cut&paste from
-     * opbx_say_date_with_format_en . Is that considered acceptable?
+     * cw_say_date_with_format_en . Is that considered acceptable?
      **/
     struct tm tm;
     int res = 0;
@@ -255,11 +255,11 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
     char sndfile[256];
     char nextmsg[256];
 
-    opbx_localtime(&time, &tm, timezone);
+    cw_localtime(&time, &tm, timezone);
 
     for (offset = 0;  format[offset] != '\0';  offset++)
     {
-        opbx_log(OPBX_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+        cw_log(CW_LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
         switch (format[offset])
         {
             /* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
@@ -346,9 +346,9 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             char todo = format[offset]; /* The letter to format*/
 
             gettimeofday(&now,NULL);
-            opbx_localtime(&now.tv_sec,&tmnow,timezone);
+            cw_localtime(&now.tv_sec,&tmnow,timezone);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
-            /* In any case, it saves not having to do opbx_mktime() */
+            /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
             if (beg_today < time)
             {
@@ -404,7 +404,7 @@ static int say_date_with_format(struct opbx_channel *chan, time_t time, const ch
             break;
         default:
             /* Unknown character */
-            opbx_log(OPBX_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+            cw_log(CW_LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
         }
         /* Jump out on DTMF */
         if (res)

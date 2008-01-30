@@ -59,26 +59,26 @@ static const char urlencode_func_desc[] = "";
 
 
 /*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
-static int builtin_function_uriencode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(urlencode_func_syntax);
+		return cw_function_syntax(urlencode_func_syntax);
 
 	if (buf)
-		opbx_uri_encode(argv[0], buf, len, 1);
+		cw_uri_encode(argv[0], buf, len, 1);
 
 	return 0;
 }
 
 /*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
-static int builtin_function_uridecode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_uridecode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc != 1 || !argv[0][0])
-		return opbx_function_syntax(urldecode_func_syntax);
+		return cw_function_syntax(urldecode_func_syntax);
 
 	if (buf) {
-		opbx_copy_string(buf, argv[0], len);
-		opbx_uri_decode(buf);
+		cw_copy_string(buf, argv[0], len);
+		cw_uri_decode(buf);
 	}
 
 	return 0;
@@ -91,15 +91,15 @@ static int unload_module(void)
 {
 	int res = 0;
 
-        res |= opbx_unregister_function(urldecode_function);
-	res |= opbx_unregister_function(urlencode_function);
+        res |= cw_unregister_function(urldecode_function);
+	res |= cw_unregister_function(urlencode_function);
 	return res;
 }
 
 static int load_module(void)
 {
-        urldecode_function = opbx_register_function(urldecode_func_name, builtin_function_uridecode, urldecode_func_synopsis, urldecode_func_syntax, urldecode_func_desc);
-	urlencode_function = opbx_register_function(urlencode_func_name, builtin_function_uriencode, urlencode_func_synopsis, urlencode_func_syntax, urlencode_func_desc);
+        urldecode_function = cw_register_function(urldecode_func_name, builtin_function_uridecode, urldecode_func_synopsis, urldecode_func_syntax, urldecode_func_desc);
+	urlencode_function = cw_register_function(urlencode_func_name, builtin_function_uriencode, urlencode_func_synopsis, urlencode_func_syntax, urlencode_func_desc);
 	return 0;
 }
 

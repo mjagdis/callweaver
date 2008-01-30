@@ -66,7 +66,7 @@ static const char skel_descrip[] = "This application is a template to build othe
  * the channel is hung up. You SHOULD log an error before
  * returning -1.
  */
-static int skel_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int skel_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -75,7 +75,7 @@ static int skel_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	 * required arguments are none blank.
 	 */
 	if (argc < 1 || argc > 2 || !argv[0][0])
-		return opbx_function_syntax(skel_syntax);
+		return cw_function_syntax(skel_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -87,7 +87,7 @@ static int skel_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	 * If you pass argv data to something outside your control
 	 * you should assume it has been trashed and is unusable
 	 * on return. If you want to preserve it either malloc
-	 * and copy or use opbx_strdupa()
+	 * and copy or use cw_strdupa()
 	 */
 
 	/* If we have been given a result buffer and we have a result
@@ -110,8 +110,8 @@ static int skel_exec(struct opbx_channel *chan, int argc, char **argv, char *res
  * This is _only_ called if the module is explicitly unloaded.
  * It is _not_ called if CallWeaver exits completely. If you need
  * to perform clean up on exit you should register functions
- * using opbx_atexit_register - and remember to remove them
- * with opbx_atexit_unregister in your unload_module and
+ * using cw_atexit_register - and remember to remove them
+ * with cw_atexit_unregister in your unload_module and
  * call them yourself if necessary.
  */
 static int unload_module(void)
@@ -126,7 +126,7 @@ static int unload_module(void)
 	 * are still registered you _will_ crash CallWeaver!
 	 */
 	if (skel_app)
-		res |= opbx_unregister_function(skel_app);
+		res |= cw_unregister_function(skel_app);
 	return res;
 }
 
@@ -148,7 +148,7 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	skel_app = opbx_register_function(skel_name, skel_exec, skel_synopsis, skel_syntax, skel_descrip);
+	skel_app = cw_register_function(skel_name, skel_exec, skel_synopsis, skel_syntax, skel_descrip);
 	return 0;
 }
 

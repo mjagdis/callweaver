@@ -31,37 +31,37 @@
 
 
 /*! Data structure associated with an callweaver switch */
-struct opbx_switch
+struct cw_switch
 {
-	struct opbx_object obj;
-	struct opbx_registry_entry *reg_entry;
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	const char *name;				
 	const char *description;		
-	int (*exists)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	int (*canmatch)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	int (*exec)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	int (*matchmore)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*exists)(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*canmatch)(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*exec)(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*matchmore)(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 };
 
 
-extern struct opbx_registry switch_registry;
+extern struct cw_registry switch_registry;
 
 
-#define opbx_switch_register(ptr) ({ \
+#define cw_switch_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&switch_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&switch_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_switch_unregister(ptr) ({ \
+#define cw_switch_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&switch_registry, __ptr->reg_entry); \
+		cw_registry_del(&switch_registry, __ptr->reg_entry); \
 	0; \
 })
 

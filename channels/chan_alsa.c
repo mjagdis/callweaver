@@ -101,17 +101,17 @@ static int usecnt;
 static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
-OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
-OPBX_MUTEX_DEFINE_STATIC(alsalock);
+CW_MUTEX_DEFINE_STATIC(usecnt_lock);
+CW_MUTEX_DEFINE_STATIC(alsalock);
 
 static const char type[] = "Console";
 static const char desc[] = "ALSA Console Channel Driver";
 static const char tdesc[] = "ALSA Console Channel Driver";
 static const char config[] = "alsa.conf";
 
-static char context[OPBX_MAX_CONTEXT] = "default";
+static char context[CW_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
-static char exten[OPBX_MAX_EXTENSION] = "s";
+static char exten[CW_MAX_EXTENSION] = "s";
 
 static int hookstate=0;
 
@@ -2186,11 +2186,11 @@ static const int16_t ring10[] =
 
 static struct sound sounds[] =
 {
-	{ OPBX_CONTROL_RINGING, ringtone, sizeof(ringtone)/2, 16000, 32000, 1 },
-	{ OPBX_CONTROL_BUSY, busy, sizeof(busy)/2, 4000, 4000, 1 },
-	{ OPBX_CONTROL_CONGESTION, busy, sizeof(busy)/2, 2000, 2000, 1 },
-	{ OPBX_CONTROL_RING, ring10, sizeof(ring10)/2, 16000, 32000, 1 },
-	{ OPBX_CONTROL_ANSWER, answer, sizeof(answer)/2, 2200, 0, 0 },
+	{ CW_CONTROL_RINGING, ringtone, sizeof(ringtone)/2, 16000, 32000, 1 },
+	{ CW_CONTROL_BUSY, busy, sizeof(busy)/2, 4000, 4000, 1 },
+	{ CW_CONTROL_CONGESTION, busy, sizeof(busy)/2, 2000, 2000, 1 },
+	{ CW_CONTROL_RING, ring10, sizeof(ring10)/2, 16000, 32000, 1 },
+	{ CW_CONTROL_ANSWER, answer, sizeof(answer)/2, 2200, 0, 0 },
 };
 
 /* Sound command pipe */
@@ -2200,9 +2200,9 @@ static struct chan_alsa_pvt
 {
 	/* We only have one ALSA structure -- near sighted perhaps, but it
 	   keeps this driver as simple as possible -- as it should be. */
-	struct opbx_channel *owner;
-	char exten[OPBX_MAX_EXTENSION];
-	char context[OPBX_MAX_CONTEXT];
+	struct cw_channel *owner;
+	char exten[CW_MAX_EXTENSION];
+	char context[CW_MAX_CONTEXT];
 #if 0
 	snd_pcm_t *card;
 #endif
@@ -2214,7 +2214,7 @@ static struct chan_alsa_pvt
    with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
    usually plenty. */
 
-pthread_t sthread = OPBX_PTHREADT_NULL;
+pthread_t sthread = CW_PTHREADT_NULL;
 
 #define MAX_BUFFER_SIZE 100
 
@@ -2231,22 +2231,22 @@ static int offset=0;
 static int nosound=0;
 
 /* ZZ */
-static struct opbx_channel *alsa_request(const char *type, int format, void *data, int *cause);
-static int alsa_digit(struct opbx_channel *c, char digit);
-static int alsa_text(struct opbx_channel *c, const char *text);
-static int alsa_hangup(struct opbx_channel *c);
-static int alsa_answer(struct opbx_channel *c);
-static struct opbx_frame *alsa_read(struct opbx_channel *chan);
-static int alsa_call(struct opbx_channel *c, char *dest, int timeout);
-static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f);
-static int alsa_indicate(struct opbx_channel *chan, int cond);
-static int alsa_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan);
+static struct cw_channel *alsa_request(const char *type, int format, void *data, int *cause);
+static int alsa_digit(struct cw_channel *c, char digit);
+static int alsa_text(struct cw_channel *c, const char *text);
+static int alsa_hangup(struct cw_channel *c);
+static int alsa_answer(struct cw_channel *c);
+static struct cw_frame *alsa_read(struct cw_channel *chan);
+static int alsa_call(struct cw_channel *c, char *dest, int timeout);
+static int alsa_write(struct cw_channel *chan, struct cw_frame *f);
+static int alsa_indicate(struct cw_channel *chan, int cond);
+static int alsa_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 
-static const struct opbx_channel_tech alsa_tech =
+static const struct cw_channel_tech alsa_tech =
 {
 	.type = type,
 	.description = tdesc,
-	.capabilities = OPBX_FORMAT_SLINEAR,
+	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = alsa_request,
 	.send_digit = alsa_digit,
 	.send_text = alsa_text,
@@ -2350,12 +2350,12 @@ static void *sound_thread(void *unused)
 				max = readdev;
 		}
 #endif
-		res = opbx_select(max + 1, &rfds, &wfds, NULL, NULL);
+		res = cw_select(max + 1, &rfds, &wfds, NULL, NULL);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (res < 1) {
-			opbx_log(OPBX_LOG_WARNING, "select failed: %s\n", strerror(errno));
+			cw_log(CW_LOG_WARNING, "select failed: %s\n", strerror(errno));
 			continue;
 		}
 #ifdef ALSA_MONITOR
@@ -2372,14 +2372,14 @@ static void *sound_thread(void *unused)
 			r = snd_pcm_readi(alsa.icard, buf, FRAME_SIZE);
 			if (r == -EPIPE) {
 #if DEBUG
-				opbx_log(OPBX_LOG_ERROR, "XRUN read\n");
+				cw_log(CW_LOG_ERROR, "XRUN read\n");
 #endif
 				snd_pcm_prepare(alsa.icard);
 			} else if (r == -ESTRPIPE) {
-				opbx_log(OPBX_LOG_ERROR, "-ESTRPIPE\n");
+				cw_log(CW_LOG_ERROR, "-ESTRPIPE\n");
 				snd_pcm_prepare(alsa.icard);
 			} else if (r < 0) {
-				opbx_log(OPBX_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
+				cw_log(CW_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 			} else
 				alsa_monitor_read((char *)buf, r * 2);
 		}		
@@ -2392,7 +2392,7 @@ static void *sound_thread(void *unused)
 		}
 		if (FD_ISSET(writedev, &wfds))
 			if (send_sound())
-				opbx_log(OPBX_LOG_WARNING, "Failed to write sound\n");
+				cw_log(CW_LOG_WARNING, "Failed to write sound\n");
 	}
 	/* Never reached */
 	return NULL;
@@ -2419,10 +2419,10 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_open(&handle, dev, stream, O_NONBLOCK);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
 		return NULL;
 	} else {
-		opbx_log(OPBX_LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+		cw_log(CW_LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
 	}
 
 	snd_pcm_hw_params_alloca(&hwparams);
@@ -2430,57 +2430,57 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "set_access failed: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "set_access failed: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_format(handle, hwparams, format);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "set_format failed: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "set_format failed: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_channels(handle, hwparams, 1);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
 	}
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
 	if (rate != DESIRED_RATE) {
-		opbx_log(OPBX_LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
+		cw_log(CW_LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
 	}
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
 	} else {
-		opbx_log(OPBX_LOG_DEBUG, "Period size is %d\n", err);
+		cw_log(CW_LOG_DEBUG, "Period size is %d\n", err);
 	}
 
 	buffer_size = 4096 * 2; /* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
+		cw_log(CW_LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
 	} else {
-		opbx_log(OPBX_LOG_DEBUG, "Buffer size is set to %d frames\n", err);
+		cw_log(CW_LOG_DEBUG, "Buffer size is set to %d frames\n", err);
 	}
 
 #if 0
 	direction = 0;
 	err = snd_pcm_hw_params_set_periods_min(handle, hwparams, &per_min, &direction);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_hw_params_set_periods_max(handle, hwparams, &per_max, 0);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "periods_max: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "periods_max: %s\n", snd_strerror(err));
 	}
 #endif
 
 	err = snd_pcm_hw_params(handle, hwparams);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
 	}
 
 	snd_pcm_sw_params_alloca(&swparams);
@@ -2495,7 +2495,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 	err = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "start threshold: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "start threshold: %s\n", snd_strerror(err));
 	}
 #endif
 
@@ -2507,38 +2507,38 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 	err = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "stop threshold: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "stop threshold: %s\n", snd_strerror(err));
 	}
 #endif
 #if 0
 	err = snd_pcm_sw_params_set_xfer_align(handle, swparams, PERIOD_FRAMES);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to set xfer alignment: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "Unable to set xfer alignment: %s\n", snd_strerror(err));
 	}
 #endif
 
 #if 0
 	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, silencethreshold);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
 	}
 #endif
 	err = snd_pcm_sw_params(handle, swparams);
 	if (err < 0) {
-		opbx_log(OPBX_LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
 	}
 
 	err = snd_pcm_poll_descriptors_count(handle);
 	if (err <= 0) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
 	}
 
 	if (err != 1) {
-		opbx_log(OPBX_LOG_DEBUG, "Can't handle more than one device\n");
+		cw_log(CW_LOG_DEBUG, "Can't handle more than one device\n");
 	}
 
 	snd_pcm_poll_descriptors(handle, &pfd, err);
-	opbx_log(OPBX_LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
+	cw_log(CW_LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
 
 	if (stream == SND_PCM_STREAM_CAPTURE)
 		readdev = pfd.fd;
@@ -2554,65 +2554,65 @@ static int soundcard_init(void)
 	alsa.ocard = alsa_card_init(outdevname, SND_PCM_STREAM_PLAYBACK);
 
 	if (!alsa.icard || !alsa.ocard) {
-		opbx_log(OPBX_LOG_ERROR, "Problem opening alsa I/O devices\n");
+		cw_log(CW_LOG_ERROR, "Problem opening alsa I/O devices\n");
 		return -1;
 	}
 
 	return readdev;
 }
 
-static int alsa_digit(struct opbx_channel *c, char digit)
+static int alsa_digit(struct cw_channel *c, char digit)
 {
-	opbx_mutex_lock(&alsalock);
-	opbx_verbose( " << Console Received digit %c >> \n", digit);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_lock(&alsalock);
+	cw_verbose( " << Console Received digit %c >> \n", digit);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
-static int alsa_text(struct opbx_channel *c, const char *text)
+static int alsa_text(struct cw_channel *c, const char *text)
 {
-	opbx_mutex_lock(&alsalock);
-	opbx_verbose( " << Console Received text %s >> \n", text);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_lock(&alsalock);
+	cw_verbose( " << Console Received text %s >> \n", text);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
 static void grab_owner(void)
 {
-	while(alsa.owner && opbx_mutex_trylock(&alsa.owner->lock)) {
-		opbx_mutex_unlock(&alsalock);
+	while(alsa.owner && cw_mutex_trylock(&alsa.owner->lock)) {
+		cw_mutex_unlock(&alsalock);
 		usleep(1);
-		opbx_mutex_lock(&alsalock);
+		cw_mutex_lock(&alsalock);
 	}
 }
 
-static int alsa_call(struct opbx_channel *c, char *dest, int timeout)
+static int alsa_call(struct cw_channel *c, char *dest, int timeout)
 {
 	int res = 3;
-	struct opbx_frame f = { OPBX_FRAME_CONTROL };
-	opbx_mutex_lock(&alsalock);
-	opbx_verbose( " << Call placed to '%s' on console >> \n", dest);
+	struct cw_frame f = { CW_FRAME_CONTROL };
+	cw_mutex_lock(&alsalock);
+	cw_verbose( " << Call placed to '%s' on console >> \n", dest);
 	if (autoanswer) {
-		opbx_verbose( " << Auto-answered >> \n" );
+		cw_verbose( " << Auto-answered >> \n" );
 		grab_owner();
 		if (alsa.owner) {
-			f.subclass = OPBX_CONTROL_ANSWER;
-			opbx_queue_frame(alsa.owner, &f);
-			opbx_mutex_unlock(&alsa.owner->lock);
+			f.subclass = CW_CONTROL_ANSWER;
+			cw_queue_frame(alsa.owner, &f);
+			cw_mutex_unlock(&alsa.owner->lock);
 		}
 	} else {
-		opbx_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
+		cw_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
 		grab_owner();
 		if (alsa.owner) {
-			f.subclass = OPBX_CONTROL_RINGING;
-			opbx_queue_frame(alsa.owner, &f);
-			opbx_mutex_unlock(&alsa.owner->lock);
+			f.subclass = CW_CONTROL_RINGING;
+			cw_queue_frame(alsa.owner, &f);
+			cw_mutex_unlock(&alsa.owner->lock);
 		}
 		write(sndcmd[1], &res, sizeof(res));
 	}
 	snd_pcm_prepare(alsa.icard);
 	snd_pcm_start(alsa.icard);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
@@ -2625,30 +2625,30 @@ static void answer_sound(void)
 	
 }
 
-static int alsa_answer(struct opbx_channel *c)
+static int alsa_answer(struct cw_channel *c)
 {
-	opbx_mutex_lock(&alsalock);
-	opbx_verbose( " << Console call has been answered >> \n");
+	cw_mutex_lock(&alsalock);
+	cw_verbose( " << Console call has been answered >> \n");
 	answer_sound();
-	opbx_setstate(c, OPBX_STATE_UP);
+	cw_setstate(c, CW_STATE_UP);
 	cursound = -1;
 	snd_pcm_prepare(alsa.icard);
 	snd_pcm_start(alsa.icard);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
-static int alsa_hangup(struct opbx_channel *c)
+static int alsa_hangup(struct cw_channel *c)
 {
 	int res;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	cursound = -1;
 	c->tech_pvt = NULL;
 	alsa.owner = NULL;
-	opbx_verbose( " << Hangup on console >> \n");
-	opbx_mutex_lock(&usecnt_lock);
+	cw_verbose( " << Hangup on console >> \n");
+	cw_mutex_lock(&usecnt_lock);
 	usecnt--;
-	opbx_mutex_unlock(&usecnt_lock);
+	cw_mutex_unlock(&usecnt_lock);
 	if (hookstate) {
 		if (autoanswer) {
 			hookstate = 0;
@@ -2660,11 +2660,11 @@ static int alsa_hangup(struct opbx_channel *c)
 		}
 	}
 	snd_pcm_drop(alsa.icard);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
-static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
+static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 {
 	static char sizbuf[8000];
 	static int sizpos = 0;
@@ -2676,7 +2676,7 @@ static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
 	/* Immediately return if no sound is enabled */
 	if (nosound)
 		return 0;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	/* Stop any currently playing sound */
 	if (cursound != -1) {
 		snd_pcm_drop(alsa.ocard);
@@ -2687,7 +2687,7 @@ static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
 
 	/* We have to digest the frame in 160-byte portions */
 	if (f->datalen > sizeof(sizbuf) - sizpos) {
-		opbx_log(OPBX_LOG_WARNING, "Frame too large\n");
+		cw_log(CW_LOG_WARNING, "Frame too large\n");
 		res = -1;
 	} else {
 		memcpy(sizbuf + sizpos, f->data, f->datalen);
@@ -2703,35 +2703,35 @@ static int alsa_write(struct opbx_channel *chan, struct opbx_frame *f)
 		res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
 		if (res == -EPIPE) {
 #if DEBUG
-			opbx_log(OPBX_LOG_DEBUG, "XRUN write\n");
+			cw_log(CW_LOG_DEBUG, "XRUN write\n");
 #endif
 			snd_pcm_prepare(alsa.ocard);
 			res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
 			if (res != len/2) {
-				opbx_log(OPBX_LOG_ERROR, "Write error: %s\n", snd_strerror(res));
+				cw_log(CW_LOG_ERROR, "Write error: %s\n", snd_strerror(res));
 				res = -1;
 			} else if (res < 0) {
-				opbx_log(OPBX_LOG_ERROR, "Write error %s\n", snd_strerror(res));
+				cw_log(CW_LOG_ERROR, "Write error %s\n", snd_strerror(res));
 				res = -1;
 			}
 		} else {
 			if (res == -ESTRPIPE) {
-				opbx_log(OPBX_LOG_ERROR, "You've got some big problems\n");
+				cw_log(CW_LOG_ERROR, "You've got some big problems\n");
 			} else if (res < 0)
-				opbx_log(OPBX_LOG_NOTICE, "Error %d on write\n", res);
+				cw_log(CW_LOG_NOTICE, "Error %d on write\n", res);
 		}
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	if (res > 0)
 		res = 0;
 	return res;
 }
 
 
-static struct opbx_frame *alsa_read(struct opbx_channel *chan)
+static struct cw_frame *alsa_read(struct cw_channel *chan)
 {
-	static struct opbx_frame f;
-	static short __buf[FRAME_SIZE + OPBX_FRIENDLY_OFFSET/2];
+	static struct cw_frame f;
+	static short __buf[FRAME_SIZE + CW_FRIENDLY_OFFSET/2];
 	short *buf;
 	static int readpos = 0;
 	static int left = FRAME_SIZE;
@@ -2739,9 +2739,9 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 	int r = 0;
 	int off = 0;
 
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	/* Acknowledge any pending cmd */	
-    opbx_fr_init(&f);
+    cw_fr_init(&f);
 
 	state = snd_pcm_state(alsa.icard);
 	if ((state != SND_PCM_STATE_PREPARED) && 
@@ -2749,19 +2749,19 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 		snd_pcm_prepare(alsa.icard);
 	}
 
-	buf = __buf + OPBX_FRIENDLY_OFFSET/2;
+	buf = __buf + CW_FRIENDLY_OFFSET/2;
 
 	r = snd_pcm_readi(alsa.icard, buf + readpos, left);
 	if (r == -EPIPE) {
 #if DEBUG
-		opbx_log(OPBX_LOG_ERROR, "XRUN read\n");
+		cw_log(CW_LOG_ERROR, "XRUN read\n");
 #endif
 		snd_pcm_prepare(alsa.icard);
 	} else if (r == -ESTRPIPE) {
-		opbx_log(OPBX_LOG_ERROR, "-ESTRPIPE\n");
+		cw_log(CW_LOG_ERROR, "-ESTRPIPE\n");
 		snd_pcm_prepare(alsa.icard);
 	} else if (r < 0) {
-		opbx_log(OPBX_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
+		cw_log(CW_LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 	} else if (r >= 0) {
 		off -= r;
 	}
@@ -2773,93 +2773,93 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 		/* A real frame */
 		readpos = 0;
 		left = FRAME_SIZE;
-		if (chan->_state != OPBX_STATE_UP) {
+		if (chan->_state != CW_STATE_UP) {
 			/* Don't transmit unless it's up */
-			opbx_mutex_unlock(&alsalock);
+			cw_mutex_unlock(&alsalock);
 			return &f;
 		}
-        opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, type);
+        cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, type);
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE*sizeof(int16_t);
 		f.data = buf;
-		f.offset = OPBX_FRIENDLY_OFFSET;
+		f.offset = CW_FRIENDLY_OFFSET;
 #ifdef ALSA_MONITOR
 		alsa_monitor_read((char *) buf, FRAME_SIZE*sizeof(int16_t));
 #endif		
 
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return &f;
 }
 
-static int alsa_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan)
+static int alsa_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
 	struct chan_alsa_pvt *p = newchan->tech_pvt;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	p->owner = newchan;
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return 0;
 }
 
-static int alsa_indicate(struct opbx_channel *chan, int cond)
+static int alsa_indicate(struct cw_channel *chan, int cond)
 {
 	int res = 0;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	switch(cond) {
-	case OPBX_CONTROL_BUSY:
+	case CW_CONTROL_BUSY:
 		res = 1;
 		break;
-	case OPBX_CONTROL_CONGESTION:
+	case CW_CONTROL_CONGESTION:
 		res = 2;
 		break;
-	case OPBX_CONTROL_RINGING:
+	case CW_CONTROL_RINGING:
 		res = 0;
 		break;
 	case -1:
 		res = -1;
 		break;
-	case OPBX_CONTROL_VIDUPDATE:
+	case CW_CONTROL_VIDUPDATE:
 		res = -1;
 		break;
 	default:
-		opbx_log(OPBX_LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
+		cw_log(CW_LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
 		res = -1;
 	}
 	if (res > -1) {
 		write(sndcmd[1], &res, sizeof(res));
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return res;	
 }
 
-static struct opbx_channel *alsa_new(struct chan_alsa_pvt *p, int state)
+static struct cw_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
-	struct opbx_channel *tmp;
-	tmp = opbx_channel_alloc(1);
+	struct cw_channel *tmp;
+	tmp = cw_channel_alloc(1);
 	if (tmp) {
 		tmp->tech = &alsa_tech;
 		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
 		tmp->fds[0] = readdev;
-		tmp->nativeformats = OPBX_FORMAT_SLINEAR;
-		tmp->readformat = OPBX_FORMAT_SLINEAR;
-		tmp->writeformat = OPBX_FORMAT_SLINEAR;
+		tmp->nativeformats = CW_FORMAT_SLINEAR;
+		tmp->readformat = CW_FORMAT_SLINEAR;
+		tmp->writeformat = CW_FORMAT_SLINEAR;
 		tmp->tech_pvt = p;
-		if (!opbx_strlen_zero(p->context))
-			opbx_copy_string(tmp->context, p->context, sizeof(tmp->context));
-		if (!opbx_strlen_zero(p->exten))
-			opbx_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
-		if (!opbx_strlen_zero(language))
-			opbx_copy_string(tmp->language, language, sizeof(tmp->language));
+		if (!cw_strlen_zero(p->context))
+			cw_copy_string(tmp->context, p->context, sizeof(tmp->context));
+		if (!cw_strlen_zero(p->exten))
+			cw_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
+		if (!cw_strlen_zero(language))
+			cw_copy_string(tmp->language, language, sizeof(tmp->language));
 		p->owner = tmp;
-		opbx_setstate(tmp, state);
-		opbx_mutex_lock(&usecnt_lock);
+		cw_setstate(tmp, state);
+		cw_mutex_lock(&usecnt_lock);
 		usecnt++;
-		opbx_mutex_unlock(&usecnt_lock);
-		if (state != OPBX_STATE_DOWN) {
-			if (opbx_pbx_start(tmp)) {
-				opbx_log(OPBX_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				opbx_hangup(tmp);
+		cw_mutex_unlock(&usecnt_lock);
+		if (state != CW_STATE_DOWN) {
+			if (cw_pbx_start(tmp)) {
+				cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				cw_hangup(tmp);
 				tmp = NULL;
 			}
 		}
@@ -2867,26 +2867,26 @@ static struct opbx_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	return tmp;
 }
 
-static struct opbx_channel *alsa_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *alsa_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat = format;
-	struct opbx_channel *tmp=NULL;
-	format &= OPBX_FORMAT_SLINEAR;
+	struct cw_channel *tmp=NULL;
+	format &= CW_FORMAT_SLINEAR;
 	if (!format) {
-		opbx_log(OPBX_LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
+		cw_log(CW_LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
 		return NULL;
 	}
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (alsa.owner) {
-		opbx_log(OPBX_LOG_NOTICE, "Already have a call on the ALSA channel\n");
-		*cause = OPBX_CAUSE_BUSY;
+		cw_log(CW_LOG_NOTICE, "Already have a call on the ALSA channel\n");
+		*cause = CW_CAUSE_BUSY;
 	} else {
-		tmp= alsa_new(&alsa, OPBX_STATE_DOWN);
+		tmp= alsa_new(&alsa, CW_STATE_DOWN);
 		if (!tmp) {
-			opbx_log(OPBX_LOG_WARNING, "Unable to create new ALSA channel\n");
+			cw_log(CW_LOG_WARNING, "Unable to create new ALSA channel\n");
 		}
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return tmp;
 }
 
@@ -2895,9 +2895,9 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	int res = RESULT_SUCCESS;;
 	if ((argc != 1) && (argc != 2))
 		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (argc == 1) {
-		opbx_cli(fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
+		cw_cli(fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
 	} else {
 		if (!strcasecmp(argv[1], "on"))
 			autoanswer = -1;
@@ -2906,7 +2906,7 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 		else
 			res = RESULT_SHOWUSAGE;
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return res;
 }
 
@@ -2917,10 +2917,10 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 #endif
 	switch(state) {
 	case 0:
-		if (!opbx_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
+		if (!cw_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
 			return strdup("on");
 	case 1:
-		if (!opbx_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
+		if (!cw_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
 			return strdup("off");
 	default:
 		return NULL;
@@ -2939,24 +2939,24 @@ static int console_answer(int fd, int argc, char *argv[])
 	int res = RESULT_SUCCESS;
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
-		opbx_cli(fd, "No one is calling us\n");
+		cw_cli(fd, "No one is calling us\n");
 		res = RESULT_FAILURE;
 	} else {
 		hookstate = 1;
 		cursound = -1;
 		grab_owner();
 		if (alsa.owner) {
-			struct opbx_frame f = { OPBX_FRAME_CONTROL, OPBX_CONTROL_ANSWER };
-			opbx_queue_frame(alsa.owner, &f);
-			opbx_mutex_unlock(&alsa.owner->lock);
+			struct cw_frame f = { CW_FRAME_CONTROL, CW_CONTROL_ANSWER };
+			cw_queue_frame(alsa.owner, &f);
+			cw_mutex_unlock(&alsa.owner->lock);
 		}
 		answer_sound();
 	}
 	snd_pcm_prepare(alsa.icard);
 	snd_pcm_start(alsa.icard);
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return RESULT_SUCCESS;
 }
 
@@ -2970,12 +2970,12 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	int res = RESULT_SUCCESS;
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
-		opbx_cli(fd, "No one is calling us\n");
+		cw_cli(fd, "No one is calling us\n");
 		res = RESULT_FAILURE;
 	} else {
-		struct opbx_frame f = { OPBX_FRAME_TEXT, 0 };
+		struct cw_frame f = { CW_FRAME_TEXT, 0 };
 		char text2send[256] = "";
 		text2send[0] = '\0';
 		while(tmparg < argc) {
@@ -2988,16 +2988,16 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		grab_owner();
 		if (alsa.owner)
         {
-			opbx_queue_frame(alsa.owner, &f);
-			f.frametype = OPBX_FRAME_CONTROL;
-			f.subclass = OPBX_CONTROL_ANSWER;
+			cw_queue_frame(alsa.owner, &f);
+			f.frametype = CW_FRAME_CONTROL;
+			f.subclass = CW_CONTROL_ANSWER;
 			f.data = NULL;
 			f.datalen = 0;
-			opbx_queue_frame(alsa.owner, &f);
-			opbx_mutex_unlock(&alsa.owner->lock);
+			cw_queue_frame(alsa.owner, &f);
+			cw_mutex_unlock(&alsa.owner->lock);
 		}
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return res;
 }
 
@@ -3011,19 +3011,19 @@ static int console_hangup(int fd, int argc, char *argv[])
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	cursound = -1;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (!alsa.owner && !hookstate) {
-		opbx_cli(fd, "No call to hangup up\n");
+		cw_cli(fd, "No call to hangup up\n");
 		res = RESULT_FAILURE;
 	} else {
 		hookstate = 0;
 		grab_owner();
 		if (alsa.owner) {
-			opbx_queue_hangup(alsa.owner);
-			opbx_mutex_unlock(&alsa.owner->lock);
+			cw_queue_hangup(alsa.owner);
+			cw_mutex_unlock(&alsa.owner->lock);
 		}
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return res;
 }
 
@@ -3040,22 +3040,22 @@ static int console_dial(int fd, int argc, char *argv[])
 	int res = RESULT_SUCCESS;
 	if ((argc != 1) && (argc != 2))
 		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&alsalock);
+	cw_mutex_lock(&alsalock);
 	if (alsa.owner) {
 		if (argc == 2) {
 			d = argv[1];
 			grab_owner();
 			if (alsa.owner) {
-				struct opbx_frame f = { OPBX_FRAME_DTMF };
+				struct cw_frame f = { CW_FRAME_DTMF };
 				while(*d) {
 					f.subclass = *d;
-					opbx_queue_frame(alsa.owner, &f);
+					cw_queue_frame(alsa.owner, &f);
 					d++;
 				}
-				opbx_mutex_unlock(&alsa.owner->lock);
+				cw_mutex_unlock(&alsa.owner->lock);
 			}
 		} else {
-			opbx_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
+			cw_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
 			res = RESULT_FAILURE;
 		}
 	} else {
@@ -3067,20 +3067,20 @@ static int console_dial(int fd, int argc, char *argv[])
 			stringp=tmp;
 			strsep(&stringp, "@");
 			tmp2 = strsep(&stringp, "@");
-			if (!opbx_strlen_zero(tmp))
+			if (!cw_strlen_zero(tmp))
 				mye = tmp;
-			if (!opbx_strlen_zero(tmp2))
+			if (!cw_strlen_zero(tmp2))
 				myc = tmp2;
 		}
-		if (opbx_exists_extension(NULL, myc, mye, 1, NULL)) {
+		if (cw_exists_extension(NULL, myc, mye, 1, NULL)) {
 			strncpy(alsa.exten, mye, sizeof(alsa.exten)-1);
 			strncpy(alsa.context, myc, sizeof(alsa.context)-1);
 			hookstate = 1;
-			alsa_new(&alsa, OPBX_STATE_RINGING);
+			alsa_new(&alsa, CW_STATE_RINGING);
 		} else
-			opbx_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
+			cw_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	}
-	opbx_mutex_unlock(&alsalock);
+	cw_mutex_unlock(&alsalock);
 	return res;
 }
 
@@ -3089,7 +3089,7 @@ static char dial_usage[] =
 "       Dials a given extension (and context if specified)\n";
 
 
-static struct opbx_clicmd myclis[] = {
+static struct cw_clicmd myclis[] = {
 	{
 		.cmda = { "answer", NULL },
 		.handler = console_answer,
@@ -3126,15 +3126,15 @@ static struct opbx_clicmd myclis[] = {
 static int load_module(void)
 {
 	int res;
-	struct opbx_config *cfg;
-	struct opbx_variable *v;
-	if ((cfg = opbx_config_load(config))) {
-		v = opbx_variable_browse(cfg, "general");
+	struct cw_config *cfg;
+	struct cw_variable *v;
+	if ((cfg = cw_config_load(config))) {
+		v = cw_variable_browse(cfg, "general");
 		while(v) {
 			if (!strcasecmp(v->name, "autoanswer"))
-				autoanswer = opbx_true(v->value);
+				autoanswer = cw_true(v->value);
 			else if (!strcasecmp(v->name, "silencesuppression"))
-				silencesuppression = opbx_true(v->value);
+				silencesuppression = cw_true(v->value);
 			else if (!strcasecmp(v->name, "silencethreshold"))
 				silencethreshold = atoi(v->value);
 			else if (!strcasecmp(v->name, "context"))
@@ -3149,32 +3149,32 @@ static int load_module(void)
 				strncpy(outdevname, v->value, sizeof(outdevname)-1);
 			v=v->next;
 		}
-		opbx_config_destroy(cfg);
+		cw_config_destroy(cfg);
 	}
 	res = pipe(sndcmd);
 	if (res) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to create pipe\n");
+		cw_log(CW_LOG_ERROR, "Unable to create pipe\n");
 		return -1;
 	}
 	res = soundcard_init();
 	if (res < 0) {
 		if (option_verbose > 1) {
-			opbx_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
-			opbx_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/callweaver/modules.conf\n");
+			cw_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
+			cw_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/callweaver/modules.conf\n");
 		}
 		return 0;
 	}
 
-	res = opbx_channel_register(&alsa_tech);
+	res = cw_channel_register(&alsa_tech);
 	if (res < 0) {
-		opbx_log(OPBX_LOG_ERROR, "Unable to register channel class '%s'\n", type);
+		cw_log(CW_LOG_ERROR, "Unable to register channel class '%s'\n", type);
 		return -1;
 	}
-	opbx_cli_register_multiple(myclis, arraysize(myclis));
-	opbx_pthread_create(&sthread, &global_attr_default, sound_thread, NULL);
+	cw_cli_register_multiple(myclis, arraysize(myclis));
+	cw_pthread_create(&sthread, &global_attr_default, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
-		opbx_log(OPBX_LOG_ERROR, "Problem starting Monitoring\n");
+		cw_log(CW_LOG_ERROR, "Problem starting Monitoring\n");
 	}
 #endif	 
 	return 0;
@@ -3186,15 +3186,15 @@ static int unload_module(void)
 {
 	int x;
 	
-	if (!pthread_equal(sthread, OPBX_PTHREADT_NULL)) {
+	if (!pthread_equal(sthread, CW_PTHREADT_NULL)) {
 		pthread_cancel(sthread);
 		pthread_kill(sthread, SIGURG);
 		pthread_join(sthread, NULL);
 	}
 
-	opbx_channel_unregister(&alsa_tech);
+	cw_channel_unregister(&alsa_tech);
 	for (x=0;x<arraysize(myclis); x++)
-		opbx_cli_unregister(myclis + x);
+		cw_cli_unregister(myclis + x);
 
 	if (alsa.icard)
 		snd_pcm_close(alsa.icard);
@@ -3209,7 +3209,7 @@ static int unload_module(void)
 	sndcmd[0] = sndcmd[1] = -1;
 
 	if (alsa.owner)
-		opbx_softhangup(alsa.owner, OPBX_SOFTHANGUP_APPUNLOAD);
+		cw_softhangup(alsa.owner, CW_SOFTHANGUP_APPUNLOAD);
 	if (alsa.owner)
 		return -1;
 	return 0;

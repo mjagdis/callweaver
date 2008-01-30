@@ -69,7 +69,7 @@ extern "C" {
     struct icd_caller {
         int id;                 /* Unique key for caller */
         char *name;             /* A name to refer to this caller by in dump() */
-        struct opbx_channel *chan;       /* The channel as provided by the PBX */
+        struct cw_channel *chan;       /* The channel as provided by the PBX */
         void *owner;            /* Any structure representing the owner of a call */
         void *authorization;    /* Some sort of authorization token */
         void *authentication;   /* Some sort of authentication token. */
@@ -121,9 +121,9 @@ extern "C" {
         void *dump_fn_extra;
 
         /* Threading and locking */
-        opbx_mutex_t lock;
+        cw_mutex_t lock;
         pthread_t thread;
-        opbx_cond_t wakeup;
+        cw_cond_t wakeup;
         icd_thread_state thread_state;
     };
 

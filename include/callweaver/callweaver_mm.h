@@ -38,38 +38,38 @@
 #undef strndup
 #undef vasprintf
 
-void *__opbx_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
-void *__opbx_malloc(size_t size, const char *file, int lineno, const char *func);
-void __opbx_free(void *ptr, const char *file, int lineno, const char *func);
-void *__opbx_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
-char *__opbx_strdup(const char *s, const char *file, int lineno, const char *func);
-char *__opbx_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
-int __opbx_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
+void *__cw_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
+void *__cw_malloc(size_t size, const char *file, int lineno, const char *func);
+void __cw_free(void *ptr, const char *file, int lineno, const char *func);
+void *__cw_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
+char *__cw_strdup(const char *s, const char *file, int lineno, const char *func);
+char *__cw_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
+int __cw_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
 
-void __opbx_mm_init(void);
+void __cw_mm_init(void);
 
 
 /* Provide our own definitions */
 #define calloc(a,b) \
-	__opbx_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define malloc(a) \
-	__opbx_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define free(a) \
-	__opbx_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define realloc(a,b) \
-	__opbx_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define strdup(a) \
-	__opbx_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define strndup(a,b) \
-	__opbx_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define vasprintf(a,b,c) \
-	__opbx_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__cw_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 #error "NEVER INCLUDE callweaver_mm.h DIRECTLY!!"

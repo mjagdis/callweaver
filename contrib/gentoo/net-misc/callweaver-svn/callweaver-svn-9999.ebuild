@@ -110,7 +110,7 @@ pkg_preinst() {
 }
 
 pkg_postinst() {
-        # only change permissions if openpbx wasn't installed before
+        # only change permissions if callweaver wasn't installed before
         einfo "Fixing permissions..."
 
         chmod -R u=rwX,g=rX,o=  "${ROOT}"etc/callweaver

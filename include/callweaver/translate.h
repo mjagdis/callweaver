@@ -35,35 +35,35 @@ extern "C" {
 #include "callweaver/frame.h"
 
 
-typedef struct opbx_translator opbx_translator_t;
+typedef struct cw_translator cw_translator_t;
 
 
-extern struct opbx_registry translator_registry;
+extern struct cw_registry translator_registry;
 
 
-#define opbx_translator_register(ptr) ({ \
+#define cw_translator_register(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!opbx_object_refs(__ptr)) \
-		opbx_object_init_obj(&__ptr->obj, OPBX_OBJECT_CURRENT_MODULE, OPBX_OBJECT_NO_REFS); \
-	__ptr->reg_entry = opbx_registry_add(&translator_registry, &__ptr->obj); \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&translator_registry, &__ptr->obj); \
 	0; \
 })
-#define opbx_translator_unregister(ptr) ({ \
+#define cw_translator_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) \
-		opbx_registry_del(&translator_registry, __ptr->reg_entry); \
+		cw_registry_del(&translator_registry, __ptr->reg_entry); \
 	0; \
 })
 
 
-struct opbx_trans_pvt;
+struct cw_trans_pvt;
 
 
-extern int opbx_translator_init(void);
+extern int cw_translator_init(void);
 
 /*! Chooses the best translation path */
 /*! 
@@ -71,23 +71,23 @@ extern int opbx_translator_init(void);
    I choose? Returns 0 on success, -1 if no path could be found.  Modifies
    dests and srcs in place 
    */
-extern int opbx_translator_best_choice(int *dsts, int *srcs);
+extern int cw_translator_best_choice(int *dsts, int *srcs);
 
 /*!Builds a translator path */
 /*! 
  * \param dest destination format
  * \param source source format
  * Build a path (possibly NULL) from source to dest 
- * Returns opbx_trans_pvt on success, NULL on failure
+ * Returns cw_trans_pvt on success, NULL on failure
  * */
-extern struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int source, int source_rate);
+extern struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate);
 
 /*! Frees a translator path */
 /*!
  * \param tr translator path to get rid of
  * Frees the given translator path structure
  */
-extern void opbx_translator_free_path(struct opbx_trans_pvt *tr);
+extern void cw_translator_free_path(struct cw_trans_pvt *tr);
 
 /*! translates one or more frames */
 /*! 
@@ -96,9 +96,9 @@ extern void opbx_translator_free_path(struct opbx_trans_pvt *tr);
  * \param consume Whether or not to free the original frame
  * Apply an input frame into the translator and receive zero or one output frames.  Consume
  * determines whether the original frame should be freed
- * Returns an opbx_frame of the new translation format on success, NULL on failure
+ * Returns an cw_frame of the new translation format on success, NULL on failure
  */
-extern struct opbx_frame *opbx_translate(struct opbx_trans_pvt *tr, struct opbx_frame *f, int consume);
+extern struct cw_frame *cw_translate(struct cw_trans_pvt *tr, struct cw_frame *f, int consume);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
