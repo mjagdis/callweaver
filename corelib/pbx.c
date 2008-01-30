@@ -165,6 +165,7 @@ struct cw_hint
 
 int cw_pbx_outgoing_cdr_failed(void);
 
+CW_MUTEX_DEFINE_STATIC(globalslock);
 static struct varshead globals;
 
 static int autofallthrough = 0;
@@ -237,6 +238,33 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*! \brief  handle_show_globals: CLI support for listing global variables */
+static int handle_show_globals(int fd, int argc, char *argv[])
+{
+    struct cw_var_t *variable;
+    int count = 0;
+
+    cw_mutex_lock(&globalslock);
+    CW_LIST_TRAVERSE(&globals, variable, entries)
+    {
+        cw_cli(fd, "  %s=%s\n", cw_var_name(variable), cw_var_value(variable));
+        ++count;
+    }
+    cw_mutex_unlock(&globalslock);
+
+    cw_cli(fd, "\n    -- %d variables\n", count);
+    return RESULT_SUCCESS;
+}
+
+/*! \brief  CLI support for setting global variables */
+static int handle_set_global(int fd, int argc, char *argv[])
+{
+    if (argc != 4)
+        return RESULT_SHOWUSAGE;
+    pbx_builtin_setvar_helper(NULL, argv[2], argv[3]);
+    cw_cli(fd, "\n    -- Global variable %s set to %s\n", argv[2], argv[3]);
+    return RESULT_SUCCESS;
+}
 
 int pbx_checkcondition(char *condition)
 {
@@ -1039,6 +1067,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 
                 if /* globals variable list exists, not NULL */ (&globals)
                 {
+                    cw_mutex_lock(&globalslock);
                     CW_LIST_TRAVERSE(&globals, variables, entries)
                     {
 #if 0
@@ -1055,6 +1084,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                             }
                         }
                     }
+                    cw_mutex_unlock(&globalslock);
                 }
             }
         }
@@ -2663,6 +2693,14 @@ static char show_hints_help[] =
 "Usage: show hints\n"
 "       Show registered hints\n";
 
+static char show_globals_help[] =
+"Usage: show globals\n"
+"       List current global dialplan variables and their values\n";
+
+static char set_global_help[] =
+"Usage: set global <name> <value>\n"
+"       Set global dialplan variable <name> to <value>\n";
+
 
 /*
  * IMPLEMENTATION OF CLI FUNCTIONS IS IN THE SAME ORDER AS COMMANDS HELPS
@@ -3079,6 +3117,18 @@ static struct cw_clicmd pbx_cli[] = {
 		.handler = handle_show_hints,
 		.summary = "Show dialplan hints",
 		.usage = show_hints_help,
+	},
+	{
+		.cmda = { "show", "globals", NULL },
+		.handler = handle_show_globals,
+		.summary = "Show global dialplan variables",
+		.usage = show_globals_help,
+	},
+	{
+		.cmda = { "set", "global", NULL },
+		.handler = handle_set_global,
+		.summary = "Set global dialplan variable",
+		.usage = set_global_help,
 	},
 };
 
@@ -5108,6 +5158,7 @@ char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name)
     struct cw_var_t *variables;
     struct varshead *headp;
     unsigned int hash = cw_hash_var_name(name);
+    char *ret = NULL;
 
     if (chan)
         headp = &chan->varshead;
@@ -5116,23 +5167,35 @@ char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name)
 
     if (name)
     {
+        if (headp == &globals)
+            cw_mutex_lock(&globalslock);
         CW_LIST_TRAVERSE(headp,variables,entries)
         {
             if (hash == cw_var_hash(variables))
-                return cw_var_value(variables);
+            {
+                ret = cw_var_value(variables);
+                break;
+            }
         }
-        if (headp != &globals)
+        if (headp == &globals)
+            cw_mutex_unlock(&globalslock);
+        if (ret == NULL && headp != &globals)
         {
             /* Check global variables if we haven't already */
             headp = &globals;
+            cw_mutex_lock(&globalslock);
             CW_LIST_TRAVERSE(headp,variables,entries)
             {
                 if (hash == cw_var_hash(variables))
-                    return cw_var_value(variables);
+                {
+                    ret = cw_var_value(variables);
+                    break;
+                }
             }
+            cw_mutex_unlock(&globalslock);
         }
     }
-    return NULL;
+    return ret;
 }
 
 void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value)
@@ -5153,7 +5216,11 @@ void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const
         if ((option_verbose > 1) && (headp == &globals))
             cw_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
         newvariable = cw_var_assign(name, value);      
+        if (headp == &globals)
+            cw_mutex_lock(&globalslock);
         CW_LIST_INSERT_HEAD(headp, newvariable, entries);
+        if (headp == &globals)
+            cw_mutex_unlock(&globalslock);
     }
 }
 
@@ -5177,6 +5244,9 @@ void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const 
     
     hash = cw_hash_var_name(nametail);
 
+    if (headp == &globals)
+        cw_mutex_lock(&globalslock);
+
     CW_LIST_TRAVERSE (headp, newvariable, entries)
     {
         if (hash == cw_var_hash(newvariable))
@@ -5195,17 +5265,22 @@ void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const 
         newvariable = cw_var_assign(name, value);    
         CW_LIST_INSERT_HEAD(headp, newvariable, entries);
     }
+
+    if (headp == &globals)
+        cw_mutex_unlock(&globalslock);
 }
 
 void pbx_builtin_clear_globals(void)
 {
     struct cw_var_t *vardata;
     
+    cw_mutex_lock(&globalslock);
     while (!CW_LIST_EMPTY(&globals))
     {
         vardata = CW_LIST_REMOVE_HEAD(&globals, entries);
         cw_var_delete(vardata);
     }
+    cw_mutex_unlock(&globalslock);
 }
 
 int load_pbx(void)
