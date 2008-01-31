@@ -203,7 +203,6 @@ int cw_db_put(const char *family, const char *keys, char *value)
 	char *zErr = 0;
 	int res = 0;
 	sqlite3 *db;
-	int retry=0;
 
 	sanity_check();
 	if (!(db = sqlite_open_db(globals.dbfile))) {
