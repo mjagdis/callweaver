@@ -1064,28 +1064,24 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 // -----------------------------------------
                 // search user defined globals (scenario #5)
                 // -----------------------------------------
-                
-                if /* globals variable list exists, not NULL */ (&globals)
+                cw_mutex_lock(&globalslock);
+                CW_LIST_TRAVERSE(&globals, variables, entries)
                 {
-                    cw_mutex_lock(&globalslock);
-                    CW_LIST_TRAVERSE(&globals, variables, entries)
-                    {
 #if 0
-                        cw_log(CW_LOG_WARNING,"Comparing variable '%s' with '%s' in globals\n",
-                                 var, cw_var_name(variables));
+                    cw_log(CW_LOG_WARNING,"Comparing variable '%s' with '%s' in globals\n",
+                             var, cw_var_name(variables));
 #endif
-                        if (hash == cw_var_hash(variables))
+                    if (hash == cw_var_hash(variables))
+                    {
+                        *ret = cw_var_value(variables);
+                        if (*ret)
                         {
-                            *ret = cw_var_value(variables);
-                            if (*ret)
-                            {
-                                cw_copy_string(workspace, *ret, workspacelen);
-                                *ret = workspace;
-                            }
+                            cw_copy_string(workspace, *ret, workspacelen);
+                            *ret = workspace;
                         }
                     }
-                    cw_mutex_unlock(&globalslock);
                 }
+                cw_mutex_unlock(&globalslock);
             }
         }
     }
