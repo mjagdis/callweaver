@@ -258,7 +258,7 @@ static inline int __cw_pthread_mutex_lock(const char *filename, int lineno, cons
 		}
 	} else {
 		__cw_mutex_logger("%s line %d (%s): Error obtaining mutex: %s\n",
-				   filename, lineno, func, strerror(errno));
+				   filename, lineno, func, strerror(res));
 #ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
 #endif
