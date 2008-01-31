@@ -1382,7 +1382,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
                 "Application: %s\r\n"
                 "AppData: %s\r\n"
                 "Uniqueid: %s\r\n",
-                c->name, c->context, c->exten, c->priority, e->app, passdata ? passdata : "(NULL)", c->uniqueid);
+                c->name, c->context, c->exten, c->priority, e->app, passdata, c->uniqueid);
             res = cw_function_exec_str(c, e->apphash, e->app, passdata, NULL, 0);
 	    break;
         default:
