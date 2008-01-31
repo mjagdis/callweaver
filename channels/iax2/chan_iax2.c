@@ -331,7 +331,7 @@ struct iax2_peer {
 	char zonetag[80];				/*!< Time Zone */
 
 	/* Qualification */
-	int callno;					/*!< Call number of POKE request */
+	unsigned short callno;				/*!< Call number of POKE request */
 	int pokeexpire;					/*!< When to expire poke */
 	int lastms;					/*!< How long last response took (in ms), or -1 for no response */
 	int maxms;					/*!< Max ms we will accept for the host to be up, 0 to not monitor */
@@ -395,7 +395,7 @@ struct iax2_registry {
 	int refresh;				/*!< How often to refresh */
 	enum iax_reg_state regstate;
 	int messages;				/*!< Message count */
-	int callno;				/*!< Associated call number if applicable */
+	unsigned short callno;			/*!< Associated call number if applicable */
 	struct sockaddr_in us;			/*!< Who the server thinks we are */
 	struct iax2_registry *next;
 };
@@ -921,26 +921,26 @@ static void update_max_nontrunk(void)
 		cw_log(CW_LOG_DEBUG, "New max nontrunk callno is %d\n", max);
 }
 
-static int make_trunk(unsigned short callno, int locked)
+static int make_trunk(unsigned short *callno, int locked)
 {
 	int x;
 	int res= 0;
 	struct timeval now;
-	if (iaxs[callno]->oseqno) {
+	if (iaxs[*callno]->oseqno) {
 		cw_log(CW_LOG_WARNING, "Can't make trunk once a call has started!\n");
 		return -1;
 	}
-	if (callno & TRUNK_CALL_START) {
-		cw_log(CW_LOG_WARNING, "Call %d is already a trunk\n", callno);
+	if (*callno & TRUNK_CALL_START) {
+		cw_log(CW_LOG_WARNING, "Call %d is already a trunk\n", *callno);
 		return -1;
 	}
 	gettimeofday(&now, NULL);
 	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
 		cw_mutex_lock(&iaxsl[x]);
 		if (!iaxs[x] && ((now.tv_sec - lastused[x].tv_sec) > MIN_REUSE_TIME)) {
-			iaxs[x] = iaxs[callno];
+			iaxs[x] = iaxs[*callno];
 			iaxs[x]->callno = x;
-			iaxs[callno] = NULL;
+			iaxs[*callno] = NULL;
 			/* Update the two timers that should have been started */
 			if (iaxs[x]->pingid > -1)
 				cw_sched_del(sched, iaxs[x]->pingid);
@@ -949,7 +949,7 @@ static int make_trunk(unsigned short callno, int locked)
 			iaxs[x]->pingid = cw_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = cw_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
-				cw_mutex_unlock(&iaxsl[callno]);
+				cw_mutex_unlock(&iaxsl[*callno]);
 			res = x;
 			if (!locked)
 				cw_mutex_unlock(&iaxsl[x]);
@@ -961,16 +961,17 @@ static int make_trunk(unsigned short callno, int locked)
 		cw_log(CW_LOG_WARNING, "Unable to trunk call: Insufficient space\n");
 		return -1;
 	}
-	cw_log(CW_LOG_DEBUG, "Made call %d into trunk call %d\n", callno, x);
+	cw_log(CW_LOG_DEBUG, "Made call %d into trunk call %d\n", *callno, x);
 	/* We move this call from a non-trunked to a trunked call */
 	update_max_trunk();
 	update_max_nontrunk();
+	*callno = res;
 	return res;
 }
 
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd)
+static unsigned short find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd)
 {
-	int res = 0;
+	unsigned short res = 0;
 	int x;
 	struct timeval now;
 	char iabuf[INET_ADDRSTRLEN];
@@ -6058,9 +6059,8 @@ retryowner:
 					break;
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
-				if (cw_test_flag(iaxs[fr.callno], IAX_TRUNK)) {
-					fr.callno = make_trunk(fr.callno, 1);
-				}
+				if (cw_test_flag(iaxs[fr.callno], IAX_TRUNK))
+					make_trunk(&fr.callno, 1);
 				/* This might re-enter the IAX code and need the lock */
 				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
 					cw_mutex_unlock(&iaxsl[fr.callno]);
@@ -6917,7 +6917,7 @@ static void *iax2_do_register_thread(void *data)
 				cw_log(CW_LOG_DEBUG, "Allocate call number\n");
 
 			reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
-			if (reg->callno >= 0) {
+			if (reg->callno) {
 				if (option_debug)
 					cw_log(CW_LOG_DEBUG, "Registration created on call %d\n", reg->callno);
 				iaxs[reg->callno]->reg = reg;
@@ -6998,7 +6998,7 @@ static void *iax2_poke_peer_thread(void *data)
 
 		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
 
-		if (peer->callno > 0) {
+		if (peer->callno) {
 			/* Speed up retransmission times */
 			iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 			iaxs[peer->callno]->peerpoke = peer;
@@ -7043,7 +7043,7 @@ static void free_context(struct iax2_context *con)
 
 static struct cw_channel *iax2_request(const char *type, int format, void *data, int *cause)
 {
-	int callno;
+	unsigned short callno;
 	int res;
 	int fmt, native;
 	struct sockaddr_in sin;
@@ -7088,7 +7088,7 @@ static struct cw_channel *iax2_request(const char *type, int format, void *data,
 	/* If this is a trunk, update it now */
 	cw_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 	if (cw_test_flag(&cai, IAX_TRUNK))
-		callno = make_trunk(callno, 1);
+		make_trunk(&callno, 1);
 	iaxs[callno]->maxtime = cai.maxtime;
 	if (cai.found)
 		cw_copy_string(iaxs[callno]->host, pds.peer, sizeof(iaxs[callno]->host));
@@ -8076,11 +8076,11 @@ static int iax2_reload(int fd, int argc, char *argv[])
 	return reload_config();
 }
 
-static int cache_get_callno_locked(const char *data)
+static unsigned short cache_get_callno_locked(const char *data)
 {
 	struct sockaddr_in sin;
 	int x;
-	int callno;
+	unsigned short callno;
 	struct iax_ie_data ied;
 	struct create_addr_info cai;
 	struct parsed_dial_string pds;
@@ -8107,15 +8107,15 @@ static int cache_get_callno_locked(const char *data)
 
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, &sin, &cai))
-		return -1;
+		return 0;
 
 	cw_log(CW_LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
 		pds.peer, pds.username, pds.password, pds.context);
 
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
-	if (callno < 1) {
+	if (!callno) {
 		cw_log(CW_LOG_WARNING, "Unable to create call\n");
-		return -1;
+		return 0;
 	}
 
 	cw_mutex_lock(&iaxsl[callno]);
@@ -8187,7 +8187,7 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 		/* No matching entry.  Create a new one. */
 		/* First, can we make a callno? */
 		callno = cache_get_callno_locked(data);
-		if (callno < 0) {
+		if (!callno) {
 			cw_log(CW_LOG_WARNING, "Unable to generate call for '%s'\n", data);
 			return NULL;
 		}
