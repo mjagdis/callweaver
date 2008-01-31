@@ -465,7 +465,7 @@ struct cw_frame *cw_frdup(struct cw_frame *f)
     out->offset = CW_FRIENDLY_OFFSET;
     if (srclen > 0)
     {
-        out->src = out->local_data + f->datalen;
+        out->src = (char *)(out->local_data + f->datalen);
         /* Must have space since we allocated for it */
         strcpy((char *) out->src, f->src);
     }
