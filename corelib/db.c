@@ -217,7 +217,6 @@ int cw_db_put(const char *family, const char *keys, char *value)
 
 	cw_db_del(family, keys);
 
-retry_0:
 	if ((sql = sqlite3_mprintf("insert into %q values('%q','%q','%q')", globals.tablename, family, keys, value))) {
 		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 
