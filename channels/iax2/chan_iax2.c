@@ -798,12 +798,13 @@ static struct iax2_peer *find_peer(const char *name, int realtime)
 	return peer;
 }
 
-static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int lockpeer)
+static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 {
 	struct iax2_peer *peer;
 	int res = 0;
-	if (lockpeer)
-		cw_mutex_lock(&peerl.lock);
+
+	cw_mutex_lock(&peerl.lock);
+
 	peer = peerl.peers;
 	while(peer) {
 		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
@@ -814,8 +815,9 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 		}
 		peer = peer->next;
 	}
-	if (lockpeer)
-		cw_mutex_unlock(&peerl.lock);
+
+	cw_mutex_unlock(&peerl.lock);
+
 	if (!peer) {
 		peer = realtime_peer(NULL, &sin);
 		if (peer) {
@@ -827,12 +829,11 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 	return res;
 }
 
-static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, const char *host)
+static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
-	tmp = malloc(sizeof(struct chan_iax2_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(struct chan_iax2_pvt));
+
+	if ((tmp = calloc(1, sizeof(*tmp)))) {
 		tmp->prefs = prefs;
 		tmp->callno = 0;
 		tmp->peercallno = 0;
@@ -969,7 +970,7 @@ static int make_trunk(unsigned short *callno, int locked)
 	return res;
 }
 
-static unsigned short find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd)
+static unsigned short find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd)
 {
 	unsigned short res = 0;
 	int x;
@@ -1000,7 +1001,7 @@ static unsigned short find_callno(unsigned short callno, unsigned short dcallno,
 		}
 	}
 	if ((res < 1) && (new >= NEW_ALLOW)) {
-		if (!iax2_getpeername(*sin, host, sizeof(host), lockpeer))
+		if (!iax2_getpeername(*sin, host, sizeof(host)))
 			snprintf(host, sizeof(host), "%s:%d", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 		gettimeofday(&now, NULL);
 		for (x=1;x<TRUNK_CALL_START;x++) {
@@ -1014,7 +1015,7 @@ static unsigned short find_callno(unsigned short callno, unsigned short dcallno,
 			cw_log(CW_LOG_WARNING, "No more space\n");
 			return 0;
 		}
-		iaxs[x] = new_iax(sin, lockpeer, host);
+		iaxs[x] = new_iax(sin, host);
 		update_max_nontrunk();
 		if (iaxs[x]) {
 			if (option_debug && iaxdebug)
@@ -5564,7 +5565,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 
 		/* This is a video frame, get call number */
-		fr.callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
+		fr.callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, fd);
 		minivid = 1;
 	} else if ((meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
 		unsigned char metatype;
@@ -5622,7 +5623,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				/* Stop if we don't have enough data */
 				if (len > res)
 					break;
-				fr.callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, 1, fd);
+				fr.callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd);
 				if (fr.callno) {
 					cw_mutex_lock(&iaxsl[fr.callno]);
 					/* If it's a valid call, deliver the contents.  If not, we
@@ -5730,7 +5731,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 
 	if (!fr.callno)
-		fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd);
+		fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, fd);
 
 	if (fr.callno > 0) 
 		cw_mutex_lock(&iaxsl[fr.callno]);
@@ -6916,7 +6917,7 @@ static void *iax2_do_register_thread(void *data)
 			if (option_debug)
 				cw_log(CW_LOG_DEBUG, "Allocate call number\n");
 
-			reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
+			reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, defaultsockfd);
 			if (reg->callno) {
 				if (option_debug)
 					cw_log(CW_LOG_DEBUG, "Registration created on call %d\n", reg->callno);
@@ -6996,7 +6997,7 @@ static void *iax2_poke_peer_thread(void *data)
 			iax2_destroy(peer->callno);
 		}
 
-		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0, peer->sockfd);
+		peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, peer->sockfd);
 
 		if (peer->callno) {
 			/* Speed up retransmission times */
@@ -7076,7 +7077,7 @@ static struct cw_channel *iax2_request(const char *type, int format, void *data,
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
+	callno = find_callno(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (callno < 1) {
 		cw_log(CW_LOG_WARNING, "Unable to create call\n");
 		*cause = CW_CAUSE_CONGESTION;
@@ -8112,7 +8113,7 @@ static unsigned short cache_get_callno_locked(const char *data)
 	cw_log(CW_LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
 		pds.peer, pds.username, pds.password, pds.context);
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
+	callno = find_callno(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (!callno) {
 		cw_log(CW_LOG_WARNING, "Unable to create call\n");
 		return 0;
