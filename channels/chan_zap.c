@@ -1915,7 +1915,7 @@ static int zt_call(struct cw_channel *cw, char *rdest, int timeout)
 				p->cid_send_on = CID_START_POLARITY;
 				x = p->cidlen;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x))
-					cw_log(CW_LOG_WARNING, "%s: Unable to start on hook transfer: %s\n", cw->name, strerror(errno));
+					cw_log(CW_LOG_DEBUG, "%s: Unable to start on hook transfer: %s\n", cw->name, strerror(errno));
 				x = POLARITY_REV;
 				ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x);
 				send_callerid(p);
