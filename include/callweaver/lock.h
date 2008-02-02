@@ -626,66 +626,6 @@ static inline int cw_cond_timedwait(cw_cond_t *cond, cw_mutex_t *t, const struct
 
 #endif /* !DEBUG_THREADS */
 
-//Maybe it's needed even by other OSs
-#if defined(__NetBSD__)
-
-#ifdef pthread_mutex_t
-#undef pthread_mutex_t
-#endif
-#ifdef pthread_mutex_lock
-#undef pthread_mutex_lock
-#endif
-#ifdef pthread_mutex_unlock
-#undef pthread_mutex_unlock
-#endif
-#ifdef pthread_mutex_trylock
-#undef pthread_mutex_trylock
-#endif
-#ifdef pthread_mutex_init
-#undef pthread_mutex_init
-#endif
-#ifdef pthread_mutex_destroy
-#undef pthread_mutex_destroy
-#endif
-
-#ifdef pthread_cond_t
-#undef pthread_cond_t
-#endif
-#ifdef pthread_cond_init
-#undef pthread_cond_init
-#endif
-#ifdef pthread_cond_destroy
-#undef pthread_cond_destroy
-#endif
-#ifdef pthread_cond_signal
-#undef pthread_cond_signal
-#endif
-#ifdef pthread_cond_broadcast
-#undef pthread_cond_broadcast
-#endif
-#ifdef pthread_cond_wait
-#undef pthread_cond_wait
-#endif
-#ifdef pthread_cond_timedwait
-#undef pthread_cond_timedwait
-#endif
-
-#endif
-
-
-#define pthread_mutex_t use_cw_mutex_t_instead_of_pthread_mutex_t
-#define pthread_mutex_lock use_cw_mutex_lock_instead_of_pthread_mutex_lock
-#define pthread_mutex_unlock use_cw_mutex_unlock_instead_of_pthread_mutex_unlock
-#define pthread_mutex_trylock use_cw_mutex_trylock_instead_of_pthread_mutex_trylock
-#define pthread_mutex_init use_cw_mutex_init_instead_of_pthread_mutex_init
-#define pthread_mutex_destroy use_cw_mutex_destroy_instead_of_pthread_mutex_destroy
-#define pthread_cond_t use_cw_cond_t_instead_of_pthread_cond_t
-#define pthread_cond_init use_cw_cond_init_instead_of_pthread_cond_init
-#define pthread_cond_destroy use_cw_cond_destroy_instead_of_pthread_cond_destroy
-#define pthread_cond_signal use_cw_cond_signal_instead_of_pthread_cond_signal
-#define pthread_cond_broadcast use_cw_cond_broadcast_instead_of_pthread_cond_broadcast
-#define pthread_cond_wait use_cw_cond_wait_instead_of_pthread_cond_wait
-#define pthread_cond_timedwait use_cw_cond_wait_instead_of_pthread_cond_timedwait
 
 #define CW_MUTEX_DEFINE_STATIC(mutex) __CW_MUTEX_DEFINE(static,mutex)
 #define CW_MUTEX_DEFINE_EXPORTED(mutex) __CW_MUTEX_DEFINE(/**/,mutex)
