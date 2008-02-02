@@ -95,7 +95,7 @@ struct cw_mutex_info {
 
 typedef struct cw_mutex_info cw_mutex_t;
 
-typedef pthread_cond_t cw_cond_t;
+#define cw_cond_t pthread_cond_t
 
 static inline int __cw_pthread_mutex_init_attr(const char *filename, int lineno, const char *func,
 						const char *mutex_name, cw_mutex_t *t,
@@ -347,30 +347,6 @@ static inline int __cw_pthread_mutex_unlock(const char *filename, int lineno, co
 	return res;
 }
 
-static inline int __cw_cond_init(const char *filename, int lineno, const char *func,
-				  const char *cond_name, cw_cond_t *cond, pthread_condattr_t *cond_attr)
-{
-	return pthread_cond_init(cond, cond_attr);
-}
-
-static inline int __cw_cond_signal(const char *filename, int lineno, const char *func,
-				    const char *cond_name, cw_cond_t *cond)
-{
-	return pthread_cond_signal(cond);
-}
-
-static inline int __cw_cond_broadcast(const char *filename, int lineno, const char *func,
-				       const char *cond_name, cw_cond_t *cond)
-{
-	return pthread_cond_broadcast(cond);
-}
-
-static inline int __cw_cond_destroy(const char *filename, int lineno, const char *func,
-				     const char *cond_name, cw_cond_t *cond)
-{
-	return pthread_cond_destroy(cond);
-}
-
 static inline int __cw_cond_wait(const char *filename, int lineno, const char *func,
 				  const char *cond_name, const char *mutex_name,
 				  cw_cond_t *cond, cw_mutex_t *t)
@@ -491,16 +467,18 @@ static inline int __cw_cond_timedwait(const char *filename, int lineno, const ch
 }
 
 
-#define cw_mutex_init(pmutex) __cw_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
-#define cw_mutex_destroy(a) __cw_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_lock(a) __cw_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_unlock(a) __cw_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_trylock(a) __cw_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_cond_init(cond, attr) __cw_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
-#define cw_cond_destroy(cond) __cw_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define cw_cond_signal(cond) __cw_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define cw_cond_broadcast(cond) __cw_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define cw_cond_wait(cond, mutex) __cw_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define cw_mutex_init(pmutex)                __cw_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define cw_mutex_destroy(a)                  __cw_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_lock(a)                     __cw_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_unlock(a)                   __cw_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_trylock(a)                  __cw_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+
+#define cw_cond_init(cond, cond_attr)        pthread_cond_init((cond), (cond_attr))
+#define cw_cond_signal(cond)                 pthread_cond_signal((cond))
+#define cw_cond_broadcast(cond)              pthread_cond_broadcast((cond))
+#define cw_cond_destroy(cond)                pthread_cond_destroy((cond))
+
+#define cw_cond_wait(cond, mutex)            __cw_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
 #define cw_cond_timedwait(cond, mutex, time) __cw_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
 #else /* !DEBUG_THREADS */
@@ -509,7 +487,7 @@ static inline int __cw_cond_timedwait(const char *filename, int lineno, const ch
 #define CW_MUTEX_INIT_VALUE	PTHREAD_MUTEX_INIT_VALUE
 
 
-typedef pthread_mutex_t cw_mutex_t;
+#define cw_mutex_t pthread_mutex_t
 
 static inline int cw_mutex_init(cw_mutex_t *pmutex)
 {
@@ -521,15 +499,8 @@ static inline int cw_mutex_init(cw_mutex_t *pmutex)
 
 #define cw_pthread_mutex_init(pmutex,a) pthread_mutex_init(pmutex,a)
 
-static inline int cw_mutex_unlock(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_unlock(pmutex);
-}
-
-static inline int cw_mutex_destroy(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_destroy(pmutex);
-}
+#define cw_mutex_unlock(pmutex)  pthread_mutex_unlock((pmutex))
+#define cw_mutex_destroy(pmutex) pthread_mutex_destroy((pmutex))
 
 #if defined(CW_MUTEX_INIT_W_CONSTRUCTORS)
 /* if CW_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
@@ -545,15 +516,8 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	cw_mutex_destroy(&mutex); \
 }
 
-static inline int cw_mutex_lock(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_lock(pmutex);
-}
-
-static inline int cw_mutex_trylock(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_trylock(pmutex);
-}
+#define cw_mutex_lock(pmutex)    pthread_mutex_lock((pmutex))
+#define cw_mutex_trylock(pmutex) pthread_mutex_trylock((pmutex))
 
 #elif defined(CW_MUTEX_INIT_ON_FIRST_USE)
 /* if CW_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
@@ -563,68 +527,45 @@ static inline int cw_mutex_trylock(cw_mutex_t *pmutex)
 #define __CW_MUTEX_DEFINE(scope,mutex) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE
 
-static inline int cw_mutex_lock(cw_mutex_t *pmutex)
-{
-	if (*pmutex == (cw_mutex_t)CW_MUTEX_KIND)
-		cw_mutex_init(pmutex);
-	return pthread_mutex_lock(pmutex);
-}
-static inline int cw_mutex_trylock(cw_mutex_t *pmutex)
-{
-	if (*pmutex == (cw_mutex_t)CW_MUTEX_KIND)
-		cw_mutex_init(pmutex);
-	return pthread_mutex_trylock(pmutex);
-}
+#define cw_mutex_lock(pmutex) ({ \
+	const cw_mutex_t *__m = (pmutex); \
+	if (*__m == (cw_mutex_t)CW_MUTEX_KIND) \
+		cw_mutex_init(__m); \
+	pthread_mutex_lock(__m); \
+})
+#define cw_mutex_trylock(pmutex) ({ \
+	const cw_mutex_t *__m = (pmutex); \
+	if (*__m == (cw_mutex_t)CW_MUTEX_KIND) \
+		cw_mutex_init(__m); \
+	pthread_mutex_trylock(__m); \
+})
 #else
 /* By default, use static initialization of mutexes.*/ 
 #define __CW_MUTEX_DEFINE(scope,mutex) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE
 
-static inline int cw_mutex_lock(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_lock(pmutex);
-}
-
-static inline int cw_mutex_trylock(cw_mutex_t *pmutex)
-{
-	return pthread_mutex_trylock(pmutex);
-}
+#define cw_mutex_lock(pmutex)    pthread_mutex_lock((pmutex))
+#define cw_mutex_trylock(pmutex) pthread_mutex_trylock((pmutex))
 
 #endif /* CW_MUTEX_INIT_W_CONSTRUCTORS */
 
-typedef pthread_cond_t cw_cond_t;
+#define cw_cond_t pthread_cond_t
 
-static inline int cw_cond_init(cw_cond_t *cond, pthread_condattr_t *cond_attr)
-{
-	return pthread_cond_init(cond, cond_attr);
-}
-
-static inline int cw_cond_signal(cw_cond_t *cond)
-{
-	return pthread_cond_signal(cond);
-}
-
-static inline int cw_cond_broadcast(cw_cond_t *cond)
-{
-	return pthread_cond_broadcast(cond);
-}
-
-static inline int cw_cond_destroy(cw_cond_t *cond)
-{
-	return pthread_cond_destroy(cond);
-}
-
-static inline int cw_cond_wait(cw_cond_t *cond, cw_mutex_t *t)
-{
-	return pthread_cond_wait(cond, t);
-}
-
-static inline int cw_cond_timedwait(cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime)
-{
-	return pthread_cond_timedwait(cond, t, abstime);
-}
+#define cw_cond_init(cond, cond_attr)       pthread_cond_init((cond), (cond_attr))
+#define cw_cond_signal(cond)                pthread_cond_signal((cond))
+#define cw_cond_broadcast(cond)             pthread_cond_broadcast((cond))
+#define cw_cond_destroy(cond)               pthread_cond_destroy((cond))
+#define cw_cond_wait(cond, t)               pthread_cond_wait((cond), (t))
+#define cw_cond_timedwait(cond, t, abstime) pthread_cond_timedwait((cond), (t), (abstime))
 
 #endif /* !DEBUG_THREADS */
+
+
+/* mutex unlock is sometimes used in a pthread_cleanup_push */
+static inline int cw_mutex_unlock_func(cw_mutex_t *mutex)
+{
+	return cw_mutex_unlock(mutex);
+}
 
 
 #define CW_MUTEX_DEFINE_STATIC(mutex) __CW_MUTEX_DEFINE(static,mutex)
