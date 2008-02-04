@@ -3103,7 +3103,7 @@ static void *do_monitor(void *data)
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
         /* Lock the interface list */
-	pthread_cleanup_push(cw_mutex_unlock, &iflock);
+	pthread_cleanup_push(cw_mutex_unlock_func, &iflock);
         cw_mutex_lock(&iflock);
 
         /*endif*/
