@@ -758,13 +758,12 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp)
 {
     static struct cw_frame null_frame = { CW_FRAME_NULL, };
-    socklen_t len;
-    int hdrlen = 8;
-    int res;
-    int actions;
-    struct sockaddr_in sin;
-    unsigned int rtcpdata[1024];
+    uint32_t rtcpdata[1024];
     char iabuf[INET_ADDRSTRLEN];
+    struct sockaddr_in sin;
+    socklen_t len;
+    int res, pkt;
+    int actions;
     
     if (rtp == NULL)
         return &null_frame;
@@ -785,17 +784,70 @@ struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp)
     }
     if ((actions & 1))
     {
-        if (option_debug  ||  rtpdebug)
+        if (option_debug || rtpdebug)
             cw_log(CW_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_far(rtp->rtcp_sock_info)->sin_port));
     }
 
-    if (res < hdrlen)
+    if (res < 8)
     {
-        cw_log(CW_LOG_DEBUG, "RTP Read too short\n");
+        cw_log(CW_LOG_DEBUG, "RTCP Read too short\n");
         return &null_frame;
     }
-    if (option_debug)
-        cw_log(CW_LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
+
+    pkt = 0;
+    res >>= 2;
+    while (pkt < res)
+    {
+        uint32_t l, length = ntohl(rtcpdata[pkt]);
+        uint8_t PT = (length >> 16) & 0xff;
+        uint8_t RC = (length >> 24) & 0x1f;
+        uint8_t P = (length >> 24) & 0x20;
+        uint8_t version = (length >> 30);
+        int i;
+
+        l = length &= 0xffff;
+        if (P)
+                l -= (ntohl(rtcpdata[pkt+length]) & 0xff) >> 2;
+
+        if (pkt + l + 1 > res)
+        {
+            if (rtpdebug || rtp_debug_test_addr(&sin))
+                cw_log(CW_LOG_DEBUG, "RTCP packet extends beyond received data. Ignored.\n");
+            break;
+        }
+
+        if (version != 2)
+        {
+            if (rtpdebug || rtp_debug_test_addr(&sin))
+                cw_log(CW_LOG_DEBUG, "RTCP packet version %d ignored. We only support version 2\n", version);
+            goto next;
+        }
+
+        i = pkt + 2;
+
+        switch (PT)
+        {
+            case 200: /* Sender Report */
+                if (rtpdebug || rtp_debug_test_addr(&sin))
+                    cw_log(CW_LOG_NOTICE, "RTCP SR: NTP=%u.%u RTP=%u pkts=%u data=%u\n", ntohl(rtcpdata[i]), ntohl(rtcpdata[i+1]), ntohl(rtcpdata[i+2]), ntohl(rtcpdata[i+3]), ntohl(rtcpdata[i+4]));
+                i += 5;
+                /* Fall through */
+            case 201: /* Reception Report(s) */
+                while (RC--)
+                {
+                    if (rtpdebug || rtp_debug_test_addr(&sin))
+                        cw_log(CW_LOG_NOTICE, "RTCP RR: loss rate=%u/256 loss count=%u extseq=0x%x jitter=%u LSR=%u DLSR=%u\n", ntohl(rtcpdata[i+1]) >> 24, ntohl(rtcpdata[i+1]) & 0x00ffffff, ntohl(rtcpdata[i+2]), ntohl(rtcpdata[i+3]), ntohl(rtcpdata[i+4]), ntohl(rtcpdata[i+5]));
+                    i += 6;
+                }
+                if (i <= pkt + l && (rtpdebug || rtp_debug_test_addr(&sin)))
+                    cw_log(CW_LOG_DEBUG, "RTCP SR/RR has %d words of profile-specific extension (ignored)\n", pkt+l+1 - i);
+                break;
+        }
+
+next:
+        pkt += length + 1;
+    }
+
     return &null_frame;
 }
 
