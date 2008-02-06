@@ -71,6 +71,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int udptldebug = 0;                  /* Are we debugging? */
 static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
+
+CW_MUTEX_DEFINE_STATIC(settingslock);
 static int nochecksums = 0;
 static int udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
 static int udptlfecentries = 0;
@@ -272,7 +274,11 @@ void cw_udptl_offered_from_local(cw_udptl_t *udptl, int local)
 
 int cw_udptl_get_preferred_error_correction_scheme(cw_udptl_t *udptl)
 {
-    return udptlfectype;
+    int ret;
+    cw_mutex_lock(&settingslock);
+    ret = udptlfectype;
+    cw_mutex_unlock(&settingslock);
+    return ret;
 }
 
 int cw_udptl_get_current_error_correction_scheme(cw_udptl_t *udptl)
@@ -359,6 +365,8 @@ cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
         return NULL;
     memset(udptl, 0, sizeof(cw_udptl_t));
 
+    cw_mutex_lock(&settingslock);
+
     udptl_init(&udptl->state,
                udptlfectype,
                udptlfecspan,
@@ -368,6 +376,8 @@ cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
 
     udptl_set_far_max_datagram(&udptl->state, udptlmaxdatagram);
     udptl_set_local_max_datagram(&udptl->state, udptlmaxdatagram);
+
+    cw_mutex_unlock(&settingslock);
 
     /* This sock_info should already be bound to an address */
     udptl->udptl_sock_info = sock_info;
@@ -743,6 +753,42 @@ static int udptl_no_debug(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
+static int udptl_reload(int fd, int argc, char *argv[])
+{
+    if (argc != 2)
+        return RESULT_SHOWUSAGE;
+    cw_udptl_reload();
+    return RESULT_SUCCESS;
+}
+
+static int cw_show_settings(int fd, int argc, char *argv[])
+{
+    char *error_correction_str;
+    if (argc != 3)
+        return RESULT_SHOWUSAGE;
+
+    cw_mutex_lock(&settingslock);
+
+    cw_cli(fd, "\n\nUDPTL Settings:\n");
+    cw_cli(fd, "---------------\n");
+    cw_cli(fd, "Checksum UDPTL traffic: %s\n", nochecksums ? "No" : "Yes");
+    if (udptlfectype == UDPTL_ERROR_CORRECTION_FEC)
+        error_correction_str = "FEC";
+    else if (udptlfectype == UDPTL_ERROR_CORRECTION_REDUNDANCY)
+        error_correction_str = "Redundancy";
+    else
+        error_correction_str = "None";
+    cw_cli(fd, "Error correction:       %s\n", error_correction_str);
+    cw_cli(fd, "Max UDPTL packet:       %d bytes\n", udptlmaxdatagram);
+    cw_cli(fd, "FEC entries:            %d\n", udptlfecentries);
+    cw_cli(fd, "FEC span:               %d\n", udptlfecspan);
+    cw_cli(fd, "\n----\n");
+
+    cw_mutex_unlock(&settingslock);
+
+    return RESULT_SUCCESS;
+}
+
 static char debug_usage[] =
     "Usage: udptl debug [ip host[:port]]\n"
     "       Enable dumping of all UDPTL packets to and from host.\n";
@@ -750,6 +796,14 @@ static char debug_usage[] =
 static char no_debug_usage[] =
     "Usage: udptl no debug\n"
     "       Disable all UDPTL debugging\n";
+
+static char reload_usage[] =
+    "Usage: udptl reload\n"
+    "       Reload UDPTL settings\n";
+
+static char show_settings_usage[] =
+    "Usage: udptl show settings\n"
+    "       Show UDPTL settings\n";
 
 static struct cw_clicmd  cli_debug_ip =
 {
@@ -775,10 +829,28 @@ static struct cw_clicmd  cli_no_debug =
 	.usage = no_debug_usage,
 };
 
+static struct cw_clicmd  cli_reload =
+{
+	.cmda = { "udptl", "reload", NULL },
+	.handler = udptl_reload,
+	.summary = "Reload UDPTL settings",
+	.usage = reload_usage,
+};
+
+static struct cw_clicmd  cli_show_settings =
+{
+	.cmda = { "udptl", "show", "settings", NULL },
+	.handler = udptl_show_settings,
+	.summary = "Show UDPTL settings",
+	.usage = show_settings_usage,
+};
+
 void cw_udptl_reload(void)
 {
     struct cw_config *cfg;
     char *s;
+
+    cw_mutex_lock(&settingslock);
 
     udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
     udptlfecentries = 1;
@@ -832,6 +904,8 @@ void cw_udptl_reload(void)
         }
         cw_config_destroy(cfg);
     }
+
+    cw_mutex_unlock(&settingslock);
 }
 
 int cw_udptl_init(void)
@@ -839,6 +913,8 @@ int cw_udptl_init(void)
     cw_cli_register(&cli_debug);
     cw_cli_register(&cli_debug_ip);
     cw_cli_register(&cli_no_debug);
+    cw_cli_register(&cli_reload);
+    cw_cli_register(&cli_show_settings);
     cw_udptl_reload();
     return 0;
 }
