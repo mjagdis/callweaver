@@ -207,7 +207,7 @@ int cw_search_dns(void *context,
 	if (!s && !(s = calloc(1, sizeof(*s))))
 		return -1;
 
-	if ((ret = res_ninit(&s->rs))) {
+	if (!(ret = res_ninit(&s->rs))) {
 		ret = res_nsearch(&s->rs, dname, class, type, (unsigned char *)answer, sizeof(answer));
 		res_nclose(&s->rs);
 	}
