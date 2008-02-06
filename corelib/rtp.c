@@ -64,6 +64,21 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
 
+
+#undef INCREMENTAL_RFC2833_EVENTS     /* If defined we increase the duration of the event each time
+                                       * send a continuation. If not defined we specify the full
+                                       * duration (which is always the DTMF duration below) in
+                                       * every continuation. Specifying the full length each time
+                                       * helps avoid problems in high jitter situations with some
+                                       * types of peer. It could conceivably lead to problems
+                                       * with some peers that don't expect to see durations beyond
+                                       * some window but this has not yet been seen whereas jitter
+                                       * problems causing dropped or repeated digits have :-)
+                                       */
+
+#define DTMF_TONE_DURATION 100        /* Duration of a DTMF tone in ms. Currently this MUST be 100 due to fixed values elsewhere */
+
+
 #define MAX_TIMESTAMP_SKEW    640
 
 #define RTP_MTU        1200
@@ -863,7 +878,11 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 		/* Start of a new event */
 		rtp->senddtmf_rtphdr = ((2 << 30) | (cw_rtp_lookup_code(rtp, 0, CW_RTP_DTMF) << 16));
 		rtp->senddtmf_startts = rtp->lastts;
+#ifdef INCREMENTAL_RFC2833_EVENTS
 		rtp->senddtmf_payload = rtp->senddtmf;
+#else
+		rtp->senddtmf_payload = rtp->senddtmf | (DTMF_TONE_DURATION * f->samplerate / 1000);
+#endif
 		rtp->senddtmf = 0;
 		pkt[0] = htonl(rtp->senddtmf_rtphdr | (1 << 23) | rtp->seqno);
 	} else {
@@ -903,8 +922,10 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 		pkt[3] = htonl(rtp->senddtmf_payload);
 		rtp->senddtmf_payload |= 1 << 22;
 	} else {
+#ifdef INCREMENTAL_RFC2833_EVENTS
 		rtp->senddtmf_payload = (rtp->senddtmf_payload & ~0xffff) | (rtp->lastts - rtp->senddtmf_startts + f->samples);
-		if (rtp->lastts - rtp->senddtmf_startts + f->samples >= 100 * f->samplerate / 1000) {
+#endif
+		if (rtp->lastts - rtp->senddtmf_startts + f->samples >= DTMF_TONE_DURATION * f->samplerate / 1000) {
 			/* First end packet */
 			rtp->senddtmf_payload |= 1 << 23;
 		}
