@@ -15895,7 +15895,7 @@ static int reload_config(void)
     memset(&stunserver_ip, 0, sizeof(stunserver_ip));
     stunserver_ip.sin_family = AF_INET;
     stunserver_portno=3478;
-    stunserver_ip.sip_port = htons(stunserver_portno);
+    stunserver_ip.sin_port = htons(stunserver_portno);
     rfc3489_active=0;
 
     /* Initialize some reasonable defaults at SIP reload */
