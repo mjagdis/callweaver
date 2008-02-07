@@ -761,7 +761,7 @@ static int udptl_reload(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int cw_show_settings(int fd, int argc, char *argv[])
+static int udptl_show_settings(int fd, int argc, char *argv[])
 {
     char *error_correction_str;
     if (argc != 3)
