@@ -206,7 +206,7 @@ static int pbx_builtin_goto(struct cw_channel *chan, int argc, char **argv, char
 	context = exten = NULL;
 	if (argc > 2) context = (argv++)[0];
 	if (argc > 1) exten = (argv++)[0];
-	res = cw_explicit_gotolabel(chan, context, exten, argv[0]);
+	res = cw_explicit_goto(chan, context, exten, argv[0]);
 	if (!res && option_verbose > 2)
 		cw_verbose(VERBOSE_PREFIX_3 "Goto (%s, %s, %d)\n", chan->context, chan->exten, chan->priority + 1);
 	return res;

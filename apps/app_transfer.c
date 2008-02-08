@@ -108,7 +108,7 @@ static int transfer_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	if (res < 0) {
 		status = "FAILURE";
 		if (option_priority_jumping)
-			cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			cw_goto_if_exists_n(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 	} else {
 		status = "SUCCESS";

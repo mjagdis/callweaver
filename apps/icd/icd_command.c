@@ -1665,8 +1665,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
   icd_caller *customer;
   struct cw_channel *chan = NULL;
   char *customer_source;
-  int pri=0;
-  char *pria, *exten, *context;
+  char *pria = "1", *exten, *context;
 
   if (argc != 3) {
        cw_cli(fd, "Transfer FAILURE! bad parameters\n");
@@ -1697,10 +1696,8 @@ int icd_command_transfer (int fd, int argc, char **argv)
 		if((pria = strchr(context,':'))) {
 			*pria = '\0';
 			pria++;
-			pri = atoi(pria);
-		} 
-		if(!pri)
-			pri = 1;
+		} else
+			pria = "1";
 	}
 	else {		
 		cw_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
@@ -1712,33 +1709,33 @@ int icd_command_transfer (int fd, int argc, char **argv)
     if(!chan){
 		cw_cli(fd,"Transfer failure, customer[%s] : no channel\n", customer_source);
     	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: No channel\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
-        customer_source, context, exten, pri);
+    	"Command: Transfer\r\nResult: Fail\r\nCause: No channel\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
+        customer_source, context, exten, pria);
     }	 	
-    if(!cw_exists_extension(chan, context, exten, pri, NULL)){
+    if(!cw_findlabel_extension(chan, context, exten, pria, NULL)){
 		cw_cli(fd,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
     	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Destination not exist\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
-        customer_source, context, exten, pri);
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Destination not exist\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
+        customer_source, context, exten, pria);
         return 1;
     }	 	
-	if(cw_goto_if_exists(chan, context, exten, pri)){
-		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+	if(cw_goto_if_exists(chan, context, exten, pria)){
+		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
     	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Unknown\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
-        customer_source, context, exten, pri);
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Unknown\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
+        customer_source, context, exten, pria);
 	    return 1;	   
 	};
  	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
-		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
     	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Unable to change state to CALL_END\r\nCallerID: %s\r\nState: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
-        customer_source, icd_caller__get_state_string(customer), context, exten, pri);
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Unable to change state to CALL_END\r\nCallerID: %s\r\nState: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
+        customer_source, icd_caller__get_state_string(customer), context, exten, pria);
 		return 1;
  	}; 
     manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: OK\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
-        customer_source, context, exten, pri);
+    	"Command: Transfer\r\nResult: OK\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
+        customer_source, context, exten, pria);
     return 0;
 }
 

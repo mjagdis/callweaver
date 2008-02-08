@@ -228,18 +228,18 @@ static void hanguptree(struct outchan *outgoing, struct cw_channel *exception)
 } while (0)
 
 
-static int onedigit_goto(struct cw_channel *chan, char *context, char exten, int pri) 
+static int onedigit_goto(struct cw_channel *chan, char *context, char exten) 
 {
 	char rexten[2] = { exten, '\0' };
 
 	if (context) {
-		if (!cw_goto_if_exists(chan, context, rexten, pri))
+		if (!cw_goto_if_exists_n(chan, context, rexten, 1))
 			return 1;
 	} else {
-		if (!cw_goto_if_exists(chan, chan->context, rexten, pri))
+		if (!cw_goto_if_exists_n(chan, chan->context, rexten, 1))
 			return 1;
 		else if (!cw_strlen_zero(chan->proc_context)) {
-			if (!cw_goto_if_exists(chan, chan->proc_context, rexten, pri))
+			if (!cw_goto_if_exists_n(chan, chan->proc_context, rexten, 1))
 				return 1;
 		}
 	}
@@ -581,7 +581,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 			if (f && (f->frametype == CW_FRAME_DTMF)) {
 				if (cw_test_flag(peerflags, DIAL_HALT_ON_DTMF)) {
 					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
-					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
+					if (onedigit_goto(in, context, (char) f->subclass)) {
 						if (option_verbose > 3)
 							cw_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 						*to=0;
@@ -1715,7 +1715,7 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 		if (res < 0)
 			break;
 		else if (res > 0) { /* Trying to send the call elsewhere (1 digit ext) */
-			if (onedigit_goto(chan, context, (char) res, 1)) {
+			if (onedigit_goto(chan, context, (char) res)) {
 				res = 0;
 				break;
 			}

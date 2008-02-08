@@ -3116,7 +3116,7 @@ struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame)
 							cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", cw->name, context);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(cw,"FAXEXTEN",cw->exten);
-						if (cw_async_goto(cw, context, "fax", 1))
+						if (cw_async_goto_n(cw, context, "fax", 1))
 							cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, context);
 					} else
 						cw_log(CW_LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, cw->exten);

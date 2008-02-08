@@ -1433,7 +1433,7 @@ zapretry:
 
                     tmp[0] = f->subclass;
                     tmp[1] = '\0';
-                    if (cw_goto_if_exists(chan, exitcontext, tmp, 1))
+                    if (cw_goto_if_exists_n(chan, exitcontext, tmp, 1))
                     {
                         ret = 0;
                         break;

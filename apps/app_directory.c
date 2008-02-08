@@ -196,7 +196,7 @@ static int play_mailbox_owner(struct cw_channel *chan, char *context, char *dial
 				case '1':
 					/* Name selected */
 					loop = 0;
-					if (cw_goto_if_exists(chan, dialcontext, ext, 1)) {
+					if (cw_goto_if_exists_n(chan, dialcontext, ext, 1)) {
 						cw_log(CW_LOG_WARNING,
 							"Can't find extension '%s' in context '%s'.  "
 							"Did you pass the wrong context to Directory?\n",
@@ -303,9 +303,9 @@ static int do_directory(struct cw_channel *chan, struct cw_config *cfg, char *co
 		return -1;
 	}
 	if (digit == '0') {
-		if (!cw_goto_if_exists(chan, chan->context, "o", 1) ||
+		if (!cw_goto_if_exists_n(chan, chan->context, "o", 1) ||
 		    (!cw_strlen_zero(chan->proc_context) &&
-		     !cw_goto_if_exists(chan, chan->proc_context, "o", 1))) {
+		     !cw_goto_if_exists_n(chan, chan->proc_context, "o", 1))) {
 			return 0;
 		} else {
 			cw_log(CW_LOG_WARNING, "Can't find extension 'o' in current context.  "
@@ -314,9 +314,9 @@ static int do_directory(struct cw_channel *chan, struct cw_config *cfg, char *co
 		}
 	}	
 	if (digit == '*') {
-		if (!cw_goto_if_exists(chan, chan->context, "a", 1) ||
+		if (!cw_goto_if_exists_n(chan, chan->context, "a", 1) ||
 		    (!cw_strlen_zero(chan->proc_context) &&
-		     !cw_goto_if_exists(chan, chan->proc_context, "a", 1))) {
+		     !cw_goto_if_exists_n(chan, chan->proc_context, "a", 1))) {
 			return 0;
 		} else {
 			cw_log(CW_LOG_WARNING, "Can't find extension 'a' in current context.  "

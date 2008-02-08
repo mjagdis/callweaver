@@ -292,7 +292,7 @@ static int background_detect_exec(struct cw_channel *chan, int argc, char **argv
 									sprintf(ms_str, "%d", ms );	
 									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 									
-									cw_goto_if_exists(chan, chan->context, "talk", 1);
+									cw_goto_if_exists_n(chan, chan->context, "talk", 1);
 									res = 0;
 									cw_fr_free(fr);
 									break;

@@ -188,7 +188,7 @@ int cw_stopstream(struct cw_channel *c) {
     return 0;
 }
 
-int cw_async_goto(struct cw_channel *chan, char *context, char *exten, int priority, int needlock) {
+int cw_async_goto_n(struct cw_channel *chan, char *context, char *exten, int priority) {
     return 0;
 }
 

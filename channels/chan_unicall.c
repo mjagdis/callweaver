@@ -2230,7 +2230,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
                         if (option_verbose > 2)
                             cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to specific fax extension %s\n", cw->name, tmpfax);
                         /*endif*/
-                        if (cw_async_goto(cw, target_context, tmpfax, 1))
+                        if (cw_async_goto_n(cw, target_context, tmpfax, 1))
                             cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", cw->name, tmpfax, target_context);
                         /*endif*/
                     }
@@ -2239,7 +2239,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
                         if (option_verbose > 2)
                             cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", cw->name);
                         /*endif*/
-                        if (cw_async_goto(cw, target_context, "fax", 1))
+                        if (cw_async_goto_n(cw, target_context, "fax", 1))
                             cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, target_context);
                         /*endif*/
                     }
@@ -2367,7 +2367,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
                         if (option_verbose > 2)
                             cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", cw->name);
                         /*endif*/
-                        if (cw_async_goto(cw, target_context, "fax", 1))
+                        if (cw_async_goto_n(cw, target_context, "fax", 1))
                             cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, target_context);
                         /*endif*/
                     }

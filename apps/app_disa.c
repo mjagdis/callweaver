@@ -363,7 +363,7 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 				cw_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
 
 			cw_cdr_reset(chan->cdr, CW_CDR_FLAG_POSTED);
-			cw_explicit_goto(chan, ourcontext, exten, 1);
+			cw_explicit_goto_n(chan, ourcontext, exten, 1);
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}

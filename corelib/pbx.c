@@ -4132,7 +4132,7 @@ int cw_add_extension(const char *context, int replace, const char *extension, in
     return -1;
 }
 
-int cw_explicit_goto(struct cw_channel *chan, const char *context, const char *exten, int priority)
+int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority)
 {
     if (!chan)
         return -1;
@@ -4152,7 +4152,64 @@ int cw_explicit_goto(struct cw_channel *chan, const char *context, const char *e
     return 0;
 }
 
-int cw_explicit_gotolabel(struct cw_channel *chan, const char *context, const char *exten, const char *priority)
+int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority)
+{
+    int res = 0;
+
+    cw_mutex_lock(&chan->lock);
+
+    if (chan->pbx)
+    {
+        /* This channel is currently in the PBX */
+        cw_explicit_goto_n(chan, context, exten, priority);
+        cw_softhangup_nolock(chan, CW_SOFTHANGUP_ASYNCGOTO);
+    }
+    else
+    {
+        /* In order to do it when the channel doesn't really exist within
+           the PBX, we have to make a new channel, masquerade, and start the PBX
+           at the new location */
+        struct cw_channel *tmpchan;
+        
+        tmpchan = cw_channel_alloc(0);
+        if (tmpchan)
+        {
+            snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
+            cw_setstate(tmpchan, chan->_state);
+            /* Make formats okay */
+            tmpchan->readformat = chan->readformat;
+            tmpchan->writeformat = chan->writeformat;
+            /* Setup proper location */
+            cw_explicit_goto_n(tmpchan,
+                               (!cw_strlen_zero(context)) ? context : chan->context,
+                               (!cw_strlen_zero(exten)) ? exten : chan->exten,
+                               priority);
+
+            /* Masquerade into temp channel */
+            cw_channel_masquerade(tmpchan, chan);
+        
+            /* Grab the locks and get going */
+            cw_mutex_lock(&tmpchan->lock);
+            cw_do_masquerade(tmpchan);
+            cw_mutex_unlock(&tmpchan->lock);
+            /* Start the PBX going on our stolen channel */
+            if (cw_pbx_start(tmpchan))
+            {
+                cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
+                cw_hangup(tmpchan);
+                res = -1;
+            }
+        }
+        else
+        {
+            res = -1;
+        }
+    }
+    cw_mutex_unlock(&chan->lock);
+    return res;
+}
+
+int cw_xsync_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async)
 {
     int npriority;
     
@@ -4187,67 +4244,13 @@ int cw_explicit_gotolabel(struct cw_channel *chan, const char *context, const ch
         }
     }
 
-    return cw_explicit_goto(chan, context, exten, npriority);
-}
-
-int cw_async_goto(struct cw_channel *chan, const char *context, const char *exten, int priority)
-{
-    int res = 0;
-
-    cw_mutex_lock(&chan->lock);
-
-    if (chan->pbx)
-    {
-        /* This channel is currently in the PBX */
-        cw_explicit_goto(chan, context, exten, priority);
-        cw_softhangup_nolock(chan, CW_SOFTHANGUP_ASYNCGOTO);
-    }
+    if (async)
+    	return cw_async_goto_n(chan, context, exten, npriority);
     else
-    {
-        /* In order to do it when the channel doesn't really exist within
-           the PBX, we have to make a new channel, masquerade, and start the PBX
-           at the new location */
-        struct cw_channel *tmpchan;
-        
-        tmpchan = cw_channel_alloc(0);
-        if (tmpchan)
-        {
-            snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
-            cw_setstate(tmpchan, chan->_state);
-            /* Make formats okay */
-            tmpchan->readformat = chan->readformat;
-            tmpchan->writeformat = chan->writeformat;
-            /* Setup proper location */
-            cw_explicit_goto(tmpchan,
-                               (!cw_strlen_zero(context)) ? context : chan->context,
-                               (!cw_strlen_zero(exten)) ? exten : chan->exten,
-                               priority);
-
-            /* Masquerade into temp channel */
-            cw_channel_masquerade(tmpchan, chan);
-        
-            /* Grab the locks and get going */
-            cw_mutex_lock(&tmpchan->lock);
-            cw_do_masquerade(tmpchan);
-            cw_mutex_unlock(&tmpchan->lock);
-            /* Start the PBX going on our stolen channel */
-            if (cw_pbx_start(tmpchan))
-            {
-                cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
-                cw_hangup(tmpchan);
-                res = -1;
-            }
-        }
-        else
-        {
-            res = -1;
-        }
-    }
-    cw_mutex_unlock(&chan->lock);
-    return res;
+    	return cw_explicit_goto_n(chan, context, exten, npriority);
 }
 
-int cw_async_goto_by_name(const char *channame, const char *context, const char *exten, int priority)
+int cw_async_goto_by_name(const char *channame, const char *context, const char *exten, const char *priority)
 {
     struct cw_channel *chan;
     int res = -1;
@@ -4255,7 +4258,7 @@ int cw_async_goto_by_name(const char *channame, const char *context, const char 
     chan = cw_get_channel_by_name_locked(channame);
     if (chan)
     {
-        res = cw_async_goto(chan, context, exten, priority);
+        res = cw_xsync_goto(chan, context, exten, priority, 1);
         cw_mutex_unlock(&chan->lock);
     }
     return res;
@@ -5479,33 +5482,40 @@ int cw_context_verify_includes(struct cw_context *con)
 }
 
 
-static int __cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, int priority, int async) 
+int cw_goto_if_exists_n(struct cw_channel *chan, char *context, char *exten, int priority)
 {
-    int (*goto_func)(struct cw_channel *chan, const char *context, const char *exten, int priority);
-
     if (!chan)
         return -2;
 
-    goto_func = (async) ? cw_async_goto : cw_explicit_goto;
-    if (cw_exists_extension(chan, context ? context : chan->context,
-                 exten ? exten : chan->exten, priority,
-                 chan->cid.cid_num))
-        return goto_func(chan, context ? context : chan->context,
-                 exten ? exten : chan->exten, priority);
-    else 
-        return -3;
+    if (!context)
+        context = chan->context;
+
+    if (!exten)
+        exten = chan->exten;
+
+    if (cw_exists_extension(chan, context, exten, priority, chan->cid.cid_num) > 0)
+        return cw_explicit_goto_n(chan, context, exten, priority);
+
+    return -3;
 }
 
-int cw_goto_if_exists(struct cw_channel *chan, char* context, char *exten, int priority)
+
+int cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, const char *priority)
 {
-    return __cw_goto_if_exists(chan, context, exten, priority, 0);
-}
+    if (!chan)
+        return -2;
 
-int cw_async_goto_if_exists(struct cw_channel *chan, char* context, char *exten, int priority)
-{
-    return __cw_goto_if_exists(chan, context, exten, priority, 1);
-}
+    if (!context)
+        context = chan->context;
 
+    if (!exten)
+        exten = chan->exten;
+
+    if (cw_findlabel_extension(chan, context, exten, priority, chan->cid.cid_num) > 0)
+        return cw_explicit_goto(chan, context, exten, priority);
+
+    return -3;
+}
 
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string) 
 {
@@ -5550,7 +5560,8 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 	if (mode) 
 		ipri = chan->priority + (ipri * mode);
 
-	cw_explicit_goto(chan, context, exten, ipri);
+	/* FIXME: can't we just use cw_explicit_goto(... prio) and save the above checks? */
+	cw_explicit_goto_n(chan, context, exten, ipri);
 	cw_cdr_update(chan);
 
 	return 0;

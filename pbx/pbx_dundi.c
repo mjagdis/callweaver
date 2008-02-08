@@ -4012,7 +4012,7 @@ static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, char *
 			deprecated_jump = 1;
 			cw_log(CW_LOG_WARNING, "Priority jumping is deprecated. Use Set(varname=${%s(args)}) and test ${varname} instead\n", dundifunc_name);
 		}
-		cw_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		cw_goto_if_exists_n(chan, chan->context, chan->exten, chan->priority + 101);
 	}
 
 	LOCAL_USER_REMOVE(u);

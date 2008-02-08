@@ -6271,7 +6271,7 @@ retryowner:
 						} else
 							cw_log(CW_LOG_DEBUG, "Parked call on '%s'\n", cw_bridged_channel(iaxs[fr.callno]->owner)->name);
 					} else {
-						if (cw_async_goto(cw_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->context, ies.called_number, 1))
+						if (cw_async_goto_n(cw_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->context, ies.called_number, 1))
 							cw_log(CW_LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", cw_bridged_channel(iaxs[fr.callno]->owner)->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 						else

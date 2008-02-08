@@ -613,7 +613,7 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 			if (option_verbose > 2) 
 				cw_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
 							 ,transferee->name, newext, transferer_real_context);
-			if (cw_async_goto(transferee, transferer_real_context, newext, 1))
+			if (cw_async_goto_n(transferee, transferer_real_context, newext, 1))
 				cw_log(CW_LOG_WARNING, "Async goto failed :-(\n");
 			res = -1;
 		} else {
@@ -767,7 +767,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					xferchan->readformat = transferee->readformat;
 					xferchan->writeformat = transferee->writeformat;
 					cw_channel_masquerade(xferchan, transferee);
-					cw_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+					cw_explicit_goto_n(xferchan, transferee->context, transferee->exten, transferee->priority);
 					xferchan->_state = CW_STATE_UP;
 					cw_clear_flag(xferchan, CW_FLAGS_ALL);	
 					xferchan->_softhangup = 0;

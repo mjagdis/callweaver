@@ -503,7 +503,7 @@ static int valetpark_call(struct cw_channel *chan, int argc, char **argv, char *
 		cw_log(CW_LOG_WARNING,"Call is already Valet Parked Here [%s]\n", argv[0]);
 
 		if (cw_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			cw_explicit_goto(chan, chan->context, chan->exten, chan->priority + 100);
+			cw_explicit_goto_n(chan, chan->context, chan->exten, chan->priority + 100);
 			return 0;
 		}
 

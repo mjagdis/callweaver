@@ -72,7 +72,7 @@ static int random_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	if ((random() % 100) + probint > 100) {
 		exten = (argc > 1 ? argv[argc-2] : NULL);
 		context = (argc > 2 ? argv[argc-3] : NULL);
-		res = cw_explicit_gotolabel(chan, context, exten, argv[argc-1]);
+		res = cw_explicit_goto(chan, context, exten, argv[argc-1]);
 		if (!res && option_verbose > 2)
 			cw_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);

@@ -4695,7 +4695,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 							cw_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", cw->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(cw, "FAXEXTEN", cw->exten);
-						if (cw_async_goto(cw, target_context, "fax", 1))
+						if (cw_async_goto_n(cw, target_context, "fax", 1))
 							cw_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", cw->name, target_context);
 					} else
 						cw_log(CW_LOG_NOTICE, "Fax detected, but no fax extension\n");

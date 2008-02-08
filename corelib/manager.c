@@ -905,17 +905,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 	char *context = astman_get_header(m, "Context");
 	char *priority = astman_get_header(m, "Priority");
 	struct cw_channel *chan, *chan2 = NULL;
-	int pi = 0;
 	int res;
 
 	if (cw_strlen_zero(name))
     {
 		astman_send_error(s, m, "Channel not specified");
-		return 0;
-	}
-	if (!cw_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1))
-    {
-		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
 	chan = cw_get_channel_by_name_locked(name);
@@ -929,13 +923,13 @@ static int action_redirect(struct mansession *s, struct message *m)
 	}
 	if (!cw_strlen_zero(name2))
 		chan2 = cw_get_channel_by_name_locked(name2);
-	res = cw_async_goto(chan, context, exten, pi);
+	res = cw_async_goto(chan, context, exten, priority);
 	if (!res)
     {
 		if (!cw_strlen_zero(name2))
         {
 			if (chan2)
-				res = cw_async_goto(chan2, context, exten, pi);
+				res = cw_async_goto(chan2, context, exten, priority);
 			else
 				res = -1;
 			if (!res)

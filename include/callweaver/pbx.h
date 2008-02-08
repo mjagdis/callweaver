@@ -516,10 +516,6 @@ int cw_lock_context(struct cw_context *con);
 int cw_unlock_context(struct cw_context *con);
 
 
-int cw_async_goto(struct cw_channel *chan, const char *context, const char *exten, int priority);
-
-int cw_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
-
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
 int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_variable *vars, struct cw_channel **locked_channel);
@@ -578,12 +574,17 @@ int cw_extension_patmatch(const char *pattern, const char *data);
   set to 1, sets to auto fall through.  If newval set to 0, sets to no auto
   fall through (reads extension instead).  Returns previous value. */
 extern int pbx_set_autofallthrough(int newval);
-int cw_goto_if_exists(struct cw_channel *chan, char* context, char *exten, int priority);
 /* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string);
-int cw_explicit_goto(struct cw_channel *chan, const char *context, const char *exten, int priority);
-int cw_explicit_gotolabel(struct cw_channel *chan, const char *context, const char *exten, const char *priority);
-int cw_async_goto_if_exists(struct cw_channel *chan, char* context, char *exten, int priority);
+int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
+int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
+int cw_xsync_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async);
+#define cw_explicit_goto(chan, context, exten, priority) cw_xsync_goto((chan), (context), (exten), (priority), 0)
+#define cw_async_goto(chan, context, exten, priority)    cw_xsync_goto((chan), (context), (exten), (priority), 1)
+int cw_async_goto_by_name(const char *chan, const char *context, const char *exten, const char *priority);
+
+int cw_goto_if_exists_n(struct cw_channel *chan, char* context, char *exten, int priority);
+int cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, const char *priority);
 
 
 /*! \brief Logs a syntax error for a function

@@ -848,12 +848,9 @@ static int handle_setpriority(struct cw_channel *chan, OGI *ogi, int argc, char 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
 
-	if (sscanf(argv[2], "%d", &pri) != 1) {
-		if ((pri = cw_findlabel_extension(chan, chan->context, chan->exten, argv[2], chan->cid.cid_num)) < 1)
-			return RESULT_SHOWUSAGE;
-	}
+	if (cw_explicit_goto(chan, NULL, NULL, argv[2]))
+		return RESULT_SHOWUSAGE;
 
-	cw_explicit_goto(chan, NULL, NULL, pri);
 	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }

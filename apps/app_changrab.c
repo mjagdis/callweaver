@@ -167,7 +167,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	char *chan_name_1, *chan_name_2 = NULL, *context,*exten,*flags=NULL;
 	char *pria = NULL;
     struct cw_channel *xferchan_1, *xferchan_2;
-	int pri=0,x=1;
+	int x=1;
 
 	if(argc < 3) {
 		cw_cli(fd,CGUSAGE);
@@ -212,12 +212,9 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		if((pria = strchr(context,':'))) {
 			*pria = '\0';
 			pria++;
-			pri = atoi(pria);
 		} else {
-			pri = argv[x] ? atoi(argv[x++]) : 1;
+			pria = argv[x];
 		}
-		if(!pri)
-			pri = 1;
 	} else if (strchr(exten,'/')) {
 		chan_name_2 = exten;
 	}
@@ -294,8 +291,11 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		cw_bridge_call_thread_launch(newchan_1, newchan_2);
 		
 	} else {
-		cw_verbose("Transferring_to context %s, extension %s, priority %d\n", context, exten, pri);
-		cw_async_goto(xferchan_1, context, exten, pri);
+		cw_verbose("Transferring_to context %s, extension %s, priority %s\n", context, exten, pria);
+		if (pria)
+			cw_async_goto(xferchan_1, context, exten, pria);
+		else
+			cw_async_goto_n(xferchan_1, context, exten, 1);
 
 		if(xferchan_1)
 			cw_mutex_unlock(&xferchan_1->lock);

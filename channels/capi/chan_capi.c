@@ -2457,7 +2457,7 @@ static void capi_handle_dtmf_fax(struct capi_pvt *i)
 	/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 	pbx_builtin_setvar_helper(c, "FAXEXTEN", c->exten);
 	
-	if (cw_async_goto(c, c->context, "fax", 1))
+	if (cw_async_goto_n(c, c->context, "fax", 1))
 		cc_log(CW_LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", c->name, c->context);
 	return;
 }

@@ -13630,7 +13630,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                                 be accessible after the transfer! */
                             *nounlock = 1;
                             cw_mutex_unlock(&c->lock);
-                            cw_async_goto(transfer_to,transfercontext, p->refer_to,1);
+                            cw_async_goto_n(transfer_to, transfercontext, p->refer_to, 1);
                         }
                     }
                     else
@@ -13738,7 +13738,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
                 {
                     /* Don't actually hangup here... */
                     cw_moh_stop(bridged_to);
-                    cw_async_goto(bridged_to, p->context, p->refer_to,1);
+                    cw_async_goto_n(bridged_to, p->context, p->refer_to, 1);
                 }
                 else
                     cw_queue_hangup(p->owner);

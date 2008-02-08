@@ -115,7 +115,7 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, char *res
 
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
-	if (cw_explicit_goto(chan, argv[0], argv[1], atoi(argv[2]))) {
+	if (cw_explicit_goto(chan, argv[0], argv[1], argv[2])) {
 		cw_log(CW_LOG_WARNING, "No statement after Gosub to return to?\n");
 		return -1;
 	}
@@ -145,7 +145,7 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 
 	snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
 
-	if (cw_explicit_gotolabel(chan, context, exten, argv[argc-1]))
+	if (cw_explicit_goto(chan, context, exten, argv[argc-1]))
 		return -1;
 
 	argc = (p ? cw_separate_app_args(p, ',', 100, argv) : 0);
