@@ -14176,11 +14176,18 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
     if (p->icseq && (p->icseq > seqno))
     {
-	if (option_debug)
-    	    cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
-        if (req->method != SIP_ACK) 
+        if (req->method == SIP_ACK) 
+        {
+            __sip_ack(p, seqno, FLAG_RESPONSE, -1); /* Stop retransmissions of whatever's being ACKed */
+            return 0;
+        }
+        else
+        {
+	    if (option_debug)
+    	        cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
     	    transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
-        return -1;
+            return -1;
+        }
     }
     else if (p->icseq && (p->icseq == seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| cw_test_flag(p, SIP_ALREADYGONE)))
     {
