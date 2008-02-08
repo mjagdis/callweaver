@@ -243,8 +243,11 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 				if (j == '#') /* end of password */
 				{
 					  /* see if this is an integer */
-					if (!isdigit(argv[0][0]))
+					if (isdigit(argv[0][0]))
 					{
+						/* digits detected, use as pin */
+						snprintf(inbuf,sizeof(inbuf),"%s",argv[0]);
+					} else {
 						/* nope, it must be a filename */
 						if ((fp = fopen(argv[0],"r")) == NULL)
 						{
