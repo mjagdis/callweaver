@@ -29,79 +29,33 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include ZAPTEL_H
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
-#include "callweaver/file.h"
-#include "callweaver/logger.h"
 #include "callweaver/channel.h"
-#include "callweaver/pbx.h"
 #include "callweaver/module.h"
-#include "callweaver/translate.h"
-#include "callweaver/image.h"
-#include "callweaver/options.h"
 
-static const char tdesc[] = "Flash zap trunk application";
+
+static const char tdesc[] = "Send hook flash";
 
 static void *flash_app;
 static char flash_name[] = "Flash";
-static char flash_synopsis[] = "Flashes a Zap Trunk";
+static char flash_synopsis[] = "Send a hook flashes";
 static char flash_syntax[] = "Flash()";
 static char flash_descrip[] =
-"Sends a flash on a zap trunk.  This is only a hack for\n"
-"people who want to perform transfers and such via OGI and is generally\n"
-"quite useless otherwise.  Returns 0 on success or -1 if this is not\n"
-"a zap trunk\n";
+"Sends a hook flash as if the handset cradle was momentarily depressed\n"
+"or the \"flash\" button on the phone was pressed.\n"
+"Always returns 0\n";
 
-
-static inline int zt_wait_event(int fd)
-{
-	/* Avoid the silly zt_waitevent which ignores a bunch of events */
-	int i,j=0;
-	i = ZT_IOMUX_SIGEVENT;
-	if (ioctl(fd, ZT_IOMUX, &i) == -1) return -1;
-	if (ioctl(fd, ZT_GETEVENT, &j) == -1) return -1;
-	return j;
-}
 
 static int flash_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct zt_params ztp;
-	struct localuser *u;
-	int res = -1;
-	int x;
-
-	LOCAL_USER_ADD(u);
-	if (!strcasecmp(chan->type, "Zap")) {
-		memset(&ztp, 0, sizeof(ztp));
-		res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
-		if (!res) {
-			if (ztp.sigtype & __ZT_SIG_FXS) {
-				x = ZT_FLASH;
-				res = ioctl(chan->fds[0], ZT_HOOK, &x);
-				if (!res || (errno == EINPROGRESS)) {
-					if (res) {
-						/* Wait for the event to finish */
-						zt_wait_event(chan->fds[0]);
-					}
-					res = cw_safe_sleep(chan, 1000);
-					if (option_verbose > 2)
-						cw_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
-				} else
-					cw_log(CW_LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
-			} else
-				cw_log(CW_LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
-		} else
-			cw_log(CW_LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
-	} else
-		cw_log(CW_LOG_WARNING, "%s is not a Zap channel\n", chan->name);
-	LOCAL_USER_REMOVE(u);
-	return res;
+	if (chan)
+		cw_indicate(chan, CW_CONTROL_FLASH);
+	return 0;
 }
 
 static int unload_module(void)
