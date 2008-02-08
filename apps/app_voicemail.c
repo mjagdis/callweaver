@@ -3983,34 +3983,47 @@ static int vm_intro_it(struct cw_channel *chan, struct vm_state *vms)
 {
 	/* Introduce messages they have */
 	int res;
-	if (!vms->oldmessages && !vms->newmessages)
-		res =	cw_play_and_wait(chan, "vm-no") ||
-			cw_play_and_wait(chan, "vm-message");
-	else
-		res =	cw_play_and_wait(chan, "vm-youhave");
+	if (!vms->oldmessages && !vms->newmessages) {
+		res = cw_play_and_wait(chan, "vm-no");
+		if (!res)
+			res = cw_play_and_wait(chan, "vm-message");
+	} else
+		res = cw_play_and_wait(chan, "vm-youhave");
 	if (!res && vms->newmessages) {
-		res = (vms->newmessages == 1) ?
-			cw_play_and_wait(chan, "digits/un") ||
-			cw_play_and_wait(chan, "vm-nuovo") ||
-			cw_play_and_wait(chan, "vm-message") :
+		if (vms->newmessages == 1) {
+			res = cw_play_and_wait(chan, "digits/un");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-nuovo");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-message");
+		} else {
 			/* 2 or more new messages */
-			say_and_wait(chan, vms->newmessages, chan->language) ||
-			cw_play_and_wait(chan, "vm-nuovi") ||
-			cw_play_and_wait(chan, "vm-messages");
+			res = say_and_wait(chan, vms->newmessages, chan->language);
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-nuovi");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-messages");
+		}
 		if (!res && vms->oldmessages)
-			res =	cw_play_and_wait(chan, "vm-and");
+			res = cw_play_and_wait(chan, "vm-and");
 	}
 	if (!res && vms->oldmessages) {
-		res = (vms->oldmessages == 1) ?
-			cw_play_and_wait(chan, "digits/un") ||
-			cw_play_and_wait(chan, "vm-vecchio") ||
-			cw_play_and_wait(chan, "vm-message") :
+		if (vms->oldmessages == 1) {
+			res = cw_play_and_wait(chan, "digits/un");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-vecchio");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-message");
+		} else {
 			/* 2 or more old messages */
-			say_and_wait(chan, vms->oldmessages, chan->language) ||
-			cw_play_and_wait(chan, "vm-vecchi") ||
-			cw_play_and_wait(chan, "vm-messages");
+			res = say_and_wait(chan, vms->oldmessages, chan->language);
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-vecchi");
+			if (!res)
+				res = cw_play_and_wait(chan, "vm-messages");
+		}
 	}
-	return res ? -1 : 0;
+	return res;
 }
 
 /* SWEDISH syntax */
