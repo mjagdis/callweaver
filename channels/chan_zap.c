@@ -4483,7 +4483,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	}	
 	
 	if (p->subs[index].needflash) {
-		/* Send answer frame if requested */
+		/* Send flash frame if requested */
 		p->subs[index].needflash = 0;
 		p->subs[index].f.frametype = CW_FRAME_CONTROL;
 		p->subs[index].f.subclass = CW_CONTROL_FLASH;
