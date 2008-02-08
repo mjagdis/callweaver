@@ -5520,9 +5520,8 @@ int cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, const
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string) 
 {
 	char *argv[3 + 1];
-	char *context = NULL, *exten = NULL, *prio = NULL;
-	int argc;
-	int ipri, mode = 0;
+	char *context, *exten, *prio;
+	int argc, ret;
 
 	if (!goto_string || !(prio = cw_strdupa(goto_string))
 	|| (argc = cw_separate_app_args(prio, ',', arraysize(argv), argv)) < 1 || argc > 3)
@@ -5532,37 +5531,8 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 	exten = (argc > 1 ? argv[argc - 2] : NULL);
 	context = (argc > 2 ? argv[0] : NULL);
 
-	if (exten && cw_hash_app_name(exten) == CW_KEYWORD_BYEXTENSION) {
- 		cw_log(CW_LOG_WARNING, "Use of BYEXTENSTION in Goto is deprecated. Use ${EXTEN} instead\n");
-		exten = chan->exten;
-	}
-
-	if (*prio == '+') {
-		mode = 1;
-		prio++;
-	} else if (*prio == '-') {
-		mode = -1;
-		prio++;
-	}
-    
-	if (sscanf(prio, "%d", &ipri) != 1) {
-		ipri = cw_findlabel_extension(chan,
-			(context ? context : chan->context),
-			(exten ? exten : chan->exten),
-			prio, chan->cid.cid_num);
-		if (ipri < 1) {
-			cw_log(CW_LOG_ERROR, "Priority '%s' must be a number > 0, or valid label\n", prio);
-			return -1;
-		}
-		mode = 0;
-	}
-    
-	if (mode) 
-		ipri = chan->priority + (ipri * mode);
-
-	/* FIXME: can't we just use cw_explicit_goto(... prio) and save the above checks? */
-	cw_explicit_goto_n(chan, context, exten, ipri);
+	ret = cw_explicit_goto(chan, context, exten, prio);
 	cw_cdr_update(chan);
 
-	return 0;
+	return ret;
 }
