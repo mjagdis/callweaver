@@ -1543,14 +1543,20 @@ zapretry:
                             case '4':
                                 tweak_listen_volume(user, VOL_DOWN);
                                 break;
+                            case '5': /* en/disable flag marked to self as admin */
+                                if (! (confflags & CONFFLAG_MARKEDUSER)) {
+                                    conf->markedusers++;
+                                    confflags ^= CONFFLAG_MARKEDUSER;
+                                } else {
+                                    conf->markedusers--;
+                                    confflags |= CONFFLAG_MARKEDUSER;
+				}
+				break;
                             case '6':
                                 tweak_listen_volume(user, VOL_UP);
                                 break;
                             case '7':
                                 tweak_talk_volume(user, VOL_DOWN);
-                                break;
-                            case '8':
-                                menu_active = 0;
                                 break;
                             case '9':
                                 tweak_talk_volume(user, VOL_UP);
