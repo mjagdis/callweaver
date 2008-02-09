@@ -96,7 +96,7 @@ static struct cw_jb_conf global_jbconf;
 #define TRUE (!FALSE)
 #endif
 
-#ifndef ZT_SIG_EM_E1
+#if !defined(ZT_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(ZT_SIG_HARDHDLC))
 #error "Your zaptel is too old.  please update"
 #endif
 
@@ -8880,7 +8880,7 @@ static int start_pri(struct zt_pri *pri)
 			cw_log(CW_LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
-		if (p.sigtype != ZT_SIG_HDLCFCS) {
+		if ((p.sigtype != ZT_SIG_HDLCFCS) && (p.sigtype != ZT_SIG_HARDHDLC)) {
 			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			cw_log(CW_LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
