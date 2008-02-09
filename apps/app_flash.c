@@ -37,6 +37,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/module.h"
+#include "callweaver/function.h"
 
 
 static const char tdesc[] = "Send hook flash";
