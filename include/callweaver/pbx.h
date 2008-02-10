@@ -578,13 +578,13 @@ extern int pbx_set_autofallthrough(int newval);
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string);
 int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
 int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
-int cw_xsync_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async);
-#define cw_explicit_goto(chan, context, exten, priority) cw_xsync_goto((chan), (context), (exten), (priority), 0)
-#define cw_async_goto(chan, context, exten, priority)    cw_xsync_goto((chan), (context), (exten), (priority), 1)
+int cw_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority, int async, int ifexists);
+int cw_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async, int ifexists);
+#define cw_explicit_goto(chan, context, exten, priority)    cw_goto((chan), (context), (exten), (priority), 0, 0)
+#define cw_async_goto(chan, context, exten, priority)       cw_goto((chan), (context), (exten), (priority), 1, 0)
+#define cw_goto_if_exists_n(chan, context, exten, priority) cw_goto_n((chan), (context), (exten), (priority), 0, 1)
+#define cw_goto_if_exists(chan, context, exten, priority)   cw_goto((chan), (context), (exten), (priority), 0, 1)
 int cw_async_goto_by_name(const char *chan, const char *context, const char *exten, const char *priority);
-
-int cw_goto_if_exists_n(struct cw_channel *chan, char* context, char *exten, int priority);
-int cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, const char *priority);
 
 
 /*! \brief Logs a syntax error for a function

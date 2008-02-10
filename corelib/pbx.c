@@ -4209,7 +4209,18 @@ int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *ex
     return res;
 }
 
-int cw_xsync_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async)
+int cw_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority, int async, int ifexists)
+{
+    if (ifexists && cw_exists_extension(chan, context, exten, priority, chan->cid.cid_num) <= 0)
+        return -1;
+
+    if (async)
+    	return cw_async_goto_n(chan, context, exten, priority);
+    else
+    	return cw_explicit_goto_n(chan, context, exten, priority);
+}
+
+int cw_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async, int ifexists)
 {
     int npriority;
     
@@ -4239,15 +4250,14 @@ int cw_xsync_goto(struct cw_channel *chan, const char *context, const char *exte
         }
     } else {
         if ((npriority = cw_findlabel_extension(chan, context, exten, priority, chan->cid.cid_num)) < 1) {
-            cw_log(CW_LOG_WARNING, "Priority '%s' must be [+-]number, or a valid label\n", priority);
+            if (!ifexists)
+                cw_log(CW_LOG_WARNING, "Priority '%s' must be [+-]number, or a valid label\n", priority);
             return -1;
         }
+        ifexists = 0;
     }
 
-    if (async)
-    	return cw_async_goto_n(chan, context, exten, npriority);
-    else
-    	return cw_explicit_goto_n(chan, context, exten, npriority);
+    return cw_goto_n(chan, context, exten, npriority, async, ifexists);
 }
 
 int cw_async_goto_by_name(const char *channame, const char *context, const char *exten, const char *priority)
@@ -4258,7 +4268,7 @@ int cw_async_goto_by_name(const char *channame, const char *context, const char 
     chan = cw_get_channel_by_name_locked(channame);
     if (chan)
     {
-        res = cw_xsync_goto(chan, context, exten, priority, 1);
+        res = cw_goto(chan, context, exten, priority, 1, 1);
         cw_mutex_unlock(&chan->lock);
     }
     return res;
@@ -5481,41 +5491,6 @@ int cw_context_verify_includes(struct cw_context *con)
     return res;
 }
 
-
-int cw_goto_if_exists_n(struct cw_channel *chan, char *context, char *exten, int priority)
-{
-    if (!chan)
-        return -2;
-
-    if (!context)
-        context = chan->context;
-
-    if (!exten)
-        exten = chan->exten;
-
-    if (cw_exists_extension(chan, context, exten, priority, chan->cid.cid_num) > 0)
-        return cw_explicit_goto_n(chan, context, exten, priority);
-
-    return -3;
-}
-
-
-int cw_goto_if_exists(struct cw_channel *chan, char *context, char *exten, const char *priority)
-{
-    if (!chan)
-        return -2;
-
-    if (!context)
-        context = chan->context;
-
-    if (!exten)
-        exten = chan->exten;
-
-    if (cw_findlabel_extension(chan, context, exten, priority, chan->cid.cid_num) > 0)
-        return cw_explicit_goto(chan, context, exten, priority);
-
-    return -3;
-}
 
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string) 
 {
