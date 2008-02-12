@@ -81,7 +81,6 @@ struct cw_rtp
 {
     udp_state_t *rtp_sock_info;
     udp_state_t *rtcp_sock_info;
-	char resp;
 	struct cw_frame f;
 	uint8_t rawdata[8192 + CW_FRIENDLY_OFFSET];
 	uint32_t ssrc;
@@ -89,12 +88,13 @@ struct cw_rtp
 	uint32_t lastrxts;
 	uint32_t lastividtimestamp;
 	uint32_t lastovidtimestamp;
-	uint32_t lasteventseqn;
-	uint32_t lasteventendseqn;
+	uint32_t lastevent_seqno;
+	uint32_t lastevent_startts;
+	uint16_t lastevent_duration;
+	char lastevent_code;
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
-	unsigned int dtmfduration;
 	int senddtmf;
 	uint32_t senddtmf_startts;
 	uint32_t senddtmf_rtphdr;

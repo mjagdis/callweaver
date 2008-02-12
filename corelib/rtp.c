@@ -85,7 +85,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DEFAULT_RTPSTART 5000
 #define DEFAULT_RTPEND 31000
-#define DEFAULT_DTMFTIMEOUT 3000    /* 3000 samples */
+#define DEFAULT_DTMFTIMEOUT 3000    /* 3000 of whatever the remote is using for clock ticks (generally samples) */
 
 static int dtmftimeout = DEFAULT_DTMFTIMEOUT;
 static int rtpstart = 0;
@@ -221,19 +221,21 @@ static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
     char iabuf[INET_ADDRSTRLEN];
     const struct sockaddr_in *them;
 
-    them = udp_socket_get_far(rtp->rtp_sock_info);
+    them = option_debug ? udp_socket_get_far(rtp->rtp_sock_info) : NULL;
+
     if (cw_tvcmp(cw_tvnow(), rtp->dtmfmute) < 0)
     {
         if (option_debug)
             cw_log(CW_LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
-        rtp->resp = 0;
-        rtp->dtmfduration = 0;
+        rtp->lastevent_code = 0;
         return &null_frame;
     }
+
     if (option_debug)
-        cw_log(CW_LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+        cw_log(CW_LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->lastevent_code, rtp->lastevent_code, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+
     cw_fr_init(&rtp->f);
-    if (rtp->resp == 'X')
+    if (rtp->lastevent_code == 'X')
     {
         rtp->f.frametype = CW_FRAME_CONTROL;
         rtp->f.subclass = CW_CONTROL_FLASH;
@@ -241,11 +243,10 @@ static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
     else
     {
         rtp->f.frametype = CW_FRAME_DTMF;
-        rtp->f.subclass = rtp->resp;
+        rtp->f.subclass = rtp->lastevent_code;
     }
     rtp->f.src = "RTP";
-    rtp->resp = 0;
-    rtp->dtmfduration = 0;
+    rtp->lastevent_code = 0;
     return  &rtp->f;
 }
 
@@ -267,86 +268,78 @@ static inline int rtp_debug_test_addr(const struct sockaddr_in *addr)
 
 static struct cw_frame *process_cisco_dtmf(struct cw_rtp *rtp, unsigned char *data, int len)
 {
+    static char map[] = "0123456789*#ABCDX";
     unsigned int event;
-    char resp = 0;
+    char code;
     struct cw_frame *f = NULL;
 
     event = ntohl(*((unsigned int *) data)) & 0x001F;
 #if 0
     printf("Cisco Digit: %08x (len = %d)\n", event, len);
 #endif    
-    if (event < 10)
-        resp = '0' + event;
-    else if (event < 11)
-        resp = '*';
-    else if (event < 12)
-        resp = '#';
-    else if (event < 16)
-        resp = 'A' + (event - 12);
-    else if (event < 17)
-        resp = 'X';
-    if (rtp->resp && (rtp->resp != resp))
+    code = (event < sizeof(map)/sizeof(map[0]) ? map[event] : '?');
+    if (rtp->lastevent_code && (rtp->lastevent_code != code))
         f = send_dtmf(rtp);
-    rtp->resp = resp;
-    rtp->dtmfcount = dtmftimeout;
+    rtp->lastevent_code = code;
+    rtp->lastevent_duration = dtmftimeout;
     return f;
 }
 
 /* process_rfc2833: Process RTP DTMF and events according to RFC 2833:
     "RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals"
 */
-static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
+static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data, int len, unsigned int seqno, int mark, uint32_t timestamp)
 {
-    uint32_t event;
-    uint32_t event_end;
-    uint32_t duration;
-    char resp = 0;
     struct cw_frame *f = NULL;
+    uint32_t event;
+    uint16_t duration;
+    int event_end;
 
     event = ntohl(*((uint32_t *) data));
+    event_end = (event >> 23) & 1;
+    duration = event & 0xFFFF;
     event >>= 24;
-    event_end = ntohl(*((uint32_t *) data));
-    event_end <<= 8;
-    event_end >>= 24;
-    duration = ntohl(*((uint32_t *) data)) & 0xFFFF;
+
     if (rtpdebug)
         cw_log(CW_LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
-    if (event < 10)
-        resp = '0' + event;
-    else if (event < 11)
-        resp = '*';
-    else if (event < 12)
-        resp = '#';
-    else if (event < 16)
-        resp = 'A' + (event - 12);
-    else if (event < 17)    /* Event 16: Hook flash */
-        resp = 'X';
-    if (rtp->resp  &&  (rtp->resp != resp))
-    {
+
+    /* If we have something in progress but this is something
+     * different entirely we send the in-progress event upwards.
+     */
+    if (rtp->lastevent_code && rtp->lastevent_startts != timestamp)
         f = send_dtmf(rtp);
-    }
-    else if (event_end & 0x80)
+
+    /* If this packet comes after any other packet we've seen so far
+     * in this event we'll take its duration.
+     * N.B. seqnos are unsigned and wrap...
+     */
+    if (!rtp->lastevent_code || seqno - rtp->lastevent_seqno < 1000)
     {
-        if (rtp->resp)
-        {
-            if (rtp->lasteventendseqn != seqno)
-            {
-                f = send_dtmf(rtp);
-                rtp->lasteventendseqn = seqno;
-            }
-            rtp->resp = 0;
-        }
-        resp = 0;
-        duration = 0;
+        rtp->lastevent_duration = duration;
+        rtp->lastevent_seqno = seqno;
     }
-    else if (rtp->dtmfduration  &&  (duration < rtp->dtmfduration))
+
+    /* If it's the first packet we've seen for this event (it might
+     * not be the actual start packet - that might be out of order
+     * or dropped) set up the event.
+     */
+    if (!rtp->lastevent_code && timestamp != rtp->lastevent_startts)
     {
+        static char map[] = "0123456789*#ABCDX";
+        rtp->lastevent_code = (event < sizeof(map)/sizeof(map[0]) ? map[event] : '?');
+        rtp->lastevent_startts = timestamp;
+    }
+
+    /* If we have an event in progress and the end flag is set what
+     * we know is all we need so we can send the event up the stack.
+     * Unless we already have an event to send up. If that happens
+     * we'll just have to hope that we don't drop the duplicate end
+     * packets, otherwise the only thing that will stop the second
+     * event is the maximum event duration timeout.
+     */
+    if (rtp->lastevent_code && event_end && !f)
         f = send_dtmf(rtp);
-    }
-    if (!(event_end & 0x80))
-        rtp->resp = resp;
-    rtp->dtmfcount = dtmftimeout;
-    rtp->dtmfduration = duration;
+
     return f;
 }
 
@@ -1130,13 +1123,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
                 duration &= 0xFFFF;
                 cw_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
             }
-            if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6))
-            {
-                f = process_rfc2833(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
-                rtp->lasteventseqn = seqno;
-            }
-            else
-                f = NULL;
+            f = process_rfc2833(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, mark, timestamp);
             if (f) 
                 return f; 
             return &null_frame;
@@ -1144,10 +1131,10 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         else if (rtpPT.code == CW_RTP_CISCO_DTMF)
         {
             /* It's really special -- process it the Cisco way */
-            if (rtp->lasteventseqn <= seqno  ||  rtp->resp == 0  ||  (rtp->lasteventseqn >= 65530  &&  seqno <= 6))
+            if (rtp->lastevent_seqno <= seqno  ||  rtp->lastevent_code == 0  ||  (rtp->lastevent_seqno >= 65530  &&  seqno <= 6))
             {
                 f = process_cisco_dtmf(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-                rtp->lasteventseqn = seqno;
+                rtp->lastevent_seqno = seqno;
             }
             else 
                 f = NULL;
@@ -1183,28 +1170,21 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 
     rtp->rxseqno = seqno;
 
-    if (rtp->dtmfcount)
-    {
-#if 0
-        printf("dtmfcount was %d\n", rtp->dtmfcount);
-#endif        
-        rtp->dtmfcount -= (timestamp - rtp->lastrxts);
-        if (rtp->dtmfcount < 0)
-            rtp->dtmfcount = 0;
-#if 0
-        if (dtmftimeout != rtp->dtmfcount)
-            printf("dtmfcount is %d\n", rtp->dtmfcount);
-#endif
-    }
-    rtp->lastrxts = timestamp;
-
     /* Send any pending DTMF */
-    if (rtp->resp && !rtp->dtmfcount)
+    if (rtp->lastevent_code && timestamp - rtp->lastevent_startts > dtmftimeout)
     {
+        /* Since we can't return more than one frame we have
+	 * to drop the received data in order to send the
+	 * DTMF event up the stack. This is an "unfortunate"
+	 * flaw in the design.
+	 */
         if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Sending pending DTMF\n");
+            cw_log(CW_LOG_DEBUG, "Sending pending DTMF after max duration reached\n");
         return send_dtmf(rtp);
     }
+
+    rtp->lastrxts = timestamp;
+
     rtp->f.mallocd = 0;
     rtp->f.datalen = res - hdrlen;
     rtp->f.data = rtp->rawdata + hdrlen + CW_FRIENDLY_OFFSET;
@@ -1619,12 +1599,11 @@ void cw_rtp_reset(struct cw_rtp *rtp)
     rtp->lastrxts = 0;
     rtp->lastividtimestamp = 0;
     rtp->lastovidtimestamp = 0;
-    rtp->lasteventseqn = 0;
-    rtp->lasteventendseqn = 0;
+    rtp->lastevent_code = 0;
+    rtp->lastevent_duration = 0;
+    rtp->lastevent_seqno = 0;
     rtp->lasttxformat = 0;
     rtp->lastrxformat = 0;
-    rtp->dtmfcount = 0;
-    rtp->dtmfduration = 0;
     rtp->seqno = 0;
     rtp->rxseqno = 0;
 }
