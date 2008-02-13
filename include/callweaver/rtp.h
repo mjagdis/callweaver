@@ -95,11 +95,11 @@ struct cw_rtp
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
-	int senddtmf;
-	uint32_t senddtmf_startts;
-	uint32_t senddtmf_rtphdr;
-	uint32_t senddtmf_payload;
-	uint32_t senddtmf_duration;
+	int sendevent;
+	uint32_t sendevent_startts;
+	uint32_t sendevent_rtphdr;
+	uint32_t sendevent_payload;
+	uint32_t sendevent_duration;
 	int nat;
 	unsigned int flags;
 	int framems;

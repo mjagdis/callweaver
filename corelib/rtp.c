@@ -867,23 +867,23 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 
 	rtp->dtmfmute = cw_tvadd(cw_tvnow(), cw_tv(0, 500000));
 
-	if (rtp->senddtmf) {
+	if (rtp->sendevent) {
 		/* Start of a new event */
-		rtp->senddtmf_rtphdr = ((2 << 30) | (cw_rtp_lookup_code(rtp, 0, CW_RTP_DTMF) << 16));
-		rtp->senddtmf_startts = rtp->lastts;
-		rtp->senddtmf_duration = (uint16_t)((unsigned int)(rtp->senddtmf & 0xffff) * f->samplerate / 1000);
+		rtp->sendevent_rtphdr = ((2 << 30) | (cw_rtp_lookup_code(rtp, 0, CW_RTP_DTMF) << 16));
+		rtp->sendevent_startts = rtp->lastts;
+		rtp->sendevent_duration = (uint16_t)((unsigned int)(rtp->sendevent & 0xffff) * f->samplerate / 1000);
 #ifdef INCREMENTAL_RFC2833_EVENTS
-		rtp->senddtmf_payload = (rtp->senddtmf & ~0xffff);
+		rtp->sendevent_payload = (rtp->sendevent & ~0xffff);
 #else
-		rtp->senddtmf_payload = (rtp->senddtmf & ~0xffff) | rtp->senddtmf_duration;
+		rtp->sendevent_payload = (rtp->sendevent & ~0xffff) | rtp->sendevent_duration;
 #endif
-		rtp->senddtmf = 0;
-		pkt[0] = htonl(rtp->senddtmf_rtphdr | (1 << 23) | rtp->seqno);
+		rtp->sendevent = 0;
+		pkt[0] = htonl(rtp->sendevent_rtphdr | (1 << 23) | rtp->seqno);
 	} else {
-		pkt[0] = htonl(rtp->senddtmf_rtphdr | rtp->seqno);
+		pkt[0] = htonl(rtp->sendevent_rtphdr | rtp->seqno);
 	}
 
-	pkt[1] = htonl(rtp->senddtmf_startts);
+	pkt[1] = htonl(rtp->sendevent_startts);
 	pkt[2] = htonl(rtp->ssrc);
 
 	/* DTMF tone duration is fixed at 100ms since we don't have
@@ -906,24 +906,24 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 	 * RFC2833 suggests 40/93ms as the minimums in their survey.
 	 * That's the nice thing about standards :-)
 	 */
-	if (rtp->senddtmf_payload & (1 << 22)) {
+	if (rtp->sendevent_payload & (1 << 22)) {
 		/* Third end packet */
-		rtp->senddtmf_payload &= ~(1 << 22);
-		pkt[3] = htonl(rtp->senddtmf_payload);
-		rtp->senddtmf_payload = 0;
-	} else if (rtp->senddtmf_payload & (1 << 23)) {
+		rtp->sendevent_payload &= ~(1 << 22);
+		pkt[3] = htonl(rtp->sendevent_payload);
+		rtp->sendevent_payload = 0;
+	} else if (rtp->sendevent_payload & (1 << 23)) {
 		/* Second end packet */
-		pkt[3] = htonl(rtp->senddtmf_payload);
-		rtp->senddtmf_payload |= 1 << 22;
+		pkt[3] = htonl(rtp->sendevent_payload);
+		rtp->sendevent_payload |= 1 << 22;
 	} else {
 #ifdef INCREMENTAL_RFC2833_EVENTS
-		rtp->senddtmf_payload = (rtp->senddtmf_payload & ~0xffff) | (rtp->lastts - rtp->senddtmf_startts + f->samples);
+		rtp->sendevent_payload = (rtp->sendevent_payload & ~0xffff) | (rtp->lastts - rtp->sendevent_startts + f->samples);
 #endif
-		if (rtp->lastts - rtp->senddtmf_startts + f->samples >= rtp->senddtmf_duration) {
+		if (rtp->lastts - rtp->sendevent_startts + f->samples >= rtp->sendevent_duration) {
 			/* First end packet */
-			rtp->senddtmf_payload |= 1 << 23;
+			rtp->sendevent_payload |= 1 << 23;
 		}
-		pkt[3] = htonl(rtp->senddtmf_payload);
+		pkt[3] = htonl(rtp->sendevent_payload);
 	}
 
 	if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
@@ -937,9 +937,9 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 		cw_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len 4) - DTMF payload 0x%08x duration %d (%dms)\n",
 			cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
 			ntohs(them->sin_port),
-			(rtp->senddtmf_rtphdr & !(2 << 30)),
+			(rtp->sendevent_rtphdr & !(2 << 30)),
 			rtp->seqno,
-			rtp->senddtmf_startts,
+			rtp->sendevent_startts,
 			ntohl(pkt[3]),
 			ntohl(pkt[3]) & 0xffff,
 			1000 * (ntohl(pkt[3]) & 0xffff) / f->samplerate);
@@ -959,12 +959,12 @@ int cw_rtp_sendevent(struct cw_rtp * const rtp, char event, uint16_t duration)
 		return -1;
 	}
 
-	if (rtp->senddtmf_payload)
-		cw_log(CW_LOG_WARNING, "RFC2833 DTMF overrrun, '%c' incomplete when starting '%c'\n", eventcodes[rtp->senddtmf_payload >> 24], event);
-	else if (rtp->senddtmf)
-		cw_log(CW_LOG_ERROR, "RFC2833 DTMF overrrun, '%c' never started before starting '%c'\n", eventcodes[rtp->senddtmf >> 24], event);
+	if (rtp->sendevent_payload)
+		cw_log(CW_LOG_WARNING, "RFC2833 DTMF overrrun, '%c' incomplete when starting '%c'\n", eventcodes[rtp->sendevent_payload >> 24], event);
+	else if (rtp->sendevent)
+		cw_log(CW_LOG_ERROR, "RFC2833 DTMF overrrun, '%c' never started before starting '%c'\n", eventcodes[rtp->sendevent >> 24], event);
 
-	rtp->senddtmf = ((p - eventcodes) << 24) | (0xa << 16) | duration;
+	rtp->sendevent = ((p - eventcodes) << 24) | (0xa << 16) | duration;
 	return 0;
 }
 
@@ -1596,7 +1596,7 @@ void cw_rtp_reset(struct cw_rtp *rtp)
     memset(&rtp->txcore, 0, sizeof(rtp->txcore));
     memset(&rtp->dtmfmute, 0, sizeof(rtp->dtmfmute));
     rtp->lastts = 0;
-    rtp->senddtmf_rtphdr = 0;
+    rtp->sendevent_rtphdr = 0;
     rtp->lastrxts = 0;
     rtp->lastividtimestamp = 0;
     rtp->lastovidtimestamp = 0;
@@ -1757,7 +1757,7 @@ static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
 	 * receiver know that the event is on-going and covers
 	 * the audio packet that follows.
 	 */
-        if (rtp->senddtmf_payload || rtp->senddtmf)
+        if (rtp->sendevent_payload || rtp->sendevent)
             cw_rtp_senddigit_continue(rtp, them, f);
 
         /* Get a pointer to the header */
