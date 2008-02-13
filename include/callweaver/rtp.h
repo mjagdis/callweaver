@@ -99,6 +99,7 @@ struct cw_rtp
 	uint32_t senddtmf_startts;
 	uint32_t senddtmf_rtphdr;
 	uint32_t senddtmf_payload;
+	uint32_t senddtmf_duration;
 	int nat;
 	unsigned int flags;
 	int framems;
@@ -160,7 +161,7 @@ udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
 udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
                                   udp_state_t *sock_info);
 
-int cw_rtp_senddigit(struct cw_rtp *const rtp, char digit);
+int cw_rtp_sendevent(struct cw_rtp *const rtp, char event, uint16_t duration);
 
 int cw_rtp_sendcng(struct cw_rtp *rtp, int level);
 

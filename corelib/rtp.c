@@ -871,10 +871,11 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 		/* Start of a new event */
 		rtp->senddtmf_rtphdr = ((2 << 30) | (cw_rtp_lookup_code(rtp, 0, CW_RTP_DTMF) << 16));
 		rtp->senddtmf_startts = rtp->lastts;
+		rtp->senddtmf_duration = (uint16_t)((unsigned int)(rtp->senddtmf & 0xffff) * f->samplerate / 1000);
 #ifdef INCREMENTAL_RFC2833_EVENTS
-		rtp->senddtmf_payload = rtp->senddtmf;
+		rtp->senddtmf_payload = (rtp->senddtmf & ~0xffff);
 #else
-		rtp->senddtmf_payload = rtp->senddtmf | (DTMF_TONE_DURATION * f->samplerate / 1000);
+		rtp->senddtmf_payload = (rtp->senddtmf & ~0xffff) | rtp->senddtmf_duration;
 #endif
 		rtp->senddtmf = 0;
 		pkt[0] = htonl(rtp->senddtmf_rtphdr | (1 << 23) | rtp->seqno);
@@ -918,7 +919,7 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 #ifdef INCREMENTAL_RFC2833_EVENTS
 		rtp->senddtmf_payload = (rtp->senddtmf_payload & ~0xffff) | (rtp->lastts - rtp->senddtmf_startts + f->samples);
 #endif
-		if (rtp->lastts - rtp->senddtmf_startts + f->samples >= DTMF_TONE_DURATION * f->samplerate / 1000) {
+		if (rtp->lastts - rtp->senddtmf_startts + f->samples >= rtp->senddtmf_duration) {
 			/* First end packet */
 			rtp->senddtmf_payload |= 1 << 23;
 		}
@@ -948,22 +949,22 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 }
 
 
-int cw_rtp_senddigit(struct cw_rtp * const rtp, char digit)
+int cw_rtp_sendevent(struct cw_rtp * const rtp, char event, uint16_t duration)
 {
-	static char *digitcodes = "0123456789*#ABCD";
+	static char *eventcodes = "0123456789*#ABCDX";
 	char *p;
 
-	if (!(p = strchr(digitcodes, toupper(digit)))) {
-		cw_log(CW_LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+	if (!(p = strchr(eventcodes, toupper(event)))) {
+		cw_log(CW_LOG_WARNING, "Don't know how to represent '%c'\n", event);
 		return -1;
 	}
 
 	if (rtp->senddtmf_payload)
-		cw_log(CW_LOG_WARNING, "RFC2833 DTMF overrrun, '%c' incomplete when starting '%c'\n", digitcodes[rtp->senddtmf_payload >> 24], digit);
+		cw_log(CW_LOG_WARNING, "RFC2833 DTMF overrrun, '%c' incomplete when starting '%c'\n", eventcodes[rtp->senddtmf_payload >> 24], event);
 	else if (rtp->senddtmf)
-		cw_log(CW_LOG_ERROR, "RFC2833 DTMF overrrun, '%c' never started before starting '%c'\n", digitcodes[rtp->senddtmf >> 24], digit);
+		cw_log(CW_LOG_ERROR, "RFC2833 DTMF overrrun, '%c' never started before starting '%c'\n", eventcodes[rtp->senddtmf >> 24], event);
 
-	rtp->senddtmf = ((p - digitcodes) << 24) | (0xa << 16);
+	rtp->senddtmf = ((p - eventcodes) << 24) | (0xa << 16) | duration;
 	return 0;
 }
 

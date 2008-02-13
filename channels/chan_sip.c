@@ -1066,7 +1066,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int relia
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
-static int transmit_info_with_digit(struct sip_pvt *p, char digit);
+static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
@@ -3621,15 +3621,17 @@ static int sip_senddigit(struct cw_channel *ast, char digit)
 {
     struct sip_pvt *p = ast->tech_pvt;
     int res = 0;
+
     cw_mutex_lock(&p->lock);
+
     switch (cw_test_flag(p, SIP_DTMF))
     {
     case SIP_DTMF_INFO:
-        transmit_info_with_digit(p, digit);
+        transmit_info_with_digit(p, digit, 100);
         break;
     case SIP_DTMF_RFC2833:
         if (p->rtp) {
-            cw_rtp_senddigit(p->rtp, digit);
+            cw_rtp_sendevent(p->rtp, digit, 100);
             res = -2;
         }
         break;
@@ -3637,6 +3639,7 @@ static int sip_senddigit(struct cw_channel *ast, char digit)
         res = -1;
         break;
     }
+
     cw_mutex_unlock(&p->lock);
     return res;
 }
@@ -3744,6 +3747,29 @@ static int sip_indicate(struct cw_channel *ast, int condition)
         }
         else
             res = -1;
+        break;
+    case CW_CONTROL_FLASH:    /* Send a hook flash */
+        switch (cw_test_flag(p, SIP_DTMF))
+        {
+        case SIP_DTMF_INFO:
+            /* There is no standard for sending a hook flash
+	     * via SIP INFO...
+	     */
+            res = transmit_info_with_digit(p, '!', 80);
+            break;
+        case SIP_DTMF_RFC2833:
+            if (p->rtp) {
+                /* Hook flashes are sent as RFC2833 events with a fixed
+                 * length of 80ms and clocked out by 80ms of silence
+                 */
+                cw_rtp_sendevent(p->rtp, 'X', 80);
+                cw_playtones_start(ast, 0, "!0/80", 0);
+            }
+            break;
+        case SIP_DTMF_INBAND:
+            res = -1;
+            break;
+        }
         break;
     case -1:
         res = -1;
@@ -5986,15 +6012,13 @@ static int add_text(struct sip_request *req, const char *text)
 
 /*! \brief  add_digit: add DTMF INFO tone to sip message */
 /* Always adds default duration 250 ms, regardless of what came in over the line */
-static int add_digit(struct sip_request *req, char digit)
+static int add_digit(struct sip_request *req, char digit, unsigned int duration)
 {
     char tmp[256];
 
     add_header(req, "Content-Type", "application/dtmf-relay", SIP_DL_DONTCARE);
-    add_header_contentLength(req, strlen(tmp));
-    snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=250\r\n", digit);
-    add_line(req, tmp, SIP_DL_DONTCARE);
-    snprintf(tmp, sizeof(tmp), "Duration=250");
+    add_header_contentLength(req, 0);
+    snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
     add_line(req, tmp, SIP_DL_DONTCARE);
     return 0;
 }
@@ -7747,11 +7771,11 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 
 /*! \brief  transmit_info_with_digit: Send SIP INFO dtmf message, see Cisco documentation on cisco.co
 m */
-static int transmit_info_with_digit(struct sip_pvt *p, char digit)
+static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int duration)
 {
     struct sip_request req;
     reqprep(&req, p, SIP_INFO, 0, 1);
-    add_digit(&req, digit);
+    add_digit(&req, digit, duration);
     return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -11232,6 +11256,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
             event = 11;
         else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
             event = 12 + buf[0] - 'A';
+        else if (buf[0] == '!')
+            event = 16;
         else
             event = atoi(buf);
         if (event == 16)
