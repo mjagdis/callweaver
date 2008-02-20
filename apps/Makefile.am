@@ -31,6 +31,13 @@ app_authenticate_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
 app_authenticate_la_LIBADD		= @CALLWEAVER_LIB@
 endif WANT_APP_AUTHENTICATE
 
+if WANT_APP_BACKTICKS
+cwmod_LTLIBRARIES			+= app_backticks.la
+app_backticks_la_SOURCES		= app_backticks.c
+app_backticks_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
+app_backticks_la_LIBADD			= @CALLWEAVER_LIB@
+endif WANT_APP_BACKTICKS
+
 if WANT_APP_CDR
 cwmod_LTLIBRARIES			+= app_cdr.la
 app_cdr_la_SOURCES			= app_cdr.c
