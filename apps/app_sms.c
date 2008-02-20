@@ -1028,12 +1028,12 @@ static void sms_readfile(sms_t *h, char *fn)
 
                         while (*p  &&  o < SMSLEN)
                         {
-                            if (!isxdigit(p[0])  ||  !isxdigit(p[1])  ||  isxdigit(p[2])  ||  !isxdigit(p[3]))
+                            if (!isxdigit(p[0])  ||  !isxdigit(p[1])  ||  !isxdigit(p[2])  ||  !isxdigit(p[3]))
                                 break;
-                            h->ud[o++] =
-                                (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 12) +
-                                (((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF)) << 8) +
-                                (((isalpha (p[2]) ? 9 : 0) + (p[2] & 0xF)) << 4) + ((isalpha (p[3]) ? 9 : 0) + (p[3] & 0xF));
+                            h->ud[o++] = (((isalpha(p[0])  ?  9  :  0) + (p[0] & 0xF)) << 12)
+                                       + (((isalpha(p[1])  ?  9  :  0) + (p[1] & 0xF)) << 8)
+                                       + (((isalpha(p[2])  ?  9  :  0) + (p[2] & 0xF)) << 4)
+                                       + ((isalpha(p[3])  ?  9  :  0) + (p[3] & 0xF));
                             p += 4;
                         }
                         h->udl = o;
@@ -1835,6 +1835,7 @@ static int sms_exec(struct cw_channel *chan, int argc, char **argv, char *result
         cw_answer(chan);
 
     original_read_fmt = chan->readformat;
+    res = 0;
     if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
         if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR)) < 0)
