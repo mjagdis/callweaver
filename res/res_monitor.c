@@ -371,7 +371,6 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[256];
-	char *urlprefix = NULL;
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
@@ -384,17 +383,6 @@ static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, ch
 			}
 		}
 		argc--;
-	}
-
-	if (argc>0) {
-		if ((urlprefix = strchr(argv[0], ':'))) {
-			*(urlprefix++) = '\0';
-			snprintf(tmp, sizeof(tmp) - 1, "%s/%s.%s", urlprefix, (argc > 1 ? argv[1] : ""),
-				((strcmp(argv[0], "gsm")) ? "wav" : "gsm"));
-			if (!chan->cdr)
-				chan->cdr = cw_cdr_alloc();
-			cw_cdr_setuserfield(chan, tmp);
-		}
 	}
 
 	if (waitforbridge) {
