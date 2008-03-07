@@ -490,6 +490,8 @@ struct chan_iax2_pvt {
 	char ani[80];
 	/*! DNID */
 	char dnid[80];
+	/*! RDNIS */
+	char rdnis[80];
 	/*! Requested Extension */
 	char exten[CW_MAX_EXTENSION];
 	/*! Expected Username */
@@ -2302,6 +2304,8 @@ static int iax2_call(struct cw_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
 	if (!cw_strlen_zero(c->cid.cid_dnid))
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
+	if (!cw_strlen_zero(c->cid.cid_rdnis))
+		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->cid.cid_rdnis);
 
 	if (pds.context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, pds.context);
@@ -2718,6 +2722,8 @@ static struct cw_channel *cw_iax2_new(int callno, int state, int capability)
 			cw_copy_string(tmp->language, i->language, sizeof(tmp->language));
 		if (!cw_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = strdup(i->dnid);
+		if (!cw_strlen_zero(i->rdnis))
+			tmp->cid.cid_rdnis = strdup(i->rdnis);
 		tmp->cid.cid_pres = i->calling_pres;
 		tmp->cid.cid_ton = i->calling_ton;
 		tmp->cid.cid_tns = i->calling_tns;
@@ -3980,6 +3986,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		cw_copy_string(iaxs[callno]->ani, ies->calling_ani, sizeof(iaxs[callno]->ani));
 	if (ies->dnid)
 		cw_copy_string(iaxs[callno]->dnid, ies->dnid, sizeof(iaxs[callno]->dnid));
+	if (ies->rdnis)
+		cw_copy_string(iaxs[callno]->rdnis, ies->rdnis, sizeof(iaxs[callno]->rdnis));
 	if (ies->called_context)
 		cw_copy_string(iaxs[callno]->context, ies->called_context, sizeof(iaxs[callno]->context));
 	if (ies->language)
