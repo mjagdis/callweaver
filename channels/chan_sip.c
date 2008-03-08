@@ -14176,18 +14176,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
                respond appropriately  */
             ignore=1;
         }
-    
-        e = cw_skip_blanks(e);
-        if (sscanf(e, "%d %n", &respid, &len) != 1)
+        else if (e)
         {
-            cw_log(CW_LOG_WARNING, "Invalid response: '%s'\n", e);
-        }
-        else
-        {
-            /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
-            if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
-                extract_uri(p, req);
-            handle_response(p, respid, e + len, req, ignore, seqno);
+            e = ast_skip_blanks(e);
+            if (sscanf(e, "%d %n", &respid, &len) != 1)
+            {
+                cw_log(CW_LOG_WARNING, "Invalid response: '%s'\n", e);
+            }
+            else
+            {
+                /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
+                if ((respid == 200)  ||  ((respid >= 300)  &&  (respid <= 399)))
+                    extract_uri(p, req);
+                handle_response(p, respid, e + len, req, ignore, seqno);
+            }
         }
         return 0;
     }

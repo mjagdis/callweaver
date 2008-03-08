@@ -569,7 +569,11 @@ static int authenticate(struct mansession *s, struct message *m)
 				}
                 if (!strcasecmp(authtype, "MD5"))
                 {
-					if (!cw_strlen_zero(key) && s->challenge)
+                    if (!cw_strlen_zero(key)
+                        && 
+                        !cw_strlen_zero(s->challenge)
+                        &&
+                        !cw_strlen_zero(password))
                     {
 						char md5key[256] = "";
 						cw_md5_hash_two(md5key, s->challenge, password);
