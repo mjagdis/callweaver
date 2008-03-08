@@ -14178,7 +14178,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         }
         else if (e)
         {
-            e = ast_skip_blanks(e);
+            e = cw_skip_blanks(e);
             if (sscanf(e, "%d %n", &respid, &len) != 1)
             {
                 cw_log(CW_LOG_WARNING, "Invalid response: '%s'\n", e);
