@@ -48,7 +48,8 @@ static const char t38gateway_syntax[] = "T38Gateway(dialstring[, timeout[, optio
 static const char t38gateway_descrip[] =
 "Options:\n\n"
 " h -- Hangup if the call was successful.\n\n"
-" r -- Indicate 'ringing' to the caller.\n\n";
+" r -- Indicate 'ringing' to the caller.\n\n"
+"Sets FAXPAGES to the number of pages transferred\n\n";
 
 
 static int cw_check_hangup_locked(struct cw_channel *chan)
@@ -262,6 +263,8 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     int samples;
     int len;
     char *x;
+    char text[128];
+    t38_stats_t stats;
     t38_gateway_state_t t38_state;
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
@@ -385,6 +388,10 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
             }
         }
     }
+
+    t38_gateway_get_transfer_statistics(&t38_state, &stats);
+    snprintf(text, sizeof(text), "%d", stats.pages_transferred);
+    pbx_builtin_setvar_helper(chan, "FAXPAGES", text);
 
     if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
