@@ -108,8 +108,7 @@ struct oki_adpcm_decoder_pvt
 };
 
 /*
- * okiadpcmtolin_new
- *  Create a new instance of adpcm_decoder_pvt.
+ * Create a new instance of adpcm_decoder_pvt.
  *
  * Results:
  *  Returns a pointer to the new instance.
@@ -117,7 +116,6 @@ struct oki_adpcm_decoder_pvt
  * Side effects:
  *  None.
  */
-
 static void *okiadpcmtolin_new(void)
 {
     struct oki_adpcm_decoder_pvt *tmp;
@@ -132,8 +130,7 @@ static void *okiadpcmtolin_new(void)
 }
 
 /*
- * lintookiadpcm_new
- *  Create a new instance of adpcm_encoder_pvt.
+ * Create a new instance of adpcm_encoder_pvt.
  *
  * Results:
  *  Returns a pointer to the new instance.
@@ -154,9 +151,8 @@ static void *lintookiadpcm_new(void)
 }
 
 /*
- * okiadpcmtolin_framein
- *  Take an input buffer with packed 4-bit ADPCM values and put decoded PCM in outbuf, 
- *  if there is room left.
+ * Take an input buffer with packed 4-bit ADPCM values and put decoded PCM in outbuf, 
+ * if there is room left.
  *
  * Results:
  *  Foo
@@ -199,8 +195,7 @@ static int okiadpcmtolin_framein(void *pvt, struct cw_frame *f)
 }
 
 /*
- * okiadpcmtoLin_FrameOut
- *  Convert 4-bit ADPCM encoded signals to 16-bit signed linear.
+ * Convert 4-bit ADPCM encoded signals to 16-bit signed linear.
  *
  * Results:
  *  Converted signals are placed in tmp->f.data, tmp->f.datalen
@@ -209,7 +204,6 @@ static int okiadpcmtolin_framein(void *pvt, struct cw_frame *f)
  * Side effects:
  *  None.
  */
-
 static struct cw_frame *okiadpcmtolin_frameout(void *pvt)
 {
     struct oki_adpcm_decoder_pvt *tmp = (struct oki_adpcm_decoder_pvt *) pvt;
@@ -227,8 +221,7 @@ static struct cw_frame *okiadpcmtolin_frameout(void *pvt)
 }
 
 /*
- * lintookiadpcm_framein
- *  Fill an input buffer with 16-bit signed linear PCM values.
+ * Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
  *  None.
@@ -236,7 +229,6 @@ static struct cw_frame *okiadpcmtolin_frameout(void *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-
 static int lintookiadpcm_framein(void *pvt, struct cw_frame *f)
 {
     struct oki_adpcm_encoder_pvt *tmp = (struct oki_adpcm_encoder_pvt *) pvt;
@@ -255,9 +247,8 @@ static int lintookiadpcm_framein(void *pvt, struct cw_frame *f)
 }
 
 /*
- * lintookiadpcm_frameout
- *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
- *  of 4-bit ADPCM packed two to a byte (Big Endian).
+ * Convert a buffer of raw 16-bit signed linear PCM to a buffer
+ * of 4-bit ADPCM packed two to a byte (Big Endian).
  *
  * Results:
  *  Foo
@@ -265,22 +256,22 @@ static int lintookiadpcm_framein(void *pvt, struct cw_frame *f)
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-
 static struct cw_frame *lintookiadpcm_frameout(void *pvt)
 {
     struct oki_adpcm_encoder_pvt *tmp = (struct oki_adpcm_encoder_pvt *) pvt;
     int i_max;
+    int enc_len;
   
     if (tmp->tail < 2)
         return NULL;
 
     i_max = tmp->tail & ~1; /* atomic size is 2 samples */
-    oki_adpcm_encode(&tmp->oki_state, tmp->outbuf, tmp->inbuf, i_max);
+    enc_len = oki_adpcm_encode(&tmp->oki_state, tmp->outbuf, tmp->inbuf, i_max);
     cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_OKI_ADPCM, __PRETTY_FUNCTION__);
     tmp->f.samples = i_max;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
-    tmp->f.datalen = i_max/2;
+    tmp->f.datalen = enc_len;
 
     /*
      * If there is a signal left over (there should be no more than
@@ -298,9 +289,6 @@ static struct cw_frame *lintookiadpcm_frameout(void *pvt)
     return &tmp->f;
 }
 
-/*
- * okiadpcmtolin_sample
- */
 static struct cw_frame *okiadpcmtolin_sample(void)
 {
     static struct cw_frame f;

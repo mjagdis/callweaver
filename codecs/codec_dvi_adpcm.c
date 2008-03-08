@@ -108,8 +108,7 @@ struct dvi_adpcm_decoder_pvt
 };
 
 /*
- * dviadpcmtolin_new
- *  Create a new instance of adpcm_decoder_pvt.
+ * Create a new instance of adpcm_decoder_pvt.
  *
  * Results:
  *  Returns a pointer to the new instance.
@@ -117,7 +116,6 @@ struct dvi_adpcm_decoder_pvt
  * Side effects:
  *  None.
  */
-
 static void *dviadpcmtolin_new(void)
 {
     struct dvi_adpcm_decoder_pvt *tmp;
@@ -125,14 +123,13 @@ static void *dviadpcmtolin_new(void)
     if ((tmp = malloc(sizeof(*tmp))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    ima_adpcm_init(&tmp->dvi_state, 32000);
+    ima_adpcm_init(&tmp->dvi_state, 32000, 0);
     plc_init(&tmp->plc);
     return tmp;
 }
 
 /*
- * lintodviadpcm_new
- *  Create a new instance of adpcm_encoder_pvt.
+ * Create a new instance of adpcm_encoder_pvt.
  *
  * Results:
  *  Returns a pointer to the new instance.
@@ -147,14 +144,13 @@ static void *lintodviadpcm_new(void)
     if ((tmp = malloc(sizeof(*tmp))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    ima_adpcm_init(&tmp->dvi_state, 32000);
+    ima_adpcm_init(&tmp->dvi_state, 32000, 0);
     return tmp;
 }
 
 /*
- * dviadpcmtolin_framein
- *  Take an input buffer with packed 4-bit ADPCM values and put decoded PCM in outbuf, 
- *  if there is room left.
+ * Take an input buffer with packed 4-bit ADPCM values and put decoded PCM in outbuf, 
+ * if there is room left.
  *
  * Results:
  *  Foo
@@ -197,8 +193,7 @@ static int dviadpcmtolin_framein(void *pvt, struct cw_frame *f)
 }
 
 /*
- * dviAdpcmToLin_FrameOut
- *  Convert 4-bit ADPCM encoded signals to 16-bit signed linear.
+ * Convert 4-bit ADPCM encoded signals to 16-bit signed linear.
  *
  * Results:
  *  Converted signals are placed in tmp->f.data, tmp->f.datalen
@@ -207,7 +202,6 @@ static int dviadpcmtolin_framein(void *pvt, struct cw_frame *f)
  * Side effects:
  *  None.
  */
-
 static struct cw_frame *dviadpcmtolin_frameout(void *pvt)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
@@ -225,8 +219,7 @@ static struct cw_frame *dviadpcmtolin_frameout(void *pvt)
 }
 
 /*
- * lintoadpcm_framein
- *  Fill an input buffer with 16-bit signed linear PCM values.
+ * Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
  *  None.
@@ -234,7 +227,6 @@ static struct cw_frame *dviadpcmtolin_frameout(void *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-
 static int lintodviadpcm_framein(void *pvt, struct cw_frame *f)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
@@ -253,9 +245,8 @@ static int lintodviadpcm_framein(void *pvt, struct cw_frame *f)
 }
 
 /*
- * lintoadpcm_frameout
- *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
- *  of 4-bit ADPCM packed two to a byte (Big Endian).
+ * Convert a buffer of raw 16-bit signed linear PCM to a buffer
+ * of 4-bit ADPCM packed two to a byte (Big Endian).
  *
  * Results:
  *  Foo
@@ -263,22 +254,22 @@ static int lintodviadpcm_framein(void *pvt, struct cw_frame *f)
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-
 static struct cw_frame *lintodviadpcm_frameout(void *pvt)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
     int i_max;
+    int enc_len;
   
     if (tmp->tail < 2)
         return NULL;
 
     i_max = tmp->tail & ~1; /* atomic size is 2 samples */
-    ima_adpcm_encode(&tmp->dvi_state, tmp->outbuf, tmp->inbuf, i_max);
+    enc_len = ima_adpcm_encode(&tmp->dvi_state, tmp->outbuf, tmp->inbuf, i_max);
     cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_DVI_ADPCM, __PRETTY_FUNCTION__);
     tmp->f.samples = i_max;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
-    tmp->f.datalen = i_max/2;
+    tmp->f.datalen = enc_len;
 
     /*
      * If there is a signal left over (there should be no more than
@@ -296,9 +287,6 @@ static struct cw_frame *lintodviadpcm_frameout(void *pvt)
     return &tmp->f;
 }
 
-/*
- * adpcmtolin_sample
- */
 static struct cw_frame *dviadpcmtolin_sample(void)
 {
     static struct cw_frame f;
@@ -310,9 +298,6 @@ static struct cw_frame *dviadpcmtolin_sample(void)
     return &f;
 }
 
-/*
- * lintoadpcm_sample
- */
 static struct cw_frame *lintodviadpcm_sample(void)
 {
     static struct cw_frame f;
@@ -325,9 +310,6 @@ static struct cw_frame *lintodviadpcm_sample(void)
     return &f;
 }
 
-/*
- * The complete translator for ADPCMToLin.
- */
 static cw_translator_t dviadpcmtolin =
 {
     .name = "dviadpcmtolin",
@@ -342,9 +324,6 @@ static cw_translator_t dviadpcmtolin =
     .sample = dviadpcmtolin_sample
 };
 
-/*
- * The complete translator for LinToADPCM.
- */
 static cw_translator_t lintodviadpcm =
 {
     .name = "lintodviadpcm",

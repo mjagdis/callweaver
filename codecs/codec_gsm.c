@@ -208,7 +208,7 @@ static int gsmtolin_framein(void *pvt, struct cw_frame *f)
             cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
-        if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, 1) != decoded_chunk)
+        if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, encoded_chunk) != decoded_chunk)
         {
             cw_log(CW_LOG_WARNING, "Invalid GSM data (1)\n");
             return -1;
@@ -261,7 +261,7 @@ static struct cw_frame *lintogsm_frameout(void *pvt)
             break;
         }
         /* Encode a frame of data */
-        gsm0610_encode(tmp->gsm, ((uint8_t *) tmp->outbuf) + x*33, tmp->buf, 1);
+        gsm0610_encode(tmp->gsm, ((uint8_t *) tmp->outbuf) + x*33, tmp->buf, 160);
         /* Assume 8000 Hz -- 20 ms */
         tmp->tail -= 160;
         /* Move the data at the end of the buffer to the front */

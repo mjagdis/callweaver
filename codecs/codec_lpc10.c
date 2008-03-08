@@ -215,7 +215,7 @@ static int lpc10tolin_framein(void *pvt, struct cw_frame *f)
             return -1;
         }
         sd = tmp->buf + tmp->tail;
-        if (lpc10_decode(tmp->lpc10.dec, sd, f->data + len, 1) < LPC10_SAMPLES_PER_FRAME)
+        if (lpc10_decode(tmp->lpc10.dec, sd, f->data + len, LPC10_BYTES_IN_COMPRESSED_FRAME) < LPC10_SAMPLES_PER_FRAME)
         {
             cw_log(CW_LOG_WARNING, "Invalid lpc10 data\n");
             return -1;
@@ -266,7 +266,7 @@ static struct cw_frame *lintolpc10_frameout(void *pvt)
             return NULL;
         }
         /* Encode a frame of data */
-        lpc10_encode(tmp->lpc10.enc, ((uint8_t *)tmp->outbuf) + tmp->f.datalen, &tmp->buf[consumed], 1);
+        lpc10_encode(tmp->lpc10.enc, ((uint8_t *) tmp->outbuf) + tmp->f.datalen, &tmp->buf[consumed], LPC10_SAMPLES_PER_FRAME);
         tmp->f.datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
         tmp->f.samples += LPC10_SAMPLES_PER_FRAME;
         /* Use one of the two left over bits to record if this is a 22 or 23 ms frame...
