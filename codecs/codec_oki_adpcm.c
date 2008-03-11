@@ -163,6 +163,7 @@ static void *lintookiadpcm_new(void)
 static int okiadpcmtolin_framein(void *pvt, struct cw_frame *f)
 {
     struct oki_adpcm_decoder_pvt *tmp = (struct oki_adpcm_decoder_pvt *) pvt;
+    int len;
 
     if (f->datalen == 0)
     {
@@ -186,10 +187,10 @@ static int okiadpcmtolin_framein(void *pvt, struct cw_frame *f)
         return -1;
     }
 
-    tmp->tail += oki_adpcm_decode(&tmp->oki_state, tmp->outbuf + tmp->tail, f->data, f->datalen);
-
+    len = oki_adpcm_decode(&tmp->oki_state, tmp->outbuf + tmp->tail, f->data, f->datalen);
     if (useplc)
-        plc_rx(&tmp->plc, tmp->outbuf+tmp->tail-f->datalen*2, f->datalen*2);
+        plc_rx(&tmp->plc, tmp->outbuf + tmp->tail, len);
+    tmp->tail += len;
 
     return 0;
 }

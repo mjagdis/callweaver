@@ -74,6 +74,7 @@ static int16_t slin_ex[] =
 /* Sample 10ms of ADPCM frame data */
 static uint8_t adpcm_ex[] =
 {
+    0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -162,6 +163,7 @@ static void *lintodviadpcm_new(void)
 static int dviadpcmtolin_framein(void *pvt, struct cw_frame *f)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
+    int len;
 
     if (f->datalen == 0)
     {
@@ -185,9 +187,10 @@ static int dviadpcmtolin_framein(void *pvt, struct cw_frame *f)
         return -1;
     }
 
-    tmp->tail += ima_adpcm_decode(&tmp->dvi_state, tmp->outbuf + tmp->tail, f->data, f->datalen);
+    len = ima_adpcm_decode(&tmp->dvi_state, tmp->outbuf + tmp->tail, f->data, f->datalen);
     if (useplc)
-        plc_rx(&tmp->plc, tmp->outbuf+tmp->tail-f->datalen*2, f->datalen*2);
+        plc_rx(&tmp->plc, tmp->outbuf + tmp->tail, len);
+    tmp->tail += len;
 
     return 0;
 }
