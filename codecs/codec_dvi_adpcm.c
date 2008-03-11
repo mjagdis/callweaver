@@ -74,7 +74,7 @@ static int16_t slin_ex[] =
 /* Sample 10ms of ADPCM frame data */
 static uint8_t adpcm_ex[] =
 {
-    0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -124,7 +124,7 @@ static void *dviadpcmtolin_new(void)
     if ((tmp = malloc(sizeof(*tmp))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    ima_adpcm_init(&tmp->dvi_state, 32000, 0);
+    ima_adpcm_init(&tmp->dvi_state, IMA_ADPCM_DVI4, 0);
     plc_init(&tmp->plc);
     return tmp;
 }
@@ -145,7 +145,7 @@ static void *lintodviadpcm_new(void)
     if ((tmp = malloc(sizeof(*tmp))) == NULL)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
-    ima_adpcm_init(&tmp->dvi_state, 32000, 0);
+    ima_adpcm_init(&tmp->dvi_state, IMA_ADPCM_DVI4, 0);
     return tmp;
 }
 
@@ -272,7 +272,7 @@ static struct cw_frame *lintodviadpcm_frameout(void *pvt)
     tmp->f.samples = i_max;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
-    tmp->f.datalen = enc_len;
+    tmp->f.datalen = i_max/2 + 2;
 
     /*
      * If there is a signal left over (there should be no more than
