@@ -361,12 +361,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
                     {
                         clean_frame(f);
                         break;
-<<<<<<< .mine
                     }
-
-=======
-                    }
->>>>>>> .r4440
                     samples = (f->samples <= MAX_BLOCK_SIZE)  ?  f->samples  :  MAX_BLOCK_SIZE;
 
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)))
@@ -380,7 +375,6 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
                         {
                             clean_frame(f);
                             cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-                            clean_frame(f);
                             break;
                         }
                     }
