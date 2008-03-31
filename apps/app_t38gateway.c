@@ -361,7 +361,12 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
                     {
                         clean_frame(f);
                         break;
+<<<<<<< .mine
                     }
+
+=======
+                    }
+>>>>>>> .r4440
                     samples = (f->samples <= MAX_BLOCK_SIZE)  ?  f->samples  :  MAX_BLOCK_SIZE;
 
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)))
@@ -375,6 +380,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
                         {
                             clean_frame(f);
                             cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                            clean_frame(f);
                             break;
                         }
                     }
@@ -525,7 +531,21 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
 
                if (f->frametype == CW_FRAME_CONTROL)
                {
-                  if (f->subclass == CW_CONTROL_RINGING)
+                  if (f->subclass == CW_CONTROL_PROCEEDING)
+                  {
+                     state = f->subclass;
+                     cw_indicate(chan, CW_CONTROL_PROCEEDING);
+                     cw_fr_free(f);
+                     continue;
+                  }
+                  else if (f->subclass == CW_CONTROL_PROGRESS)
+                  {
+                     state = f->subclass;
+                     cw_indicate(chan, CW_CONTROL_PROGRESS);
+                     cw_fr_free(f);
+                     continue;
+                  }
+                  else if (f->subclass == CW_CONTROL_RINGING)
                   {
                      state = f->subclass;
                      cw_indicate(chan, CW_CONTROL_RINGING);
@@ -548,6 +568,13 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
                      break;
                   }
                   /* else who cares */
+               }
+               else if (f->frametype == CW_FRAME_VOICE)
+               {
+                   /* Pass on early media */
+                   cw_write(chan, f);
+                   cw_fr_free(f);
+                   continue;
                }
             }
             else
