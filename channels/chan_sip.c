@@ -524,7 +524,6 @@ static int sipdebug = 0;
 static struct sockaddr_in debugaddr;
 
 static int tos = 0;
-static int cos = 0;
 
 static int videosupport = 0;
 
@@ -4265,11 +4264,11 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     	    cw_udptl_set_active(p->udptl, 0);
         p->udptl_active = 0;
 
-        cw_rtp_set_qos(p->rtp, tos, cos);
+        cw_rtp_settos(p->rtp, tos);
         if (p->vrtp)
-            cw_rtp_set_qos(p->vrtp, tos, cos);
+            cw_rtp_settos(p->vrtp, tos);
         if (p->udptl)
-            cw_udptl_set_qos(p->udptl, tos, cos);
+            cw_udptl_settos(p->udptl, tos);
         p->rtptimeout = global_rtptimeout;
         p->rtpholdtimeout = global_rtpholdtimeout;
         p->rtpkeepalive = global_rtpkeepalive;
@@ -10762,7 +10761,6 @@ static int sip_show_settings(int fd, int argc, char *argv[])
     cw_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
     cw_cli(fd, "  Call Events:            %s\n", callevents ? "On" : "Off");
     cw_cli(fd, "  IP ToS:                 0x%x\n", tos);
-    cw_cli(fd, "  IP CoS:                 0x%x\n", cos);
 #ifdef OSP_SUPPORT
     cw_cli(fd, "  OSP Support:            Yes\n");
 #else
@@ -15987,7 +15985,6 @@ static int reload_config(void)
     rfc_timer_b = DEFAULT_RFC_TIMER_B;
     regcontext[0] = '\0';
     tos = 0;
-    cos = 0;
     expiry = DEFAULT_EXPIRY;
     global_allowguest = 1;
 
@@ -16319,11 +16316,6 @@ static int reload_config(void)
             if (cw_str2tos(v->value, &tos))
                 cw_log(CW_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
         }
-        else if (!strcasecmp(v->name, "cos"))
-        {
-            if (cw_str2tos(v->value, &cos))
-                cw_log(CW_LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
-        }
         else if (!strcasecmp(v->name, "bindport"))
         {
             if (sscanf(v->value, "%d", &ourport) == 1)
@@ -16472,7 +16464,6 @@ static int reload_config(void)
                     cw_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
                     cw_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
                     cw_verbose(VERBOSE_PREFIX_2 "Using ToS bits %d\n", tos);
-                    cw_verbose(VERBOSE_PREFIX_2 "Using CoS bits %d\n", tos);
                 }
                 if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
                     cw_log(CW_LOG_WARNING, "Unable to set ToS to %d\n", tos);
