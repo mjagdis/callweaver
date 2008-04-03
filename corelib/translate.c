@@ -301,7 +301,10 @@ static void *calc_cost(void *data)
         cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
         goto out;
     }
-    t->framein(pvt, f);
+    if (t->framein(pvt, f) < 0) {
+        cw_log(CW_LOG_ERROR, "Translator '%s' can't translate its own sample frame!\n", t->name);
+        goto out;
+    }
     cw_fr_free(f);
     while ((out = t->frameout(pvt))) {
         sofar += out->samples;
