@@ -490,6 +490,11 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
     strncpy(status, "CHANUNAVAIL", sizeof(status) - 1); /* assume as default */
     channels[0] = peer;
     channels[1] = chan;
+    if (cw_channel_make_compatible(chan, peer))
+    {
+        cw_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
+        ALL_DONE(u, -1);
+    }
     /* While we haven't timed out and we still have no channel up */
     while (timeout  &&  (peer->_state != CW_STATE_UP))
     {
@@ -599,45 +604,38 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
     res = 1;
     if (ready  &&  ready_to_talk(chan, peer))
     {
-        if (!cw_channel_make_compatible(chan, peer))
-        {
-            cw_answer(chan);
-            peer->appl = t38gateway_name;
-	    
-            /* FIXME original patch removes the if line below - trying with it before removing it */
-            if (argc > 2  &&  strchr(argv[2], 'r'))
-                cw_indicate(chan, -1);
+        cw_answer(chan);
+        peer->appl = t38gateway_name;
 
-            cw_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
-	    chan->hangupcause = CW_CAUSE_NORMAL_CLEARING;
-	
-            res = RUNNING;
+        /* FIXME original patch removes the if line below - trying with it before removing it */
+        if (argc > 2  &&  strchr(argv[2], 'r'))
+            cw_indicate(chan, -1);
 
-            while ( res == RUNNING ) {
-    
-                if ( res && ( chan->t38_status == peer->t38_status ) )
-                {
-                    // Same on both sides, so just bridge 
-                    cw_log(CW_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
-                    res = cw_bridge_frames(chan, peer);
-                }
-	    
-                if ( 
-                       ( res == RUNNING )
-	    	    && ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
-	        	&& ( chan->t38_status != peer->t38_status ) 
-                   )
-                {
-                    // Different on each side, so gateway 
-                    cw_log(CW_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
-                    res = cw_t38_gateway(chan, peer, verbose);
-                }
-                cw_log(CW_LOG_DEBUG," res = %d, RUNNING defined as %d, chan_Status [%d,%d] UNKNOWN set to %d ", res, RUNNING, chan->t38_status, peer->t38_status, T38_STATUS_UNKNOWN  );
+        cw_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
+        chan->hangupcause = CW_CAUSE_NORMAL_CLEARING;
+
+        res = RUNNING;
+
+        while ( res == RUNNING ) {
+
+            if ( res && ( chan->t38_status == peer->t38_status ) )
+            {
+                // Same on both sides, so just bridge 
+                cw_log(CW_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                res = cw_bridge_frames(chan, peer);
             }
-        }
-        else
-        {
-            cw_log(CW_LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
+
+            if ( 
+                   ( res == RUNNING )
+                && ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
+                && ( chan->t38_status != peer->t38_status ) 
+               )
+            {
+                // Different on each side, so gateway 
+                cw_log(CW_LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
+                res = cw_t38_gateway(chan, peer, verbose);
+            }
+            cw_log(CW_LOG_DEBUG," res = %d, RUNNING defined as %d, chan_Status [%d,%d] UNKNOWN set to %d ", res, RUNNING, chan->t38_status, peer->t38_status, T38_STATUS_UNKNOWN  );
         }
     }
     else
