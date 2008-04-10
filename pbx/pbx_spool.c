@@ -206,10 +206,13 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
 					c2 = c;
 					strsep(&c2, "=");
-					var = cw_variable_new(c, c2);
-					if (var) {
-						var->next = o->vars;
-						o->vars = var;
+					/* This is naughty. We silently ignore bad lines */
+					if (c2) {
+						var = cw_variable_new(c, c2);
+						if (var) {
+							var->next = o->vars;
+							o->vars = var;
+						}
 					}
 				} else if (!strcasecmp(buf, "account")) {
 					var = cw_variable_new("CDR(accountcode|r)", c);
