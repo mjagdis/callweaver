@@ -61,7 +61,13 @@ static const char if_func_syntax[] = "IF(expr ? [true] [: false])";
 static const char if_func_desc[] =
 "Returns the value of [true] if expr evaluates to true, otherwise returns\n"
 "the value of [false]\n"
-"NOTE: Both true and false are evaluated regardless of which is to be returned\n";
+"NOTE: Both true and false are evaluated regardless of which is to be returned\n\n"
+"DEPRECATED\n"
+"This will fail if the true and/or false values evaluate to a string containing\n"
+"a comma, colon or question mark.\n\n"
+"Replace IF( A ? B : C ) with $[ A ? B :: C ]\n"
+"e.g. for ${IF($[ ${A} = \"debug\" ] ? ${B} : ${C})}\n"
+"     use $[ $[ \"${A}\" = \"debug\" ] ? \"${B}\" :: \"${C}\" ]\n";
 
 static void *if_time_function;
 static const char if_time_func_name[] = "IFTIME";
@@ -159,6 +165,13 @@ static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, c
 {
 	char *s, *q, **a;
 	int i, n, l, first;
+
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		cw_log(CW_LOG_WARNING, "IF(... ? ... : ...) is deprecated, please use $[ ... ? ... :: ... ] instead.\n");
+		deprecation_warning = 1;
+	}
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
