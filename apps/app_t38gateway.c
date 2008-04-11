@@ -492,7 +492,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
     channels[1] = chan;
     if (cw_channel_make_compatible(chan, peer))
     {
-        cw_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
+        cw_log(CW_LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
         ALL_DONE(u, -1);
     }
     /* While we haven't timed out and we still have no channel up */
