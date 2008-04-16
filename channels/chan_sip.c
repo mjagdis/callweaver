@@ -7512,8 +7512,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
             return 0;
         }
         p = r->call;
-        make_our_tag(p->tag, sizeof(p->tag));    /* create a new local tag for every register attempt */
-        p->theirtag[0]='\0';    /* forget their old tag, so we don't match tags when getting response */
+	/* Forget their old tag, so we don't match tags when getting response.
+	 * This is strictly incorrect since the tag should be constant throughout
+	 * a dialogue (in this case register,unauth'd,reg-with-auth,ok-or-fail)
+	 * but there are SIP implementations that have had this wrong in the past.
+	 * DEPRECATED: This should be removed at some point...
+	 */
+        p->theirtag[0]='\0';
     }
     else
     {
@@ -7530,6 +7535,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
             cw_log(CW_LOG_WARNING, "Unable to allocate registration call\n");
             return 0;
         }
+        make_our_tag(p->tag, sizeof(p->tag));    /* create a new local tag for every register attempt */
         if (recordhistory)
         {
             char tmp[80];
