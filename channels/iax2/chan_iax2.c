@@ -123,7 +123,7 @@ static int nochecksums = 0;
 static void *iaxpeer_func;
 static const char iaxpeer_func_name[] = "IAXPEER";
 static const char iaxpeer_func_synopsis[] = "Gets IAX peer information";
-static const char iaxpeer_func_syntax[] = "IAXPEER(<peername|CURRENTCHANNEL>[:item])";
+static const char iaxpeer_func_syntax[] = "IAXPEER(peername|CURRENTCHANNEL[, item])";
 static const char iaxpeer_func_desc[] =
 	"If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
@@ -8418,10 +8418,9 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct iax2_peer *peer;
-	char *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (argc != 1 || !argv[0][0])
+	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(iaxpeer_func_syntax);
 
 	if (!buf)
@@ -8434,36 +8433,45 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 		return 0;
 	}
 
-	if ((colname = strchr(argv[0], ':'))) {
-		*colname = '\0';
-		colname++;
-	} else {
-		colname = "ip";
+	if (argc == 1) {
+		/* As long as we have one argument argv[1] exists as well
+		 * and contains the terminating NULL.
+		 */
+		if ((argv[1] = strchr(argv[0], ':'))) {
+			static int deprecated = 0;
+			if (!deprecated) {
+				cw_log(CW_LOG_WARNING, "Syntax IAXPEER(peername:item) is deprecated. Use IAXPEER(peername, item) instead\n");
+				deprecated= 1;
+			}
+			*(argv[1]++) = '\0';
+		} else
+			argv[1] = "ip";
 	}
+
 	if (!(peer = find_peer(argv[0], 1)))
 		return 0;
 
-	if (!strcasecmp(colname, "ip")) {
+	if (!strcasecmp(argv[1], "ip")) {
 		cw_copy_string(buf, peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
-	} else  if (!strcasecmp(colname, "mailbox")) {
+	} else  if (!strcasecmp(argv[1], "mailbox")) {
 		cw_copy_string(buf, peer->mailbox, len);
-	} else  if (!strcasecmp(colname, "context")) {
+	} else  if (!strcasecmp(argv[1], "context")) {
 		cw_copy_string(buf, peer->context, len);
-	} else  if (!strcasecmp(colname, "expire")) {
+	} else  if (!strcasecmp(argv[1], "expire")) {
 		snprintf(buf, len, "%d", peer->expire);
-	} else  if (!strcasecmp(colname, "dynamic")) {
+	} else  if (!strcasecmp(argv[1], "dynamic")) {
 		cw_copy_string(buf, (cw_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no"), len);
-	} else  if (!strcasecmp(colname, "callerid_name")) {
+	} else  if (!strcasecmp(argv[1], "callerid_name")) {
 		cw_copy_string(buf, peer->cid_name, len);
-	} else  if (!strcasecmp(colname, "callerid_num")) {
+	} else  if (!strcasecmp(argv[1], "callerid_num")) {
 		cw_copy_string(buf, peer->cid_num, len);
-	} else  if (!strcasecmp(colname, "codecs")) {
+	} else  if (!strcasecmp(argv[1], "codecs")) {
 		cw_getformatname_multiple(buf, len -1, peer->capability);
-	} else  if (!strncasecmp(colname, "codec[", 6)) {
+	} else  if (!strncasecmp(argv[1], "codec[", 6)) {
 		char *codecnum, *ptr;
 		int index = 0, codec = 0;
 		
-		codecnum = strchr(colname, '[');
+		codecnum = strchr(argv[1], '[');
 		*codecnum = '\0';
 		codecnum++;
 		if ((ptr = strchr(codecnum, ']'))) {

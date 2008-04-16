@@ -171,7 +171,7 @@ static const char sipheader_func_desc[] = "";
 static void *sippeer_function;
 static const char sippeer_func_name[] = "SIPPEER";
 static const char sippeer_func_synopsis[] = "Gets SIP peer information";
-static const char sippeer_func_syntax[] = "SIPPEER(<peername>[:item])";
+static const char sippeer_func_syntax[] = "SIPPEER(peername[, item])";
 static const char sippeer_func_desc[] =
 	"Valid items are:\n"
 	"- ip (default)          The IP address.\n"
@@ -11887,89 +11887,98 @@ static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, 
 static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     struct sip_peer *peer;
-    char *colname;
     char iabuf[INET_ADDRSTRLEN];
 
-    if (argc != 1 || !argv[0][0])
+    if (argc < 1 || argc > 2 || !argv[0][0])
 	    return cw_function_syntax(sippeer_func_syntax);
 
     if (!buf)
 	    return 0;
 
-    if ((colname = strchr(argv[0], ':')))
+    if (argc == 1)
     {
-        *colname = '\0';
-        colname++;
+        /* As long as we have one argument argv[1] exists as well
+         * and contains the terminating NULL.
+         */
+        if ((argv[1] = strchr(argv[0], ':')))
+        {
+            static int deprecated = 0;
+            if (!deprecated)
+            {
+                cw_log(CW_LOG_WARNING, "Syntax SIPPEER(peername:item) is deprecated. Use SIPPEER(peername, item) instead\n");
+                deprecated= 1;
+            }
+            *(argv[1]++) = '\0';
+	}
+        else
+            argv[1] = "ip";
     }
-    else
-    {
-        colname = "ip";
-    }
+
     if (!(peer = find_peer(argv[0], NULL, 1)))
         return 0;
 
-    if (!strcasecmp(colname, "ip"))
+    if (!strcasecmp(argv[1], "ip"))
     {
         cw_copy_string(buf, peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
     }
-    else  if (!strcasecmp(colname, "status"))
+    else  if (!strcasecmp(argv[1], "status"))
     {
         peer_status(peer, buf, len);
     }
-    else  if (!strcasecmp(colname, "language"))
+    else  if (!strcasecmp(argv[1], "language"))
     {
         cw_copy_string(buf, peer->language, len);
     }
-    else  if (!strcasecmp(colname, "regexten"))
+    else  if (!strcasecmp(argv[1], "regexten"))
     {
         cw_copy_string(buf, peer->regexten, len);
     }
-    else  if (!strcasecmp(colname, "limit"))
+    else  if (!strcasecmp(argv[1], "limit"))
     {
         snprintf(buf, len, "%d", peer->call_limit);
     }
-    else  if (!strcasecmp(colname, "curcalls"))
+    else  if (!strcasecmp(argv[1], "curcalls"))
     {
         snprintf(buf, len, "%d", peer->inUse);
     }
-    else  if (!strcasecmp(colname, "useragent"))
+    else  if (!strcasecmp(argv[1], "useragent"))
     {
         cw_copy_string(buf, peer->useragent, len);
     }
-    else  if (!strcasecmp(colname, "mailbox"))
+    else  if (!strcasecmp(argv[1], "mailbox"))
     {
         cw_copy_string(buf, peer->mailbox, len);
     }
-    else  if (!strcasecmp(colname, "context"))
+    else  if (!strcasecmp(argv[1], "context"))
     {
         cw_copy_string(buf, peer->context, len);
     }
-    else  if (!strcasecmp(colname, "expire"))
+    else  if (!strcasecmp(argv[1], "expire"))
     {
         snprintf(buf, len, "%d", peer->expire);
     }
-    else  if (!strcasecmp(colname, "dynamic"))
+    else  if (!strcasecmp(argv[1], "dynamic"))
     {
         cw_copy_string(buf, (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no"), len);
     }
-    else  if (!strcasecmp(colname, "callerid_name"))
+    else  if (!strcasecmp(argv[1], "callerid_name"))
     {
         cw_copy_string(buf, peer->cid_name, len);
     }
-    else  if (!strcasecmp(colname, "callerid_num"))
+    else  if (!strcasecmp(argv[1], "callerid_num"))
     {
         cw_copy_string(buf, peer->cid_num, len);
     }
-    else  if (!strcasecmp(colname, "codecs"))
+    else  if (!strcasecmp(argv[1], "codecs"))
     {
         cw_getformatname_multiple(buf, len -1, peer->capability);
     }
-    else  if (!strncasecmp(colname, "codec[", 6))
+    else  if (!strncasecmp(argv[1], "codec[", 6))
     {
         char *codecnum, *ptr;
         int index = 0, codec = 0;
         
-        codecnum = strchr(colname, '[');
+        codecnum = strchr(argv[1], '[');
         *codecnum = '\0';
         codecnum++;
         if ((ptr = strchr(codecnum, ']')))
