@@ -15,6 +15,8 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>
