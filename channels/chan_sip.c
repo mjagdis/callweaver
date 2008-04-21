@@ -192,6 +192,14 @@ static const char sippeer_func_desc[] =
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n";
 
+static void *sippeervar_function;
+static const char sippeervar_func_name[] = "SIPPEERVAR";
+static const char sippeervar_func_synopsis[] = "Gets SIP peer variable";
+static const char sippeervar_func_syntax[] = "SIPPEERVAR(peername, varname)";
+static const char sippeervar_func_desc[] =
+	"Returns the value of varname as specified for the peer in its configuration.\n"
+	"\n";
+
 static void *sipchaninfo_function;
 static const char sipchaninfo_func_name[] = "SIPCHANINFO";
 static const char sipchaninfo_func_synopsis[] = "Gets the specified SIP parameter from the current channel";
@@ -11998,6 +12006,31 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
 }
 
 
+static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+{
+    struct sip_peer *peer;
+    struct cw_variable *var;
+
+    if (argc != 2 || !argv[0][0])
+	    return cw_function_syntax(sippeervar_func_syntax);
+
+    if (!buf || !(peer = find_peer(argv[0], NULL, 1)))
+        return 0;
+
+    for (var = peer->chanvars; var; var = var->next)
+    {
+        if (!strcmp(var->name, argv[1]))
+        {
+            cw_copy_string(buf, var->value, len);
+            break;
+        }
+    }
+
+    ASTOBJ_UNREF(peer, sip_destroy_peer);
+    return 0;
+}
+
+
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
 static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
@@ -17495,6 +17528,7 @@ static int load_module(void)
     cw_install_t38_functions(sip_do_t38switchover);
     sipheader_function = cw_register_function(sipheader_func_name, func_header_read, sipheader_func_synopsis, sipheader_func_syntax, sipheader_func_desc);
     sippeer_function = cw_register_function(sippeer_func_name, function_sippeer, sippeer_func_synopsis, sippeer_func_syntax, sippeer_func_desc);
+    sippeervar_function = cw_register_function(sippeervar_func_name, function_sippeervar, sippeervar_func_synopsis, sippeervar_func_syntax, sippeervar_func_desc);
     sipchaninfo_function = cw_register_function(sipchaninfo_func_name, function_sipchaninfo_read, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
     checksipdomain_function = cw_register_function(checksipdomain_func_name, func_check_sipdomain, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
 
@@ -17533,6 +17567,7 @@ static int unload_module(void)
     res |= cw_unregister_function(checksipdomain_function);
     res |= cw_unregister_function(sipchaninfo_function);
     res |= cw_unregister_function(sippeer_function);
+    res |= cw_unregister_function(sippeervar_function);
     res |= cw_unregister_function(sipheader_function);
 
     res |= cw_unregister_function(sipt38switchover_app);
