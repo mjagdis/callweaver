@@ -100,6 +100,7 @@ struct cw_rtp
 	uint32_t sendevent_rtphdr;
 	uint32_t sendevent_payload;
 	uint32_t sendevent_duration;
+	uint16_t sendevent_seqno;
 	int nat;
 	unsigned int flags;
 	int framems;
