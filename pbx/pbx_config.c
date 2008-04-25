@@ -1632,13 +1632,13 @@ static int unload_module(void)
 
 static int pbx_load_module(void)
 {
+	char realvalue[4096];
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct cw_context *con;
 	char *end;
 	char *label;
-	char realvalue[256];
 	int lastpri = -2;
 
 	cfg = cw_config_load(config);
