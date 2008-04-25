@@ -1129,14 +1129,10 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
         if (pos)
         {
             /* Can't copy more than 'count' bytes */
-            if (pos > count)
-                pos = count;
-            
-            /* Copy that many bytes */
-            memcpy(cp2, whereweare, pos);
-            
-            count -= pos;
-            cp2 += pos;
+            len = (pos <= count ? pos : count);
+            memcpy(cp2, whereweare, len);
+            count -= len;
+            cp2 += len;
             whereweare += pos;
         }
         
