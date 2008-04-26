@@ -8,9 +8,15 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
+noinst_LTLIBRARIES 		=
 cwmod_LTLIBRARIES 		=
 
 SUBDIRS				= iax2 sccp fax misdn visdn capi
+
+noinst_LTLIBRARIES		+= chan_skel.la
+chan_skel_la_SOURCES		= chan_skel.c
+chan_skel_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
+chan_skel_la_LIBADD		= @CALLWEAVER_LIB@
 
 if WANT_CHAN_ALSA
 cwmod_LTLIBRARIES		+= chan_alsa.la
