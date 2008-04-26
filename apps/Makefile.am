@@ -2,13 +2,19 @@ AUTOMAKE_OPTS			= gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
+noinst_LTLIBRARIES 		=
 cwmod_LTLIBRARIES		= 
+
 SUBDIRS 			= nconference
 
 if WANT_APP_ICD
 SUBDIRS += icd
 endif WANT_APP_ICD
 
+noinst_LTLIBRARIES		+= app_skel.la
+app_skel_la_SOURCES		= app_skel.c
+app_skel_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
+app_skel_la_LIBADD		= @CALLWEAVER_LIB@
 
 if WANT_APP_ADSIPROG
 cwmod_LTLIBRARIES			+= app_adsiprog.la
