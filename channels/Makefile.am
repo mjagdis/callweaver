@@ -33,13 +33,6 @@ chan_agent_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
 chan_agent_la_LIBADD		= @CALLWEAVER_LIB@  
 endif WANT_CHAN_AGENT
 
-if WANT_CHAN_FEATURES
-cwmod_LTLIBRARIES		+= chan_features.la
-chan_features_la_SOURCES  	= chan_features.c
-chan_features_la_LDFLAGS 	= -module -avoid-version @NO_UNDEFINED@
-chan_features_la_LIBADD         = @CALLWEAVER_LIB@   
-endif WANT_CHAN_FEATURES
-
 if WANT_CHAN_LOCAL
 cwmod_LTLIBRARIES		+= chan_local.la
 chan_local_la_SOURCES 		= chan_local.c

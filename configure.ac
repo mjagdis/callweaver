@@ -1835,13 +1835,6 @@ AM_CONDITIONAL([WANT_CHAN_FAX],
 
 dnl ###########################################################################
 
-AC_ARG_WITH([chan_features],
-	[AC_HELP_STRING([--with-chan_features],[Build and install chan_features (default=yes)])],,[with_chan_features="yes"])
-
-AM_CONDITIONAL([WANT_CHAN_FEATURES],[test "${with_chan_features}" = "yes"])
-
-dnl ###########################################################################
-
 AC_ARG_WITH([chan_iax2],
 	[AC_HELP_STRING([--with-chan_iax2],[Build and install chan_iax2 (default=yes)])],,[with_chan_iax2="yes"])
 
