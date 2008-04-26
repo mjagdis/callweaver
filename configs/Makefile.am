@@ -14,6 +14,7 @@ SAMPLES = adsi.conf.sample \
 	extconfig.conf.sample \
 	extensions.conf.sample \
 	extensions.ael.sample \
+	features.conf.sample \
 	indications.conf.sample \
 	logger.conf.sample \
 	manager.conf.sample \
@@ -69,10 +70,6 @@ endif WANT_CHAN_CAPI
 if WANT_CHAN_FAX
 SAMPLES += chan_fax.conf.sample
 endif WANT_CHAN_FAX
-
-if WANT_CHAN_FEATURES
-SAMPLES += features.conf.sample
-endif WANT_CHAN_FEATURES
 
 if WANT_CHAN_IAX2
 SAMPLES += iax.conf.sample
