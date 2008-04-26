@@ -42,9 +42,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
 
-static char tdesc = "Trivial skeleton Application";
+static char tdesc[] = "Trivial skeleton Application";
 
-static void *skel_app[] = NULL;
+static void *skel_app = NULL;
 static const char skel_name[] = "Skel";
 static const char skel_synopsis[] = "Skeleton application.";
 static const char skel_syntax[] = "Skel()";
@@ -96,7 +96,7 @@ static int skel_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	 * for a terminating null so the full result_len bytes are
 	 * available for data.
 	 */
-	if (buf) {
+	if (result) {
 	}
 
 	LOCAL_USER_REMOVE(u);
