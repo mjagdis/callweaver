@@ -292,7 +292,6 @@ void cw_fr_init(struct cw_frame *fr)
     fr->data = NULL;
     fr->delivery.tv_sec = 0;
     fr->delivery.tv_usec = 0;
-    fr->seq_no = 0;
     fr->prev = NULL;
     fr->next = NULL;
     fr->has_timing_info = 0;
@@ -317,7 +316,6 @@ void cw_fr_init_ex(struct cw_frame *fr,
     fr->src = (src)  ?  src  :  "";
     fr->data = NULL;
     fr->delivery = cw_tv(0,0);
-    fr->seq_no = 0;
     fr->prev = NULL;
     fr->next = NULL;
     fr->has_timing_info = 0;
