@@ -2778,7 +2778,7 @@ static struct cw_frame *alsa_read(struct cw_channel *chan)
 			cw_mutex_unlock(&alsalock);
 			return &f;
 		}
-        cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, type);
+        cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE*sizeof(int16_t);
 		f.data = buf;

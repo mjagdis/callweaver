@@ -238,7 +238,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     struct cw_channel *chan;
 
     chan = (struct cw_channel *) user_data;
-    cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38, "T38Gateway");
+    cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38);
     outf.datalen = len;
     outf.data = (uint8_t *) buf;
     cw_log(CW_LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
@@ -366,7 +366,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)))
                     {
-                        cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "T38Gateway");
+                        cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                         outf.datalen = len*sizeof(int16_t);
                         outf.samples = len;
                         outf.data = &buf[CW_FRIENDLY_OFFSET];

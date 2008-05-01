@@ -66,7 +66,7 @@ static void *slinear_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, format.name);
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
         tmp->fr.offset = CW_FRIENDLY_OFFSET;
         tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;

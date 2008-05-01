@@ -593,7 +593,7 @@ icd_status icd_conference__join(icd_caller * that)
             res = read(outfd, buf, CONF_SIZE);
             if (res > 0)
             {
-                cw_fr_init_ex(&write_frame, CW_FRAME_VOICE, icd_conf_format, NULL);
+                cw_fr_init_ex(&write_frame, CW_FRAME_VOICE, icd_conf_format);
                 write_frame.datalen = res;
                 write_frame.samples = res;
                 write_frame.data = buf;

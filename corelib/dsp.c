@@ -610,7 +610,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
     if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  cw_dsp_busydetect(dsp))
     {
         chan->_softhangup |= CW_SOFTHANGUP_DEV;
-        cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, CW_CONTROL_BUSY, NULL);
+        cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, CW_CONTROL_BUSY);
         cw_log(CW_LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
         return &dsp->f;
     }
@@ -621,7 +621,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
             bell_mf_rx(&dsp->bell_mf_rx, amp, len);
             if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
             {
-                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, digit_buf[0], NULL);
+                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, digit_buf[0]);
                 if (chan)
                     cw_queue_frame(chan, af);
                 cw_fr_free(af);
@@ -674,7 +674,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
                         /* Looks like we might have something.  
                            Request a conference mute for the moment */
                         dsp->possible_digit = TRUE;
-                        cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'm', NULL);
+                        cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'm');
                         FIX_INF(af);
                         if (chan)
                             cw_queue_frame(chan, af);
@@ -685,7 +685,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
             }
             if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
             {
-                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, buf[0], NULL);
+                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, buf[0]);
                 FIX_INF(af);
                 if (chan)
                     cw_queue_frame(chan, af);
@@ -699,7 +699,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
         modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
         if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
         {
-            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'f', NULL);
+            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'f');
             FIX_INF(af);
             if (chan)
                 cw_queue_frame(chan, af);
@@ -712,7 +712,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
         modem_connect_tones_rx(&dsp->fax_ced_rx, amp, len);
         if (modem_connect_tones_rx_get(&dsp->fax_ced_rx))
         {
-            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'F', NULL);
+            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'F');
             FIX_INF(af);
             if (chan)
                 cw_queue_frame(chan, af);
@@ -731,7 +731,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
             case CW_CONTROL_RINGING:
             case CW_CONTROL_CONGESTION:
             case CW_CONTROL_HANGUP:
-                cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, res, "dsp_progress");
+                cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, res);
                 if (chan) 
                     cw_queue_frame(chan, &dsp->f);
                 break;

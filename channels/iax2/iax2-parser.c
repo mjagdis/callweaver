@@ -903,7 +903,6 @@ void iax_frame_wrap(struct iax_frame *fr, struct cw_frame *f)
 	fr->af.datalen = f->datalen;
 	fr->af.samples = f->samples;
 	fr->af.offset = CW_FRIENDLY_OFFSET;
-	fr->af.src = f->src;
 	fr->af.delivery.tv_sec = 0;
 	fr->af.delivery.tv_usec = 0;
 	fr->af.data = fr->afdata;

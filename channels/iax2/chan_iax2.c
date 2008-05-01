@@ -1400,7 +1400,7 @@ static int attempt_transmit(void *data)
 							struct cw_frame fr;
                             
 							/* Hangup the fd */
-                            cw_fr_init_ex(&fr, CW_FRAME_CONTROL, CW_CONTROL_HANGUP, NULL);
+                            cw_fr_init_ex(&fr, CW_FRAME_CONTROL, CW_CONTROL_HANGUP);
 							iax2_queue_frame(f->callno, &fr);
 							/* Remember, owner could disappear */
 							if (iaxs[f->callno] && iaxs[f->callno]->owner)
@@ -3906,7 +3906,7 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 {
 	struct cw_frame f;
 
-    cw_fr_init_ex(&f, type, command, __FUNCTION__);
+    cw_fr_init_ex(&f, type, command);
 	f.datalen = datalen;
 	f.data = (char *) data;
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
@@ -5655,7 +5655,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								/* Don't pass any packets until we're started */
 								if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
 									/* Common things */
-									f.src = "IAX2";
 									f.mallocd = 0;
 									f.offset = 0;
 									if (f.datalen && (f.frametype == CW_FRAME_VOICE)) 
@@ -6246,7 +6245,7 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
-				cw_fr_init_ex(&f, CW_FRAME_CONTROL, CW_CONTROL_CONGESTION, NULL);
+				cw_fr_init_ex(&f, CW_FRAME_CONTROL, CW_CONTROL_CONGESTION);
 
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr.callno]->owner)
@@ -6435,7 +6434,6 @@ retryowner2:
 					forward_command(iaxs[fr.callno], CW_FRAME_IAX, f.subclass, fr.ts, NULL, 0, -1);
 				} else {
 #endif				
-					f.src = "LAGRQ";
 					f.mallocd = 0;
 					f.offset = 0;
 					f.samples = 0;
@@ -6851,7 +6849,6 @@ retryowner2:
 		return 1;
 	}
 	/* Common things */
-	f.src = "IAX2";
 	f.mallocd = 0;
 	f.offset = 0;
 	if (f.datalen && (f.frametype == CW_FRAME_VOICE)) {

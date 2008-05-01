@@ -2439,7 +2439,6 @@ static struct cw_frame  *misdn_read(struct cw_channel *cw)
 	tmp->frame.samples = tmp->framepos;
 	tmp->frame.mallocd = 0;
 	tmp->frame.offset = 0;
-	tmp->frame.src = NULL;
 	tmp->frame.data = tmp->framedata;
 
 	tmp->framepos = 0; 
@@ -3410,7 +3409,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
   
   
 	while (!cw_strlen_zero(p) ) {
-        cw_fr_init_ex(&fr, CW_FRAME_DTMF, *p, "");
+        cw_fr_init_ex(&fr, CW_FRAME_DTMF, *p);
 
 		if (ch->cw && MISDN_CALLWEAVER_PVT(ch->cw) && MISDN_CALLWEAVER_TECH_PVT(ch->cw)) {
 			cw_queue_frame(ch->cw, &fr);
@@ -3684,7 +3683,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		/*  sending INFOS as DTMF-Frames :) */
 		struct cw_frame fr;
 
-        cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->dtmf, "");
+        cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->dtmf);
 		if (!ch->ignore_dtmf) {
 			chan_misdn_log(2, bc->port, " --> DTMF:%c\n", bc->dtmf);
 			cw_queue_frame(ch->cw, &fr);
@@ -3780,7 +3779,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			struct cw_frame fr;
 			int digits;
 
-            cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->info_dad[0], "");
+            cw_fr_init_ex(&fr, CW_FRAME_DTMF, bc->info_dad[0]);
 			
 			misdn_cfg_get( 0, MISDN_GEN_APPEND_DIGITS2EXTEN, &digits, sizeof(int));
 			if (ch->state != MISDN_CONNECTED ) {
@@ -4245,7 +4244,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			frame.samples = bc->bframe_len ;
 			frame.mallocd =0 ;
 			frame.offset= 0 ;
-			frame.src = NULL;
 			frame.data = bc->bframe ;
 			
 			cw_queue_frame(ch->cw,&frame);

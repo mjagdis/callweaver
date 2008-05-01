@@ -707,7 +707,7 @@ static struct cw_frame *moh_generate(struct cw_channel *chan, void *data, int sa
 		cw_log(CW_LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
 #endif
-	cw_fr_init_ex(&moh->f, CW_FRAME_VOICE, moh->parent->format, NULL);
+	cw_fr_init_ex(&moh->f, CW_FRAME_VOICE, moh->parent->format);
 	if (res > 0) {
 		moh->f.datalen = res;
 		moh->f.data = moh->buf + CW_FRIENDLY_OFFSET / sizeof(moh->buf[0]);

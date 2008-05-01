@@ -236,8 +236,7 @@ int cw_dtmf_stream(struct cw_channel *chan,struct cw_channel *peer,char *digits,
 						break;
 					continue;
 				}
-                cw_fr_init_ex(&f, CW_FRAME_DTMF, *ptr, NULL);
-				f.src = "cw_dtmf_stream";
+                cw_fr_init_ex(&f, CW_FRAME_DTMF, *ptr);
 				if (strchr("0123456789*#abcdABCD",*ptr) == NULL)
                 {
 					cw_log(CW_LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);

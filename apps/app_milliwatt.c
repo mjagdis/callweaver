@@ -86,7 +86,7 @@ static struct cw_frame *milliwatt_generate(struct cw_channel *chan, void *data, 
 	if (samples > sizeof(state->buf) - CW_FRIENDLY_OFFSET)
 		samples = sizeof(state->buf) - CW_FRIENDLY_OFFSET;
 
-	cw_fr_init_ex(&state->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, "app_milliwatt");
+	cw_fr_init_ex(&state->f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
 	state->f.offset = CW_FRIENDLY_OFFSET;
 	state->f.data = state->buf + CW_FRIENDLY_OFFSET;
 	state->f.datalen = state->f.samples = samples;

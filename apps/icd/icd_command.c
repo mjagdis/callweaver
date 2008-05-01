@@ -1642,7 +1642,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
         return -1;
     }
 
-    cw_fr_init_ex(&write_frame, CW_FRAME_DTMF, *key, NULL);
+    cw_fr_init_ex(&write_frame, CW_FRAME_DTMF, *key);
     write_frame.offset = 76;
 
     for (i = 0;  i < count;  i++)

@@ -142,7 +142,7 @@ static struct cw_frame *lintolpc10_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -154,7 +154,7 @@ static struct cw_frame *lpc10tolin_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_LPC10, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_LPC10);
     f.datalen = sizeof(lpc10_ex);
     /* All frames are 22 ms long (maybe a little more -- why did he choose
        LPC10_SAMPLES_PER_FRAME sample frames anyway?? */
@@ -171,7 +171,7 @@ static struct cw_frame *lpc10tolin_frameout(void *pvt)
 
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     /* Assume 8000 Hz */
     tmp->f.samples = tmp->tail;
@@ -257,7 +257,7 @@ static struct cw_frame *lintolpc10_frameout(void *pvt)
     if (tmp->tail < LPC10_SAMPLES_PER_FRAME)
         return NULL;
     /* Start with an empty frame */
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_LPC10, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_LPC10);
     while (tmp->tail >=  LPC10_SAMPLES_PER_FRAME)
     {
         if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf))
@@ -281,7 +281,6 @@ static struct cw_frame *lintolpc10_frameout(void *pvt)
     }
     tmp->f.mallocd = 0;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
-    tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
     /* Move the data at the end of the buffer to the front */
     if (tmp->tail)

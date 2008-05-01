@@ -374,7 +374,7 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 			chan->_softhangup = 0;
 			chan->tech = &technology;
 
-            cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, myformat, NULL);
+            cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, myformat);
 			tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
 			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 

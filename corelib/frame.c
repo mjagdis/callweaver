@@ -215,7 +215,7 @@ struct cw_frame *cw_smoother_read(struct cw_smoother *s)
     if (len > s->len)
         len = s->len;
     /* Make frame */
-    cw_fr_init_ex(&s->f, CW_FRAME_VOICE, s->format, NULL);
+    cw_fr_init_ex(&s->f, CW_FRAME_VOICE, s->format);
     s->f.data = s->framedata + CW_FRIENDLY_OFFSET;
     s->f.offset = CW_FRIENDLY_OFFSET;
     s->f.datalen = len;
@@ -254,26 +254,15 @@ struct cw_frame *cw_frisolate(struct cw_frame *frame)
 
     if (!(frame->mallocd & CW_MALLOCD_HDR))
     {
-        size_t slen = 0;
         size_t dlen = 0;
-
-        if (frame->src && !(frame->mallocd & CW_MALLOCD_SRC))
-            slen = strlen(frame->src) + 1;
 
         if (frame->data && !(frame->mallocd & CW_MALLOCD_DATA))
             dlen = frame->datalen + frame->offset;
 
-        if ((out = malloc(sizeof(*out) + dlen + slen)))
+        if ((out = malloc(sizeof(*out) + dlen)))
         {
             memcpy(out, frame, sizeof(struct cw_frame));
             out->mallocd = CW_MALLOCD_HDR;
-
-            if (slen)
-            {
-                out->mallocd |= CW_MALLOCD_SRC_WITH_HDR;
-                out->src = out->local_data + dlen;
-                memcpy(out->local_data + dlen, frame->src, slen);
-            }
 
             if (dlen)
             {
@@ -287,26 +276,15 @@ struct cw_frame *cw_frisolate(struct cw_frame *frame)
             cw_log(CW_LOG_ERROR, "Out of memory\n");
         }
 
-	/* If data or src was originally malloc'd we've inherited
+	/* If data was originally malloc'd we've inherited
 	 * it so we don't want it to be freed from under us.
 	 */
-        frame->mallocd &= ~(CW_MALLOCD_DATA|CW_MALLOCD_SRC);
+        frame->mallocd &= ~CW_MALLOCD_DATA;
         cw_fr_free(frame);
     }
     else
     {
         out = frame;
-
-        if (frame->src && !(frame->mallocd & (CW_MALLOCD_SRC|CW_MALLOCD_SRC_WITH_HDR)))
-        {
-            if (!(tmp = strdup(frame->src)))
-	    {
-	        out->src = tmp;
-	        out->mallocd |= CW_MALLOCD_SRC;
-	    }
-	    else
-                cw_log(CW_LOG_WARNING, "Out of memory\n");
-        }
 
         if (frame->data && !(frame->mallocd & (CW_MALLOCD_DATA|CW_MALLOCD_DATA_WITH_HDR)))
         {
@@ -330,28 +308,17 @@ struct cw_frame *cw_frdup(struct cw_frame *frame)
 
     if (frame)
     {
-        size_t slen = 0;
         size_t dlen = 0;
-
-        if (frame->src && !(frame->mallocd & CW_MALLOCD_SRC))
-            slen = strlen(frame->src) + 1;
 
         if (frame->data && !(frame->mallocd & CW_MALLOCD_DATA))
             dlen = frame->datalen + frame->offset;
 
-        if ((out = malloc(sizeof(*out) + dlen + slen)))
+        if ((out = malloc(sizeof(*out) + dlen)))
         {
             memcpy(out, frame, sizeof(struct cw_frame));
 	    out->next = out->prev = NULL;
             out->tx_copies = 1;
             out->mallocd = CW_MALLOCD_HDR;
-
-            if (slen)
-            {
-                out->mallocd |= CW_MALLOCD_SRC_WITH_HDR;
-                out->src = out->local_data + dlen;
-                memcpy(out->local_data + dlen, frame->src, slen);
-            }
 
             if (dlen)
             {
@@ -361,9 +328,7 @@ struct cw_frame *cw_frdup(struct cw_frame *frame)
             }
         }
         else
-        {
             cw_log(CW_LOG_ERROR, "Out of memory\n");
-        }
     }
 
     return out;
@@ -403,7 +368,6 @@ struct cw_frame *cw_fr_fdread(int fd)
     /* Forget about being mallocd */
     f->mallocd = 0;
     /* Re-write the source */
-    f->src = (char *)__FUNCTION__;
     if (f->datalen > sizeof(buf) - sizeof(struct cw_frame))
     {
         /* Really bad read */

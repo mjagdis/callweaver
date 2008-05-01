@@ -3244,7 +3244,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				 ((ev[0] >= 'A') && (ev[0] <= 'D')) ||
 				  (ev[0] == '*') || (ev[0] == '#')))
         {
-            cw_fr_init_ex(&f, CW_FRAME_DTMF, ev[0], "mgcp");
+            cw_fr_init_ex(&f, CW_FRAME_DTMF, ev[0]);
 			if (sub->owner)
             {
 				/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */

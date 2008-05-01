@@ -160,7 +160,7 @@ struct cw_frame* get_outgoing_frame( struct cw_conference *conf, struct cw_conf_
     //Building the frame
     f = calloc(1, sizeof(struct cw_frame));
     if (f != NULL) {
-        cw_fr_init_ex(f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "Nconf");
+        cw_fr_init_ex(f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
         f->data = member->framedata;
         f->datalen = samples*sizeof(int16_t);
         f->samples = samples;
@@ -286,7 +286,7 @@ int queue_incoming_silent_frame( struct cw_conf_member *member, int count) {
 
     memset(member->framedata,0,sizeof(member->framedata));
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "Nconf");
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.data = member->framedata;
     f.datalen = member->samples * sizeof(int16_t);
     f.samples = member->samples;

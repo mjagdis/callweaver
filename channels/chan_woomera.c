@@ -1476,7 +1476,7 @@ static struct cw_channel *woomera_new(const char *type, int format, void *data, 
 		chan->tech = &technology;
 		cw_clear_flag(chan, CW_FLAGS_ALL);
 
-        cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, WFORMAT, "");
+        cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, WFORMAT);
 		tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
 
 		tech_pvt->owner = chan;

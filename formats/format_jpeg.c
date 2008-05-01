@@ -63,7 +63,7 @@ static struct cw_frame *jpeg_read_image(int fd, int len)
     }
 
     if ((fr = malloc(sizeof(struct cw_frame) + len))) {
-        cw_fr_init_ex(fr, CW_FRAME_IMAGE, CW_FORMAT_JPEG, src);
+        cw_fr_init_ex(fr, CW_FRAME_IMAGE, CW_FORMAT_JPEG);
         fr->mallocd |= CW_MALLOCD_DATA_WITH_HDR;
         fr->data = fr->local_data;
         fr->datalen = len;

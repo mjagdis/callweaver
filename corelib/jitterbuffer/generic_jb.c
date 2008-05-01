@@ -484,7 +484,7 @@ static void jb_get_and_deliver(struct cw_channel *chan)
 		case JB_IMPL_INTERP:
 			/* interpolate a frame */
 			f = &finterp;
-			cw_fr_init_ex(f, CW_FRAME_VOICE, jb->last_format, "JB interpolation");
+			cw_fr_init_ex(f, CW_FRAME_VOICE, jb->last_format);
 			f->samples = interpolation_len * 8;
 			f->delivery = cw_tvadd(jb->timebase, cw_samp2tv(jb->next, 1000));
 			f->offset=CW_FRIENDLY_OFFSET;

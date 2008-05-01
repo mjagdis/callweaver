@@ -154,7 +154,7 @@ static struct cw_frame *alawtoulaw_frameout(void *pvt)
     if (tmp->tail == 0)
         return NULL;
 
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
     tmp->f.datalen = tmp->tail;
     tmp->f.samples = tmp->tail;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
@@ -199,7 +199,7 @@ static struct cw_frame *ulawtoalaw_frameout(void *pvt)
   
     if (tmp->tail)
     {
-        cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ALAW, __PRETTY_FUNCTION__);
+        cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ALAW);
         tmp->f.samples = tmp->tail;
         tmp->f.offset = CW_FRIENDLY_OFFSET;
         tmp->f.data = tmp->outbuf;
@@ -218,7 +218,7 @@ static struct cw_frame *alawtoulaw_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW);
     f.datalen = sizeof (ulaw_ex);
     f.samples = sizeof(ulaw_ex);
     f.data = ulaw_ex;
@@ -229,7 +229,7 @@ static struct cw_frame *ulawtoalaw_sample(void)
 {
     static struct cw_frame f;
   
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
     f.datalen = sizeof (alaw_ex);
     f.samples = sizeof(alaw_ex);
     f.data = alaw_ex;

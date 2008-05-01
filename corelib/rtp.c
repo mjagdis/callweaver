@@ -245,7 +245,6 @@ static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
         rtp->f.frametype = CW_FRAME_DTMF;
         rtp->f.subclass = rtp->lastevent_code;
     }
-    rtp->f.src = "RTP";
     rtp->lastevent_code = 0;
     return  &rtp->f;
 }
@@ -1218,7 +1217,6 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     }
     rtp->f.seq_no = seqno;
 	rtp->f.tx_copies = 0;
-    rtp->f.src = "RTP";
     return &rtp->f;
 }
 

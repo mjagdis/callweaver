@@ -115,7 +115,7 @@ static struct cw_frame *lintogsm_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -127,7 +127,7 @@ static struct cw_frame *gsmtolin_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_GSM, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_GSM);
     f.datalen = sizeof(gsm_ex);
     /* All frames are 20 ms long */
     f.samples = 160;
@@ -144,7 +144,7 @@ static struct cw_frame *gsmtolin_frameout(void *pvt)
 
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     /* Assume 8000 Hz */
     tmp->f.samples = tmp->tail;
@@ -184,7 +184,7 @@ static int gsmtolin_framein(void *pvt, struct cw_frame *f)
 
     if ((f->datalen%33)  &&  (f->datalen%65))
     {
-        cw_log(CW_LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
+        cw_log(CW_LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long (len = %d)?\n", f->datalen);
         return -1;
     }
     
@@ -248,7 +248,7 @@ static struct cw_frame *lintogsm_frameout(void *pvt)
     /* We can't work on anything less than a frame in size */
     if (tmp->tail < 160)
         return NULL;
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_GSM, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_GSM);
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
 

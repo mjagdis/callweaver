@@ -91,7 +91,7 @@ static void *g726_open(FILE *f, int rate, char *name)
     {
         tmp->f = f;
         tmp->rate = rate;
-        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_G726, name);
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_G726);
         tmp->fr.offset = CW_FRIENDLY_OFFSET;
         tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;

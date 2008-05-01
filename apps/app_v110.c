@@ -250,7 +250,7 @@ static int login_v110(struct cw_channel *chan, int argc, char **argv, char *resu
 	cw_set_write_format(chan, cw_best_codec(chan->nativeformats));
 	cw_set_read_format(chan, cw_best_codec(chan->nativeformats));
 
-    cw_fr_init_ex(&vs->f, CW_FRAME_VOICE, chan->readformat, NULL);
+    cw_fr_init_ex(&vs->f, CW_FRAME_VOICE, chan->readformat);
 	vs->f.data = vs->fdata;
 	vs->f.offset = CW_FRIENDLY_OFFSET;
 

@@ -3564,7 +3564,6 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 
 	index = zt_get_index(cw, p, 0);
     cw_fr_init(&p->subs[index].f);
-	p->subs[index].f.src = "zt_handle_event";
 	if (index < 0)
 		return &p->subs[index].f;
 	if (p->fake_event) {
@@ -4289,12 +4288,10 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 	int index;
 	struct cw_frame *f;
 
-
 	index = zt_get_index(cw, p, 1);
-	
-    cw_fr_init(&p->subs[index].f);
-	p->subs[index].f.src = "zt_exception";
-	
+
+	cw_fr_init(&p->subs[index].f);
+
 	if ((!p->owner) && (!p->radio)) {
 		/* If nobody owns us, absorb the event appropriately, otherwise
 		   we loop indefinitely.  This occurs when, during call waiting, the
@@ -4408,11 +4405,10 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	}
 	
 	if (p->radio  &&  p->inalarm)
-        return NULL;
+		return NULL;
 
-    cw_fr_init(&p->subs[index].f);
-	p->subs[index].f.src = "zt_read";
-	
+	cw_fr_init(&p->subs[index].f);
+
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))
 	{

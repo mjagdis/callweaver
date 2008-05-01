@@ -255,7 +255,7 @@ static void *ogg_vorbis_open(FILE *fp)
         vorbis_block_init(&tmp->vd, &tmp->vb);
     }
 
-    cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, format.name);
+    cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->fr.offset = CW_FRIENDLY_OFFSET;
     tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
     return tmp;

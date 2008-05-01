@@ -602,7 +602,7 @@ blt_read(struct cw_channel *chan)
   static int fish = 0;
 
   /* Some nice norms */
-  cw_fr_init_ex(&dev->fr, CW_FRAME_VOICE, BLUETOOTH_FORMAT, BLT_CHAN_NAME);
+  cw_fr_init_ex(&dev->fr, CW_FRAME_VOICE, BLUETOOTH_FORMAT);
   dev->fr.mallocd = CW_MALLOCD_DATA;
 
   read(dev->sco_pipe[0], &c, 1);

@@ -1511,7 +1511,7 @@ static struct cw_frame *sms_generate(struct cw_channel *chan, void *data, int sa
         samples = sizeof(h->buf) / sizeof(h->buf[0]);
     len = samples * sizeof(h->buf[0]) + CW_FRIENDLY_OFFSET;
 
-    cw_fr_init_ex(&h->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "app_sms");
+    cw_fr_init_ex(&h->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     h->f.offset = CW_FRIENDLY_OFFSET;
     h->f.data = ((char *) h->buf) + CW_FRIENDLY_OFFSET;
     if (h->opause)

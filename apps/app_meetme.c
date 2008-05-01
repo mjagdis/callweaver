@@ -1666,7 +1666,7 @@ zapretry:
                 res = read(outfd, buf, CONF_SIZE);
                 if (res > 0)
                 {
-                    cw_fr_init_ex(&fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
+                    cw_fr_init_ex(&fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                     fr.datalen = res;
                     fr.samples = res/2;
                     fr.data = buf;

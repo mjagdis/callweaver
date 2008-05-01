@@ -442,7 +442,7 @@ static struct cw_frame *lintospeex_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.datalen = sizeof(slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -454,7 +454,7 @@ static struct cw_frame *speextolin_sample(void)
 {
     static struct cw_frame f;
 
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SPEEX, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SPEEX);
     f.datalen = sizeof(speex_ex);
     /* All frames are 20 ms long */
     f.samples = 160;
@@ -471,7 +471,7 @@ static struct cw_frame *speextolin_frameout(void *pvt)
 
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     /* Assume 8000 Hz */
     tmp->f.samples = tmp->tail;
@@ -585,7 +585,7 @@ static struct cw_frame *lintospeex_frameout(void *pvt)
     /* We can't work on anything less than a frame in size */
     if (tmp->tail < tmp->framesize)
         return NULL;
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SPEEX, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SPEEX);
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
     speex_bits_reset(&tmp->bits);

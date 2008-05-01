@@ -309,7 +309,7 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
     }
     cw_mutex_unlock(&csth->spy.lock);
 
-    cw_fr_init_ex(&csth->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
+    cw_fr_init_ex(&csth->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     csth->f.data = csth->buf;
     csth->f.datalen = csth->f.samples = 0;
 

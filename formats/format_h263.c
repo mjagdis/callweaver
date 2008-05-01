@@ -79,7 +79,7 @@ static void *h263_open(FILE *f)
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
-        cw_fr_init_ex(&tmp->fr, CW_FRAME_VIDEO, CW_FORMAT_H263, format.name);
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VIDEO, CW_FORMAT_H263);
         tmp->fr.offset = CW_FRIENDLY_OFFSET;
         tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         return tmp;

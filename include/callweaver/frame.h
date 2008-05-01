@@ -64,8 +64,6 @@ typedef struct cw_frame
     int mallocd;
     /*! How many bytes exist _before_ "data" that can be used if needed */
     int offset;
-    /*! Optional source of frame for debugging */
-    const char *src;
     /*! Pointer to actual data */
     void *data;
     /*! Global delivery time */        
@@ -98,9 +96,6 @@ typedef struct cw_frame
 /*! Need the data be free'd? */
 #define CW_MALLOCD_DATA                (1 << 1)
 #define CW_MALLOCD_DATA_WITH_HDR       (1 << 2)
-/*! Need the source be free'd? */
-#define CW_MALLOCD_SRC                 (1 << 3)
-#define CW_MALLOCD_SRC_WITH_HDR        (1 << 4)
 
 /* Frame types */
 /*! An empty frame. This must always be 0. */
@@ -301,7 +296,6 @@ struct cw_option_header {
  * \param frame		frame to initialise
  * \param type		frame type
  * \param subtype	frame sub-type
- * \param src		a string identifying the source of the frame for debug purposes
  *
  * Initialise the contents of a frame.
  *
@@ -309,13 +303,12 @@ struct cw_option_header {
  *
  * \return Nothing
  */
-static inline void cw_fr_init_ex(struct cw_frame *frame, int type, int subtype, const char *src)
+static inline void cw_fr_init_ex(struct cw_frame *frame, int type, int subtype)
 {
 	memset(frame, 0, sizeof(struct cw_frame));
 	frame->frametype = type;
 	frame->subclass = subtype;
 	frame->samplerate = 8000;
-	frame->src = (src  ?  src  :  "");
 	frame->tx_copies = 1;
 }
 
@@ -334,7 +327,6 @@ static inline void cw_fr_init(struct cw_frame *frame)
 {
 	memset(frame, 0, sizeof(struct cw_frame));
 	frame->samplerate = 8000;
-	frame->src = "";
 	frame->seq_no = -1;
 	frame->tx_copies = 1;
 }
@@ -352,13 +344,10 @@ static inline void cw_fr_free(struct cw_frame *frame)
 	/* Most frames are not malloc'd at all */
 	if (unlikely(frame->mallocd)) {
 		/* If they are they are most likely the result of a cw_frisolate or
-		 * a cw_fr_dup so the data and src is contiguous with the header.
+		 * a cw_fr_dup so the data is contiguous with the header.
 		 */
 		if (unlikely(frame->data && (frame->mallocd & CW_MALLOCD_DATA)))
 			free(frame->data - frame->offset);
-
-		if (unlikely(frame->src && (frame->mallocd & CW_MALLOCD_SRC)))
-			free((void *)frame->src);
 
 		if (likely((frame->mallocd & CW_MALLOCD_HDR)))
 			free(frame);
@@ -370,7 +359,7 @@ static inline void cw_fr_free(struct cw_frame *frame)
  *
  * \param frame		frame to isolate
  *
- * Take a frame, and replace any non-malloc'd header, data or src with malloc'd copies.
+ * Take a frame, and replace any non-malloc'd header or data with malloc'd copies.
  * If you need to store frames for any reason you should call this function to ensure
  * that you are not storing pointers into space (such as stack space) that may change,
  * or disappear entirely, under you.

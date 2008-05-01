@@ -340,7 +340,7 @@ static void *wav_open(FILE *f)
         tmp->f = f;
         tmp->maxlen = maxlen;
         tmp->needsgain = 1;
-        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, format.name);
+        cw_fr_init_ex(&tmp->fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
         tmp->fr.offset = CW_FRIENDLY_OFFSET;
         tmp->fr.data = &tmp->buf[CW_FRIENDLY_OFFSET];
         tmp->bytes = 0;

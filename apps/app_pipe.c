@@ -205,7 +205,7 @@ static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 				if (ms <= 0) {
 					res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 					if (res > 0) {
-                        cw_fr_init_ex(&myf.f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+                        cw_fr_init_ex(&myf.f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 						myf.f.datalen = res;
 						myf.f.samples = res/sizeof(int16_t);
 						myf.f.offset = CW_FRIENDLY_OFFSET;

@@ -213,7 +213,7 @@ static struct cw_frame *g726tolin_frameout(void *pvt)
     if (tmp->tail == 0)
         return NULL;
 
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->f.datalen = tmp->tail*2;
     tmp->f.samples = tmp->tail;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
@@ -264,7 +264,7 @@ static struct cw_frame *lintog726_frameout(void *pvt)
   
     if (tmp->tail == 0)
         return NULL;
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_G726, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_G726);
     tmp->f.samples = tmp->tail*2;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
@@ -278,7 +278,7 @@ static struct cw_frame *g726tolin_sample(void)
 {
     static struct cw_frame f;
  
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G726, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G726);
     f.datalen = sizeof(g726_ex);
     f.samples = sizeof(g726_ex)*2;
     f.data = (uint8_t *) g726_ex;
@@ -289,7 +289,7 @@ static struct cw_frame *lintog726_sample(void)
 {
     static struct cw_frame f;
   
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof (slin_ex)/sizeof(int16_t);

@@ -145,7 +145,6 @@ static int udptl_rx_packet_handler(void *user_data, const uint8_t msg[], int len
     s->f[s->f_no].datalen = len;
     s->f[s->f_no].data = (uint8_t *) msg;
     s->f[s->f_no].offset = 0;
-    s->f[s->f_no].src = "UDPTL";
     if (s->f_no > 0)
     {
         s->f[s->f_no].prev = &s->f[s->f_no - 1];

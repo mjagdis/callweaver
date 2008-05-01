@@ -1949,7 +1949,7 @@ cw_verbose(VERBOSE_PREFIX_3 "R %.3f %02d %02x%02x%02x%02x%02x%02x%02x%02x %d\n",
 	nread);
 #endif
 
-	cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW, "");
+	cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW);
 	f.samples = nread;
 	f.datalen = nread;
 	f.data = visdn_chan->buf;

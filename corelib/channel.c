@@ -1658,7 +1658,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	if (!cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && !cw_strlen_zero(chan->dtmfq))
 	{
 		/* We have DTMF that has been deferred.  Return it now */
-    		cw_fr_init_ex(&chan->dtmff, CW_FRAME_DTMF, chan->dtmfq[0], NULL);
+    		cw_fr_init_ex(&chan->dtmff, CW_FRAME_DTMF, chan->dtmfq[0]);
 		/* Drop first digit */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
 		cw_mutex_unlock(&chan->lock);
@@ -2021,7 +2021,6 @@ int cw_prod(struct cw_channel *chan)
 		cw_log(CW_LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->rawwriteformat;
 		a.data = nothing + CW_FRIENDLY_OFFSET;
-		a.src = "cw_prod";
 		if (cw_write(chan, &a))
 			cw_log(CW_LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}
@@ -3711,7 +3710,7 @@ static struct cw_frame *tonepair_generate(struct cw_channel *chan, void *data, i
 {
 	struct tonepair_state *ts = data;
 
-	cw_fr_init_ex(&ts->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
+	cw_fr_init_ex(&ts->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 
 	ts->f.datalen = samples * sizeof(ts->data[0]);
 	if (ts->f.datalen > sizeof(ts->data) / sizeof(ts->data[0]) - 1)

@@ -144,7 +144,7 @@ static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int
     struct faxgen_state *fgs = data;
     int len;
 
-    cw_fr_init_ex(&fgs->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
+    cw_fr_init_ex(&fgs->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 
     samples = (samples <= MAX_BLOCK_SIZE)  ?  samples  :  MAX_BLOCK_SIZE;
     if ((len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*CW_FRIENDLY_OFFSET], samples)) > 0) {
@@ -252,7 +252,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 
     chan = (struct cw_channel *) user_data;
 
-    cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38, "RxFAX");
+    cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38);
     outf.datalen = len;
     outf.data = (char *) buf;
     outf.tx_copies = count;
@@ -489,7 +489,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 
             samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
             if ((len = fax_tx(fax, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)) > 0) {
-                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
+                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                 outf.datalen = len*sizeof(int16_t);
                 outf.samples = len;
                 outf.data = &buf[CW_FRIENDLY_OFFSET];
@@ -503,7 +503,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 	    else 
 	    {
 	        len = samples;
-                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, "RxFAX");
+                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                 outf.datalen = len*sizeof(int16_t);
                 outf.samples = len;
                 outf.data = &buf[CW_FRIENDLY_OFFSET];

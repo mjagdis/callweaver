@@ -234,7 +234,7 @@ static void *muxmon_thread(void *obj)
     name = cw_strdupa(muxmon->chan->name);
 
     framelen = 160*sizeof(int16_t);
-    cw_fr_init_ex(&frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, NULL);
+    cw_fr_init_ex(&frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     frame.data = buf;
     cw_set_flag(muxmon, MUXFLAG_RUNNING);
     oflags = O_CREAT|O_WRONLY;

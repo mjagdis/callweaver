@@ -215,7 +215,7 @@ static struct cw_frame *ulawtolin_frameout(void *pvt)
     if (tmp->tail == 0)
         return NULL;
 
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
@@ -271,7 +271,7 @@ static struct cw_frame *lintoulaw_frameout(void *pvt)
     if (tmp->tail == 0)
         return NULL;
     
-    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
     tmp->f.samples = tmp->tail;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
     tmp->f.data = tmp->outbuf;
@@ -288,7 +288,7 @@ static struct cw_frame *ulawtolin_sample(void)
 {
     static struct cw_frame f;
   
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
     f.datalen = sizeof (ulaw_slin_ex);
     f.samples = sizeof(ulaw_slin_ex);
     f.data = ulaw_slin_ex;
@@ -302,7 +302,7 @@ static struct cw_frame *lintoulaw_sample(void)
 {
     static struct cw_frame f;
   
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     f.datalen = sizeof(slin_ulaw_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);

@@ -108,7 +108,7 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 			amt = *remainder;
 		else
 			*remainder = *remainder - amt;
-        cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW, NULL);
+        cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW);
 		outf.data = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -144,7 +144,7 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 				amt = inf->datalen;
 			else if (remainder)
 				*remainder = inf->datalen - amt;
-            cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW, NULL);
+            cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW);
 			outf.data = buf;
 			outf.datalen = amt;
 			outf.samples = amt;
