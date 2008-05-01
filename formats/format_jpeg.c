@@ -47,27 +47,35 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/image.h"
 #include "callweaver/lock.h"
 
+
 static const char desc[] = "JPEG (Joint Picture Experts Group) Image Format";
+
 
 static struct cw_frame *jpeg_read_image(int fd, int len)
 {
-    struct cw_frame fr;
+    static char src[] = "JPEG Read";
+    struct cw_frame *fr;
     int res;
-    char buf[65536];
-    
-    if (len > sizeof(buf)  ||  len < 0)
-    {
-        cw_log(CW_LOG_WARNING, "JPEG image too large to read\n");
+
+    if (len > 65535  ||  len < 0) {
+        cw_log(CW_LOG_WARNING, "JPEG image too large, size %d is not between 0 and 65535\n", len);
         return NULL;
     }
-    if ((res = read(fd, buf, len)) < len)
-    {
-        cw_log(CW_LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
+
+    if ((fr = malloc(sizeof(struct cw_frame) + len))) {
+        cw_fr_init_ex(fr, CW_FRAME_IMAGE, CW_FORMAT_JPEG, src);
+        fr->mallocd |= CW_MALLOCD_DATA_WITH_HDR;
+        fr->data = fr->local_data;
+        fr->datalen = len;
+
+        if ((res = read(fd, fr->data, len)) != len)
+            cw_log(CW_LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
+
+        return fr;
     }
-    cw_fr_init_ex(&fr, CW_FRAME_IMAGE, CW_FORMAT_JPEG, "JPEG Read");
-    fr.data = buf;
-    fr.datalen = len;
-    return cw_frisolate(&fr);
+
+    cw_log(CW_LOG_ERROR, "Out of memory!\n");
+    return NULL;
 }
 
 static int jpeg_identify(int fd)
