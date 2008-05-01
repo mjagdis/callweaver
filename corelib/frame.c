@@ -334,98 +334,6 @@ struct cw_frame *cw_frdup(struct cw_frame *frame)
     return out;
 }
 
-#if 0
-/*
- * XXX
- * This function is badly broken - it does not handle correctly
- * partial reads on either header or body.
- * However is it never used anywhere so we leave it commented out
- */
-struct cw_frame *cw_fr_fdread(int fd)
-{
-    char buf[65536];
-    int res;
-    int ttl = sizeof(struct cw_frame);
-    struct cw_frame *f = (struct cw_frame *) buf;
-
-    /* Read a frame directly from there.  They're always in the right format. */
-    while (ttl)
-    {
-        res = read(fd, buf, ttl);
-        if (res < 0)
-        {
-            cw_log(CW_LOG_WARNING, "Bad read on %d: %s\n", fd, strerror(errno));
-            return NULL;
-        }
-        ttl -= res;
-    }
-
-    /* read the frame header */
-    f->mallocd = 0;
-    /* Re-write data position */
-    f->data = buf + sizeof(struct cw_frame);
-    f->offset = 0;
-    /* Forget about being mallocd */
-    f->mallocd = 0;
-    /* Re-write the source */
-    if (f->datalen > sizeof(buf) - sizeof(struct cw_frame))
-    {
-        /* Really bad read */
-        cw_log(CW_LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
-        return NULL;
-    }
-    if (f->datalen)
-    {
-        if ((res = read(fd, f->data, f->datalen)) != f->datalen)
-        {
-            /* Bad read */
-            cw_log(CW_LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
-            return NULL;
-        }
-    }
-    if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_HANGUP))
-    {
-        return NULL;
-    }
-    return cw_frisolate(f);
-}
-
-/* Some convenient routines for sending frames to/from stream or datagram
-   sockets, pipes, etc (maybe even files) */
-
-/*
- * XXX this function is also partly broken because it does not handle
- * partial writes. We comment it out too, and also the unique
- * client it has, cw_fr_fdhangup()
- */
-int cw_fr_fdwrite(int fd, struct cw_frame *frame)
-{
-    /* Write the frame exactly */
-    if (write(fd, frame, sizeof(struct cw_frame)) != sizeof(struct cw_frame))
-    {
-        cw_log(CW_LOG_WARNING, "Write error: %s\n", strerror(errno));
-        return -1;
-    }
-    if (write(fd, frame->data, frame->datalen) != frame->datalen)
-    {
-        cw_log(CW_LOG_WARNING, "Write error: %s\n", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-int cw_fr_fdhangup(int fd)
-{
-    static const struct cw_frame hangup =
-    {
-        CW_FRAME_CONTROL,
-        CW_CONTROL_HANGUP
-    };
-    return cw_fr_fdwrite(fd, &hangup);
-}
-
-#endif /* unused functions */
-
 void cw_swapcopy_samples(void *dst, const void *src, int samples)
 {
     int i;
@@ -480,19 +388,6 @@ int cw_codec_sample_rate(struct cw_frame *f)
         return -1;
     return cw_format_list[top_bit(codec)].sample_rate;
 }
-
-#if 0
-struct cw_format_list_s *cw_get_format_list_index(int index)
-{
-    return &cw_format_list[index];
-}
-
-struct cw_format_list_s *cw_get_format_list(size_t *size)
-{
-    *size = (sizeof(cw_format_list)/sizeof(struct cw_format_list_s));
-    return cw_format_list;
-}
-#endif
 
 char *cw_getformatname(int format)
 {

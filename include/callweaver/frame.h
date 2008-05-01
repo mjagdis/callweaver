@@ -388,31 +388,6 @@ struct cw_frame *cw_frisolate(struct cw_frame *frame);
 struct cw_frame *cw_frdup(struct cw_frame *frame);
 
 
-/*! Reads a frame from an fd */
-/*! 
- * \param fd an opened fd to read from
- * Read a frame from a stream or packet fd, as written by fd_write
- * returns a frame on success, NULL on error
- */
-struct cw_frame *cw_fr_fdread(int fd);
-
-/*! Writes a frame to an fd */
-/*! 
- * \param fd Which fd to write to
- * \param frame frame to write to the fd
- * Write a frame to an fd
- * Returns 0 on success, -1 on failure
- */
-int cw_fr_fdwrite(int fd, struct cw_frame *frame);
-
-/*! Sends a hangup to an fd */
-/*! 
- * \param fd fd to write to
- * Send a hangup (NULL equivalent) on an fd
- * Returns 0 on success, -1 on failure
- */
-int cw_fr_fdhangup(int fd);
-
 void cw_swapcopy_samples(void *dst, const void *src, int samples);
 
 /* Helpers for byteswapping native samples to/from 
@@ -461,8 +436,6 @@ extern char *cw_codec2str(int codec);
 
 struct cw_smoother;
 
-extern struct cw_format_list_s *cw_get_format_list_index(int index);
-extern struct cw_format_list_s *cw_get_format_list(size_t *size);
 extern struct cw_smoother *cw_smoother_new(int bytes);
 extern void cw_smoother_set_flags(struct cw_smoother *smoother, int flags);
 extern int cw_smoother_test_flag(struct cw_smoother *s, int flag);
