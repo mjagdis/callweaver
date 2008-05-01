@@ -172,7 +172,7 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 	regex_t regexbuf;
 	int i;
 
-	if (argc < 2 || !argv[0][0] || !argv[1][0])
+	if (argc < 2 || !argv[0][0] || !argv[1])
 		return cw_function_syntax(regex_func_syntax);
 
 	if (!buf) {
