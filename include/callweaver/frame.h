@@ -34,6 +34,11 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/time.h>
 #include <inttypes.h>
+#include <string.h>
+
+#include "callweaver/time.h"
+#include "callweaver/utils.h"
+
 
 struct cw_codec_pref
 {
@@ -89,13 +94,17 @@ typedef struct cw_frame
 #define CW_MIN_OFFSET         32        /*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
-#define CW_MALLOCD_HDR        (1 << 0)
+#define CW_MALLOCD_HDR                 (1 << 0)
 /*! Need the data be free'd? */
-#define CW_MALLOCD_DATA       (1 << 1)
-/*! Need the source be free'd? (haha!) */
-#define CW_MALLOCD_SRC        (1 << 2)
+#define CW_MALLOCD_DATA                (1 << 1)
+#define CW_MALLOCD_DATA_WITH_HDR       (1 << 2)
+/*! Need the source be free'd? */
+#define CW_MALLOCD_SRC                 (1 << 3)
+#define CW_MALLOCD_SRC_WITH_HDR        (1 << 4)
 
 /* Frame types */
+/*! An empty frame. This must always be 0. */
+#define CW_FRAME_NULL         0
 /*! A DTMF digit, subclass is the digit */
 #define CW_FRAME_DTMF         1
 /*! Voice data, subclass is CW_FORMAT_* */
@@ -104,21 +113,19 @@ typedef struct cw_frame
 #define CW_FRAME_VIDEO        3
 /*! A control frame, subclass is CW_CONTROL_* */
 #define CW_FRAME_CONTROL      4
-/*! An empty, useless frame */
-#define CW_FRAME_NULL         5
 /*! Inter CallWeaver Exchange private frame type */
-#define CW_FRAME_IAX          6
+#define CW_FRAME_IAX          5
 /*! Text messages */
-#define CW_FRAME_TEXT         7
+#define CW_FRAME_TEXT         6
 /*! Image Frames */
-#define CW_FRAME_IMAGE        8
+#define CW_FRAME_IMAGE        7
 /*! HTML Frame */
-#define CW_FRAME_HTML         9
+#define CW_FRAME_HTML         8
 /*! Comfort noise frame (subclass is level of CNG in -dBov), 
     body may include zero or more 8-bit reflection coefficients */
-#define CW_FRAME_CNG          10
+#define CW_FRAME_CNG          9
 /*! T.38, V.150 or other modem-over-IP data stream */
-#define CW_FRAME_MODEM        11
+#define CW_FRAME_MODEM        10
 
 /* MODEM subclasses */
 /*! T.38 Fax-over-IP */
@@ -288,55 +295,109 @@ struct cw_option_header {
         u_int8_t data[0];
 };
 
-/*  Requests a frame to be allocated */
-/* 
- * \param source 
- * Request a frame be allocated.  source is an optional source of the frame, 
- * len is the requested length, or "0" if the caller will supply the buffer 
- */
-#if 0 /* Unimplemented */
-struct cw_frame *cw_fralloc(char *source, int len);
-#endif
 
-/*! Initialises a frame */
-/*! 
- * \param fr Frame to initialise
- * Initialise the contenst of a frame to sane values.
- * no return.
+/*! \brief Initialises a frame to a given type
+ *
+ * \param frame		frame to initialise
+ * \param type		frame type
+ * \param subtype	frame sub-type
+ * \param src		a string identifying the source of the frame for debug purposes
+ *
+ * Initialise the contents of a frame.
+ *
+ * \sa cw_fr_init()
+ *
+ * \return Nothing
  */
-void cw_fr_init(struct cw_frame *fr);
+static inline void cw_fr_init_ex(struct cw_frame *frame, int type, int subtype, const char *src)
+{
+	memset(frame, 0, sizeof(struct cw_frame));
+	frame->frametype = type;
+	frame->subclass = subtype;
+	frame->samplerate = 8000;
+	frame->src = (src  ?  src  :  "");
+	frame->tx_copies = 1;
+}
 
-void cw_fr_init_ex(struct cw_frame *fr,
-                     int frame_type,
-                     int sub_type,
-                     const char *src);
 
-/*! Frees a frame */
-/*! 
- * \param fr Frame to free
- * Free a frame, and the memory it used if applicable
- * no return.
+/*! \brief Initialises a frame to be null
+ *
+ * \param frame		frame to initialise
+ *
+ * Initialise the contents of a frame.
+ *
+ * \sa cw_fr_init_ex()
+ *
+ * \return Nothing
  */
-void cw_fr_free(struct cw_frame *fr);
+static inline void cw_fr_init(struct cw_frame *frame)
+{
+	memset(frame, 0, sizeof(struct cw_frame));
+	frame->samplerate = 8000;
+	frame->src = "";
+	frame->seq_no = -1;
+	frame->tx_copies = 1;
+}
 
-/*! Copies a frame */
-/*! 
- * \param fr frame to act upon
- * Take a frame, and if it's not been malloc'd, make a malloc'd copy
- * and if the data hasn't been malloced then make the
- * data malloc'd.  If you need to store frames, say for queueing, then
- * you should call this function.
- * Returns a frame on success, NULL on error
+/*! \brief Free a frame
+ *
+ * \param frame		frame to free
+ *
+ * Free a frame, releasing any memory that was allocated for it.
+ *
+ * \return Nothing
  */
-struct cw_frame *cw_frisolate(struct cw_frame *fr);
+static inline void cw_fr_free(struct cw_frame *frame)
+{
+	/* Most frames are not malloc'd at all */
+	if (unlikely(frame->mallocd)) {
+		/* If they are they are most likely the result of a cw_frisolate or
+		 * a cw_fr_dup so the data and src is contiguous with the header.
+		 */
+		if (unlikely(frame->data && (frame->mallocd & CW_MALLOCD_DATA)))
+			free(frame->data - frame->offset);
 
-/*! Copies a frame */
-/*! 
- * \param fr frame to copy
- * Dupliates a frame -- should only rarely be used, typically frisolate is good enough
- * Returns a frame on success, NULL on error
+		if (unlikely(frame->src && (frame->mallocd & CW_MALLOCD_SRC)))
+			free((void *)frame->src);
+
+		if (likely((frame->mallocd & CW_MALLOCD_HDR)))
+			free(frame);
+	}
+}
+
+
+/*! \brief Isolate a frame
+ *
+ * \param frame		frame to isolate
+ *
+ * Take a frame, and replace any non-malloc'd header, data or src with malloc'd copies.
+ * If you need to store frames for any reason you should call this function to ensure
+ * that you are not storing pointers into space (such as stack space) that may change,
+ * or disappear entirely, under you.
+ *
+ * Note: the frame pointer returned may or may not be the same as the frame pointer
+ * passed. If the frame header has been moved into malloc'd space the returned
+ * pointer WILL be different and the original frame WILL have been freed.
+ *
+ * \sa cw_frdup()
+ *
+ * \return Replacement frame on success, NULL on error
  */
-struct cw_frame *cw_frdup(struct cw_frame *fr);
+struct cw_frame *cw_frisolate(struct cw_frame *frame);
+
+
+/*! \brief Duplicate a frame
+ *
+ * \param frame		frame to duplicate
+ *
+ * Duplicates a frame -- should only rarely be used, typically cw_frisolate is good enough
+ *
+ * \sa cw_frisolate()
+ *
+ * \return Duplicate frame on success, NULL on error
+ */
+struct cw_frame *cw_frdup(struct cw_frame *frame);
+
 
 /*! Reads a frame from an fd */
 /*! 

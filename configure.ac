@@ -845,14 +845,6 @@ if test "${enable_do_crash}" = "yes"; then
    AC_DEFINE([DO_CRASH],[],[Enable DO_CRASH.])
 fi
 
-dnl Enable frame tracing
-AC_ARG_ENABLE(frame-tracing,
-        [AC_HELP_STRING([--enable-frame-tracing],[Build with frame tracing.])],,[enable_frame_tracing="no"])
-
-if test "${enable_frame_tracing}" = "yes"; then
-   AC_DEFINE([TRACE_FRAMES],[],[Build with frame tracing.])
-fi
-
 dnl Enable valgrind shit
 AC_ARG_ENABLE(valgrind,
         [AC_HELP_STRING([--enable-valgrind],[Build with valgrind information])],,[enable_valgrind="no"])

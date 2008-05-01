@@ -46,12 +46,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-#ifdef TRACE_FRAMES
-static int headers = 0;
-static struct cw_frame *headerlist = NULL;
-CW_MUTEX_DEFINE_STATIC(framelock);
-#endif
-
 #define SMOOTHER_SIZE 8000
 
 #define TYPE_HIGH       0x0
@@ -252,243 +246,125 @@ void cw_smoother_free(struct cw_smoother *s)
     free(s);
 }
 
-static struct cw_frame *cw_frame_header_new(void)
-{
-    struct cw_frame *f;
 
-    if ((f = malloc(sizeof(struct cw_frame))))
-        memset(f, 0, sizeof(struct cw_frame));
-#ifdef TRACE_FRAMES
-    if (f)
-    {
-        headers++;
-        f->prev = NULL;
-        cw_mutex_lock(&framelock);
-        f->next = headerlist;
-        if (headerlist)
-            headerlist->prev = f;
-        headerlist = f;
-        cw_mutex_unlock(&framelock);
-    }
-#endif
-    return f;
-}
-
-/*
- * Important: I should be made more efficient.  Frame headers should
- * most definitely be cached
- */
-
-void cw_fr_init(struct cw_frame *fr)
-{
-    fr->frametype = CW_FRAME_NULL;
-    fr->subclass = 0;
-    fr->datalen = 0;
-    fr->samples = 0;
-    fr->samplerate = 8000;
-    fr->mallocd = 0;
-    fr->offset = 0;
-    fr->src = "";
-    fr->data = NULL;
-    fr->delivery.tv_sec = 0;
-    fr->delivery.tv_usec = 0;
-    fr->prev = NULL;
-    fr->next = NULL;
-    fr->has_timing_info = 0;
-    fr->ts = 0;
-    fr->len = 0;
-    fr->seq_no = -1;
-    fr->tx_copies = 1;
-}
-
-void cw_fr_init_ex(struct cw_frame *fr,
-                     int frame_type,
-                     int sub_type,
-                     const char *src)
-{
-    fr->frametype = frame_type;
-    fr->subclass = sub_type;
-    fr->datalen = 0;
-    fr->samples = 0;
-    fr->samplerate = 8000;
-    fr->mallocd = 0;
-    fr->offset = 0;
-    fr->src = (src)  ?  src  :  "";
-    fr->data = NULL;
-    fr->delivery = cw_tv(0,0);
-    fr->prev = NULL;
-    fr->next = NULL;
-    fr->has_timing_info = 0;
-    fr->ts = 0;
-    fr->len = 0;
-    fr->seq_no = 0;
-    fr->tx_copies = 1;
-}
-
-void cw_fr_free(struct cw_frame *fr)
-{
-    if ((fr->mallocd & CW_MALLOCD_DATA))
-    {
-        if (fr->data)
-            free(fr->data - fr->offset);
-    }
-    if ((fr->mallocd & CW_MALLOCD_SRC))
-    {
-        if (fr->src)
-            free((char *) fr->src);
-    }
-    if ((fr->mallocd & CW_MALLOCD_HDR))
-    {
-#ifdef TRACE_FRAMES
-        headers--;
-        cw_mutex_lock(&framelock);
-        if (fr->next)
-            fr->next->prev = fr->prev;
-        if (fr->prev)
-            fr->prev->next = fr->next;
-        else
-            headerlist = fr->next;
-        cw_mutex_unlock(&framelock);
-#endif
-        free(fr);
-    }
-}
-
-/*
- * 'isolates' a frame by duplicating non-malloc'ed components
- * (header, src, data).
- * On return all components are malloc'ed
- */
-struct cw_frame *cw_frisolate(struct cw_frame *fr)
+struct cw_frame *cw_frisolate(struct cw_frame *frame)
 {
     struct cw_frame *out;
-    void *tmp;
+    char *tmp;
 
-    if (!(fr->mallocd & CW_MALLOCD_HDR))
+    if (!(frame->mallocd & CW_MALLOCD_HDR))
     {
-        /* Allocate a new header if needed */
-        out = cw_frame_header_new();
-        if (!out)
-        {
-            cw_log(CW_LOG_WARNING, "Out of memory\n");
-            return NULL;
-        }
-        cw_fr_init_ex(out, fr->frametype, fr->subclass, NULL);
-        out->datalen = fr->datalen;
-        out->samples = fr->samples;
-        out->offset = fr->offset;
-        out->data = fr->data;
+        size_t slen = 0;
+        size_t dlen = 0;
 
-        /* Copy the timing data */
-        out->has_timing_info = fr->has_timing_info;
-        if (fr->has_timing_info)
+        if (frame->src && !(frame->mallocd & CW_MALLOCD_SRC))
+            slen = strlen(frame->src) + 1;
+
+        if (frame->data && !(frame->mallocd & CW_MALLOCD_DATA))
+            dlen = frame->datalen + frame->offset;
+
+        if ((out = malloc(sizeof(*out) + dlen + slen)))
         {
-            out->ts = fr->ts;
-            out->len = fr->len;
-            out->seq_no = fr->seq_no;
-        }
-    }
-    else
-    {
-        out = fr;
-    }
-    if (!(fr->mallocd & CW_MALLOCD_SRC))
-    {
-        if (fr->src)
-        {
-            out->src = strdup(fr->src);
-            if (!out->src)
+            memcpy(out, frame, sizeof(struct cw_frame));
+            out->mallocd = CW_MALLOCD_HDR;
+
+            if (slen)
             {
-                if (out != fr)
-                    free(out);
-                cw_log(CW_LOG_WARNING, "Out of memory\n");
-                return NULL;
+                out->mallocd |= CW_MALLOCD_SRC_WITH_HDR;
+                out->src = out->local_data + dlen;
+                memcpy(out->local_data + dlen, frame->src, slen);
+            }
+
+            if (dlen)
+            {
+                out->mallocd |= CW_MALLOCD_DATA_WITH_HDR;
+                out->data = out->local_data + frame->offset;
+                memcpy(out->data, frame->data, frame->datalen);
             }
         }
+        else
+        {
+            cw_log(CW_LOG_ERROR, "Out of memory\n");
+        }
+
+	/* If data or src was originally malloc'd we've inherited
+	 * it so we don't want it to be freed from under us.
+	 */
+        frame->mallocd &= ~(CW_MALLOCD_DATA|CW_MALLOCD_SRC);
+        cw_fr_free(frame);
     }
     else
     {
-        out->src = fr->src;
-    }
-    if (!(fr->mallocd & CW_MALLOCD_DATA))
-    {
-        tmp = fr->data;
-        if ((out->data = malloc(fr->datalen + CW_FRIENDLY_OFFSET)) == NULL)
-        {
-            free(out);
+        out = frame;
 
-            cw_log(CW_LOG_WARNING, "Out of memory\n");
-            return NULL;
+        if (frame->src && !(frame->mallocd & (CW_MALLOCD_SRC|CW_MALLOCD_SRC_WITH_HDR)))
+        {
+            if (!(tmp = strdup(frame->src)))
+	    {
+	        out->src = tmp;
+	        out->mallocd |= CW_MALLOCD_SRC;
+	    }
+	    else
+                cw_log(CW_LOG_WARNING, "Out of memory\n");
         }
-        out->data += CW_FRIENDLY_OFFSET;
-        out->offset = CW_FRIENDLY_OFFSET;
-        out->datalen = fr->datalen;
-        memcpy(out->data, tmp, fr->datalen);
+
+        if (frame->data && !(frame->mallocd & (CW_MALLOCD_DATA|CW_MALLOCD_DATA_WITH_HDR)))
+        {
+            if (!(tmp = malloc(out->offset + out->datalen)))
+            {
+                out->mallocd |= CW_MALLOCD_DATA;
+                memcpy(tmp + out->offset, out->data, out->datalen);
+                out->data = tmp + out->offset;
+            }
+	    else
+                cw_log(CW_LOG_WARNING, "Out of memory\n");
+        }
     }
-    out->mallocd = CW_MALLOCD_HDR | CW_MALLOCD_SRC | CW_MALLOCD_DATA;
+
     return out;
 }
 
-struct cw_frame *cw_frdup(struct cw_frame *f)
+struct cw_frame *cw_frdup(struct cw_frame *frame)
 {
-    struct cw_frame *out;
-    int len;
-    int srclen;
+    struct cw_frame *out = NULL;
 
-    /* Its rather nasty if we are ever passed NULL, but lets try to be as
-       benign as possible in how we treat this situation. */
-    if (f == NULL)
-        return NULL;
-    srclen = 0;
-    /* Start with standard stuff */
-    len = sizeof(struct cw_frame) + CW_FRIENDLY_OFFSET + f->datalen;
-    /* If we have a source, add space for it */
-    /*
-     * XXX Watch out here - if we receive a src which is not terminated
-     * properly, we can easily be attacked. Should limit the size we deal with.
-     */
-    if (f->src)
-        srclen = strlen(f->src);
-    if (srclen > 0)
-        len += srclen + 1;
-    if ((out = (struct cw_frame *) malloc(len)) == NULL)
-        return NULL;
-    /* Set us as having malloc'd header only, so it will eventually
-       get freed. */
-    cw_fr_init_ex(out, f->frametype, f->subclass, NULL);
-    out->datalen = f->datalen;
-    out->samples = f->samples;
-    out->delivery = f->delivery;
-    out->mallocd = CW_MALLOCD_HDR;
-    out->offset = CW_FRIENDLY_OFFSET;
-    if (srclen > 0)
+    if (frame)
     {
-        out->src = (char *)(out->local_data + f->datalen);
-        /* Must have space since we allocated for it */
-        strcpy((char *) out->src, f->src);
+        size_t slen = 0;
+        size_t dlen = 0;
+
+        if (frame->src && !(frame->mallocd & CW_MALLOCD_SRC))
+            slen = strlen(frame->src) + 1;
+
+        if (frame->data && !(frame->mallocd & CW_MALLOCD_DATA))
+            dlen = frame->datalen + frame->offset;
+
+        if ((out = malloc(sizeof(*out) + dlen + slen)))
+        {
+            memcpy(out, frame, sizeof(struct cw_frame));
+	    out->next = out->prev = NULL;
+            out->tx_copies = 1;
+            out->mallocd = CW_MALLOCD_HDR;
+
+            if (slen)
+            {
+                out->mallocd |= CW_MALLOCD_SRC_WITH_HDR;
+                out->src = out->local_data + dlen;
+                memcpy(out->local_data + dlen, frame->src, slen);
+            }
+
+            if (dlen)
+            {
+                out->mallocd |= CW_MALLOCD_DATA_WITH_HDR;
+                out->data = out->local_data + frame->offset;
+                memcpy(out->data, frame->data, frame->datalen);
+            }
+        }
+        else
+        {
+            cw_log(CW_LOG_ERROR, "Out of memory\n");
+        }
     }
-    else
-    {
-        out->src = NULL;
-    }
-    out->prev = NULL;
-    out->next = NULL;
-    if (f->data)
-    {
-        out->data = out->local_data;
-        memcpy(out->data, f->data, out->datalen);
-    }
-    else
-    {
-        out->data = NULL;
-    }
-    out->has_timing_info = f->has_timing_info;
-    if (f->has_timing_info)
-    {
-        out->ts = f->ts;
-        out->len = f->len;
-    }
-    out->seq_no = f->seq_no;
 
     return out;
 }
@@ -990,31 +866,6 @@ void cw_frame_dump(char *name, struct cw_frame *f, char *prefix)
         cw_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n", prefix, ftype, f->frametype, subclass, f->subclass, (name ? name : "unknown"));
 }
 
-#ifdef TRACE_FRAMES
-static int show_frame_stats(int fd, int argc, char *argv[])
-{
-    struct cw_frame *f;
-    int x = 1;
-
-    if (argc != 3)
-        return RESULT_SHOWUSAGE;
-    cw_cli(fd, "     Framer Statistics     \n");
-    cw_cli(fd, "---------------------------\n");
-    cw_cli(fd, "Total allocated headers: %d\n", headers);
-    cw_cli(fd, "Queue Dump:\n");
-    cw_mutex_lock(&framelock);
-    for (f = headerlist;  f;  f = f->next)
-    {
-        cw_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
-    }
-    cw_mutex_unlock(&framelock);
-    return RESULT_SUCCESS;
-}
-
-static char frame_stats_usage[] =
-    "Usage: show frame stats\n"
-    "       Displays debugging statistics from framer\n";
-#endif
 
 /* XXX no unregister function here ??? */
 static struct cw_clicmd my_clis[] =
@@ -1049,14 +900,6 @@ static struct cw_clicmd my_clis[] =
         .summary = "Shows a specific codec",
         .usage = frame_show_codec_n_usage
     },
-#ifdef TRACE_FRAMES
-    {
-        .cmda = { "show", "frame", "stats", NULL },
-        .handler = show_frame_stats,
-        .summary = "Shows frame statistics",
-        .usage = frame_stats_usage
-    },
-#endif
 };
 
 int init_framer(void)
