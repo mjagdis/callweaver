@@ -37,15 +37,24 @@
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
 
+
 struct module;
 
+
 #define arraysize(X) (sizeof(X)/sizeof(X[0]))
+
 
 #ifndef offsetof
 #  define offsetof(type, member) ((size_t) &((type *)0)->member)
 #endif
 
 #define container_of(ptr, type, member) (type *)((size_t)(ptr) - offsetof(type, member))
+
+
+#ifdef __GNUC__
+#  define likely(x)	__builtin_expect(!!(x), 1)
+#  define unlikely(x)	__builtin_expect(!!(x), 0)
+#endif
 
 
 /*! \note
