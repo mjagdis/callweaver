@@ -693,7 +693,7 @@ AC_CHECK_DECLS(INET6_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 ])   
 AC_CHECK_DECLS(__BEGIN_DECLS,[],AC_DEFINE(__BEGIN_DECLS,,[for stupid ast-db1]))
 AC_CHECK_DECLS(__END_DECLS,[],AC_DEFINE(__END_DECLS,,[for stupid ast-db1])) 
-# more type checks, horrible shit
+# more type checks
 if test "$tru64_types" = "yes"; then
         AC_CHECK_TYPE(u_int8_t, unsigned char)
         AC_CHECK_TYPE(u_int16_t, unsigned short)
@@ -845,7 +845,7 @@ if test "${enable_do_crash}" = "yes"; then
    AC_DEFINE([DO_CRASH],[],[Enable DO_CRASH.])
 fi
 
-dnl Enable valgrind shit
+dnl Enable valgrind
 AC_ARG_ENABLE(valgrind,
         [AC_HELP_STRING([--enable-valgrind],[Build with valgrind information])],,[enable_valgrind="no"])
 
