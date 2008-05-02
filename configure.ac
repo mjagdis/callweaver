@@ -63,7 +63,7 @@ if test -n "$SVNVERSION" ; then
 	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${CAT} SVNVERSION`",[Which Subversion revision are we building here?])
 	AC_SUBST([SVN_VERSION])
 elif test -n "$SVN" ; then
-	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${SVN} info | ${GREP} Revision | ${AWK} '{ print $2 }'`",[Which Subversion revision are we building here ?])
+	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${SVN} info | ${AWK} '/^Revision: / { print $2 }'`",[Which Subversion revision are we building here ?])
 else
 	AC_DEFINE_UNQUOTED([SVN_VERSION],"UNKNOWN",[Unknown Subversion because it's not on this machine.] )
 	AC_SUBST([SVN_VERSION])
