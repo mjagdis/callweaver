@@ -80,7 +80,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 #include "callweaver/localtime.h"
-#include "callweaver/aes.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/netsock.h"
 #include "callweaver/generic_jb.h"
@@ -509,9 +508,9 @@ struct chan_iax2_pvt {
 	/*! Private key for outgoing authentication */
 	char outkey[80];
 	/*! Encryption AES-128 Key */
-	aes_encrypt_ctx ecx;
+	AES_KEY ecx;
 	/*! Decryption AES-128 Key */
-	aes_decrypt_ctx dcx;
+	AES_KEY dcx;
 	/*! 32 bytes of semi-random data */
 	unsigned char semirand[32];
 	/*! Preferred language */
@@ -534,7 +533,7 @@ struct chan_iax2_pvt {
 	/*! What's the new call number for the transfer */
 	unsigned short transfercallno;
 	/*! Transfer decrypt AES-128 Key */
-	aes_encrypt_ctx tdcx;
+	AES_KEY tdcx;
 
 	/*! Status of knowledge of peer ADSI capability */
 	int peeradsicpe;
@@ -3085,13 +3084,13 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	return 0;
 }
 
-static void build_enc_keys(const unsigned char *digest, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
+static void build_enc_keys(const unsigned char *digest, AES_KEY *ecx, AES_KEY *dcx)
 {
-	aes_encrypt_key128(digest, ecx);
-	aes_decrypt_key128(digest, dcx);
+	AES_set_encrypt_key(digest, 128, ecx);
+	AES_set_decrypt_key(digest, 128, dcx);
 }
 
-static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, aes_decrypt_ctx *dcx)
+static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, AES_KEY *dcx)
 {
 #if 0
 	/* Debug with "fake encryption" */
@@ -3104,7 +3103,7 @@ static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len
 	unsigned char lastblock[16] = { 0 };
 	int x;
 	while(len > 0) {
-		aes_decrypt(src, dst, dcx);
+		AES_decrypt(src, dst, dcx);
 		for (x=0;x<16;x++)
 			dst[x] ^= lastblock[x];
 		memcpy(lastblock, src, sizeof(lastblock));
@@ -3115,7 +3114,7 @@ static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len
 #endif
 }
 
-static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len, aes_encrypt_ctx *ecx)
+static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len, AES_KEY *ecx)
 {
 #if 0
 	/* Debug with "fake encryption" */
@@ -3130,7 +3129,7 @@ static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len
 	while(len > 0) {
 		for (x=0;x<16;x++)
 			curblock[x] ^= src[x];
-		aes_encrypt(curblock, dst, ecx);
+		AES_encrypt(curblock, dst, ecx);
 		memcpy(curblock, dst, sizeof(curblock)); 
 		dst += 16;
 		src += 16;
@@ -3139,7 +3138,7 @@ static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len
 #endif
 }
 
-static int decode_frame(aes_decrypt_ctx *dcx, struct cw_iax2_full_hdr *fh, struct cw_frame *f, int *datalen)
+static int decode_frame(AES_KEY *dcx, struct cw_iax2_full_hdr *fh, struct cw_frame *f, int *datalen)
 {
 	int padding;
 	unsigned char *workspace;
@@ -3184,7 +3183,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct cw_iax2_full_hdr *fh, struc
 	return 0;
 }
 
-static int encrypt_frame(aes_encrypt_ctx *ecx, struct cw_iax2_full_hdr *fh, unsigned char *poo, int *datalen)
+static int encrypt_frame(AES_KEY *ecx, struct cw_iax2_full_hdr *fh, unsigned char *poo, int *datalen)
 {
 	int padding;
 	unsigned char *workspace;
@@ -4444,7 +4443,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	
 }
 
-static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
+static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, AES_KEY *ecx, AES_KEY *dcx)
 {
 	int res = -1;
 	//int x;

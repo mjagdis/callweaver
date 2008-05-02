@@ -37,9 +37,6 @@ CORE_SRC = io.c \
     enum.c \
     srv.c \
     dns.c \
-    aescrypt.c \
-    aestab.c \
-    aeskey.c \
 	malloc.c \
     utils.c \
     devicestate.c \
@@ -60,7 +57,6 @@ CORE_SRC = io.c \
     coef_in.h \
     coef_out.h \
 	ecdisa.h \
-    aesopt.h \
     callweaver_expr2.h \
     jitterbuffer/libcwjb.la \
 	resample.c \

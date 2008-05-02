@@ -12,7 +12,6 @@
 #ifndef _DUNDI_PARSER_H
 #define _DUNDI_PARSER_H
 
-#include "callweaver/aes.h"
 #include "include/dundi.h"
 
 #define DUNDI_MAX_STACK 512

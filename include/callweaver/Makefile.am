@@ -3,7 +3,6 @@ AUTOMAKE_OPTS = gnu
 DEFS += -include $(top_builddir)/include/confdefs.h
 
 cwinclude_HEADERS = acl.h \
-                      aes.h \
                       app.h \
                       astobj.h \
                       astosp.h \
@@ -68,5 +67,4 @@ cwinclude_HEADERS = acl.h \
 		      mpool.h \
 		      hashtable.h hashtable_helper.h \
 	              file.h filestreams.h
-
 
