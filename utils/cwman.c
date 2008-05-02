@@ -71,15 +71,6 @@ static struct cw_chan {
 } *chans;
 
 /* dummy functions to be compatible with the CallWeaver core for md5.c */
-void cw_register_file_version(const char *file, const char *version);
-void cw_register_file_version(const char *file, const char *version)
-{
-}
-
-void cw_unregister_file_version(const char *file);
-void cw_unregister_file_version(const char *file)
-{
-}
 
 static struct cw_chan *find_chan(char *name)
 {

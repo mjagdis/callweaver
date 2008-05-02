@@ -85,60 +85,9 @@ extern int cwdb_init(void);
 extern int cw_channels_init(void);
 
 
-/*!
- * \brief Register/unregister a source code file with the core.
- * \param file the source file name
- * \param version the version string (typically a CVS revision keyword string)
- *
- * This macro will place a file-scope constructor and destructor into the
- * source of the module using it; this will cause the version of this file
- * to registered with the CallWeaver core (and unregistered) at the appropriate
- * times.
- *
- * Example:
- *
- * \code
- * CALLWEAVER_FILE_VERSION("\$HeadURL\$", "\$Revision\$")
- * \endcode
- *
- * \note The dollar signs above have been protected with backslashes to keep
- * CVS from modifying them in this file; under normal circumstances they would
- * not be present and CVS would expand the Revision keyword into the file's
- * revision number.
- */
 #if !defined(LOW_MEMORY)
-
-#  include "callweaver/object.h"
-#  include "callweaver/registry.h"
-	struct cw_file_version {
-		struct cw_object obj;
-		struct cw_registry_entry *reg_entry;
-		char *file;
-		char *version;
-	};
-
-	extern int file_version_registry_initialized;
-	extern struct cw_registry file_version_registry;
-
-#  define CALLWEAVER_FILE_VERSION(scm_file, scm_version) \
-	static struct cw_file_version __file_version = { \
-		.file = (scm_file), \
-		.version = (scm_version), \
-	}; \
-	static void __attribute__((constructor)) __register_file_version(void) \
-	{ \
-		cw_object_init_obj(&__file_version.obj, NULL, CW_OBJECT_NO_REFS); \
-		if (!file_version_registry_initialized) { \
-			cw_registry_init(&file_version_registry); \
-			file_version_registry_initialized = 1; \
-		} \
-		__file_version.reg_entry = cw_registry_add(&file_version_registry, &__file_version.obj); \
-	} \
-	static void __attribute__((destructor)) __unregister_file_version(void) \
-	{ \
-		cw_registry_del(&file_version_registry, __file_version.reg_entry); \
-	}
-
+#  define CALLWEAVER_FILE_VERSION(file, x) \
+	static char __attribute__((unused)) __file_version[] = file ", " x;
 #else /* LOW_MEMORY */
 #  define CALLWEAVER_FILE_VERSION(file, x)
 #endif

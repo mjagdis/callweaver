@@ -36,9 +36,7 @@
 #include "callweaver/lock.h"
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
-
-
-struct module;
+#include "callweaver/module.h"
 
 
 #define arraysize(X) (sizeof(X)/sizeof(X[0]))
