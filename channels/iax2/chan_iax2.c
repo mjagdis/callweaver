@@ -3308,7 +3308,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 	}
 	/* Allocate an iax_frame */
 	if (now) {
-		memset(&frb, 0, sizeof(frb));
+		memset(&frb.fr2, 0, sizeof(frb.fr2));
 		fr = &frb.fr2;
 	} else
 		fr = iax_frame_new(DIRECTION_OUTGRESS, cw_test_flag(pvt, IAX_ENCRYPTED) ? f->datalen + 32 : f->datalen);
