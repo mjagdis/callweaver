@@ -98,8 +98,6 @@ typedef struct cw_frame
 #define CW_MALLOCD_DATA_WITH_HDR       (1 << 2)
 
 /* Frame types */
-/*! An empty frame. This must always be 0. */
-#define CW_FRAME_NULL         0
 /*! A DTMF digit, subclass is the digit */
 #define CW_FRAME_DTMF         1
 /*! Voice data, subclass is CW_FORMAT_* */
@@ -108,19 +106,21 @@ typedef struct cw_frame
 #define CW_FRAME_VIDEO        3
 /*! A control frame, subclass is CW_CONTROL_* */
 #define CW_FRAME_CONTROL      4
+/*! An empty frame. */
+#define CW_FRAME_NULL         5
 /*! Inter CallWeaver Exchange private frame type */
-#define CW_FRAME_IAX          5
+#define CW_FRAME_IAX          6
 /*! Text messages */
-#define CW_FRAME_TEXT         6
+#define CW_FRAME_TEXT         7
 /*! Image Frames */
-#define CW_FRAME_IMAGE        7
+#define CW_FRAME_IMAGE        8
 /*! HTML Frame */
-#define CW_FRAME_HTML         8
+#define CW_FRAME_HTML         9
 /*! Comfort noise frame (subclass is level of CNG in -dBov), 
     body may include zero or more 8-bit reflection coefficients */
-#define CW_FRAME_CNG          9
+#define CW_FRAME_CNG          10
 /*! T.38, V.150 or other modem-over-IP data stream */
-#define CW_FRAME_MODEM        10
+#define CW_FRAME_MODEM        11
 
 /* MODEM subclasses */
 /*! T.38 Fax-over-IP */
@@ -326,6 +326,7 @@ static inline void cw_fr_init_ex(struct cw_frame *frame, int type, int subtype)
 static inline void cw_fr_init(struct cw_frame *frame)
 {
 	memset(frame, 0, sizeof(struct cw_frame));
+	frame->frametype = CW_FRAME_NULL;
 	frame->samplerate = 8000;
 	frame->seq_no = -1;
 	frame->tx_copies = 1;
