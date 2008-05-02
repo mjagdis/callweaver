@@ -70,7 +70,7 @@ size_t gStackChunkSize = 8192;
 static void *js_function;
 static const char js_func_name[] = "JS";
 static const char js_func_synopsis[] = "Executes a JavaScript function.";
-static const char js_func_syntax[] = "JS(<path/to/script>)";
+static const char js_func_syntax[] = "JS(script_path)";
 static const char js_func_desc[] = "Executes JavaScript Code\n"
 	"If the script sets the channel variable JSFUNC\n"
 	"that val will be returned to the dialplan.";

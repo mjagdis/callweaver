@@ -57,7 +57,7 @@ static unsigned long seq = 0;
 static void *monitor_app;
 static const char monitor_name[] = "Monitor";
 static const char monitor_synopsis[] = "Monitor a channel";
-static const char monitor_syntax[] = "Monitor([file_format[:urlbase], [fname_base], [options]])";
+static const char monitor_syntax[] = "Monitor([file_format[:urlbase]][, [fname_base][, [options]]])";
 static const char monitor_descrip[] =
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"

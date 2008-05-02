@@ -140,9 +140,9 @@ static const char tdesc[] = "SQLite SQL Interface";
 
 static void *app;
 static const char name[] = "SQL";
-static const char synopsis[] = "SQL(\"[sql statement]\"|[dbname])\n" 
+static const char synopsis[] = "SQL(\"[sql statement]\"[, dbname])\n" 
 "[if it's a select it will auto-vivify chan vars matching the selected column names.]\n";
-static const char syntax[] = "SQL(\"[sql statement]\"|[dbname])";
+static const char syntax[] = "SQL(\"[sql statement]\"[, dbname])";
 
 
 static void pick_path(char *dbname,char *buf, size_t size) {

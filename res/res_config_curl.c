@@ -47,7 +47,7 @@ static char global_config_file[] = "curl.conf";
 static void *app_1;
 static const char name_1[] = "URLFetch";
 static const char synopsis_1[] = "Fetch Data from a URL";
-static const char syntax_1[] = "URLFetch(<url>)";
+static const char syntax_1[] = "URLFetch(url)";
 static const char desc_1[] = "load a url that returns cw_config and set according chanvars\n"
 ;
 
