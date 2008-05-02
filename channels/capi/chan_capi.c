@@ -3264,7 +3264,6 @@ static void capidev_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, un
 	fr.offset = CW_FRIENDLY_OFFSET;
 	fr.mallocd = 0;
 	fr.delivery = cw_tv(0,0);
-	fr.src = NULL;
 	cc_verbose(8, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND (len=%d) fr.datalen=%d fr.subclass=%d\n",
 		i->vname, b3len, fr.datalen, fr.subclass);
 	local_queue_frame(i, &fr);
