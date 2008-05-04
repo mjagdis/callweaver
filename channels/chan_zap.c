@@ -6354,6 +6354,9 @@ static void *do_monitor(void *data)
 							if (last->msgstate != res) {
 								int x;
 								cw_log(CW_LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
+#ifdef ZT_VMWI
+								ioctl(last->subs[SUB_REAL].zfd, ZT_VMWI, res);
+#endif
 								x = ZT_FLUSH_BOTH;
 								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
