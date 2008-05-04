@@ -588,141 +588,142 @@ static char frame_show_codec_n_usage[] =
 
 void cw_frame_dump(char *name, struct cw_frame *f, char *prefix)
 {
-    char ftype[40] = "Unknown Frametype";
-    char subclass[40] = "Unknown Subclass";
-    char moreinfo[40] = "";
+    char *ftype = "Unknown Frametype";
+    char *subclass = "Unknown Subclass";
+    int moreinfo = 0;
+    char buf[2];
 
     if (f == NULL)
     {
         cw_verbose("%s [ HANGUP (NULL) ] [%s]\n", prefix, (name ? name : "unknown"));
         return;
     }
-    /* XXX We should probably print one each of voice and video when the format changes XXX */
-    if (f->frametype == CW_FRAME_VOICE)
-        return;
-    if (f->frametype == CW_FRAME_VIDEO)
-        return;
+
     switch (f->frametype)
     {
     case CW_FRAME_DTMF:
-        strcpy(ftype, "DTMF");
-        subclass[0] = f->subclass;
-        subclass[1] = '\0';
+        ftype = "DTMF";
+        buf[0] = f->subclass;
+        buf[1] = '\0';
+	subclass = buf;
         break;
     case CW_FRAME_CONTROL:
-        strcpy (ftype, "Control");
-        switch(f->subclass)
+        ftype = "Control";
+        switch (f->subclass)
         {
         case CW_CONTROL_HANGUP:
-            strcpy(subclass, "Hangup");
+            subclass = "Hangup";
             break;
         case CW_CONTROL_RING:
-            strcpy(subclass, "Ring");
+            subclass = "Ring";
             break;
         case CW_CONTROL_RINGING:
-            strcpy(subclass, "Ringing");
+            subclass = "Ringing";
             break;
         case CW_CONTROL_ANSWER:
-            strcpy(subclass, "Answer");
+            subclass = "Answer";
             break;
         case CW_CONTROL_BUSY:
-            strcpy(subclass, "Busy");
+            subclass = "Busy";
             break;
         case CW_CONTROL_TAKEOFFHOOK:
-            strcpy(subclass, "Take Off Hook");
+            subclass = "Take Off Hook";
             break;
         case CW_CONTROL_OFFHOOK:
-            strcpy(subclass, "Line Off Hook");
+            subclass = "Line Off Hook";
             break;
         case CW_CONTROL_CONGESTION:
-            strcpy(subclass, "Congestion");
+            subclass = "Congestion";
             break;
         case CW_CONTROL_FLASH:
-            strcpy(subclass, "Flash");
+            subclass = "Flash";
             break;
         case CW_CONTROL_WINK:
-            strcpy(subclass, "Wink");
+            subclass = "Wink";
             break;
         case CW_CONTROL_OPTION:
-            strcpy(subclass, "Option");
+            subclass = "Option";
             break;
         case CW_CONTROL_RADIO_KEY:
-            strcpy(subclass, "Key Radio");
+            subclass = "Key Radio";
             break;
         case CW_CONTROL_RADIO_UNKEY:
-            strcpy(subclass, "Unkey Radio");
+            subclass = "Unkey Radio";
             break;
         case -1:
-            strcpy(subclass, "Stop generators");
+            subclass = "Stop generators";
             break;
-        default:
-            snprintf(subclass, sizeof(subclass), "Unknown control '%d'", f->subclass);
         }
         break;
     case CW_FRAME_NULL:
-        strcpy(ftype, "Null Frame");
-        strcpy(subclass, "N/A");
+        ftype = "Null Frame";
+        subclass = "N/A";
         break;
     case CW_FRAME_IAX:
         /* Should never happen */
-        strcpy(ftype, "IAX Specific");
-        snprintf(subclass, sizeof(subclass), "IAX Frametype %d", f->subclass);
+        ftype = "IAX";
+        subclass = "IAX specific";
         break;
     case CW_FRAME_TEXT:
-        strcpy(ftype, "Text");
-        strcpy(subclass, "N/A");
-        cw_copy_string(moreinfo, f->data, sizeof(moreinfo));
+        ftype = "Text";
+        subclass = "N/A";
+        moreinfo = 1;
         break;
     case CW_FRAME_IMAGE:
-        strcpy(ftype, "Image");
-        snprintf(subclass, sizeof(subclass), "Image format %s\n", cw_getformatname(f->subclass));
+        ftype = "Image";
+        subclass = cw_getformatname(f->subclass);
         break;
     case CW_FRAME_HTML:
-        strcpy(ftype, "HTML");
+        ftype = "HTML";
         switch (f->subclass)
         {
         case CW_HTML_URL:
-            strcpy(subclass, "URL");
-            cw_copy_string(moreinfo, f->data, sizeof(moreinfo));
+            subclass = "URL";
+            moreinfo = 1;
             break;
         case CW_HTML_DATA:
-            strcpy(subclass, "Data");
+            subclass = "Data";
             break;
         case CW_HTML_BEGIN:
-            strcpy(subclass, "Begin");
+            subclass = "Begin";
             break;
         case CW_HTML_END:
-            strcpy(subclass, "End");
+            subclass = "End";
             break;
         case CW_HTML_LDCOMPLETE:
-            strcpy(subclass, "Load Complete");
+            subclass = "Load Complete";
             break;
         case CW_HTML_NOSUPPORT:
-            strcpy(subclass, "No Support");
+            subclass = "No Support";
             break;
         case CW_HTML_LINKURL:
-            strcpy(subclass, "Link URL");
-            cw_copy_string(moreinfo, f->data, sizeof(moreinfo));
+            subclass = "Link URL";
+            moreinfo = 1;
             break;
         case CW_HTML_UNLINK:
-            strcpy(subclass, "Unlink");
+            subclass = "Unlink";
             break;
         case CW_HTML_LINKREJECT:
-            strcpy(subclass, "Link Reject");
-            break;
-        default:
-            snprintf(subclass, sizeof(subclass), "Unknown HTML frame '%d'\n", f->subclass);
+            subclass = "Link Reject";
             break;
         }
         break;
-    default:
-        snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
-        break;
+
+    /* XXX We should probably print one each of voice and video when the format changes XXX */
+    case CW_FRAME_VOICE:
+    case CW_FRAME_VIDEO:
+        return;
     }
-    if (!cw_strlen_zero(moreinfo))
-        cw_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n", prefix, ftype, f->frametype, subclass, f->subclass, moreinfo, (name ? name : "unknown"));
+
+    if (!moreinfo)
+        cw_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
+            prefix, ftype, f->frametype, subclass, f->subclass,
+            (name ? name : "unknown"));
     else
-        cw_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n", prefix, ftype, f->frametype, subclass, f->subclass, (name ? name : "unknown"));
+        cw_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) \"%.*s\" ] [%s]\n",
+            prefix, ftype, f->frametype, subclass, f->subclass,
+            f->datalen, (char *)f->data,
+            (name ? name : "unknown"));
 }
 
 
