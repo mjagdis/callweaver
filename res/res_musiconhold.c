@@ -430,13 +430,13 @@ static void *monitor_custom_command(void *data)
 {
 #define	MOH_MS_INTERVAL		100
 
+	short sbuf[8192];
 	struct mohclass *class = data;
 	struct mohdata *moh;
-	short sbuf[8192];
-	int res, res2;
-	int len;
 	struct timeval tv, tv_tmp;
 	long delta;
+	int res, res2;
+	const int len = cw_codec_get_len(class->format, 8 * MOH_MS_INTERVAL);
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
@@ -484,9 +484,6 @@ static void *monitor_custom_command(void *data)
 		}
 
 		/* Read audio */
-		res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
-		len = cw_codec_get_len(class->format, res);
-
 		res2 = read(class->srcfd, sbuf, len);
 		if (!class->members)
 			pthread_testcancel();
