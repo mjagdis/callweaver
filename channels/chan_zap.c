@@ -4325,6 +4325,7 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 			update_conf(p);
 			break;
 		case ZT_EVENT_RINGOFFHOOK:
+			zt_enable_ec(p);
 			zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (p->owner && (p->owner->_state == CW_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
