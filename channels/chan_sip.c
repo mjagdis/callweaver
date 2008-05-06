@@ -259,51 +259,50 @@ static const struct cfsubscription_types {
 };
 
 enum sipmethod {
-	SIP_UNKNOWN,
-	SIP_RESPONSE,
-	SIP_REGISTER,
-	SIP_OPTIONS,
-	SIP_NOTIFY,
-	SIP_INVITE,
-	SIP_ACK,
-	SIP_PRACK,
-	SIP_BYE,
-	SIP_REFER,
-	SIP_SUBSCRIBE,
-	SIP_MESSAGE,
-	SIP_UPDATE,
-	SIP_INFO,
-	SIP_CANCEL,
-	SIP_PUBLISH,
-} sip_method_list;
+	SIP_UNKNOWN   = 0, /* This MUST be 0 - find_sip_method assumes it is */
+	SIP_RESPONSE  = 1,
+	SIP_REGISTER  = 2,
+	SIP_OPTIONS   = 3,
+	SIP_NOTIFY    = 4,
+	SIP_INVITE    = 5,
+	SIP_ACK       = 6,
+	SIP_PRACK     = 7,
+	SIP_BYE       = 8,
+	SIP_REFER     = 9,
+	SIP_SUBSCRIBE = 10,
+	SIP_MESSAGE   = 11,
+	SIP_UPDATE    = 12,
+	SIP_INFO      = 13,
+	SIP_CANCEL    = 14,
+	SIP_PUBLISH   = 15,
+};
 
 enum sip_auth_type {
 	PROXY_AUTH,
 	WWW_AUTH,
 };
 
-static const struct  cfsip_methods { 
-	enum sipmethod id;
+static const struct { 
 	int need_rtp;        /*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
 	int can_create;
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 2 },
-	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
-	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
- 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 2 },
-	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
-	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
-	{ SIP_PRACK,	 NO_RTP, "PRACK", 2 },
-	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
-	{ SIP_REFER,	 NO_RTP, "REFER", 2 },
-	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
-	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
-	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
-	{ SIP_INFO,	 NO_RTP, "INFO", 0 },
-	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 0 },
-	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 1 }
+	[SIP_UNKNOWN]   = { RTP,    "-UNKNOWN-", 2 },
+	[SIP_RESPONSE]  = { NO_RTP, "SIP/2.0",   0 },
+	[SIP_REGISTER]  = { NO_RTP, "REGISTER",  1 },
+ 	[SIP_OPTIONS]   = { NO_RTP, "OPTIONS",   1 },
+	[SIP_NOTIFY]    = { NO_RTP, "NOTIFY",    2 },
+	[SIP_INVITE]    = { RTP,    "INVITE",    1 },
+	[SIP_ACK]       = { NO_RTP, "ACK",       0 },
+	[SIP_PRACK]     = { NO_RTP, "PRACK",     2 },
+	[SIP_BYE]       = { NO_RTP, "BYE",       0 },
+	[SIP_REFER]     = { NO_RTP, "REFER",     2 },
+	[SIP_SUBSCRIBE] = { NO_RTP, "SUBSCRIBE", 1 },
+	[SIP_MESSAGE]   = { NO_RTP, "MESSAGE",   1 },
+	[SIP_UPDATE]    = { NO_RTP, "UPDATE",    0 },
+	[SIP_INFO]      = { NO_RTP, "INFO",      0 },
+	[SIP_CANCEL]    = { NO_RTP, "CANCEL",    0 },
+	[SIP_PUBLISH]   = { NO_RTP, "PUBLISH",   1 }
 };
 
 /*! \brief Structure for conversion between compressed SIP and "normal" SIP */
@@ -593,7 +592,7 @@ struct sip_request {
 	char *rlPart2; 		/*!< The Request URI or Response Status */
 	int len;		/*!< Length */
 	int headers;		/*!< # of SIP Headers */
-	int method;		/*!< Method of this request */
+	enum sipmethod method;		/*!< Method of this request */
 	char *header[SIP_MAX_HEADERS];
 	int lines;		/*!< Body Content */
 	char *line[SIP_MAX_LINES];
@@ -735,7 +734,7 @@ static int global_rtautoclear = 120;
 /*! \brief sip_pvt: PVT structures are used for each SIP conversation, ie. a call  */
 static struct sip_pvt {
     cw_mutex_t lock;            /*!< Channel private lock */
-    int method;                /*!< SIP method of this packet */
+    enum sipmethod method;                /*!< SIP method of this packet */
     char callid[80];            /*!< Global CallID */
     char randdata[80];            /*!< Random data */
     struct cw_codec_pref prefs;        /*!< codec prefs */
@@ -890,7 +889,7 @@ struct sip_reqresp {
 /*! \brief sip packet - read in sipsock_read, transmitted in send_request */
 struct sip_pkt {
     struct sip_pkt *next;            /*!< Next packet */
-    int method;                /*!< SIP method for this packet */
+    enum sipmethod method;                /*!< SIP method for this packet */
     int seqno;                /*!< Sequence number */
     unsigned int flags;            /*!< non-zero if this is a response packet (e.g. 200 OK) */
     struct sip_pvt *owner;            /*!< Owner call */
@@ -1065,14 +1064,14 @@ struct cw_config *notify_types;
 
 static struct sip_auth *authl;          /*!< Authentication list */
 
-static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg);
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method, struct sip_request *req, char *msg);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
-static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
+static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int inc, int reliable, int newbranch);
+static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmethod, int inc, int reliable, int newbranch);
+static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sendsdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
@@ -1080,9 +1079,9 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static struct sip_peer *temp_peer(const char *name);
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, enum sipmethod sipmethod, int init);
 static void free_old_route(struct sip_route *route);
-static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
+static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char *digest, int digest_len);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int realtime);
 static struct sip_user *build_user(const char *name, struct cw_variable *v, int realtime);
@@ -1192,20 +1191,20 @@ static int thread_safe_cw_random(void)
 /*! \brief  find_sip_method: Find SIP method from header
  * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
  * following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
-static int find_sip_method(char *msg)
+static enum sipmethod find_sip_method(char *msg)
 {
     int i;
-    int res = 0;
-    
-    if (cw_strlen_zero(msg))
-        return 0;
 
-    for (i = 1; (i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++)
+    if (!cw_strlen_zero(msg))
     {
-        if (!strcasecmp(sip_methods[i].text, msg)) 
-            res = sip_methods[i].id;
+        for (i = 1; i < arraysize(sip_methods); i++)
+        {
+            if (!strcasecmp(sip_methods[i].text, msg)) 
+                return i;
+        }
     }
-    return res;
+
+    return 0;
 }
 
 /*! \brief  parse_sip_options: Parse supported header in incoming packet */
@@ -1598,7 +1597,7 @@ static int retrans_pkt(void *data)
 }
 
 /*! \brief  __sip_reliable_xmit: transmit packet with retransmits */
-static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod)
+static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, enum sipmethod sipmethod)
 {
     struct sip_pkt *pkt;
 
@@ -1697,7 +1696,7 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 }
 
 /*! \brief  __sip_ack: Acknowledges receipt of a packet and stops retransmission */
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
 {
     struct sip_pkt *cur, *prev = NULL;
     int res = -1;
@@ -1783,7 +1782,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 }
 
 /*! \brief  __sip_semi_ack: Acks receipt of packet, keep it around (used for provisional responses) */
-static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
 {
     struct sip_pkt *cur;
     int res = -1;
@@ -4219,7 +4218,7 @@ static void make_our_tag(char *tagbuf, size_t len)
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method)
 {
     struct sip_pvt *p;
 
@@ -4359,7 +4358,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 /*! \brief  find_call: Connect incoming SIP message to current dialog or create new dialog structure */
 /*               Called by handle_request, sipsock_read */
-static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const int intended_method)
+static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const enum sipmethod intended_method)
 {
     struct sip_pvt *p=NULL;
     char *callid;
@@ -5687,7 +5686,7 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
 }
 
 /*! \brief  init_req: Initialize SIP request */
-static int init_req(struct sip_request *req, int sipmethod, char *recip)
+static int init_req(struct sip_request *req, enum sipmethod sipmethod, char *recip)
 {
     /* Initialize a response */
     if (req->headers || req->len)
@@ -5765,7 +5764,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 }
 
 /*! \brief  reqprep: Initialize a SIP request response packet */
-static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch)
+static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int newbranch)
 {
     struct sip_request *orig = &p->initreq;
     char stripped[80];
@@ -5905,7 +5904,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 
 //TODO
 /*! \brief  transmit_response_using_temp: Transmit response, no retransmits, using temporary pvt */
-static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg)
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method, struct sip_request *req, char *msg)
 {
     struct sip_pvt *p = alloca(sizeof(struct sip_pvt));
     struct sip_history *hist = NULL;
@@ -6855,7 +6854,7 @@ static void build_rpid(struct sip_pvt *p)
 }
 
 /*! \brief  initreqprep: Initiate new SIP request to peer/user */
-static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod)
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod sipmethod)
 {
     char invite_buf[256] = "";
     char *invite = invite_buf;
@@ -7018,7 +7017,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 }
 
 /*! \brief  transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it */
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
+static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp, int init)
 {
     struct sip_request req;
     
@@ -7426,7 +7425,7 @@ static char *regstate2str(int regstate)
     }
 }
 
-static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
+static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, char *auth, char *authheader);
 
 /*! \brief  __sip_do_register: Register with SIP proxy */
 static void *__sip_do_register(void *data)
@@ -7513,7 +7512,7 @@ static int sip_reg_timeout(void *data)
 }
 
 /*! \brief  transmit_register: Transmit register to SIP proxy or UA */
-static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader)
+static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, char *auth, char *authheader)
 {
     struct sip_request req;
     char from[256];
@@ -7824,7 +7823,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 }
 
 /*! \brief  transmit_request: transmit generic SIP request */
-static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, int reliable, int newbranch)
+static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int reliable, int newbranch)
 {
     struct sip_request resp;
     reqprep(&resp, p, sipmethod, seqno, newbranch);
@@ -7834,7 +7833,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, int rel
 }
 
 /*! \brief  transmit_request_with_auth: Transmit SIP request, auth added */
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, int reliable, int newbranch)
+static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int reliable, int newbranch)
 {
     struct sip_request resp;
 
@@ -8401,7 +8400,7 @@ static int check_osptoken (struct sip_pvt *p, char *token)
 /*! \brief  check_auth: Check user authorization from peer definition */
 /*      Some actions, like REGISTER and INVITEs from peers require
         authentication (if peer have secret set) */
-static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, int sipmethod, char *uri, int reliable, int ignore)
+static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, enum sipmethod sipmethod, char *uri, int reliable, int ignore)
 {
     int res = -1;
     char *response = "407 Proxy Authentication Required";
@@ -9419,7 +9418,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 /*! \brief  check_user_full: Check if matching user or peer is defined */
 /*     Match user on From: user name and peer on IP/port */
 /*    This is used on first invite (not re-invites) and subscribe requests */
-static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
+static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipmethod sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
     struct sip_user *user = NULL;
     struct sip_peer *peer;
@@ -9730,7 +9729,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 }
 
 /*! \brief  check_user: Find user */
-static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
+static int check_user(struct sip_pvt *p, struct sip_request *req, enum sipmethod sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
     return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL, 0);
 }
@@ -11544,7 +11543,7 @@ static int sip_no_debug(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, enum sipmethod sipmethod, char *digest, int digest_len);
 
 /*! \brief  do_register_auth: Authenticate for outbound registration */
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) 
@@ -11574,7 +11573,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 }
 
 /*! \brief  do_proxy_auth: Add authentication on outbound SIP packet */
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init) 
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, enum sipmethod sipmethod, int init) 
 {
     char digest[1024];
 
@@ -11608,7 +11607,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
         with  for receiving calls from.  */
 /*    Returns -1 if we have no auth */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req,
-    char *header, int sipmethod,  char *digest, int digest_len)
+    char *header, enum sipmethod sipmethod,  char *digest, int digest_len)
 {
     char tmp[512];
     char *c;
@@ -11693,7 +11692,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 /*      Build digest challenge for authentication of peers (for registration) 
     and users (for calls). Also used for authentication of CANCEL and BYE */
 /*    Returns -1 if we have no auth */
-static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int digest_len)
+static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char* digest, int digest_len)
 {
     char a1[256];
     char a2[256];
@@ -12592,7 +12591,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, int sipmethod)
+static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
 {
     struct sip_peer *peer;
     int pingtime;
@@ -12674,7 +12673,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
     char *msg, *c;
     struct cw_channel *owner;
     char iabuf[INET_ADDRSTRLEN];
-    int sipmethod;
+    enum sipmethod sipmethod;
     int res = 1;
 
     c = get_header(req, "Cseq");
@@ -14269,7 +14268,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     
     p->method = req->method;    /* Find out which SIP method they are using */
     if (option_debug > 2)
-        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
+        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, cmd); 
 
     if (p->icseq && (p->icseq > seqno))
     {
