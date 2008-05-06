@@ -1480,13 +1480,22 @@ static int append_history(struct sip_pvt *p, const char *event, const char *data
 /*! \brief  retrans_pkt: Retransmit SIP message if no answer */
 static int retrans_pkt(void *data)
 {
-    struct sip_pkt *pkt = data, *prev, *cur;
+    struct sip_pkt *pkt = data, **prev;
 
     /* Lock channel */
     cw_mutex_lock(&pkt->owner->lock);
 
-    if ((pkt->method == SIP_INVITE && pkt->timer_a < rfc_timer_b)
-    || (pkt->method != SIP_INVITE && pkt->timer_a < RFC_TIMER_F))
+    /* It's possible we just waited while an ack was sent for a reply
+     * to a previous transmission of this packet. If so the ack code
+     * will have changed the method for this packet to unknown to
+     * signal that no further retransmissions are required, however
+     * it is still down to us to dequeue the packet once we're done
+     * looking at it.
+     */
+
+    if (pkt->method != SIP_UNKNOWN
+    && ((pkt->method == SIP_INVITE && pkt->timer_a < rfc_timer_b)
+    || (pkt->method != SIP_INVITE && pkt->timer_a < RFC_TIMER_F)))
     {
         char buf[(INET_ADDRSTRLEN > 80 ? INET_ADDRSTRLEN : 80)];
         int reschedule;
@@ -1516,71 +1525,75 @@ static int retrans_pkt(void *data)
         append_history(pkt->owner, buf, pkt->data);
 
         __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-        cw_mutex_unlock(&pkt->owner->lock);
-        return  reschedule;
-    } 
-    /* Too many retries */
-    if (pkt->owner && pkt->method != SIP_OPTIONS)
-    {
-        if (cw_test_flag(pkt, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-            cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (cw_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
-    }
-    else
-    {
-        if (pkt->method == SIP_OPTIONS && sipdebug)
-            cw_log(CW_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
-    }
-    append_history(pkt->owner, "MaxRetries", (cw_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
-         
-    pkt->retransid = -1;
 
-    if (cw_test_flag(pkt, FLAG_FATAL))
+	/* We reschedule ourself here rather than letting the scheduler do it
+	 * because the lock below coordinates with the acking code. Releasing
+	 * the lock allows the acking code to process a response and attempt
+	 * to deschedule retransmission. If we then come back here, return
+	 * and allow the scheduler to reschedule us we're going to send
+	 * an unwanted retransmission of a packet that we already acked a
+	 * reply for.
+	 */
+	pkt->retransid = cw_sched_modify(sched, pkt->retransid, reschedule, retrans_pkt, pkt);
+        cw_mutex_unlock(&pkt->owner->lock);
+        return 0;
+    } 
+
+    /* Too many retries */
+
+    /* Dequeue the packet. It is then exclusively ours even if we drop the
+     * lock thus allowing an attempt to ack a late reply.
+     */
+    for (prev = &pkt->owner->packets; *prev; prev = &(*prev)->next)
     {
-        while (pkt->owner->owner  &&  cw_mutex_trylock(&pkt->owner->owner->lock))
+        if (*prev == pkt)
         {
-            cw_mutex_unlock(&pkt->owner->lock);
-            usleep(1);
-            cw_mutex_lock(&pkt->owner->lock);
-        }
-        if (pkt->owner->owner)
-        {
-            cw_set_flag(pkt->owner, SIP_ALREADYGONE);
-            cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
-            cw_queue_hangup(pkt->owner->owner);
-            cw_mutex_unlock(&pkt->owner->owner->lock);
-        }
-        else
-        {
-            /* If no channel owner, destroy now */
-	    /* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-	    if (pkt->method != SIP_OPTIONS)
-        	cw_set_flag(pkt->owner, SIP_NEEDDESTROY);    
-        }
-    }
-    /* In any case, go ahead and remove the packet */
-    prev = NULL;
-    cur = pkt->owner->packets;
-    while (cur)
-    {
-        if (cur == pkt)
+            *prev = pkt->next;
             break;
-        prev = cur;
-        cur = cur->next;
+        }
     }
-    if (cur)
+
+    if (pkt->method != SIP_UNKNOWN)
     {
-        if (prev)
-            prev->next = cur->next;
+        if (pkt->owner && pkt->method != SIP_OPTIONS)
+        {
+            if (cw_test_flag(pkt, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
+                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (cw_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+        }
         else
-            pkt->owner->packets = cur->next;
-        cw_mutex_unlock(&pkt->owner->lock);
-        free(cur);
-        pkt = NULL;
+        {
+            if (pkt->method == SIP_OPTIONS && sipdebug)
+                cw_log(CW_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
+        }
+        append_history(pkt->owner, "MaxRetries", (cw_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+         
+        if (cw_test_flag(pkt, FLAG_FATAL))
+        {
+            while (pkt->owner->owner  &&  cw_mutex_trylock(&pkt->owner->owner->lock))
+            {
+                cw_mutex_unlock(&pkt->owner->lock);
+                usleep(1);
+                cw_mutex_lock(&pkt->owner->lock);
+            }
+            if (pkt->owner->owner)
+            {
+                cw_set_flag(pkt->owner, SIP_ALREADYGONE);
+                cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
+                cw_queue_hangup(pkt->owner->owner);
+                cw_mutex_unlock(&pkt->owner->owner->lock);
+            }
+            else
+            {
+                /* If no channel owner, destroy now */
+	        /* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
+	        if (pkt->method != SIP_OPTIONS)
+        	    cw_set_flag(pkt->owner, SIP_NEEDDESTROY);    
+            }
+        }
     }
-    else
-        cw_log(CW_LOG_WARNING, "Weird, couldn't find packet owner!\n");
-    if (pkt  &&  pkt->owner)
-        cw_mutex_unlock(&pkt->owner->lock);
+
+    cw_mutex_unlock(&pkt->owner->lock);
+    free(pkt);
     return 0;
 }
 
@@ -1709,19 +1722,25 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
                 p->pendinginvite = 0;
                 resetinvite = 1;
             }
-            /* this is our baby */
-            if (prev)
-                prev->next = cur->next;
-            else
-                p->packets = cur->next;
-            if (cur->retransid > -1)
+            /* If we can delete the scheduled retransmit we own the packet
+	     * and can go ahead and free it. Otherwise the scheduled retransmit
+	     * has already fired and is waiting on the lock. In this case we
+	     * just set the method to unknown so retrans_pkt will give up once
+	     * it acquires the lock.
+	     */
+            if (cur->retransid == -1 || !cw_sched_del(sched, cur->retransid))
             {
                 if (sipdebug && option_debug > 3)
                     cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
-                cw_sched_del(sched, cur->retransid);
-        	cur->retransid = -1;
+                cur->retransid = -1;
+                if (prev)
+                    prev->next = cur->next;
+                else
+                    p->packets = cur->next;
+                free(cur);
             }
-            free(cur);
+	    else
+                cur->method = SIP_UNKNOWN;
             res = 0;
             break;
         }
