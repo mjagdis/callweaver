@@ -285,24 +285,27 @@ enum sip_auth_type {
 static const struct { 
 	int need_rtp;        /*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
+	int len;
 	int can_create;
 } sip_methods[] = {
-	[SIP_UNKNOWN]   = { RTP,    "-UNKNOWN-", 2 },
-	[SIP_RESPONSE]  = { NO_RTP, "SIP/2.0",   0 },
-	[SIP_REGISTER]  = { NO_RTP, "REGISTER",  1 },
- 	[SIP_OPTIONS]   = { NO_RTP, "OPTIONS",   1 },
-	[SIP_NOTIFY]    = { NO_RTP, "NOTIFY",    2 },
-	[SIP_INVITE]    = { RTP,    "INVITE",    1 },
-	[SIP_ACK]       = { NO_RTP, "ACK",       0 },
-	[SIP_PRACK]     = { NO_RTP, "PRACK",     2 },
-	[SIP_BYE]       = { NO_RTP, "BYE",       0 },
-	[SIP_REFER]     = { NO_RTP, "REFER",     2 },
-	[SIP_SUBSCRIBE] = { NO_RTP, "SUBSCRIBE", 1 },
-	[SIP_MESSAGE]   = { NO_RTP, "MESSAGE",   1 },
-	[SIP_UPDATE]    = { NO_RTP, "UPDATE",    0 },
-	[SIP_INFO]      = { NO_RTP, "INFO",      0 },
-	[SIP_CANCEL]    = { NO_RTP, "CANCEL",    0 },
-	[SIP_PUBLISH]   = { NO_RTP, "PUBLISH",   1 }
+#define S(str)	str, sizeof(str)-1
+	[SIP_UNKNOWN]   = { RTP,    S("-UNKNOWN-"), 2 },
+	[SIP_RESPONSE]  = { NO_RTP, S("SIP/2.0"),   0 },
+	[SIP_REGISTER]  = { NO_RTP, S("REGISTER"),  1 },
+ 	[SIP_OPTIONS]   = { NO_RTP, S("OPTIONS"),   1 },
+	[SIP_NOTIFY]    = { NO_RTP, S("NOTIFY"),    2 },
+	[SIP_INVITE]    = { RTP,    S("INVITE"),    1 },
+	[SIP_ACK]       = { NO_RTP, S("ACK"),       0 },
+	[SIP_PRACK]     = { NO_RTP, S("PRACK"),     2 },
+	[SIP_BYE]       = { NO_RTP, S("BYE"),       0 },
+	[SIP_REFER]     = { NO_RTP, S("REFER"),     2 },
+	[SIP_SUBSCRIBE] = { NO_RTP, S("SUBSCRIBE"), 1 },
+	[SIP_MESSAGE]   = { NO_RTP, S("MESSAGE"),   1 },
+	[SIP_UPDATE]    = { NO_RTP, S("UPDATE"),    0 },
+	[SIP_INFO]      = { NO_RTP, S("INFO"),      0 },
+	[SIP_CANCEL]    = { NO_RTP, S("CANCEL"),    0 },
+	[SIP_PUBLISH]   = { NO_RTP, S("PUBLISH"),   1 }
+#undef S
 };
 
 /*! \brief Structure for conversion between compressed SIP and "normal" SIP */
@@ -1711,7 +1714,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (sipmethod >= 0 && !strncasecmp(sip_methods[sipmethod].text, cur->data, strlen(sip_methods[sipmethod].text)) && (cur->data[strlen(sip_methods[sipmethod].text)] < 33))))
+             (sipmethod >= 0 && cur->data[sip_methods[sipmethod].len] < 33 && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
         {
             if (!resp  &&  (seqno == p->pendinginvite))
             {
@@ -1784,7 +1787,6 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod
 {
     struct sip_pkt *cur;
     int res = -1;
-    char *msg = sip_methods[sipmethod].text;
 
     cur = p->packets;
     while (cur)
@@ -1792,13 +1794,13 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33))))
+             (cur->data[sip_methods[sipmethod].len] < 33 && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
         {
             /* this is our baby */
             if (cur->retransid > -1)
             {
                 if (option_debug > 3 && sipdebug)
-                    cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
+                    cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
                 cw_sched_del(sched, cur->retransid);
         	cur->retransid = -1;
             }
