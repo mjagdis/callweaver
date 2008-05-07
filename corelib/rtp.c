@@ -293,6 +293,7 @@ static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data,
     uint32_t event;
     uint16_t duration;
     int event_end;
+    int samets;
 
     event = ntohl(*((uint32_t *) data));
     event_end = (event >> 23) & 1;
@@ -302,10 +303,20 @@ static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data,
     if (rtpdebug)
         cw_log(CW_LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 
-    /* If we have something in progress but this is something
-     * different entirely we send the in-progress event upwards.
+    /* If the timestamp has changed but still comes before the end time of
+     * the current event plus 40ms we consider it to be equal.
+     * There are broken senders out there...
+     * (The 40ms is the minimum inter-digit interval in known specifications,
+     * specifically BT SIN351 - see cw_rtp_senddigit_continue)
+     * If the timestamp changes during the end packets we'll be in trouble
+     * but this hasn't been seen in the wild.
      */
-    if (rtp->lastevent_code && rtp->lastevent_startts != timestamp)
+    samets = (timestamp == rtp->lastevent_startts || timestamp - (rtp->lastevent_startts + rtp->lastevent_duration + 40 * 8) <= 0);
+
+    /* If we have something in progress we should send it up the stack if
+     * the timestamp has changed.
+     */
+    if (rtp->lastevent_code && !samets)
         f = send_dtmf(rtp);
 
     /* If this packet comes after any other packet we've seen so far
@@ -322,12 +333,14 @@ static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data,
      * not be the actual start packet - that might be out of order
      * or dropped) set up the event.
      */
-    if (!rtp->lastevent_code && timestamp != rtp->lastevent_startts)
+    if (!rtp->lastevent_code && !samets)
     {
         static char map[] = "0123456789*#ABCDX";
         rtp->lastevent_code = (event < sizeof(map)/sizeof(map[0]) ? map[event] : '?');
         rtp->lastevent_startts = timestamp;
     }
+    else if (timestamp - rtp->lastevent_startts < 0) /* Changing timestamps AND packet reordering! */
+        rtp->lastevent_startts = timestamp;
 
     /* If we have an event in progress and the end flag is set what
      * we know is all we need so we can send the event up the stack.
