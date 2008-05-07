@@ -1704,8 +1704,6 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
     /* Just in case... */
     char *msg;
 
-    msg = sip_methods[sipmethod].text;
-
     cw_mutex_lock(&p->lock);
     cur = p->packets;
     while (cur)
@@ -1713,7 +1711,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33))))
+             (sipmethod >= 0 && !strncasecmp(sip_methods[sipmethod].text, cur->data, strlen(sip_methods[sipmethod].text)) && (cur->data[strlen(sip_methods[sipmethod].text)] < 33))))
         {
             if (!resp  &&  (seqno == p->pendinginvite))
             {
