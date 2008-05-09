@@ -89,7 +89,6 @@ static const char desc[] = "Comma Separated Values CDR Backend";
 
 static const char name[] = "csv";
 
-static FILE *mf = NULL;
 
 static int append_string(char *buf, char *s, size_t bufsize)
 {
@@ -226,6 +225,8 @@ static int csv_log(struct cw_cdr *cdr)
 	/* Make sure we have a big enough buf */
 	char buf[1024];
 	char csvmaster[CW_CONFIG_MAX_PATH];
+	FILE *mf;
+
 	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 #if 0
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cw_cdr_flags2str(cdr->amaflags), cdr->accountcode);
@@ -236,31 +237,18 @@ static int csv_log(struct cw_cdr *cdr)
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,
 		   we open write and close the log file each time */
-		mf = fopen(csvmaster, "a");
-		if (!mf) {
-			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
-		}
-		if (mf) {
+		if ((mf = fopen(csvmaster, "a"))) {
 			fputs(buf, mf);
-			fflush(mf); /* be particularly anal here */
 			fclose(mf);
-			mf = NULL;
-		}
+		} else
+			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
+
 		if (!cw_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
 				cw_log(CW_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 		}
 	}
 	return 0;
-}
-
-
-static void release(void)
-{
-	if (mf) {
-		fclose(mf);
-		mf = NULL;
-	}
 }
 
 
@@ -284,4 +272,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, release, desc)
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
