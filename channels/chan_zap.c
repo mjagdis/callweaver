@@ -5937,6 +5937,7 @@ static void *ss_thread(void *data)
 						if (p->adsi_rx2) adsi_rx_init(p->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, p);
 						/* Fall through */
 					case ZT_EVENT_RINGBEGIN:
+						p->ringt = p->ringt_base;
 						if (chan->rings >= 0 && !receivedRingT) {
 							int offset;
 							curRingData[chan->rings] = SAMPLES_TO_MS(samples);
