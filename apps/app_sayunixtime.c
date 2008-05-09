@@ -83,7 +83,7 @@ static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, char
 
 	LOCAL_USER_ADD(u);
 
-	if (argc > 0 && !(unixtime = (time_t)atol(argv[0]))) {
+	if (argc < 1 || !(unixtime = (time_t)atol(argv[0]))) {
 		tv = cw_tvnow();
 		unixtime = (time_t)tv.tv_sec;
 	}
