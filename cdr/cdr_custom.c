@@ -63,8 +63,6 @@ static const char desc[] = "Customizable Comma Separated Values CDR Backend";
 
 static const char name[] = "cdr-custom";
 
-static FILE *mf = NULL;
-
 static char master[CW_CONFIG_MAX_PATH];
 static char format[1024]="";
 
@@ -112,6 +110,7 @@ static int custom_log(struct cw_cdr *cdr)
 	/* Make sure we have a big enough buf */
 	char buf[2048];
 	struct cw_channel dummy;
+	FILE *mf;
 
 	/* Abort if no master file is specified */
 	if (cw_strlen_zero(master))
@@ -125,25 +124,13 @@ static int custom_log(struct cw_cdr *cdr)
 	/* because of the absolutely unconditional need for the
 	   highest reliability possible in writing billing records,
 	   we open write and close the log file each time */
-	mf = fopen(master, "a");
-	if (!mf) {
-		cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
-	}
-	if (mf) {
+	if ((mf = fopen(master, "a"))) {
 		fputs(buf, mf);
-		fflush(mf); /* be particularly anal here */
 		fclose(mf);
-		mf = NULL;
-	}
-	return 0;
-}
+	} else
+		cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
 
-static void release(void)
-{
-	if (mf) {
-		fclose(mf);
-		mf = NULL;
-	}
+	return 0;
 }
 
 
@@ -175,4 +162,4 @@ static int reload_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, release, desc)
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)
