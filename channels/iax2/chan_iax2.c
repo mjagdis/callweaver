@@ -85,6 +85,33 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/generic_jb.h"
 
 
+static int cw2iax[] = {
+	[CW_FRAME_DTMF]    = IAX_FRAME_DTMF,
+	[CW_FRAME_VOICE]   = IAX_FRAME_VOICE,
+	[CW_FRAME_VIDEO]   = IAX_FRAME_VIDEO,
+	[CW_FRAME_CONTROL] = IAX_FRAME_CONTROL,
+	[CW_FRAME_NULL]    = IAX_FRAME_NULL,
+	[CW_FRAME_IAX]     = IAX_FRAME_IAX,
+	[CW_FRAME_TEXT]    = IAX_FRAME_TEXT,
+	[CW_FRAME_IMAGE]   = IAX_FRAME_IMAGE,
+	[CW_FRAME_HTML]    = IAX_FRAME_HTML,
+	[CW_FRAME_CNG]     = IAX_FRAME_CNG,
+};
+
+static int iax2cw[] = {
+	[IAX_FRAME_DTMF]    = CW_FRAME_DTMF,
+	[IAX_FRAME_VOICE]   = CW_FRAME_VOICE,
+	[IAX_FRAME_VIDEO]   = CW_FRAME_VIDEO,
+	[IAX_FRAME_CONTROL] = CW_FRAME_CONTROL,
+	[IAX_FRAME_NULL]    = CW_FRAME_NULL,
+	[IAX_FRAME_IAX]     = CW_FRAME_IAX,
+	[IAX_FRAME_TEXT]    = CW_FRAME_TEXT,
+	[IAX_FRAME_IMAGE]   = CW_FRAME_IMAGE,
+	[IAX_FRAME_HTML]    = CW_FRAME_HTML,
+	[IAX_FRAME_CNG]     = CW_FRAME_CNG,
+};
+
+
 static struct cw_jb_conf global_jbconf;
 
 #ifndef IPTOS_MINCOST
@@ -2118,7 +2145,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 static int auto_congest(void *nothing)
 {
 	int callno = PTR_TO_CALLNO(nothing);
-	struct cw_frame f = { CW_FRAME_CONTROL, CW_CONTROL_CONGESTION };
+	struct cw_frame f = { .frametype = CW_FRAME_CONTROL, .subclass = CW_CONTROL_CONGESTION };
 	cw_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		iaxs[callno]->initid = -1;
@@ -2415,7 +2442,7 @@ static int iax2_setoption(struct cw_channel *c, int option, void *data, int data
 
 static struct cw_frame *iax2_read(struct cw_channel *c) 
 {
-	static struct cw_frame f = { CW_FRAME_NULL, };
+	static struct cw_frame f = { .frametype = CW_FRAME_NULL, };
 	cw_log(CW_LOG_NOTICE, "I should never be called!\n");
 	return &f;
 }
@@ -3342,7 +3369,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 		/* Keep track of the last thing we've acknowledged */
 		if (!transfer)
 			pvt->aseqno = fr->iseqno;
-		fh->type = fr->af.frametype & 0xFF;
+		fh->type = cw2iax[fr->af.frametype];
 		if (fr->af.frametype == CW_FRAME_VIDEO)
 			fh->csub = compress_subclass(fr->af.subclass & ~0x1) | ((fr->af.subclass & 0x1) << 6);
 		else
@@ -5721,7 +5748,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* Get the destination call number */
 		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
-		f.frametype = fh->type;
+		f.frametype = iax2cw[fh->type];
 		if (f.frametype == CW_FRAME_VIDEO) {
 			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub >> 6) & 0x1);
 		} else {
