@@ -29,7 +29,22 @@
 
 #define IAX_WINDOW			64
 
-/* Subclass for CW_FRAME_IAX */
+
+/*! IAX Frame types */
+#define IAX_FRAME_DTMF     1  /*!< A DTMF digit, subclass is the digit */
+#define IAX_FRAME_VOICE    2  /*!< Voice data, subclass is CW_FORMAT_* */
+#define IAX_FRAME_VIDEO    3  /*!< Video frame, maybe?? :) */
+#define IAX_FRAME_CONTROL  4  /*!< A control frame, subclass is CW_CONTROL_* */
+#define IAX_FRAME_NULL     5  /*!< An empty frame. */
+#define IAX_FRAME_IAX      6  /*!< Inter CallWeaver Exchange private frame type */
+#define IAX_FRAME_TEXT     7  /*!< Text messages */
+#define IAX_FRAME_IMAGE    8  /*!< Image Frames */
+#define IAX_FRAME_HTML     9  /*!< HTML Frame */
+#define IAX_FRAME_CNG     10  /*!< Comfort noise frame (subclass is level of CNG in -dBov), 
+				    body may include zero or more 8-bit reflection coefficients */
+#define IAX_FRAME_MODEM   11  /*!< T.38, V.150 or other modem-over-IP data stream */
+
+/* Subclass for IAX_FRAME_IAX */
 #define IAX_COMMAND_NEW		1
 #define IAX_COMMAND_PING	2
 #define IAX_COMMAND_PONG	3

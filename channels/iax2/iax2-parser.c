@@ -492,17 +492,17 @@ void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, st
 	} else {
 		class = frames[(int)fh->type];
 	}
-	if (fh->type == CW_FRAME_DTMF) {
+	if (fh->type == IAX_FRAME_DTMF) {
 		sprintf(subclass2, "%c", fh->csub);
 		subclass = subclass2;
-	} else if (fh->type == CW_FRAME_IAX) {
+	} else if (fh->type == IAX_FRAME_IAX) {
 		if (fh->csub >= (int)sizeof(iaxs)/(int)sizeof(iaxs[0])) {
 			snprintf(subclass2, sizeof(subclass2), "(%d?)", fh->csub);
 			subclass = subclass2;
 		} else {
 			subclass = iaxs[(int)fh->csub];
 		}
-	} else if (fh->type == CW_FRAME_CONTROL) {
+	} else if (fh->type == IAX_FRAME_CONTROL) {
 		if (fh->csub >= (int)sizeof(cmds)/(int)sizeof(cmds[0])) {
 			snprintf(subclass2, sizeof(subclass2), "(%d?)", fh->csub);
 			subclass = subclass2;
@@ -524,7 +524,7 @@ void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, st
 		 ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
 		 cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 	outputf(tmp);
-	if (fh->type == CW_FRAME_IAX)
+	if (fh->type == IAX_FRAME_IAX)
 		dump_ies(fh->iedata, datalen);
 }
 
