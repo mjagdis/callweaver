@@ -1863,6 +1863,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
     char iabuf[INET_ADDRSTRLEN];
     char buf[SIP_MAX_LINE_LEN];
     struct sip_data_line *tmpsdl, *tmpsdlcl;
+    char *s;
 
     /* First of all, we rebuild the sip message. If SDP il present, it's probably wrong. */
     memset(req->data, 0, SIP_MAX_HEADERS);
@@ -1940,8 +1941,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
                 cw_rtp_get_us(p->rtp,&port);
                 snprintf(buf, SIP_MAX_LINE_LEN, 
                          "m=audio %d RTP/AVP %s", ntohs(port.sin_port),
-                         (strstr(tmpsdl->content, "RTP/AVP ") != NULL) ? 
-                            strstr(tmpsdl->content,"RTP/AVP ")+strlen("RTP/AVP ") : NULL
+                         ((s = strstr(tmpsdl->content, "RTP/AVP ")) ?  s + 8 : "")
                     );
 #if STUN_DEV_DEBUG
                 if (stundebug)
@@ -1959,8 +1959,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
                 cw_rtp_get_us(p->vrtp,&port);
                 snprintf(buf, SIP_MAX_LINE_LEN, 
                          "m=video %d RTP/AVP %s", ntohs(port.sin_port),
-                         (strstr(tmpsdl->content,"RTP/AVP ")!=NULL ) ? 
-                              strstr(tmpsdl->content,"RTP/AVP ")+strlen("RTP/AVP ") : NULL
+                         ((s = strstr(tmpsdl->content,"RTP/AVP ")) ? s + 8 : "")
                         );
                 strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN-1);
             }
