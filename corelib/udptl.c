@@ -682,9 +682,9 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
         {
             /* Forward T.38 frames if they happen upon us */
             if (who == c0)
-                cw_write(c1, f);
+                cw_write(c1, &f);
             else if (who == c1)
-                cw_write(c0, f);
+                cw_write(c0, &f);
         }
         cw_fr_free(f);
         /* Swap priority. Not that it's a big deal at this point */

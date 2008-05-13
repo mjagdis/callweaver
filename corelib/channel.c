@@ -2013,6 +2013,7 @@ int cw_senddigit(struct cw_channel *chan, char digit)
 int cw_prod(struct cw_channel *chan)
 {
 	struct cw_frame a = { CW_FRAME_VOICE };
+	struct cw_frame *f;
 	char nothing[128];
 
 	/* Send an empty audio frame to get things moving */
@@ -2021,16 +2022,18 @@ int cw_prod(struct cw_channel *chan)
 		cw_log(CW_LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->rawwriteformat;
 		a.data = nothing + CW_FRIENDLY_OFFSET;
-		if (cw_write(chan, &a))
+		f = &a;
+		if (cw_write(chan, &f))
 			cw_log(CW_LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}
 	return 0;
 }
 
-int cw_write(struct cw_channel *chan, struct cw_frame *fr)
+int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 {
-	int res = -1;
+	struct cw_frame *fr;
 	struct cw_frame *f = NULL;
+	int res = -1;
 
 	/* Stop if we're a zombie or need a soft hangup */
 	cw_mutex_lock(&chan->lock);
@@ -2042,6 +2045,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame *fr)
 	/* Handle any pending masquerades */
 	if (chan->masq)
     {
+		*fr_p = cw_frisolate(*fr_p);
 		if (cw_do_masquerade(chan))
         {
 			cw_log(CW_LOG_WARNING, "Failed to perform masquerade\n");
@@ -2049,6 +2053,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame *fr)
 			return -1;
 		}
 	}
+
 	if (chan->masqr)
     {
 		cw_mutex_unlock(&chan->lock);
@@ -2084,6 +2089,8 @@ int cw_write(struct cw_channel *chan, struct cw_frame *fr)
 		}
 
 	}
+
+	fr = *fr_p;
 
 	/* High bit prints debugging */
 	if (chan->fout & 0x80000000)
@@ -3384,7 +3391,7 @@ static enum cw_bridge_result cw_generic_bridge(struct cw_channel *c0,
 tackygoto:
 				/* Write immediately frames, not passed through jb */
 				if (!frame_put_in_jb)
-					cw_write((who == c0)  ?  c1  :  c0, f);
+					cw_write((who == c0)  ?  c1  :  c0, &f);
 				
 				/* Check if we have to deliver now */
 				cw_jb_get_and_deliver(c0, c1);

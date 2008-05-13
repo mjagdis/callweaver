@@ -77,7 +77,7 @@ static void *cw_generator_thread(void *data)
 
 	f = gen->class->generate(gen->chan, gen->pvt, 160);
 	while (f) {
-		cw_write(gen->chan, f);
+		cw_write(gen->chan, &f);
 
 		if (!cw_tvzero(f->delivery)) {
 			clk = CLOCK_REALTIME;

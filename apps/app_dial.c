@@ -537,15 +537,15 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 						}
 					} else if (single && (f->frametype == CW_FRAME_VOICE) && 
 								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (cw_write(in, f)) 
+						if (cw_write(in, &f)) 
 							cw_log(CW_LOG_DEBUG, "Unable to forward frame\n");
 					} else if (single && (f->frametype == CW_FRAME_IMAGE) && 
 								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (cw_write(in, f))
+						if (cw_write(in, &f))
 							cw_log(CW_LOG_DEBUG, "Unable to forward image\n");
 					} else if (single && (f->frametype == CW_FRAME_TEXT) && 
 								!(cw_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
-						if (cw_write(in, f))
+						if (cw_write(in, &f))
 							cw_log(CW_LOG_DEBUG, "Unable to text\n");
 					} else if (single && (f->frametype == CW_FRAME_HTML) && !cw_test_flag(outgoing, DIAL_NOFORWARDHTML))
 						cw_channel_sendhtml(in, f->subclass, f->data, f->datalen);
@@ -609,7 +609,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 			
 
 			if (single && ((f->frametype == CW_FRAME_VOICE) || (f->frametype == CW_FRAME_DTMF)))  {
-				if (cw_write(outgoing->chan, f))
+				if (cw_write(outgoing->chan, &f))
 					cw_log(CW_LOG_WARNING, "Unable to forward voice\n");
 			}
 			if (single && (f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_VIDUPDATE)) {

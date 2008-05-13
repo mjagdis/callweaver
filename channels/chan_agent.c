@@ -585,12 +585,18 @@ static int agent_write(struct cw_channel *ast, struct cw_frame *f)
 	CHECK_FORMATS(ast, p);
 	cw_mutex_lock(&p->lock);
 	if (p->chan) {
-		if ((f->frametype != CW_FRAME_VOICE) ||
-		    (f->subclass == p->chan->writeformat)) {
-			res = cw_write(p->chan, f);
-		} else {
-			cw_log(CW_LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
-			res = 0;
+		cw_mutex_lock(&p->chan->lock);
+		if (cw_test_flag(p->chan, CW_FLAG_ZOMBIE) || cw_check_hangup(p->chan))
+			res = -1;
+		cw_mutex_unlock(&p->chan->lock);
+		if (!res) {
+			if ((f->frametype != CW_FRAME_VOICE) ||
+			    (f->subclass == p->chan->writeformat)) {
+				res = p->chan->tech->write(p->chan, f);
+			} else {
+				cw_log(CW_LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
+				res = 0;
+			}
 		}
 	} else
 		res = 0;

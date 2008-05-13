@@ -1666,6 +1666,7 @@ zapretry:
                 res = read(outfd, buf, CONF_SIZE);
                 if (res > 0)
                 {
+                    struct cw_frame *fout;
                     cw_fr_init_ex(&fr, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                     fr.datalen = res;
                     fr.samples = res/2;
@@ -1673,11 +1674,13 @@ zapretry:
                     fr.offset = CW_FRIENDLY_OFFSET;
                     if (user->listen.actual)
                         cw_frame_adjust_volume(&fr, user->listen.actual);
-                    if (cw_write(chan, &fr) < 0)
+                    fout = &fr;
+                    if (cw_write(chan, &fout) < 0)
                     {
                         cw_log(CW_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                         /* break; */
                     }
+                    cw_fr_frame(fout);
                 }
                 else
                 {

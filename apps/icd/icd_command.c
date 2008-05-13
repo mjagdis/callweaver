@@ -1647,9 +1647,11 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
 
     for (i = 0;  i < count;  i++)
     {
-        if (cw_write(associated_caller->chan, &write_frame) < 0) {
+        struct cw_frame *f = &write_frame;
+        if (cw_write(associated_caller->chan, &f) < 0) {
             cw_log(CW_LOG_WARNING, "Unable to write frame to channel: %s\n", "strerror(errno)");
         }
+        cw_fr_free(f);
     }
 
     cw_cli(fd, "Function control_playback succeed - agent[%s]\n", agent_id);

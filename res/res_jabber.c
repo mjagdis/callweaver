@@ -1324,7 +1324,7 @@ static void *jabber_pbx_session(void *obj)
 
 		if (chan->stream) {
 			if ((sf = cw_readframe(chan->stream))) {
-				cw_write(chan, sf);
+				cw_write(chan, &sf);
 				cw_fr_free(sf);
 			} else {
 				cw_stopstream(chan);
@@ -1451,7 +1451,7 @@ static void *jabber_pbx_session(void *obj)
 
 					while ((f=jabber_profile_shift_frame(profile))) {
 						if (!chan->stream) { /* for now we'll ignore voice while a file plays */
-							cw_write(chan, f);
+							cw_write(chan, &f);
 						}
 						cw_fr_free(f);
 					}

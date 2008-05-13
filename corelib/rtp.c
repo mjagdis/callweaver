@@ -2262,9 +2262,9 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
             {
                 /* Forward voice or DTMF frames if they happen upon us */
                 if (who == c0)
-                    cw_write(c1, f);
+                    cw_write(c1, &f);
                 else if (who == c1)
-                    cw_write(c0, f);
+                    cw_write(c0, &f);
             }
             cw_fr_free(f);
         }

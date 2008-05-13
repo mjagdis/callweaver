@@ -368,7 +368,7 @@ static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, char *
                     if ((fr3 = cw_frdup(fr)))
                     {
                         memset(fr3->data, 0, fr3->datalen);
-                        cw_write(chan, fr3);
+                        cw_write(chan, &fr3);
                         cw_fr_free(fr3);
                     }
                 }

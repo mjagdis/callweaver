@@ -260,7 +260,7 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *re
 					if (!cw_test_flag(&flags, DFLAG_PAUSE)) {
 						for (x = 0; x < speed; x++) {
 							if ((fr = cw_readframe(fs))) {
-								cw_write(chan, fr);
+								cw_write(chan, &fr);
 								samples += fr->samples;
 								cw_fr_free(fr);
 								fr = NULL;

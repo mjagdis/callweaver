@@ -472,7 +472,7 @@ static void jb_get_and_deliver(struct cw_channel *chan)
 		{
 		case JB_IMPL_OK:
 			/* deliver the frame */
-			cw_write(chan, f);
+			cw_write(chan, &f);
 		case JB_IMPL_DROP:
 			jb_framelog("\tJB_GET {now=%ld, next=%ld}: %s frame"
 				    "with ts=%ld and len=%ld\n",
@@ -489,7 +489,8 @@ static void jb_get_and_deliver(struct cw_channel *chan)
 			f->delivery = cw_tvadd(jb->timebase, cw_samp2tv(jb->next, 1000));
 			f->offset=CW_FRIENDLY_OFFSET;
 			/* deliver the interpolated frame */
-			cw_write(chan, f);
+			cw_write(chan, &f);
+			cw_fr_free(f);
 			jb_framelog("\tJB_GET {now=%ld}: Interpolated frame with len=%d\n", now, interpolation_len);
 			break;
 		case JB_IMPL_NOFRAME:

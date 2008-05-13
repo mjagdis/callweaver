@@ -3357,9 +3357,9 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		}
 		if (f->frametype == CW_FRAME_DTMF) {
 			if ((who == c0) && p0->pulsedial) {
-				cw_write(c1, f);
+				cw_write(c1, &f);
 			} else if (p1->pulsedial) {
-				cw_write(c0, f);
+				cw_write(c0, &f);
 			} else {
 				*fo = f;
 				*rc = who;

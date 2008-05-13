@@ -706,7 +706,7 @@ struct cw_frame *cw_read(struct cw_channel *chan);
  * This function writes the given frame to the indicated channel.
  * It returns 0 on success, -1 on failure.
  */
-int cw_write(struct cw_channel *chan, struct cw_frame *frame);
+int cw_write(struct cw_channel *chan, struct cw_frame **frame);
 
 /* Send empty audio to prime a channel driver */
 int cw_prod(struct cw_channel *chan);

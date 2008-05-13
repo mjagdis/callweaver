@@ -2635,9 +2635,9 @@ static enum cw_bridge_result iax2_bridge(struct cw_channel *c0, struct cw_channe
 #endif
 tackygoto:
 				if (who == c0) 
-					cw_write(c1, f);
+					cw_write(c1, &f);
 				else 
-					cw_write(c0, f);
+					cw_write(c0, &f);
 			}
 			cw_fr_free(f);
 		} else

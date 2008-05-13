@@ -94,7 +94,7 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 {
 	/* Sends carefully on a full duplex channel by using reading for
 	   timing */
-	struct cw_frame *inf, outf;
+	struct cw_frame *inf, outf, *f;
 	int amt;
 
 	/* Zero out our outgoing frame */
@@ -112,11 +112,14 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 		outf.data = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
-		if (cw_write(chan, &outf))
+		f = &outf;
+		if (cw_write(chan, &f))
         {
+			cw_fr_free(f);
 			cw_log(CW_LOG_WARNING, "Failed to carefully write frame\n");
 			return -1;
 		}
+		cw_fr_free(f);
 		/* Update pointers and lengths */
 		buf += amt;
 		len -= amt;
@@ -148,11 +151,14 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 			outf.data = buf;
 			outf.datalen = amt;
 			outf.samples = amt;
-			if (cw_write(chan, &outf))
+			f = &outf;
+			if (cw_write(chan, &f))
             {
+				cw_fr_free(f);
 				cw_log(CW_LOG_WARNING, "Failed to carefully write frame\n");
 				return -1;
 			}
+			cw_fr_free(f);
 			/* Update pointers and lengths */
 			buf += amt;
 			len -= amt;

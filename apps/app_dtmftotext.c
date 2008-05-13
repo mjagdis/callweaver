@@ -267,6 +267,7 @@ static int send_waveform_to_channel(struct cw_channel *chan, char *waveform, int
 				res = read(fds[0], myf.frdata, needed);
 				if (res > 0)
                 {
+					struct cw_frame *fout;
 					myf.f.frametype = CW_FRAME_VOICE;
 					myf.f.subclass = CW_FORMAT_SLINEAR;
 					myf.f.datalen = res;
@@ -275,12 +276,15 @@ static int send_waveform_to_channel(struct cw_channel *chan, char *waveform, int
 					myf.f.offset = CW_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
 					myf.f.data = myf.frdata;
-					if (cw_write(chan, &myf.f) < 0)
+					fout = &myf.f;
+					if (cw_write(chan, &fout) < 0)
                     {
+						cw_fr_free(fout);
 						cw_fr_free(f);
 						res = -1;
 						break;
 					}
+					cw_fr_free(fout);
 					if (res < needed)
                     {
                         // last frame

@@ -593,16 +593,19 @@ icd_status icd_conference__join(icd_caller * that)
             res = read(outfd, buf, CONF_SIZE);
             if (res > 0)
             {
+                struct cw_frame *f;
                 cw_fr_init_ex(&write_frame, CW_FRAME_VOICE, icd_conf_format);
                 write_frame.datalen = res;
                 write_frame.samples = res;
                 write_frame.data = buf;
                 write_frame.offset = CW_FRIENDLY_OFFSET;
-                if (cw_write(chan, &write_frame) < 0)
+                f = &write_frame;
+                if (cw_write(chan, &f) < 0)
                 {
                     cw_log(CW_LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                     /* break; */
                 }
+                cw_fr_free(f);
             }
             else
             {

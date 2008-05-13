@@ -158,7 +158,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
 		        cw_log(CW_LOG_NOTICE, "channels are muted.\n");
 		}
 		else
-            	    cw_write(inactive, f);
+            	    cw_write(inactive, &f);
 		    
                 clean_frame(f);
                 channels[0] = inactive;
@@ -234,7 +234,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
 
 static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
 {
-    struct cw_frame outf;
+    struct cw_frame outf, *f;
     struct cw_channel *chan;
 
     chan = (struct cw_channel *) user_data;
@@ -243,8 +243,10 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     outf.data = (uint8_t *) buf;
     cw_log(CW_LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
     outf.tx_copies = count;
-    if (cw_write(chan, &outf) < 0)
+    f = &outf;
+    if (cw_write(chan, &f) < 0)
         cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+    cw_fr_free(f);
     return 0;
 }
 
@@ -366,17 +368,21 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[CW_FRIENDLY_OFFSET], samples)))
                     {
+                        struct cw_frame *fout;
                         cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
                         outf.datalen = len*sizeof(int16_t);
                         outf.samples = len;
                         outf.data = &buf[CW_FRIENDLY_OFFSET];
                         outf.offset = CW_FRIENDLY_OFFSET;
-                        if (cw_write(channels[1], &outf) < 0)
+                        fout = &outf;
+                        if (cw_write(channels[1], &fout) < 0)
                         {
+                            clean_frame(fout);
                             clean_frame(f);
                             cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                             break;
                         }
+                        clean_frame(fout);
                     }
                     clean_frame(f);
                 }
@@ -571,7 +577,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
                else if (f->frametype == CW_FRAME_VOICE)
                {
                    /* Pass on early media */
-                   cw_write(chan, f);
+                   cw_write(chan, &f);
                    cw_fr_free(f);
                    continue;
                }

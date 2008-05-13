@@ -205,16 +205,19 @@ static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 				if (ms <= 0) {
 					res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 					if (res > 0) {
+						struct cw_frame *fout;
                         cw_fr_init_ex(&myf.f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 						myf.f.datalen = res;
 						myf.f.samples = res/sizeof(int16_t);
 						myf.f.offset = CW_FRIENDLY_OFFSET;
 						myf.f.data = myf.frdata;
-						if (cw_write(chan, &myf.f) < 0)
+						fout = &myf.f;
+						if (cw_write(chan, &fout) < 0)
                         {
 							res = -1;
 							break;
 						}
+						cw_fr_frame(fout);
 					} else {
 						cw_log(CW_LOG_DEBUG, "No more stream\n");
 						res = 0;

@@ -218,7 +218,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 
 static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
 {
-    struct cw_frame outf;
+    struct cw_frame outf, *f;
     struct cw_channel *chan;
 
     chan = (struct cw_channel *) user_data;
@@ -227,8 +227,10 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     outf.datalen = len;
     outf.data = (char *) buf;
     outf.tx_copies = count;
-    if (cw_write(chan, &outf) < 0)
+    f = &outf;
+    if (cw_write(chan, &f) < 0)
         cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+    cw_fr_free(f);
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
@@ -337,7 +339,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose, int ecm) {
     char 		*x;
     struct cw_frame 	*inf = NULL;
-    struct cw_frame 	outf;
+    struct cw_frame 	outf, *fout;
     int 		ready = 1,
 			samples = 0,
 			res = 0,
@@ -434,11 +436,12 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
                 outf.samples = len;
                 outf.data = &buf[CW_FRIENDLY_OFFSET];
                 outf.offset = CW_FRIENDLY_OFFSET;
-
-                if (cw_write(chan, &outf) < 0) {
+                fout = &outf;
+                if (cw_write(chan, &fout) < 0) {
                     cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                     break;
                 }
+                cw_fr_frame(fout);
             }
 	    else
 	    {
@@ -449,11 +452,13 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
     		outf.data = &buf[CW_FRIENDLY_OFFSET];
     		outf.offset = CW_FRIENDLY_OFFSET;
     		memset(&buf[CW_FRIENDLY_OFFSET],0,outf.datalen);
-    		if (cw_write(chan, &outf) < 0)
+    		fout = &outf;
+    		if (cw_write(chan, &fout) < 0)
     		{
         	    cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
 		    break;
     		}
+    		cw_fr_free(fout);
 	    }
         }
 	else {

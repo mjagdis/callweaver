@@ -74,17 +74,17 @@ static int echo_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
 		if (f->frametype == CW_FRAME_VOICE) {
-			if (cw_write(chan, f)) 
+			if (cw_write(chan, &f)) 
 				break;
 		} else if (f->frametype == CW_FRAME_VIDEO) {
-			if (cw_write(chan, f)) 
+			if (cw_write(chan, &f)) 
 				break;
 		} else if (f->frametype == CW_FRAME_DTMF) {
 			if (f->subclass == '#') {
 				res = 0;
 				break;
 			} else
-				if (cw_write(chan, f))
+				if (cw_write(chan, &f))
 					break;
 		}
 		cw_fr_free(f);

@@ -219,7 +219,7 @@ int cw_dtmf_stream(struct cw_channel *chan,struct cw_channel *peer,char *digits,
 {
 	char *ptr;
 	int res = 0;
-	struct cw_frame f;
+	struct cw_frame fr, *f;
 	if (!between)
 		between = 100;
 
@@ -236,14 +236,16 @@ int cw_dtmf_stream(struct cw_channel *chan,struct cw_channel *peer,char *digits,
 						break;
 					continue;
 				}
-                cw_fr_init_ex(&f, CW_FRAME_DTMF, *ptr);
+                cw_fr_init_ex(&fr, CW_FRAME_DTMF, *ptr);
 				if (strchr("0123456789*#abcdABCD",*ptr) == NULL)
                 {
 					cw_log(CW_LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
 				}
                 else
                 {
+					f = &fr;
 					res = cw_write(chan, &f);
+					cw_fr_free(f);
 					if (res) 
 						break;
 					/* pause between digits */

@@ -85,7 +85,7 @@ char *ast_parking_ext(void) {
     return NULL;
 }
 
-int cw_write(struct cw_channel *chan, struct cw_frame *frame) {
+int cw_write(struct cw_channel *chan, struct cw_frame **frame) {
     return 0;
 }
 

@@ -1998,9 +1998,9 @@ static CC_BRIDGE_RETURN pbx_capi_bridge(struct cw_channel *c0,
 			break;
 		}
 		if (who == c0) {
-			cw_write(c1, f);
+			cw_write(c1, &f);
 		} else {
-			cw_write(c0, f);
+			cw_write(c0, &f);
 		}
 		cw_fr_free(f);
 

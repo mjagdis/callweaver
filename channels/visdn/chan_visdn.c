@@ -1328,9 +1328,9 @@ static int visdn_bridge(
 			}
 
 			if (who == c0)
-				cw_write(c1, f);
+				cw_write(c1, &f);
 			else
-				cw_write(c0, f);
+				cw_write(c0, &f);
 		}
 
 		cw_fr_free(f);
