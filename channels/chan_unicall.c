@@ -2398,22 +2398,6 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
             p->subs[index].f.subclass = 0;
             f = &p->subs[index].f;
         }
-        else if (f->subclass == 'm')
-        {
-            /* Confmute request */
-            unicall_confmute(p, 1);
-            p->subs[index].f.frametype = CW_FRAME_NULL;
-            p->subs[index].f.subclass = 0;
-            f = &p->subs[index].f;
-        }
-        else if (f->subclass == 'u')
-        {
-            /* Unmute */
-            unicall_confmute(p, 0);
-            p->subs[index].f.frametype = CW_FRAME_NULL;
-            p->subs[index].f.subclass = 0;
-            f = &p->subs[index].f;
-        }
         else
         {
             unicall_confmute(p, 0);

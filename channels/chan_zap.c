@@ -4684,8 +4684,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 					free(p->cidspill);
 				send_cwcidspill(p);
 			}
-			if ((f->subclass != 'm') && (f->subclass != 'u')) 
-				p->callwaitcas = 0;
+			p->callwaitcas = 0;
 			p->subs[index].f.frametype = CW_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
 			f = &p->subs[index].f;
@@ -4713,18 +4712,6 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 			p->subs[index].f.frametype = CW_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
 			f = &p->subs[index].f;
-		} else if (f->subclass == 'm') {
-			/* Confmute request */
-			zt_confmute(p, 1);
-			p->subs[index].f.frametype = CW_FRAME_NULL;
-			p->subs[index].f.subclass = 0;
-			f = &p->subs[index].f;		
-		} else if (f->subclass == 'u') {
-			/* Unmute */
-			zt_confmute(p, 0);
-			p->subs[index].f.frametype = CW_FRAME_NULL;
-			p->subs[index].f.subclass = 0;
-			f = &p->subs[index].f;		
 		} else
 			zt_confmute(p, 0);
 	}

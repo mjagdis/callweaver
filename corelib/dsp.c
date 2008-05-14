@@ -647,14 +647,10 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
                     dsp->possible_digit = FALSE;
                     if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
                     {
-                        cw_fr_init(&dsp->f);
-                        dsp->f.frametype = CW_FRAME_DTMF;
-                        dsp->f.subclass = 'u';
+                        signed char sc = 0;
+                        cw_channel_setoption(chan, CW_OPTION_MUTECONF, &sc, 1);
                         FIX_INF(af);
-                        if (chan)
-                            cw_queue_frame(chan, af);
-                        cw_fr_free(af);
-                        return &dsp->f;
+                        return af;
                     }
                 }
             }
@@ -671,15 +667,13 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
                 {
                     if (dtmf_status)
                     {
+                        signed char sc = 1;
                         /* Looks like we might have something.  
                            Request a conference mute for the moment */
+                        cw_channel_setoption(chan, CW_OPTION_MUTECONF, &sc, 1);
                         dsp->possible_digit = TRUE;
-                        cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'm');
                         FIX_INF(af);
-                        if (chan)
-                            cw_queue_frame(chan, af);
-                        cw_fr_free(af);
-                        return &dsp->f;
+                        return af;
                     }
                 }
             }
