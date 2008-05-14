@@ -88,6 +88,22 @@ static void span_message(int level, const char *msg)
     cw_log(cw_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
 }
 
+static void request_t38(struct cw_channel *chan, struct cw_channel *peer)
+{
+    signed char sc;
+
+    /* Remove any app level gain adjustments and disable echo cancel. */
+    sc = 0;
+    cw_channel_setoption(chan, CW_OPTION_RXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
+    cw_channel_setoption(peer, CW_OPTION_RXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(peer, CW_OPTION_TXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(peer, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
+
+    cw_app_request_t38(chan);
+}
+
 /* cw_bridge_audio(chan,peer);
    this is a no-nonsense optionless bridge function that probably needs to grow a little.
    This function makes no attempt to perform a native bridge or do anything cool because it's
@@ -176,7 +192,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
                                 if (fr2->subclass == 'f')
                                 {
                                     cw_log(CW_LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
-                                    cw_app_request_t38(chan);
+                                    request_t38(chan, peer);
                                 }
                             }
                         }
@@ -194,7 +210,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
                                 if (fr2->subclass == 'F')
                                 {
                                     cw_log(CW_LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
-                                    cw_app_request_t38(chan);
+                                    request_t38(chan, peer);
                                 }
                             }
                         }
