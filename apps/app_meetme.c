@@ -319,7 +319,7 @@ static int set_talk_volume(struct cw_conf_user *user, int volume)
        if successful, don't adjust in the frame reading routine
     */
     gain_adjust = gain_map[volume + 5];
-    return cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+    return cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust));
 }
 
 static int set_listen_volume(struct cw_conf_user *user, int volume)
@@ -330,7 +330,7 @@ static int set_listen_volume(struct cw_conf_user *user, int volume)
        if successful, don't adjust in the frame reading routine
     */
     gain_adjust = gain_map[volume + 5];
-    return cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+    return cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust));
 }
 
 static void tweak_volume(struct volume *vol, enum volume_action action)
@@ -399,8 +399,8 @@ static void reset_volumes(struct cw_conf_user *user)
 {
     signed char zero_volume = 0;
 
-    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
-    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
+    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
+    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume));
 }
 
 static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int sound)
@@ -1162,7 +1162,7 @@ zapretry:
         {
             /*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
             x = 1;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
         /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
           or use default filename of conf-background.ogi */
@@ -1174,7 +1174,7 @@ zapretry:
         {
             /*  Remove CONFMUTE mode on Zap channel */
             x = 0;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
     }
     else
@@ -1183,7 +1183,7 @@ zapretry:
         {
             /*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
             x = 1;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
         if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = cw_dsp_new()))
         {

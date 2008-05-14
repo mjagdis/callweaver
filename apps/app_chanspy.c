@@ -446,7 +446,7 @@ static void set_volume(struct cw_channel *chan, struct chanspy_translation_helpe
         volume_adjust = -24;
     else
         volume_adjust = csth->volfactor;
-    if (!cw_channel_setoption(chan, CW_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
+    if (!cw_channel_setoption(chan, CW_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust)))
         csth->volfactor = 0;
 }
 
@@ -751,7 +751,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 
     cw_clear_flag(chan, CW_FLAG_SPYING);
 
-    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
 
     ALL_DONE(u, res);
 }

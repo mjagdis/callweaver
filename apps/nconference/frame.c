@@ -324,7 +324,7 @@ int set_talk_volume(struct cw_conf_member *member, struct cw_frame *f, int is_ta
         /* Attempt to make the adjustment in the channel driver first */
         if (member->talk_volume_adjust == 0)
         {
-            ret = cw_channel_setoption(member->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+            ret = cw_channel_setoption(member->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust));
             if (ret)
                 member->talk_volume_adjust = 1;
         }

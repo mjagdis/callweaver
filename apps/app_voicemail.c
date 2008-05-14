@@ -3191,10 +3191,10 @@ static int vm_forwardoptions(struct cw_channel *chan, struct cw_vm_user *vmu, ch
 			char file[200];
 			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain));
 			cmd = cw_play_and_prepend(chan, NULL, file, 0, vmfmts, &duration, 1, silencethreshold, maxsilence);
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain));
 			break;
 		}
 		case '2': 
@@ -6458,10 +6458,10 @@ static int play_record_review(struct cw_channel *chan, char *playfile, char *rec
  			recorded = 1;
  			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain));
 			cmd = cw_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir);
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain));
  			if (cmd == -1) {
  			/* User has hung up, no options to give */
  				return cmd;

@@ -900,11 +900,10 @@ char *cw_transfercapability2str(int transfercapability);
  * \param option option to change
  * \param data data specific to option
  * \param datalen length of the data
- * \param block blocking or not
- * Set an option on a channel (see frame.h), optionally blocking awaiting the reply 
+ * Set an option on a channel (see frame.h)
  * Returns 0 on success and -1 on failure
  */
-int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen, int block);
+int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen);
 
 /*! Pick the best codec  */
 /* Choose the best codec...  Uhhh...   Yah. */

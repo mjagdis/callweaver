@@ -3647,7 +3647,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 }
 
 /*--- cw_channel_setoption: Sets an option on a channel */
-int cw_channel_setoption(struct cw_channel *chan, int option, void *data, int datalen, int block)
+int cw_channel_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
 	int res;
 
@@ -3660,13 +3660,6 @@ int cw_channel_setoption(struct cw_channel *chan, int option, void *data, int da
 	else
 	{
 		errno = ENOSYS;
-		return -1;
-	}
-	if (block)
-	{
-		/* XXX Implement blocking -- just wait for our option frame reply, discarding
-		   intermediate packets. XXX */
-		cw_log(CW_LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
 		return -1;
 	}
 	return 0;

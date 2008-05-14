@@ -1428,8 +1428,8 @@ static int unicall_hangup(struct cw_channel *cw)
         /*endif*/
         super_tone(&p->subs[SUB_REAL], ST_TYPE_NONE);
         x = 0;
-        //cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
-        //cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char), 0);
+        //cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char));
+        //cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char));
         p->dialing = FALSE;
         p->rdnis[0] = '\0';
         update_conf(p);

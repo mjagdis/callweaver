@@ -2460,7 +2460,7 @@ static int zt_hangup(struct cw_channel *cw)
 
 	if (p->sig == SIG_PRI) {
 		x = 1;
-		cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
+		cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char));
 	}
 
 	x = 0;
@@ -2692,8 +2692,8 @@ static int zt_hangup(struct cw_channel *cw)
 		if (p->sig)
 			zt_disable_ec(p);
 		x = 0;
-		cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
-		cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char), 0);
+		cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char));
+		cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char));
 		p->didtdd = FALSE;
 		p->cidspill = p->cidspill2 = NULL;
 		p->callwaitcas = 0;
@@ -2706,7 +2706,7 @@ static int zt_hangup(struct cw_channel *cw)
 		/* Restore data mode */
 		if (p->sig == SIG_PRI) {
 			x = 0;
-			cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
+			cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char));
 		}
 #ifdef ZAPATA_PRI
 		if (p->bearer) {

@@ -192,7 +192,7 @@ int cw_async_goto_n(struct cw_channel *chan, char *context, char *exten, int pri
     return 0;
 }
 
-int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen, int block) {
+int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen) {
     return 0;
 }
 

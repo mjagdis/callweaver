@@ -1478,9 +1478,9 @@ static int __cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,stru
 			/* Forward option Requests */
 			if (aoh && (aoh->flag == CW_OPTION_FLAG_REQUEST)) {
 				if (who == chan)
-					cw_channel_setoption(peer, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header), 0);
+					cw_channel_setoption(peer, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header));
 				else
-					cw_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header), 0);
+					cw_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header));
 			}
 		}
 		/* check for '*', if we find it it's time to disconnect */

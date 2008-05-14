@@ -2505,9 +2505,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
            conversation.  */
         qe->handled++;
         if (!strcmp(qe->chan->type,"Zap"))
-            cw_channel_setoption(qe->chan, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
+            cw_channel_setoption(qe->chan, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality));
         if (!strcmp(peer->type,"Zap"))
-            cw_channel_setoption(peer, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
+            cw_channel_setoption(peer, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality));
         /* Update parameters for the queue */
         recalc_holdtime(qe);
         member = lpeer->member;

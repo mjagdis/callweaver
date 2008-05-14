@@ -461,7 +461,7 @@ static int handle_tddmode(struct cw_channel *chan, OGI *ogi, int argc, char *arg
 		x = 2;
 	if (!strncasecmp(argv[2],"tdd",3))
 		x = 1;
-	res = cw_channel_setoption(chan, CW_OPTION_TDD, &x, sizeof(char), 0);
+	res = cw_channel_setoption(chan, CW_OPTION_TDD, &x, sizeof(char));
 	if (res != RESULT_SUCCESS)
 		fdprintf(ogi->fd, "200 result=0\n");
 	else
