@@ -220,7 +220,7 @@ static struct robin_list *robin = NULL;
 
 
 
-struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame);
+static struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame);
 
 
 
@@ -2944,6 +2944,45 @@ static int misdn_send_text (struct cw_channel *chan, const char *text)
 	return 0;
 }
 
+
+static int misdn_setoption(struct cw_channel *chan, int option, void *data, int datalen)
+{
+	struct chan_list *pvt;
+	int ret = -1;
+
+	errno = ENOSYS;
+
+	if (chan && (pvt = MISDN_CALLWEAVER_TECH_PVT(chan)) && pvt->bc) {
+		switch (option) {
+			case CW_OPTION_RXGAIN:
+				if (data && datalen == sizeof(signed char)) {
+					signed char gain = *(signed char *)data;
+					if (gain < -8) gain = -8;
+					if (gain > 8) gain = 8;
+					pvt->bc->rxgain = gain;
+					isdn_lib_update_rxgain(pvt->bc);
+					chan_misdn_log(1, pvt->bc->port, "SETOPT: RX gain: %d\n", gain);
+					ret = 0;
+				}
+				break;
+
+			case CW_OPTION_TXGAIN:
+				if (data && datalen == sizeof(signed char)) {
+					signed char gain = *(signed char *)data;
+					if (gain < -8) gain = -8;
+					if (gain > 8) gain = 8;
+					pvt->bc->txgain = gain;
+					isdn_lib_update_txgain(pvt->bc);
+					chan_misdn_log(1, pvt->bc->port, "SETOPT: TX gain: %d\n", gain);
+					ret = 0;
+				}
+				break;
+		}
+	}
+
+	return ret;
+}
+
 static struct cw_channel_tech misdn_tech = {
 	.type="mISDN",
 	.description="Channel driver for mISDN Support (Bri/Pri)",
@@ -2959,6 +2998,7 @@ static struct cw_channel_tech misdn_tech = {
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
 	.send_text=misdn_send_text,
+	.setoption=misdn_setoption,
 	.properties=0
 };
 
@@ -2976,6 +3016,7 @@ static struct cw_channel_tech misdn_tech_wo_bridge = {
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
 	.send_text=misdn_send_text,
+	.setoption=misdn_setoption,
 	.properties=0
 };
 
@@ -3073,7 +3114,7 @@ static struct cw_channel *misdn_new(struct chan_list *chlist, int state,  char *
 }
 
 
-struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame)
+static struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *frame)
 {
 	struct cw_frame *f,*f2;
 
