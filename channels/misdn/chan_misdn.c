@@ -3146,12 +3146,6 @@ static struct cw_frame *process_cw_dsp(struct chan_list *tmp, struct cw_frame *f
 			struct cw_channel *cw = tmp->cw;
 			tmp->faxhandled++;
 			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", cw->name);
-			tmp->bc->rxgain = 0;
-			isdn_lib_update_rxgain(tmp->bc);
-			tmp->bc->txgain = 0;
-			isdn_lib_update_txgain(tmp->bc);
-			tmp->bc->ec_enable = 0;
-			isdn_lib_update_ec(tmp->bc);
 			isdn_lib_stop_dtmf(tmp->bc);
 			switch (tmp->faxdetect) {
 			case 1:

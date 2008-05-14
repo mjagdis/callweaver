@@ -546,6 +546,8 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     int original_read_fmt;
     int original_write_fmt;
 
+    signed char sc;
+
     /* Basic initial checkings */
 
     if (chan == NULL)
@@ -646,6 +648,11 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
         }
     }
 
+    /* Remove any app level gain adjustments and disable echo cancel. */
+    sc = 0;
+    cw_channel_setoption(chan, CW_OPTION_RXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
 
     /* This is the main loop */
 
@@ -675,6 +682,8 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 
     fax_release(&fax);
     t38_terminal_release(&t38);
+
+    /* Maybe we should restore gain and echo cancel settings here? */
 
     /* Restoring initial channel formats. */
 
