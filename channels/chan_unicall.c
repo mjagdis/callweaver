@@ -1504,6 +1504,8 @@ static int unicall_setoption(struct cw_channel *chan, int option, void *data, in
     cw_log(CW_LOG_WARNING, "unicall_setoption called - %d\n", option);
     if (option != CW_OPTION_TONE_VERIFY
         &&
+        option != CW_OPTION_MUTECONF
+        &&
         option != CW_OPTION_TDD
         &&
         option != CW_OPTION_RELAXDTMF)
@@ -1538,6 +1540,9 @@ static int unicall_setoption(struct cw_channel *chan, int option, void *data, in
             break;
         }
         /*endswitch*/
+        break;
+    case CW_OPTION_MUTECONF:
+        unicall_confmute(p, *(char *)data);
         break;
     case CW_OPTION_RELAXDTMF:
         /* Relax DTMF decoding (or not) */

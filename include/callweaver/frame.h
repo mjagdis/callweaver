@@ -277,6 +277,9 @@ typedef struct cw_frame
 /* Enable/disable echo cancellation */
 #define CW_OPTION_ECHOCANCEL      7
 
+/* Turn conference muting on/off */
+#define CW_OPTION_MUTECONF        8
+
 
 struct cw_option_header {
     /* Always keep in network byte order */

@@ -2896,6 +2896,9 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 			break;
 		}
 		break;
+	case CW_OPTION_MUTECONF:
+		zt_confmute(p, *(char *)data);
+		break;
 	case CW_OPTION_TDD:
 		/* turn on or off TDD */
 		cp = (char *) data;
