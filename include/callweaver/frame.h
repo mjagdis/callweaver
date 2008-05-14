@@ -274,6 +274,10 @@ typedef struct cw_frame
 */
 #define CW_OPTION_RXGAIN          6
 
+/* Enable/disable echo cancellation */
+#define CW_OPTION_ECHOCANCEL      7
+
+
 struct cw_option_header {
     /* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN

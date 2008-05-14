@@ -2977,6 +2977,15 @@ static int misdn_setoption(struct cw_channel *chan, int option, void *data, int 
 					ret = 0;
 				}
 				break;
+
+			case CW_OPTION_ECHOCANCEL:
+				if (data && datalen == sizeof(signed char)) {
+					pvt->bc->ec_enable = *(signed char *)data;
+					chan_misdn_log(1, pvt->bc->port, " echo cancellation set to %d\n", pvt->bc->ec_enable);
+					isdn_lib_update_ec(pvt->bc);
+					ret = 0;
+				}
+				break;
 		}
 	}
 

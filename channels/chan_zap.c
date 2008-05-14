@@ -2871,6 +2871,12 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		}
 		cw_log(CW_LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
 		return set_actual_rxgain(p->subs[index].zfd, 0, p->rxgain + (float) *scp, p->law);
+	case CW_OPTION_ECHOCANCEL:
+		if (*(char *)data)
+			zt_enable_ec(p);
+		else
+			zt_disable_ec(p);
+		return 0;
 	case CW_OPTION_TONE_VERIFY:
 		if (!p->dsp)
 			break;
