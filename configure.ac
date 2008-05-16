@@ -1923,7 +1923,7 @@ AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_bluetooth],
-	[AC_HELP_STRING([--with-chan_bluetooth],[Build and install chan_bluetoot (default=no)])],,
+	[AC_HELP_STRING([--with-chan_bluetooth],[Build and install chan_bluetooth (default=no)])],,
 	[with_chan_bluetooth="no"])
 
 if test "${with_chan_bluetooth}" = "yes" ; then
