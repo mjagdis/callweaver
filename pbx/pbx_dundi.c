@@ -48,6 +48,8 @@
 #endif
 #include <zlib.h>
 
+#include <openssl/aes.h>
+
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")

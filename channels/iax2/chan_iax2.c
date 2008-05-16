@@ -51,6 +51,8 @@
 #include "iax2.h"
 #include "iax2-parser.h"
 
+#include <openssl/aes.h>
+
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
