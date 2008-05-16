@@ -699,7 +699,6 @@ dial:
 void sccp_pbx_senddigit(sccp_channel_t * c, char digit) {
 	struct cw_frame f = { CW_FRAME_DTMF, };
 
-	f.src = "SCCP";
 	f.subclass = digit;
 
 	cw_mutex_lock(&c->lock);
@@ -712,7 +711,6 @@ void sccp_pbx_senddigits(sccp_channel_t * c, char digits[CW_MAX_EXTENSION]) {
 	struct cw_frame f = { CW_FRAME_DTMF, 0};
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending digits %s\n", DEV_ID_LOG(c->device), digits);
 	// We don't just call sccp_pbx_senddigit due to potential overhead, and issues with locking
-	f.src = "SCCP";
 	f.offset = 0;
 	f.data = NULL;
 	f.datalen = 0;

@@ -2054,8 +2054,7 @@ struct cw_frame *unicall_exception(struct cw_channel *cw)
     /*endif*/
     
     cw_fr_init(&p->subs[index].f);
-    p->subs[index].f.src = "unicall_exception";
-    
+
     if (p->owner == NULL  &&  !p->radio)
     {
         /* If nobody owns us, absorb the event appropriately, otherwise
@@ -2141,8 +2140,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
     /*endif*/
     
     cw_fr_init(&p->subs[index].f);
-    p->subs[index].f.src = "unicall_read";
-    
+
     /* Make sure it sends initial key state as first frame */
     if (p->radio  &&  !p->firstradio)
     {
