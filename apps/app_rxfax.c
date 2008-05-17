@@ -168,18 +168,22 @@ static struct cw_generator faxgen =
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 {
     struct cw_channel *chan;
-    char local_ident[21];
-    char far_ident[21];
     char buf[128];
     const char *mode;
     t30_stats_t t;
+    const char *tx_ident;
+    const char *rx_ident;
 
-    t30_get_transfer_statistics(s, &t);
-    
     chan = (struct cw_channel *) user_data;
-    t30_get_local_ident(s, local_ident);
-    t30_get_far_ident(s, far_ident);
-    pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", far_ident);
+    t30_get_transfer_statistics(s, &t);
+
+    tx_ident = t30_get_tx_ident(s);
+    if (tx_ident == NULL)
+        tx_ident = "";
+    rx_ident = t30_get_rx_ident(s);
+    if (rx_ident == NULL)
+        rx_ident = "";
+    pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", rx_ident);
     snprintf(buf, sizeof(buf), "%d", t.pages_transferred);
     pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
     snprintf(buf, sizeof(buf), "%d", t.y_resolution);
@@ -197,8 +201,8 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     if (result == T30_ERR_OK) 
     {
         cw_log(CW_LOG_DEBUG, "Fax successfully received (%s).\n", mode);
-        cw_log(CW_LOG_DEBUG, "Remote station id: %s\n", far_ident);
-        cw_log(CW_LOG_DEBUG, "Local station id:  %s\n", local_ident);
+        cw_log(CW_LOG_DEBUG, "Remote station id: %s\n", rx_ident);
+        cw_log(CW_LOG_DEBUG, "Local station id:  %s\n", tx_ident);
         cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
         cw_log(CW_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
         cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
@@ -207,8 +211,8 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
                       chan->name,
                       chan->exten,
                       (chan->cid.cid_num)  ?  chan->cid.cid_num  :  "",
-                      far_ident,
-                      local_ident,
+                      rx_ident,
+                      tx_ident,
                       t.pages_transferred,
                       t.y_resolution,
                       t.bit_rate,
@@ -222,7 +226,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 }
 /*- End of function --------------------------------------------------------*/
 
-static void phase_d_handler(t30_state_t *s, void *user_data, int result)
+static int phase_d_handler(t30_state_t *s, void *user_data, int result)
 {
     struct cw_channel *chan;
     t30_stats_t t;
@@ -242,6 +246,7 @@ static void phase_d_handler(t30_state_t *s, void *user_data, int result)
         cw_log(CW_LOG_DEBUG, "Image size (bytes)  %i\n", t.image_size);
         cw_log(CW_LOG_DEBUG, "==============================================================================\n");
     }
+    return T30_ERR_OK;
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -293,10 +298,10 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
 
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
-        t30_set_local_ident(&t38->t30_state, x);
+        t30_set_tx_ident(&t38->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
     if (x  &&  x[0])
-        t30_set_local_sub_address(&t38->t30_state, x);
+        t30_set_tx_sub_address(&t38->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
         t30_set_header_info(&t38->t30_state, x);
@@ -400,10 +405,10 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
     }
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
-        t30_set_local_ident(&fax->t30_state, x);
+        t30_set_tx_ident(&fax->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
     if (x  &&  x[0])
-        t30_set_local_sub_address(&fax->t30_state, x);
+        t30_set_tx_sub_address(&fax->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
         t30_set_header_info(&fax->t30_state, x);
