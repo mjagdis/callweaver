@@ -168,7 +168,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
     return 1;
 }
 
-static int __cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
+static int cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
 {
     int x;
     int y;
@@ -663,7 +663,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
     {
         dsp->f.frametype = CW_FRAME_CONTROL;
-        if ((dsp->f.subclass = __cw_dsp_call_progress(dsp, amp, samples)))
+        if ((dsp->f.subclass = cw_dsp_call_progress(dsp, amp, samples)))
             goto out_event;
     }
 
