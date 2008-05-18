@@ -274,7 +274,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
         t30_set_tx_sub_address(&t38->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
-        t30_set_header_info(&t38->t30_state, x);
+        t30_set_tx_page_header_info(&t38->t30_state, x);
     t30_set_tx_file(&t38->t30_state, source_file, -1, -1);
 
     //t30_set_phase_b_handler(&t38.t30_state, phase_b_handler, chan);
@@ -378,7 +378,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
         t30_set_tx_sub_address(&fax->t30_state, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
-        t30_set_header_info(&fax->t30_state, x);
+        t30_set_tx_page_header_info(&fax->t30_state, x);
     t30_set_tx_file(&fax->t30_state, source_file, -1, -1);
     //t30_set_phase_b_handler(&fax.t30_state, phase_b_handler, chan);
     //t30_set_phase_d_handler(&fax.t30_state, phase_d_handler, chan);
