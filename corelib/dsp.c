@@ -173,13 +173,10 @@ static int __cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
     int x;
     int y;
     int pass;
-    int newstate;
-    int res;
-    int thresh;
+    int newstate = DSP_TONE_STATE_SILENCE;
+    int res = 0;
+    int thresh = COUNT_THRESH;
 
-    newstate = DSP_TONE_STATE_SILENCE;
-    res = 0;
-    thresh = (dsp->progmode == PROG_MODE_UK)  ?  UK_HANGUP_THRESH  :  COUNT_THRESH;
     while (len)
     {
         /* Take the lesser of the number of samples we need and what we have */
@@ -207,105 +204,116 @@ static int __cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
 #endif
             switch (dsp->progmode)
             {
-            case PROG_MODE_NA:
-                if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy))
-                {
-                    newstate = DSP_TONE_STATE_BUSY;
-                }
-                else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy))
-                {
-                    newstate = DSP_TONE_STATE_RINGING;
-                }
-                else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy))
-                {
-                    newstate = DSP_TONE_STATE_DIALTONE;
-                }
-                else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH)
-                {
-                    newstate = DSP_TONE_STATE_SPECIAL1;
-                }
-                else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH)
-                {
-                    if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
-                        newstate = DSP_TONE_STATE_SPECIAL2;
-                }
-                else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH)
-                {
-                    if (dsp->tstate == DSP_TONE_STATE_SPECIAL2)
-                        newstate = DSP_TONE_STATE_SPECIAL3;
-                }
-                else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
-                {
-                    newstate = DSP_TONE_STATE_TALKING;
-                }
-                else
-                {
-                    newstate = DSP_TONE_STATE_SILENCE;
-                }
-                break;
-            case PROG_MODE_CR:
-                if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH)
-                    newstate = DSP_TONE_STATE_RINGING;
-                else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
-                    newstate = DSP_TONE_STATE_TALKING;
-                else
-                    newstate = DSP_TONE_STATE_SILENCE;
-                break;
-            case PROG_MODE_UK:
-                if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH)
-                    newstate = DSP_TONE_STATE_HUNGUP;
-                break;
-            default:
-                cw_log(CW_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
-                break;
+                case PROG_MODE_NA:
+                    if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy))
+                    {
+                        newstate = DSP_TONE_STATE_BUSY;
+                    }
+                    else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy))
+                    {
+                        newstate = DSP_TONE_STATE_RINGING;
+                    }
+                    else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy))
+                    {
+                        newstate = DSP_TONE_STATE_DIALTONE;
+                    }
+                    else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH)
+                    {
+                        newstate = DSP_TONE_STATE_SPECIAL1;
+                    }
+                    else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH)
+                    {
+                        if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
+                            newstate = DSP_TONE_STATE_SPECIAL2;
+                    }
+                    else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH)
+                    {
+                        if (dsp->tstate == DSP_TONE_STATE_SPECIAL2)
+                            newstate = DSP_TONE_STATE_SPECIAL3;
+                    }
+                    else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
+                    {
+                        newstate = DSP_TONE_STATE_TALKING;
+                    }
+                    break;
+
+                case PROG_MODE_CR:
+                    if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH)
+                        newstate = DSP_TONE_STATE_RINGING;
+                    break;
+
+                case PROG_MODE_UK:
+                    if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH)
+                    {
+                        newstate = DSP_TONE_STATE_HUNGUP;
+                        thresh = UK_HANGUP_THRESH;
+                    }
+                    break;
+
+                default:
+                    cw_log(CW_LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+                    break;
             }
-            if (newstate == dsp->tstate)
+
+            /* If we couldn't find anything better above we just have to
+             * choose between silence and "talking" (not silence).
+             */
+            if (newstate == DSP_TONE_STATE_SILENCE && dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
+                newstate = DSP_TONE_STATE_TALKING;
+
+            if (newstate != dsp->tstate)
+            {
+                dsp->tstate = newstate;
+                dsp->tcount = 0;
+            }
+            if (dsp->tcount < thresh)
             {
                 dsp->tcount++;
                 if (dsp->tcount == thresh)
                 {
-                    if ((dsp->features & DSP_PROGRESS_BUSY)
-                            && 
-                        dsp->tstate == DSP_TONE_STATE_BUSY)
+                    switch (dsp->tstate)
                     {
-                        res = CW_CONTROL_BUSY;
-                        dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-                    }
-                    else if ((dsp->features & DSP_PROGRESS_TALK)
-                             && 
-                             dsp->tstate == DSP_TONE_STATE_TALKING)
-                    {
-                        res = CW_CONTROL_ANSWER;
-                        dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-                    }
-                    else if ((dsp->features & DSP_PROGRESS_RINGING)
-                             && 
-                             dsp->tstate == DSP_TONE_STATE_RINGING)
-                    {
-                        res = CW_CONTROL_RINGING;
-                    }
-                    else if ((dsp->features & DSP_PROGRESS_CONGESTION)
-                             && 
-                             dsp->tstate == DSP_TONE_STATE_SPECIAL3)
-                    {
-                        res = CW_CONTROL_CONGESTION;
-                        dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-                    }
-                    else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)
-                             &&
-                             dsp->tstate == DSP_TONE_STATE_HUNGUP)
-                    {
-                        res = CW_CONTROL_HANGUP;
-                        dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-                    }
+                        /* The first set occur during a call and may be legimately
+                         * followed by other call progress indications.
+                         */
+                        case DSP_TONE_STATE_RINGING:
+                            if ((dsp->features & DSP_PROGRESS_RINGING))
+                                res = CW_CONTROL_RINGING;
+                            break;
+
+                       /* The final set all indicate that a call has ended in some
+                        * way. There is no need to push further frames through the
+                        * DSP for call progress detection.
+                        */
+                        default:
+                            switch (dsp->tstate)
+                            {
+                                case DSP_TONE_STATE_TALKING:
+                                    if ((dsp->features & DSP_PROGRESS_TALK))
+                                        res = CW_CONTROL_ANSWER; /* FIXME: There should be a control frame for this */
+                                    break;
+
+                                case DSP_TONE_STATE_BUSY:
+                                    if ((dsp->features & DSP_PROGRESS_BUSY))
+                                        res = CW_CONTROL_BUSY;
+                                    break;
+
+                                case DSP_TONE_STATE_SPECIAL3:
+                                    if ((dsp->features & DSP_PROGRESS_CONGESTION))
+                                        res = CW_CONTROL_CONGESTION;
+                                    break;
+
+                                case DSP_TONE_STATE_HUNGUP:
+                                    if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
+                                        res = CW_CONTROL_HANGUP;
+                                    break;
+                            }
+                            dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+                            break;
+		    }
                 }
             }
-            else
-            {
-                dsp->tstate = newstate;
-                dsp->tcount = 1;
-            }
-            
+
             /* Reset goertzel */                        
             for (x = 0;  x < 7;  x++)
                 goertzel_reset(&dsp->freqs[x]);
@@ -540,97 +548,72 @@ int cw_dsp_silence(struct cw_dsp *dsp, struct cw_frame *f, int *totalsilence)
     return __cw_dsp_silence(dsp, amp, len, totalsilence);
 }
 
-#define FIX_INF(inf) \
-do \
-{ \
-    if (writeback) \
-    { \
-        switch(inf->subclass) \
-        { \
-        case CW_FORMAT_ULAW: \
-            for (x = 0;  x < len;  x++) \
-                odata[x] = CW_LIN2MU(amp[x]); \
-            break; \
-        case CW_FORMAT_ALAW: \
-            for (x = 0;  x < len;  x++) \
-                odata[x] = CW_LIN2A(amp[x]); \
-            break; \
-        } \
-    } \
-} \
-while(0) 
-
 struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, struct cw_frame *af)
 {
-    int silence;
-    int res;
-    int x;
-    int16_t *amp;
-    uint8_t *odata;
-    int len;
-    int dtmf_status;
-    int writeback = FALSE;
     char digit_buf[10];
-    char buf[2];
+    int x;
+    int samples;
+    int dtmf_status;
+    int squelch = FALSE;
+    int16_t *amp;
 
-    if (af == NULL)
-        return NULL;
-    if (af->frametype != CW_FRAME_VOICE)
+    if (!af || af->frametype != CW_FRAME_VOICE)
         return af;
-    odata = af->data;
-    len = af->datalen;
+
     /* Make sure we have short data */
     switch (af->subclass)
     {
     case CW_FORMAT_SLINEAR:
         amp = af->data;
-        len = af->datalen/sizeof(int16_t);
+        samples = af->datalen / sizeof(int16_t);
         break;
     case CW_FORMAT_ULAW:
-        amp = alloca(af->datalen*sizeof(int16_t));
-        for (x = 0;  x < len;  x++) 
-            amp[x] = CW_MULAW(odata[x]);
+        amp = alloca(af->datalen * sizeof(int16_t));
+        samples = af->datalen;
+        for (x = 0;  x < af->datalen;  x++) 
+            amp[x] = CW_MULAW(((uint8_t *)af->data)[x]);
         break;
     case CW_FORMAT_ALAW:
-        amp = alloca(af->datalen*sizeof(int16_t));
-        for (x = 0;  x < len;  x++) 
-            amp[x] = CW_ALAW(odata[x]);
+        amp = alloca(af->datalen * sizeof(int16_t));
+        samples = af->datalen;
+        for (x = 0;  x < af->datalen;  x++) 
+            amp[x] = CW_ALAW(((uint8_t *)af->data)[x]);
         break;
     default:
         cw_log(CW_LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", cw_getformatname(af->subclass));
         return af;
     }
-    silence = __cw_dsp_silence(dsp, amp, len, NULL);
-    if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS)  &&  silence)
+
+    if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS)  &&  __cw_dsp_silence(dsp, amp, samples, NULL))
     {
-        cw_fr_init(&dsp->f);
         dsp->f.frametype = CW_FRAME_NULL;
         return &dsp->f;
     }
+
     if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  cw_dsp_busydetect(dsp))
     {
         chan->_softhangup |= CW_SOFTHANGUP_DEV;
-        cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, CW_CONTROL_BUSY);
+        dsp->f.frametype = CW_FRAME_CONTROL;
+        dsp->f.subclass = CW_CONTROL_BUSY;
         cw_log(CW_LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
         return &dsp->f;
     }
+
     if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
     {
         if ((dsp->digit_mode & DSP_DIGITMODE_MF))
         {
-            bell_mf_rx(&dsp->bell_mf_rx, amp, len);
+            bell_mf_rx(&dsp->bell_mf_rx, amp, samples);
             if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
             {
-                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, digit_buf[0]);
-                if (chan)
-                    cw_queue_frame(chan, af);
-                cw_fr_free(af);
-                return &dsp->f;
+                dsp->f.frametype = CW_FRAME_DTMF;
+                dsp->f.subclass = digit_buf[0];
+                goto out_event;
             }
         }
         else
         {
-            dtmf_rx(&dsp->dtmf_rx, amp, len);
+            dtmf_rx(&dsp->dtmf_rx, amp, samples);
             dtmf_status = dtmf_rx_status(&dsp->dtmf_rx);
             /* A confirmed "in digit" status should cause mute to overhang */
             if (dtmf_status  &&  dtmf_status != 'x')
@@ -638,10 +621,7 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
             if (dsp->mute_lag)
             {
                 if (--dsp->mute_lag)
-                {
-                    memset(amp, 0, sizeof(int16_t)*len);
-                    writeback = TRUE;
-                }
+                    squelch = TRUE;
                 else
                 {
                     dsp->possible_digit = FALSE;
@@ -649,94 +629,76 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
                     {
                         signed char sc = 0;
                         cw_channel_setoption(chan, CW_OPTION_MUTECONF, &sc, 1);
-                        FIX_INF(af);
-                        return af;
+                        goto out_audio;
                     }
                 }
             }
-            if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
+            if ((dsp->digit_mode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX))
+            && !dsp->possible_digit && dtmf_status)
             {
-                if (dsp->possible_digit)
-                {
-                    FIX_INF(af);
-                    if (chan)
-                        cw_queue_frame(chan, af);
-                    cw_fr_free(af);
-                }
-                else
-                {
-                    if (dtmf_status)
-                    {
-                        signed char sc = 1;
-                        /* Looks like we might have something.  
-                           Request a conference mute for the moment */
-                        cw_channel_setoption(chan, CW_OPTION_MUTECONF, &sc, 1);
-                        dsp->possible_digit = TRUE;
-                        FIX_INF(af);
-                        return af;
-                    }
-                }
+                signed char sc = 1;
+                /* Looks like we might have something.  
+                   Request a conference mute for the moment */
+                cw_channel_setoption(chan, CW_OPTION_MUTECONF, &sc, 1);
+                dsp->possible_digit = TRUE;
+                goto out_audio;
             }
-            if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
+            if (dtmf_rx_get(&dsp->dtmf_rx, digit_buf, 1))
             {
-                cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, buf[0]);
-                FIX_INF(af);
-                if (chan)
-                    cw_queue_frame(chan, af);
-                cw_fr_free(af);
-                return &dsp->f;
+                dsp->f.frametype = CW_FRAME_DTMF;
+                dsp->f.subclass = digit_buf[0];
+                goto out_event;
             }
         }
     }
+
     if ((dsp->features & DSP_FEATURE_FAX_CNG_DETECT))
     {
-        modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
+        modem_connect_tones_rx(&dsp->fax_cng_rx, amp, samples);
         if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
         {
-            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'f');
-            FIX_INF(af);
-            if (chan)
-                cw_queue_frame(chan, af);
-            cw_fr_free(af);
-            return &dsp->f;
+            dsp->f.frametype = CW_FRAME_DTMF;
+            dsp->f.subclass = 'f';
+            goto out_event;
         }
     }
+
     if ((dsp->features & DSP_FEATURE_FAX_CED_DETECT))
     {
-        modem_connect_tones_rx(&dsp->fax_ced_rx, amp, len);
+        modem_connect_tones_rx(&dsp->fax_ced_rx, amp, samples);
         if (modem_connect_tones_rx_get(&dsp->fax_ced_rx))
         {
-            cw_fr_init_ex(&dsp->f, CW_FRAME_DTMF, 'F');
-            FIX_INF(af);
-            if (chan)
-                cw_queue_frame(chan, af);
-            cw_fr_free(af);
-            return &dsp->f;
+            dsp->f.frametype = CW_FRAME_DTMF;
+            dsp->f.subclass = 'F';
+            goto out_event;
         }
     }
+
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
     {
-        if ((res = __cw_dsp_call_progress(dsp, amp, len)))
-        {
-            switch (res)
-            {
-            case CW_CONTROL_ANSWER:
-            case CW_CONTROL_BUSY:
-            case CW_CONTROL_RINGING:
-            case CW_CONTROL_CONGESTION:
-            case CW_CONTROL_HANGUP:
-                cw_fr_init_ex(&dsp->f, CW_FRAME_CONTROL, res);
-                if (chan) 
-                    cw_queue_frame(chan, &dsp->f);
-                break;
-            default:
-                cw_log(CW_LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
-                break;
-            }
-        }
+        dsp->f.frametype = CW_FRAME_CONTROL;
+        if ((dsp->f.subclass = __cw_dsp_call_progress(dsp, amp, samples)))
+            goto out_event;
     }
-    FIX_INF(af);
+
+out_audio:
+    /* We know we have slinear or xlaw.
+     * Slinear silence is 0, alaw and ulaw are both 0xff.
+     */
+    if (squelch)
+        memset(af->data, (af->subclass != CW_FORMAT_SLINEAR ? -1 : 0), af->datalen);
     return af;
+
+out_event:
+    /* We know we have slinear or xlaw.
+     * Slinear silence is 0, alaw and ulaw are both 0xff.
+     */
+    if (squelch)
+        memset(af->data, (af->subclass != CW_FORMAT_SLINEAR ? -1 : 0), af->datalen);
+    if (chan)
+        cw_queue_frame(chan, af);
+    cw_fr_free(af);
+    return &dsp->f;
 }
 
 static void cw_dsp_prog_reset(struct cw_dsp *dsp)
@@ -770,6 +732,8 @@ struct cw_dsp *cw_dsp_new(void)
         dsp->threshold = DEFAULT_THRESHOLD;
         dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
         dsp->busycount = DSP_HISTORY;
+
+        cw_fr_init(&dsp->f);
 
         dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
         dsp->mute_lag = 0;
