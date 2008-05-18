@@ -354,7 +354,7 @@ static unicall_pvt_t *round_robin[32];
 
 static int restore_gains(unicall_pvt_t *p);
 static int restart_monitor(void);
-static int unicall_open(unicall_pvt_t *p, char *fn);
+static int unicall_open_pseudo(void);
 static int unicall_close(int fd);
 
 /* Translate between UniCall causes and ast */
@@ -495,7 +495,7 @@ static int alloc_sub(unicall_pvt_t *p, int x)
         return -1;
     }
     /*endif*/
-    if ((p->subs[x].fd = unicall_open(p, "/dev/zap/pseudo")) < 0)
+    if ((p->subs[x].fd = unicall_open_pseudo()) < 0)
     {
         cw_log(CW_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
         return -1;
@@ -536,12 +536,26 @@ static int unalloc_sub(unicall_pvt_t *p, int x)
     return 0;
 }
 
-static int unicall_open(unicall_pvt_t *p, char *fn)
+static int unicall_open_pseudo(void)
 {
-    int fd;
-
-    fd = uc_channel_open(p->protocol_class, p->protocol_variant, p->protocol_end, fn);
-
+	int fd;
+	int chan;
+	int bs;
+    const char *fn;
+	
+	chan = 0;
+    fn = "/dev/zap/pseudo";
+	if ((fd = open(fn, O_RDWR | O_NONBLOCK)) < 0)
+    {
+		cw_log(CW_LOG_WARNING, "Unable to open '%s': %s\n", fn, strerror(errno));
+		return -1;
+	}
+	bs = READ_SIZE;
+	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1)
+    {
+        close(fd);
+        return -1;
+	}
     return fd;
 }
 
@@ -2226,7 +2240,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
                 p->faxhandled = TRUE;
                 if (strncasecmp(cw->exten, "fax", 3))
                 {
-					const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
+                    const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
                     snprintf(tmpfax, sizeof(tmpfax), "fax%s", cw->exten);
                     if (cw_exists_extension(cw, target_context, tmpfax, 1, cw->cid.cid_num))
                     {
@@ -2364,7 +2378,7 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
                 p->faxhandled = TRUE;
                 if (strcmp(cw->exten, "fax"))
                 {
-					const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
+                    const char *target_context = (cw->proc_context[0] == '\0')  ?  cw->context  :  cw->proc_context;
                     if (cw_exists_extension(cw, target_context, "fax", 1, cw->cid.cid_num))
                     {
                         if (option_verbose > 2)
@@ -3090,7 +3104,7 @@ static void *do_monitor(void *data)
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
         /* Lock the interface list */
-	pthread_cleanup_push(cw_mutex_unlock_func, &iflock);
+        pthread_cleanup_push(cw_mutex_unlock_func, &iflock);
         cw_mutex_lock(&iflock);
 
         /*endif*/
@@ -3124,7 +3138,7 @@ static void *do_monitor(void *data)
         }
         /*endfor*/
         /* Okay, now that we know what to do, release the interface lock */
-	pthread_cleanup_pop(1);
+        pthread_cleanup_pop(1);
         
         pthread_testcancel();
         /* Wait at least a second for something to happen */
@@ -3325,7 +3339,6 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
     int here;
     int x;
     int ret;
-    const char *dev_names[2];
     ZT_PARAMS p;
 
     here = FALSE;
@@ -3440,7 +3453,12 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
             tmp->protocol_variant = protocol_variant;
             tmp->protocol_end = (protocol_end == NULL  ||  strcasecmp(protocol_end, "co") == 0)  ?  UC_MODE_CO  :  UC_MODE_CPE;
             if (!here)
-                tmp->subs[SUB_REAL].fd = unicall_open(tmp, fn);
+            {
+                tmp->subs[SUB_REAL].fd = uc_channel_open(tmp->protocol_class,
+                                                         tmp->protocol_variant,
+                                                         tmp->protocol_end,
+                                                         fn);
+            }
             /*endif*/
             if (tmp->subs[SUB_REAL].fd < 0)
             {
@@ -3449,28 +3467,23 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
                 return NULL;
             }
             /*endif*/
+            if ((tmp->uc = uc_new(tmp->subs[SUB_REAL].fd,
+                                  tmp->subs[SUB_REAL].fd,
+                                  tmp->protocol_class,
+                                  tmp->protocol_variant,
+                                  tmp->protocol_end,
+                                  1)) == NULL)
+            {
+                cw_log(CW_LOG_WARNING, "Unable to create UC context :(\n");
+                unicall_close(tmp->subs[SUB_REAL].fd);
+                destroy_unicall_pvt_s(&tmp);
+                return NULL;
+            }
+            /*endif*/
         }
         else
         {
             protocol_class = NULL;
-        }
-        /*endif*/
-        tmp->protocol_class = protocol_class;
-        tmp->protocol_variant = protocol_variant;
-        tmp->protocol_end = (protocol_end == NULL  ||  strcasecmp(protocol_end, "co") == 0)  ?  UC_MODE_CO  :  UC_MODE_CPE;
-        dev_names[0] = "fred";
-        dev_names[1] = NULL;
-        if ((tmp->uc = uc_new(tmp->subs[SUB_REAL].fd,
-                              tmp->subs[SUB_REAL].fd,
-                              tmp->protocol_class,
-                              tmp->protocol_variant,
-                              tmp->protocol_end,
-                              1)) == NULL)
-        {
-            cw_log(CW_LOG_WARNING, "Unable to create UC context :(\n");
-            unicall_close(tmp->subs[SUB_REAL].fd);
-            destroy_unicall_pvt_s(&tmp);
-            return NULL;
         }
         /*endif*/
         snprintf(fn, sizeof(fn), "UniCall/%d", channel);
@@ -3581,7 +3594,7 @@ static unicall_pvt_t *chandup(unicall_pvt_t *src)
         return NULL;
     /*endif*/
     memcpy(p, src, sizeof(unicall_pvt_t));
-    if ((p->subs[SUB_REAL].fd = unicall_open(p, "/dev/zap/pseudo")) < 0)
+    if ((p->subs[SUB_REAL].fd = unicall_open_pseudo()) < 0)
     {
         cw_log(CW_LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
         free(p);
