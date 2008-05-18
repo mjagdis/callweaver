@@ -68,9 +68,6 @@ void cw_dsp_set_busy_count(struct cw_dsp *dsp, int cadences);
 /*! \brief Set expected lengths of the busy tone */
 void cw_dsp_set_busy_pattern(struct cw_dsp *dsp, int tonelength, int quietlength);
 
-/*! \brief Scans for progress indication in audio */
-int cw_dsp_call_progress(struct cw_dsp *dsp, struct cw_frame *inf);
-
 /*! \brief Set zone for doing progress detection */
 int cw_dsp_set_call_progress_zone(struct cw_dsp *dsp, char *zone);
 

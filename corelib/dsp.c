@@ -324,20 +324,6 @@ static int __cw_dsp_call_progress(struct cw_dsp *dsp, int16_t *s, int len)
     return res;
 }
 
-int cw_dsp_call_progress(struct cw_dsp *dsp, struct cw_frame *inf)
-{
-    if (inf->frametype != CW_FRAME_VOICE)
-    {
-        cw_log(CW_LOG_WARNING, "Can't check call progress of non-voice frames\n");
-        return 0;
-    }
-    if (inf->subclass != CW_FORMAT_SLINEAR)
-    {
-        cw_log(CW_LOG_WARNING, "Can only check call progress in signed-linear frames\n");
-        return 0;
-    }
-    return __cw_dsp_call_progress(dsp, inf->data, inf->datalen/sizeof(int16_t));
-}
 
 static int __cw_dsp_silence(struct cw_dsp *dsp, int16_t amp[], int len, int *totalsilence)
 {
