@@ -10916,7 +10916,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
                 cw_strlen_zero(cur->username) ? ( cw_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
                 cur->callid, 
                 cur->ocseq, cur->icseq, 
-                cw_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
+                (cur->t38state == SIP_T38_NEGOTIATED ? "T38" : cw_getformatname(cur->owner ? cur->owner->nativeformats : 0)), 
                 cw_test_flag(cur, SIP_CALL_ONHOLD) ? "Yes" : "No",
                 cw_test_flag(cur, SIP_NEEDDESTROY) ? "(d)" : "",
                 cur->lastmsg );
