@@ -8499,141 +8499,89 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
     }
     else
     {
-        /* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
-           an example in the spec of just what it is you're doing a hash on. */
-        char a1[256];
-        char a2[256];
-        char a1_hash[256];
-        char a2_hash[256];
-        char resp[256];
-        char resp_hash[256]="";
-        char tmp[256];
-        char *c;
-        char *z;
-        char *ua_hash ="";
-        char *resp_uri ="";
-        char *nonce = "";
-        char *digestusername = "";
-        int  wrongnonce = 0;
+        char buf[256] = "";
+        char a1_hash[2 * CW_MAX_BINARY_MD_SIZE + 1];
+        char a2_hash[2 * CW_MAX_BINARY_MD_SIZE + 1];
+        char *ua_hash = NULL;
+        int ua_hash_len;
         char *usednonce = randdata;
+        int usednonce_len = randlen;
 
-        /* Find their response among the mess that we'r sent for comparison */
-        cw_copy_string(tmp, authtoken, sizeof(tmp));
-        c = tmp;
-
-        while (c)
+        while (*authtoken)
         {
-            c = cw_skip_blanks(c);
-            if (!*c)
-                break;
-            if (!strncasecmp(c, "response=", strlen("response=")))
-            {
-                c+= strlen("response=");
-                if ((*c == '\"'))
-                {
-                    ua_hash = ++c;
-                    if ((c = strchr(c, '\"')))
-                        *c = '\0';
-                }
-                else
-                {
-                    ua_hash = c;
-                    if ((c = strchr(c, ',')))
-                        *c = '\0';
-                }
+            char *key, *val;
+            int lkey, lval;
 
-            }
-            else if (!strncasecmp(c, "uri=", strlen("uri=")))
-            {
-                c+= strlen("uri=");
-                if ((*c == '\"'))
-                {
-                    resp_uri=++c;
-                    if ((c = strchr(c, '\"')))
-                        *c = '\0';
-                }
-                else
-                {
-                    resp_uri=c;
-                    if ((c = strchr(c, ',')))
-                        *c = '\0';
-                }
+	    while (*authtoken && (*authtoken == ' ' || *authtoken == ',')) authtoken++;
 
-            }
-            else if (!strncasecmp(c, "username=", strlen("username=")))
-            {
-                c += strlen("username=");
-                if ((*c == '\"'))
-                {
-                    digestusername=++c;
-                    if((c = strchr(c, '\"')))
-                        *c = '\0';
-                }
-                else
-                {
-                    digestusername=c;
-                    if((c = strchr(c, ',')))
-                        *c = '\0';
-                }
-            }
-            else if (!strncasecmp(c, "nonce=", strlen("nonce=")))
-            {
-                c += strlen("nonce=");
-                if ((*c == '\"'))
-                {
-                    nonce = ++c;
-                    if ((c = strchr(c, '\"')))
-                        *c = '\0';
-                }
-                else
-                {
-                    nonce = c;
-                    if ((c = strchr(c, ',')))
-                        *c = '\0';
-                }
+            key = authtoken;
+            for (lkey = 0; *authtoken && *authtoken != '='; lkey++,authtoken++);
 
-            }
-            else
-                if ((z = strchr(c, ' ')) || (z = strchr(c, ',')))
-                    c = z;
-            if (c)
-                c++;
-        }
-        /* Verify that digest username matches  the username we auth as */
-        if (strcmp(username, digestusername))
-        {
-            /* Oops, we're trying something here */
-            return -2;
+            if (*authtoken && *(++authtoken) == '"')
+	    {
+	        val = ++authtoken;
+                for (lval = 0; *authtoken && *authtoken != '"'; lval++,authtoken++);
+                if (*authtoken) authtoken++;
+	    }
+	    else
+	    {
+                val = authtoken;
+                for (lval = 0; *authtoken && *authtoken != ','; lval++,authtoken++);
+                while (*authtoken == ' ') lval--,authtoken--;
+	    }
+
+	    switch (lkey)
+	    {
+	        case sizeof("uri")-1:
+	            if (!strncasecmp(key, "uri", sizeof("uri")-1))
+                        snprintf(buf, sizeof(buf), "%s:%.*s", sip_methods[sipmethod].text, lval, val);
+	            break;
+
+	        case sizeof("nonce")-1:
+	            if (!strncasecmp(key, "nonce", sizeof("nonce")-1))
+		    {
+                        usednonce = val;
+                        usednonce_len = lval;
+		    }
+	            break;
+
+	        case sizeof("response")-1:
+	        /* case sizeof("username")-1: */
+	            if (!strncasecmp(key, "response", sizeof("response")-1))
+		    {
+	                ua_hash = val;
+	                ua_hash_len = lval;
+		    }
+                    else if (!strncasecmp(key, "username", sizeof("username")-1))
+		    {
+                        /* Verify that digest username matches  the username we auth as */
+                        if (strlen(username) != lval || strncmp(username, val, lval))
+                            return -2;
+		    }
+	            break;
+	    }
         }
 
-        /* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
-        if (strncasecmp(randdata, nonce, randlen))
-        {
-            wrongnonce = 1;
-            usednonce = nonce;
-        }
-
-        snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
-
-        if (!cw_strlen_zero(resp_uri))
-            snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, resp_uri);
-        else
-            snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, uri);
+        if (!*buf)
+            snprintf(buf, sizeof(buf), "%s:%s", sip_methods[sipmethod].text, uri);
+        cw_md5_hash(a2_hash, buf);
 
         if (!cw_strlen_zero(md5secret))
             snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
         else
-            cw_md5_hash(a1_hash, a1);
+        {
+            snprintf(buf, sizeof(buf), "%s:%s:%s", username, global_realm, secret);
+            cw_md5_hash(a1_hash, buf);
+        }
 
-        cw_md5_hash(a2_hash, a2);
+        snprintf(buf, sizeof(buf), "%s:%.*s:%s", a1_hash, usednonce_len, usednonce, a2_hash);
+        cw_md5_hash(a1_hash, buf);
 
-        snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
-        cw_md5_hash(resp_hash, resp);
-
-        if (wrongnonce)
+        /* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
+        if (strlen(randdata) != usednonce_len || strncasecmp(randdata, usednonce, usednonce_len))
         {
             snprintf(randdata, randlen, "%08x", thread_safe_cw_random());
-            if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash)))
+            if (ua_hash && strlen(a1_hash) == ua_hash_len && !strncasecmp(ua_hash, a1_hash, ua_hash_len))
             {
                 if (sipdebug)
                     cw_log(CW_LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
@@ -8652,8 +8600,8 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
             sip_scheddestroy(p, 15000);
             return 1;
         } 
-        /* resp_hash now has the expected response, compare the two */
-        if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash)))
+        /* a1_hash now has the expected response, compare the two */
+        if (ua_hash && strlen(a1_hash) == ua_hash_len && !strncasecmp(ua_hash, a1_hash, ua_hash_len))
         {
             /* Auth is OK */
             res = 0;
