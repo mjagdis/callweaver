@@ -207,7 +207,7 @@ static int cw_moh_files_next(struct cw_channel *chan)
 			}
 
 			if (cw_test_flag(state->class, MOH_RANDOMIZE))
-				state->pos = rand();
+				state->pos = cw_random();
 
 			state->pos %= state->class->total_files;
 
