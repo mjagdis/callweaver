@@ -9714,7 +9714,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
     char *content_type;
 
     content_type = get_header(req, "Content-Type");
-    if (strcmp(content_type, "text/plain"))
+
+    /* We want text/plain. It may have a charset specifier after it but we don't want text/plainfoo[;charset=...] */
+    if (strncmp(content_type, "text/plain", 10) || (content_type[10] && !(content_type[10] == ' ' || content_type[10] == ';')))
     {
         /* No text/plain attachment */
         transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
