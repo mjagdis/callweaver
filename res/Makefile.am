@@ -4,15 +4,11 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 
 cwmod_LTLIBRARIES		= res_musiconhold.la \
 				  res_indications.la res_ogi.la  res_monitor.la \
-				  res_features.la res_adsi.la
+				  res_adsi.la
 
 res_adsi_la_SOURCES             = res_adsi.c
 res_adsi_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
 res_adsi_la_LIBADD              = @CALLWEAVER_LIB@    
-
-res_features_la_SOURCES		= res_features.c
-res_features_la_LDFLAGS 	= -module -avoid-version @NO_UNDEFINED@
-res_features_la_LIBADD		= @CALLWEAVER_LIB@
 
 res_musiconhold_la_SOURCES	= res_musiconhold.c
 res_musiconhold_la_LDFLAGS 	= -module -avoid-version @NO_UNDEFINED@

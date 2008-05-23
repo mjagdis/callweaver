@@ -41,7 +41,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL: https://svn.callweaver.org/callweaver/trunk/res/res_features.c $", "$Revision: 4698 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
@@ -164,25 +164,13 @@ CW_MUTEX_DEFINE_STATIC(parking_lock);
 
 static pthread_t parking_thread = CW_PTHREADT_NULL;
 
-/* Predeclare all statics to keep GCC 4.x happy */
-static char *__cw_parking_ext(void);
-static char *__cw_pickup_ext(void);
-static void *__cw_bridge_call_thread(void *);
-static int __cw_park_call(struct cw_channel *, struct cw_channel *, int, int *);
-static int __cw_masq_park_call(struct cw_channel *, struct cw_channel *, int, int *);
-static void __cw_register_feature(struct cw_call_feature *);
-static void __cw_unregister_feature(struct cw_call_feature *);
-static void __cw_unregister_features(void);
-static int __cw_bridge_call(struct cw_channel *,struct cw_channel *,struct cw_bridge_config *);
-static int __cw_pickup_call(struct cw_channel *chan);
 
-
-static char *__cw_parking_ext(void)
+char *cw_parking_ext(void)
 {
 	return parking_ext;
 }
 
-char *__cw_pickup_ext(void)
+char *cw_pickup_ext(void)
 {
 	return pickup_ext;
 }
@@ -231,7 +219,7 @@ static void check_goto_on_transfer(struct cw_channel *chan)
 static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name);
 
 
-static void *__cw_bridge_call_thread(void *data) 
+static void *cw_bridge_call_thread(void *data) 
 {
 	struct cw_bridge_thread_obj *tobj = data;
 	tobj->chan->appl = tobj->peer->name;
@@ -246,7 +234,7 @@ static void *__cw_bridge_call_thread(void *data)
 	}
 
 
-	__cw_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
+	cw_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 	cw_hangup(tobj->chan);
 	cw_hangup(tobj->peer);
 	tobj->chan = tobj->peer = NULL;
@@ -274,7 +262,7 @@ static int adsi_announce_park(struct cw_channel *chan, int parkingnum)
 /*--- cw_park_call: Park a call */
 /* We put the user in the parking list, then wake up the parking thread to be sure it looks
 	   after these channels too */
-static int __cw_park_call(struct cw_channel *chan, struct cw_channel *peer, int timeout, int *extout)
+int cw_park_call(struct cw_channel *chan, struct cw_channel *peer, int timeout, int *extout)
 {
 	struct parkeduser *pu, *cur;
 	int i,x,parking_range;
@@ -396,7 +384,7 @@ static int __cw_park_call(struct cw_channel *chan, struct cw_channel *peer, int 
 	return 0;
 }
 
-static int __cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *peer, int timeout, int *extout)
+int cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *peer, int timeout, int *extout)
 {
 	struct cw_channel *chan;
 	struct cw_frame *f;
@@ -421,7 +409,7 @@ static int __cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *peer
 		f = cw_read(chan);
 		if (f)
 			cw_fr_free(f);
-		__cw_park_call(chan, peer, timeout, extout);
+		cw_park_call(chan, peer, timeout, extout);
 	} else {
 		cw_log(CW_LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
@@ -581,14 +569,14 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
 		return res;
 	}
-	if (!strcmp(newext, __cw_parking_ext())) {
+	if (!strcmp(newext, cw_parking_ext())) {
 		cw_moh_stop(transferee);
 
 		res = cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
 		if (res)
 			res = -1;
-		else if (!__cw_park_call(transferee, transferer, 0, NULL)) {
+		else if (!cw_park_call(transferee, transferer, 0, NULL)) {
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -722,7 +710,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 				memset(&bconfig,0,sizeof(struct cw_bridge_config));
 				cw_set_flag(&(bconfig.features_caller), CW_FEATURE_DISCONNECT);
 				cw_set_flag(&(bconfig.features_callee), CW_FEATURE_DISCONNECT);
-				res = __cw_bridge_call(transferer,newchan,&bconfig);
+				res = cw_bridge_call(transferer,newchan,&bconfig);
 				if (newchan->_softhangup || newchan->_state != CW_STATE_UP || !transferer->_softhangup) {
 					cw_hangup(newchan);
 					if (f) {
@@ -798,7 +786,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 							cw_log(CW_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					cw_pthread_create(&tid, &global_attr_rr_detached, __cw_bridge_call_thread, tobj);
+					cw_pthread_create(&tid, &global_attr_rr_detached, cw_bridge_call_thread, tobj);
 				} else {
 					cw_log(CW_LOG_WARNING, "Out of memory!\n");
 					cw_hangup(xferchan);
@@ -947,7 +935,7 @@ struct cw_call_feature builtin_features[] =
 static CW_LIST_HEAD(feature_list,cw_call_feature) feature_list;
 
 /* register new feature into feature_list*/
-static void __cw_register_feature(struct cw_call_feature *feature)
+void cw_register_feature(struct cw_call_feature *feature)
 {
 	if (!feature) {
 		cw_log(CW_LOG_NOTICE,"You didn't pass a feature!\n");
@@ -963,7 +951,7 @@ static void __cw_register_feature(struct cw_call_feature *feature)
 }
 
 /* unregister feature from feature_list */
-static void __cw_unregister_feature(struct cw_call_feature *feature)
+void cw_unregister_feature(struct cw_call_feature *feature)
 {
 	if (!feature) return;
 
@@ -973,7 +961,7 @@ static void __cw_unregister_feature(struct cw_call_feature *feature)
 	free(feature);
 }
 
-static void __cw_unregister_features(void)
+static void cw_unregister_features(void)
 {
 	struct cw_call_feature *feature;
 
@@ -1316,7 +1304,7 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 	return chan;
 }
 
-static int __cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bridge_config *config)
+int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bridge_config *config)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
@@ -1748,7 +1736,7 @@ static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *
 	if (!res)
 		res = cw_safe_sleep(chan, 1000);
 	if (!res)
-		res = __cw_park_call(chan, chan, 0, NULL);
+		res = cw_park_call(chan, chan, 0, NULL);
 	LOCAL_USER_REMOVE(u);
 	if (!res)
 		res = CW_PBX_KEEPALIVE;
@@ -1847,7 +1835,7 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		config.play_warning = 0;
 		config.warning_freq = 0;
 		config.warning_sound=NULL;
-		res = __cw_bridge_call(chan, peer, &config);
+		res = cw_bridge_call(chan, peer, &config);
 
 		/* Simulate the PBX hanging up */
 		if (res != CW_PBX_NO_HANGUP_PEER)
@@ -1880,7 +1868,7 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	cw_cli(fd, format, "Builtin Feature", "Default", "Current");
 	cw_cli(fd, format, "---------------", "-------", "-------");
 
-	cw_cli(fd, format, "Pickup", "*8", __cw_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
+	cw_cli(fd, format, "Pickup", "*8", cw_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
 
 	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
 
@@ -2003,7 +1991,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 }
 
 
-static int __cw_pickup_call(struct cw_channel *chan)
+int cw_pickup_call(struct cw_channel *chan)
 {
 	struct cw_channel *cur = NULL;
 	int res = -1;
@@ -2038,7 +2026,7 @@ static int __cw_pickup_call(struct cw_channel *chan)
 	return res;
 }
 
-static int load_config(void) 
+int cw_features_reload(void) 
 {
 	int start = 0, end = 0;
 	struct cw_context *con = NULL;
@@ -2129,7 +2117,7 @@ static int load_config(void)
 		}
 
 		/* Map a key combination to an application*/
-		__cw_unregister_features();
+		cw_unregister_features();
 		var = cw_variable_browse(cfg, "applicationmap");
 		while(var) {
 			char *tmp_val=strdup(var->value);
@@ -2192,7 +2180,7 @@ static int load_config(void)
 					continue;
 				}
 
-				__cw_register_feature(feature);
+				cw_register_feature(feature);
 				
 				if (option_verbose >=1) cw_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
 			}
@@ -2213,18 +2201,13 @@ static int load_config(void)
 			return -1;
 		}
 	}
-	return cw_add_extension2(con, 1, __cw_parking_ext(), 1, NULL, NULL, parkcall_name, strdup(""), FREE, registrar);
+	return cw_add_extension2(con, 1, cw_parking_ext(), 1, NULL, NULL, parkcall_name, strdup(""), FREE, registrar);
 }
 
-static int reload_module(void) {
-	return load_config();
-}
 
-static int load_module(void)
+int init_features(void)
 {
 	int res;
-
-	cw_module_get(get_modinfo()->self);
 
 	hash_monitor = cw_hash_app_name("Monitor");
 
@@ -2232,7 +2215,7 @@ static int load_module(void)
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
 
-	if ((res = load_config()))
+	if ((res = cw_features_reload()))
 		return res;
 	cw_cli_register(&showparked);
 	cw_cli_register(&showfeatures);
@@ -2243,20 +2226,11 @@ static int load_module(void)
 
 	cw_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
 
-	/* Install our functions into stubs */
-	cw_park_call = __cw_park_call;
-	cw_masq_park_call = __cw_masq_park_call;
-	cw_parking_ext = __cw_parking_ext;
-	cw_pickup_ext = __cw_pickup_ext;
-	cw_bridge_call = __cw_bridge_call;
-	cw_pickup_call = __cw_pickup_call;
-	cw_register_feature = __cw_register_feature;
-	cw_unregister_feature = __cw_unregister_feature;
-
 	return res;
 }
 
 
+#if 0
 static int unload_module(void)
 {
 	int res = 0;
@@ -2280,3 +2254,4 @@ static int unload_module(void)
 
 
 MODULE_INFO(load_module, reload_module, unload_module, NULL, "Call Features Resource")
+#endif

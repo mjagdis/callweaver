@@ -46,6 +46,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/cdr.h"
 #include "callweaver/enum.h"
+#include "callweaver/features.h"
 #include "callweaver/lock.h"
 #include "callweaver/rtp.h"
 #include "callweaver/utils.h"
@@ -206,6 +207,10 @@ int cw_module_reload(const char *name)
 	}
 	if (!name || !strcasecmp(name, "enum")) {
 		cw_enum_reload();
+		reloaded = 2;
+	}
+	if (!name || !strcasecmp(name, "features")) {
+		cw_features_reload();
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "rtp")) {
@@ -588,6 +593,7 @@ static char *reload_module_generator(char *line, char *word, int pos, int state)
 		"extconfig",
 		"manager",
 		"enum",
+		"features",
 		"rtp",
 	};
 	char *ret = NULL;

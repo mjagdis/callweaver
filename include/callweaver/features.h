@@ -59,7 +59,7 @@ struct cw_call_feature {
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int (*cw_park_call)(struct cw_channel *chan, struct cw_channel *host, int timeout, int *extout);
+extern int cw_park_call(struct cw_channel *chan, struct cw_channel *host, int timeout, int *extout);
 /*! Park a call via a masqueraded channel
  *  \param rchan the real channel to be parked
     \param host the channel to have the parking read to
@@ -68,31 +68,35 @@ extern int (*cw_park_call)(struct cw_channel *chan, struct cw_channel *host, int
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int (*cw_masq_park_call)(struct cw_channel *rchan, struct cw_channel *host, int timeout, int *extout);
+extern int cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *host, int timeout, int *extout);
 
 /*! \brief Determine system parking extension 
  *  Returns the call parking extension for drivers that provide special
     call parking help */
-extern char *(*cw_parking_ext)(void);
+extern char *cw_parking_ext(void);
 
 /*! \brief Determine system call pickup extension */
-extern char *(*cw_pickup_ext)(void);
+extern char *cw_pickup_ext(void);
 
 
 /*! \brief Bridge a call, optionally allowing redirection */
-extern int (*cw_bridge_call)(struct cw_channel *chan, struct cw_channel *peer,struct cw_bridge_config *config);
+extern int cw_bridge_call(struct cw_channel *chan, struct cw_channel *peer,struct cw_bridge_config *config);
 
 /*! \brief Pickup a call */
-extern int (*cw_pickup_call)(struct cw_channel *chan);
+extern int cw_pickup_call(struct cw_channel *chan);
 
 /*! \brief register new feature into feature_set 
    \param feature an cw_call_feature object which contains a keysequence
    and a callback function which is called when this keysequence is pressed
    during a call. */
-extern void (*cw_register_feature)(struct cw_call_feature *feature);
+extern void cw_register_feature(struct cw_call_feature *feature);
 
 /*! \brief unregister feature from feature_set
     \param feature the cw_call_feature object which was registered before*/
-extern void (*cw_unregister_feature)(struct cw_call_feature *feature);
+extern void cw_unregister_feature(struct cw_call_feature *feature);
+
+int cw_features_reload(void);
+
+int init_features(void);
 
 #endif /* _CW_FEATURES_H */

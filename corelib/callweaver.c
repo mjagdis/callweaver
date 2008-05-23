@@ -1012,7 +1012,8 @@ static void boot(void)
 	|| init_framer()
 	|| load_modules(0)
 	|| cw_enum_init()
-	|| cw_translator_init()) {
+	|| cw_translator_init()
+	|| init_features()) {
 	    exit(1);
 	}
 

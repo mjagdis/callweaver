@@ -49,7 +49,7 @@ CORE_SRC = io.c \
     loader.c \
     callweaver.c \
 	stubfunctions-adsi.c \
-    stubfunctions-features.c \
+    features.c \
 	stubfunctions-monitor.c \
     udptl.c \
     udpfromto.c \
