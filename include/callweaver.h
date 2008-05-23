@@ -17,8 +17,6 @@
 #if !defined(_CALLWEAVER_H)
 #define _CALLWEAVER_H
 
-// #define RELEASE_TARBALL 1
-
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
@@ -34,13 +32,8 @@
 
 #define CW_CONFIG_MAX_PATH 255
 
-#ifndef RELEASE_TARBALL
-#define CW_VERSION_INFO PACKAGE_STRING " SVN-" SVN_VERSION " built on " BUILD_HOSTNAME \
+#define CW_VERSION_INFO PACKAGE_STRING SVN_VERSION " built on " BUILD_HOSTNAME \
         ",  a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
-#else
-#define CW_VERSION_INFO PACKAGE_STRING " built on " BUILD_HOSTNAME \
-        ",  a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
-#endif
 
 
 /* provided in callweaver.c */

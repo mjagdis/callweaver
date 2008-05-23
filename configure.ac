@@ -60,14 +60,25 @@ AC_FUNC_STRERROR_R
 
 dnl SVN Revision number, needed for CW_VERSION and inclusion into files version number
 if test -n "$SVNVERSION" ; then
-	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${CAT} SVNVERSION`",[Which Subversion revision are we building here?])
-	AC_SUBST([SVN_VERSION])
+	svnver="`${CAT} $SVNVERSION`"
+	svndesc="SVN revision from user specified file \"$SVNVERSION\""
 elif test -n "$SVN" ; then
-	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${SVN} info | ${AWK} '/^Revision: / { print $2 }'`",[Which Subversion revision are we building here ?])
+	x="`${SVN} info`"
+	if test -n "$x" ; then
+		svnurl="`${SVN} info | ${AWK} '/^URL: / { sub("^.*/callweaver/", "", $2); print $2 }'`"
+		svnrev="`${SVN} info | ${AWK} '/^Revision: / { print $2 }'`"
+		svnver=" SVN $svnurl r$svnrev"
+		svndesc="SVN revision as given by \"svn info\""
+	else
+		svnver=""
+		svndesc="No output from \"svn info\""
+	fi
 else
-	AC_DEFINE_UNQUOTED([SVN_VERSION],"UNKNOWN",[Unknown Subversion because it's not on this machine.] )
-	AC_SUBST([SVN_VERSION])
-fi   
+	svnver=""
+	svndesc="Unknown SVN revision because svn is not on this machine."
+fi
+AC_DEFINE_UNQUOTED([SVN_VERSION],"$svnver","$svndesc")
+AC_SUBST([SVN_VERSION])
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -2526,7 +2537,7 @@ echo "BUILD_OS: 	${BUILD_OS}"
 echo "BUILD_MACHINE: 	${BUILD_MACHINE}"
 echo "BUILD_HOST: 	${BUILD_HOST}"
 echo "SVN:		${SVN}"
-echo "SVN_VERSION:	${SVN_VERSION}"
+echo "SVN_VERSION:	${svnver# } ($svndesc)"
 echo ""
 echo "prefix:           ${prefix}"
 echo "exec_prefix:      ${exec_prefix}"

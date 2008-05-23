@@ -1150,11 +1150,7 @@ static void *listener(void *data)
 						break;
 					}
 
-#ifndef RELEASE_TARBALL	
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
-#else
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING );
-#endif
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING SVN_VERSION );
 					write(s, buf, n);
 
 					consoles[x].fd = s;
@@ -1252,21 +1248,12 @@ static int cw_makesocket(char *spec)
 
 static int show_version(void)
 {
-	#ifndef RELEASE_TARBALL
-	printf( PACKAGE_STRING " SVN-" SVN_VERSION "\n");
-	#else
-	printf( PACKAGE_STRING "\n");
-	#endif
-
+	printf( PACKAGE_STRING SVN_VERSION "\n");
 	return 0;
 }
 
 static int show_cli_help(void) {
-	#ifndef RELEASE_TARBALL
-	printf( PACKAGE_STRING " SVN-" SVN_VERSION  "\n");
-	#else
-	printf( PACKAGE_STRING "\n");
-	#endif
+	printf( PACKAGE_STRING SVN_VERSION  "\n");
 	printf("Usage: callweaver [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
