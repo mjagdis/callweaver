@@ -22,8 +22,8 @@
 
 
 AC_PREREQ(2.59)
-AC_INIT(CallWeaver,svn-trunk,callweaver-dev@callweaver.org)
-AM_INIT_AUTOMAKE(CallWeaver,svn-trunk)
+AC_INIT(CallWeaver,unreleased,callweaver-dev@callweaver.org)
+AM_INIT_AUTOMAKE(CallWeaver,unreleased)
 
 dnl define GNU Source to make sure every compiler and tool 
 dnl  knows that we use GNU compliant macros etc
