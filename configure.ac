@@ -61,7 +61,7 @@ AC_FUNC_STRERROR_R
 dnl SVN Revision number, needed for CW_VERSION and inclusion into files version number
 if test -r "SVNVERSION" ; then
 	svnver=" SVN r`${CAT} SVNVERSION`"
-	svndesc="SVN revision from tarball \"$SVNVERSION\" file"
+	svndesc="SVN revision from tarball \"SVNVERSION\" file"
 elif test -n "$SVN" ; then
 	x="`${SVN} info`"
 	if test -n "$x" ; then
