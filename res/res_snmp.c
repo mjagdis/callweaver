@@ -92,8 +92,6 @@ static int load_module(void)
 	if (!load_config())
 		return -1;
 
-	cw_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
-
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
 		return cw_pthread_create(&thread, &global_attr_default, agent_thread, NULL);
@@ -102,16 +100,12 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	cw_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
-
 	res_snmp_dont_stop = 0;
 	return (!pthread_equal(thread, CW_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
 static int reload_module(void)
 {
-	cw_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
-
 	res_snmp_dont_stop = 0;
 	if (!pthread_equal(thread, CW_PTHREADT_NULL))
 		pthread_join(thread, NULL);
