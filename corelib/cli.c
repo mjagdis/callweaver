@@ -373,7 +373,12 @@ static int handle_version(int fd, int argc, char *argv[])
 {
     if (argc != 2)
         return RESULT_SHOWUSAGE;
-    cw_cli(fd, "%s\n", CW_VERSION_INFO);
+
+    cw_cli(fd, "%s, %s %s\n",
+        PACKAGE_STRING SVN_VERSION " built on " BUILD_HOSTNAME,
+        (strchr("aeiouhx", BUILD_MACHINE[0]) ? "an" : "a"),
+        BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE);
+
     return RESULT_SUCCESS;
 }
 static int handle_chanlist(int fd, int argc, char *argv[])

@@ -32,9 +32,6 @@
 
 #define CW_CONFIG_MAX_PATH 255
 
-#define CW_VERSION_INFO PACKAGE_STRING SVN_VERSION " built on " BUILD_HOSTNAME \
-        ",  a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
-
 
 /* provided in callweaver.c */
 extern int callweaver_main(int argc, char *argv[]);
