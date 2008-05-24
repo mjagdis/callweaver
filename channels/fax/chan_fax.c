@@ -82,8 +82,8 @@ typedef enum {
 
 /* Modem ringing strategy */
 enum {
-    RING_STRATEGY_FF,  /* First-free */
-    RING_STRATEGY_RR,  /* Roundrobin */
+	RING_STRATEGY_FF,  /* First-free */
+	RING_STRATEGY_RR,  /* Roundrobin */
 } ring_strategy;
 int rr_next;
 
@@ -102,7 +102,7 @@ struct private_object {
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
 	int flen;
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
-       struct faxmodem *fm;
+	struct faxmodem *fm;
 	int pipe[2];
 #ifdef DO_TRACE
 	int debug[2];
@@ -110,20 +110,20 @@ struct private_object {
         char *cid_num;
         char *cid_name;
 
-    /* If this is true it means we already sent a hangup-statusmessage
-     * to our user, so don't bother with it when hanging up */
+	/* If this is true it means we already sent a hangup-statusmessage
+	 * to our user, so don't bother with it when hanging up
+	 */
         int hangup_msg_sent; 
 
 	/* Condition variable for signalling new data */
 	cw_cond_t data_cond;
-
 };
 
 
 
 /* This object is a container for the list of private objects it is simple because of the ASTOBJ stuff */
 static struct private_object_container {
-    ASTOBJ_CONTAINER_COMPONENTS(struct private_object);
+	ASTOBJ_CONTAINER_COMPONENTS(struct private_object);
 } private_object_list;
 
 static int usecnt = 0;
@@ -392,15 +392,15 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 /* Destroy the channel since we didn't use it */
 void channel_destroy(struct cw_channel *chan)
 {
-    ASTOBJ_CONTAINER_UNLINK(&private_object_list, chan->tech_pvt);
-    free(chan->tech_pvt);
-    chan->tech_pvt = 0;
+	ASTOBJ_CONTAINER_UNLINK(&private_object_list, chan->tech_pvt);
+	free(chan->tech_pvt);
+	chan->tech_pvt = 0;
 
-    cw_mutex_lock(&usecnt_lock);
-    usecnt++;
-    cw_mutex_unlock(&usecnt_lock);
+	cw_mutex_lock(&usecnt_lock);
+	usecnt++;
+	cw_mutex_unlock(&usecnt_lock);
 
-    cw_hangup(chan);
+	cw_hangup(chan);
 }
 
 
@@ -568,11 +568,11 @@ static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize)
 	int us;
 	double cleared;
 
-    if (!lastsize) return 0;	// the buffer has been idle
-    us = cw_tvdiff_ms(cw_tvnow(), tv);
-    if (us <= 0) return 0;	// no time has passed
-    cleared = ((double) bitrate * ((double) us / 1000000)) / 8;
-    return cleared >= lastsize ? 0 : lastsize - cleared;
+	if (!lastsize) return 0;	// the buffer has been idle
+	us = cw_tvdiff_ms(cw_tvnow(), tv);
+	if (us <= 0) return 0;	// no time has passed
+	cleared = ((double) bitrate * ((double) us / 1000000)) / 8;
+	return cleared >= lastsize ? 0 : lastsize - cleared;
 }
 
 static void *faxmodem_media_thread(void *obj)
@@ -1166,7 +1166,7 @@ static void deactivate_fax_modems(void)
 static int parse_config(int reload) {
 	struct cw_config *cfg;
 	char *entry;
-    struct cw_variable *v;
+	struct cw_variable *v;
 
 	if ((cfg = cw_config_load(CONFIGFILE))) {
 		READY++;
