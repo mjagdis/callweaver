@@ -95,6 +95,8 @@ void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info)
 
 int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix)
 {
+	char buf[256];
+
 	fm->master = -1;
 	fm->slave = -1;
 
@@ -103,9 +105,9 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 		return -1;
 	}
 
-	fm->stty = ttyname(fm->slave);
+	ptsname_r(fm->master, buf, sizeof(buf));
 
-	do_log(LOGGER.info, "Opened pty, slave device: %s\n", fm->stty);
+	do_log(LOGGER.info, "Opened pty, slave device: %s\n", buf);
 
 	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
 
@@ -113,7 +115,7 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 		do_log(LOGGER.warn, "Removed old %s\n", fm->devlink);
 	}
 
-	if (symlink(fm->stty, fm->devlink)) {
+	if (symlink(buf, fm->devlink)) {
 		do_log(LOGGER.err, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
 		return -1;
 	}
