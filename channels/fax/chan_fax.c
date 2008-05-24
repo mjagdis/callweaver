@@ -50,8 +50,6 @@ static const char tdesc[] = "Fax Modem Interface";
 #define SAMPLES 160
 #define MS 20
 
-static int TRAP_SEG = 0;
-
 #define MAX_FAXMODEMS 512
 #define TIMEOUT 30000
 
@@ -1178,7 +1176,7 @@ static int parse_config(int reload) {
 					} else if (!strcasecmp(v->name, "timeout-ms")) {
 						SOFT_TIMEOUT = atoi(v->value);
 					} else if (!strcasecmp(v->name, "trap-seg")) {
-						TRAP_SEG = cw_true(v->value);
+						cw_log(CW_LOG_WARNING, "trap-seg is deprecated - remove it from your chan_fax.conf");
 					} else if (!strcasecmp(v->name, "context")) {
 						set_context(v->value);
 					} else if (!strcasecmp(v->name, "vblevel")) {
@@ -1242,16 +1240,6 @@ static struct cw_clicmd  cli_chan_fax = {
  * To be used to initilize/de-initilize, reload and track the use count of a loadable module. 
  */
 
-
-static int handle_SEGGY(int sig) 
-{
-	cw_verbose("DoH!");
-	system("/bin/rm -f /dev/FAX*");
-	exit(0);
-	return 0;
-}
-
-
 static void graceful_unload(void);
 
 static struct cw_atexit fax_atexit = {
@@ -1283,9 +1271,6 @@ static int load_module(void)
 	
 	if(!parse_config(0)) {
 		return -1;
-	}
-	if (TRAP_SEG) {
-		(void) signal(SIGSEGV,(void *) handle_SEGGY);
 	}
 
 	if (VBLEVEL > 1) {
