@@ -8507,6 +8507,11 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
         char *usednonce = randdata;
         int usednonce_len = randlen;
 
+	while (*authtoken && *authtoken == ' ') authtoken++;
+
+	if (!strncasecmp(authtoken, "digest", sizeof("digest") - 1))
+		authtoken += sizeof("digest") - 1;
+
         while (*authtoken)
         {
             char *key, *val;
