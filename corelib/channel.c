@@ -3918,29 +3918,32 @@ void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars)
    it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
    there is only one system call made to do a write, unless we actually
    have a need to wait.  This way, we get better performance. */
-int cw_carefulwrite(int fd, char *s, int len, int timeoutms) 
+int cw_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
-	/* Try to write string, but wait no more than ms milliseconds
-	   before timing out */
+	/* Try to write string, but wait no more than ms milliseconds before timing out */
 	int res = 0;
-	struct pollfd fds[1];
 	
-    while (len)
-    {
-		res = write(fd, s, len);
-		if ((res < 0) && (errno != EAGAIN))
-			return -1;
-		if (res < 0)
-            res = 0;
+	while (len) {
+		if ((res = write(fd, s, len)) < 0) {
+			if (errno != EAGAIN)
+				break;
+			res = 0;
+		}
+
 		len -= res;
 		s += res;
-		fds[0].fd = fd;
-		fds[0].events = POLLOUT;
-		/* Wait until writable again */
-		res = poll(fds, 1, timeoutms);
-		if (res < 1)
-			return -1;
+
+		if (len) {
+			struct pollfd pfd;
+
+			pfd.fd = fd;
+			pfd.events = POLLOUT;
+			res = -1;
+			if (poll(&pfd, 1, timeoutms) < 1)
+				break;
+		}
 	}
+
 	return res;
 }
 
