@@ -3669,7 +3669,20 @@ static int sip_senddigit(struct cw_channel *ast, char digit)
     return res;
 }
 
-
+static int is_sdp_content(const char *hdr)
+{
+    while (*hdr == ' ')
+        hdr++;
+    /* Now we expect something like
+            application/sdp
+       or
+            application/sdp; charset=utf-8
+       Let's just check it starts with "application/sdp" and
+       that if anything follows, it begins with a ";' */
+    return (strncasecmp(hdr, "application/sdp", 15) == 0
+            &&
+            (hdr[15] == '\0'  ||  hdr[15] == ';'));
+}
 
 /*! \brief  sip_transfer: Transfer SIP call */
 static int sip_transfer(struct cw_channel *ast, const char *dest)
@@ -4707,7 +4720,7 @@ static int find_sdp(struct sip_request *req)
 	content_type = get_header(req, "Content-Type");
 
 	/* if the body contains only SDP, this is easy */
-	if (!strcasecmp(content_type, "application/sdp")) {
+	if (is_sdp_content(content_type)) {
 		req->sdp_start = 0;
 		req->sdp_end = req->lines;
 		return 1;
@@ -4736,7 +4749,8 @@ static int find_sdp(struct sip_request *req)
 	   body */
 	for (x = 0; x < (req->lines - 2); x++) {
 		if (!strncasecmp(req->line[x], boundary, strlen(boundary)) &&
-		    !strcasecmp(req->line[x + 1], "Content-Type: application/sdp")) {
+		    !strncasecmp(req->line[x + 1], "Content-Type:", 13) &&
+            is_sdp_content(&req->line[x + 1][13])) {
 			x += 2;
 			req->sdp_start = x;
 
@@ -6380,7 +6394,6 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
        peer doesn't have to cw_gethostbyname() us */
     add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
     add_header_contentLength(resp, len);
-
 
     snprintf(v, sizeof(v), "v=0");
     add_line(resp, v, SIP_DL_DONTCARE);
@@ -12184,7 +12197,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             if (p->owner->_state != CW_STATE_UP)
 	            cw_setstate(p->owner, CW_STATE_RINGING);
         }
-//        if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
+//        if (is_sdp_content(get_header(req, "Content-Type"))
         if (find_sdp(req))
         {
             process_sdp(p, req);
@@ -12201,7 +12214,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         /* Session progress */
         if (!ignore)
             sip_cancel_destroy(p);
-        if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
+        if (is_sdp_content(get_header(req, "Content-Type")))
         {
             process_sdp(p, req);
             if (!ignore && p->owner)
@@ -12217,10 +12230,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         if (!ignore)
             sip_cancel_destroy(p);
         p->authtries = 0;
-        if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
-        {
+        if (is_sdp_content(get_header(req, "Content-Type")))
             process_sdp(p, req);
-        }
 
         /* Parse contact header for continued conversation */
         /* When we get 200 OK, we know which device (and IP) to contact for this call */
@@ -13285,7 +13296,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         if (p->owner)
         {
             /* Handle SDP here if we already have an owner */
-            if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
+            if (is_sdp_content(get_header(req, "Content-Type")))
             {
                 if (process_sdp(p, req))
                 {
