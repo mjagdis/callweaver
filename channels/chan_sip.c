@@ -3334,7 +3334,7 @@ static char *hangup_cause2sip(int cause)
             
         case CW_CAUSE_NOTDEFINED:
         default:
-            cw_log(CW_LOG_DEBUG, "AST hangup cause %d (no match found in SIP)\n", cause);
+            cw_log(CW_LOG_DEBUG, "CW hangup cause %d (no match found in SIP)\n", cause);
             return NULL;
     }
 
@@ -7072,19 +7072,19 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
     add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
     if (p->options && p->options->addsipheaders )
     {
-        struct cw_channel *ast;
+        struct cw_channel *chan;
         char *header = (char *) NULL;
         char *content = (char *) NULL;
         char *end = (char *) NULL;
         struct varshead *headp = (struct varshead *) NULL;
         struct cw_var_t *current;
 
-        ast = p->owner;    /* The owner channel */
-        if (ast)
+        chan = p->owner;    /* The owner channel */
+        if (chan)
         {
             char *headdup;
 
-            headp = &ast->varshead;
+            headp = &chan->varshead;
             if (!headp)
                 cw_log(CW_LOG_WARNING,"No Headp for the channel...ooops!\n");
             else

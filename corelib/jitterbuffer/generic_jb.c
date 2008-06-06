@@ -201,7 +201,7 @@ static int create_jb(struct cw_channel *chan, struct cw_frame *first_frame, int 
 static long get_now(struct cw_jb *jb, struct timeval *tv);
 
 
-/* Interface ast jb functions impl */
+/* Interface jb functions impl */
 
 
 static void jb_choose_impl(struct cw_channel *chan)

@@ -357,7 +357,7 @@ static int restart_monitor(void);
 static int unicall_open_pseudo(void);
 static int unicall_close(int fd);
 
-/* Translate between UniCall causes and ast */
+/* Translate between UniCall causes and CW */
 static int hangup_uc2cause(int cause)
 {
     switch (cause)

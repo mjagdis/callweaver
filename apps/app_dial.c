@@ -1184,7 +1184,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
-				cw_log(CW_LOG_DEBUG, "ast call on peer returned %d\n", res);
+				cw_log(CW_LOG_DEBUG, "CW call on peer returned %d\n", res);
 			if (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			cw_hangup(tmp->chan);

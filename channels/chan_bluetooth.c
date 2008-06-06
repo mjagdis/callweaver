@@ -924,7 +924,7 @@ blt_request(const char * type, int format, void * local_data, int *cause)
   char * data = (char*)local_data;
   int oldformat;
   blt_dev_t * dev = NULL;
-  struct cw_channel * ast = NULL;
+  struct cw_channel * chan = NULL;
   char * number = data, * dname;
 
   dname = strsep(&number, "/");
@@ -977,11 +977,11 @@ blt_request(const char * type, int format, void * local_data, int *cause)
   if (dev->role == BLT_ROLE_AG)
     strncpy(dev->dnid, number, sizeof(dev->dnid) - 1);
 
-  ast = blt_new(dev, CW_STATE_DOWN, dev->context, "s");
+  chan = blt_new(dev, CW_STATE_DOWN, dev->context, "s");
 
   cw_mutex_unlock(&(dev->lock));
 
-  return ast;
+  return chan;
 }
 
 

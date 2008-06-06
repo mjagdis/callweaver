@@ -526,7 +526,7 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	/* need to reset the exten, otherwise it would be set to s */
 	memset(&tmp->exten,0,sizeof(tmp->exten));
 
-	/* let's connect the ast channel to the sccp channel */
+	/* let's connect the channel to the sccp channel */
 	cw_mutex_lock(&c->lock);
 	c->owner = tmp;
 	cw_mutex_unlock(&c->lock);

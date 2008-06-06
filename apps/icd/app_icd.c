@@ -123,7 +123,7 @@ static const char app_icd_remove_member_desc[] = "Dynamically deletes a queue me
 static int core_count = 0;
 #endif
 
-/* icd verbosity using ast verbose in caller fsm, icd flag can be set to ast option or run independent*/
+/* icd verbosity using cw_verbose in caller fsm, icd flag can be set to CW option or run independent*/
 int icd_verbose=2;
 
 /* icd debug flag enables debugging using cw_log-debug in caller fsm  */
@@ -1869,7 +1869,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                     if (icd_debug)
                         cw_log(CW_LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_verbose);
                 } else
-                    icd_verbose = option_verbose;       /*default to ast option_verbose */
+                    icd_verbose = option_verbose;       /*default to CW option_verbose */
 
             }                   /*general section */
             if (strcasecmp(entry, "events") == 0) {
