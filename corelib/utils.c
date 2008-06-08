@@ -505,6 +505,8 @@ const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 }
 
 
+struct sched_param global_sched_param_default;
+struct sched_param global_sched_param_rr;
 pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
 pthread_attr_t global_attr_fifo;
@@ -941,7 +943,8 @@ void cw_enable_packet_fragmentation(int sock)
 
 int cw_utils_init(void)
 {
-	struct sched_param sp;
+	global_sched_param_default.sched_priority = 0;
+	global_sched_param_rr.sched_priority = 50;
 
 	pthread_attr_init(&global_attr_default);
 	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);
@@ -953,34 +956,32 @@ int cw_utils_init(void)
 	pthread_attr_setinheritsched(&global_attr_detached, PTHREAD_INHERIT_SCHED);
 	pthread_attr_setdetachstate(&global_attr_detached, PTHREAD_CREATE_DETACHED);
 
-	sp.sched_priority = 50;
-
 	pthread_attr_init(&global_attr_fifo);
 	pthread_attr_setstacksize(&global_attr_fifo, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_fifo, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_fifo, SCHED_FIFO);
-	pthread_attr_setschedparam(&global_attr_fifo, &sp);
+	pthread_attr_setschedparam(&global_attr_fifo, &global_sched_param_rr);
 	pthread_attr_setdetachstate(&global_attr_fifo, PTHREAD_CREATE_JOINABLE);
 
 	pthread_attr_init(&global_attr_fifo_detached);
 	pthread_attr_setstacksize(&global_attr_fifo_detached, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_fifo_detached, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_fifo_detached, SCHED_FIFO);
-	pthread_attr_setschedparam(&global_attr_fifo_detached, &sp);
+	pthread_attr_setschedparam(&global_attr_fifo_detached, &global_sched_param_rr);
 	pthread_attr_setdetachstate(&global_attr_fifo_detached, PTHREAD_CREATE_DETACHED);
 
 	pthread_attr_init(&global_attr_rr);
 	pthread_attr_setstacksize(&global_attr_rr, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_rr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_rr, SCHED_RR);
-	pthread_attr_setschedparam(&global_attr_rr, &sp);
+	pthread_attr_setschedparam(&global_attr_rr, &global_sched_param_rr);
 	pthread_attr_setdetachstate(&global_attr_rr, PTHREAD_CREATE_JOINABLE);
 
 	pthread_attr_init(&global_attr_rr_detached);
 	pthread_attr_setstacksize(&global_attr_rr_detached, CW_STACKSIZE);
 	pthread_attr_setinheritsched(&global_attr_rr_detached, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(&global_attr_rr_detached, SCHED_RR);
-	pthread_attr_setschedparam(&global_attr_rr_detached, &sp);
+	pthread_attr_setschedparam(&global_attr_rr_detached, &global_sched_param_rr);
 	pthread_attr_setdetachstate(&global_attr_rr_detached, PTHREAD_CREATE_DETACHED);
 
 	base64_init();

@@ -247,7 +247,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
     uint64_t now;
     uint64_t passage;
     int old_policy;
-    struct sched_param old_sp, sp;
+    struct sched_param old_sp;
 
     memset(t38, 0, sizeof(*t38));
 
@@ -305,8 +305,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
     }
 
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
-    sp.sched_priority = 50;
-    pthread_setschedparam(pthread_self(), SCHED_RR, &sp);
+    cw_setsched_rr();
 
     passage = nowis();
 
@@ -363,7 +362,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
     int old_policy;
-    struct sched_param old_sp, sp;
+    struct sched_param old_sp;
 
     memset(fax, 0, sizeof(*fax));
 
@@ -413,8 +412,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     /* This is the main loop */
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
-    sp.sched_priority = 50;
-    pthread_setschedparam(pthread_self(), SCHED_RR, &sp);
+    cw_setsched_rr();
 
     begin = nowis();
 
