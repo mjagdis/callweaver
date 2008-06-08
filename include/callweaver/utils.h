@@ -236,10 +236,6 @@ extern pthread_attr_t global_attr_fifo;
 extern pthread_attr_t global_attr_rr_detached;
 extern pthread_attr_t global_attr_rr;
 
-#define cw_setsched_default()	pthread_setschedparam(pthread_self(), SCHED_OTHER, &global_sched_param_default);
-#define cw_setsched_fifo()	pthread_setschedparam(pthread_self(), SCHED_FIFO, &global_sched_param_rr);
-#define cw_setsched_rr()	pthread_setschedparam(pthread_self(), SCHED_RR, &global_sched_param_rr);
-
 
 /*! cw_pthread_create pins a reference to the module it is called from
  * for the life of the thread. Hence the thread function MUST be in the

@@ -305,7 +305,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
     }
 
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
-    cw_setsched_rr();
+    pthread_setschedparam(pthread_self(), SCHED_RR, &global_sched_param_rr);
 
     passage = nowis();
 
@@ -412,7 +412,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     /* This is the main loop */
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
-    cw_setsched_rr();
+    pthread_setschedparam(pthread_self(), SCHED_RR, &global_sched_param_rr);
 
     begin = nowis();
 
