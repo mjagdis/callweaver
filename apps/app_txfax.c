@@ -456,7 +456,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
                     cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                     break;
                 }
-                cw_fr_frame(fout);
+                cw_fr_free(fout);
             }
 	    else
 	    {

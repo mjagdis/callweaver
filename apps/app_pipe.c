@@ -217,7 +217,7 @@ static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 							res = -1;
 							break;
 						}
-						cw_fr_frame(fout);
+						cw_fr_free(fout);
 					} else {
 						cw_log(CW_LOG_DEBUG, "No more stream\n");
 						res = 0;
