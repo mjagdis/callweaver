@@ -191,13 +191,13 @@ static inline void cw_clock_add_ms(struct timespec *ts, int ms)
 
 /********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
-static int tech_call(struct cw_channel *self, char *dest, int timeout);
-static int tech_hangup(struct cw_channel *self);
-static int tech_answer(struct cw_channel *self);
-static struct cw_frame *tech_read(struct cw_channel *self);
-static struct cw_frame *tech_exception(struct cw_channel *self);
-static int tech_write(struct cw_channel *self, struct cw_frame *frame);
-static int tech_indicate(struct cw_channel *self, int condition);
+static int tech_call(struct cw_channel *chan, char *dest, int timeout);
+static int tech_hangup(struct cw_channel *chan);
+static int tech_answer(struct cw_channel *chan);
+static struct cw_frame *tech_read(struct cw_channel *chan);
+static struct cw_frame *tech_exception(struct cw_channel *chan);
+static int tech_write(struct cw_channel *chan, struct cw_frame *frame);
+static int tech_indicate(struct cw_channel *chan, int condition);
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 
 /* Helper Function Prototypes */
@@ -419,14 +419,14 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 }
 
 
-static int tech_call(struct cw_channel *self, char *dest, int timeout)
+static int tech_call(struct cw_channel *chan, char *dest, int timeout)
 {
 	struct tm tm;
 	char buf[sizeof("0000+0000")];
 	struct faxmodem *fm;
 	time_t u_now = time(NULL);
 
-	fm = self->tech_pvt;
+	fm = chan->tech_pvt;
 
 	strftime(buf, sizeof(buf), "%m%d+%H%M", localtime_r(&u_now, &tm));
 	buf[4] = '\000';
@@ -435,27 +435,27 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	at_reset_call_info(&fm->t31_state.at_state);
 	at_set_call_info(&fm->t31_state.at_state, "DATE", buf);
 	at_set_call_info(&fm->t31_state.at_state, "TIME", buf+5);
-	if ((self->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED) {
-		at_set_call_info(&fm->t31_state.at_state, "NAME", self->cid.cid_name);
-		at_set_call_info(&fm->t31_state.at_state, "NMBR", self->cid.cid_num);
-	} else if ((self->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED)
+	if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED) {
+		at_set_call_info(&fm->t31_state.at_state, "NAME", chan->cid.cid_name);
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", chan->cid.cid_num);
+	} else if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED)
 		at_set_call_info(&fm->t31_state.at_state, "NMBR", "P");
 	else
 		at_set_call_info(&fm->t31_state.at_state, "NMBR", "O");
-	at_set_call_info(&fm->t31_state.at_state, "ANID", self->cid.cid_ani);
-	at_set_call_info(&fm->t31_state.at_state, "NDID", self->cid.cid_dnid);
+	at_set_call_info(&fm->t31_state.at_state, "ANID", chan->cid.cid_ani);
+	at_set_call_info(&fm->t31_state.at_state, "NDID", chan->cid.cid_dnid);
 
 	fm->state = FAXMODEM_STATE_RINGING;
-	cw_setstate(self, CW_STATE_RINGING);
+	cw_setstate(chan, CW_STATE_RINGING);
 	pthread_kill(fm->thread, SIGURG);
 	cw_mutex_unlock(&fm->lock);
 
 	return 0;
 }
 
-static int tech_hangup(struct cw_channel *self)
+static int tech_hangup(struct cw_channel *chan)
 {
-	struct faxmodem *fm = self->tech_pvt;
+	struct faxmodem *fm = chan->tech_pvt;
 
 	cw_mutex_lock(&fm->lock);
 
@@ -488,15 +488,15 @@ static int tech_hangup(struct cw_channel *self)
 
 	cw_mutex_unlock(&fm->lock);
 
-	self->tech_pvt = NULL;
+	chan->tech_pvt = NULL;
 
 	return 0;
 }
 
 
-static int tech_answer(struct cw_channel *self)
+static int tech_answer(struct cw_channel *chan)
 {
-	struct faxmodem *fm = self->tech_pvt;
+	struct faxmodem *fm = chan->tech_pvt;
 
 	cw_mutex_lock(&fm->lock);
 
@@ -504,7 +504,7 @@ static int tech_answer(struct cw_channel *self)
 	fm->start = fm->frame.delivery;
 	fm->frame.ts = fm->frame.seq_no = 0;
 
-	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &self->alertpipe[1])) {
+	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &chan->alertpipe[1])) {
 		if (cfg_vblevel > 0)
 			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
 		fm->state = FAXMODEM_STATE_CONNECTED;
@@ -519,10 +519,10 @@ static int tech_answer(struct cw_channel *self)
 }
 
 
-static struct cw_frame *tech_read(struct cw_channel *self)
+static struct cw_frame *tech_read(struct cw_channel *chan)
 {
 	char buf[256];
-	struct faxmodem *fm = self->tech_pvt;
+	struct faxmodem *fm = chan->tech_pvt;
 	struct cw_frame *fr = &fm->frame;
 	uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
 	int samples;
@@ -580,12 +580,12 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 }
 
 
-static int tech_write(struct cw_channel *self, struct cw_frame *frame)
+static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 {
 #ifdef TRACE
 	char msg[256];
 #endif
-	struct faxmodem *fm = self->tech_pvt;
+	struct faxmodem *fm = chan->tech_pvt;
 
 	if (fm->state == FAXMODEM_STATE_CONNECTED) {
 		switch (frame->frametype) {
@@ -640,15 +640,15 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 }
 
 
-static struct cw_frame *tech_exception(struct cw_channel *self)
+static struct cw_frame *tech_exception(struct cw_channel *chan)
 {
 	return NULL;
 }
 
 
-static int tech_indicate(struct cw_channel *self, int condition)
+static int tech_indicate(struct cw_channel *chan, int condition)
 {
-	struct faxmodem *fm = self->tech_pvt;
+	struct faxmodem *fm = chan->tech_pvt;
 	int res = 0;
 
         if (cfg_vblevel > 1)
