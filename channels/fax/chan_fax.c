@@ -479,6 +479,8 @@ static int tech_hangup(struct cw_channel *self)
 		close(self->fds[0]);
 		close(fm->psock);
 		fm->psock = -1;
+
+		self->tech_pvt = NULL;
 	}
 
 	return 0;
