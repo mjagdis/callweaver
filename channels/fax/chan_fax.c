@@ -1234,20 +1234,6 @@ static struct cw_atexit fax_atexit = {
 static void graceful_unload(void)
 {
 	deactivate_fax_modems();
-
-	cw_channel_unregister(&technology);
-	cw_cli_unregister_multiple(cli_chan_fax, arraysize(cli_chan_fax));
-
-	if (cfg_dev_prefix)
-		free(cfg_dev_prefix);
-	if (cfg_context)
-		free(cfg_context);
-	if (cfg_cid_name)
-		free(cfg_cid_name);
-	if (cfg_cid_num)
-		free(cfg_cid_num);
-
-	cw_atexit_unregister(&fax_atexit);
 }
 
 
@@ -1274,6 +1260,20 @@ static int load_module(void)
 static int unload_module(void)
 {
 	graceful_unload();
+
+	cw_channel_unregister(&technology);
+	cw_cli_unregister_multiple(cli_chan_fax, arraysize(cli_chan_fax));
+
+	if (cfg_dev_prefix)
+		free(cfg_dev_prefix);
+	if (cfg_context)
+		free(cfg_context);
+	if (cfg_cid_name)
+		free(cfg_cid_name);
+	if (cfg_cid_num)
+		free(cfg_cid_num);
+
+	cw_atexit_unregister(&fax_atexit);
 	return 0;
 }
 
