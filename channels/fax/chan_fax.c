@@ -233,7 +233,7 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
-static int faxmodem_init(struct faxmodem *fm, const char *device_prefix);
+static int faxmodem_init(struct faxmodem *fm);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num);
 static void *faxmodem_thread(void *obj);
@@ -308,15 +308,12 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 }
 
 
-int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
+int faxmodem_init(struct faxmodem *fm)
 {
-	static int NEXT_ID = 0;
 	char buf[256];
 #ifndef HAVE_POSIX_OPENPT
 	int slave;
 #endif
-
-	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
 
 #ifdef HAVE_POSIX_OPENPT
 	if ((fm->pfd.fd = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
@@ -1015,7 +1012,7 @@ static void *faxmodem_thread(void *obj)
 	cw_mutex_lock(&fm->lock);
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
-	if (!faxmodem_init(fm, cfg_dev_prefix)) {
+	if (!faxmodem_init(fm)) {
 		uint8_t modembuf[T31_TX_BUF_LEN];
 		int avail;
 
@@ -1146,6 +1143,7 @@ static void *faxmodem_thread(void *obj)
 
 static void activate_fax_modems(void)
 {
+	static int NEXT_ID = 0;
 	pthread_t tid;
 	int x;
 
@@ -1153,8 +1151,11 @@ static void activate_fax_modems(void)
 
 	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
 		for (x = 0; x < cfg_modems; x++) {
+			snprintf(FAXMODEM_POOL[x].devlink, sizeof(FAXMODEM_POOL[x].devlink), "%s%d", cfg_dev_prefix, NEXT_ID++);
+
 			if (cfg_vblevel > 1)
-				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem %s\n", FAXMODEM_POOL[x].devlink);
+
 			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
