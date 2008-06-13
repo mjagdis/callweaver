@@ -70,10 +70,10 @@ static struct faxmodem *FAXMODEM_POOL;
 
 static const char TERMINATOR[] = "\r\n";
 
-#define IO_READ "1"
-#define IO_HUP "0"
-#define IO_PROD "2"
-#define IO_ANSWER "3"
+#define IO_READ		"1"
+#define IO_HUP		"0"
+#define IO_PROD		"2"
+#define IO_ANSWER	"3"
 
 /* some flags */
 typedef enum {
@@ -712,17 +712,17 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	pthread_t tid;
 	struct private_object *tech_pvt;
 	int res;
-	char cmd[2];
+	char cmd;
 
 	tech_pvt = self->tech_pvt;
-	res = read(tech_pvt->pipe[0], cmd, sizeof(cmd));	
-	
-	if (res < 0 || !strcmp(cmd, IO_HUP)) {
+	res = read(tech_pvt->pipe[0], &cmd, sizeof(cmd));
+
+	if (res < 0 || cmd == IO_HUP[0]) {
 		cw_softhangup(tech_pvt->owner, CW_SOFTHANGUP_EXPLICIT);
 		return NULL;
 	}
 
-	if (res < 0 || !strcmp(cmd, IO_ANSWER)) {
+	if (res < 0 || cmd == IO_ANSWER[0]) {
 		struct cw_frame ans = {CW_FRAME_CONTROL, CW_CONTROL_ANSWER};
 		cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 		return cw_frdup(&ans);
@@ -763,7 +763,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	cw_cond_signal(&tech_pvt->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
-	//write(tech_pvt->pipe[0], IO_PROD, 1);
+	//write(tech_pvt->pipe[0], IO_PROD[0], 1);
 
 
 	return 0;
@@ -989,7 +989,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 		    if (fm->user_data) {
 			struct cw_channel *chan = fm->user_data;
 			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-			write(fm->psock, IO_HUP, 1);
+			write(fm->psock, IO_HUP[0], 1);
 		    }
 		} else {
 		    fm->state = FAXMODEM_STATE_ONHOOK;
