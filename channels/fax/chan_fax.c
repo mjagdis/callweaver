@@ -1032,10 +1032,8 @@ static void *faxmodem_thread(void *obj)
 						int n;
 						struct timespec now;
 
-						cw_clock_gettime(CLOCK_REALTIME, &now);
-						n = cw_clock_diff_ms(&now, &fm->start);
 						write(fm->debug_fax[1], frame_data, fm->frame.datalen);
-						n = snprintf(msg, sizeof(msg), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", n, fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+						n = snprintf(msg, sizeof(msg), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
 						write(fm->debug_dte, msg, n);
 					}
 #endif
