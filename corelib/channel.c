@@ -3947,43 +3947,6 @@ int cw_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
-int cw_carefulwritev(int fd, struct iovec *v, int count, int timeoutms)
-{
-	/* Try to write string, but wait no more than ms milliseconds before timing out */
-	int res = 0;
-
-	while (count) {
-		if ((res = writev(fd, v, count)) < 0) {
-			if (errno != EAGAIN)
-				return -1;
-			res = 0;
-		}
-
-		while (res) {
-			if (res >= v[0].iov_len) {
-				res -= v[0].iov_len;
-				v++, count--;
-			} else {
-				v[0].iov_len -= res;
-				v[0].iov_base += res;
-				res = 0;
-			}
-		}
-
-		if (count) {
-			struct pollfd pfd;
-
-			pfd.fd = fd;
-			pfd.events = POLLOUT;
-			res = -1;
-			if (poll(&pfd, 1, timeoutms) < 1)
-				break;
-		}
-	}
-
-	return res;
-}
-
 #if defined(DEBUG_CHANNEL_LOCKS)
 int cw_channel_unlock(struct cw_channel *chan)
 {
