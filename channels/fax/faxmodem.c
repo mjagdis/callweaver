@@ -97,14 +97,35 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 {
 	char buf[256];
 
-	fm->master = -1;
-	fm->slave = -1;
-
-	if (openpty(&fm->master, &fm->slave, NULL, NULL, NULL)) {
-		do_log(LOGGER.err, "Fatal error: failed to initialize pty\n");
+#ifdef HAVE_POSIX_OPENPT
+	if ((fm->master = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
+		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
 		return -1;
 	}
 
+	/* The behaviour of grantpt is undefined if a SIGCHLD handler is installed.
+	 * We can't guarantee that, but grantpt just sets permissions on the slave
+	 * tty and since we expect that to be opened by a root owned faxgetty we
+	 * can live without doing this.
+	 */
+	// grantpt(fm->master);
+	unlockpt(fm->master);
+#else
+	int slave = -1;
+
+	fm->master = -1;
+
+	if (openpty(&fm->master, &slave, NULL, NULL, NULL)) {
+		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
+		return -1;
+	}
+
+	/* If we keep the slave open we'll likely get killed by a {fax}getty
+	 * start up on it. Closing it means we're going to keep seeing POLLHUP
+	 * until something else opens it. See channel/fax/chan_fax.c
+	 */
+	close(slave);
+#endif
 	ptsname_r(fm->master, buf, sizeof(buf));
 
 	do_log(LOGGER.info, "Opened pty, slave device: %s\n", buf);

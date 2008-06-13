@@ -78,7 +78,6 @@ struct faxmodem {
 	char digits[32];
 	unsigned int flags;
 	int master;
-	int slave;
 	char devlink[128];
 	int id;
 	faxmodem_state_t state;

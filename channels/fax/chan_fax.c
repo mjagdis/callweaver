@@ -155,7 +155,6 @@ static int tech_write_video(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
 static void tech_destroy(struct private_object *tech_pvt);
-static int waitfor_socket(int fd, int timeout) ;
 static struct faxmodem *acquire_modem(int index);
 static void tech_destroy(struct private_object *tech_pvt) ;
 static struct cw_channel *channel_new(const char *type, int format, void *data, int *cause);
@@ -236,30 +235,6 @@ static void set_vblevel(int level)
 	if (level > -1) {
 		VBLEVEL = level;
 	}
-}
-
-
-static int waitfor_socket(int fd, int timeout) 
-{
-	struct pollfd pfds[1];
-	int res;
-
-	memset(&pfds[0], 0, sizeof(pfds[0]));
-	pfds[0].fd = fd;
-	pfds[0].events = POLLIN | POLLERR;
-
-	res = poll(pfds, 1, timeout);
-	if (res == -1 && errno == EINTR)  /* System call interrupted */
-	    return 0;
-
-	
-	if ((pfds[0].revents & POLLERR)) {
-		res = -1;
-	} else if((pfds[0].revents & POLLIN)) {
-		res = 1;
-	}
-
-	return res;
 }
 
 
@@ -1051,11 +1026,6 @@ static void faxmodem_thread_cleanup(void *obj)
 		fm->master = -1;
 	}
 
-	if (fm->slave > -1) {
-		close(fm->slave);
-		fm->slave = -1;
-	}
-
 	if (fm->devlink[0])
 		unlink(fm->devlink);
 
@@ -1065,30 +1035,38 @@ static void faxmodem_thread_cleanup(void *obj)
 
 static void *faxmodem_thread(void *obj)
 {
+	char buf[1024], tmp[80];
+	struct pollfd pfd;
 	struct faxmodem *fm = obj;
 	int res;
-	char buf[1024], tmp[80];
 
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
 	if (!faxmodem_init(fm, control_handler, DEVICE_PREFIX)) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
+		pfd.fd = fm->master;
+		pfd.events = POLLIN;
+
 		for (;;) {
-	        	res = waitfor_socket(fm->master, 1000);
-			if (res == 0) {
-				/* Timeout occured, so we try again */
+			res = poll(&pfd, 1, 1000);
+
+			if (!res || (res == -1 && errno == EINTR))
 				continue;
-			} else if (res < 0) {
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				cw_log(CW_LOG_WARNING, "Bad Read on master [%s]\n", fm->devlink);
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+			if (res == -1 || pfd.revents & (POLLERR | POLLNVAL))
 				break;
+
+			if (pfd.revents & POLLHUP) {
+				sleep(1);
+				continue;
 			}
+
 			pthread_testcancel();
 
 			cw_set_flag(fm, TFLAG_EVENT);
-			res = read(fm->master, buf, sizeof(buf));
+			res = read(fm->master, buf, sizeof(buf)-1);
+			buf[res] = '\0';
 			t31_at_rx(&fm->t31_state, buf, res);
 			memset(tmp, 0, sizeof(tmp));
 
@@ -1108,6 +1086,10 @@ static void *faxmodem_thread(void *obj)
 				}
 			}
 		}
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		cw_log(CW_LOG_WARNING, "Poll on master for %s gave res %d, revents 0x%04x\n", fm->devlink, res, pfd.revents);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	}
 
 	pthread_cleanup_pop(1);
@@ -1126,7 +1108,7 @@ static void activate_fax_modems(void)
 		if (VBLEVEL > 1)
 			cw_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
 		FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
-		cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_rr, faxmodem_thread, &FAXMODEM_POOL[x]);
+		cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
 	}
 	cw_mutex_unlock(&control_lock);
 }
