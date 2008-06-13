@@ -84,7 +84,7 @@ typedef enum {
 } TFLAGS;
 
 
-int rr_next;
+static int rr_next;
 
 /* The following object is where you can attach your technology-specific state data.
  * Add as many members as you like and the data will be available to you in all of the methods.
@@ -192,28 +192,18 @@ static struct faxmodem *acquire_modem(int index)
 		if (index) {
 			fm = &FAXMODEM_POOL[index];
 		} else {
-			switch (cfg_ringstrategy) {
-				case 1:
-					for (x = 0; x < cfg_modems; x++) {
-						cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", x, FAXMODEM_POOL[x].state);
-						if (FAXMODEM_POOL[x].state == FAXMODEM_STATE_ONHOOK) {
-							fm = &FAXMODEM_POOL[x];
-							break;
-						}
-					}
-					break;
+			if (cfg_ringstrategy == 1)
+				rr_next = 0;
 
-				default:
-					for (; rr_next < cfg_modems; rr_next++) {
-						cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", rr_next, FAXMODEM_POOL[rr_next].state);
-						if (FAXMODEM_POOL[rr_next].state == FAXMODEM_STATE_ONHOOK) {
-							fm = &FAXMODEM_POOL[rr_next];
-							break;
-						}
-					}
-					rr_next = (rr_next + 1) % cfg_modems;
+			for (x = 0; x < cfg_modems; x++) {
+				int i = (rr_next + x) % cfg_modems;
+				cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", i, FAXMODEM_POOL[i].state);
+				if (FAXMODEM_POOL[i].state == FAXMODEM_STATE_ONHOOK) {
+					fm = &FAXMODEM_POOL[i];
 					break;
+				}
 			}
+			rr_next = (rr_next + 1) % cfg_modems;
 		}
 	}
 	
