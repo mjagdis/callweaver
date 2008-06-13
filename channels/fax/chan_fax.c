@@ -85,8 +85,6 @@ typedef enum {
 
 struct faxmodem;
 
-typedef int (*faxmodem_control_handler_t)(struct faxmodem *, int op, const char *);
-
 struct faxmodem {
 	int unit;
 	t31_state_t t31_state;
@@ -94,7 +92,6 @@ struct faxmodem {
 	int master;
 	char devlink[128];
 	faxmodem_state_t state;
-	faxmodem_control_handler_t control_handler;
 	int psock;
 #ifdef DO_TRACE
 	int debug[2];
@@ -178,11 +175,11 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 static char *faxmodem_state2name(int state);
 static void faxmodem_clear_logger(void);
 static void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
-static int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix);
+static int faxmodem_init(struct faxmodem *fm, const char *device_prefix);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
-static int control_handler(struct faxmodem *fm, int op, const char *num);
+static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num);
 static void *faxmodem_thread(void *obj);
 static void activate_fax_modems(void);
 static void deactivate_fax_modems(void);
@@ -219,21 +216,6 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	return wrote;
 }
 
-static int modem_control_handler(t31_state_t *s, void *user_data, int op, 
-				 const char *num)
-{
-	struct faxmodem *fm = user_data;
-	int ret = 0;
-
-	if (fm->control_handler) {
-		ret = fm->control_handler(fm, op, num);
-	} else {
-		do_log(LOGGER.err, "DOH! NO CONTROL HANDLER INSTALLED\n");
-	}
-
-	return ret;
-}
-
 char *faxmodem_state2name(int state) 
 {
 	if (state > FAXMODEM_STATE_LAST || state < 0) {
@@ -257,7 +239,7 @@ void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info)
 	LOGGER.info = info;
 }
 
-int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix)
+int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 {
 	static int NEXT_ID = 0;
 	char buf[256];
@@ -318,7 +300,6 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 		return -1;
 	}
 
-	fm->control_handler = control_handler;
 	fm->state = FAXMODEM_STATE_CLOSED;
 	
 	do_log(LOGGER.info, "Fax Modem [%s] Ready\n", fm->devlink);
@@ -798,8 +779,9 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame)
 }
 
 
-static int control_handler(struct faxmodem *fm, int op, const char *num)
+static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num)
 {
+	struct faxmodem *fm = user_data;
 	int res = 0;
 
 	if (cfg_vblevel > 1)
@@ -893,7 +875,7 @@ static void *faxmodem_thread(void *obj)
 
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
-	if (!faxmodem_init(fm, control_handler, cfg_dev_prefix)) {
+	if (!faxmodem_init(fm, cfg_dev_prefix)) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		pfd.fd = fm->master;
