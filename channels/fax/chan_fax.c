@@ -123,6 +123,14 @@ static struct faxmodem *FAXMODEM_POOL;
 #define IO_READ		"1"
 #define IO_HUP		"0"
 #define IO_PROD		"2"
+#define IO_CNG		"3"
+
+
+static struct cw_frame frame_cng = {
+	.frametype = CW_FRAME_DTMF,
+	.subclass = 'f',
+};
+
 
 /* some flags */
 typedef enum {
@@ -604,6 +612,8 @@ static int tech_answer(struct cw_channel *self)
 	fm->state = FAXMODEM_STATE_CONNECTED;
 	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
 
+	write(fm->psock, IO_CNG, 1);
+
 	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, fm))
 		return 0;
 	return -1;
@@ -625,6 +635,9 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 
 	if (res < 0 || cmd == IO_HUP[0])
 		return NULL;
+
+	if (cmd == IO_CNG)
+		return &frame_cng;
 
 	return &fm->frame;
 }
