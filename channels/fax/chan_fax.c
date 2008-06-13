@@ -248,8 +248,8 @@ static const struct cw_channel_tech technology = {
 
 static void *faxmodem_clock_thread(void *obj)
 {
-	struct faxmodem *fm = obj;
 	struct timespec ts;
+	int fd = *(int *)obj;
 #if !defined(__USE_XOPEN2K)
 	const clockid_t clk = CLOCK_REALTIME;
 	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -272,7 +272,7 @@ static void *faxmodem_clock_thread(void *obj)
 	for (;;) {
 		int blah;
 
-		write(fm->owner->alertpipe[1], &blah, sizeof(blah));
+		write(fd, &blah, sizeof(blah));
 
 		cw_clock_add_ms(&ts, SAMPLES / 8);
 
@@ -531,7 +531,7 @@ static int tech_answer(struct cw_channel *self)
 	fm->start = fm->frame.delivery;
 	fm->frame.ts = fm->frame.seq_no = 0;
 
-	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm)) {
+	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &self->alertpipe[1])) {
 		if (cfg_vblevel > 0)
 			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
 		fm->state = FAXMODEM_STATE_CONNECTED;
@@ -798,7 +798,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				fm->start = fm->frame.delivery;
 				fm->frame.ts = fm->frame.seq_no = 0;
 
-				if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm))
+				if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &fm->owner->alertpipe[1]))
 					fm->state = FAXMODEM_STATE_ANSWERED;
 				else
 					cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
