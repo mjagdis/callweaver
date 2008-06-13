@@ -138,7 +138,6 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
 static struct cw_channel *channel_new(struct faxmodem *fm);
-static void channel_destroy(struct cw_channel *chan);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
 static int control_handler(struct faxmodem *fm, int op, const char *num);
@@ -203,14 +202,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 	}
 	
 	return chan;
-}
-
-/* Destroy the channel since we didn't use it */
-void channel_destroy(struct cw_channel *chan)
-{
-	free(chan->tech_pvt);
-	chan->tech_pvt = NULL;
-	cw_hangup(chan);
 }
 
 
