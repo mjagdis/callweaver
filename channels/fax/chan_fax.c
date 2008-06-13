@@ -77,10 +77,9 @@ static const char TERMINATOR[] = "\r\n";
 
 /* some flags */
 typedef enum {
-	TFLAG_PBX = (1 << 0),
-	TFLAG_OUTBOUND = (1 << 1),
-	TFLAG_EVENT = (1 << 2),
-	TFLAG_DATA = (1 << 3)
+	TFLAG_OUTBOUND = (1 << 0),
+	TFLAG_EVENT = (1 << 1),
+	TFLAG_DATA = (1 << 2)
 } TFLAGS;
 
 
@@ -140,9 +139,7 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
-static void tech_destroy(struct private_object *tech_pvt);
-static struct faxmodem *acquire_modem(int index);
-static struct cw_channel *channel_new(const char *type, int format, void *data, int *cause);
+static struct cw_channel *channel_new(struct faxmodem *fm);
 static void channel_destroy(struct cw_channel *chan);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
@@ -172,83 +169,9 @@ static const struct cw_channel_tech technology = {
 	.send_image = tech_send_image,
 };
 
-/***************** Helper functions ****************/
-
-static struct faxmodem *acquire_modem(int index)
-{
-        struct faxmodem *fm = NULL;
-	int x;
-
-	cw_mutex_lock(&control_lock);
-
-	if (FAXMODEM_POOL) {
-		if (index) {
-			fm = &FAXMODEM_POOL[index];
-		} else {
-			if (cfg_ringstrategy == 1)
-				rr_next = 0;
-
-			for (x = 0; x < cfg_modems; x++) {
-				int i = (rr_next + x) % cfg_modems;
-				cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", i, FAXMODEM_POOL[i].state);
-				if (FAXMODEM_POOL[i].state == FAXMODEM_STATE_ONHOOK) {
-					fm = &FAXMODEM_POOL[i];
-					fm->state = FAXMODEM_STATE_ACQUIRED;
-					break;
-				}
-			}
-			rr_next = (rr_next + 1) % cfg_modems;
-		}
-	}
-	
-	cw_mutex_unlock(&control_lock);
-
-	if (!fm)
-		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
-
-	return fm;
-}
-
-
-/* tech_destroy() Wipes out a private object 
- * If you allocated any memory to pointer members of this structure 
- * you must be sure to free it properly.
- */
-static void tech_destroy(struct private_object *tech_pvt) 
-{
-	
-	struct cw_channel *chan;
-
-	if (tech_pvt && (chan = tech_pvt->owner)) {
-		chan->tech_pvt = NULL;
-		if (! cw_test_flag(tech_pvt, TFLAG_PBX)) {
-			cw_hangup(chan);
-		} else {
-			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-		}
-	}
-	if (tech_pvt->pipe[0] > -1) {
-		close(tech_pvt->pipe[0]);
-	}
-	if (tech_pvt->pipe[1] > -1) {
-		close(tech_pvt->pipe[1]);
-	}
-
-	if (tech_pvt->cid_name) free(tech_pvt->cid_name);
-	if (tech_pvt->cid_num) free(tech_pvt->cid_num);
-
-	free(tech_pvt);	
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	if (usecnt < 0) {
-		usecnt = 0;
-	}
-	cw_mutex_unlock(&usecnt_lock);
-}
-
 
 /* channel_new() make a new channel and fit it with a private object */
-static struct cw_channel *channel_new(const char *type, int format, void *data, int *cause)
+static struct cw_channel *channel_new(struct faxmodem *fm)
 {
 	struct private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
@@ -260,20 +183,24 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 			free(tech_pvt);
 			cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
 		} else {
-			cw_cond_init(&tech_pvt->data_cond, 0);
-			chan->tech_pvt = tech_pvt;
 			chan->type = type;
-			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff);
-			chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
-			chan->_state = CW_STATE_RINGING;
-			chan->_softhangup = 0;
 			chan->tech = &technology;
+			chan->tech_pvt = tech_pvt;
+			snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
+			chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
+
+			tech_pvt->fm = fm;
+			tech_pvt->owner = chan;
+			cw_cond_init(&tech_pvt->data_cond, 0);
 
 			cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 			tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
 			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 
-			tech_pvt->owner = chan;
+			fm->user_data = chan;
+			pipe(tech_pvt->pipe);
+			chan->fds[0] = tech_pvt->pipe[0];
+			fm->psock = tech_pvt->pipe[1];
 
 			cw_mutex_lock(&usecnt_lock);
 			usecnt++;
@@ -309,43 +236,48 @@ void channel_destroy(struct cw_channel *chan)
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
+	struct faxmodem *fm;
+	int unit = -1;
+	char *p = data, *q;
 
-	if (!(chan = channel_new(type, format, data, cause))) {
-		cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
+	if ((q = strchr(p, '/')))
+		p = q + 1;
+	if (isdigit(*p))
+		unit = atoi(p);
+
+	cw_mutex_lock(&control_lock);
+
+	if (FAXMODEM_POOL) {
+		if (unit >= 0 && unit < cfg_modems) {
+			fm = &FAXMODEM_POOL[unit];
+		} else {
+			int x;
+
+			if (cfg_ringstrategy == 1)
+				rr_next = 0;
+
+			for (x = 0; x < cfg_modems; x++) {
+				unit = (rr_next + x) % cfg_modems;
+				cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", unit, FAXMODEM_POOL[unit].state);
+				if (FAXMODEM_POOL[unit].state == FAXMODEM_STATE_ONHOOK) {
+					fm = &FAXMODEM_POOL[unit];
+					fm->state = FAXMODEM_STATE_ACQUIRED;
+					break;
+				}
+			}
+			rr_next = (rr_next + 1) % cfg_modems;
+		}
+	}
+
+	cw_mutex_unlock(&control_lock);
+
+	if (fm) {
+		if (!(chan = channel_new(fm))) {
+			cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
+			fm->state = FAXMODEM_STATE_ONHOOK;
+		}
 	} else {
-		char *mydata = cw_strdupa(data);
-		int index = 0;
-		struct private_object *tech_pvt;
-		struct faxmodem *fm;
-		char *num = NULL, *did = NULL;
-
-		num = mydata;
-		if ((did = strchr(mydata, '/'))) {
-			*did = '\0';
-			did++;
-			index = atoi(num);
-		} else {
-			did = mydata;
-		}
-
-		tech_pvt = chan->tech_pvt;
-
-		if ((fm = acquire_modem(index))) {
-			tech_pvt->fm = fm;
-			fm->user_data = chan;
-			tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
-			pipe(tech_pvt->pipe);
-			chan->fds[0] = tech_pvt->pipe[0];
-			fm->psock = tech_pvt->pipe[1];
-			cw_copy_string((char*)fm->digits, did, 
-					 sizeof(fm->digits));
-		} else {
-			cw_log(CW_LOG_ERROR, "FAILURE ACQUIRING MODEM!\n");
-			channel_destroy(chan);
-			return NULL;
-		}
-
-		cw_set_flag(tech_pvt, TFLAG_PBX); /* so we know we dont have to free the channel ourselves */		
+		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
 	}
 
 	return chan;
@@ -388,8 +320,6 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 {
 	pthread_t tid;
 	struct private_object *tech_pvt;
-	//struct faxmodem *fm;
-	int res = 0;
 
 	tech_pvt = self->tech_pvt;
 	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
@@ -411,10 +341,12 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	    tech_pvt->cid_num = strdup(self->cid.cid_num);
 	else
 	    tech_pvt->cid_num = 0;
-	    
-	cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
-	return res;
+	cw_setstate(self, CW_STATE_RINGING);
+
+	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
+		return 0;
+	return -1;
 }
 
 /*--- tech_hangup: end a call on my channel 
@@ -429,9 +361,6 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 static int tech_hangup(struct cw_channel *self)
 {
 	struct private_object *tech_pvt = self->tech_pvt;
-	int res = 0;
-
-	self->tech_pvt = NULL;
 
 	if (tech_pvt) {
 #ifdef DO_TRACE
@@ -439,18 +368,34 @@ static int tech_hangup(struct cw_channel *self)
 		close(tech_pvt->debug[1]);
 #endif
 		if (!tech_pvt->hangup_msg_sent)
-		    cw_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
+			cw_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
-		t31_call_event((t31_state_t *)&tech_pvt->fm->t31_state, 
-			       AT_CALL_EVENT_HANGUP);
+		t31_call_event((t31_state_t *)&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
 		tech_pvt->fm->psock = -1;
 		tech_pvt->fm->user_data = NULL;
-		tech_pvt->owner = NULL;
-		tech_destroy(tech_pvt);
+
+		if (tech_pvt->pipe[0] > -1)
+			close(tech_pvt->pipe[0]);
+		if (tech_pvt->pipe[1] > -1)
+			close(tech_pvt->pipe[1]);
+
+		if (tech_pvt->cid_name)
+			free(tech_pvt->cid_name);
+		if (tech_pvt->cid_num)
+			free(tech_pvt->cid_num);
+
+		free(tech_pvt);
+
+		cw_mutex_lock(&usecnt_lock);
+		usecnt--;
+		if (usecnt < 0) {
+			usecnt = 0;
+		}
+		cw_mutex_unlock(&usecnt_lock);
 	}
-	
-	return res;
+
+	return 0;
 }
 
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize)
@@ -556,11 +501,6 @@ static void *faxmodem_media_thread(void *obj)
 			cw_cond_timedwait(&tech_pvt->data_cond, &data_lock,
 					    &abstime);
 			cw_mutex_unlock(&data_lock);
-
-			if (cw_test_flag(tech_pvt, TFLAG_DATA)) {
-				cw_clear_flag(tech_pvt, TFLAG_DATA);
-				break;
-			}
 		}
 		
 		gettimeofday(&now, NULL);
@@ -793,34 +733,31 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 				res = -1;
 				break;
 			}
-			if (!(chan = channel_new(type, CW_FORMAT_SLINEAR, (char *) num, &cause))) {
+			if (!(chan = channel_new(fm))) {
 				cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
 				res = -1;
 				break;
 			} else {
 				struct private_object *tech_pvt = chan->tech_pvt;
-				fm->user_data = chan;
+
 				faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
 				cw_copy_string(fm->digits, num, sizeof(fm->digits));
-				tech_pvt->fm = fm;
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
 				cw_set_flag(tech_pvt, TFLAG_OUTBOUND);
-				tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
-				pipe(tech_pvt->pipe);
-				chan->fds[0] = tech_pvt->pipe[0];
-				fm->psock = tech_pvt->pipe[1];
-				fm->state = FAXMODEM_STATE_CALLING;
-				if (cw_pbx_start(chan)) {
-					cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
-					cw_hangup(chan);
-				}
 #ifdef DOTRACE
 				tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
 				tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
 				if (cfg_vblevel > 1)
 					cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
+
+				fm->state = FAXMODEM_STATE_CALLING;
+				cw_setstate(chan, CW_STATE_RINGING);
+				if (cw_pbx_start(chan)) {
+					cw_log(CW_LOG_ERROR, "Unable to start PBX on %s\n", chan->name);
+					cw_hangup(chan);
+				}
 			}
 		} else if (op == AT_MODEM_CONTROL_ANSWER) { 
 			if (fm->state != FAXMODEM_STATE_RINGING) {
@@ -937,9 +874,10 @@ static void activate_fax_modems(void)
 	cw_mutex_lock(&control_lock);
 
 	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
-		for(x = 0; x < cfg_modems; x++) {
+		for (x = 0; x < cfg_modems; x++) {
 			if (cfg_vblevel > 1)
 				cw_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
+			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}

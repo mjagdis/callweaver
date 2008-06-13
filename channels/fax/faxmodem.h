@@ -74,12 +74,12 @@ typedef enum {
 } faxmodem_flags;
 
 struct faxmodem {
+	int unit;
 	t31_state_t t31_state;
 	char digits[32];
 	unsigned int flags;
 	int master;
 	char devlink[128];
-	int id;
 	faxmodem_state_t state;
 	faxmodem_control_handler_t control_handler;
 	void *user_data;
