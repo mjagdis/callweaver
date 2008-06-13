@@ -108,7 +108,6 @@ struct faxmodem {
 	int debug[2];
 #endif
 	pthread_t thread;
-	pthread_t media_thread;
 	cw_cond_t data_cond;
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
 	struct cw_frame frame;						/* Frame for Writing */
@@ -163,8 +162,6 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 /* Helper Function Prototypes */
 static int faxmodem_init(struct faxmodem *fm, const char *device_prefix);
 static struct cw_channel *channel_new(struct faxmodem *fm);
-static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
-static void *faxmodem_media_thread(void *obj);
 static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num);
 static void *faxmodem_thread(void *obj);
 static void activate_fax_modems(void);
@@ -487,87 +484,6 @@ static int tech_hangup(struct cw_channel *self)
 	return 0;
 }
 
-static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize)
-{
-	int us;
-	double cleared;
-
-	if (!lastsize) return 0;	// the buffer has been idle
-	us = cw_tvdiff_ms(cw_tvnow(), tv);
-	if (us <= 0) return 0;	// no time has passed
-	cleared = ((double) bitrate * ((double) us / 1000000)) / 8;
-	return cleared >= lastsize ? 0 : lastsize - cleared;
-}
-
-static void *faxmodem_media_thread(void *obj)
-{
-	struct faxmodem *fm = obj;
-	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
-	ssize_t len;
-	int ms = 0;
-	int avail;
-	char modembuf[T31_TX_BUF_LEN];
-	struct timespec abstime;
-	int gotlen = 0;
-	short *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
-
-	if (cfg_vblevel > 1)
-		cw_log(CW_LOG_DEBUG, "%s: media thread started\n", fm->devlink);
-
-	gettimeofday(&reference, NULL);	
-	while (fm->state == FAXMODEM_STATE_CONNECTED) {
-		len = 0;
-		do {
-			gotlen = t31_tx((t31_state_t*)&fm->t31_state, frame_data + len * sizeof(int16_t), SAMPLES - len);
-			len += gotlen;
-		} while (len < SAMPLES && gotlen > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
-
-		/* t31_tx can change state */
-		if (fm->state == FAXMODEM_STATE_CONNECTED) {
-			if (!len) {
-				memset(frame_data, 0, SAMPLES * sizeof(int16_t));
-				len = SAMPLES;
-			}
-			fm->frame.samples = len;
-			fm->frame.datalen = fm->frame.samples * sizeof(int16_t);
-			write(fm->psock, IO_READ, 1);
-
-#ifdef DO_TRACE
-			write(fm->debug[1], frame_data, len * sizeof(int16_t));
-#endif
-		}
-
-		reference = cw_tvadd(reference, cw_tv(0, MS * 1000));
-		while ((ms = cw_tvdiff_ms(reference, cw_tvnow())) > 0) {
-			abstime.tv_sec = time(0) + 1;
-			abstime.tv_nsec = 0;
-
-			cw_mutex_lock(&data_lock);
-			cw_cond_timedwait(&fm->data_cond, &data_lock, &abstime);
-			cw_mutex_unlock(&data_lock);
-		}
-		
-		gettimeofday(&now, NULL);
-	
-		avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
-		if (cw_test_flag(fm, TFLAG_EVENT) && fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail) {
-			cw_clear_flag(fm, TFLAG_EVENT);
-			while (avail > 0 && (len = read(fm->master, modembuf, avail)) > 0) {
-				t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
-				avail -= len;
-				lastdtedata = now;
-			}
-		}
-
-		usleep(100);
-		sched_yield();
-	}
-
-	if (cfg_vblevel > 1)
-		cw_log(CW_LOG_DEBUG, "%s: media thread stopped\n", fm->devlink);
-
-	return NULL;
-}
 
 /*--- tech_answer: answer a call on my channel
  * if being 'answered' means anything special to your channel
@@ -586,8 +502,6 @@ static int tech_answer(struct cw_channel *self)
 
 	write(fm->psock, IO_CNG, 1);
 
-	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, fm))
-		return 0;
 	return -1;
 }
 
@@ -764,8 +678,6 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
 			fm->state = FAXMODEM_STATE_CONNECTED;
 			cw_setstate(fm->owner, CW_STATE_UP);
-			if (!cw_pthread_create(&fm->media_thread, &global_attr_rr_detached, faxmodem_media_thread, fm))
-				res = 0;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
 			if (fm->psock > -1)
 				write(fm->psock, IO_HUP, 1);
@@ -799,21 +711,27 @@ static void faxmodem_thread_cleanup(void *obj)
 
 static void *faxmodem_thread(void *obj)
 {
-	char buf[1024];
-	struct pollfd pfd;
 	struct faxmodem *fm = obj;
 	int res;
 
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
 	if (!faxmodem_init(fm, cfg_dev_prefix)) {
+		char modembuf[T31_TX_BUF_LEN];
+		struct pollfd pfd;
+		struct timeval now, nextaudio;
+		int16_t *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
+		int len, gotlen, avail;
+
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		pfd.fd = fm->master;
 		pfd.events = POLLIN;
 
+		nextaudio = cw_tvnow();
+
 		for (;;) {
-			res = poll(&pfd, 1, 1000);
+			res = poll(&pfd, 1, SAMPLES / 8);
 
 			if (!res || (res == -1 && errno == EINTR))
 				continue;
@@ -832,25 +750,57 @@ static void *faxmodem_thread(void *obj)
 
 			pthread_testcancel();
 
-			cw_set_flag(fm, TFLAG_EVENT);
-			res = read(fm->master, buf, sizeof(buf));
-			t31_at_rx(&fm->t31_state, buf, res);
+			now = cw_tvnow();
 
-			/* Copy the AT command for debugging */
-			if (cfg_vblevel > 0) {
-				char *p = buf;
+			if (fm->state == FAXMODEM_STATE_CONNECTED && cw_tvdiff(nextaudio, now) <= 0) {
+				len = 0;
+				do {
+					gotlen = t31_tx((t31_state_t*)&fm->t31_state, frame_data + len * sizeof(int16_t), SAMPLES - len);
+					len += gotlen;
+				} while (len < SAMPLES && gotlen > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
 
-				for (p = buf; res >= 2; p++, res--) {
-					if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
-						char *q;
-
-						for (q = p + 2, res -= 2; res && *q != '\r' && *q != '\n'; q++, res--);
-						pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-						cw_log(CW_LOG_DEBUG, "%s: command %.*s\n", fm->devlink, q - p, p);
-						pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-						p = q;
+				/* t31_tx can change state */
+				if (fm->state == FAXMODEM_STATE_CONNECTED) {
+					if (!len) {
+						memset(frame_data, 0, SAMPLES * sizeof(int16_t));
+						len = SAMPLES;
 					}
-					p++, res--;
+					fm->frame.samples = len;
+					fm->frame.datalen = fm->frame.samples * sizeof(int16_t);
+					write(fm->psock, IO_READ, 1);
+
+#ifdef DO_TRACE
+					write(fm->debug[1], frame_data, len * sizeof(int16_t));
+#endif
+				}
+
+				nextaudio = cw_tvadd(nextaudio, cw_samp2tv(SAMPLES, 8000));
+			}
+
+			avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
+			if ((fm->state != FAXMODEM_STATE_CONNECTED && (pfd.revents & POLLIN))
+			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
+				while (avail > 0 && (len = read(fm->master, modembuf, avail)) > 0) {
+					t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
+					avail -= len;
+
+					/* Log the AT command for debugging */
+					if (cfg_vblevel > 0) {
+						char *p;
+
+						for (p = modembuf; res >= 2; p++, res--) {
+							if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
+								char *q;
+
+								for (q = p + 2, res -= 2; res && *q != '\r' && *q != '\n'; q++, res--);
+								pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+								cw_log(CW_LOG_DEBUG, "%s: command %.*s\n", fm->devlink, q - p, p);
+								pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+								p = q;
+							}
+							p++, res--;
+						}
+					}
 				}
 			}
 		}
