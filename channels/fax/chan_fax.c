@@ -15,6 +15,7 @@
 #include "confdefs.h"
 #endif
 
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -28,6 +29,8 @@
 #include <signal.h>
 #include <netinet/tcp.h>
 
+#include <spandsp.h>
+
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
@@ -38,7 +41,6 @@
 #include "callweaver/lock.h"
 #include "callweaver/pbx.h"
 #include "callweaver/devicestate.h"
-#include "faxmodem.h"
 
 
 static const char desc[] = "Fax Modem Interface";
@@ -59,6 +61,7 @@ static const char tdesc[] = "Fax Modem Interface";
 
 #define VBPREFIX "CHAN FAX: "
 
+
 static int cfg_timeout;
 static int cfg_modems;
 static int cfg_ringstrategy;
@@ -66,29 +69,60 @@ static char *cfg_dev_prefix;
 static char *cfg_context;
 static int cfg_vblevel;
 
-static struct faxmodem *FAXMODEM_POOL;
 
-#define IO_READ		"1"
-#define IO_HUP		"0"
-#define IO_PROD		"2"
-
-/* some flags */
 typedef enum {
-	TFLAG_OUTBOUND = (1 << 0),
-	TFLAG_EVENT = (1 << 1),
-	TFLAG_DATA = (1 << 2)
-} TFLAGS;
+	FAXMODEM_STATE_CLOSED,	
+	FAXMODEM_STATE_ONHOOK,	
+	FAXMODEM_STATE_ACQUIRED,
+	FAXMODEM_STATE_RINGING,
+	FAXMODEM_STATE_ANSWERED,
+	FAXMODEM_STATE_CALLING,
+	FAXMODEM_STATE_CONNECTED,
+	FAXMODEM_STATE_HANGUP,
+	FAXMODEM_STATE_LAST
+} faxmodem_state_t;
 
 
-static int rr_next;
+typedef enum {
+	FAXMODEM_FLAG_ATDT = ( 1 << 1)
+} faxmodem_flags;
 
-/* The following object is where you can attach your technology-specific state data.
- * Add as many members as you like and the data will be available to you in all of the methods.
- *
- * In the 'requester' method you need to allocate both a channel and a private_object
- * In in the 'hangup' method you must detach and destroy the private_object but not the channel
- * that is done for you.  Somewhat of an asyncronous life cycle *shrug*
- */
+
+struct faxmodem;
+
+typedef int (*faxmodem_control_handler_t)(struct faxmodem *, int op, const char *);
+
+struct faxmodem {
+	int unit;
+	t31_state_t t31_state;
+	char digits[32];
+	unsigned int flags;
+	int master;
+	char devlink[128];
+	faxmodem_state_t state;
+	faxmodem_control_handler_t control_handler;
+	void *user_data;
+	int psock;
+	pthread_t thread;
+	pthread_t media_thread;
+};
+
+
+static struct faxmodem_state {
+	int state;
+	char *name;
+} FAXMODEM_STATE[] = {
+	{ FAXMODEM_STATE_CLOSED,	"CLOSED"},
+	{ FAXMODEM_STATE_ONHOOK,	"ONHOOK"},
+	{ FAXMODEM_STATE_ACQUIRED,	"ACQUIRED"},
+	{ FAXMODEM_STATE_RINGING,	"RINGING"},
+	{ FAXMODEM_STATE_ANSWERED,	"ANSWERED"},
+	{ FAXMODEM_STATE_CALLING,	"CALLING"},
+	{ FAXMODEM_STATE_CONNECTED,	"CONNECTED"},
+	{ FAXMODEM_STATE_HANGUP,	"HANGUP"},
+	{ FAXMODEM_STATE_LAST,		"UNKNOWN"}
+};
+
 
 struct private_object {
 	unsigned int flags;							/* FLAGS */
@@ -109,9 +143,39 @@ struct private_object {
 	cw_cond_t data_cond;
 };
 
+static struct faxmodem *FAXMODEM_POOL;
+
+
+#define IO_READ		"1"
+#define IO_HUP		"0"
+#define IO_PROD		"2"
+
+/* some flags */
+typedef enum {
+	TFLAG_OUTBOUND = (1 << 0),
+	TFLAG_EVENT = (1 << 1),
+	TFLAG_DATA = (1 << 2)
+} TFLAGS;
+
+
+static int rr_next;
+
 
 CW_MUTEX_DEFINE_STATIC(control_lock);
 CW_MUTEX_DEFINE_STATIC(data_lock);
+
+
+typedef int (*faxmodem_logger_t)(int, const char *, int, const char *, const char *, ...);
+
+static struct {
+	faxmodem_logger_t func;
+	int err;
+	int warn;
+	int info;
+} LOGGER = {};
+
+#define do_log(id, fmt, ...) if(LOGGER.func) LOGGER.func(id, __FILE__, __LINE__, __FUNCTION__, fmt, ##__VA_ARGS__);
+
 
 /********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
@@ -130,6 +194,26 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
+#define faxmodem_test_flag(p,flag)    ({ \
+                                        ((p)->flags & (flag)); \
+                                        })
+
+#define faxmodem_set_flag(p,flag)     do { \
+                                        ((p)->flags |= (flag)); \
+                                        } while (0)
+
+#define faxmodem_clear_flag(p,flag)   do { \
+                                        ((p)->flags &= ~(flag)); \
+                                        } while (0)
+
+#define faxmodem_copy_flags(dest,src,flagz)   do { \
+                                        (dest)->flags &= ~(flagz); \
+                                        (dest)->flags |= ((src)->flags & (flagz)); \
+                                        } while (0)
+static char *faxmodem_state2name(int state);
+static void faxmodem_clear_logger(void);
+static void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
+static int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
@@ -158,6 +242,123 @@ static const struct cw_channel_tech technology = {
 	.send_text = tech_send_text,
 	.send_image = tech_send_image,
 };
+
+
+static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf, size_t len)
+{
+	struct faxmodem *fm = user_data;
+	ssize_t wrote = write(fm->master, buf, len);
+	if (wrote != len) {
+		do_log(LOGGER.err, "Unable to pass the full buffer onto the device file. %d bytes of %d written.", wrote, len);
+	}
+	return wrote;
+}
+
+static int modem_control_handler(t31_state_t *s, void *user_data, int op, 
+				 const char *num)
+{
+	struct faxmodem *fm = user_data;
+	int ret = 0;
+
+	if (fm->control_handler) {
+		ret = fm->control_handler(fm, op, num);
+	} else {
+		do_log(LOGGER.err, "DOH! NO CONTROL HANDLER INSTALLED\n");
+	}
+
+	return ret;
+}
+
+char *faxmodem_state2name(int state) 
+{
+	if (state > FAXMODEM_STATE_LAST || state < 0) {
+		state = FAXMODEM_STATE_LAST;
+	}
+
+	return FAXMODEM_STATE[state].name;
+
+}
+
+void faxmodem_clear_logger(void) 
+{
+	memset(&LOGGER, 0, sizeof(LOGGER));
+}
+
+void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info) 
+{
+	LOGGER.func = logger;
+	LOGGER.err = err;
+	LOGGER.warn = warn;
+	LOGGER.info = info;
+}
+
+int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix)
+{
+	static int NEXT_ID = 0;
+	char buf[256];
+
+#ifdef HAVE_POSIX_OPENPT
+	if ((fm->master = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
+		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
+		return -1;
+	}
+
+	/* The behaviour of grantpt is undefined if a SIGCHLD handler is installed.
+	 * We can't guarantee that, but grantpt just sets permissions on the slave
+	 * tty and since we expect that to be opened by a root owned faxgetty we
+	 * can live without doing this.
+	 */
+	// grantpt(fm->master);
+	unlockpt(fm->master);
+#else
+	int slave = -1;
+
+	fm->master = -1;
+
+	if (openpty(&fm->master, &slave, NULL, NULL, NULL)) {
+		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
+		return -1;
+	}
+
+	/* If we keep the slave open we'll likely get killed by a {fax}getty
+	 * start up on it. Closing it means we're going to keep seeing POLLHUP
+	 * until something else opens it. See channel/fax/chan_fax.c
+	 */
+	close(slave);
+#endif
+	ptsname_r(fm->master, buf, sizeof(buf));
+
+	do_log(LOGGER.info, "Opened pty, slave device: %s\n", buf);
+
+	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
+
+	if (!unlink(fm->devlink)) {
+		do_log(LOGGER.warn, "Removed old %s\n", fm->devlink);
+	}
+
+	if (symlink(buf, fm->devlink)) {
+		do_log(LOGGER.err, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
+		return -1;
+	}
+
+	do_log(LOGGER.info, "Created %s symbolic link\n", fm->devlink);
+
+	if (fcntl(fm->master, F_SETFL, fcntl(fm->master, F_GETFL, 0) | O_NONBLOCK)) {
+		do_log(LOGGER.err, "Cannot set up non-blocking read on %s\n", ttyname(fm->master));
+		return -1;
+	}
+	
+	if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler, fm, 0, 0) < 0) {
+		do_log(LOGGER.err, "Cannot initialize the T.31 modem\n");
+		return -1;
+	}
+
+	fm->control_handler = control_handler;
+	fm->state = FAXMODEM_STATE_CLOSED;
+	
+	do_log(LOGGER.info, "Fax Modem [%s] Ready\n", fm->devlink);
+	return 0;
+}
 
 
 /* channel_new() make a new channel and fit it with a private object */

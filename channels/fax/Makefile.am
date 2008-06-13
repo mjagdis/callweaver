@@ -6,7 +6,7 @@ cwmod_LTLIBRARIES 		=
 
 if WANT_CHAN_FAX
 cwmod_LTLIBRARIES		+= chan_fax.la
-chan_fax_la_SOURCES		= chan_fax.c faxmodem.c faxmodem.h
+chan_fax_la_SOURCES		= chan_fax.c
 
 chan_fax_la_CFLAGS		= $(AM_CFLAGS)
 chan_fax_la_LIBADD		= @CHAN_FAX_LIBS@ @CALLWEAVER_LIB@
