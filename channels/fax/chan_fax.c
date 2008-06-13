@@ -633,6 +633,7 @@ static int tech_answer(struct cw_channel *self)
 
 	fm->state = FAXMODEM_STATE_CONNECTED;
 	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
+	fm->frame.ts = fm->frame.seq_no = 0;
 	cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
 	cw_clock_add_ms(&fm->tick, SAMPLES / 8);
 
@@ -857,6 +858,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 					cw_log(CW_LOG_DEBUG, "%s: answered\n", fm->devlink);
 
 				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
+				fm->frame.ts = fm->frame.seq_no = 0;
 				fm->state = FAXMODEM_STATE_CONNECTED;
 				cw_setstate(fm->owner, CW_STATE_UP);
 
@@ -1038,6 +1040,9 @@ static void *faxmodem_thread(void *obj)
 					 * require it.
 					 */
 					fm->frame.samples = SAMPLES;
+					fm->frame.len = SAMPLES / 8;
+					fm->frame.ts += SAMPLES;
+					fm->frame.seq_no++;
 					fm->frame.datalen = SAMPLES * sizeof(int16_t);
 					write(fm->psock, IO_READ, 1);
 #ifdef TRACE
