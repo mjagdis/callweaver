@@ -353,7 +353,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				fm->state = FAXMODEM_STATE_OFFHOOK;
 				break;
 			} else if (fm->state != FAXMODEM_STATE_RINGING) {
-				res -1;
+				res = -1;
 				break;
 			}
 			/* Drop through to answer if we go off hook while ringing */
