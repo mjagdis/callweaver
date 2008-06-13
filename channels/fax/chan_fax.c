@@ -1012,7 +1012,7 @@ static void *faxmodem_thread(void *obj)
 		int avail;
 
 		fm->pfd.events = POLLIN;
-		if (cw_pthread_create(&fm->poll_thread, &global_attr_rr, faxmodem_poll_thread, fm))
+		if (cw_pthread_create(&fm->poll_thread, &global_attr_detached, faxmodem_poll_thread, fm))
 			return NULL;
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -1149,7 +1149,7 @@ static void activate_fax_modems(void)
 				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem SLOT %d\n", x);
 			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
-			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_rr, faxmodem_thread, &FAXMODEM_POOL[x]);
+			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
 	}
 
