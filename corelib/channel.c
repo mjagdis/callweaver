@@ -1677,12 +1677,6 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	{
 		f = chan->readq;
 		chan->readq = f->next;
-		/* Interpret hangup and return NULL */
-		if ((f->frametype == CW_FRAME_CONTROL)  &&  (f->subclass == CW_CONTROL_HANGUP))
-    		{
-			cw_fr_free(f);
-			f = NULL;
-		}
 	}
 	else
 	{
@@ -1778,6 +1772,11 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	    				f = &null_frame;
 		    	}
     	    }
+	}
+	else if (f->frametype == CW_FRAME_CONTROL && f->subclass == CW_CONTROL_HANGUP)
+    	{
+		cw_fr_free(f);
+		f = NULL;
 	}
     }
 
