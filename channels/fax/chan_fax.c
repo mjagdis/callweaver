@@ -123,7 +123,6 @@ struct faxmodem {
 	struct timespec tick;
 	faxmodem_state_t state;
 	t31_state_t t31_state;
-	int psock;
 	struct cw_frame frame;
 	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
 	struct cw_channel *owner;
@@ -387,7 +386,6 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 		span_log_set_level(&fm->t31_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_SHOW_VARIANT | SPAN_LOG_DEBUG_3);
 	}
 
-	fm->psock = -1;
 	fm->state = FAXMODEM_STATE_CLOSED;
 	
 	if (cfg_vblevel > 0)
@@ -400,13 +398,8 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 static struct cw_channel *channel_new(struct faxmodem *fm)
 {
 	struct cw_channel *chan = NULL;
-	int fd[2];
 
-	if (pipe(fd)) {
-		cw_log(CW_LOG_ERROR, "%s: can't allocate a pipe: %s\n", fm->devlink, strerror(errno));
-	} else if (!(chan = cw_channel_alloc(1))) {
-		close(fd[0]);
-		close(fd[1]);
+	if (!(chan = cw_channel_alloc(1))) {
 		cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
 	} else {
 		chan->type = type;
@@ -415,10 +408,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
 		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 
-		fcntl(fd[0], F_SETFL, fcntl(fd[0], F_GETFL, 0) | O_NONBLOCK);
-		fcntl(fd[1], F_SETFL, fcntl(fd[1], F_GETFL, 0) | O_NONBLOCK);
-		chan->fds[0] = fd[0];
-		fm->psock = fd[1];
 		fm->owner = chan;
 #ifdef TRACE
 		if (cfg_vblevel > 3) {
@@ -600,15 +589,6 @@ static int tech_hangup(struct cw_channel *self)
 	fm->owner = NULL;
 	fm->state = FAXMODEM_STATE_ONHOOK;
 
-	if (self->fds[0] != -1) {
-		close(self->fds[0]);
-		self->fds[0] = -1;
-	}
-	if (fm->psock != -1) {
-		close(fm->psock);
-		fm->psock = -1;
-	}
-
 	cw_mutex_unlock(&fm->lock);
 
 	self->tech_pvt = NULL;
@@ -655,14 +635,6 @@ static int tech_answer(struct cw_channel *self)
 static struct cw_frame *tech_read(struct cw_channel *self)
 {
 	struct faxmodem *fm = self->tech_pvt;
-	pthread_t tid;
-	int res;
-	char cmd;
-
-	res = read(self->fds[0], &cmd, sizeof(cmd));
-
-	if (res < 0 || fm->state == FAXMODEM_STATE_ONHOOK)
-		return NULL;
 
 	return &fm->frame;
 }
@@ -1035,6 +1007,7 @@ static void *faxmodem_thread(void *obj)
 
 				/* t31_tx can change state */
 				if (fm->state == FAXMODEM_STATE_CONNECTED) {
+					int blah;
 					/* If the frame is short (because t31_tx is changing modem or just gave
 					 * in completely) or empty we fill with silence - the other end may
 					 * require it.
@@ -1044,7 +1017,16 @@ static void *faxmodem_thread(void *obj)
 					fm->frame.ts += SAMPLES;
 					fm->frame.seq_no++;
 					fm->frame.datalen = SAMPLES * sizeof(int16_t);
-					write(fm->psock, IO_READ, 1);
+					/* We should be queuing the frame up for delivery really but we
+					 * know the next frame is 20ms away we know how queuing works
+					 * and we know the only problem with the read not happening before
+					 * the next frame is corruption of the data stream. If the read
+					 * can't be handled before the next frame is due we're probably
+					 * overloaded and suffering other problems anyway so we'll avoid
+					 * the copy and prod the alertpipe directly.
+					 */
+					//cw_queue_frame(fm->owner, &fm->frame);
+					write(fm->owner->alertpipe[1], &blah, sizeof(blah));
 #ifdef TRACE
 					if (cfg_vblevel > 3) {
 						char msg[256];
