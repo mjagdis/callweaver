@@ -763,7 +763,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	cw_cond_signal(&tech_pvt->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
-	//write(tech_pvt->pipe[0], IO_PROD[0], 1);
+	//write(tech_pvt->pipe[0], IO_PROD, 1);
 
 
 	return 0;
@@ -989,7 +989,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 		    if (fm->user_data) {
 			struct cw_channel *chan = fm->user_data;
 			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-			write(fm->psock, IO_HUP[0], 1);
+			write(fm->psock, IO_HUP, 1);
 		    }
 		} else {
 		    fm->state = FAXMODEM_STATE_ONHOOK;
