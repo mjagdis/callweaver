@@ -34,6 +34,7 @@
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
+#include "callweaver/options.h"
 #include "callweaver/logger.h"
 #include "callweaver/astobj.h"
 #include "callweaver/atexit.h"
@@ -143,18 +144,6 @@ CW_MUTEX_DEFINE_STATIC(control_lock);
 CW_MUTEX_DEFINE_STATIC(data_lock);
 
 
-typedef int (*faxmodem_logger_t)(int, const char *, int, const char *, const char *, ...);
-
-static struct {
-	faxmodem_logger_t func;
-	int err;
-	int warn;
-	int info;
-} LOGGER = {};
-
-#define do_log(id, fmt, ...) if(LOGGER.func) LOGGER.func(id, __FILE__, __LINE__, __FUNCTION__, fmt, ##__VA_ARGS__);
-
-
 /********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
 static int tech_devicestate(void *data);
@@ -173,8 +162,6 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
 static char *faxmodem_state2name(int state);
-static void faxmodem_clear_logger(void);
-static void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
 static int faxmodem_init(struct faxmodem *fm, const char *device_prefix);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
@@ -209,11 +196,13 @@ static const struct cw_channel_tech technology = {
 static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf, size_t len)
 {
 	struct faxmodem *fm = user_data;
-	ssize_t wrote = write(fm->master, buf, len);
-	if (wrote != len) {
-		do_log(LOGGER.err, "Unable to pass the full buffer onto the device file. %d bytes of %d written.", wrote, len);
-	}
-	return wrote;
+	ssize_t n;
+
+	n = write(fm->master, buf, len);
+	if (n != len)
+		cw_log(CW_LOG_ERROR, "Only %d of %d bytes written", n, len);
+
+	return n;
 }
 
 char *faxmodem_state2name(int state) 
@@ -226,19 +215,6 @@ char *faxmodem_state2name(int state)
 
 }
 
-void faxmodem_clear_logger(void) 
-{
-	memset(&LOGGER, 0, sizeof(LOGGER));
-}
-
-void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info) 
-{
-	LOGGER.func = logger;
-	LOGGER.err = err;
-	LOGGER.warn = warn;
-	LOGGER.info = info;
-}
-
 int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 {
 	static int NEXT_ID = 0;
@@ -246,7 +222,7 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 
 #ifdef HAVE_POSIX_OPENPT
 	if ((fm->master = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
-		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "Failed to get a pty: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -263,7 +239,7 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 	fm->master = -1;
 
 	if (openpty(&fm->master, &slave, NULL, NULL, NULL)) {
-		do_log(LOGGER.err, "Failed to get a pty: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "Failed to get a pty: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -275,34 +251,36 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 #endif
 	ptsname_r(fm->master, buf, sizeof(buf));
 
-	do_log(LOGGER.info, "Opened pty, slave device: %s\n", buf);
+	if (cfg_vblevel > 1)
+		cw_verbose(VERBOSE_PREFIX_3 "Opened pty, slave device: %s\n", buf);
 
 	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
 
-	if (!unlink(fm->devlink)) {
-		do_log(LOGGER.warn, "Removed old %s\n", fm->devlink);
-	}
+	if (!unlink(fm->devlink) && cfg_vblevel > 1)
+		cw_log(CW_LOG_WARNING, "Removed old %s\n", fm->devlink);
 
 	if (symlink(buf, fm->devlink)) {
-		do_log(LOGGER.err, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
+		cw_log(CW_LOG_ERROR, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
 		return -1;
 	}
 
-	do_log(LOGGER.info, "Created %s symbolic link\n", fm->devlink);
+	if (cfg_vblevel > 1)
+		cw_verbose(VERBOSE_PREFIX_3 "Created %s symbolic link\n", fm->devlink);
 
 	if (fcntl(fm->master, F_SETFL, fcntl(fm->master, F_GETFL, 0) | O_NONBLOCK)) {
-		do_log(LOGGER.err, "Cannot set up non-blocking read on %s\n", ttyname(fm->master));
+		cw_log(CW_LOG_ERROR, "Cannot set up non-blocking read on %s\n", ttyname(fm->master));
 		return -1;
 	}
 	
 	if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler, fm, 0, 0) < 0) {
-		do_log(LOGGER.err, "Cannot initialize the T.31 modem\n");
+		cw_log(CW_LOG_ERROR, "Cannot initialize the T.31 modem\n");
 		return -1;
 	}
 
 	fm->state = FAXMODEM_STATE_CLOSED;
 	
-	do_log(LOGGER.info, "Fax Modem [%s] Ready\n", fm->devlink);
+	if (cfg_vblevel > 0)
+		cw_verbose(VERBOSE_PREFIX_1 "Fax Modem [%s] Ready\n", fm->devlink);
 	return 0;
 }
 
@@ -1081,7 +1059,6 @@ static void graceful_unload(void)
 {
 	deactivate_fax_modems();
 
-	faxmodem_clear_logger();
 	cw_channel_unregister(&technology);
 	cw_cli_unregister(&cli_chan_fax);
 
@@ -1097,10 +1074,6 @@ static void graceful_unload(void)
 static int load_module(void)
 {
 	parse_config();
-
-	if (cfg_vblevel > 1) {
-		faxmodem_set_logger((faxmodem_logger_t) cw_log, __CW_LOG_ERROR, __CW_LOG_WARNING, __CW_LOG_NOTICE);
-	}
 
 	cw_atexit_register(&fax_atexit);
 
