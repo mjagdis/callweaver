@@ -95,7 +95,6 @@ static int rr_next;
  */
 
 struct private_object {
-	ASTOBJ_COMPONENTS(struct private_object);	/* Object Abstraction Stuff */
 	unsigned int flags;							/* FLAGS */
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
@@ -118,12 +117,6 @@ struct private_object {
 	cw_cond_t data_cond;
 };
 
-
-
-/* This object is a container for the list of private objects it is simple because of the ASTOBJ stuff */
-static struct private_object_container {
-	ASTOBJ_CONTAINER_COMPONENTS(struct private_object);
-} private_object_list;
 
 static int usecnt = 0;
 CW_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -225,7 +218,7 @@ static void tech_destroy(struct private_object *tech_pvt)
 {
 	
 	struct cw_channel *chan;
-	ASTOBJ_CONTAINER_UNLINK(&private_object_list, tech_pvt);
+
 	if (tech_pvt && (chan = tech_pvt->owner)) {
 		chan->tech_pvt = NULL;
 		if (! cw_test_flag(tech_pvt, TFLAG_PBX)) {
@@ -262,16 +255,15 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 	int myformat = CW_FORMAT_SLINEAR;
 
 
-	if (!(tech_pvt = malloc(sizeof(struct private_object)))) {
+	if (!(tech_pvt = calloc(1, sizeof(*tech_pvt)))) {
 		cw_log(CW_LOG_ERROR, "Can't allocate a private structure.\n");
 	} else {
-		memset(tech_pvt, 0, sizeof(struct private_object));
 		if (!(chan = cw_channel_alloc(1))) {
 			free(tech_pvt);
 			cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
 		} else {
 			cw_cond_init(&tech_pvt->data_cond, 0);
-			chan->tech_pvt = tech_pvt;	
+			chan->tech_pvt = tech_pvt;
 			chan->nativeformats = myformat;
 			chan->type = type;
 			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff);
@@ -280,12 +272,12 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 			chan->_softhangup = 0;
 			chan->tech = &technology;
 
-            cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, myformat);
+			cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, myformat);
 			tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
 			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 
 			tech_pvt->owner = chan;
-			ASTOBJ_CONTAINER_LINK(&private_object_list, tech_pvt);
+
 			cw_mutex_lock(&usecnt_lock);
 			usecnt++;
 			cw_mutex_unlock(&usecnt_lock);
@@ -298,9 +290,8 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 /* Destroy the channel since we didn't use it */
 void channel_destroy(struct cw_channel *chan)
 {
-	ASTOBJ_CONTAINER_UNLINK(&private_object_list, chan->tech_pvt);
 	free(chan->tech_pvt);
-	chan->tech_pvt = 0;
+	chan->tech_pvt = NULL;
 
 	cw_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -385,11 +376,7 @@ static int tech_devicestate(void *data)
 /*--- tech_senddigit: Send a DTMF character */
 static int tech_send_digit(struct cw_channel *self, char digit)
 {
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
+	return 0;
 }
 
 /*--- tech_call: Initiate a call on my channel 
@@ -717,14 +704,10 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 /*--- tech_exception: Read an exception audio frame from my channel ---*/
 static struct cw_frame *tech_exception(struct cw_channel *self)
 {
-	struct private_object *tech_pvt;
-	struct cw_frame *new_frame = NULL;
-
-	tech_pvt = self->tech_pvt;
-	return new_frame;
+	return NULL;
 }
 
-/*--- tech_indicate: Indicaate a condition to my channel ---*/
+/*--- tech_indicate: Indicate a condition to my channel ---*/
 static int tech_indicate(struct cw_channel *self, int condition)
 {
 	struct private_object *tech_pvt;
@@ -769,39 +752,25 @@ static int tech_indicate(struct cw_channel *self, int condition)
 /*--- tech_fixup: add any finishing touches to my channel if it is masqueraded---*/
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
-	int res = 0;
-
-	return res;
+	return 0;
 }
 
 /*--- tech_send_html: Send html data on my channel ---*/
 static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen)
 {
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
+	return 0;
 }
 
 /*--- tech_send_text: Send plain text data on my channel ---*/
 static int tech_send_text(struct cw_channel *self, const char *text)
 {
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
+	return 0;
 }
 
 /*--- tech_send_image: Send image data on my channel ---*/
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) 
 {
-	struct private_object *tech_pvt;
-
-	int res = 0;
-	tech_pvt = self->tech_pvt;
-	return res;
+	return 0;
 }
 
 
@@ -809,79 +778,74 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 {
 	int res = 0;
 
-	if (cfg_vblevel > 1) {
+	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "Control Handler %s [op = %d]\n", fm->devlink, op);
-	}
+
 	cw_mutex_lock(&control_lock);
-	if (fm->state == FAXMODEM_STATE_INIT) {
+
+	if (fm->state == FAXMODEM_STATE_INIT)
 		fm->state = FAXMODEM_STATE_ONHOOK;
-	}
 
 	do {
-	    if (op == AT_MODEM_CONTROL_CALL) {
-		    struct cw_channel *chan = NULL;
-		    struct private_object *tech_pvt;
-		    int cause;
+		if (op == AT_MODEM_CONTROL_CALL) {
+			struct cw_channel *chan = NULL;
+			int cause;
 		    
-		    if (fm->state != FAXMODEM_STATE_ONHOOK) {
-			cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
-			res = -1;
-			break;
-		    }
-		    if (!(chan = channel_new(type, CW_FORMAT_SLINEAR, (char *) num, &cause))) {
-			cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
-			res = -1;
-			break;
-		    } else {
-			tech_pvt = chan->tech_pvt;
-			fm->user_data = chan;
-			faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
-			cw_copy_string(fm->digits, num, sizeof(fm->digits));
-			tech_pvt->fm = fm;
-			cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
-			cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
-			cw_set_flag(tech_pvt, TFLAG_OUTBOUND);
-			tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
-			pipe(tech_pvt->pipe);
-			chan->fds[0] = tech_pvt->pipe[0];
-			fm->psock = tech_pvt->pipe[1];
-			fm->state = FAXMODEM_STATE_CALLING;
-			if (cw_pbx_start(chan)) {
-			    cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
-			    cw_hangup(chan);
+			if (fm->state != FAXMODEM_STATE_ONHOOK) {
+				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+				res = -1;
+				break;
 			}
+			if (!(chan = channel_new(type, CW_FORMAT_SLINEAR, (char *) num, &cause))) {
+				cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
+				res = -1;
+				break;
+			} else {
+				struct private_object *tech_pvt = chan->tech_pvt;
+				fm->user_data = chan;
+				faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
+				cw_copy_string(fm->digits, num, sizeof(fm->digits));
+				tech_pvt->fm = fm;
+				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
+				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
+				cw_set_flag(tech_pvt, TFLAG_OUTBOUND);
+				tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
+				pipe(tech_pvt->pipe);
+				chan->fds[0] = tech_pvt->pipe[0];
+				fm->psock = tech_pvt->pipe[1];
+				fm->state = FAXMODEM_STATE_CALLING;
+				if (cw_pbx_start(chan)) {
+					cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+					cw_hangup(chan);
+				}
 #ifdef DOTRACE
-			tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
-			tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
+				tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
+				tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
-			if (cfg_vblevel > 1) {
-			    cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
+				if (cfg_vblevel > 1)
+					cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
 			}
-		    }
-	    } else if (op == AT_MODEM_CONTROL_ANSWER) { 
-		if (fm->state != FAXMODEM_STATE_RINGING) {
-		    cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
-		    res = -1;
-		    break;
+		} else if (op == AT_MODEM_CONTROL_ANSWER) { 
+			if (fm->state != FAXMODEM_STATE_RINGING) {
+				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+				res = -1;
+				break;
+			}
+			if (cfg_vblevel > 1)
+				cw_verbose(VBPREFIX  "Answered %s", fm->devlink);
+			fm->state = FAXMODEM_STATE_ANSWERED;
+		} else if (op == AT_MODEM_CONTROL_HANGUP) {
+			if (fm->psock > -1) {
+				if (fm->user_data) {
+					struct cw_channel *chan = fm->user_data;
+					cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
+					write(fm->psock, IO_HUP, 1);
+				}
+			} else
+				fm->state = FAXMODEM_STATE_ONHOOK;
+
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
 		}
-		if (cfg_vblevel > 1) {
-		    cw_verbose(VBPREFIX  "Answered %s", fm->devlink);
-		}
-		fm->state = FAXMODEM_STATE_ANSWERED;
-	    } else if (op == AT_MODEM_CONTROL_HANGUP) {
-		if (fm->psock > -1) {
-		    if (fm->user_data) {
-			struct cw_channel *chan = fm->user_data;
-			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-			write(fm->psock, IO_HUP, 1);
-		    }
-		} else {
-		    fm->state = FAXMODEM_STATE_ONHOOK;
-		}
-		
-		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
-		
-	    }
 	} while (0);
 	
 	cw_mutex_unlock(&control_lock);
@@ -1116,7 +1080,6 @@ static void graceful_unload(void)
 	deactivate_fax_modems();
 
 	faxmodem_clear_logger();
-	ASTOBJ_CONTAINER_DESTROY(&private_object_list);
 	cw_channel_unregister(&technology);
 	cw_cli_unregister(&cli_chan_fax);
 
@@ -1131,8 +1094,6 @@ static void graceful_unload(void)
 
 static int load_module(void)
 {
-	ASTOBJ_CONTAINER_INIT(&private_object_list);
-
 	parse_config();
 
 	if (cfg_vblevel > 1) {
