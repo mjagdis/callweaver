@@ -104,8 +104,6 @@ static const char *faxmodem_state[] =
 };
 
 
-struct faxmodem;
-
 struct faxmodem {
 	cw_mutex_t lock;
 	struct pollfd pfd;
