@@ -453,14 +453,7 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 		gettimeofday(&now, NULL);
 	} while (fm->state == FAXMODEM_STATE_RINGING && cw_tvdiff_ms(now, start) < timeout);
 
-	if (fm->state == FAXMODEM_STATE_ANSWERED) {
-		t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
-		fm->state = FAXMODEM_STATE_CONNECTED;
-		cw_setstate(fm->owner, CW_STATE_UP);
-		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, fm))
-			return 0;
-	}
-	return -1;
+	return fm->state == FAXMODEM_STATE_RINGING || fm->state == FAXMODEM_STATE_CONNECTED ? 0 : -1;
 }
 
 /*--- tech_hangup: end a call on my channel 
@@ -780,6 +773,11 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			if (cfg_vblevel > 1)
 				cw_verbose(VERBOSE_PREFIX_2 "%s: answered", fm->devlink);
 			fm->state = FAXMODEM_STATE_ANSWERED;
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
+			fm->state = FAXMODEM_STATE_CONNECTED;
+			cw_setstate(fm->owner, CW_STATE_UP);
+			if (!cw_pthread_create(&fm->media_thread, &global_attr_rr_detached, faxmodem_media_thread, fm))
+				res = 0;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
 			if (fm->psock > -1)
 				write(fm->psock, IO_HUP, 1);
