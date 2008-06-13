@@ -85,6 +85,7 @@ struct faxmodem {
 	void *user_data;
 	int psock;
 	pthread_t thread;
+	pthread_t media_thread;
 };
 
 char *faxmodem_state2name(int state);

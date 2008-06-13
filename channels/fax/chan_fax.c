@@ -68,8 +68,6 @@ static int cfg_vblevel;
 
 static struct faxmodem *FAXMODEM_POOL;
 
-static const char TERMINATOR[] = "\r\n";
-
 #define IO_READ		"1"
 #define IO_HUP		"0"
 #define IO_PROD		"2"
@@ -332,14 +330,10 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
 
 	time(&u_now);
-	cw_cli(tech_pvt->fm->master, "%s", TERMINATOR);
-	strftime(buf, sizeof(buf), "DATE=%m%d", localtime(&u_now));
-	cw_cli(tech_pvt->fm->master, "%s%s", buf, TERMINATOR);
-	strftime(buf, sizeof(buf), "TIME=%H%M", localtime(&u_now));
-	cw_cli(tech_pvt->fm->master, "%s%s", buf, TERMINATOR);
-	cw_cli(tech_pvt->fm->master, "NAME=%s%s", tech_pvt->cid_name, TERMINATOR);
-	cw_cli(tech_pvt->fm->master, "NMBR=%s%s", tech_pvt->cid_num, TERMINATOR);
-	cw_cli(tech_pvt->fm->master, "NDID=%s%s", tech_pvt->fm->digits, TERMINATOR);
+	cw_carefulwrite(tech_pvt->fm->master, buf, strftime(buf, sizeof(buf), "\r\nDATE=%m%d\r\nTIME=%H%M\r\n", localtime(&u_now)), 100);
+	cw_cli(tech_pvt->fm->master, "NAME=%s\r\n", tech_pvt->cid_name);
+	cw_cli(tech_pvt->fm->master, "NMBR=%s\r\n", tech_pvt->cid_num);
+	cw_cli(tech_pvt->fm->master, "NDID=%s\r\n", tech_pvt->fm->digits);
 
 	gettimeofday(&now, NULL);
 	start = alert = now;
@@ -382,7 +376,7 @@ static int tech_hangup(struct cw_channel *self)
 		close(tech_pvt->debug[1]);
 #endif
 		if (!tech_pvt->hangup_msg_sent)
-			cw_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
+			cw_cli(tech_pvt->fm->master, "NO CARRIER\r\n");
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
 		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
@@ -619,7 +613,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	    break;
 	case CW_CONTROL_BUSY:
 	case CW_CONTROL_CONGESTION:
-	    cw_cli(tech_pvt->fm->master, "BUSY%s", TERMINATOR);
+	    cw_cli(tech_pvt->fm->master, "BUSY\r\n");
 	    hangup = 1;
 	    break;
 	default:
