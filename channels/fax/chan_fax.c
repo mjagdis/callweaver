@@ -88,6 +88,8 @@ static int cfg_ringstrategy;
 static char *cfg_dev_prefix;
 static char *cfg_context;
 static int cfg_vblevel;
+static char *cfg_cid_name;
+static char *cfg_cid_num;
 
 
 typedef enum {
@@ -126,6 +128,8 @@ struct faxmodem {
 	struct cw_frame frame;
 	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
 	struct cw_channel *owner;
+	char *cid_name;
+	char *cid_num;
 	int unit;
 	pthread_t thread;
 	pthread_t poll_thread;
@@ -407,6 +411,16 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 		chan->tech_pvt = fm;
 		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
 		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
+
+		if (fm->cid_name)
+			chan->cid.cid_name = strdup(fm->cid_name);
+		else if (cfg_cid_name)
+			chan->cid.cid_name = strdup(cfg_cid_name);
+
+		if (fm->cid_num)
+			chan->cid.cid_num = strdup(fm->cid_num);
+		else if (cfg_cid_num)
+			chan->cid.cid_num = strdup(cfg_cid_num);
 
 		fm->owner = chan;
 #ifdef TRACE
@@ -860,6 +874,40 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			t31_at_tx_handler(&fm->t31_state.at_state, fm, (num ? "\021" : "\023"), 1);
 			break;
 
+		case AT_MODEM_CONTROL_SETID:
+			if (fm->cid_name) {
+				free(fm->cid_name);
+				fm->cid_name = NULL;
+			}
+			if (fm->cid_num) {
+				free(fm->cid_num);
+				fm->cid_num = NULL;
+			}
+			if (num && *num) {
+				const char *p, *q;
+
+				while (*num == ' ') num++;
+
+				q = num + strlen(num) - 1;
+				while (*q == ' ') q--;
+
+				if ((p = strstr(num, "\",\""))) {
+					const char *r = p;
+					if (*num == '"') num++,r--;
+					if ((fm->cid_name = malloc(r - num + 1 + 1))) {
+						memcpy(fm->cid_name, num, r - num + 1);
+						fm->cid_name[r - num + 1] = '\0';
+					}
+					num = p + 2;
+				}
+				if (*num == '"' && *q == '"') num++,q--;
+				if ((fm->cid_num = malloc(q - num + 1 + 1))) {
+					memcpy(fm->cid_num, num, q - num + 1);
+					fm->cid_num[q - num + 1] = '\0';
+				}
+			}
+			break;
+
 		default:
 			if (cfg_vblevel > 0)
 				cw_log(CW_LOG_DEBUG, "%s: unknown control op = %d\n", fm->devlink, op);
@@ -1150,28 +1198,40 @@ static void parse_config(void) {
 		for (entry = cw_category_browse(cfg, NULL); entry != NULL; entry = cw_category_browse(cfg, entry)) {
 			if (!strcasecmp(entry, "settings")) {
 				for (v = cw_variable_browse(cfg, entry); v ; v = v->next) {
-					if (!strcasecmp(v->name, "modems")) {
-						cfg_modems = atoi(v->value);
-					} else if (!strcasecmp(v->name, "timeout-ms")) {
-						cw_log(CW_LOG_WARNING, "timeout-ms is deprecated - remove it from your chan_fax.conf\n");
-					} else if (!strcasecmp(v->name, "trap-seg")) {
-						cw_log(CW_LOG_WARNING, "trap-seg is deprecated - remove it from your chan_fax.conf\n");
-					} else if (!strcasecmp(v->name, "context")) {
+					if (!strcasecmp(v->name, "context")) {
 						if (cfg_context)
 							free(cfg_context);
 						cfg_context = strdup(v->value);
-					} else if (!strcasecmp(v->name, "vblevel")) {
-						cfg_vblevel = atoi(v->value);
+					} else if (!strcasecmp(v->name, "callerid")) {
+						char *name, *num;
+
+						name = num = NULL;
+						cw_callerid_parse(v->value, &name, &num);
+						if (name)
+							cfg_cid_name = strdup(name);
+						if (num) {
+							cw_shrink_phone_number(num);
+							cfg_cid_num = strdup(num);
+						}
 					} else if (!strcasecmp(v->name, "device-prefix")) {
 						if (cfg_dev_prefix)
 							free(cfg_dev_prefix);
 					        cfg_dev_prefix = strdup(v->value);
+					} else if (!strcasecmp(v->name, "modems")) {
+						cfg_modems = atoi(v->value);
 					} else if (!strcasecmp(v->name, "ring-strategy")) {
 					    if (!strcasecmp(v->value, "roundrobin"))
 						cfg_ringstrategy = 0;
 					    else
 						cfg_ringstrategy = 1;
+					} else if (!strcasecmp(v->name, "vblevel")) {
+						cfg_vblevel = atoi(v->value);
 
+					/* Deprecated options */
+					} else if (!strcasecmp(v->name, "timeout-ms")) {
+						cw_log(CW_LOG_WARNING, "timeout-ms is deprecated - remove it from your chan_fax.conf\n");
+					} else if (!strcasecmp(v->name, "trap-seg")) {
+						cw_log(CW_LOG_WARNING, "trap-seg is deprecated - remove it from your chan_fax.conf\n");
 					}
 				}
 			}

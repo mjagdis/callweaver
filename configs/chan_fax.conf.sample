@@ -31,6 +31,10 @@
 ; (default 4)
 ;modems => 4
 
+; The caller id to present in calls from the DTE (i.e. dialled by ATDT...)
+; (default nothing)
+;callerid => John Doe <1234>
+
 ; The context that calls from the DTE (i.e. dialled by ATDT...) will be
 ; sent to in the dialplan
 ; (default "chan_fax")
