@@ -34,7 +34,7 @@ struct faxmodem_state {
 };
 
 static struct faxmodem_state FAXMODEM_STATE[] = {
-	{FAXMODEM_STATE_INIT, "INIT"},
+	{FAXMODEM_STATE_CLOSED, "CLOSED"},
 	{FAXMODEM_STATE_ONHOOK,	"ONHOOK"},
 	{FAXMODEM_STATE_ACQUIRED, "ACQUIRED"},
 	{FAXMODEM_STATE_RINGING, "RINGING"},
@@ -154,7 +154,7 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 	}
 
 	fm->control_handler = control_handler;
-	fm->state = FAXMODEM_STATE_INIT;
+	fm->state = FAXMODEM_STATE_CLOSED;
 	
 	do_log(LOGGER.info, "Fax Modem [%s] Ready\n", fm->devlink);
 	return 0;

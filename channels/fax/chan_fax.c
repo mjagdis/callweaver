@@ -761,12 +761,12 @@ static void *faxmodem_thread(void *obj)
 				break;
 
 			if (pfd.revents & POLLHUP) {
-				fm->state = FAXMODEM_STATE_INIT;
+				fm->state = FAXMODEM_STATE_CLOSED;
 				sleep(1);
 				continue;
 			}
 
-			if (fm->state == FAXMODEM_STATE_INIT)
+			if (fm->state == FAXMODEM_STATE_CLOSED)
 				fm->state = FAXMODEM_STATE_ONHOOK;
 
 			pthread_testcancel();
