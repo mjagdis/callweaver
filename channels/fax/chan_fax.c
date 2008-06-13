@@ -3,12 +3,21 @@
  *
  * Fax Channel Driver
  * 
+ * Copyright (C) 2008, Eris Associates Limited, UK
  * Copyright (C) 2005 Anthony Minessale II
  *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  * Anthony Minessale II <anthmct@yahoo.com>
  *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
