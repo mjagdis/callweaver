@@ -518,22 +518,22 @@ static void *faxmodem_media_thread(void *obj)
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
 		len = 0;
 		do {
-			gotlen = t31_tx((t31_state_t*)&fm->t31_state, frame_data + len, SAMPLES - len);
+			gotlen = t31_tx((t31_state_t*)&fm->t31_state, frame_data + len * sizeof(int16_t), SAMPLES - len);
 			len += gotlen;
 		} while (len < SAMPLES && gotlen > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
 
 		/* t31_tx can change state */
 		if (fm->state == FAXMODEM_STATE_CONNECTED) {
 			if (!len) {
-				memset(frame_data, 0, SAMPLES * 2);
+				memset(frame_data, 0, SAMPLES * sizeof(int16_t));
 				len = SAMPLES;
 			}
 			fm->frame.samples = len;
-			fm->frame.datalen = fm->frame.samples * 2;
+			fm->frame.datalen = fm->frame.samples * sizeof(int16_t);
 			write(fm->psock, IO_READ, 1);
 
 #ifdef DO_TRACE
-			write(fm->debug[1], frame_data, len * 2);
+			write(fm->debug[1], frame_data, len * sizeof(int16_t));
 #endif
 		}
 
