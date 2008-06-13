@@ -3,20 +3,52 @@
 ;
 ; Sample configuration file
 ;
-; $Id$
 ;
+; Dialplan usage
+; --------------
+;
+; Calls from the DTE (i.e. dialled by ATDT...) are handled in the same way
+; as calls coming in from any other channel type. The dialled number is
+; set as ${EXTEN} and searched for via the configured context (see below)
+;
+; Calls to the DTE (i.e. to be answered by ATA) are made via the dialplan
+; using:
+;
+;    Dial(Fax/<x>)
+;
+; where <x> may be a number specifying the particular faxmodem to be used,
+; or any non-digit in which case the configured ring-strategy will be
+; used to search for an unused faxmodem.
+
+
 [settings]
 
-modems => 2
-context => chan_fax
-vblevel => 2
+; How verbose to be. This is mainly useful for debugging. Avoid otherwise!
+; (default 0)
+;vblevel => 0
 
-; Change the prefix for the modem-devices from /dev/FAX to something else
-device-prefix => /dev/fax/
+; The number of faxmodems to create
+; (default 4)
+;modems => 4
 
-; Change the ring strategy, default is 'roundrobin'
-; ring-strategy = first-free
-; ring-strategy = roundrobin
+; The context that calls from the DTE (i.e. dialled by ATDT...) will be
+; sent to in the dialplan
+; (default "chan_fax")
+;context => chan_fax
 
-;timeout-ms => 30
-;trap-seg => true
+; The prefix for the modem/tty devices in the filesystem. The faxmodems
+; will be named <device-prefix>0, <device-prefix>1,..., <device-prefix><n>
+; (default "/dev/FAX")
+;device-prefix => /dev/FAX
+
+; Ring strategy - the order that Callweaver will use the faxmodems
+; for calls to the DTEs (i.e. answered by ATA).
+;
+; One of:
+;   first-free - start at 0 and use the first available
+;   roundrobin - start at the one after the last used and use the first
+;                available
+;
+; (default "roundrobin")
+;ring-strategy = first-free
+;ring-strategy = roundrobin
