@@ -100,9 +100,6 @@ struct private_object {
 #ifdef DO_TRACE
 	int debug[2];
 #endif
-        char *cid_num;
-        char *cid_name;
-
 	/* If this is true it means we already sent a hangup-statusmessage
 	 * to our user, so don't bother with it when hanging up
 	 */
@@ -309,24 +306,6 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 
 	tech_pvt = self->tech_pvt;
 
-	/* Remember callerid so we can send it to our user.
-	 * Without this the callerid is wrong unless the 'o' option is used
-	 * in Dial() */
-	if (tech_pvt->cid_name) 
-	    free(tech_pvt->cid_name);
-	if (tech_pvt->cid_num) 
-	    free(tech_pvt->cid_num);
-
-	if (self->cid.cid_name)
-	    tech_pvt->cid_name = strdup(self->cid.cid_name);
-	else
-	    tech_pvt->cid_name = 0;
-
-	if (self->cid.cid_num)
-	    tech_pvt->cid_num = strdup(self->cid.cid_num);
-	else
-	    tech_pvt->cid_num = 0;
-
 	cw_setstate(self, CW_STATE_RINGING);
 	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
 
@@ -335,12 +314,12 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	iov[0].iov_len = strftime(buf, sizeof(buf), "\r\nDATE=%m%d\r\nTIME=%H%M", localtime(&u_now));
 	iov[1].iov_base = "\r\nNAME=";
 	iov[1].iov_len = sizeof("\r\nNAME=") - 1;
-	iov[2].iov_base = tech_pvt->cid_name;
-	iov[2].iov_len = strlen(tech_pvt->cid_name);
+	iov[2].iov_base = self->cid.cid_name;
+	iov[2].iov_len = strlen(self->cid.cid_name);
 	iov[3].iov_base = "\r\nNMBR=";
 	iov[3].iov_len = sizeof("\r\nNMBR=") - 1;
-	iov[4].iov_base = tech_pvt->cid_num;
-	iov[4].iov_len = strlen(tech_pvt->cid_num);
+	iov[4].iov_base = self->cid.cid_num;
+	iov[4].iov_len = strlen(self->cid.cid_num);
 	iov[5].iov_base = "\r\nNDID=";
 	iov[5].iov_len = sizeof("\r\nNDID=") - 1;
 	iov[6].iov_base = tech_pvt->fm->digits;
@@ -400,11 +379,6 @@ static int tech_hangup(struct cw_channel *self)
 		tech_pvt->fm->psock = -1;
 
 		tech_pvt->fm->user_data = NULL;
-
-		if (tech_pvt->cid_name)
-			free(tech_pvt->cid_name);
-		if (tech_pvt->cid_num)
-			free(tech_pvt->cid_num);
 
 		free(tech_pvt);
 	}
