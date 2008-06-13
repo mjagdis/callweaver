@@ -554,7 +554,7 @@ static void *faxmodem_media_thread(void *obj)
 		if (flowoff && avail >= DSP_BUFFER_MAXSIZE / 2) {
 			char xon[1];
 			xon[0] = 0x11;
-			write(fm->psock, xon, 1);
+			write(fm->master, xon, 1);
 			flowoff = 0;
 			if (cfg_vblevel > 1) {
 				cw_verbose(VBPREFIX "%s XON, %d bytes available\n", fm->devlink, avail);
@@ -564,7 +564,7 @@ static void *faxmodem_media_thread(void *obj)
 			ssize_t len;
 			cw_clear_flag(fm, TFLAG_EVENT);
 			do {
-				len = read(fm->psock, modembuf, avail);
+				len = read(fm->master, modembuf, avail);
 				if (len > 0) {
 					t31_at_rx((t31_state_t*)&fm->t31_state,
 						  modembuf, len);
@@ -576,7 +576,7 @@ static void *faxmodem_media_thread(void *obj)
 			if (!avail) {
 				char xoff[1];
 				xoff[0] = 0x13;
-				write(fm->psock, xoff, 1);
+				write(fm->master, xoff, 1);
 				flowoff = 1;
 				if (cfg_vblevel > 1) {
 					cw_verbose(VBPREFIX "%s XOFF\n", fm->devlink);
