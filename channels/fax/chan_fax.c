@@ -301,6 +301,7 @@ static int tech_send_digit(struct cw_channel *self, char digit)
 static int tech_call(struct cw_channel *self, char *dest, int timeout)
 {
 	char buf[80];
+	struct iovec iov[8];
 	struct timeval start, alert, now;
 	pthread_t tid;
 	struct private_object *tech_pvt;
@@ -330,10 +331,23 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
 
 	time(&u_now);
-	cw_carefulwrite(tech_pvt->fm->master, buf, strftime(buf, sizeof(buf), "\r\nDATE=%m%d\r\nTIME=%H%M\r\n", localtime(&u_now)), 100);
-	cw_cli(tech_pvt->fm->master, "NAME=%s\r\n", tech_pvt->cid_name);
-	cw_cli(tech_pvt->fm->master, "NMBR=%s\r\n", tech_pvt->cid_num);
-	cw_cli(tech_pvt->fm->master, "NDID=%s\r\n", tech_pvt->fm->digits);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = strftime(buf, sizeof(buf), "\r\nDATE=%m%d\r\nTIME=%H%M", localtime(&u_now));
+	iov[1].iov_base = "\r\nNAME=";
+	iov[1].iov_len = sizeof("\r\nNAME=") - 1;
+	iov[2].iov_base = tech_pvt->cid_name;
+	iov[2].iov_len = strlen(tech_pvt->cid_name);
+	iov[3].iov_base = "\r\nNMBR=";
+	iov[3].iov_len = sizeof("\r\nNMBR=") - 1;
+	iov[4].iov_base = tech_pvt->cid_num;
+	iov[4].iov_len = strlen(tech_pvt->cid_num);
+	iov[5].iov_base = "\r\nNDID=";
+	iov[5].iov_len = sizeof("\r\nNDID=") - 1;
+	iov[6].iov_base = tech_pvt->fm->digits;
+	iov[6].iov_len = strlen(tech_pvt->fm->digits);
+	iov[7].iov_base = "\r\n";
+	iov[7].iov_len = sizeof("\r\n") - 1;
+	cw_carefulwritev(tech_pvt->fm->master, iov, arraylen(iov), 100);
 
 	gettimeofday(&now, NULL);
 	start = alert = now;
@@ -376,7 +390,7 @@ static int tech_hangup(struct cw_channel *self)
 		close(tech_pvt->debug[1]);
 #endif
 		if (!tech_pvt->hangup_msg_sent)
-			cw_cli(tech_pvt->fm->master, "NO CARRIER\r\n");
+			cw_carefulwrite(tech_pvt->fm->master, "NO CARRIER\r\n", sizeof("NO CARRIER\r\n") - 1, 100);
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
 		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
@@ -613,7 +627,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	    break;
 	case CW_CONTROL_BUSY:
 	case CW_CONTROL_CONGESTION:
-	    cw_cli(tech_pvt->fm->master, "BUSY\r\n");
+	    cw_carefulwrite(tech_pvt->fm->master, "BUSY\r\n", sizeof("BUSY\r\n") - 1, 100);
 	    hangup = 1;
 	    break;
 	default:
