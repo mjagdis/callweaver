@@ -131,9 +131,6 @@ struct faxmodem {
 static struct faxmodem *FAXMODEM_POOL;
 
 
-static int rr_next;
-
-
 CW_MUTEX_DEFINE_STATIC(control_lock);
 
 
@@ -379,6 +376,7 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 		if (unit >= 0 && unit < cfg_modems) {
 			fm = &FAXMODEM_POOL[unit];
 		} else {
+			static int rr_next;
 			int x;
 
 			if (cfg_ringstrategy == 1)
