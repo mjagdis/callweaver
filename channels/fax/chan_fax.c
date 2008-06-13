@@ -244,7 +244,7 @@ static void *generic_pipe_clock_thread(void *obj)
  * \{
  */
 
-static void spandsp(int level, const char *msg)
+static void spandsp_log(int level, const char *msg)
 {
 	if (level == SPAN_LOG_ERROR)
 		cw_log(CW_LOG_ERROR, "%s", msg);
@@ -521,7 +521,7 @@ static void *faxmodem_thread(void *obj)
 #endif
 
 	if (cfg_vblevel > 1) {
-		span_log_set_message_handler(&fm->t31_state.logging, spandsp);
+		span_log_set_message_handler(&fm->t31_state.logging, spandsp_log);
 		span_log_set_level(&fm->t31_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_SHOW_VARIANT | SPAN_LOG_DEBUG_3);
 	}
 
