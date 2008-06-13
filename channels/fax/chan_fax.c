@@ -1150,7 +1150,6 @@ static struct cw_clicmd  cli_chan_fax[] = {
 static void activate_fax_modems(void)
 {
 	static int NEXT_ID = 0;
-	pthread_t tid;
 	int x;
 
 	cw_mutex_lock(&control_lock);
