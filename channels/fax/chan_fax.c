@@ -216,7 +216,7 @@ static void deactivate_fax_modems(void);
 static const struct cw_channel_tech technology = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = -1,
+	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = tech_requester,
 	.call = tech_call,
 	.hangup = tech_hangup,
