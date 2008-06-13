@@ -42,7 +42,6 @@
 #include "callweaver/pbx.h"
 #include "callweaver/phone_no_utils.h"
 
-#undef __USE_XOPEN2K
 
 static const char desc[] = "Fax Modem Interface";
 static const char type[] = "Fax";
