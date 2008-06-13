@@ -120,7 +120,6 @@ static struct faxmodem_state {
 
 
 struct private_object {
-	unsigned int flags;							/* FLAGS */
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
 	int flen;
@@ -744,7 +743,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	
 	/* Signal new data to media thread */
 	cw_mutex_lock(&data_lock);
-	cw_set_flag(tech_pvt, TFLAG_DATA);
+	cw_set_flag(tech_pvt->fm, TFLAG_DATA);
 	cw_cond_signal(&tech_pvt->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
@@ -856,7 +855,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 				cw_copy_string(fm->digits, num, sizeof(fm->digits));
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
-				cw_set_flag(tech_pvt, TFLAG_OUTBOUND);
+				cw_set_flag(tech_pvt->fm, TFLAG_OUTBOUND);
 #ifdef DOTRACE
 				tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
 				tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
