@@ -670,7 +670,7 @@ static void *faxmodem_thread(void *obj)
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
-	struct faxmodem *fm;
+	struct faxmodem *fm = NULL;
 	int unit = -1;
 	char *p = data, *q;
 
