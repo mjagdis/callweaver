@@ -265,15 +265,6 @@ static void *faxmodem_clock_thread(void *obj)
 	pthread_mutex_lock(&lock);
 #endif
 
-	/* N.B. This lock doesn't need a clean up because we haven't enabled
-	 * cancellations yet.
-	 */
-	cw_mutex_lock(&fm->lock);
-	gettimeofday(&fm->frame.delivery, NULL);
-	fm->start = fm->frame.delivery;
-	fm->frame.ts = fm->frame.seq_no = 0;
-	cw_mutex_unlock(&fm->lock);
-
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	cw_clock_gettime(clk, &ts);
@@ -535,6 +526,10 @@ static int tech_answer(struct cw_channel *self)
 	struct faxmodem *fm = self->tech_pvt;
 
 	cw_mutex_lock(&fm->lock);
+
+	gettimeofday(&fm->frame.delivery, NULL);
+	fm->start = fm->frame.delivery;
+	fm->frame.ts = fm->frame.seq_no = 0;
 
 	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm)) {
 		if (cfg_vblevel > 0)
@@ -798,6 +793,10 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			} else {
 				if (cfg_vblevel > 0)
 					cw_log(CW_LOG_DEBUG, "%s: answered\n", fm->devlink);
+
+				gettimeofday(&fm->frame.delivery, NULL);
+				fm->start = fm->frame.delivery;
+				fm->frame.ts = fm->frame.seq_no = 0;
 
 				if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm))
 					fm->state = FAXMODEM_STATE_ANSWERED;
