@@ -113,7 +113,6 @@ struct faxmodem {
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
-	int flen;
 };
 
 
@@ -511,8 +510,9 @@ static void *faxmodem_media_thread(void *obj)
 {
 	struct faxmodem *fm = obj;
 	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
+	ssize_t len;
 	int ms = 0;
-	int avail, lastmodembufsize = 0, flowoff = 0;
+	int avail, flowoff = 0;
 	char modembuf[T31_TX_BUF_LEN];
 	struct timespec abstime;
 	int gotlen = 0;
@@ -523,24 +523,26 @@ static void *faxmodem_media_thread(void *obj)
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
-		fm->flen = 0;
+		len = 0;
 		do {
-			gotlen = t31_tx((t31_state_t*)&fm->t31_state, 
-					frame_data + fm->flen, SAMPLES - fm->flen);
-			fm->flen += gotlen;
-		} while (fm->flen < SAMPLES && gotlen > 0);
-			
-		if (!fm->flen) {
-			fm->flen = SAMPLES;
-			memset(frame_data, 0, SAMPLES * 2);
-		}
-		fm->frame.samples = fm->flen;
-		fm->frame.datalen = fm->frame.samples * 2;
-		write(fm->psock, IO_READ, 1);
+			gotlen = t31_tx((t31_state_t*)&fm->t31_state, frame_data + len, SAMPLES - len);
+			len += gotlen;
+		} while (len < SAMPLES && gotlen > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
+
+		/* t31_tx can change state */
+		if (fm->state == FAXMODEM_STATE_CONNECTED) {
+			if (!len) {
+				memset(frame_data, 0, SAMPLES * 2);
+				len = SAMPLES;
+			}
+			fm->frame.samples = len;
+			fm->frame.datalen = fm->frame.samples * 2;
+			write(fm->psock, IO_READ, 1);
 
 #ifdef DO_TRACE
-		write(fm->debug[1], frame_data, fm->flen * 2);
+			write(fm->debug[1], frame_data, len * 2);
 #endif
+		}
 
 		reference = cw_tvadd(reference, cw_tv(0, MS * 1000));
 		while ((ms = cw_tvdiff_ms(reference, cw_tvnow())) > 0) {
@@ -554,37 +556,25 @@ static void *faxmodem_media_thread(void *obj)
 		
 		gettimeofday(&now, NULL);
 	
-		avail = T31_TX_BUF_LEN - dsp_buffer_size(fm->t31_state.bit_rate, lastdtedata, lastmodembufsize);
+		avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
 		if (flowoff && avail >= T31_TX_BUF_LEN / 2) {
-			char xon[1];
-			xon[0] = 0x11;
-			write(fm->master, xon, 1);
+			write(fm->master, "\021", 1);
 			flowoff = 0;
-			if (cfg_vblevel > 1) {
+			if (cfg_vblevel > 1)
 				cw_log(CW_LOG_DEBUG, "%s: XON, %d bytes available\n", fm->devlink, avail);
-			}
 		}
-		if (cw_test_flag(fm, TFLAG_EVENT) && !flowoff) {
-			ssize_t len;
+		if (cw_test_flag(fm, TFLAG_EVENT) && !flowoff && fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail) {
 			cw_clear_flag(fm, TFLAG_EVENT);
-			do {
-				len = read(fm->master, modembuf, avail);
-				if (len > 0) {
-					t31_at_rx((t31_state_t*)&fm->t31_state,
-						  modembuf, len);
-					avail -= len;
-				}
-			} while (len > 0 && avail > 0);
-			lastmodembufsize = T31_TX_BUF_LEN - avail;
-			lastdtedata = now;
+			while (avail > 0 && (len = read(fm->master, modembuf, avail)) > 0) {
+				t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
+				avail -= len;
+				lastdtedata = now;
+			}
 			if (!avail) {
-				char xoff[1];
-				xoff[0] = 0x13;
-				write(fm->master, xoff, 1);
+				write(fm->master, "\023", 1);
 				flowoff = 1;
-				if (cfg_vblevel > 1) {
+				if (cfg_vblevel > 1)
 					cw_log(CW_LOG_DEBUG, "%s: XOFF\n", fm->devlink);
-				}
 			}
 		}
 
