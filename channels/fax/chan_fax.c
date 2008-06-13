@@ -1069,6 +1069,8 @@ static void *faxmodem_thread(void *obj)
 					fm->frame.len = SAMPLES / 8;
 					fm->frame.ts += SAMPLES;
 					fm->frame.seq_no++;
+					fm->frame.delivery.tv_sec = fm->tick.tv_sec;
+					fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
 					fm->frame.datalen = SAMPLES * sizeof(int16_t);
 					/* We should be queuing the frame up for delivery really but we
 					 * know the next frame is 20ms away we know how queuing works
