@@ -83,7 +83,6 @@ static const char tdesc[] = "Fax Modem Interface";
 #define DEFAULT_VBLEVEL		0
 
 
-static int cfg_timeout;
 static int cfg_modems;
 static int cfg_ringstrategy;
 static char *cfg_dev_prefix;
@@ -1155,7 +1154,6 @@ static void parse_config(void) {
 
 	cfg_vblevel = DEFAULT_VBLEVEL;
 	cfg_modems = DEFAULT_MAX_FAXMODEMS;
-	cfg_timeout= DEFAULT_TIMEOUT;
 	cfg_ringstrategy = DEFAULT_RING_STRATEGY;
 	if (cfg_dev_prefix)
 		free(cfg_dev_prefix);
@@ -1171,7 +1169,7 @@ static void parse_config(void) {
 					if (!strcasecmp(v->name, "modems")) {
 						cfg_modems = atoi(v->value);
 					} else if (!strcasecmp(v->name, "timeout-ms")) {
-						cfg_timeout = atoi(v->value);
+						cw_log(CW_LOG_WARNING, "timeout-ms is deprecated - remove it from your chan_fax.conf\n");
 					} else if (!strcasecmp(v->name, "trap-seg")) {
 						cw_log(CW_LOG_WARNING, "trap-seg is deprecated - remove it from your chan_fax.conf\n");
 					} else if (!strcasecmp(v->name, "context")) {
