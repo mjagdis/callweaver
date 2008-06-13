@@ -50,17 +50,23 @@ static const char tdesc[] = "Fax Modem Interface";
 #define SAMPLES 160
 #define MS 20
 
-#define MAX_FAXMODEMS 512
-#define TIMEOUT 30000
+#define DEFAULT_MAX_FAXMODEMS	4
+#define DEFAULT_DEV_PREFIX	"/dev/FAX"
+#define DEFAULT_TIMEOUT		30000
+#define DEFAULT_RING_STRATEGY	0
+#define DEFAULT_CONTEXT		"chan_fax"
+#define DEFAULT_VBLEVEL		0
 
 #define VBPREFIX "CHAN FAX: "
-static struct faxmodem FAXMODEM_POOL[MAX_FAXMODEMS] = {};
-static int SOFT_TIMEOUT = TIMEOUT;
-static int SOFT_MAX_FAXMODEMS = MAX_FAXMODEMS;
-static int READY = 0;
-char *DEVICE_PREFIX;
-static char *CONTEXT = NULL;
-static int VBLEVEL = 0;
+
+static int cfg_timeout;
+static int cfg_modems;
+static int cfg_ringstrategy;
+static char *cfg_dev_prefix;
+static char *cfg_context;
+static int cfg_vblevel;
+
+static struct faxmodem *FAXMODEM_POOL;
 
 static const char TERMINATOR[] = "\r\n";
 
@@ -78,11 +84,6 @@ typedef enum {
 } TFLAGS;
 
 
-/* Modem ringing strategy */
-enum {
-	RING_STRATEGY_FF,  /* First-free */
-	RING_STRATEGY_RR,  /* Roundrobin */
-} ring_strategy;
 int rr_next;
 
 /* The following object is where you can attach your technology-specific state data.
@@ -218,51 +219,38 @@ static const struct cw_channel_tech technology = {
 
 /***************** Helper functions ****************/
 
-static void set_context(char *context)
-{
-	if (CONTEXT) {
-		free(CONTEXT);
-		CONTEXT = NULL;
-	}
-
-	if (context) {
-		CONTEXT = strdup(context);
-	}
-}
-
-static void set_vblevel(int level) 
-{
-	if (level > -1) {
-		VBLEVEL = level;
-	}
-}
-
-
 static struct faxmodem *acquire_modem(int index)
 {
         struct faxmodem *fm = NULL;
+	int x;
 
 	cw_mutex_lock(&control_lock);
-	if (index) {
-		fm = &FAXMODEM_POOL[index];
-	} else if (ring_strategy == RING_STRATEGY_FF) {
-	    for (; rr_next < SOFT_MAX_FAXMODEMS; rr_next++) {
-		    cw_verbose(VBPREFIX  "acquire considering: %d\n", rr_next);
-		    cw_verbose(VBPREFIX  "%d state: %d\n", rr_next, FAXMODEM_POOL[rr_next].state);
-			if ( FAXMODEM_POOL[rr_next].state == FAXMODEM_STATE_ONHOOK) {
-				fm = &FAXMODEM_POOL[rr_next];
-				break;
-			}
-	    }
-	    rr_next++;
-	    if (rr_next >= SOFT_MAX_FAXMODEMS)
-		rr_next = 0;
-	} else {
-		int x;
-		for(x = 0; x < SOFT_MAX_FAXMODEMS; x++) {
-			if ( FAXMODEM_POOL[x].state == FAXMODEM_STATE_ONHOOK) {
-				fm = &FAXMODEM_POOL[x];
-				break;
+
+	if (FAXMODEM_POOL) {
+		if (index) {
+			fm = &FAXMODEM_POOL[index];
+		} else {
+			switch (cfg_ringstrategy) {
+				case 1:
+					for (x = 0; x < cfg_modems; x++) {
+						cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", x, FAXMODEM_POOL[x].state);
+						if (FAXMODEM_POOL[x].state == FAXMODEM_STATE_ONHOOK) {
+							fm = &FAXMODEM_POOL[x];
+							break;
+						}
+					}
+					break;
+
+				default:
+					for (; rr_next < cfg_modems; rr_next++) {
+						cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", rr_next, FAXMODEM_POOL[rr_next].state);
+						if (FAXMODEM_POOL[rr_next].state == FAXMODEM_STATE_ONHOOK) {
+							fm = &FAXMODEM_POOL[rr_next];
+							break;
+						}
+					}
+					rr_next = (rr_next + 1) % cfg_modems;
+					break;
 			}
 		}
 	}
@@ -566,7 +554,7 @@ static void *faxmodem_media_thread(void *obj)
 	pfds[0].fd = tech_pvt->pipe[1];
 	pfds[0].events = POLLIN | POLLERR;
 	
-	if (VBLEVEL > 1)
+	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
 
 	gettimeofday(&last, NULL);
@@ -654,7 +642,7 @@ static void *faxmodem_media_thread(void *obj)
 			xon[0] = 0x11;
 			write(fm->psock, xon, 1);
 			flowoff = 0;
-			if (VBLEVEL > 1) {
+			if (cfg_vblevel > 1) {
 				cw_verbose(VBPREFIX "%s XON, %d bytes available\n", fm->devlink, avail);
 			}
 		}
@@ -676,7 +664,7 @@ static void *faxmodem_media_thread(void *obj)
 				xoff[0] = 0x13;
 				write(fm->psock, xoff, 1);
 				flowoff = 1;
-				if (VBLEVEL > 1) {
+				if (cfg_vblevel > 1) {
 					cw_verbose(VBPREFIX "%s XOFF\n", fm->devlink);
 				}
 			}
@@ -686,7 +674,7 @@ static void *faxmodem_media_thread(void *obj)
 		sched_yield();
 	}
 
-	if (VBLEVEL > 1)
+	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD OFF %s\n", fm->devlink);
 
 	return NULL;
@@ -704,7 +692,7 @@ static int tech_answer(struct cw_channel *self)
 
 	tech_pvt = self->tech_pvt;
 
-	if (VBLEVEL > 1) {
+	if (cfg_vblevel > 1) {
 		cw_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
 	}
 	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
@@ -809,7 +797,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	int hangup = 0;
 
 	tech_pvt = self->tech_pvt;
-        if (VBLEVEL > 1) {
+        if (cfg_vblevel > 1) {
                 cw_verbose(VBPREFIX  "Indication %d on %s\n", condition,
 			     self->name);
         }
@@ -826,14 +814,14 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	    hangup = 1;
 	    break;
 	default:
-	    if (VBLEVEL > 1)
+	    if (cfg_vblevel > 1)
                 cw_verbose(VBPREFIX  "UNKNOWN Indication %d on %s\n", 
 			     condition,
                              self->name);
 	}
 
 	if (hangup) {
-	    if (VBLEVEL > 1) {
+	    if (cfg_vblevel > 1) {
                 cw_verbose(VBPREFIX  "Hanging up because of indication %d "
 			     "on %s\n", condition, self->name);
 	    }	    
@@ -937,7 +925,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 {
 	int res = 0;
 
-	if (VBLEVEL > 1) {
+	if (cfg_vblevel > 1) {
 		cw_verbose(VBPREFIX  "Control Handler %s [op = %d]\n", fm->devlink, op);
 	}
 	cw_mutex_lock(&control_lock);
@@ -966,7 +954,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
 			cw_copy_string(fm->digits, num, sizeof(fm->digits));
 			tech_pvt->fm = fm;
-			cw_copy_string(chan->context, CONTEXT, sizeof(chan->context));
+			cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 			cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
 			cw_set_flag(tech_pvt, TFLAG_OUTBOUND);
 			tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
@@ -982,7 +970,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
 			tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
-			if (VBLEVEL > 1) {
+			if (cfg_vblevel > 1) {
 			    cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
 			}
 		    }
@@ -992,7 +980,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 		    res = -1;
 		    break;
 		}
-		if (VBLEVEL > 1) {
+		if (cfg_vblevel > 1) {
 		    cw_verbose(VBPREFIX  "Answered %s", fm->devlink);
 		}
 		fm->state = FAXMODEM_STATE_ANSWERED;
@@ -1029,7 +1017,7 @@ static void faxmodem_thread_cleanup(void *obj)
 	if (fm->devlink[0])
 		unlink(fm->devlink);
 
-	if (VBLEVEL > 1)
+	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "Thread ended for %s\n", fm->devlink);
 }
 
@@ -1042,7 +1030,7 @@ static void *faxmodem_thread(void *obj)
 
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
-	if (!faxmodem_init(fm, control_handler, DEVICE_PREFIX)) {
+	if (!faxmodem_init(fm, control_handler, cfg_dev_prefix)) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		pfd.fd = fm->master;
@@ -1079,7 +1067,7 @@ static void *faxmodem_thread(void *obj)
 					if (tmp[x] == '\r' || tmp[x] == '\n')
 						tmp[x] = '\0';
 				}
-				if (!cw_strlen_zero(tmp) && VBLEVEL > 0) {
+				if (!cw_strlen_zero(tmp) && cfg_vblevel > 0) {
 					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 					cw_verbose(VBPREFIX  "Command on %s [%s]\n", fm->devlink, tmp);
 					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -1099,90 +1087,101 @@ static void *faxmodem_thread(void *obj)
 static void activate_fax_modems(void)
 {
 	pthread_t tid;
-	int max = SOFT_MAX_FAXMODEMS;
 	int x;
 
 	cw_mutex_lock(&control_lock);
-	memset((void*)FAXMODEM_POOL, 0, MAX_FAXMODEMS);
-	for(x = 0; x < max; x++) {
-		if (VBLEVEL > 1)
-			cw_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
-		FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
-		cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
+
+	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
+		for(x = 0; x < cfg_modems; x++) {
+			if (cfg_vblevel > 1)
+				cw_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
+			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
+			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
+		}
 	}
+
 	cw_mutex_unlock(&control_lock);
 }
 
 
 static void deactivate_fax_modems(void)
 {
-	int max = SOFT_MAX_FAXMODEMS;
 	int x;
 	
 	cw_mutex_lock(&control_lock);
 
-	for(x = 0; x < max; x++) {
+	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
-			if (VBLEVEL > 1)
+			if (cfg_vblevel > 1)
 				cw_verbose(VBPREFIX  "Stopping Fax Modem SLOT %d\n", x);
 			pthread_cancel(FAXMODEM_POOL[x].thread);
 		}
 	}
 
 	/* Wait for Threads to die */
-	for(x = 0; x < max; x++) {
+	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
-			if (VBLEVEL > 2)
+			if (cfg_vblevel > 2)
 				cw_verbose(VBPREFIX  "Stopped Fax Modem SLOT %d\n", x);
 			pthread_join(FAXMODEM_POOL[x].thread, NULL);
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 		}
 	}
 
+	free(FAXMODEM_POOL);
+
 	cw_mutex_unlock(&control_lock);
 
 }
 
-static int parse_config(int reload) {
+static void parse_config(void) {
 	struct cw_config *cfg;
 	char *entry;
 	struct cw_variable *v;
 
+	cfg_vblevel = DEFAULT_VBLEVEL;
+	cfg_modems = DEFAULT_MAX_FAXMODEMS;
+	cfg_timeout= DEFAULT_TIMEOUT;
+	cfg_ringstrategy = DEFAULT_RING_STRATEGY;
+	if (cfg_dev_prefix)
+		free(cfg_dev_prefix);
+	cfg_dev_prefix = strdup(DEFAULT_DEV_PREFIX);
+	if (cfg_context)
+		free(cfg_context);
+	cfg_context = strdup(DEFAULT_CONTEXT);
+
 	if ((cfg = cw_config_load(CONFIGFILE))) {
-		READY++;
 		for (entry = cw_category_browse(cfg, NULL); entry != NULL; entry = cw_category_browse(cfg, entry)) {
 			if (!strcasecmp(entry, "settings")) {
 				for (v = cw_variable_browse(cfg, entry); v ; v = v->next) {
 					if (!strcasecmp(v->name, "modems")) {
-						SOFT_MAX_FAXMODEMS = atoi(v->value);
+						cfg_modems = atoi(v->value);
 					} else if (!strcasecmp(v->name, "timeout-ms")) {
-						SOFT_TIMEOUT = atoi(v->value);
+						cfg_timeout = atoi(v->value);
 					} else if (!strcasecmp(v->name, "trap-seg")) {
 						cw_log(CW_LOG_WARNING, "trap-seg is deprecated - remove it from your chan_fax.conf");
 					} else if (!strcasecmp(v->name, "context")) {
-						set_context(v->value);
+						if (cfg_context)
+							free(cfg_context);
+						cfg_context = strdup(v->value);
 					} else if (!strcasecmp(v->name, "vblevel")) {
-						set_vblevel(atoi(v->value));
+						cfg_vblevel = atoi(v->value);
 					} else if (!strcasecmp(v->name, "device-prefix")) {
-						free(DEVICE_PREFIX);
-					        DEVICE_PREFIX = strdup(v->value);
+						if (cfg_dev_prefix)
+							free(cfg_dev_prefix);
+					        cfg_dev_prefix = strdup(v->value);
 					} else if (!strcasecmp(v->name, "ring-strategy")) {
 					    if (!strcasecmp(v->value, "roundrobin"))
-						ring_strategy = RING_STRATEGY_RR;
+						cfg_ringstrategy = 0;
 					    else
-						ring_strategy = RING_STRATEGY_FF;
+						cfg_ringstrategy = 1;
 
 					}
 				}
 			}
 		}
-		if (!CONTEXT) {
-			set_context("chan_fax");
-		}
 		cw_config_destroy(cfg);
 	}
-
-	return READY;
 }
 
 
@@ -1192,15 +1191,14 @@ static int chan_fax_cli(int fd, int argc, char *argv[])
 		if (!strcasecmp(argv[1], "status")) {
 			int x;
 			cw_mutex_lock(&control_lock);
-			for(x = 0; x < SOFT_MAX_FAXMODEMS; x++) {
+			for (x = 0; x < cfg_modems; x++) {
 				cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state2name(FAXMODEM_POOL[x].state));
 			}
 			cw_mutex_unlock(&control_lock);
 		} else if (!strcasecmp(argv[1], "vblevel")) {
-			if(argc > 2) {
-				set_vblevel(atoi(argv[2]));
-			}
-			cw_cli(fd, "vblevel = %d\n", VBLEVEL);
+			if (argc > 2)
+				cfg_vblevel = atoi(argv[2]);
+			cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
 		}
 
 	} else {
@@ -1231,16 +1229,18 @@ static struct cw_atexit fax_atexit = {
 
 static void graceful_unload(void)
 {
-	if(READY) {
-		deactivate_fax_modems();
-	}
+	deactivate_fax_modems();
+
 	faxmodem_clear_logger();
-	set_context(NULL);
 	ASTOBJ_CONTAINER_DESTROY(&private_object_list);
 	cw_channel_unregister(&technology);
 	cw_cli_unregister(&cli_chan_fax);
 
-	free(DEVICE_PREFIX);
+	if (cfg_dev_prefix)
+		free(cfg_dev_prefix);
+	if (cfg_context)
+		free(cfg_context);
+
 	cw_atexit_unregister(&fax_atexit);
 }
 
@@ -1249,13 +1249,9 @@ static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&private_object_list);
 
-	DEVICE_PREFIX = strdup("/dev/FAX");
-	
-	if(!parse_config(0)) {
-		return -1;
-	}
+	parse_config();
 
-	if (VBLEVEL > 1) {
+	if (cfg_vblevel > 1) {
 		faxmodem_set_logger((faxmodem_logger_t) cw_log, __CW_LOG_ERROR, __CW_LOG_WARNING, __CW_LOG_NOTICE);
 	}
 

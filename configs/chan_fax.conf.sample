@@ -14,7 +14,7 @@ vblevel => 2
 ; Change the prefix for the modem-devices from /dev/FAX to something else
 device-prefix => /dev/fax/
 
-; Change the ring strategy, default is 'first-free'
+; Change the ring strategy, default is 'roundrobin'
 ; ring-strategy = first-free
 ; ring-strategy = roundrobin
 
