@@ -555,7 +555,7 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		args->func = start_routine;
 		args->param = data;
 		ret = pthread_create(thread, attr, cw_pthread_wrapper, args);
-		if (ret == 1 && !pthread_attr_getschedpolicy(attr, &n) && n != SCHED_OTHER) {
+		if (ret == EPERM && !pthread_attr_getschedpolicy(attr, &n) && n != SCHED_OTHER) {
 			struct sched_param sp;
 			cw_log(CW_LOG_WARNING, "No permission for realtime scheduling - dropping to non-realtime\n");
 			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
