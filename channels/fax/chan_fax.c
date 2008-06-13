@@ -49,7 +49,6 @@ static const char type[] = "Fax";
 static const char tdesc[] = "Fax Modem Interface";
 
 #define CONFIGFILE "chan_fax.conf"
-#define DSP_BUFFER_MAXSIZE 2048
 #define SAMPLES 160
 #define MS 20
 
@@ -507,7 +506,7 @@ static void *faxmodem_media_thread(void *obj)
 	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
-	char modembuf[DSP_BUFFER_MAXSIZE];
+	char modembuf[T31_TX_BUF_LEN];
 	struct timespec abstime;
 	int gotlen = 0;
 	short *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
@@ -548,8 +547,8 @@ static void *faxmodem_media_thread(void *obj)
 		
 		gettimeofday(&now, NULL);
 	
-		avail = DSP_BUFFER_MAXSIZE - dsp_buffer_size(fm->t31_state.bit_rate, lastdtedata, lastmodembufsize);
-		if (flowoff && avail >= DSP_BUFFER_MAXSIZE / 2) {
+		avail = T31_TX_BUF_LEN - dsp_buffer_size(fm->t31_state.bit_rate, lastdtedata, lastmodembufsize);
+		if (flowoff && avail >= T31_TX_BUF_LEN / 2) {
 			char xon[1];
 			xon[0] = 0x11;
 			write(fm->master, xon, 1);
@@ -569,7 +568,7 @@ static void *faxmodem_media_thread(void *obj)
 					avail -= len;
 				}
 			} while (len > 0 && avail > 0);
-			lastmodembufsize = DSP_BUFFER_MAXSIZE - avail;
+			lastmodembufsize = T31_TX_BUF_LEN - avail;
 			lastdtedata = now;
 			if (!avail) {
 				char xoff[1];
