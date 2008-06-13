@@ -781,13 +781,9 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				cw_verbose(VERBOSE_PREFIX_2 "%s: answered", fm->devlink);
 			fm->state = FAXMODEM_STATE_ANSWERED;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
-			if (fm->psock > -1) {
-				if (fm->owner) {
-					struct cw_channel *chan = fm->owner;
-					cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-					write(fm->psock, IO_HUP, 1);
-				}
-			} else
+			if (fm->psock > -1)
+				write(fm->psock, IO_HUP, 1);
+			else
 				fm->state = FAXMODEM_STATE_ONHOOK;
 
 			t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
