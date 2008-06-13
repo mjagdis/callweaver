@@ -1,13 +1,14 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Fax Channel Driver
+ * Fax Modem Channel Driver
  * 
  * Copyright (C) 2008, Eris Associates Limited, UK
- * Copyright (C) 2005 Anthony Minessale II
- *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
- * Anthony Minessale II <anthmct@yahoo.com>
+ *
+ * Based on work:
+ *     Copyright (C) 2005 Anthony Minessale II
+ *     Anthony Minessale II <anthmct@yahoo.com>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
