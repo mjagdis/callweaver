@@ -194,11 +194,10 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	struct faxmodem *fm = user_data;
 	ssize_t n;
 
-	n = write(fm->master, buf, len);
-	if (n != len)
-		cw_log(CW_LOG_ERROR, "Only %d of %d bytes written", n, len);
+	if (cw_carefulwrite(fm->master, (char *)buf, len, 100) < 0)
+		cw_log(CW_LOG_ERROR, "Failed to write all of %d bytes to %s\n", len, fm->devlink);
 
-	return n;
+	return len;
 }
 
 
