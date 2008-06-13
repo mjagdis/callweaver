@@ -111,7 +111,6 @@ struct faxmodem {
 	pthread_t media_thread;
 	cw_cond_t data_cond;
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
-        int hangup_msg_sent; 
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
 	int flen;
@@ -474,9 +473,6 @@ static int tech_hangup(struct cw_channel *self)
 		close(fm->debug[0]);
 		close(fm->debug[1]);
 #endif
-		if (!fm->hangup_msg_sent)
-			cw_carefulwrite(fm->master, "NO CARRIER\r\n", sizeof("NO CARRIER\r\n") - 1, 100);
-
 		fm->state = FAXMODEM_STATE_ONHOOK;
 		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
 
@@ -679,35 +675,25 @@ static int tech_indicate(struct cw_channel *self, int condition)
 {
 	struct faxmodem *fm = self->tech_pvt;
 	int res = 0;
-	int hangup = 0;
 
         if (cfg_vblevel > 1)
                 cw_verbose(VERBOSE_PREFIX_3 "Indication %d on %s\n", condition, self->name);
 
 	switch(condition) {
-	case CW_CONTROL_RINGING:
-	case CW_CONTROL_ANSWER:
-	case CW_CONTROL_PROGRESS:
-	    hangup = 0;
-	    break;
-	case CW_CONTROL_BUSY:
-	case CW_CONTROL_CONGESTION:
-	    cw_carefulwrite(fm->master, "BUSY\r\n", sizeof("BUSY\r\n") - 1, 100);
-	    hangup = 1;
-	    break;
-	default:
-	    if (cfg_vblevel > 1)
-                cw_verbose(VERBOSE_PREFIX_3 "UNKNOWN Indication %d on %s\n", condition, self->name);
+		case CW_CONTROL_RINGING:
+		case CW_CONTROL_ANSWER:
+		case CW_CONTROL_PROGRESS:
+			break;
+		case CW_CONTROL_BUSY:
+		case CW_CONTROL_CONGESTION:
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
+			cw_softhangup(self, CW_SOFTHANGUP_EXPLICIT);
+			break;
+		default:
+			if (cfg_vblevel > 1)
+				cw_verbose(VERBOSE_PREFIX_3 "UNKNOWN Indication %d on %s\n", condition, self->name);
 	}
 
-	if (hangup) {
-	    if (cfg_vblevel > 1) {
-                cw_verbose(VERBOSE_PREFIX_3 "Hanging up because of indication %d "
-			     "on %s\n", condition, self->name);
-	    }	    
-	    fm->hangup_msg_sent = 1;
-	    cw_softhangup(self, CW_SOFTHANGUP_EXPLICIT);
-	}
 	return res;
 }
 
