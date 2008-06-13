@@ -99,7 +99,6 @@ struct faxmodem;
 struct faxmodem {
 	int unit;
 	t31_state_t t31_state;
-	unsigned int flags;
 	int master;
 	char devlink[128];
 	faxmodem_state_t state;
@@ -108,7 +107,6 @@ struct faxmodem {
 	int debug[2];
 #endif
 	pthread_t thread;
-	cw_cond_t data_cond;
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
@@ -130,17 +128,10 @@ static struct cw_frame frame_cng = {
 };
 
 
-/* some flags */
-typedef enum {
-	TFLAG_EVENT = (1 << 1),
-} TFLAGS;
-
-
 static int rr_next;
 
 
 CW_MUTEX_DEFINE_STATIC(control_lock);
-CW_MUTEX_DEFINE_STATIC(data_lock);
 
 
 /********************CHANNEL METHOD PROTOTYPES********************/
@@ -292,7 +283,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 
 		fm->owner = chan;
-		cw_cond_init(&fm->data_cond, 0);
 
 		cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 		fm->frame.offset = CW_FRIENDLY_OFFSET;
@@ -551,14 +541,6 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 
 	res = t31_rx((t31_state_t*)&fm->t31_state,
 		     frame->data, frame->samples);
-	
-	/* Signal new data to media thread */
-	cw_mutex_lock(&data_lock);
-	cw_cond_signal(&fm->data_cond);
-	cw_mutex_unlock(&data_lock);
-	
-	//write(fm->psock, IO_PROD, 1);
-
 
 	return 0;
 }
