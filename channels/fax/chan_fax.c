@@ -945,7 +945,7 @@ static void faxmodem_thread_cleanup(void *obj)
 static void *faxmodem_thread(void *obj)
 {
 	struct faxmodem *fm = obj;
-	int res;
+	int ret;
 
 	fm->poll_thread = CW_PTHREADT_NULL;
 	cw_cond_init(&fm->event, NULL);
@@ -975,17 +975,16 @@ static void *faxmodem_thread(void *obj)
 			 * wants to hang up this will be delayed until the next alert time.
 			 */
 			if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING)
-				cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick);
+				ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick);
 			else
-				cw_cond_wait(&fm->event, &fm->lock);
+				ret = cw_cond_wait(&fm->event, &fm->lock);
 
 			pthread_testcancel();
 
 			if (fm->state == FAXMODEM_STATE_RINGING) {
 				struct timespec now;
 
-				cw_clock_gettime(CLOCK_REALTIME, &now);
-				if (fm->tick.tv_sec < now.tv_sec || (fm->tick.tv_sec == now.tv_sec && fm->tick.tv_nsec < now.tv_nsec)) {
+				if (ret == ETIMEDOUT) {
 					t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
 					fm->tick.tv_sec += 5;
 				}
