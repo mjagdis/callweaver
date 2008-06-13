@@ -505,7 +505,7 @@ static void *faxmodem_media_thread(void *obj)
 	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	ssize_t len;
 	int ms = 0;
-	int avail, flowoff = 0;
+	int avail;
 	char modembuf[T31_TX_BUF_LEN];
 	struct timespec abstime;
 	int gotlen = 0;
@@ -550,24 +550,12 @@ static void *faxmodem_media_thread(void *obj)
 		gettimeofday(&now, NULL);
 	
 		avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
-		if (flowoff && avail >= T31_TX_BUF_LEN / 2) {
-			write(fm->master, "\021", 1);
-			flowoff = 0;
-			if (cfg_vblevel > 1)
-				cw_log(CW_LOG_DEBUG, "%s: XON, %d bytes available\n", fm->devlink, avail);
-		}
-		if (cw_test_flag(fm, TFLAG_EVENT) && !flowoff && fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail) {
+		if (cw_test_flag(fm, TFLAG_EVENT) && fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail) {
 			cw_clear_flag(fm, TFLAG_EVENT);
 			while (avail > 0 && (len = read(fm->master, modembuf, avail)) > 0) {
 				t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
 				avail -= len;
 				lastdtedata = now;
-			}
-			if (!avail) {
-				write(fm->master, "\023", 1);
-				flowoff = 1;
-				if (cfg_vblevel > 1)
-					cw_log(CW_LOG_DEBUG, "%s: XOFF\n", fm->devlink);
 			}
 		}
 
