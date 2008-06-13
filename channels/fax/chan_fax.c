@@ -132,6 +132,13 @@ static struct faxmodem *FAXMODEM_POOL;
 CW_MUTEX_DEFINE_STATIC(control_lock);
 
 
+/* This has to be forward-defined because the requester function is required to
+ * return a channel, not just an instance of the driver.
+ */
+static struct cw_channel *channel_new(struct faxmodem *fm);
+
+
+
 #if defined(_POSIX_TIMERS)
 #if defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
 static clockid_t global_clock_monotonic = CLOCK_MONOTONIC;
@@ -189,41 +196,6 @@ static inline void cw_clock_add_ms(struct timespec *ts, int ms)
 }
 
 
-/********************CHANNEL METHOD PROTOTYPES********************/
-static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
-static int tech_call(struct cw_channel *chan, char *dest, int timeout);
-static int tech_hangup(struct cw_channel *chan);
-static int tech_answer(struct cw_channel *chan);
-static struct cw_frame *tech_read(struct cw_channel *chan);
-static struct cw_frame *tech_exception(struct cw_channel *chan);
-static int tech_write(struct cw_channel *chan, struct cw_frame *frame);
-static int tech_indicate(struct cw_channel *chan, int condition);
-static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-
-/* Helper Function Prototypes */
-static struct cw_channel *channel_new(struct faxmodem *fm);
-static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num);
-static void *faxmodem_thread(void *obj);
-static void activate_fax_modems(void);
-static void deactivate_fax_modems(void);
-
-
-static const struct cw_channel_tech technology = {
-	.type = type,
-	.description = tdesc,
-	.capabilities = CW_FORMAT_SLINEAR,
-	.requester = tech_requester,
-	.call = tech_call,
-	.hangup = tech_hangup,
-	.answer = tech_answer,
-	.read = tech_read,
-	.write = tech_write,
-	.exception = tech_exception,
-	.indicate = tech_indicate,
-	.fixup = tech_fixup,
-};
-
-
 static void *faxmodem_clock_thread(void *obj)
 {
 	struct timespec ts;
@@ -270,6 +242,10 @@ static void *faxmodem_clock_thread(void *obj)
 }
 
 
+/*! \defgroup dte Fax modem implementation (DTE side)
+ * \{
+ */
+
 static void spandsp(int level, const char *msg)
 {
 	if (level == SPAN_LOG_ERROR)
@@ -314,377 +290,6 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	}
 
 	return len;
-}
-
-
-static struct cw_channel *channel_new(struct faxmodem *fm)
-{
-	struct cw_channel *chan = NULL;
-
-	if (!(chan = cw_channel_alloc(1))) {
-		cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
-	} else {
-		chan->type = type;
-		chan->tech = &technology;
-		chan->tech_pvt = fm;
-		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
-		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
-
-		if (fm->cid_name)
-			chan->cid.cid_name = strdup(fm->cid_name);
-		else if (cfg_cid_name)
-			chan->cid.cid_name = strdup(cfg_cid_name);
-
-		if (fm->cid_num)
-			chan->cid.cid_num = strdup(fm->cid_num);
-		else if (cfg_cid_num)
-			chan->cid.cid_num = strdup(cfg_cid_num);
-
-		fm->owner = chan;
-#ifdef TRACE
-		if (cfg_vblevel > 3) {
-			char buf[256];
-			snprintf(buf, sizeof(buf), "%sfax%d-rx.sln", TRACE_PREFIX, fm->unit);
-			fm->debug_fax[0] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
-			snprintf(buf, sizeof(buf), "%sfax%d-tx.sln", TRACE_PREFIX, fm->unit);
-			fm->debug_fax[1] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
-		}
-#endif
-	}
-	
-	return chan;
-}
-
-
-static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
-{
-	struct cw_channel *chan = NULL;
-	struct faxmodem *fm;
-	int unit = -1;
-	char *p = data, *q;
-
-	if ((q = strchr(p, '/')))
-		p = q + 1;
-	if (isdigit(*p))
-		unit = atoi(p);
-
-	cw_mutex_lock(&control_lock);
-
-	if (FAXMODEM_POOL) {
-		if (unit >= 0 && unit < cfg_modems) {
-			fm = &FAXMODEM_POOL[unit];
-		} else {
-			static int rr_next;
-			int x;
-
-			if (cfg_ringstrategy == 1)
-				rr_next = 0;
-
-			for (x = 0; x < cfg_modems; x++) {
-				unit = (rr_next + x) % cfg_modems;
-				cw_mutex_lock(&FAXMODEM_POOL[unit].lock);
-				cw_log(CW_LOG_DEBUG, "acquire considering: unit %d state: %s\n", unit, faxmodem_state[FAXMODEM_POOL[unit].state]);
-				if (FAXMODEM_POOL[unit].state == FAXMODEM_STATE_ONHOOK) {
-					fm = &FAXMODEM_POOL[unit];
-					fm->state = FAXMODEM_STATE_ACQUIRED;
-					break;
-				}
-				cw_mutex_unlock(&FAXMODEM_POOL[unit].lock);
-			}
-			rr_next = (rr_next + 1) % cfg_modems;
-		}
-	}
-
-	cw_mutex_unlock(&control_lock);
-
-	if (fm) {
-		if ((chan = channel_new(fm))) {
-#ifdef TRACE
-			if (fm->debug_dte < 0 && cfg_vblevel > 2) {
-				char buf[256];
-				snprintf(buf, sizeof(buf), "%sdte%d", TRACE_PREFIX, fm->unit);
-				fm->debug_dte = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
-			}
-		} else {
-#endif
-			cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
-			fm->state = FAXMODEM_STATE_ONHOOK;
-		}
-		cw_mutex_unlock(&FAXMODEM_POOL[unit].lock);
-	} else {
-		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
-	}
-
-	return chan;
-}
-
-
-static int tech_call(struct cw_channel *chan, char *dest, int timeout)
-{
-	struct tm tm;
-	char buf[sizeof("0000+0000")];
-	struct faxmodem *fm;
-	time_t u_now = time(NULL);
-
-	fm = chan->tech_pvt;
-
-	strftime(buf, sizeof(buf), "%m%d+%H%M", localtime_r(&u_now, &tm));
-	buf[4] = '\000';
-
-	cw_mutex_lock(&fm->lock);
-	at_reset_call_info(&fm->t31_state.at_state);
-	at_set_call_info(&fm->t31_state.at_state, "DATE", buf);
-	at_set_call_info(&fm->t31_state.at_state, "TIME", buf+5);
-	if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED) {
-		at_set_call_info(&fm->t31_state.at_state, "NAME", chan->cid.cid_name);
-		at_set_call_info(&fm->t31_state.at_state, "NMBR", chan->cid.cid_num);
-	} else if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED)
-		at_set_call_info(&fm->t31_state.at_state, "NMBR", "P");
-	else
-		at_set_call_info(&fm->t31_state.at_state, "NMBR", "O");
-	at_set_call_info(&fm->t31_state.at_state, "ANID", chan->cid.cid_ani);
-	at_set_call_info(&fm->t31_state.at_state, "NDID", chan->cid.cid_dnid);
-
-	fm->state = FAXMODEM_STATE_RINGING;
-	cw_setstate(chan, CW_STATE_RINGING);
-	pthread_kill(fm->thread, SIGURG);
-	cw_mutex_unlock(&fm->lock);
-
-	return 0;
-}
-
-static int tech_hangup(struct cw_channel *chan)
-{
-	struct faxmodem *fm = chan->tech_pvt;
-
-	cw_mutex_lock(&fm->lock);
-
-	if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
-		pthread_t tid = fm->clock_thread;
-		fm->clock_thread = CW_PTHREADT_NULL;
-
-		cw_mutex_unlock(&fm->lock);
-		pthread_cancel(tid);
-		pthread_join(tid, NULL);
-		cw_mutex_lock(&fm->lock);
-	}
-
-#ifdef TRACE
-	if (fm->debug_fax[0] >= 0)
-		close(fm->debug_fax[0]);
-	if (fm->debug_fax[1] >= 0)
-		close(fm->debug_fax[1]);
-	if (fm->debug_dte >= 0)
-		close(fm->debug_dte);
-#endif
-	if (fm->state == FAXMODEM_STATE_CALLING)
-		t31_call_event(&fm->t31_state, AT_CALL_EVENT_NO_ANSWER);
-	else if (fm->state != FAXMODEM_STATE_CLOSED && fm->state != FAXMODEM_STATE_ONHOOK)
-		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
-
-	fm->owner = NULL;
-
-	fm->state = FAXMODEM_STATE_ONHOOK;
-
-	cw_mutex_unlock(&fm->lock);
-
-	chan->tech_pvt = NULL;
-
-	return 0;
-}
-
-
-static int tech_answer(struct cw_channel *chan)
-{
-	struct faxmodem *fm = chan->tech_pvt;
-
-	cw_mutex_lock(&fm->lock);
-
-	gettimeofday(&fm->frame.delivery, NULL);
-	fm->start = fm->frame.delivery;
-	fm->frame.ts = fm->frame.seq_no = 0;
-
-	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &chan->alertpipe[1])) {
-		if (cfg_vblevel > 0)
-			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
-		fm->state = FAXMODEM_STATE_CONNECTED;
-		t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
-	} else {
-		cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
-	}
-
-	cw_mutex_unlock(&fm->lock);
-
-	return 0;
-}
-
-
-static struct cw_frame *tech_read(struct cw_channel *chan)
-{
-	char buf[256];
-	struct faxmodem *fm = chan->tech_pvt;
-	struct cw_frame *fr = &fm->frame;
-	uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
-	int samples;
-
-	cw_mutex_lock(&fm->lock);
-
-	if (fm->state == FAXMODEM_STATE_CONNECTED) {
-		cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-		fm->frame.offset = CW_FRIENDLY_OFFSET;
-		fm->frame.data = frame_data;
-		memset(frame_data, 0, SAMPLES * sizeof(int16_t));
-		fm->frame.samples = 0;
-		do {
-			samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
-			fm->frame.samples += samples;
-		} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
-	}
-
-	/* t31_tx processes queued hangups so our state may have changed */
-	switch (fm->state) {
-		case FAXMODEM_STATE_CONNECTED:
-			/* If the frame is short (because t31_tx is changing modem or just gave
-			 * in completely) or empty we fill with silence - the other end may
-			 * require it.
-			 */
-			fm->frame.samples = SAMPLES;
-			fm->frame.len = SAMPLES / 8;
-			cw_tvadd(fm->frame.delivery, cw_samp2tv(SAMPLES, 8000));
-			fm->frame.ts += SAMPLES;
-			fm->frame.seq_no++;
-			fm->frame.datalen = SAMPLES * sizeof(int16_t);
-#ifdef TRACE
-			if (cfg_vblevel > 3) {
-				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(fm->frame.delivery, fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
-				write(fm->debug_dte, buf, n);
-				write(fm->debug_fax[1], frame_data, fm->frame.datalen);
-			}
-#endif
-			break;
-
-		case FAXMODEM_STATE_ANSWERED:
-			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
-			fm->state = FAXMODEM_STATE_CONNECTED;
-			cw_fr_init_ex(&fm->frame, CW_FRAME_CONTROL, CW_CONTROL_ANSWER);
-			break;
-
-		default:
-			/* We're onhook */
-			fr = NULL;
-			break;
-	}
-
-	cw_mutex_unlock(&fm->lock);
-	return fr;
-}
-
-
-static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
-{
-#ifdef TRACE
-	char msg[256];
-#endif
-	struct faxmodem *fm = chan->tech_pvt;
-
-	if (fm->state == FAXMODEM_STATE_CONNECTED) {
-		switch (frame->frametype) {
-			case CW_FRAME_VOICE:
-				cw_mutex_lock(&fm->lock);
-#ifdef TRACE
-				if (cfg_vblevel > 3) {
-					uint16_t *data = frame->data;
-					int n;
-
-					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
-					write(fm->debug_fax[0], frame->data, frame->datalen);
-					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", n, frame->samples, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
-					write(fm->debug_dte, msg, n);
-				}
-#endif
-
-				t31_rx(&fm->t31_state, frame->data, frame->samples);
-				cw_mutex_unlock(&fm->lock);
-				break;
-
-			case CW_FRAME_CNG: {
-				static int16_t silence[SAMPLES];
-				int samples = frame->len * 8;
-
-				cw_mutex_lock(&fm->lock);
-#ifdef TRACE
-				if (cfg_vblevel > 3) {
-					int n;
-					int i = samples;
-
-					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
-					for (; i >= SAMPLES; i -= SAMPLES)
-						write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
-					if (i)
-						write(fm->debug_fax[0], silence, samples * sizeof(int16_t));
-					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%dms)\n", n, samples, frame->len);
-					write(fm->debug_dte, msg, n);
-				}
-#endif
-				for (; samples >= SAMPLES; samples -= SAMPLES)
-					t31_rx(&fm->t31_state, silence, SAMPLES);
-				if (samples)
-					t31_rx(&fm->t31_state, silence, samples);
-				cw_mutex_unlock(&fm->lock);
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-
-static struct cw_frame *tech_exception(struct cw_channel *chan)
-{
-	return NULL;
-}
-
-
-static int tech_indicate(struct cw_channel *chan, int condition)
-{
-	struct faxmodem *fm = chan->tech_pvt;
-	int res = 0;
-
-        if (cfg_vblevel > 1)
-                cw_log(CW_LOG_DEBUG, "%s: indication %d\n", fm->devlink, condition);
-
-	switch (condition) {
-		case -1:
-		case CW_CONTROL_RINGING:
-		case CW_CONTROL_ANSWER:
-		case CW_CONTROL_PROGRESS:
-		case CW_CONTROL_VIDUPDATE:
-			break;
-		case CW_CONTROL_BUSY:
-		case CW_CONTROL_CONGESTION:
-			cw_mutex_lock(&fm->lock);
-			t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
-			if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
-				pthread_cancel(fm->clock_thread);
-				pthread_join(fm->clock_thread, NULL);
-				fm->clock_thread = CW_PTHREADT_NULL;
-			}
-			fm->state = FAXMODEM_STATE_ONHOOK;
-			cw_mutex_unlock(&fm->lock);
-			break;
-		default:
-			if (cfg_vblevel > 1)
-				cw_log(CW_LOG_WARNING, "%s: unknown indication %d\n", fm->devlink, condition);
-	}
-
-	return res;
-}
-
-
-static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
-{
-	return 0;
 }
 
 
@@ -998,6 +603,454 @@ static void *faxmodem_thread(void *obj)
 	return NULL;
 }
 
+/* \} */
+
+
+/*! \defgroup driver Fax modem implementation (Callweaver channel side)
+ * \{
+ */
+
+static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
+{
+	struct cw_channel *chan = NULL;
+	struct faxmodem *fm;
+	int unit = -1;
+	char *p = data, *q;
+
+	if ((q = strchr(p, '/')))
+		p = q + 1;
+	if (isdigit(*p))
+		unit = atoi(p);
+
+	cw_mutex_lock(&control_lock);
+
+	if (FAXMODEM_POOL) {
+		if (unit >= 0 && unit < cfg_modems) {
+			fm = &FAXMODEM_POOL[unit];
+		} else {
+			static int rr_next;
+			int x;
+
+			if (cfg_ringstrategy == 1)
+				rr_next = 0;
+
+			for (x = 0; x < cfg_modems; x++) {
+				unit = (rr_next + x) % cfg_modems;
+				cw_mutex_lock(&FAXMODEM_POOL[unit].lock);
+				cw_log(CW_LOG_DEBUG, "acquire considering: unit %d state: %s\n", unit, faxmodem_state[FAXMODEM_POOL[unit].state]);
+				if (FAXMODEM_POOL[unit].state == FAXMODEM_STATE_ONHOOK) {
+					fm = &FAXMODEM_POOL[unit];
+					fm->state = FAXMODEM_STATE_ACQUIRED;
+					break;
+				}
+				cw_mutex_unlock(&FAXMODEM_POOL[unit].lock);
+			}
+			rr_next = (rr_next + 1) % cfg_modems;
+		}
+	}
+
+	cw_mutex_unlock(&control_lock);
+
+	if (fm) {
+		if ((chan = channel_new(fm))) {
+#ifdef TRACE
+			if (fm->debug_dte < 0 && cfg_vblevel > 2) {
+				char buf[256];
+				snprintf(buf, sizeof(buf), "%sdte%d", TRACE_PREFIX, fm->unit);
+				fm->debug_dte = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
+			}
+		} else {
+#endif
+			cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
+			fm->state = FAXMODEM_STATE_ONHOOK;
+		}
+		cw_mutex_unlock(&FAXMODEM_POOL[unit].lock);
+	} else {
+		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
+	}
+
+	return chan;
+}
+
+
+static int tech_call(struct cw_channel *chan, char *dest, int timeout)
+{
+	struct tm tm;
+	char buf[sizeof("0000+0000")];
+	struct faxmodem *fm;
+	time_t u_now = time(NULL);
+
+	fm = chan->tech_pvt;
+
+	strftime(buf, sizeof(buf), "%m%d+%H%M", localtime_r(&u_now, &tm));
+	buf[4] = '\000';
+
+	cw_mutex_lock(&fm->lock);
+	at_reset_call_info(&fm->t31_state.at_state);
+	at_set_call_info(&fm->t31_state.at_state, "DATE", buf);
+	at_set_call_info(&fm->t31_state.at_state, "TIME", buf+5);
+	if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED) {
+		at_set_call_info(&fm->t31_state.at_state, "NAME", chan->cid.cid_name);
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", chan->cid.cid_num);
+	} else if ((chan->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED)
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", "P");
+	else
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", "O");
+	at_set_call_info(&fm->t31_state.at_state, "ANID", chan->cid.cid_ani);
+	at_set_call_info(&fm->t31_state.at_state, "NDID", chan->cid.cid_dnid);
+
+	fm->state = FAXMODEM_STATE_RINGING;
+	cw_setstate(chan, CW_STATE_RINGING);
+	pthread_kill(fm->thread, SIGURG);
+	cw_mutex_unlock(&fm->lock);
+
+	return 0;
+}
+
+
+static int tech_hangup(struct cw_channel *chan)
+{
+	struct faxmodem *fm = chan->tech_pvt;
+
+	cw_mutex_lock(&fm->lock);
+
+	if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
+		pthread_t tid = fm->clock_thread;
+		fm->clock_thread = CW_PTHREADT_NULL;
+
+		cw_mutex_unlock(&fm->lock);
+		pthread_cancel(tid);
+		pthread_join(tid, NULL);
+		cw_mutex_lock(&fm->lock);
+	}
+
+#ifdef TRACE
+	if (fm->debug_fax[0] >= 0)
+		close(fm->debug_fax[0]);
+	if (fm->debug_fax[1] >= 0)
+		close(fm->debug_fax[1]);
+	if (fm->debug_dte >= 0)
+		close(fm->debug_dte);
+#endif
+	if (fm->state == FAXMODEM_STATE_CALLING)
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_NO_ANSWER);
+	else if (fm->state != FAXMODEM_STATE_CLOSED && fm->state != FAXMODEM_STATE_ONHOOK)
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
+
+	fm->owner = NULL;
+
+	fm->state = FAXMODEM_STATE_ONHOOK;
+
+	cw_mutex_unlock(&fm->lock);
+
+	chan->tech_pvt = NULL;
+
+	return 0;
+}
+
+
+static int tech_answer(struct cw_channel *chan)
+{
+	struct faxmodem *fm = chan->tech_pvt;
+
+	cw_mutex_lock(&fm->lock);
+
+	gettimeofday(&fm->frame.delivery, NULL);
+	fm->start = fm->frame.delivery;
+	fm->frame.ts = fm->frame.seq_no = 0;
+
+	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, &chan->alertpipe[1])) {
+		if (cfg_vblevel > 0)
+			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
+		fm->state = FAXMODEM_STATE_CONNECTED;
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
+	} else {
+		cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
+	}
+
+	cw_mutex_unlock(&fm->lock);
+
+	return 0;
+}
+
+
+static struct cw_frame *tech_read(struct cw_channel *chan)
+{
+	char buf[256];
+	struct faxmodem *fm = chan->tech_pvt;
+	struct cw_frame *fr = &fm->frame;
+	uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
+	int samples;
+
+	cw_mutex_lock(&fm->lock);
+
+	if (fm->state == FAXMODEM_STATE_CONNECTED) {
+		cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
+		fm->frame.offset = CW_FRIENDLY_OFFSET;
+		fm->frame.data = frame_data;
+		memset(frame_data, 0, SAMPLES * sizeof(int16_t));
+		fm->frame.samples = 0;
+		do {
+			samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
+			fm->frame.samples += samples;
+		} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
+	}
+
+	/* t31_tx processes queued hangups so our state may have changed */
+	switch (fm->state) {
+		case FAXMODEM_STATE_CONNECTED:
+			/* If the frame is short (because t31_tx is changing modem or just gave
+			 * in completely) or empty we fill with silence - the other end may
+			 * require it.
+			 */
+			fm->frame.samples = SAMPLES;
+			fm->frame.len = SAMPLES / 8;
+			cw_tvadd(fm->frame.delivery, cw_samp2tv(SAMPLES, 8000));
+			fm->frame.ts += SAMPLES;
+			fm->frame.seq_no++;
+			fm->frame.datalen = SAMPLES * sizeof(int16_t);
+#ifdef TRACE
+			if (cfg_vblevel > 3) {
+				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(fm->frame.delivery, fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+				write(fm->debug_dte, buf, n);
+				write(fm->debug_fax[1], frame_data, fm->frame.datalen);
+			}
+#endif
+			break;
+
+		case FAXMODEM_STATE_ANSWERED:
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
+			fm->state = FAXMODEM_STATE_CONNECTED;
+			cw_fr_init_ex(&fm->frame, CW_FRAME_CONTROL, CW_CONTROL_ANSWER);
+			break;
+
+		default:
+			/* We're onhook */
+			fr = NULL;
+			break;
+	}
+
+	cw_mutex_unlock(&fm->lock);
+	return fr;
+}
+
+
+static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
+{
+#ifdef TRACE
+	char msg[256];
+#endif
+	struct faxmodem *fm = chan->tech_pvt;
+
+	if (fm->state == FAXMODEM_STATE_CONNECTED) {
+		switch (frame->frametype) {
+			case CW_FRAME_VOICE:
+				cw_mutex_lock(&fm->lock);
+#ifdef TRACE
+				if (cfg_vblevel > 3) {
+					uint16_t *data = frame->data;
+					int n;
+
+					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
+					write(fm->debug_fax[0], frame->data, frame->datalen);
+					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", n, frame->samples, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+					write(fm->debug_dte, msg, n);
+				}
+#endif
+
+				t31_rx(&fm->t31_state, frame->data, frame->samples);
+				cw_mutex_unlock(&fm->lock);
+				break;
+
+			case CW_FRAME_CNG: {
+				static int16_t silence[SAMPLES];
+				int samples = frame->len * 8;
+
+				cw_mutex_lock(&fm->lock);
+#ifdef TRACE
+				if (cfg_vblevel > 3) {
+					int n;
+					int i = samples;
+
+					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
+					for (; i >= SAMPLES; i -= SAMPLES)
+						write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
+					if (i)
+						write(fm->debug_fax[0], silence, samples * sizeof(int16_t));
+					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%dms)\n", n, samples, frame->len);
+					write(fm->debug_dte, msg, n);
+				}
+#endif
+				for (; samples >= SAMPLES; samples -= SAMPLES)
+					t31_rx(&fm->t31_state, silence, SAMPLES);
+				if (samples)
+					t31_rx(&fm->t31_state, silence, samples);
+				cw_mutex_unlock(&fm->lock);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+
+static struct cw_frame *tech_exception(struct cw_channel *chan)
+{
+	return NULL;
+}
+
+
+static int tech_indicate(struct cw_channel *chan, int condition)
+{
+	struct faxmodem *fm = chan->tech_pvt;
+	int res = 0;
+
+        if (cfg_vblevel > 1)
+                cw_log(CW_LOG_DEBUG, "%s: indication %d\n", fm->devlink, condition);
+
+	switch (condition) {
+		case -1:
+		case CW_CONTROL_RINGING:
+		case CW_CONTROL_ANSWER:
+		case CW_CONTROL_PROGRESS:
+		case CW_CONTROL_VIDUPDATE:
+			break;
+		case CW_CONTROL_BUSY:
+		case CW_CONTROL_CONGESTION:
+			cw_mutex_lock(&fm->lock);
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
+			if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
+				pthread_cancel(fm->clock_thread);
+				pthread_join(fm->clock_thread, NULL);
+				fm->clock_thread = CW_PTHREADT_NULL;
+			}
+			fm->state = FAXMODEM_STATE_ONHOOK;
+			cw_mutex_unlock(&fm->lock);
+			break;
+		default:
+			if (cfg_vblevel > 1)
+				cw_log(CW_LOG_WARNING, "%s: unknown indication %d\n", fm->devlink, condition);
+	}
+
+	return res;
+}
+
+
+static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
+{
+	return 0;
+}
+
+
+static const struct cw_channel_tech technology = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = CW_FORMAT_SLINEAR,
+	.requester = tech_requester,
+	.call = tech_call,
+	.hangup = tech_hangup,
+	.answer = tech_answer,
+	.read = tech_read,
+	.write = tech_write,
+	.exception = tech_exception,
+	.indicate = tech_indicate,
+	.fixup = tech_fixup,
+};
+
+
+static struct cw_channel *channel_new(struct faxmodem *fm)
+{
+	struct cw_channel *chan = NULL;
+
+	if (!(chan = cw_channel_alloc(1))) {
+		cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
+	} else {
+		chan->type = type;
+		chan->tech = &technology;
+		chan->tech_pvt = fm;
+		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
+		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
+
+		if (fm->cid_name)
+			chan->cid.cid_name = strdup(fm->cid_name);
+		else if (cfg_cid_name)
+			chan->cid.cid_name = strdup(cfg_cid_name);
+
+		if (fm->cid_num)
+			chan->cid.cid_num = strdup(fm->cid_num);
+		else if (cfg_cid_num)
+			chan->cid.cid_num = strdup(cfg_cid_num);
+
+		fm->owner = chan;
+#ifdef TRACE
+		if (cfg_vblevel > 3) {
+			char buf[256];
+			snprintf(buf, sizeof(buf), "%sfax%d-rx.sln", TRACE_PREFIX, fm->unit);
+			fm->debug_fax[0] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
+			snprintf(buf, sizeof(buf), "%sfax%d-tx.sln", TRACE_PREFIX, fm->unit);
+			fm->debug_fax[1] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
+		}
+#endif
+	}
+	
+	return chan;
+}
+
+/* \} */
+
+
+/*! \defgroup cli CLI commands
+ * \{
+ */
+
+static int chan_fax_status(int fd, int argc, char *argv[]) 
+{
+	int x;
+
+	cw_mutex_lock(&control_lock);
+
+	for (x = 0; x < cfg_modems; x++)
+		cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
+
+	cw_mutex_unlock(&control_lock);
+
+	return 0;
+}
+
+
+static int chan_fax_vblevel(int fd, int argc, char *argv[]) 
+{
+	if (argc > 2)
+		cfg_vblevel = atoi(argv[2]);
+
+	cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
+
+	return 0;
+}
+
+
+static struct cw_clicmd  cli_chan_fax[] = {
+	{
+		.cmda = { "fax", "status", NULL },
+		.handler = chan_fax_status,
+		.summary = "Show fax modem status",
+		.usage = "Usage: fax status",
+	},
+	{
+		.cmda = { "fax", "vblevel", NULL },
+		.handler = chan_fax_vblevel,
+		.summary = "Set/show fax modem vblevel",
+		.usage = "Usage: fax vblevel [<n>]",
+	},
+};
+
+/* \} */
+
+
+/*! \defgroup module Module Interface
+ * \{
+ */
 
 static void activate_fax_modems(void)
 {
@@ -1058,7 +1111,8 @@ static void deactivate_fax_modems(void)
 }
 
 
-static void parse_config(void) {
+static void parse_config(void)
+{
 	struct cw_config *cfg;
 	char *entry;
 	struct cw_variable *v;
@@ -1119,58 +1173,6 @@ static void parse_config(void) {
 	}
 }
 
-
-/*! \defgroup cli CLI commands
- * \{
- */
-
-static int chan_fax_status(int fd, int argc, char *argv[]) 
-{
-	int x;
-
-	cw_mutex_lock(&control_lock);
-
-	for (x = 0; x < cfg_modems; x++)
-		cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
-
-	cw_mutex_unlock(&control_lock);
-
-	return 0;
-}
-
-
-static int chan_fax_vblevel(int fd, int argc, char *argv[]) 
-{
-	if (argc > 2)
-		cfg_vblevel = atoi(argv[2]);
-
-	cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
-
-	return 0;
-}
-
-
-static struct cw_clicmd  cli_chan_fax[] = {
-	{
-		.cmda = { "fax", "status", NULL },
-		.handler = chan_fax_status,
-		.summary = "Show fax modem status",
-		.usage = "Usage: fax status",
-	},
-	{
-		.cmda = { "fax", "vblevel", NULL },
-		.handler = chan_fax_vblevel,
-		.summary = "Set/show fax modem vblevel",
-		.usage = "Usage: fax vblevel [<n>]",
-	},
-};
-
-/* \} */
-
-
-/*! \defgroup module Module Interface
- * \{
- */
 
 static void graceful_unload(void);
 
