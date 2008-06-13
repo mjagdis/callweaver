@@ -400,11 +400,6 @@ static void *faxmodem_media_thread(void *obj)
 	struct timespec abstime;
 	int gotlen = 0;
 	short *frame_data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
-	struct pollfd pfds[1];
-
-	memset(&pfds[0], 0, sizeof(pfds[0]));
-	pfds[0].fd = tech_pvt->fm->psock;
-	pfds[0].events = POLLIN | POLLERR;
 
 	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
