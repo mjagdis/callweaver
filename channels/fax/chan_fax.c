@@ -200,6 +200,7 @@ static struct faxmodem *acquire_modem(int index)
 				cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", i, FAXMODEM_POOL[i].state);
 				if (FAXMODEM_POOL[i].state == FAXMODEM_STATE_ONHOOK) {
 					fm = &FAXMODEM_POOL[i];
+					fm->state = FAXMODEM_STATE_ACQUIRED;
 					break;
 				}
 			}
@@ -207,18 +208,10 @@ static struct faxmodem *acquire_modem(int index)
 		}
 	}
 	
-	if (fm && fm->state != FAXMODEM_STATE_ONHOOK) {
-		cw_log(CW_LOG_ERROR, "Modem %s In Use!\n", fm->devlink);
-		fm = NULL;
-	} 
-
-	if (fm) {
-		fm->state = FAXMODEM_STATE_ACQUIRED;
-	} else {
-		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
-	}
-
 	cw_mutex_unlock(&control_lock);
+
+	if (!fm)
+		cw_log(CW_LOG_ERROR, "No Modems Available!\n");
 
 	return fm;
 }
