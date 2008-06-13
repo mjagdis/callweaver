@@ -348,14 +348,14 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 		if (cw_tvdiff_ms(now, alert) > 5000)
 			alert = now;
 		if (cw_tvdiff_ms(now, alert) == 0)
-			t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_ALERTING);
+			t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_ALERTING);
 
 		usleep(100000);
 		gettimeofday(&now, NULL);
 	} while (tech_pvt->fm->state == FAXMODEM_STATE_RINGING && cw_tvdiff_ms(now, start) < timeout);
 
 	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
-		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_ANSWERED);
+		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_ANSWERED);
 		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
 		cw_setstate(tech_pvt->owner, CW_STATE_UP);
 		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
@@ -386,7 +386,7 @@ static int tech_hangup(struct cw_channel *self)
 			cw_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
-		t31_call_event((t31_state_t *)&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
+		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
 
 		close(self->fds[0]);
 		close(tech_pvt->fm->psock);
@@ -525,7 +525,7 @@ static int tech_answer(struct cw_channel *self)
 		cw_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
 
 	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-	t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_CONNECTED);
+	t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_CONNECTED);
 
 	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
 		return 0;
