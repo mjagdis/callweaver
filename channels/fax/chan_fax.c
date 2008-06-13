@@ -72,8 +72,8 @@ static int cfg_vblevel;
 
 
 typedef enum {
-	FAXMODEM_STATE_CLOSED,	
-	FAXMODEM_STATE_ONHOOK,	
+	FAXMODEM_STATE_CLOSED,
+	FAXMODEM_STATE_ONHOOK,
 	FAXMODEM_STATE_ACQUIRED,
 	FAXMODEM_STATE_RINGING,
 	FAXMODEM_STATE_ANSWERED,
@@ -82,6 +82,19 @@ typedef enum {
 	FAXMODEM_STATE_HANGUP,
 	FAXMODEM_STATE_LAST
 } faxmodem_state_t;
+
+static const char *faxmodem_state[] =
+{
+	[FAXMODEM_STATE_CLOSED] =	"CLOSED",
+	[FAXMODEM_STATE_ONHOOK] =	"ONHOOK",
+	[FAXMODEM_STATE_ACQUIRED] =	"ACQUIRED",
+	[FAXMODEM_STATE_RINGING] =	"RINGING",
+	[FAXMODEM_STATE_ANSWERED] =	"ANSWERED",
+	[FAXMODEM_STATE_CALLING] =	"CALLING",
+	[FAXMODEM_STATE_CONNECTED] =	"CONNECTED",
+	[FAXMODEM_STATE_HANGUP] =	"HANGUP",
+	[FAXMODEM_STATE_LAST] =		"UNKNOWN",
+};
 
 
 struct faxmodem;
@@ -105,22 +118,6 @@ struct faxmodem {
 	struct cw_frame frame;						/* Frame for Writing */
 	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
 	int flen;
-};
-
-
-static struct faxmodem_state {
-	int state;
-	char *name;
-} FAXMODEM_STATE[] = {
-	{ FAXMODEM_STATE_CLOSED,	"CLOSED"},
-	{ FAXMODEM_STATE_ONHOOK,	"ONHOOK"},
-	{ FAXMODEM_STATE_ACQUIRED,	"ACQUIRED"},
-	{ FAXMODEM_STATE_RINGING,	"RINGING"},
-	{ FAXMODEM_STATE_ANSWERED,	"ANSWERED"},
-	{ FAXMODEM_STATE_CALLING,	"CALLING"},
-	{ FAXMODEM_STATE_CONNECTED,	"CONNECTED"},
-	{ FAXMODEM_STATE_HANGUP,	"HANGUP"},
-	{ FAXMODEM_STATE_LAST,		"UNKNOWN"}
 };
 
 
@@ -161,7 +158,6 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
-static char *faxmodem_state2name(int state);
 static int faxmodem_init(struct faxmodem *fm, const char *device_prefix);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
@@ -205,15 +201,6 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	return n;
 }
 
-char *faxmodem_state2name(int state) 
-{
-	if (state > FAXMODEM_STATE_LAST || state < 0) {
-		state = FAXMODEM_STATE_LAST;
-	}
-
-	return FAXMODEM_STATE[state].name;
-
-}
 
 int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 {
@@ -773,7 +760,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			int cause;
 		    
 			if (fm->state != FAXMODEM_STATE_ONHOOK) {
-				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state[fm->state]);
 				res = -1;
 				break;
 			}
@@ -802,7 +789,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			}
 		} else if (op == AT_MODEM_CONTROL_ANSWER) { 
 			if (fm->state != FAXMODEM_STATE_RINGING) {
-				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state[fm->state]);
 				res = -1;
 				break;
 			}
@@ -1020,7 +1007,7 @@ static int chan_fax_cli(int fd, int argc, char *argv[])
 			int x;
 			cw_mutex_lock(&control_lock);
 			for (x = 0; x < cfg_modems; x++) {
-				cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state2name(FAXMODEM_POOL[x].state));
+				cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
 			}
 			cw_mutex_unlock(&control_lock);
 		} else if (!strcasecmp(argv[1], "vblevel")) {
