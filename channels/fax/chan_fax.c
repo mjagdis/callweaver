@@ -130,10 +130,7 @@ CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 CW_MUTEX_DEFINE_STATIC(control_lock);
 CW_MUTEX_DEFINE_STATIC(data_lock);
 
-/********************CHANNEL METHOD PROTOTYPES*******************
- * You may or may not need all of these methods, remove any unnecessary functions/protos/mappings as needed.
- *
- */
+/********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
 static int tech_devicestate(void *data);
 static int tech_send_digit(struct cw_channel *self, char digit);
@@ -148,47 +145,19 @@ static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen);
 static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
-static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen);
-static int tech_queryoption(struct cw_channel *self, int option, void *data, int *datalen);
-static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge);
-static int tech_transfer(struct cw_channel *self, const char *newdest);
-static int tech_write_video(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
 static void tech_destroy(struct private_object *tech_pvt);
 static struct faxmodem *acquire_modem(int index);
-static void tech_destroy(struct private_object *tech_pvt) ;
 static struct cw_channel *channel_new(const char *type, int format, void *data, int *cause);
 static void channel_destroy(struct cw_channel *chan);
-static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
-static int tech_devicestate(void *data);
-static int tech_send_digit(struct cw_channel *self, char digit);
 static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize);
 static void *faxmodem_media_thread(void *obj);
-static struct cw_frame *tech_read(struct cw_channel *self);
-static int tech_write(struct cw_channel *self, struct cw_frame *frame);
-static int tech_write_video(struct cw_channel *self, struct cw_frame *frame);
-static struct cw_frame *tech_exception(struct cw_channel *self);
-static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen);
-static int tech_send_text(struct cw_channel *self, const char *text);
-static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) ;
-static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen);
-static int tech_queryoption(struct cw_channel *self, int option, void *data, int *datalen);
-static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge);
-static int tech_transfer(struct cw_channel *self, const char *newdest);
-static int tech_bridge(struct cw_channel *chan_a, struct cw_channel *chan_b, int flags, struct cw_frame **outframe, struct cw_channel **recent_chan, int timeoutms);
 static int control_handler(struct faxmodem *fm, int op, const char *num);
 static void *faxmodem_thread(void *obj);
 static void activate_fax_modems(void);
 static void deactivate_fax_modems(void);
 
-
-/********************************************************************************
- * Constant structure for mapping local methods to the core interface.
- * This structure only needs to contain the methods the channel requires to operate
- * Not every channel needs all of them defined.
- */
 
 static const struct cw_channel_tech technology = {
 	.type = type,
@@ -198,11 +167,8 @@ static const struct cw_channel_tech technology = {
 	.devicestate = tech_devicestate,
 	.send_digit = tech_send_digit,
 	.call = tech_call,
-	.bridge = tech_bridge,
 	.hangup = tech_hangup,
 	.answer = tech_answer,
-	.transfer = tech_transfer,
-	.write_video = tech_write_video,
 	.read = tech_read,
 	.write = tech_write,
 	.exception = tech_exception,
@@ -211,10 +177,6 @@ static const struct cw_channel_tech technology = {
 	.send_html = tech_send_html,
 	.send_text = tech_send_text,
 	.send_image = tech_send_image,
-	.setoption = tech_setoption,
-	.queryoption = tech_queryoption,
-	.bridged_channel = tech_bridged_channel,
-	.transfer = tech_transfer,
 };
 
 /***************** Helper functions ****************/
@@ -769,16 +731,6 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	return 0;
 }
 
-/*--- tech_write_video: Write a video frame to my channel ---*/
-static int tech_write_video(struct cw_channel *self, struct cw_frame *frame)
-{
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
-}
-
 /*--- tech_exception: Read an exception audio frame from my channel ---*/
 static struct cw_frame *tech_exception(struct cw_channel *self)
 {
@@ -866,57 +818,6 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame)
 
 	int res = 0;
 	tech_pvt = self->tech_pvt;
-	return res;
-}
-
-
-/*--- tech_setoption: set options on my channel ---*/
-static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen)
-{
-	struct private_object *tech_pvt;
-
-	int res = 0;
-	tech_pvt = self->tech_pvt;
-	return res;
-
-}
-
-/*--- tech_queryoption: get options from my channel ---*/
-static int tech_queryoption(struct cw_channel *self, int option, void *data, int *datalen)
-{
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
-}
-
-/*--- tech_bridged_channel: return a pointer to a channel that may be bridged to our channel. ---*/
-static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge)
-{
-	struct private_object *tech_pvt;  
-	//struct cw_channel *chan = NULL;
-
-	tech_pvt = self->tech_pvt;
-	return self->_bridge;
-}
-
-
-/*--- tech_transfer: Technology-specific code executed to peform a transfer. ---*/
-static int tech_transfer(struct cw_channel *self, const char *newdest)
-{
-	struct private_object *tech_pvt;
-	int res = 0;
-
-	tech_pvt = self->tech_pvt;
-	return res;
-}
-
-/*--- tech_bridge:  Technology-specific code executed to natively bridge 2 of our channels ---*/
-static int tech_bridge(struct cw_channel *chan_a, struct cw_channel *chan_b, int flags, struct cw_frame **outframe, struct cw_channel **recent_chan, int timeoutms)
-{
-	int res = 0;
-
 	return res;
 }
 
