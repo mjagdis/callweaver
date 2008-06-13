@@ -83,11 +83,6 @@ typedef enum {
 } faxmodem_state_t;
 
 
-typedef enum {
-	FAXMODEM_FLAG_ATDT = ( 1 << 1)
-} faxmodem_flags;
-
-
 struct faxmodem;
 
 typedef int (*faxmodem_control_handler_t)(struct faxmodem *, int op, const char *);
@@ -194,22 +189,6 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
-#define faxmodem_test_flag(p,flag)    ({ \
-                                        ((p)->flags & (flag)); \
-                                        })
-
-#define faxmodem_set_flag(p,flag)     do { \
-                                        ((p)->flags |= (flag)); \
-                                        } while (0)
-
-#define faxmodem_clear_flag(p,flag)   do { \
-                                        ((p)->flags &= ~(flag)); \
-                                        } while (0)
-
-#define faxmodem_copy_flags(dest,src,flagz)   do { \
-                                        (dest)->flags &= ~(flagz); \
-                                        (dest)->flags |= ((src)->flags & (flagz)); \
-                                        } while (0)
 static char *faxmodem_state2name(int state);
 static void faxmodem_clear_logger(void);
 static void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
@@ -874,7 +853,6 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			} else {
 				struct private_object *tech_pvt = chan->tech_pvt;
 
-				faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
 				cw_copy_string(fm->digits, num, sizeof(fm->digits));
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
