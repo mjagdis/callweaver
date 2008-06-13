@@ -303,11 +303,13 @@ static int tech_send_digit(struct cw_channel *self, char digit)
 
 static int tech_call(struct cw_channel *self, char *dest, int timeout)
 {
+	char buf[80];
+	struct timeval start, alert, now;
 	pthread_t tid;
 	struct private_object *tech_pvt;
+	time_t u_now;
 
 	tech_pvt = self->tech_pvt;
-	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
 
 	/* Remember callerid so we can send it to our user.
 	 * Without this the callerid is wrong unless the 'o' option is used
@@ -328,9 +330,37 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	    tech_pvt->cid_num = 0;
 
 	cw_setstate(self, CW_STATE_RINGING);
+	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
 
-	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
-		return 0;
+	time(&u_now);
+	cw_cli(tech_pvt->fm->master, "%s", TERMINATOR);
+	strftime(buf, sizeof(buf), "DATE=%m%d", localtime(&u_now));
+	cw_cli(tech_pvt->fm->master, "%s%s", buf, TERMINATOR);
+	strftime(buf, sizeof(buf), "TIME=%H%M", localtime(&u_now));
+	cw_cli(tech_pvt->fm->master, "%s%s", buf, TERMINATOR);
+	cw_cli(tech_pvt->fm->master, "NAME=%s%s", tech_pvt->cid_name, TERMINATOR);
+	cw_cli(tech_pvt->fm->master, "NMBR=%s%s", tech_pvt->cid_num, TERMINATOR);
+	cw_cli(tech_pvt->fm->master, "NDID=%s%s", tech_pvt->fm->digits, TERMINATOR);
+
+	gettimeofday(&now, NULL);
+	start = alert = now;
+	do {
+		if (cw_tvdiff_ms(now, alert) > 5000)
+			alert = now;
+		if (cw_tvdiff_ms(now, alert) == 0)
+			t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_ALERTING);
+
+		usleep(100000);
+		gettimeofday(&now, NULL);
+	} while (tech_pvt->fm->state == FAXMODEM_STATE_RINGING && cw_tvdiff_ms(now, start) < timeout);
+
+	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
+		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_ANSWERED);
+		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
+		cw_setstate(tech_pvt->owner, CW_STATE_UP);
+		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
+			return 0;
+	}
 	return -1;
 }
 
@@ -391,58 +421,16 @@ static void *faxmodem_media_thread(void *obj)
 {
 	struct private_object *tech_pvt = obj;
 	struct faxmodem *fm = tech_pvt->fm;
-	struct timeval last = {0,0}, lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
+	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
 	char modembuf[DSP_BUFFER_MAXSIZE];
-	char buf[80];
-	time_t noww;
 	struct timespec abstime;
 	int gotlen = 0;
 	short *frame_data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 
 	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
-
-	gettimeofday(&last, NULL);
-
-	if (fm->state == FAXMODEM_STATE_RINGING) {
-		time(&noww);
-		cw_cli(fm->master, "%s", TERMINATOR);
-		strftime(buf, sizeof(buf), "DATE=%m%d", localtime(&noww));
-		cw_cli(fm->master, "%s%s", buf, TERMINATOR);
-		strftime(buf, sizeof(buf), "TIME=%H%M", localtime(&noww));
-		cw_cli(fm->master, "%s%s", buf, TERMINATOR);
-		cw_cli(fm->master, "NAME=%s%s", tech_pvt->cid_name, TERMINATOR);
-		cw_cli(fm->master, "NMBR=%s%s", tech_pvt->cid_num, TERMINATOR);
-		cw_cli(fm->master, "NDID=%s%s", fm->digits, TERMINATOR);
-		t31_call_event((t31_state_t*)&fm->t31_state, 
-			       AT_CALL_EVENT_ALERTING);
-	}
-
-	while (fm->state == FAXMODEM_STATE_RINGING) {
-		gettimeofday(&now, NULL);
-		ms = cw_tvdiff_ms(now, last);
-
-		if (ms % 5000 == 0) {
-			t31_call_event((t31_state_t*)&fm->t31_state,
-				       AT_CALL_EVENT_ALERTING);
-		}
-		
-		usleep(100000);
-		sched_yield();
-	}
-
-	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
-		t31_call_event((t31_state_t*)&fm->t31_state, 
-			       AT_CALL_EVENT_ANSWERED);
-		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-		cw_setstate(tech_pvt->owner, CW_STATE_UP);
-	} else if (tech_pvt->fm->state == FAXMODEM_STATE_CONNECTED) {
-		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, 
-			       AT_CALL_EVENT_CONNECTED);
-	} else
-		return NULL;
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
@@ -530,18 +518,18 @@ static int tech_answer(struct cw_channel *self)
 {
 	pthread_t tid;
 	struct private_object *tech_pvt;
-	int res = 0;
 
 	tech_pvt = self->tech_pvt;
 
-	if (cfg_vblevel > 1) {
+	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
-	}
-	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-	cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
 
-	
-	return res;
+	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
+	t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, AT_CALL_EVENT_CONNECTED);
+
+	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
+		return 0;
+	return -1;
 }
 
 
