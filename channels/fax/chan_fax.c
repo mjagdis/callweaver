@@ -90,7 +90,6 @@ typedef int (*faxmodem_control_handler_t)(struct faxmodem *, int op, const char 
 struct faxmodem {
 	int unit;
 	t31_state_t t31_state;
-	char digits[32];
 	unsigned int flags;
 	int master;
 	char devlink[128];
@@ -460,6 +459,7 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	pthread_t tid;
 	struct faxmodem *fm;
 	time_t u_now;
+	int i;
 
 	fm = self->tech_pvt;
 
@@ -469,21 +469,28 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	time(&u_now);
 	iov[0].iov_base = buf;
 	iov[0].iov_len = strftime(buf, sizeof(buf), "\r\nDATE=%m%d\r\nTIME=%H%M", localtime(&u_now));
-	iov[1].iov_base = "\r\nNAME=";
-	iov[1].iov_len = sizeof("\r\nNAME=") - 1;
-	iov[2].iov_base = self->cid.cid_name;
-	iov[2].iov_len = strlen(self->cid.cid_name);
-	iov[3].iov_base = "\r\nNMBR=";
-	iov[3].iov_len = sizeof("\r\nNMBR=") - 1;
-	iov[4].iov_base = self->cid.cid_num;
-	iov[4].iov_len = strlen(self->cid.cid_num);
-	iov[5].iov_base = "\r\nNDID=";
-	iov[5].iov_len = sizeof("\r\nNDID=") - 1;
-	iov[6].iov_base = fm->digits;
-	iov[6].iov_len = strlen(fm->digits);
-	iov[7].iov_base = "\r\n";
-	iov[7].iov_len = sizeof("\r\n") - 1;
-	cw_carefulwritev(fm->master, iov, arraylen(iov), 100);
+	i = 1;
+	if (self->cid.cid_name) {
+		iov[i].iov_base = "\r\nNAME=";
+		iov[i++].iov_len = sizeof("\r\nNAME=") - 1;
+		iov[i].iov_base = self->cid.cid_name;
+		iov[i++].iov_len = strlen(self->cid.cid_name);
+	}
+	if (self->cid.cid_num) {
+		iov[i].iov_base = "\r\nNMBR=";
+		iov[i++].iov_len = sizeof("\r\nNMBR=") - 1;
+		iov[i].iov_base = self->cid.cid_num;
+		iov[i++].iov_len = strlen(self->cid.cid_num);
+	}
+	if (self->cid.cid_dnid) {
+		iov[i].iov_base = "\r\nNDID=";
+		iov[i++].iov_len = sizeof("\r\nNDID=") - 1;
+		iov[i].iov_base = self->cid.cid_dnid;
+		iov[i++].iov_len = strlen(self->cid.cid_dnid);
+	}
+	iov[i].iov_base = "\r\n";
+	iov[i++].iov_len = sizeof("\r\n") - 1;
+	cw_carefulwritev(fm->master, iov, i, 100);
 
 	gettimeofday(&now, NULL);
 	start = alert = now;
@@ -817,9 +824,8 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			} else {
 				struct faxmodem *fm = chan->tech_pvt;
 
-				cw_copy_string(fm->digits, num, sizeof(fm->digits));
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
-				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
+				cw_copy_string(chan->exten, num, sizeof(chan->exten));
 #ifdef DOTRACE
 				fm->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
 				fm->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
