@@ -827,7 +827,7 @@ static void faxmodem_thread_cleanup(void *obj)
 
 static void *faxmodem_thread(void *obj)
 {
-	char buf[1024], tmp[80];
+	char buf[1024];
 	struct pollfd pfd;
 	struct faxmodem *fm = obj;
 	int res;
@@ -861,24 +861,24 @@ static void *faxmodem_thread(void *obj)
 			pthread_testcancel();
 
 			cw_set_flag(fm, TFLAG_EVENT);
-			res = read(fm->master, buf, sizeof(buf)-1);
-			buf[res] = '\0';
+			res = read(fm->master, buf, sizeof(buf));
 			t31_at_rx(&fm->t31_state, buf, res);
-			memset(tmp, 0, sizeof(tmp));
 
 			/* Copy the AT command for debugging */
-			if (strstr(buf, "AT") || strstr(buf, "at")) {
-				int x;
-				int l = res < (sizeof(tmp)-1) ? res : sizeof(tmp)-1;
-				strncpy(tmp, buf, l);
-				for (x = 0; x < l; x++) {
-					if (tmp[x] == '\r' || tmp[x] == '\n')
-						tmp[x] = '\0';
-				}
-				if (!cw_strlen_zero(tmp) && cfg_vblevel > 0) {
-					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					cw_log(CW_LOG_DEBUG, "%s: command %s\n", fm->devlink, tmp);
-					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			if (cfg_vblevel > 0) {
+				char *p = buf;
+
+				for (p = buf; res >= 2; p++, res--) {
+					if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
+						char *q;
+
+						for (q = p + 2, res -= 2; res && *q != '\r' && *q != '\n'; q++, res--);
+						pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+						cw_log(CW_LOG_DEBUG, "%s: command %.*s\n", fm->devlink, q - p, p);
+						pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+						p = q;
+					}
+					p++;
 				}
 			}
 		}
