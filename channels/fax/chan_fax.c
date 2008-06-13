@@ -233,7 +233,6 @@ static int tech_send_text(struct cw_channel *self, const char *text);
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
-static int faxmodem_init(struct faxmodem *fm);
 static struct cw_channel *channel_new(struct faxmodem *fm);
 static int modem_control_handler(t31_state_t *t31, void *user_data, int op, const char *num);
 static void *faxmodem_thread(void *obj);
@@ -305,92 +304,6 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	}
 
 	return len;
-}
-
-
-int faxmodem_init(struct faxmodem *fm)
-{
-	char buf[256];
-#ifndef HAVE_POSIX_OPENPT
-	int slave;
-#endif
-
-#ifdef HAVE_POSIX_OPENPT
-	if ((fm->pfd.fd = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
-		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
-		return -1;
-	}
-
-	/* The behaviour of grantpt is undefined if a SIGCHLD handler is installed.
-	 * We can't guarantee that, but grantpt just sets permissions on the slave
-	 * tty and since we expect that to be opened by a root owned faxgetty we
-	 * can live without doing this.
-	 */
-	// grantpt(fm->pfd.fd);
-	unlockpt(fm->pfd.fd);
-#else
-	fm->pfd.fd = -1;
-
-	if (openpty(&fm->pfd.fd, &slave, NULL, NULL, NULL)) {
-		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
-		return -1;
-	}
-
-	/* If we keep the slave open we'll likely get killed by a {fax}getty
-	 * start up on it. Closing it means we're going to keep seeing POLLHUP
-	 * until something else opens it. See channel/fax/chan_fax.c
-	 */
-	close(slave);
-#endif
-	ptsname_r(fm->pfd.fd, buf, sizeof(buf));
-
-	if (cfg_vblevel > 1)
-		cw_log(CW_LOG_DEBUG, "%s: opened pty, slave device: %s\n", fm->devlink, buf);
-
-	if (!unlink(fm->devlink) && cfg_vblevel > 1)
-		cw_log(CW_LOG_WARNING, "%s: removed old symbolic link\n", fm->devlink);
-
-	if (fcntl(fm->pfd.fd, F_SETFL, fcntl(fm->pfd.fd, F_GETFL, 0) | O_NONBLOCK)) {
-		close(fm->pfd.fd);
-		cw_log(CW_LOG_ERROR, "%s: cannot set up non-blocking read on %s\n", fm->devlink, ttyname(fm->pfd.fd));
-		return -1;
-	}
-
-	if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler, fm, 0, 0) < 0) {
-		close(fm->pfd.fd);
-		cw_log(CW_LOG_ERROR, "%s: cannot initialize the T.31 modem\n", fm->devlink);
-		return -1;
-	}
-
-	if (symlink(buf, fm->devlink)) {
-		close(fm->pfd.fd);
-		cw_log(CW_LOG_ERROR, "%s: failed to create symbolic link\n", fm->devlink);
-		return -1;
-	}
-
-	if (cfg_vblevel > 1)
-		cw_log(CW_LOG_DEBUG, "%s: created symbolic link\n", fm->devlink);
-
-#ifdef TRACE
-	fm->debug_dte = fm->debug_fax[0] = fm->debug_fax[1] = -1;
-
-	if (cfg_vblevel > 2) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "%sdte%d", TRACE_PREFIX, fm->unit);
-		fm->debug_dte = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
-	}
-#endif
-
-	if (cfg_vblevel > 1) {
-		span_log_set_message_handler(&fm->t31_state.logging, spandsp);
-		span_log_set_level(&fm->t31_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_SHOW_VARIANT | SPAN_LOG_DEBUG_3);
-	}
-
-	fm->state = FAXMODEM_STATE_CLOSED;
-	
-	if (cfg_vblevel > 0)
-		cw_verbose(VERBOSE_PREFIX_1 "%s: fax modem ready\n", fm->devlink);
-	return 0;
 }
 
 
@@ -986,16 +899,12 @@ static void faxmodem_thread_cleanup(void *obj)
 	cw_mutex_unlock(&fm->lock);
 	if (!pthread_equal(fm->poll_thread, CW_PTHREADT_NULL))
 		pthread_join(fm->poll_thread, NULL);
+
+	close(fm->pfd.fd);
+	unlink(fm->devlink);
+
 	cw_mutex_destroy(&fm->lock);
 	cw_cond_destroy(&fm->event);
-
-	if (fm->pfd.fd > -1) {
-		close(fm->pfd.fd);
-		fm->pfd.fd = -1;
-	}
-
-	if (fm->devlink[0])
-		unlink(fm->devlink);
 
 	if (cfg_vblevel > 1)
 		cw_log(CW_LOG_DEBUG, "%s: thread ended\n", fm->devlink);
@@ -1003,8 +912,84 @@ static void faxmodem_thread_cleanup(void *obj)
 
 static void *faxmodem_thread(void *obj)
 {
+	uint8_t modembuf[T31_TX_BUF_LEN];
+	char buf[256];
 	struct faxmodem *fm = obj;
+	int avail;
 	int ret;
+
+#ifdef HAVE_POSIX_OPENPT
+	if ((fm->pfd.fd = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
+		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
+		return NULL;
+	}
+
+	/* The behaviour of grantpt is undefined if a SIGCHLD handler is installed.
+	 * We can't guarantee that, but grantpt just sets permissions on the slave
+	 * tty and since we expect that to be opened by a root owned faxgetty we
+	 * can live without doing this.
+	 */
+	// grantpt(fm->pfd.fd);
+	unlockpt(fm->pfd.fd);
+#else
+	fm->pfd.fd = -1;
+
+	if (openpty(&fm->pfd.fd, &ret, NULL, NULL, NULL)) {
+		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
+		return NULL;
+	}
+
+	/* If we keep the slave open we'll likely get killed by a {fax}getty
+	 * start up on it. Closing it means we're going to keep seeing POLLHUP
+	 * until something else opens it. See channel/fax/chan_fax.c
+	 */
+	close(ret);
+#endif
+	ptsname_r(fm->pfd.fd, buf, sizeof(buf));
+
+	if (cfg_vblevel > 1)
+		cw_log(CW_LOG_DEBUG, "%s: opened pty, slave device: %s\n", fm->devlink, buf);
+
+	if (!unlink(fm->devlink) && cfg_vblevel > 1)
+		cw_log(CW_LOG_WARNING, "%s: removed old symbolic link\n", fm->devlink);
+
+	if (fcntl(fm->pfd.fd, F_SETFL, fcntl(fm->pfd.fd, F_GETFL, 0) | O_NONBLOCK)) {
+		close(fm->pfd.fd);
+		cw_log(CW_LOG_ERROR, "%s: cannot set up non-blocking read on %s\n", fm->devlink, ttyname(fm->pfd.fd));
+		return NULL;
+	}
+
+	if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler, fm, 0, 0) < 0) {
+		close(fm->pfd.fd);
+		cw_log(CW_LOG_ERROR, "%s: cannot initialize the T.31 modem\n", fm->devlink);
+		return NULL;
+	}
+
+	if (symlink(buf, fm->devlink)) {
+		close(fm->pfd.fd);
+		cw_log(CW_LOG_ERROR, "%s: failed to create symbolic link\n", fm->devlink);
+		return NULL;
+	}
+
+	if (cfg_vblevel > 1)
+		cw_log(CW_LOG_DEBUG, "%s: created symbolic link\n", fm->devlink);
+
+#ifdef TRACE
+	fm->debug_dte = fm->debug_fax[0] = fm->debug_fax[1] = -1;
+
+	if (cfg_vblevel > 2) {
+		snprintf(buf, sizeof(buf), "%sdte%d", TRACE_PREFIX, fm->unit);
+		fm->debug_dte = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
+	}
+#endif
+
+	if (cfg_vblevel > 1) {
+		span_log_set_message_handler(&fm->t31_state.logging, spandsp);
+		span_log_set_level(&fm->t31_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_SHOW_VARIANT | SPAN_LOG_DEBUG_3);
+	}
+
+	if (cfg_vblevel > 0)
+		cw_verbose(VERBOSE_PREFIX_1 "%s: fax modem ready\n", fm->devlink);
 
 	fm->poll_thread = CW_PTHREADT_NULL;
 	cw_cond_init(&fm->event, NULL);
@@ -1012,127 +997,120 @@ static void *faxmodem_thread(void *obj)
 	cw_mutex_lock(&fm->lock);
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
 
-	if (!faxmodem_init(fm)) {
-		uint8_t modembuf[T31_TX_BUF_LEN];
-		int avail;
+	fm->pfd.events = POLLIN;
+	if (cw_pthread_create(&fm->poll_thread, &global_attr_detached, faxmodem_poll_thread, fm))
+		return NULL;
 
-		fm->pfd.events = POLLIN;
-		if (cw_pthread_create(&fm->poll_thread, &global_attr_detached, faxmodem_poll_thread, fm))
-			return NULL;
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
 
-		cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
+	for (;;) {
+		/* When connected we know we are going to get data from the DTE, we know
+		 * we want to send it up the stack in 20ms chunks and we know the pty
+		 * has a buffer. So we process data when we want it rather than when
+		 * it's available.
+		 * When ringing we know that either an answer operation will signal the
+		 * event condition or the timeout will tell us to re-alert. If the DTE
+		 * wants to hang up this will be delayed until the next alert time.
+		 */
+		if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING)
+			ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick);
+		else
+			ret = cw_cond_wait(&fm->event, &fm->lock);
 
-		for (;;) {
-			/* When connected we know we are going to get data from the DTE, we know
-			 * we want to send it up the stack in 20ms chunks and we know the pty
-			 * has a buffer. So we process data when we want it rather than when
-			 * it's available.
-			 * When ringing we know that either an answer operation will signal the
-			 * event condition or the timeout will tell us to re-alert. If the DTE
-			 * wants to hang up this will be delayed until the next alert time.
-			 */
-			if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING)
-				ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick);
-			else
-				ret = cw_cond_wait(&fm->event, &fm->lock);
+		pthread_testcancel();
 
-			pthread_testcancel();
+		if (fm->state == FAXMODEM_STATE_RINGING) {
+			struct timespec now;
 
-			if (fm->state == FAXMODEM_STATE_RINGING) {
-				struct timespec now;
-
-				if (ret == ETIMEDOUT) {
-					t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
-					fm->tick.tv_sec += 5;
-				}
+			if (ret == ETIMEDOUT) {
+				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
+				fm->tick.tv_sec += 5;
 			}
+		}
 
+		if (fm->state == FAXMODEM_STATE_CONNECTED) {
+			uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
+			int samples;
+
+			cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
+			fm->frame.offset = CW_FRIENDLY_OFFSET;
+			fm->frame.data = frame_data;
+			memset(frame_data, 0, SAMPLES * sizeof(int16_t));
+			fm->frame.samples = 0;
+			do {
+				samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
+				fm->frame.samples += samples;
+			} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
+
+			/* t31_tx can change state */
 			if (fm->state == FAXMODEM_STATE_CONNECTED) {
-				uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
-				int samples;
-
-				cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-				fm->frame.offset = CW_FRIENDLY_OFFSET;
-				fm->frame.data = frame_data;
-				memset(frame_data, 0, SAMPLES * sizeof(int16_t));
-				fm->frame.samples = 0;
-				do {
-					samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
-					fm->frame.samples += samples;
-				} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
-
-				/* t31_tx can change state */
-				if (fm->state == FAXMODEM_STATE_CONNECTED) {
-					int blah;
-					/* If the frame is short (because t31_tx is changing modem or just gave
-					 * in completely) or empty we fill with silence - the other end may
-					 * require it.
-					 */
-					fm->frame.samples = SAMPLES;
-					fm->frame.len = SAMPLES / 8;
-					fm->frame.ts += SAMPLES;
-					fm->frame.seq_no++;
-					fm->frame.delivery.tv_sec = fm->tick.tv_sec;
-					fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
-					fm->frame.datalen = SAMPLES * sizeof(int16_t);
-					/* We should be queuing the frame up for delivery really but we
-					 * know the next frame is 20ms away we know how queuing works
-					 * and we know the only problem with the read not happening before
-					 * the next frame is corruption of the data stream. If the read
-					 * can't be handled before the next frame is due we're probably
-					 * overloaded and suffering other problems anyway so we'll avoid
-					 * the copy and prod the alertpipe directly.
-					 */
-					//cw_queue_frame(fm->owner, &fm->frame);
-					write(fm->owner->alertpipe[1], &blah, sizeof(blah));
+				int blah;
+				/* If the frame is short (because t31_tx is changing modem or just gave
+				 * in completely) or empty we fill with silence - the other end may
+				 * require it.
+				 */
+				fm->frame.samples = SAMPLES;
+				fm->frame.len = SAMPLES / 8;
+				fm->frame.ts += SAMPLES;
+				fm->frame.seq_no++;
+				fm->frame.delivery.tv_sec = fm->tick.tv_sec;
+				fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
+				fm->frame.datalen = SAMPLES * sizeof(int16_t);
+				/* We should be queuing the frame up for delivery really but we
+				 * know the next frame is 20ms away we know how queuing works
+				 * and we know the only problem with the read not happening before
+				 * the next frame is corruption of the data stream. If the read
+				 * can't be handled before the next frame is due we're probably
+				 * overloaded and suffering other problems anyway so we'll avoid
+				 * the copy and prod the alertpipe directly.
+				 */
+				//cw_queue_frame(fm->owner, &fm->frame);
+				write(fm->owner->alertpipe[1], &blah, sizeof(blah));
 #ifdef TRACE
-					if (cfg_vblevel > 3) {
-						char msg[256];
-						int n;
-						struct timespec now;
+				if (cfg_vblevel > 3) {
+					int n;
+					struct timespec now;
 
-						write(fm->debug_fax[1], frame_data, fm->frame.datalen);
-						n = snprintf(msg, sizeof(msg), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff_ms(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
-						write(fm->debug_dte, msg, n);
-					}
-#endif
+					write(fm->debug_fax[1], frame_data, fm->frame.datalen);
+					n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff_ms(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+					write(fm->debug_dte, buf, n);
 				}
-
-				cw_clock_add_ms(&fm->tick, SAMPLES / 8);
+#endif
 			}
 
-			avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
-			if (fm->state != FAXMODEM_STATE_CONNECTED
-			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
-				int len;
-				while (avail > 0 && (len = read(fm->pfd.fd, modembuf, avail)) > 0) {
+			cw_clock_add_ms(&fm->tick, SAMPLES / 8);
+		}
+
+		avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
+		if (fm->state != FAXMODEM_STATE_CONNECTED
+		|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
+			int len;
+			while (avail > 0 && (len = read(fm->pfd.fd, modembuf, avail)) > 0) {
 #ifdef TRACE
-					/* Log AT commands for debugging */
-					if (cfg_vblevel > 2 && fm->debug_dte >= 0) {
-						char msg[256];
-						char *p;
-						int togo = len;
-						ssize_t n;
+				/* Log AT commands for debugging */
+				if (cfg_vblevel > 2 && fm->debug_dte >= 0) {
+					char *p;
+					int togo = len;
+					ssize_t n;
 
-						for (p = modembuf; togo >= 2; p++, togo--) {
-							if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
-								char *q;
+					for (p = modembuf; togo >= 2; p++, togo--) {
+						if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
+							char *q;
 
-								for (q = p + 2, togo -= 2; togo && *q != '\r' && *q != '\n'; q++, togo--);
-								cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, q - p, p);
-								n = snprintf(msg, sizeof(msg), "<- %.*s\n", q - p, p);
-								write(fm->debug_dte, msg, n);
-								p = q;
-							}
-							p++, togo--;
+							for (q = p + 2, togo -= 2; togo && *q != '\r' && *q != '\n'; q++, togo--);
+							cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, q - p, p);
+							n = snprintf(buf, sizeof(buf), "<- %.*s\n", q - p, p);
+							write(fm->debug_dte, buf, n);
+							p = q;
 						}
+						p++, togo--;
 					}
-#endif
-					t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
-					avail -= len;
 				}
+#endif
+				t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
+				avail -= len;
 			}
 		}
 	}
@@ -1157,6 +1135,7 @@ static void activate_fax_modems(void)
 				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem %s\n", FAXMODEM_POOL[x].devlink);
 
 			FAXMODEM_POOL[x].unit = x;
+			FAXMODEM_POOL[x].state = FAXMODEM_STATE_CLOSED;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
