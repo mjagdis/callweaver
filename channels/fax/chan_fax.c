@@ -623,10 +623,8 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 
 	res = read(self->fds[0], &cmd, sizeof(cmd));
 
-	if (res < 0 || cmd == IO_HUP[0]) {
-		cw_softhangup(fm->owner, CW_SOFTHANGUP_EXPLICIT);
+	if (res < 0 || cmd == IO_HUP[0])
 		return NULL;
-	}
 
 	return &fm->frame;
 }
