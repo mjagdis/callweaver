@@ -275,8 +275,8 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 				unsigned char *q;
 
 				for (q = p + 2, togo -= 2; togo && *q >= ' ' && *q <= 127; q++, togo--);
-				cw_log(CW_LOG_DEBUG, "%s -> %.*s\n", fm->devlink, q - p, p);
-				n = snprintf(msg, sizeof(msg), "-> %.*s\n", q - p, p);
+				cw_log(CW_LOG_DEBUG, "%s -> %.*s\n", fm->devlink, (int)(q - p), p);
+				n = snprintf(msg, sizeof(msg), "-> %.*s\n", (int)(q - p), p);
 				if (fm->debug_dte >= 0)
 					write(fm->debug_dte, msg, n);
 				p = q;
@@ -287,7 +287,7 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 #endif
 
 	if (write(fm->pfd.fd, buf, len) != len) {
-		cw_log(CW_LOG_ERROR, "%s: DTE overrun - failed to write all of %d bytes\n", fm->devlink, len);
+		cw_log(CW_LOG_ERROR, "%s: DTE overrun - failed to write all of %ld bytes\n", fm->devlink, len);
 		tcflush(fm->pfd.fd, TCOFLUSH);
 	}
 
@@ -629,8 +629,8 @@ static void *faxmodem_thread(void *obj)
 								char *q;
 
 								for (q = p + 2, togo -= 2; togo && *q != '\r' && *q != '\n'; q++, togo--);
-								cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, q - p, p);
-								n = snprintf(buf, sizeof(buf), "<- %.*s\n", q - p, p);
+								cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, (int)(q - p), p);
+								n = snprintf(buf, sizeof(buf), "<- %.*s\n", (int)(q - p), p);
 								if (fm->debug_dte >= 0)
 									write(fm->debug_dte, buf, n);
 								p = q;
@@ -960,7 +960,7 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 						write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
 					if (i)
 						write(fm->debug_fax[0], silence, samples * sizeof(int16_t));
-					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%dms)\n", n, samples, frame->len);
+					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%ldms)\n", n, samples, frame->len);
 					write(fm->debug_dte, msg, n);
 				}
 #endif
