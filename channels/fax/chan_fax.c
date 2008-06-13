@@ -252,8 +252,6 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 {
 	struct private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
-	int myformat = CW_FORMAT_SLINEAR;
-
 
 	if (!(tech_pvt = calloc(1, sizeof(*tech_pvt)))) {
 		cw_log(CW_LOG_ERROR, "Can't allocate a private structure.\n");
@@ -264,15 +262,14 @@ static struct cw_channel *channel_new(const char *type, int format, void *data, 
 		} else {
 			cw_cond_init(&tech_pvt->data_cond, 0);
 			chan->tech_pvt = tech_pvt;
-			chan->nativeformats = myformat;
 			chan->type = type;
 			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff);
-			chan->writeformat = chan->rawwriteformat = chan->readformat = myformat;
+			chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 			chan->_state = CW_STATE_RINGING;
 			chan->_softhangup = 0;
 			chan->tech = &technology;
 
-			cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, myformat);
+			cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 			tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
 			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 
