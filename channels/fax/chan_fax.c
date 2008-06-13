@@ -73,7 +73,6 @@ static const char TERMINATOR[] = "\r\n";
 #define IO_READ		"1"
 #define IO_HUP		"0"
 #define IO_PROD		"2"
-#define IO_ANSWER	"3"
 
 /* some flags */
 typedef enum {
@@ -550,12 +549,6 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	if (res < 0 || cmd == IO_HUP[0]) {
 		cw_softhangup(tech_pvt->owner, CW_SOFTHANGUP_EXPLICIT);
 		return NULL;
-	}
-
-	if (res < 0 || cmd == IO_ANSWER[0]) {
-		struct cw_frame ans = {CW_FRAME_CONTROL, CW_CONTROL_ANSWER};
-		cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt);
-		return cw_frdup(&ans);
 	}
 
 	return &tech_pvt->frame;
