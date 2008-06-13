@@ -99,6 +99,7 @@ typedef enum {
 	FAXMODEM_STATE_OFFHOOK,
 	FAXMODEM_STATE_ACQUIRED,
 	FAXMODEM_STATE_RINGING,
+	FAXMODEM_STATE_ANSWERED,
 	FAXMODEM_STATE_CALLING,
 	FAXMODEM_STATE_CONNECTED,
 } faxmodem_state_t;
@@ -110,6 +111,7 @@ static const char *faxmodem_state[] =
 	[FAXMODEM_STATE_OFFHOOK] =	"OFFHOOK",
 	[FAXMODEM_STATE_ACQUIRED] =	"ACQUIRED",
 	[FAXMODEM_STATE_RINGING] =	"RINGING",
+	[FAXMODEM_STATE_ANSWERED] =	"ANSWERED",
 	[FAXMODEM_STATE_CALLING] =	"CALLING",
 	[FAXMODEM_STATE_CONNECTED] =	"CONNECTED",
 };
@@ -119,7 +121,9 @@ struct faxmodem;
 
 struct faxmodem {
 	cw_mutex_t lock;
+	cw_cond_t poll_ack;
 	cw_cond_t event;
+	int events;
 	struct pollfd pfd;
 	struct timespec tick;
 	faxmodem_state_t state;
@@ -277,7 +281,7 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	struct faxmodem *fm = user_data;
 
 #ifdef TRACE
-	if (cfg_vblevel > 2 && fm->debug_dte) {
+	if (cfg_vblevel > 2) {
 		char msg[256];
 		unsigned char *p;
 		int togo = len;
@@ -290,7 +294,8 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 				for (q = p + 2, togo -= 2; togo && *q >= ' ' && *q <= 127; q++, togo--);
 				cw_log(CW_LOG_DEBUG, "%s -> %.*s\n", fm->devlink, q - p, p);
 				n = snprintf(msg, sizeof(msg), "-> %.*s\n", q - p, p);
-				write(fm->debug_dte, msg, n);
+				if (fm->debug_dte >= 0)
+					write(fm->debug_dte, msg, n);
 				p = q;
 			}
 			p++, togo--;
@@ -481,6 +486,7 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 
 	fm->state = FAXMODEM_STATE_RINGING;
 	cw_setstate(self, CW_STATE_RINGING);
+	fm->events++;
 	cw_cond_broadcast(&fm->event);
 	cw_mutex_unlock(&fm->lock);
 
@@ -552,6 +558,7 @@ static int tech_answer(struct cw_channel *self)
 	cw_queue_frame(self, &frame_cng);
 #endif
 
+	fm->events++;
 	cw_cond_broadcast(&fm->event);
 	cw_mutex_unlock(&fm->lock);
 
@@ -565,9 +572,67 @@ static int tech_answer(struct cw_channel *self)
  */
 static struct cw_frame *tech_read(struct cw_channel *self)
 {
+	char buf[256];
 	struct faxmodem *fm = self->tech_pvt;
+	struct cw_frame *fr = &fm->frame;
+	uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
+	int samples;
 
-	return &fm->frame;
+	cw_mutex_lock(&fm->lock);
+
+	if (fm->state == FAXMODEM_STATE_CONNECTED) {
+		cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
+		fm->frame.offset = CW_FRIENDLY_OFFSET;
+		fm->frame.data = frame_data;
+		memset(frame_data, 0, SAMPLES * sizeof(int16_t));
+		fm->frame.samples = 0;
+		do {
+			samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
+			fm->frame.samples += samples;
+		} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
+	}
+
+	/* t31_tx processes queued hangups so our state may have changed */
+	switch (fm->state) {
+		case FAXMODEM_STATE_CONNECTED:
+			/* If the frame is short (because t31_tx is changing modem or just gave
+			 * in completely) or empty we fill with silence - the other end may
+			 * require it.
+			 */
+			fm->frame.samples = SAMPLES;
+			fm->frame.len = SAMPLES / 8;
+			fm->frame.ts += SAMPLES;
+			fm->frame.seq_no++;
+			fm->frame.delivery.tv_sec = fm->tick.tv_sec;
+			fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
+			fm->frame.datalen = SAMPLES * sizeof(int16_t);
+#ifdef TRACE
+			if (cfg_vblevel > 3) {
+				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff_ms(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+				write(fm->debug_dte, buf, n);
+				write(fm->debug_fax[1], frame_data, fm->frame.datalen);
+			}
+#endif
+			break;
+
+		case FAXMODEM_STATE_ANSWERED:
+cw_log(CW_LOG_NOTICE, "read answered\n");
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
+			fm->frame.ts = fm->frame.seq_no = 0;
+
+			pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
+			fm->state = FAXMODEM_STATE_CONNECTED;
+			cw_fr_init_ex(&fm->frame, CW_FRAME_CONTROL, CW_CONTROL_ANSWER);
+			break;
+
+		default:
+			/* We're onhook */
+			fr = NULL;
+			break;
+	}
+
+	cw_mutex_unlock(&fm->lock);
+	return fr;
 }
 
 /*--- tech_write: Write an audio frame to my channel
@@ -670,6 +735,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 			 */
 			pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 			fm->state = FAXMODEM_STATE_ONHOOK;
+			fm->events++;
 			cw_cond_broadcast(&fm->event);
 			cw_mutex_unlock(&fm->lock);
 			break;
@@ -764,30 +830,21 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				if (cfg_vblevel > 0)
 					cw_log(CW_LOG_DEBUG, "%s: answered\n", fm->devlink);
 
-				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
-				fm->frame.ts = fm->frame.seq_no = 0;
-
-				pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
-				fm->state = FAXMODEM_STATE_CONNECTED;
-				cw_setstate(fm->owner, CW_STATE_UP);
-
+				fm->state = FAXMODEM_STATE_ANSWERED;
 				cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
-				cw_clock_add_ms(&fm->tick, SAMPLES / 8);
 			}
 			break;
 
+		case AT_MODEM_CONTROL_ONHOOK:
 		case AT_MODEM_CONTROL_HANGUP:
 			if (cfg_vblevel > 0)
 				cw_log(CW_LOG_DEBUG, "%s: hang up\n", fm->devlink);
 
-			pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 			fm->state = FAXMODEM_STATE_ONHOOK;
-			if (fm->owner)
-				cw_softhangup(fm->owner, CW_SOFTHANGUP_EXPLICIT);
 			break;
 
 		case AT_MODEM_CONTROL_RNG:
-			if (cfg_vblevel > 0)
+			if (num && cfg_vblevel > 0)
 				cw_log(CW_LOG_DEBUG, "%s: ringing\n", fm->devlink);
 			break;
 
@@ -839,6 +896,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 
 	}
 
+	fm->events++;
 	cw_cond_broadcast(&fm->event);
 	cw_mutex_unlock(&fm->lock);
 	return res;
@@ -872,16 +930,18 @@ static void *faxmodem_poll_thread(void *obj)
 			res = poll(&fm->pfd, 1, -1);
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			cw_mutex_lock(&fm->lock);
-			if (res == 1) {
-				if (fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
-					if (fm->state == FAXMODEM_STATE_CLOSED) {
-						sleep(1);
-						continue;
-					}
-					fm->state = FAXMODEM_STATE_CLOSED;
-				} else if (fm->state == FAXMODEM_STATE_CLOSED)
+			if (res < 1 || fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+				if (fm->state == FAXMODEM_STATE_CLOSED) {
+					sleep(1);
+					continue;
+				}
+				fm->state = FAXMODEM_STATE_CLOSED;
+			} else if (res == 1) {
+				if (fm->state == FAXMODEM_STATE_CLOSED)
 					fm->state = FAXMODEM_STATE_ONHOOK;
+				fm->events++;
 				cw_cond_broadcast(&fm->event);
+				cw_cond_wait(&fm->poll_ack, &fm->lock);
 			}
 		}
 	}
@@ -992,6 +1052,7 @@ static void *faxmodem_thread(void *obj)
 		cw_verbose(VERBOSE_PREFIX_1 "%s: fax modem ready\n", fm->devlink);
 
 	fm->poll_thread = CW_PTHREADT_NULL;
+	cw_cond_init(&fm->poll_ack, NULL);
 	cw_cond_init(&fm->event, NULL);
 	cw_mutex_init(&fm->lock);
 	cw_mutex_lock(&fm->lock);
@@ -1014,104 +1075,66 @@ static void *faxmodem_thread(void *obj)
 		 * event condition or the timeout will tell us to re-alert. If the DTE
 		 * wants to hang up this will be delayed until the next alert time.
 		 */
-		if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING)
-			ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick);
-		else
+		cw_cond_signal(&fm->poll_ack);
+		if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING || fm->state == FAXMODEM_STATE_ANSWERED) {
+			if ((ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick)) == ETIMEDOUT)
+				fm->events++;
+		} else
 			ret = cw_cond_wait(&fm->event, &fm->lock);
 
 		pthread_testcancel();
 
-		if (fm->state == FAXMODEM_STATE_RINGING) {
-			struct timespec now;
+		while (fm->events) {
+			fm->events--;
 
-			if (ret == ETIMEDOUT) {
-				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
-				fm->tick.tv_sec += 5;
+			if (fm->state == FAXMODEM_STATE_RINGING) {
+				if (ret == ETIMEDOUT) {
+					t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
+					fm->tick.tv_sec += 5;
+				}
 			}
-		}
 
-		if (fm->state == FAXMODEM_STATE_CONNECTED) {
-			uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
-			int samples;
-
-			cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-			fm->frame.offset = CW_FRIENDLY_OFFSET;
-			fm->frame.data = frame_data;
-			memset(frame_data, 0, SAMPLES * sizeof(int16_t));
-			fm->frame.samples = 0;
-			do {
-				samples = t31_tx(&fm->t31_state, frame_data + fm->frame.samples, SAMPLES - fm->frame.samples);
-				fm->frame.samples += samples;
-			} while (fm->frame.samples < SAMPLES && samples > 0 && fm->state == FAXMODEM_STATE_CONNECTED);
-
-			/* t31_tx can change state */
-			if (fm->state == FAXMODEM_STATE_CONNECTED) {
+			if (ret == ETIMEDOUT && (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_ANSWERED)) {
 				int blah;
-				/* If the frame is short (because t31_tx is changing modem or just gave
-				 * in completely) or empty we fill with silence - the other end may
-				 * require it.
-				 */
-				fm->frame.samples = SAMPLES;
-				fm->frame.len = SAMPLES / 8;
-				fm->frame.ts += SAMPLES;
-				fm->frame.seq_no++;
-				fm->frame.delivery.tv_sec = fm->tick.tv_sec;
-				fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
-				fm->frame.datalen = SAMPLES * sizeof(int16_t);
-				/* We should be queuing the frame up for delivery really but we
-				 * know the next frame is 20ms away we know how queuing works
-				 * and we know the only problem with the read not happening before
-				 * the next frame is corruption of the data stream. If the read
-				 * can't be handled before the next frame is due we're probably
-				 * overloaded and suffering other problems anyway so we'll avoid
-				 * the copy and prod the alertpipe directly.
-				 */
-				//cw_queue_frame(fm->owner, &fm->frame);
+
 				write(fm->owner->alertpipe[1], &blah, sizeof(blah));
-#ifdef TRACE
-				if (cfg_vblevel > 3) {
-					int n;
-					struct timespec now;
-
-					write(fm->debug_fax[1], frame_data, fm->frame.datalen);
-					n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff_ms(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
-					write(fm->debug_dte, buf, n);
-				}
-#endif
+				cw_clock_add_ms(&fm->tick, SAMPLES / 8);
 			}
 
-			cw_clock_add_ms(&fm->tick, SAMPLES / 8);
-		}
-
-		avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
-		if (fm->state != FAXMODEM_STATE_CONNECTED
-		|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
-			int len;
-			while (avail > 0 && (len = read(fm->pfd.fd, modembuf, avail)) > 0) {
+			avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
+			if (fm->state != FAXMODEM_STATE_CONNECTED
+			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
+				int len;
+				while (avail > 0 && (len = read(fm->pfd.fd, modembuf, avail)) > 0) {
 #ifdef TRACE
-				/* Log AT commands for debugging */
-				if (cfg_vblevel > 2 && fm->debug_dte >= 0) {
-					char *p;
-					int togo = len;
-					ssize_t n;
+					/* Log AT commands for debugging */
+					if (cfg_vblevel > 2) {
+						char *p;
+						int togo = len;
+						ssize_t n;
 
-					for (p = modembuf; togo >= 2; p++, togo--) {
-						if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
-							char *q;
+						for (p = modembuf; togo >= 2; p++, togo--) {
+							if ((p[0] == 'a' || p[0] == 'A') && (p[1] == 't' || p[1] == 'T')) {
+								char *q;
 
-							for (q = p + 2, togo -= 2; togo && *q != '\r' && *q != '\n'; q++, togo--);
-							cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, q - p, p);
-							n = snprintf(buf, sizeof(buf), "<- %.*s\n", q - p, p);
-							write(fm->debug_dte, buf, n);
-							p = q;
+								for (q = p + 2, togo -= 2; togo && *q != '\r' && *q != '\n'; q++, togo--);
+								cw_log(CW_LOG_DEBUG, "%s <- %.*s\n", fm->devlink, q - p, p);
+								n = snprintf(buf, sizeof(buf), "<- %.*s\n", q - p, p);
+								if (fm->debug_dte >= 0)
+									write(fm->debug_dte, buf, n);
+								p = q;
+							}
+							p++, togo--;
 						}
-						p++, togo--;
 					}
-				}
 #endif
-				t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
-				avail -= len;
+					t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
+					avail -= len;
+				}
 			}
+
+			/* If we took a time out we only process once */
+			ret = 0;
 		}
 	}
 
