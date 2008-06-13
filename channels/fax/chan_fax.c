@@ -101,7 +101,6 @@ typedef enum {
 	FAXMODEM_STATE_RINGING,
 	FAXMODEM_STATE_CALLING,
 	FAXMODEM_STATE_CONNECTED,
-	FAXMODEM_STATE_HANGUP,
 } faxmodem_state_t;
 
 static const char *faxmodem_state[] =
@@ -113,7 +112,6 @@ static const char *faxmodem_state[] =
 	[FAXMODEM_STATE_RINGING] =	"RINGING",
 	[FAXMODEM_STATE_CALLING] =	"CALLING",
 	[FAXMODEM_STATE_CONNECTED] =	"CONNECTED",
-	[FAXMODEM_STATE_HANGUP] =	"HANGUP",
 };
 
 
