@@ -96,10 +96,18 @@ struct faxmodem {
 	char devlink[128];
 	faxmodem_state_t state;
 	faxmodem_control_handler_t control_handler;
-	void *user_data;
 	int psock;
+#ifdef DO_TRACE
+	int debug[2];
+#endif
 	pthread_t thread;
 	pthread_t media_thread;
+	cw_cond_t data_cond;
+	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
+        int hangup_msg_sent; 
+	struct cw_frame frame;						/* Frame for Writing */
+	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
+	int flen;
 };
 
 
@@ -120,21 +128,7 @@ static struct faxmodem_state {
 
 
 struct private_object {
-	struct cw_frame frame;						/* Frame for Writing */
-	short fdata[(SAMPLES * 2) + CW_FRIENDLY_OFFSET];
-	int flen;
-	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
 	struct faxmodem *fm;
-#ifdef DO_TRACE
-	int debug[2];
-#endif
-	/* If this is true it means we already sent a hangup-statusmessage
-	 * to our user, so don't bother with it when hanging up
-	 */
-        int hangup_msg_sent; 
-
-	/* Condition variable for signalling new data */
-	cw_cond_t data_cond;
 };
 
 static struct faxmodem *FAXMODEM_POOL;
@@ -364,14 +358,14 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 			chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 
 			tech_pvt->fm = fm;
-			tech_pvt->owner = chan;
-			cw_cond_init(&tech_pvt->data_cond, 0);
 
-			cw_fr_init_ex(&tech_pvt->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-			tech_pvt->frame.offset = CW_FRIENDLY_OFFSET;
-			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
+			fm->owner = chan;
+			cw_cond_init(&fm->data_cond, 0);
 
-			fm->user_data = chan;
+			cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
+			fm->frame.offset = CW_FRIENDLY_OFFSET;
+			fm->frame.data = fm->fdata + CW_FRIENDLY_OFFSET;
+
 			chan->fds[0] = fd[0];
 			fm->psock = fd[1];
 		}
@@ -520,7 +514,7 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
 		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_ANSWERED);
 		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-		cw_setstate(tech_pvt->owner, CW_STATE_UP);
+		cw_setstate(tech_pvt->fm->owner, CW_STATE_UP);
 		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
 			return 0;
 	}
@@ -542,10 +536,10 @@ static int tech_hangup(struct cw_channel *self)
 
 	if (tech_pvt) {
 #ifdef DO_TRACE
-		close(tech_pvt->debug[0]);
-		close(tech_pvt->debug[1]);
+		close(tech_pvt->fm->debug[0]);
+		close(tech_pvt->fm->debug[1]);
 #endif
-		if (!tech_pvt->hangup_msg_sent)
+		if (!tech_pvt->fm->hangup_msg_sent)
 			cw_carefulwrite(tech_pvt->fm->master, "NO CARRIER\r\n", sizeof("NO CARRIER\r\n") - 1, 100);
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
@@ -554,8 +548,6 @@ static int tech_hangup(struct cw_channel *self)
 		close(self->fds[0]);
 		close(tech_pvt->fm->psock);
 		tech_pvt->fm->psock = -1;
-
-		tech_pvt->fm->user_data = NULL;
 
 		free(tech_pvt);
 	}
@@ -585,30 +577,30 @@ static void *faxmodem_media_thread(void *obj)
 	char modembuf[DSP_BUFFER_MAXSIZE];
 	struct timespec abstime;
 	int gotlen = 0;
-	short *frame_data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
+	short *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
 
 	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
-		tech_pvt->flen = 0;
+		fm->flen = 0;
 		do {
 			gotlen = t31_tx((t31_state_t*)&fm->t31_state, 
-					frame_data + tech_pvt->flen, SAMPLES - tech_pvt->flen);
-			tech_pvt->flen += gotlen;
-		} while (tech_pvt->flen < SAMPLES && gotlen > 0);
+					frame_data + fm->flen, SAMPLES - fm->flen);
+			fm->flen += gotlen;
+		} while (fm->flen < SAMPLES && gotlen > 0);
 			
-		if (!tech_pvt->flen) {
-			tech_pvt->flen = SAMPLES;
+		if (!fm->flen) {
+			fm->flen = SAMPLES;
 			memset(frame_data, 0, SAMPLES * 2);
 		}
-		tech_pvt->frame.samples = tech_pvt->flen;
-		tech_pvt->frame.datalen = tech_pvt->frame.samples * 2;
+		fm->frame.samples = fm->flen;
+		fm->frame.datalen = fm->frame.samples * 2;
 		write(tech_pvt->fm->psock, IO_READ, 1);
 
 #ifdef DO_TRACE
-		write(tech_pvt->debug[1], frame_data, tech_pvt->flen * 2);
+		write(fm->debug[1], frame_data, fm->flen * 2);
 #endif
 
 		reference = cw_tvadd(reference, cw_tv(0, MS * 1000));
@@ -617,8 +609,7 @@ static void *faxmodem_media_thread(void *obj)
 			abstime.tv_nsec = 0;
 
 			cw_mutex_lock(&data_lock);
-			cw_cond_timedwait(&tech_pvt->data_cond, &data_lock,
-					    &abstime);
+			cw_cond_timedwait(&fm->data_cond, &data_lock, &abstime);
 			cw_mutex_unlock(&data_lock);
 		}
 		
@@ -706,11 +697,11 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	res = read(self->fds[0], &cmd, sizeof(cmd));
 
 	if (res < 0 || cmd == IO_HUP[0]) {
-		cw_softhangup(tech_pvt->owner, CW_SOFTHANGUP_EXPLICIT);
+		cw_softhangup(tech_pvt->fm->owner, CW_SOFTHANGUP_EXPLICIT);
 		return NULL;
 	}
 
-	return &tech_pvt->frame;
+	return &tech_pvt->fm->frame;
 }
 
 /*--- tech_write: Write an audio frame to my channel
@@ -733,7 +724,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	tech_pvt = self->tech_pvt;
 
 #ifdef DO_TRACE
-	write(tech_pvt->debug[0], frame->data, frame->datalen);
+	write(tech_pvt->fm->debug[0], frame->data, frame->datalen);
 #endif
 
 	res = t31_rx((t31_state_t*)&tech_pvt->fm->t31_state,
@@ -741,7 +732,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	
 	/* Signal new data to media thread */
 	cw_mutex_lock(&data_lock);
-	cw_cond_signal(&tech_pvt->data_cond);
+	cw_cond_signal(&tech_pvt->fm->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
 	//write(tech_pvt->fm->psock, IO_PROD, 1);
@@ -792,7 +783,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
                 cw_verbose(VBPREFIX  "Hanging up because of indication %d "
 			     "on %s\n", condition, self->name);
 	    }	    
-	    tech_pvt->hangup_msg_sent = 1;
+	    tech_pvt->fm->hangup_msg_sent = 1;
 	    cw_softhangup(self, CW_SOFTHANGUP_EXPLICIT);
 	}
 	return res;
@@ -853,8 +844,8 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
 #ifdef DOTRACE
-				tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
-				tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
+				fm->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
+				fm->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
 				if (cfg_vblevel > 1)
 					cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
@@ -877,8 +868,8 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 			fm->state = FAXMODEM_STATE_ANSWERED;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
 			if (fm->psock > -1) {
-				if (fm->user_data) {
-					struct cw_channel *chan = fm->user_data;
+				if (fm->owner) {
+					struct cw_channel *chan = fm->owner;
 					cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 					write(fm->psock, IO_HUP, 1);
 				}
