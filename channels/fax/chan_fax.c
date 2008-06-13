@@ -248,7 +248,7 @@ static void spandsp(int level, const char *msg)
 {
 	if (level == SPAN_LOG_ERROR)
 		cw_log(CW_LOG_ERROR, "%s", msg);
-	else if (level == CW_LOG_WARNING)
+	else if (level == SPAN_LOG_WARNING)
 		cw_log(CW_LOG_WARNING, "%s", msg);
 	else
 		cw_log(CW_LOG_DEBUG, "%s", msg);
