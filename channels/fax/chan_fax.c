@@ -40,7 +40,6 @@
 #include "callweaver/atexit.h"
 #include "callweaver/module.h"
 #include "callweaver/pbx.h"
-#include "callweaver/devicestate.h"
 #include "callweaver/phone_no_utils.h"
 
 #undef __USE_XOPEN2K
@@ -210,7 +209,6 @@ static inline void cw_clock_add_ms(struct timespec *ts, int ms)
 
 /********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
-static int tech_devicestate(void *data);
 static int tech_send_digit(struct cw_channel *self, char digit);
 static int tech_call(struct cw_channel *self, char *dest, int timeout);
 static int tech_hangup(struct cw_channel *self);
@@ -237,7 +235,6 @@ static const struct cw_channel_tech technology = {
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = tech_requester,
-	.devicestate = tech_devicestate,
 	.send_digit = tech_send_digit,
 	.call = tech_call,
 	.hangup = tech_hangup,
@@ -461,24 +458,6 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 
 	return chan;
 }
-
-/*--- tech_devicestate: Part of the device state notification system ---*/
-static int tech_devicestate(void *data)
-{
-	/* return one of.........
-	 * CW_DEVICE_UNKNOWN
-	 * CW_DEVICE_NOT_INUSE
-	 * CW_DEVICE_INUSE
-	 * CW_DEVICE_BUSY
-	 * CW_DEVICE_INVALID
-	 * CW_DEVICE_UNAVAILABLE
-	 */
-
-	int res = CW_DEVICE_UNKNOWN;
-
-	return res;
-}
-
 
 
 /*--- tech_senddigit: Send a DTMF character */
