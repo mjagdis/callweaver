@@ -111,7 +111,6 @@ struct faxmodem {
 	struct pollfd pfd;
 	faxmodem_state_t state;
 	t31_state_t t31_state;
-	struct timespec tick;
 	struct cw_frame frame;
 	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
 	struct cw_channel *owner;
@@ -122,7 +121,7 @@ struct faxmodem {
 	pthread_t clock_thread;
 	char devlink[128];
 #ifdef TRACE
-	struct timespec start;
+	struct timeval start;
 	int debug_fax[2];
 	int debug_dte;
 #endif
@@ -250,48 +249,51 @@ static const struct cw_channel_tech technology = {
 static void *faxmodem_clock_thread(void *obj)
 {
 	struct faxmodem *fm = obj;
+	struct timespec ts;
 #if !defined(__USE_XOPEN2K)
 	const clockid_t clk = CLOCK_REALTIME;
-	cw_cond_t cond;
+	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+	pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #else
-	const clockid_t clk = CLOCK_REALTIME; /* This should be global_clock_monotonic but we use it to set frame delivery and that, currently, can't be monotonic because various things use cw_tvnow() to set the time base */
+	const clockid_t clk = global_clock_monotonic;
 #endif
 
 #if !defined(__USE_XOPEN2K)
-	cw_cond_init(&cond, NULL);
 	pthread_cleanup_push((void (*)(void *))pthread_cond_destroy, &cond);
-	pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
-	cw_mutex_lock(&fm->lock);
+	pthread_cleanup_push((void (*)(void *))pthread_mutex_destroy, &lock);
+	pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &lock);
+	pthread_mutex_lock(&lock);
 #endif
 
 	/* N.B. This lock doesn't need a clean up because we haven't enabled
 	 * cancellations yet.
 	 */
 	cw_mutex_lock(&fm->lock);
-	cw_clock_gettime(clk, &fm->tick);
+	gettimeofday(&fm->frame.delivery, NULL);
+	fm->start = fm->frame.delivery;
 	fm->frame.ts = fm->frame.seq_no = 0;
 	cw_mutex_unlock(&fm->lock);
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	cw_clock_gettime(clk, &ts);
 
 	for (;;) {
 		int blah;
 
 		write(fm->owner->alertpipe[1], &blah, sizeof(blah));
 
-		cw_clock_add_ms(&fm->tick, SAMPLES / 8);
+		cw_clock_add_ms(&ts, SAMPLES / 8);
 
 #if !defined(__USE_XOPEN2K)
-		cw_cond_timedwait(&cond, &fm->lock, &fm->tick);
+		cw_cond_timedwait(&cond, &lock, &ts);
 #else
-		pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
-		cw_mutex_lock(&fm->lock);
-		while (clock_nanosleep(clk, TIMER_ABSTIME, &fm->tick, NULL) && errno == EINTR);
-		pthread_cleanup_pop(1);
+		while (clock_nanosleep(clk, TIMER_ABSTIME, &ts, NULL) && errno == EINTR);
 #endif
 	}
 
 #if !defined(__USE_XOPEN2K)
+	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 #endif
@@ -378,7 +380,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 			snprintf(buf, sizeof(buf), "%sfax%d-tx.sln", TRACE_PREFIX, fm->unit);
 			fm->debug_fax[1] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
 		}
-		cw_clock_gettime(CLOCK_REALTIME, &fm->start);
 #endif
 	}
 	
@@ -584,14 +585,13 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 			 */
 			fm->frame.samples = SAMPLES;
 			fm->frame.len = SAMPLES / 8;
+			cw_tvadd(fm->frame.delivery, cw_samp2tv(SAMPLES, 8000));
 			fm->frame.ts += SAMPLES;
 			fm->frame.seq_no++;
-			fm->frame.delivery.tv_sec = fm->tick.tv_sec;
-			fm->frame.delivery.tv_usec = fm->tick.tv_nsec / 1000;
 			fm->frame.datalen = SAMPLES * sizeof(int16_t);
 #ifdef TRACE
 			if (cfg_vblevel > 3) {
-				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_clock_diff_ms(&fm->tick, &fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(fm->frame.delivery, fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
 				write(fm->debug_dte, buf, n);
 				write(fm->debug_fax[1], frame_data, fm->frame.datalen);
 			}
@@ -619,7 +619,6 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 {
 #ifdef TRACE
 	char msg[256];
-	struct timespec now;
 #endif
 	struct faxmodem *fm = self->tech_pvt;
 
@@ -632,8 +631,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 					uint16_t *data = frame->data;
 					int n;
 
-					cw_clock_gettime(CLOCK_REALTIME, &now);
-					n = cw_clock_diff_ms(&now, &fm->start);
+					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
 					write(fm->debug_fax[0], frame->data, frame->datalen);
 					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", n, frame->samples, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 					write(fm->debug_dte, msg, n);
@@ -654,8 +652,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 					int n;
 					int i = samples;
 
-					cw_clock_gettime(CLOCK_REALTIME, &now);
-					n = cw_clock_diff_ms(&now, &fm->start);
+					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
 					for (; i >= SAMPLES; i -= SAMPLES)
 						write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
 					if (i)
