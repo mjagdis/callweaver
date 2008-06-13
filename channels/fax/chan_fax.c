@@ -199,7 +199,7 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 	ssize_t n;
 
 	if (cw_carefulwrite(fm->master, (char *)buf, len, 100) < 0)
-		cw_log(CW_LOG_ERROR, "Failed to write all of %d bytes to %s\n", len, fm->devlink);
+		cw_log(CW_LOG_ERROR, "%s: failed to write all of %d bytes\n", fm->devlink, len);
 
 	return len;
 }
@@ -209,10 +209,15 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 {
 	static int NEXT_ID = 0;
 	char buf[256];
+#ifndef HAVE_POSIX_OPENPT
+	int slave;
+#endif
+
+	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
 
 #ifdef HAVE_POSIX_OPENPT
 	if ((fm->master = posix_openpt(O_RDWR | O_NOCTTY)) < 0) {
-		cw_log(CW_LOG_ERROR, "Failed to get a pty: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
 		return -1;
 	}
 
@@ -224,12 +229,10 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 	// grantpt(fm->master);
 	unlockpt(fm->master);
 #else
-	int slave = -1;
-
 	fm->master = -1;
 
 	if (openpty(&fm->master, &slave, NULL, NULL, NULL)) {
-		cw_log(CW_LOG_ERROR, "Failed to get a pty: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "%s: failed to get a pty: %s\n", fm->devlink, strerror(errno));
 		return -1;
 	}
 
@@ -242,35 +245,33 @@ int faxmodem_init(struct faxmodem *fm, const char *device_prefix)
 	ptsname_r(fm->master, buf, sizeof(buf));
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "Opened pty, slave device: %s\n", buf);
-
-	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
+		cw_log(CW_LOG_DEBUG, "%s: opened pty, slave device: %s\n", fm->devlink, buf);
 
 	if (!unlink(fm->devlink) && cfg_vblevel > 1)
-		cw_log(CW_LOG_WARNING, "Removed old %s\n", fm->devlink);
+		cw_log(CW_LOG_WARNING, "%s: removed old symbolic link\n", fm->devlink);
 
 	if (symlink(buf, fm->devlink)) {
-		cw_log(CW_LOG_ERROR, "Fatal error: failed to create %s symbolic link\n", fm->devlink);
+		cw_log(CW_LOG_ERROR, "%s: failed to create symbolic link\n", fm->devlink);
 		return -1;
 	}
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "Created %s symbolic link\n", fm->devlink);
+		cw_log(CW_LOG_DEBUG, "%s: created symbolic link\n", fm->devlink);
 
 	if (fcntl(fm->master, F_SETFL, fcntl(fm->master, F_GETFL, 0) | O_NONBLOCK)) {
-		cw_log(CW_LOG_ERROR, "Cannot set up non-blocking read on %s\n", ttyname(fm->master));
+		cw_log(CW_LOG_ERROR, "%s: cannot set up non-blocking read on %s\n", fm->devlink, ttyname(fm->master));
 		return -1;
 	}
 	
 	if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler, fm, 0, 0) < 0) {
-		cw_log(CW_LOG_ERROR, "Cannot initialize the T.31 modem\n");
+		cw_log(CW_LOG_ERROR, "%s: cannot initialize the T.31 modem\n", fm->devlink);
 		return -1;
 	}
 
 	fm->state = FAXMODEM_STATE_CLOSED;
 	
 	if (cfg_vblevel > 0)
-		cw_verbose(VERBOSE_PREFIX_1 "Fax Modem [%s] Ready\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_1 "%s: fax modem ready\n", fm->devlink);
 	return 0;
 }
 
@@ -282,11 +283,11 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 	int fd[2];
 
 	if (pipe(fd)) {
-		cw_log(CW_LOG_ERROR, "Can't allocate a pipe: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "%s: can't allocate a pipe: %s\n", fm->devlink, strerror(errno));
 	} else if (!(chan = cw_channel_alloc(1))) {
 		close(fd[0]);
 		close(fd[1]);
-		cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
+		cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
 	} else {
 		chan->type = type;
 		chan->tech = &technology;
@@ -342,7 +343,7 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 
 			for (x = 0; x < cfg_modems; x++) {
 				unit = (rr_next + x) % cfg_modems;
-				cw_verbose(VERBOSE_PREFIX_3 "acquire considering: %d state: %d\n", unit, FAXMODEM_POOL[unit].state);
+				cw_log(CW_LOG_DEBUG, "acquire considering: %d state: %d\n", unit, FAXMODEM_POOL[unit].state);
 				if (FAXMODEM_POOL[unit].state == FAXMODEM_STATE_ONHOOK) {
 					fm = &FAXMODEM_POOL[unit];
 					fm->state = FAXMODEM_STATE_ACQUIRED;
@@ -357,7 +358,7 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 
 	if (fm) {
 		if (!(chan = channel_new(fm))) {
-			cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
+			cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
 			fm->state = FAXMODEM_STATE_ONHOOK;
 		}
 	} else {
@@ -518,7 +519,7 @@ static void *faxmodem_media_thread(void *obj)
 	short *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "MEDIA THREAD ON %s\n", fm->devlink);
+		cw_log(CW_LOG_DEBUG, "%s: media thread started\n", fm->devlink);
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
@@ -560,7 +561,7 @@ static void *faxmodem_media_thread(void *obj)
 			write(fm->master, xon, 1);
 			flowoff = 0;
 			if (cfg_vblevel > 1) {
-				cw_verbose(VERBOSE_PREFIX_3 "%s XON, %d bytes available\n", fm->devlink, avail);
+				cw_log(CW_LOG_DEBUG, "%s: XON, %d bytes available\n", fm->devlink, avail);
 			}
 		}
 		if (cw_test_flag(fm, TFLAG_EVENT) && !flowoff) {
@@ -582,7 +583,7 @@ static void *faxmodem_media_thread(void *obj)
 				write(fm->master, xoff, 1);
 				flowoff = 1;
 				if (cfg_vblevel > 1) {
-					cw_verbose(VERBOSE_PREFIX_3 "%s XOFF\n", fm->devlink);
+					cw_log(CW_LOG_DEBUG, "%s: XOFF\n", fm->devlink);
 				}
 			}
 		}
@@ -592,7 +593,7 @@ static void *faxmodem_media_thread(void *obj)
 	}
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "MEDIA THREAD OFF %s\n", fm->devlink);
+		cw_log(CW_LOG_DEBUG, "%s: media thread stopped\n", fm->devlink);
 
 	return NULL;
 }
@@ -607,7 +608,7 @@ static int tech_answer(struct cw_channel *self)
 	struct faxmodem *fm = self->tech_pvt;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_2 "Connected %s\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_2 "%s: connected\n", fm->devlink);
 
 	fm->state = FAXMODEM_STATE_CONNECTED;
 	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
@@ -690,7 +691,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	int res = 0;
 
         if (cfg_vblevel > 1)
-                cw_verbose(VERBOSE_PREFIX_3 "Indication %d on %s\n", condition, self->name);
+                cw_log(CW_LOG_DEBUG, "%s: indication %d\n", fm->devlink, condition);
 
 	switch (condition) {
 		case -1:
@@ -706,7 +707,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 			break;
 		default:
 			if (cfg_vblevel > 1)
-				cw_verbose(VERBOSE_PREFIX_3 "UNKNOWN Indication %d on %s\n", condition, self->name);
+				cw_log(CW_LOG_WARNING, "%s: unknown indication %d\n", fm->devlink, condition);
 	}
 
 	return res;
@@ -743,7 +744,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 	int res = 0;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "Control Handler %s [op = %d]\n", fm->devlink, op);
+		cw_log(CW_LOG_DEBUG, "%s: control handler [op = %d]\n", fm->devlink, op);
 
 	cw_mutex_lock(&control_lock);
 
@@ -753,12 +754,12 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			int cause;
 		    
 			if (fm->state != FAXMODEM_STATE_ONHOOK) {
-				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state[fm->state]);
+				cw_log(CW_LOG_ERROR, "%s: invalid state %s!\n", fm->devlink, faxmodem_state[fm->state]);
 				res = -1;
 				break;
 			}
 			if (!(chan = channel_new(fm))) {
-				cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
+				cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
 				res = -1;
 				break;
 			} else {
@@ -771,23 +772,23 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				fm->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
 				if (cfg_vblevel > 1)
-					cw_verbose(VERBOSE_PREFIX_3 "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
+					cw_verbose(VERBOSE_PREFIX_2 "%s: calling %s@%s\n", fm->devlink, chan->exten, chan->context);
 
 				fm->state = FAXMODEM_STATE_CALLING;
 				cw_setstate(chan, CW_STATE_RINGING);
 				if (cw_pbx_start(chan)) {
-					cw_log(CW_LOG_ERROR, "Unable to start PBX on %s\n", chan->name);
+					cw_log(CW_LOG_ERROR, "%s: unable to start PBX\n", fm->devlink);
 					cw_hangup(chan);
 				}
 			}
 		} else if (op == AT_MODEM_CONTROL_ANSWER) { 
 			if (fm->state != FAXMODEM_STATE_RINGING) {
-				cw_log(CW_LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state[fm->state]);
+				cw_log(CW_LOG_ERROR, "%s: invalid state %s!\n", fm->devlink, faxmodem_state[fm->state]);
 				res = -1;
 				break;
 			}
 			if (cfg_vblevel > 1)
-				cw_verbose(VERBOSE_PREFIX_3 "Answered %s", fm->devlink);
+				cw_verbose(VERBOSE_PREFIX_2 "%s: answered", fm->devlink);
 			fm->state = FAXMODEM_STATE_ANSWERED;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
 			if (fm->psock > -1) {
@@ -821,7 +822,7 @@ static void faxmodem_thread_cleanup(void *obj)
 		unlink(fm->devlink);
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VERBOSE_PREFIX_3 "Thread ended for %s\n", fm->devlink);
+		cw_log(CW_LOG_DEBUG, "%s: thread ended\n", fm->devlink);
 }
 
 static void *faxmodem_thread(void *obj)
@@ -876,14 +877,14 @@ static void *faxmodem_thread(void *obj)
 				}
 				if (!cw_strlen_zero(tmp) && cfg_vblevel > 0) {
 					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					cw_verbose(VERBOSE_PREFIX_3 "Command on %s [%s]\n", fm->devlink, tmp);
+					cw_log(CW_LOG_DEBUG, "%s: command %s\n", fm->devlink, tmp);
 					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				}
 			}
 		}
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-		cw_log(CW_LOG_WARNING, "Poll on master for %s gave res %d, revents 0x%04x\n", fm->devlink, res, pfd.revents);
+		cw_log(CW_LOG_WARNING, "%s: poll on master gave res %d, revents 0x%04x\n", fm->devlink, res, pfd.revents);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	}
 
@@ -901,7 +902,7 @@ static void activate_fax_modems(void)
 	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
 		for (x = 0; x < cfg_modems; x++) {
 			if (cfg_vblevel > 1)
-				cw_verbose(VERBOSE_PREFIX_3 "Starting Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem SLOT %d\n", x);
 			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
@@ -921,7 +922,7 @@ static void deactivate_fax_modems(void)
 	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 1)
-				cw_verbose(VERBOSE_PREFIX_3 "Stopping Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_1 "Stopping Fax Modem SLOT %d\n", x);
 			pthread_cancel(FAXMODEM_POOL[x].thread);
 		}
 	}
@@ -930,7 +931,7 @@ static void deactivate_fax_modems(void)
 	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 2)
-				cw_verbose(VERBOSE_PREFIX_3 "Stopped Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_1 "Stopped Fax Modem SLOT %d\n", x);
 			pthread_join(FAXMODEM_POOL[x].thread, NULL);
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 		}
