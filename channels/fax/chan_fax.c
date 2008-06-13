@@ -607,6 +607,8 @@ static int tech_hangup(struct cw_channel *self)
 		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
 
 	fm->owner = NULL;
+
+	pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 	fm->state = FAXMODEM_STATE_ONHOOK;
 
 	cw_mutex_unlock(&fm->lock);
@@ -631,6 +633,7 @@ static int tech_answer(struct cw_channel *self)
 
 	cw_mutex_lock(&fm->lock);
 
+	pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
 	fm->state = FAXMODEM_STATE_CONNECTED;
 	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
 	fm->frame.ts = fm->frame.seq_no = 0;
@@ -754,6 +757,10 @@ static int tech_indicate(struct cw_channel *self, int condition)
 		case CW_CONTROL_CONGESTION:
 			cw_mutex_lock(&fm->lock);
 			t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
+			/* N.B. Just because we are told to indicate busy is no reason
+			 * to assume we were never connected.
+			 */
+			pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 			fm->state = FAXMODEM_STATE_ONHOOK;
 			cw_cond_broadcast(&fm->event);
 			cw_mutex_unlock(&fm->lock);
@@ -851,6 +858,8 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 
 				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
 				fm->frame.ts = fm->frame.seq_no = 0;
+
+				pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
 				fm->state = FAXMODEM_STATE_CONNECTED;
 				cw_setstate(fm->owner, CW_STATE_UP);
 
@@ -863,6 +872,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			if (cfg_vblevel > 0)
 				cw_log(CW_LOG_DEBUG, "%s: hang up\n", fm->devlink);
 
+			pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 			fm->state = FAXMODEM_STATE_ONHOOK;
 			if (fm->owner)
 				cw_softhangup(fm->owner, CW_SOFTHANGUP_EXPLICIT);
