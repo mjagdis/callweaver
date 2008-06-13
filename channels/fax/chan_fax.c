@@ -509,9 +509,6 @@ static void *faxmodem_thread(void *obj)
 	if (cfg_vblevel > 1)
 		cw_log(CW_LOG_DEBUG, "%s: opened pty, slave device: %s\n", fm->devlink, buf);
 
-	if (!unlink(fm->devlink) && cfg_vblevel > 1)
-		cw_log(CW_LOG_WARNING, "%s: removed old symbolic link\n", fm->devlink);
-
 	if (fcntl(fm->pfd.fd, F_SETFL, fcntl(fm->pfd.fd, F_GETFL, 0) | O_NONBLOCK)) {
 		close(fm->pfd.fd);
 		cw_log(CW_LOG_ERROR, "%s: cannot set up non-blocking read on %s\n", fm->devlink, ttyname(fm->pfd.fd));
@@ -1148,6 +1145,8 @@ static void activate_fax_modems(void)
 	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
 		for (x = 0; x < cfg_modems; x++) {
 			snprintf(FAXMODEM_POOL[x].devlink, sizeof(FAXMODEM_POOL[x].devlink), "%s%d", cfg_dev_prefix, NEXT_ID++);
+			if (!unlink(FAXMODEM_POOL[x].devlink) && cfg_vblevel > 1)
+				cw_log(CW_LOG_WARNING, "%s: removed old symbolic link\n", FAXMODEM_POOL[x].devlink);
 
 			if (cfg_vblevel > 1)
 				cw_verbose(VERBOSE_PREFIX_1 "Starting Fax Modem %s\n", FAXMODEM_POOL[x].devlink);
@@ -1156,6 +1155,7 @@ static void activate_fax_modems(void)
 			FAXMODEM_POOL[x].state = FAXMODEM_STATE_CLOSED;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			FAXMODEM_POOL[x].clock_thread = CW_PTHREADT_NULL;
+
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
 	}
