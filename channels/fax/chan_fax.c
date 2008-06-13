@@ -117,8 +117,6 @@ struct private_object {
 };
 
 
-static int usecnt = 0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 CW_MUTEX_DEFINE_STATIC(control_lock);
 CW_MUTEX_DEFINE_STATIC(data_lock);
 
@@ -201,10 +199,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 			pipe(tech_pvt->pipe);
 			chan->fds[0] = tech_pvt->pipe[0];
 			fm->psock = tech_pvt->pipe[1];
-
-			cw_mutex_lock(&usecnt_lock);
-			usecnt++;
-			cw_mutex_unlock(&usecnt_lock);
 		}
 	}
 	
@@ -216,11 +210,6 @@ void channel_destroy(struct cw_channel *chan)
 {
 	free(chan->tech_pvt);
 	chan->tech_pvt = NULL;
-
-	cw_mutex_lock(&usecnt_lock);
-	usecnt++;
-	cw_mutex_unlock(&usecnt_lock);
-
 	cw_hangup(chan);
 }
 
@@ -386,13 +375,6 @@ static int tech_hangup(struct cw_channel *self)
 			free(tech_pvt->cid_num);
 
 		free(tech_pvt);
-
-		cw_mutex_lock(&usecnt_lock);
-		usecnt--;
-		if (usecnt < 0) {
-			usecnt = 0;
-		}
-		cw_mutex_unlock(&usecnt_lock);
 	}
 
 	return 0;
