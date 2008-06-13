@@ -656,9 +656,6 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 
 	cw_mutex_lock(&control_lock);
 
-	if (fm->state == FAXMODEM_STATE_INIT)
-		fm->state = FAXMODEM_STATE_ONHOOK;
-
 	do {
 		if (op == AT_MODEM_CONTROL_CALL) {
 			struct cw_channel *chan = NULL;
@@ -764,9 +761,13 @@ static void *faxmodem_thread(void *obj)
 				break;
 
 			if (pfd.revents & POLLHUP) {
+				fm->state = FAXMODEM_STATE_INIT;
 				sleep(1);
 				continue;
 			}
+
+			if (fm->state == FAXMODEM_STATE_INIT)
+				fm->state = FAXMODEM_STATE_ONHOOK;
 
 			pthread_testcancel();
 
