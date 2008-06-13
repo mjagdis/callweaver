@@ -637,7 +637,7 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	if (res < 0 || cmd == IO_HUP[0])
 		return NULL;
 
-	if (cmd == IO_CNG)
+	if (cmd == IO_CNG[0])
 		return &frame_cng;
 
 	return &fm->frame;
