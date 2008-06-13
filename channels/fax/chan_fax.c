@@ -60,8 +60,6 @@ static const char tdesc[] = "Fax Modem Interface";
 #define DEFAULT_CONTEXT		"chan_fax"
 #define DEFAULT_VBLEVEL		0
 
-#define VBPREFIX "CHAN FAX: "
-
 
 static int cfg_timeout;
 static int cfg_modems;
@@ -338,7 +336,7 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 
 			for (x = 0; x < cfg_modems; x++) {
 				unit = (rr_next + x) % cfg_modems;
-				cw_verbose(VBPREFIX  "acquire considering: %d state: %d\n", unit, FAXMODEM_POOL[unit].state);
+				cw_verbose(VERBOSE_PREFIX_3 "acquire considering: %d state: %d\n", unit, FAXMODEM_POOL[unit].state);
 				if (FAXMODEM_POOL[unit].state == FAXMODEM_STATE_ONHOOK) {
 					fm = &FAXMODEM_POOL[unit];
 					fm->state = FAXMODEM_STATE_ACQUIRED;
@@ -515,7 +513,7 @@ static void *faxmodem_media_thread(void *obj)
 	short *frame_data = fm->fdata + CW_FRIENDLY_OFFSET;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_3 "MEDIA THREAD ON %s\n", fm->devlink);
 
 	gettimeofday(&reference, NULL);	
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
@@ -557,7 +555,7 @@ static void *faxmodem_media_thread(void *obj)
 			write(fm->master, xon, 1);
 			flowoff = 0;
 			if (cfg_vblevel > 1) {
-				cw_verbose(VBPREFIX "%s XON, %d bytes available\n", fm->devlink, avail);
+				cw_verbose(VERBOSE_PREFIX_3 "%s XON, %d bytes available\n", fm->devlink, avail);
 			}
 		}
 		if (cw_test_flag(fm, TFLAG_EVENT) && !flowoff) {
@@ -579,7 +577,7 @@ static void *faxmodem_media_thread(void *obj)
 				write(fm->master, xoff, 1);
 				flowoff = 1;
 				if (cfg_vblevel > 1) {
-					cw_verbose(VBPREFIX "%s XOFF\n", fm->devlink);
+					cw_verbose(VERBOSE_PREFIX_3 "%s XOFF\n", fm->devlink);
 				}
 			}
 		}
@@ -589,7 +587,7 @@ static void *faxmodem_media_thread(void *obj)
 	}
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "MEDIA THREAD OFF %s\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_3 "MEDIA THREAD OFF %s\n", fm->devlink);
 
 	return NULL;
 }
@@ -604,7 +602,7 @@ static int tech_answer(struct cw_channel *self)
 	struct faxmodem *fm = self->tech_pvt;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "Connected %s\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_2 "Connected %s\n", fm->devlink);
 
 	fm->state = FAXMODEM_STATE_CONNECTED;
 	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
@@ -684,10 +682,8 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	int res = 0;
 	int hangup = 0;
 
-        if (cfg_vblevel > 1) {
-                cw_verbose(VBPREFIX  "Indication %d on %s\n", condition,
-			     self->name);
-        }
+        if (cfg_vblevel > 1)
+                cw_verbose(VERBOSE_PREFIX_3 "Indication %d on %s\n", condition, self->name);
 
 	switch(condition) {
 	case CW_CONTROL_RINGING:
@@ -702,14 +698,12 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	    break;
 	default:
 	    if (cfg_vblevel > 1)
-                cw_verbose(VBPREFIX  "UNKNOWN Indication %d on %s\n", 
-			     condition,
-                             self->name);
+                cw_verbose(VERBOSE_PREFIX_3 "UNKNOWN Indication %d on %s\n", condition, self->name);
 	}
 
 	if (hangup) {
 	    if (cfg_vblevel > 1) {
-                cw_verbose(VBPREFIX  "Hanging up because of indication %d "
+                cw_verbose(VERBOSE_PREFIX_3 "Hanging up because of indication %d "
 			     "on %s\n", condition, self->name);
 	    }	    
 	    fm->hangup_msg_sent = 1;
@@ -749,7 +743,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 	int res = 0;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "Control Handler %s [op = %d]\n", fm->devlink, op);
+		cw_verbose(VERBOSE_PREFIX_3 "Control Handler %s [op = %d]\n", fm->devlink, op);
 
 	cw_mutex_lock(&control_lock);
 
@@ -777,7 +771,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				fm->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
 				if (cfg_vblevel > 1)
-					cw_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
+					cw_verbose(VERBOSE_PREFIX_3 "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
 
 				fm->state = FAXMODEM_STATE_CALLING;
 				cw_setstate(chan, CW_STATE_RINGING);
@@ -793,7 +787,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				break;
 			}
 			if (cfg_vblevel > 1)
-				cw_verbose(VBPREFIX  "Answered %s", fm->devlink);
+				cw_verbose(VERBOSE_PREFIX_3 "Answered %s", fm->devlink);
 			fm->state = FAXMODEM_STATE_ANSWERED;
 		} else if (op == AT_MODEM_CONTROL_HANGUP) {
 			if (fm->psock > -1) {
@@ -827,7 +821,7 @@ static void faxmodem_thread_cleanup(void *obj)
 		unlink(fm->devlink);
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "Thread ended for %s\n", fm->devlink);
+		cw_verbose(VERBOSE_PREFIX_3 "Thread ended for %s\n", fm->devlink);
 }
 
 static void *faxmodem_thread(void *obj)
@@ -882,7 +876,7 @@ static void *faxmodem_thread(void *obj)
 				}
 				if (!cw_strlen_zero(tmp) && cfg_vblevel > 0) {
 					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					cw_verbose(VBPREFIX  "Command on %s [%s]\n", fm->devlink, tmp);
+					cw_verbose(VERBOSE_PREFIX_3 "Command on %s [%s]\n", fm->devlink, tmp);
 					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				}
 			}
@@ -907,7 +901,7 @@ static void activate_fax_modems(void)
 	if ((FAXMODEM_POOL = calloc(cfg_modems, sizeof(FAXMODEM_POOL[0])))) {
 		for (x = 0; x < cfg_modems; x++) {
 			if (cfg_vblevel > 1)
-				cw_verbose(VBPREFIX  "Starting Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_3 "Starting Fax Modem SLOT %d\n", x);
 			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
@@ -927,7 +921,7 @@ static void deactivate_fax_modems(void)
 	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 1)
-				cw_verbose(VBPREFIX  "Stopping Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_3 "Stopping Fax Modem SLOT %d\n", x);
 			pthread_cancel(FAXMODEM_POOL[x].thread);
 		}
 	}
@@ -936,7 +930,7 @@ static void deactivate_fax_modems(void)
 	for(x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 2)
-				cw_verbose(VBPREFIX  "Stopped Fax Modem SLOT %d\n", x);
+				cw_verbose(VERBOSE_PREFIX_3 "Stopped Fax Modem SLOT %d\n", x);
 			pthread_join(FAXMODEM_POOL[x].thread, NULL);
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 		}
