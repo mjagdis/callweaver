@@ -53,6 +53,7 @@
 #include "callweaver/devicestate.h"
 #include "callweaver/phone_no_utils.h"
 
+#undef __USE_XOPEN2K
 
 static const char desc[] = "Fax Modem Interface";
 static const char type[] = "Fax";
@@ -121,13 +122,10 @@ struct faxmodem;
 
 struct faxmodem {
 	cw_mutex_t lock;
-	cw_cond_t poll_ack;
-	cw_cond_t event;
-	int events;
 	struct pollfd pfd;
-	struct timespec tick;
 	faxmodem_state_t state;
 	t31_state_t t31_state;
+	struct timespec tick;
 	struct cw_frame frame;
 	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
 	struct cw_channel *owner;
@@ -135,7 +133,7 @@ struct faxmodem {
 	char *cid_num;
 	int unit;
 	pthread_t thread;
-	pthread_t poll_thread;
+	pthread_t clock_thread;
 	char devlink[128];
 #ifdef TRACE
 	struct timespec start;
@@ -263,6 +261,58 @@ static const struct cw_channel_tech technology = {
 	.send_text = tech_send_text,
 	.send_image = tech_send_image,
 };
+
+
+static void *faxmodem_clock_thread(void *obj)
+{
+	struct faxmodem *fm = obj;
+#if !defined(__USE_XOPEN2K)
+	const clockid_t clk = CLOCK_REALTIME;
+	cw_cond_t cond;
+#else
+	const clockid_t clk = CLOCK_REALTIME; /* This should be global_clock_monotonic but we use it to set frame delivery and that, currently, can't be monotonic because various things use cw_tvnow() to set the time base */
+#endif
+
+#if !defined(__USE_XOPEN2K)
+	cw_cond_init(&cond, NULL);
+	pthread_cleanup_push((void (*)(void *))pthread_cond_destroy, &cond);
+	pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
+	cw_mutex_lock(&fm->lock);
+#endif
+
+	/* N.B. This lock doesn't need a clean up because we haven't enabled
+	 * cancellations yet.
+	 */
+	cw_mutex_lock(&fm->lock);
+	cw_clock_gettime(clk, &fm->tick);
+	fm->frame.ts = fm->frame.seq_no = 0;
+	cw_mutex_unlock(&fm->lock);
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	for (;;) {
+		int blah;
+
+		write(fm->owner->alertpipe[1], &blah, sizeof(blah));
+
+		cw_clock_add_ms(&fm->tick, SAMPLES / 8);
+
+#if !defined(__USE_XOPEN2K)
+		cw_cond_timedwait(&cond, &fm->lock, &fm->tick);
+#else
+		pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
+		cw_mutex_lock(&fm->lock);
+		while (clock_nanosleep(clk, TIMER_ABSTIME, &fm->tick, NULL) && errno == EINTR);
+		pthread_cleanup_pop(1);
+#endif
+	}
+
+#if !defined(__USE_XOPEN2K)
+	pthread_cleanup_pop(1);
+	pthread_cleanup_pop(1);
+#endif
+	return NULL;
+}
 
 
 static void spandsp(int level, const char *msg)
@@ -460,14 +510,11 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	struct tm tm;
 	char buf[sizeof("0000+0000")];
 	struct faxmodem *fm;
-	time_t u_now;
+	time_t u_now = time(NULL);
 
 	fm = self->tech_pvt;
 
-	/* Next DTE alerting event will be... _now_ */
-	cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
-
-	strftime(buf, sizeof(buf), "%m%d+%H%M", localtime_r(&fm->tick.tv_sec, &tm));
+	strftime(buf, sizeof(buf), "%m%d+%H%M", localtime_r(&u_now, &tm));
 	buf[4] = '\000';
 
 	cw_mutex_lock(&fm->lock);
@@ -486,8 +533,7 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 
 	fm->state = FAXMODEM_STATE_RINGING;
 	cw_setstate(self, CW_STATE_RINGING);
-	fm->events++;
-	cw_cond_broadcast(&fm->event);
+	pthread_kill(fm->thread, SIGURG);
 	cw_mutex_unlock(&fm->lock);
 
 	return 0;
@@ -507,6 +553,17 @@ static int tech_hangup(struct cw_channel *self)
 	struct faxmodem *fm = self->tech_pvt;
 
 	cw_mutex_lock(&fm->lock);
+
+	if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
+		pthread_t tid = fm->clock_thread;
+		fm->clock_thread = CW_PTHREADT_NULL;
+
+		cw_mutex_unlock(&fm->lock);
+		pthread_cancel(tid);
+		pthread_join(tid, NULL);
+		cw_mutex_lock(&fm->lock);
+	}
+
 #ifdef TRACE
 	if (fm->debug_fax[0] >= 0)
 		close(fm->debug_fax[0]);
@@ -522,7 +579,6 @@ static int tech_hangup(struct cw_channel *self)
 
 	fm->owner = NULL;
 
-	pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
 	fm->state = FAXMODEM_STATE_ONHOOK;
 
 	cw_mutex_unlock(&fm->lock);
@@ -539,27 +595,22 @@ static int tech_hangup(struct cw_channel *self)
  */
 static int tech_answer(struct cw_channel *self)
 {
-	pthread_t tid;
 	struct faxmodem *fm = self->tech_pvt;
-
-	if (cfg_vblevel > 0)
-		cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
 
 	cw_mutex_lock(&fm->lock);
 
-	pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
-	fm->state = FAXMODEM_STATE_CONNECTED;
-	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
-	fm->frame.ts = fm->frame.seq_no = 0;
-	cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
-	cw_clock_add_ms(&fm->tick, SAMPLES / 8);
-
+	if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm)) {
+		if (cfg_vblevel > 0)
+			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
+		fm->state = FAXMODEM_STATE_CONNECTED;
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
 #if 0
-	cw_queue_frame(self, &frame_cng);
+		cw_queue_frame(self, &frame_cng);
 #endif
+	} else {
+		cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
+	}
 
-	fm->events++;
-	cw_cond_broadcast(&fm->event);
 	cw_mutex_unlock(&fm->lock);
 
 	return 0;
@@ -616,11 +667,7 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 			break;
 
 		case FAXMODEM_STATE_ANSWERED:
-cw_log(CW_LOG_NOTICE, "read answered\n");
 			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
-			fm->frame.ts = fm->frame.seq_no = 0;
-
-			pthread_setschedparam(fm->thread, SCHED_RR, &global_sched_param_rr);
 			fm->state = FAXMODEM_STATE_CONNECTED;
 			cw_fr_init_ex(&fm->frame, CW_FRAME_CONTROL, CW_CONTROL_ANSWER);
 			break;
@@ -730,13 +777,12 @@ static int tech_indicate(struct cw_channel *self, int condition)
 		case CW_CONTROL_CONGESTION:
 			cw_mutex_lock(&fm->lock);
 			t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
-			/* N.B. Just because we are told to indicate busy is no reason
-			 * to assume we were never connected.
-			 */
-			pthread_setschedparam(fm->thread, SCHED_OTHER, &global_sched_param_default);
+			if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
+				pthread_cancel(fm->clock_thread);
+				pthread_join(fm->clock_thread, NULL);
+				fm->clock_thread = CW_PTHREADT_NULL;
+			}
 			fm->state = FAXMODEM_STATE_ONHOOK;
-			fm->events++;
-			cw_cond_broadcast(&fm->event);
 			cw_mutex_unlock(&fm->lock);
 			break;
 		default:
@@ -830,8 +876,10 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				if (cfg_vblevel > 0)
 					cw_log(CW_LOG_DEBUG, "%s: answered\n", fm->devlink);
 
-				fm->state = FAXMODEM_STATE_ANSWERED;
-				cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
+				if (!cw_pthread_create(&fm->clock_thread, &global_attr_rr, faxmodem_clock_thread, fm))
+					fm->state = FAXMODEM_STATE_ANSWERED;
+				else
+					cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
 			}
 			break;
 
@@ -896,55 +944,8 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 
 	}
 
-	fm->events++;
-	cw_cond_broadcast(&fm->event);
 	cw_mutex_unlock(&fm->lock);
 	return res;
-}
-
-
-static void faxmodem_poll_thread_cleanup(void *obj)
-{
-	struct faxmodem *fm = obj;
-
-	cw_mutex_unlock(&fm->lock);
-}
-
-static void *faxmodem_poll_thread(void *obj)
-{
-	struct faxmodem *fm = obj;
-
-	cw_mutex_lock(&fm->lock);
-	for (;;) {
-		if (fm->state == FAXMODEM_STATE_CONNECTED) {
-			pthread_cleanup_push(faxmodem_poll_thread_cleanup, fm);
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			cw_cond_wait(&fm->event, &fm->lock);
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			pthread_cleanup_pop(0);
-		} else {
-			int res;
-
-			cw_mutex_unlock(&fm->lock);
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			res = poll(&fm->pfd, 1, -1);
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			cw_mutex_lock(&fm->lock);
-			if (res < 1 || fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
-				if (fm->state == FAXMODEM_STATE_CLOSED) {
-					sleep(1);
-					continue;
-				}
-				fm->state = FAXMODEM_STATE_CLOSED;
-			} else if (res == 1) {
-				if (fm->state == FAXMODEM_STATE_CLOSED)
-					fm->state = FAXMODEM_STATE_ONHOOK;
-				fm->events++;
-				cw_cond_broadcast(&fm->event);
-				cw_cond_wait(&fm->poll_ack, &fm->lock);
-			}
-		}
-	}
 }
 
 
@@ -954,17 +955,16 @@ static void faxmodem_thread_cleanup(void *obj)
 
 	fm->state = FAXMODEM_STATE_CLOSED;
 
-	if (!pthread_equal(fm->poll_thread, CW_PTHREADT_NULL))
-		pthread_cancel(fm->poll_thread);
-	cw_mutex_unlock(&fm->lock);
-	if (!pthread_equal(fm->poll_thread, CW_PTHREADT_NULL))
-		pthread_join(fm->poll_thread, NULL);
+	if (!pthread_equal(fm->clock_thread, CW_PTHREADT_NULL)) {
+		pthread_cancel(fm->clock_thread);
+		pthread_join(fm->clock_thread, NULL);
+		fm->clock_thread = CW_PTHREADT_NULL;
+	}
 
 	close(fm->pfd.fd);
 	unlink(fm->devlink);
 
 	cw_mutex_destroy(&fm->lock);
-	cw_cond_destroy(&fm->event);
 
 	if (cfg_vblevel > 1)
 		cw_log(CW_LOG_DEBUG, "%s: thread ended\n", fm->devlink);
@@ -1051,56 +1051,34 @@ static void *faxmodem_thread(void *obj)
 	if (cfg_vblevel > 0)
 		cw_verbose(VERBOSE_PREFIX_1 "%s: fax modem ready\n", fm->devlink);
 
-	fm->poll_thread = CW_PTHREADT_NULL;
-	cw_cond_init(&fm->poll_ack, NULL);
-	cw_cond_init(&fm->event, NULL);
-	cw_mutex_init(&fm->lock);
-	cw_mutex_lock(&fm->lock);
 	pthread_cleanup_push(faxmodem_thread_cleanup, fm);
+	cw_mutex_init(&fm->lock);
 
 	fm->pfd.events = POLLIN;
-	if (cw_pthread_create(&fm->poll_thread, &global_attr_detached, faxmodem_poll_thread, fm))
-		return NULL;
-
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-	cw_clock_gettime(CLOCK_REALTIME, &fm->tick);
 
 	for (;;) {
-		/* When connected we know we are going to get data from the DTE, we know
-		 * we want to send it up the stack in 20ms chunks and we know the pty
-		 * has a buffer. So we process data when we want it rather than when
-		 * it's available.
-		 * When ringing we know that either an answer operation will signal the
-		 * event condition or the timeout will tell us to re-alert. If the DTE
-		 * wants to hang up this will be delayed until the next alert time.
-		 */
-		cw_cond_signal(&fm->poll_ack);
-		if (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_RINGING || fm->state == FAXMODEM_STATE_ANSWERED) {
-			if ((ret = cw_cond_timedwait(&fm->event, &fm->lock, &fm->tick)) == ETIMEDOUT)
-				fm->events++;
-		} else
-			ret = cw_cond_wait(&fm->event, &fm->lock);
-
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (fm->state == FAXMODEM_STATE_CLOSED)
+			sleep(1);
+		ret = poll(&fm->pfd, 1, (fm->state == FAXMODEM_STATE_RINGING ? 5000 : -1));
 		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-		while (fm->events) {
-			fm->events--;
+		pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
+		cw_mutex_lock(&fm->lock);
 
-			if (fm->state == FAXMODEM_STATE_RINGING) {
-				if (ret == ETIMEDOUT) {
-					t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
-					fm->tick.tv_sec += 5;
-				}
-			}
-
-			if (ret == ETIMEDOUT && (fm->state == FAXMODEM_STATE_CONNECTED || fm->state == FAXMODEM_STATE_ANSWERED)) {
-				int blah;
-
-				write(fm->owner->alertpipe[1], &blah, sizeof(blah));
-				cw_clock_add_ms(&fm->tick, SAMPLES / 8);
-			}
-
+		if ((ret == -1 && errno != EINTR) || (ret == 1 && fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {
+			/* FIXME: What if a channel was between ONHOOK an CONNECTED? We really want
+			 * to signal a hangup but we'd have to drop and reaquire fm->lock
+			 * around the cw_setstate.
+			 */
+			fm->state = FAXMODEM_STATE_CLOSED;
+		} else if (fm->state == FAXMODEM_STATE_CLOSED) {
+			fm->state = FAXMODEM_STATE_ONHOOK;
+		} else if (ret != 1) {
+			if (fm->state == FAXMODEM_STATE_RINGING)
+				t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
+		} else { /* ret == 1 */
 			avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
 			if (fm->state != FAXMODEM_STATE_CONNECTED
 			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
@@ -1132,10 +1110,9 @@ static void *faxmodem_thread(void *obj)
 					avail -= len;
 				}
 			}
-
-			/* If we took a time out we only process once */
-			ret = 0;
 		}
+
+		pthread_cleanup_pop(1);
 	}
 
 	pthread_cleanup_pop(1);
@@ -1160,6 +1137,7 @@ static void activate_fax_modems(void)
 			FAXMODEM_POOL[x].unit = x;
 			FAXMODEM_POOL[x].state = FAXMODEM_STATE_CLOSED;
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
+			FAXMODEM_POOL[x].clock_thread = CW_PTHREADT_NULL;
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
 	}
