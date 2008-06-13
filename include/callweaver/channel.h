@@ -27,6 +27,8 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/uio.h>
+
 #include "callweaver/frame.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/config.h"
@@ -1022,6 +1024,8 @@ void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars);
    there is only one system call made to do a write, unless we actually
    have a need to wait.  This way, we get better performance. */
 int cw_carefulwrite(int fd, char *s, int len, int timeoutms);
+
+int cw_carefulwritev(int fd, struct iovec *v, int count, int timeoutms);
 
 struct cw_variable *cw_channeltype_list(void);
 
