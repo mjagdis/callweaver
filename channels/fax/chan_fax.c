@@ -100,7 +100,6 @@ struct private_object {
 	int flen;
 	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
 	struct faxmodem *fm;
-	int pipe[2];
 #ifdef DO_TRACE
 	int debug[2];
 #endif
@@ -176,7 +175,14 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 	if (!(tech_pvt = calloc(1, sizeof(*tech_pvt)))) {
 		cw_log(CW_LOG_ERROR, "Can't allocate a private structure.\n");
 	} else {
-		if (!(chan = cw_channel_alloc(1))) {
+		int fd[2];
+
+		if (pipe(fd)) {
+			free(tech_pvt);
+			cw_log(CW_LOG_ERROR, "Can't allocate a pipe: %s\n", strerror(errno));
+		} else if (!(chan = cw_channel_alloc(1))) {
+			close(fd[0]);
+			close(fd[1]);
 			free(tech_pvt);
 			cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
 		} else {
@@ -195,9 +201,8 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 			tech_pvt->frame.data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 
 			fm->user_data = chan;
-			pipe(tech_pvt->pipe);
-			chan->fds[0] = tech_pvt->pipe[0];
-			fm->psock = tech_pvt->pipe[1];
+			chan->fds[0] = fd[0];
+			fm->psock = fd[1];
 		}
 	}
 	
@@ -352,13 +357,12 @@ static int tech_hangup(struct cw_channel *self)
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
 		t31_call_event((t31_state_t *)&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
-		tech_pvt->fm->psock = -1;
-		tech_pvt->fm->user_data = NULL;
 
-		if (tech_pvt->pipe[0] > -1)
-			close(tech_pvt->pipe[0]);
-		if (tech_pvt->pipe[1] > -1)
-			close(tech_pvt->pipe[1]);
+		close(self->fds[0]);
+		close(tech_pvt->fm->psock);
+		tech_pvt->fm->psock = -1;
+
+		tech_pvt->fm->user_data = NULL;
 
 		if (tech_pvt->cid_name)
 			free(tech_pvt->cid_name);
@@ -397,10 +401,11 @@ static void *faxmodem_media_thread(void *obj)
 	int gotlen = 0;
 	short *frame_data = tech_pvt->fdata + CW_FRIENDLY_OFFSET;
 	struct pollfd pfds[1];
+
 	memset(&pfds[0], 0, sizeof(pfds[0]));
-	pfds[0].fd = tech_pvt->pipe[1];
+	pfds[0].fd = tech_pvt->fm->psock;
 	pfds[0].events = POLLIN | POLLERR;
-	
+
 	if (cfg_vblevel > 1)
 		cw_verbose(VBPREFIX  "MEDIA THREAD ON %s\n", fm->devlink);
 
@@ -459,7 +464,7 @@ static void *faxmodem_media_thread(void *obj)
 		}
 		tech_pvt->frame.samples = tech_pvt->flen;
 		tech_pvt->frame.datalen = tech_pvt->frame.samples * 2;
-		write(tech_pvt->pipe[1], IO_READ, 1);
+		write(tech_pvt->fm->psock, IO_READ, 1);
 
 #ifdef DO_TRACE
 		write(tech_pvt->debug[1], frame_data, tech_pvt->flen * 2);
@@ -557,7 +562,7 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	char cmd;
 
 	tech_pvt = self->tech_pvt;
-	res = read(tech_pvt->pipe[0], &cmd, sizeof(cmd));
+	res = read(self->fds[0], &cmd, sizeof(cmd));
 
 	if (res < 0 || cmd == IO_HUP[0]) {
 		cw_softhangup(tech_pvt->owner, CW_SOFTHANGUP_EXPLICIT);
@@ -605,7 +610,7 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	cw_cond_signal(&tech_pvt->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
-	//write(tech_pvt->pipe[0], IO_PROD, 1);
+	//write(tech_pvt->fm->psock, IO_PROD, 1);
 
 
 	return 0;
