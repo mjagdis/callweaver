@@ -131,15 +131,6 @@ struct faxmodem {
 static struct faxmodem *FAXMODEM_POOL;
 
 
-#define IO_READ		"0"
-
-
-static struct cw_frame frame_cng = {
-	.frametype = CW_FRAME_DTMF,
-	.subclass = 'f',
-};
-
-
 static int rr_next;
 
 
@@ -205,7 +196,6 @@ static inline void cw_clock_add_ms(struct timespec *ts, int ms)
 
 /********************CHANNEL METHOD PROTOTYPES********************/
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
-static int tech_send_digit(struct cw_channel *self, char digit);
 static int tech_call(struct cw_channel *self, char *dest, int timeout);
 static int tech_hangup(struct cw_channel *self);
 static int tech_answer(struct cw_channel *self);
@@ -214,9 +204,6 @@ static struct cw_frame *tech_exception(struct cw_channel *self);
 static int tech_write(struct cw_channel *self, struct cw_frame *frame);
 static int tech_indicate(struct cw_channel *self, int condition);
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen);
-static int tech_send_text(struct cw_channel *self, const char *text);
-static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 
 /* Helper Function Prototypes */
 static struct cw_channel *channel_new(struct faxmodem *fm);
@@ -231,7 +218,6 @@ static const struct cw_channel_tech technology = {
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = tech_requester,
-	.send_digit = tech_send_digit,
 	.call = tech_call,
 	.hangup = tech_hangup,
 	.answer = tech_answer,
@@ -240,9 +226,6 @@ static const struct cw_channel_tech technology = {
 	.exception = tech_exception,
 	.indicate = tech_indicate,
 	.fixup = tech_fixup,
-	.send_html = tech_send_html,
-	.send_text = tech_send_text,
-	.send_image = tech_send_image,
 };
 
 
@@ -440,12 +423,6 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 }
 
 
-static int tech_send_digit(struct cw_channel *self, char digit)
-{
-	return 0;
-}
-
-
 static int tech_call(struct cw_channel *self, char *dest, int timeout)
 {
 	struct tm tm;
@@ -536,9 +513,6 @@ static int tech_answer(struct cw_channel *self)
 			cw_log(CW_LOG_DEBUG, "%s: connected\n", fm->devlink);
 		fm->state = FAXMODEM_STATE_CONNECTED;
 		t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
-#if 0
-		cw_queue_frame(self, &frame_cng);
-#endif
 	} else {
 		cw_log(CW_LOG_ERROR, "%s: failed to start TX clock thread: %s\n", fm->devlink, strerror(errno));
 	}
@@ -713,24 +687,6 @@ static int tech_indicate(struct cw_channel *self, int condition)
 
 
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
-{
-	return 0;
-}
-
-
-static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen)
-{
-	return 0;
-}
-
-
-static int tech_send_text(struct cw_channel *self, const char *text)
-{
-	return 0;
-}
-
-
-static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) 
 {
 	return 0;
 }
