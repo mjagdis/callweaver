@@ -586,7 +586,7 @@ static void *faxmodem_thread(void *obj)
 		pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-		pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &fm->lock);
+		pthread_cleanup_push(cw_mutex_unlock_func, &fm->lock);
 		cw_mutex_lock(&fm->lock);
 
 		if ((ret == -1 && errno != EINTR) || (ret == 1 && fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {

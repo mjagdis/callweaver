@@ -562,9 +562,9 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 
 
 /* mutex unlock is sometimes used in a pthread_cleanup_push */
-static inline int cw_mutex_unlock_func(cw_mutex_t *mutex)
+static inline void cw_mutex_unlock_func(cw_mutex_t *mutex)
 {
-	return cw_mutex_unlock(mutex);
+	cw_mutex_unlock(mutex);
 }
 
 

@@ -2160,7 +2160,7 @@ static void *process_precache(void *ign)
 		time(&now);
 		run = 0;
 
-		pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &pclock);
+		pthread_cleanup_push(cw_mutex_unlock_func, &pclock);
 		cw_mutex_lock(&pclock);
 
 		if (pcq) {

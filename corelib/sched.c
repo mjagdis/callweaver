@@ -311,7 +311,7 @@ static void *service_thread(void *data)
 	struct sched_context *con = data;
 
 	cw_mutex_lock(&con->lock);
-	pthread_cleanup_push((void (*)(void *))cw_mutex_unlock_func, &con->lock);
+	pthread_cleanup_push(cw_mutex_unlock_func, &con->lock);
 
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
