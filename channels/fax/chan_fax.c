@@ -127,10 +127,6 @@ static struct faxmodem_state {
 };
 
 
-struct private_object {
-	struct faxmodem *fm;
-};
-
 static struct faxmodem *FAXMODEM_POOL;
 
 
@@ -334,41 +330,31 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 /* channel_new() make a new channel and fit it with a private object */
 static struct cw_channel *channel_new(struct faxmodem *fm)
 {
-	struct private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
+	int fd[2];
 
-	if (!(tech_pvt = calloc(1, sizeof(*tech_pvt)))) {
-		cw_log(CW_LOG_ERROR, "Can't allocate a private structure.\n");
+	if (pipe(fd)) {
+		cw_log(CW_LOG_ERROR, "Can't allocate a pipe: %s\n", strerror(errno));
+	} else if (!(chan = cw_channel_alloc(1))) {
+		close(fd[0]);
+		close(fd[1]);
+		cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
 	} else {
-		int fd[2];
+		chan->type = type;
+		chan->tech = &technology;
+		chan->tech_pvt = fm;
+		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
+		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 
-		if (pipe(fd)) {
-			free(tech_pvt);
-			cw_log(CW_LOG_ERROR, "Can't allocate a pipe: %s\n", strerror(errno));
-		} else if (!(chan = cw_channel_alloc(1))) {
-			close(fd[0]);
-			close(fd[1]);
-			free(tech_pvt);
-			cw_log(CW_LOG_ERROR, "Can't allocate a channel.\n");
-		} else {
-			chan->type = type;
-			chan->tech = &technology;
-			chan->tech_pvt = tech_pvt;
-			snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
-			chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
+		fm->owner = chan;
+		cw_cond_init(&fm->data_cond, 0);
 
-			tech_pvt->fm = fm;
+		cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
+		fm->frame.offset = CW_FRIENDLY_OFFSET;
+		fm->frame.data = fm->fdata + CW_FRIENDLY_OFFSET;
 
-			fm->owner = chan;
-			cw_cond_init(&fm->data_cond, 0);
-
-			cw_fr_init_ex(&fm->frame, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-			fm->frame.offset = CW_FRIENDLY_OFFSET;
-			fm->frame.data = fm->fdata + CW_FRIENDLY_OFFSET;
-
-			chan->fds[0] = fd[0];
-			fm->psock = fd[1];
-		}
+		chan->fds[0] = fd[0];
+		fm->psock = fd[1];
 	}
 	
 	return chan;
@@ -472,13 +458,13 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	struct iovec iov[8];
 	struct timeval start, alert, now;
 	pthread_t tid;
-	struct private_object *tech_pvt;
+	struct faxmodem *fm;
 	time_t u_now;
 
-	tech_pvt = self->tech_pvt;
+	fm = self->tech_pvt;
 
 	cw_setstate(self, CW_STATE_RINGING);
-	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
+	fm->state = FAXMODEM_STATE_RINGING;
 
 	time(&u_now);
 	iov[0].iov_base = buf;
@@ -493,11 +479,11 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	iov[4].iov_len = strlen(self->cid.cid_num);
 	iov[5].iov_base = "\r\nNDID=";
 	iov[5].iov_len = sizeof("\r\nNDID=") - 1;
-	iov[6].iov_base = tech_pvt->fm->digits;
-	iov[6].iov_len = strlen(tech_pvt->fm->digits);
+	iov[6].iov_base = fm->digits;
+	iov[6].iov_len = strlen(fm->digits);
 	iov[7].iov_base = "\r\n";
 	iov[7].iov_len = sizeof("\r\n") - 1;
-	cw_carefulwritev(tech_pvt->fm->master, iov, arraylen(iov), 100);
+	cw_carefulwritev(fm->master, iov, arraylen(iov), 100);
 
 	gettimeofday(&now, NULL);
 	start = alert = now;
@@ -505,17 +491,17 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 		if (cw_tvdiff_ms(now, alert) > 5000)
 			alert = now;
 		if (cw_tvdiff_ms(now, alert) == 0)
-			t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_ALERTING);
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_ALERTING);
 
 		usleep(100000);
 		gettimeofday(&now, NULL);
-	} while (tech_pvt->fm->state == FAXMODEM_STATE_RINGING && cw_tvdiff_ms(now, start) < timeout);
+	} while (fm->state == FAXMODEM_STATE_RINGING && cw_tvdiff_ms(now, start) < timeout);
 
-	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
-		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_ANSWERED);
-		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-		cw_setstate(tech_pvt->fm->owner, CW_STATE_UP);
-		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
+	if (fm->state == FAXMODEM_STATE_ANSWERED) {
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_ANSWERED);
+		fm->state = FAXMODEM_STATE_CONNECTED;
+		cw_setstate(fm->owner, CW_STATE_UP);
+		if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, fm))
 			return 0;
 	}
 	return -1;
@@ -532,24 +518,22 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
  */
 static int tech_hangup(struct cw_channel *self)
 {
-	struct private_object *tech_pvt = self->tech_pvt;
+	struct faxmodem *fm = self->tech_pvt;
 
-	if (tech_pvt) {
+	if (fm) {
 #ifdef DO_TRACE
-		close(tech_pvt->fm->debug[0]);
-		close(tech_pvt->fm->debug[1]);
+		close(fm->debug[0]);
+		close(fm->debug[1]);
 #endif
-		if (!tech_pvt->fm->hangup_msg_sent)
-			cw_carefulwrite(tech_pvt->fm->master, "NO CARRIER\r\n", sizeof("NO CARRIER\r\n") - 1, 100);
+		if (!fm->hangup_msg_sent)
+			cw_carefulwrite(fm->master, "NO CARRIER\r\n", sizeof("NO CARRIER\r\n") - 1, 100);
 
-		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
-		t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_HANGUP);
+		fm->state = FAXMODEM_STATE_ONHOOK;
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
 
 		close(self->fds[0]);
-		close(tech_pvt->fm->psock);
-		tech_pvt->fm->psock = -1;
-
-		free(tech_pvt);
+		close(fm->psock);
+		fm->psock = -1;
 	}
 
 	return 0;
@@ -569,8 +553,7 @@ static int dsp_buffer_size(int bitrate, struct timeval tv, int lastsize)
 
 static void *faxmodem_media_thread(void *obj)
 {
-	struct private_object *tech_pvt = obj;
-	struct faxmodem *fm = tech_pvt->fm;
+	struct faxmodem *fm = obj;
 	struct timeval lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
@@ -597,7 +580,7 @@ static void *faxmodem_media_thread(void *obj)
 		}
 		fm->frame.samples = fm->flen;
 		fm->frame.datalen = fm->frame.samples * 2;
-		write(tech_pvt->fm->psock, IO_READ, 1);
+		write(fm->psock, IO_READ, 1);
 
 #ifdef DO_TRACE
 		write(fm->debug[1], frame_data, fm->flen * 2);
@@ -666,17 +649,15 @@ static void *faxmodem_media_thread(void *obj)
 static int tech_answer(struct cw_channel *self)
 {
 	pthread_t tid;
-	struct private_object *tech_pvt;
-
-	tech_pvt = self->tech_pvt;
+	struct faxmodem *fm = self->tech_pvt;
 
 	if (cfg_vblevel > 1)
-		cw_verbose(VBPREFIX  "Connected %s\n", tech_pvt->fm->devlink);
+		cw_verbose(VBPREFIX  "Connected %s\n", fm->devlink);
 
-	tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
-	t31_call_event(&tech_pvt->fm->t31_state, AT_CALL_EVENT_CONNECTED);
+	fm->state = FAXMODEM_STATE_CONNECTED;
+	t31_call_event(&fm->t31_state, AT_CALL_EVENT_CONNECTED);
 
-	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, tech_pvt))
+	if (!cw_pthread_create(&tid, &global_attr_rr_detached, faxmodem_media_thread, fm))
 		return 0;
 	return -1;
 }
@@ -688,20 +669,19 @@ static int tech_answer(struct cw_channel *self)
  */
 static struct cw_frame *tech_read(struct cw_channel *self)
 {
+	struct faxmodem *fm = self->tech_pvt;
 	pthread_t tid;
-	struct private_object *tech_pvt;
 	int res;
 	char cmd;
 
-	tech_pvt = self->tech_pvt;
 	res = read(self->fds[0], &cmd, sizeof(cmd));
 
 	if (res < 0 || cmd == IO_HUP[0]) {
-		cw_softhangup(tech_pvt->fm->owner, CW_SOFTHANGUP_EXPLICIT);
+		cw_softhangup(fm->owner, CW_SOFTHANGUP_EXPLICIT);
 		return NULL;
 	}
 
-	return &tech_pvt->fm->frame;
+	return &fm->frame;
 }
 
 /*--- tech_write: Write an audio frame to my channel
@@ -713,7 +693,7 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 
 static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 {
-	struct private_object *tech_pvt;
+	struct faxmodem *fm = self->tech_pvt;
 	int res = 0;
 	//int gotlen;
 
@@ -721,21 +701,19 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 		return 0;
 	}
 
-	tech_pvt = self->tech_pvt;
-
 #ifdef DO_TRACE
-	write(tech_pvt->fm->debug[0], frame->data, frame->datalen);
+	write(fm->debug[0], frame->data, frame->datalen);
 #endif
 
-	res = t31_rx((t31_state_t*)&tech_pvt->fm->t31_state,
+	res = t31_rx((t31_state_t*)&fm->t31_state,
 		     frame->data, frame->samples);
 	
 	/* Signal new data to media thread */
 	cw_mutex_lock(&data_lock);
-	cw_cond_signal(&tech_pvt->fm->data_cond);
+	cw_cond_signal(&fm->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
-	//write(tech_pvt->fm->psock, IO_PROD, 1);
+	//write(fm->psock, IO_PROD, 1);
 
 
 	return 0;
@@ -750,11 +728,10 @@ static struct cw_frame *tech_exception(struct cw_channel *self)
 /*--- tech_indicate: Indicate a condition to my channel ---*/
 static int tech_indicate(struct cw_channel *self, int condition)
 {
-	struct private_object *tech_pvt;
+	struct faxmodem *fm = self->tech_pvt;
 	int res = 0;
 	int hangup = 0;
 
-	tech_pvt = self->tech_pvt;
         if (cfg_vblevel > 1) {
                 cw_verbose(VBPREFIX  "Indication %d on %s\n", condition,
 			     self->name);
@@ -768,7 +745,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	    break;
 	case CW_CONTROL_BUSY:
 	case CW_CONTROL_CONGESTION:
-	    cw_carefulwrite(tech_pvt->fm->master, "BUSY\r\n", sizeof("BUSY\r\n") - 1, 100);
+	    cw_carefulwrite(fm->master, "BUSY\r\n", sizeof("BUSY\r\n") - 1, 100);
 	    hangup = 1;
 	    break;
 	default:
@@ -783,7 +760,7 @@ static int tech_indicate(struct cw_channel *self, int condition)
                 cw_verbose(VBPREFIX  "Hanging up because of indication %d "
 			     "on %s\n", condition, self->name);
 	    }	    
-	    tech_pvt->fm->hangup_msg_sent = 1;
+	    fm->hangup_msg_sent = 1;
 	    cw_softhangup(self, CW_SOFTHANGUP_EXPLICIT);
 	}
 	return res;
@@ -838,7 +815,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 				res = -1;
 				break;
 			} else {
-				struct private_object *tech_pvt = chan->tech_pvt;
+				struct faxmodem *fm = chan->tech_pvt;
 
 				cw_copy_string(fm->digits, num, sizeof(fm->digits));
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
