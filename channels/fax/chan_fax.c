@@ -49,10 +49,6 @@ static const char type[] = "Fax";
 static const char tdesc[] = "Fax Modem Interface";
 
 
-#define CONFIGFILE "chan_fax.conf"
-#define SAMPLES 160
-
-
 /*! Whether trace/debug code should be compiled in.
  * You almost certainly want this.
  */
@@ -66,12 +62,13 @@ static const char tdesc[] = "Fax Modem Interface";
 #define TRACE_PREFIX	"/tmp/faxmodem-"
 
 
-#define DEFAULT_MAX_FAXMODEMS	4
-#define DEFAULT_DEV_PREFIX	"/dev/FAX"
-#define DEFAULT_TIMEOUT		30000
-#define DEFAULT_RING_STRATEGY	0
-#define DEFAULT_CONTEXT		"chan_fax"
-#define DEFAULT_VBLEVEL		0
+#define CONFIGFILE "chan_fax.conf"		/*!< Name of the configuration file */
+#define SAMPLES 160				/*!< Samples per frame */
+#define DEFAULT_MAX_FAXMODEMS	4		/*!< Default number of faxmodems */
+#define DEFAULT_DEV_PREFIX	"/dev/FAX"	/*!< Default prefix for device node names */
+#define DEFAULT_RING_STRATEGY	0		/*!< Default ring strategy (round-robin) */
+#define DEFAULT_CONTEXT		"chan_fax"	/*!< Default dialplan context to start in the PBX */
+#define DEFAULT_VBLEVEL		0		/*!< Default verbosity */
 
 
 static int cfg_modems;
@@ -349,7 +346,6 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 }
 
 
-/* channel_new() make a new channel and fit it with a private object */
 static struct cw_channel *channel_new(struct faxmodem *fm)
 {
 	struct cw_channel *chan = NULL;
@@ -390,14 +386,6 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 }
 
 
-/********************CHANNEL METHOD LIBRARY********************
- * This is the actual functions described by the prototypes above.
- *
- */
-
-/*--- tech_requester: parse 'data' a url-like destination string, allocate a channel and a private structure
- * and return the newly-setup channel.
- */
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
@@ -460,19 +448,11 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 }
 
 
-/*--- tech_senddigit: Send a DTMF character */
 static int tech_send_digit(struct cw_channel *self, char digit)
 {
 	return 0;
 }
 
-/*--- tech_call: Initiate a call on my channel 
- * 'dest' has been passed telling you where to call
- * but you may already have that information from the requester method
- * not sure why it sends it twice, maybe it changed since then *shrug*
- * You also have timeout (in ms) so you can tell how long the caller
- * is willing to wait for the call to be complete.
- */
 
 static int tech_call(struct cw_channel *self, char *dest, int timeout)
 {
@@ -508,15 +488,6 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	return 0;
 }
 
-/*--- tech_hangup: end a call on my channel 
- * Now is your chance to tear down and free the private object
- * from the channel it's about to be freed so you must do so now
- * or the object is lost.  Well I guess you could tag it for reuse
- * or for destruction and let a monitor thread deal with it too.
- * during the load_module routine you have every right to start up
- * your own fancy schmancy bunch of threads or whatever else 
- * you want to do.
- */
 static int tech_hangup(struct cw_channel *self)
 {
 	struct faxmodem *fm = self->tech_pvt;
@@ -558,10 +529,6 @@ static int tech_hangup(struct cw_channel *self)
 }
 
 
-/*--- tech_answer: answer a call on my channel
- * if being 'answered' means anything special to your channel
- * now is your chance to do it!
- */
 static int tech_answer(struct cw_channel *self)
 {
 	struct faxmodem *fm = self->tech_pvt;
@@ -586,10 +553,6 @@ static int tech_answer(struct cw_channel *self)
 }
 
 
-/*--- tech_read: Read an audio frame from my channel.
- * You need to read data from your channel and convert/transfer the
- * data into a newly allocated struct cw_frame object
- */
 static struct cw_frame *tech_read(struct cw_channel *self)
 {
 	char buf[256];
@@ -651,12 +614,6 @@ static struct cw_frame *tech_read(struct cw_channel *self)
 	return fr;
 }
 
-/*--- tech_write: Write an audio frame to my channel
- * Yep, this is the opposite of tech_read, you need to examine
- * a frame and transfer the data to your technology's audio stream.
- * You do not have any responsibility to destroy this frame and you should
- * consider it to be read-only.
- */
 
 static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 {
@@ -720,13 +677,13 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	return 0;
 }
 
-/*--- tech_exception: Read an exception audio frame from my channel ---*/
+
 static struct cw_frame *tech_exception(struct cw_channel *self)
 {
 	return NULL;
 }
 
-/*--- tech_indicate: Indicate a condition to my channel ---*/
+
 static int tech_indicate(struct cw_channel *self, int condition)
 {
 	struct faxmodem *fm = self->tech_pvt;
@@ -762,25 +719,25 @@ static int tech_indicate(struct cw_channel *self, int condition)
 	return res;
 }
 
-/*--- tech_fixup: add any finishing touches to my channel if it is masqueraded---*/
+
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
 	return 0;
 }
 
-/*--- tech_send_html: Send html data on my channel ---*/
+
 static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen)
 {
 	return 0;
 }
 
-/*--- tech_send_text: Send plain text data on my channel ---*/
+
 static int tech_send_text(struct cw_channel *self, const char *text)
 {
 	return 0;
 }
 
-/*--- tech_send_image: Send image data on my channel ---*/
+
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) 
 {
 	return 0;
@@ -1027,6 +984,11 @@ static void *faxmodem_thread(void *obj)
 
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		/* If the DTE closed the slave side we expect to keep getting POLLHUP until
+		 * something reopens it. Therefore the first POLLHUP (or POLLERR or POLLNVAL)
+		 * takes us to "CLOSED" and then we sleep for a second before each successive
+		 * poll until we get POLLIN or timeout.
+		 */
 		if (fm->state == FAXMODEM_STATE_CLOSED)
 			sleep(1);
 		ret = poll(&fm->pfd, 1, (fm->state == FAXMODEM_STATE_RINGING ? 5000 : -1));
@@ -1037,7 +999,7 @@ static void *faxmodem_thread(void *obj)
 		cw_mutex_lock(&fm->lock);
 
 		if ((ret == -1 && errno != EINTR) || (ret == 1 && fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {
-			/* FIXME: What if a channel was between ONHOOK an CONNECTED? We really want
+			/* FIXME: What if a channel was between ONHOOK and CONNECTED? We really want
 			 * to signal a hangup but we'd have to drop and reaquire fm->lock
 			 * around the cw_setstate.
 			 */
@@ -1075,7 +1037,7 @@ static void *faxmodem_thread(void *obj)
 						}
 					}
 #endif
-					t31_at_rx((t31_state_t*)&fm->t31_state, modembuf, len);
+					t31_at_rx(&fm->t31_state, modembuf, len);
 					avail -= len;
 				}
 			}
@@ -1087,6 +1049,7 @@ static void *faxmodem_thread(void *obj)
 	pthread_cleanup_pop(1);
 	return NULL;
 }
+
 
 static void activate_fax_modems(void)
 {
@@ -1121,7 +1084,8 @@ static void deactivate_fax_modems(void)
 	
 	cw_mutex_lock(&control_lock);
 
-	for(x = 0; x < cfg_modems; x++) {
+	/* Tell the threads to die */
+	for (x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 1)
 				cw_verbose(VERBOSE_PREFIX_1 "Stopping Fax Modem SLOT %d\n", x);
@@ -1129,8 +1093,8 @@ static void deactivate_fax_modems(void)
 		}
 	}
 
-	/* Wait for Threads to die */
-	for(x = 0; x < cfg_modems; x++) {
+	/* Wait for the threads to die */
+	for (x = 0; x < cfg_modems; x++) {
 		if (!pthread_equal(FAXMODEM_POOL[x].thread, CW_PTHREADT_NULL)) {
 			if (cfg_vblevel > 0)
 				cw_verbose(VERBOSE_PREFIX_1 "Stopped Fax Modem SLOT %d\n", x);
@@ -1144,6 +1108,7 @@ static void deactivate_fax_modems(void)
 	cw_mutex_unlock(&control_lock);
 
 }
+
 
 static void parse_config(void) {
 	struct cw_config *cfg;
@@ -1207,6 +1172,10 @@ static void parse_config(void) {
 }
 
 
+/*! \defgroup cli CLI commands
+ * \{
+ */
+
 static int chan_fax_status(int fd, int argc, char *argv[]) 
 {
 	int x;
@@ -1248,9 +1217,11 @@ static struct cw_clicmd  cli_chan_fax[] = {
 	},
 };
 
-/******************************* CORE INTERFACE ********************************************
- * These are module-specific interface functions that are common to every module
- * To be used to initilize/de-initilize, reload and track the use count of a loadable module. 
+/* \} */
+
+
+/*! \defgroup module Module Interface
+ * \{
  */
 
 static void graceful_unload(void);
@@ -1295,10 +1266,14 @@ static int load_module(void)
 	return 0;
 }
 
+
 static int unload_module(void)
 {
 	graceful_unload();
 	return 0;
 }
 
+
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
+
+/* \} */
