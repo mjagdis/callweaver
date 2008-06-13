@@ -681,7 +681,6 @@ int cw_queue_frame(struct cw_channel *chan, struct cw_frame *fin)
 {
 	struct cw_frame *f;
 	struct cw_frame *prev, *cur;
-	int blah = 1;
 	int qlen = 0;
 
 	/* Build us a copy and free the original one */
@@ -726,14 +725,15 @@ int cw_queue_frame(struct cw_channel *chan, struct cw_frame *fin)
 
 	if (chan->alertpipe[1] > -1)
 	{
-	    if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
-		cw_log(CW_LOG_WARNING, 
-			    "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
-			    chan->name, 
-			    f->frametype, 
-			    f->subclass, 
-			    qlen, 
-			    strerror(errno)
+		char blah;
+		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
+			cw_log(CW_LOG_WARNING, 
+				"Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
+				chan->name,
+				f->frametype,
+				f->subclass,
+				qlen,
+				strerror(errno)
 			);
 	} else if (cw_test_flag(chan, CW_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
@@ -1623,7 +1623,6 @@ int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int cmdfd)
 struct cw_frame *cw_read(struct cw_channel *chan)
 {
 	struct cw_frame *f = NULL;
-	int blah;
 	int prestate;
 	static struct cw_frame null_frame =
 	{
@@ -1664,11 +1663,14 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 		cw_mutex_unlock(&chan->lock);
 		return &chan->dtmff;
 	}
-	
+
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
 	if (chan->alertpipe[0] > -1)
+	{
+		char blah;
 		read(chan->alertpipe[0], &blah, sizeof(blah));
+	}
 
 	/* Check for pending read queue */
 	if (chan->readq)
@@ -2955,7 +2957,10 @@ int cw_do_masquerade(struct cw_channel *original)
 		if (original->alertpipe[1] > -1)
         {
 			for (i = 0;  i < x;  i++)
-				write(original->alertpipe[1], &x, sizeof(x));
+			{
+				char c;
+				write(original->alertpipe[1], &c, sizeof(c));
+			}
 		}
 	}
 	clone->_softhangup = CW_SOFTHANGUP_DEV;

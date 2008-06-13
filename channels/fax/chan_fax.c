@@ -219,7 +219,7 @@ static void *generic_pipe_clock_thread(void *obj)
 	cw_clock_gettime(clk, &ts);
 
 	for (;;) {
-		int blah;
+		char blah;
 
 		write(fd, &blah, sizeof(blah));
 
