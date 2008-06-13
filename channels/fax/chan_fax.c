@@ -227,7 +227,7 @@ static void *generic_pipe_clock_thread(void *obj)
 		cw_clock_add_ms(&ts, SAMPLES / 8);
 
 #if !defined(__USE_XOPEN2K)
-		cw_cond_timedwait(&cond, &lock, &ts);
+		while (cw_cond_timedwait(&cond, &lock, &ts) == EINTR);
 #else
 		while (clock_nanosleep(clk, TIMER_ABSTIME, &ts, NULL) && errno == EINTR);
 #endif

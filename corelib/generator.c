@@ -113,7 +113,7 @@ static void *cw_generator_thread(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 #if !defined(__USE_XOPEN2K)
-		while (cw_cond_timedwait(&cond, &mutex, &tick) < 0 && errno == EINTR);
+		while (cw_cond_timedwait(&cond, &mutex, &tick) == EINTR);
 #else
 		while (clock_nanosleep(clk, TIMER_ABSTIME, &tick, NULL) && errno == EINTR);
 #endif
