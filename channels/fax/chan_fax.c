@@ -43,9 +43,8 @@
 #include "callweaver/phone_no_utils.h"
 
 
-static const char desc[] = "Fax Modem Interface";
 static const char type[] = "Fax";
-static const char tdesc[] = "Fax Modem Interface";
+static const char desc[] = "Fax Modem Interface";
 
 
 /*! Whether trace/debug code should be compiled in.
@@ -944,7 +943,7 @@ static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 
 static const struct cw_channel_tech technology = {
 	.type = type,
-	.description = tdesc,
+	.description = desc,
 	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = tech_requester,
 	.call = tech_call,
