@@ -1242,6 +1242,10 @@ static void graceful_unload(void)
 		free(cfg_dev_prefix);
 	if (cfg_context)
 		free(cfg_context);
+	if (cfg_cid_name)
+		free(cfg_cid_name);
+	if (cfg_cid_num)
+		free(cfg_cid_num);
 
 	cw_atexit_unregister(&fax_atexit);
 }
