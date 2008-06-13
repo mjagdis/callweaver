@@ -117,25 +117,25 @@ static const char *faxmodem_state[] =
 struct faxmodem;
 
 struct faxmodem {
-	int unit;
-	t31_state_t t31_state;
-	struct pollfd pfd;
 	cw_mutex_t lock;
 	cw_cond_t event;
-	char devlink[128];
-	faxmodem_state_t state;
+	struct pollfd pfd;
 	struct timespec tick;
+	faxmodem_state_t state;
+	t31_state_t t31_state;
 	int psock;
+	struct cw_frame frame;
+	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
+	struct cw_channel *owner;
+	int unit;
+	pthread_t thread;
+	pthread_t poll_thread;
+	char devlink[128];
 #ifdef TRACE
 	struct timespec start;
 	int debug_fax[2];
 	int debug_dte;
 #endif
-	pthread_t thread;
-	pthread_t poll_thread;
-	struct cw_channel *owner;					/* Pointer to my owner (the abstract channel object) */
-	struct cw_frame frame;						/* Frame for Writing */
-	uint8_t fdata[CW_FRIENDLY_OFFSET + SAMPLES * sizeof(int16_t)];
 };
 
 
