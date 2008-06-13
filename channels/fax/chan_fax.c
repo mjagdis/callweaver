@@ -24,19 +24,11 @@
 #endif
 
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <termios.h>
-#include <netinet/tcp.h>
 
 #include <spandsp.h>
 
@@ -45,10 +37,8 @@
 #include "callweaver/channel.h"
 #include "callweaver/options.h"
 #include "callweaver/logger.h"
-#include "callweaver/astobj.h"
 #include "callweaver/atexit.h"
 #include "callweaver/module.h"
-#include "callweaver/lock.h"
 #include "callweaver/pbx.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/phone_no_utils.h"
