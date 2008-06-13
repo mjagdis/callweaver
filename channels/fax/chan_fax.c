@@ -148,7 +148,6 @@ static struct faxmodem *FAXMODEM_POOL;
 typedef enum {
 	TFLAG_OUTBOUND = (1 << 0),
 	TFLAG_EVENT = (1 << 1),
-	TFLAG_DATA = (1 << 2)
 } TFLAGS;
 
 
@@ -743,7 +742,6 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	
 	/* Signal new data to media thread */
 	cw_mutex_lock(&data_lock);
-	cw_set_flag(tech_pvt->fm, TFLAG_DATA);
 	cw_cond_signal(&tech_pvt->data_cond);
 	cw_mutex_unlock(&data_lock);
 	
