@@ -878,7 +878,7 @@ static void *faxmodem_thread(void *obj)
 						pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 						p = q;
 					}
-					p++;
+					p++, res--;
 				}
 			}
 		}
