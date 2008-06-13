@@ -993,34 +993,45 @@ static void parse_config(void) {
 }
 
 
-static int chan_fax_cli(int fd, int argc, char *argv[]) 
+static int chan_fax_status(int fd, int argc, char *argv[]) 
 {
-	if (argc > 1) {
-		if (!strcasecmp(argv[1], "status")) {
-			int x;
-			cw_mutex_lock(&control_lock);
-			for (x = 0; x < cfg_modems; x++) {
-				cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
-			}
-			cw_mutex_unlock(&control_lock);
-		} else if (!strcasecmp(argv[1], "vblevel")) {
-			if (argc > 2)
-				cfg_vblevel = atoi(argv[2]);
-			cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
-		}
+	int x;
 
-	} else {
-		cw_cli(fd, "Usage: fax [status]\n");
-	}
+	cw_mutex_lock(&control_lock);
+
+	for (x = 0; x < cfg_modems; x++)
+		cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
+
+	cw_mutex_unlock(&control_lock);
+
 	return 0;
 }
 
 
-static struct cw_clicmd  cli_chan_fax = {
-	.cmda = { "fax", NULL },
-	.handler = chan_fax_cli,
-	.summary = "Fax Channel",
-	.usage = "Fax Channel",
+static int chan_fax_vblevel(int fd, int argc, char *argv[]) 
+{
+	if (argc > 2)
+		cfg_vblevel = atoi(argv[2]);
+
+	cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
+
+	return 0;
+}
+
+
+static struct cw_clicmd  cli_chan_fax[] = {
+	{
+		.cmda = { "fax", "status", NULL },
+		.handler = chan_fax_status,
+		.summary = "Show fax modem status",
+		.usage = "Usage: fax status",
+	},
+	{
+		.cmda = { "fax", "vblevel", NULL },
+		.handler = chan_fax_vblevel,
+		.summary = "Set/show fax modem vblevel",
+		.usage = "Usage: fax vblevel [<n>]",
+	},
 };
 
 /******************************* CORE INTERFACE ********************************************
@@ -1040,7 +1051,7 @@ static void graceful_unload(void)
 	deactivate_fax_modems();
 
 	cw_channel_unregister(&technology);
-	cw_cli_unregister(&cli_chan_fax);
+	cw_cli_unregister_multiple(cli_chan_fax, arraysize(cli_chan_fax));
 
 	if (cfg_dev_prefix)
 		free(cfg_dev_prefix);
@@ -1063,7 +1074,7 @@ static int load_module(void)
 		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
-	cw_cli_register(&cli_chan_fax);
+	cw_cli_register_multiple(cli_chan_fax, arraysize(cli_chan_fax));
 
 	return 0;
 }
