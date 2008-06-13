@@ -692,10 +692,12 @@ static int tech_indicate(struct cw_channel *self, int condition)
         if (cfg_vblevel > 1)
                 cw_verbose(VERBOSE_PREFIX_3 "Indication %d on %s\n", condition, self->name);
 
-	switch(condition) {
+	switch (condition) {
+		case -1:
 		case CW_CONTROL_RINGING:
 		case CW_CONTROL_ANSWER:
 		case CW_CONTROL_PROGRESS:
+		case CW_CONTROL_VIDUPDATE:
 			break;
 		case CW_CONTROL_BUSY:
 		case CW_CONTROL_CONGESTION:
