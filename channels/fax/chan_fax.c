@@ -322,13 +322,25 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 
 				fm->state = FAXMODEM_STATE_CALLING;
 
+				cw_mutex_unlock(&fm->lock);
+
+				cw_mutex_lock(&chan->lock);
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, num, sizeof(chan->exten));
 				cw_setstate(chan, CW_STATE_RINGING);
 				if (cw_pbx_start(chan)) {
 					cw_log(CW_LOG_ERROR, "%s: unable to start PBX\n", fm->devlink);
 					cw_hangup(chan);
+					cw_mutex_unlock(&chan->lock);
+
+					cw_mutex_lock(&fm->lock);
+					fm->state = FAXMODEM_STATE_ONHOOK;
+					t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
+					cw_mutex_unlock(&fm->lock);
+					return -1;
 				}
+				cw_mutex_unlock(&chan->lock);
+				return 0;
 			}
 			break;
 
