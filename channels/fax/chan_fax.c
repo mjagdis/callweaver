@@ -51,6 +51,7 @@
 #include "callweaver/lock.h"
 #include "callweaver/pbx.h"
 #include "callweaver/devicestate.h"
+#include "callweaver/phone_no_utils.h"
 
 
 static const char desc[] = "Fax Modem Interface";
@@ -560,8 +561,13 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 	at_reset_call_info(&fm->t31_state.at_state);
 	at_set_call_info(&fm->t31_state.at_state, "DATE", buf);
 	at_set_call_info(&fm->t31_state.at_state, "TIME", buf+5);
-	at_set_call_info(&fm->t31_state.at_state, "NAME", self->cid.cid_name);
-	at_set_call_info(&fm->t31_state.at_state, "NMBR", self->cid.cid_num);
+	if ((self->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_ALLOWED) {
+		at_set_call_info(&fm->t31_state.at_state, "NAME", self->cid.cid_name);
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", self->cid.cid_num);
+	} else if ((self->cid.cid_pres & CW_PRES_RESTRICTION) == CW_PRES_RESTRICTED)
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", "P");
+	else
+		at_set_call_info(&fm->t31_state.at_state, "NMBR", "O");
 	at_set_call_info(&fm->t31_state.at_state, "ANID", self->cid.cid_ani);
 	at_set_call_info(&fm->t31_state.at_state, "NDID", self->cid.cid_dnid);
 
