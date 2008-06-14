@@ -889,9 +889,12 @@ static struct cw_frame *tech_read(struct cw_channel *chan)
 			fm->frame.datalen = SAMPLES * sizeof(int16_t);
 #ifdef TRACE
 			if (cfg_vblevel > 3) {
-				int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(fm->frame.delivery, fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
-				write(fm->debug_dte, buf, n);
-				write(fm->debug_fax[1], frame_data, fm->frame.datalen);
+				if (fm->debug_dte >= 0) {
+					int n = snprintf(buf, sizeof(buf), "<- audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(fm->frame.delivery, fm->start), fm->frame.samples, frame_data[0], frame_data[1], frame_data[2], frame_data[3], frame_data[4], frame_data[5], frame_data[6], frame_data[7]);
+					write(fm->debug_dte, buf, n);
+				}
+				if (fm->debug_fax[1])
+					write(fm->debug_fax[1], frame_data, fm->frame.datalen);
 			}
 #endif
 			break;
@@ -932,12 +935,13 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 #ifdef TRACE
 				if (cfg_vblevel > 3) {
 					uint16_t *data = frame->data;
-					int n;
 
-					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
-					write(fm->debug_fax[0], frame->data, frame->datalen);
-					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", n, frame->samples, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
-					write(fm->debug_dte, msg, n);
+					if (fm->debug_fax[0])
+						write(fm->debug_fax[0], frame->data, frame->datalen);
+					if (fm->debug_dte >= 0) {
+						int n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x...\n", cw_tvdiff_ms(cw_tvnow(), fm->start), frame->samples, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+						write(fm->debug_dte, msg, n);
+					}
 				}
 #endif
 
@@ -952,16 +956,18 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 				cw_mutex_lock(&fm->lock);
 #ifdef TRACE
 				if (cfg_vblevel > 3) {
-					int n;
 					int i = samples;
 
-					n = cw_tvdiff_ms(cw_tvnow(), fm->start);
-					for (; i >= SAMPLES; i -= SAMPLES)
-						write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
-					if (i)
-						write(fm->debug_fax[0], silence, samples * sizeof(int16_t));
-					n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%ldms)\n", n, samples, frame->len);
-					write(fm->debug_dte, msg, n);
+					if (fm->debug_fax[0] >= 0) {
+						for (; i >= SAMPLES; i -= SAMPLES)
+							write(fm->debug_fax[0], silence, SAMPLES * sizeof(int16_t));
+						if (i)
+							write(fm->debug_fax[0], silence, i * sizeof(int16_t));
+					}
+					if (fm->debug_dte >= 0) {
+						int n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%ldms)\n", cw_tvdiff_ms(cw_tvnow(), fm->start), samples, frame->len);
+						write(fm->debug_dte, msg, n);
+					}
 				}
 #endif
 				for (; samples >= SAMPLES; samples -= SAMPLES)
