@@ -1698,14 +1698,8 @@ int callweaver_main(int argc, char *argv[])
 	}
 
 	/* Check if we're root */
-	if (!geteuid()) {
-#ifdef VERY_SECURE
-        cw_log(CW_LOG_ERROR, "Running as root has been disabled\n");
-        exit(1);
-#else
-		cw_log(CW_LOG_ERROR, "Running as root has been enabled\n");
-#endif /* VERY_SECURE */
-	}
+	if (!geteuid())
+		cw_log(CW_LOG_ERROR, "Running as root is EXTREMELY dangerous. See the documentation!\n");
 
 
 
