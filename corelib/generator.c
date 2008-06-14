@@ -30,6 +30,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/generator.h"
 #include "callweaver/lock.h"
+#include "callweaver/time.h"
 
 
 /* Note: clock_nanosleep is an Advanced Realtime POSIX function.
@@ -44,13 +45,7 @@ static void *cw_generator_thread(void *data)
 	struct cw_generator_instance *gen = data;
 	struct timespec tick;
 	struct cw_frame *f;
-#if !defined(_POSIX_TIMERS)
-	struct timeval tv;
-#elif defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
-	clockid_t clk = CLOCK_MONOTONIC;
-#else
-	clockid_t clk = CLOCK_REALTIME;
-#endif
+	clockid_t clk = global_clock_monotonic;
 #if !defined(__USE_XOPEN2K)
 	cw_cond_t cond;
 	cw_mutex_t mutex;
@@ -62,16 +57,7 @@ static void *cw_generator_thread(void *data)
 	cw_mutex_lock(&mutex);
 #endif
 
-#if !defined(_POSIX_TIMERS)
-	gettimeofday(&tv, NULL);
-	tick.tv_sec = tv.tv_sec;
-	tick.tv_nsec = 1000 * tv.tv_usec;
-#else
-	if (clock_gettime(clk, &tick)) {
-		clk = CLOCK_REALTIME;
-		clock_gettime(clk, &tick);
-	}
-#endif
+	cw_clock_gettime(clk, &tick);
 
 	cw_log(CW_LOG_DEBUG, "%s: Generator thread started\n", gen->chan->name);
 
