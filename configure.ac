@@ -39,6 +39,7 @@ AC_C_CONST
 
 AC_PATH_PROG([GROUPADD], [groupadd])
 AC_PATH_PROGS(GREP, ggrep grep,[echo Missing grep so skipping but I doubt we will get anywhere])
+AC_PATH_PROGS(GIT, git, [echo Missing git. I guess you're not using that then],${PATH}:/opt/csw/bin)
 AC_PATH_PROGS(SVN, svn, [echo Missing subversion so some stuff will be borked],${PATH}:/opt/csw/bin)
 AC_PATH_PROGS(SHELL,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(SH,bash sh,[echo No compatible shell found])
@@ -62,7 +63,8 @@ dnl SVN Revision number, needed for CW_VERSION and inclusion into files version 
 if test -r "SVNVERSION" ; then
 	svnver=" SVN r`${CAT} SVNVERSION`"
 	svndesc="SVN revision from tarball \"SVNVERSION\" file"
-elif test -n "$SVN" ; then
+fi
+if test -z "$svnver" && test -n "$SVN" ; then
 	x="`${SVN} info`"
 	if test -n "$x" ; then
 		svnurl="`${SVN} info | ${AWK} '/^URL: / { sub("^.*/callweaver/", "", $2); print $2 }'`"
@@ -73,9 +75,15 @@ elif test -n "$SVN" ; then
 		svnver=""
 		svndesc="No output from \"svn info\""
 	fi
-else
-	svnver=""
-	svndesc="Unknown SVN revision because svn is not on this machine."
+fi
+if test -z "$svnver" && test -n "$GIT" ; then
+	b="`$GIT branch | $AWK '$1 == "*" { print $2 }'`"
+	c="`$GIT log -1 --pretty=oneline | $AWK '{ print substr($1, 0, 8); }'`"
+	svnver="GIT $b $c"
+	svndesc="GIT branch and last commit as given by \"git branch\" and \"git log\""
+fi
+if test -z "$svnver" ; then
+	svndesc="Unknown SVN/GIT revision. Neither svn nor git exist and give us anything."
 fi
 AC_DEFINE_UNQUOTED([SVN_VERSION],"$svnver","$svndesc")
 AC_SUBST([SVN_VERSION])
