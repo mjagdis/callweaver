@@ -999,14 +999,17 @@ static struct cw_clicmd core_cli[] = {
 
 static void boot(void)
 {
+	struct timespec ts;
+
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_verbose("[ Booting...");
 
-	/* ensure that the random number generators are seeded with a different value every time
-	   CallWeaver is started
-	*/
-	srand((unsigned int) getpid() + (unsigned int) time(NULL));
-	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
+	/* Ensure that the random number generators are seeded with a different value every time
+	 * CallWeaver is started
+	 */
+	cw_clock_gettime(CLOCK_REALTIME, &ts);
+	srand((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
+	srandom((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
 	if (init_logger()
 	|| cw_crypto_init()
