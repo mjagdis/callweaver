@@ -1148,7 +1148,7 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 	if ((chan = cw_request(type, format, data, &cause))) {
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
 		
-		if (!cw_call(chan, data, timeout)) {
+		if (!cw_call(chan, data)) {
 			struct timeval started;
 			int x, len = 0;
 			char *disconnect_code = NULL, *dialed_code = NULL;

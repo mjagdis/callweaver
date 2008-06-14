@@ -434,7 +434,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 							o->chan->cid.cid_rdnis = strdup(in->proc_exten);
 						else
 							o->chan->cid.cid_rdnis = strdup(in->exten);
-						if (cw_call(o->chan, tmpchan, 0)) {
+						if (cw_call(o->chan, tmpchan)) {
 							cw_log(CW_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							cw_clear_flag(o, DIAL_STILLGOING);	
 							cw_hangup(o->chan);
@@ -1173,8 +1173,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		if (outbound_group)
 			cw_app_group_set_channel(tmp->chan, outbound_group);
 
-		/* Place the call, but don't wait on the answer */
-		res = cw_call(tmp->chan, numsubst, 0);
+		res = cw_call(tmp->chan, numsubst);
 
 		/* Save the info in cdr's that we called them */
 		if (chan->cdr)

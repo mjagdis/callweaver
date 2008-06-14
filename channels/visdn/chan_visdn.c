@@ -1014,8 +1014,7 @@ err_call_alloc:
 
 static int visdn_call(
 	struct cw_channel *cw_chan,
-	char *orig_dest,
-	int timeout)
+	char *orig_dest)
 {
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 	int err;

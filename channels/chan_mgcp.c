@@ -491,7 +491,7 @@ static int mgcp_do_reload(void);
 static int mgcp_reload(int fd, int argc, char *argv[]);
 
 static struct cw_channel *mgcp_request(const char *type, int format, void *data, int *cause);
-static int mgcp_call(struct cw_channel *ast, char *dest, int timeout);
+static int mgcp_call(struct cw_channel *ast, char *dest);
 static int mgcp_hangup(struct cw_channel *ast);
 static int mgcp_answer(struct cw_channel *ast);
 static struct cw_frame *mgcp_read(struct cw_channel *ast);
@@ -889,7 +889,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	return res;
 }
 
-static int mgcp_call(struct cw_channel *ast, char *dest, int timeout)
+static int mgcp_call(struct cw_channel *ast, char *dest)
 {
 	int res;
 	struct mgcp_endpoint *p;

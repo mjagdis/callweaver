@@ -1842,7 +1842,7 @@ static int read_config(struct chan_list *ch, int orig) {
 /*** CW Indications Start ***/
 /*****************************/
 
-static int misdn_call(struct cw_channel *cw, char *dest, int timeout)
+static int misdn_call(struct cw_channel *cw, char *dest)
 {
 	int port=0;
 	int r;

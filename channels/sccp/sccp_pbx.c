@@ -77,7 +77,7 @@ static void * sccp_pbx_call_autoanswer_thread(void *data) {
 
 
 /* this is for incoming calls callweaver sccp_request */
-static int sccp_pbx_call(struct cw_channel *ast, char *dest, int timeout) {
+static int sccp_pbx_call(struct cw_channel *ast, char *dest) {
 	sccp_line_t	 * l;
 	sccp_device_t  * d;
 	sccp_session_t * s;

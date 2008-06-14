@@ -2237,7 +2237,7 @@ static int alsa_text(struct cw_channel *c, const char *text);
 static int alsa_hangup(struct cw_channel *c);
 static int alsa_answer(struct cw_channel *c);
 static struct cw_frame *alsa_read(struct cw_channel *chan);
-static int alsa_call(struct cw_channel *c, char *dest, int timeout);
+static int alsa_call(struct cw_channel *c, char *dest);
 static int alsa_write(struct cw_channel *chan, struct cw_frame *f);
 static int alsa_indicate(struct cw_channel *chan, int cond);
 static int alsa_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
@@ -2586,7 +2586,7 @@ static void grab_owner(void)
 	}
 }
 
-static int alsa_call(struct cw_channel *c, char *dest, int timeout)
+static int alsa_call(struct cw_channel *c, char *dest)
 {
 	int res = 3;
 	struct cw_frame f = { CW_FRAME_CONTROL };

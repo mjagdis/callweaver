@@ -507,7 +507,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
         cw_log(CW_LOG_ERROR, "Error creating channel. Invalid name %s\n", argv[0]);
         ALL_DONE(u, 0);
     }
-    if ((res = cw_call(peer, dest, 0)) < 0)
+    if ((res = cw_call(peer, dest)) < 0)
         ALL_DONE(u, -1); 
     strncpy(status, "CHANUNAVAIL", sizeof(status) - 1); /* assume as default */
     channels[0] = peer;

@@ -243,7 +243,7 @@ static struct cw_channel *blt_request(const char *type, int format, void *data, 
 static int blt_hangup(struct cw_channel *c);
 static int blt_answer(struct cw_channel *c);
 static struct cw_frame *blt_read(struct cw_channel *chan);
-static int blt_call(struct cw_channel *c, char *dest, int timeout);
+static int blt_call(struct cw_channel *c, char *dest);
 static int blt_write(struct cw_channel *chan, struct cw_frame *f);
 static int blt_indicate(struct cw_channel *chan, int cond);
 

@@ -244,7 +244,7 @@ static struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded f
 static struct cw_channel *agent_request(const char *type, int format, void *data, int *cause);
 static int agent_devicestate(void *data);
 static int agent_digit(struct cw_channel *ast, char digit);
-static int agent_call(struct cw_channel *ast, char *dest, int timeout);
+static int agent_call(struct cw_channel *ast, char *dest);
 static int agent_hangup(struct cw_channel *ast);
 static int agent_answer(struct cw_channel *ast);
 static struct cw_frame *agent_read(struct cw_channel *ast);
@@ -645,7 +645,7 @@ static int agent_digit(struct cw_channel *ast, char digit)
 	return res;
 }
 
-static int agent_call(struct cw_channel *ast, char *dest, int timeout)
+static int agent_call(struct cw_channel *ast, char *dest)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -672,7 +672,7 @@ static int agent_call(struct cw_channel *ast, char *dest, int timeout)
 			cw_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		cw_set_callerid(p->chan, ast->cid.cid_num, ast->cid.cid_name, NULL);
 		cw_channel_inherit_variables(ast, p->chan);
-		res = cw_call(p->chan, p->loginchan, 0);
+		res = cw_call(p->chan, p->loginchan);
 		CLEANUP(ast,p);
 		cw_mutex_unlock(&p->lock);
 		return res;

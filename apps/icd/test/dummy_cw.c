@@ -173,7 +173,7 @@ int cw_waitfor(struct cw_channel *chan, int ms) {
     return 0;
 }
 
-int cw_call(struct cw_channel *chan, char *addr, int timeout) {
+int cw_call(struct cw_channel *chan, char *addr) {
     return 0;
 }
 

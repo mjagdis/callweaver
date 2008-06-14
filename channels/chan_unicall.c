@@ -161,7 +161,7 @@ static pthread_t monitor_thread = CW_PTHREADT_NULL;
 #define MASK_INUSE              (1 << 1)        /* Channel currently in use */
 
 static struct cw_channel *unicall_request(const char *type, int format, void *data, int *cause);
-static int unicall_call(struct cw_channel *c, char *dest, int timeout);
+static int unicall_call(struct cw_channel *c, char *dest);
 static int unicall_hangup(struct cw_channel *c);
 static int unicall_answer(struct cw_channel *c);
 static struct cw_frame *unicall_read(struct cw_channel *c);
@@ -986,7 +986,7 @@ static void unicall_disable_ec(unicall_pvt_t *p)
     p->echocanon = FALSE;
 }
 
-static int unicall_call(struct cw_channel *cw, char *rdest, int timeout)
+static int unicall_call(struct cw_channel *cw, char *rdest)
 {
     unicall_pvt_t *p = cw->tech_pvt;
     uc_callparms_t *callparms;

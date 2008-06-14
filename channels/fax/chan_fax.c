@@ -731,13 +731,18 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
 }
 
 
-/*! Connect a channel to given destination or timeout.
+/*! Connect a channel to the given destination.
+ *
+ * Starts the process of connecting a call to the given destination.
+ * There is no requirement that the call is actually connected when
+ * skel_call returns. It is up to the caller to service the channel
+ * and watch its state to see if the connection ultimately succeeds
+ * or fails.
  *
  * \param chan		Channel to use
  * \param dest		Destination to connect to
- * \param timeout	Number of seconds to give in after
  */
-static int tech_call(struct cw_channel *chan, char *dest, int timeout)
+static int tech_call(struct cw_channel *chan, char *dest)
 {
 	struct tm tm;
 	char buf[sizeof("0000+0000")];

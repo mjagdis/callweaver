@@ -115,9 +115,8 @@ struct cw_channel_tech {
 	/*! Send a literal DTMF digit */
 	int (* const send_digit)(struct cw_channel *chan, char digit);
 
-	/*! Call a given phone number (address, etc), but don't
-	   take longer than timeout seconds to do so.  */
-	int (* const call)(struct cw_channel *chan, char *addr, int timeout);
+	/*! Call a given phone number (address, etc) */
+	int (* const call)(struct cw_channel *chan, char *addr);
 
 	/*! Hangup (and possibly destroy) the channel */
 	int (* const hangup)(struct cw_channel *chan);
@@ -614,17 +613,14 @@ void cw_channel_setwhentohangup(struct cw_channel *chan, time_t offset);
  */
 int cw_answer(struct cw_channel *chan);
 
-/*! Make a call */
-/*! 
+/*! Make a call
+ * 
  * \param chan which channel to make the call on
  * \param addr destination of the call
- * \param timeout time to wait on for connect
- * Place a call, take no longer than timeout ms.  Returns -1 on failure, 
-   0 on not enough time (does not auto matically stop ringing), and  
-   the number of seconds the connect took otherwise.
-   Returns 0 on success, -1 on failure
-   */
-int cw_call(struct cw_channel *chan, char *addr, int timeout);
+ *
+ * \return 0 on success, -1 on failure
+ */
+int cw_call(struct cw_channel *chan, char *addr);
 
 /*! Indicates condition of channel */
 /*! 

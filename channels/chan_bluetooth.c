@@ -710,7 +710,7 @@ ring_hs(blt_dev_t * dev)
  * then intiate the connection.  Once we've done that, we can start the call.
  */
 static int
-blt_call(struct cw_channel *chan, char * dest, int timeout)
+blt_call(struct cw_channel *chan, char * dest)
 {
   blt_dev_t * dev = chan->tech_pvt;
 
@@ -724,7 +724,7 @@ blt_call(struct cw_channel *chan, char * dest, int timeout)
     return -1;
   }
 
-  cw_log(CW_LOG_DEBUG, "Calling %s on %s [t: %d]\n", dest, chan->name, timeout);
+  cw_log(CW_LOG_DEBUG, "Calling %s on %s\n", dest, chan->name);
 
   /* interface is already locked (wtf?) */
   if (cw_mutex_lock(&iface_lock)) {

@@ -1792,7 +1792,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 			if((chan = cw_request(type, format, data, &reason))) {
 				cw_set_callerid(chan, cid_num, cid_name, cid_num);
-				if (!cw_call(chan, data, timeout)) {
+				if (!cw_call(chan, data)) {
 
 					if(!pname) {
 						pname = chan->name;

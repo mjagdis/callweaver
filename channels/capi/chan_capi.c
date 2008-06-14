@@ -1359,7 +1359,7 @@ static void parse_dialstring(char *buffer, char **interface, char **dest, char *
 /*
  * PBX tells us to make a call
  */
-static int pbx_capi_call(struct cw_channel *c, char *idest, int timeout)
+static int pbx_capi_call(struct cw_channel *c, char *idest)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	char *dest, *interface, *param, *ocid;

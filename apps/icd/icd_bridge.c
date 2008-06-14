@@ -546,9 +546,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
         return state;
     }
 
-    /* cw_call() starts ringing and returns immediately with timeout (0) or error. */
-
-    result = cw_call(chan, addr, 0);
+    result = cw_call(chan, addr);
     if (result < 0) {
         if (chanstring != NULL) {
             cw_log(CW_LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);

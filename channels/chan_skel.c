@@ -53,7 +53,7 @@ static const char tdesc[] = "Skeleton Channel Driver";
 static struct cw_channel *skel_request(const char *type, int format, void *data, int *cause);
 static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 
-static int skel_call(struct cw_channel *ast, char *dest, int timeout);
+static int skel_call(struct cw_channel *ast, char *dest);
 static int skel_answer(struct cw_channel *ast);
 static int skel_hangup(struct cw_channel *ast);
 
@@ -86,13 +86,18 @@ static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 }
 
 
-/*! Connect a channel to given destination or timeout.
+/*! Connect a channel to the given destination.
+ *
+ * Starts the process of connecting a call to the given destination.
+ * There is no requirement that the call is actually connected when
+ * skel_call returns. It is up to the caller to service the channel
+ * and watch its state to see if the connection ultimately succeeds
+ * or fails.
  *
  * \param chan		Channel to use
  * \param dest		Destination to connect to
- * \param timeout	Number of seconds to give in after
  */
-static int skel_call(struct cw_channel *chan, char *dest, int timeout)
+static int skel_call(struct cw_channel *chan, char *dest)
 {
 	return -1;
 }

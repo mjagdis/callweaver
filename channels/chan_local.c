@@ -73,7 +73,7 @@ CW_MUTEX_DEFINE_STATIC(locallock);
 
 static struct cw_channel *local_request(const char *type, int format, void *data, int *cause);
 static int local_digit(struct cw_channel *ast, char digit);
-static int local_call(struct cw_channel *ast, char *dest, int timeout);
+static int local_call(struct cw_channel *ast, char *dest);
 static int local_hangup(struct cw_channel *ast);
 static int local_answer(struct cw_channel *ast);
 static struct cw_frame *local_read(struct cw_channel *ast);
@@ -330,7 +330,7 @@ static int local_sendhtml(struct cw_channel *ast, int subclass, const char *data
 
 /*--- local_call: Initiate new call, part of PBX interface */
 /* 	dest is the dial string */
-static int local_call(struct cw_channel *ast, char *dest, int timeout)
+static int local_call(struct cw_channel *ast, char *dest)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;

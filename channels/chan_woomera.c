@@ -159,7 +159,6 @@ struct private_object {
 	char dest[WOOMERA_STRLEN];
 	int port;
 	struct timeval started;
-	int timeout;
 	char dtmfbuf[WOOMERA_STRLEN];
 	char cid_name[WOOMERA_STRLEN];
 	char cid_num[WOOMERA_STRLEN];
@@ -225,7 +224,7 @@ static void tech_monitor_in_one_thread(void);
  */
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
 static int tech_send_digit(struct cw_channel *self, char digit);
-static int tech_call(struct cw_channel *self, char *dest, int timeout);
+static int tech_call(struct cw_channel *self, char *dest);
 static int tech_hangup(struct cw_channel *self);
 static int tech_answer(struct cw_channel *self);
 static struct cw_frame *tech_read(struct cw_channel *self);
@@ -834,16 +833,6 @@ static void *tech_monitor_thread(void *obj)
 			cw_mutex_unlock(&tech_pvt->iolock);
 		}
 
-		if(tech_pvt->timeout) {
-			struct timeval now;
-			int elapsed;
-			gettimeofday(&now, NULL);
-			elapsed = (((now.tv_sec * 1000) + now.tv_usec / 1000) - ((tech_pvt->started.tv_sec * 1000) + tech_pvt->started.tv_usec / 1000));
-			if (elapsed > tech_pvt->timeout) {
-				/* call timed out! */
-				cw_set_flag(tech_pvt, TFLAG_ABORT);
-			}
-		}
 		if (!tech_pvt->command_channel) {
 			if (!globals.more_threads) {
 				continue;
@@ -991,7 +980,6 @@ static void *tech_monitor_thread(void *obj)
 							memcpy((char *) &tech_pvt->udpwrite.sin_addr.s_addr, hp->h_addr_list[0], hp->h_length);
 							tech_pvt->udpwrite.sin_port = htons(port);
 							cw_set_flag(tech_pvt, TFLAG_MEDIA);
-							tech_pvt->timeout = 0;
 							cw_setstate(tech_pvt->owner, CW_STATE_RINGING);
 							if (cw_test_flag(tech_pvt, TFLAG_INBOUND)) {
 								if (cw_pbx_start(tech_pvt->owner)) {
@@ -1559,7 +1547,7 @@ static int tech_send_digit(struct cw_channel *self, char digit)
  * is willing to wait for the call to be complete.
  */
 
-static int tech_call(struct cw_channel *self, char *dest, int timeout)
+static int tech_call(struct cw_channel *self, char *dest)
 {
 	private_object *tech_pvt = self->tech_pvt;
 	char *workspace;
@@ -1614,7 +1602,6 @@ static int tech_call(struct cw_channel *self, char *dest, int timeout)
 
 	snprintf(tech_pvt->dest, sizeof(tech_pvt->dest), "%s", addr ? addr : "");
 
-	tech_pvt->timeout = timeout;
 	tech_init(tech_pvt, profile, TFLAG_OUTBOUND);
 
 	return 0;

@@ -698,7 +698,7 @@ static struct zt_pvt {
 static struct cw_channel *zt_request(const char *type, int format, void *data, int *cause);
 static int zt_digit(struct cw_channel *cw, char digit);
 static int zt_sendtext(struct cw_channel *c, const char *text);
-static int zt_call(struct cw_channel *cw, char *rdest, int timeout);
+static int zt_call(struct cw_channel *cw, char *rdest);
 static int zt_hangup(struct cw_channel *cw);
 static int zt_answer(struct cw_channel *cw);
 struct cw_frame *zt_read(struct cw_channel *cw);
@@ -1737,7 +1737,7 @@ static int zt_callwait(struct cw_channel *cw)
 	return 0;
 }
 
-static int zt_call(struct cw_channel *cw, char *rdest, int timeout)
+static int zt_call(struct cw_channel *cw, char *rdest)
 {
 	struct zt_ring_cadence rcad, *cadence;
 	struct tone_zone *tzone;
@@ -7612,7 +7612,7 @@ static void *do_idle_thread(void *vchan)
 	if (option_verbose > 2) 
 		cw_verbose(VERBOSE_PREFIX_3 "Initiating idle call on channel %s\n", chan->name);
 	snprintf(ex, sizeof(ex), "%d/%s", pvt->channel, pvt->pri->idledial);
-	if (cw_call(chan, ex, 0)) {
+	if (cw_call(chan, ex)) {
 		cw_log(CW_LOG_WARNING, "Idle dial failed on '%s' to '%s'\n", chan->name, ex);
 		cw_hangup(chan);
 		return NULL;

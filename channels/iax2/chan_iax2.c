@@ -702,7 +702,7 @@ static int iax2_digit(struct cw_channel *c, char digit);
 static int iax2_sendtext(struct cw_channel *c, const char *text);
 static int iax2_sendimage(struct cw_channel *c, struct cw_frame *img);
 static int iax2_sendhtml(struct cw_channel *c, int subclass, const char *data, int datalen);
-static int iax2_call(struct cw_channel *c, char *dest, int timeout);
+static int iax2_call(struct cw_channel *c, char *dest);
 static int iax2_hangup(struct cw_channel *c);
 static int iax2_answer(struct cw_channel *c);
 static struct cw_frame *iax2_read(struct cw_channel *c);
@@ -2249,7 +2249,7 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	}
 }
 
-static int iax2_call(struct cw_channel *c, char *dest, int timeout)
+static int iax2_call(struct cw_channel *c, char *dest)
 {
 	struct sockaddr_in sin;
 	char *l=NULL, *n=NULL, *tmpstr;

@@ -1622,8 +1622,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     /* Presense of ADSI CPE on outgoing channel follows ours */
     tmp->chan->adsicpe = qe->chan->adsicpe;
 
-    /* Place the call, but don't wait on the answer */
-    res = cw_call(tmp->chan, location, 0);
+    res = cw_call(tmp->chan, location);
     if (res)
     {
         /* Again, keep going even if there's an error */
@@ -1982,7 +1981,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                             o->chan->cid.cid_rdnis = strdup(in->proc_exten);
                         else
                             o->chan->cid.cid_rdnis = strdup(in->exten);
-                        if (cw_call(o->chan, tmpchan, 0))
+                        if (cw_call(o->chan, tmpchan))
                         {
                             cw_log(CW_LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
                             o->stillgoing = 0;

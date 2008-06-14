@@ -2310,7 +2310,7 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 		}
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
 
-		if (!cw_call(chan, data, 0))
+		if (!cw_call(chan, data))
         {
 			while (timeout  &&  (chan->_state != CW_STATE_UP))
             {
@@ -2495,11 +2495,8 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 	return c;
 }
 
-int cw_call(struct cw_channel *chan, char *addr, int timeout) 
+int cw_call(struct cw_channel *chan, char *addr) 
 {
-	/* Place an outgoing call, but don't wait any longer than timeout ms before returning. 
-	   If the remote end does not answer within the timeout, then do NOT hang up, but 
-	   return anyway.  */
 	int res = -1;
 
 	/* Stop if we're a zombie or need a soft hangup */
@@ -2507,9 +2504,9 @@ int cw_call(struct cw_channel *chan, char *addr, int timeout)
 	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE)  &&  !cw_check_hangup(chan))
 	{
 		if (chan->tech->call)
-			res = chan->tech->call(chan, addr, timeout);
+			res = chan->tech->call(chan, addr);
 	}
-    cw_mutex_unlock(&chan->lock);
+	cw_mutex_unlock(&chan->lock);
 	return res;
 }
 

@@ -1095,7 +1095,7 @@ static int callevents = 0;
 static struct cw_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct cw_channel *ast, const char *text);
-static int sip_call(struct cw_channel *ast, char *dest, int timeout);
+static int sip_call(struct cw_channel *ast, char *dest);
 static int sip_hangup(struct cw_channel *ast);
 static int sip_answer(struct cw_channel *ast);
 static struct cw_frame *sip_read(struct cw_channel *ast);
@@ -2902,7 +2902,7 @@ static int auto_congest(void *nothing)
 
 /*! \brief  sip_call: Initiate SIP call from PBX 
  *      used from the dial() application      */
-static int sip_call(struct cw_channel *ast, char *dest, int timeout)
+static int sip_call(struct cw_channel *ast, char *dest)
 {
     int res;
     struct sip_pvt *p;
