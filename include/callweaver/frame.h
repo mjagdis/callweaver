@@ -48,7 +48,7 @@ struct cw_codec_pref
 /*! Data structure associated with a single frame of data */
 /* A frame of data read used to communicate between 
    between channels and applications */
-typedef struct cw_frame
+struct cw_frame
 {
     /*! Kind of frame */
     int frametype;
@@ -84,7 +84,7 @@ typedef struct cw_frame
     int tx_copies;
     /*! Allocated data space */
     uint8_t local_data[0];
-} opvx_frame_t;
+};
 
 #define CW_FRIENDLY_OFFSET    64        /*! It's polite for a a new frame to
                           have this number of bytes for additional
