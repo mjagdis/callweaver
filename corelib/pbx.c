@@ -2243,7 +2243,7 @@ static int increase_call_count(const struct cw_channel *c)
     {
         if (countcalls >= option_maxcalls)
         {
-            cw_log(CW_LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+            cw_log(CW_LOG_ERROR, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
             failed = -1;
         }
     }
@@ -2252,7 +2252,7 @@ static int increase_call_count(const struct cw_channel *c)
         getloadavg(&curloadavg, 1);
         if (curloadavg >= option_maxload)
         {
-            cw_log(CW_LOG_NOTICE, "Maximum loadavg limit of %lf load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
+            cw_log(CW_LOG_ERROR, "Maximum loadavg limit of %lf load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
             failed = -1;
         }
     }
