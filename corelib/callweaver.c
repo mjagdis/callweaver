@@ -55,6 +55,8 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -64,7 +66,7 @@
 #include <sched.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/wait.h>
+#include <sysexits.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -520,7 +522,12 @@ static int lockfile_claim(char *lockfile)
 			pid_t pid;
 			if ((err2 = read(d, buf, sizeof(buf)-1)) > 0
 			&& ((buf[err2] = '\0'),(pid = atol(buf))) > 1) {
-				if (!kill(pid, 0)) {
+				if (pid == getpid()) {
+					/* Hang on, we alerady own the lock. We must have restarted */
+					close(d);
+					claimed = 1;
+					goto out;
+				} else if (!kill(pid, 0)) {
 					err = EBUSY;
 				} else {
 					unlink(lockfile);
@@ -567,7 +574,6 @@ out:
 static void quit_handler(void *data)
 {
 	int local_restart;
-	int i;
 
 	/* No more changing your mind. This is definitely what we are going to do. */
 	local_restart = restart;
@@ -594,9 +600,6 @@ static void quit_handler(void *data)
 	if (option_verbose || option_console || option_nofork)
 		cw_verbose("%s CallWeaver NOW...\n", (local_restart ? "Restarting" : "Halting"));
 
-	if (!option_remote)
-		lockfile_release(cw_config_CW_PID);
-
 	close_logger();
 
 	if (!pthread_equal(consolethread, CW_PTHREADT_NULL)) {
@@ -608,17 +611,10 @@ static void quit_handler(void *data)
 		pthread_join(tid, NULL);
 	}
 
-	if (local_restart) {
-		/* Mark all FD's for closing on exec */
-		for (i = getdtablesize() - 1; i > 2; i--)
-			fcntl(i, F_SETFD, FD_CLOEXEC);
+	if (local_restart)
+		exit(EX_TEMPFAIL);
 
-		execvp(_argv[0], _argv);
-		perror("exec");
-		_exit(1);
-	}
-
-	exit(0);
+	exit(EX_OK);
 }
 
 
@@ -1014,7 +1010,7 @@ static void boot(void)
 	|| cw_enum_init()
 	|| cw_translator_init()
 	|| init_features()) {
-	    exit(1);
+	    exit(EX_USAGE);
 	}
 
 #ifdef __CW_DEBUG_MALLOC
@@ -1453,6 +1449,7 @@ int callweaver_main(int argc, char *argv[])
 	sigset_t sigs;
 	int is_child_of_nonroot=0;
 	static char *runuser = NULL, *rungroup = NULL;  
+	pid_t pid;
 
 
 	/* init with default */
@@ -1551,10 +1548,10 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 'h':
 			show_cli_help();
-			exit(0);
+			exit(EX_OK);
 		case 'V':
 			show_version();
-			exit(0);
+			exit(EX_OK);
 		case 'U':
 			runuser = optarg;
 			break;
@@ -1562,7 +1559,7 @@ int callweaver_main(int argc, char *argv[])
 			rungroup = optarg;
 			break;
 		case '?':
-			exit(1);
+			exit(EX_USAGE);
 		}
 	}
 
@@ -1570,19 +1567,84 @@ int callweaver_main(int argc, char *argv[])
 
 	cw_loader_init();
 
-	/* For remote connections, change the name of the remote connection.
-	 * We do this for the benefit of init scripts (which need to know if/when
-	 * the main callweaver process has died yet). */
-	if (option_remote) {
+	if ((option_console || option_nofork) && !option_verbose) 
+		cw_verbose("[ Reading Master Configuration ]");
+	cw_readconfig();
+
+	if (option_remote || option_exec) {
+		/* For remote connections, change the name of the remote connection.
+		 * We do this for the benefit of init scripts (which need to know if/when
+		 * the main callweaver process has died yet).
+		 */
 		strcpy(argv[0], "rcallweaver");
 		for (x = 1; x < argc; x++) {
 			argv[x] = argv[0] + 10;
 		}
+
+		if (option_exec)
+			exit(console_oneshot(cw_config_CW_SOCKET, xarg));
+
+		console(cw_config_CW_SOCKET);
+		exit(EX_OK);
 	}
 
-	if ((option_console || option_nofork) && !option_verbose) 
-		cw_verbose("[ Reading Master Configuration ]");
-	cw_readconfig();
+	switch (lockfile_claim(cw_config_CW_PID)) {
+		case 0: /* Already running */
+			fprintf(stderr, "CallWeaver already running. Use \"callweaver -r\" to connect.\n");
+			/* Fall through */
+		case -1: /* Interrupted before claim */
+			exit(1);
+	}
+
+	if (!option_console && !option_nofork) {
+		if ((pid = fork()) == -1) {
+			perror("fork");
+			exit(EX_OSERR);
+		} else if (pid) {
+			/* We, the parent, are going to die and our child takes
+			 * over all future responsibilities. Update the pid file
+			 * accordingly.
+			 */
+			if (lockfile_rewrite(cw_config_CW_PID, pid))
+				fprintf(stderr, "Unable to rewrite pid file '%s' after forking: %s\n", cw_config_CW_PID, strerror(errno));
+			_exit(0);
+		}
+
+		freopen("/dev/null", "r", stdin);
+		freopen("/dev/null", "w", stdout);
+		freopen("/dev/null", "w", stderr);
+		setsid();
+	}
+
+	do {
+		int status;
+
+		switch ((pid = fork())) {
+			case -1:
+				perror("fork");
+				sleep(1);
+				break;
+
+			case 0:
+				break;
+
+			default:
+				while (!waitpid(pid, &status, 0) && (!WIFEXITED(status) || !WIFSIGNALED(status)));
+
+				if (WIFEXITED(status) && WEXITSTATUS(status) == EX_TEMPFAIL) {
+					/* Mark all FD's for closing on exec */
+					for (x = getdtablesize() - 1; x >= (option_console || option_nofork ? 3 : 0); x--)
+						fcntl(x, F_SETFD, FD_CLOEXEC);
+					execvp(_argv[0], _argv);
+					perror("exec");
+					_exit(EX_OSERR);
+				}
+
+				lockfile_release(cw_config_CW_PID);
+				exit(status);
+				break;
+		}
+	} while (pid != 0);
 
 	if (option_dumpcore) {
 		struct rlimit l;
@@ -1596,7 +1658,7 @@ int callweaver_main(int argc, char *argv[])
 
 
 	if (!is_child_of_nonroot && cw_set_priority(option_highpriority)) {
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	if (!runuser)
@@ -1623,23 +1685,23 @@ int callweaver_main(int argc, char *argv[])
 		gr = getgrnam(rungroup);
 		if (!gr) {
 			cw_log(CW_LOG_ERROR, "No such group '%s'!\n", rungroup);
-			exit(1);
+			exit(EX_NOUSER);
 		}
 		pw = getpwnam(runuser);
 		if (!pw) {
 			cw_log(CW_LOG_ERROR, "No such user '%s'!\n", runuser);
-			exit(1);
+			exit(EX_NOUSER);
 		}
 		
 		if (gr->gr_gid != getegid() )
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
 			cw_log(CW_LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
-			exit(1);
+			exit(EX_OSERR);
 		}
 
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
 			cw_log(CW_LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
-			exit(1);
+			exit(EX_OSERR);
 		}
 		if (option_verbose) {
 			int ngroups;
@@ -1671,7 +1733,7 @@ int callweaver_main(int argc, char *argv[])
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 #endif
 			cw_log(CW_LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
-			exit(1);
+			exit(EX_OSERR);
 		}
 		setenv("CALLWEAVER_ALREADY_NONROOT","yes",1);
 		if (option_verbose) {
@@ -1729,42 +1791,6 @@ int callweaver_main(int argc, char *argv[])
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
-
-	if (option_remote || option_exec) {
-		if (option_exec)
-			exit(console_oneshot(cw_config_CW_SOCKET, xarg));
-		console(cw_config_CW_SOCKET);
-		exit(0);
-	}
-
-	switch (lockfile_claim(cw_config_CW_PID)) {
-		case 0: /* Already running */
-			cw_log(CW_LOG_ERROR, "CallWeaver already running.  Use 'callweaver -r' to connect.\n");
-			/* Fall through */
-		case -1: /* Interrupted before claim */
-			exit(1);
-	}
-
-	if (!option_console && !option_nofork) {
-		pid_t pid = fork();
-		if (pid == -1) {
-			cw_log(CW_LOG_ERROR, "fork failed: %s\n", strerror(errno));
-			exit(1);
-		} else if (pid) {
-			/* We, the parent, are going to die and our child takes
-			 * over all future responsibilities. Update the pid file
-			 * accordingly.
-			 */
-			if (lockfile_rewrite(cw_config_CW_PID, pid))
-				cw_log(CW_LOG_WARNING, "Unable to rewrite pid file '%s' after forking: %s\n", cw_config_CW_PID, strerror(errno));
-			_exit(0);
-		}
-
-		freopen("/dev/null", "r", stdin);
-		freopen("/dev/null", "w", stdout);
-		freopen("/dev/null", "w", stderr);
-		setsid();
-	}
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
