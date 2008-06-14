@@ -566,8 +566,9 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		return ret;
 	}
 
+	ret = errno;
 	cw_log(CW_LOG_ERROR, "malloc: %s\n", strerror(errno));
-	return -1;
+	return errno;
 }
 
 int cw_wait_for_input(int fd, int ms)
