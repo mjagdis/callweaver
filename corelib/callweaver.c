@@ -128,6 +128,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/directory_engine.h"
 #include "callweaver/translate.h"
 #include "callweaver/switch.h"
+#include "callweaver/time.h"
 
 #include "callweaver/crypto.h"
 
@@ -151,6 +152,15 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define CW_MAX_CONNECTS 128
 #define NUM_MSGS 64
+
+
+#if defined(_POSIX_TIMERS)
+#  if defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
+clockid_t global_clock_monotonic = CLOCK_MONOTONIC;
+#  else
+clockid_t global_clock_monotonic = CLOCK_REALTIME;
+#  endif
+#endif
 
 
 char hostname[MAXHOSTNAMELEN];
@@ -224,6 +234,15 @@ static pthread_t consolethread = CW_PTHREADT_NULL;
 static char random_state[256];
 
 static pthread_t lthread = CW_PTHREADT_NULL;
+
+
+static void cw_clock_init(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(global_clock_monotonic, &ts))
+		global_clock_monotonic = CLOCK_REALTIME;
+}
 
 
 static const char *atexit_registry_obj_name(struct cw_object *obj)
@@ -1763,8 +1782,6 @@ int callweaver_main(int argc, char *argv[])
 	if (!geteuid())
 		cw_log(CW_LOG_ERROR, "Running as root is EXTREMELY dangerous. See the documentation!\n");
 
-
-
 #if defined(__linux__)
 	/* after set*id() the dumpable flag is deleted,
 	   so we set it again to get core dumps */
@@ -1774,6 +1791,8 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 #endif
+
+	cw_clock_init();
 
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_verbose("[ Initializing Custom Configuration Options ]");

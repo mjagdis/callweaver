@@ -23,9 +23,65 @@
 #ifndef _CALLWEAVER_TIME_H
 #define _CALLWEAVER_TIME_H
 
+#include <time.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "callweaver/inline_api.h"
+
+
+#ifdef _POSIX_TIMERS
+
+extern clockid_t global_clock_monotonic;
+
+#define cw_clock_gettime(clock_id, timespec_p) clock_gettime((clock_id), (timespec_p))
+
+#else /* _POSIX_TIMERS */
+
+struct timespec {
+	time_t tv_sec;
+	long tv_nsec;
+};
+
+#define global_clock_monotonic 0
+
+CW_INLINE_API(
+int cw_clock_gettime(int clk, struct timespec *ts),
+{
+	struct timeval tv;
+
+	if (!gettimeofday(&tv, NULL)) {
+		ts->tv_sec = tv.tv_sec;
+		ts->tv_nsec = 1000L * tv.tv_usec;
+		return 0;
+	}
+	return -1;
+}
+)
+
+#endif /* _POSIX_TIMERS */
+
+
+CW_INLINE_API(
+int cw_clock_diff_ms(struct timespec *end, struct timespec *start),
+{
+	return (end->tv_sec - start->tv_sec) * 1000L
+		+ ((1000000000L + end->tv_nsec - start->tv_nsec) / 1000000) - 1000L;
+}
+)
+
+
+CW_INLINE_API(
+void cw_clock_add_ms(struct timespec *ts, int ms),
+{
+	ts->tv_nsec += 1000000L * ms;
+	while (ts->tv_nsec >= 1000000000L) {
+		ts->tv_nsec -= 1000000000L;
+		ts->tv_sec++;
+	}
+}
+)
+
 
 /* We have to let the compiler learn what types to use for the elements of a
    struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
