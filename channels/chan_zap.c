@@ -6677,7 +6677,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
 		if (!tmp) {
 			cw_log(CW_LOG_ERROR, "MALLOC FAILED\n");
-			destroy_zt_pvt(&tmp);
 			return NULL;
 		}
 		memset(tmp, 0, sizeof(struct zt_pvt));
