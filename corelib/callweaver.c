@@ -384,47 +384,6 @@ static void child_handler(int sig)
 }
 
 
-/*! We set ourselves to a high priority, that we might pre-empt everything
-   else.  If your PBX has heavy activity on it, this is a good thing.  */
-int cw_set_priority(int pri)
-{
-	struct sched_param sched;
-	memset(&sched, 0, sizeof(sched));
-#ifdef __linux__
-	if (pri) {  
-		sched.sched_priority = 10;
-		if (sched_setscheduler(0, SCHED_RR, &sched)) {
-			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
-			return -1;
-		} else
-			if (option_verbose)
-				cw_verbose("Set to realtime thread\n");
-	} else {
-		sched.sched_priority = 0;
-		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			cw_log(CW_LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
-	}
-#else
-	if (pri) {
-		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
-			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
-			return -1;
-		} else
-			if (option_verbose)
-				cw_verbose("Set to high priority\n");
-	} else {
-		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			cw_log(CW_LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
-	}
-#endif
-	return 0;
-}
-
-
 #define MKSTR(x)	# x
 #define UINT_MAX_LEN	sizeof(MKSTR(UINT_MAX))
 
@@ -1286,7 +1245,7 @@ static int show_cli_help(void) {
 	printf("   -h              This help screen\n");
 	printf("   -i              Initialize crypto keys at startup\n");
 	printf("   -n              Disable console colorization at startup or console (not remote)\n");
-	printf("   -p              Run as pseudo-realtime thread\n");
+	printf("   -p              Run with elevated priority\n");
 	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to CallWeaver on this machine\n");
 	printf("   -R              Connect to CallWeaver, and attempt to reconnect if disconnected\n");
@@ -1679,8 +1638,9 @@ int callweaver_main(int argc, char *argv[])
 	}
 
 
-	if (!is_child_of_nonroot && cw_set_priority(option_highpriority)) {
-		exit(EX_USAGE);
+	if (!is_child_of_nonroot && option_highpriority) {
+		if (setpriority(PRIO_PROCESS, 0, -10) == -1)
+			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
 	}
 
 	if (!runuser)

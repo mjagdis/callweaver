@@ -56,8 +56,6 @@ extern char cw_config_CW_SYSTEM_NAME[20];
 extern char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
 extern char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
 
-/* Provided by callweaver.c */
-extern int cw_set_priority(int);
 /* Provided by module.c */
 extern int load_modules(const int preload_only);
 /* Provided by pbx.c */

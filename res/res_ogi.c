@@ -279,9 +279,6 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		return -1;
 	}
 	if (!pid) {
-		/* Don't run OGI scripts with realtime priority -- it causes audio stutter */
-		cw_set_priority(0);
-
 		/* Redirect stdin and out, provide enhanced audio channel if desired */
 		dup2(fromast[0], STDIN_FILENO);
 		dup2(toast[1], STDOUT_FILENO);

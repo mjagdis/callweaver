@@ -87,9 +87,11 @@ Disable ANSI colors even on terminals capable of displaying them.
 .TP
 \fB-p\fR
 If supported by the operating system (and executing as root),
-attempt to run with realtime priority for increased performance and
-responsiveness within the CallWeaver process, at the expense of other
-programs running on the same machine.
+attempt to run with elevated priority. Critical threads will
+always be run with a realtime scheduling class if possible
+but this option will raise the priority (niceness) of the
+non-critical threads within the default scheduling class
+as well.
 .TP
 \fB-q\fR
 Reduce default console output when running in conjunction with
