@@ -4399,7 +4399,6 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	struct zt_pvt *p = cw->tech_pvt;
 	int res;
 	int index;
-	void *readbuf;
 	struct cw_frame *f;
 	
 
@@ -4417,7 +4416,11 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	if (p->radio  &&  p->inalarm)
 		return NULL;
 
-	cw_fr_init(&p->subs[index].f);
+	p->subs[index].f.ts += p->subs[index].f.len;
+	p->subs[index].f.seq_no++;
+	p->subs[index].f.datalen = 0;
+	p->subs[index].f.samples = 0;
+	p->subs[index].f.len = 0;
 
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))
@@ -4431,14 +4434,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		}
 		p->firstradio = 1;
 		p->subs[index].f.frametype = CW_FRAME_CONTROL;
-		if (ps.rxisoffhook)
-		{
-			p->subs[index].f.subclass = CW_CONTROL_RADIO_KEY;
-		}
-		else
-		{
-			p->subs[index].f.subclass = CW_CONTROL_RADIO_UNKEY;
-		}
+		p->subs[index].f.subclass = (ps.rxisoffhook ? CW_CONTROL_RADIO_KEY : CW_CONTROL_RADIO_UNKEY);
 		cw_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
@@ -4517,16 +4513,21 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		cw_mutex_unlock(&p->lock);
 		return NULL;
 	}
-	readbuf = ((unsigned char *)p->subs[index].buffer) + CW_FRIENDLY_OFFSET;
+
+	p->subs[index].f.offset = CW_FRIENDLY_OFFSET;
+	p->subs[index].f.data = (char *)p->subs[index].buffer + CW_FRIENDLY_OFFSET;
+
 	CHECK_BLOCKING(cw);
-	res = read(p->subs[index].zfd, readbuf, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
+	res = read(p->subs[index].zfd, p->subs[index].f.data, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
 	cw_clear_flag(cw, CW_FLAG_BLOCKING);
+
 	/* Check for hangup */
 	if (res < 0) {
 		f = NULL;
 		if (res == -1)  {
 			if (errno == EAGAIN) {
 				/* Return "NULL" frame if there is nobody there */
+				p->subs[index].f.frametype = CW_FRAME_NULL;
 				cw_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
 			} else if (errno == ELAST) {
@@ -4538,19 +4539,24 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		return f;
 	}
 
+	/* We read something so fill in datalen, samples and duration */
+	p->subs[index].f.datalen = res;
+	p->subs[index].f.samples = (p->subs[index].linear ? res / 2 : res);
+	p->subs[index].f.len = SAMPLES_TO_MS(p->subs[index].f.samples);
+
 	if (p->tdd) {
 		int c;
 
 		/* if in TDD mode, see if we receive that */
-		c = tdd_feed(p->tdd, readbuf, res, CW_LAW(p));
+		c = tdd_feed(p->tdd, p->subs[index].f.data, res, CW_LAW(p));
 		if (c < 0) {
 			cw_log(CW_LOG_DEBUG,"tdd_feed failed\n");
 			cw_mutex_unlock(&p->lock);
 			return NULL;
 		}
 		if (c) { /* if a char to return */
-			p->subs[index].f.subclass = 0;
 			p->subs[index].f.frametype = CW_FRAME_TEXT;
+			p->subs[index].f.subclass = 0;
 			p->subs[index].f.mallocd = 0;
 			p->subs[index].f.offset = CW_FRIENDLY_OFFSET;
 			p->subs[index].f.data = p->subs[index].buffer + CW_FRIENDLY_OFFSET;
@@ -4561,13 +4567,9 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		}
 	}
 
+	/* Ok, so it's audio data */
 	p->subs[index].f.frametype = CW_FRAME_VOICE;
 	p->subs[index].f.subclass = cw->rawreadformat;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = CW_FRIENDLY_OFFSET;
-	p->subs[index].f.data = p->subs[index].buffer + CW_FRIENDLY_OFFSET/2;
-	p->subs[index].f.datalen = res;
-	p->subs[index].f.samples = (p->subs[index].linear ? res / 2 : res);
 
 	if (p->ringt > 0) {
 		p->ringt -= p->subs[index].f.samples;
@@ -4636,11 +4638,9 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		   don't send anything */
 		p->subs[index].f.frametype = CW_FRAME_NULL;
 		p->subs[index].f.subclass = 0;
-		p->subs[index].f.samples = 0;
-		p->subs[index].f.mallocd = 0;
-		p->subs[index].f.offset = 0;
-		p->subs[index].f.data = NULL;
 		p->subs[index].f.datalen= 0;
+		p->subs[index].f.samples = 0;
+		p->subs[index].f.len = 0;
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */
@@ -6682,8 +6682,11 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		memset(tmp, 0, sizeof(struct zt_pvt));
 		cw_mutex_init(&tmp->lock);
 		ifcount++;
-		for (x=0;x<3;x++)
+		for (x = 0; x < 3; x++) {
 			tmp->subs[x].zfd = -1;
+			cw_fr_init(&tmp->subs[x].f);
+			tmp->subs[x].f.has_timing_info = 1;
+		}
 		tmp->channel = channel;
 
 		/* Assign default jb conf to the new zt_pvt */
