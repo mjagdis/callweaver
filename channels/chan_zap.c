@@ -3572,9 +3572,10 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 	struct cw_channel *chan;
 
 	index = zt_get_index(cw, p, 0);
-    cw_fr_init(&p->subs[index].f);
-	if (index < 0)
+	if (index < 0) {
+		p->subs[index].f.frametype = CW_FRAME_NULL;
 		return &p->subs[index].f;
+	}
 	if (p->fake_event) {
 		res = p->fake_event;
 		p->fake_event = 0;
@@ -4299,8 +4300,6 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 
 	index = zt_get_index(cw, p, 1);
 
-	cw_fr_init(&p->subs[index].f);
-
 	if ((!p->owner) && (!p->radio)) {
 		/* If nobody owns us, absorb the event appropriately, otherwise
 		   we loop indefinitely.  This occurs when, during call waiting, the
@@ -4370,6 +4369,7 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 		default:
 			cw_log(CW_LOG_WARNING, "Don't know how to absorb event %s\n", event2str(res));
 		}
+		p->subs[index].f.frametype = CW_FRAME_NULL;
 		f = &p->subs[index].f;
 		return f;
 	}
@@ -4377,6 +4377,7 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 	/* If it's not us, return NULL immediately */
 	if (cw != p->owner) {
 		cw_log(CW_LOG_WARNING, "We're %s, not %s\n", cw->name, p->owner->name);
+		p->subs[index].f.frametype = CW_FRAME_NULL;
 		f = &p->subs[index].f;
 		return f;
 	}
