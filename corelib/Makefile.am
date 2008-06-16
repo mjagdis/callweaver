@@ -4,7 +4,9 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 
 SUBDIRS=jitterbuffer resample
 
-CORE_SRC = io.c \
+CORE_SRC = \
+    version.c \
+    io.c \
     sched.c \
     logger.c \
     frame.c \
@@ -120,6 +122,7 @@ endif WANT_SRTP
 if EXPORT_DYNAMIC
 libexec_PROGRAMS = callweaver
 callweaver_SOURCES = main.c console.h console.c terminal.h terminal.c $(CORE_SRC)
+nodist_callweaver_SOURCES = $(CORE_NODIST)
 callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = $(CORE_LIBS) $(LIBLTDL)
 callweaver_LDFLAGS = -export-dynamic
@@ -137,9 +140,9 @@ callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = @CALLWEAVER_LIB@ $(LIBLTDL) -lreadline
 endif
 
-BUILT_SOURCES = defaults.h #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
-EXTRA_DIST = defaults.h.in
-CLEANFILES = defaults.h defaults.h.tmp
+BUILT_SOURCES = defaults.h version #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
+EXTRA_DIST = defaults.h.in version.sh.in
+CLEANFILES = defaults.h defaults.h.tmp version.c version.c.tmp
 
 @substitute@
 
@@ -153,3 +156,8 @@ defaults.h: defaults.h.in Makefile
 	rm -f defaults.h.tmp
 	$(substitute) $(srcdir)/defaults.h.in > defaults.h.tmp
 	mv defaults.h.tmp defaults.h
+
+.PHONY: version
+version:
+	(cd "${top_srcdir}"; sh corelib/version.sh) > version.c.tmp
+	if cmp version.c.tmp version.c > /dev/null 2>&1; then rm -f version.c.tmp; else mv version.c.tmp version.c; fi

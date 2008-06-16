@@ -59,35 +59,6 @@ AC_PROG_INSTALL
 AC_FUNC_STRERROR_R
 
 
-dnl SVN Revision number, needed for CW_VERSION and inclusion into files version number
-if test -r "SVNVERSION" ; then
-	svnver=" SVN r`${CAT} SVNVERSION`"
-	svndesc="SVN revision from tarball \"SVNVERSION\" file"
-fi
-if test -z "$svnver" && test -n "$SVN" ; then
-	x="`${SVN} info`"
-	if test -n "$x" ; then
-		svnurl="`${SVN} info | ${AWK} '/^URL: / { sub("^.*/callweaver/", "", $2); print $2 }'`"
-		svnrev="`${SVN} info | ${AWK} '/^Revision: / { print $2 }'`"
-		svnver=" SVN $svnurl r$svnrev"
-		svndesc="SVN revision as given by \"svn info\""
-	else
-		svnver=""
-		svndesc="No output from \"svn info\""
-	fi
-fi
-if test -z "$svnver" && test -n "$GIT" ; then
-	b="`$GIT branch | $AWK '$1 == "*" { print $2 }'`"
-	c="`$GIT log -1 --pretty=oneline | $AWK '{ print substr($1, 0, 8); }'`"
-	svnver="GIT $b $c"
-	svndesc="GIT branch and last commit as given by \"git branch\" and \"git log\""
-fi
-if test -z "$svnver" ; then
-	svndesc="Unknown SVN/GIT revision. Neither svn nor git exist and give us anything."
-fi
-AC_DEFINE_UNQUOTED([SVN_VERSION],"$svnver","$svndesc")
-AC_SUBST([SVN_VERSION])
-
 dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
@@ -2504,6 +2475,7 @@ AC_OUTPUT([Makefile
                  channels/capi/Makefile
                  codecs/Makefile
  		 corelib/Makefile
+		 corelib/version.sh
  		 corelib/jitterbuffer/Makefile
  		 corelib/resample/Makefile
                  funcs/Makefile
@@ -2544,8 +2516,6 @@ echo "CPU_OPTIONS: 	${CPU_OPTIONS}"
 echo "BUILD_OS: 	${BUILD_OS}"
 echo "BUILD_MACHINE: 	${BUILD_MACHINE}"
 echo "BUILD_HOST: 	${BUILD_HOST}"
-echo "SVN:		${SVN}"
-echo "SVN_VERSION:	${svnver# } ($svndesc)"
 echo ""
 echo "prefix:           ${prefix}"
 echo "exec_prefix:      ${exec_prefix}"

@@ -56,6 +56,9 @@ extern char cw_config_CW_SYSTEM_NAME[20];
 extern char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
 extern char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
 
+/* Provided by version.c */
+extern const char cw_version_string[];
+
 /* Provided by module.c */
 extern int load_modules(const int preload_only);
 /* Provided by pbx.c */

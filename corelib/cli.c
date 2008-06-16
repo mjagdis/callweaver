@@ -374,8 +374,9 @@ static int handle_version(int fd, int argc, char *argv[])
     if (argc != 2)
         return RESULT_SHOWUSAGE;
 
-    cw_cli(fd, "%s, %s %s\n",
-        PACKAGE_STRING SVN_VERSION " built on " BUILD_HOSTNAME,
+    cw_cli(fd, "%s %s, %s %s\n",
+        cw_version_string,
+        " built on " BUILD_HOSTNAME,
         (strchr("aeiouhx", BUILD_MACHINE[0]) ? "an" : "a"),
         BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE);
 

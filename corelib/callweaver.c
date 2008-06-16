@@ -1128,7 +1128,7 @@ static void *listener(void *data)
 						break;
 					}
 
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  PACKAGE_STRING SVN_VERSION );
+					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  cw_version_string );
 					write(s, buf, n);
 
 					consoles[x].fd = s;
@@ -1226,34 +1226,34 @@ static int cw_makesocket(char *spec)
 
 static int show_version(void)
 {
-	printf( PACKAGE_STRING SVN_VERSION "\n");
+	puts(cw_version_string);
 	return 0;
 }
 
 static int show_cli_help(void) {
-	printf( PACKAGE_STRING SVN_VERSION  "\n");
-	printf("Usage: callweaver [OPTIONS]\n");
-	printf("Valid Options:\n");
-	printf("   -V              Display version number and exit\n");
-	printf("   -C <configfile> Use an alternate configuration file\n");
-	printf("   -G <group>      Run as a group other than the caller\n");
-	printf("   -U <user>       Run as a user other than the caller\n");
-	printf("   -c              Provide console CLI\n");
-	printf("   -d              Enable extra debugging\n");
-	printf("   -f              Do not fork\n");
-	printf("   -g              Dump core in case of a crash\n");
-	printf("   -h              This help screen\n");
-	printf("   -i              Initialize crypto keys at startup\n");
-	printf("   -n              Disable console colorization at startup or console (not remote)\n");
-	printf("   -p              Run with elevated priority\n");
-	printf("   -q              Quiet mode (suppress output)\n");
-	printf("   -r              Connect to CallWeaver on this machine\n");
-	printf("   -R              Connect to CallWeaver, and attempt to reconnect if disconnected\n");
-	printf("   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n");
-	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line of output to the CLI.\n");
-	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
-	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
-	printf("\n");
+	puts(cw_version_string);
+	puts("\n"
+	"Usage: callweaver [OPTIONS]\n"
+	"Valid Options:\n"
+	"   -V              Display version number and exit\n"
+	"   -C <configfile> Use an alternate configuration file\n"
+	"   -G <group>      Run as a group other than the caller\n"
+	"   -U <user>       Run as a user other than the caller\n"
+	"   -c              Provide console CLI\n"
+	"   -d              Enable extra debugging\n"
+	"   -f              Do not fork\n"
+	"   -g              Dump core in case of a crash\n"
+	"   -h              This help screen\n"
+	"   -i              Initialize crypto keys at startup\n"
+	"   -n              Disable console colorization at startup or console (not remote)\n"
+	"   -p              Run with elevated priority\n"
+	"   -q              Quiet mode (suppress output)\n"
+	"   -r              Connect to CallWeaver on this machine\n"
+	"   -R              Connect to CallWeaver, and attempt to reconnect if disconnected\n"
+	"   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n"
+	"   -T              Display the time in [Mmm dd hh:mm:ss] format for each line of output to the CLI.\n"
+	"   -v              Increase verbosity (multiple v's = more verbose)\n"
+	"   -x <cmd>        Execute command <cmd> (only valid with -r)");
 	return 0;
 }
 
