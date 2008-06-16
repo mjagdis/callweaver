@@ -265,7 +265,7 @@ int cw_load_resource(const char *resource_name)
 	mod->lib = lt_dlopen(resource_name);
 	if (!mod->lib) {
 		cw_mutex_unlock(&module_lock);
-		cw_log(CW_LOG_ERROR, "%s\n", lt_dlerror());
+		cw_log(CW_LOG_ERROR, "Resource '%s', error '%s'\n", resource_name, lt_dlerror());
 		free(mod);
 		return -1;
 	}
@@ -384,8 +384,9 @@ static int load_modules_one(const char *filename, lt_ptr data)
 	 * and which are not already loaded
 	 */
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
-	&& (!loadorder[args->prefix] || !strncasecmp(basename, loadorder[args->prefix], args->prefix_len))
-	&& (snprintf(soname, sizeof(soname), "%s.so", basename), !cw_resource_exists(soname))) {
+		&& (!loadorder[args->prefix] || !strncasecmp(basename, loadorder[args->prefix], args->prefix_len))
+		&& (snprintf(soname, sizeof(soname), "%s.so", basename), !cw_resource_exists(soname)))
+	{
 		struct cw_variable *v;
 
 		/* It's a shared library -- Just be sure we're allowed to load it -- kinda
@@ -396,10 +397,13 @@ static int load_modules_one(const char *filename, lt_ptr data)
 				v && (strcasecmp(v->name, "noload") || strcasecmp(v->value, soname));
 				v = v->next);
 			if (option_verbose && v)
-				cw_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
+				cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
 		}
-		if (!v)
-			cw_load_resource(soname);
+		if (v == NULL)
+        {
+			if (cw_load_resource(soname))
+				cw_log(CW_LOG_WARNING, "Unable to load module %s\n", basename);
+        }
 	}
 
 	return 0;
@@ -434,7 +438,7 @@ int load_modules(const int preload_only)
 				if (option_debug && !option_verbose)
 					cw_log(CW_LOG_DEBUG, "Loading module %s\n", v->value);
 				if (cw_load_resource(v->value)) {
-					cw_log(CW_LOG_WARNING, "Loading module %s failed!\n", v->value);
+					cw_log(CW_LOG_WARNING, "Unable to load module %s\n", v->value);
 					cw_config_destroy(cfg);
 					return -1;
 				}
@@ -749,7 +753,6 @@ static const char *loader_geterr(void)
 	return local->err;
 }
 
-
 void cw_loader_init(void)
 {
 	if (pthread_key_create(&loader_err_key, &free)) {
@@ -761,7 +764,6 @@ void cw_loader_init(void)
 	lt_dlinit();
 	lt_dlmutex_register(loader_lock, loader_unlock, loader_seterr, loader_geterr);
 }
-
 
 int cw_loader_cli_init(void)
 {
