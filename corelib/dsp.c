@@ -824,7 +824,7 @@ int cw_dsp_digitmode(struct cw_dsp *dsp, int digit_mode)
                                     NULL,
                                     NULL);
     }
-    dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, (digit_mode & DSP_DIGITMODE_RELAXDTMF)  ?  8  :  4);
+    dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, (digit_mode & DSP_DIGITMODE_RELAXDTMF)  ?  8  :  4, -99);
     dsp->digit_mode = digit_mode;
     return 0;
 }
