@@ -159,5 +159,5 @@ defaults.h: defaults.h.in Makefile
 
 .PHONY: version
 version:
-	(cd "${top_srcdir}"; sh corelib/version.sh) > version.c.tmp
+	(p=`pwd`; cd "${top_srcdir}"; sh "$${p}/version.sh") > version.c.tmp
 	if cmp version.c.tmp version.c > /dev/null 2>&1; then rm -f version.c.tmp; else mv version.c.tmp version.c; fi
