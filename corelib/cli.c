@@ -376,7 +376,7 @@ static int handle_version(int fd, int argc, char *argv[])
 
     cw_cli(fd, "%s %s, %s %s\n",
         cw_version_string,
-        " built on " BUILD_HOSTNAME,
+        "built on " BUILD_HOSTNAME,
         (strchr("aeiouhx", BUILD_MACHINE[0]) ? "an" : "a"),
         BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE);
 
