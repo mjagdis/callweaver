@@ -329,7 +329,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 		if (found < 0) {
 			if (numlines == (numbusy + numcongestion + numnochan)) {
 				if (option_verbose > 2)
-					cw_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					cw_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d lines, %d busy, %d congestion, %d unavailable)\n", numlines, numbusy, numcongestion, numnochan);
 				if (numbusy)
 					strcpy(status, "BUSY");	
 				else if (numcongestion)
@@ -338,7 +338,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 					strcpy(status, "CHANUNAVAIL");
 			} else {
 				if (option_verbose > 2)
-					cw_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					cw_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d lines, %d busy, %d congestion, %d unavailable)\n", numlines, numbusy, numcongestion, numnochan);
 			}
 			*to = 0;
 			return NULL;
