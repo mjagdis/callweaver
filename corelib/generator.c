@@ -69,9 +69,9 @@ static void *cw_generator_thread(void *data)
 			clk = CLOCK_REALTIME;
 			tick.tv_sec = f->delivery.tv_sec;
 			tick.tv_nsec = 1000L * f->delivery.tv_usec;
-		} else if (f->len) {
-			tick.tv_sec += f->len / 1000;
-			tick.tv_nsec += 1000000L * (f->len % 1000);
+		} else if (f->duration) {
+			tick.tv_sec += f->duration / 1000;
+			tick.tv_nsec += 1000000L * (f->duration % 1000);
 		} else if (f->samples) {
 			int n = (f->samples / f->samplerate);
 			tick.tv_sec += n;

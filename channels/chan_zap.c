@@ -4417,11 +4417,11 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	if (p->radio  &&  p->inalarm)
 		return NULL;
 
-	p->subs[index].f.ts += p->subs[index].f.len;
+	p->subs[index].f.ts += p->subs[index].f.duration;
 	p->subs[index].f.seq_no++;
 	p->subs[index].f.datalen = 0;
 	p->subs[index].f.samples = 0;
-	p->subs[index].f.len = 0;
+	p->subs[index].f.duration = 0;
 
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))
@@ -4543,7 +4543,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	/* We read something so fill in datalen, samples and duration */
 	p->subs[index].f.datalen = res;
 	p->subs[index].f.samples = (p->subs[index].linear ? res / 2 : res);
-	p->subs[index].f.len = SAMPLES_TO_MS(p->subs[index].f.samples);
+	p->subs[index].f.duration = SAMPLES_TO_MS(p->subs[index].f.samples);
 
 	if (p->tdd) {
 		int c;
@@ -4641,7 +4641,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		p->subs[index].f.subclass = 0;
 		p->subs[index].f.datalen= 0;
 		p->subs[index].f.samples = 0;
-		p->subs[index].f.len = 0;
+		p->subs[index].f.duration = 0;
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */

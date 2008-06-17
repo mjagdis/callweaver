@@ -77,7 +77,7 @@ struct cw_frame
     /*! Timestamp in milliseconds */
     long ts;
     /*! Length in milliseconds */
-    long len;
+    long duration;
     /*! Sequence number */
     int seq_no;
     /*! Number of copies to send (for redundant transmission of special data) */

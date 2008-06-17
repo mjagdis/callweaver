@@ -146,11 +146,11 @@ static struct cw_frame *h263_read(void *data, int *whennext)
     if ((res = fread(&ts, 1, sizeof(ts), pvt->f)) == sizeof(ts))
     {
         pvt->lastts = ntohl(ts);
-        *whennext = pvt->fr.len = pvt->lastts * 4/45;
+        *whennext = pvt->fr.duration = pvt->lastts * 4/45;
     }
     else
     {
-        pvt->fr.len = 1;
+        pvt->fr.duration = 1;
         *whennext = 0;
     }
     return &pvt->fr;

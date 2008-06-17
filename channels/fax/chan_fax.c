@@ -829,7 +829,7 @@ static struct cw_frame *tech_read(struct cw_channel *chan)
 			 * require it.
 			 */
 			fm->frame.samples = SAMPLES;
-			fm->frame.len = SAMPLES / 8;
+			fm->frame.duration = SAMPLES / 8;
 			cw_tvadd(fm->frame.delivery, cw_samp2tv(SAMPLES, 8000));
 			fm->frame.ts += SAMPLES;
 			fm->frame.seq_no++;
@@ -898,7 +898,7 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 
 			case CW_FRAME_CNG: {
 				static int16_t silence[SAMPLES];
-				int samples = frame->len * 8;
+				int samples = frame->duration * 8;
 
 				cw_mutex_lock(&fm->lock);
 #ifdef TRACE
@@ -912,7 +912,7 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 							write(fm->debug_fax[0], silence, i * sizeof(int16_t));
 					}
 					if (fm->debug_dte >= 0) {
-						int n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%ldms)\n", cw_tvdiff_ms(cw_tvnow(), fm->start), samples, frame->len);
+						int n = snprintf(msg, sizeof(msg), "-> audio: %dms %d samples: silence (%ldms)\n", cw_tvdiff_ms(cw_tvnow(), fm->start), samples, frame->duration);
 						write(fm->debug_dte, msg, n);
 					}
 				}

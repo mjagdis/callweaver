@@ -367,7 +367,7 @@ int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec)
 	
 	/* We consider an enabled jitterbuffer should receive frames with valid
 	   timing info. */
-	if(!f->has_timing_info || f->len < 2 || f->ts < 0)
+	if(!f->has_timing_info || f->duration < 2 || f->ts < 0)
 	{
 		return -1;
 	}
@@ -400,7 +400,7 @@ int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec)
 		now = get_now(jb, NULL);
 		if(jbimpl->put(jbobj, frr, now, codec) != JB_IMPL_OK)
 		{
-			jb_framelog("JB_PUT {now=%ld}: Dropped frame with ts=%ld and len=%ld\n", now, frr->ts, frr->len);
+			jb_framelog("JB_PUT {now=%ld}: Dropped frame with ts=%ld and duration=%ld\n", now, frr->ts, frr->duration);
 			cw_fr_free(frr);
 			/*return -1;*/
 			/* TODO: Check this fix - should return 0 here, because the dropped frame shouldn't 
@@ -410,7 +410,7 @@ int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec)
 		
 		jb->next = jbimpl->next(jbobj);
 
-		jb_framelog("JB_PUT {now=%ld}: Queued frame with ts=%ld and len=%ld\n", now, frr->ts, frr->len);
+		jb_framelog("JB_PUT {now=%ld}: Queued frame with ts=%ld and duration=%ld\n", now, frr->ts, frr->duration);
 		
 		return 0;
 	}
@@ -475,9 +475,9 @@ static void jb_get_and_deliver(struct cw_channel *chan)
 			cw_write(chan, &f);
 		case JB_IMPL_DROP:
 			jb_framelog("\tJB_GET {now=%ld, next=%ld}: %s frame"
-				    "with ts=%ld and len=%ld\n",
+				    "with ts=%ld and duration=%ld\n",
 				    now, jb->next, jb_get_actions[res], 
-				    f->ts, f->len);
+				    f->ts, f->duration);
 			jb->last_format = f->subclass;
 			cw_fr_free(f);
 			break;
@@ -593,13 +593,13 @@ static int create_jb(struct cw_channel *chan, struct cw_frame *frr, int codec)
 		
 		if(res == JB_IMPL_OK)
 		{
-			jb_framelog("JB_PUT_FIRST {now=%ld}: Queued frame with ts=%ld and len=%ld\n",
-				now, frr->ts, frr->len);
+			jb_framelog("JB_PUT_FIRST {now=%ld}: Queued frame with ts=%ld and duration=%ld\n",
+				now, frr->ts, frr->duration);
 		}
 		else
 		{
-			jb_framelog("JB_PUT_FIRST {now=%ld}: Dropped frame with ts=%ld and len=%ld\n",
-				now, frr->ts, frr->len);
+			jb_framelog("JB_PUT_FIRST {now=%ld}: Dropped frame with ts=%ld and duration=%ld\n",
+				now, frr->ts, frr->duration);
 		}
 	}
 	
@@ -846,7 +846,7 @@ static int jb_put_first_scx(void *jb, struct cw_frame *fin, long now, int codec)
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
 	
-	res = scx_jb_put_first(scxjb, fin, fin->len, fin->ts, now);
+	res = scx_jb_put_first(scxjb, fin, fin->duration, fin->ts, now);
 	
 	return scx_to_abstract_code[res];
 }
@@ -857,7 +857,7 @@ static int jb_put_scx(void *jb, struct cw_frame *fin, long now, int codec)
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
 	
-	res = scx_jb_put(scxjb, fin, fin->len, fin->ts, now);
+	res = scx_jb_put(scxjb, fin, fin->duration, fin->ts, now);
 	
 	return scx_to_abstract_code[res];
 }
@@ -979,7 +979,7 @@ static int jb_put_stevek(void *jb, struct cw_frame *fin, long now, int codec)
 	jitterbuf *stevekjb = (jitterbuf *) jb;
 	int res;
 	
-	res = jb_put(stevekjb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now);
+	res = jb_put(stevekjb, fin, JB_TYPE_VOICE, fin->duration, fin->ts, now);
 	
 	return stevek_to_abstract_code[res];
 }
@@ -1073,7 +1073,7 @@ static int jb_put_speakup(void *jb, struct cw_frame *fin, long now, int codec)
 {
 	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
 	
-	jb_speakup_put(speakupjb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now,
+	jb_speakup_put(speakupjb, fin, JB_TYPE_VOICE, fin->duration, fin->ts, now,
 		       codec);
 	
 	return JB_IMPL_OK;

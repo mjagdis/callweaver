@@ -1214,7 +1214,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
          * into a jitterbuf */
         rtp->f.has_timing_info = 1;
         rtp->f.ts = timestamp / 8;
-        rtp->f.len = rtp->f.samples / 8;
+        rtp->f.duration = rtp->f.samples / 8;
     }
     else
     {

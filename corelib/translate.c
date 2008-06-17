@@ -168,12 +168,12 @@ struct cw_frame *cw_translate(struct cw_trans_pvt *path, struct cw_frame *f, int
     struct timeval delivery;
     int has_timing_info;
     long ts;
-    long len;
+    long duration;
     int seq_no;
     
     has_timing_info = f->has_timing_info;
     ts = f->ts;
-    len = f->len;
+    duration = f->duration;
     seq_no = f->seq_no;
 
     p = path;
@@ -247,8 +247,8 @@ struct cw_frame *cw_translate(struct cw_trans_pvt *path, struct cw_frame *f, int
             if (has_timing_info)
             {
                 out->ts = ts;
-                out->len = len;
-                //out->len = cw_codec_get_samples(out)/8;
+                out->duration = duration;
+                //out->duration = cw_codec_get_samples(out)/8;
                 out->seq_no = seq_no;
             }
 

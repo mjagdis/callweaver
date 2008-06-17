@@ -502,19 +502,19 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
 	    else {
 /*
 		cw_log( CW_CONF_DEBUG, 
-			"Read (PRE dsp), channel => %s, datalen: %d samplefreq: %ld len: %ld samples %d class: %d\n", 
-			chan->name, f->datalen, member->samplefreq, f->len, f->samples, f->subclass) ;
+			"Read (PRE dsp), channel => %s, datalen: %d samplefreq: %ld duration: %ld samples %d class: %d\n", 
+			chan->name, f->datalen, member->samplefreq, f->duration, f->samples, f->subclass) ;
 */
 		if ( member->samplefreq == 0 && f->samples != 0 )
 		{
-		    if ( ( f->len == 0 ) && ( f->datalen == 320 ) && ( f->samples == 160 ) )
+		    if ( ( f->duration == 0 ) && ( f->datalen == 320 ) && ( f->samples == 160 ) )
 			member->framelen = 20;				// This is probably chan_zap not setting the correct len.
 		    else
-			member->framelen   = f->len;			// frame length in milliseconds
+			member->framelen   = f->duration;			// frame length in milliseconds
 		    member->datalen    = f->datalen;			// frame length in milliseconds
 		    member->samples    = f->samples;			// number of samples in framelen
 		    member->samplefreq = (int)(member->samples/member->framelen)*1000;	// calculated sample frequency
-		    cw_log( CW_CONF_DEBUG, "MEMBER FRAME DATA: datalen %d  samples %d  len(ms) %ld, offset: %d \n", f->datalen, f->samples, f->len, f->offset );
+		    cw_log( CW_CONF_DEBUG, "MEMBER FRAME DATA: datalen %d  samples %d  duration(ms) %ld, offset: %d \n", f->datalen, f->samples, f->duration, f->offset );
 
 /*
 		    // Try to initialize the smoother, only once
@@ -531,18 +531,18 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
 		} 
 
 		if ( 
-			    ( (member->framelen != f->len      ) && ( f->len !=0     ) ) 
+			    ( (member->framelen != f->duration      ) && ( f->duration !=0     ) ) 
 				|| 
-			    ( (member->samples  != f->samples  ) && ( f->samples !=0 )  && ( f->len !=0     ) )
+			    ( (member->samples  != f->samples  ) && ( f->samples !=0 )  && ( f->duration !=0     ) )
 			) 
 		{
-		    cw_log( CW_CONF_DEBUG, "FRAME CHANGE  : samples %d  len(ms) %ld\n", f->samples, f->len );
-		    cw_log( CW_CONF_DEBUG, "FRAME SHOULDBE: samples %d  len(ms) %ld\n", member->samples, member->framelen );
+		    cw_log( CW_CONF_DEBUG, "FRAME CHANGE  : samples %d  duration(ms) %ld\n", f->samples, f->duration );
+		    cw_log( CW_CONF_DEBUG, "FRAME SHOULDBE: samples %d  duration(ms) %ld\n", member->samples, member->framelen );
 		    if (member->samples == 0 ) {
-			member->framelen   = f->len;				// frame length in milliseconds
+			member->framelen   = f->duration;			// frame length in milliseconds
 			member->datalen    = f->datalen;			// frame length in milliseconds
 			member->samples    = f->samples;			// number of samples in framelen
-			member->samplefreq = (int) ( f->samples/f->len)*1000;	// calculated sample frequency
+			member->samplefreq = (int) ( f->samples/f->duration)*1000;	// calculated sample frequency
 		    }
 		}
 		

@@ -1799,7 +1799,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
         fr->af.has_timing_info = 1;
         fr->af.ts = fr->ts;
         fr->af.seq_no = fr->iseqno;
-        fr->af.len = cw_codec_get_samples(&fr->af) / 8;
+        fr->af.duration = cw_codec_get_samples(&fr->af) / 8;
     }
     else
     {
