@@ -133,20 +133,22 @@ static struct cw_jb_conf global_jbconf;
 /* Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FEATB)) 
 
-static const char desc[] = "Zapata Telephony"
+static const char desc[] = "DAHDI Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
 ;
 
-static const char tdesc[] = "Zapata Telephony Driver"
+static const char tdesc[] = "DAHDI Telephony Driver"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
 ;
 
-static const char type[] = "Zap";
-static const char config[] = "zapata.conf";
+static const char dahdi_type[] = "DAHDI";
+static const char zap_type[] = "Zap";
+static const char config_zapata[] = "zapata.conf";
+static const char config_dahdi[] = "chan_dahdi.conf";
 
 #define SIG_EM		ZT_SIG_EM
 #define SIG_EMWINK 	(0x0100000 | ZT_SIG_EM)
@@ -708,8 +710,9 @@ static int zt_indicate(struct cw_channel *chan, int condition);
 static int zt_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 static int zt_setoption(struct cw_channel *chan, int option, void *data, int datalen);
 
-static const struct cw_channel_tech zap_tech = {
-	.type = type,
+
+static const struct cw_channel_tech dahdi_tech = {
+	.type = dahdi_type,
 	.description = tdesc,
 	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = zt_request,
@@ -726,6 +729,26 @@ static const struct cw_channel_tech zap_tech = {
 	.fixup = zt_fixup,
 	.setoption = zt_setoption,
 };
+
+static const struct cw_channel_tech zap_tech = {
+	.type = zap_type,
+	.description = tdesc,
+	.capabilities = CW_FORMAT_SLINEAR,
+	.requester = zt_request,
+	.send_digit = zt_digit,
+	.send_text = zt_sendtext,
+	.call = zt_call,
+	.hangup = zt_hangup,
+	.answer = zt_answer,
+	.read = zt_read,
+	.write = zt_write,
+	.bridge = zt_bridge,
+	.exception = zt_exception,
+	.indicate = zt_indicate,
+	.fixup = zt_fixup,
+	.setoption = zt_setoption,
+};
+
 
 #ifdef ZAPATA_PRI
 #define GET_CHANNEL(p) ((p)->bearer ? (p)->bearer->channel : p->channel)
@@ -5016,7 +5039,7 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 	}
 	tmp = cw_channel_alloc(0);
 	if (tmp) {
-		tmp->tech = &zap_tech;
+		tmp->tech = &dahdi_tech;
 		ps.channo = i->channel;
 		res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
 		if (res) {
@@ -5038,20 +5061,20 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 		do {
 #ifdef ZAPATA_PRI
 			if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 			else
 #endif
 			if (i->channel == CHAN_PSEUDO)
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/pseudo-%ld", cw_random());
+				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/pseudo-%ld", cw_random());
 			else	
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d-%d", i->channel, y);
+				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/%d-%d", i->channel, y);
 			for (x=0;x<3;x++) {
 				if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
 					break;
 			}
 			y++;
 		} while (x < 3);
-		tmp->type = type;
+		tmp->type = tmp->tech->type;
 		tmp->fds[0] = i->subs[index].zfd;
 		tmp->nativeformats = CW_FORMAT_SLINEAR | deflaw;
 		/* Start out assuming ulaw since it's smaller :) */
@@ -5780,8 +5803,8 @@ static void *ss_thread(void *data)
 				if (nbridge && cw_bridged_channel(nbridge)) 
 					pbridge = cw_bridged_channel(nbridge)->tech_pvt;
 				if (nbridge && pbridge && 
-				    (!strcmp(nbridge->type,"Zap")) && 
-					(!strcmp(cw_bridged_channel(nbridge)->type, "Zap")) &&
+				    (!strcmp(nbridge->type, dahdi_tech.type)) && 
+					(!strcmp(cw_bridged_channel(nbridge)->type,  dahdi_tech.type)) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
 					/* Clear out the dial buffer */
@@ -7236,6 +7259,7 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 
 static struct cw_channel *zt_request(const char *type, int format, void *data, int *cause)
 {
+	static int deprecated = 0;
 	int oldformat;
 	int groupmatch = 0;
 	int channelmatch = -1;
@@ -7258,7 +7282,12 @@ static struct cw_channel *zt_request(const char *type, int format, void *data, i
 #endif	
 	struct zt_pvt *exit, *start, *end;
 	cw_mutex_t *lock;
-	
+
+	if (!deprecated && !strcmp(type, zap_tech.type)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Channel type Zap/... is deprecated. Use DAHDI/... instead.\n");
+	}
+
 	/* Assume we're locking the iflock */
 	lock = &iflock;
 	start = iflist;
@@ -7561,7 +7590,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 				pri->pvts[principle]->owner = pri->pvts[x]->owner;
 				if (pri->pvts[principle]->owner) {
 					snprintf(pri->pvts[principle]->owner->name, sizeof(pri->pvts[principle]->owner->name), 
-						"Zap/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
+						"DAHDI/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
 					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
 					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].zfd;
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
@@ -7912,7 +7941,7 @@ static void *pri_dchannel(void *vpri)
 				if (cw_tvdiff_ms(cw_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = zt_request("Zap", CW_FORMAT_ULAW, idlen, &cause);
+					idle = zt_request("DAHDI", CW_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (cw_pthread_create(&p, &global_attr_default, do_idle_thread, idle)) {
@@ -9563,6 +9592,38 @@ static char destroy_channel_usage[] =
 
 static struct cw_clicmd zap_cli[] = {
 	{
+		.cmda = { "dahdi", "show", "cadences", NULL },
+		.handler = handle_zap_show_cadences,
+		.summary = "List cadences",
+		.usage = zap_show_cadences_help,
+	},
+	{
+		.cmda = {"dahdi", "show", "channels", NULL},
+		.handler = zap_show_channels,
+		.summary = "Show active DAHDI channels",
+		.usage = show_channels_usage,
+	},
+	{
+		.cmda = {"dahdi", "show", "channel", NULL},
+		.handler = zap_show_channel,
+		.summary = "Show information on a channel",
+		.usage = show_channel_usage,
+	},
+	{
+		.cmda = {"dahdi", "destroy", "channel", NULL},
+		.handler = zap_destroy_channel,
+		.summary = "Destroy a channel",
+		.usage = destroy_channel_usage,
+	},
+	{
+		.cmda = {"dahdi", "show", "status", NULL},
+		.handler = zap_show_status,
+		.summary = "Show all DAHDI cards status",
+		.usage = zap_show_status_usage,
+	},
+
+	/* DEPRECATED */
+	{
 		.cmda = { "zap", "show", "cadences", NULL },
 		.handler = handle_zap_show_cadences,
 		.summary = "List cadences",
@@ -9627,116 +9688,171 @@ static struct zt_pvt *find_channel(int channel)
 
 static int action_zapdndon(struct mansession *s, struct message *m)
 {
-    struct zt_pvt *p = NULL;
-    char *channel = astman_get_header(m, "ZapChannel");
-    if (cw_strlen_zero(channel)) {
-        astman_send_error(s, m, "No channel specified");
-        return 0;
-    }
-    p = find_channel(atoi(channel));
-    if (!p) {
-        astman_send_error(s, m, "No such channel");
-        return 0;
-    }
-    p->dnd = 1;
-    astman_send_ack(s, m, "DND Enabled");
-    return 0;
+	static int deprecated = 0;
+	struct zt_pvt *p = NULL;
+	char *hdr;
+
+	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
+	}
+
+	hdr = astman_get_header(m, "DAHDIChannel");
+	if (cw_strlen_zero(hdr))
+		hdr = astman_get_header(m, "ZapChannel");
+	if (cw_strlen_zero(hdr)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(hdr));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	p->dnd = 1;
+	astman_send_ack(s, m, "DND Enabled");
+	return 0;
 }
 
 static int action_zapdndoff(struct mansession *s, struct message *m)
 {
-    struct zt_pvt *p = NULL;
-    char *channel = astman_get_header(m, "ZapChannel");
-    if (cw_strlen_zero(channel)) {
-        astman_send_error(s, m, "No channel specified");
-        return 0;
-    }
-    p = find_channel(atoi(channel));
-    if (!p) {
-        astman_send_error(s, m, "No such channel");
-        return 0;
-    }
-    p->dnd = 0;
-    astman_send_ack(s, m, "DND Disabled");
-    return 0;
+	static int deprecated = 0;
+	struct zt_pvt *p = NULL;
+	char *hdr = astman_get_header(m, "DAHDIChannel");
+
+	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
+	}
+
+	if (cw_strlen_zero(hdr))
+		hdr = astman_get_header(m, "ZapChannel");
+	if (cw_strlen_zero(hdr)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(hdr));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	p->dnd = 0;
+	astman_send_ack(s, m, "DND Disabled");
+	return 0;
 }
 
 static int action_transfer(struct mansession *s, struct message *m)
 {
+	static int deprecated = 0;
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
-	if (cw_strlen_zero(channel)) {
+	char *hdr;
+
+	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
+	}
+
+	hdr = astman_get_header(m, "DAHDIChannel");
+
+	if (cw_strlen_zero(hdr))
+		hdr = astman_get_header(m, "ZapChannel");
+	if (cw_strlen_zero(hdr)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel(atoi(hdr));
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	zap_fake_event(p,TRANSFER);
-	astman_send_ack(s, m, "ZapTransfer");
+	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
 	return 0;
 }
 
 static int action_transferhangup(struct mansession *s, struct message *m)
 {
+	static int deprecated = 0;
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
-	if (cw_strlen_zero(channel)) {
+	char *hdr;
+
+	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
+	}
+
+	hdr = astman_get_header(m, "DAHDIChannel");
+	if (cw_strlen_zero(hdr))
+		hdr = astman_get_header(m, "ZapChannel");
+	if (cw_strlen_zero(hdr)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel(atoi(hdr));
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	zap_fake_event(p,HANGUP);
-	astman_send_ack(s, m, "ZapHangup");
+	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
 	return 0;
 }
 
 static int action_zapdialoffhook(struct mansession *s, struct message *m)
 {
+	static int deprecated = 0;
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
-	char *number = astman_get_header(m, "Number");
+	char *hdr;
 	int i;
-	if (cw_strlen_zero(channel)) {
+
+	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
+	}
+
+	hdr = astman_get_header(m, "DAHDIChannel");
+	if (cw_strlen_zero(hdr))
+		hdr = astman_get_header(m, "ZapChannel");
+	if (cw_strlen_zero(hdr)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (cw_strlen_zero(number)) {
-		astman_send_error(s, m, "No number specified");
-		return 0;
-	}
-	p = find_channel(atoi(channel));
+	p = find_channel(atoi(hdr));
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
+
 	if (!p->owner) {
 		astman_send_error(s, m, "Channel does not have it's owner");
 		return 0;
 	}
-	for (i=0; i<strlen(number); i++) {
-		struct cw_frame f = { CW_FRAME_DTMF, number[i] };
+
+	hdr = astman_get_header(m, "Number");
+	if (cw_strlen_zero(hdr)) {
+		astman_send_error(s, m, "No number specified");
+		return 0;
+	}
+	for (i=0; i<strlen(hdr); i++) {
+		struct cw_frame f = { CW_FRAME_DTMF, hdr[i] };
 		zap_queue_frame(p, &f, NULL); 
 	}
-	astman_send_ack(s, m, "ZapDialOffhook");
+	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
 	return 0;
 }
 
 static int action_zapshowchannels(struct mansession *s, struct message *m)
 {
+	static int deprecated = 0;
 	struct zt_pvt *tmp = NULL;
 	char *id = astman_get_header(m, "ActionID");
-	char idText[256] = "";
 
-	astman_send_ack(s, m, "Zapata channel status will follow");
-	if (!cw_strlen_zero(id))
-		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
+	if (!deprecated && id && !strncmp(id, "Zap", 3)) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", id, id+3);
+	}
+
+	astman_send_ack(s, m, "DAHDI channel status will follow");
 
 	cw_mutex_lock(&iflock);
 	
@@ -9745,17 +9861,19 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 		if (tmp->channel > 0) {
 			int alarm = get_alarms(tmp);
 			cw_cli(s->fd,
-				"Event: ZapShowChannels\r\n"
+				"Event: %s\r\n"
 				"Channel: %d\r\n"
 				"Signalling: %s\r\n"
 				"Context: %s\r\n"
 				"DND: %s\r\n"
 				"Alarm: %s\r\n"
 				"%s"
+				"ActionID: %s"
 				"\r\n",
+				id,
 				tmp->channel, sig2str(tmp->sig), tmp->context, 
 				tmp->dnd ? "Enabled" : "Disabled",
-				alarm2str(alarm), idText);
+				alarm2str(alarm), id);
 		} 
 
 		tmp = tmp->next;
@@ -9764,27 +9882,32 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 	cw_mutex_unlock(&iflock);
 	
 	cw_cli(s->fd, 
-		"Event: ZapShowChannelsComplete\r\n"
-		"%s"
-		"\r\n", 
-		idText);
+		"Event: %sComplete\r\n"
+		"ActionID: %s"
+		"\r\n",
+		id,
+		id);
 	return 0;
 }
 
+static void *dahdidisableec_app;
+static const char dahdidisableec_name[] = "DAHDIDisableEC";
+static const char dahdidisableec_syntax[] = "DAHDIDisableEC()";
+static const char dahdidisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
+static const char dahdidisableec_description[] = "Disable Echo Canceller onto the current channel\n";
+/* DEPRECATED */
 static void *zapdisableec_app;
 static const char zapdisableec_name[] = "ZapDisableEC";
-static const char zapdisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
 static const char zapdisableec_syntax[] = "ZapDisableEC()";
-static const char zapdisableec_description[] = "Disable Echo Canceller onto the current channel\n";
 
-static int action_zapdisableec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     if (chan==NULL) {
 	cw_log(CW_LOG_WARNING, "channel is NULL\n");
         return 0;
     }
-    if ( (chan->type==NULL) || (strcmp(chan->type, "Zap")) ) {
-	cw_log(CW_LOG_WARNING, "channel is not Zap\n");
+    if ( (chan->type==NULL) || (strcmp(chan->type, dahdi_tech.type) && strcmp(chan->type, zap_tech.type)) ) {
+	cw_log(CW_LOG_WARNING, "channel is not DAHDI or Zap\n");
         return 0;
     }
     struct zt_pvt *p = chan->tech_pvt;
@@ -9795,6 +9918,18 @@ static int action_zapdisableec(struct cw_channel *chan, int argc, char **argv, c
     zt_disable_ec(p);
     cw_log(CW_LOG_NOTICE, "echo cancelling OFF\n");
     return 0;
+}
+
+static int action_zapdisableec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	static int deprecated = 0;
+
+	if (!deprecated) {
+		deprecated = 1;
+		cw_log(CW_LOG_WARNING, "%s is deprecated. Use %s instead\n", zapdisableec_name, dahdidisableec_name);
+	}
+
+	return action_dahdidisableec(chan, argc, argv, result, result_max);
 }
 
 static int __unload_module(void)
@@ -9810,14 +9945,26 @@ static int __unload_module(void)
 	cw_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 #endif
 	cw_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
-	cw_manager_unregister( "ZapDialOffhook" );
-	cw_manager_unregister( "ZapHangup" );
-	cw_manager_unregister( "ZapTransfer" );
-	cw_manager_unregister( "ZapDNDoff" );
-	cw_manager_unregister( "ZapDNDon" );
+
+	cw_manager_unregister("DAHDIDialOffhook" );
+	cw_manager_unregister("DAHDIHangup" );
+	cw_manager_unregister("DAHDITransfer" );
+	cw_manager_unregister("DAHDIDNDoff" );
+	cw_manager_unregister("DAHDIDNDon" );
+	cw_manager_unregister("DAHDIShowChannels");
+	cw_unregister_function(dahdidisableec_app);
+	cw_channel_unregister(&dahdi_tech);
+
+	/* DEPRECATED */
+	cw_manager_unregister("ZapDialOffhook" );
+	cw_manager_unregister("ZapHangup" );
+	cw_manager_unregister("ZapTransfer" );
+	cw_manager_unregister("ZapDNDoff" );
+	cw_manager_unregister("ZapDNDon" );
 	cw_manager_unregister("ZapShowChannels");
-	cw_unregister_function(action_zapdisableec);
+	cw_unregister_function(zapdisableec_app);
 	cw_channel_unregister(&zap_tech);
+
 	if (!cw_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -9912,11 +10059,14 @@ static int setup_zap(int reload)
 	struct zt_pri *pri;
 #endif
 
-	cfg = cw_config_load(config);
+	if (!(cfg = cw_config_load(config_dahdi))) {
+		if (!(cfg = cw_config_load(config_zapata)))
+			cw_log(CW_LOG_WARNING, "zapata.conf is deprecated. Rename it to chan_dahdi.conf\n");
+	}
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
-		cw_log(CW_LOG_ERROR, "Unable to load config %s\n", config);
+		cw_log(CW_LOG_ERROR, "Unable to load config %s or %s\n", config_dahdi, config_zapata);
 		return -1;
 	}
 	
@@ -10716,7 +10866,7 @@ static int load_module(void)
 
 	char *test = cw_pickup_ext();
 	if ( test == NULL ) {
-    	    cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
+    	    cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", dahdi_type);
     	    return 0;
 	}
 
@@ -10734,27 +10884,41 @@ static int load_module(void)
 	pri_set_message(zt_pri_message);
 #endif
 	res = setup_zap(0);
-	/* Make sure we can register our Zap channel type */
-	if(res) {
-	  return -1;
-	}
-	if (cw_channel_register(&zap_tech)) {
-		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", type);
+	if (res)
+		return -1;
+
+	if (cw_channel_register(&dahdi_tech)) {
+		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", dahdi_tech.type);
 		return -1;
 	}
+	if (cw_channel_register(&zap_tech)) {
+		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", zap_tech.type);
+		return -1;
+	}
+
 #ifdef ZAPATA_PRI
 	cw_cli_register_multiple(zap_pri_cli, arraysize(zap_pri_cli));
 #endif
 	cw_cli_register_multiple(zap_cli, arraysize(zap_cli));
 	
 	memset(round_robin, 0, sizeof(round_robin));
+
+	cw_manager_register("DAHDITransfer", 0, action_transfer, "Transfer DAHDI Channel" );
+	cw_manager_register("DAHDIHangup", 0, action_transferhangup, "Hangup DAHDI Channel" );
+	cw_manager_register("DAHDIDialOffhook", 0, action_zapdialoffhook, "Dial over DAHDI channel while offhook" );
+	cw_manager_register("DAHDIDNDon", 0, action_zapdndon, "Toggle DAHDI channel Do Not Disturb status ON" );
+	cw_manager_register("DAHDIDNDoff", 0, action_zapdndoff, "Toggle DAHDI channel Do Not Disturb status OFF" );
+	cw_manager_register("DAHDIShowChannels", 0, action_zapshowchannels, "Show status of DAHDI channels");
+	dahdidisableec_app = cw_register_function(dahdidisableec_name, action_dahdidisableec, dahdidisableec_synopsis, dahdidisableec_syntax, dahdidisableec_description);
+
+	/* DEPRECATED */
 	cw_manager_register("ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	cw_manager_register("ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
 	cw_manager_register("ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
 	cw_manager_register("ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	cw_manager_register("ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
-	cw_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
-	zapdisableec_app = cw_register_function(zapdisableec_name, action_zapdisableec, zapdisableec_synopsis, zapdisableec_syntax, zapdisableec_description);
+	cw_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status of zapata channels");
+	zapdisableec_app = cw_register_function(zapdisableec_name, action_zapdisableec, dahdidisableec_synopsis, zapdisableec_syntax, dahdidisableec_description);
 
 	return res;
 }
