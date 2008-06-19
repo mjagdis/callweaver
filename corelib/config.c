@@ -34,8 +34,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
-#define CW_INCLUDE_GLOB 1
-#ifdef CW_INCLUDE_GLOB
+#if defined(HAVE_GLOB_H)
 #include <glob.h>
 #if defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
@@ -579,12 +578,12 @@ static struct cw_config *config_text_file_load(const char *database, const char 
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)cw_config_CW_CONFIG_DIR, filename);
 	}
 
-#ifdef CW_INCLUDE_GLOB
+#if defined(HAVE_GLOB_H)
 	{
 		int glob_ret;
 		glob_t globbuf;
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-#ifdef SOLARIS
+#if defined(SOLARIS)
 		glob_ret = glob(fn, GLOB_NOCHECK, NULL, &globbuf);
 #else
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
@@ -692,7 +691,7 @@ static struct cw_config *config_text_file_load(const char *database, const char 
 	if (comment) {
 		cw_log(CW_LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
-#ifdef CW_INCLUDE_GLOB
+#if defined(HAVE_GLOB_H)
 					if (!cfg)
 						break;
 				}
@@ -723,7 +722,7 @@ int config_text_file_save(const char *configfile, const struct cw_config *cfg, c
 	}
 	time(&t);
 	cw_copy_string(date, ctime(&t), sizeof(date));
-#ifdef __CYGWIN__	
+#if defined(__CYGWIN__)
 	if ((f = fopen(fn, "w+"))) {
 #else
  	if ((f = fopen(fn, "w"))) {

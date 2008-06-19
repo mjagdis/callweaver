@@ -602,6 +602,7 @@ AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday clock_getres inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap posix_openpt pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf]) 
+AC_CHECK_FUNCS([daemon])
 
 # Check if asctime_r() takes three arguments.
 AC_MSG_CHECKING([if asctime_r() takes three arguments])
@@ -643,6 +644,7 @@ dnl # endif
 dnl ])
 AC_CHECK_HEADER([dlfcn.h],[AM_CONDITIONAL([NEED_DLFCN_H],[true = yes])])
 AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile CallWeaver.)])
+AC_CHECK_HEADERS([glob.h])
 
 dnl check structures
 AC_STRUCT_TM
