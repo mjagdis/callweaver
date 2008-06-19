@@ -37,7 +37,7 @@ void *rpl_malloc(size_t size)
 
 void *rpl_realloc(void *ptr, size_t size)
 {
-	if (size = 0)
+	if (size == 0)
 		size = 1;
 	return realloc(ptr, size);
 }
