@@ -676,7 +676,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
                 
                 if (igrp
                     &&
-                    (argv[0] == '\0'  ||  ((strlen(argv[0]) < strlen(peer->name)
+                    (argv[0] == '\0'  ||  ((strlen(argv[0]) <= strlen(peer->name)
                     &&
                     strncasecmp(peer->name, argv[0], strlen(argv[0])) == 0))))
                 {
