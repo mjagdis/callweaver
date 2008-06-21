@@ -583,7 +583,7 @@ static struct cw_config *config_text_file_load(const char *database, const char 
 		int glob_ret;
 		glob_t globbuf;
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-#if defined(SOLARIS)
+#if defined(SOLARIS)  ||  !defined(GLOB_NOMAGIC)  ||  !defined(GLOB_BRACE)
 		glob_ret = glob(fn, GLOB_NOCHECK, NULL, &globbuf);
 #else
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
