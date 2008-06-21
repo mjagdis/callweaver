@@ -140,9 +140,9 @@ callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = @CALLWEAVER_LIB@ $(LIBLTDL) -lreadline
 endif
 
-BUILT_SOURCES = defaults.h version #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
+BUILT_SOURCES = defaults.h version.sh version #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
 EXTRA_DIST = defaults.h.in version.sh.in
-CLEANFILES = defaults.h defaults.h.tmp version.c version.c.tmp
+CLEANFILES = defaults.h defaults.h.tmp version.sh version.c version.c.tmp
 
 @substitute@
 
