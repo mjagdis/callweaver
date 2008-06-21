@@ -9692,7 +9692,7 @@ static int action_zapdndon(struct mansession *s, struct message *m)
 	struct zt_pvt *p = NULL;
 	char *hdr;
 
-	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
 	}
@@ -9720,7 +9720,7 @@ static int action_zapdndoff(struct mansession *s, struct message *m)
 	struct zt_pvt *p = NULL;
 	char *hdr = astman_get_header(m, "DAHDIChannel");
 
-	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
 	}
@@ -9747,7 +9747,7 @@ static int action_transfer(struct mansession *s, struct message *m)
 	struct zt_pvt *p = NULL;
 	char *hdr;
 
-	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
 	}
@@ -9766,7 +9766,7 @@ static int action_transfer(struct mansession *s, struct message *m)
 		return 0;
 	}
 	zap_fake_event(p,TRANSFER);
-	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
+	astman_send_ack(s, m, "Transferred");
 	return 0;
 }
 
@@ -9776,7 +9776,7 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 	struct zt_pvt *p = NULL;
 	char *hdr;
 
-	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
 	}
@@ -9794,7 +9794,7 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 		return 0;
 	}
 	zap_fake_event(p,HANGUP);
-	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
+	astman_send_ack(s, m, "Hungup");
 	return 0;
 }
 
@@ -9805,7 +9805,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	char *hdr;
 	int i;
 
-	if (!deprecated && (hdr == astman_get_header(m, "ActionID")) && !strncmp(hdr, "Zap", 3)) {
+	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", hdr, hdr+3);
 	}
@@ -9837,7 +9837,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 		struct cw_frame f = { CW_FRAME_DTMF, hdr[i] };
 		zap_queue_frame(p, &f, NULL); 
 	}
-	astman_send_ack(s, m, astman_get_header(m, "ActionID"));
+	astman_send_ack(s, m, "Dialled");
 	return 0;
 }
 
@@ -9845,11 +9845,12 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
 	struct zt_pvt *tmp = NULL;
+	char *action = astman_get_header(m, "Action");
 	char *id = astman_get_header(m, "ActionID");
 
-	if (!deprecated && id && !strncmp(id, "Zap", 3)) {
+	if (!deprecated && action && !strncasecmp(action, "Zap", 3)) {
 		deprecated = 1;
-		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", id, id+3);
+		cw_log(CW_LOG_WARNING, "Manager action %s is deprecated. Use DAHDI%s instead\n", action, action+3);
 	}
 
 	astman_send_ack(s, m, "DAHDI channel status will follow");
@@ -9870,7 +9871,7 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 				"%s"
 				"ActionID: %s"
 				"\r\n",
-				id,
+				action,
 				tmp->channel, sig2str(tmp->sig), tmp->context, 
 				tmp->dnd ? "Enabled" : "Disabled",
 				alarm2str(alarm), id);
@@ -9885,7 +9886,7 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 		"Event: %sComplete\r\n"
 		"ActionID: %s"
 		"\r\n",
-		id,
+		action,
 		id);
 	return 0;
 }
