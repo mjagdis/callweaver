@@ -29,6 +29,7 @@
 #include "confdefs.h"
 #endif
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <strings.h>
 #include <unistd.h>
