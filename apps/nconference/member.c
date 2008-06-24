@@ -579,14 +579,6 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
 		
 }
 
-
-
-
-
-
-
-
-
 /* *****************************************************************************
 	CREATE/ DESTROY MEMBERS    
    ****************************************************************************/
@@ -686,9 +678,33 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
     member->auto_destroy = 1 ;
 
     // copy the channel name
-    member->channel_name = malloc( strlen( chan->name ) + 1 ) ;
-    strcpy( member->channel_name, chan->name ) ;
-			
+    member->channel_name = strdup(chan->name);
+    // Copy the channel CallerID
+    if (chan->cid.cid_dnid)
+	    member->cid.cid_dnid = strdup(chan->cid.cid_dnid);
+    else
+	    member->cid.cid_dnid = NULL;
+    if (chan->cid.cid_num)
+	    member->cid.cid_num = strdup(chan->cid.cid_num);
+    else
+	    member->cid.cid_num = NULL;
+    if (chan->cid.cid_name)
+	    member->cid.cid_name = strdup(chan->cid.cid_name);
+    else
+	    member->cid.cid_name = NULL;
+    if (chan->cid.cid_ani)
+	    member->cid.cid_ani = strdup(chan->cid.cid_ani);
+    else
+	    member->cid.cid_ani = NULL;
+    if (chan->cid.cid_rdnis)
+	    member->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
+    else
+	    member->cid.cid_rdnis = NULL;
+    member->cid.cid_pres = chan->cid.cid_pres;
+    member->cid.cid_ani2 = chan->cid.cid_ani2;
+    member->cid.cid_ton = chan->cid.cid_ton;
+    member->cid.cid_tns = chan->cid.cid_tns;
+
     // ( default can be overridden by passed flags )
     member->type = MEMBERTYPE_LISTENER ;
 
@@ -907,13 +923,18 @@ struct cw_conf_member* delete_member( struct cw_conf_member* member )
 	cw_log( CW_CONF_DEBUG, "freeing member circular buffer, name => %s\n", member->channel_name ) ;
 	free( member->cbuf ) ;
     }
-	
+
     //
     // delete the members frames
     //
 
-    // free the member's copy for the channel name
+    // free the member's copy of channel information
     free( member->channel_name ) ;
+    free(member->cid.cid_dnid);
+    free(member->cid.cid_num);
+    free(member->cid.cid_name);
+    free(member->cid.cid_ani);
+    free(member->cid.cid_rdnis);
 
     // free the smoother
     if (member->inSmoother != NULL)

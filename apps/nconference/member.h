@@ -31,7 +31,8 @@ struct cw_conf_member
 	
 	struct cw_channel* chan ; 	// member's channel  
 	char* channel_name ; 		// member's channel name
-	struct cw_conference *conf;	// reference to theconference the member is in
+	struct cw_callerid cid;		// member's channel cid
+	struct cw_conference *conf;	// reference to the conference the member is in
 
 	// pointer to next member in single-linked list	
 	struct cw_conf_member *next ;
@@ -57,7 +58,6 @@ struct cw_conf_member
 	int force_on_hold;
 	int skip_moh_when_alone;
 
-
 	// flag indicating the actual volume
 	//int   listen_volume;	  // Not used - The phone should have it !!
 	int   talk_volume;
@@ -74,9 +74,6 @@ struct cw_conf_member
 	short dtmf_admin_mode;
 	short dtmf_long_insert;
 	char dtmf_buffer[64];
-
-
-
 
 	// start time
 	struct timeval time_entered ;

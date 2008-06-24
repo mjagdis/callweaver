@@ -222,7 +222,7 @@ static void cw_conf_command_execute( struct cw_conference *conf ) {
 		    else
 			conference_queue_sound( member, "conf-kicked" );
 		    member->force_remove_flag = 1;
-		    cw_log(CW_CONF_DEBUG,"(CQ) Conf %s Member Kicked: %s\n",conf->name, member->chan->name);
+		    cw_log(CW_CONF_DEBUG,"(CQ) Conf %s Member Kicked: %s\n",conf->name, member->channel_name);
 		    cw_mutex_unlock( &member->lock ) ;
 		    if (cq->param_number == 1) 
 			break;
@@ -265,22 +265,22 @@ static void add_member( struct cw_conference *conf, struct cw_conf_member *membe
     // release the conference lock
     cw_mutex_unlock( &conf->lock ) ;	
 
-    if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
-	strncpy( cnum, member->chan->cid.cid_num, sizeof(cnum) );
-    else
-	strncpy( cnum, "", sizeof(cnum) );
+	if ((member->cid.cid_num != NULL) )
+		strncpy( cnum, member->cid.cid_num, sizeof(cnum) );
+	else
+		cnum[0] = '\0';
     queue_incoming_silent_frame(member,2);
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
 
     cw_log( CW_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
 
-    manager_event(
-	EVENT_FLAG_CALL, 
-	APP_CONFERENCE_MANID"Join", 
-	"Channel: %s\r\n",
-	member->chan->name
-    ) ;
+	manager_event(
+				  EVENT_FLAG_CALL, 
+				  APP_CONFERENCE_MANID"Join", 
+				  "Channel: %s\r\n",
+				  member->channel_name
+				 ) ;
 
     return ;
 }
@@ -329,7 +329,7 @@ static int remove_member(struct cw_conference* conf, struct cw_conf_member* memb
 		EVENT_FLAG_CALL, 
 		APP_CONFERENCE_MANID"Leave", 
 		"Channel: %s\r\n",
-		member->chan->name
+		member->channel_name
 	    ) ;
 
 	    // delete the member
@@ -387,10 +387,10 @@ static void conference_exec( struct cw_conference *conf )
 		char cnum[80];
 	    	cw_log( CW_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
 	    	temp_member = member->next ;
-		if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
-		    strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
+		if (member->cid.cid_num != NULL)
+		    strncpy( cnum,member->cid.cid_num,sizeof(cnum) );
 		else
-		    strncpy( cnum, "", sizeof(cnum) );
+		    cnum[0] = '\0';
 		queue_incoming_silent_frame(member,2);
 	    	remove_member( conf, member ) ;
 	    	member = temp_member ;
@@ -469,7 +469,7 @@ struct cw_conf_member *find_member( struct cw_conference *conf, const char* name
 
     while ( member_list != NULL ) 
     {
-    	if ( !strcmp(member_list->chan->name,name) ) 
+    	if ( !strcmp(member_list->channel_name,name) ) 
 	    return member_list;
 	member_list = member_list->next ;
     }
@@ -579,7 +579,7 @@ static struct cw_conference* create_conf( char* name, struct cw_conf_member* mem
 	    APP_CONFERENCE_MANID"ConfCreate", 
 	    "Channel: %s\r\n"
 	    "ConfNo: %s\r\n",
-	    member->chan->name,
+	    member->channel_name,
 	    name
 	) ;
     }
@@ -895,7 +895,7 @@ static int conference_set_pin(struct cw_conf_member *member, char *pin) {
 	APP_CONFERENCE_MANID"SetPIN",
 	"Channel: %s\r\n"
 	"PIN: %s\r\n",
-	member->chan->name, 
+	member->channel_name, 
 	member->conf->pin
     ) ;
 
