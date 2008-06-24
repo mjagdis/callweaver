@@ -10061,7 +10061,7 @@ static int setup_zap(int reload)
 #endif
 
 	if (!(cfg = cw_config_load(config_dahdi))) {
-		if (!(cfg = cw_config_load(config_zapata)))
+		if ((cfg = cw_config_load(config_zapata)))
 			cw_log(CW_LOG_WARNING, "zapata.conf is deprecated. Rename it to chan_dahdi.conf\n");
 	}
 
