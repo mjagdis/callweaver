@@ -104,7 +104,7 @@ SAMPLES += woomera.conf.sample
 endif WANT_CHAN_WOOMERA
 
 if WANT_CHAN_ZAP
-SAMPLES += zapata.conf.sample
+SAMPLES += chan_dahdi.conf.sample
 endif WANT_CHAN_ZAP
 
 if WANT_PBX_DUNDI
