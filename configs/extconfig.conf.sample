@@ -9,7 +9,7 @@
 ;
 ; Static configuration files: 
 ;
-; file.conf => driver,database[,table]
+; file.conf = driver,database[,table]
 ;
 ; maps a particular configuration file to the given
 ; database driver, database and table (or uses the
@@ -17,7 +17,7 @@
 ;
 ;uncomment to load queues.conf via the odbc engine.
 ;
-;queues.conf => odbc,callweaver,ast_config
+;queues.conf = odbc,callweaver,ast_config
 ;
 ; The following files CANNOT be loaded from Realtime storage:
 ;	callweaver.conf
@@ -39,13 +39,13 @@
 ; database and table (or uses the name of
 ; the family if the table is not specified
 ;
-;example => odbc,callweaver,alttable
-;iaxusers => odbc,callweaver
-;iaxpeers => odbc,callweaver
-;sipusers => odbc,callweaver
-;sippeers => odbc,callweaver
-;voicemail => odbc,callweaver
-;extensions => odbc,callweaver
-;queues => odbc,callweaver
-;queue_members => odbc,callweaver
+;example = odbc,callweaver,alttable
+;iaxusers = odbc,callweaver
+;iaxpeers = odbc,callweaver
+;sipusers = odbc,callweaver
+;sippeers = odbc,callweaver
+;voicemail = odbc,callweaver
+;extensions = odbc,callweaver
+;queues = odbc,callweaver
+;queue_members = odbc,callweaver
 

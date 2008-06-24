@@ -9,8 +9,8 @@
 ;host = 192.168.0.64
 ;context = default
 ;canreinvite = no
-;line => aaln/2
-;line => aaln/1
+;line = aaln/2
+;line = aaln/1
 
 ;; The MGCP channel supports the following service codes:
 ;; # - Transfer
@@ -34,7 +34,7 @@
 ;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to transfer
 ;callwaiting=yes  ; this might be a cause of trouble for ip10s
 ;cancallforward=yes 
-;line => aaln/1 
+;line = aaln/1 
 ;
 
 ;[dph100]
@@ -48,7 +48,7 @@
 ;dtmfmode=none		; DTMF Mode can be 'none', 'rfc2833', or 'inband' or
 				; 'hybrid' which starts in none and moves to inband.  Default is none.
 ;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
-;line => aaln/1
+;line = aaln/1
 
 ; known to work with wave7optics FTTH LMGs
 ;[192.168.1.20]
@@ -64,7 +64,7 @@
 ;canreinvite	= no
 ;transfer	= no
 ;dtmfmode	= inband
-;line => aaln/1			; now lets save this config to line1 aka aaln/1
+;line = aaln/1			; now lets save this config to line1 aka aaln/1
 ;callerid 	= "Duane Cox" <456>	; now lets setup line 2
 ;callwaiting	= no
 ;callreturn	= yes
@@ -72,4 +72,4 @@
 ;canreinvite	= no
 ;transfer	= no
 ;dtmfmode	= inband
-;line => aaln/2			; now lets save this config to line2 aka aaln/2
+;line = aaln/2			; now lets save this config to line2 aka aaln/2

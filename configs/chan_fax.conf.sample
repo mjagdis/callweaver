@@ -25,25 +25,25 @@
 
 ; How verbose to be. This is mainly useful for debugging. Avoid otherwise!
 ; (default 0)
-;vblevel => 0
+;vblevel = 0
 
 ; The number of faxmodems to create
 ; (default 4)
-;modems => 4
+;modems = 4
 
 ; The caller id to present in calls from the DTE (i.e. dialled by ATDT...)
 ; (default nothing)
-;callerid => John Doe <1234>
+;callerid = John Doe <1234>
 
 ; The context that calls from the DTE (i.e. dialled by ATDT...) will be
 ; sent to in the dialplan
 ; (default "chan_fax")
-;context => chan_fax
+;context = chan_fax
 
 ; The prefix for the modem/tty devices in the filesystem. The faxmodems
 ; will be named <device-prefix>0, <device-prefix>1,..., <device-prefix><n>
 ; (default "/dev/FAX")
-;device-prefix => /dev/FAX
+;device-prefix = /dev/FAX
 
 ; Ring strategy - the order that Callweaver will use the faxmodems
 ; for calls to the DTEs (i.e. answered by ATA).

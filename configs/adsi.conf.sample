@@ -3,6 +3,6 @@
 ;
 [intro]
 alignment = center
-greeting => Welcome to the
-greeting => CallWeaver
-greeting => Open Source PBX
+greeting = Welcome to the
+greeting = CallWeaver
+greeting = Open Source PBX

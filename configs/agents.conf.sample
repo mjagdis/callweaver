@@ -29,9 +29,9 @@ persistentagents=yes
 ;wrapuptime=5000
 ;
 ; Define the default musiconhold for agents
-; musiconhold => music_class
+; musiconhold = music_class
 ;
-;musiconhold => default
+;musiconhold = default
 ;
 ; Define updatecdr. This is whether or not to change the source 
 ; channel in the CDR record for this call to agent/agent_id so 
@@ -74,7 +74,7 @@ persistentagents=yes
 ;
 ; This section contains the agent definitions, in the form:
 ;
-; agent => agentid,agentpassword,name
+; agent = agentid,agentpassword,name
 ;
-;agent => 1001,4321,Mark Spencer
-;agent => 1002,4321,Will Meadows
+;agent = 1001,4321,Mark Spencer
+;agent = 1002,4321,Will Meadows

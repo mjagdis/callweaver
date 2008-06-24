@@ -44,12 +44,12 @@ mode=immediate
 ;
 ; List all devices we can use.
 ;
-;device => /dev/ttyS3
+;device = /dev/ttyS3
 ;
 ; ISDN example (using i4l)
 ;
 ;msn=39907835
-;device => /dev/ttyI0
+;device = /dev/ttyI0
 
 ;===============
 ; More complex ISDN example
@@ -62,7 +62,7 @@ mode=immediate
 ;
 ;msn=50780020
 ;incomingmsn=50780020,50780021,50780022
-;device => /dev/ttyI2
+;device = /dev/ttyI2
 ;
 ; If set, only these numbers are allowed to be set as A number
 ; when making an outbound call. callerid is used to set A
@@ -82,11 +82,11 @@ mode=immediate
 ;dtmfmode=callweaver			; Detect using CallWeaver
 ;dtmfmode=callweaver/both		; Detect using CallWeaver, generate w/ both
 ; two other devices, which are in group '1' and are used when an
-; outgoing dial used: exten => s,1,Dial,Modem/g1:1234,60,r
+; outgoing dial used: exten = s,1,Dial,Modem/g1:1234,60,r
 ; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)
 ; Lines can be in more than one group (0-63); comma separated list.
 ;
 group=1		; group=1,2,3,9-12
 ;msn=50780023
-;device => /dev/ttyI3
-;device => /dev/ttyI4
+;device = /dev/ttyI3
+;device = /dev/ttyI4

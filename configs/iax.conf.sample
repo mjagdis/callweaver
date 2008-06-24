@@ -96,15 +96,15 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;
 ; Register with tormenta using username marko and password secretpass
 ;
-;register => marko:secretpass@tormenta.linux-support.net
+;register = marko:secretpass@tormenta.linux-support.net
 ;
 ; Register joe at remote host with no password
 ;
-;register => joe@remotehost:5656
+;register = joe@remotehost:5656
 ;
 ; Register marko at tormenta.linux-support.net using RSA key "torkey"
 ;
-;register => marko:[torkey]@tormenta.linux-support.net
+;register = marko:[torkey]@tormenta.linux-support.net
 ;
 ; Sample Registration for iaxtel
 ;
@@ -112,7 +112,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; and "pass" with your username and password for iaxtel.  Incoming 
 ; calls arrive at the "s" extension of "default" context.
 ;
-;register => user:pass@iaxtel.com
+;register = user:pass@iaxtel.com
 ;
 ; Sample Registration for IAX + FWD
 ;
@@ -123,7 +123,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; your free world dialup number.  Please replace "FWDNumber" with your
 ; FWD number and "passwd" with your password.
 ;
-;register => FWDNumber:passwd@iax.fwdnet.net
+;register = FWDNumber:passwd@iax.fwdnet.net
 ;
 ;
 ; You can disable authentication debugging to reduce the amount of 

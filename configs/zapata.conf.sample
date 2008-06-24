@@ -16,28 +16,28 @@
 ; Trunk groups are used for NFAS or GR-303 connections.
 ;
 ; Group: Defines a trunk group.  
-;        group => <trunkgroup>,<dchannel>[,<backup1>...]
+;        group = <trunkgroup>,<dchannel>[,<backup1>...]
 ;
 ;        trunkgroup  is the numerical trunk group to create
 ;        dchannel    is the zap channel which will have the 
 ;                    d-channel for the trunk.
 ;        backup1     is an optional list of backup d-channels.
 ;
-;trunkgroup => 1,24,48
-;trunkgroup => 1,24
+;trunkgroup = 1,24,48
+;trunkgroup = 1,24
 ;
 ; Spanmap: Associates a span with a trunk group
-;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
+;        spanmap = <zapspan>,<trunkgroup>[,<logicalspan>]
 ;
 ;        zapspan     is the zap span number to associate
 ;        trunkgroup  is the trunkgroup (specified above) for the mapping
 ;        logicalspan is the logical span number within the trunk group to use.
 ;                    if unspecified, no logical span number is used.
 ;
-;spanmap => 1,1,1
-;spanmap => 2,1,2
-;spanmap => 3,1,3
-;spanmap => 4,1,4
+;spanmap = 1,1,1
+;spanmap = 2,1,2
+;spanmap = 3,1,3
+;spanmap = 4,1,4
 
 [channels]
 ;
@@ -132,8 +132,8 @@ switchtype=national
 ; All of the ISDN timers and counters that are used are configurable.  Specify
 ; the timer name, and its value (in ms for timers).
 ;
-; pritimer => t200,1000
-; pritimer => t313,4000
+; pritimer = t200,1000
+; pritimer = t313,4000
 ;
 ; To enable transmission of facility-based ISDN supplementary services (such
 ; as caller name from CPE over facility), enable this option.
@@ -658,34 +658,34 @@ immediate=no
 ; For GR-303, CRV's are created like channels except they must start with the
 ; trunk group followed by a colon, e.g.: 
 ;
-; crv => 1:1
-; crv => 2:1-2,5-8
+; crv = 1:1
+; crv = 2:1-2,5-8
 ;
 ;
 ;callerid="Green Phone"<(256) 428-6121>
-;channel => 1
+;channel = 1
 ;callerid="Black Phone"<(256) 428-6122>
-;channel => 2
+;channel = 2
 ;callerid="CallerID Phone" <(256) 428-6123>
 ;callerid="CallerID Phone" <(630) 372-1564>
 ;callerid="CallerID Phone" <(256) 704-4666>
-;channel => 3
+;channel = 3
 ;callerid="Pac Tel Phone" <(256) 428-6124>
-;channel => 4
+;channel = 4
 ;callerid="Uniden Dead" <(256) 428-6125>
-;channel => 5
+;channel = 5
 ;callerid="Cortelco 2500" <(256) 428-6126>
-;channel => 6
+;channel = 6
 ;callerid="Main TA 750" <(256) 428-6127>
-;channel => 44
+;channel = 44
 ;
 ; For example, maybe we have some other channels which start out in a
 ; different context and use E & M signalling instead.
 ;
 ;context=remote
 ;sigalling=em
-;channel => 15
-;channel => 16
+;channel = 15
+;channel = 16
 
 ;signalling=em_w
 ;
@@ -697,18 +697,18 @@ immediate=no
 ;callerid=asreceived
 ;group=0
 ;signalling=fxs_ls
-;channel => 45
+;channel = 45
 
 ;signalling=fxo_ls
 ;group=1
 ;callerid="Joe Schmoe" <(256) 428-6131>
-;channel => 25
+;channel = 25
 ;callerid="Megan May" <(256) 428-6132>
-;channel => 26
+;channel = 26
 ;callerid="Suzy Queue" <(256) 428-6233>
-;channel => 27
+;channel = 27
 ;callerid="Larry Moe" <(256) 428-6234>
-;channel => 28
+;channel = 28
 ;
 ; Sample PRI (CPE) config:  Specify the switchtype, the signalling as either
 ; pri_cpe or pri_net for CPE or Network termination, and generally you will
@@ -717,8 +717,8 @@ immediate=no
 ; switchtype = national
 ; signalling = pri_cpe
 ; group = 2
-; channel => 1-23
+; channel = 1-23
 
 ;context=default
-;channel => 1 
+;channel = 1 
 

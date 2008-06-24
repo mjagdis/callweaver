@@ -191,10 +191,10 @@ persistentmembers = yes
 ; queue.  An optional penalty may be specified after a comma, such that
 ; entries with higher penalties are considered last.
 ;
-;member => Zap/1
-;member => Zap/2
-;member => Agent/1001
-;member => Agent/1002
+;member = Zap/1
+;member = Zap/2
+;member = Agent/1001
+;member = Agent/1002
 
 ;
 ; Note that using agent groups is probably not what you want.  Strategies do
@@ -202,8 +202,8 @@ persistentmembers = yes
 ; recent, etc, you should list all the agents in this file individually and not
 ; use agent groups.
 ;
-;member => Agent/@1		; Any agent in group 1
-;member => Agent/:1,1		; Any agent in group 1, wait for first
+;member = Agent/@1		; Any agent in group 1
+;member = Agent/:1,1		; Any agent in group 1, wait for first
                                 ; available, but consider with penalty
 ;
 ;

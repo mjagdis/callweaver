@@ -1,17 +1,17 @@
 ;;; odbc setup file 
 
 [callweaver]
-dsn => callweaver
-;username => myuser
-;password => mypass
-pre-connect => yes
+dsn = callweaver
+;username = myuser
+;password = mypass
+pre-connect = yes
 
 
 ;[mysql2]
-;dsn => MySQL-callweaver
-;username => myuser
-;password => mypass
-;pre-connect => yes
+;dsn = MySQL-callweaver
+;username = myuser
+;password = mypass
+;pre-connect = yes
 
 
 

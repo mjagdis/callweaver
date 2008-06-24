@@ -10,7 +10,7 @@
 [general]
 servername = CallWeaver			; show this name on the device registration
 keepalive = 60				; phone keep alive message evey 60 secs. Used to check the voicemail
-debug = 1					; console debug level. 1 => 10
+debug = 1					; console debug level. 1 = 10
 context = sccp
 dateFormat = D.M.Y			; M-D-Y in any order. Use M/D/YA (for 12h format)
 bindaddr = 0.0.0.0			; replace with the ip address of the callweaver server (RTP important param)
@@ -84,7 +84,7 @@ trustphoneip = no				; The phone has a ip address. It could be private, so if th
 private = on				; permit the private function softkey for this device
 ;mwilamp = on				; Set the MWI lamp style when MWI active to on, off, wink, flash or blink
 ;mwioncall = off				; Set the MWI on call.
-device => SEP00119341E684		; device name SEP<MAC>
+device = SEP00119341E684		; device name SEP<MAC>
 
 [lines]
 
@@ -111,7 +111,7 @@ silencesuppression = off		; sets the silence suppression for this line
 ;callgroup=1,3-4				; We are in caller groups 1,3,4. Valid for this line
 ;pickupgroup=1,3-5			; We can do call pick-p for call group 1,3,4,5. Valid for this line
 ;amaflags = 				; Sets the default AMA flag code stored in the CDR record for this line
-line => 79051
+line = 79051
 
 ; phone types
 ;    12 -- Cisco IP Phone 12SP+ (or other 12 variants)

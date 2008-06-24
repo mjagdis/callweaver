@@ -1,9 +1,9 @@
 ; config file for application LDAPget
 ;
 ; example in extensions.conf:
-; exten => 1234,1,LDAPget(CIDNAME=cidname/${CALLERIDNUM},${CALLERIDNUM},${CALLERIDNUM})   ; check for mobile and fax as well
-; exten => 1234,2,SetCIDName(${CIDNAME})
-; exten => 1234,3,Dial(Zap/5-1/${EXTEN},15)
+; exten = 1234,1,LDAPget(CIDNAME=cidname/${CALLERIDNUM},${CALLERIDNUM},${CALLERIDNUM})   ; check for mobile and fax as well
+; exten = 1234,2,SetCIDName(${CIDNAME})
+; exten = 1234,3,Dial(Zap/5-1/${EXTEN},15)
 ;
 ; corresponding section in here:
 ; [cidname]

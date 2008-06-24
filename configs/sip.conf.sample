@@ -127,7 +127,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ; CallWeaver can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
-;       register => user[:secret[:authuser]]@host[:port][/extension]
+;       register = user[:secret[:authuser]]@host[:port][/extension]
 ;
 ; If no extension is given, the 's' extension is used. The extension needs to
 ; be defined in extensions.conf to be able to accept calls from this SIP proxy
@@ -138,12 +138,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ; Examples:
 ;
-;register => 1234:password@mysipprovider.com	
+;register = 1234:password@mysipprovider.com	
 ;
 ;     This will pass incoming calls to the 's' extension
 ;
 ;
-;register => 2345:password@sip_proxy/1234
+;register = 2345:password@sip_proxy/1234
 ;
 ;    Register 2345 at sip provider 'sip_proxy'.  Calls from this provider
 ;    connect to local extension 1234 in extensions.conf, default context,

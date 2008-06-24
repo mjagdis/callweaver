@@ -132,13 +132,13 @@ immediate=no
 ;protocolvariant=ls,hk
 ;protocolend=co
 ;group = 3
-;channel => 280-283
+;channel = 280-283
 
 ;protocolclass=fx
 ;protocolvariant=ls,hk
 ;protocolend=cpe
 ;group = 4
-;channel => 284
+;channel = 284
 
 ;
 ; Set up E1s 2 and 3 to work in China MFC/R2 mode. A maximum of 20 ANI digits
@@ -168,9 +168,9 @@ protocolclass=mfcr2
 protocolvariant=cn,20,7
 protocolend=co
 group = 3
-channel => 31-46
+channel = 31-46
 ;skip time slot 16
-channel => 48-62
-channel => 63-77
+channel = 48-62
+channel = 63-77
 ;skip time slot 16
-channel => 79-93
+channel = 79-93

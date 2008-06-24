@@ -57,13 +57,13 @@
 ; this is another reason not to have debug mode on a production system unless
 ; you are in the process of debugging a specific issue.
 ;
-;debug => debug
-console => notice,warning,error
-;console => notice,warning,error,debug
-messages => notice,warning,error
-;full => notice,warning,error,debug,verbose
+;debug = debug
+console = notice,warning,error
+;console = notice,warning,error,debug
+messages = notice,warning,error
+;full = notice,warning,error,debug,verbose
 
 ;syslog keyword : This special keyword logs to syslog facility 
 ;
-;syslog.local0 => notice,warning,error
+;syslog.local0 = notice,warning,error
 ;

@@ -79,7 +79,7 @@ autokill=yes
 ; Agreement (GPA) if you are a member of the DUNDi E.164
 ; Peering System.
 ;
-; dundi_context => local_context,weight,tech,dest[,options]]
+; dundi_context = local_context,weight,tech,dest[,options]]
 ;
 ; 'dundi_context' is the name of the context being requested
 ; within the DUNDi request
@@ -118,12 +118,12 @@ autokill=yes
 ; There *must* exist an entry in mappings for DUNDi to respond
 ; to any request, although it may be empty.
 ;
-;e164 => dundi-e164-canonical,0,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
-;e164 => dundi-e164-customers,100,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
-;e164 => dundi-e164-via-pstn,400,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 = dundi-e164-canonical,0,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 = dundi-e164-customers,100,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 = dundi-e164-via-pstn,400,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
 
-;digexten => default,0,IAX2,guest@lappy/${NUMBER}
-;asdf =>
+;digexten = default,0,IAX2,guest@lappy/${NUMBER}
+;asdf =
 
 
 ;
