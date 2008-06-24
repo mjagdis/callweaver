@@ -631,6 +631,7 @@ int cw_closestream(struct cw_filestream *f)
 	if (f->trans)
 		cw_translator_free_path(f->trans);
 
+	f->fmt->close(f->pvt);
 	if (f->realfilename && f->filename) {
 		size = strlen(f->filename) + strlen(f->realfilename) + 15;
 		cmd = alloca(size);
@@ -644,7 +645,6 @@ int cw_closestream(struct cw_filestream *f)
 	if (f->realfilename)
 		free(f->realfilename);
 
-	f->fmt->close(f->pvt);
 	cw_object_put(f->fmt);
 	free(f);
 	return 0;

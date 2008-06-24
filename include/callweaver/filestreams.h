@@ -27,7 +27,7 @@
             type://${destination}
 
         "type" represents the type of stream. 
-        The file:// type identifies anaudio file on our server.
+        The file:// type identifies an audio file on our server.
 
         "type" can be even registered by a particular implementation so,
         if you write a filestream implemention registers to handle the
