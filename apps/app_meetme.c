@@ -456,7 +456,7 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
             cw_copy_string(cnf->pin, pin, sizeof(cnf->pin));
             cw_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
             cnf->markedusers = 0;
-            cnf->chan = cw_request("zap", CW_FORMAT_ULAW, "pseudo", NULL);
+            cnf->chan = cw_request("DAHDI", CW_FORMAT_ULAW, "pseudo", NULL);
             if (cnf->chan)
             {
                 cnf->fd = cnf->chan->fds[0];    /* for use by conf_play() */
@@ -1033,7 +1033,7 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
         goto outrun;
     }
     cw_indicate(chan, -1);
-    retryzap = strcasecmp(chan->type, "Zap");
+    retryzap = strcmp(chan->type, "DAHDI");
     user->zapchannel = !retryzap;
 zapretry:
     origfd = chan->fds[0];
@@ -1102,7 +1102,7 @@ zapretry:
         /* Whoa, already in a conference...  Retry... */
         if (!retryzap)
         {
-            cw_log(CW_LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+            cw_log(CW_LOG_DEBUG, "DAHDI channel is in a conference already, retrying with pseudo\n");
             retryzap = 1;
             goto zapretry;
         }
@@ -1381,7 +1381,7 @@ zapretry:
                         using_pseudo = 0;
                     }
                     cw_log(CW_LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-                    retryzap = strcasecmp(c->type, "Zap");
+                    retryzap = strcmp(c->type, "DAHDI");
                     user->zapchannel = !retryzap;
                     goto zapretry;
                 }

@@ -410,9 +410,9 @@ icd_status icd_conference__join(icd_caller * that)
 
     if (that->conf_fd && (fcntl(that->conf_fd, F_GETFL) > -1)) {
         fd = that->conf_fd;
-        nfds = strcasecmp(chan->type, "Zap") ? 1 : 0;
+        nfds = strcmp(chan->type, "DAHDI") ? 1 : 0;
     } else {
-        if (strcasecmp(chan->type, "Zap")) {
+        if (strcmp(chan->type, "DAHDI")) {
             fd = open_pseudo_zap();
             if (!fd) {
                 cw_log(CW_LOG_ERROR, "Can't create pseudo channel...\n");
@@ -557,7 +557,7 @@ icd_status icd_conference__join(icd_caller * that)
                 break;
 
 /* This part of code (if) is for ZAP channels to make possible for muxmon to record 2 channels */
-         if(!strcasecmp(chan->type, "Zap")){
+         if(!strcmp(chan->type, "DAHDI")){
 	    if (chan->spiers && (read_frame->frametype == CW_FRAME_VOICE) && 
 	                        (read_frame->subclass == icd_conf_format)) {
 			struct cw_channel_spy *spying;
