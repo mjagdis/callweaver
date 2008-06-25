@@ -1051,17 +1051,74 @@ void cw_channel_free(struct cw_channel *chan)
 	cw_device_state_changed_literal(name);
 }
 
-static void cw_spy_detach(struct cw_channel *chan) 
+/*--- cw_spy_detach_all: Detach all spies from a channel. */
+/*! Detach all spies from a channel.
+ * The caller must already hold the channel's lock.
+ * \param chan The (already locked) channel.
+ * \internal We don't have to deallocate the spy structures. It is sufficient to
+ * mark the spies as 'done', and they will know what to do.
+ */
+void cw_spy_detach_all(struct cw_channel *chan) 
 {
 	struct cw_channel_spy *chanspy;
 
-	/* Marking the spies as done is sufficient.  Chanspy or spy users will get the picture. */
-	for (chanspy = chan->spiers;  chanspy;  chanspy = chanspy->next)
+	for (chanspy = chan->spies.head;  chanspy;  chanspy = chanspy->next)
 	{
 		if (chanspy->status == CHANSPY_RUNNING)
 			chanspy->status = CHANSPY_DONE;
 	}
-	chan->spiers = NULL;
+	chan->spies.head = chan->spies.tail = NULL;
+}
+
+/*--- cw_spy_attach: Attach another spy in the given channel. */
+/*! Attach a spy on a channel.
+ * \param chan The (unlocked) channel we want to attach the spy on.
+ * \param newspy The new and initialized spy we will attach.
+ * \internal If the channel is in a native bridge, attaching a spy will
+ * also break the bridge to force the traffic to pass through CW.
+ */
+void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy)
+{
+	struct cw_channel *peer;
+
+	cw_mutex_lock(&chan->lock);
+	if (chan->spies.head) {
+		chan->spies.tail->next = newspy;
+		chan->spies.tail = newspy;
+	} else {
+		chan->spies.head = chan->spies.tail = newspy;
+	}
+	cw_mutex_unlock(&chan->lock);
+	if (cw_test_flag(chan, CW_FLAG_NBRIDGE)
+	    && (peer = cw_bridged_channel(chan)))
+		cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);
+}
+
+/*--- cw_spy_detach: Detach a spy from the given channel. */
+/*! Detach a spy from a channel.
+ * The caller must already have the channel's lock.
+ * \param chan The (already locked) channel.
+ * \param newspy The spy we will detach.
+ * \internal This only remove the spy from the channel's spy queue, it will not
+ * deallocate any memory.
+ */
+void cw_spy_deattach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
+{
+	struct cw_channel_spy *cur, *prev = NULL;
+	for (cur = chan->spies.head ; cur && cur != oldspy; cur = cur->next) {
+		prev = cur;
+	}
+	if (cur) { /* We found the spy in our list. */
+		if (chan->spies.head == cur)
+			chan->spies.head = cur->next;
+		else
+			prev->next = cur->next;
+		if (chan->spies.tail == cur)
+			chan->spies.tail = prev;
+		break;
+	} else { /* Is this ever possible? */
+		cw_log(LOG_WARNING, "Unknown spy in cw_spy_detached().\n");
+	}
 }
 
 /*--- cw_softhangup_nolock: Softly hangup a channel, don't lock */
@@ -1155,7 +1212,7 @@ int cw_hangup(struct cw_channel *chan)
 	   if someone is going to masquerade as us */
 	cw_mutex_lock(&chan->lock);
 
-	cw_spy_detach(chan);		/* get rid of spies */
+	cw_spy_detach_all(chan);	/* get rid of spies */
 
 	if (chan->masq)
 	{
@@ -1725,11 +1782,11 @@ struct cw_frame *cw_read(struct cw_channel *chan)
     		}
         	else
         	{
-    			if (chan->spiers)
+    			if (chan->spies.head)
             		{
     				struct cw_channel_spy *spying;
 
-    				for (spying = chan->spiers;  spying;  spying = spying->next)
+    				for (spying = chan->spies.head;  spying;  spying = spying->next)
     					cw_queue_spy_frame(spying, f, 0);
     			}
     			if (chan->monitor && chan->monitor->read_stream)
@@ -2153,11 +2210,11 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 				 * let the channel driver use a writer thread
 				 * to actually write the stuff, for example. */
 
-				if (f->frametype == CW_FRAME_VOICE  &&  chan->spiers)
+				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies.head)
                 {
 					struct cw_channel_spy *spying;
 
-					for (spying = chan->spiers;  spying;  spying = spying->next)
+					for (spying = chan->spies.head;  spying;  spying = spying->next)
 						cw_queue_spy_frame(spying, f, 1);
 				}
 
@@ -3551,7 +3608,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 		if (c0->tech->bridge &&
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
-		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers)
+		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spies.head && !c1->spies.head)
     		{
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 

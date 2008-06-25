@@ -340,7 +340,10 @@ struct cw_channel {
 	int rawwriteformat;
 
 	/*! Chan Spy stuff */
-	struct cw_channel_spy *spiers;
+	struct {
+		struct cw_channel_spy *head;
+		struct cw_channel_spy *tail;
+	} SPIERSQ;
 
 	/*! For easy linking */
 	struct cw_channel *next;
@@ -358,6 +361,10 @@ struct cw_channel {
 
 typedef struct cw_channel cw_channel_t;
 
+/* Spy related stuff */
+void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy);
+void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *newspy);
+void cw_spy_detach_all(struct cw_channel *chan);
 
 /* Channel tech properties: */
 /* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */

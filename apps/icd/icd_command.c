@@ -1448,7 +1448,7 @@ int icd_command_record(int fd, int argc, char **argv)
         cw_cli_command(fd, buf);
         return 0;
    }
-   if(chan->spiers !=NULL){
+   if(chan->spies.head != NULL){
    	cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Record\r\nSubCommand: Start\r\nResult: Fail\r\nCause: Already recording\r\nCallerID: %s\r\n", 

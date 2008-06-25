@@ -116,72 +116,20 @@ static __inline__ int db_to_scaling_factor(int db)
 
 static void stopmon(struct cw_channel *chan, struct cw_channel_spy *spy) 
 {
-    struct cw_channel_spy *cptr = NULL;
-    struct cw_channel_spy *prev = NULL;
     int count = 0;
 
     if (chan)
     {
-        if (chan->spiers == NULL)
-            return;
-        while (cw_mutex_trylock(&chan->lock))
-        {
-/*
-            if (chan->spiers == spy)
-            {
-                chan->spiers = NULL;
-                return;
-            }
-*/            
-            if (++count > 10)
-            {
-                cw_log(CW_LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
-                chan->spiers = NULL;
-                return;
-            }
-            sched_yield();
-        }
-        
-        for (cptr = chan->spiers;  cptr;  cptr = cptr->next)
-        {
-            if (cptr == spy)
-            {
-                if (prev)
-                    prev->next = cptr->next;
-                else
-                    chan->spiers = cptr->next;
-                cptr->next = NULL;
-            }
-            prev = cptr;
-        }
-
+	cw_mutex_lock(&chan->lock);
+	cw_spy_unattach(chan, spy);
         cw_mutex_unlock(&chan->lock);
     }
 }
 
 static void startmon(struct cw_channel *chan, struct cw_channel_spy *spy) 
 {
-
-    struct cw_channel_spy *cptr = NULL;
-    struct cw_channel *peer;
-
     if (chan)
-    {
-        cw_mutex_lock(&chan->lock);
-        if (chan->spiers)
-        {
-            for (cptr = chan->spiers;  cptr  &&  cptr->next;  cptr = cptr->next);
-            cptr->next = spy;
-        }
-        else
-        {
-            chan->spiers = spy;
-        }
-        cw_mutex_unlock(&chan->lock);
-        
-        if (cw_test_flag(chan, CW_FLAG_NBRIDGE)  &&  (peer = cw_bridged_channel(chan)))
-            cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);    
-    }
+	cw_spy_attach(chan, spy);
 }
 
 static int spy_queue_translate(struct cw_channel_spy *spy,
@@ -533,26 +481,8 @@ static int muxmon_cli(int fd, int argc, char **argv)
         }
         else if (!strcasecmp(op, "stop"))
         {
-            struct cw_channel_spy *cptr = NULL;
-            int count = 0;
-            
-            while (cw_mutex_trylock(&chan->lock))
-            {
-                count++;
-                if (count > 10)
-                {
-                    cw_cli(fd, "Cannot Lock Channel!\n");
-                    return -1;
-                }
-                usleep(1000);
-                sched_yield();
-            }
-
-            for (cptr=chan->spiers; cptr; cptr=cptr->next)
-            {
-                cptr->status = CHANSPY_DONE;
-            }
-            chan->spiers = NULL;
+            cw_mutex_lock(&chan->lock);
+	    cw_spy_detach_all(chan);
             cw_mutex_unlock(&chan->lock);
         }
         return 0;

@@ -381,54 +381,20 @@ static struct cw_generator spygen =
 static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy)
 {
 
-    struct cw_channel_spy *cptr=NULL;
-    struct cw_channel *peer;
-
     cw_log(CW_LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
 
-    cw_mutex_lock(&chan->lock);
-    if (chan->spiers)
-    {
-        for (cptr = chan->spiers;  cptr  &&  cptr->next;  cptr = cptr->next)
-            ;
-        cptr->next = spy;
-    }
-    else
-    {
-        chan->spiers = spy;
-    }
-    cw_mutex_unlock(&chan->lock);
-    if ( cw_test_flag(chan, CW_FLAG_NBRIDGE)  &&  (peer = cw_bridged_channel(chan)))
-        cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);
+    cw_spy_attach(chan, spy);
 }
 
 static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy)
 {
-    struct cw_channel_spy *cptr = NULL;
-    struct cw_channel_spy *prev = NULL;
-
     /* If our status has changed, then the channel we're spying on is gone....
        DON'T TOUCH IT!!!  RUN AWAY!!! */
     if (spy->status != CHANSPY_RUNNING)
         return;
 
     cw_mutex_lock(&chan->lock);
-    for (cptr = chan->spiers;  cptr;  cptr = cptr->next)
-    {
-        if (cptr == spy)
-        {
-            if (prev)
-            {
-                prev->next = cptr->next;
-                cptr->next = NULL;
-            }
-            else
-            {
-                chan->spiers = NULL;
-            }
-        }
-        prev = cptr;
-    }
+    cw_spy_unattach(chan, spy);
     cw_mutex_unlock(&chan->lock);
 }
 
