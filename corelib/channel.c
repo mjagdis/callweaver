@@ -1103,22 +1103,21 @@ static void cw_queue_spy_frame(struct cw_channel_spy *spy, struct cw_frame *f, i
 
 	if (count > 1000)
 	{
-		struct cw_frame *freef;
 		struct cw_frame *headf;
 
 		cw_log(CW_LOG_ERROR, "Too many frames queued at once, flushing cache.\n");
 		headf = spy->queue[pos];
 		/* deref the queue right away so it looks empty */
 		spy->queue[pos] = NULL;
-		tmpf = headf;
+		cw_mutex_unlock(&spy->lock);
 		/* Free the wasted frames */
+		tmpf = headf;
 		while (tmpf)
     		{
-			freef = tmpf;
+			struct cw_frame *freef = tmpf;
 			tmpf = tmpf->next;
 			cw_fr_free(freef);
 		}
-		cw_mutex_unlock(&spy->lock);
 		return;
 	}
 
