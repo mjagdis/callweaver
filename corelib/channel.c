@@ -1102,7 +1102,7 @@ void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy)
  * \internal This only remove the spy from the channel's spy queue, it will not
  * deallocate any memory.
  */
-void cw_spy_deattach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
+void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
 {
 	struct cw_channel_spy *cur, *prev = NULL;
 	for (cur = chan->spies.head ; cur && cur != oldspy; cur = cur->next) {
@@ -1117,7 +1117,7 @@ void cw_spy_deattach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
 			chan->spies.tail = prev;
 		break;
 	} else { /* Is this ever possible? */
-		cw_log(LOG_WARNING, "Unknown spy in cw_spy_detached().\n");
+		cw_log(LOG_WARNING, "Unknown spy in cw_spy_detach().\n");
 	}
 }
 

@@ -394,7 +394,7 @@ static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy)
         return;
 
     cw_mutex_lock(&chan->lock);
-    cw_spy_unattach(chan, spy);
+    cw_spy_detach(chan, spy);
     cw_mutex_unlock(&chan->lock);
 }
 
