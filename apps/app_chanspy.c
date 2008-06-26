@@ -106,8 +106,7 @@ static struct cw_channel *local_get_channel_begin_name(char *name);
 static struct cw_channel *local_channel_walk(struct cw_channel *chan);
 static void spy_release(struct cw_channel *chan, void *data);
 static void *spy_alloc(struct cw_channel *chan, void *params);
-static struct cw_frame *spy_queue_shift(struct cw_channel_spy *spy, int qnum);
-static void cw_flush_spy_queue(struct cw_channel_spy *spy);
+static void cw_flush_spy_queues(struct cw_channel_spy *spy);
 static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int len);
 static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy);
 static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy);
@@ -180,35 +179,22 @@ static void *spy_alloc(struct cw_channel *chan, void *params)
     return params;
 }
 
-static struct cw_frame *spy_queue_shift(struct cw_channel_spy *spy, int qnum)
+static void cw_flush_spy_queues(struct cw_channel_spy *spy)
 {
-    struct cw_frame *f;
+    struct cw_frame *f0;
+    struct cw_frame *f1;
+    cw_spy_empty_queues(spy, &f0, &f1);
 
-    if (qnum < 0  ||  qnum > 1)
-        return NULL;
-
-    f = spy->queue[qnum];
-    if (f)
-    {
-        spy->queue[qnum] = f->next;
-        return f;
+    while (f0) {
+        struct cw_frame *fnext = f0->next;
+        cw_fr_free(f0);
+        f0 = fnext;
     }
-    return NULL;
-}
-
-static void cw_flush_spy_queue(struct cw_channel_spy *spy)
-{
-    struct cw_frame *f = NULL;
-    int x = 0;
-
-    cw_mutex_lock(&spy->lock);
-    for (x = 0;  x < 2;  x++)
-    {
-        f = NULL;
-        while ((f = spy_queue_shift(spy, x)))
-            cw_fr_free(f);
+    while (f1) {
+        struct cw_frame *fnext = f1->next;
+        cw_fr_free(f1);
+        f1 = fnext;
     }
-    cw_mutex_unlock(&spy->lock);
 }
 
 #if 0
@@ -272,7 +258,7 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
 {
 
     struct chanspy_translation_helper *csth = data;
-    struct cw_frame *f;
+    struct cw_frame *f0, *f1;
     int len0 = 0;
     int len1 = 0;
     int samp0 = 0;
@@ -292,22 +278,19 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
 
     len = sample * sizeof(int16_t);
 
-    cw_mutex_lock(&csth->spy.lock);
-    while((f = csth->spy.queue[0]))
-    {
-        csth->spy.queue[0] = f->next;
-        cw_slinfactory_feed(&csth->slinfactory[0], f);
-        cw_fr_free(f);
+    cw_spy_get_frames(&csth->spy, &f0, &f1);
+    while (f0) {
+	struct cw_frame *f = f0->next;
+        cw_slinfactory_feed(&csth->slinfactory[0], f0);
+        cw_fr_free(f0);
+	f0 = f;
     }
-    cw_mutex_unlock(&csth->spy.lock);
-    cw_mutex_lock(&csth->spy.lock);
-    while((f = csth->spy.queue[1]))
-    {
-        csth->spy.queue[1] = f->next;
-        cw_slinfactory_feed(&csth->slinfactory[1], f);
-        cw_fr_free(f);
+    while (f1) {
+	struct cw_frame *f = f1->next;
+        cw_slinfactory_feed(&csth->slinfactory[1], f1);
+        cw_fr_free(f1);
+	f1 = f;
     }
-    cw_mutex_unlock(&csth->spy.lock);
 
     cw_fr_init_ex(&csth->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     csth->f.data = csth->buf;
@@ -504,7 +487,7 @@ static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *v
 
         if (option_verbose >= 2)
             cw_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
-        cw_flush_spy_queue(&csth.spy);
+        cw_flush_spy_queues(&csth.spy);
     }
     else
     {

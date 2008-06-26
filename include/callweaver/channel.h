@@ -168,18 +168,16 @@ struct cw_channel_tech {
 	struct cw_channel *(* const bridged_channel)(struct cw_channel *chan, struct cw_channel *bridge);
 };
 
-
-#define CHANSPY_NEW 0
-#define CHANSPY_RUNNING 1
-#define CHANSPY_DONE 2
-
 struct cw_channel_spy {
-	struct cw_frame *queue[2];
+	struct {
+		struct cw_frame *head;
+		struct cw_frame *tail;
+		unsigned count;
+	} queue[2];
 	cw_mutex_t lock;
-	char status;
+	enum {CHANSPY_NEW = 0, CHANSPY_RUNNING, CHANSPY_DONE } status;
 	struct cw_channel_spy *next;
 };
-
 
 /*! T.38 channel status */
 typedef enum {
@@ -362,6 +360,9 @@ struct cw_channel {
 typedef struct cw_channel cw_channel_t;
 
 /* Spy related stuff */
+void cw_spy_queue_frame(struct cw_channel_spy *spy, struct cw_frame *f, int q);
+void cw_spy_empty_queues(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
+void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
 void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy);
 void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *newspy);
 void cw_spy_detach_all(struct cw_channel *chan);
@@ -692,7 +693,6 @@ struct cw_channel *cw_waitfor_n(struct cw_channel **chan, int n, int *ms);
 /*! Waits for input on an fd */
 /*! This version works on fd's only.  Be careful with it. */
 int cw_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
-
 
 /*! Reads a frame */
 /*!

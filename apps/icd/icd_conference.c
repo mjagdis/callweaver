@@ -58,43 +58,6 @@
 static void_hash_table *CONF_REGISTRY;
 static int GLOBAL_USAGE = 0;
 
-static void cw_queue_spy_frame(struct cw_channel_spy *spy, struct cw_frame *f, int pos) 
-{
-	struct cw_frame *tmpf = NULL;
-	int count = 0;
-
-	cw_mutex_lock(&spy->lock);
-	for (tmpf=spy->queue[pos]; tmpf && tmpf->next; tmpf=tmpf->next) {
-		count++;
-	}
-	if (count > 1000) {
-		struct cw_frame *headf;
-
-		cw_log(CW_LOG_ERROR, "Too Many frames queued at once, flushing cache.\n");
-		headf = spy->queue[pos];
-		/* deref the queue right away so it looks empty */
-		spy->queue[pos] = NULL;
-		cw_mutex_unlock(&spy->lock);
-		/* free the wasted frames */
-		tmpf = headf;
-		while (tmpf) {
-            struct cw_frame *freef = tmpf;
-			tmpf = tmpf->next;
-			cw_fr_free(freef);
-		}
-		return;
-	}
-
-	if (tmpf) {
-		tmpf->next = cw_frdup(f);
-	} else {
-		spy->queue[pos] = cw_frdup(f);
-	}
-
-	cw_mutex_unlock(&spy->lock);
-}
-
-
 static int open_pseudo_zap(void);
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -562,7 +525,7 @@ icd_status icd_conference__join(icd_caller * that)
                  && (read_frame->subclass == icd_conf_format)) {
                  struct cw_channel_spy *spying;
                  for (spying = chan->spies.head; spying; spying=spying->next) {
-                     cw_queue_spy_frame(spying, read_frame, 1);
+                     cw_spy_queue_frame(spying, read_frame, 1);
                  }
              }	
          }  

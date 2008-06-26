@@ -136,26 +136,22 @@ static int spy_queue_translate(struct cw_channel_spy *spy,
                                struct cw_slinfactory *slinfactory0,
                                struct cw_slinfactory *slinfactory1)
 {
-    int res = 0;
-    struct cw_frame *f;
+    struct cw_frame *f, *f0, *f1;
     
-    cw_mutex_lock(&spy->lock);
-    while ((f = spy->queue[0]))
-    {
-        spy->queue[0] = f->next;
-        cw_slinfactory_feed(slinfactory0, f);
-        cw_fr_free(f);
+    cw_spy_get_frames(spy, &f0, &f1);
+    while (f0) {
+        f = f0->next;
+        cw_slinfactory_feed(slinfactory0, f0);
+        cw_fr_free(f0);
+	f0 = f;
     }
-    cw_mutex_unlock(&spy->lock);
-    cw_mutex_lock(&spy->lock);
-    while ((f = spy->queue[1]))
-    {
-        spy->queue[1] = f->next;
-        cw_slinfactory_feed(slinfactory1, f);
-        cw_fr_free(f);
+    while (f1) {
+        f = f1->next;
+        cw_slinfactory_feed(slinfactory1, f1);
+        cw_fr_free(f1);
+	f1 = f;
     }
-    cw_mutex_unlock(&spy->lock);
-    return res;
+    return 0;
 }
 
 static void *muxmon_thread(void *obj) 
