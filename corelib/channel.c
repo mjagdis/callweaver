@@ -1115,7 +1115,6 @@ void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
 			prev->next = cur->next;
 		if (chan->spies.tail == cur)
 			chan->spies.tail = prev;
-		break;
 	} else { /* Is this ever possible? */
 		cw_log(LOG_WARNING, "Unknown spy in cw_spy_detach().\n");
 	}
