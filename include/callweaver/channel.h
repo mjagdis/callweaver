@@ -343,7 +343,7 @@ struct cw_channel {
 	struct {
 		struct cw_channel_spy *head;
 		struct cw_channel_spy *tail;
-	} SPIERSQ;
+	} spies;
 
 	/*! For easy linking */
 	struct cw_channel *next;
