@@ -338,10 +338,7 @@ struct cw_channel {
 	int rawwriteformat;
 
 	/*! Chan Spy stuff */
-	struct {
-		struct cw_channel_spy *head;
-		struct cw_channel_spy *tail;
-	} spies;
+	struct cw_channel_spy *spies;
 
 	/*! For easy linking */
 	struct cw_channel *next;

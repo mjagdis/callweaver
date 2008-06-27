@@ -1062,12 +1062,12 @@ void cw_spy_detach_all(struct cw_channel *chan)
 {
 	struct cw_channel_spy *chanspy;
 
-	for (chanspy = chan->spies.head;  chanspy;  chanspy = chanspy->next)
+	for (chanspy = chan->spies;  chanspy;  chanspy = chanspy->next)
 	{
 		if (chanspy->status == CHANSPY_RUNNING)
 			chanspy->status = CHANSPY_DONE;
 	}
-	chan->spies.head = chan->spies.tail = NULL;
+	chan->spies = NULL;
 }
 
 /*--- cw_spy_attach: Attach another spy in the given channel. */
@@ -1082,12 +1082,8 @@ void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy)
 	struct cw_channel *peer;
 
 	cw_mutex_lock(&chan->lock);
-	if (chan->spies.head) {
-		chan->spies.tail->next = newspy;
-		chan->spies.tail = newspy;
-	} else {
-		chan->spies.head = chan->spies.tail = newspy;
-	}
+	newspy->next = chan->spies;
+	chan->spies = newspy;
 	cw_mutex_unlock(&chan->lock);
 	if (cw_test_flag(chan, CW_FLAG_NBRIDGE)
 		&& (peer = cw_bridged_channel(chan)))
@@ -1105,16 +1101,14 @@ void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy)
 void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
 {
 	struct cw_channel_spy *cur, *prev = NULL;
-	for (cur = chan->spies.head ; cur && cur != oldspy; cur = cur->next) {
+	for (cur = chan->spies ; cur && cur != oldspy; cur = cur->next) {
 		prev = cur;
 	}
 	if (cur) { /* We found the spy in our list. */
-		if (chan->spies.head == cur)
-			chan->spies.head = cur->next;
+		if (chan->spies == cur)
+			chan->spies = cur->next;
 		else
 			prev->next = cur->next;
-		if (chan->spies.tail == cur)
-			chan->spies.tail = prev;
 	} else { /* Is this ever possible? */
 		cw_log(CW_LOG_WARNING, "Unknown spy in cw_spy_detach().\n");
 	}
@@ -1826,11 +1820,11 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 			}
 			else
 			{
-				if (chan->spies.head)
+				if (chan->spies)
 					{
 					struct cw_channel_spy *spying;
 
-					for (spying = chan->spies.head;  spying;  spying = spying->next)
+					for (spying = chan->spies;  spying;  spying = spying->next)
 						cw_spy_queue_frame(spying, f, 0);
 				}
 				if (chan->monitor && chan->monitor->read_stream)
@@ -2254,11 +2248,11 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 				 * let the channel driver use a writer thread
 				 * to actually write the stuff, for example. */
 
-				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies.head)
+				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies)
                 {
 					struct cw_channel_spy *spying;
 
-					for (spying = chan->spies.head;  spying;  spying = spying->next)
+					for (spying = chan->spies;  spying;  spying = spying->next)
 						cw_spy_queue_frame(spying, f, 1);
 				}
 
@@ -3652,7 +3646,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 		if (c0->tech->bridge &&
 			(config->timelimit == 0) &&
 			(c0->tech->bridge == c1->tech->bridge) &&
-			!nativefailed && !c0->monitor && !c1->monitor && !c0->spies.head && !c1->spies.head)
+			!nativefailed && !c0->monitor && !c1->monitor && !c0->spies && !c1->spies)
 			{
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 

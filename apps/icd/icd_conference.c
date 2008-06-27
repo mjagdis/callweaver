@@ -521,10 +521,10 @@ icd_status icd_conference__join(icd_caller * that)
 
 /* This part of code (if) is for ZAP channels to make possible for muxmon to record 2 channels */
          if(!strcmp(chan->type, "DAHDI")){
-             if (chan->spies.head && (read_frame->frametype == CW_FRAME_VOICE)
+             if (chan->spies && (read_frame->frametype == CW_FRAME_VOICE)
                  && (read_frame->subclass == icd_conf_format)) {
                  struct cw_channel_spy *spying;
-                 for (spying = chan->spies.head; spying; spying=spying->next) {
+                 for (spying = chan->spies; spying; spying=spying->next) {
                      cw_spy_queue_frame(spying, read_frame, 1);
                  }
              }	
