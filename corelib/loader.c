@@ -595,7 +595,7 @@ static char *reload_module_generator(char *line, char *word, int pos, int state)
 {
 	static char *core[] = {
 		"extconfig",
-		"manager",
+		"cdr",
 		"enum",
 		"features",
 		"rtp",
