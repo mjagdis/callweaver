@@ -171,10 +171,14 @@ static char *socket_receive_file_to_buff(int fd, int *size)
 
 static int send_waveform_to_fd(char *waveform, int length, int fd)
 {
-    int res;
+    pid_t res;
     int x;
 
+#if defined(HAVE_WORKING_FORK)
     res = fork();
+#else
+    res = vfork();
+#endif
     if (res < 0)
         cw_log(CW_LOG_WARNING, "Fork failed\n");
     if (res)

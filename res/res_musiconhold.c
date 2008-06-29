@@ -381,7 +381,11 @@ static int spawn_custom_command(struct mohclass *class)
 			printf("arg%d: %s\n", x, argv[x]);
 	}
 #endif	
+#if defined(HAVE_WORKING_FORK)
 	class->pid = fork();
+#else
+	class->pid = vfork();
+#endif
 	if (class->pid < 0) {
 		close(fds[0]);
 		close(fds[1]);

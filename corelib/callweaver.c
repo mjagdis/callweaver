@@ -323,7 +323,11 @@ int cw_safe_system(const char *s)
 
     cw_mutex_unlock(&safe_system_lock);
 
+#if defined(HAVE_WORKING_FORK)
     pid = fork();
+#else
+    pid = vfork();
+#endif
 
     if (pid == 0)
     {

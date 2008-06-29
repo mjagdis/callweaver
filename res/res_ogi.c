@@ -221,7 +221,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
-	int pid;
+	pid_t pid;
 	int toast[2];
 	int fromast[2];
 	int audio[2];
@@ -273,7 +273,11 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 			return -1;
 		}
 	}
+#if defined(HAVE_WORKING_FORK)
 	pid = fork();
+#else
+	pid = vfork();
+#endif
 	if (pid < 0) {
 		cw_log(CW_LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
 		return -1;

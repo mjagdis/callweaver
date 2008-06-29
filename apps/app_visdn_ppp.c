@@ -63,7 +63,13 @@ static int get_max_fds(void)
 static pid_t spawn_ppp(struct cw_channel *chan, const char *argv[])
 {
 	/* Start by forking */
-	pid_t pid = fork();
+	pid_t pid;
+
+#if defined(HAVE_WORKING_FORK)
+    pid = fork();
+#else
+    pid = vfork();
+#endif
 	if (pid)
 		return pid;
 

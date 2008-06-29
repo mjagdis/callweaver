@@ -15,14 +15,6 @@
 #include "confdefs.h"
 #endif
 
-#include "callweaver/lock.h"
-#include "callweaver/file.h"
-#include "callweaver/logger.h"
-#include "callweaver/channel.h"
-#include "callweaver/pbx.h"
-#include "callweaver/module.h"
-#include "callweaver/transcap.h"
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -31,6 +23,16 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <stdio.h>
+
+CALLWEAVER_FILE_VERSION("$HeadURL$")
+
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/transcap.h"
 
 
 static const char tdesc[] = "v.110 dialin Application";
@@ -742,7 +744,11 @@ int loginpty(char *source)
 		close(master);
 		return -1;
 	}
+#if defined(HAVE_WORKING_FORK)
 	pid = fork();
+#else
+	pid = vfork();
+#endif
 	if (pid == -1) {
 		cw_log(CW_LOG_NOTICE, "fork() failed: %s\n", strerror(errno));
 		close(master);
@@ -755,7 +761,11 @@ int loginpty(char *source)
 	}
 
 	/* We are the child. Fork again to become an orphan */
+#if defined(HAVE_WORKING_FORK)
 	pid = fork();
+#else
+	pid = vfork();
+#endif
 	if (pid)
 		exit(1);
 

@@ -37,6 +37,8 @@
 
 #include "callweaver.h"
 
+CALLWEAVER_FILE_VERSION("$HeadURL$")
+
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
@@ -73,7 +75,11 @@ static int do_backticks(char *command, char *buf, size_t len)
         if (pipe(fds)) {
                 cw_log(CW_LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
         } else {
+#if defined(HAVE_WORKING_FORK)
                 pid = fork();
+#else
+                pid = vfork();
+#endif
                 if (pid < 0) {
                         cw_log(CW_LOG_ERROR, "Fork failed: %s\n", strerror(errno));
                         close(fds[0]);
