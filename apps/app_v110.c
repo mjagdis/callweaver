@@ -24,7 +24,9 @@
 #include <errno.h>
 #include <stdio.h>
 
-CALLWEAVER_FILE_VERSION("$HeadURL$")
+#include "callweaver.h"
+
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
