@@ -1173,7 +1173,7 @@ void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct 
 		for (ii = 1; ii < same; ++ii)
 			f = f->next;
 		*f0 = spy->queue[0].head;
-		spy->queue[0].head = f;
+		spy->queue[0].head = f->next;
 		spy->queue[0].count -= same;
 		if (spy->queue[0].count == 0)
 			spy->queue[0].tail = NULL;
@@ -1181,7 +1181,7 @@ void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct 
 		for (ii = 1; ii < same; ++ii)
 			f = f->next;
 		*f1 = spy->queue[1].head;
-		spy->queue[1].head = f;
+		spy->queue[1].head = f->next;
 		spy->queue[1].count -= same;
 		if (spy->queue[1].count == 0)
 			spy->queue[1].tail = NULL;
