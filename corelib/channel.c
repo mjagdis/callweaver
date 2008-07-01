@@ -1177,6 +1177,7 @@ void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct 
 		spy->queue[0].count -= same;
 		if (spy->queue[0].count == 0)
 			spy->queue[0].tail = NULL;
+		f->next = NULL;
 		f = spy->queue[1].head;
 		for (ii = 1; ii < same; ++ii)
 			f = f->next;
@@ -1185,6 +1186,7 @@ void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct 
 		spy->queue[1].count -= same;
 		if (spy->queue[1].count == 0)
 			spy->queue[1].tail = NULL;
+		f->next = NULL;
     }
     cw_mutex_unlock(&spy->lock);
 }
