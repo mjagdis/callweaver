@@ -112,6 +112,10 @@ case "${host}" in
 	libcap=no
 	ostype=bsd
 	;;
+  *-*-dragonfly*)
+	no_libcap=yes
+	ostype=bsd
+	;;
   *-aix*)
     AC_DEFINE(AIX,,[Define if AIX])
      broken_types=yes
