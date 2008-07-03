@@ -202,21 +202,23 @@ dnl ##########################
 # ==========================================================================
 # Directory layouts are defined in separate layout profiles:
 # --------------------------------------------------------------------------
-# profile     filename          description
+# profile        filename              description
 # --------------------------------------------------------------------------
-#  bsd         layout.bsd        follow convention used by BSD ports system
-#  bsd-romfs   layout.bsd-romfs  BSD embedded devices with ROM filesystems
-#  fhs         layout.fhs        follow Filesystem Hierarchy Standard (FHS)
-#  lsb         layout.lsb        follow Linux Standards Base (LSB) standard
-#  lsb-romfs   layout.lsb-romfs  Linux embedded devices with ROM filesystems
-#  singledir   built-in          install everything under a single directory
+#  freebsd        layout.freebsd        follow convention used by FreeBSD ports system
+#  freebsd-romfs  layout.freebsd-romfs  FreeBSD embedded devices with ROM filesystems
+#  openbsd        layout.openbsd        follow convention used by OpenBSD ports system
+#  fhs            layout.fhs            follow Filesystem Hierarchy Standard (FHS)
+#  lsb            layout.lsb            follow Linux Standards Base (LSB) standard
+#  lsb-romfs      layout.lsb-romfs      Linux embedded devices with ROM filesystems
+#  singledir      built-in              install everything under a single directory
 # --------------------------------------------------------------------------
 #
 # The default directory layout is OS dependent:
 # --------------------------------------------------------------------------
-# OS type     default profile
+# host OS      default profile
 # --------------------------------------------------------------------------
-#  BSD         bsd
+#  FreeBSD     freebsd
+#  OpenBSD     openbsd
 #  Linux       lsb
 #  Solaris     singledir, using prefix /opt/csw/callweaver
 # --------------------------------------------------------------------------
@@ -358,21 +360,25 @@ load_directory_profile() {
 
 # define commandline parameter --with-directory-layout
 AC_ARG_WITH([directory-layout],
-	[AC_HELP_STRING([--with-directory-layout],[Specify an installation directory layout, either a pre-defined or a user-defined profile. Pre-defined profiles are bsd, bsd-romfs, fhs, lsb, lsb-romfs and singledir. The default is OS dependent.])],,[with_directory_layout="automatic"])
+	[AC_HELP_STRING([--with-directory-layout],[Specify an installation directory layout, either a pre-defined or a user-defined profile. Pre-defined profiles are fhs, freebsd, freebsd-romfs, lsb, lsb-romfs, openbsd and singledir. The default is OS dependent.])],,[with_directory_layout="automatic"])
 
 # use OS specific default if no layout was specified
 if test "${with_directory_layout}" = "automatic"; then
 	AC_MSG_NOTICE([Directory layout will be set automatically...])
-	case "${ostype}" in
-	     bsd)
-		# use BSD profile in file layout.bsd
-		with_directory_layout="bsd"
+	case "${host_os}" in
+	     freebsd*)
+		# use FreeBSD profile in file layout.freebsd
+		with_directory_layout="freebsd"
 		;;
-	     linux)
+	     openbsd*)
+		# use OpenBSD profile in file layout.openbsd
+		with_directory_layout="openbsd"
+		;;
+	     linux*)
 		# use LSB profile in file layout.lsb
 		with_directory_layout="lsb"
 		;;
-	     solaris)
+	     solaris*)
 		# use built-in SINGLEDIR profile
 		with_directory_layout="singledir"
 		;;
