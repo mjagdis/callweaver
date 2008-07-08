@@ -142,6 +142,8 @@ case "${host}" in
     ;;
   *-*-linux*)
 	ostype=linux
+	LARGEFILE_FLAGS="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
+	CFLAGS="$CFLAGS $LARGEFILE_FLAGS"
         ;;
   *cygwin*)
         AC_DEFINE([_WIN32_WINNT],[0x0500],[Heya, it's windows])
