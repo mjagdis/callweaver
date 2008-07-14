@@ -287,6 +287,8 @@ cwspooldir
 cwdatadir
 cwmandir
 cwdocdir
+cwmoddir
+cwogidir
 EOF`
 # END list
 

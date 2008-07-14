@@ -12,3 +12,5 @@ cwrundir=/var/run/callweaver
 cwspooldir=/var/spool/callweaver
 cwmandir=${prefix}/man
 cwdocdir=${datadir}/doc/callweaver
+cwmoddir=${libdir}/callweaver/modules
+cwogidir=${datadir}/callweaver/ogi-bin
