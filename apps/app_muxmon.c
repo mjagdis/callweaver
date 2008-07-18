@@ -210,6 +210,7 @@ static void *muxmon_thread(void *obj)
         {
             cw_log(CW_LOG_ERROR, "Cannot open %s\n", muxmon->filename);
             spy.status = CHANSPY_DONE;
+	    stopmon(muxmon->chan, &spy);
         }
         else
         {
