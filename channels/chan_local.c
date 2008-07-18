@@ -421,7 +421,8 @@ static int local_hangup(struct cw_channel *ast)
 	struct local_pvt *cur, *prev=NULL;
 	struct cw_channel *ochan = NULL;
 	int glaredetect;
-
+	int res=0;
+	
 	cw_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
@@ -472,8 +473,9 @@ static int local_hangup(struct cw_channel *ast)
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
-		local_queue_frame(p, isoutbound, &f, NULL);
-	cw_mutex_unlock(&p->lock);
+		res = local_queue_frame(p, isoutbound, &f, NULL);
+	if(res==0)
+		cw_mutex_unlock(&p->lock);
 	if (ochan)
 		cw_hangup(ochan);
 	return 0;
