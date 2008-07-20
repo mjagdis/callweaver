@@ -1056,7 +1056,7 @@ int cw_channel_lock(struct cw_channel *chan);
 
 /*! \brief Lock CW channel (and print debugging output)
     \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int cw_channel_trylock(struct cw_channel *chan)
+int cw_channel_trylock(struct cw_channel *chan);
 #endif
 
 #ifdef SOLARIS
