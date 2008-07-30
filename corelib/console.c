@@ -66,6 +66,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static int console_sock;
 static char *remotehostname;
 
+static char *clr_eol;
+static int update_delay;
+
 
 /*! Set an X-term or screen title */
 static void set_title(char *text)
@@ -229,9 +232,6 @@ static char **cw_rl_strtoarr(char *buf)
 
 	match_list_len = 1;
 	while ( (retstr = strsep(&buf, " ")) != NULL) {
-
-		if (!strcmp(retstr, CW_CLI_COMPLETE_EOF))
-			break;
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
 			match_list = realloc(match_list, match_list_len * sizeof(char *));
@@ -254,74 +254,83 @@ static char **cw_rl_strtoarr(char *buf)
 
 static char *dummy_completer(char *text, int state)
 {
-    return NULL;
+	return NULL;
 }
 
 
 static char **cli_completion(const char *text, int start, int end)
 {
-    int nummatches = 0;
-    char buf[2048];
-    char **matches;
-    int res;
+	char buf[2048];
+	char **matches;
+	int i, res;
 
-    matches = NULL;
-    if (option_remote)
-    {
-        res = snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-        if (res < sizeof(buf)) {
-            write(console_sock, buf, res);
-            res = read(console_sock, buf, sizeof(buf));
-            buf[res] = '\0';
-            nummatches = atoi(buf);
-        }
+	matches = NULL;
 
-        if (nummatches > 0)
-        {
-            char *mbuf;
-            int mlen = 0, maxmbuf = 2048;
-            // Start with a 2048 byte buffer
-            mbuf = malloc(maxmbuf);
-            if (!mbuf)
-                return (matches);
+	if (option_remote) {
+		char *mbuf;
+		int maxmbuf = 2048;
 
-            mbuf[0] = '\0';
-            res = snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text);
-	    if (res < sizeof(buf)) {
-                write(console_sock, buf, res);
-                res = 0;
+		if (!(mbuf = malloc(maxmbuf)))
+			return NULL;
 
-                while (!strstr(mbuf, CW_CLI_COMPLETE_EOF) && res != -1)
-                {
-                    if (mlen + 1024 > maxmbuf)
-                    {
-                        // Every step increment buffer 1024 bytes
-                        maxmbuf += 1024;
-                        mbuf = realloc(mbuf, maxmbuf);
-                        if (!mbuf)
-                            return (matches);
-                    }
-                    // Only read 1024 bytes at a time
-                    res = read(console_sock, mbuf + mlen, 1024);
-                    if (res > 0)
-                        mlen += res;
-                }
-                mbuf[mlen] = '\0';
+		res = snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"\n", (char *)rl_line_buffer, (char *)text);
+		if (res < sizeof(buf)) {
+			write(console_sock, buf, res);
+			res = 0;
 
-                matches = cw_rl_strtoarr(mbuf);
-            }
-            free(mbuf);
-        }
+			for (;;) {
+				for (i = 0; read(console_sock, &mbuf[i], 1) == 1 && mbuf[i] != '\n'; i++) {
+					if (i == maxmbuf - 1) {
+						char *nbuf;
+						maxmbuf += 1024;
+						if (!(nbuf = realloc(mbuf, maxmbuf)))
+							break;
+						mbuf = nbuf;
+					}
+				}
 
-    }
-    else
-    {
-        nummatches = cw_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
+				/* If the line starts with STX it's the response we were looking
+				 * for. Otherwise it's an event that's crept in.
+				 */
+				if (mbuf[0] == '\002')
+					break;
 
-        if (nummatches > 0 )
-            matches = cw_cli_completion_matches((char*)rl_line_buffer, (char*)text);
-    }
-    return (matches);
+				if (update_delay < 0 && (option_console || option_remote)) {
+					if (clr_eol) {
+						terminal_write("\r", 1);
+						fputs(clr_eol, stdout);
+					} else
+						terminal_write("\r\n", 2);
+				}
+
+				terminal_write(mbuf, i);
+
+				/* If we have clear to end of line we can redisplay the input line
+				 * every time the output ends in a new line. Otherwise we want to
+				 * wait and see if there's more output coming because we don't
+				 * have any way of backing up and replacing the current line.
+				 * Of course, if we don't care about input there's no problem...
+				 */
+				if (option_console || option_remote) {
+					if (clr_eol && mbuf[i - 1] == '\n') {
+						rl_forced_update_display();
+						update_delay = -1;
+					} else
+						update_delay = 100;
+				}
+				fflush(stdout);
+			}
+
+			while (i > 0 && (mbuf[i] == '\r' || mbuf[i] == '\n'))
+				mbuf[i--] = '\0';
+
+			matches = cw_rl_strtoarr(mbuf + 1);
+		}
+		free(mbuf);
+	} else
+		matches = cw_cli_completion_matches((char*)rl_line_buffer, (char*)text);
+
+	return (matches);
 }
 
 
@@ -417,11 +426,9 @@ void *console(void *data)
 	char banner[80];
 	sigset_t sigs;
 	char *spec = data;
-	char *clr_eol;
 	char *stringp;
 	char *version;
 	char *p;
-	int update_delay;
 	int res;
 	int pid;
 

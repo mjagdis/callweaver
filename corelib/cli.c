@@ -576,49 +576,22 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
-    char *buf, *obuf;
-    int buflen = 2048;
-    int len = 0;
     char **matches;
-    int x, matchlen;
+    int i;
 
     if (argc != 4)
         return RESULT_SHOWUSAGE;
-    buf = malloc(buflen);
-    if (!buf)
-        return RESULT_FAILURE;
-    buf[len] = '\0';
-    matches = cw_cli_completion_matches(argv[2], argv[3]);
-    if (matches) {
-        for (x=0; matches[x]; x++) {
-#if 0
-            printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
-#endif
-            matchlen = strlen(matches[x]) + 1;
-            if (len + matchlen >= buflen) {
-                buflen += matchlen * 3;
-                obuf = buf;
-                buf = realloc(obuf, buflen);
-                if (!buf) 
-                    /* Out of memory...  Just free old buffer and be done */
-                    free(obuf);
-            }
-            if (buf)
-                len += sprintf( buf + len, "%s ", matches[x]);
-            free(matches[x]);
-            matches[x] = NULL;
+
+    if ((matches = cw_cli_completion_matches(argv[2], argv[3]))) {
+        cw_cli(fd, "\002");
+        for (i = 0; matches[i]; i++) {
+	    cw_cli(fd, "%s%s", (i ? " " : ""), matches[i]);
+            free(matches[i]);
         }
+	cw_cli(fd, "\n");
         free(matches);
-    }
-#if 0
-    printf("array for '%s' %s got '%s'\n", argv[2], argv[3], buf);
-#endif
-    
-    if (buf) {
-        cw_cli(fd, "%s%s",buf, CW_CLI_COMPLETE_EOF);
-        free(buf);
     } else
-        cw_cli(fd, "NULL\n");
+        cw_cli(fd, "\002NULL\n");
 
     return RESULT_SUCCESS;
 }
@@ -634,10 +607,7 @@ static int handle_commandnummatches(int fd, int argc, char *argv[])
 
     matches = cw_cli_generatornummatches(argv[2], argv[3]);
 
-#if 0
-    printf("Search for '%s' %s got '%d'\n", argv[2], argv[3], matches);
-#endif
-    cw_cli(fd, "%d", matches);
+    cw_cli(fd, "%d\n", matches);
 
     return RESULT_SUCCESS;
 }
@@ -645,20 +615,17 @@ static int handle_commandnummatches(int fd, int argc, char *argv[])
 static int handle_commandcomplete(int fd, int argc, char *argv[])
 {
     char *buf;
-#if 0
-    printf("Search for %d args: '%s', '%s', '%s', '%s'\n", argc, argv[0], argv[1], argv[2], argv[3]);
-#endif  
+
     if (argc != 5)
         return RESULT_SHOWUSAGE;
+
     buf = cw_cli_generator(argv[2], argv[3], atoi(argv[4]));
-#if 0
-    printf("Search for '%s' %s %d got '%s'\n", argv[2], argv[3], atoi(argv[4]), buf);
-#endif  
     if (buf) {
-        cw_cli(fd, buf);
+        cw_cli(fd, "%s\n", buf);
         free(buf);
     } else
         cw_cli(fd, "NULL\n");
+
     return RESULT_SUCCESS;
 }
 
