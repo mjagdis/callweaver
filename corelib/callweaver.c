@@ -964,7 +964,7 @@ static void boot(void)
 	struct timespec ts;
 
 	if ((option_console || option_nofork) && !option_verbose) 
-		cw_verbose("[ Booting...");
+		cw_log(CW_LOG_PROGRESS, "[ Booting...");
 
 	/* Ensure that the random number generators are seeded with a different value every time
 	 * CallWeaver is started
@@ -1000,8 +1000,10 @@ static void boot(void)
 #endif	
 	cw_cli_register_multiple(core_cli, arraysize(core_cli));
 
-	if ((option_console || option_nofork) && !option_verbose)
-		cw_verbose(" ]\n");
+	if ((option_console || option_nofork) && !option_verbose) {
+		cw_log(CW_LOG_PROGRESS, " ]");
+		cw_log(CW_LOG_PROGRESS, "\n");
+	}
 
 	time(&cw_startuptime);
 	if (option_verbose || option_console || option_nofork)

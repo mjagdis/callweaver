@@ -114,6 +114,7 @@ static char *levels[] = {
 	[CW_EVENT_NUM_EVENT]	= "EVENT",
 	[CW_EVENT_NUM_DTMF]	= "DTMF",
 	[CW_EVENT_NUM_DEBUG]	= "DEBUG",
+	[CW_EVENT_NUM_PROGRESS]	= "PROGRESS",
 };
 
 

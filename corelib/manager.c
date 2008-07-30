@@ -1724,7 +1724,7 @@ static void *manager_session_console_read(void *data)
 					buf[pos] = '\0';
 					if (buf[0] == '\020') {
 						if (pos - 1 == sizeof("events") - 1 && !strcmp(buf + 1, "events"))
-							sess->send_events = EVENT_FLAG_LOG_ALL;
+							sess->send_events = EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS;
 					} else {
 						pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
 						cw_mutex_lock(&sess->lock);
@@ -1790,7 +1790,7 @@ void *manager_session_console(void *data)
 
 	sess->authenticated = 1;
 	sess->writeperm = EVENT_FLAG_COMMAND;
-	sess->readperm = EVENT_FLAG_LOG_ALL;
+	sess->readperm = EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS;
 	sess->send_events = 0;
 
 	/* Ok, we're ready. Tell the core to boot if it hasn't already */
@@ -1894,13 +1894,13 @@ void *manager_session_console(void *data)
 			}
 
 			if (logevent && msg) {
-				if (level != CW_EVENT_NUM_VERBOSE || !msgtail) {
-					if (write(sess->fd, msg, msglen) <= 0)
+				if (level != CW_EVENT_NUM_VERBOSE && level != CW_EVENT_NUM_PROGRESS) {
+					if (msglen && write(sess->fd, msg, msglen) <= 0)
 						res = -1;
-				} else if (write(sess->fd, msg + msglen - msgtail, msgtail) <= 0)
+				} else if (msgtail && write(sess->fd, msg + msglen - msgtail, msgtail) <= 0)
 					res = -1;
 
-				if (!res && write(sess->fd, "\r\n", 2) <= 0)
+				if ((level != CW_EVENT_NUM_PROGRESS || !msgtail) && !res && write(sess->fd, "\r\n", 2) <= 0)
 					res = -1;
 			}
 

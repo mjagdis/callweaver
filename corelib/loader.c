@@ -323,7 +323,7 @@ int cw_load_resource(const char *resource_name)
 		if (option_verbose) {
 			cw_verbose("[%s] => (%s)\n", resource_name, mod->modinfo->description);
 		} else if (option_console || option_nofork)
-			cw_verbose( ".");
+			cw_log(CW_LOG_PROGRESS, ".");
 	} else {
 		if (option_verbose)
 			cw_verbose(VERBOSE_PREFIX_1 "%s %s => (%s)\n", (mod == newmod ? "Loaded" : "Reregistered"), resource_name, mod->modinfo->description);
