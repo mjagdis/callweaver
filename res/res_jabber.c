@@ -209,7 +209,7 @@ static void launch_cli_thread(char *cli_command);
 
 #define jabber_message_node_printf(id, sub, fmt, ...) jabber_message_node_new(id, sub, fmt "Epoch: %ld\n\n", ##__VA_ARGS__, time(NULL))
 
-static int jabber_manager_event(struct mansession *sess, struct manager_event *event)
+static int jabber_manager_write(struct mansession *sess, struct manager_event *event)
 {
 	struct jabber_message_node *node;
 
@@ -218,6 +218,10 @@ static int jabber_manager_event(struct mansession *sess, struct manager_event *e
 
 	return 0;
 }
+
+struct mansession_tech jabber_manager_tech = {
+	.write = jabber_manager_write,
+};
 
 
 static int next_callid(void)
@@ -2026,7 +2030,7 @@ static int load_module(void)
 	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 	if (globals.event_master) {
 		cw_log(CW_LOG_NOTICE, "Registering Manager Event Hook\n");
-		if ((jabber_hook = manager_session_start(-1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1, jabber_manager_event, NULL))) {
+		if ((jabber_hook = manager_session_start(-1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1, &jabber_manager_tech, NULL))) {
 			jabber_hook->readperm = jabber_hook->send_events = -1;
 		}
 	}

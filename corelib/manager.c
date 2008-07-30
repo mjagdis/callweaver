@@ -556,23 +556,26 @@ static struct cw_clicmd show_manconn_cli = {
 
 static void mansession_release(struct cw_object *obj)
 {
-	struct mansession *it = container_of(obj, struct mansession, obj);
+	struct mansession *sess = container_of(obj, struct mansession, obj);
 	struct eventqent *eqe;
 
-	if (it->fd > -1)
-		close(it->fd);
+	if (sess->tech->release)
+		sess->tech->release(sess);
 
-	while (it->eventq) {
-		eqe = it->eventq;
-		it->eventq = it->eventq->next;
+	if (sess->fd > -1)
+		close(sess->fd);
+
+	while (sess->eventq) {
+		eqe = sess->eventq;
+		sess->eventq = sess->eventq->next;
 		cw_object_put(eqe->event);
 		free(eqe);
 	}
 
-	cw_mutex_destroy(&it->lock);
-	cw_cond_destroy(&it->ack);
-	cw_cond_destroy(&it->activity);
-	free(it);
+	cw_mutex_destroy(&sess->lock);
+	cw_cond_destroy(&sess->ack);
+	cw_cond_destroy(&sess->activity);
+	free(sess);
 }
 
 
@@ -1455,7 +1458,7 @@ static int process_message(struct mansession *s, struct message *m)
 }
 
 
-static void *manager_ami_request(struct mansession *sess)
+static void *manager_ami_read(struct mansession *sess)
 {
 	char buf[32768];
 	struct pollfd pfd;
@@ -1579,7 +1582,7 @@ static void *manager_ami_request(struct mansession *sess)
 }
 
 
-static int manager_ami_event(struct mansession *sess, struct manager_event *event)
+static int manager_ami_write(struct mansession *sess, struct manager_event *event)
 {
 	const char *data = event->data;
 	int len = event->len;
@@ -1597,6 +1600,12 @@ static int manager_ami_event(struct mansession *sess, struct manager_event *even
 
 	return 0;
 }
+
+
+struct mansession_tech manager_ami_tech = {
+	.read = manager_ami_read,
+	.write = manager_ami_write,
+};
 
 
 static void session_writer_cleanup(void *data)
@@ -1636,7 +1645,7 @@ static void *session_writer(void *data)
 
 	sess->reg_entry = NULL;
 
-	if (sess->request && (res = cw_pthread_create(&sess->reader_tid, &global_attr_default, (void *(*)(void *))sess->request, sess))) {
+	if (sess->tech->read && (res = cw_pthread_create(&sess->reader_tid, &global_attr_default, (void *(*)(void *))sess->tech->read, sess))) {
 		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
 		return NULL;
 	}
@@ -1681,7 +1690,7 @@ static void *session_writer(void *data)
 		}
 
 		if (eqe) {
-			res = sess->event(sess, eqe->event);
+			res = sess->tech->write(sess, eqe->event);
 			cw_object_put(eqe->event);
 			free(eqe);
 			if (res < 0)
@@ -1694,7 +1703,7 @@ static void *session_writer(void *data)
 }
 
 
-struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, manager_session_event_t event, manager_session_request_t request)
+struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, const struct mansession_tech *tech, void *tech_pvt)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1719,8 +1728,8 @@ struct mansession *manager_session_start(int fd, int family, void *addr, size_t 
 	sess->u.sa.sa_family = family;
 
 	sess->fd = fd;
-	sess->event = event;
-	sess->request = request;
+	sess->tech = tech;
+	sess->tech_pvt = tech_pvt;
 	sess->send_events = EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
@@ -1853,7 +1862,7 @@ static void *accept_thread(void *data)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, manager_ami_event, manager_ami_request)))
+		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, &manager_ami_tech, NULL)))
 			cw_object_put(sess);
 	}
 

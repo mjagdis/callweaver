@@ -71,8 +71,17 @@ struct message;
 struct eventqent;
 
 struct mansession;
-typedef int (*manager_session_event_t)(struct mansession *sess, struct manager_event *event);
-typedef void *(*manager_session_request_t)(struct mansession *sess);
+
+struct mansession_tech {
+	/*! Method to handle events _from_ the manager */
+	int (* const write)(struct mansession *sess, struct manager_event *event);
+
+	/*! Method to generate a stream of requests _to_ the manager */
+	void *(* const read)(struct mansession *sess);
+
+	/*! Handle the release of private data when the session ends */
+	void (* const release)(struct mansession *sess);
+};
 
 struct mansession {
 	struct cw_object obj;
@@ -82,9 +91,9 @@ struct mansession {
 	int writeperm;			/*!< Authorization for writing messages _to_ the manager */
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
+	const struct mansession_tech *tech;
+	void *tech_pvt;
 	int fd;
-	manager_session_event_t event;	/*!< Method to handle events _from_ the manager */
-	manager_session_request_t request;	/*!< Method to generate a stream of requests _to_ the manager */
 	cw_mutex_t lock;
 	cw_cond_t activity;
 	cw_cond_t ack;
@@ -174,7 +183,7 @@ extern void astman_send_error(struct mansession *s, struct message *m, char *err
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
 
-extern struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, manager_session_event_t event, manager_session_request_t request);
+extern struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, const struct mansession_tech *tech, void *tech_pvt);
 extern void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */

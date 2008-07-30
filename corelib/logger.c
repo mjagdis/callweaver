@@ -136,7 +136,7 @@ static int priorities[] = {
 };
 
 
-static int logger_manager_event_console(struct mansession *sess, struct manager_event *event)
+static int logger_manager_write(struct mansession *sess, struct manager_event *event)
 {
 	static struct {
 		int l;
@@ -160,154 +160,7 @@ static int logger_manager_event_console(struct mansession *sess, struct manager_
 	} vals[arraysize(keys)];
 	struct tm tm;
 	time_t when;
-	char *key, *ekey;
-	char *val, *eval;
-	int lkey, lval;
-	int i;
-
-	memset(vals, 0, sizeof(vals));
-
-	key = event->data;
-	while (*key) {
-		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-		if (!*ekey)
-			break;
-
-		for (val = ekey + 1; *val && *val == ' '; val++);
-		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-		lkey = ekey - key;
-		lval = eval - val;
-
-		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
-			return 0;
-
-		for (i = 0; i < arraysize(keys); i++) {
-			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-				vals[i].l = lval;
-				vals[i].s = val;
-				break;
-			}
-		}
-
-		if (!*eval)
-			break;
-
-		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
-	}
-
-	when = atol(vals[0].s);
-	localtime_r(&when, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
-
-	i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[atol(vals[1].s)], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
-
-	if (i > 0) {
-		buf[sizeof(buf) - 1] = '\0';
-		cw_console_puts(buf);
-	}
-
-	return 0;
-}
-
-
-static int logger_manager_event_file(struct mansession *sess, struct manager_event *event)
-{
-	static struct {
-		int l;
-		char *s;
-	} keys[] = {
-#define LENSTR(x)	sizeof(x) - 1, x
-		{ LENSTR("Timestamp") },
-		{ LENSTR("Level") },
-		{ LENSTR("Thread ID") },
-		{ LENSTR("File") },
-		{ LENSTR("Line") },
-		{ LENSTR("Func") },
-		{ LENSTR("Message") },
-#undef LENSTR
-	};
-	char buf[BUFSIZ];
-	char date[256];
-	struct {
-		int l;
-		char *s;
-	} vals[arraysize(keys)];
-	struct tm tm;
-	time_t when;
-	char *key, *ekey;
-	char *val, *eval;
-	int lkey, lval;
-	int i;
-
-	memset(vals, 0, sizeof(vals));
-
-	key = event->data;
-	while (*key) {
-		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-		if (!*ekey)
-			break;
-
-		for (val = ekey + 1; *val && *val == ' '; val++);
-		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-		lkey = ekey - key;
-		lval = eval - val;
-
-		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
-			return 0;
-
-		for (i = 0; i < arraysize(keys); i++) {
-			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-				vals[i].l = lval;
-				vals[i].s = val;
-				break;
-			}
-		}
-
-		if (!*eval)
-			break;
-
-		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
-	}
-
-	when = atol(vals[0].s);
-	localtime_r(&when, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
-
-	i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[atol(vals[1].s)], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
-
-	if (i > 0) {
-		buf[sizeof(buf) - 1] = '\0';
-		write(sess->fd, buf, i);
-	}
-
-	return 0;
-}
-
-
-static int logger_manager_event_syslog(struct mansession *sess, struct manager_event *event)
-{
-	static struct {
-		int l;
-		char *s;
-	} keys[] = {
-#define LENSTR(x)	sizeof(x) - 1, x
-		{ LENSTR("Timestamp") },
-		{ LENSTR("Level") },
-		{ LENSTR("Thread ID") },
-		{ LENSTR("File") },
-		{ LENSTR("Line") },
-		{ LENSTR("Func") },
-		{ LENSTR("Message") },
-#undef LENSTR
-	};
-	struct {
-		int l;
-		char *s;
-	} vals[arraysize(keys)];
+	struct logchannel *log = sess->tech_pvt;
 	char *key, *ekey;
 	char *val, *eval;
 	int lkey, lval;
@@ -346,10 +199,51 @@ static int logger_manager_event_syslog(struct mansession *sess, struct manager_e
 	}
 
 	level = (vals[1].s ? atol(vals[1].s) : 0);
-	syslog(priorities[level], "%s[%.*s]: %.*s:%.*s %.*s: %.*s\n", (priorities[level] == LOG_INFO ? levels[level] : ""), vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+
+	if (log->type == LOG_SYSLOG)
+		syslog(priorities[level], "%s[%.*s]: %.*s:%.*s %.*s: %.*s\n", (priorities[level] == LOG_INFO ? levels[level] : ""), vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+	else {
+		when = atol(vals[0].s);
+		localtime_r(&when, &tm);
+		strftime(date, sizeof(date), dateformat, &tm);
+
+		i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[level], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+
+		if (i > 0) {
+			buf[sizeof(buf) - 1] = '\0';
+			if (log->type == LOGTYPE_CONSOLE)
+				cw_console_puts(buf);
+			else
+				write(sess->fd, buf, i);
+		}
+	}
 
 	return 0;
 }
+
+
+static void logger_manager_release(struct mansession *sess)
+{
+	struct logchannel *log = sess->tech_pvt;
+	struct logchannel **p;
+
+	cw_mutex_lock(&loglock);
+	for (p = &logchannels; *p; p = &(*p)->next) {
+		if (*p == log) {
+			*p = log->next;
+			break;
+		}
+	}
+	cw_mutex_unlock(&loglock);
+
+	free(sess->tech_pvt);
+}
+
+
+static struct mansession_tech logger_manager_tech = {
+	.write = logger_manager_write,
+	.release = logger_manager_release,
+};
 
 
 static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
@@ -368,7 +262,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 	if (!strcasecmp(channel, "console")) {
 		chan->type = LOGTYPE_CONSOLE;
-		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, "console", sizeof("console") - 1, logger_manager_event_console, NULL))) {
+		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, "console", sizeof("console") - 1, &logger_manager_tech, chan))) {
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to start console logging: %s\n", strerror(errno));
 			free(chan);
@@ -446,7 +340,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 
-		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, logger_manager_event_syslog, NULL))) {
+		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, &logger_manager_tech, chan))) {
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
 			free(chan);
@@ -471,7 +365,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
 
 		fd = -1;
-		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, logger_manager_event_file, NULL))) {
+		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, &logger_manager_tech, chan))) {
 			if (fd >= 0)
 				close(fd);
 			/* Can't log here, since we're called with a lock */
@@ -494,13 +388,12 @@ static void init_logger_chain(void)
 	struct cw_variable *var;
 	char *s;
 
-	/* delete our list of log channels */
+	/* end existing sessions */
 	cw_mutex_lock(&loglock);
 	chan = logchannels;
 	while (chan) {
 		cur = chan->next;
 		manager_session_end(chan->sess);
-		free(chan);
 		chan = cur;
 	}
 	logchannels = NULL;
