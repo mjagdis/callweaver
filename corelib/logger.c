@@ -544,8 +544,9 @@ int init_logger(void)
  */
 void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	char msg[BUFSIZ];
+	char buf[BUFSIZ];
 	char date[256];
+	char *msg;
 	struct tm tm;
 	time_t now;
 	va_list ap;
@@ -571,9 +572,13 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		date[0] = '\0';
 
 	va_start(ap, fmt);
-	if ((msglen = vsnprintf(msg, sizeof(msg), fmt, ap)) >= sizeof(msg))
-		msglen = sizeof(msg) - 1;
+	if ((msglen = vsnprintf(buf, sizeof(buf), fmt, ap)) >= sizeof(buf))
+		msglen = sizeof(buf) - 1;
 	va_end(ap);
+
+	/* FIXME: strip leading and trailing newlines. Really we need to audit all messages. */
+	for (msg = buf; *msg == '\n' || *msg == '\r'; msg++,msglen--);
+	while (msglen > 0 && (msg[msglen - 1] == '\n' || msg[msglen - 1] == '\r')) msg[--msglen] = '\0';
 
 	if (level == __CW_LOG_EVENT) {
 		cw_mutex_lock(&loglock);
@@ -585,7 +590,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nDate Len: %d\r\nMessage Len: %d\r\nMessage: %s %s[" TIDFMT "]: %s:%d %s: %s", now, level, GETTID(), file, line, function, datelen + 1, msglen, date, levels[level], GETTID(), file, line, function, msg);
+		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nDate Len: %d\r\nMessage Len: %d\r\nMessage: %s %s[" TIDFMT "]: %s:%d %s: %s\r\n", now, level, GETTID(), file, line, function, datelen + 1, msglen, date, levels[level], GETTID(), file, line, function, msg);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,
