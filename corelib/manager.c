@@ -107,6 +107,7 @@ struct manager_listener {
 	int sock;
 	pthread_t tid;
 	void *(*handler)(void *);
+	int readperm, writeperm, send_events;
 	char spec[0];
 };
 
@@ -1790,11 +1791,6 @@ void *manager_session_console(void *data)
 	write(sess->fd, cw_version_string, strlen(cw_version_string));
 	write(sess->fd, "\n", 1);
 
-	sess->authenticated = 1;
-	sess->writeperm = EVENT_FLAG_COMMAND;
-	sess->readperm = EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS;
-	sess->send_events = 0;
-
 	/* Ok, we're ready. Tell the core to boot if it hasn't already */
 	if (!fully_booted)
 		kill(cw_mainpid, SIGHUP);
@@ -2067,7 +2063,7 @@ void *manager_session_log(void *data)
 }
 
 
-struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len)
+struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -2094,7 +2090,10 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 	sess->eventq_tail = &sess->eventq;
 	sess->fd = fd;
 	sess->handler = handler;
-	sess->send_events = EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL;
+	sess->readperm = readperm;
+	if ((sess->writeperm = writeperm))
+		sess->authenticated = 1;
+	sess->send_events = send_events;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 	cw_object_get(sess);
@@ -2170,7 +2169,7 @@ static void *accept_thread(void *data)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen)))
+		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen, listener->readperm, listener->writeperm, listener->send_events)))
 			cw_object_put(sess);
 	}
 
@@ -2398,7 +2397,7 @@ static void listener_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(const char *buf, void *(* const handler)(void *))
+static void manager_listen(const char *buf, void *(* const handler)(void *), int readperm, int writeperm, int send_events)
 {
 	union {
 		struct sockaddr sa;
@@ -2421,6 +2420,9 @@ static void manager_listen(const char *buf, void *(* const handler)(void *))
 	listener->tid = CW_PTHREADT_NULL;
 	listener->sock = -1;
 	listener->handler = handler;
+	listener->readperm = readperm;
+	listener->writeperm = writeperm;
+	listener->send_events = send_events;
 	strcpy(listener->spec, buf);
 
 	if (listener->spec[0] == '/') {
@@ -2563,7 +2565,7 @@ int manager_reload(void)
 	portno = NULL;
 	displayconnects = 1;
 
-	manager_listen(cw_config_CW_SOCKET, manager_session_console);
+	manager_listen(cw_config_CW_SOCKET, manager_session_console, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
 
 	/* Overlay configured values from the config file */
 	cfg = cw_config_load("manager.conf");
@@ -2574,7 +2576,7 @@ int manager_reload(void)
 			if (!strcmp(v->name, "displayconnects"))
 				displayconnects = cw_true(v->value);
 			else if (!strcmp(v->name, "listen"))
-				manager_listen(v->value, manager_session_ami);
+				manager_listen(v->value, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
 
 			/* DEPRECATED */
 			else if (!strcmp(v->name, "block-sockets"))
@@ -2608,7 +2610,7 @@ int manager_reload(void)
 		char buf[256];
 
 		snprintf(buf, sizeof(buf), "%s:%s", bindaddr, portno);
-		manager_listen(buf, manager_session_ami);
+		manager_listen(buf, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
 	}
 
 	if (cfg)

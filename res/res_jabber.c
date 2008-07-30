@@ -2070,9 +2070,7 @@ static int load_module(void)
 	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 	if (globals.event_master) {
 		cw_log(CW_LOG_NOTICE, "Registering Manager Event Hook\n");
-		if ((jabber_hook = manager_session_start(jabber_manager_session, -1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1))) {
-			jabber_hook->readperm = jabber_hook->send_events = -1;
-		}
+		jabber_hook = manager_session_start(jabber_manager_session, -1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1, -1, 0, -1);
 	}
 	app = cw_register_function(name, res_jabber_exec, synopsis, syntax, desc);
 	return 0;

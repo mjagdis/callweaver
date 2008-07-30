@@ -132,6 +132,8 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	if (!(chan = calloc(1, sizeof(struct logchannel))))
 		return NULL;
 
+	chan->logmask = manager_str_to_eventmask(components);
+
 	if (!strncasecmp(channel, "syslog", 6)) {
 		/*
 		* syntax is:
@@ -204,7 +206,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 
-		if (!(chan->sess = manager_session_start(manager_session_log, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1))) {
+		if (!(chan->sess = manager_session_start(manager_session_log, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
 			free(chan);
@@ -229,7 +231,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
 
 		fd = -1;
-		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(manager_session_log, fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1))) {
+		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(manager_session_log, fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
 			if (fd >= 0)
 				close(fd);
 			/* Can't log here, since we're called with a lock */
@@ -240,8 +242,6 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		chan->type = LOGTYPE_FILE;
 	}
 
-	chan->sess->readperm = chan->sess->send_events = manager_str_to_eventmask(components);
-	chan->logmask = manager_str_to_eventmask(components);
 	return chan;
 }
 

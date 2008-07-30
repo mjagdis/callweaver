@@ -177,7 +177,7 @@ extern void *manager_session_ami(void *data);
 extern void *manager_session_console(void *data);
 extern void *manager_session_log(void *data);
 
-extern struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len);
+extern struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
 extern void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */
