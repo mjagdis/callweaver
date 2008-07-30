@@ -4330,6 +4330,46 @@ static struct cw_clicmd cli_remove_queue_member = {
     .usage = rqm_cmd_usage,
 };
 
+
+static struct manager_action manager_actions[] = {
+    {
+	    .action = "Queues",
+	    .authority = 0,
+	    .func = manager_queues_show,
+	    .synopsis = "Queues",
+    },
+    {
+	    .action = "QueueStatus",
+	    .authority = 0,
+	    .func = manager_queues_status,
+	    .synopsis = "Queue Status",
+    },
+    {
+	    .action = "QueueAdd",
+	    .authority = EVENT_FLAG_AGENT,
+	    .func = manager_add_queue_member,
+	    .synopsis = "Add interface to queue.",
+    },
+    {
+	    .action = "QueueRemove",
+	    .authority = EVENT_FLAG_AGENT,
+	    .func = manager_remove_queue_member,
+	    .synopsis = "Remove interface from queue.",
+    },
+    {
+	    .action = "QueuePause",
+	    .authority = EVENT_FLAG_AGENT,
+	    .func = manager_pause_queue_member,
+	    .synopsis = "Makes a queue member temporarily unavailable",
+    },
+    {
+	    .action = "QueueMemberUpdate",
+	    .authority = EVENT_FLAG_AGENT,
+	    .func = manager_update_queue_member,
+	    .synopsis = "Update Member on queue.",
+    },
+};
+
 static int unload_module(void)
 {
     int res = 0;
@@ -4338,12 +4378,7 @@ static int unload_module(void)
     cw_cli_unregister(&cli_show_queues);
     cw_cli_unregister(&cli_add_queue_member);
     cw_cli_unregister(&cli_remove_queue_member);
-    cw_manager_unregister("Queues");
-    cw_manager_unregister("QueueStatus");
-    cw_manager_unregister("QueueAdd");
-    cw_manager_unregister("QueueRemove");
-    cw_manager_unregister("QueuePause");
-    cw_manager_unregister("QueueMemberUpdate");
+    cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
     cw_devstate_del(statechange_queue, NULL);
     res |= cw_unregister_function(app_aqm);
     res |= cw_unregister_function(app_rqm);
@@ -4362,12 +4397,7 @@ static int load_module(void)
     cw_cli_register(&cli_add_queue_member);
     cw_cli_register(&cli_remove_queue_member);
     cw_devstate_add(statechange_queue, NULL);
-    cw_manager_register( "Queues", 0, manager_queues_show, "Queues" );
-    cw_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
-    cw_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
-    cw_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
-    cw_manager_register( "QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable" );
-    cw_manager_register( "QueueMemberUpdate", EVENT_FLAG_AGENT, manager_update_queue_member, "Update Member on queue." );
+    cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
     app_aqm = cw_register_function(name_aqm, aqm_exec, app_aqm_synopsis, app_aqm_syntax, app_aqm_descrip) ;
     app_rqm = cw_register_function(name_rqm, rqm_exec, app_rqm_synopsis, app_rqm_syntax, app_rqm_descrip) ;
     app_pqm = cw_register_function(name_pqm, pqm_exec, app_pqm_synopsis, app_pqm_syntax, app_pqm_descrip) ;

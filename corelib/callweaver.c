@@ -1771,6 +1771,7 @@ int callweaver_main(int argc, char *argv[])
 	cw_registry_init(&format_registry);
 	cw_registry_init(&func_registry);
 	cw_registry_init(&imager_registry);
+	cw_registry_init(&manager_action_registry);
 	cw_registry_init(&switch_registry);
 	cw_registry_init(&translator_registry);
 

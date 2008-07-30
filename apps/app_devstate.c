@@ -161,6 +161,16 @@ static int action_devstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static struct manager_action manager_actions[] = {
+	{
+		.action = "Devstate",
+		.authority = EVENT_FLAG_CALL,
+		.func = action_devstate,
+		.synopsis = "Change a device state",
+		.description = mandescr_devstate,
+	},
+};
+
 static int load_module(void)
 {
     if (cw_channel_register(&devstate_tech)) {
@@ -168,7 +178,7 @@ static int load_module(void)
         return -1;
     }
     cw_cli_register(&cli_dev_state);  
-    cw_manager_register2( "Devstate", EVENT_FLAG_CALL, action_devstate, "Change a device state", mandescr_devstate );
+    cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
     devstate_app = cw_register_function(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
     return 0;
 }
@@ -177,7 +187,7 @@ static int unload_module(void)
 {
     int res = 0;
 
-    cw_manager_unregister( "Devstate");
+    cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
     cw_cli_unregister(&cli_dev_state);
     res |= cw_unregister_function(devstate_app);
     cw_channel_unregister(&devstate_tech);    

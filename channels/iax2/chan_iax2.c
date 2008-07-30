@@ -8756,6 +8756,23 @@ static struct cw_clicmd iax2_cli[] = {
 #endif /* IAXTESTS */
 };
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "IAXpeers",
+		.authority = 0,
+		.func = manager_iax2_show_peers,
+		.synopsis = "List IAX Peers",
+	},
+	{
+		.action = "IAXnetstats",
+		.authority = 0,
+		.func = manager_iax2_show_netstats,
+		.synopsis = "Show IAX Netstats",
+	},
+};
+
+
 static int __unload_module(void)
 {
 	int x;
@@ -8769,8 +8786,7 @@ static int __unload_module(void)
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		if (iaxs[x])
 			iax2_destroy(x);
-	cw_manager_unregister( "IAXpeers" );
-	cw_manager_unregister( "IAXnetstats" );
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	cw_cli_unregister_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 	cw_switch_unregister(&iax2_switch);
 	cw_channel_unregister(&iax2_tech);
@@ -8852,8 +8868,7 @@ static int load_module(void)
 
 	cw_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 
-	cw_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
-	cw_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
  	if (cw_channel_register(&iax2_tech)) {
 		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", channeltype);

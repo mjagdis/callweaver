@@ -17465,6 +17465,25 @@ static struct cw_clicmd  my_clis[] = {
     },
 };
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "SIPpeers",
+		.authority = EVENT_FLAG_SYSTEM,
+		.func = manager_sip_show_peers,
+		.synopsis = "List SIP peers (text format)",
+		.description = mandescr_show_peers,
+	},
+	{
+		.action = "SIPshowpeer",
+		.authority = EVENT_FLAG_SYSTEM,
+		.func = manager_sip_show_peer,
+		.synopsis = "Show SIP peer (text format)",
+		.description = mandescr_show_peer,
+	},
+};
+
+
 /*! \brief  load_module: PBX load module - initialization */
 static int load_module(void)
 {
@@ -17520,10 +17539,7 @@ static int load_module(void)
     siposd_app = cw_register_function(siposd_name, sip_osd, siposd_synopsis, siposd_syntax, siposd_description);
 
     /* Register manager commands */
-    cw_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
-            "List SIP peers (text format)", mandescr_show_peers);
-    cw_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
-            "Show SIP peer (text format)", mandescr_show_peer);
+    cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
     sip_poke_all_peers();    
     sip_send_all_registers();
@@ -17565,8 +17581,7 @@ static int unload_module(void)
 
     cw_rtp_proto_unregister(&sip_rtp);
 
-    cw_manager_unregister("SIPpeers");
-    cw_manager_unregister("SIPshowpeer");
+    cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
     if (!cw_mutex_lock(&iflock))
     {

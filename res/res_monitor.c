@@ -546,6 +546,32 @@ static void __cw_monitor_setjoinfiles(struct cw_channel *chan, int turnon)
 		chan->monitor->joinfiles = turnon;
 }
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "Monitor",
+		.authority = EVENT_FLAG_CALL,
+		.func = start_monitor_action,
+		.synopsis = monitor_synopsis,
+		.description = start_monitor_action_help,
+	},
+	{
+		.action = "StopMonitor",
+		.authority = EVENT_FLAG_CALL,
+		.func = stop_monitor_action,
+		.synopsis = stopmonitor_synopsis,
+		.description = stop_monitor_action_help,
+	},
+	{
+		.action = "ChangeMonitor",
+		.authority = EVENT_FLAG_CALL,
+		.func = change_monitor_action,
+		.synopsis = changemonitor_synopsis,
+		.description = change_monitor_action_help,
+	},
+};
+
+
 static int load_module(void)
 {
 	/* We should never be unloaded */
@@ -555,9 +581,7 @@ static int load_module(void)
 	stopmonitor_app = cw_register_function(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
 	changemonitor_app = cw_register_function(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
 
-	cw_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
-	cw_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
-	cw_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
 	cw_monitor_start = __cw_monitor_start;
 	cw_monitor_stop = __cw_monitor_stop;
@@ -573,9 +597,7 @@ static int unload_module(void)
 	cw_unregister_function(stopmonitor_app);
 	cw_unregister_function(changemonitor_app);
 
-	cw_manager_unregister("Monitor");
-	cw_manager_unregister("StopMonitor");
-	cw_manager_unregister("ChangeMonitor");
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	return 0;
 }
 

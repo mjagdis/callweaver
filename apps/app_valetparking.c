@@ -864,6 +864,14 @@ static int manager_valetparking_status( struct mansession *s, struct message *m 
 }
 
 
+static struct manager_action manager_actions[] = {
+	{
+		.action = "ValetparkedCalls",
+		.authority = 0,
+		.func = manager_valetparking_status,
+		.synopsis = "List valetparked calls",
+	},
+};
 
 
 static int load_module(void)
@@ -876,7 +884,7 @@ static int load_module(void)
 	valetparking_app = cw_register_function(valetparking, cw_valetparking, vpsynopsis, vpsyntax, vpdesc);
 	valetparklist_app = cw_register_function(valetparklist,valetpark_list, vlsynopsis, vlsyntax, vldesc);
 	cw_channel_register(&valet_tech);
-	cw_manager_register( "ValetparkedCalls", 0, manager_valetparking_status, "List valetparked calls" );
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	return 0;
 }
 
@@ -898,7 +906,7 @@ static int unload_module(void)
     }
 
 	cw_channel_unregister(&valet_tech);
-	cw_manager_unregister( "ValetparkedCalls" );
+	cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
 	cw_cli_unregister(&showvaletparked);
 	res |= cw_unregister_function(valetunparkedcall_app);
 	res |= cw_unregister_function(valetparkedcall_app);

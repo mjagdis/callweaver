@@ -2205,6 +2205,16 @@ int cw_features_reload(void)
 }
 
 
+static struct manager_action manager_actions[] = {
+	{
+		.action = "ParkedCalls",
+		.authority = 0,
+		.func = manager_parking_status,
+		.synopsis = "List parked calls",
+	},
+};
+
+
 int init_features(void)
 {
 	int res;
@@ -2224,7 +2234,7 @@ int init_features(void)
 	parkedcall_app = cw_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
 	parkcall_app = cw_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
 
-	cw_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
 	return res;
 }

@@ -104,6 +104,7 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 	return 0;
 }
 
+
 static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
@@ -136,13 +137,24 @@ static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **arg
 	return res;
 }
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "SetCDRUserField",
+		.authority = EVENT_FLAG_CALL,
+		.func = action_setcdruserfield,
+		.synopsis = "Set the CDR UserField",
+	},
+};
+
+
 static int unload_module(void)
 {
 	int res = 0;
 
 	res |= cw_unregister_function(setcdruserfield_app);
 	res |= cw_unregister_function(appendcdruserfield_app);
-	cw_manager_unregister("SetCDRUserField");
+	cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
 	return res;
 }
 
@@ -150,7 +162,7 @@ static int load_module(void)
 {
 	setcdruserfield_app = cw_register_function(setcdruserfield_name, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_syntax, setcdruserfield_descrip);
 	appendcdruserfield_app = cw_register_function(appendcdruserfield_name, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_syntax, appendcdruserfield_descrip);
-	cw_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	return 0;
 }
 

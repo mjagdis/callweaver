@@ -31,6 +31,9 @@
 #include <arpa/inet.h>
 
 #include "callweaver/lock.h"
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
 
 /*!
   \file manager.h
@@ -133,43 +136,52 @@ struct message {
 };
 
 struct manager_action {
-	/*! Name of the action */
-	const char *action;
-	/*! Short description of the action */
-	const char *synopsis;
-	/*! Detailed description of the action */
-	const char *description;
-	/*! Permission required for action.  EVENT_FLAG_* */
-	int authority;
-	/*! Function to be called */
-	int (*func)(struct mansession *s, struct message *m);
-	/*! For easy linking */
-	struct manager_action *next;
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
+	const char *action;		/*!< Name of the action */
+	int authority;			/*!< Permission required for action.  EVENT_FLAG_* */
+	int (*func)(struct mansession *s, struct message *m); /*!< Function to be called */
+	const char *synopsis;		/*!< Short description of the action */
+	const char *description;	/*!< Detailed description of the action */
 };
 
-/* External routines may register/unregister manager callbacks this way */
-#define cw_manager_register(a, b, c, d) cw_manager_register2(a, b, c, d, NULL)
 
-/* Use cw_manager_register2 to register with help text for new manager commands */
+extern struct cw_registry manager_action_registry;
 
-/*! Register a manager command with the manager interface */
-/*! 	\param action Name of the requested Action:
-	\param authority Required authority for this command
-	\param func Function to call for this command
-	\param synopsis Help text (one line, up to 30 chars) for CLI manager show commands
-	\param description Help text, several lines
-*/
-int cw_manager_register2( 
-	const char *action, 
-	int authority, 
-	int (*func)(struct mansession *s, struct message *m), 
-	const char *synopsis,
-	const char *description);
 
-/*! Unregister a registred manager command */
-/*!	\param action Name of registred Action:
-*/
-int cw_manager_unregister( char *action );
+#define cw_manager_action_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	/* We know 0 refs means not initialized because we know how objs work \
+	 * internally and we know that registration only happens while the \
+	 * module lock is held. \
+	 */ \
+	if (!cw_object_refs(__ptr)) \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS); \
+	__ptr->reg_entry = cw_registry_add(&manager_action_registry, &__ptr->obj); \
+	0; \
+})
+#define cw_manager_action_unregister(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr->reg_entry) \
+		cw_registry_del(&manager_action_registry, __ptr->reg_entry); \
+	0; \
+})
+
+
+#define cw_manager_action_register_multiple(array, count) do { \
+	const typeof(&(array)[0]) __aptr = &(array)[0]; \
+	int i, n = (count); \
+	for (i = 0; i < n; i++) \
+		cw_manager_action_register(&__aptr[i]); \
+} while (0)
+
+#define cw_manager_action_unregister_multiple(array, count) do { \
+	const typeof(&(array)[0]) __aptr = &(array)[0]; \
+	int i, n = (count); \
+	for (i = 0; i < n; i++) \
+		cw_manager_action_unregister(&__aptr[i]); \
+} while (0)
+
 
 /*! External routines may send callweaver manager events this way */
 /*! 	\param category	Event category, matches manager authorization

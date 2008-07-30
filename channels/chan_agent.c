@@ -2428,6 +2428,32 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "Agents",
+		.authority = EVENT_FLAG_AGENT,
+		.func = action_agents,
+		.synopsis = "Lists agents and their status",
+		.description = mandescr_agents,
+	},
+	{
+		.action = "AgentLogoff",
+		.authority = EVENT_FLAG_AGENT,
+		.func = action_agent_logoff,
+		.synopsis = "Sets an agent as no longer logged in",
+		.description = mandescr_agent_logoff,
+	},
+	{
+		.action = "AgentCallbackLogin",
+		.authority = EVENT_FLAG_AGENT,
+		.func = action_agent_callback_login,
+		.synopsis = "Sets an agent as logged in by callback",
+		.description = mandescr_agent_callback_login,
+	},
+};
+
+
 /**
  * Initialize the Agents module.
  * This funcion is being called by CallWeaver when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
@@ -2446,9 +2472,7 @@ static int load_module(void)
 	agentcallbacklogin_app = cw_register_function(app2, callback_exec, synopsis2, syntax2, descrip2);
 	agentmonitoroutgoing_app = cw_register_function(app3, agentmonitoroutgoing_exec, synopsis3, syntax3, descrip3);
 	/* Manager commands */
-	cw_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
-	cw_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
-	cw_manager_register2("AgentCallbackLogin", EVENT_FLAG_AGENT, action_agent_callback_login, "Sets an agent as logged in by callback", mandescr_agent_callback_login);
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	/* CLI Application */
 	cw_cli_register(&cli_show_agents);
 	cw_cli_register(&cli_agent_logoff);
@@ -2481,9 +2505,7 @@ static int unload_module(void)
 	res |= cw_unregister_function(agentcallbacklogin_app);
 	res |= cw_unregister_function(agentmonitoroutgoing_app);
 	/* Unregister manager command */
-	cw_manager_unregister("Agents");
-	cw_manager_unregister("AgentLogoff");
-	cw_manager_unregister("AgentCallbackLogin");
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	/* Unregister channel */
 	cw_channel_unregister(&agent_tech);
 	if (!cw_mutex_lock(&agentlock)) {

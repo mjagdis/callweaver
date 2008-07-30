@@ -9933,6 +9933,85 @@ static int action_zapdisableec(struct cw_channel *chan, int argc, char **argv, c
 	return action_dahdidisableec(chan, argc, argv, result, result_max);
 }
 
+
+static struct manager_action manager_actions[] = {
+	{
+		.action = "DAHDITransfer",
+		.authority = 0,
+		.func = action_transfer,
+		.synopsis = "Transfer DAHDI Channel",
+	},
+	{
+		.action = "DAHDIHangup",
+		.authority = 0,
+		.func = action_transferhangup,
+		.synopsis = "Hangup DAHDI Channel",
+	},
+	{
+		.action = "DAHDIDialOffhook",
+		.authority = 0,
+		.func = action_zapdialoffhook,
+		.synopsis = "Dial over DAHDI channel while offhook",
+	},
+	{
+		.action = "DAHDIDNDon",
+		.authority = 0,
+		.func = action_zapdndon,
+		.synopsis = "Toggle DAHDI channel Do Not Disturb status ON",
+	},
+	{
+		.action = "DAHDIDNDoff",
+		.authority = 0,
+		.func = action_zapdndoff,
+		.synopsis = "Toggle DAHDI channel Do Not Disturb status OFF",
+	},
+	{
+		.action = "DAHDIShowChannels",
+		.authority = 0,
+		.func = action_zapshowchannels,
+		.synopsis = "Show status of DAHDI channels",
+	},
+
+	/* DEPRECATED */
+	{
+		.action = "ZapTransfer",
+		.authority = 0,
+		.func = action_transfer,
+		.synopsis = "Transfer Zap Channel",
+	},
+	{
+		.action = "ZapHangup",
+		.authority = 0,
+		.func = action_transferhangup,
+		.synopsis = "Hangup Zap Channel",
+	},
+	{
+		.action = "ZapDialOffhook",
+		.authority = 0,
+		.func = action_zapdialoffhook,
+		.synopsis = "Dial over Zap channel while offhook",
+	},
+	{
+		.action = "ZapDNDon",
+		.authority = 0,
+		.func = action_zapdndon,
+		.synopsis = "Toggle Zap channel Do Not Disturb status ON",
+	},
+	{
+		.action = "ZapDNDoff",
+		.authority = 0,
+		.func = action_zapdndoff,
+		.synopsis = "Toggle Zap channel Do Not Disturb status OFF",
+	},
+	{
+		.action = "ZapShowChannels",
+		.authority = 0,
+		.func = action_zapshowchannels,
+		.synopsis = "Show status of zapata channels",
+	},
+};
+
+
 static int __unload_module(void)
 {
 	int x = 0;
@@ -9947,22 +10026,12 @@ static int __unload_module(void)
 #endif
 	cw_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 
-	cw_manager_unregister("DAHDIDialOffhook" );
-	cw_manager_unregister("DAHDIHangup" );
-	cw_manager_unregister("DAHDITransfer" );
-	cw_manager_unregister("DAHDIDNDoff" );
-	cw_manager_unregister("DAHDIDNDon" );
-	cw_manager_unregister("DAHDIShowChannels");
+	cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
+
 	cw_unregister_function(dahdidisableec_app);
 	cw_channel_unregister(&dahdi_tech);
 
 	/* DEPRECATED */
-	cw_manager_unregister("ZapDialOffhook" );
-	cw_manager_unregister("ZapHangup" );
-	cw_manager_unregister("ZapTransfer" );
-	cw_manager_unregister("ZapDNDoff" );
-	cw_manager_unregister("ZapDNDon" );
-	cw_manager_unregister("ZapShowChannels");
 	cw_unregister_function(zapdisableec_app);
 	cw_channel_unregister(&zap_tech);
 
@@ -10904,21 +10973,10 @@ static int load_module(void)
 	
 	memset(round_robin, 0, sizeof(round_robin));
 
-	cw_manager_register("DAHDITransfer", 0, action_transfer, "Transfer DAHDI Channel" );
-	cw_manager_register("DAHDIHangup", 0, action_transferhangup, "Hangup DAHDI Channel" );
-	cw_manager_register("DAHDIDialOffhook", 0, action_zapdialoffhook, "Dial over DAHDI channel while offhook" );
-	cw_manager_register("DAHDIDNDon", 0, action_zapdndon, "Toggle DAHDI channel Do Not Disturb status ON" );
-	cw_manager_register("DAHDIDNDoff", 0, action_zapdndoff, "Toggle DAHDI channel Do Not Disturb status OFF" );
-	cw_manager_register("DAHDIShowChannels", 0, action_zapshowchannels, "Show status of DAHDI channels");
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 	dahdidisableec_app = cw_register_function(dahdidisableec_name, action_dahdidisableec, dahdidisableec_synopsis, dahdidisableec_syntax, dahdidisableec_description);
 
 	/* DEPRECATED */
-	cw_manager_register("ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
-	cw_manager_register("ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
-	cw_manager_register("ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
-	cw_manager_register("ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
-	cw_manager_register("ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
-	cw_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status of zapata channels");
 	zapdisableec_app = cw_register_function(zapdisableec_name, action_zapdisableec, dahdidisableec_synopsis, zapdisableec_syntax, dahdidisableec_description);
 
 	return res;
