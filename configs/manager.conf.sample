@@ -34,12 +34,6 @@ listen = 127.0.0.1:5038
 ;deny=0.0.0.0/0.0.0.0
 ;permit=127.0.0.1/255.0.0.0
 ;
-; If the device connected via this user accepts input slowly,
-; the timeout for writes to it can be increased to keep it
-; from being disconnected (value is in milliseconds)
-;
-; writetimeout = 100
-;
 ; Authorization for various classes 
 ;read = system,call,log,verbose,command,agent,user
 ;write = system,call,log,verbose,command,agent,user

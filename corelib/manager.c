@@ -721,12 +721,7 @@ static int authenticate(struct mansession *s, struct message *m)
 					} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 						ha = cw_append_ha(v->name, v->value, ha);
 					} else if (!strcasecmp(v->name, "writetimeout")) {
-						int val = atoi(v->value);
-
-						if (val < 100)
-							cw_log(CW_LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-						else
-							s->writetimeout = val;
+						cw_log(CW_LOG_WARNING, "writetimeout is deprecated - remove it from manager.conf\n");
 					}
 					v = v->next;
 				}
@@ -1733,7 +1728,6 @@ static int manager_session(int fd, int family, void *addr, size_t addr_len)
 
 	sess->fd = fd;
 	sess->send_events = -1;
-	sess->writetimeout = 100;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 	cw_mutex_init(&sess->lock);

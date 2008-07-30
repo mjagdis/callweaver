@@ -116,7 +116,6 @@ struct mansession {
 	int writeperm;			/*!< Authorization for writing */
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
-	int writetimeout;		/*!< Timeout for cw_carefulwrite() */
 	char name[0];
 };
 
