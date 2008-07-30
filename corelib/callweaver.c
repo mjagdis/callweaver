@@ -1779,6 +1779,9 @@ int callweaver_main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
+	for (x = 0; x < arraysize(consoles); x++)
+		consoles[x].fd = -1;
+
 	/* Initialize the core services */
 	if (init_logger()
 	|| init_manager())
@@ -1787,9 +1790,6 @@ int callweaver_main(int argc, char *argv[])
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
 		cw_verbose("Warning! CallWeaver is not thread safe.\n");
-
-	for (x = 0; x < arraysize(consoles); x++)	
-		consoles[x].fd = -1;
 
 	unlink(cw_config_CW_SOCKET);
 
