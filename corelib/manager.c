@@ -1565,7 +1565,7 @@ static void *accept_thread(void *ignore)
 			cw_log(CW_LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
-		if (setsockopt(as, SOL_TCP, TCP_NODELAY, (char *)&arg, sizeof(arg)) < 0)
+		if (setsockopt(as, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg)) < 0)
 			cw_log(CW_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 		if ((s = malloc(sizeof(struct mansession))) == NULL) {
 			cw_log(CW_LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
