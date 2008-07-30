@@ -1588,8 +1588,8 @@ int callweaver_main(int argc, char *argv[])
 	read_config_maps();
 
 	/* Initialize the core services */
-	if (init_logger()
-	|| init_manager())
+	if (init_manager()
+	|| init_logger())
 	    exit(EX_USAGE);
 
 	/* Test recursive mutex locking. */

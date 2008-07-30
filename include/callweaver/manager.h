@@ -37,6 +37,7 @@
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 
+
 /*!
   \file manager.h
   \brief The AMI - CallWeaver Manager Interface - is a TCP protocol created to 
@@ -65,12 +66,6 @@ struct manager_event {
 };
 
 
-struct eventqent {
-	struct eventqent *next;
-	struct manager_event *event;
-};
-
-
 struct message;
 
 struct mansession {
@@ -80,14 +75,13 @@ struct mansession {
 	int readperm;			/*!< Authorization for reading messages _from_ the manager */
 	int writeperm;			/*!< Authorization for writing messages _to_ the manager */
 	int send_events;
-	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
-	struct eventqent **eventq_tail;	/*!< Queued events that we've not had the ability to send yet */
-	void *(*handler)(void *);
 	int fd;
 	pthread_mutex_t lock;
 	pthread_cond_t activity;
 	pthread_cond_t ack;
 	struct message *m;
+	unsigned int q_size, q_r, q_w, q_count, q_max, q_overflow;
+	struct manager_event **q;
 	pthread_t reader_tid;
 	pthread_t writer_tid;
 	union {

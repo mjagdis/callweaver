@@ -226,7 +226,7 @@ void *jabber_manager_session(void *data)
 	pthread_cleanup_push(jabber_manager_session_cleanup, sess);
 
 	for (;;) {
-		struct eventqent *eqe = NULL;
+		struct manager_event *event = NULL;
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -234,28 +234,30 @@ void *jabber_manager_session(void *data)
 		cw_mutex_lock(&sess->lock);
 
 		/* If there are no queued events we have to wait for activity. */
-		if (!sess->m && !sess->eventq)
+		if (sess->q_r == sess->q_w)
 			pthread_cond_wait(&sess->activity, &sess->lock);
 
-		/* Unhook the top event (if any) now. Once we have that
+		/* Fetch the next event (if any) now. Once we have that
 		 * we can unlock the session.
 		 */
-		if ((eqe = sess->eventq))
-			sess->eventq = sess->eventq->next;
+		if (sess->q_r != sess->q_w) {
+			event = sess->q[sess->q_r];
+			sess->q_r = (sess->q_r + 1) % sess->q_size;
+			sess->q_count--;
+		}
 
 		pthread_cleanup_pop(1);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		/* There _should_ be an event. Why else were we woken up? */
-		if (eqe) {
+		if (event) {
 			struct jabber_message_node *node;
 
-			if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", eqe->event->data)))
+			if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
 				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 
-			cw_object_put(eqe->event);
-			free(eqe);
+			cw_object_put(event);
 		}
 	}
 

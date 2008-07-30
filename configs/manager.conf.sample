@@ -13,6 +13,16 @@
 [general]
 ;displayconnects = yes
 ;
+; The maximum events that may be queued on a manager session at once.
+; Once there are this many events queued further events will be discarded
+; until the queue drains.
+; How big a queue you need to avoid overflows depends how much you are
+; logging, how fast your hardware is - how many cores, what sort of disk
+; etc. etc.
+; "show manager connections" will display counts of queued events, maximum
+; queue used and overflows.
+queuesize = 1024
+;
 ; Ports (IPv4) and paths (UNIX) to listen on for client connections.
 ; Multiple listens are allowed. Default is none.
 ;

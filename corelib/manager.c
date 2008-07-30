@@ -69,6 +69,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 #define DEFAULT_MANAGER_PORT	5038
+#define DEFAULT_QUEUE_SIZE	1024
 
 
 struct fast_originate_helper {
@@ -88,6 +89,7 @@ struct fast_originate_helper {
 
 
 static int displayconnects;
+static int queuesize;
 
 
 struct message {
@@ -211,22 +213,27 @@ int manager_str_to_eventmask(char *instr)
 
 static void append_event(struct mansession *sess, struct manager_event *event)
 {
-	struct eventqent *eqe;
+	int q_w_next;
 
-	if ((eqe = malloc(sizeof(struct eventqent)))) {
-		eqe->next = NULL;
-		eqe->event = cw_object_dup(event);
+	pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+	pthread_mutex_lock(&sess->lock);
 
-		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
-		pthread_mutex_lock(&sess->lock);
+	q_w_next = (sess->q_w + 1) % sess->q_size;
 
-		if (!sess->eventq)
+	if (q_w_next != sess->q_r) {
+		if (++sess->q_count > sess->q_max)
+			sess->q_max = sess->q_count;
+
+		sess->q[sess->q_w] = cw_object_dup(event);
+
+		if (sess->q_w == sess->q_r)
 			pthread_cond_signal(&sess->activity);
 
-		*sess->eventq_tail = eqe;
+		sess->q_w = q_w_next;
+	} else
+		sess->q_overflow++;
 
-		pthread_cleanup_pop(1);
-	}
+	pthread_cleanup_pop(1);
 }
 
 
@@ -505,14 +512,15 @@ struct mansess_print_args {
 	int fd;
 };
 
-#define MANSESS_FORMAT	"  %-15.15s  %s\n"
+#define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
+#define MANSESS_FORMAT2	"%-40s %-15s %6u %9u %8u\n"
 
 static int mansess_print(struct cw_object *obj, void *data)
 {
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
-	cw_cli(args->fd, MANSESS_FORMAT, it->username, it->name);
+	cw_cli(args->fd, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
 	return 0;
 }
 
@@ -522,8 +530,8 @@ static int handle_show_mansess(int fd, int argc, char *argv[])
 		.fd = fd,
 	};
 
-	cw_cli(fd, MANSESS_FORMAT, "Username", "Address");
-	cw_cli(fd, MANSESS_FORMAT, "--------", "-------");
+	cw_cli(fd, MANSESS_FORMAT1, "Address", "Username", "Queued", "Max Queue", "Overflow");
+	cw_cli(fd, MANSESS_FORMAT1, "--------", "-------", "------", "---------", "--------");
 	cw_registry_iterate(&manager_session_registry, mansess_print, &args);
 
 	return RESULT_SUCCESS;
@@ -581,21 +589,19 @@ static struct cw_clicmd show_manconn_cli = {
 static void mansession_release(struct cw_object *obj)
 {
 	struct mansession *sess = container_of(obj, struct mansession, obj);
-	struct eventqent *eqe;
 
 	if (sess->fd > -1)
 		close(sess->fd);
 
-	while (sess->eventq) {
-		eqe = sess->eventq;
-		sess->eventq = sess->eventq->next;
-		cw_object_put(eqe->event);
-		free(eqe);
+	while (sess->q_r != sess->q_w) {
+		cw_object_put(sess->q[sess->q_r]);
+		sess->q_r = (sess->q_r + 1) % sess->q_size;
 	}
 
 	pthread_mutex_destroy(&sess->lock);
 	pthread_cond_destroy(&sess->ack);
 	pthread_cond_destroy(&sess->activity);
+	free(sess->q);
 	free(sess);
 }
 
@@ -1677,7 +1683,7 @@ void *manager_session_ami(void *data)
 	}
 
 	for (;;) {
-		struct eventqent *eqe = NULL;
+		struct manager_event *event = NULL;
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -1687,15 +1693,17 @@ void *manager_session_ami(void *data)
 		/* If there's no request message and no queued events
 		 * we have to wait for activity.
 		 */
-		if (!sess->m && !sess->eventq)
+		if (!sess->m && sess->q_r == sess->q_w)
 			pthread_cond_wait(&sess->activity, &sess->lock);
 
-		/* Unhook the top event (if any) now. Once we have that
+		/* Fetch the next event (if any) now. Once we have that
 		 * we can unlock the session.
 		 */
-		if ((eqe = sess->eventq))
-			if (!(sess->eventq = sess->eventq->next))
-				sess->eventq_tail = &sess->eventq;
+		if (sess->q_r != sess->q_w) {
+			event = sess->q[sess->q_r];
+			sess->q_r = (sess->q_r + 1) % sess->q_size;
+			sess->q_count--;
+		}
 
 		pthread_cleanup_pop(1);
 
@@ -1712,9 +1720,9 @@ void *manager_session_ami(void *data)
 			pthread_mutex_unlock(&sess->lock);
 		}
 
-		if (eqe) {
-			const char *data = eqe->event->data;
-			int len = eqe->event->len;
+		if (event) {
+			const char *data = event->data;
+			int len = event->len;
 
 			res = 0;
 			while (len > 0) {
@@ -1728,8 +1736,7 @@ void *manager_session_ami(void *data)
 				}
 			}
 
-			cw_object_put(eqe->event);
-			free(eqe);
+			cw_object_put(event);
 			if (res < 0)
 				break;
 		}
@@ -1761,7 +1768,7 @@ void *manager_session_log(void *data)
 	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	for (;;) {
-		struct eventqent *eqe = NULL;
+		struct manager_event *event = NULL;
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -1769,22 +1776,24 @@ void *manager_session_log(void *data)
 		pthread_mutex_lock(&sess->lock);
 
 		/* If there are no queued events we have to wait for activity. */
-		if (!sess->m && !sess->eventq)
+		if (sess->q_r == sess->q_w)
 			pthread_cond_wait(&sess->activity, &sess->lock);
 
-		/* Unhook the top event (if any) now. Once we have that
+		/* Fetch next event (if any) now. Once we have that
 		 * we can unlock the session.
 		 */
-		if ((eqe = sess->eventq))
-			if (!(sess->eventq = sess->eventq->next))
-				sess->eventq_tail = &sess->eventq;
+		if (sess->q_r != sess->q_w) {
+			event = sess->q[sess->q_r];
+			sess->q_r = (sess->q_r + 1) % sess->q_size;
+			sess->q_count--;
+		}
 
 		pthread_cleanup_pop(1);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		/* There _should_ be an event. Why else were we woken up? */
-		if (eqe) {
+		if (event) {
 			static const int priorities[] = {
 				[CW_EVENT_NUM_ERROR]	= LOG_ERR,
 				[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
@@ -1816,7 +1825,7 @@ void *manager_session_log(void *data)
 
 			memset(vals, 0, sizeof(vals));
 
-			key = eqe->event->data;
+			key = event->data;
 			while (*key) {
 				for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
 				if (!*ekey)
@@ -1876,8 +1885,7 @@ void *manager_session_log(void *data)
 				}
 			}
 
-			cw_object_put(eqe->event);
-			free(eqe);
+			cw_object_put(event);
 			if (res < 0)
 				break;
 		}
@@ -1901,6 +1909,13 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 		return NULL;
 	}
 
+	if (!(sess->q = malloc(queuesize * sizeof(*sess->q)))) {
+		free(sess);
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
+		return NULL;
+	}
+	sess->q_size = queuesize;
+
 	addr_to_str(family, addr, sess->name, namelen);
 
 	/* Only copy the address into the session if it is representable by
@@ -1912,9 +1927,7 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 		memcpy(&sess->u, addr, addr_len);
 	sess->u.sa.sa_family = family;
 
-	sess->eventq_tail = &sess->eventq;
 	sess->fd = fd;
-	sess->handler = handler;
 	sess->readperm = readperm;
 	if ((sess->writeperm = writeperm))
 		sess->authenticated = 1;
@@ -2386,6 +2399,47 @@ int manager_reload(void)
 	bindaddr = NULL;
 	portno = NULL;
 	displayconnects = 1;
+	queuesize = DEFAULT_QUEUE_SIZE;
+
+	/* Overlay configured values from the config file */
+	cfg = cw_config_load("manager.conf");
+	if (!cfg) {
+		cw_log(CW_LOG_NOTICE, "Unable to open manager configuration manager.conf. Using defaults.\n");
+	} else {
+		for (v = cw_variable_browse(cfg, "general"); v; v = v->next) {
+			if (!strcmp(v->name, "displayconnects"))
+				displayconnects = cw_true(v->value);
+			else if (!strcmp(v->name, "listen"))
+				manager_listen(v->value, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
+			else if (!strcmp(v->name, "queuesize"))
+				queuesize = atol(v->value);
+
+			/* DEPRECATED */
+			else if (!strcmp(v->name, "block-sockets"))
+				cw_log(CW_LOG_WARNING, "block_sockets is deprecated - remove it from manager.conf\n");
+			else if (!strcmp(v->name, "bindaddr")) {
+				cw_log(CW_LOG_WARNING, "Use of \"bindaddr\" in manager.conf is deprecated - use \"listen\" instead\n");
+				bindaddr = v->value;
+			} else if (!strcmp(v->name, "port")) {
+				cw_log(CW_LOG_WARNING, "Use of \"port\" in manager.conf is deprecated - use \"listen\" instead\n");
+				portno = v->value;
+			} else if (!strcmp(v->name, "enabled")) {
+				cw_log(CW_LOG_WARNING, "\"enabled\" is deprecated - remove it from manager.conf and replace \"bindaddr\" and \"port\" with a \"listen\"\n");
+				if (cw_true(v->value)) {
+					if (!bindaddr)
+						bindaddr = "0.0.0.0";
+					if (!portno)
+						portno = MKSTR(DEFAULT_MANAGER_PORT);
+				} else {
+					cw_log(CW_LOG_WARNING, "\"enabled\" in manager.conf only controls \"bindaddr\", \"port\" listening. To disable \"listen\" entries just comment them out\n");
+					bindaddr = portno = NULL;
+				}
+			} else if (!strcmp(v->name, "portno")) {
+				cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf is deprecated. Use 'port=%s' instead.\n", v->value);
+				portno = v->value;
+			}
+		}
+	}
 
 	/* Start the listener for pre-authenticated consoles */
 	manager_listen(cw_config_CW_SOCKET, manager_session_ami, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
@@ -2415,44 +2469,6 @@ int manager_reload(void)
 
 	if (chown(cw_config_CW_SOCKET, uid, gid) < 0)
 		cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
-
-	/* Overlay configured values from the config file */
-	cfg = cw_config_load("manager.conf");
-	if (!cfg) {
-		cw_log(CW_LOG_NOTICE, "Unable to open manager configuration manager.conf. Using defaults.\n");
-	} else {
-		for (v = cw_variable_browse(cfg, "general"); v; v = v->next) {
-			if (!strcmp(v->name, "displayconnects"))
-				displayconnects = cw_true(v->value);
-			else if (!strcmp(v->name, "listen"))
-				manager_listen(v->value, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
-
-			/* DEPRECATED */
-			else if (!strcmp(v->name, "block-sockets"))
-				cw_log(CW_LOG_WARNING, "block_sockets is deprecated - remove it from manager.conf\n");
-			else if (!strcmp(v->name, "bindaddr")) {
-				cw_log(CW_LOG_WARNING, "Use of \"bindaddr\" in manager.conf is deprecated - use \"listen\" instead\n");
-				bindaddr = v->value;
-			} else if (!strcmp(v->name, "port")) {
-				cw_log(CW_LOG_WARNING, "Use of \"port\" in manager.conf is deprecated - use \"listen\" instead\n");
-				portno = v->value;
-			} else if (!strcmp(v->name, "enabled")) {
-				cw_log(CW_LOG_WARNING, "\"enabled\" is deprecated - remove it from manager.conf and replace \"bindaddr\" and \"port\" with a \"listen\"\n");
-				if (cw_true(v->value)) {
-					if (!bindaddr)
-						bindaddr = "0.0.0.0";
-					if (!portno)
-						portno = MKSTR(DEFAULT_MANAGER_PORT);
-				} else {
-					cw_log(CW_LOG_WARNING, "\"enabled\" in manager.conf only controls \"bindaddr\", \"port\" listening. To disable \"listen\" entries just comment them out\n");
-					bindaddr = portno = NULL;
-				}
-			} else if (!strcmp(v->name, "portno")) {
-				cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf is deprecated. Use 'port=%s' instead.\n", v->value);
-				portno = v->value;
-			}
-		}
-	}
 
 	/* DEPRECATED */
 	if (bindaddr && portno) {
