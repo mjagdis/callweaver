@@ -579,8 +579,6 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		if (logfiles.event_log) {
 			fprintf(eventlog, "%s callweaver[%d]: %s", date, getpid(), msg);
 			fflush(eventlog);
-			cw_mutex_unlock(&loglock);
-			return;
 		}
 		cw_mutex_unlock(&loglock);
 	}
