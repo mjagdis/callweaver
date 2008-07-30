@@ -477,10 +477,10 @@ void *console(void *data)
 			p++;
 		*p = '\0';
 
-		/* Make sure verbose and debug settings are what we want or higher */
-		res = snprintf(buf, sizeof(buf), "set verbose atleast %d\n", option_verbose);
-		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)));
-		res = snprintf(buf, sizeof(buf), "set debug atleast %d\n", option_debug);
+		/* Make sure verbose and debug settings are what we want or higher
+		 * and enable events
+		 */
+		res = snprintf(buf, sizeof(buf), "set verbose atleast %d\nset debug atleast %d\n\020events\n", option_verbose, option_debug);
 		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)));
 
 		stringp = banner;

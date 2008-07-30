@@ -1590,6 +1590,9 @@ static void manager_session_ami_cleanup(void *data)
 {
 	struct mansession *sess = data;
 
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
 	if (sess->authenticated) {
 		if (option_verbose > 3 && displayconnects)
 			cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
@@ -1619,6 +1622,8 @@ void *manager_session_ami(void *data)
 	sess->reader_tid = CW_PTHREADT_NULL;
 
 	pthread_cleanup_push(manager_session_ami_cleanup, sess);
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
 		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
@@ -1717,12 +1722,17 @@ static void *manager_session_console_read(void *data)
 				if (pos) {
 					/* End of message, go do it */
 					buf[pos] = '\0';
-					pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-					cw_mutex_lock(&sess->lock);
-					sess->m = &m;
-					pthread_cond_signal(&sess->activity);
-					pthread_cond_wait(&sess->ack, &sess->lock);
-					pthread_cleanup_pop(1);
+					if (buf[0] == '\020') {
+						if (pos - 1 == sizeof("events") - 1 && !strcmp(buf + 1, "events"))
+							sess->send_events = EVENT_FLAG_LOG_ALL;
+					} else {
+						pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+						cw_mutex_lock(&sess->lock);
+						sess->m = &m;
+						pthread_cond_signal(&sess->activity);
+						pthread_cond_wait(&sess->ack, &sess->lock);
+						pthread_cleanup_pop(1);
+					}
 				}
 				memcpy(buf, &buf[pos + 1], res - 1);
 				pos = -1;
@@ -1744,6 +1754,9 @@ static void manager_session_console_cleanup(void *data)
 {
 	struct mansession *sess = data;
 
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
 	if (option_verbose > 3 && displayconnects)
 		cw_verbose(VERBOSE_PREFIX_2 "Console disconnected from %s\n", sess->name);
 	cw_log(CW_LOG_EVENT, "Console disconnected from %s\n", sess->name);
@@ -1763,6 +1776,10 @@ void *manager_session_console(void *data)
 	struct mansession *sess = data;
 	int res;
 
+	if (option_verbose > 3 && displayconnects)
+		cw_verbose(VERBOSE_PREFIX_2 "Console connected from %s\n", sess->name);
+	cw_log(CW_LOG_EVENT, "Console connected from %s\n", sess->name);
+
 	write(sess->fd, hostname, strlen(hostname));
 	write(sess->fd, "/", 1);
 	res = snprintf(buf, sizeof(buf), "%d", cw_mainpid);
@@ -1774,7 +1791,7 @@ void *manager_session_console(void *data)
 	sess->authenticated = 1;
 	sess->writeperm = EVENT_FLAG_COMMAND;
 	sess->readperm = EVENT_FLAG_LOG_ALL;
-	sess->send_events = EVENT_FLAG_LOG_ALL;
+	sess->send_events = 0;
 
 	/* Ok, we're ready. Tell the core to boot if it hasn't already */
 	if (!fully_booted)
@@ -1783,6 +1800,8 @@ void *manager_session_console(void *data)
 	sess->reader_tid = CW_PTHREADT_NULL;
 
 	pthread_cleanup_push(manager_session_console_cleanup, sess);
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_console_read, sess))) {
 		cw_log(CW_LOG_ERROR, "Console session reader thread creation failed: %s\n", strerror(res));
@@ -1877,6 +1896,9 @@ static void manager_session_log_cleanup(void *data)
 {
 	struct mansession *sess = data;
 
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
 	cw_object_put(sess);
 }
 
@@ -1887,6 +1909,8 @@ void *manager_session_log(void *data)
 	int res;
 
 	pthread_cleanup_push(manager_session_log_cleanup, sess);
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	for (;;) {
 		struct eventqent *eqe = NULL;
@@ -2058,17 +2082,12 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 		return NULL;
 	}
 
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
-
 	return sess;
 }
 
 
 void manager_session_end(struct mansession *sess)
 {
-	if (sess->reg_entry)
-		cw_registry_del(&manager_session_registry, sess->reg_entry);
-
 	pthread_cancel(sess->writer_tid);
 	pthread_join(sess->writer_tid, NULL);
 	cw_object_put(sess);
