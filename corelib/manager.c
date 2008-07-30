@@ -181,7 +181,17 @@ int manager_str_to_eventmask(char *instr)
 {
 	int ret = 0;
 
-	if (instr) {
+	/* Logically you might expect an empty mask to mean nothing
+	 * however it has historically meant everything. It's too
+	 * late to risk changing it now.
+	 */
+	if (!instr || !*instr || cw_true(instr) || !strcasecmp(instr, "all") || (instr[0] == '-' && instr[1] == '1'))
+		ret = -1;
+	else if (cw_false(instr))
+		ret = 0;
+	else if (isdigit(*instr))
+		ret = atoi(instr);
+	else {
 		char *p = instr;
 
 		while (*p && isspace(*p)) p++;
@@ -324,6 +334,11 @@ struct cw_registry manager_action_registry = {
 };
 
 
+static const char showmancmd_help[] =
+"Usage: show manager command <actionname>\n"
+"	Shows the detailed description for a specific CallWeaver manager interface command.\n";
+
+
 struct complete_show_manact_args {
 	char *word;
 	char *ret;
@@ -393,6 +408,11 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 	cw_object_put(act);
 	return RESULT_SUCCESS;
 }
+
+
+static const char showmancmds_help[] =
+"Usage: show manager commands\n"
+"	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
 static char *complete_show_manacts(char *line, char *word, int pos, int state)
@@ -472,10 +492,11 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 	else if ((argc > 4) && (!strcmp(argv[3], "describing")))
 		args.describing = 1;
 
-	cw_cli(fd, "    -= %s Manager Actions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
+	cw_cli(fd, "    -= %s Manager Actions =-\n" MANACTS_FORMAT MANACTS_FORMAT,
+		(args.like || args.describing ? "Matching" : "Registered"),
+		"Action", "Privilege", "Synopsis",
+		"------", "---------", "--------");
 
-	cw_cli(fd, MANACTS_FORMAT, "Action", "Privilege", "Synopsis");
-	cw_cli(fd, MANACTS_FORMAT, "------", "---------", "--------");
 	cw_registry_iterate(&manager_action_registry, manacts_print, &args);
 
 	cw_cli(fd, "    -= %d Actions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
@@ -483,16 +504,23 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 }
 
 
+static const char showlistener_help[] =
+"Usage: show manager listen\n"
+"	Prints a listing of the sockets the manager is listening on.\n";
+
+
 struct listener_print_args {
 	int fd;
 };
+
+#define MANLISTEN_FORMAT "%-7s %s\n"
 
 static int listener_print(struct cw_object *obj, void *data)
 {
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 	struct listener_print_args *args = data;
 
-	cw_cli(args->fd, "%s %s\n", (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN   "), it->name);
+	cw_cli(args->fd, MANLISTEN_FORMAT, (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN"), it->name);
 	return 0;
 }
 
@@ -502,10 +530,20 @@ static int handle_show_listener(int fd, int argc, char *argv[])
 		.fd = fd,
 	};
 
+	cw_cli(fd, MANLISTEN_FORMAT MANLISTEN_FORMAT,
+		"State", "Address",
+		"-----", "-------");
+
 	cw_registry_iterate(&manager_listener_registry, listener_print, &args);
 
 	return RESULT_SUCCESS;
 }
+
+
+static const char showmanconn_help[] =
+"Usage: show manager connected\n"
+"	Prints a listing of the users that are currently connected to the\n"
+"CallWeaver manager interface.\n";
 
 
 struct mansess_print_args {
@@ -530,59 +568,43 @@ static int handle_show_mansess(int fd, int argc, char *argv[])
 		.fd = fd,
 	};
 
-	cw_cli(fd, MANSESS_FORMAT1, "Address", "Username", "Queued", "Max Queue", "Overflow");
-	cw_cli(fd, MANSESS_FORMAT1, "--------", "-------", "------", "---------", "--------");
+	cw_cli(fd, MANSESS_FORMAT1 MANSESS_FORMAT1,
+		"Address", "Username", "Queued", "Max Queue", "Overflow",
+		"--------", "-------", "------", "---------", "--------");
+
 	cw_registry_iterate(&manager_session_registry, mansess_print, &args);
 
 	return RESULT_SUCCESS;
 }
 
 
-static char showmancmd_help[] = 
-"Usage: show manager command <actionname>\n"
-"	Shows the detailed description for a specific CallWeaver manager interface command.\n";
-
-static char showmancmds_help[] = 
-"Usage: show manager commands\n"
-"	Prints a listing of all the available CallWeaver manager interface commands.\n";
-
-static char showlistener_help[] =
-"Usage: show manager listen\n"
-"	Prints a listing of the sockets the manager is listening on.\n";
-
-static char showmanconn_help[] = 
-"Usage: show manager connected\n"
-"	Prints a listing of the users that are currently connected to the\n"
-"CallWeaver manager interface.\n";
-
-static struct cw_clicmd show_mancmd_cli = {
-	.cmda = { "show", "manager", "command", NULL },
-	.handler = handle_show_manact,
-	.generator = complete_show_manact,
-	.summary = "Show a manager interface command",
-	.usage = showmancmd_help,
-};
-
-static struct cw_clicmd show_mancmds_cli = {
-	.cmda = { "show", "manager", "commands", NULL }, /* FIXME: should be actions */
-	.handler = handle_show_manacts,
-	.generator = complete_show_manacts,
-	.summary = "List manager interface commands",
-	.usage = showmancmds_help,
-};
-
-static struct cw_clicmd show_listener_cli = {
-	.cmda = { "show", "manager", "listen", NULL },
-	.handler = handle_show_listener,
-	.summary = "Show manager listen sockets",
-	.usage = showlistener_help,
-};
-
-static struct cw_clicmd show_manconn_cli = {
-	.cmda = { "show", "manager", "connected", NULL },
-	.handler = handle_show_mansess,
-	.summary = "Show connected manager interface users",
-	.usage = showmanconn_help,
+static struct cw_clicmd clicmds[] = {
+	{
+		.cmda = { "show", "manager", "command", NULL },
+		.handler = handle_show_manact,
+		.generator = complete_show_manact,
+		.summary = "Show a manager interface command",
+		.usage = showmancmd_help,
+	},
+	{
+		.cmda = { "show", "manager", "commands", NULL }, /* FIXME: should be actions */
+		.handler = handle_show_manacts,
+		.generator = complete_show_manacts,
+		.summary = "List manager interface commands",
+		.usage = showmancmds_help,
+	},
+	{
+		.cmda = { "show", "manager", "listen", NULL },
+		.handler = handle_show_listener,
+		.summary = "Show manager listen sockets",
+		.usage = showlistener_help,
+	},
+	{
+		.cmda = { "show", "manager", "connected", NULL },
+		.handler = handle_show_mansess,
+		.summary = "Show connected manager interface users",
+		.usage = showmanconn_help,
+	},
 };
 
 
@@ -670,30 +692,7 @@ void astman_send_ack(struct mansession *s, struct message *m, const char *msg)
 }
 
 
-static int set_eventmask(struct mansession *sess, char *eventmask)
-{
-	int maskint = -1;
-
-	if (cw_strlen_zero(eventmask) || cw_true(eventmask))
-		maskint = -1;
-	else if (cw_false(eventmask))
-		maskint = 0;
-	else if (isdigit(*eventmask))
-		maskint = atoi(eventmask);
-	else
-		maskint = manager_str_to_eventmask(eventmask);
-
-	pthread_mutex_lock(&sess->lock);
-
-	if (maskint >= 0)	
-		sess->send_events = maskint;
-
-	pthread_mutex_unlock(&sess->lock);
-
-	return maskint;
-}
-
-static int authenticate(struct mansession *s, struct message *m)
+static int authenticate(struct mansession *sess, struct message *m)
 {
 	struct cw_config *cfg;
 	char *cat;
@@ -702,17 +701,18 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *authtype = astman_get_header(m, "AuthType");
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
+	int ret = -1;
 	
 	if (!user) {
-		astman_send_error(s, m, "Required header \"Username\" missing");
+		astman_send_error(sess, m, "Required header \"Username\" missing");
 		return -1;
 	}
 
 	cfg = cw_config_load("manager.conf");
 	if (!cfg)
 		return -1;
-	cat = cw_category_browse(cfg, NULL);
-	while (cat) {
+
+	for (cat = cw_category_browse(cfg, NULL); cat; cat = cw_category_browse(cfg, cat)) {
 		if (strcasecmp(cat, "general")) {
 			/* This is a user */
 			if (!strcasecmp(cat, user)) {
@@ -720,8 +720,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				struct cw_ha *ha = NULL;
 				char *password = NULL;
 
-				v = cw_variable_browse(cfg, cat);
-				while (v) {
+				for (v = cw_variable_browse(cfg, cat); v; v = v->next) {
 					if (!strcasecmp(v->name, "secret")) {
 						password = v->value;
 					} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
@@ -729,53 +728,65 @@ static int authenticate(struct mansession *s, struct message *m)
 					} else if (!strcasecmp(v->name, "writetimeout")) {
 						cw_log(CW_LOG_WARNING, "writetimeout is deprecated - remove it from manager.conf\n");
 					}
-					v = v->next;
 				}
-				if (ha && (s->u.sa.sa_family != AF_INET || !cw_apply_ha(ha, &s->u.sin))) {
-					cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", s->name, user);
-					cw_free_ha(ha);
-					cw_config_destroy(cfg);
-					return -1;
-				} else if (ha) {
-					cw_free_ha(ha);
-				}
-				if (authtype && !strcasecmp(authtype, "MD5")) {
-					if (!cw_strlen_zero(key) && !cw_strlen_zero(s->challenge) && !cw_strlen_zero(password)) {
-						char md5key[256] = "";
-						cw_md5_hash_two(md5key, s->challenge, password);
-						if (!strcmp(md5key, key))
-							break;
-						cw_config_destroy(cfg);
-						return -1;
+
+				ret = 0;
+
+				if (ha) {
+					if (sess->u.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->u.sin)) {
+						cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
+						ret = -1;
 					}
-				} else if (pass && password && !strcasecmp(password, pass)) {
+
+					cw_free_ha(ha);
+				}
+
+				if (!ret) {
+					if (authtype && !strcasecmp(authtype, "MD5")) {
+						if (!cw_strlen_zero(key) && !cw_strlen_zero(sess->challenge) && !cw_strlen_zero(password)) {
+							char md5key[256] = "";
+							cw_md5_hash_two(md5key, sess->challenge, password);
+							if (strcmp(md5key, key))
+								ret = -1;
+						}
+					} else if (!pass || !password || strcasecmp(password, pass))
+						ret = -1;
+				}
+
+				if (!ret)
 					break;
-				} else {
-					cw_log(CW_LOG_NOTICE, "%s failed to authenticate as '%s'\n", s->name, user);
-					cw_config_destroy(cfg);
-					return -1;
-				}	
 			}
 		}
-		cat = cw_category_browse(cfg, cat);
 	}
-	if (cat) {
-		cw_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
-		s->writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
-		cw_config_destroy(cfg);
+
+	if (cat && !ret) {
+		int readperm, writeperm, eventmask;
+
+		readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
+		writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
 		if (events)
-			set_eventmask(s, events);
-		return 0;
-	}
-	cw_log(CW_LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", s->name, user);
+			eventmask = manager_str_to_eventmask(events);
+
+		pthread_mutex_lock(&sess->lock);
+
+		cw_copy_string(sess->username, cat, sizeof(sess->username));
+		sess->readperm = readperm;
+		sess->writeperm = writeperm;
+		if (events)
+			sess->send_events = eventmask;
+
+		pthread_mutex_unlock(&sess->lock);
+		ret = 0;
+	} else
+		cw_log(CW_LOG_ERROR, "%s failed to authenticate as '%s'\n", sess->name, user);
+
 	cw_config_destroy(cfg);
-	return -1;
+	return ret;
 }
 
 
-static char mandescr_ping[] = 
-"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the "
+static const char mandescr_ping[] =
+"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
 "Variables: NONE\n";
 
@@ -786,8 +797,8 @@ static int action_ping(struct mansession *s, struct message *m)
 }
 
 
-static char mandescr_version[] =
-"Description: Returns the version, hostname and pid of the running Callweaver\n";
+static const char mandescr_version[] =
+"Description: Returns the version, hostname and pid of the running CallWeaver\n";
 
 static int action_version(struct mansession *s, struct message *m)
 {
@@ -797,7 +808,7 @@ static int action_version(struct mansession *s, struct message *m)
 }
 
 
-static char mandescr_listcommands[] = 
+static const char mandescr_listcommands[] =
 "Description: Returns the action name and synopsis for every\n"
 "  action that is available to the user\n"
 "Variables: NONE\n";
@@ -824,17 +835,14 @@ static int action_listcommands(struct mansession *s, struct message *m)
 		.s = s,
 	};
 
-	if (!cw_strlen_zero(m->actionid))
-		cw_cli(s->fd, "Response: Success\r\nActionID: %s\r\n", m->actionid);
-	else
-		cw_cli(s->fd, "Response: Success\r\n");
+	astman_send_response(s, m, "Success", NULL, 0);
 	cw_registry_iterate(&manager_action_registry, listcommands_print, &args);
 	cw_cli(s->fd, "\r\n");
 
 	return RESULT_SUCCESS;
 }
 
-static char mandescr_events[] = 
+static const char mandescr_events[] =
 "Description: Enable/Disable sending of events to this manager\n"
 "  client.\n"
 "Variables:\n"
@@ -842,24 +850,27 @@ static char mandescr_events[] =
 "		'off' if no events should be sent,\n"
 "		'system,call,log' to select which flags events should have to be sent.\n";
 
-static int action_events(struct mansession *s, struct message *m)
+static int action_events(struct mansession *sess, struct message *m)
 {
 	char *mask = astman_get_header(m, "EventMask");
-	int res;
 
 	if (mask) {
-		res = set_eventmask(s, mask);
-		if (res > 0)
-			astman_send_response(s, m, "Events On", NULL, 1);
-		else if (res == 0)
-			astman_send_response(s, m, "Events Off", NULL, 1);
+		int eventmask = manager_str_to_eventmask(mask);
+
+		pthread_mutex_lock(&sess->lock);
+
+		sess->send_events = eventmask;
+
+		pthread_mutex_unlock(&sess->lock);
+
+		astman_send_response(sess, m, (eventmask ? "Events On" : "Events Off"), NULL, 1);
 	} else
-		astman_send_error(s, m, "Required header \"Mask\" missing");
+		astman_send_error(sess, m, "Required header \"Mask\" missing");
 
 	return 0;
 }
 
-static char mandescr_logoff[] = 
+static const char mandescr_logoff[] =
 "Description: Logoff this manager session\n"
 "Variables: NONE\n";
 
@@ -869,7 +880,7 @@ static int action_logoff(struct mansession *s, struct message *m)
 	return -1;
 }
 
-static char mandescr_hangup[] = 
+static const char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
 "	Channel: The channel name to be hungup\n";
@@ -894,7 +905,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_setvar[] = 
+static const char mandescr_setvar[] =
 "Description: Set a local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to set variable for\n"
@@ -930,7 +941,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_getvar[] = 
+static const char mandescr_getvar[] =
 "Description: Get the value of a local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to read variable from\n"
@@ -966,11 +977,9 @@ static int action_getvar(struct mansession *s, struct message *m)
 	if (!varval2)
 		varval2 = "";
 	cw_mutex_unlock(&c->lock);
-	cw_cli(s->fd, "Response: Success\r\n"
-		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
-	if (!cw_strlen_zero(m->actionid))
-		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
-	cw_cli(s->fd, "\r\n");
+
+	astman_send_response(s, m, "Success", NULL, 0);
+	cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, varval2);
 
 	return 0;
 }
@@ -1066,7 +1075,7 @@ static int action_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_redirect[] = 
+static const char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to redirect\n"
@@ -1123,7 +1132,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_command[] = 
+static const char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Command: CallWeaver CLI command to run\n"
@@ -1146,7 +1155,7 @@ static int action_command(struct mansession *s, struct message *m)
 }
 
 
-static char mandescr_complete[] =
+static const char mandescr_complete[] =
 "Description: Return possible completions for a CallWeaver CLI command.\n"
 "	*Command: CallWeaver CLI command to complete\n"
 "	ActionID: Optional Action id for message matching.\n";
@@ -1215,8 +1224,8 @@ static void *fast_originate(void *data)
 	return NULL;
 }
 
-static char mandescr_originate[] = 
-"Description: Generates an outgoing call to a Extension/Context/Priority or\n"
+static const char mandescr_originate[] =
+"Description: Generates an outgoing call to an Extension/Context/Priority or\n"
 "  Application/Data\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to call\n"
@@ -1338,7 +1347,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_mailboxstatus[] = 
+static const char mandescr_mailboxstatus[] =
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1350,7 +1359,6 @@ static char mandescr_mailboxstatus[] =
 "\n";
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
-	char idText[256] = "";
 	char *mailbox = astman_get_header(m, "Mailbox");
 	int ret;
 
@@ -1358,18 +1366,13 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-	if (!cw_strlen_zero(m->actionid))
-		snprintf(idText, 256, "ActionID: %s\r\n", m->actionid);
 	ret = cw_app_has_voicemail(mailbox, NULL);
-	cw_cli(s->fd, "Response: Success\r\n"
-				   "%s"
-				   "Message: Mailbox Status\r\n"
-				   "Mailbox: %s\r\n"
-		 		   "Waiting: %d\r\n\r\n", idText, mailbox, ret);
+	astman_send_response(s, m, "Success", "Mailbox Status", 0);
+	cw_cli(s->fd, "Mailbox: %s\r\nWaiting: %d\r\n\r\n", mailbox, ret);
 	return 0;
 }
 
-static char mandescr_mailboxcount[] = 
+static const char mandescr_mailboxcount[] =
 "Description: Checks a voicemail account for new messages.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1382,7 +1385,6 @@ static char mandescr_mailboxcount[] =
 "\n";
 static int action_mailboxcount(struct mansession *s, struct message *m)
 {
-	char idText[256] = "";
 	char *mailbox = astman_get_header(m, "Mailbox");
 	int newmsgs = 0, oldmsgs = 0;
 
@@ -1391,20 +1393,12 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 		return 0;
 	}
 	cw_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-	if (!cw_strlen_zero(m->actionid))
-		snprintf(idText, 256, "ActionID: %s\r\n", m->actionid);
-	cw_cli(s->fd, "Response: Success\r\n"
-				   "%s"
-				   "Message: Mailbox Message Count\r\n"
-				   "Mailbox: %s\r\n"
-		 		   "NewMessages: %d\r\n"
-				   "OldMessages: %d\r\n" 
-				   "\r\n",
-				    idText,mailbox, newmsgs, oldmsgs);
+	astman_send_response(s, m, "Success", "Mailbox Message Count", 0);
+	cw_cli(s->fd, "Mailbox: %s\r\nNewMessages: %d\r\nOldMessages: %d\r\n\r\n", mailbox, newmsgs, oldmsgs);
 	return 0;
 }
 
-static char mandescr_extensionstate[] = 
+static const char mandescr_extensionstate[] =
 "Description: Report the extension state for given extension.\n"
 "  If the extension has a hint, will use devicestate to check\n"
 "  the status of the device connected to the extension.\n"
@@ -1417,7 +1411,6 @@ static char mandescr_extensionstate[] =
 
 static int action_extensionstate(struct mansession *s, struct message *m)
 {
-	char idText[256] = "";
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
 	char hint[256] = "";
@@ -1431,20 +1424,14 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 		context = "default";
 	status = cw_extension_state(NULL, context, exten);
 	cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
-	if (!cw_strlen_zero(m->actionid))
-		snprintf(idText, 256, "ActionID: %s\r\n", m->actionid);
-	cw_cli(s->fd, "Response: Success\r\n"
-			           "%s"
-				   "Message: Extension Status\r\n"
-				   "Exten: %s\r\n"
-				   "Context: %s\r\n"
-				   "Hint: %s\r\n"
-		 		   "Status: %d\r\n\r\n",
-				   idText,exten, context, hint, status);
+
+	astman_send_response(s, m, "Success", "Extension Status", 0);
+	cw_cli(s->fd, "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n\r\n", exten, context, hint, status);
+
 	return 0;
 }
 
-static char mandescr_timeout[] = 
+static const char mandescr_timeout[] =
 "Description: Hangup a channel after a certain time.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to hangup\n"
@@ -1501,15 +1488,8 @@ static int process_message(struct mansession *s, struct message *m)
 		if ((authtype = astman_get_header(m, "AuthType")) && !strcasecmp(authtype, "MD5")) {
 			if (cw_strlen_zero(s->challenge))
 				snprintf(s->challenge, sizeof(s->challenge), "%lu", cw_random());
-			if (!cw_strlen_zero(m->actionid))
-				cw_cli(s->fd, "Response: Success\r\n"
-						"ActionID: %s\r\n"
-						"Challenge: %s\r\n\r\n",
-						m->actionid, s->challenge);
-			else
-				cw_cli(s->fd, "Response: Success\r\n"
-						"Challenge: %s\r\n\r\n",
-						s->challenge);
+			astman_send_response(s, m, "Success", NULL, 0);
+			cw_cli(s->fd, "Challenge: %s\r\n\r\n", s->challenge);
 		} else
 			astman_send_error(s, m, "Must specify AuthType");
 	} else if (!strcasecmp(m->action, "Login")) {
@@ -1646,9 +1626,11 @@ static void manager_session_ami_cleanup(void *data)
 		cw_registry_del(&manager_session_registry, sess->reg_entry);
 
 	if (sess->authenticated) {
-		if (option_verbose > 3 && displayconnects)
-			cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
-		cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
+		if (sess->username[0]) {
+			if (option_verbose > 3 && displayconnects)
+				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
+			cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
+		}
 	} else {
 		if (option_verbose > 2 && displayconnects)
 			cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", sess->name);
@@ -1714,10 +1696,11 @@ void *manager_session_ami(void *data)
 				break;
 
 			/* Remove the queued message and signal completion to the reader */
+			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
 			pthread_mutex_lock(&sess->lock);
 			sess->m = NULL;
 			pthread_cond_signal(&sess->ack);
-			pthread_mutex_unlock(&sess->lock);
+			pthread_cleanup_pop(1);
 		}
 
 		if (event) {
@@ -2141,7 +2124,7 @@ static struct manager_action manager_actions[] = {
 		.action = "Version",
 		.authority = 0,
 		.func = action_version,
-		.synopsis = "Return version, hostname and pid of the running Callweaver",
+		.synopsis = "Return version, hostname and pid of the running CallWeaver",
 		.description = mandescr_version,
 	},
 	{
@@ -2491,10 +2474,7 @@ int init_manager(void)
 
 	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
-	cw_cli_register(&show_mancmd_cli);
-	cw_cli_register(&show_mancmds_cli);
-	cw_cli_register(&show_listener_cli);
-	cw_cli_register(&show_manconn_cli);
+	cw_cli_register_multiple(clicmds, arraysize(clicmds));
 	cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 
 	return 0;
