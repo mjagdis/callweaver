@@ -44,6 +44,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <callweaver/cli.h>
 #include <callweaver/time.h>
 #include <callweaver/options.h>
+#include <callweaver/manager.h>
+#include <callweaver/utils.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -64,15 +66,25 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static int console_sock;
-static char *remotehostname;
+
+static char remotehostname[MAXHOSTNAMELEN];
+static int remotepid;
+static char remoteversion[256];
 
 static char *clr_eol;
-static int update_delay;
+
+static int prompt;
+static int progress;
+
+static char **matches;
+static int matches_space;
+static int matches_count;
 
 
 static void smart_write(const char *buf, int len)
 {
-	if (update_delay < 0 && (option_console || option_remote)) {
+	if (prompt && (option_console || option_remote)) {
+		prompt = 0;
 		if (clr_eol) {
 			terminal_write("\r", 1);
 			fputs(clr_eol, stdout);
@@ -81,21 +93,6 @@ static void smart_write(const char *buf, int len)
 	}
 
 	terminal_write(buf, len);
-
-	/* If we have clear to end of line we can redisplay the input line
-	 * every time the output ends in a new line. Otherwise we want to
-	 * wait and see if there's more output coming because we don't
-	 * have any way of backing up and replacing the current line.
-	 * Of course, if we don't care about input there's no problem...
-	 */
-	if (option_console || option_remote) {
-		if (clr_eol && buf[len - 1] == '\n') {
-			rl_forced_update_display();
-			update_delay = -1;
-		} else
-			update_delay = 500;
-	}
-	fflush(stdout);
 }
 
 
@@ -253,31 +250,197 @@ static char *cli_prompt(void)
 }
 
 
-static char **cw_rl_strtoarr(char *buf)
+static int read_message(int s, int nresp)
 {
-	char **match_list = NULL, *retstr;
-	size_t match_list_len;
-	int matches = 0;
+	static char buf[32768];
+	static int pos = 0;
+	static int state = 0;
+	static char *key, *val;
+	static int lkey, lval = -1;
+	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
+	static int level, msgtail, msglen;
+	int res;
 
-	match_list_len = 1;
-	while ( (retstr = strsep(&buf, " ")) != NULL) {
-		if (matches + 1 >= match_list_len) {
-			match_list_len <<= 1;
-			match_list = realloc(match_list, match_list_len * sizeof(char *));
+	do {
+		if ((res = read(s, buf + pos, sizeof(buf) - pos)) <= 0)
+			return -1;
+
+		for (; res; pos++, res--) {
+			switch (state) {
+				case 0: /* Start of header line */
+					if (buf[pos] == '\r') {
+						break;
+					} else if (buf[pos] == '\n') {
+						if (msgtype != MSG_UNKNOWN) {
+							if (nresp > 0)
+								nresp--;
+							if (msgtype == MSG_VERSION) {
+								lkey = sizeof(remoteversion) + sizeof(remotehostname) + sizeof(" running on  (pid 0000000000)") + 1;
+								key = alloca(lkey);
+								lkey = snprintf(key, lkey, "%s running on %s (pid %u)", remoteversion, remotehostname, remotepid);
+
+								set_title(key);
+
+								putc('\n', stdout);
+								fputs(key, stdout);
+								putc('\n', stdout);
+
+								while (lkey > 0) key[--lkey] = '=';
+								fputs(key, stdout);
+								fputs("\n\n", stdout);
+							}
+						}
+						msgtype = MSG_UNKNOWN;
+						level = msgtail = msglen = 0;
+						memmove(buf, &buf[pos + 1], res - 1);
+						lval = pos = -1;
+						break;
+					}
+					key = &buf[pos];
+					state = 1;
+					/* Fall through - the key could be null */
+				case 1: /* In header name, looking for ':' */
+					if (buf[pos] != ':' && buf[pos] != '\r' && buf[pos] != '\n')
+						break;
+					/* End of header name, skip spaces to value */
+					state = 2;
+					lkey = &buf[pos] - key;
+					if (buf[pos] == ':')
+						break;
+					/* Fall through all the way - no colon, no value - want end of line */
+				case 2: /* Skipping spaces before value */
+					if (buf[pos] == ' ' || buf[pos] == '\t')
+						break;
+					val = &buf[pos];
+					state = 3;
+					/* Fall through - we are on the start of the value and it may be blank */
+				case 3: /* In value, looking for end of line */
+					if ((buf[pos] == '\r' || buf[pos] == '\n') && lval < 0)
+						lval = &buf[pos] - val;
+
+					if (buf[pos] == '\n') {
+						if (msgtype == MSG_EVENT) {
+							if (lkey == sizeof("Level")-1 && !memcmp(key, "Level", sizeof("Level" - 1)))
+								level = atol(val);
+							else if (lkey == sizeof("Message Len")-1 && !memcmp(key, "Message Len", sizeof("Message Len") - 1))
+								msgtail = atol(val);
+							else if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
+								if (level == CW_EVENT_NUM_PROGRESS) {
+									smart_write(val + lval - msgtail, (msgtail ? msgtail : 2));
+									/* Progress messages suppress input handling until
+									 * we get a null progress message to signify the end
+									 */
+									progress = (msgtail ? 2 : 0);
+								} else {
+									if (progress == 2) {
+										progress = 1;
+										smart_write("\n", 1);
+									}
+
+									val[lval++] = '\n';
+									if (level == CW_EVENT_NUM_VERBOSE)
+										smart_write(val + lval - (msgtail + 1), msgtail + 1);
+									else
+										smart_write(val, lval);
+								}
+
+							}
+						} else if (msgtype == MSG_RESPONSE) {
+							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1))
+								smart_write(val, lval);
+						} else if (msgtype == MSG_FOLLOWS || msgtype == MSG_COMPLETION) {
+							if (lkey != sizeof("Privilege")-1 || memcmp(key, "Privilege", sizeof("Privilege") - 1)) {
+								state = 4;
+								lval = &buf[pos] - key;
+								if (lval > 0 && key[lval - 1] == '\r')
+									lval--;
+								goto is_data;
+							}
+						} else if (msgtype == MSG_VERSION) {
+							if (lkey == sizeof("Hostname")-1 && !memcmp(key, "Hostname", sizeof("Hostname") - 1)) {
+								if (lval > sizeof(remotehostname) - 1)
+									lval = sizeof(remotehostname) - 1;
+								memcpy(remotehostname, val, lval);
+								val[lval] = '\0';
+							} else if (lkey == sizeof("Pid")-1 && !memcmp(key, "Pid", sizeof("Pid") - 1))
+								remotepid = atol(val);
+							else if (lkey == sizeof("Version")-1 && !memcmp(key, "Version", sizeof("Version") - 1)) {
+								if (lval > sizeof(remoteversion) - 1)
+									lval = sizeof(remoteversion) - 1;
+								memcpy(remoteversion, val, lval);
+								val[lval] = '\0';
+							}
+						} else {
+							/* Event and Response headers are guaranteed to come
+							 * before any other header
+							 */
+							if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1))
+								msgtype = MSG_EVENT;
+							else if (lkey == sizeof("Response") - 1 && !memcmp(key, "Response", sizeof("Response") - 1)) {
+								if (lval == sizeof("Completion") - 1 && !memcmp(val, "Completion", sizeof("Completion") - 1))
+									msgtype = MSG_COMPLETION;
+								else if (lval == sizeof("Follows") - 1 && !memcmp(val, "Follows", sizeof("Follows") - 1))
+									msgtype = MSG_FOLLOWS;
+								else if (lval == sizeof("Version") - 1 && !memcmp(val, "Version", sizeof("Version") - 1))
+									msgtype = MSG_VERSION;
+								else
+									msgtype = MSG_RESPONSE;
+							}
+						}
+
+						memmove(buf, &buf[pos + 1], res - 1);
+						lval = pos = -1;
+						state = 0;
+					}
+					break;
+				case 4: /* Response data - want a line */
+					if ((buf[pos] == '\r' || buf[pos] == '\n') && lval < 0)
+						lval = &buf[pos] - key;
+
+					if (buf[pos] == '\n') {
+is_data:
+						if (lval != sizeof("--END COMMAND--") - 1 || memcmp(key, "--END COMMAND--", sizeof("--END COMMAND--") - 1)) {
+							if (msgtype == MSG_FOLLOWS) {
+								key[lval++] = '\n';
+								smart_write(key, lval);
+							} else if (msgtype == MSG_COMPLETION) {
+								key[lval] = '\0';
+								if (matches_count == matches_space) {
+									char **n = realloc(matches, (matches_space + 64) * sizeof(matches[0]));
+									if (n) {
+										matches_space += 64;
+										matches = n;
+									}
+								}
+								if (matches_count < matches_space && (matches[matches_count] = strdup(key))) {
+									if (!matches[0])
+										matches[0] = strdup(key);
+									if (matches[0]) {
+										for (lval = 0; matches[0][lval] && matches[0][lval] == matches[matches_count][lval]; lval++);
+										matches[0][lval] = '\0';
+									}
+									matches[++matches_count] = NULL;
+								}
+							}
+						} else
+							state = 0;
+
+						memmove(buf, &buf[pos + 1], res - 1);
+						lval = pos = -1;
+						key = buf;
+					}
+					break;
+			}
 		}
 
-		match_list[matches++] = strdup(retstr);
-	}
+		if (pos == sizeof(buf)) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			cw_log(CW_LOG_ERROR, "Console got an overlong line (> %d bytes!)\n", sizeof(buf));
+			break;
+		}
+	} while (nresp);
 
-	if (!match_list)
-		return NULL;
-
-	if (matches>= match_list_len)
-		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
-
-	match_list[matches] = NULL;
-
-	return match_list;
+	return 0;
 }
 
 
@@ -289,52 +452,33 @@ static char *dummy_completer(char *text, int state)
 
 static char **cli_completion(const char *text, int start, int end)
 {
-	char buf[2048];
-	char **matches;
-	int i, res;
+	struct iovec iov[3];
 
-	matches = NULL;
+	if ((matches = malloc(64 * sizeof(matches[0])))) {
+		matches_space = 64 - 2;
+		matches_count = 1;
+		matches[0] = NULL;
 
-	if (option_remote) {
-		char *mbuf;
-		int maxmbuf = 2048;
+		iov[0].iov_base = "Action: Complete\r\nCommand: ";
+		iov[0].iov_len = sizeof("Action: Complete\r\nCommand: ") - 1;
+		iov[1].iov_base = rl_line_buffer;
+		iov[1].iov_len = strlen(rl_line_buffer);
+		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
+		writev(console_sock, iov, arraysize(iov));
 
-		if (!(mbuf = malloc(maxmbuf)))
-			return NULL;
+		read_message(console_sock, 1);
 
-		res = snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"\n", (char *)rl_line_buffer, (char *)text);
-		if (res < sizeof(buf)) {
-			write(console_sock, buf, res);
-			res = 0;
-
-			for (;;) {
-				for (i = 0; read(console_sock, &mbuf[i], 1) == 1 && mbuf[i] != '\n'; i++) {
-					if (i == maxmbuf - 1) {
-						char *nbuf;
-						maxmbuf += 1024;
-						if (!(nbuf = realloc(mbuf, maxmbuf)))
-							break;
-						mbuf = nbuf;
-					}
-				}
-
-				/* If the line starts with STX it's the response we were looking
-				 * for. Otherwise it's an event that's crept in.
-				 */
-				if (mbuf[0] == '\002')
-					break;
-
-				smart_write(mbuf, i);
-			}
-
-			while (i > 0 && (mbuf[i] == '\r' || mbuf[i] == '\n'))
-				mbuf[i--] = '\0';
-
-			matches = cw_rl_strtoarr(mbuf + 1);
+		if (!matches[0]) {
+			int i;
+			for (i = 1; i < matches_count; i++)
+				free(matches[i]);
+			free(matches);
+			matches = NULL;
 		}
-		free(mbuf);
-	} else
-		matches = cw_cli_completion_matches((char*)rl_line_buffer, (char*)text);
+	}
+
+	rl_attempted_completion_over = 1;
 
 	return (matches);
 }
@@ -378,11 +522,20 @@ static void console_handler(char *s)
 				console_cleanup(NULL);
 				exit(0);
 			} else {
-				if (write(console_sock, s, strlen(s)) < 1 || write(console_sock, "\n", 1) < 1) {
+				struct iovec iov[3];
+
+				iov[0].iov_base = "Action: Command\r\nCommand: ";
+				iov[0].iov_len = sizeof("Action: Command\r\nCommand: ") - 1;
+				iov[1].iov_base = s;
+				iov[1].iov_len = strlen(s);
+				iov[2].iov_base = "\r\n\r\n";
+				iov[2].iov_len = sizeof("\r\n\r\n") - 1;
+				if (writev(console_sock, iov, 3) < 1) {
 					cw_log(CW_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					pthread_detach(pthread_self());
 					pthread_cancel(pthread_self());
 				}
+				read_message(console_sock, 1);
 			}
 		}
 	} else if (option_remote) {
@@ -395,7 +548,7 @@ static void console_handler(char *s)
 }
 
 
-static int console_connect(char *spec)
+static int console_connect(char *spec, int events)
 {
 	union {
 		struct sockaddr sa;
@@ -404,7 +557,16 @@ static int console_connect(char *spec)
 	socklen_t salen;
 	int s = -1;
 
-	if (strlen(spec) > sizeof(u.sun.sun_path) - 1) {
+	if (!spec) {
+		int sv[2];
+		struct mansession *sess;
+
+		if (!socketpair(AF_LOCAL, SOCK_STREAM, 0, sv)
+		&& (sess = manager_session_start(&manager_session_ami, sv[0], AF_INTERNAL, "console", sizeof("console") - 1, events, EVENT_FLAG_COMMAND, events))) {
+			s = sv[1];
+			cw_object_put(sess);
+		}
+	} else if (strlen(spec) > sizeof(u.sun.sun_path) - 1) {
 		errno = EINVAL;
 	} else {
 		memset(&u, 0, sizeof(u));
@@ -429,14 +591,12 @@ static int console_connect(char *spec)
 void *console(void *data)
 {
 	char buf[1024];
-	char banner[80];
+	struct iovec iov[6];
+	struct pollfd pfd[2];
 	sigset_t sigs;
 	char *spec = data;
-	char *stringp;
-	char *version;
 	char *p;
-	int res;
-	int pid;
+	char c;
 
 	console_sock = -1;
 
@@ -469,9 +629,10 @@ void *console(void *data)
 		const int reconnects_per_second = 20;
 		int tries;
 
-		fprintf(stderr, "Connecting to Callweaver at %s...\n", spec);
+		if (spec)
+			fprintf(stderr, "Connecting to Callweaver at %s...\n", spec);
 		for (tries = 0; console_sock < 0 && tries < 30 * reconnects_per_second; tries++) {
-			if ((console_sock = console_connect(spec)) < 0) {
+			if ((console_sock = console_connect(spec, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS)) < 0) {
 				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				pthread_testcancel();
 				usleep(1000000 / reconnects_per_second);
@@ -484,83 +645,65 @@ void *console(void *data)
 			break;
 		}
 
-		/* Read the welcome line that contains hostname, version and pid */
-		p = banner;
-		while (p - banner < sizeof(banner) - 1 && read(console_sock, p, 1) == 1 && p[0] != '\r' && p[0] != '\n')
-			p++;
-		*p = '\0';
+		/* Dump the connection banner. We don't need it here */
+		while (read(console_sock, &c, 1) == 1 && c != '\n');
 
 		/* Make sure verbose and debug settings are what we want or higher
 		 * and enable events
 		 */
-		res = snprintf(buf, sizeof(buf), "set verbose atleast %d\nset debug atleast %d\n\020events\n", option_verbose, option_debug);
-		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)));
+		iov[0].iov_base = "Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ";
+		iov[0].iov_len = sizeof("Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ") - 1;
+		iov[1].iov_base = buf;
+		iov[1].iov_len = snprintf(buf, sizeof(buf), "%d", option_verbose);
+		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
+		iov[3].iov_base = "Action: Command\r\nCommand: set debug atleast ";
+		iov[3].iov_len = sizeof("Action: Command\r\nCommand: set verbose atleast ") - 1;
+		iov[4].iov_base = buf;
+		iov[4].iov_len = snprintf(buf, sizeof(buf), "%d", option_debug);
+		iov[5].iov_base = "\r\n\r\n";
+		iov[5].iov_len = sizeof("\r\n\r\n") - 1;
+		writev(console_sock, iov, 6);
+		read_message(console_sock, 4);
 
-		stringp = banner;
-		remotehostname = strsep(&stringp, "/");
-		p = strsep(&stringp, "/");
-		version = strsep(&stringp, "\n");
-		if (!version)
-			version = "Callweaver <Version Unknown>";
-		stringp = remotehostname;
-		strsep(&stringp, ".");
-		pid = (p ? atoi(p) : -1);
+		/* Ok, we're ready. If we are the internal console tell the core to boot if it hasn't already */
+		if (option_console && !fully_booted)
+			kill(cw_mainpid, SIGHUP);
 
-		res = snprintf(buf, sizeof(buf), "%s running on %s (pid %u)", version, remotehostname, pid);
-		if (res < 0 || res >= sizeof(buf))
-			buf[sizeof(buf)-1] = '\0';
+		progress = 0;
+		prompt = 1;
+		rl_callback_handler_install(cli_prompt(), console_handler);
 
-		set_title(buf);
-
-		putc('\n', stdout);
-		fputs(buf, stdout);
-		putc('\n', stdout);
-		for (p = buf; *p; p++)
-			putc('=', stdout);
-		fputs("\n\n", stdout);
-
-		update_delay = -1;
-
-		if (option_console || option_remote)
-			rl_callback_handler_install(cli_prompt(), console_handler);
+		pfd[0].fd = console_sock;
+		pfd[1].fd = fileno(stdin);
+		pfd[0].events = pfd[1].events = POLLIN;
+		pfd[0].revents = pfd[1].revents = 0;
 
 		for (;;) {
-			struct pollfd pfd[2];
 			int ret;
 
 			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 			pthread_testcancel();
 
-			pfd[0].fd = console_sock;
-			pfd[1].fd = fileno(stdin);
-			pfd[0].events = pfd[1].events = POLLIN;
-			pfd[0].revents = pfd[1].revents = 0;
-
-			ret = poll(pfd, (option_console || option_remote ? 2 : 1), update_delay);
+			ret = poll(pfd, (progress ? 1 : 2), -1);
 
 			pthread_testcancel();
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-			if (ret == 0) {
-				if (update_delay >= 0) {
-					rl_forced_update_display();
-					update_delay = -1;
-				}
-			} else if (ret >= 0) {
+			if (ret >= 0) {
 				if (pfd[0].revents) {
-					if ((ret = read(console_sock, buf, sizeof(buf) - 1)) > 0)
-						smart_write(buf, ret);
-					else
+					if (read_message(console_sock, 0))
 						break;
+
+					if (!progress && !prompt) {
+						prompt = 1;
+						rl_forced_update_display();
+						fflush(stdout);
+					}
 				}
 
-				if (pfd[1].revents) {
-					if (update_delay >= 0) {
-						rl_forced_update_display();
-						update_delay = -1;
-					}
+				if (pfd[1].revents)
 					rl_callback_read_char();
-				}
 			} else if (errno != EINTR) {
 				perror("poll");
 				break;
@@ -582,19 +725,25 @@ void *console(void *data)
 
 int console_oneshot(char *spec, char *cmd)
 {
-	char buf[1024];
+	struct iovec iov[3];
+	char c;
 	int s, n;
 
-	if ((s = console_connect(spec)) >= 0) {
+	if ((s = console_connect(spec, 0)) >= 0) {
 		/* Dump the connection banner. We don't need it here */
-		read(s, buf, sizeof(buf));
+		while (read(s, &c, 1) == 1 && c != '\n');
 
-		write(s, cmd, strlen(cmd));
-		write(s, "\n", 2);
+		iov[0].iov_base = "Action: Command\r\nCommand: ";
+		iov[0].iov_len = sizeof("Action: Command\r\nCommand: ") - 1;
+		iov[1].iov_base = cmd;
+		iov[1].iov_len = strlen(cmd);
+		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
+		writev(s, iov, 3);
+
 		shutdown(s, SHUT_WR);
 
-		while ((n = read(s, buf, sizeof(buf))) > 0)
-			write(STDOUT_FILENO, buf, n);
+		while (!read_message(s, -1));
 		close(s);
 		n = 0;
 	} else {

@@ -169,12 +169,11 @@ extern char *astman_get_header(struct message *m, char *var);
 struct cw_variable *astman_get_variables(struct message *m);
 
 /*! Send error in manager transaction */
-extern void astman_send_error(struct mansession *s, struct message *m, char *error);
-extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
-extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
+extern void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete);
+extern void astman_send_error(struct mansession *s, struct message *m, const char *error);
+extern void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
 
 extern void *manager_session_ami(void *data);
-extern void *manager_session_console(void *data);
 extern void *manager_session_log(void *data);
 
 extern struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);

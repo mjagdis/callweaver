@@ -111,9 +111,7 @@ extern int cw_cli_command(int fd, char *s);
  * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
-extern char *cw_cli_generator(char *, char *, int);
-
-extern char **cw_cli_completion_matches(char *, char *);
+extern void cw_cli_generator(int fd, char *text);
 
 extern void cw_cli_init(void);
 

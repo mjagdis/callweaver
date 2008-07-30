@@ -124,6 +124,7 @@ static struct {
 	[CW_EVENT_NUM_EVENT]	= STR_LEN("event"),
 	[CW_EVENT_NUM_DTMF]	= STR_LEN("dtmf"),
 	[CW_EVENT_NUM_DEBUG]	= STR_LEN("debug"),
+	[CW_EVENT_NUM_PROGRESS]	= STR_LEN("progress"),
 
 	[CW_EVENT_NUM_SYSTEM]	= STR_LEN("system"),
 	[CW_EVENT_NUM_CALL]	= STR_LEN("call"),
@@ -607,7 +608,7 @@ char *astman_get_header(struct message *m, char *key)
 		if (!strcasecmp(key, m->header[x].key))
 			return m->header[x].val;
 	}
-	return "";
+	return NULL;
 }
 
 struct cw_variable *astman_get_variables(struct message *m)
@@ -636,30 +637,30 @@ struct cw_variable *astman_get_variables(struct message *m)
 }
 
 
-void astman_send_error(struct mansession *s, struct message *m, char *error)
-{
-	cw_cli(s->fd, "Response: Error\r\n");
-	if (!cw_strlen_zero(m->actionid))
-		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
-	cw_cli(s->fd, "Message: %s\r\n\r\n", error);
-}
-
-
-void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
+void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete)
 {
 	cw_cli(s->fd, "Response: %s\r\n", resp);
+
 	if (!cw_strlen_zero(m->actionid))
 		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
+
 	if (msg)
-		cw_cli(s->fd, "Message: %s\r\n\r\n", msg);
-	else
+		cw_cli(s->fd, "Message: %s\r\n", msg);
+
+	if (complete)
 		cw_cli(s->fd, "\r\n");
 }
 
 
-void astman_send_ack(struct mansession *s, struct message *m, char *msg)
+void astman_send_error(struct mansession *s, struct message *m, const char *error)
 {
-	astman_send_response(s, m, "Success", msg);
+	astman_send_response(s, m, "Error", error, 1);
+}
+
+
+void astman_send_ack(struct mansession *s, struct message *m, const char *msg)
+{
+	astman_send_response(s, m, "Success", msg, 1);
 }
 
 
@@ -696,6 +697,11 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
 	
+	if (!user) {
+		astman_send_error(s, m, "Required header \"Username\" missing");
+		return -1;
+	}
+
 	cfg = cw_config_load("manager.conf");
 	if (!cfg)
 		return -1;
@@ -727,7 +733,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				} else if (ha) {
 					cw_free_ha(ha);
 				}
-				if (!strcasecmp(authtype, "MD5")) {
+				if (authtype && !strcasecmp(authtype, "MD5")) {
 					if (!cw_strlen_zero(key) && !cw_strlen_zero(s->challenge) && !cw_strlen_zero(password)) {
 						char md5key[256] = "";
 						cw_md5_hash_two(md5key, s->challenge, password);
@@ -736,7 +742,7 @@ static int authenticate(struct mansession *s, struct message *m)
 						cw_config_destroy(cfg);
 						return -1;
 					}
-				} else if (password && !strcasecmp(password, pass)) {
+				} else if (pass && password && !strcasecmp(password, pass)) {
 					break;
 				} else {
 					cw_log(CW_LOG_NOTICE, "%s failed to authenticate as '%s'\n", s->name, user);
@@ -761,6 +767,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	return -1;
 }
 
+
 static char mandescr_ping[] = 
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the "
 "  manager connection open.\n"
@@ -768,9 +775,21 @@ static char mandescr_ping[] =
 
 static int action_ping(struct mansession *s, struct message *m)
 {
-	astman_send_response(s, m, "Pong", NULL);
+	astman_send_response(s, m, "Pong", NULL, 1);
 	return 0;
 }
+
+
+static char mandescr_version[] =
+"Description: Returns the version, hostname and pid of the running Callweaver\n";
+
+static int action_version(struct mansession *s, struct message *m)
+{
+	astman_send_response(s, m, "Version", NULL, 0);
+	cw_cli(s->fd, "Version: %s\r\nHostname: %s\r\nPid: %u\r\n\r\n", cw_version_string, hostname, (unsigned int)getpid());
+	return 0;
+}
+
 
 static char mandescr_listcommands[] = 
 "Description: Returns the action name and synopsis for every\n"
@@ -822,11 +841,14 @@ static int action_events(struct mansession *s, struct message *m)
 	char *mask = astman_get_header(m, "EventMask");
 	int res;
 
-	res = set_eventmask(s, mask);
-	if (res > 0)
-		astman_send_response(s, m, "Events On", NULL);
-	else if (res == 0)
-		astman_send_response(s, m, "Events Off", NULL);
+	if (mask) {
+		res = set_eventmask(s, mask);
+		if (res > 0)
+			astman_send_response(s, m, "Events On", NULL, 1);
+		else if (res == 0)
+			astman_send_response(s, m, "Events Off", NULL, 1);
+	} else
+		astman_send_error(s, m, "Required header \"Mask\" missing");
 
 	return 0;
 }
@@ -837,7 +859,7 @@ static char mandescr_logoff[] =
 
 static int action_logoff(struct mansession *s, struct message *m)
 {
-	astman_send_response(s, m, "Goodbye", "Thanks for all the fish.");
+	astman_send_response(s, m, "Goodbye", "Thanks for all the fish.", 1);
 	return -1;
 }
 
@@ -880,11 +902,11 @@ static int action_setvar(struct mansession *s, struct message *m)
         char *varname = astman_get_header(m, "Variable");
         char *varval = astman_get_header(m, "Value");
 	
-	if (!strlen(name)) {
+	if (cw_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (!strlen(varname)) {
+	if (cw_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
@@ -917,11 +939,11 @@ static int action_getvar(struct mansession *s, struct message *m)
 	char *varval;
 	char *varval2=NULL;
 
-	if (!strlen(name)) {
+	if (cw_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (!strlen(varname)) {
+	if (cw_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
@@ -1106,19 +1128,40 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 
-	if (s->handler == manager_session_ami) {
-		cw_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
-		if (!cw_strlen_zero(m->actionid))
-			cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
-	}
+	if (cmd) {
+		astman_send_response(s, m, "Follows", NULL, 0);
 
-	cw_cli_command(s->fd, cmd);
+		cw_cli_command(s->fd, cmd);
 
-	if (s->handler == manager_session_ami)
 		cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
+	}
 
 	return 0;
 }
+
+
+static char mandescr_complete[] =
+"Description: Return possible completions for a CallWeaver CLI command.\n"
+"	*Command: CallWeaver CLI command to complete\n"
+"	ActionID: Optional Action id for message matching.\n";
+
+static int action_complete(struct mansession *s, struct message *m)
+{
+	char *cmd = astman_get_header(m, "Command");
+
+	if (cmd) {
+		astman_send_response(s, m, "Completion", NULL, 0);
+
+		cw_cli_generator(s->fd, cmd);
+
+		cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
+	} else {
+		astman_send_error(s, m, NULL);
+	}
+
+	return 0;
+}
+
 
 static void *fast_originate(void *data)
 {
@@ -1211,18 +1254,18 @@ static int action_originate(struct mansession *s, struct message *m)
 		return 0;
 	}
 	if (!cw_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		astman_send_error(s, m, "Invalid priority\n");
+		astman_send_error(s, m, "Invalid priority");
 		return 0;
 	}
 	if (!cw_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
-		astman_send_error(s, m, "Invalid timeout\n");
+		astman_send_error(s, m, "Invalid timeout");
 		return 0;
 	}
 	cw_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
-		astman_send_error(s, m, "Invalid channel\n");
+		astman_send_error(s, m, "Invalid channel");
 		return 0;
 	}
 	*data++ = '\0';
@@ -1449,8 +1492,7 @@ static int process_message(struct mansession *s, struct message *m)
 	} else if (!strcasecmp(m->action, "Challenge")) {
 		char *authtype;
 
-		authtype = astman_get_header(m, "AuthType");
-		if (!strcasecmp(authtype, "MD5")) {
+		if ((authtype = astman_get_header(m, "AuthType")) && !strcasecmp(authtype, "MD5")) {
 			if (cw_strlen_zero(s->challenge))
 				snprintf(s->challenge, sizeof(s->challenge), "%lu", cw_random());
 			if (!cw_strlen_zero(m->actionid))
@@ -1523,7 +1565,7 @@ static void *manager_session_ami_read(void *data)
 						pthread_cleanup_pop(1);
 						m.action = m.actionid = NULL;
 						m.hdrcount = 0;
-						memcpy(buf, &buf[pos + 1], res - 1);
+						memmove(buf, &buf[pos + 1], res - 1);
 						pos = -1;
 					} else if (buf[pos] == ' ' || buf[pos] == '\t') {
 						/* Continuation of the previous header, backtrack replacing nulls with spaces */
@@ -1684,225 +1726,6 @@ void *manager_session_ami(void *data)
 					cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
 					res = -1;
 				}
-			}
-
-			cw_object_put(eqe->event);
-			free(eqe);
-			if (res < 0)
-				break;
-		}
-	}
-
-	pthread_cleanup_pop(1);
-	return NULL;
-}
-
-
-static void *manager_session_console_read(void *data)
-{
-	char buf[1024];
-	struct message m;
-	struct mansession *sess = data;
-	int pos;
-	int res;
-
-	memset(&m, 0, sizeof(m));
-	m.action = "Command";
-	m.hdrcount = 1;
-	m.header[0].key = "Command";
-	m.header[0].val = buf;
-
-	pos = 0;
-
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-	for (;;) {
-		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0) {
-			pthread_cancel(sess->writer_tid);
-			break;
-		}
-
-		for (; res; pos++, res--) {
-			if (buf[pos] == '\0' || buf[pos] == '\r' || buf[pos] == '\n') {
-				if (pos) {
-					/* End of message, go do it */
-					buf[pos] = '\0';
-					if (buf[0] == '\020') {
-						if (pos - 1 == sizeof("events") - 1 && !strcmp(buf + 1, "events"))
-							sess->send_events = EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS;
-					} else {
-						pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
-						pthread_mutex_lock(&sess->lock);
-						sess->m = &m;
-						pthread_cond_signal(&sess->activity);
-						pthread_cond_wait(&sess->ack, &sess->lock);
-						pthread_cleanup_pop(1);
-					}
-				}
-				memcpy(buf, &buf[pos + 1], res - 1);
-				pos = -1;
-			}
-		}
-
-		if (pos == sizeof(buf)) {
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			cw_log(CW_LOG_ERROR, "Console session %s dropped due to oversize message\n", sess->name);
-			break;
-		}
-	}
-
-	return NULL;
-}
-
-
-static void manager_session_console_cleanup(void *data)
-{
-	struct mansession *sess = data;
-
-	if (sess->reg_entry)
-		cw_registry_del(&manager_session_registry, sess->reg_entry);
-
-	if (option_verbose > 3 && displayconnects)
-		cw_verbose(VERBOSE_PREFIX_2 "Console disconnected from %s\n", sess->name);
-	cw_log(CW_LOG_EVENT, "Console disconnected from %s\n", sess->name);
-
-	if (!pthread_equal(sess->reader_tid, CW_PTHREADT_NULL)) {
-		pthread_cancel(sess->reader_tid);
-		pthread_join(sess->reader_tid, NULL);
-	}
-
-	cw_object_put(sess);
-}
-
-
-void *manager_session_console(void *data)
-{
-	char buf[11];
-	struct mansession *sess = data;
-	int res;
-
-	if (option_verbose > 3 && displayconnects)
-		cw_verbose(VERBOSE_PREFIX_2 "Console connected from %s\n", sess->name);
-	cw_log(CW_LOG_EVENT, "Console connected from %s\n", sess->name);
-
-	write(sess->fd, hostname, strlen(hostname));
-	write(sess->fd, "/", 1);
-	res = snprintf(buf, sizeof(buf), "%d", cw_mainpid);
-	write(sess->fd, buf, res);
-	write(sess->fd, "/", 1);
-	write(sess->fd, cw_version_string, strlen(cw_version_string));
-	write(sess->fd, "\n", 1);
-
-	/* Ok, we're ready. Tell the core to boot if it hasn't already */
-	if (!fully_booted)
-		kill(cw_mainpid, SIGHUP);
-
-	sess->reader_tid = CW_PTHREADT_NULL;
-
-	pthread_cleanup_push(manager_session_console_cleanup, sess);
-
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
-
-	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_console_read, sess))) {
-		cw_log(CW_LOG_ERROR, "Console session reader thread creation failed: %s\n", strerror(res));
-		return NULL;
-	}
-
-	for (;;) {
-		struct eventqent *eqe = NULL;
-
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
-		pthread_mutex_lock(&sess->lock);
-
-		/* If there's no request message and no queued events
-		 * we have to wait for activity.
-		 */
-		if (!sess->m && !sess->eventq)
-			pthread_cond_wait(&sess->activity, &sess->lock);
-
-		/* Unhook the top event (if any) now. Once we have that
-		 * we can unlock the session.
-		 */
-		if ((eqe = sess->eventq))
-			if (!(sess->eventq = sess->eventq->next))
-				sess->eventq_tail = &sess->eventq;
-
-		pthread_cleanup_pop(1);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (sess->m) {
-			if (process_message(sess, sess->m))
-				break;
-
-			/* Remove the queued message and signal completion to the reader */
-			pthread_mutex_lock(&sess->lock);
-			sess->m = NULL;
-			pthread_cond_signal(&sess->ack);
-			pthread_mutex_unlock(&sess->lock);
-		}
-
-		if (eqe) {
-			const char *data = eqe->event->data;
-			const char *msg;
-			int len = eqe->event->len;
-			int logevent, level, msglen, msgtail, l;
-
-			msg = NULL;
-			res = logevent = level = msglen = msgtail = 0;
-
-			while (!res && len > 0) {
-				const char *key = data;
-				int lkey;
-
-				for (l = 0; l < len && data[l] != ':'; l++);
-				if (l == len)
-					break;
-
-				lkey = l;
-
-				data += l + 1;
-				len -= l + 1;
-				while (len && *data == ' ') data++,len--;
-
-				for (l = 0; l < len && data[l] != '\r' && data[l] != '\n'; l++);
-
-				switch (lkey) {
-					case sizeof("Event") - 1:
-						if (!strncmp(key, "Event", sizeof("Event") - 1)) {
-							if (!strncmp(data, "Log", sizeof("Log") - 1))
-								logevent = 1;
-						} else if (!strncmp(key, "Level", sizeof("Level") - 1))
-							level = atol(data);
-						break;
-					case sizeof("Message Len") - 1:
-						if (!strncmp(key, "Message Len", sizeof("Message Len") - 1))
-							msgtail = atol(data);
-						break;
-					case sizeof("Message") - 1:
-						if (!strncmp(key, "Message", sizeof("Message") - 1)) {
-							msg = data;
-							msglen = l;
-						}
-						break;
-				}
-
-				data += l;
-				len -= l;
-				while (len && (*data == '\r' || *data == '\n')) data++,len--;
-			}
-
-			if (logevent && msg) {
-				if (level != CW_EVENT_NUM_VERBOSE && level != CW_EVENT_NUM_PROGRESS) {
-					if (msglen && write(sess->fd, msg, msglen) <= 0)
-						res = -1;
-				} else if (msgtail && write(sess->fd, msg + msglen - msgtail, msgtail) <= 0)
-					res = -1;
-
-				if ((level != CW_EVENT_NUM_PROGRESS || !msgtail) && !res && write(sess->fd, "\r\n", 2) <= 0)
-					res = -1;
 			}
 
 			cw_object_put(eqe->event);
@@ -2302,6 +2125,13 @@ static struct manager_action manager_actions[] = {
 		.description = mandescr_ping,
 	},
 	{
+		.action = "Version",
+		.authority = 0,
+		.func = action_version,
+		.synopsis = "Return version, hostname and pid of the running Callweaver",
+		.description = mandescr_version,
+	},
+	{
 		.action = "Events",
 		.authority = 0,
 		.func = action_events,
@@ -2362,6 +2192,13 @@ static struct manager_action manager_actions[] = {
 		.func = action_command,
 		.synopsis = "Execute CallWeaver CLI Command",
 		.description = mandescr_command,
+	},
+	{
+		.action = "Complete",
+		.authority = EVENT_FLAG_COMMAND,
+		.func = action_complete,
+		.synopsis = "Return possible completions for a CallWeaver CLI Command",
+		.description = mandescr_complete,
 	},
 	{
 		.action = "ExtensionState",
@@ -2490,40 +2327,9 @@ static void manager_listen(const char *spec, void *(* const handler)(void *), in
 		return;
 	}
 
-	if (u.sa.sa_family == AF_LOCAL) {
-		if (handler == manager_session_ami)
-			chmod(u.sun.sun_path, 0666);
-		else if (handler == manager_session_console) {
-			uid_t uid = -1;
-			gid_t gid = -1;
-
-			if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
-				mode_t p;
-				sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
-				if ((chmod(u.sun.sun_path, p)) < 0)
-					cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", u.sun.sun_path, strerror(errno));
-			}
-
-			if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
-				struct passwd *pw;
-				if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
-					cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
-				else
-					uid = pw->pw_uid;
-			}
-
-			if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
-				struct group *grp;
-				if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
-					cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
-				else
-					gid = grp->gr_gid;
-			}
-
-			if (chown(u.sun.sun_path, uid, gid) < 0)
-				cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", u.sun.sun_path, strerror(errno));
-		}
-	}
+	/* Local listener sockets that are not pre-authenticated are public */
+	if (u.sa.sa_family == AF_LOCAL && !writeperm)
+		chmod(u.sun.sun_path, 0666);
 
 	if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
 		cw_object_dup(listener);
@@ -2569,6 +2375,8 @@ int manager_reload(void)
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *bindaddr, *portno;
+	uid_t uid = -1;
+	gid_t gid = -1;
 
 	/* Shut down any existing listeners */
 	cw_registry_iterate(&manager_listener_registry, listener_cancel, NULL);
@@ -2579,7 +2387,34 @@ int manager_reload(void)
 	portno = NULL;
 	displayconnects = 1;
 
-	manager_listen(cw_config_CW_SOCKET, manager_session_console, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
+	/* Start the listener for pre-authenticated consoles */
+	manager_listen(cw_config_CW_SOCKET, manager_session_ami, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
+
+	if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
+		mode_t p;
+		sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
+		if ((chmod(cw_config_CW_SOCKET, p)) < 0)
+			cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
+	}
+
+	if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
+		struct passwd *pw;
+		if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
+			cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
+		else
+			uid = pw->pw_uid;
+	}
+
+	if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
+		struct group *grp;
+		if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
+			cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
+		else
+			gid = grp->gr_gid;
+	}
+
+	if (chown(cw_config_CW_SOCKET, uid, gid) < 0)
+		cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
 
 	/* Overlay configured values from the config file */
 	cfg = cw_config_load("manager.conf");

@@ -544,11 +544,6 @@ static char nodebugchan_help[] =
 "Usage: no debug channel <channel>\n"
 "       Disables debugging on a specific channel.\n";
 
-static char commandmatchesarray_help[] = 
-"Usage: _command matchesarray \"<line>\" text \n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
 static int handle_softhangup(int fd, int argc, char *argv[])
 {
     struct cw_channel *c=NULL;
@@ -561,28 +556,6 @@ static int handle_softhangup(int fd, int argc, char *argv[])
         cw_mutex_unlock(&c->lock);
     } else
         cw_cli(fd, "%s is not a known channel\n", argv[2]);
-    return RESULT_SUCCESS;
-}
-
-static int handle_commandmatchesarray(int fd, int argc, char *argv[])
-{
-    char **matches;
-    int i;
-
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-
-    if ((matches = cw_cli_completion_matches(argv[2], argv[3]))) {
-        cw_cli(fd, "\002");
-        for (i = 0; matches[i]; i++) {
-	    cw_cli(fd, "%s%s", (i ? " " : ""), matches[i]);
-            free(matches[i]);
-        }
-	cw_cli(fd, "\n");
-        free(matches);
-    } else
-        cw_cli(fd, "\002NULL\n");
-
     return RESULT_SUCCESS;
 }
 
@@ -814,12 +787,6 @@ static int handle_help(int fd, int argc, char *argv[]);
 
 static struct cw_clicmd builtins[] = {
     {
-        .cmda = { "_command", "matchesarray", NULL },
-        .handler = handle_commandmatchesarray,
-        .summary = "Returns command matches array",
-        .usage = commandmatchesarray_help
-    },
-    {
         .cmda = { "debug", "channel", NULL },
         .handler = handle_debugchan,
         .summary = "Enable debugging on a channel",
@@ -943,13 +910,10 @@ static int help_workhorse_one(struct cw_object *obj, void *data)
     struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct help_workhorse_args *args = data;
 
-    /* Hide commands that start with '_' */
-    if (clicmd->cmda[0][0] != '_') {
-        join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
+    join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
 
-        if (!args->match || !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr)))
-            cw_cli(args->fd, "%25.25s  %s\n", fullcmd, clicmd->summary);
-    }
+    if (!args->match || !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr)))
+        cw_cli(args->fd, "%25.25s  %s\n", fullcmd, clicmd->summary);
 
     return 0;
 }
@@ -1062,111 +1026,64 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
 }
 
 
-char **cw_cli_completion_matches(char *text, char *word)
-{
-    char **match_list = NULL, *retstr, *prevstr;
-    size_t match_list_len, max_equal, which, i;
-    int matches = 0;
-
-    match_list_len = 1;
-    while ((retstr = cw_cli_generator(text, word, matches)) != NULL) {
-        if (matches + 1 >= match_list_len) {
-            match_list_len <<= 1;
-            match_list = realloc(match_list, match_list_len * sizeof(char *));
-        }
-        match_list[++matches] = retstr;
-    }
-
-    if (!match_list)
-        return (char **) NULL;
-
-    which = 2;
-    prevstr = match_list[1];
-    max_equal = strlen(prevstr);
-    for (; which <= matches; which++) {
-        for (i = 0; i < max_equal && toupper(prevstr[i]) == toupper(match_list[which][i]); i++)
-            continue;
-        max_equal = i;
-    }
-
-    retstr = malloc(max_equal + 1);
-    (void) strncpy(retstr, match_list[1], max_equal);
-    retstr[max_equal] = '\0';
-    match_list[0] = retstr;
-
-    if (matches + 1 >= match_list_len)
-        match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
-    match_list[matches + 1] = (char *) NULL;
-
-    return (match_list);
-}
-
-
 struct cli_generator_args {
-    char *argv[CW_MAX_ARGS];
     char matchstr[80];
+    char *argv[CW_MAX_ARGS];
     char *word;
-    char *res;
-    int state;
-    int argc;
-    int tws;
-    int matchnum;
+    int fd;
+    int lastarg;
+    int lastarg_len;
 };
 
 static int cli_generator_one(struct cw_object *obj, void *data)
 {
-    char fullcmd[80] = "";
     struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct cli_generator_args *args = data;
     char *res;
+    int i, j;
 
-    join(fullcmd, sizeof(fullcmd), clicmd->cmda, args->tws);
-
-    if ((fullcmd[0] != '_') && !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr))) {
-        /* We contain the first part of one or more commands */
-        /* Now, what we're supposed to return is the next word... */
-        if (!cw_strlen_zero(args->word) && args->argc > 0)
-            res = clicmd->cmda[args->argc - 1];
-        else
-            res = clicmd->cmda[args->argc];
-
-        if (res) {
-            args->matchnum++;
-            if (args->matchnum > args->state) {
-                args->res = strdup(res);
-                return 1;
-            }
-        }
+    for (i = 0; i < args->lastarg; i++) {
+        if (!clicmd->cmda[i] || strcasecmp(args->argv[i], clicmd->cmda[i]))
+            break;
     }
 
-    if (clicmd->generator && !strncasecmp(args->matchstr, fullcmd, strlen(fullcmd)) && (args->matchstr[strlen(fullcmd)] < 33)) {
-        /* We have a command in its entirity within us -- theoretically only one
-           command can have this occur */
-        args->res = clicmd->generator(args->matchstr, args->word, (!cw_strlen_zero(args->word) ? args->argc - 1 : args->argc), args->state);
-        if (args->res)
-            return 1;
+    /* If we matched everything we were given we have a result. */
+    if (i == args->lastarg) {
+        if (clicmd->cmda[i]) {
+            if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
+                cw_cli(args->fd, "%s\r\n", clicmd->cmda[i]);
+        } else if (clicmd->generator) {
+            j = 0;
+            while ((res = clicmd->generator(args->matchstr, args->argv[args->lastarg], i, j++))) {
+                cw_cli(args->fd, "%s\r\n", res);
+                free(res);
+            }
+        }
     }
 
     return 0;
 }
 
-char *cw_cli_generator(char *text, char *word, int state)
+void cw_cli_generator(int fd, char *text)
 {
     struct cli_generator_args args = {
-        .word = word,
-        .state = state,
-        .res = NULL,
+        .fd = fd,
     };
     char *dup;
+    int tws;
 
-    if ((dup = parse_args(text, &args.argc, args.argv, arraysize(args.argv), &args.tws))) {
-        join(args.matchstr, sizeof(args.matchstr), args.argv, args.tws);
-        args.matchnum = 0;
+    if ((dup = parse_args(text, &args.lastarg, args.argv, arraysize(args.argv) - 1, &tws))) {
+        join(args.matchstr, sizeof(args.matchstr), args.argv, tws);
+	if (tws || args.lastarg == 0)
+		args.argv[args.lastarg] = "";
+	else
+		args.lastarg--;
+
+	args.lastarg_len = strlen(args.argv[args.lastarg]);
+
         cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
         free(dup);
     }
-
-    return args.res;
 }
 
 
