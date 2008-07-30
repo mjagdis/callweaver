@@ -216,8 +216,8 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 		eqe->next = NULL;
 		eqe->event = cw_object_dup(event);
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-		cw_mutex_lock(&sess->lock);
+		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+		pthread_mutex_lock(&sess->lock);
 
 		if (!sess->eventq)
 			pthread_cond_signal(&sess->activity);
@@ -592,9 +592,9 @@ static void mansession_release(struct cw_object *obj)
 		free(eqe);
 	}
 
-	cw_mutex_destroy(&sess->lock);
-	cw_cond_destroy(&sess->ack);
-	cw_cond_destroy(&sess->activity);
+	pthread_mutex_destroy(&sess->lock);
+	pthread_cond_destroy(&sess->ack);
+	pthread_cond_destroy(&sess->activity);
 	free(sess);
 }
 
@@ -663,7 +663,7 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 }
 
 
-static int set_eventmask(struct mansession *s, char *eventmask)
+static int set_eventmask(struct mansession *sess, char *eventmask)
 {
 	int maskint = -1;
 
@@ -676,11 +676,13 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	else
 		maskint = manager_str_to_eventmask(eventmask);
 
-	cw_mutex_lock(&s->lock);
+	pthread_mutex_lock(&sess->lock);
+
 	if (maskint >= 0)	
-		s->send_events = maskint;
-	cw_mutex_unlock(&s->lock);
-	
+		sess->send_events = maskint;
+
+	pthread_mutex_unlock(&sess->lock);
+
 	return maskint;
 }
 
@@ -1513,8 +1515,8 @@ static void *manager_session_ami_read(void *data)
 						buf[pos] = '\0';
 					} else if (buf[pos] == '\n') {
 						/* End of message, go do it */
-						pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-						cw_mutex_lock(&sess->lock);
+						pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+						pthread_mutex_lock(&sess->lock);
 						sess->m = &m;
 						pthread_cond_signal(&sess->activity);
 						pthread_cond_wait(&sess->ack, &sess->lock);
@@ -1637,8 +1639,8 @@ void *manager_session_ami(void *data)
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-		cw_mutex_lock(&sess->lock);
+		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+		pthread_mutex_lock(&sess->lock);
 
 		/* If there's no request message and no queued events
 		 * we have to wait for activity.
@@ -1662,10 +1664,10 @@ void *manager_session_ami(void *data)
 				break;
 
 			/* Remove the queued message and signal completion to the reader */
-			cw_mutex_lock(&sess->lock);
+			pthread_mutex_lock(&sess->lock);
 			sess->m = NULL;
 			pthread_cond_signal(&sess->ack);
-			cw_mutex_unlock(&sess->lock);
+			pthread_mutex_unlock(&sess->lock);
 		}
 
 		if (eqe) {
@@ -1729,8 +1731,8 @@ static void *manager_session_console_read(void *data)
 						if (pos - 1 == sizeof("events") - 1 && !strcmp(buf + 1, "events"))
 							sess->send_events = EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS;
 					} else {
-						pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-						cw_mutex_lock(&sess->lock);
+						pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+						pthread_mutex_lock(&sess->lock);
 						sess->m = &m;
 						pthread_cond_signal(&sess->activity);
 						pthread_cond_wait(&sess->ack, &sess->lock);
@@ -1811,8 +1813,8 @@ void *manager_session_console(void *data)
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-		cw_mutex_lock(&sess->lock);
+		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+		pthread_mutex_lock(&sess->lock);
 
 		/* If there's no request message and no queued events
 		 * we have to wait for activity.
@@ -1836,10 +1838,10 @@ void *manager_session_console(void *data)
 				break;
 
 			/* Remove the queued message and signal completion to the reader */
-			cw_mutex_lock(&sess->lock);
+			pthread_mutex_lock(&sess->lock);
 			sess->m = NULL;
 			pthread_cond_signal(&sess->ack);
-			cw_mutex_unlock(&sess->lock);
+			pthread_mutex_unlock(&sess->lock);
 		}
 
 		if (eqe) {
@@ -1940,8 +1942,8 @@ void *manager_session_log(void *data)
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-		cw_mutex_lock(&sess->lock);
+		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+		pthread_mutex_lock(&sess->lock);
 
 		/* If there are no queued events we have to wait for activity. */
 		if (!sess->m && !sess->eventq)
@@ -2097,9 +2099,9 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 	cw_object_get(sess);
-	cw_mutex_init(&sess->lock);
-	cw_cond_init(&sess->activity, NULL);
-	cw_cond_init(&sess->ack, NULL);
+	pthread_mutex_init(&sess->lock, NULL);
+	pthread_cond_init(&sess->activity, NULL);
+	pthread_cond_init(&sess->ack, NULL);
 	sess->obj.release = mansession_release;
 
 	cw_object_dup(sess);

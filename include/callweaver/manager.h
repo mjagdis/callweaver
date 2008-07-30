@@ -84,9 +84,9 @@ struct mansession {
 	struct eventqent **eventq_tail;	/*!< Queued events that we've not had the ability to send yet */
 	void *(*handler)(void *);
 	int fd;
-	cw_mutex_t lock;
-	cw_cond_t activity;
-	cw_cond_t ack;
+	pthread_mutex_t lock;
+	pthread_cond_t activity;
+	pthread_cond_t ack;
 	struct message *m;
 	pthread_t reader_tid;
 	pthread_t writer_tid;
