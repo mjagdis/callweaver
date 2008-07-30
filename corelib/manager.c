@@ -92,6 +92,7 @@ struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	int sock;
+	struct mansession *sess;
 	pthread_t tid;
 	char spec[0];
 };
@@ -1627,18 +1628,24 @@ static void accept_thread_cleanup(void *data)
 		if (listener->spec[0] == '/')
 			unlink(listener->spec);
 	}
+
+	if (listener->sess) {
+		if (listener->sess->name)
+			free(listener->sess->name);
+		free(listener->sess);
+	}
 }
 
 static void *accept_thread(void *data)
 {
 	struct manager_listener *listener = data;
+	struct mansession *sess;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_un sun;
 		struct sockaddr_in sin;
 	} u;
 	socklen_t salen;
-	struct mansession *sess;
 	int arg = 1;
 	int flags;
 
@@ -1700,18 +1707,19 @@ static void *accept_thread(void *data)
 	if (option_verbose)
 		cw_verbose("CallWeaver Management interface listening on %s\n", listener->spec);
 
-	sess = NULL;
+	listener->sess = sess = NULL;
 
 	for (;;) {
 		char buf[256];
 
-		if (!sess) {
+		if (!listener->sess) {
 			if ((sess = calloc(1, sizeof(struct mansession))) == NULL) {
 				cw_log(CW_LOG_ERROR, "Out of memory\n");
 				sleep(1);
 				continue;
 			}
 
+			listener->sess = sess;
 			cw_object_init(sess, NULL, 1);
 			cw_mutex_init(&sess->__lock);
 			sess->send_events = -1;
@@ -1752,7 +1760,7 @@ static void *accept_thread(void *data)
 
 		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, sess)) {
 			/* The thread has this session now */
-			sess = NULL;
+			listener->sess = sess = NULL;
 		} else {
 			cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 			close(sess->fd);
