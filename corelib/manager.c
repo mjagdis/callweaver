@@ -1559,7 +1559,9 @@ static void session_reader_cleanup(void *data)
 		pthread_join(sess->writer_tid, NULL);
 	}
 
-	cw_registry_del(&manager_session_registry, sess->reg_entry);
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
 	cw_object_put(sess);
 }
 
@@ -1578,14 +1580,16 @@ static void *session_reader(void *data)
 
 	pthread_cleanup_push(session_reader_cleanup, sess);
 
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
-
-	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
+	sess->reg_entry = NULL;
 
 	if ((res = cw_pthread_create(&sess->writer_tid, &global_attr_default, session_writer, sess))) {
 		cw_log(CW_LOG_ERROR, "session write thread creation failed: %s\n", strerror(res));
 		return NULL;
 	}
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
+
+	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
 
 	memset(&m, 0, sizeof(m));
 
