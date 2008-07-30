@@ -1853,7 +1853,7 @@ int init_manager(void)
 	static struct listener listener;
 	struct cw_config *cfg;
 	struct sockaddr_in *sin;
-	char *val;
+	struct cw_variable *v;
 
 	if (!registered) {
 		listener.tid = CW_PTHREADT_NULL;
@@ -1868,59 +1868,60 @@ int init_manager(void)
 		registered = 1;
 	}
 
+	/* Shut down any existing listeners */
 	if (!pthread_equal(listener.tid, CW_PTHREADT_NULL)) {
 		pthread_cancel(listener.tid);
 		pthread_join(listener.tid, NULL);
 		listener.tid = CW_PTHREADT_NULL;
 	}
 
+	/* Reset to hard coded defaults */
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
-	cfg = cw_config_load("manager.conf");
-	if (!cfg) {
-		cw_log(CW_LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
-		return 0;
-	}
-	val = cw_variable_retrieve(cfg, "general", "enabled");
-	if (val)
-		enabled = cw_true(val);
-
-	val = cw_variable_retrieve(cfg, "general", "block-sockets");
-	if (val)
-		block_sockets = cw_true(val);
-
-	if ((val = cw_variable_retrieve(cfg, "general", "port"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
-			cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", val);
-			portno = DEFAULT_MANAGER_PORT;
-		}
-	} else if ((val = cw_variable_retrieve(cfg, "general", "portno"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
-			cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", val);
-			portno = DEFAULT_MANAGER_PORT;
-		}
-		cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
-	}
-	/* Parsing the displayconnects */
-	if ((val = cw_variable_retrieve(cfg, "general", "displayconnects")))
-		displayconnects = cw_true(val);
-
 	sin = (struct sockaddr_in *)&listener.sa;
 	sin->sin_family = AF_INET;
-	sin->sin_port = htons(portno);
 	memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
 
-	if ((val = cw_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &sin->sin_addr)) { 
-			cw_log(CW_LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-			memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
+	/* Overlay configured values from the config file */
+	cfg = cw_config_load("manager.conf");
+	if (!cfg) {
+		cw_log(CW_LOG_NOTICE, "Unable to open managemer configuration manager.conf. Using defaults.\n");
+	} else {
+		for (v = cw_variable_browse(cfg, "general"); v; v = v->next) {
+			if (!strcmp(v->name, "enabled"))
+				enabled = cw_true(v->value);
+			else if (!strcmp(v->name, "block-sockets"))
+				block_sockets = cw_true(v->value);
+			else if (!strcmp(v->name, "displayconnects"))
+				displayconnects = cw_true(v->value);
+			else if (!strcmp(v->name, "bindaddr")) {
+				if (!inet_aton(v->value, &sin->sin_addr)) {
+					cw_log(CW_LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", v->value);
+					memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
+				}
+			} else if (!strcmp(v->name, "port")) {
+				if (sscanf(v->value, "%d", &portno) != 1) {
+					cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", v->value);
+					portno = DEFAULT_MANAGER_PORT;
+				}
+
+			/* DEPRECATED */
+			} else if (!strcmp(v->name, "portno")) {
+				cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", v->value);
+				if (sscanf(v->value, "%d", &portno) != 1) {
+					cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", v->value);
+					portno = DEFAULT_MANAGER_PORT;
+				}
+			}
 		}
+
+		cw_config_destroy(cfg);
 	}
 
-	cw_config_destroy(cfg);
-
-	if (enabled)
+	if (enabled) {
+		sin->sin_port = htons(portno);
 		cw_pthread_create(&listener.tid, &global_attr_default, accept_thread, &listener);
+	}
 
 	return 0;
 }
