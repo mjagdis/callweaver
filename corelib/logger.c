@@ -642,10 +642,10 @@ void close_logger(void)
 	return;
 }
 
-static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const char *function, const char *msg)
 {
 	char buf[BUFSIZ];
-	char *s;
+	int l;
 
 	if (level >= SYSLOG_NLEVELS) {
 		/* we are locked here, so cannot cw_log() */
@@ -662,8 +662,8 @@ static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const
 		snprintf(buf, sizeof(buf), "%s[" TIDFMT "]: %s:%d in %s: ",
 			 levels[level], GETTID(), file, line, function);
 	}
-	s = buf + strlen(buf);
-	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
+	l = strlen(buf);
+	cw_copy_string(buf + l, msg, sizeof(buf) - l);
 	syslog(syslog_level_map[level], "%s", buf);
 }
 
@@ -672,12 +672,11 @@ static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const
  */
 void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	struct logchannel *chan;
-	char buf[BUFSIZ];
-	time_t t;
-	struct tm tm;
+	char msg[BUFSIZ], buf[BUFSIZ];
 	char date[256];
-
+	struct tm tm;
+	struct logchannel *chan;
+	time_t now;
 	va_list ap;
 	
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
@@ -698,42 +697,38 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
+	time(&now);
+	localtime_r(&now, &tm);
+	strftime(date, sizeof(date), dateformat, &tm);
+
+	va_start(ap, fmt);
+	vsnprintf(msg, sizeof(msg), fmt, ap);
+	va_end(ap);
+
 	/* begin critical section */
 	cw_mutex_lock(&loglock);
 
-	time(&t);
-	localtime_r(&t, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
-
 	if (logfiles.event_log && level == __CW_LOG_EVENT) {
-		va_start(ap, fmt);
-
-		fprintf(eventlog, "%s callweaver[%d]: ", date, getpid());
-		vfprintf(eventlog, fmt, ap);
+		fprintf(eventlog, "%s callweaver[%d]: %s", date, getpid(), msg);
 		fflush(eventlog);
-
-		va_end(ap);
 		cw_mutex_unlock(&loglock);
 		return;
 	}
 
 	if (logchannels) {
+		manager_event(EVENT_FLAG_LOG, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage: %s", now, level, GETTID(), file, line, function, msg);
+
 		chan = logchannels;
-		while(chan && !chan->disabled) {
+		while (chan && !chan->disabled) {
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
-				va_start(ap, fmt);
-				cw_log_vsyslog(level, file, line, function, fmt, ap);
-				va_end(ap);
+				cw_log_vsyslog(level, file, line, function, msg);
 			/* Console channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
 				if (level != __CW_LOG_VERBOSE) {
 					snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
 					cw_console_puts(buf);
-					va_start(ap, fmt);
-					vsnprintf(buf, sizeof(buf), fmt, ap);
-					va_end(ap);
-					cw_console_puts(buf);
+					cw_console_puts(msg);
 				}
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
@@ -751,9 +746,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 					chan->disabled = 1;	
 				} else {
 					/* No error message, continue printing */
-					va_start(ap, fmt);
-					vfprintf(chan->fileptr, fmt, ap);
-					va_end(ap);
+					fputs(msg, chan->fileptr);
 					fflush(chan->fileptr);
 				}
 			}
@@ -766,9 +759,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		*/
 		if (level != __CW_LOG_VERBOSE) {
 			fprintf(stdout, (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
-			va_start(ap, fmt);
-			vfprintf(stdout, fmt, ap);
-			va_end(ap);
+			fputs(msg, stdout);
 		}
 	}
 
