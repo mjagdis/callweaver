@@ -87,7 +87,6 @@ extern void del_manager_hook(struct manager_custom_hook *hook);
 
 /* Export manager structures */
 #define MAX_HEADERS 80
-#define MAX_LEN 256
 
 struct eventqent {
 	struct eventqent *next;
@@ -113,8 +112,6 @@ struct mansession {
 	int authenticated;		/*!< Authentication status */
 	int readperm;			/*!< Authorization for reading */
 	int writeperm;			/*!< Authorization for writing */
-	char inbuf[MAX_LEN];
-	int inlen;
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	int writetimeout;		/*!< Timeout for cw_carefulwrite() */
@@ -123,8 +120,13 @@ struct mansession {
 
 
 struct message {
+	char *actionid;
+	char *action;
 	int hdrcount;
-	char headers[MAX_HEADERS][MAX_LEN];
+	struct {
+		char *key;
+		char *val;
+	} header[MAX_HEADERS];
 };
 
 struct manager_action {
