@@ -78,7 +78,6 @@ static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
 
 CW_MUTEX_DEFINE_STATIC(msglist_lock);
 CW_MUTEX_DEFINE_STATIC(loglock);
-static int global_logmask = -1;
 
 static struct {
 	unsigned int queue_log:1;
@@ -507,8 +506,6 @@ static void init_logger_chain(void)
 	logchannels = NULL;
 	cw_mutex_unlock(&loglock);
 
-	global_logmask = 0;
-	/* close syslog */
 	closelog();
 	
 	cfg = cw_config_load("logger.conf");
@@ -545,7 +542,6 @@ static void init_logger_chain(void)
 		if (chan) {
 			chan->next = logchannels;
 			logchannels = chan;
-			global_logmask |= chan->logmask;
 		}
 		var = var->next;
 	}
@@ -824,10 +820,6 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		return;
 	}
 
-	/* Ignore anything that never gets logged anywhere */
-	if (!(global_logmask & (1 << level)))
-		return;
-	
 	/* Ignore anything other than the currently debugged file if there is one */
 	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
