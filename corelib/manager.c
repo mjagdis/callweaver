@@ -1898,6 +1898,7 @@ static void manager_event_free(struct cw_object *obj)
 static int make_event(struct manager_event_args *args)
 {
 	struct manager_event *event;
+	va_list aq;
 	int alloc = 256;
 	int used;
 
@@ -1911,7 +1912,9 @@ again:
 		if (alloc - used > 2)
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
-		used += vsnprintf(args->me->data + used, alloc - used, args->fmt, args->ap);
+		va_copy(aq, args->ap);
+		used += vsnprintf(args->me->data + used, alloc - used, args->fmt, aq);
+		va_end(aq);
 		if (alloc - used > 2)
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
