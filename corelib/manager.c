@@ -1484,7 +1484,6 @@ static int process_message(struct mansession *s, struct message *m)
 static void *manager_session_ami_read(void *data)
 {
 	char buf[32768];
-	struct pollfd pfd;
 	struct message m;
 	struct mansession *sess = data;
 	char **hval;
@@ -1493,9 +1492,6 @@ static void *manager_session_ami_read(void *data)
 
 	memset(&m, 0, sizeof(m));
 
-	pfd.fd = sess->fd;
-	pfd.events = POLLIN;
-
 	pos = 0;
 	state = 0;
 	hval = NULL;
@@ -1503,22 +1499,6 @@ static void *manager_session_ami_read(void *data)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	for (;;) {
-
-		res = poll(&pfd, 1, -1);
-
-		if (res < 0) {
-			if (errno == EINTR)
-				continue;
-			if (errno == ENOMEM) {
-				sleep(5);
-				continue;
-			}
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			cw_log(CW_LOG_WARNING, "Poll failed: %s\n", strerror(errno));
-			pthread_cancel(sess->writer_tid);
-			break;
-		}
-
 		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0) {
 			pthread_cancel(sess->writer_tid);
 			break;
@@ -1711,11 +1691,9 @@ void *manager_session_ami(void *data)
 static void *manager_session_console_read(void *data)
 {
 	char buf[1024];
-	struct pollfd pfd;
 	struct message m;
 	struct mansession *sess = data;
-	char **hval;
-	int pos, state;
+	int pos;
 	int res;
 
 	memset(&m, 0, sizeof(m));
@@ -1724,12 +1702,7 @@ static void *manager_session_console_read(void *data)
 	m.header[0].key = "Command";
 	m.header[0].val = buf;
 
-	pfd.fd = sess->fd;
-	pfd.events = POLLIN;
-
 	pos = 0;
-	state = 0;
-	hval = NULL;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
