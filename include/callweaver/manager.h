@@ -35,6 +35,7 @@
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
+#include "callweaver/logger.h"
 
 /*!
   \file manager.h
@@ -55,14 +56,6 @@
     doc/manager.txt
  
  */
- 
-#define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
-#define EVENT_FLAG_CALL			(1 << 1) /* Call event, such as state change, etc */
-#define EVENT_FLAG_LOG			(1 << 2) /* Log events */
-#define EVENT_FLAG_VERBOSE		(1 << 3) /* Verbose messages */
-#define EVENT_FLAG_COMMAND		(1 << 4) /* Ability to read/set commands */
-#define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
-#define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 
 
 struct manager_event {
@@ -159,6 +152,8 @@ extern struct cw_registry manager_action_registry;
 		cw_manager_action_unregister(&__aptr[i]); \
 } while (0)
 
+
+extern int manager_str_to_eventmask(char *events);
 
 /*! External routines may send callweaver manager events this way */
 /*! 	\param category	Event category, matches manager authorization

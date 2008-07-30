@@ -26,7 +26,9 @@
 #include "confdefs.h"
 #endif
 
-#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -34,7 +36,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/stat.h>
 #ifdef STACK_BACKTRACES
 #if defined(__linux__)
 #include <execinfo.h>
@@ -45,20 +46,6 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
-/* Callweaver includes are going to redefine these for cw_log use
- * so we need to build this map _before_ any callweaver includes.
- */
-static int syslog_level_map[] = {
-	LOG_DEBUG,
-	LOG_INFO,    /* arbitrary equivalent of LOG_EVENT */
-	LOG_NOTICE,
-	LOG_WARNING,
-	LOG_ERR,
-	LOG_DEBUG,
-	LOG_DEBUG
-};
-
-#define SYSLOG_NLEVELS 6
 
 #include "callweaver.h"
 
@@ -91,7 +78,6 @@ static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
 
 CW_MUTEX_DEFINE_STATIC(msglist_lock);
 CW_MUTEX_DEFINE_STATIC(loglock);
-static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
 static struct {
@@ -113,11 +99,11 @@ enum logtypes {
 };
 
 struct logchannel {
+	struct mansession *sess;
 	int logmask;			/* What to log to this channel */
 	int disabled;			/* If this channel is disabled or not */
 	int facility; 			/* syslog facility */
 	enum logtypes type;		/* Type of log channel */
-	FILE *fileptr;			/* logfile logging file pointer */
 	char filename[256];		/* Filename */
 	struct logchannel *next;	/* Next channel in chain */
 };
@@ -128,48 +114,244 @@ static int msgcnt = 0;
 
 static FILE *eventlog = NULL;
 
+
 static char *levels[] = {
-	"DEBUG",
-	"EVENT",
-	"NOTICE",
-	"WARNING",
-	"ERROR",
-	"VERBOSE",
-	"DTMF"
+	[CW_EVENT_NUM_ERROR]	= "ERROR",
+	[CW_EVENT_NUM_WARNING]	= "WARNING",
+	[CW_EVENT_NUM_NOTICE]	= "NOTICE",
+	[CW_EVENT_NUM_VERBOSE]	= "VERBOSE",
+	[CW_EVENT_NUM_EVENT]	= "EVENT",
+	[CW_EVENT_NUM_DTMF]	= "DTMF",
+	[CW_EVENT_NUM_DEBUG]	= "DEBUG",
 };
 
 
-static int make_components(char *s, int lineno)
+static int priorities[] = {
+	[CW_EVENT_NUM_ERROR]	= LOG_ERR,
+	[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
+	[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
+	[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
+	[CW_EVENT_NUM_EVENT]	= LOG_INFO,
+	[CW_EVENT_NUM_DTMF]	= LOG_INFO,
+	[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
+};
+
+
+static int logger_manager_event_console(struct mansession *sess, struct manager_event *event)
 {
-	char *w;
-	int res = 0;
-	char *stringp=NULL;
-	stringp=s;
-	w = strsep(&stringp, ",");
-	while(w) {
-		while(*w && (*w < 33))
-			w++;
-		if (!strcasecmp(w, "error")) 
-			res |= (1 << __CW_LOG_ERROR);
-		else if (!strcasecmp(w, "warning"))
-			res |= (1 << __CW_LOG_WARNING);
-		else if (!strcasecmp(w, "notice"))
-			res |= (1 << __CW_LOG_NOTICE);
-		else if (!strcasecmp(w, "event"))
-			res |= (1 << __CW_LOG_EVENT);
-		else if (!strcasecmp(w, "debug"))
-			res |= (1 << __CW_LOG_DEBUG);
-		else if (!strcasecmp(w, "verbose"))
-			res |= (1 << __CW_LOG_VERBOSE);
-		else if (!strcasecmp(w, "dtmf"))
-			res |= (1 << __CW_LOG_DTMF);
-		else {
-			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
+	static struct {
+		int l;
+		char *s;
+	} keys[] = {
+#define LENSTR(x)	sizeof(x) - 1, x
+		{ LENSTR("Timestamp") },
+		{ LENSTR("Level") },
+		{ LENSTR("Thread ID") },
+		{ LENSTR("File") },
+		{ LENSTR("Line") },
+		{ LENSTR("Func") },
+		{ LENSTR("Message") },
+#undef LENSTR
+	};
+	char buf[BUFSIZ];
+	char date[256];
+	struct {
+		int l;
+		char *s;
+	} vals[arraysize(keys)];
+	struct tm tm;
+	time_t when;
+	char *key, *ekey;
+	char *val, *eval;
+	int lkey, lval;
+	int i;
+
+	memset(vals, 0, sizeof(vals));
+
+	key = event->data;
+	while (*key) {
+		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+		if (!*ekey)
+			break;
+
+		for (val = ekey + 1; *val && *val == ' '; val++);
+		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+		lkey = ekey - key;
+		lval = eval - val;
+
+		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
+			return 0;
+
+		for (i = 0; i < arraysize(keys); i++) {
+			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+				vals[i].l = lval;
+				vals[i].s = val;
+				break;
+			}
 		}
-		w = strsep(&stringp, ",");
+
+		if (!*eval)
+			break;
+
+		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
 	}
-	return res;
+
+	when = atol(vals[0].s);
+	localtime_r(&when, &tm);
+	strftime(date, sizeof(date), dateformat, &tm);
+
+	i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[atol(vals[1].s)], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+
+	if (i > 0) {
+		buf[sizeof(buf) - 1] = '\0';
+		cw_console_puts(buf);
+	}
+
+	return 0;
 }
+
+
+static int logger_manager_event_file(struct mansession *sess, struct manager_event *event)
+{
+	static struct {
+		int l;
+		char *s;
+	} keys[] = {
+#define LENSTR(x)	sizeof(x) - 1, x
+		{ LENSTR("Timestamp") },
+		{ LENSTR("Level") },
+		{ LENSTR("Thread ID") },
+		{ LENSTR("File") },
+		{ LENSTR("Line") },
+		{ LENSTR("Func") },
+		{ LENSTR("Message") },
+#undef LENSTR
+	};
+	char buf[BUFSIZ];
+	char date[256];
+	struct {
+		int l;
+		char *s;
+	} vals[arraysize(keys)];
+	struct tm tm;
+	time_t when;
+	char *key, *ekey;
+	char *val, *eval;
+	int lkey, lval;
+	int i;
+
+	memset(vals, 0, sizeof(vals));
+
+	key = event->data;
+	while (*key) {
+		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+		if (!*ekey)
+			break;
+
+		for (val = ekey + 1; *val && *val == ' '; val++);
+		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+		lkey = ekey - key;
+		lval = eval - val;
+
+		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
+			return 0;
+
+		for (i = 0; i < arraysize(keys); i++) {
+			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+				vals[i].l = lval;
+				vals[i].s = val;
+				break;
+			}
+		}
+
+		if (!*eval)
+			break;
+
+		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
+	}
+
+	when = atol(vals[0].s);
+	localtime_r(&when, &tm);
+	strftime(date, sizeof(date), dateformat, &tm);
+
+	i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[atol(vals[1].s)], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+
+	if (i > 0) {
+		buf[sizeof(buf) - 1] = '\0';
+		write(sess->fd, buf, i);
+	}
+
+	return 0;
+}
+
+
+static int logger_manager_event_syslog(struct mansession *sess, struct manager_event *event)
+{
+	static struct {
+		int l;
+		char *s;
+	} keys[] = {
+#define LENSTR(x)	sizeof(x) - 1, x
+		{ LENSTR("Timestamp") },
+		{ LENSTR("Level") },
+		{ LENSTR("Thread ID") },
+		{ LENSTR("File") },
+		{ LENSTR("Line") },
+		{ LENSTR("Func") },
+		{ LENSTR("Message") },
+#undef LENSTR
+	};
+	struct {
+		int l;
+		char *s;
+	} vals[arraysize(keys)];
+	char *key, *ekey;
+	char *val, *eval;
+	int lkey, lval;
+	int level, i;
+
+	memset(vals, 0, sizeof(vals));
+
+	key = event->data;
+	while (*key) {
+		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+		if (!*ekey)
+			break;
+
+		for (val = ekey + 1; *val && *val == ' '; val++);
+		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+		lkey = ekey - key;
+		lval = eval - val;
+
+		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
+			return 0;
+
+		for (i = 0; i < arraysize(keys); i++) {
+			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+				vals[i].l = lval;
+				vals[i].s = val;
+				break;
+			}
+		}
+
+		if (!*eval)
+			break;
+
+		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
+	}
+
+	level = (vals[1].s ? atol(vals[1].s) : 0);
+	syslog(priorities[level], "%s[%.*s]: %.*s:%.*s %.*s: %.*s\n", (priorities[level] == LOG_INFO ? levels[level] : ""), vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
+
+	return 0;
+}
+
 
 static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
 {
@@ -181,14 +363,18 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 	if (cw_strlen_zero(channel))
 		return NULL;
-	chan = malloc(sizeof(struct logchannel));
 
-	if (!chan)	/* Can't allocate memory */
+	if (!(chan = calloc(1, sizeof(struct logchannel))))
 		return NULL;
 
-	memset(chan, 0, sizeof(struct logchannel));
 	if (!strcasecmp(channel, "console")) {
 		chan->type = LOGTYPE_CONSOLE;
+		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, "console", sizeof("console") - 1, logger_manager_event_console, NULL))) {
+			/* Can't log here, since we're called with a lock */
+			fprintf(stderr, "Logger Warning: Unable to start console logging: %s\n", strerror(errno));
+			free(chan);
+			return NULL;
+		}
 	} else if (!strncasecmp(channel, "syslog", 6)) {
 		/*
 		* syntax is:
@@ -259,31 +445,46 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			return NULL;
 		}
 
-		chan->type = LOGTYPE_SYSLOG;
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
+
+		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, logger_manager_event_syslog, NULL))) {
+			/* Can't log here, since we're called with a lock */
+			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
+			free(chan);
+			return NULL;
+		}
+
+		chan->type = LOGTYPE_SYSLOG;
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
+		int fd;
+
 		if (channel[0] == '/') {
-			if(!cw_strlen_zero(hostname)) { 
+			if (!cw_strlen_zero(hostname))
 				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
-			} else {
+			else
 				cw_copy_string(chan->filename, channel, sizeof(chan->filename));
-			}
-		}		  
-		
-		if(!cw_strlen_zero(hostname)) {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)cw_config_CW_LOG_DIR, channel, hostname);
-		} else {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
 		}
-		chan->fileptr = fopen(chan->filename, "a");
-		if (!chan->fileptr) {
+		
+		if (!cw_strlen_zero(hostname))
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)cw_config_CW_LOG_DIR, channel, hostname);
+		else
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
+
+		fd = -1;
+		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, logger_manager_event_file, NULL))) {
+			if (fd >= 0)
+				close(fd);
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
-		} 
+			free(chan);
+			return NULL;
+		}
 		chan->type = LOGTYPE_FILE;
 	}
-	chan->logmask = make_components(components, lineno);
+
+	chan->sess->readperm = chan->sess->send_events = manager_str_to_eventmask(components);
+	chan->logmask = manager_str_to_eventmask(components);
 	return chan;
 }
 
@@ -299,12 +500,13 @@ static void init_logger_chain(void)
 	chan = logchannels;
 	while (chan) {
 		cur = chan->next;
+		manager_session_end(chan->sess);
 		free(chan);
 		chan = cur;
 	}
 	logchannels = NULL;
 	cw_mutex_unlock(&loglock);
-	
+
 	global_logmask = 0;
 	/* close syslog */
 	closelog();
@@ -396,7 +598,6 @@ int reload_logger(int rotate)
 {
 	char old[CW_CONFIG_MAX_PATH] = "";
 	char new[CW_CONFIG_MAX_PATH];
-	struct logchannel *f;
 	FILE *myf;
 	int x;
 
@@ -429,39 +630,7 @@ int reload_logger(int rotate)
 		eventlog = fopen(old, "a");
 	}
 
-	f = logchannels;
-	while(f) {
-		if (f->disabled) {
-			f->disabled = 0;	/* Re-enable logging at reload */
-			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
-		}
-		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
-			fclose(f->fileptr);	/* Close file */
-			f->fileptr = NULL;
-			if(rotate) {
-				cw_copy_string(old, f->filename, sizeof(old));
-	
-				for(x=0;;x++) {
-					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
-					myf = fopen((char *)new, "r");
-					if (myf) {
-						fclose(myf);
-					} else {
-						break;
-					}
-				}
-	    
-				/* do it */
-				if (rename(old,new))
-					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
-			}
-		}
-		f = f->next;
-	}
-
 	cw_mutex_unlock(&loglock);
-
-	filesize_reload_needed = 0;
 
 	queue_log_init();
 	init_logger_chain();
@@ -579,19 +748,10 @@ static struct cw_clicmd rotate_logger_cli = {
 	.usage = logger_rotate_help,
 };
 
-static int handle_SIGXFSZ(int sig) 
-{
-	/* Indicate need to reload */
-	filesize_reload_needed = 1;
-	return 0;
-}
 
 int init_logger(void)
 {
 	char tmp[256];
-
-	/* auto rotate if sig SIGXFSZ comes a-knockin */
-	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
 
 	/* register the relaod logger cli command */
 	cw_cli_register(&reload_logger_cli);
@@ -642,40 +802,15 @@ void close_logger(void)
 	return;
 }
 
-static void cw_log_vsyslog(cw_log_level level, const char *file, int line, const char *function, const char *msg)
-{
-	char buf[BUFSIZ];
-	int l;
-
-	if (level >= SYSLOG_NLEVELS) {
-		/* we are locked here, so cannot cw_log() */
-		fprintf(stderr, "cw_log_vsyslog called with bogus level: %d\n", level);
-		return;
-	}
-	if (level == __CW_LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[" TIDFMT "]: ", GETTID());
-		level = __CW_LOG_DEBUG;
-	} else if (level == __CW_LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[" TIDFMT "]: ", GETTID());
-		level = __CW_LOG_DEBUG;
-	} else {
-		snprintf(buf, sizeof(buf), "%s[" TIDFMT "]: %s:%d in %s: ",
-			 levels[level], GETTID(), file, line, function);
-	}
-	l = strlen(buf);
-	cw_copy_string(buf + l, msg, sizeof(buf) - l);
-	syslog(syslog_level_map[level], "%s", buf);
-}
 
 /*
  * send log messages to syslog and/or the console
  */
 void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	char msg[BUFSIZ], buf[BUFSIZ];
+	char msg[BUFSIZ];
 	char date[256];
 	struct tm tm;
-	struct logchannel *chan;
 	time_t now;
 	va_list ap;
 	
@@ -705,7 +840,6 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 
-	/* begin critical section */
 	cw_mutex_lock(&loglock);
 
 	if (logfiles.event_log && level == __CW_LOG_EVENT) {
@@ -716,42 +850,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(EVENT_FLAG_LOG, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage: %s", now, level, GETTID(), file, line, function, msg);
-
-		chan = logchannels;
-		while (chan && !chan->disabled) {
-			/* Check syslog channels */
-			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
-				cw_log_vsyslog(level, file, line, function, msg);
-			/* Console channels */
-			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
-				if (level != __CW_LOG_VERBOSE) {
-					snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
-					cw_console_puts(buf);
-					cw_console_puts(msg);
-				}
-			/* File channels */
-			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
-				int res;
-				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[" TIDFMT "]: " : "%s %s[" TIDFMT "] %s: ", date,
-					levels[level], GETTID(), file);
-				res = fprintf(chan->fileptr, buf);
-				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
-					fprintf(stderr,"**** CallWeaver Logging Error: ***********\n");
-					if (errno == ENOMEM || errno == ENOSPC) {
-						fprintf(stderr, "CallWeaver logging error: Out of disk space, can't log to log file %s\n", chan->filename);
-					} else
-						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
-					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
-					chan->disabled = 1;	
-				} else {
-					/* No error message, continue printing */
-					fputs(msg, chan->fileptr);
-					fflush(chan->fileptr);
-				}
-			}
-			chan = chan->next;
-		}
+		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage: %s", now, level, GETTID(), file, line, function, msg);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,
@@ -764,13 +863,6 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	cw_mutex_unlock(&loglock);
-	/* end critical section */
-	if (filesize_reload_needed) {
-		reload_logger(1);
-		cw_log(CW_LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
-		if (option_verbose)
-			cw_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
-	}
 }
 
 void cw_backtrace(int levels)

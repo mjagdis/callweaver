@@ -118,13 +118,19 @@ static struct {
 	int len;
 } perms[] = {
 #define STR_LEN(s)	{ s, sizeof(s) - 1 }
-	STR_LEN("system"),
-	STR_LEN("call"),
-	STR_LEN("log"),
-	STR_LEN("verbose"),
-	STR_LEN("command"),
-	STR_LEN("agent"),
-	STR_LEN("user"),
+	[CW_EVENT_NUM_ERROR]	= STR_LEN("error"),
+	[CW_EVENT_NUM_WARNING]	= STR_LEN("warning"),
+	[CW_EVENT_NUM_NOTICE]	= STR_LEN("notice"),
+	[CW_EVENT_NUM_VERBOSE]	= STR_LEN("verbose"),
+	[CW_EVENT_NUM_EVENT]	= STR_LEN("event"),
+	[CW_EVENT_NUM_DTMF]	= STR_LEN("dtmf"),
+	[CW_EVENT_NUM_DEBUG]	= STR_LEN("debug"),
+
+	[CW_EVENT_NUM_SYSTEM]	= STR_LEN("system"),
+	[CW_EVENT_NUM_CALL]	= STR_LEN("call"),
+	[CW_EVENT_NUM_COMMAND]	= STR_LEN("command"),
+	[CW_EVENT_NUM_AGENT]	= STR_LEN("agent"),
+	[CW_EVENT_NUM_USER]	= STR_LEN("user"),
 #undef STR_LEN
 };
 
@@ -140,7 +146,7 @@ static int authority_to_str(int authority, char *res, int reslen)
 		*res = '\0';
 
 		for (i = 0; i < arraysize(perms); i++) {
-			if (authority & (1 << i)) {
+			if ((authority & (1 << i)) && perms[i].label) {
 				if (p != res) {
 					if (reslen > 1) {
 						p[0] = ',';
@@ -166,7 +172,7 @@ static int authority_to_str(int authority, char *res, int reslen)
 }
 
 
-static int get_perm(char *instr)
+int manager_str_to_eventmask(char *instr)
 {
 	int ret = 0;
 
@@ -180,11 +186,16 @@ static int get_perm(char *instr)
 
 			for (q = p; *q && *q != ','; q++);
 			n = q - p;
-			for (i = 0; i < arraysize(perms) && strncmp(p, perms[i].label, n); i++);
-			if (i < arraysize(perms))
-				ret |= (1 << i);
-			else
-				cw_log(CW_LOG_ERROR, "unknown manager permission %.*s in %s\n", n, p, instr);
+
+			if (n == sizeof("log") - 1 && !memcmp(p, "log", sizeof("log") - 1)) {
+				ret |= EVENT_FLAG_LOG_ALL;
+			} else {
+				for (i = 0; i < arraysize(perms) && (!perms[i].label || strncmp(p, perms[i].label, n)); i++);
+				if (i < arraysize(perms))
+					ret |= (1 << i);
+				else
+					cw_log(CW_LOG_ERROR, "unknown manager permission %.*s in %s\n", n, p, instr);
+			}
 
 			p = q;
 			while (*p && (*p == ',' || isspace(*p))) p++;
@@ -640,7 +651,7 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	else if (isdigit(*eventmask))
 		maskint = atoi(eventmask);
 	else
-		maskint = get_perm(eventmask);
+		maskint = manager_str_to_eventmask(eventmask);
 
 	cw_mutex_lock(&s->lock);
 	if (maskint >= 0)	
@@ -713,8 +724,8 @@ static int authenticate(struct mansession *s, struct message *m)
 	}
 	if (cat) {
 		cw_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = get_perm(cw_variable_retrieve(cfg, cat, "read"));
-		s->writeperm = get_perm(cw_variable_retrieve(cfg, cat, "write"));
+		s->readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
+		s->writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
 		cw_config_destroy(cfg);
 		if (events)
 			set_eventmask(s, events);
@@ -1698,7 +1709,13 @@ struct mansession *manager_session_start(int fd, int family, void *addr, size_t 
 
 	addr_to_str(family, addr, sess->name, namelen);
 
-	memcpy(&sess->u, addr, addr_len);
+	/* Only copy the address into the session if it is representable by
+	 * a sockaddr_* type. The address is needed for ACL checks on connection
+	 * so strictly we only need IPv4 addresses at the moment (that's all
+	 * ACLs support)
+	 */
+	if (family == AF_INET || family == AF_INET6 || family == AF_LOCAL)
+		memcpy(&sess->u, addr, addr_len);
 	sess->u.sa.sa_family = family;
 
 	sess->fd = fd;

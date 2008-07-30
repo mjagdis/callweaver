@@ -31,18 +31,52 @@
 
 #include <stdarg.h>
 
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
+
+#define CW_EVENT_NUM_ERROR		0
+#define CW_EVENT_NUM_WARNING		1
+#define CW_EVENT_NUM_NOTICE		2
+#define CW_EVENT_NUM_VERBOSE		3
+#define CW_EVENT_NUM_EVENT		4
+#define CW_EVENT_NUM_DTMF		5
+#define CW_EVENT_NUM_DEBUG		6
+
+#define CW_EVENT_NUM_SYSTEM 		7 	/* System events such as module load/unload */
+#define CW_EVENT_NUM_CALL		8 	/* Call event, such as state change, etc */
+#define CW_EVENT_NUM_COMMAND		9 	/* Ability to read/set commands */
+#define CW_EVENT_NUM_AGENT		10 	/* Ability to read/set agent info */
+#define CW_EVENT_NUM_USER		11 	/* Ability to read/set user info */
+
+
+#define EVENT_FLAG_SYSTEM 		(1 << CW_EVENT_NUM_SYSTEM) 	/* System events such as module load/unload */
+#define EVENT_FLAG_CALL			(1 << CW_EVENT_NUM_CALL) 	/* Call event, such as state change, etc */
+#define EVENT_FLAG_COMMAND		(1 << CW_EVENT_NUM_COMMAND) 	/* Ability to read/set commands */
+#define EVENT_FLAG_AGENT		(1 << CW_EVENT_NUM_AGENT) 	/* Ability to read/set agent info */
+#define EVENT_FLAG_USER			(1 << CW_EVENT_NUM_USER) 	/* Ability to read/set user info */
+
+#define EVENT_FLAG_ERROR		(1 << CW_EVENT_NUM_ERROR)
+#define EVENT_FLAG_WARNING		(1 << CW_EVENT_NUM_WARNING)
+#define EVENT_FLAG_NOTICE		(1 << CW_EVENT_NUM_NOTICE)
+#define EVENT_FLAG_VERBOSE		(1 << CW_EVENT_NUM_VERBOSE)
+#define EVENT_FLAG_EVENT		(1 << CW_EVENT_NUM_EVENT)
+#define EVENT_FLAG_DTMF			(1 << CW_EVENT_NUM_DTMF)
+#define EVENT_FLAG_DEBUG		(1 << CW_EVENT_NUM_DEBUG)
+
+#define EVENT_FLAG_LOG_ALL		(EVENT_FLAG_ERROR | EVENT_FLAG_WARNING | EVENT_FLAG_NOTICE | EVENT_FLAG_VERBOSE | EVENT_FLAG_EVENT | EVENT_FLAG_DTMF | EVENT_FLAG_DEBUG)
+
+
 typedef enum {
-	__CW_LOG_DEBUG   = 0,
-	__CW_LOG_EVENT   = 1,
-	__CW_LOG_NOTICE  = 2,
-	__CW_LOG_WARNING = 3,
-	__CW_LOG_ERROR   = 4,
-	__CW_LOG_VERBOSE = 5,
-	__CW_LOG_DTMF    = 6
+	__CW_LOG_ERROR   = CW_EVENT_NUM_ERROR,
+	__CW_LOG_WARNING = CW_EVENT_NUM_WARNING,
+	__CW_LOG_NOTICE  = CW_EVENT_NUM_NOTICE,
+	__CW_LOG_VERBOSE = CW_EVENT_NUM_VERBOSE,
+	__CW_LOG_EVENT   = CW_EVENT_NUM_EVENT,
+	__CW_LOG_DTMF    = CW_EVENT_NUM_DTMF,
+	__CW_LOG_DEBUG   = CW_EVENT_NUM_DEBUG,
 } cw_log_level;
 
 #define EVENTLOG "event_log"
