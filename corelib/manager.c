@@ -1568,7 +1568,8 @@ static void *accept_thread(void *ignore)
 		if (setsockopt(as, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg)) < 0)
 			cw_log(CW_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 		if ((s = calloc(1, sizeof(struct mansession))) == NULL) {
-			cw_log(CW_LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			close(as);
 			continue;
 		} 
 
