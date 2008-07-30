@@ -88,10 +88,8 @@ extern void del_manager_hook(struct manager_custom_hook *hook);
 /* Export manager structures */
 #define MAX_HEADERS 80
 
-struct eventqent {
-	struct eventqent *next;
-	char eventdata[1];
-};
+
+struct eventqent;
 
 struct mansession {
 	struct cw_object obj;
@@ -99,7 +97,6 @@ struct mansession {
 	int fd;				/*!< Socket */
 	cw_mutex_t __lock;		/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
 	int busy;			/*!< Whether or not we're busy doing an action */
-	int dead;			/*!< Whether or not we're "dead" */
 	pthread_t t;			/*!< Execution thread */
 	union {
 		struct sockaddr sa;
@@ -128,6 +125,7 @@ struct message {
 		char *val;
 	} header[MAX_HEADERS];
 };
+
 
 struct manager_action {
 	struct cw_object obj;

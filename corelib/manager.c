@@ -88,6 +88,19 @@ static int displayconnects;
 static int block_sockets;
 
 
+struct manager_event {
+	struct cw_object obj;
+	int len;
+	char data[0];
+};
+
+
+struct eventqent {
+	struct eventqent *next;
+	struct manager_event *event;
+};
+
+
 struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
@@ -117,7 +130,7 @@ static struct {
 };
 
 
-static char *authority_to_str(int authority, char *res, int reslen)
+static int authority_to_str(int authority, char *res, int reslen)
 {
 	char *p;
 	int i;
@@ -145,7 +158,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
 	if (p == res)
 		cw_copy_string(res, "<none>", reslen);
 
-	return res;
+	return p - res;
 }
 
 
@@ -328,7 +341,8 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 	act = container_of(it, struct manager_action, obj);
 
 	/* FIXME: Tidy up this output and make it more like function output */
-	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", act->action, act->synopsis, authority_to_str(act->authority, buf, sizeof(buf) - 1), (act->description ? act->description : ""));
+	authority_to_str(act->authority, buf, sizeof(buf) - 1);
+	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", act->action, act->synopsis, buf, (act->description ? act->description : ""));
 
 	cw_object_put(act);
 	return RESULT_SUCCESS;
@@ -391,7 +405,8 @@ static int manacts_print(struct cw_object *obj, void *data)
 
 	if (printapp) {
 		args->matches++;
-		cw_cli(args->fd, MANACTS_FORMAT, it->action, authority_to_str(it->authority, buf, sizeof(buf) - 1), it->synopsis);
+		authority_to_str(it->authority, buf, sizeof(buf) - 1);
+		cw_cli(args->fd, MANACTS_FORMAT, it->action, buf, it->synopsis);
 	}
 
 	return 0;
@@ -566,6 +581,7 @@ static void mansession_release(struct cw_object *obj)
 	while (it->eventq) {
 		eqe = it->eventq;
 		it->eventq = it->eventq->next;
+		cw_object_put(eqe->event);
 		free(eqe);
 	}
 
@@ -769,7 +785,8 @@ static int listcommands_print(struct cw_object *obj, void *data)
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct listcommands_print_args *args = data;
 
-	cw_cli(args->s->fd, "%s: %s (Priv: %s)\r\n", it->action, it->synopsis, authority_to_str(it->authority, buf, sizeof(buf)) );
+	authority_to_str(it->authority, buf, sizeof(buf));
+	cw_cli(args->s->fd, "%s: %s (Priv: %s)\r\n", it->action, it->synopsis, buf);
 
 	return 0;
 }
@@ -1427,10 +1444,11 @@ static void process_message(struct mansession *s, struct message *m)
 		cw_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while (s->eventq) {
-			if (cw_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout) < 0)
+			if (cw_carefulwrite(s->fd, s->eventq->event->data, s->eventq->event->len, s->writetimeout) < 0)
 				break;
 			eqe = s->eventq;
 			s->eventq = s->eventq->next;
+			cw_object_put(eqe->event);
 			free(eqe);
 		}
 		cw_mutex_unlock(&s->__lock);
@@ -1523,14 +1541,18 @@ static void *session_do(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (res < 0) {
-			if (errno == EINTR) {
-				if (sess->dead)
-					return NULL;
+			if (errno == EINTR)
+				continue;
+			if (errno == ENOMEM) {
+				sleep(5);
 				continue;
 			}
 			cw_log(CW_LOG_WARNING, "Poll failed: %s\n", strerror(errno));
 			return NULL;
-		} if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0) return NULL;
+		}
+
+		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0)
+			return NULL;
 
 		for (; res; pos++, res--) {
 			switch (state) {
@@ -1770,92 +1792,135 @@ static void *accept_thread(void *data)
 	return NULL;
 }
 
-static int append_event(struct mansession *s, const char *str)
+static int append_event(struct mansession *s, struct manager_event *event)
 {
 	struct eventqent *tmp;
 	struct eventqent *prev = NULL;
 
-	if ((tmp = malloc(sizeof(struct eventqent) + strlen(str))) == NULL)
+	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
 		return -1;
 
 	tmp->next = NULL;
-	strcpy(tmp->eventdata, str);
+	tmp->event = cw_object_dup(event);
 	if (s->eventq) {
 		for (prev = s->eventq;  prev->next;  prev = prev->next);
 		prev->next = tmp;
 	} else {
-	    s->eventq = tmp;
+		s->eventq = tmp;
 	}
 	return 0;
 }
 
 
 struct manager_event_args {
+	int ret;
 	int category;
-	char *text;
-	int len;
+	struct manager_event *me;
+	char *event;
+	char *fmt;
+	va_list ap;
 };
+
+static void manager_event_free(struct cw_object *obj)
+{
+	struct manager_event *it = container_of(obj, struct manager_event, obj);
+
+	free(it);
+}
+
+static int make_event(struct manager_event_args *args)
+{
+	struct manager_event *event;
+	int alloc = 256;
+	int used;
+
+	if ((args->me = malloc(sizeof(struct manager_event) + alloc))) {
+again:
+		used = snprintf(args->me->data, alloc, "Event: %s\r\nPrivilege: ", args->event);
+		used += authority_to_str(args->category, args->me->data + used, alloc - used);
+		if (alloc - used > 2)
+			strcpy(args->me->data + used, "\r\n");
+		used += 2;
+		used += vsnprintf(args->me->data + used, alloc - used, args->fmt, args->ap);
+		if (alloc - used > 2)
+			strcpy(args->me->data + used, "\r\n");
+		used += 2;
+
+		if (used < alloc) {
+			args->me->len = used;
+			return 0;
+		}
+
+		alloc = used + 1;
+		if ((event = realloc(args->me, sizeof(struct manager_event) + alloc))) {
+			args->me = event;
+			args->me->obj.release = manager_event_free;
+			cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
+			cw_object_get(args->me);
+			goto again;
+		}
+
+		free(args->me);
+		args->me = NULL;
+	}
+
+	return -1;
+}
 
 static int manager_event_print(struct cw_object *obj, void *data)
 {
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct manager_event_args *args = data;
 
-	if ((it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
-		cw_mutex_lock(&it->__lock);
-		if (it->busy) {
-			append_event(it, args->text);
-		} else if (cw_carefulwrite(it->fd, args->text, args->len, it->writetimeout) < 0) {
-			cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
-			it->dead = 1;
-			pthread_kill(it->t, SIGURG);
+	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
+		if (args->me || !(args->ret = make_event(args))) {
+			cw_mutex_lock(&it->__lock);
+			if (it->busy) {
+				append_event(it, args->me);
+			} else if (cw_carefulwrite(it->fd, args->me->data, args->me->len, it->writetimeout) < 0) {
+				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+				pthread_cancel(it->t);
+			}
+			cw_mutex_unlock(&it->__lock);
 		}
-		cw_mutex_unlock(&it->__lock);
 	}
 
-	return 0;
+	return args->ret;
 }
 
 int manager_event(int category, char *event, char *fmt, ...)
 {
-	char tmp[4096] = "";
-	char auth[80];
 	struct manager_event_args args = {
+		.ret = 0,
+		.me = NULL,
 		.category = category,
-		.text = tmp,
+		.event = event,
+		.fmt = fmt,
 	};
-	char *tmp_next = tmp;
-	size_t tmp_left = sizeof(tmp) - 2;
 	va_list ap;
 
-	cw_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
-			 event, authority_to_str(category, auth, sizeof(auth)-1));
 	va_start(ap, fmt);
-	cw_build_string_va(&tmp_next, &tmp_left, fmt, ap);
-	va_end(ap);
-	*tmp_next++ = '\r';
-	*tmp_next++ = '\n';
-	*tmp_next = '\0';
-	args.len = tmp_next - tmp;
+	args.ap = ap;
 
 	cw_registry_iterate(&manager_session_registry, manager_event_print, &args);
 
-	cw_mutex_lock(&hooklock);
-	if (manager_hooks) {
-		struct manager_custom_hook *hookp;
-		char *p;
-		int len;
+	if (!args.ret) {
+		cw_mutex_lock(&hooklock);
+		if (manager_hooks) {
+			struct manager_custom_hook *hookp;
 
-		snprintf(tmp, sizeof(tmp)-1, "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, auth, sizeof(auth)-1));
-		len = strlen(tmp);
-		p = tmp + len;
-		va_start(ap, fmt);
-		vsnprintf(p, sizeof(tmp) - len - 1, fmt, ap);
-		va_end(ap);
-		for (hookp = manager_hooks ;  hookp;  hookp = hookp->next)
-			hookp->helper(category, event, tmp);
+			if (args.me || !(args.ret = make_event(&args))) {
+				for (hookp = manager_hooks ;  hookp;  hookp = hookp->next)
+					hookp->helper(category, event, args.me->data);
+			}
+		}
+		cw_mutex_unlock(&hooklock);
 	}
-	cw_mutex_unlock(&hooklock);
+
+	va_end(ap);
+
+	if (args.me)
+		cw_object_put(args.me);
 
 	return 0;
 }
