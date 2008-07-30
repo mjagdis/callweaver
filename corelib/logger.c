@@ -574,13 +574,15 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		msglen = sizeof(msg) - 1;
 	va_end(ap);
 
-	cw_mutex_lock(&loglock);
-
-	if (logfiles.event_log && level == __CW_LOG_EVENT) {
-		fprintf(eventlog, "%s callweaver[%d]: %s", date, getpid(), msg);
-		fflush(eventlog);
+	if (level == __CW_LOG_EVENT) {
+		cw_mutex_lock(&loglock);
+		if (logfiles.event_log) {
+			fprintf(eventlog, "%s callweaver[%d]: %s", date, getpid(), msg);
+			fflush(eventlog);
+			cw_mutex_unlock(&loglock);
+			return;
+		}
 		cw_mutex_unlock(&loglock);
-		return;
 	}
 
 	if (logchannels) {
@@ -590,13 +592,9 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout 
 		*/
-		if (level != __CW_LOG_VERBOSE) {
-			fprintf(stdout, (option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%d %s: " : "%s %s[" TIDFMT "]: %s:%d %s: "), date, levels[level], GETTID(), file, line, function);
-			fputs(msg, stdout);
-		}
+		if (level != __CW_LOG_VERBOSE)
+			fprintf(stdout, "%s %s[" TIDFMT "]: %s:%d %s: %s", date, levels[level], GETTID(), file, line, function, msg);
 	}
-
-	cw_mutex_unlock(&loglock);
 }
 
 void cw_backtrace(int levels)
