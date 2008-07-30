@@ -135,6 +135,17 @@ static struct {
 };
 
 
+#define MANAGER_AMI_HELLO	"CallWeaver Call Manager/1.0\r\n"
+
+static struct {
+	struct manager_event e;
+	char data[sizeof(MANAGER_AMI_HELLO) - 1];
+} manager_ami_hello = {
+	.e = { .len = sizeof(MANAGER_AMI_HELLO) - 1, },
+	.data = MANAGER_AMI_HELLO,
+};
+
+
 static int authority_to_str(int authority, char *res, int reslen)
 {
 	char *p;
@@ -1652,8 +1663,6 @@ static void *session_writer(void *data)
 
 	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
-
 	for (;;) {
 		struct eventqent *eqe = NULL;
 
@@ -1755,6 +1764,26 @@ void manager_session_end(struct mansession *sess)
 	pthread_cancel(sess->writer_tid);
 	pthread_join(sess->writer_tid, NULL);
 	cw_object_put(sess);
+}
+
+
+static int append_event(struct mansession *s, struct manager_event *event)
+{
+	struct eventqent *tmp;
+	struct eventqent *prev = NULL;
+
+	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
+		return -1;
+
+	tmp->next = NULL;
+	tmp->event = cw_object_dup(event);
+	if (s->eventq) {
+		for (prev = s->eventq;  prev->next;  prev = prev->next);
+		prev->next = tmp;
+	} else {
+		s->eventq = tmp;
+	}
+	return 0;
 }
 
 
@@ -1862,31 +1891,14 @@ static void *accept_thread(void *data)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, &manager_ami_tech, NULL)))
+		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, &manager_ami_tech, NULL))) {
+			append_event(sess, &manager_ami_hello.e);
 			cw_object_put(sess);
+		}
 	}
 
 	pthread_cleanup_pop(1);
 	return NULL;
-}
-
-static int append_event(struct mansession *s, struct manager_event *event)
-{
-	struct eventqent *tmp;
-	struct eventqent *prev = NULL;
-
-	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
-		return -1;
-
-	tmp->next = NULL;
-	tmp->event = cw_object_dup(event);
-	if (s->eventq) {
-		for (prev = s->eventq;  prev->next;  prev = prev->next);
-		prev->next = tmp;
-	} else {
-		s->eventq = tmp;
-	}
-	return 0;
 }
 
 
@@ -2230,6 +2242,8 @@ int manager_reload(void)
 
 int init_manager(void)
 {
+	cw_object_init(&manager_ami_hello.e, NULL, CW_OBJECT_NO_REFS);
+
 	manager_reload();
 
 	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
