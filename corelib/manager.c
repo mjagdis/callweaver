@@ -1657,12 +1657,12 @@ int manager_event(int category, char *event, char *fmt, ...)
 	}
 	cw_mutex_unlock(&sessionlock);
 
+	cw_mutex_lock(&hooklock);
 	if (manager_hooks) {
 		struct manager_custom_hook *hookp;
 		char *p;
 		int len;
 
-		cw_mutex_lock(&hooklock);
 		snprintf(tmp, sizeof(tmp)-1, "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, auth, sizeof(auth)-1));
 		len = strlen(tmp);
 		p = tmp + len;
@@ -1671,8 +1671,8 @@ int manager_event(int category, char *event, char *fmt, ...)
 		va_end(ap);
 		for (hookp = manager_hooks ;  hookp;  hookp = hookp->next)
 			hookp->helper(category, event, tmp);
-		cw_mutex_unlock(&hooklock);
 	}
+	cw_mutex_unlock(&hooklock);
 
 	return 0;
 }
