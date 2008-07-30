@@ -27,6 +27,7 @@
 #include "confdefs.h"
 #endif
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,20 +86,6 @@ static pthread_t t;
 CW_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
 
-static struct permalias {
-	int num;
-	char *label;
-} perms[] = {
-	{ EVENT_FLAG_SYSTEM, "system" },
-	{ EVENT_FLAG_CALL, "call" },
-	{ EVENT_FLAG_LOG, "log" },
-	{ EVENT_FLAG_VERBOSE, "verbose" },
-	{ EVENT_FLAG_COMMAND, "command" },
-	{ EVENT_FLAG_AGENT, "agent" },
-	{ EVENT_FLAG_USER, "user" },
-	{ -1, "all" },
-	{ 0, "none" },
-};
 
 static struct mansession *sessions = NULL;
 
@@ -107,25 +94,80 @@ static struct manager_custom_hook *manager_hooks = NULL;
 CW_MUTEX_DEFINE_STATIC(hooklock);
 
 
+static struct {
+	const char *label;
+	int len;
+} perms[] = {
+#define STR_LEN(s)	{ s, sizeof(s) - 1 }
+	STR_LEN("system"),
+	STR_LEN("call"),
+	STR_LEN("log"),
+	STR_LEN("verbose"),
+	STR_LEN("command"),
+	STR_LEN("agent"),
+	STR_LEN("user"),
+#undef STR_LEN
+};
+
+
 static char *authority_to_str(int authority, char *res, int reslen)
 {
-	int running_total = 0, i;
+	char *p;
+	int i;
 
-	memset(res, 0, reslen);
-	for (i = 0; i < sizeof(perms) / sizeof(perms[0]) - 1; i++) {
-		if (authority & perms[i].num) {
-			if (*res) {
-				strncat(res, ",", (reslen > running_total) ? reslen - running_total : 0);
-				running_total++;
+	p = res;
+	*res = '\0';
+
+	for (i = 0; i < arraysize(perms); i++) {
+		if (authority & (1 << i)) {
+			if (p != res) {
+				if (reslen < 2)
+					break;
+				*(p++) = ',';
+				*p = '\0';
+				reslen--;
 			}
-			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total : 0);
-			running_total += strlen(perms[i].label);
+			cw_copy_string(p, perms[i].label, reslen);
+			p += perms[i].len;
+			reslen -= perms[i].len;
+			if (reslen <= 0)
+				break;
 		}
 	}
-	if (cw_strlen_zero(res)) {
+
+	if (p == res)
 		cw_copy_string(res, "<none>", reslen);
-	}
+
 	return res;
+}
+
+
+static int get_perm(char *instr)
+{
+	int ret = 0;
+
+	if (instr) {
+		char *p = instr;
+
+		while (*p && isspace(*p)) p++;
+		while (*p) {
+			char *q;
+			int n, i;
+
+			for (q = p; *q && *q != ','; q++);
+			n = q - p;
+			for (i = 0; i < arraysize(perms) && strncmp(p, perms[i].label, n); i++);
+			if (i < arraysize(perms))
+				ret |= (1 << i);
+			else
+				cw_log(CW_LOG_ERROR, "unknown manager permission %.*s in %s\n", n, p, instr);
+
+			p = q;
+			while (*p && (*p == ',' || isspace(*p))) p++;
+		}
+	}
+
+	return ret;
 }
 
 
@@ -519,43 +561,6 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 	astman_send_response(s, m, "Success", msg);
 }
 
-/*! Tells you if smallstr exists inside bigstr
-   which is delim by delim and uses no buf or stringsep
-   cw_instring("this|that|more","this",',') == 1;
-
-   feel free to move this to app.c -anthm */
-static int cw_instring(char *bigstr, char *smallstr, char delim) 
-{
-	char *val = bigstr, *next;
-
-	do {
-		if ((next = strchr(val, delim))) {
-			if (!strncmp(val, smallstr, (next - val)))
-				return 1;
-			else
-				continue;
-		} else
-			return !strcmp(smallstr, val);
-
-	} while (*(val = (next + 1)));
-
-	return 0;
-}
-
-static int get_perm(char *instr)
-{
-	int x = 0, ret = 0;
-
-	if (!instr)
-		return 0;
-
-	for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
-		if (cw_instring(instr, perms[x].label, ','))
-			ret |= perms[x].num;
-	
-	return ret;
-}
-
 static int cw_is_number(char *string) 
 {
 	int ret = 1, x = 0;
@@ -586,14 +591,10 @@ static int cw_strings_to_mask(char *string)
 		ret = 0;
 	} else if (cw_true(string)) {
 		ret = 0;
-		for (x = 0;  x < sizeof(perms) / sizeof(perms[0]);  x++)
-			ret |= perms[x].num;		
+		for (x = 0;  x < arraysize(perms);  x++)
+			ret |= (1 << x);
 	} else {
-		ret = 0;
-		for (x = 0;  x < sizeof(perms) / sizeof(perms[0]);  x++) {
-			if (cw_instring(string, perms[x].label, ',')) 
-				ret |= perms[x].num;		
-		}
+		ret = get_perm(string);
 	}
 
 	return ret;
