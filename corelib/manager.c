@@ -1608,7 +1608,6 @@ static int manager_event_write(struct mansession *sess, struct manager_event *ev
 {
 	const char *data = event->data;
 	int len = event->len;
-	int res;
 
 	while (len > 0) {
 		int n = write(sess->fd, data, len);
@@ -2242,6 +2241,8 @@ int manager_reload(void)
 
 int init_manager(void)
 {
+	manager_reload();
+
 	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
 	cw_cli_register(&show_mancmd_cli);
@@ -2249,8 +2250,6 @@ int init_manager(void)
 	cw_cli_register(&show_listener_cli);
 	cw_cli_register(&show_manconn_cli);
 	cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
-
-	manager_reload();
 
 	return 0;
 }
