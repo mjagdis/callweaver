@@ -1732,7 +1732,7 @@ static void *accept_thread(void *data)
 				continue;
 			}
 
-			cw_object_init(sess, NULL, 1);
+			cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 			cw_mutex_init(&sess->__lock);
 			sess->send_events = -1;
 			sess->obj.release = mansession_release;
@@ -1779,7 +1779,7 @@ static void *accept_thread(void *data)
 
 		sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, sess)) {
+		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, cw_object_get(sess))) {
 			/* The thread has this session now */
 			sess = NULL;
 		} else {
@@ -1835,6 +1835,9 @@ static int make_event(struct manager_event_args *args)
 	int used;
 
 	if ((args->me = malloc(sizeof(struct manager_event) + alloc))) {
+		args->me->obj.release = manager_event_free;
+		cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
+		cw_object_get(args->me);
 again:
 		used = snprintf(args->me->data, alloc, "Event: %s\r\nPrivilege: ", args->event);
 		used += authority_to_str(args->category, args->me->data + used, alloc - used);
@@ -1854,9 +1857,6 @@ again:
 		alloc = used + 1;
 		if ((event = realloc(args->me, sizeof(struct manager_event) + alloc))) {
 			args->me = event;
-			args->me->obj.release = manager_event_free;
-			cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
-			cw_object_get(args->me);
 			goto again;
 		}
 
