@@ -85,8 +85,13 @@ extern void add_manager_hook(struct manager_custom_hook *hook);
 */
 extern void del_manager_hook(struct manager_custom_hook *hook);
 
-/* Export manager structures */
-#define MAX_HEADERS 80
+
+struct manager_event {
+	struct cw_object obj;
+	int hdrlen;
+	int len;
+	char data[0];
+};
 
 
 struct message;
@@ -96,7 +101,13 @@ struct eventqent;
 struct mansession {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
+	int authenticated;		/*!< Authentication status */
+	int readperm;			/*!< Authorization for reading */
+	int writeperm;			/*!< Authorization for writing */
+	int send_events;
+	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	int fd;
+	int (*write)(struct mansession *sess, struct manager_event *event);
 	cw_mutex_t lock;
 	cw_cond_t activity;
 	cw_cond_t ack;
@@ -111,11 +122,6 @@ struct mansession {
 	} u;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
-	int authenticated;		/*!< Authentication status */
-	int readperm;			/*!< Authorization for reading */
-	int writeperm;			/*!< Authorization for writing */
-	int send_events;
-	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	char name[0];
 };
 

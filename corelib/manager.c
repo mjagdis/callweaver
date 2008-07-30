@@ -87,13 +87,6 @@ struct fast_originate_helper {
 static int displayconnects;
 
 
-struct manager_event {
-	struct cw_object obj;
-	int len;
-	char data[0];
-};
-
-
 struct eventqent {
 	struct eventqent *next;
 	struct manager_event *event;
@@ -107,7 +100,7 @@ struct message {
 	struct {
 		char *key;
 		char *val;
-	} header[MAX_HEADERS];
+	} header[80];
 };
 
 
@@ -1611,6 +1604,27 @@ static void *session_reader(void *data)
 }
 
 
+static int manager_event_write(struct mansession *sess, struct manager_event *event)
+{
+	const char *data = event->data;
+	int len = event->len;
+	int res;
+
+	while (len > 0) {
+		int n = write(sess->fd, data, len);
+		if (n >= 0) {
+			data += n;
+			len -= n;
+		} else {
+			cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+
 static void session_writer_cleanup(void *data)
 {
 	struct mansession *sess = data;
@@ -1693,13 +1707,11 @@ static void *session_writer(void *data)
 		}
 
 		if (eqe) {
-			res = cw_carefulwrite(sess->fd, eqe->event->data, eqe->event->len, 100);
+			res = sess->write(sess, eqe->event);
 			cw_object_put(eqe->event);
 			free(eqe);
-			if (res < 0) {
-				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+			if (res < 0)
 				break;
-			}
 		}
 	}
 
@@ -1727,6 +1739,7 @@ static int manager_session(int fd, int family, void *addr, size_t addr_len)
 	sess->u.sa.sa_family = family;
 
 	sess->fd = fd;
+	sess->write = manager_event_write;
 	sess->send_events = -1;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
@@ -1906,6 +1919,7 @@ again:
 		if (alloc - used > 2)
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
+		args->me->hdrlen = used;
 		va_copy(aq, args->ap);
 		n = vsnprintf(args->me->data + used, (alloc < used ? 0 : alloc - used), args->fmt, aq);
 		va_end(aq);
