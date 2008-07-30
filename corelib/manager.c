@@ -1555,7 +1555,6 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	struct mansession *s;
-	struct protoent *p;
 	int arg = 1;
 	int flags;
 
@@ -1566,11 +1565,8 @@ static void *accept_thread(void *ignore)
 			cw_log(CW_LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
-		p = getprotobyname("tcp");
-		if (p) {
-			if (setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg)) < 0)
-				cw_log(CW_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
-		}
+		if (setsockopt(as, SOL_TCP, TCP_NODELAY, (char *)&arg, sizeof(arg)) < 0)
+			cw_log(CW_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 		if ((s = malloc(sizeof(struct mansession))) == NULL) {
 			cw_log(CW_LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
 			continue;
