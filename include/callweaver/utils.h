@@ -158,6 +158,36 @@ struct cw_flags {
 	unsigned int flags;
 };
 
+
+
+/*! writev equivalent that does not assume the descriptor used will never
+ * return a short write.
+ *
+ * \note This assumes a BLOCKING descriptor.
+ *
+ * \param fd     file descriptor to write to
+ * \param iov    an array of struct iovecs to be written
+ * \param count the number of struct iovecs in the array
+ *
+ * \return -1 on error, otherwise number of bytes written
+ */
+extern int cw_writev_all(int fd, struct iovec *iov, int count);
+
+
+/*! write equivalent that does not assume the descriptor used will never
+ * return a short write.
+ *
+ * \note This assumes a BLOCKING descriptor.
+ *
+ * \param fd   file descriptor to write to
+ * \param data the array of bytes to be written
+ * \param len  the number of bytes in the array
+ *
+ * \return -1 on error, otherwise number of bytes written
+ */
+extern int cw_write_all(int fd, const char *data, int len);
+
+
 struct cw_hostent {
 	struct hostent hp;
 	char buf[1024];

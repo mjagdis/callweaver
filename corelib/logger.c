@@ -550,7 +550,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	struct tm tm;
 	time_t now;
 	va_list ap;
-	int datelen, msglen;
+	int msglen;
 	
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
@@ -568,7 +568,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 
 	time(&now);
 	localtime_r(&now, &tm);
-	if (!(datelen = strftime(date, sizeof(date), dateformat, &tm)))
+	if (!strftime(date, sizeof(date), dateformat, &tm))
 		date[0] = '\0';
 
 	va_start(ap, fmt);
@@ -590,7 +590,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nDate Len: %d\r\nMessage Len: %d\r\nMessage: %s %s[" TIDFMT "]: %s:%d %s: %s\r\n", now, level, GETTID(), file, line, function, datelen + 1, msglen, date, levels[level], GETTID(), file, line, function, msg);
+		manager_event(1 << level, "Log", "Timestamp: %ld\r\nDate: %s\r\nLevel: %d %s\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage:\r\n%s\r\n--END MESSAGE--\r\n", now, date, level, levels[level], GETTID(), file, line, function, msg);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,

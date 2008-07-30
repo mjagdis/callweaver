@@ -252,14 +252,38 @@ static char *cli_prompt(void)
 
 static int read_message(int s, int nresp)
 {
+	static char buf_level[16];
+	static char buf_date[256];
+	static char buf_threadid[32];
+	static char buf_file[256];
+	static char buf_line[6];
+	static char buf_function[256];
+	enum { F_DATE = 0, F_LEVEL, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
+	static const struct {
+		const char *name;
+		const int name_len;
+		const int buf_len;
+		char *buf;
+		const char *tail;
+		const int tail_len;
+	} field[] = {
+		[F_DATE]     = { "Date",      sizeof("Date") - 1,      sizeof(buf_date),     buf_date,     NULL,  0 },
+		[F_LEVEL]    = { "Level",     sizeof("Level") - 1,     sizeof(buf_level),    buf_level,    "[",   1 },
+		[F_THREADID] = { "Thread ID", sizeof("Thread ID") - 1, sizeof(buf_threadid), buf_threadid, "]: ", 3 },
+		[F_FILE]     = { "File",      sizeof("File") - 1,      sizeof(buf_file),     buf_file,     ":",   1 },
+		[F_LINE]     = { "Line",      sizeof("Line") - 1,      sizeof(buf_line),     buf_line,     " ",   1 },
+		[F_FUNCTION] = { "Function",  sizeof("Function") - 1,  sizeof(buf_function), buf_function, ": ",  2 },
+	};
+	static int field_len[arraysize(field)];
 	static char buf[32768];
 	static int pos = 0;
 	static int state = 0;
 	static char *key, *val;
 	static int lkey, lval = -1;
 	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
-	static int level, msgtail, msglen;
-	int res;
+	int level, res, i;
+
+	level = 0;
 
 	do {
 		if ((res = read(s, buf + pos, sizeof(buf) - pos)) <= 0)
@@ -291,7 +315,8 @@ static int read_message(int s, int nresp)
 							}
 						}
 						msgtype = MSG_UNKNOWN;
-						level = msgtail = msglen = 0;
+						for (i = 0; i < arraysize(field); i++)
+							field[i].buf[0] = '\0';
 						memmove(buf, &buf[pos + 1], res - 1);
 						lval = pos = -1;
 						break;
@@ -319,31 +344,25 @@ static int read_message(int s, int nresp)
 						lval = &buf[pos] - val;
 
 					if (buf[pos] == '\n') {
+						state = 0;
+
 						if (msgtype == MSG_EVENT) {
-							if (lkey == sizeof("Level")-1 && !memcmp(key, "Level", sizeof("Level" - 1)))
-								level = atol(val);
-							else if (lkey == sizeof("Message Len")-1 && !memcmp(key, "Message Len", sizeof("Message Len") - 1))
-								msgtail = atol(val);
-							else if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
-								if (level == CW_EVENT_NUM_PROGRESS) {
-									smart_write(val + lval - msgtail, (msgtail ? msgtail : 2));
-									/* Progress messages suppress input handling until
-									 * we get a null progress message to signify the end
-									 */
-									progress = (msgtail ? 2 : 0);
-								} else {
-									if (progress == 2) {
-										progress = 1;
-										smart_write("\n", 1);
+							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
+								key = buf;
+								state = 4;
+							} else {
+								for (i = 0; i < arraysize(field); i++) {
+									if (lkey == field[i].name_len && !memcmp(key, field[i].name, field[i].name_len)) {
+										if (i == F_LEVEL) {
+											level = atol(val);
+											while (*val != ' ')
+												val++, lval--;
+										}
+										field_len[i] = (lval > field[i].buf_len ? field[i].buf_len : lval);
+										memcpy(field[i].buf, val, field_len[i]);
+										break;
 									}
-
-									val[lval++] = '\n';
-									if (level == CW_EVENT_NUM_VERBOSE)
-										smart_write(val + lval - (msgtail + 1), msgtail + 1);
-									else
-										smart_write(val, lval);
 								}
-
 							}
 						} else if (msgtype == MSG_RESPONSE) {
 							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1))
@@ -390,7 +409,6 @@ static int read_message(int s, int nresp)
 
 						memmove(buf, &buf[pos + 1], res - 1);
 						lval = pos = -1;
-						state = 0;
 					}
 					break;
 				case 4: /* Response data - want a line */
@@ -398,6 +416,38 @@ static int read_message(int s, int nresp)
 						lval = &buf[pos] - key;
 
 					if (buf[pos] == '\n') {
+						if (msgtype == MSG_EVENT) {
+							if (lval != sizeof("--END MESSAGE--") - 1 || memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1)) {
+								if (level == CW_EVENT_NUM_PROGRESS) {
+									/* Progress messages suppress input handling until
+									 * we get a null progress message to signify the end
+									 */
+									if (lval) {
+										smart_write(key, lval);
+										progress = 2;
+									} else {
+										smart_write("\n", 1);
+										progress = 0;
+									}
+								} else {
+									if (progress == 2) {
+										progress = 1;
+										smart_write("\n", 1);
+									}
+
+									key[lval++] = '\n';
+									if (level != CW_EVENT_NUM_VERBOSE) {
+										smart_write(field[F_DATE].buf, field_len[F_DATE]);
+										for (i = 0; i < arraysize(field); i++) {
+											terminal_write(field[i].buf, field_len[i]);
+											terminal_write(field[i].tail, field[i].tail_len);
+										}
+									}
+									smart_write(key, lval);
+								}
+							} else
+								state = 0;
+						} else
 is_data:
 						if (lval != sizeof("--END COMMAND--") - 1 || memcmp(key, "--END COMMAND--", sizeof("--END COMMAND--") - 1)) {
 							if (msgtype == MSG_FOLLOWS) {
@@ -465,7 +515,7 @@ static char **cli_completion(const char *text, int start, int end)
 		iov[1].iov_len = strlen(rl_line_buffer);
 		iov[2].iov_base = "\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
-		writev(console_sock, iov, arraysize(iov));
+		cw_writev_all(console_sock, iov, arraysize(iov));
 
 		read_message(console_sock, 1);
 
@@ -530,12 +580,13 @@ static void console_handler(char *s)
 				iov[1].iov_len = strlen(s);
 				iov[2].iov_base = "\r\n\r\n";
 				iov[2].iov_len = sizeof("\r\n\r\n") - 1;
-				if (writev(console_sock, iov, 3) < 1) {
+				if (cw_writev_all(console_sock, iov, 3) < 1) {
 					cw_log(CW_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					pthread_detach(pthread_self());
 					pthread_cancel(pthread_self());
 				}
 				read_message(console_sock, 1);
+				prompt = 1;
 			}
 		}
 	} else if (option_remote) {
@@ -663,7 +714,7 @@ void *console(void *data)
 		iov[4].iov_len = snprintf(buf, sizeof(buf), "%d", option_debug);
 		iov[5].iov_base = "\r\n\r\n";
 		iov[5].iov_len = sizeof("\r\n\r\n") - 1;
-		writev(console_sock, iov, 6);
+		cw_writev_all(console_sock, iov, 6);
 		read_message(console_sock, 4);
 
 		/* Ok, we're ready. If we are the internal console tell the core to boot if it hasn't already */
@@ -739,7 +790,7 @@ int console_oneshot(char *spec, char *cmd)
 		iov[1].iov_len = strlen(cmd);
 		iov[2].iov_base = "\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
-		writev(s, iov, 3);
+		cw_writev_all(s, iov, 3);
 
 		shutdown(s, SHUT_WR);
 

@@ -63,6 +63,46 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static char base64[64];
 static char b2a[256];
 
+
+int cw_writev_all(int fd, struct iovec *iov, int count)
+{
+	int n, written;
+
+	n = written = 0;
+	while (count && (n = writev(fd, iov, count)) > 0) {
+		int x = n;
+
+		written += n;
+
+		while (x >= iov[0].iov_len) {
+			x -= iov[0].iov_len;
+			count--;
+			iov++;
+		}
+		if (x) {
+			iov[0].iov_base += x;
+			iov[0].iov_len -= x;
+		}
+	}
+
+	return (n <= 0 ? n : written);
+}
+
+
+int cw_write_all(int fd, const char *data, int len)
+{
+	int pending = len;
+	int written = 0;
+
+	while (pending && (written = write(fd, data, pending)) > 0) {
+		data += written;
+		pending -= written;
+	}
+
+	return (written <= 0 ? written : len);
+}
+
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
 /* duh? ERANGE value copied from web... */

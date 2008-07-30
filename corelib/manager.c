@@ -760,7 +760,7 @@ static int authenticate(struct mansession *sess, struct message *m)
 	}
 
 	if (cat && !ret) {
-		int readperm, writeperm, eventmask;
+		int readperm, writeperm, eventmask = 0;
 
 		readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
 		writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
@@ -1466,8 +1466,6 @@ static int process_message(struct mansession *s, struct message *m)
 {
 	int ret = 0;
 
-	cw_log(CW_LOG_DEBUG, "Manager received command '%s'\n", m->action);
-
 	if (cw_strlen_zero(m->action))
 		astman_send_error(s, m, "Missing action in request");
 	else if (s->authenticated) {
@@ -1651,7 +1649,7 @@ void *manager_session_ami(void *data)
 	struct mansession *sess = data;
 	int res;
 
-	write(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
+	cw_write_all(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
 
 	sess->reader_tid = CW_PTHREADT_NULL;
 
@@ -1709,7 +1707,7 @@ void *manager_session_ami(void *data)
 
 			res = 0;
 			while (len > 0) {
-				int n = write(sess->fd, data, len);
+				int n = cw_write_all(sess->fd, data, len);
 				if (n >= 0) {
 					data += n;
 					len -= n;
@@ -1744,13 +1742,13 @@ static void manager_session_log_cleanup(void *data)
 void *manager_session_log(void *data)
 {
 	struct mansession *sess = data;
-	int res;
+	int res = 0;
 
 	pthread_cleanup_push(manager_session_log_cleanup, sess);
 
 	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-	for (;;) {
+	while (!res) {
 		struct manager_event *event = NULL;
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -1786,15 +1784,19 @@ void *manager_session_log(void *data)
 				[CW_EVENT_NUM_DTMF]	= LOG_INFO,
 				[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
 			};
-			enum { F_LEVEL = 0, F_DATELEN, F_MESSAGE };
+			enum { F_LEVEL = 0, F_DATE, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
 			static struct {
 				int l;
 				const char *s;
 			} keys[] = {
 #define LENSTR(x)	sizeof(x) - 1, x
-				[F_LEVEL]   = { LENSTR("Level") },
-				[F_DATELEN] = { LENSTR("Date Len") },
-				[F_MESSAGE] = { LENSTR("Message") },
+				[F_LEVEL]    = { LENSTR("Level") },
+				[F_DATE]     = { LENSTR("Date") },
+				[F_THREADID] = { LENSTR("Thread ID") },
+				[F_FILE]     = { LENSTR("File") },
+				[F_LINE]     = { LENSTR("Line") },
+				[F_FUNCTION] = { LENSTR("Function") },
+				[F_MESSAGE]  = { LENSTR("Message") },
 #undef LENSTR
 			};
 			struct {
@@ -1808,69 +1810,82 @@ void *manager_session_log(void *data)
 
 			memset(vals, 0, sizeof(vals));
 
-			key = event->data;
-			while (*key) {
-				for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-				if (!*ekey)
-					break;
-
-				for (val = ekey + 1; *val && *val == ' '; val++);
-				for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-				lkey = ekey - key;
-				lval = eval - val;
-
-				/* We shouldn't get anything other than log events. */
-				if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-				&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
-					return 0;
-
-				for (i = 0; i < arraysize(keys); i++) {
-					if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-						vals[i].l = lval;
-						vals[i].s = val;
+			key = eval = event->data;
+			while (!res && *key) {
+				if (!vals[F_MESSAGE].s) {
+					for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+					if (!*ekey)
 						break;
-					}
-				}
 
-				if (!*eval)
-					break;
+					for (val = ekey + 1; *val && *val == ' '; val++);
+					for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
 
-				for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
-			}
+					lkey = ekey - key;
+					lval = eval - val;
 
-			res = 0;
+					/* We shouldn't get anything other than log events. */
+					if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+					&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
+						break;
 
-			if (vals[F_MESSAGE].s) {
-				if (sess->fd >= 0) {
-					vals[F_MESSAGE].s[vals[F_MESSAGE].l++] = '\n';
-					while (vals[F_MESSAGE].l > 0 && (res = write(sess->fd, vals[F_MESSAGE].s, vals[F_MESSAGE].l)) > 0) {
-						vals[F_MESSAGE].s += res;
-						vals[F_MESSAGE].l -= res;
-					}
-					if (res <= 0) {
-						cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
-						res = -1;
-					}
-				} else {
-					level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
-					if (vals[F_DATELEN].s) {
-						lkey = atol(vals[F_DATELEN].s);
-						vals[F_MESSAGE].s += lkey;
-						vals[F_MESSAGE].l -= lkey;
-						/* FIXME: this seems unnecessary. Why not leave the priority string in */
-						if (priorities[level] != LOG_INFO && (key = strchr(vals[F_MESSAGE].s, '['))) {
-							vals[F_MESSAGE].l -= key - vals[F_MESSAGE].s;
-							vals[F_MESSAGE].s = key;
+					for (i = 0; i < arraysize(keys); i++) {
+						if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+							vals[i].l = lval;
+							vals[i].s = val;
+							break;
 						}
 					}
-					syslog(priorities[level], "%.*s", vals[F_MESSAGE].l, vals[F_MESSAGE].s);
+				} else {
+					for (eval = key; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+					lkey = eval - key;
+
+					if (lkey == sizeof("--END MESSAGE--") - 1 && !memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
+						break;
+
+					if (sess->fd >= 0) {
+						struct iovec iov[] = {
+							{ .iov_base = vals[F_DATE].s,     .iov_len = vals[F_DATE].l },
+							{ .iov_base = vals[F_LEVEL].s,    .iov_len = vals[F_LEVEL].l },
+							{ .iov_base = "[",                .iov_len = sizeof("]") - 1 },
+							{ .iov_base = vals[F_THREADID].s, .iov_len = vals[F_THREADID].l },
+							{ .iov_base = "]: ",              .iov_len = sizeof("]: ") - 1 },
+							{ .iov_base = vals[F_FILE].s,     .iov_len = vals[F_FILE].l },
+							{ .iov_base = ":",                .iov_len = sizeof(":") - 1 },
+							{ .iov_base = vals[F_LINE].s,     .iov_len = vals[F_LINE].l },
+							{ .iov_base = " ",                .iov_len = sizeof(" ") - 1 },
+							{ .iov_base = vals[F_FUNCTION].s, .iov_len = vals[F_FUNCTION].l },
+							{ .iov_base = ": ",               .iov_len = sizeof(": ") - 1 },
+							{ .iov_base = key,                .iov_len = lkey },
+							{ .iov_base = "\n",               .iov_len = sizeof("\n") - 1 },
+						};
+
+						while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
+							iov[1].iov_base++, iov[1].iov_len--;
+
+						if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
+							cw_log(CW_LOG_WARNING, "Disconnecting manager session %s: %s\n", sess->name, strerror(errno));
+							res = -1;
+						}
+					} else {
+						level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
+						syslog(priorities[level], "[%.*s]: %.*s:%.*s %.*s: %.*s",
+							vals[F_THREADID].l, vals[F_THREADID].s,
+							vals[F_FILE].l, vals[F_FILE].s,
+							vals[F_LINE].l, vals[F_LINE].s,
+							vals[F_FUNCTION].l, vals[F_FUNCTION].s,
+							lkey, key);
+					}
 				}
+
+				key = eval;
+				if (*key == '\r')
+					key++;
+				if (*key == '\n')
+					key++;
 			}
 
 			cw_object_put(event);
-			if (res < 0)
-				break;
 		}
 	}
 
