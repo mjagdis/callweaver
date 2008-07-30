@@ -114,13 +114,8 @@ extern void cw_queue_log(const char *queuename, const char *callid, const char *
  	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-extern void cw_verbose(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+#define cw_verbose(...)		cw_log(CW_LOG_VERBOSE, __VA_ARGS__)
 
-extern int cw_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int cw_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int cw_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern void cw_console_puts(const char *string);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 

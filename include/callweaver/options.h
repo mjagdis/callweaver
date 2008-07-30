@@ -27,11 +27,13 @@
 extern "C" {
 #endif
 
+#include <sys/param.h>
 #include <time.h>
 
 #define CW_CACHE_DIR_LEN 512
 #define CW_FILENAME_MAX	80
 
+extern char hostname[MAXHOSTNAMELEN];
 extern int option_verbose;
 extern int option_debug;
 extern int option_nofork;

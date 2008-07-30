@@ -24,11 +24,12 @@
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+#include "callweaver/lock.h"
+#include "callweaver/object.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/manager.h"
 #include "callweaver/musiconhold.h"
-#include "callweaver/lock.h"
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 
@@ -209,19 +210,58 @@ static void launch_cli_thread(char *cli_command);
 
 #define jabber_message_node_printf(id, sub, fmt, ...) jabber_message_node_new(id, sub, fmt "Epoch: %ld\n\n", ##__VA_ARGS__, time(NULL))
 
-static int jabber_manager_write(struct mansession *sess, struct manager_event *event)
+
+static void jabber_manager_session_cleanup(void *data)
 {
-	struct jabber_message_node *node;
+	struct mansession *sess = data;
 
-	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
-		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
-
-	return 0;
+	cw_object_put(sess);
 }
 
-struct mansession_tech jabber_manager_tech = {
-	.write = jabber_manager_write,
-};
+
+void *jabber_manager_session(void *data)
+{
+	struct mansession *sess = data;
+
+	pthread_cleanup_push(jabber_manager_session_cleanup, sess);
+
+	for (;;) {
+		struct eventqent *eqe = NULL;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		/* If there are no queued events we have to wait for activity. */
+		if (!sess->m && !sess->eventq)
+			pthread_cond_wait(&sess->activity, &sess->lock);
+
+		/* Unhook the top event (if any) now. Once we have that
+		 * we can unlock the session.
+		 */
+		if ((eqe = sess->eventq))
+			sess->eventq = sess->eventq->next;
+
+		pthread_cleanup_pop(1);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		/* There _should_ be an event. Why else were we woken up? */
+		if (eqe) {
+			struct jabber_message_node *node;
+
+			if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", eqe->event->data)))
+				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
+
+			cw_object_put(eqe->event);
+			free(eqe);
+		}
+	}
+
+	pthread_cleanup_pop(1);
+	return NULL;
+}
 
 
 static int next_callid(void)
@@ -2030,7 +2070,7 @@ static int load_module(void)
 	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 	if (globals.event_master) {
 		cw_log(CW_LOG_NOTICE, "Registering Manager Event Hook\n");
-		if ((jabber_hook = manager_session_start(-1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1, &jabber_manager_tech, NULL))) {
+		if ((jabber_hook = manager_session_start(jabber_manager_session, -1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1))) {
 			jabber_hook->readperm = jabber_hook->send_events = -1;
 		}
 	}

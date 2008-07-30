@@ -363,7 +363,7 @@ static void console_handler(char *s)
 				console_cleanup(NULL);
 				exit(0);
 			} else {
-				if (write(console_sock, s, strlen(s) + 1) < 1) {
+				if (write(console_sock, s, strlen(s)) < 1 || write(console_sock, "\n", 1) < 1) {
 					cw_log(CW_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					pthread_detach(pthread_self());
 					pthread_cancel(pthread_self());
@@ -472,13 +472,16 @@ void *console(void *data)
 		}
 
 		/* Read the welcome line that contains hostname, version and pid */
-		read(console_sock, banner, sizeof(banner));
+		p = banner;
+		while (p - banner < sizeof(banner) - 1 && read(console_sock, p, 1) == 1 && p[0] != '\r' && p[0] != '\n')
+			p++;
+		*p = '\0';
 
 		/* Make sure verbose and debug settings are what we want or higher */
-		res = snprintf(buf, sizeof(buf), "set verbose atleast %d", option_verbose);
-		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
-		res = snprintf(buf, sizeof(buf), "set debug atleast %d", option_debug);
-		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)) + 1);
+		res = snprintf(buf, sizeof(buf), "set verbose atleast %d\n", option_verbose);
+		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)));
+		res = snprintf(buf, sizeof(buf), "set debug atleast %d\n", option_debug);
+		write(console_sock, buf, (res <= sizeof(buf) ? res : sizeof(buf)));
 
 		stringp = banner;
 		remotehostname = strsep(&stringp, "/");
@@ -596,7 +599,8 @@ int console_oneshot(char *spec, char *cmd)
 		/* Dump the connection banner. We don't need it here */
 		read(s, buf, sizeof(buf));
 
-		write(s, cmd, strlen(cmd) + 1);
+		write(s, cmd, strlen(cmd));
+		write(s, "\n", 2);
 		shutdown(s, SHUT_WR);
 
 		while ((n = read(s, buf, sizeof(buf))) > 0)

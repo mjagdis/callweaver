@@ -200,7 +200,6 @@ struct console {
 time_t cw_startuptime;
 time_t cw_lastreloadtime;
 
-struct console consoles[CW_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
@@ -1012,220 +1011,6 @@ static void boot(void)
 }
 
 
-/*!
- * write the string to the console, and all attached
- * console clients
- */
-void cw_console_puts(const char *string)
-{
-	int i;
-
-	for (i = 0; i < arraysize(consoles); i++) {
-		if (consoles[i].fd > -1)
-			write(consoles[i].p[1], string, strlen(string));
-	}
-}
-
-
-static void network_verboser(const char *s, int pos, int replace, int complete)
-	/* ARGUSED */
-{
-	char *t;
-
-	if (replace) {
-		t = alloca(strlen(s) + 2);
-		sprintf(t, "\r%s", s);
-		s = t;
-	}
-	if (complete)
-		cw_console_puts(s);
-}
-
-
-static void *netconsole(void *vconsole)
-{
-	struct console *con = vconsole;
-	char tmp[512];
-	int res;
-	struct pollfd fds[2];
-
-	for(;;) {
-		fds[0].fd = con->fd;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
-		fds[1].fd = con->p[0];
-		fds[1].events = POLLIN;
-		fds[1].revents = 0;
-
-		res = poll(fds, 2, -1);
-		if (res < 0) {
-			if (errno != EINTR)
-				cw_log(CW_LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
-			sleep(1);
-			continue;
-		}
-		if (fds[0].revents) {
-			res = read(con->fd, tmp, sizeof(tmp));
-			if (res < 1) {
-				break;
-			}
-			tmp[res] = 0;
-			cw_cli_command(con->fd, tmp);
-		}
-		if (fds[1].revents) {
-			res = read(con->p[0], tmp, sizeof(tmp));
-			if (res < 1) {
-				cw_log(CW_LOG_ERROR, "read returned %d\n", res);
-				break;
-			}
-			res = write(con->fd, tmp, res);
-			if (res < 1)
-				break;
-		}
-	}
-	if (option_verbose > 2)
-		cw_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
-	close(con->fd);
-	close(con->p[0]);
-	close(con->p[1]);
-	con->fd = -1;
-	return NULL;
-}
-
-static void *listener(void *data)
-{
-	char buf[80];
-	int sock = (int)data;
-	int n, s;
-	int x;
-	struct pollfd fds[1];
-
-	for (;;) {
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		fds[0].fd = sock;
-		fds[0].events= POLLIN;
-		pthread_testcancel();
-		n = poll(fds, 1, -1);
-		x = errno;
-		pthread_testcancel();
-		if (n > 0)
-			s = accept(sock, NULL, NULL);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (n <= 0) {
-			if (x != EINTR)
-				cw_log(CW_LOG_WARNING, "poll returned %d error: %s\n", n, strerror(x));
-		} else if (s < 0) {
-			if (x != EINTR)
-				cw_log(CW_LOG_WARNING, "Accept returned %d: %s\n", s, strerror(x));
-		} else {
-			for (x = 0; x < arraysize(consoles); x++) {
-				if (consoles[x].fd < 0) {
-					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
-						cw_log(CW_LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
-						consoles[x].fd = -1;
-						close(s);
-						break;
-					}
-
-					n = snprintf(buf, sizeof(buf), "%s/%d/%s\n", hostname, cw_mainpid,  cw_version_string );
-					write(s, buf, n);
-
-					consoles[x].fd = s;
-					fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
-					fcntl(consoles[x].p[0], F_SETFD, fcntl(consoles[x].p[0], F_GETFD, 0) | FD_CLOEXEC);
-					fcntl(consoles[x].p[1], F_SETFD, fcntl(consoles[x].p[1], F_GETFD, 0) | FD_CLOEXEC);
-					fcntl(consoles[x].p[1], F_SETFL, fcntl(consoles[x].p[1], F_GETFL) | O_NONBLOCK);
-					if (cw_pthread_create(&consoles[x].t, &global_attr_detached, netconsole, &consoles[x])) {
-						cw_log(CW_LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
-						consoles[x].fd = -1;
-						close(s);
-					} else if (!fully_booted)
-						boot();
-					break;
-				}
-			}
-			if (x >= arraysize(consoles)) {
-				cw_log(CW_LOG_WARNING, "No more connections allowed\n");
-				close(s);
-			} else if (consoles[x].fd > -1) {
-				if (option_verbose > 2) 
-					cw_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
-			}
-		}
-	}
-	return NULL;
-}
-
-static int cw_makesocket(char *spec)
-{
-	union {
-		struct sockaddr sa;
-		struct sockaddr_un sun;
-	} u;
-	socklen_t salen;
-	uid_t uid = -1;
-	gid_t gid = -1;
-	int sock;
-
-	memset(&u, 0, sizeof(u));
-	u.sun.sun_family = AF_LOCAL;
-	cw_copy_string(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
-	salen = sizeof(u.sun);
-
-	if ((sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-		cw_log(CW_LOG_WARNING, "Unable to create socket for %s: %s\n", spec, strerror(errno));
-		return -1;
-	}		
-	if (bind(sock, &u.sa, salen)) {
-		cw_log(CW_LOG_WARNING, "Unable to bind socket to %s: %s\n", spec, strerror(errno));
-		close(sock);
-		return -1;
-	}
-	if (listen(sock, 1024) < 0) {
-		cw_log(CW_LOG_WARNING, "Unable to listen on socket %s: %s\n", spec, strerror(errno));
-		close(sock);
-		return -1;
-	}
-
-	fcntl(sock, F_SETFD, fcntl(sock, F_GETFD, 0) | FD_CLOEXEC);
-
-	cw_pthread_create(&lthread, &global_attr_default, listener, (void *)sock);
-
-	if (u.sa.sa_family == AF_LOCAL) {
-		if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
-			struct passwd *pw;
-			if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
-				cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
-			else
-				uid = pw->pw_uid;
-		}
-		
-		if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
-			struct group *grp;
-			if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
-				cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
-			else
-				gid = grp->gr_gid;
-		}
-
-		if (chown(cw_config_CW_SOCKET, uid, gid) < 0)
-			cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", spec, strerror(errno));
-
-		if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
-			mode_t p;
-			sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
-			if ((chmod(spec, p)) < 0)
-				cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", spec, strerror(errno));
-		}
-	}
-
-	return 0;
-}
-
-
 static int show_version(void)
 {
 	puts(cw_version_string);
@@ -1456,7 +1241,6 @@ int callweaver_main(int argc, char *argv[])
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
 
-	cw_mainpid = getpid();
 	cw_ulaw_init();
 	cw_alaw_init();
 	cw_utils_init();
@@ -1757,6 +1541,28 @@ int callweaver_main(int argc, char *argv[])
 	}
 #endif
 
+	cw_mainpid = getpid();
+
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGHUP);
+	sigaddset(&sigs, SIGTERM);
+	sigaddset(&sigs, SIGINT);
+	sigaddset(&sigs, SIGWINCH);
+	sigprocmask(SIG_BLOCK, &sigs, NULL);
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	sa.sa_handler = urg_handler;
+	sigaction(SIGURG, &sa, NULL);
+
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL);
+
+	sa.sa_handler = child_handler;
+	sa.sa_flags = SA_NOCLDSTOP;
+	sigaction(SIGCHLD, &sa, NULL);
+
 	cw_clock_init();
 
 	if ((option_console || option_nofork) && !option_verbose) 
@@ -1779,9 +1585,6 @@ int callweaver_main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
-	for (x = 0; x < arraysize(consoles); x++)
-		consoles[x].fd = -1;
-
 	/* Initialize the core services */
 	if (init_logger()
 	|| init_manager())
@@ -1790,32 +1593,6 @@ int callweaver_main(int argc, char *argv[])
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
 		cw_verbose("Warning! CallWeaver is not thread safe.\n");
-
-	unlink(cw_config_CW_SOCKET);
-
-	cw_makesocket(cw_config_CW_SOCKET);
-
-	cw_register_verbose(network_verboser);
-
-	sigemptyset(&sigs);
-	sigaddset(&sigs, SIGHUP);
-	sigaddset(&sigs, SIGTERM);
-	sigaddset(&sigs, SIGINT);
-	sigaddset(&sigs, SIGWINCH);
-	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
-
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-
-	sa.sa_handler = urg_handler;
-	sigaction(SIGURG, &sa, NULL);
-
-	sa.sa_handler = SIG_IGN;
-	sigaction(SIGPIPE, &sa, NULL);
-
-	sa.sa_handler = child_handler;
-	sa.sa_flags = SA_NOCLDSTOP;
-	sigaction(SIGCHLD, &sa, NULL);
 
 	/* Console start up needs core CLI commands in place because
 	 * the console will request debug and verbose settings
@@ -1830,6 +1607,10 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 
+	/* If we're using the internal console the first console connection
+	 * (which may not be the internal console) will send a SIGHUP to
+	 * tell the main process below to start the boot.
+	 */
 	if (!option_console)
 		boot();
 
@@ -1841,9 +1622,13 @@ int callweaver_main(int argc, char *argv[])
 		sigwait(&sigs, &sig);
 		switch (sig) {
 			case SIGHUP:
-				if (option_verbose > 1) 
-					printf("Received HUP signal -- Reloading configs\n");
-				cw_module_reload(NULL);
+				if (!fully_booted)
+					boot();
+				else {
+					if (option_verbose > 1)
+						printf("Received HUP signal -- Reloading configs\n");
+					cw_module_reload(NULL);
+				}
 				break;
 			case SIGTERM:
 			case SIGINT:

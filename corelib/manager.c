@@ -27,20 +27,23 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/un.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <ctype.h>
+#include <errno.h>
+#include <grp.h>
+#include <netdb.h>
+#include <pwd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <signal.h>
-#include <errno.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "callweaver.h"
@@ -87,12 +90,6 @@ struct fast_originate_helper {
 static int displayconnects;
 
 
-struct eventqent {
-	struct eventqent *next;
-	struct manager_event *event;
-};
-
-
 struct message {
 	char *actionid;
 	char *action;
@@ -109,6 +106,7 @@ struct manager_listener {
 	struct cw_registry_entry *reg_entry;
 	int sock;
 	pthread_t tid;
+	void *(*handler)(void *);
 	char spec[0];
 };
 
@@ -136,14 +134,6 @@ static struct {
 
 
 #define MANAGER_AMI_HELLO	"CallWeaver Call Manager/1.0\r\n"
-
-static struct {
-	struct manager_event e;
-	char data[sizeof(MANAGER_AMI_HELLO) - 1];
-} manager_ami_hello = {
-	.e = { .len = sizeof(MANAGER_AMI_HELLO) - 1, },
-	.data = MANAGER_AMI_HELLO,
-};
 
 
 static int authority_to_str(int authority, char *res, int reslen)
@@ -214,6 +204,26 @@ int manager_str_to_eventmask(char *instr)
 	}
 
 	return ret;
+}
+
+
+static int append_event(struct mansession *s, struct manager_event *event)
+{
+	struct eventqent *tmp;
+	struct eventqent *prev = NULL;
+
+	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
+		return -1;
+
+	tmp->next = NULL;
+	tmp->event = cw_object_dup(event);
+	if (s->eventq) {
+		for (prev = s->eventq;  prev->next;  prev = prev->next);
+		prev->next = tmp;
+	} else {
+		s->eventq = tmp;
+	}
+	return 0;
 }
 
 
@@ -569,9 +579,6 @@ static void mansession_release(struct cw_object *obj)
 {
 	struct mansession *sess = container_of(obj, struct mansession, obj);
 	struct eventqent *eqe;
-
-	if (sess->tech->release)
-		sess->tech->release(sess);
 
 	if (sess->fd > -1)
 		close(sess->fd);
@@ -1095,12 +1102,17 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 
-	cw_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
-	if (!cw_strlen_zero(m->actionid))
-		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
-	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
+	if (s->handler == manager_session_ami) {
+		cw_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
+		if (!cw_strlen_zero(m->actionid))
+			cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
+	}
+
 	cw_cli_command(s->fd, cmd);
-	cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
+
+	if (s->handler == manager_session_ami)
+		cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
+
 	return 0;
 }
 
@@ -1469,11 +1481,12 @@ static int process_message(struct mansession *s, struct message *m)
 }
 
 
-static void *manager_ami_read(struct mansession *sess)
+static void *manager_session_ami_read(void *data)
 {
 	char buf[32768];
 	struct pollfd pfd;
 	struct message m;
+	struct mansession *sess = data;
 	char **hval;
 	int pos, state;
 	int res;
@@ -1593,38 +1606,9 @@ static void *manager_ami_read(struct mansession *sess)
 }
 
 
-static int manager_ami_write(struct mansession *sess, struct manager_event *event)
-{
-	const char *data = event->data;
-	int len = event->len;
-
-	while (len > 0) {
-		int n = write(sess->fd, data, len);
-		if (n >= 0) {
-			data += n;
-			len -= n;
-		} else {
-			cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-
-struct mansession_tech manager_ami_tech = {
-	.read = manager_ami_read,
-	.write = manager_ami_write,
-};
-
-
-static void session_writer_cleanup(void *data)
+static void manager_session_ami_cleanup(void *data)
 {
 	struct mansession *sess = data;
-
-	if (sess->reg_entry)
-		cw_registry_del(&manager_session_registry, sess->reg_entry);
 
 	if (sess->authenticated) {
 		if (option_verbose > 3 && displayconnects)
@@ -1645,23 +1629,21 @@ static void session_writer_cleanup(void *data)
 }
 
 
-static void *session_writer(void *data)
+void *manager_session_ami(void *data)
 {
 	struct mansession *sess = data;
 	int res;
 
+	write(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
+
 	sess->reader_tid = CW_PTHREADT_NULL;
 
-	pthread_cleanup_push(session_writer_cleanup, sess);
+	pthread_cleanup_push(manager_session_ami_cleanup, sess);
 
-	sess->reg_entry = NULL;
-
-	if (sess->tech->read && (res = cw_pthread_create(&sess->reader_tid, &global_attr_default, (void *(*)(void *))sess->tech->read, sess))) {
+	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
 		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
 		return NULL;
 	}
-
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	for (;;) {
 		struct eventqent *eqe = NULL;
@@ -1699,7 +1681,21 @@ static void *session_writer(void *data)
 		}
 
 		if (eqe) {
-			res = sess->tech->write(sess, eqe->event);
+			const char *data = eqe->event->data;
+			int len = eqe->event->len;
+
+			res = 0;
+			while (len > 0) {
+				int n = write(sess->fd, data, len);
+				if (n >= 0) {
+					data += n;
+					len -= n;
+				} else {
+					cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
+					res = -1;
+				}
+			}
+
 			cw_object_put(eqe->event);
 			free(eqe);
 			if (res < 0)
@@ -1712,7 +1708,341 @@ static void *session_writer(void *data)
 }
 
 
-struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, const struct mansession_tech *tech, void *tech_pvt)
+static void *manager_session_console_read(void *data)
+{
+	char buf[1024];
+	struct pollfd pfd;
+	struct message m;
+	struct mansession *sess = data;
+	char **hval;
+	int pos, state;
+	int res;
+
+	memset(&m, 0, sizeof(m));
+	m.action = "Command";
+	m.hdrcount = 1;
+	m.header[0].key = "Command";
+	m.header[0].val = buf;
+
+	pfd.fd = sess->fd;
+	pfd.events = POLLIN;
+
+	pos = 0;
+	state = 0;
+	hval = NULL;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	for (;;) {
+		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0) {
+			pthread_cancel(sess->writer_tid);
+			break;
+		}
+
+		for (; res; pos++, res--) {
+			if (buf[pos] == '\0' || buf[pos] == '\r' || buf[pos] == '\n') {
+				if (pos) {
+					/* End of message, go do it */
+					buf[pos] = '\0';
+					pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+					cw_mutex_lock(&sess->lock);
+					sess->m = &m;
+					pthread_cond_signal(&sess->activity);
+					pthread_cond_wait(&sess->ack, &sess->lock);
+					pthread_cleanup_pop(1);
+				}
+				memcpy(buf, &buf[pos + 1], res - 1);
+				pos = -1;
+			}
+		}
+
+		if (pos == sizeof(buf)) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			cw_log(CW_LOG_ERROR, "Console session %s dropped due to oversize message\n", sess->name);
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+
+static void manager_session_console_cleanup(void *data)
+{
+	struct mansession *sess = data;
+
+	if (option_verbose > 3 && displayconnects)
+		cw_verbose(VERBOSE_PREFIX_2 "Console disconnected from %s\n", sess->name);
+	cw_log(CW_LOG_EVENT, "Console disconnected from %s\n", sess->name);
+
+	if (!pthread_equal(sess->reader_tid, CW_PTHREADT_NULL)) {
+		pthread_cancel(sess->reader_tid);
+		pthread_join(sess->reader_tid, NULL);
+	}
+
+	cw_object_put(sess);
+}
+
+
+void *manager_session_console(void *data)
+{
+	char buf[11];
+	struct mansession *sess = data;
+	int res;
+
+	write(sess->fd, hostname, strlen(hostname));
+	write(sess->fd, "/", 1);
+	res = snprintf(buf, sizeof(buf), "%d", cw_mainpid);
+	write(sess->fd, buf, res);
+	write(sess->fd, "/", 1);
+	write(sess->fd, cw_version_string, strlen(cw_version_string));
+	write(sess->fd, "\n", 1);
+
+	sess->authenticated = 1;
+	sess->writeperm = EVENT_FLAG_COMMAND;
+	sess->readperm = EVENT_FLAG_LOG_ALL;
+	sess->send_events = EVENT_FLAG_LOG_ALL;
+
+	/* Ok, we're ready. Tell the core to boot if it hasn't already */
+	if (!fully_booted)
+		kill(cw_mainpid, SIGHUP);
+
+	sess->reader_tid = CW_PTHREADT_NULL;
+
+	pthread_cleanup_push(manager_session_console_cleanup, sess);
+
+	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_console_read, sess))) {
+		cw_log(CW_LOG_ERROR, "Console session reader thread creation failed: %s\n", strerror(res));
+		return NULL;
+	}
+
+	for (;;) {
+		struct eventqent *eqe = NULL;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		/* If there's no request message and no queued events
+		 * we have to wait for activity.
+		 */
+		if (!sess->m && !sess->eventq)
+			pthread_cond_wait(&sess->activity, &sess->lock);
+
+		/* Unhook the top event (if any) now. Once we have that
+		 * we can unlock the session.
+		 */
+		if ((eqe = sess->eventq))
+			sess->eventq = sess->eventq->next;
+
+		pthread_cleanup_pop(1);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (sess->m) {
+			if (process_message(sess, sess->m))
+				break;
+
+			/* Remove the queued message and signal completion to the reader */
+			cw_mutex_lock(&sess->lock);
+			sess->m = NULL;
+			pthread_cond_signal(&sess->ack);
+			cw_mutex_unlock(&sess->lock);
+		}
+
+		if (eqe) {
+			const char *data = eqe->event->data;
+			int len = eqe->event->len;
+			int isevent, logevent, ismessage, l;
+
+			res = logevent = 0;
+
+			while (!res && len > 0) {
+				for (l = 0; l < len && data[l] != ':'; l++);
+				if (l == len)
+					break;
+
+				isevent = ismessage = 0;
+
+				if (l == sizeof("Event") - 1 && !strncmp(data, "Event", sizeof("Event") - 1))
+					isevent = 1;
+				else if (l == sizeof("Message") - 1 && !strncmp(data, "Message", sizeof("Message") - 1))
+					ismessage = 1;
+
+				data += l + 1;
+				len -= l + 1;
+				while (len && *data == ' ') data++,len--;
+
+				for (l = 0; l < len && data[l] != '\r' && data[l] != '\n'; l++);
+
+				if (isevent && !strncmp(data, "Log", sizeof("Log") - 1))
+					logevent = 1;
+				else if (ismessage && logevent && (write(sess->fd, data, l) <= 0 || write(sess->fd, "\r\n", 2) <= 0)) {
+					res = -1;
+					break;
+				}
+
+				data += l;
+				len -= l;
+				while (len && (*data == '\r' || *data == '\n')) data++,len--;
+			}
+
+			cw_object_put(eqe->event);
+			free(eqe);
+			if (res < 0)
+				break;
+		}
+	}
+
+	pthread_cleanup_pop(1);
+	return NULL;
+}
+
+
+static void manager_session_log_cleanup(void *data)
+{
+	struct mansession *sess = data;
+
+	cw_object_put(sess);
+}
+
+
+void *manager_session_log(void *data)
+{
+	struct mansession *sess = data;
+	int res;
+
+	pthread_cleanup_push(manager_session_log_cleanup, sess);
+
+	for (;;) {
+		struct eventqent *eqe = NULL;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		/* If there are no queued events we have to wait for activity. */
+		if (!sess->m && !sess->eventq)
+			pthread_cond_wait(&sess->activity, &sess->lock);
+
+		/* Unhook the top event (if any) now. Once we have that
+		 * we can unlock the session.
+		 */
+		if ((eqe = sess->eventq))
+			sess->eventq = sess->eventq->next;
+
+		pthread_cleanup_pop(1);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		/* There _should_ be an event. Why else were we woken up? */
+		if (eqe) {
+			static const int priorities[] = {
+				[CW_EVENT_NUM_ERROR]	= LOG_ERR,
+				[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
+				[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
+				[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
+				[CW_EVENT_NUM_EVENT]	= LOG_INFO,
+				[CW_EVENT_NUM_DTMF]	= LOG_INFO,
+				[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
+			};
+			enum { F_LEVEL = 0, F_DATELEN, F_MESSAGE };
+			static struct {
+				int l;
+				const char *s;
+			} keys[] = {
+#define LENSTR(x)	sizeof(x) - 1, x
+				[F_LEVEL]   = { LENSTR("Level") },
+				[F_DATELEN] = { LENSTR("Date Len") },
+				[F_MESSAGE] = { LENSTR("Message") },
+#undef LENSTR
+			};
+			struct {
+				int l;
+				char *s;
+			} vals[arraysize(keys)];
+			char *key, *ekey;
+			char *val, *eval;
+			int lkey, lval;
+			int level, i;
+
+			memset(vals, 0, sizeof(vals));
+
+			key = eqe->event->data;
+			while (*key) {
+				for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+				if (!*ekey)
+					break;
+
+				for (val = ekey + 1; *val && *val == ' '; val++);
+				for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+				lkey = ekey - key;
+				lval = eval - val;
+
+				/* We shouldn't get anything other than log events. */
+				if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+				&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
+					return 0;
+
+				for (i = 0; i < arraysize(keys); i++) {
+					if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+						vals[i].l = lval;
+						vals[i].s = val;
+						break;
+					}
+				}
+
+				if (!*eval)
+					break;
+
+				for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
+			}
+
+			res = 0;
+
+			if (vals[F_MESSAGE].s) {
+				if (sess->fd >= 0) {
+					vals[F_MESSAGE].s[vals[F_MESSAGE].l++] = '\n';
+					while (vals[F_MESSAGE].l > 0 && (res = write(sess->fd, vals[F_MESSAGE].s, vals[F_MESSAGE].l)) > 0) {
+						vals[F_MESSAGE].s += res;
+						vals[F_MESSAGE].l -= res;
+					}
+					if (res <= 0) {
+						cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
+						res = -1;
+					}
+				} else {
+					level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
+					if (vals[F_DATELEN].s) {
+						lkey = atol(vals[F_DATELEN].s);
+						vals[F_MESSAGE].s += lkey;
+						vals[F_MESSAGE].l -= lkey;
+						/* FIXME: this seems unnecessary. Why not leave the priority string in */
+						if (priorities[level] != LOG_INFO && (key = strchr(vals[F_MESSAGE].s, '['))) {
+							vals[F_MESSAGE].l -= key - vals[F_MESSAGE].s;
+							vals[F_MESSAGE].s = key;
+						}
+					}
+					syslog(priorities[level], "%.*s", vals[F_MESSAGE].l, vals[F_MESSAGE].s);
+				}
+			}
+
+			cw_object_put(eqe->event);
+			free(eqe);
+			if (res < 0)
+				break;
+		}
+	}
+
+	pthread_cleanup_pop(1);
+	return NULL;
+}
+
+
+struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1737,23 +2067,25 @@ struct mansession *manager_session_start(int fd, int family, void *addr, size_t 
 	sess->u.sa.sa_family = family;
 
 	sess->fd = fd;
-	sess->tech = tech;
-	sess->tech_pvt = tech_pvt;
+	sess->handler = handler;
 	sess->send_events = EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
+	cw_object_get(sess);
 	cw_mutex_init(&sess->lock);
 	cw_cond_init(&sess->activity, NULL);
 	cw_cond_init(&sess->ack, NULL);
 	sess->obj.release = mansession_release;
 
-	cw_object_get(sess);
-
-	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_dup(sess))) {
+	cw_object_dup(sess);
+	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, handler, sess)) {
 		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
+		cw_object_put(sess);
 		cw_object_put(sess);
 		return NULL;
 	}
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 	return sess;
 }
@@ -1761,29 +2093,12 @@ struct mansession *manager_session_start(int fd, int family, void *addr, size_t 
 
 void manager_session_end(struct mansession *sess)
 {
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
 	pthread_cancel(sess->writer_tid);
 	pthread_join(sess->writer_tid, NULL);
 	cw_object_put(sess);
-}
-
-
-static int append_event(struct mansession *s, struct manager_event *event)
-{
-	struct eventqent *tmp;
-	struct eventqent *prev = NULL;
-
-	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
-		return -1;
-
-	tmp->next = NULL;
-	tmp->event = cw_object_dup(event);
-	if (s->eventq) {
-		for (prev = s->eventq;  prev->next;  prev = prev->next);
-		prev->next = tmp;
-	} else {
-		s->eventq = tmp;
-	}
-	return 0;
 }
 
 
@@ -1815,63 +2130,6 @@ static void *accept_thread(void *data)
 
 	pthread_cleanup_push(accept_thread_cleanup, listener);
 
-	if (listener->spec[0] == '/') {
-		salen = sizeof(u.sun);
-		u.sun.sun_family = AF_LOCAL;
-		strncpy(u.sun.sun_path, listener->spec, sizeof(u.sun.sun_path));
-		unlink(listener->spec);
-	} else {
-		char *port;
-		int portno;
-
-		salen = sizeof(u.sin);
-		u.sin.sin_family = AF_INET;
-		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
-
-		if (!(port = strrchr(listener->spec, ':'))) {
-			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
-		} else {
-			if (sscanf(port + 1, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, listener->spec);
-				return NULL;
-			}
-			u.sin.sin_port = htons(portno);
-			*port = '\0';
-		}
-
-		if (!inet_aton(listener->spec, &u.sin.sin_addr)) {
-			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", listener->spec);
-			return NULL;
-		}
-
-		if (port)
-			*port = ':';
-	}
-
-	if ((listener->sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-		cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
-		return NULL;
-	}
-
-	fcntl(listener->sock, F_SETFD, fcntl(listener->sock, F_GETFD, 0) | FD_CLOEXEC);
-	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
-
-	if (bind(listener->sock, &u.sa, salen)) {
-		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->spec, strerror(errno));
-		return NULL;
-	}
-
-	if (listen(listener->sock, 1024)) {
-		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->spec, strerror(errno));
-		return NULL;
-	}
-
-	if (u.sa.sa_family == AF_LOCAL)
-		chmod(u.sun.sun_path, 0666);
-
-	if (option_verbose)
-		cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
-
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -1891,10 +2149,8 @@ static void *accept_thread(void *data)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, &manager_ami_tech, NULL))) {
-			append_event(sess, &manager_ami_hello.e);
+		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen)))
 			cw_object_put(sess);
-		}
 	}
 
 	pthread_cleanup_pop(1);
@@ -2126,26 +2382,130 @@ static void listener_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(const char *buf)
+static void manager_listen(const char *buf, void *(* const handler)(void *))
 {
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sin;
+		struct sockaddr_un sun;
+	} u;
 	struct manager_listener *listener;
+	socklen_t salen;
+	const int arg = 1;
 
-	if ((listener = malloc(sizeof(*listener) + strlen(buf) + 1))) {
-		cw_object_init(listener, NULL, CW_OBJECT_NO_REFS);
-		listener->obj.release = listener_free;
-		listener->reg_entry = NULL;
-		listener->tid = CW_PTHREADT_NULL;
-		listener->sock = -1;
-		strcpy(listener->spec, buf);
-
-		/* If we can't add the listener to the registry just drop our reference and let it die. */
-		if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
-			cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, cw_object_get(listener));
-		} else
-			free(listener);
-	} else {
+	if (!(listener = malloc(sizeof(*listener) + strlen(buf) + 1))) {
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		return;
 	}
+
+	cw_object_init(listener, NULL, CW_OBJECT_NO_REFS);
+	cw_object_get(listener);
+	listener->obj.release = listener_free;
+	listener->reg_entry = NULL;
+	listener->tid = CW_PTHREADT_NULL;
+	listener->sock = -1;
+	listener->handler = handler;
+	strcpy(listener->spec, buf);
+
+	if (listener->spec[0] == '/') {
+		salen = sizeof(u.sun);
+		u.sun.sun_family = AF_LOCAL;
+		strncpy(u.sun.sun_path, listener->spec, sizeof(u.sun.sun_path));
+		unlink(listener->spec);
+	} else {
+		char *port;
+		int portno;
+
+		salen = sizeof(u.sin);
+		u.sin.sin_family = AF_INET;
+		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
+
+		if (!(port = strrchr(listener->spec, ':'))) {
+			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
+		} else {
+			if (sscanf(port + 1, "%d", &portno) != 1) {
+				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, listener->spec);
+				return;
+			}
+			u.sin.sin_port = htons(portno);
+			*port = '\0';
+		}
+
+		if (!inet_aton(listener->spec, &u.sin.sin_addr)) {
+			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", listener->spec);
+			return;
+		}
+
+		if (port)
+			*port = ':';
+	}
+
+	if ((listener->sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+		cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
+		return;
+	}
+
+	fcntl(listener->sock, F_SETFD, fcntl(listener->sock, F_GETFD, 0) | FD_CLOEXEC);
+	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
+
+	if (bind(listener->sock, &u.sa, salen)) {
+		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->spec, strerror(errno));
+		return;
+	}
+
+	if (listen(listener->sock, 1024)) {
+		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->spec, strerror(errno));
+		return;
+	}
+
+	if (u.sa.sa_family == AF_LOCAL) {
+		if (handler == manager_session_ami)
+			chmod(u.sun.sun_path, 0666);
+		else if (handler == manager_session_console) {
+			uid_t uid = -1;
+			gid_t gid = -1;
+
+			if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
+				mode_t p;
+				sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
+				if ((chmod(u.sun.sun_path, p)) < 0)
+					cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", u.sun.sun_path, strerror(errno));
+			}
+
+			if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
+				struct passwd *pw;
+				if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
+					cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
+				else
+					uid = pw->pw_uid;
+			}
+
+			if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
+				struct group *grp;
+				if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
+					cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
+				else
+					gid = grp->gr_gid;
+			}
+
+			if (chown(u.sun.sun_path, uid, gid) < 0)
+				cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", u.sun.sun_path, strerror(errno));
+		}
+	}
+
+	if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
+		cw_object_dup(listener);
+		if (!cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener)) {
+			if (option_verbose)
+				cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
+		} else {
+			cw_log(CW_LOG_ERROR, "Failed to start manager thread for %s: %s\n", listener->spec, strerror(errno));
+			cw_registry_del(&manager_listener_registry, listener->reg_entry);
+			cw_object_put(listener);
+		}
+	}
+
+	cw_object_put(listener);
 }
 
 
@@ -2187,6 +2547,8 @@ int manager_reload(void)
 	portno = NULL;
 	displayconnects = 1;
 
+	manager_listen(cw_config_CW_SOCKET, manager_session_console);
+
 	/* Overlay configured values from the config file */
 	cfg = cw_config_load("manager.conf");
 	if (!cfg) {
@@ -2196,7 +2558,7 @@ int manager_reload(void)
 			if (!strcmp(v->name, "displayconnects"))
 				displayconnects = cw_true(v->value);
 			else if (!strcmp(v->name, "listen"))
-				manager_listen(v->value);
+				manager_listen(v->value, manager_session_ami);
 
 			/* DEPRECATED */
 			else if (!strcmp(v->name, "block-sockets"))
@@ -2230,7 +2592,7 @@ int manager_reload(void)
 		char buf[256];
 
 		snprintf(buf, sizeof(buf), "%s:%s", bindaddr, portno);
-		manager_listen(buf);
+		manager_listen(buf, manager_session_ami);
 	}
 
 	if (cfg)
@@ -2242,8 +2604,6 @@ int manager_reload(void)
 
 int init_manager(void)
 {
-	cw_object_init(&manager_ami_hello.e, NULL, CW_OBJECT_NO_REFS);
-
 	manager_reload();
 
 	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));

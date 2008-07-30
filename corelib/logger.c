@@ -76,7 +76,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
 
-CW_MUTEX_DEFINE_STATIC(msglist_lock);
 CW_MUTEX_DEFINE_STATIC(loglock);
 
 static struct {
@@ -84,17 +83,12 @@ static struct {
 	unsigned int event_log:1;
 } logfiles = { 1, 1 };
 
-static struct msglist {
-	char *msg;
-	struct msglist *next;
-} *list = NULL, *last = NULL;
 
 static char hostname[MAXHOSTNAMELEN];
 
 enum logtypes {
 	LOGTYPE_SYSLOG,
 	LOGTYPE_FILE,
-	LOGTYPE_CONSOLE,
 };
 
 struct logchannel {
@@ -109,8 +103,6 @@ struct logchannel {
 
 static struct logchannel *logchannels = NULL;
 
-static int msgcnt = 0;
-
 static FILE *eventlog = NULL;
 
 
@@ -122,124 +114,6 @@ static char *levels[] = {
 	[CW_EVENT_NUM_EVENT]	= "EVENT",
 	[CW_EVENT_NUM_DTMF]	= "DTMF",
 	[CW_EVENT_NUM_DEBUG]	= "DEBUG",
-};
-
-
-static int priorities[] = {
-	[CW_EVENT_NUM_ERROR]	= LOG_ERR,
-	[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
-	[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
-	[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
-	[CW_EVENT_NUM_EVENT]	= LOG_INFO,
-	[CW_EVENT_NUM_DTMF]	= LOG_INFO,
-	[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
-};
-
-
-static int logger_manager_write(struct mansession *sess, struct manager_event *event)
-{
-	enum { F_LEVEL = 0, F_DATELEN, F_MSGLEN };
-	static struct {
-		int l;
-		const char *s;
-	} keys[] = {
-#define LENSTR(x)	sizeof(x) - 1, x
-		[F_LEVEL]   = { LENSTR("Level") },
-		[F_DATELEN] = { LENSTR("Date Len") },
-		[F_MSGLEN]  = { LENSTR("Message") },
-#undef LENSTR
-	};
-	char buf[BUFSIZ];
-	struct {
-		int l;
-		char *s;
-	} vals[arraysize(keys)];
-	struct logchannel *log = sess->tech_pvt;
-	char *key, *ekey;
-	char *val, *eval;
-	int lkey, lval;
-	int level, i;
-
-	memset(vals, 0, sizeof(vals));
-
-	key = event->data;
-	while (*key) {
-		for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-		if (!*ekey)
-			break;
-
-		for (val = ekey + 1; *val && *val == ' '; val++);
-		for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-		lkey = ekey - key;
-		lval = eval - val;
-
-		/* We shouldn't get anything other than log events. */
-		if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
-			return 0;
-
-		for (i = 0; i < arraysize(keys); i++) {
-			if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-				vals[i].l = lval;
-				vals[i].s = val;
-				break;
-			}
-		}
-
-		if (!*eval)
-			break;
-
-		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
-	}
-
-	if (vals[F_MSGLEN].s) {
-		level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
-
-		if (log->type == LOGTYPE_SYSLOG) {
-			if (vals[F_DATELEN].s) {
-				lkey = atol(vals[F_DATELEN].s);
-				vals[F_MSGLEN].s += lkey;
-				vals[F_MSGLEN].l -= lkey;
-				/* FIXME: this seems unnecessary. Why not leave the priority string in */
-				if (priorities[level] != LOG_INFO && (key = strchr(vals[F_MSGLEN].s, '['))) {
-					vals[F_MSGLEN].l -= key - vals[F_MSGLEN].s;
-					vals[F_MSGLEN].s = key;
-				}
-			}
-			syslog(priorities[level], "%.*s", vals[F_MSGLEN].l, vals[F_MSGLEN].s);
-		} else if (log->type == LOGTYPE_CONSOLE) {
-			cw_copy_string(buf, vals[F_MSGLEN].s, vals[F_MSGLEN].l + 2);
-			cw_console_puts(buf);
-		} else
-			write(sess->fd, vals[F_MSGLEN].s, vals[F_MSGLEN].l + 2);
-	}
-
-	return 0;
-}
-
-
-static void logger_manager_release(struct mansession *sess)
-{
-	struct logchannel *log = sess->tech_pvt;
-	struct logchannel **p;
-
-	cw_mutex_lock(&loglock);
-	for (p = &logchannels; *p; p = &(*p)->next) {
-		if (*p == log) {
-			*p = log->next;
-			break;
-		}
-	}
-	cw_mutex_unlock(&loglock);
-
-	free(sess->tech_pvt);
-}
-
-
-static struct mansession_tech logger_manager_tech = {
-	.write = logger_manager_write,
-	.release = logger_manager_release,
 };
 
 
@@ -257,15 +131,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	if (!(chan = calloc(1, sizeof(struct logchannel))))
 		return NULL;
 
-	if (!strcasecmp(channel, "console")) {
-		chan->type = LOGTYPE_CONSOLE;
-		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, "console", sizeof("console") - 1, &logger_manager_tech, chan))) {
-			/* Can't log here, since we're called with a lock */
-			fprintf(stderr, "Logger Warning: Unable to start console logging: %s\n", strerror(errno));
-			free(chan);
-			return NULL;
-		}
-	} else if (!strncasecmp(channel, "syslog", 6)) {
+	if (!strncasecmp(channel, "syslog", 6)) {
 		/*
 		* syntax is:
 		*  syslog.facility => level,level,level
@@ -337,7 +203,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 
-		if (!(chan->sess = manager_session_start(-1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, &logger_manager_tech, chan))) {
+		if (!(chan->sess = manager_session_start(manager_session_log, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1))) {
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
 			free(chan);
@@ -362,7 +228,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
 
 		fd = -1;
-		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, &logger_manager_tech, chan))) {
+		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(manager_session_log, fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1))) {
 			if (fd >= 0)
 				close(fd);
 			/* Can't log here, since we're called with a lock */
@@ -378,26 +244,33 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	return chan;
 }
 
-static void init_logger_chain(void)
+void close_logger(void)
 {
 	struct logchannel *chan, *cur;
-	struct cw_config *cfg;
-	struct cw_variable *var;
-	char *s;
-
-	/* end existing sessions */
+ 
 	cw_mutex_lock(&loglock);
 	chan = logchannels;
 	while (chan) {
 		cur = chan->next;
 		manager_session_end(chan->sess);
+		free(chan);
 		chan = cur;
 	}
 	logchannels = NULL;
 	cw_mutex_unlock(&loglock);
+}
 
+
+static void init_logger_chain(void)
+{
+	struct logchannel *chan;
+	struct cw_config *cfg;
+	struct cw_variable *var;
+	char *s;
+
+	close_logger();
 	closelog();
-	
+
 	cfg = cw_config_load("logger.conf");
 	
 	/* If no config file, we're fine */
@@ -427,11 +300,13 @@ static void init_logger_chain(void)
 	}
 
 	var = cw_variable_browse(cfg, "logfiles");
-	while(var) {
-		chan = make_logchannel(var->name, var->value, var->lineno);
-		if (chan) {
-			chan->next = logchannels;
-			logchannels = chan;
+	while (var) {
+		if (strcasecmp(var->name, "console")) {
+			chan = make_logchannel(var->name, var->value, var->lineno);
+			if (chan) {
+				chan->next = logchannels;
+				logchannels = chan;
+			}
 		}
 		var = var->next;
 	}
@@ -568,8 +443,7 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 	cw_cli(fd,FORMATL, "-------", "----", "------");
 	cw_cli(fd, "-------------\n");
 	while (chan) {
-		cw_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
-			chan->disabled ? "Disabled" : "Enabled");
+		cw_cli(fd, FORMATL, chan->filename, (chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"), (chan->disabled ? "Disabled" : "Enabled"));
 		cw_cli(fd, " - ");
 		if (chan->logmask & (1 << __CW_LOG_DEBUG)) 
 			cw_cli(fd, "Debug ");
@@ -594,11 +468,6 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
  		
 	return RESULT_SUCCESS;
 }
-
-static struct verb {
-	void (*verboser)(const char *string, int opos, int replacelast, int complete);
-	struct verb *next;
-} *verboser = NULL;
 
 
 static char logger_reload_help[] =
@@ -666,26 +535,6 @@ int init_logger(void)
 		return 0;
 
 	return -1;
-}
-
-void close_logger(void)
-{
-	struct msglist *m, *tmp;
-
-	cw_mutex_lock(&msglist_lock);
-	m = list;
-	while(m) {
-		if (m->msg) {
-			free(m->msg);
-		}
-		tmp = m->next;
-		free(m);
-		m = tmp;
-	}
-	list = last = NULL;
-	msgcnt = 0;
-	cw_mutex_unlock(&msglist_lock);
-	return;
 }
 
 
@@ -777,160 +626,4 @@ void cw_backtrace(int levels)
 #else
 	cw_log(CW_LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
 #endif
-}
-
-void cw_verbose(const char *fmt, ...)
-{
-	static char stuff[4096];
-	static int len = 0;
-	static int replacelast = 0;
-
-	int complete;
-	int olen;
-	struct msglist *m;
-	struct verb *v;
-	
-	va_list ap;
-	va_start(ap, fmt);
-
-	if (option_timestamp) {
-		time_t t;
-		struct tm tm;
-		char date[40];
-		char *datefmt;
-
-		time(&t);
-		localtime_r(&t, &tm);
-		strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-		sprintf(datefmt, "[%s] %s", date, fmt);
-		fmt = datefmt;
-	}
-
-	/* this lock is also protecting against multiple threads
-	   being in this function at the same time, so it must be
-	   held before any of the static variables are accessed
-	*/
-	cw_mutex_lock(&msglist_lock);
-
-	/* there is a potential security problem here: if formatting
-	   the current date using 'dateformat' results in a string
-	   containing '%', then the vsnprintf() call below will
-	   probably try to access random memory
-	*/
-	vsnprintf(stuff + len, sizeof(stuff) - len, fmt, ap);
-	va_end(ap);
-
-	olen = len;
-	len = strlen(stuff);
-
-	complete = (stuff[len - 1] == '\n') ? 1 : 0;
-
-	/* If we filled up the stuff completely, then log it even without the '\n' */
-	if (len >= sizeof(stuff) - 1) {
-		complete = 1;
-		len = 0;
-	}
-
-	if (complete) {
-		if (msgcnt < MAX_MSG_QUEUE) {
-			/* Allocate new structure */
-			if ((m = malloc(sizeof(*m))))
-				msgcnt++;
-		} else {
-			/* Recycle the oldest entry */
-			m = list;
-			list = list->next;
-			free(m->msg);
-		}
-		if (m) {
-			m->msg = strdup(stuff);
-			if (m->msg) {
-				if (last)
-					last->next = m;
-				else
-					list = m;
-				m->next = NULL;
-				last = m;
-			} else {
-				msgcnt--;
-				cw_log(CW_LOG_ERROR, "Out of memory\n");
-				free(m);
-			}
-		}
-	}
-
-	for (v = verboser; v; v = v->next)
-		v->verboser(stuff, olen, replacelast, complete);
-
-	cw_log(CW_LOG_VERBOSE, "%s", stuff);
-
-	if (len) {
-		if (!complete)
-			replacelast = 1;
-		else 
-			replacelast = len = 0;
-	}
-
-	cw_mutex_unlock(&msglist_lock);
-}
-
-int cw_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
-{
-	struct msglist *m;
-	cw_mutex_lock(&msglist_lock);
-	m = list;
-	while(m) {
-		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
-		v(m->msg, 0, 0, 1);
-		m = m->next;
-	}
-	cw_mutex_unlock(&msglist_lock);
-	return 0;
-}
-
-int cw_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
-{
-	struct msglist *m;
-	struct verb *tmp;
-	/* XXX Should be more flexible here, taking > 1 verboser XXX */
-	if ((tmp = malloc(sizeof (struct verb)))) {
-		tmp->verboser = v;
-		cw_mutex_lock(&msglist_lock);
-		tmp->next = verboser;
-		verboser = tmp;
-		m = list;
-		while(m) {
-			/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
-			v(m->msg, 0, 0, 1);
-			m = m->next;
-		}
-		cw_mutex_unlock(&msglist_lock);
-		return 0;
-	}
-	return -1;
-}
-
-int cw_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
-{
-	int res = -1;
-	struct verb *tmp, *tmpl=NULL;
-	cw_mutex_lock(&msglist_lock);
-	tmp = verboser;
-	while(tmp) {
-		if (tmp->verboser == v)	{
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				verboser = tmp->next;
-			free(tmp);
-			break;
-		}
-		tmpl = tmp;
-		tmp = tmp->next;
-	}
-	if (tmp)
-		res = 0;
-	cw_mutex_unlock(&msglist_lock);
-	return res;
 }
