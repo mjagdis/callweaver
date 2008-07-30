@@ -108,7 +108,7 @@ struct manager_listener {
 	pthread_t tid;
 	void *(*handler)(void *);
 	int readperm, writeperm, send_events;
-	char spec[0];
+	char name[0];
 };
 
 
@@ -232,7 +232,7 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 static const char *manager_listener_registry_obj_name(struct cw_object *obj)
 {
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
-	return it->spec;
+	return it->name;
 }
 
 static int manager_listener_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
@@ -240,13 +240,13 @@ static int manager_listener_registry_obj_cmp(struct cw_object *a, struct cw_obje
 	struct manager_listener *item_a = container_of(a, struct manager_listener, obj);
 	struct manager_listener *item_b = container_of(b, struct manager_listener, obj);
 
-	return strcmp(item_a->spec, item_b->spec);
+	return strcmp(item_a->name, item_b->name);
 }
 
 static int manager_listener_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
 	struct manager_listener *item = container_of(obj, struct manager_listener, obj);
-	return strcmp(item->spec, pattern);
+	return strcmp(item->name, pattern);
 }
 
 struct cw_registry manager_listener_registry = {
@@ -484,7 +484,7 @@ static int listener_print(struct cw_object *obj, void *data)
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 	struct listener_print_args *args = data;
 
-	cw_cli(args->fd, "%s %s\n", (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN   "), it->spec);
+	cw_cli(args->fd, "%s %s\n", (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN   "), it->name);
 	return 0;
 }
 
@@ -2132,8 +2132,8 @@ static void accept_thread_cleanup(void *data)
 		close(listener->sock);
 		listener->sock = -1;
 
-		if (listener->spec[0] == '/')
-			unlink(listener->spec);
+		if (!strncmp(listener->name, "local:/", sizeof("local:/") - 1))
+			unlink(listener->name + sizeof("local:") - 1);
 	}
 }
 
@@ -2170,6 +2170,16 @@ static void *accept_thread(void *data)
 
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
+
+		if (u.sa.sa_family == AF_LOCAL) {
+			/* Local sockets don't return a path in their sockaddr (there isn't
+			 * one really). However, if the remote is local so is the address
+			 * we were listening on and the listening path is in the listener's
+			 * name. We'll use that as a meaningful connection source for the
+			 * sake of the connection list command.
+			 */
+			strcpy(u.sun.sun_path, listener->name + sizeof("local:") - 1);
+		}
 
 		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen, listener->readperm, listener->writeperm, listener->send_events)))
 			cw_object_put(sess);
@@ -2399,7 +2409,7 @@ static void listener_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(const char *buf, void *(* const handler)(void *), int readperm, int writeperm, int send_events)
+static void manager_listen(const char *spec, void *(* const handler)(void *), int readperm, int writeperm, int send_events)
 {
 	union {
 		struct sockaddr sa;
@@ -2408,12 +2418,48 @@ static void manager_listen(const char *buf, void *(* const handler)(void *), int
 	} u;
 	struct manager_listener *listener;
 	socklen_t salen;
+	int namelen;
 	const int arg = 1;
+	char buf[1];
 
-	if (!(listener = malloc(sizeof(*listener) + strlen(buf) + 1))) {
+	if (spec[0] == '/') {
+		salen = sizeof(u.sun);
+		u.sun.sun_family = AF_LOCAL;
+		strncpy(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
+		unlink(spec);
+	} else {
+		char *port;
+		int portno;
+
+		salen = sizeof(u.sin);
+		u.sin.sin_family = AF_INET;
+		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
+
+		if (!(port = strrchr(spec, ':'))) {
+			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
+		} else {
+			if (sscanf(port + 1, "%d", &portno) != 1) {
+				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, spec);
+				return;
+			}
+			u.sin.sin_port = htons(portno);
+			*port = '\0';
+		}
+
+		if (!inet_aton(spec, &u.sin.sin_addr)) {
+			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", spec);
+			return;
+		}
+	}
+
+	namelen = addr_to_str(u.sa.sa_family, &u, buf, sizeof(buf)) + 1;
+
+	if (!(listener = malloc(sizeof(*listener) + namelen))) {
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return;
 	}
+
+	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
 
 	cw_object_init(listener, NULL, CW_OBJECT_NO_REFS);
 	cw_object_get(listener);
@@ -2425,40 +2471,6 @@ static void manager_listen(const char *buf, void *(* const handler)(void *), int
 	listener->readperm = readperm;
 	listener->writeperm = writeperm;
 	listener->send_events = send_events;
-	strcpy(listener->spec, buf);
-
-	if (listener->spec[0] == '/') {
-		salen = sizeof(u.sun);
-		u.sun.sun_family = AF_LOCAL;
-		strncpy(u.sun.sun_path, listener->spec, sizeof(u.sun.sun_path));
-		unlink(listener->spec);
-	} else {
-		char *port;
-		int portno;
-
-		salen = sizeof(u.sin);
-		u.sin.sin_family = AF_INET;
-		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
-
-		if (!(port = strrchr(listener->spec, ':'))) {
-			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
-		} else {
-			if (sscanf(port + 1, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, listener->spec);
-				return;
-			}
-			u.sin.sin_port = htons(portno);
-			*port = '\0';
-		}
-
-		if (!inet_aton(listener->spec, &u.sin.sin_addr)) {
-			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", listener->spec);
-			return;
-		}
-
-		if (port)
-			*port = ':';
-	}
 
 	if ((listener->sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
 		cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
@@ -2469,12 +2481,12 @@ static void manager_listen(const char *buf, void *(* const handler)(void *), int
 	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 
 	if (bind(listener->sock, &u.sa, salen)) {
-		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->spec, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->name, strerror(errno));
 		return;
 	}
 
 	if (listen(listener->sock, 1024)) {
-		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->spec, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->name, strerror(errno));
 		return;
 	}
 
@@ -2517,9 +2529,9 @@ static void manager_listen(const char *buf, void *(* const handler)(void *), int
 		cw_object_dup(listener);
 		if (!cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener)) {
 			if (option_verbose)
-				cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
+				cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->name);
 		} else {
-			cw_log(CW_LOG_ERROR, "Failed to start manager thread for %s: %s\n", listener->spec, strerror(errno));
+			cw_log(CW_LOG_ERROR, "Failed to start manager thread for %s: %s\n", listener->name, strerror(errno));
 			cw_registry_del(&manager_listener_registry, listener->reg_entry);
 			cw_object_put(listener);
 		}
