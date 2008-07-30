@@ -1681,6 +1681,7 @@ static void *accept_thread(void *data)
 		return NULL;
 	}
 
+	fcntl(listener->sock, F_SETFD, fcntl(listener->sock, F_GETFD, 0) | FD_CLOEXEC);
 	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 
 	if (bind(listener->sock, &u.sa, salen)) {
@@ -1735,6 +1736,7 @@ static void *accept_thread(void *data)
 			continue;
 		}
 
+		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
 		snprintf(buf, sizeof(buf), "%d", sess->fd);
