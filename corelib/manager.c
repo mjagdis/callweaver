@@ -207,23 +207,24 @@ int manager_str_to_eventmask(char *instr)
 }
 
 
-static int append_event(struct mansession *s, struct manager_event *event)
+static void append_event(struct mansession *sess, struct manager_event *event)
 {
-	struct eventqent *tmp;
-	struct eventqent *prev = NULL;
+	struct eventqent *eqe;
 
-	if ((tmp = malloc(sizeof(struct eventqent))) == NULL)
-		return -1;
+	if ((eqe = malloc(sizeof(struct eventqent)))) {
+		eqe->next = NULL;
+		eqe->event = cw_object_dup(event);
 
-	tmp->next = NULL;
-	tmp->event = cw_object_dup(event);
-	if (s->eventq) {
-		for (prev = s->eventq;  prev->next;  prev = prev->next);
-		prev->next = tmp;
-	} else {
-		s->eventq = tmp;
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		if (!sess->eventq)
+			pthread_cond_signal(&sess->activity);
+
+		*sess->eventq_tail = eqe;
+
+		pthread_cleanup_pop(1);
 	}
-	return 0;
 }
 
 
@@ -1648,7 +1649,8 @@ void *manager_session_ami(void *data)
 		 * we can unlock the session.
 		 */
 		if ((eqe = sess->eventq))
-			sess->eventq = sess->eventq->next;
+			if (!(sess->eventq = sess->eventq->next))
+				sess->eventq_tail = &sess->eventq;
 
 		pthread_cleanup_pop(1);
 
@@ -1826,7 +1828,8 @@ void *manager_session_console(void *data)
 		 * we can unlock the session.
 		 */
 		if ((eqe = sess->eventq))
-			sess->eventq = sess->eventq->next;
+			if (!(sess->eventq = sess->eventq->next))
+				sess->eventq_tail = &sess->eventq;
 
 		pthread_cleanup_pop(1);
 
@@ -1952,7 +1955,8 @@ void *manager_session_log(void *data)
 		 * we can unlock the session.
 		 */
 		if ((eqe = sess->eventq))
-			sess->eventq = sess->eventq->next;
+			if (!(sess->eventq = sess->eventq->next))
+				sess->eventq_tail = &sess->eventq;
 
 		pthread_cleanup_pop(1);
 
@@ -2087,6 +2091,7 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 		memcpy(&sess->u, addr, addr_len);
 	sess->u.sa.sa_family = family;
 
+	sess->eventq_tail = &sess->eventq;
 	sess->fd = fd;
 	sess->handler = handler;
 	sess->send_events = EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL;
@@ -2204,7 +2209,6 @@ again:
 		if (alloc - used > 2)
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
-		args->me->hdrlen = used;
 		va_copy(aq, args->ap);
 		n = vsnprintf(args->me->data + used, (alloc < used ? 0 : alloc - used), args->fmt, aq);
 		va_end(aq);
@@ -2241,12 +2245,8 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	struct manager_event_args *args = data;
 
 	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
-		if (args->me || !(args->ret = make_event(args))) {
-			cw_mutex_lock(&it->lock);
+		if (args->me || !(args->ret = make_event(args)))
 			append_event(it, args->me);
-			pthread_cond_signal(&it->activity);
-			cw_mutex_unlock(&it->lock);
-		}
 	}
 
 	return args->ret;

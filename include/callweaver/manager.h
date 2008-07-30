@@ -60,7 +60,6 @@
 
 struct manager_event {
 	struct cw_object obj;
-	int hdrlen;
 	int len;
 	char data[0];
 };
@@ -82,6 +81,7 @@ struct mansession {
 	int writeperm;			/*!< Authorization for writing messages _to_ the manager */
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
+	struct eventqent **eventq_tail;	/*!< Queued events that we've not had the ability to send yet */
 	void *(*handler)(void *);
 	int fd;
 	cw_mutex_t lock;
