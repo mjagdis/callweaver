@@ -79,10 +79,14 @@ struct fast_originate_helper {
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
-static int asock = -1;
 static int displayconnects = 1;
 
-static pthread_t t;
+struct listener {
+	int sock;
+	struct sockaddr sa;
+	pthread_t tid;
+};
+
 static int block_sockets = 0;
 
 
@@ -1532,56 +1536,107 @@ static void *session_do(void *data)
 	return NULL;
 }
 
-static void *accept_thread(void *ignore)
+
+static void accept_thread_cleanup(void *data)
 {
-	int as;
-	struct sockaddr_in sin;
+	struct listener *listener = data;
+
+	close(listener->sock);
+}
+
+static void *accept_thread(void *data)
+{
+	struct listener *listener = data;
 	socklen_t sinlen;
-	struct mansession *s;
+	struct mansession *sess;
 	int arg = 1;
 	int flags;
+
+	if ((listener->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		cw_log(CW_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	pthread_cleanup_push(accept_thread_cleanup, NULL);
+
+	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
+
+	if (bind(listener->sock, &listener->sa, sizeof(struct sockaddr_in))) {
+		cw_log(CW_LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	if (listen(listener->sock, 1024)) {
+		cw_log(CW_LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
+		return NULL;
+	}
+
+	if (option_verbose)
+		cw_verbose("CallWeaver Management interface listening on port %d\n", portno);
+
+	sess = NULL;
 
 	for (;;) {
 		char buf[256];
 
-		sinlen = sizeof(sin);
-		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
-		if (as < 0) {
-			cw_log(CW_LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
+		if (!sess) {
+			if ((sess = calloc(1, sizeof(struct mansession))) == NULL) {
+				cw_log(CW_LOG_ERROR, "Out of memory\n");
+				sleep(1);
+				continue;
+			}
+
+			cw_object_init(sess, NULL, 1);
+			cw_mutex_init(&sess->__lock);
+			sess->send_events = -1;
+			sess->obj.release = mansession_release;
+			sess->writetimeout = 100;
+		}
+
+		pthread_cleanup_push(free, sess);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		sinlen = sizeof(sess->sin);
+		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->sin, &sinlen);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		pthread_cleanup_pop(0);
+
+		if (sess->fd < 0) {
+			if (errno == ENFILE || errno == EMFILE || errno == ENOBUFS || errno == ENOMEM) {
+				cw_log(CW_LOG_ERROR, "Accept failed: %s\n", strerror(errno));
+				sleep(1);
+			}
 			continue;
 		}
-		if (setsockopt(as, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg)) < 0)
-			cw_log(CW_LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
-		if ((s = calloc(1, sizeof(struct mansession))) == NULL) {
-			cw_log(CW_LOG_ERROR, "Out of memory\n");
-			close(as);
-			continue;
-		} 
 
-		cw_object_init(s, NULL, 1);
-		s->obj.release = mansession_release;
+		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		snprintf(buf, sizeof(buf), "%d", as);
-		s->name = strdup(buf);
-
-		memcpy(&s->sin, &sin, sizeof(sin));
-		s->writetimeout = 100;
+		snprintf(buf, sizeof(buf), "%d", sess->fd);
+		sess->name = strdup(buf);
 
 		if (!block_sockets) {
 			/* For safety, make sure socket is non-blocking */
-			flags = fcntl(as, F_GETFL);
-			fcntl(as, F_SETFL, flags | O_NONBLOCK);
+			flags = fcntl(sess->fd, F_GETFL);
+			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL) | O_NONBLOCK);
 		}
-		cw_mutex_init(&s->__lock);
-		s->fd = as;
-		s->send_events = -1;
 
-		s->reg_entry = cw_registry_add(&manager_session_registry, &s->obj);
+		sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-		if (cw_pthread_create(&s->t, &global_attr_detached, session_do, s)) {
-			cw_object_put(s);
+		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, sess)) {
+			/* The thread has this session now */
+			sess = NULL;
+		} else {
+			cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
+			close(sess->fd);
+			if (sess->name) {
+				free(sess->name);
+				sess->name = NULL;
+			}
 		}
 	}
+
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
@@ -1795,13 +1850,14 @@ static int registered = 0;
 
 int init_manager(void)
 {
+	static struct listener listener;
 	struct cw_config *cfg;
+	struct sockaddr_in *sin;
 	char *val;
-	int oldportno = portno;
-	static struct sockaddr_in ba;
-	int x = 1;
-	
+
 	if (!registered) {
+		listener.tid = CW_PTHREADT_NULL;
+
 		/* Register default actions */
 		cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
@@ -1811,6 +1867,13 @@ int init_manager(void)
 		cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 	}
+
+	if (!pthread_equal(listener.tid, CW_PTHREADT_NULL)) {
+		pthread_cancel(listener.tid);
+		pthread_join(listener.tid, NULL);
+		listener.tid = CW_PTHREADT_NULL;
+	}
+
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
 	cfg = cw_config_load("manager.conf");
@@ -1818,7 +1881,6 @@ int init_manager(void)
 		cw_log(CW_LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
 	}
-	memset(&ba, 0, sizeof(ba));
 	val = cw_variable_retrieve(cfg, "general", "enabled");
 	if (val)
 		enabled = cw_true(val);
@@ -1843,52 +1905,22 @@ int init_manager(void)
 	if ((val = cw_variable_retrieve(cfg, "general", "displayconnects")))
 		displayconnects = cw_true(val);
 
-	ba.sin_family = AF_INET;
-	ba.sin_port = htons(portno);
-	memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
+	sin = (struct sockaddr_in *)&listener.sa;
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(portno);
+	memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
 
 	if ((val = cw_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &ba.sin_addr)) { 
+		if (!inet_aton(val, &sin->sin_addr)) { 
 			cw_log(CW_LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
+			memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
 		}
 	}
-	
-	if ((asock > -1)  &&  ((portno != oldportno) || !enabled)) {
-#if 0
-		/* Can't be done yet */
-		close(asock);
-		asock = -1;
-#else
-		cw_log(CW_LOG_WARNING, "Unable to change management port / enabled\n");
-#endif
-	}
+
 	cw_config_destroy(cfg);
-	
-	/* If not enabled, do nothing */
-	if (!enabled)
-		return 0;
-	if (asock < 0) {
-		if ((asock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-			cw_log(CW_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-			return -1;
-		}
-		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-		if (bind(asock, (struct sockaddr *) &ba, sizeof(ba))) {
-			cw_log(CW_LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
-			close(asock);
-			asock = -1;
-			return -1;
-		}
-		if (listen(asock, 2)) {
-			cw_log(CW_LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
-			close(asock);
-			asock = -1;
-			return -1;
-		}
-		if (option_verbose)
-			cw_verbose("CallWeaver Management interface listening on port %d\n", portno);
-		cw_pthread_create(&t, &global_attr_default, accept_thread, NULL);
-	}
+
+	if (enabled)
+		cw_pthread_create(&listener.tid, &global_attr_default, accept_thread, &listener);
+
 	return 0;
 }
