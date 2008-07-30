@@ -494,8 +494,8 @@ static int handle_show_mansess(int fd, int argc, char *argv[])
 		.fd = fd,
 	};
 
-	cw_cli(fd, MANSESS_FORMAT, "Username", "IP Address");
-	cw_cli(fd, MANSESS_FORMAT, "--------", "----------");
+	cw_cli(fd, MANSESS_FORMAT, "Username", "Address");
+	cw_cli(fd, MANSESS_FORMAT, "--------", "-------");
 	cw_registry_iterate(&manager_session_registry, mansess_print, &args);
 
 	return RESULT_SUCCESS;
