@@ -506,7 +506,7 @@ const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 }
 
 
-int addr_to_str(int family, const void *addr, char *buf, size_t buflen)
+int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen)
 {
 	char *p = buf;
 	int n;
@@ -518,7 +518,7 @@ int addr_to_str(int family, const void *addr, char *buf, size_t buflen)
 				memcpy(p, "ipv4:", (buflen > sizeof("ipv4:") - 1 ? sizeof("ipv4:") - 1 : buflen));
 			p += sizeof("ipv4:") - 1;
 			buflen -= sizeof("ipv4:") - 1;
-			if (buflen > 0 && inet_ntop(family, &sin->sin_addr, p, buflen)) {
+			if (buflen >= INET_ADDRSTRLEN && inet_ntop(family, &sin->sin_addr, p, buflen)) {
 				n = strlen(p);
 				p += n;
 				buflen -= n;
@@ -536,7 +536,7 @@ int addr_to_str(int family, const void *addr, char *buf, size_t buflen)
 				memcpy(p, "ipv6:[", (buflen > sizeof("ipv6:[") - 1 ? sizeof("ipv6:[") - 1 : buflen));
 			p += sizeof("ipv6:[") - 1;
 			buflen -= sizeof("ipv6:[") - 1;
-			if (buflen > 0 && inet_ntop(family, &sin->sin6_addr, p, buflen)) {
+			if (buflen >= INET6_ADDRSTRLEN && inet_ntop(family, &sin->sin6_addr, p, buflen)) {
 				n = strlen(p);
 				p += n;
 				buflen -= n;
