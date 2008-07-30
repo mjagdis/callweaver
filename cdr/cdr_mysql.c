@@ -51,8 +51,8 @@
 static const char desc[] = "MySQL CDR Backend";
 static const char name[] = "mysql";
 static char *config = "cdr_mysql.conf";
-static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *dbsock = NULL, *dbtable = NULL;
-static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbtable_alloc = 0;
+static char *dbserver = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *dbsock = NULL, *dbtable = NULL;
+static int dbserver_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbtable_alloc = 0;
 static int dbport = 0;
 static int connected = 0;
 static time_t connect_time = 0;
@@ -75,11 +75,11 @@ static int handle_cdr_mysql_status(int fd, int argc, char *argv[])
 		char status[256], status2[100] = "";
 		int ctime = time(NULL) - connect_time;
 		if (dbport)
-			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, hostname, dbport);
+			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbserver, dbport);
 		else if (dbsock)
 			snprintf(status, 255, "Connected to %s on socket file %s", dbname, dbsock);
 		else
-			snprintf(status, 255, "Connected to %s@%s", dbname, hostname);
+			snprintf(status, 255, "Connected to %s@%s", dbname, dbserver);
 
 		if (dbuser && *dbuser)
 			snprintf(status2, 99, " with username %s", dbuser);
@@ -133,19 +133,19 @@ static int mysql_log(struct cw_cdr *cdr)
 	strftime(timestr, 128, DATE_FORMAT, &tm);
 
 db_reconnect:
-	if ((!connected) && (hostname || dbsock) && dbuser && password && dbname && dbtable ) {
+	if ((!connected) && (dbserver || dbsock) && dbuser && password && dbname && dbtable ) {
 		/* Attempt to connect */
 		mysql_init(&mysql);
 		/* Add option to quickly timeout the connection */
 		if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
 			cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 		}
-		if (mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
+		if (mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {
 			connected = 1;
 			connect_time = time(NULL);
 			records = 0;
 		} else {
-			cw_log(CW_LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", hostname);
+			cw_log(CW_LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", dbserver);
 			connected = 0;
 		}
 	} else {
@@ -238,10 +238,10 @@ static void release(void)
 		connected = 0;
 		records = 0;
 	}
-	if (hostname && hostname_alloc) {
-		free(hostname);
-		hostname = NULL;
-		hostname_alloc = 0;
+	if (dbserver && dbserver_alloc) {
+		free(dbserver);
+		dbserver = NULL;
+		dbserver_alloc = 0;
 	}
 	if (dbname && dbname_alloc) {
 		free(dbname);
@@ -307,17 +307,17 @@ static int load_module(void)
 
 	tmp = cw_variable_retrieve(cfg, "global", "hostname");
 	if (tmp) {
-		hostname = malloc(strlen(tmp) + 1);
-		if (hostname != NULL) {
-			hostname_alloc = 1;
-			strcpy(hostname, tmp);
+		dbserver = malloc(strlen(tmp) + 1);
+		if (dbserver != NULL) {
+			dbserver_alloc = 1;
+			strcpy(dbserver, tmp);
 		} else {
 			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
 			return -1;
 		}
 	} else {
 		cw_log(CW_LOG_WARNING, "MySQL server hostname not specified.  Assuming localhost\n");
-		hostname = "localhost";
+		dbserver = "localhost";
 	}
 
 	tmp = cw_variable_retrieve(cfg, "global", "dbname");
@@ -421,7 +421,7 @@ static int load_module(void)
 	
 	cw_config_destroy(cfg);
 
-	cw_log(CW_LOG_DEBUG, "cdr_mysql: got hostname of %s\n", hostname);
+	cw_log(CW_LOG_DEBUG, "cdr_mysql: got hostname of %s\n", dbserver);
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got port of %d\n", dbport);
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got a timeout of %d\n", timeout);
 	if (dbsock)
@@ -436,8 +436,8 @@ static int load_module(void)
 		cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 	}
 
-	if (!mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
-		cw_log(CW_LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", dbname, hostname);
+	if (!mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {
+		cw_log(CW_LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", dbname, dbserver);
 		connected = 0;
 		records = 0;
 	} else {
