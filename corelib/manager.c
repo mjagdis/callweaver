@@ -1428,8 +1428,10 @@ static int action_timeout(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static void process_message(struct mansession *s, struct message *m)
+static int process_message(struct mansession *s, struct message *m)
 {
+	int ret = 0;
+
 	cw_log(CW_LOG_DEBUG, "Manager received command '%s'\n", m->action);
 
 	if (cw_strlen_zero(m->action))
@@ -1440,7 +1442,7 @@ static void process_message(struct mansession *s, struct message *m)
 		if ((it = cw_registry_find(&manager_action_registry, m->action))) {
 			struct manager_action *act = container_of(it, struct manager_action, obj);
 			if ((s->writeperm & act->authority) == act->authority)
-				act->func(s, m);
+				ret = act->func(s, m);
 			else
 				astman_send_error(s, m, "Permission denied");
 			cw_object_put(act);
@@ -1475,10 +1477,13 @@ static void process_message(struct mansession *s, struct message *m)
 			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, s->name);
 			astman_send_ack(s, m, "Authentication accepted");
 		}
-	} else if (!strcasecmp(m->action, "Logoff"))
+	} else if (!strcasecmp(m->action, "Logoff")) {
 		astman_send_ack(s, m, "See ya");
-	else
+		ret = -1;
+	} else
 		astman_send_error(s, m, "Authentication Required");
+
+	return ret;
 }
 
 
@@ -1511,7 +1516,8 @@ static void *session_writer(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (sess->m) {
-			process_message(sess, sess->m);
+			if (process_message(sess, sess->m))
+				pthread_cancel(sess->reader_tid);
 
 			/* Remove the queued message and signal completion to the reader */
 			cw_mutex_lock(&sess->lock);
