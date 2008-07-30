@@ -481,7 +481,7 @@ struct mansess_print_args {
 	int fd;
 };
 
-#define MANSESS_FORMAT	"  %-15.15s  %-15.15s\n"
+#define MANSESS_FORMAT	"  %-15.15s  %s\n"
 
 static int mansess_print(struct cw_object *obj, void *data)
 {
@@ -1798,11 +1798,11 @@ static void *accept_thread(void *data)
 	if (option_verbose)
 		cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
 
-	namelen = sizeof(u.sun.sun_path);
-	if (namelen < INET_ADDRSTRLEN)
-		namelen = INET_ADDRSTRLEN + 1 + 5;
-	if (namelen < INET6_ADDRSTRLEN)
-		namelen = INET6_ADDRSTRLEN + 1 + 5;
+	namelen = sizeof("local:") - 1 + sizeof(u.sun.sun_path);
+	if (namelen < sizeof("ipv4:") - 1 + INET_ADDRSTRLEN)
+		namelen = sizeof("ipv4:") - 1 + INET_ADDRSTRLEN + 1 + 5;
+	if (namelen < sizeof("ipv6:") - 1 + INET6_ADDRSTRLEN)
+		namelen = sizeof("ipv6:") - 1 + INET6_ADDRSTRLEN + 1 + 5;
 
 	sess = NULL;
 
@@ -1842,16 +1842,19 @@ static void *accept_thread(void *data)
 
 		switch (sess->u.sa.sa_family) {
 			case AF_INET:
-				inet_ntop(sess->u.sin.sin_family, &sess->u.sin.sin_addr, sess->name, namelen);
+				memcpy(sess->name, "ipv4:", sizeof("ipv4:") - 1);
+				inet_ntop(sess->u.sin.sin_family, &sess->u.sin.sin_addr, sess->name + (sizeof("ipv4:") - 1), namelen - (sizeof("ipv4:") - 1));
 				snprintf(sess->name + strlen(sess->name), 7, ":%u", ntohs(sess->u.sin.sin_port));
 				break;
 			case AF_INET6:
-				inet_ntop(sess->u.sin6.sin_family, &sess->u.sin6.sin_addr, sess->name, namelen);
+				memcpy(sess->name, "ipv6:", sizeof("ipv6:") - 1);
+				inet_ntop(sess->u.sin6.sin_family, &sess->u.sin6.sin_addr, sess->name + (sizeof("ipv6:") - 1), namelen - (sizeof("ipv6:") - 1));
 				snprintf(sess->name + strlen(sess->name), 7, "/%u", ntohs(sess->u.sin6.sin_port));
 				break;
 			case AF_LOCAL:
 			default:
-				memcpy(sess->name, sess->u.sun.sun_path, sizeof(sess->u.sun.sun_path));
+				memcpy(sess->name, "local:", sizeof("local:") - 1);
+				memcpy(sess->name, sess->u.sun.sun_path + (sizeof("local:") - 1), sizeof(sess->u.sun.sun_path));
 				break;
 		}
 
