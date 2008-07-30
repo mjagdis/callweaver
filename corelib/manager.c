@@ -210,8 +210,8 @@ struct cw_registry manager_listener_registry = {
 
 static const char *manager_session_registry_obj_name(struct cw_object *obj)
 {
-	struct mansession *it = container_of(obj, struct mansession, obj);
-	return it->name;
+	// struct mansession *it = container_of(obj, struct mansession, obj);
+	return "[manager session]";
 }
 
 static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
@@ -572,7 +572,6 @@ static void mansession_release(struct cw_object *obj)
 	}
 
 	cw_mutex_destroy(&it->__lock);
-	free(it->name);
 	free(it);
 }
 
@@ -1629,11 +1628,8 @@ static void accept_thread_cleanup(void *data)
 			unlink(listener->spec);
 	}
 
-	if (listener->sess) {
-		if (listener->sess->name)
-			free(listener->sess->name);
+	if (listener->sess)
 		free(listener->sess);
-	}
 }
 
 static void *accept_thread(void *data)
@@ -1710,8 +1706,6 @@ static void *accept_thread(void *data)
 	listener->sess = sess = NULL;
 
 	for (;;) {
-		char buf[256];
-
 		if (!listener->sess) {
 			if ((sess = calloc(1, sizeof(struct mansession))) == NULL) {
 				cw_log(CW_LOG_ERROR, "Out of memory\n");
@@ -1747,9 +1741,6 @@ static void *accept_thread(void *data)
 		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		snprintf(buf, sizeof(buf), "%d", sess->fd);
-		sess->name = strdup(buf);
-
 		if (!block_sockets) {
 			/* For safety, make sure socket is non-blocking */
 			flags = fcntl(sess->fd, F_GETFL);
@@ -1764,10 +1755,6 @@ static void *accept_thread(void *data)
 		} else {
 			cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 			close(sess->fd);
-			if (sess->name) {
-				free(sess->name);
-				sess->name = NULL;
-			}
 		}
 	}
 

@@ -102,7 +102,6 @@ struct mansession {
 	int dead;			/*!< Whether or not we're "dead" */
 	pthread_t t;			/*!< Execution thread */
 	struct sockaddr_in sin;		/*!< socket address */
-	char *name;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
 	int authenticated;		/*!< Authentication status */
