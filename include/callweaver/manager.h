@@ -27,6 +27,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -101,7 +102,12 @@ struct mansession {
 	int busy;			/*!< Whether or not we're busy doing an action */
 	int dead;			/*!< Whether or not we're "dead" */
 	pthread_t t;			/*!< Execution thread */
-	struct sockaddr_in sin;		/*!< socket address */
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sin;
+		struct sockaddr_in sin6;
+		struct sockaddr_un sun;
+	} u;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
 	int authenticated;		/*!< Authentication status */
@@ -112,6 +118,7 @@ struct mansession {
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	int writetimeout;		/*!< Timeout for cw_carefulwrite() */
+	char name[0];
 };
 
 

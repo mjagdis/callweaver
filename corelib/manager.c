@@ -91,8 +91,8 @@ static int block_sockets;
 struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
-	int sock;
 	struct mansession *sess;
+	int sock;
 	pthread_t tid;
 	char spec[0];
 };
@@ -456,11 +456,10 @@ struct mansess_print_args {
 
 static int mansess_print(struct cw_object *obj, void *data)
 {
-	char iabuf[INET_ADDRSTRLEN];
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
-	cw_cli(args->fd, MANSESS_FORMAT, it->username, cw_inet_ntoa(iabuf, sizeof(iabuf), it->sin.sin_addr));
+	cw_cli(args->fd, MANSESS_FORMAT, it->username, it->name);
 	return 0;
 }
 
@@ -676,7 +675,6 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 static int authenticate(struct mansession *s, struct message *m)
 {
 	struct cw_config *cfg;
-	char iabuf[INET_ADDRSTRLEN];
 	char *cat;
 	char *user = astman_get_header(m, "Username");
 	char *pass = astman_get_header(m, "Secret");
@@ -712,8 +710,8 @@ static int authenticate(struct mansession *s, struct message *m)
 					}
 					v = v->next;
 				}
-				if (ha && !cw_apply_ha(ha, &(s->sin))) {
-					cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+				if (ha && (s->u.sa.sa_family != AF_INET || !cw_apply_ha(ha, &s->u.sin))) {
+					cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", s->name, user);
 					cw_free_ha(ha);
 					cw_config_destroy(cfg);
 					return -1;
@@ -732,7 +730,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				} else if (password && !strcasecmp(password, pass)) {
 					break;
 				} else {
-					cw_log(CW_LOG_NOTICE, "%s failed to authenticate as '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					cw_log(CW_LOG_NOTICE, "%s failed to authenticate as '%s'\n", s->name, user);
 					cw_config_destroy(cfg);
 					return -1;
 				}	
@@ -749,7 +747,7 @@ static int authenticate(struct mansession *s, struct message *m)
 			set_eventmask(s, events);
 		return 0;
 	}
-	cw_log(CW_LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+	cw_log(CW_LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", s->name, user);
 	cw_config_destroy(cfg);
 	return -1;
 }
@@ -1428,7 +1426,6 @@ static int process_message(struct mansession *s, struct message *m)
 	struct cw_object *it;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
 
 	cw_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
 	cw_log(CW_LOG_DEBUG, "Manager received command '%s'\n", action);
@@ -1466,9 +1463,9 @@ static int process_message(struct mansession *s, struct message *m)
 				s->authenticated = 1;
 				if (option_verbose > 3) {
 					if (displayconnects)
-						cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, s->name);
 				}
-				cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, s->name);
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
@@ -1516,7 +1513,6 @@ static int get_input(struct mansession *s, char *output)
 	int res;
 	int x;
 	struct pollfd fds[1];
-	char iabuf[INET_ADDRSTRLEN];
 
 	for (x = 1;  x < s->inlen;  x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
@@ -1531,7 +1527,7 @@ static int get_input(struct mansession *s, char *output)
 		}
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
-		cw_log(CW_LOG_WARNING, "Dumping long line with no return from %s: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
+		cw_log(CW_LOG_WARNING, "Dumping long line with no return from %s: %s\n", s->name, s->inbuf);
 		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
@@ -1565,7 +1561,6 @@ static void *session_do(void *data)
 {
 	struct mansession *s = data;
 	struct message m;
-	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	
 	cw_mutex_lock(&s->__lock);
@@ -1593,15 +1588,15 @@ static void *session_do(void *data)
 	if (s->authenticated) {
 		if (option_verbose > 3) {
 			if (displayconnects) 
-				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, s->name);    
 		}
-		cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, s->name);
 	} else {
 		if (option_verbose > 2) {
 			if (displayconnects)
-				cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", s->name);
 		}
-		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", s->name);
 	}
 	cw_registry_del(&manager_session_registry, s->reg_entry);
 	cw_object_put(s);
@@ -1638,12 +1633,12 @@ static void *accept_thread(void *data)
 	struct mansession *sess;
 	union {
 		struct sockaddr sa;
-		struct sockaddr_un sun;
 		struct sockaddr_in sin;
+		struct sockaddr_un sun;
 	} u;
 	socklen_t salen;
-	int arg = 1;
-	int flags;
+	int namelen;
+	const int arg = 1;
 
 	pthread_cleanup_push(accept_thread_cleanup, NULL);
 
@@ -1703,17 +1698,22 @@ static void *accept_thread(void *data)
 	if (option_verbose)
 		cw_verbose("CallWeaver Management interface listening on %s\n", listener->spec);
 
+	namelen = sizeof(u.sun.sun_path);
+	if (namelen < INET_ADDRSTRLEN)
+		namelen = INET_ADDRSTRLEN + 1 + 5;
+	if (namelen < INET6_ADDRSTRLEN)
+		namelen = INET6_ADDRSTRLEN + 1 + 5;
+
 	listener->sess = sess = NULL;
 
 	for (;;) {
-		if (!listener->sess) {
-			if ((sess = calloc(1, sizeof(struct mansession))) == NULL) {
+		if (!sess) {
+			if ((listener->sess = sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
 				cw_log(CW_LOG_ERROR, "Out of memory\n");
-				sleep(1);
+				sleep(10);
 				continue;
 			}
 
-			listener->sess = sess;
 			cw_object_init(sess, NULL, 1);
 			cw_mutex_init(&sess->__lock);
 			sess->send_events = -1;
@@ -1724,8 +1724,8 @@ static void *accept_thread(void *data)
 		pthread_cleanup_push(free, sess);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		salen = sizeof(sess->sin);
-		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->sin, &salen);
+		salen = sizeof(sess->u);
+		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->u, &salen);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		pthread_cleanup_pop(0);
@@ -1738,14 +1738,26 @@ static void *accept_thread(void *data)
 			continue;
 		}
 
+		switch (sess->u.sa.sa_family) {
+			case AF_INET:
+				inet_ntop(sess->u.sin.sin_family, &sess->u.sin.sin_addr, sess->name, namelen);
+				snprintf(sess->name + strlen(sess->name), 7, ":%u", ntohs(sess->u.sin.sin_port));
+				break;
+			case AF_INET6:
+				inet_ntop(sess->u.sin6.sin_family, &sess->u.sin6.sin_addr, sess->name, namelen);
+				snprintf(sess->name + strlen(sess->name), 7, "/%u", ntohs(sess->u.sin6.sin_port));
+				break;
+			case AF_LOCAL:
+			default:
+				sess->name[0] = '\0';
+				break;
+		}
+
 		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if (!block_sockets) {
-			/* For safety, make sure socket is non-blocking */
-			flags = fcntl(sess->fd, F_GETFL);
+		if (!block_sockets)
 			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL) | O_NONBLOCK);
-		}
 
 		sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
