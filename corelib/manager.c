@@ -1578,6 +1578,8 @@ static void *session_reader(void *data)
 
 	pthread_cleanup_push(session_reader_cleanup, sess);
 
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
+
 	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
 
 	if ((res = cw_pthread_create(&sess->writer_tid, &global_attr_default, session_writer, sess))) {
@@ -1843,8 +1845,6 @@ static void *accept_thread(void *data)
 
 		if (!block_sockets)
 			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL) | O_NONBLOCK);
-
-		sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
 		if (!cw_pthread_create(&sess->reader_tid, &global_attr_detached, session_reader, cw_object_get(sess))) {
 			/* The thread has this session now */
