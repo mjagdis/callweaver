@@ -1834,7 +1834,7 @@ static void *accept_thread(void *data)
 				break;
 			case AF_LOCAL:
 			default:
-				sess->name[0] = '\0';
+				memcpy(sess->name, sess->u.sun.sun_path, sizeof(sess->u.sun.sun_path));
 				break;
 		}
 
