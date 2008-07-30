@@ -29,6 +29,7 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "callweaver/inline_api.h"
 #include "callweaver/compiler.h"
@@ -46,7 +47,7 @@ static inline int cw_strlen_zero(const char *s)
 CW_INLINE_API(
 char *cw_skip_blanks(char *str),
 {
-	while (*str && *str < 33)
+	while (*str && isspace(*str))
 		str++;
 	return str;
 }
@@ -70,7 +71,7 @@ char *cw_trim_blanks(char *str),
 		   actually set anything unless we must, and it's easier just
 		   to set each position to \0 than to keep track of a variable
 		   for it */
-		while ((work >= str) && *work < 33)
+		while ((work >= str) && isspace(*work))
 			*(work--) = '\0';
 	}
 	return str;
@@ -85,7 +86,7 @@ char *cw_trim_blanks(char *str),
 CW_INLINE_API(
 char *cw_skip_nonblanks(char *str),
 {
-	while (*str && *str > 32)
+	while (*str && !isspace(*str))
 		str++;
 	return str;
 }

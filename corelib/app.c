@@ -959,8 +959,7 @@ int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 			int parens, inquote;
 
 			/* Skip leading white space */
-			while (isspace(*start)) start++;
-
+			start = cw_skip_blanks(start);
 			next = end = start;
 
 			/* Find the end of this arg. Backslash removes any special

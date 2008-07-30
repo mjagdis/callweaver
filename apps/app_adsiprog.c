@@ -232,12 +232,11 @@ static char *get_token(char **buf, char *script, int lineno)
 	char *keyword;
 	int quoted = 0;
 	/* Advance past any white space */
-	while(*tmp && (*tmp < 33))
-		tmp++;
+	tmp = cw_skip_blanks(*buf);
 	if (!*tmp)
 		return NULL;
 	keyword = tmp;
-	while(*tmp && ((*tmp > 32)  || quoted)) {
+	while(*tmp && (!isspace(*tmp)  || quoted)) {
 		if (*tmp == '\"') {
 			quoted = !quoted;
 		}
@@ -249,8 +248,7 @@ static char *get_token(char **buf, char *script, int lineno)
 	}
 	*tmp = '\0';
 	tmp++;
-	while(*tmp && (*tmp < 33))
-		tmp++;
+	tmp = cw_skip_blanks(tmp);
 	/* Note where we left off */
 	*buf = tmp;
 	return keyword;

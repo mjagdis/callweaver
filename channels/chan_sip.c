@@ -1714,7 +1714,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (sipmethod >= 0 && cur->data[sip_methods[sipmethod].len] < 33 && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
+             (sipmethod >= 0 && (!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]) && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
         {
             if (!resp  &&  (seqno == p->pendinginvite))
             {
@@ -1794,7 +1794,8 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (cur->data[sip_methods[sipmethod].len] < 33 && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
+             ((!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]))
+	       && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
         {
             /* this is our baby */
             if (cur->retransid > -1)
@@ -8689,7 +8690,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 
     /* Terminate URI */
     t = uri;
-    while(*t && (*t > 32) && (*t != ';'))
+    while(*t && !isspace(*t) && (*t != ';'))
         t++;
     *t = '\0';
     
@@ -9329,7 +9330,7 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
         /* clear the empty characters in the begining*/
         input = cw_skip_blanks(input);
         /* clear the empty characters in the end */
-        while(*end && (*end < 33) && end > input)
+        while(*end && !isspace(*end) && end > input)
             end--;
         if (end >= input)
         {
@@ -9399,7 +9400,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
 
     /* Terminate URI */
     t = uri2;
-    while(*t && (*t > 32) && (*t != ';'))
+    while(*t && !isspace(*t) && (*t != ';'))
         t++;
     *t = '\0';
     of = get_header(req, "From");

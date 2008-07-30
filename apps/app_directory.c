@@ -80,7 +80,7 @@ static char *convert(char *lastname)
 	int lcount = 0;
 	tmp = malloc(NUMDIGITS + 1);
 	if (tmp) {
-		while((*lastname > 32) && lcount < NUMDIGITS) {
+		while(!isspace(*lastname) && lcount < NUMDIGITS) {
 			switch(toupper(*lastname)) {
 			case '1':
 				tmp[lcount++] = '1';

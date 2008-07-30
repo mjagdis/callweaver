@@ -615,7 +615,7 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 	char currcontext[256] ="";
 	char tmpin[CW_CONFIG_MAX_PATH];
 	char tmpout[CW_CONFIG_MAX_PATH];
-	char *user, *pass, *rest, *trim, *tempcontext;
+	char *user, *pass, *rest, *tempcontext;
 	struct stat statbuf;
 
 	if (!change_password_realtime(vmu, newpassword))
@@ -653,9 +653,7 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 			user = strchr(inbuf, ';');
 			if (user)
 				*user = '\0';
-			user=inbuf;
-			while (*user < 33)
-				user++;
+			user = cw_skip_blanks(inbuf);
 			/* check for '[' (opening of context name ) */
 			tempcontext = strchr(user, '[');
 			if (tempcontext) {
@@ -668,20 +666,14 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 					currcontext[0] = '\0';
 			}
 			pass = strchr(user, '=');
-			if (pass > user) {
-				trim = pass - 1;
-				while (*trim && *trim < 33) {
-					*trim = '\0';
-					trim--;
-				}
-			}
+			if (pass > user)
+				cw_trim_blanks(pass - 1);
 			if (pass) {
 				*pass = '\0';
 				pass++;
 				if (*pass == '>')
 					pass++;
-				while (*pass && *pass < 33)
-					pass++;
+				pass = cw_skip_blanks(pass);
 			}
 			if (pass) {
 				rest = strchr(pass,',');

@@ -1755,7 +1755,7 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
-							while(*appl && (*appl < 33)) appl++;
+							appl = cw_skip_blanks(appl);
 							if (ipri) {
 								if (plus)
 									ipri += atoi(plus);

@@ -184,12 +184,9 @@ int cw_callerid_parse(char *instr, char **name, char **location)
 			return 0;
 		} else {
 			/* Just trim off any trailing spaces */
-			*name = instr;
-			while(!cw_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
-				instr[strlen(instr) - 1] = '\0';
+			cw_trim_blanks(instr);
 			/* And leading spaces */
-			while(**name && (**name < 33))
-				(*name)++;
+			*name = cw_skip_blanks(instr);
 			return 0;
 		}
 	} else {
@@ -202,9 +199,9 @@ int cw_callerid_parse(char *instr, char **name, char **location)
 		} else {
 			/* Assume it's just a name.  Make sure it's not quoted though */
 			*name = instr;
-			while(*(*name) && ((*(*name) < 33) || (*(*name) == '\"'))) (*name)++;
+			while(**name && (isspace(**name) || (**name == '\"'))) (*name)++;
 			ne = *name + strlen(*name) - 1;
-			while((ne > *name) && ((*ne < 33) || (*ne == '\"'))) { *ne = '\0'; ne--; }
+			while((ne > *name) && (!*ne || isspace(*ne) || (*ne == '\"'))) { *ne = '\0'; ne--; }
 			*location = NULL;
 		}
 		return 0;

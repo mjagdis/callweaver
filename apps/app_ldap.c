@@ -401,16 +401,9 @@ static int strconvert(const char *incharset,
 
 static char *strtrim(char *str) 
 {
-    char *p;
-    char c;
-
-    p = strchr(str, '\0');
-    while (--p >= str  &&  isspace(*p))
-        /*dummy*/;
-    p[1] = '\0';
-    while ((c = *str++) != '\0'  &&  isspace(c))
-        /*dummy*/;
-    return str - 1;
+    char *p = cw_skip_blanks(str);
+    cw_trim_blanks(p);
+    return p;
 }
 
 static int load_module(void)

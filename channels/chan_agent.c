@@ -327,12 +327,10 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	if ((argc = cw_separate_app_args(args, ',', arraysize(argv), argv))) {
 		agt = argv[0];
 		if (argc > 1) {
-			password = argv[1];
-			while (*password && *password < 33) password++;
+			password = cw_skip_blanks(argv[1]);
 		} 
 		if (argc > 2) {
-			name = argv[2];
-			while (*name && *name < 33) name++;
+			name = cw_skip_blanks(argv[2]);
 		}
 	} else {
 		cw_log(CW_LOG_WARNING, "A blank agent line!\n");

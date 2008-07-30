@@ -464,12 +464,11 @@ static int process_text_line(struct cw_config *cfg, struct cw_category **cat, ch
 		/* A directive */
 		cur++;
 		c = cur;
-		while(*c && (*c > 32)) c++;
+		while(*c && !isblank(*c)) c++;
 		if (*c) {
 			*c = '\0';
-			c++;
 			/* Find real argument */
-			while(*c  && (*c < 33)) c++;
+			c = cw_skip_blanks(c + 1);
 			if (!*c)
 				c = NULL;
 		} else 

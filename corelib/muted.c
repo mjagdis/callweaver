@@ -106,20 +106,18 @@ static int load_config(void)
 			lineno++;
 			val = strchr(buf, '#');
 			if (val) *val = '\0';
-			while(strlen(buf) && (buf[strlen(buf) - 1] < 33))
-				buf[strlen(buf) - 1] = '\0';
+			cw_trim_blanks(buf);
 			if (!strlen(buf))
 				continue;
 			val = buf;
 			while(*val) {
-				if (*val < 33)
+				if (isspace(*val))
 					break;
 				val++;
 			}
 			if (*val) {
 				*val = '\0';
-				val++;
-				while(*val && (*val < 33)) val++;
+				val = cw_skip_blanks(val);
 			}
 			if (!strcasecmp(buf, "host")) {
 				if (val && strlen(val))
@@ -233,8 +231,7 @@ static char *get_line(void)
 {
 	static char buf[1024];
 	if (fgets(buf, sizeof(buf), astf)) {
-		while(strlen(buf) && (buf[strlen(buf) - 1] < 33))
-			buf[strlen(buf) - 1] = '\0';
+		cw_trim_blank(buf);
 		return buf;
 	} else
 		return NULL;

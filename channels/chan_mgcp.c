@@ -1468,8 +1468,7 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 static char* get_sdp_by_line(char* line, char *name, int nameLen)
 {
 	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
-		char* r = line + nameLen + 1;
-		while (*r && (*r < 33)) ++r;
+		char* r = cw_skip_blanks(line + nameLen + 1);
 		return r;
 	}
 	return "";
@@ -1512,9 +1511,7 @@ static char *__get_header(struct mgcp_request *req, char *name, int *start)
 	for (x=*start;x<req->headers;x++) {
 		if (!strncasecmp(req->header[x], name, len) && 
 		    (req->header[x][len] == ':')) {
-			r = req->header[x] + len + 1;
-			while(*r && (*r < 33))
-				r++;
+			r = cw_skip_blanks(req->header[x] + len + 1);
 			*start = x+1;
 			return r;
 		}
@@ -1537,11 +1534,11 @@ static char *get_csv(char *c, int *len, char **next)
 	*next = NULL, *len = 0;
 	if (!c) return NULL;
 
-	while (*c && (*c < 33 || *c == ','))
+	while (*c && (isspace(*c) || *c == ','))
 		c++;
 
 	s = c;
-	while (*c && (*c >= 33 && *c != ','))
+	while (*c && (!isspace(*c) && *c != ','))
 		c++, (*len)++;
 	*next = c;
 
@@ -1731,31 +1728,27 @@ static void parse(struct mgcp_request *req)
 		f++;
 	req->lines = f;
 	/* Parse up the initial header */
-	c = req->header[0];
-	while(*c && *c < 33) c++;
+	c = cw_skip_blanks(req->header[0]);
 	/* First the verb */
 	req->verb = c;
-	while(*c && (*c > 32)) c++;
+	while(*c && !isspace(*c)) c++;
 	if (*c) {
 		*c = '\0';
-		c++;
-		while(*c && (*c < 33)) c++;
+		c = cw_skip_blanks(c + 1);
 		req->identifier = c;
-		while(*c && (*c > 32)) c++;
+		while(*c && !isspace(*c)) c++;
 		if (*c) {
 			*c = '\0';
-			c++;
-			while(*c && (*c < 33)) c++;
+			c = cw_skip_blanks(c + 1);
 			req->endpoint = c;
-			while(*c && (*c > 32)) c++;
+			while(*c && !isspace(*c)) c++;
 			if (*c) {
 				*c = '\0';
-				c++;
-				while(*c && (*c < 33)) c++;
+				c = cw_skip_blanks(c + 1);
 				req->version = c;
-				while(*c && (*c > 32)) c++;
-				while(*c && (*c < 33)) c++;
-				while(*c && (*c > 32)) c++;
+				while(*c && !isspace(*c)) c++;
+				c = cw_skip_blanks(c);
+				while(*c && !isspace(*c)) c++;
 				*c = '\0';
 			}
 		}

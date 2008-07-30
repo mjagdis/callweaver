@@ -139,16 +139,12 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 			}
 		}
 
-		/* Trim trailing white space */
-		while(!cw_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
-			buf[strlen(buf) - 1] = '\0';
+		cw_trim_blanks(buf);
 		if (!cw_strlen_zero(buf)) {
 			c = strchr(buf, ':');
 			if (c) {
 				*c = '\0';
-				c++;
-				while ((*c) && (*c < 33))
-					c++;
+				c = cw_skip_blanks(c + 1);
 #if 0
 				printf("'%s' is '%s' at line %d\n", buf, c, lineno);
 #endif
