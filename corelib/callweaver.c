@@ -974,13 +974,11 @@ static void boot(void)
 	srand((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 	srandom((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
-	if (init_logger()
-	|| cw_crypto_init()
+	if (cw_crypto_init()
 	|| cw_loader_cli_init()
 	|| load_modules(1)
 	|| cw_channels_init()
 	|| cw_cdr_engine_init()
-	|| init_manager()
 	|| cw_device_state_engine_init()
 	|| cw_rtp_init()
 	|| cw_udptl_init()
@@ -1780,6 +1778,11 @@ int callweaver_main(int argc, char *argv[])
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
+
+	/* Initialize the core services */
+	if (init_logger()
+	|| init_manager())
+	    exit(EX_USAGE);
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
