@@ -106,7 +106,7 @@ struct mansession {
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sin;
-		struct sockaddr_in sin6;
+		struct sockaddr_in6 sin6;
 		struct sockaddr_un sun;
 	} u;
 	char username[80];		/*!< Logged in username */

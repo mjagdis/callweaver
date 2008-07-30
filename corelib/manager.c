@@ -1713,6 +1713,45 @@ static void *session_writer(void *data)
 }
 
 
+static int manager_session(int fd, int family, void *addr, size_t addr_len)
+{
+	char buf[1];
+	struct mansession *sess;
+	int namelen;
+
+	namelen = addr_to_str(family, addr, buf, sizeof(buf)) + 1;
+
+	if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+
+	addr_to_str(family, addr, sess->name, namelen);
+
+	memcpy(&sess->u, addr, addr_len);
+	sess->u.sa.sa_family = family;
+
+	sess->fd = fd;
+	sess->send_events = -1;
+	sess->writetimeout = 100;
+
+	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
+	cw_mutex_init(&sess->lock);
+	cw_cond_init(&sess->activity, NULL);
+	cw_cond_init(&sess->ack, NULL);
+	sess->obj.release = mansession_release;
+
+	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_get(sess))) {
+		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
+		cw_object_put(sess);
+		return -1;
+	}
+
+	/* The thread has this session now */
+	return 0;
+}
+
+
 static void accept_thread_cleanup(void *data)
 {
 	struct manager_listener *listener = data;
@@ -1729,14 +1768,13 @@ static void accept_thread_cleanup(void *data)
 static void *accept_thread(void *data)
 {
 	struct manager_listener *listener = data;
-	struct mansession *sess;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sin;
 		struct sockaddr_un sun;
 	} u;
 	socklen_t salen;
-	int namelen;
+	int fd;
 	const int arg = 1;
 
 	pthread_cleanup_push(accept_thread_cleanup, listener);
@@ -1798,41 +1836,15 @@ static void *accept_thread(void *data)
 	if (option_verbose)
 		cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
 
-	namelen = sizeof("local:") - 1 + sizeof(u.sun.sun_path);
-	if (namelen < sizeof("ipv4:") - 1 + INET_ADDRSTRLEN)
-		namelen = sizeof("ipv4:") - 1 + INET_ADDRSTRLEN + 1 + 5;
-	if (namelen < sizeof("ipv6:") - 1 + INET6_ADDRSTRLEN)
-		namelen = sizeof("ipv6:") - 1 + INET6_ADDRSTRLEN + 1 + 5;
-
-	sess = NULL;
-
 	for (;;) {
-		if (!sess) {
-			if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
-				cw_log(CW_LOG_ERROR, "Out of memory\n");
-				sleep(10);
-				continue;
-			}
-
-			cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
-			cw_mutex_init(&sess->lock);
-			cw_cond_init(&sess->activity, NULL);
-			cw_cond_init(&sess->ack, NULL);
-			sess->send_events = -1;
-			sess->obj.release = mansession_release;
-			sess->writetimeout = 100;
-		}
-
-		pthread_cleanup_push(free, sess);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		salen = sizeof(sess->u);
-		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->u, &salen);
+		salen = sizeof(u);
+		fd = accept(listener->sock, &u.sa, &salen);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-		pthread_cleanup_pop(0);
 
-		if (sess->fd < 0) {
+		if (fd < 0) {
 			if (errno == ENFILE || errno == EMFILE || errno == ENOBUFS || errno == ENOMEM) {
 				cw_log(CW_LOG_ERROR, "Accept failed: %s\n", strerror(errno));
 				sleep(1);
@@ -1840,34 +1852,10 @@ static void *accept_thread(void *data)
 			continue;
 		}
 
-		switch (sess->u.sa.sa_family) {
-			case AF_INET:
-				memcpy(sess->name, "ipv4:", sizeof("ipv4:") - 1);
-				inet_ntop(sess->u.sin.sin_family, &sess->u.sin.sin_addr, sess->name + (sizeof("ipv4:") - 1), namelen - (sizeof("ipv4:") - 1));
-				snprintf(sess->name + strlen(sess->name), 7, ":%u", ntohs(sess->u.sin.sin_port));
-				break;
-			case AF_INET6:
-				memcpy(sess->name, "ipv6:", sizeof("ipv6:") - 1);
-				inet_ntop(sess->u.sin6.sin_family, &sess->u.sin6.sin_addr, sess->name + (sizeof("ipv6:") - 1), namelen - (sizeof("ipv6:") - 1));
-				snprintf(sess->name + strlen(sess->name), 7, "/%u", ntohs(sess->u.sin6.sin_port));
-				break;
-			case AF_LOCAL:
-			default:
-				memcpy(sess->name, "local:", sizeof("local:") - 1);
-				memcpy(sess->name, sess->u.sun.sun_path + (sizeof("local:") - 1), sizeof(sess->u.sun.sun_path));
-				break;
-		}
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
-		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
-
-		if (!cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_get(sess))) {
-			/* The thread has this session now */
-			sess = NULL;
-		} else {
-			cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
-			close(sess->fd);
-		}
+		manager_session(fd, u.sa.sa_family, &u, salen);
 	}
 
 	pthread_cleanup_pop(1);

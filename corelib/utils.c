@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <openssl/evp.h>
@@ -502,6 +503,68 @@ void cw_uri_decode(char *s)
 const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
+}
+
+
+int addr_to_str(int family, const void *addr, char *buf, size_t buflen)
+{
+	char *p = buf;
+	int n;
+
+	switch (family) {
+		case AF_INET: {
+			const struct sockaddr_in *sin = addr;
+			if (buflen)
+				memcpy(p, "ipv4:", (buflen > sizeof("ipv4:") - 1 ? sizeof("ipv4:") - 1 : buflen));
+			p += sizeof("ipv4:") - 1;
+			buflen -= sizeof("ipv4:") - 1;
+			if (buflen > 0 && inet_ntop(family, &sin->sin_addr, p, buflen)) {
+				n = strlen(p);
+				p += n;
+				buflen -= n;
+			} else {
+				p += INET_ADDRSTRLEN - 1;
+				buflen -= INET_ADDRSTRLEN - 1;
+			}
+			p += snprintf(p, (buflen > 0 ? buflen : 0), ":%u", ntohs(sin->sin_port)) + 1;
+			break;
+		}
+
+		case AF_INET6: {
+			const struct sockaddr_in6 *sin = addr;
+			if (buflen)
+				memcpy(p, "ipv6:[", (buflen > sizeof("ipv6:[") - 1 ? sizeof("ipv6:[") - 1 : buflen));
+			p += sizeof("ipv6:[") - 1;
+			buflen -= sizeof("ipv6:[") - 1;
+			if (buflen > 0 && inet_ntop(family, &sin->sin6_addr, p, buflen)) {
+				n = strlen(p);
+				p += n;
+				buflen -= n;
+			} else {
+				p += INET6_ADDRSTRLEN - 1;
+				buflen -= INET6_ADDRSTRLEN - 1;
+			}
+			p += snprintf(p, (buflen > 0 ? buflen : 0), "]:%u", ntohs(sin->sin6_port)) + 1;
+			break;
+		}
+
+		case AF_LOCAL: {
+			const struct sockaddr_un *sun = addr;
+			p += snprintf(p, buflen, "local:%s", sun->sun_path) + 1;
+			break;
+		}
+
+		case AF_PATHNAME:
+			p += snprintf(p, buflen, "file:%s", (char *)addr) + 1;
+			break;
+
+		case AF_SYSLOG:
+			memcpy(p, "syslog", (buflen > sizeof("syslog") ? sizeof("syslog") : buflen));
+			p += sizeof("syslog");
+			break;
+	}
+
+	return p - buf;
 }
 
 

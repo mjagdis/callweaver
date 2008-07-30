@@ -55,6 +55,10 @@
 #endif
 
 
+#define AF_PATHNAME	(AF_MAX)
+#define AF_SYSLOG	(AF_MAX + 1)
+
+
 /*! \note
  \verbatim
    Note:
@@ -215,6 +219,8 @@ extern const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__cw_inet_ntoa__instead__
+
+extern int addr_to_str(int family, const void *addr, char *buf, size_t buflen);
 
 extern int cw_utils_init(void);
 extern int cw_wait_for_input(int fd, int ms);
