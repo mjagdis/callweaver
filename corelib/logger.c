@@ -138,28 +138,22 @@ static int priorities[] = {
 
 static int logger_manager_write(struct mansession *sess, struct manager_event *event)
 {
+	enum { F_LEVEL = 0, F_DATELEN, F_MSGLEN };
 	static struct {
 		int l;
-		char *s;
+		const char *s;
 	} keys[] = {
 #define LENSTR(x)	sizeof(x) - 1, x
-		{ LENSTR("Timestamp") },
-		{ LENSTR("Level") },
-		{ LENSTR("Thread ID") },
-		{ LENSTR("File") },
-		{ LENSTR("Line") },
-		{ LENSTR("Func") },
-		{ LENSTR("Message") },
+		[F_LEVEL]   = { LENSTR("Level") },
+		[F_DATELEN] = { LENSTR("Date Len") },
+		[F_MSGLEN]  = { LENSTR("Message") },
 #undef LENSTR
 	};
 	char buf[BUFSIZ];
-	char date[256];
 	struct {
 		int l;
 		char *s;
 	} vals[arraysize(keys)];
-	struct tm tm;
-	time_t when;
 	struct logchannel *log = sess->tech_pvt;
 	char *key, *ekey;
 	char *val, *eval;
@@ -180,8 +174,9 @@ static int logger_manager_write(struct mansession *sess, struct manager_event *e
 		lkey = ekey - key;
 		lval = eval - val;
 
-		if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1)))
+		/* We shouldn't get anything other than log events. */
+		if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+		&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
 			return 0;
 
 		for (i = 0; i < arraysize(keys); i++) {
@@ -198,24 +193,26 @@ static int logger_manager_write(struct mansession *sess, struct manager_event *e
 		for (key = eval + 1; *key && (*key == '\r' || *key == '\n'); key++);
 	}
 
-	level = (vals[1].s ? atol(vals[1].s) : 0);
+	if (vals[F_MSGLEN].s) {
+		level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
 
-	if (log->type == LOG_SYSLOG)
-		syslog(priorities[level], "%s[%.*s]: %.*s:%.*s %.*s: %.*s\n", (priorities[level] == LOG_INFO ? levels[level] : ""), vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
-	else {
-		when = atol(vals[0].s);
-		localtime_r(&when, &tm);
-		strftime(date, sizeof(date), dateformat, &tm);
-
-		i = snprintf(buf, sizeof(buf), (option_timestamp ? "[%s] %s[%.*s]: %.*s:%.*s %.*s: %.*s\n" : "%s %s[%.*s]: %.*s:%.*s %.*s: %.*s\n"), date, levels[level], vals[2].l, vals[2].s, vals[3].l, vals[3].s, vals[4].l, vals[4].s, vals[5].l, vals[5].s, vals[6].l, vals[6].s);
-
-		if (i > 0) {
-			buf[sizeof(buf) - 1] = '\0';
-			if (log->type == LOGTYPE_CONSOLE)
-				cw_console_puts(buf);
-			else
-				write(sess->fd, buf, i);
-		}
+		if (log->type == LOGTYPE_SYSLOG) {
+			if (vals[F_DATELEN].s) {
+				lkey = atol(vals[F_DATELEN].s);
+				vals[F_MSGLEN].s += lkey;
+				vals[F_MSGLEN].l -= lkey;
+				/* FIXME: this seems unnecessary. Why not leave the priority string in */
+				if (priorities[level] != LOG_INFO && (key = strchr(vals[F_MSGLEN].s, '['))) {
+					vals[F_MSGLEN].l -= key - vals[F_MSGLEN].s;
+					vals[F_MSGLEN].s = key;
+				}
+			}
+			syslog(priorities[level], "%.*s", vals[F_MSGLEN].l, vals[F_MSGLEN].s);
+		} else if (log->type == LOGTYPE_CONSOLE) {
+			cw_copy_string(buf, vals[F_MSGLEN].s, vals[F_MSGLEN].l + 2);
+			cw_console_puts(buf);
+		} else
+			write(sess->fd, vals[F_MSGLEN].s, vals[F_MSGLEN].l + 2);
 	}
 
 	return 0;
@@ -702,6 +699,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	struct tm tm;
 	time_t now;
 	va_list ap;
+	int datelen, msglen;
 	
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
@@ -719,10 +717,12 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 
 	time(&now);
 	localtime_r(&now, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
+	if (!(datelen = strftime(date, sizeof(date), dateformat, &tm)))
+		date[0] = '\0';
 
 	va_start(ap, fmt);
-	vsnprintf(msg, sizeof(msg), fmt, ap);
+	if ((msglen = vsnprintf(msg, sizeof(msg), fmt, ap)) >= sizeof(msg))
+		msglen = sizeof(msg) - 1;
 	va_end(ap);
 
 	cw_mutex_lock(&loglock);
@@ -735,7 +735,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage: %s", now, level, GETTID(), file, line, function, msg);
+		manager_event(1 << level, "Log", "Timestamp: %ld\r\nLevel: %d\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nDate Len: %d\r\nMessage Len: %d\r\nMessage: %s %s[" TIDFMT "]: %s:%d %s: %s", now, level, GETTID(), file, line, function, datelen + 1, msglen, date, levels[level], GETTID(), file, line, function, msg);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,
