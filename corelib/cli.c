@@ -544,16 +544,6 @@ static char nodebugchan_help[] =
 "Usage: no debug channel <channel>\n"
 "       Disables debugging on a specific channel.\n";
 
-static char commandcomplete_help[] = 
-"Usage: _command complete \"<line>\" text state\n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
-static char commandnummatches_help[] = 
-"Usage: _command nummatches \"<line>\" text \n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
 static char commandmatchesarray_help[] = 
 "Usage: _command matchesarray \"<line>\" text \n"
 "       This function is used internally to help with command completion and should.\n"
@@ -596,38 +586,6 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-
-
-static int handle_commandnummatches(int fd, int argc, char *argv[])
-{
-    int matches = 0;
-
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-
-    matches = cw_cli_generatornummatches(argv[2], argv[3]);
-
-    cw_cli(fd, "%d\n", matches);
-
-    return RESULT_SUCCESS;
-}
-
-static int handle_commandcomplete(int fd, int argc, char *argv[])
-{
-    char *buf;
-
-    if (argc != 5)
-        return RESULT_SHOWUSAGE;
-
-    buf = cw_cli_generator(argv[2], argv[3], atoi(argv[4]));
-    if (buf) {
-        cw_cli(fd, "%s\n", buf);
-        free(buf);
-    } else
-        cw_cli(fd, "NULL\n");
-
-    return RESULT_SUCCESS;
-}
 
 static int handle_debuglevel(int fd, int argc, char *argv[])
 {
@@ -855,18 +813,6 @@ static char *complete_ch_4(char *line, char *word, int pos, int state)
 static int handle_help(int fd, int argc, char *argv[]);
 
 static struct cw_clicmd builtins[] = {
-    {
-        .cmda = { "_command", "complete", NULL },
-        .handler = handle_commandcomplete,
-        .summary = "Command complete",
-        .usage = commandcomplete_help
-    },
-    {
-        .cmda = { "_command", "nummatches", NULL },
-        .handler = handle_commandnummatches,
-        .summary = "Returns number of command matches",
-        .usage = commandnummatches_help
-    },
     {
         .cmda = { "_command", "matchesarray", NULL },
         .handler = handle_commandmatchesarray,
@@ -1115,23 +1061,6 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
     return dup;
 }
 
-/* This returns the number of unique matches for the generator */
-int cw_cli_generatornummatches(char *text, char *word)
-{
-    int matches = 0, i = 0;
-    char *buf = NULL, *oldbuf = NULL;
-
-    while ( (buf = cw_cli_generator(text, word, i++)) ) {
-        if (!oldbuf || strcmp(buf,oldbuf))
-            matches++;
-        if (oldbuf)
-            free(oldbuf);
-        oldbuf = buf;
-    }
-    if (oldbuf)
-        free(oldbuf);
-    return matches;
-}
 
 char **cw_cli_completion_matches(char *text, char *word)
 {

@@ -113,7 +113,6 @@ extern int cw_cli_command(int fd, char *s);
  */
 extern char *cw_cli_generator(char *, char *, int);
 
-extern int cw_cli_generatornummatches(char *, char *);
 extern char **cw_cli_completion_matches(char *, char *);
 
 extern void cw_cli_init(void);
