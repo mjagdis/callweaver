@@ -85,7 +85,6 @@ struct fast_originate_helper {
 
 
 static int displayconnects;
-static int block_sockets;
 
 
 struct manager_event {
@@ -1847,9 +1846,6 @@ static void *accept_thread(void *data)
 		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if (!block_sockets)
-			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL) | O_NONBLOCK);
-
 		if (!cw_pthread_create(&sess->reader_tid, &global_attr_detached, session_reader, cw_object_get(sess))) {
 			/* The thread has this session now */
 			sess = NULL;
@@ -2173,7 +2169,6 @@ int manager_reload(void)
 	cw_registry_iterate(&manager_listener_registry, listener_join, NULL);
 
 	/* Reset to hard coded defaults */
-	block_sockets = 0;
 	bindaddr = NULL;
 	portno = NULL;
 	displayconnects = 1;
@@ -2184,14 +2179,14 @@ int manager_reload(void)
 		cw_log(CW_LOG_NOTICE, "Unable to open manager configuration manager.conf. Using defaults.\n");
 	} else {
 		for (v = cw_variable_browse(cfg, "general"); v; v = v->next) {
-			if (!strcmp(v->name, "block-sockets"))
-				block_sockets = cw_true(v->value);
-			else if (!strcmp(v->name, "displayconnects"))
+			if (!strcmp(v->name, "displayconnects"))
 				displayconnects = cw_true(v->value);
 			else if (!strcmp(v->name, "listen"))
 				manager_listen(v->value);
 
 			/* DEPRECATED */
+			else if (!strcmp(v->name, "block-sockets"))
+				cw_log(CW_LOG_WARNING, "block_sockets is deprecated - remove it from manager.conf\n");
 			else if (!strcmp(v->name, "bindaddr")) {
 				cw_log(CW_LOG_WARNING, "Use of \"bindaddr\" in manager.conf is deprecated - use \"listen\" instead\n");
 				bindaddr = v->value;
