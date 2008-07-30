@@ -56,7 +56,7 @@
 
 
 #define AF_PATHNAME	(AF_MAX)
-#define AF_SYSLOG	(AF_MAX + 1)
+#define AF_INTERNAL	(AF_MAX + 1)
 
 
 /*! \note

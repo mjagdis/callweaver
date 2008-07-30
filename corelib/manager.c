@@ -113,10 +113,6 @@ struct manager_listener {
 };
 
 
-static struct manager_custom_hook *manager_hooks = NULL;
-CW_MUTEX_DEFINE_STATIC(hooklock);
-
-
 static struct {
 	const char *label;
 	int len;
@@ -545,37 +541,6 @@ static struct cw_clicmd show_manconn_cli = {
 	.summary = "Show connected manager interface users",
 	.usage = showmanconn_help,
 };
-
-
-void add_manager_hook(struct manager_custom_hook *hook)
-{
-	cw_mutex_lock(&hooklock);
-	if (hook) {
-		hook->next = manager_hooks;
-		manager_hooks = hook;
-	}
-	cw_mutex_unlock(&hooklock);
-}
-
-
-void del_manager_hook(struct manager_custom_hook *hook)
-{
-	struct manager_custom_hook *hookp, *lasthook = NULL;
-
-	cw_mutex_lock(&hooklock);
-	for (hookp = manager_hooks; hookp ; hookp = hookp->next) {
-		if (hookp == hook) {
-			if (lasthook) {
-				lasthook->next = hookp->next;
-			} else {
-				manager_hooks = hookp->next;
-			}
-		}
-		lasthook = hookp;
-	}
-	cw_mutex_unlock(&hooklock);
-
-}
 
 
 static void mansession_release(struct cw_object *obj)
@@ -1479,11 +1444,10 @@ static int process_message(struct mansession *s, struct message *m)
 }
 
 
-static void *session_reader(void *data)
+static void *manager_ami_request(struct mansession *sess)
 {
 	char buf[32768];
 	struct pollfd pfd;
-	struct mansession *sess = data;
 	struct message m;
 	char **hval;
 	int pos, state;
@@ -1604,7 +1568,7 @@ static void *session_reader(void *data)
 }
 
 
-static int manager_event_write(struct mansession *sess, struct manager_event *event)
+static int manager_ami_event(struct mansession *sess, struct manager_event *event)
 {
 	const char *data = event->data;
 	int len = event->len;
@@ -1661,7 +1625,7 @@ static void *session_writer(void *data)
 
 	sess->reg_entry = NULL;
 
-	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, session_reader, sess))) {
+	if (sess->request && (res = cw_pthread_create(&sess->reader_tid, &global_attr_default, (void *(*)(void *))sess->request, sess))) {
 		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
 		return NULL;
 	}
@@ -1706,7 +1670,7 @@ static void *session_writer(void *data)
 		}
 
 		if (eqe) {
-			res = sess->write(sess, eqe->event);
+			res = sess->event(sess, eqe->event);
 			cw_object_put(eqe->event);
 			free(eqe);
 			if (res < 0)
@@ -1719,7 +1683,7 @@ static void *session_writer(void *data)
 }
 
 
-static int manager_session(int fd, int family, void *addr, size_t addr_len)
+struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, manager_session_event_t event, manager_session_request_t request)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1729,7 +1693,7 @@ static int manager_session(int fd, int family, void *addr, size_t addr_len)
 
 	if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		return -1;
+		return NULL;
 	}
 
 	addr_to_str(family, addr, sess->name, namelen);
@@ -1738,7 +1702,8 @@ static int manager_session(int fd, int family, void *addr, size_t addr_len)
 	sess->u.sa.sa_family = family;
 
 	sess->fd = fd;
-	sess->write = manager_event_write;
+	sess->event = event;
+	sess->request = request;
 	sess->send_events = -1;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
@@ -1747,14 +1712,23 @@ static int manager_session(int fd, int family, void *addr, size_t addr_len)
 	cw_cond_init(&sess->ack, NULL);
 	sess->obj.release = mansession_release;
 
-	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_get(sess))) {
+	cw_object_get(sess);
+
+	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_dup(sess))) {
 		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 		cw_object_put(sess);
-		return -1;
+		return NULL;
 	}
 
-	/* The thread has this session now */
-	return 0;
+	return sess;
+}
+
+
+void manager_session_end(struct mansession *sess)
+{
+	pthread_cancel(sess->writer_tid);
+	pthread_join(sess->writer_tid, NULL);
+	cw_object_put(sess);
 }
 
 
@@ -1773,12 +1747,13 @@ static void accept_thread_cleanup(void *data)
 
 static void *accept_thread(void *data)
 {
-	struct manager_listener *listener = data;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sin;
 		struct sockaddr_un sun;
 	} u;
+	struct manager_listener *listener = data;
+	struct mansession *sess;
 	socklen_t salen;
 	int fd;
 	const int arg = 1;
@@ -1861,7 +1836,8 @@ static void *accept_thread(void *data)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		manager_session(fd, u.sa.sa_family, &u, salen);
+		if ((sess = manager_session_start(fd, u.sa.sa_family, &u, salen, manager_ami_event, manager_ami_request)))
+			cw_object_put(sess);
 	}
 
 	pthread_cleanup_pop(1);
@@ -1979,19 +1955,6 @@ int manager_event(int category, char *event, char *fmt, ...)
 	va_start(args.ap, fmt);
 
 	cw_registry_iterate(&manager_session_registry, manager_event_print, &args);
-
-	if (!args.ret) {
-		cw_mutex_lock(&hooklock);
-		if (manager_hooks) {
-			struct manager_custom_hook *hookp;
-
-			if (args.me || !(args.ret = make_event(&args))) {
-				for (hookp = manager_hooks ;  hookp;  hookp = hookp->next)
-					hookp->helper(category, event, args.me->data);
-			}
-		}
-		cw_mutex_unlock(&hooklock);
-	}
 
 	va_end(args.ap);
 

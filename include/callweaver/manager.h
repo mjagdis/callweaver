@@ -64,27 +64,6 @@
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 
-/* Manager Helper Function */
-typedef int (*manager_hook_t)(int, char *, char *); 
-
-struct manager_custom_hook {
-	/*! Identifier */
-	char *file;
-	/*! helper function */
-	manager_hook_t helper;
-	struct manager_custom_hook *next;
-};
-
-/*! Add a custom hook to be called when an event is fired */
-/*! \param hook struct manager_custom_hook object to add
-*/
-extern void add_manager_hook(struct manager_custom_hook *hook);
-
-/*! Delete a custom hook to be called when an event is fired */
-/*! \param hook struct manager_custom_hook object to delete
-*/
-extern void del_manager_hook(struct manager_custom_hook *hook);
-
 
 struct manager_event {
 	struct cw_object obj;
@@ -98,16 +77,21 @@ struct message;
 
 struct eventqent;
 
+struct mansession;
+typedef int (*manager_session_event_t)(struct mansession *sess, struct manager_event *event);
+typedef void *(*manager_session_request_t)(struct mansession *sess);
+
 struct mansession {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	int authenticated;		/*!< Authentication status */
-	int readperm;			/*!< Authorization for reading */
-	int writeperm;			/*!< Authorization for writing */
+	int readperm;			/*!< Authorization for reading messages _from_ the manager */
+	int writeperm;			/*!< Authorization for writing messages _to_ the manager */
 	int send_events;
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	int fd;
-	int (*write)(struct mansession *sess, struct manager_event *event);
+	manager_session_event_t event;	/*!< Method to handle events _from_ the manager */
+	manager_session_request_t request;	/*!< Method to generate a stream of requests _to_ the manager */
 	cw_mutex_t lock;
 	cw_cond_t activity;
 	cw_cond_t ack;
@@ -194,6 +178,9 @@ struct cw_variable *astman_get_variables(struct message *m);
 extern void astman_send_error(struct mansession *s, struct message *m, char *error);
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
+
+extern struct mansession *manager_session_start(int fd, int family, void *addr, size_t addr_len, manager_session_event_t event, manager_session_request_t request);
+extern void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */
 extern int manager_reload(void);

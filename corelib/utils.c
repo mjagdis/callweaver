@@ -558,9 +558,8 @@ int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen)
 			p += snprintf(p, buflen, "file:%s", (char *)addr) + 1;
 			break;
 
-		case AF_SYSLOG:
-			memcpy(p, "syslog", (buflen > sizeof("syslog") ? sizeof("syslog") : buflen));
-			p += sizeof("syslog");
+		case AF_INTERNAL:
+			p += snprintf(p, buflen, "internal:%s", (char *)addr) + 1;
 			break;
 	}
 

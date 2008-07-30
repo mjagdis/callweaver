@@ -30,6 +30,7 @@
 #include "callweaver/musiconhold.h"
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"
+#include "callweaver/utils.h"
 
 
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
@@ -164,6 +165,9 @@ static struct {
 } globals;
 
 
+static struct mansession *jabber_hook;
+
+
 static int jabber_context_open(struct jabber_profile *profile);
 static int jabber_context_close(struct jabber_profile *profile);
 static int next_media_port(void);
@@ -203,22 +207,18 @@ static void *cli_command_thread(void *cli_command);
 static void launch_cli_thread(char *cli_command); 
 
 
-
-
-
-
 #define jabber_message_node_printf(id, sub, fmt, ...) jabber_message_node_new(id, sub, fmt "Epoch: %ld\n\n", ##__VA_ARGS__, time(NULL))
 
-#ifdef PATCHED_MANAGER
-static int jabber_manager_event(int category, char *event, char *body)
+static int jabber_manager_event(struct mansession *sess, struct manager_event *event)
 {
 	struct jabber_message_node *node;
-	if ((node=jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", body))) { 
+
+	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
-	}
+
 	return 0;
 }
-#endif
+
 
 static int next_callid(void)
 {
@@ -1928,21 +1928,13 @@ static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char 
 	return -1;
 }
 
-#ifdef PATCHED_MANAGER
-static struct manager_custom_hook jabber_hook = {
-	.file = "res_jabber",
-	.helper = jabber_manager_event
-};
-#endif
 
 static int unload_module(void)
 {
-#ifdef PATCHED_MANAGER
 	if (globals.event_master) {
 		cw_log(CW_LOG_NOTICE, "Un-Registering Manager Event Hook\n");
-		del_manager_hook(&jabber_hook);
+		manager_session_end(jabber_hook);
 	}
-#endif
 
 	cw_clear_flag((&global_profile), JFLAG_RUNNING);
 	while (!cw_test_flag((&global_profile), JFLAG_SHUTDOWN)) {
@@ -2032,12 +2024,12 @@ static int load_module(void)
 	
 	jabber_profile_init(&global_profile, globals.resource, globals.resource, NULL, JFLAG_MAIN);
 	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
-#ifdef PATCHED_MANAGER
 	if (globals.event_master) {
 		cw_log(CW_LOG_NOTICE, "Registering Manager Event Hook\n");
-		add_manager_hook(&jabber_hook);
+		if ((jabber_hook = manager_session_start(-1, AF_INTERNAL, "res_jabber", sizeof("res_jabber") - 1, jabber_manager_event, NULL))) {
+			jabber_hook->readperm = jabber_hook->send_events = -1;
+		}
 	}
-#endif
 	app = cw_register_function(name, res_jabber_exec, synopsis, syntax, desc);
 	return 0;
 }
