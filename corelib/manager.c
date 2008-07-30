@@ -108,7 +108,7 @@ struct manager_listener {
 	struct cw_registry_entry *reg_entry;
 	int sock;
 	pthread_t tid;
-	void *(*handler)(void *);
+	int (*handler)(struct mansession *, const struct manager_event *);
 	int readperm, writeperm, send_events;
 	char name[0];
 };
@@ -1616,7 +1616,13 @@ static void *manager_session_ami_read(void *data)
 }
 
 
-static void manager_session_ami_cleanup(void *data)
+int manager_session_ami(struct mansession *sess, const struct manager_event *event)
+{
+	return cw_write_all(sess->fd, event->data, event->len);
+}
+
+
+static void manager_session_cleanup(void *data)
 {
 	struct mansession *sess = data;
 
@@ -1644,7 +1650,7 @@ static void manager_session_ami_cleanup(void *data)
 }
 
 
-void *manager_session_ami(void *data)
+static void *manager_session(void *data)
 {
 	struct mansession *sess = data;
 	int res;
@@ -1653,13 +1659,16 @@ void *manager_session_ami(void *data)
 
 	sess->reader_tid = CW_PTHREADT_NULL;
 
-	pthread_cleanup_push(manager_session_ami_cleanup, sess);
+	pthread_cleanup_push(manager_session_cleanup, sess);
 
 	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
-		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
-		return NULL;
+	/* If there is an fd already supplied we will read AMI requests from it */
+	if (sess->fd >= 0) {
+		if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
+			cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
+			return NULL;
+		}
 	}
 
 	for (;;) {
@@ -1702,21 +1711,8 @@ void *manager_session_ami(void *data)
 		}
 
 		if (event) {
-			const char *data = event->data;
-			int len = event->len;
-
-			res = 0;
-			while (len > 0) {
-				int n = cw_write_all(sess->fd, data, len);
-				if (n >= 0) {
-					data += n;
-					len -= n;
-				} else {
-					cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, write gave: %s\n", sess->name, strerror(errno));
-					res = -1;
-				}
-			}
-
+			if ((res = sess->handler(sess, event)) < 0)
+				cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, handler gave: %s\n", sess->name, strerror(errno));
 			cw_object_put(event);
 			if (res < 0)
 				break;
@@ -1728,173 +1724,7 @@ void *manager_session_ami(void *data)
 }
 
 
-static void manager_session_log_cleanup(void *data)
-{
-	struct mansession *sess = data;
-
-	if (sess->reg_entry)
-		cw_registry_del(&manager_session_registry, sess->reg_entry);
-
-	cw_object_put(sess);
-}
-
-
-void *manager_session_log(void *data)
-{
-	struct mansession *sess = data;
-	int res = 0;
-
-	pthread_cleanup_push(manager_session_log_cleanup, sess);
-
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
-
-	while (!res) {
-		struct manager_event *event = NULL;
-
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
-		pthread_mutex_lock(&sess->lock);
-
-		/* If there are no queued events we have to wait for activity. */
-		if (sess->q_r == sess->q_w)
-			pthread_cond_wait(&sess->activity, &sess->lock);
-
-		/* Fetch next event (if any) now. Once we have that
-		 * we can unlock the session.
-		 */
-		if (sess->q_r != sess->q_w) {
-			event = sess->q[sess->q_r];
-			sess->q_r = (sess->q_r + 1) % sess->q_size;
-			sess->q_count--;
-		}
-
-		pthread_cleanup_pop(1);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		/* There _should_ be an event. Why else were we woken up? */
-		if (event) {
-			static const int priorities[] = {
-				[CW_EVENT_NUM_ERROR]	= LOG_ERR,
-				[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
-				[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
-				[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
-				[CW_EVENT_NUM_EVENT]	= LOG_INFO,
-				[CW_EVENT_NUM_DTMF]	= LOG_INFO,
-				[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
-			};
-			enum { F_LEVEL = 0, F_DATE, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
-			static struct {
-				int l;
-				const char *s;
-			} keys[] = {
-#define LENSTR(x)	sizeof(x) - 1, x
-				[F_LEVEL]    = { LENSTR("Level") },
-				[F_DATE]     = { LENSTR("Date") },
-				[F_THREADID] = { LENSTR("Thread ID") },
-				[F_FILE]     = { LENSTR("File") },
-				[F_LINE]     = { LENSTR("Line") },
-				[F_FUNCTION] = { LENSTR("Function") },
-				[F_MESSAGE]  = { LENSTR("Message") },
-#undef LENSTR
-			};
-			struct {
-				int l;
-				char *s;
-			} vals[arraysize(keys)];
-			char *key, *ekey;
-			char *val, *eval;
-			int lkey, lval;
-			int level, i;
-
-			memset(vals, 0, sizeof(vals));
-
-			key = eval = event->data;
-			while (!res && *key) {
-				if (!vals[F_MESSAGE].s) {
-					for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-					if (!*ekey)
-						break;
-
-					for (val = ekey + 1; *val && *val == ' '; val++);
-					for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-					lkey = ekey - key;
-					lval = eval - val;
-
-					/* We shouldn't get anything other than log events. */
-					if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-					&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
-						break;
-
-					for (i = 0; i < arraysize(keys); i++) {
-						if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-							vals[i].l = lval;
-							vals[i].s = val;
-							break;
-						}
-					}
-				} else {
-					for (eval = key; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-					lkey = eval - key;
-
-					if (lkey == sizeof("--END MESSAGE--") - 1 && !memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
-						break;
-
-					if (sess->fd >= 0) {
-						struct iovec iov[] = {
-							{ .iov_base = vals[F_DATE].s,     .iov_len = vals[F_DATE].l },
-							{ .iov_base = vals[F_LEVEL].s,    .iov_len = vals[F_LEVEL].l },
-							{ .iov_base = "[",                .iov_len = sizeof("]") - 1 },
-							{ .iov_base = vals[F_THREADID].s, .iov_len = vals[F_THREADID].l },
-							{ .iov_base = "]: ",              .iov_len = sizeof("]: ") - 1 },
-							{ .iov_base = vals[F_FILE].s,     .iov_len = vals[F_FILE].l },
-							{ .iov_base = ":",                .iov_len = sizeof(":") - 1 },
-							{ .iov_base = vals[F_LINE].s,     .iov_len = vals[F_LINE].l },
-							{ .iov_base = " ",                .iov_len = sizeof(" ") - 1 },
-							{ .iov_base = vals[F_FUNCTION].s, .iov_len = vals[F_FUNCTION].l },
-							{ .iov_base = ": ",               .iov_len = sizeof(": ") - 1 },
-							{ .iov_base = key,                .iov_len = lkey },
-							{ .iov_base = "\n",               .iov_len = sizeof("\n") - 1 },
-						};
-
-						while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
-							iov[1].iov_base++, iov[1].iov_len--;
-
-						if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
-							cw_log(CW_LOG_WARNING, "Disconnecting manager session %s: %s\n", sess->name, strerror(errno));
-							res = -1;
-						}
-					} else {
-						level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
-						syslog(priorities[level], "[%.*s]: %.*s:%.*s %.*s: %.*s",
-							vals[F_THREADID].l, vals[F_THREADID].s,
-							vals[F_FILE].l, vals[F_FILE].s,
-							vals[F_LINE].l, vals[F_LINE].s,
-							vals[F_FUNCTION].l, vals[F_FUNCTION].s,
-							lkey, key);
-					}
-				}
-
-				key = eval;
-				if (*key == '\r')
-					key++;
-				if (*key == '\n')
-					key++;
-			}
-
-			cw_object_put(event);
-		}
-	}
-
-	pthread_cleanup_pop(1);
-	return NULL;
-}
-
-
-struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1930,6 +1760,7 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 	if ((sess->writeperm = writeperm))
 		sess->authenticated = 1;
 	sess->send_events = send_events;
+	sess->handler = handler;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 	cw_object_get(sess);
@@ -1939,7 +1770,7 @@ struct mansession *manager_session_start(void *(* const handler)(void *), int fd
 	sess->obj.release = mansession_release;
 
 	cw_object_dup(sess);
-	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, handler, sess)) {
+	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, manager_session, sess)) {
 		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 		cw_object_put(sess);
 		cw_object_put(sess);
@@ -2257,7 +2088,7 @@ static void listener_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(const char *spec, void *(* const handler)(void *), int readperm, int writeperm, int send_events)
+static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct manager_event *), int readperm, int writeperm, int send_events)
 {
 	union {
 		struct sockaddr sa;

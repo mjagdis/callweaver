@@ -613,7 +613,7 @@ static int console_connect(char *spec, int events)
 		struct mansession *sess;
 
 		if (!socketpair(AF_LOCAL, SOCK_STREAM, 0, sv)
-		&& (sess = manager_session_start(&manager_session_ami, sv[0], AF_INTERNAL, "console", sizeof("console") - 1, events, EVENT_FLAG_COMMAND, events))) {
+		&& (sess = manager_session_start(manager_session_ami, sv[0], AF_INTERNAL, "console", sizeof("console") - 1, events, EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
 		}

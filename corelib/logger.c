@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -74,7 +75,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define TIDFMT "%ld"
 #endif
 
+
+#define DEFAULT_APPEND_HOSTNAME	0
+
+
+static int cfg_appendhostname;
 static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
+
 
 CW_MUTEX_DEFINE_STATIC(loglock);
 
@@ -83,8 +90,6 @@ static struct {
 	unsigned int event_log:1;
 } logfiles = { 1, 1 };
 
-
-static char hostname[MAXHOSTNAMELEN];
 
 enum logtypes {
 	LOGTYPE_SYSLOG,
@@ -116,6 +121,129 @@ static char *levels[] = {
 	[CW_EVENT_NUM_DEBUG]	= "DEBUG",
 	[CW_EVENT_NUM_PROGRESS]	= "PROGRESS",
 };
+
+
+static int logger_manager_session(struct mansession *sess, const struct manager_event *event)
+{
+	static const int priorities[] = {
+		[CW_EVENT_NUM_ERROR]	= LOG_ERR,
+		[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
+		[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
+		[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
+		[CW_EVENT_NUM_EVENT]	= LOG_INFO,
+		[CW_EVENT_NUM_DTMF]	= LOG_INFO,
+		[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
+	};
+	enum { F_LEVEL = 0, F_DATE, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
+	static struct {
+		int l;
+		const char *s;
+	} keys[] = {
+#define LENSTR(x)	sizeof(x) - 1, x
+		[F_LEVEL]    = { LENSTR("Level") },
+		[F_DATE]     = { LENSTR("Date") },
+		[F_THREADID] = { LENSTR("Thread ID") },
+		[F_FILE]     = { LENSTR("File") },
+		[F_LINE]     = { LENSTR("Line") },
+		[F_FUNCTION] = { LENSTR("Function") },
+		[F_MESSAGE]  = { LENSTR("Message") },
+#undef LENSTR
+	};
+	struct {
+		int l;
+		const char *s;
+	} vals[arraysize(keys)];
+	const char *key, *ekey;
+	const char *val, *eval;
+	int lkey, lval;
+	int level, i;
+	int res = 0;
+
+	memset(vals, 0, sizeof(vals));
+
+	key = eval = event->data;
+	while (!res && *key) {
+		if (!vals[F_MESSAGE].s) {
+			for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
+			if (!*ekey)
+				break;
+
+			for (val = ekey + 1; *val && *val == ' '; val++);
+			for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+			lkey = ekey - key;
+			lval = eval - val;
+
+			/* We shouldn't get anything other than log events. */
+			if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
+			&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
+				break;
+
+			for (i = 0; i < arraysize(keys); i++) {
+				if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
+					vals[i].l = lval;
+					vals[i].s = val;
+					break;
+				}
+			}
+		} else {
+			for (eval = key; *eval && *eval != '\r' && *eval != '\n'; eval++);
+
+			lkey = eval - key;
+
+			if (lkey == sizeof("--END MESSAGE--") - 1 && !memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
+				break;
+
+			if (sess->u.sa.sa_family == AF_PATHNAME) {
+				struct iovec iov[] = {
+					{ .iov_base = (char *)vals[F_DATE].s,     .iov_len = vals[F_DATE].l },
+					{ .iov_base = (char *)vals[F_LEVEL].s,    .iov_len = vals[F_LEVEL].l },
+					{ .iov_base = "[",                        .iov_len = sizeof("]") - 1 },
+					{ .iov_base = (char *)vals[F_THREADID].s, .iov_len = vals[F_THREADID].l },
+					{ .iov_base = "]: ",                      .iov_len = sizeof("]: ") - 1 },
+					{ .iov_base = (char *)vals[F_FILE].s,     .iov_len = vals[F_FILE].l },
+					{ .iov_base = ":",                        .iov_len = sizeof(":") - 1 },
+					{ .iov_base = (char *)vals[F_LINE].s,     .iov_len = vals[F_LINE].l },
+					{ .iov_base = " ",                        .iov_len = sizeof(" ") - 1 },
+					{ .iov_base = (char *)vals[F_FUNCTION].s, .iov_len = vals[F_FUNCTION].l },
+					{ .iov_base = ": ",                       .iov_len = sizeof(": ") - 1 },
+					{ .iov_base = (char *)key,                .iov_len = lkey },
+					{ .iov_base = "\n",                       .iov_len = sizeof("\n") - 1 },
+				};
+
+				if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
+					while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
+						iov[1].iov_base++, iov[1].iov_len--;
+
+					if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
+						cw_log(CW_LOG_ERROR, "Write to '%s' failed: %s", sess->name + sizeof("file:") - 1, strerror(errno));
+						res = -1;
+					}
+				} else {
+					cw_log(CW_LOG_ERROR, "Can't write to '%s': %s", sess->name + sizeof("file:") - 1, strerror(errno));
+					res = -1;
+					break;
+				}
+			} else {
+				level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
+				syslog(priorities[level], "[%.*s]: %.*s:%.*s %.*s: %.*s",
+					vals[F_THREADID].l, vals[F_THREADID].s,
+					vals[F_FILE].l, vals[F_FILE].s,
+					vals[F_LINE].l, vals[F_LINE].s,
+					vals[F_FUNCTION].l, vals[F_FUNCTION].s,
+					lkey, key);
+			}
+		}
+
+		key = eval;
+		if (*key == '\r')
+			key++;
+		if (*key == '\n')
+			key++;
+	}
+
+	return res;
+}
 
 
 static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
@@ -206,7 +334,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 
-		if (!(chan->sess = manager_session_start(manager_session_log, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
+		if (!(chan->sess = manager_session_start(logger_manager_session, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
 			/* Can't log here, since we're called with a lock */
 			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
 			free(chan);
@@ -216,26 +344,16 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		chan->type = LOGTYPE_SYSLOG;
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
-		int fd;
+		snprintf(chan->filename, sizeof(chan->filename), "%s%s%s%s%s",
+			(channel[0] != '/' ? cw_config_CW_LOG_DIR : ""),
+			(channel[0] != '/' ? "/" : ""),
+			channel,
+			(cfg_appendhostname ? "." : ""),
+			(cfg_appendhostname ? hostname : ""));
 
-		if (channel[0] == '/') {
-			if (!cw_strlen_zero(hostname))
-				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
-			else
-				cw_copy_string(chan->filename, channel, sizeof(chan->filename));
-		}
-		
-		if (!cw_strlen_zero(hostname))
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)cw_config_CW_LOG_DIR, channel, hostname);
-		else
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, channel);
-
-		fd = -1;
-		if ((fd = open(chan->filename, O_WRONLY|O_APPEND)) < 0 || !(chan->sess = manager_session_start(manager_session_log, fd, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
-			if (fd >= 0)
-				close(fd);
+		if (!(chan->sess = manager_session_start(logger_manager_session, -1, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
 			/* Can't log here, since we're called with a lock */
-			fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
+			fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
 			free(chan);
 			return NULL;
 		}
@@ -269,6 +387,8 @@ static void init_logger_chain(void)
 	struct cw_variable *var;
 	char *s;
 
+	cfg_appendhostname = DEFAULT_APPEND_HOSTNAME;
+
 	close_logger();
 	closelog();
 
@@ -279,16 +399,8 @@ static void init_logger_chain(void)
 		return;
 	
 	cw_mutex_lock(&loglock);
-	if ((s = cw_variable_retrieve(cfg, "general", "appendhostname"))) {
-		if(cw_true(s)) {
-			if(gethostname(hostname, sizeof(hostname)-1)) {
-				cw_copy_string(hostname, "unknown", sizeof(hostname));
-				cw_log(CW_LOG_WARNING, "What box has no hostname???\n");
-			}
-		} else
-			hostname[0] = '\0';
-	} else
-		hostname[0] = '\0';
+	if ((s = cw_variable_retrieve(cfg, "general", "appendhostname")))
+		cfg_appendhostname = cw_true(s);
 	if ((s = cw_variable_retrieve(cfg, "general", "dateformat"))) {
 		cw_copy_string(dateformat, s, sizeof(dateformat));
 	} else

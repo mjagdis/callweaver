@@ -27,8 +27,11 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
+#include <fcntl.h>
 #include <netdb.h>
 #include <limits.h>
 #include <openssl/evp.h>
@@ -186,6 +189,20 @@ extern int cw_writev_all(int fd, struct iovec *iov, int count);
  * \return -1 on error, otherwise number of bytes written
  */
 extern int cw_write_all(int fd, const char *data, int len);
+
+
+/*! Open a file and set the close-on-exec flag
+ *
+ * If O_CLOEXEC exists we assume it is supported by the kernel.
+ * However we cannot guarantee that someone hasn't been silly
+ * and installed an old kernel under a new glibc.
+ */
+#ifdef O_CLOEXEC
+#  define open_cloexec(pathname, flags, mode)	open((pathname), (flags) | O_CLOEXEC, (mode))
+#else
+#  define open_cloexec(pathname, flags, mode)	open_cloexec_compat((pathname), (flags), (mode))
+extern int open_cloexec_compat(const char *pathname, int flags, mode_t mode);
+#endif
 
 
 struct cw_hostent {

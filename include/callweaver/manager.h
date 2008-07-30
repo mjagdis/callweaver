@@ -80,6 +80,7 @@ struct mansession {
 	pthread_cond_t activity;
 	pthread_cond_t ack;
 	struct message *m;
+	int (*handler)(struct mansession *, const struct manager_event *);
 	unsigned int q_size, q_r, q_w, q_count, q_max, q_overflow;
 	struct manager_event **q;
 	pthread_t reader_tid;
@@ -167,10 +168,9 @@ extern void astman_send_response(struct mansession *s, struct message *m, const 
 extern void astman_send_error(struct mansession *s, struct message *m, const char *error);
 extern void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
 
-extern void *manager_session_ami(void *data);
-extern void *manager_session_log(void *data);
+extern int manager_session_ami(struct mansession *sess, const struct manager_event *event);
 
-extern struct mansession *manager_session_start(void *(* const handler)(void *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
+extern struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
 extern void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */

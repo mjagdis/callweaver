@@ -103,6 +103,17 @@ int cw_write_all(int fd, const char *data, int len)
 }
 
 
+#ifndef O_CLOEXEC
+int open_cloexec_compat(const char *pathname, int flags, mode_t mode)
+{
+	int fd = open(pathname, flags, mode);
+	if (fd >= 0)
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+	return fd;
+}
+#endif
+
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
 /* duh? ERANGE value copied from web... */
