@@ -101,6 +101,17 @@ struct eventqent {
 };
 
 
+struct message {
+	char *actionid;
+	char *action;
+	int hdrcount;
+	struct {
+		char *key;
+		char *val;
+	} header[MAX_HEADERS];
+};
+
+
 struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
@@ -585,7 +596,9 @@ static void mansession_release(struct cw_object *obj)
 		free(eqe);
 	}
 
-	cw_mutex_destroy(&it->__lock);
+	cw_mutex_destroy(&it->lock);
+	cw_cond_destroy(&it->ack);
+	cw_cond_destroy(&it->activity);
 	free(it);
 }
 
@@ -626,14 +639,7 @@ struct cw_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
-/*! NOTE:
-   Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
-   hold the session lock _or_ be running in an action callback (in which case s->busy will
-   be non-zero). In either of these cases, there is no need to lock-protect the session's
-   fd, since no other output will be sent (events will be queued), and no input will
-   be read until either the current action finishes or get_input() obtains the session
-   lock.
- */
+
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	cw_cli(s->fd, "Response: Error\r\n");
@@ -641,6 +647,7 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
 	cw_cli(s->fd, "Message: %s\r\n\r\n", error);
 }
+
 
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
@@ -653,10 +660,12 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 		cw_cli(s->fd, "\r\n");
 }
 
+
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 {
 	astman_send_response(s, m, "Success", msg);
 }
+
 
 static int set_eventmask(struct mansession *s, char *eventmask)
 {
@@ -671,10 +680,10 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	else
 		maskint = get_perm(eventmask);
 
-	cw_mutex_lock(&s->__lock);
+	cw_mutex_lock(&s->lock);
 	if (maskint >= 0)	
 		s->send_events = maskint;
-	cw_mutex_unlock(&s->__lock);
+	cw_mutex_unlock(&s->lock);
 	
 	return maskint;
 }
@@ -1427,11 +1436,7 @@ static void process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 	else if (s->authenticated) {
 		struct cw_object *it;
-		struct eventqent *eqe;
 
-		cw_mutex_lock(&s->__lock);
-		s->busy = 1;
-		cw_mutex_unlock(&s->__lock);
 		if ((it = cw_registry_find(&manager_action_registry, m->action))) {
 			struct manager_action *act = container_of(it, struct manager_action, obj);
 			if ((s->writeperm & act->authority) == act->authority)
@@ -1441,17 +1446,6 @@ static void process_message(struct mansession *s, struct message *m)
 			cw_object_put(act);
 		} else
 			astman_send_error(s, m, "Invalid/unknown command");
-		cw_mutex_lock(&s->__lock);
-		s->busy = 0;
-		while (s->eventq) {
-			if (cw_carefulwrite(s->fd, s->eventq->event->data, s->eventq->event->len, s->writetimeout) < 0)
-				break;
-			eqe = s->eventq;
-			s->eventq = s->eventq->next;
-			cw_object_put(eqe->event);
-			free(eqe);
-		}
-		cw_mutex_unlock(&s->__lock);
 	} else if (!strcasecmp(m->action, "Challenge")) {
 		char *authtype;
 
@@ -1459,7 +1453,6 @@ static void process_message(struct mansession *s, struct message *m)
 		if (!strcasecmp(authtype, "MD5")) {
 			if (cw_strlen_zero(s->challenge))
 				snprintf(s->challenge, sizeof(s->challenge), "%lu", cw_random());
-			cw_mutex_lock(&s->__lock);
 			if (!cw_strlen_zero(m->actionid))
 				cw_cli(s->fd, "Response: Success\r\n"
 						"ActionID: %s\r\n"
@@ -1469,7 +1462,6 @@ static void process_message(struct mansession *s, struct message *m)
 				cw_cli(s->fd, "Response: Success\r\n"
 						"Challenge: %s\r\n\r\n",
 						s->challenge);
-			cw_mutex_unlock(&s->__lock);
 		} else
 			astman_send_error(s, m, "Must specify AuthType");
 	} else if (!strcasecmp(m->action, "Login")) {
@@ -1490,7 +1482,59 @@ static void process_message(struct mansession *s, struct message *m)
 }
 
 
-static void session_do_cleanup(void *data)
+static void *session_writer(void *data)
+{
+	struct mansession *sess = data;
+
+	for (;;) {
+		struct eventqent *eqe = NULL;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		/* If there's no request message and no queued events
+		 * we have to wait for activity.
+		 */
+		if (!sess->m && !sess->eventq)
+			pthread_cond_wait(&sess->activity, &sess->lock);
+
+		/* Unhook the top event (if any) now. Once we have that
+		 * we can unlock the session.
+		 */
+		if ((eqe = sess->eventq))
+			sess->eventq = sess->eventq->next;
+
+		pthread_cleanup_pop(1);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (sess->m) {
+			process_message(sess, sess->m);
+
+			/* Remove the queued message and signal completion to the reader */
+			cw_mutex_lock(&sess->lock);
+			sess->m = NULL;
+			pthread_cond_signal(&sess->ack);
+			cw_mutex_unlock(&sess->lock);
+		}
+
+		if (eqe) {
+			if (cw_carefulwrite(sess->fd, eqe->event->data, eqe->event->len, 100) < 0) {
+				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+				pthread_cancel(sess->reader_tid);
+			}
+			cw_object_put(eqe->event);
+			free(eqe);
+		}
+	}
+
+	return NULL;
+}
+
+
+static void session_reader_cleanup(void *data)
 {
 	struct mansession *sess = data;
 
@@ -1503,12 +1547,18 @@ static void session_do_cleanup(void *data)
 			cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", sess->name);
 		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", sess->name);
 	}
+
+	if (!pthread_equal(sess->writer_tid, CW_PTHREADT_NULL)) {
+		pthread_cancel(sess->writer_tid);
+		pthread_join(sess->writer_tid, NULL);
+	}
+
 	cw_registry_del(&manager_session_registry, sess->reg_entry);
 	cw_object_put(sess);
 }
 
 
-static void *session_do(void *data)
+static void *session_reader(void *data)
 {
 	char buf[32768];
 	struct pollfd pfd;
@@ -1518,11 +1568,16 @@ static void *session_do(void *data)
 	int pos, state;
 	int res;
 
-	pthread_cleanup_push(session_do_cleanup, sess);
+	sess->writer_tid = CW_PTHREADT_NULL;
 
-	cw_mutex_lock(&sess->__lock);
+	pthread_cleanup_push(session_reader_cleanup, sess);
+
 	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
-	cw_mutex_unlock(&sess->__lock);
+
+	if ((res = cw_pthread_create(&sess->writer_tid, &global_attr_default, session_writer, sess))) {
+		cw_log(CW_LOG_ERROR, "session write thread creation failed: %s\n", strerror(res));
+		return NULL;
+	}
 
 	memset(&m, 0, sizeof(m));
 
@@ -1561,7 +1616,11 @@ static void *session_do(void *data)
 						buf[pos] = '\0';
 					} else if (buf[pos] == '\n') {
 						/* End of message, go do it */
-						process_message(sess, &m);
+						cw_mutex_lock(&sess->lock);
+						sess->m = &m;
+						pthread_cond_signal(&sess->activity);
+						pthread_cond_wait(&sess->ack, &sess->lock);
+						cw_mutex_unlock(&sess->lock);
 						m.action = m.actionid = NULL;
 						m.hdrcount = 0;
 						memcpy(buf, &buf[pos + 1], res - 1);
@@ -1733,7 +1792,9 @@ static void *accept_thread(void *data)
 			}
 
 			cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
-			cw_mutex_init(&sess->__lock);
+			cw_mutex_init(&sess->lock);
+			cw_cond_init(&sess->activity, NULL);
+			cw_cond_init(&sess->ack, NULL);
 			sess->send_events = -1;
 			sess->obj.release = mansession_release;
 			sess->writetimeout = 100;
@@ -1779,7 +1840,7 @@ static void *accept_thread(void *data)
 
 		sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
 
-		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, cw_object_get(sess))) {
+		if (!cw_pthread_create(&sess->reader_tid, &global_attr_detached, session_reader, cw_object_get(sess))) {
 			/* The thread has this session now */
 			sess = NULL;
 		} else {
@@ -1874,14 +1935,10 @@ static int manager_event_print(struct cw_object *obj, void *data)
 
 	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
 		if (args->me || !(args->ret = make_event(args))) {
-			cw_mutex_lock(&it->__lock);
-			if (it->busy) {
-				append_event(it, args->me);
-			} else if (cw_carefulwrite(it->fd, args->me->data, args->me->len, it->writetimeout) < 0) {
-				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
-				pthread_cancel(it->t);
-			}
-			cw_mutex_unlock(&it->__lock);
+			cw_mutex_lock(&it->lock);
+			append_event(it, args->me);
+			pthread_cond_signal(&it->activity);
+			cw_mutex_unlock(&it->lock);
 		}
 	}
 

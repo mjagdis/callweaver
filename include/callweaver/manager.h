@@ -89,15 +89,20 @@ extern void del_manager_hook(struct manager_custom_hook *hook);
 #define MAX_HEADERS 80
 
 
+struct message;
+
 struct eventqent;
 
 struct mansession {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
-	int fd;				/*!< Socket */
-	cw_mutex_t __lock;		/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
-	int busy;			/*!< Whether or not we're busy doing an action */
-	pthread_t t;			/*!< Execution thread */
+	int fd;
+	cw_mutex_t lock;
+	cw_cond_t activity;
+	cw_cond_t ack;
+	struct message *m;
+	pthread_t reader_tid;
+	pthread_t writer_tid;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sin;
@@ -113,17 +118,6 @@ struct mansession {
 	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
 	int writetimeout;		/*!< Timeout for cw_carefulwrite() */
 	char name[0];
-};
-
-
-struct message {
-	char *actionid;
-	char *action;
-	int hdrcount;
-	struct {
-		char *key;
-		char *val;
-	} header[MAX_HEADERS];
 };
 
 
