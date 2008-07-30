@@ -96,37 +96,25 @@ struct eventqent {
 };
 
 struct mansession {
-	/*! Execution thread */
-	pthread_t t;
-	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
-	cw_mutex_t __lock;
-	/*! socket address */
-	struct sockaddr_in sin;
-	/*! TCP socket */
-	int fd;
-	/*! Whether or not we're busy doing an action */
-	int busy;
-	/*! Whether or not we're "dead" */
-	int dead;
-	/*! Logged in username */
-	char username[80];
-	/*! Authentication challenge */
-	char challenge[10];
-	/*! Authentication status */
-	int authenticated;
-	/*! Authorization for reading */
-	int readperm;
-	/*! Authorization for writing */
-	int writeperm;
-	/*! Buffer */
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
+	int fd;				/*!< Socket */
+	cw_mutex_t __lock;		/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
+	int busy;			/*!< Whether or not we're busy doing an action */
+	int dead;			/*!< Whether or not we're "dead" */
+	pthread_t t;			/*!< Execution thread */
+	struct sockaddr_in sin;		/*!< socket address */
+	char *name;
+	char username[80];		/*!< Logged in username */
+	char challenge[10];		/*!< Authentication challenge */
+	int authenticated;		/*!< Authentication status */
+	int readperm;			/*!< Authorization for reading */
+	int writeperm;			/*!< Authorization for writing */
 	char inbuf[MAX_LEN];
 	int inlen;
 	int send_events;
-	/* Queued events that we've not had the ability to send yet */
-	struct eventqent *eventq;
-	/* Timeout for cw_carefulwrite() */
-	int writetimeout;
-	struct mansession *next;
+	struct eventqent *eventq;	/*!< Queued events that we've not had the ability to send yet */
+	int writetimeout;		/*!< Timeout for cw_carefulwrite() */
 };
 
 
@@ -146,6 +134,7 @@ struct manager_action {
 };
 
 
+extern struct cw_registry manager_session_registry;
 extern struct cw_registry manager_action_registry;
 
 

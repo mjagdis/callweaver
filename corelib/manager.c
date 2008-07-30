@@ -83,11 +83,7 @@ static int asock = -1;
 static int displayconnects = 1;
 
 static pthread_t t;
-CW_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
-
-
-static struct mansession *sessions = NULL;
 
 
 static struct manager_custom_hook *manager_hooks = NULL;
@@ -169,6 +165,35 @@ static int get_perm(char *instr)
 
 	return ret;
 }
+
+
+static const char *manager_session_registry_obj_name(struct cw_object *obj)
+{
+	struct mansession *it = container_of(obj, struct mansession, obj);
+	return it->name;
+}
+
+static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+{
+	struct mansession *item_a = container_of(a, struct mansession, obj);
+	struct mansession *item_b = container_of(b, struct mansession, obj);
+
+	return item_a->fd - item_b->fd;
+}
+
+static int manager_session_registry_obj_match(struct cw_object *obj, const void *pattern)
+{
+	struct mansession *item = container_of(obj, struct mansession, obj);
+	return item->fd == (int)pattern;
+}
+
+struct cw_registry manager_session_registry = {
+	.name = "Manager Session",
+	.obj_name = manager_session_registry_obj_name,
+	.obj_cmp = manager_session_registry_obj_cmp,
+	.obj_match = manager_session_registry_obj_match,
+	.lock = CW_MUTEX_INIT_VALUE,
+};
 
 
 static const char *manager_action_registry_obj_name(struct cw_object *obj)
@@ -357,25 +382,35 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 }
 
 
-/*! \brief  handle_showmanconn: CLI command show manager connected */
-/* Should change to "manager show connected" */
-static int handle_showmanconn(int fd, int argc, char *argv[])
+struct mansess_print_args {
+	int fd;
+};
+
+#define MANSESS_FORMAT	"  %-15.15s  %-15.15s\n"
+
+static int mansess_print(struct cw_object *obj, void *data)
 {
-	struct mansession *s;
 	char iabuf[INET_ADDRSTRLEN];
-	char *format = "  %-15.15s  %-15.15s\n";
+	struct mansession *it = container_of(obj, struct mansession, obj);
+	struct mansess_print_args *args = data;
 
-	cw_mutex_lock(&sessionlock);
-	s = sessions;
-	cw_cli(fd, format, "Username", "IP Address");
-	while (s) {
-		cw_cli(fd, format,s->username, cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
-		s = s->next;
-	}
+	cw_cli(args->fd, MANSESS_FORMAT, it->username, cw_inet_ntoa(iabuf, sizeof(iabuf), it->sin.sin_addr));
+	return 0;
+}
 
-	cw_mutex_unlock(&sessionlock);
+static int handle_show_mansess(int fd, int argc, char *argv[])
+{
+	struct manacts_print_args args = {
+		.fd = fd,
+	};
+
+	cw_cli(fd, MANSESS_FORMAT, "Username", "IP Address");
+	cw_cli(fd, MANSESS_FORMAT, "--------", "----------");
+	cw_registry_iterate(&manager_session_registry, mansess_print, &args);
+
 	return RESULT_SUCCESS;
 }
+
 
 static char showmancmd_help[] = 
 "Usage: show manager command <actionname>\n"
@@ -408,7 +443,7 @@ static struct cw_clicmd show_mancmds_cli = {
 
 static struct cw_clicmd show_manconn_cli = {
 	.cmda = { "show", "manager", "connected", NULL },
-	.handler = handle_showmanconn,
+	.handler = handle_show_mansess,
 	.summary = "Show connected manager interface users",
 	.usage = showmanconn_help,
 };
@@ -445,45 +480,25 @@ void del_manager_hook(struct manager_custom_hook *hook)
 }
 
 
-static void free_session(struct mansession *s)
+static void mansession_release(struct cw_object *obj)
 {
+	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct eventqent *eqe;
 
-	if (s->fd > -1)
-		close(s->fd);
-	cw_mutex_destroy(&s->__lock);
-	while (s->eventq) {
-		eqe = s->eventq;
-		s->eventq = s->eventq->next;
+	if (it->fd > -1)
+		close(it->fd);
+
+	while (it->eventq) {
+		eqe = it->eventq;
+		it->eventq = it->eventq->next;
 		free(eqe);
 	}
-	free(s);
+
+	cw_mutex_destroy(&it->__lock);
+	free(it->name);
+	free(it);
 }
 
-static void destroy_session(struct mansession *s)
-{
-	struct mansession *cur;
-	struct mansession *prev = NULL;
-
-	cw_mutex_lock(&sessionlock);
-	cur = sessions;
-	while (cur) {
-		if (cur == s)
-			break;
-		prev = cur;
-		cur = cur->next;
-	}
-	if (cur) {
-		if (prev)
-			prev->next = cur->next;
-		else
-			sessions = cur->next;
-		free_session(s);
-	} else {
-		cw_log(CW_LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
-	}
-	cw_mutex_unlock(&sessionlock);
-}
 
 char *astman_get_header(struct message *m, char *var)
 {
@@ -1469,6 +1484,7 @@ static int get_input(struct mansession *s, char *output)
 	return 0;
 }
 
+
 static void *session_do(void *data)
 {
 	struct mansession *s = data;
@@ -1511,7 +1527,8 @@ static void *session_do(void *data)
 		}
 		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	}
-	destroy_session(s);
+	cw_registry_del(&manager_session_registry, s->reg_entry);
+	cw_object_put(s);
 	return NULL;
 }
 
@@ -1525,6 +1542,8 @@ static void *accept_thread(void *ignore)
 	int flags;
 
 	for (;;) {
+		char buf[256];
+
 		sinlen = sizeof(sin);
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
@@ -1539,6 +1558,12 @@ static void *accept_thread(void *ignore)
 			continue;
 		} 
 
+		cw_object_init(s, NULL, 1);
+		s->obj.release = mansession_release;
+
+		snprintf(buf, sizeof(buf), "%d", as);
+		s->name = strdup(buf);
+
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
 
@@ -1550,12 +1575,12 @@ static void *accept_thread(void *ignore)
 		cw_mutex_init(&s->__lock);
 		s->fd = as;
 		s->send_events = -1;
-		cw_mutex_lock(&sessionlock);
-		s->next = sessions;
-		sessions = s;
-		cw_mutex_unlock(&sessionlock);
-		if (cw_pthread_create(&s->t, &global_attr_detached, session_do, s))
-			destroy_session(s);
+
+		s->reg_entry = cw_registry_add(&manager_session_registry, &s->obj);
+
+		if (cw_pthread_create(&s->t, &global_attr_detached, session_do, s)) {
+			cw_object_put(s);
+		}
 	}
 	return NULL;
 }
@@ -1579,46 +1604,56 @@ static int append_event(struct mansession *s, const char *str)
 	return 0;
 }
 
-/*! \brief  manager_event: Send AMI event to client */
+
+struct manager_event_args {
+	int category;
+	char *text;
+	int len;
+};
+
+static int manager_event_print(struct cw_object *obj, void *data)
+{
+	struct mansession *it = container_of(obj, struct mansession, obj);
+	struct manager_event_args *args = data;
+
+	if ((it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
+		cw_mutex_lock(&it->__lock);
+		if (it->busy) {
+			append_event(it, args->text);
+		} else if (cw_carefulwrite(it->fd, args->text, args->len, it->writetimeout) < 0) {
+			cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+			it->dead = 1;
+			pthread_kill(it->t, SIGURG);
+		}
+		cw_mutex_unlock(&it->__lock);
+	}
+
+	return 0;
+}
+
 int manager_event(int category, char *event, char *fmt, ...)
 {
-	struct mansession *s;
-	char auth[80];
 	char tmp[4096] = "";
+	char auth[80];
+	struct manager_event_args args = {
+		.category = category,
+		.text = tmp,
+	};
 	char *tmp_next = tmp;
 	size_t tmp_left = sizeof(tmp) - 2;
 	va_list ap;
 
-	cw_mutex_lock(&sessionlock);
-	for (s = sessions;  s;  s = s->next) {
-		if ((s->readperm & category) != category)
-			continue;
+	cw_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
+			 event, authority_to_str(category, auth, sizeof(auth)-1));
+	va_start(ap, fmt);
+	cw_build_string_va(&tmp_next, &tmp_left, fmt, ap);
+	va_end(ap);
+	*tmp_next++ = '\r';
+	*tmp_next++ = '\n';
+	*tmp_next = '\0';
+	args.len = tmp_next - tmp;
 
-		if ((s->send_events & category) != category)
-			continue;
-
-		if (cw_strlen_zero(tmp)) {
-			cw_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
-					 event, authority_to_str(category, auth, sizeof(auth)-1));
-			va_start(ap, fmt);
-			cw_build_string_va(&tmp_next, &tmp_left, fmt, ap);
-			va_end(ap);
-			*tmp_next++ = '\r';
-			*tmp_next++ = '\n';
-			*tmp_next = '\0';
-		}
-
-		cw_mutex_lock(&s->__lock);
-		if (s->busy) {
-			append_event(s, tmp);
-		} else if (cw_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
-			cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
-			s->dead = 1;
-			pthread_kill(s->t, SIGURG);
-		}
-		cw_mutex_unlock(&s->__lock);
-	}
-	cw_mutex_unlock(&sessionlock);
+	cw_registry_iterate(&manager_session_registry, manager_event_print, &args);
 
 	cw_mutex_lock(&hooklock);
 	if (manager_hooks) {
