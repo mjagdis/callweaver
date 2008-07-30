@@ -1845,22 +1845,22 @@ void *manager_session_console(void *data)
 
 		if (eqe) {
 			const char *data = eqe->event->data;
+			const char *msg;
 			int len = eqe->event->len;
-			int isevent, logevent, ismessage, l;
+			int logevent, level, msglen, msgtail, l;
 
-			res = logevent = 0;
+			msg = NULL;
+			res = logevent = level = msglen = msgtail = 0;
 
 			while (!res && len > 0) {
+				const char *key = data;
+				int lkey;
+
 				for (l = 0; l < len && data[l] != ':'; l++);
 				if (l == len)
 					break;
 
-				isevent = ismessage = 0;
-
-				if (l == sizeof("Event") - 1 && !strncmp(data, "Event", sizeof("Event") - 1))
-					isevent = 1;
-				else if (l == sizeof("Message") - 1 && !strncmp(data, "Message", sizeof("Message") - 1))
-					ismessage = 1;
+				lkey = l;
 
 				data += l + 1;
 				len -= l + 1;
@@ -1868,16 +1868,40 @@ void *manager_session_console(void *data)
 
 				for (l = 0; l < len && data[l] != '\r' && data[l] != '\n'; l++);
 
-				if (isevent && !strncmp(data, "Log", sizeof("Log") - 1))
-					logevent = 1;
-				else if (ismessage && logevent && (write(sess->fd, data, l) <= 0 || write(sess->fd, "\r\n", 2) <= 0)) {
-					res = -1;
-					break;
+				switch (lkey) {
+					case sizeof("Event") - 1:
+						if (!strncmp(key, "Event", sizeof("Event") - 1)) {
+							if (!strncmp(data, "Log", sizeof("Log") - 1))
+								logevent = 1;
+						} else if (!strncmp(key, "Level", sizeof("Level") - 1))
+							level = atol(data);
+						break;
+					case sizeof("Message Len") - 1:
+						if (!strncmp(key, "Message Len", sizeof("Message Len") - 1))
+							msgtail = atol(data);
+						break;
+					case sizeof("Message") - 1:
+						if (!strncmp(key, "Message", sizeof("Message") - 1)) {
+							msg = data;
+							msglen = l;
+						}
+						break;
 				}
 
 				data += l;
 				len -= l;
 				while (len && (*data == '\r' || *data == '\n')) data++,len--;
+			}
+
+			if (logevent && msg) {
+				if (level != CW_EVENT_NUM_VERBOSE || !msgtail) {
+					if (write(sess->fd, msg, msglen) <= 0)
+						res = -1;
+				} else if (write(sess->fd, msg + msglen - msgtail, msgtail) <= 0)
+					res = -1;
+
+				if (!res && write(sess->fd, "\r\n", 2) <= 0)
+					res = -1;
 			}
 
 			cw_object_put(eqe->event);
