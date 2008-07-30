@@ -146,27 +146,32 @@ static int authority_to_str(int authority, char *res, int reslen)
 	int i;
 
 	p = res;
-	*res = '\0';
 
-	for (i = 0; i < arraysize(perms); i++) {
-		if (authority & (1 << i)) {
-			if (p != res) {
-				if (reslen < 2)
-					break;
-				*(p++) = ',';
-				*p = '\0';
-				reslen--;
+	if (reslen > 0) {
+		*res = '\0';
+
+		for (i = 0; i < arraysize(perms); i++) {
+			if (authority & (1 << i)) {
+				if (p != res) {
+					if (reslen > 1) {
+						p[0] = ',';
+						p[1] = '\0';
+					}
+					p++;
+					reslen--;
+				}
+				if (reslen > 0)
+					cw_copy_string(p, perms[i].label, reslen);
+				p += perms[i].len;
+				reslen -= perms[i].len;
 			}
-			cw_copy_string(p, perms[i].label, reslen);
-			p += perms[i].len;
-			reslen -= perms[i].len;
-			if (reslen <= 0)
-				break;
+		}
+
+		if (p == res) {
+			cw_copy_string(res, "<none>", reslen);
+			p += sizeof("<none>") - 1;
 		}
 	}
-
-	if (p == res)
-		cw_copy_string(res, "<none>", reslen);
 
 	return p - res;
 }
@@ -1900,12 +1905,9 @@ static int make_event(struct manager_event_args *args)
 	struct manager_event *event;
 	va_list aq;
 	int alloc = 256;
-	int used;
+	int used, n;
 
 	if ((args->me = malloc(sizeof(struct manager_event) + alloc))) {
-		args->me->obj.release = manager_event_free;
-		cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
-		cw_object_get(args->me);
 again:
 		used = snprintf(args->me->data, alloc, "Event: %s\r\nPrivilege: ", args->event);
 		used += authority_to_str(args->category, args->me->data + used, alloc - used);
@@ -1913,14 +1915,19 @@ again:
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
 		va_copy(aq, args->ap);
-		used += vsnprintf(args->me->data + used, alloc - used, args->fmt, aq);
+		n = vsnprintf(args->me->data + used, (alloc < used ? 0 : alloc - used), args->fmt, aq);
 		va_end(aq);
+		if (n >= 0)
+			used += n;
 		if (alloc - used > 2)
 			strcpy(args->me->data + used, "\r\n");
 		used += 2;
 
 		if (used < alloc) {
 			args->me->len = used;
+			args->me->obj.release = manager_event_free;
+			cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
+			cw_object_get(args->me);
 			return 0;
 		}
 
@@ -1963,10 +1970,8 @@ int manager_event(int category, char *event, char *fmt, ...)
 		.event = event,
 		.fmt = fmt,
 	};
-	va_list ap;
 
-	va_start(ap, fmt);
-	args.ap = ap;
+	va_start(args.ap, fmt);
 
 	cw_registry_iterate(&manager_session_registry, manager_event_print, &args);
 
@@ -1983,7 +1988,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 		cw_mutex_unlock(&hooklock);
 	}
 
-	va_end(ap);
+	va_end(args.ap);
 
 	if (args.me)
 		cw_object_put(args.me);
