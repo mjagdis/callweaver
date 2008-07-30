@@ -278,8 +278,8 @@ struct cw_registry manager_listener_registry = {
 
 static const char *manager_session_registry_obj_name(struct cw_object *obj)
 {
-	// struct mansession *it = container_of(obj, struct mansession, obj);
-	return "[manager session]";
+	struct mansession *it = container_of(obj, struct mansession, obj);
+	return it->name;
 }
 
 static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
@@ -287,13 +287,13 @@ static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_objec
 	struct mansession *item_a = container_of(a, struct mansession, obj);
 	struct mansession *item_b = container_of(b, struct mansession, obj);
 
-	return item_a->fd - item_b->fd;
+	return strcmp(item_a->name,  item_b->name);
 }
 
 static int manager_session_registry_obj_match(struct cw_object *obj, const void *pattern)
 {
 	struct mansession *item = container_of(obj, struct mansession, obj);
-	return item->fd == (int)pattern;
+	return !strcmp(item->name, pattern);
 }
 
 struct cw_registry manager_session_registry = {
