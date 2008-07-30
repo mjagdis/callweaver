@@ -1704,7 +1704,7 @@ struct mansession *manager_session_start(int fd, int family, void *addr, size_t 
 	sess->fd = fd;
 	sess->event = event;
 	sess->request = request;
-	sess->send_events = -1;
+	sess->send_events = EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL;
 
 	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
 	cw_mutex_init(&sess->lock);
