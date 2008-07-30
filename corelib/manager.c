@@ -1491,85 +1491,6 @@ static int process_message(struct mansession *s, struct message *m)
 }
 
 
-static void *session_writer(void *data)
-{
-	struct mansession *sess = data;
-
-	for (;;) {
-		struct eventqent *eqe = NULL;
-
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
-		cw_mutex_lock(&sess->lock);
-
-		/* If there's no request message and no queued events
-		 * we have to wait for activity.
-		 */
-		if (!sess->m && !sess->eventq)
-			pthread_cond_wait(&sess->activity, &sess->lock);
-
-		/* Unhook the top event (if any) now. Once we have that
-		 * we can unlock the session.
-		 */
-		if ((eqe = sess->eventq))
-			sess->eventq = sess->eventq->next;
-
-		pthread_cleanup_pop(1);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (sess->m) {
-			if (process_message(sess, sess->m))
-				pthread_cancel(sess->reader_tid);
-
-			/* Remove the queued message and signal completion to the reader */
-			cw_mutex_lock(&sess->lock);
-			sess->m = NULL;
-			pthread_cond_signal(&sess->ack);
-			cw_mutex_unlock(&sess->lock);
-		}
-
-		if (eqe) {
-			if (cw_carefulwrite(sess->fd, eqe->event->data, eqe->event->len, 100) < 0) {
-				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
-				pthread_cancel(sess->reader_tid);
-			}
-			cw_object_put(eqe->event);
-			free(eqe);
-		}
-	}
-
-	return NULL;
-}
-
-
-static void session_reader_cleanup(void *data)
-{
-	struct mansession *sess = data;
-
-	if (sess->authenticated) {
-		if (option_verbose > 3 && displayconnects)
-			cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
-		cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
-	} else {
-		if (option_verbose > 2 && displayconnects)
-			cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", sess->name);
-		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", sess->name);
-	}
-
-	if (!pthread_equal(sess->writer_tid, CW_PTHREADT_NULL)) {
-		pthread_cancel(sess->writer_tid);
-		pthread_join(sess->writer_tid, NULL);
-	}
-
-	if (sess->reg_entry)
-		cw_registry_del(&manager_session_registry, sess->reg_entry);
-
-	cw_object_put(sess);
-}
-
-
 static void *session_reader(void *data)
 {
 	char buf[32768];
@@ -1580,21 +1501,6 @@ static void *session_reader(void *data)
 	int pos, state;
 	int res;
 
-	sess->writer_tid = CW_PTHREADT_NULL;
-
-	pthread_cleanup_push(session_reader_cleanup, sess);
-
-	sess->reg_entry = NULL;
-
-	if ((res = cw_pthread_create(&sess->writer_tid, &global_attr_default, session_writer, sess))) {
-		cw_log(CW_LOG_ERROR, "session write thread creation failed: %s\n", strerror(res));
-		return NULL;
-	}
-
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
-
-	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
-
 	memset(&m, 0, sizeof(m));
 
 	pfd.fd = sess->fd;
@@ -1604,12 +1510,11 @@ static void *session_reader(void *data)
 	state = 0;
 	hval = NULL;
 
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	for (;;) {
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		res = poll(&pfd, 1, -1);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (res < 0) {
 			if (errno == EINTR)
@@ -1618,12 +1523,16 @@ static void *session_reader(void *data)
 				sleep(5);
 				continue;
 			}
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			cw_log(CW_LOG_WARNING, "Poll failed: %s\n", strerror(errno));
-			return NULL;
+			pthread_cancel(sess->writer_tid);
+			break;
 		}
 
-		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0)
-			return NULL;
+		if ((res = read(sess->fd, buf + pos, sizeof(buf) - pos)) <= 0) {
+			pthread_cancel(sess->writer_tid);
+			break;
+		}
 
 		for (; res; pos++, res--) {
 			switch (state) {
@@ -1632,11 +1541,12 @@ static void *session_reader(void *data)
 						buf[pos] = '\0';
 					} else if (buf[pos] == '\n') {
 						/* End of message, go do it */
+						pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
 						cw_mutex_lock(&sess->lock);
 						sess->m = &m;
 						pthread_cond_signal(&sess->activity);
 						pthread_cond_wait(&sess->ack, &sess->lock);
-						cw_mutex_unlock(&sess->lock);
+						pthread_cleanup_pop(1);
 						m.action = m.actionid = NULL;
 						m.hdrcount = 0;
 						memcpy(buf, &buf[pos + 1], res - 1);
@@ -1696,8 +1606,105 @@ static void *session_reader(void *data)
 		}
 
 		if (pos == sizeof(buf)) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			cw_log(CW_LOG_ERROR, "Manager session %s dropped due to oversize message\n", sess->name);
-			return NULL;
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+
+static void session_writer_cleanup(void *data)
+{
+	struct mansession *sess = data;
+
+	if (sess->reg_entry)
+		cw_registry_del(&manager_session_registry, sess->reg_entry);
+
+	if (sess->authenticated) {
+		if (option_verbose > 3 && displayconnects)
+			cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
+		cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
+	} else {
+		if (option_verbose > 2 && displayconnects)
+			cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", sess->name);
+		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", sess->name);
+	}
+
+	if (!pthread_equal(sess->reader_tid, CW_PTHREADT_NULL)) {
+		pthread_cancel(sess->reader_tid);
+		pthread_join(sess->reader_tid, NULL);
+	}
+
+	cw_object_put(sess);
+}
+
+
+static void *session_writer(void *data)
+{
+	struct mansession *sess = data;
+	int res;
+
+	sess->reader_tid = CW_PTHREADT_NULL;
+
+	pthread_cleanup_push(session_writer_cleanup, sess);
+
+	sess->reg_entry = NULL;
+
+	if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, session_reader, sess))) {
+		cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
+		return NULL;
+	}
+
+	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
+
+	cw_cli(sess->fd, "CallWeaver Call Manager/1.0\r\n");
+
+	for (;;) {
+		struct eventqent *eqe = NULL;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+		pthread_cleanup_push(cw_mutex_unlock_func, &sess->lock);
+		cw_mutex_lock(&sess->lock);
+
+		/* If there's no request message and no queued events
+		 * we have to wait for activity.
+		 */
+		if (!sess->m && !sess->eventq)
+			pthread_cond_wait(&sess->activity, &sess->lock);
+
+		/* Unhook the top event (if any) now. Once we have that
+		 * we can unlock the session.
+		 */
+		if ((eqe = sess->eventq))
+			sess->eventq = sess->eventq->next;
+
+		pthread_cleanup_pop(1);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (sess->m) {
+			if (process_message(sess, sess->m))
+				break;
+
+			/* Remove the queued message and signal completion to the reader */
+			cw_mutex_lock(&sess->lock);
+			sess->m = NULL;
+			pthread_cond_signal(&sess->ack);
+			cw_mutex_unlock(&sess->lock);
+		}
+
+		if (eqe) {
+			res = cw_carefulwrite(sess->fd, eqe->event->data, eqe->event->len, 100);
+			cw_object_put(eqe->event);
+			free(eqe);
+			if (res < 0) {
+				cw_log(CW_LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+				break;
+			}
 		}
 	}
 
@@ -1851,7 +1858,7 @@ static void *accept_thread(void *data)
 		fcntl(sess->fd, F_SETFD, fcntl(sess->fd, F_GETFD, 0) | FD_CLOEXEC);
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
-		if (!cw_pthread_create(&sess->reader_tid, &global_attr_detached, session_reader, cw_object_get(sess))) {
+		if (!cw_pthread_create(&sess->writer_tid, &global_attr_detached, session_writer, cw_object_get(sess))) {
 			/* The thread has this session now */
 			sess = NULL;
 		} else {
