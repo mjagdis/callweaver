@@ -561,53 +561,18 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 	astman_send_response(s, m, "Success", msg);
 }
 
-static int cw_is_number(char *string) 
-{
-	int ret = 1, x = 0;
-
-	if (!string)
-		return 0;
-
-	for (x=0; x < strlen(string); x++) {
-		if (!(string[x] >= 48 && string[x] <= 57)) {
-			ret = 0;
-			break;
-		}
-	}
-	
-	return ret ? atoi(string) : 0;
-}
-
-static int cw_strings_to_mask(char *string) 
-{
-	int x, ret = -1;
-	
-	x = cw_is_number(string);
-	if (x) {
-		ret = x;
-	} else if (cw_strlen_zero(string)) {
-		ret = -1;
-	} else if (cw_false(string)) {
-		ret = 0;
-	} else if (cw_true(string)) {
-		ret = 0;
-		for (x = 0;  x < arraysize(perms);  x++)
-			ret |= (1 << x);
-	} else {
-		ret = get_perm(string);
-	}
-
-	return ret;
-}
-
-/*! 
-   Rather than braindead on,off this now can also accept a specific int mask value 
-   or a ',' delim list of mask strings (the same as manager.conf) -anthm
-*/
-
 static int set_eventmask(struct mansession *s, char *eventmask)
 {
-	int maskint = cw_strings_to_mask(eventmask);
+	int maskint = -1;
+
+	if (cw_strlen_zero(eventmask) || cw_true(eventmask))
+		maskint = -1;
+	else if (cw_false(eventmask))
+		maskint = 0;
+	else if (isdigit(*eventmask))
+		maskint = atoi(eventmask);
+	else
+		maskint = get_perm(eventmask);
 
 	cw_mutex_lock(&s->__lock);
 	if (maskint >= 0)	
