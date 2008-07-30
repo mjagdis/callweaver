@@ -217,6 +217,10 @@ int cw_module_reload(const char *name)
 		cw_rtp_reload();
 		reloaded = 2;
 	}
+	if (!name || !strcasecmp(name, "manager")) {
+		manager_reload();
+		reloaded = 2;
+	}
 	time(&cw_lastreloadtime);
 
 	cw_mutex_lock(&module_lock);
@@ -599,6 +603,7 @@ static char *reload_module_generator(char *line, char *word, int pos, int state)
 		"enum",
 		"features",
 		"rtp",
+		"manager",
 	};
 	char *ret = NULL;
 	int i, l;

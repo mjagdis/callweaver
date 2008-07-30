@@ -91,7 +91,6 @@ static int block_sockets;
 struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
-	struct mansession *sess;
 	int sock;
 	pthread_t tid;
 	char spec[0];
@@ -1610,13 +1609,6 @@ static void *session_do(void *data)
 }
 
 
-static void listener_free(struct cw_object *obj)
-{
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
-
-	free(it);
-}
-
 static void accept_thread_cleanup(void *data)
 {
 	struct manager_listener *listener = data;
@@ -1628,9 +1620,6 @@ static void accept_thread_cleanup(void *data)
 		if (listener->spec[0] == '/')
 			unlink(listener->spec);
 	}
-
-	if (listener->sess)
-		free(listener->sess);
 }
 
 static void *accept_thread(void *data)
@@ -1646,12 +1635,13 @@ static void *accept_thread(void *data)
 	int namelen;
 	const int arg = 1;
 
-	pthread_cleanup_push(accept_thread_cleanup, NULL);
+	pthread_cleanup_push(accept_thread_cleanup, listener);
 
 	if (listener->spec[0] == '/') {
 		salen = sizeof(u.sun);
 		u.sun.sun_family = AF_LOCAL;
 		strncpy(u.sun.sun_path, listener->spec, sizeof(u.sun.sun_path));
+		unlink(listener->spec);
 	} else {
 		char *port;
 		int portno;
@@ -1689,12 +1679,12 @@ static void *accept_thread(void *data)
 	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 
 	if (bind(listener->sock, &u.sa, salen)) {
-		cw_log(CW_LOG_ERROR, "Unable to bind socket: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->spec, strerror(errno));
 		return NULL;
 	}
 
 	if (listen(listener->sock, 1024)) {
-		cw_log(CW_LOG_ERROR, "Unable to listen on socket: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->spec, strerror(errno));
 		return NULL;
 	}
 
@@ -1702,7 +1692,7 @@ static void *accept_thread(void *data)
 		chmod(u.sun.sun_path, 0666);
 
 	if (option_verbose)
-		cw_verbose("CallWeaver Management interface listening on %s\n", listener->spec);
+		cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->spec);
 
 	namelen = sizeof(u.sun.sun_path);
 	if (namelen < INET_ADDRSTRLEN)
@@ -1710,11 +1700,11 @@ static void *accept_thread(void *data)
 	if (namelen < INET6_ADDRSTRLEN)
 		namelen = INET6_ADDRSTRLEN + 1 + 5;
 
-	listener->sess = sess = NULL;
+	sess = NULL;
 
 	for (;;) {
 		if (!sess) {
-			if ((listener->sess = sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
+			if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
 				cw_log(CW_LOG_ERROR, "Out of memory\n");
 				sleep(10);
 				continue;
@@ -1769,7 +1759,7 @@ static void *accept_thread(void *data)
 
 		if (!cw_pthread_create(&sess->t, &global_attr_detached, session_do, sess)) {
 			/* The thread has this session now */
-			listener->sess = sess = NULL;
+			sess = NULL;
 		} else {
 			cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 			close(sess->fd);
@@ -1986,12 +1976,20 @@ static struct manager_action manager_actions[] = {
 };
 
 
+static void listener_free(struct cw_object *obj)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+
+	free(it);
+}
+
+
 static void manager_listen(const char *buf)
 {
 	struct manager_listener *listener;
 
 	if ((listener = malloc(sizeof(*listener) + strlen(buf) + 1))) {
-		cw_object_init(listener, NULL, 0);
+		cw_object_init(listener, NULL, CW_OBJECT_NO_REFS);
 		listener->obj.release = listener_free;
 		listener->reg_entry = NULL;
 		listener->tid = CW_PTHREADT_NULL;
@@ -2000,7 +1998,7 @@ static void manager_listen(const char *buf)
 
 		/* If we can't add the listener to the registry just drop our reference and let it die. */
 		if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
-			cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener);
+			cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, cw_object_get(listener));
 		} else
 			free(listener);
 	} else {
@@ -2032,25 +2030,11 @@ static int listener_join(struct cw_object *obj, void *data)
 }
 
 
-static int registered = 0;
-
-int init_manager(void)
+int manager_reload(void)
 {
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *bindaddr, *portno;
-
-	if (!registered) {
-		/* Register default actions */
-		cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
-
-		cw_cli_register(&show_mancmd_cli);
-		cw_cli_register(&show_mancmds_cli);
-		cw_cli_register(&show_listener_cli);
-		cw_cli_register(&show_manconn_cli);
-		cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
-		registered = 1;
-	}
 
 	/* Shut down any existing listeners */
 	cw_registry_iterate(&manager_listener_registry, listener_cancel, NULL);
@@ -2110,6 +2094,22 @@ int init_manager(void)
 
 	if (cfg)
 		cw_config_destroy(cfg);
+
+	return 0;
+}
+
+
+int init_manager(void)
+{
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
+
+	cw_cli_register(&show_mancmd_cli);
+	cw_cli_register(&show_mancmds_cli);
+	cw_cli_register(&show_listener_cli);
+	cw_cli_register(&show_manconn_cli);
+	cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
+
+	manager_reload();
 
 	return 0;
 }

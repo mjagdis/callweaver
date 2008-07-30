@@ -198,9 +198,10 @@ extern void astman_send_error(struct mansession *s, struct message *m, char *err
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
 
+/*! Reload manager configuration */
+extern int manager_reload(void);
+
 /*! Called by CallWeaver initialization */
 extern int init_manager(void);
-/*! Called by CallWeaver initialization */
-extern int reload_manager(void);
 
 #endif /* _CALLWEAVER_MANAGER_H */
