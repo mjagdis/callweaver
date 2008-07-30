@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -61,6 +62,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
+#define MKSTR(X)	# X
+
+
+#define DEFAULT_MANAGER_PORT	5038
+
+
 struct fast_originate_helper {
 	char tech[256];
 	char data[256];
@@ -77,17 +84,17 @@ struct fast_originate_helper {
 };
 
 
-static int enabled = 0;
-static int portno = DEFAULT_MANAGER_PORT;
-static int displayconnects = 1;
+static int displayconnects;
+static int block_sockets;
 
-struct listener {
+
+struct manager_listener {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	int sock;
-	struct sockaddr sa;
 	pthread_t tid;
+	char spec[0];
 };
-
-static int block_sockets = 0;
 
 
 static struct manager_custom_hook *manager_hooks = NULL;
@@ -169,6 +176,35 @@ static int get_perm(char *instr)
 
 	return ret;
 }
+
+
+static const char *manager_listener_registry_obj_name(struct cw_object *obj)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	return it->spec;
+}
+
+static int manager_listener_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+{
+	struct manager_listener *item_a = container_of(a, struct manager_listener, obj);
+	struct manager_listener *item_b = container_of(b, struct manager_listener, obj);
+
+	return strcmp(item_a->spec, item_b->spec);
+}
+
+static int manager_listener_registry_obj_match(struct cw_object *obj, const void *pattern)
+{
+	struct manager_listener *item = container_of(obj, struct manager_listener, obj);
+	return strcmp(item->spec, pattern);
+}
+
+struct cw_registry manager_listener_registry = {
+	.name = "Manager Listener",
+	.obj_name = manager_listener_registry_obj_name,
+	.obj_cmp = manager_listener_registry_obj_cmp,
+	.obj_match = manager_listener_registry_obj_match,
+	.lock = CW_MUTEX_INIT_VALUE,
+};
 
 
 static const char *manager_session_registry_obj_name(struct cw_object *obj)
@@ -386,6 +422,31 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 }
 
 
+struct listener_print_args {
+	int fd;
+};
+
+static int listener_print(struct cw_object *obj, void *data)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	struct listener_print_args *args = data;
+
+	cw_cli(args->fd, "%s %s\n", (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN   "), it->spec);
+	return 0;
+}
+
+static int handle_show_listener(int fd, int argc, char *argv[])
+{
+	struct listener_print_args args = {
+		.fd = fd,
+	};
+
+	cw_registry_iterate(&manager_listener_registry, listener_print, &args);
+
+	return RESULT_SUCCESS;
+}
+
+
 struct mansess_print_args {
 	int fd;
 };
@@ -404,7 +465,7 @@ static int mansess_print(struct cw_object *obj, void *data)
 
 static int handle_show_mansess(int fd, int argc, char *argv[])
 {
-	struct manacts_print_args args = {
+	struct mansess_print_args args = {
 		.fd = fd,
 	};
 
@@ -423,6 +484,10 @@ static char showmancmd_help[] =
 static char showmancmds_help[] = 
 "Usage: show manager commands\n"
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
+
+static char showlistener_help[] =
+"Usage: show manager listen\n"
+"	Prints a listing of the sockets the manager is listening on.\n";
 
 static char showmanconn_help[] = 
 "Usage: show manager connected\n"
@@ -443,6 +508,13 @@ static struct cw_clicmd show_mancmds_cli = {
 	.generator = complete_show_manacts,
 	.summary = "List manager interface commands",
 	.usage = showmancmds_help,
+};
+
+static struct cw_clicmd show_listener_cli = {
+	.cmda = { "show", "manager", "listen", NULL },
+	.handler = handle_show_listener,
+	.summary = "Show manager listen sockets",
+	.usage = showlistener_help,
 };
 
 static struct cw_clicmd show_manconn_cli = {
@@ -1537,42 +1609,95 @@ static void *session_do(void *data)
 }
 
 
+static void listener_free(struct cw_object *obj)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+
+	free(it);
+}
+
 static void accept_thread_cleanup(void *data)
 {
-	struct listener *listener = data;
+	struct manager_listener *listener = data;
 
-	close(listener->sock);
+	if (listener->sock >= 0) {
+		close(listener->sock);
+		listener->sock = -1;
+
+		if (listener->spec[0] == '/')
+			unlink(listener->spec);
+	}
 }
 
 static void *accept_thread(void *data)
 {
-	struct listener *listener = data;
-	socklen_t sinlen;
+	struct manager_listener *listener = data;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_un sun;
+		struct sockaddr_in sin;
+	} u;
+	socklen_t salen;
 	struct mansession *sess;
 	int arg = 1;
 	int flags;
 
-	if ((listener->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		cw_log(CW_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+	pthread_cleanup_push(accept_thread_cleanup, NULL);
+
+	if (listener->spec[0] == '/') {
+		salen = sizeof(u.sun);
+		u.sun.sun_family = AF_LOCAL;
+		strncpy(u.sun.sun_path, listener->spec, sizeof(u.sun.sun_path));
+	} else {
+		char *port;
+		int portno;
+
+		salen = sizeof(u.sin);
+		u.sin.sin_family = AF_INET;
+		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
+
+		if (!(port = strrchr(listener->spec, ':'))) {
+			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
+		} else {
+			if (sscanf(port + 1, "%d", &portno) != 1) {
+				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, listener->spec);
+				return NULL;
+			}
+			u.sin.sin_port = htons(portno);
+			*port = '\0';
+		}
+
+		if (!inet_aton(listener->spec, &u.sin.sin_addr)) {
+			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", listener->spec);
+			return NULL;
+		}
+
+		if (port)
+			*port = ':';
+	}
+
+	if ((listener->sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+		cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
 		return NULL;
 	}
 
-	pthread_cleanup_push(accept_thread_cleanup, NULL);
-
 	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 
-	if (bind(listener->sock, &listener->sa, sizeof(struct sockaddr_in))) {
-		cw_log(CW_LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
+	if (bind(listener->sock, &u.sa, salen)) {
+		cw_log(CW_LOG_ERROR, "Unable to bind socket: %s\n", strerror(errno));
 		return NULL;
 	}
 
 	if (listen(listener->sock, 1024)) {
-		cw_log(CW_LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to listen on socket: %s\n", strerror(errno));
 		return NULL;
 	}
 
+	if (u.sa.sa_family == AF_LOCAL)
+		chmod(u.sun.sun_path, 0666);
+
 	if (option_verbose)
-		cw_verbose("CallWeaver Management interface listening on port %d\n", portno);
+		cw_verbose("CallWeaver Management interface listening on %s\n", listener->spec);
 
 	sess = NULL;
 
@@ -1596,8 +1721,8 @@ static void *accept_thread(void *data)
 		pthread_cleanup_push(free, sess);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-		sinlen = sizeof(sess->sin);
-		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->sin, &sinlen);
+		salen = sizeof(sess->sin);
+		sess->fd = accept(listener->sock, (struct sockaddr *)&sess->sin, &salen);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		pthread_cleanup_pop(0);
@@ -1846,82 +1971,130 @@ static struct manager_action manager_actions[] = {
 };
 
 
+static void manager_listen(const char *buf)
+{
+	struct manager_listener *listener;
+
+	if ((listener = malloc(sizeof(*listener) + strlen(buf) + 1))) {
+		cw_object_init(listener, NULL, 0);
+		listener->obj.release = listener_free;
+		listener->reg_entry = NULL;
+		listener->tid = CW_PTHREADT_NULL;
+		listener->sock = -1;
+		strcpy(listener->spec, buf);
+
+		/* If we can't add the listener to the registry just drop our reference and let it die. */
+		if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
+			cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener);
+		} else
+			free(listener);
+	} else {
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	}
+}
+
+
+static int listener_cancel(struct cw_object *obj, void *data)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+
+	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
+		pthread_cancel(it->tid);
+	return 0;
+}
+
+
+static int listener_join(struct cw_object *obj, void *data)
+{
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+
+	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
+		pthread_join(it->tid, NULL);
+
+	cw_registry_del(&manager_listener_registry, it->reg_entry);
+	cw_object_put(it);
+	return 0;
+}
+
+
 static int registered = 0;
 
 int init_manager(void)
 {
-	static struct listener listener;
 	struct cw_config *cfg;
-	struct sockaddr_in *sin;
 	struct cw_variable *v;
+	char *bindaddr, *portno;
 
 	if (!registered) {
-		listener.tid = CW_PTHREADT_NULL;
-
 		/* Register default actions */
 		cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
 		cw_cli_register(&show_mancmd_cli);
 		cw_cli_register(&show_mancmds_cli);
+		cw_cli_register(&show_listener_cli);
 		cw_cli_register(&show_manconn_cli);
 		cw_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 	}
 
 	/* Shut down any existing listeners */
-	if (!pthread_equal(listener.tid, CW_PTHREADT_NULL)) {
-		pthread_cancel(listener.tid);
-		pthread_join(listener.tid, NULL);
-		listener.tid = CW_PTHREADT_NULL;
-	}
+	cw_registry_iterate(&manager_listener_registry, listener_cancel, NULL);
+	cw_registry_iterate(&manager_listener_registry, listener_join, NULL);
 
 	/* Reset to hard coded defaults */
-	portno = DEFAULT_MANAGER_PORT;
+	block_sockets = 0;
+	bindaddr = NULL;
+	portno = NULL;
 	displayconnects = 1;
-	sin = (struct sockaddr_in *)&listener.sa;
-	sin->sin_family = AF_INET;
-	memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
 
 	/* Overlay configured values from the config file */
 	cfg = cw_config_load("manager.conf");
 	if (!cfg) {
-		cw_log(CW_LOG_NOTICE, "Unable to open managemer configuration manager.conf. Using defaults.\n");
+		cw_log(CW_LOG_NOTICE, "Unable to open manager configuration manager.conf. Using defaults.\n");
 	} else {
 		for (v = cw_variable_browse(cfg, "general"); v; v = v->next) {
-			if (!strcmp(v->name, "enabled"))
-				enabled = cw_true(v->value);
-			else if (!strcmp(v->name, "block-sockets"))
+			if (!strcmp(v->name, "block-sockets"))
 				block_sockets = cw_true(v->value);
 			else if (!strcmp(v->name, "displayconnects"))
 				displayconnects = cw_true(v->value);
-			else if (!strcmp(v->name, "bindaddr")) {
-				if (!inet_aton(v->value, &sin->sin_addr)) {
-					cw_log(CW_LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", v->value);
-					memset(&sin->sin_addr, 0, sizeof(sin->sin_addr));
-				}
-			} else if (!strcmp(v->name, "port")) {
-				if (sscanf(v->value, "%d", &portno) != 1) {
-					cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", v->value);
-					portno = DEFAULT_MANAGER_PORT;
-				}
+			else if (!strcmp(v->name, "listen"))
+				manager_listen(v->value);
 
 			/* DEPRECATED */
-			} else if (!strcmp(v->name, "portno")) {
-				cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", v->value);
-				if (sscanf(v->value, "%d", &portno) != 1) {
-					cw_log(CW_LOG_WARNING, "Invalid port number '%s'\n", v->value);
-					portno = DEFAULT_MANAGER_PORT;
+			else if (!strcmp(v->name, "bindaddr")) {
+				cw_log(CW_LOG_WARNING, "Use of \"bindaddr\" in manager.conf is deprecated - use \"listen\" instead\n");
+				bindaddr = v->value;
+			} else if (!strcmp(v->name, "port")) {
+				cw_log(CW_LOG_WARNING, "Use of \"port\" in manager.conf is deprecated - use \"listen\" instead\n");
+				portno = v->value;
+			} else if (!strcmp(v->name, "enabled")) {
+				cw_log(CW_LOG_WARNING, "\"enabled\" is deprecated - remove it from manager.conf and replace \"bindaddr\" and \"port\" with a \"listen\"\n");
+				if (cw_true(v->value)) {
+					if (!bindaddr)
+						bindaddr = "0.0.0.0";
+					if (!portno)
+						portno = MKSTR(DEFAULT_MANAGER_PORT);
+				} else {
+					cw_log(CW_LOG_WARNING, "\"enabled\" in manager.conf only controls \"bindaddr\", \"port\" listening. To disable \"listen\" entries just comment them out\n");
+					bindaddr = portno = NULL;
 				}
+			} else if (!strcmp(v->name, "portno")) {
+				cw_log(CW_LOG_NOTICE, "Use of portno in manager.conf is deprecated. Use 'port=%s' instead.\n", v->value);
+				portno = v->value;
 			}
 		}
+	}
 
+	/* DEPRECATED */
+	if (bindaddr && portno) {
+		char buf[256];
+
+		snprintf(buf, sizeof(buf), "%s:%s", bindaddr, portno);
+		manager_listen(buf);
+	}
+
+	if (cfg)
 		cw_config_destroy(cfg);
-	}
-
-	if (enabled) {
-		sin->sin_port = htons(portno);
-		cw_pthread_create(&listener.tid, &global_attr_default, accept_thread, &listener);
-	}
 
 	return 0;
 }

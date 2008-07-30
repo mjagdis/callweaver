@@ -55,8 +55,6 @@
  
  */
  
-#define DEFAULT_MANAGER_PORT 5038	/* Default port for CallWeaver management via TCP */
-
 #define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
 #define EVENT_FLAG_CALL			(1 << 1) /* Call event, such as state change, etc */
 #define EVENT_FLAG_LOG			(1 << 2) /* Log events */
@@ -134,6 +132,7 @@ struct manager_action {
 };
 
 
+extern struct cw_registry manager_listener_registry;
 extern struct cw_registry manager_session_registry;
 extern struct cw_registry manager_action_registry;
 

@@ -10,21 +10,29 @@
 ;
 ; "show manager command <command>" will show a help text.
 ;
-; ---------------------------- SECURITY NOTE -------------------------------
+[general]
+;displayconnects = yes
+;
+; Ports (IPv4) and paths (UNIX) to listen on for client connections.
+; Multiple listens are allowed. Default is none.
+;
 ; Note that you should not enable the AMI on a public IP address. If needed,
-; block this TCP port with iptables (or another FW software) and reach it
+; block the TCP port with iptables (or another FW software) and reach it
 ; with IPsec, SSH, or SSL vpn tunnel
 ;
-[general]
-enabled = no
-port = 5038
-bindaddr = 0.0.0.0
-;displayconnects = yes
+; Listen for IPv4 connections from the localhost only
+listen = 127.0.0.1:5038
+;
+; Listen for IPv4 connections from *anywhere* (NOT RECOMMENDED!)
+;listen = 0.0.0.0:5038
+;
+; Listen for UNIX/Local connections from the localhost only
+;listen = /var/run/callweaver/manager.ami
 
-;[mark]
+;[manager]
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0
-;permit=209.16.236.73/255.255.255.0
+;permit=127.0.0.1/255.0.0.0
 ;
 ; If the device connected via this user accepts input slowly,
 ; the timeout for writes to it can be increased to keep it
