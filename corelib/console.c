@@ -70,6 +70,35 @@ static char *clr_eol;
 static int update_delay;
 
 
+static void smart_write(const char *buf, int len)
+{
+	if (update_delay < 0 && (option_console || option_remote)) {
+		if (clr_eol) {
+			terminal_write("\r", 1);
+			fputs(clr_eol, stdout);
+		} else
+			terminal_write("\r\n", 2);
+	}
+
+	terminal_write(buf, len);
+
+	/* If we have clear to end of line we can redisplay the input line
+	 * every time the output ends in a new line. Otherwise we want to
+	 * wait and see if there's more output coming because we don't
+	 * have any way of backing up and replacing the current line.
+	 * Of course, if we don't care about input there's no problem...
+	 */
+	if (option_console || option_remote) {
+		if (clr_eol && buf[len - 1] == '\n') {
+			rl_forced_update_display();
+			update_delay = -1;
+		} else
+			update_delay = 500;
+	}
+	fflush(stdout);
+}
+
+
 /*! Set an X-term or screen title */
 static void set_title(char *text)
 {
@@ -295,30 +324,7 @@ static char **cli_completion(const char *text, int start, int end)
 				if (mbuf[0] == '\002')
 					break;
 
-				if (update_delay < 0 && (option_console || option_remote)) {
-					if (clr_eol) {
-						terminal_write("\r", 1);
-						fputs(clr_eol, stdout);
-					} else
-						terminal_write("\r\n", 2);
-				}
-
-				terminal_write(mbuf, i);
-
-				/* If we have clear to end of line we can redisplay the input line
-				 * every time the output ends in a new line. Otherwise we want to
-				 * wait and see if there's more output coming because we don't
-				 * have any way of backing up and replacing the current line.
-				 * Of course, if we don't care about input there's no problem...
-				 */
-				if (option_console || option_remote) {
-					if (clr_eol && mbuf[i - 1] == '\n') {
-						rl_forced_update_display();
-						update_delay = -1;
-					} else
-						update_delay = 100;
-				}
-				fflush(stdout);
+				smart_write(mbuf, i);
 			}
 
 			while (i > 0 && (mbuf[i] == '\r' || mbuf[i] == '\n'))
@@ -542,32 +548,9 @@ void *console(void *data)
 				}
 			} else if (ret >= 0) {
 				if (pfd[0].revents) {
-					if ((ret = read(console_sock, buf, sizeof(buf) - 1)) > 0) {
-						if (update_delay < 0 && (option_console || option_remote)) {
-							if (clr_eol) {
-								terminal_write("\r", 1);
-								fputs(clr_eol, stdout);
-							} else
-								terminal_write("\r\n", 2);
-						}
-
-						terminal_write(buf, ret);
-
-						/* If we have clear to end of line we can redisplay the input line
-						 * every time the output ends in a new line. Otherwise we want to
-						 * wait and see if there's more output coming because we don't
-						 * have any way of backing up and replacing the current line.
-						 * Of course, if we don't care about input there's no problem...
-						 */
-						if (option_console || option_remote) {
-							if (clr_eol && buf[ret - 1] == '\n') {
-								rl_forced_update_display();
-								update_delay = -1;
-							} else
-								update_delay = 100;
-						}
-						fflush(stdout);
-					} else
+					if ((ret = read(console_sock, buf, sizeof(buf) - 1)) > 0)
+						smart_write(buf, ret);
+					else
 						break;
 				}
 
