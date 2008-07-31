@@ -1699,8 +1699,12 @@ static void *manager_session(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (sess->m) {
+			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL, 0) | O_NONBLOCK);
+
 			if (process_message(sess, sess->m))
 				break;
+
+			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL, 0) & (~O_NONBLOCK));
 
 			/* Remove the queued message and signal completion to the reader */
 			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
