@@ -9330,7 +9330,7 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
         /* clear the empty characters in the begining*/
         input = cw_skip_blanks(input);
         /* clear the empty characters in the end */
-        while(*end && !isspace(*end) && end > input)
+        while(*end && isspace(*end) && end > input)
             end--;
         if (end >= input)
         {
