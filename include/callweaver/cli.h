@@ -61,7 +61,7 @@ struct cw_clicmd {
 	/*! Detailed usage information */
 	const char *usage;
 	/*! Generate a list of possible completions for a given word */
-	char *(*generator)(char *line, char *word, int pos, int state);
+	void (*generator)(int fd, char *line, int pos, char *word, int word_len);
 };
 
 

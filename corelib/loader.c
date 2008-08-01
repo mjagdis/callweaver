@@ -162,27 +162,18 @@ int cw_unload_resource(const char *resource_name, int hangup)
 	return -1;
 }
 
-static char *module_generator(char *line, char *word, int pos, int state)
+static void module_generator(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct module *m;
-	int which = 0;
-	char *ret = NULL;
 
 	cw_mutex_lock(&module_lock);
 
-	m = module_list;
-	while (m) {
-		if (!strncasecmp(word, m->resource, strlen(word))) {
-			if (++which > state) {
-				ret = strdup(m->resource);
-				break;
-			}
-		}
-		m = m->next;
+	for (m = module_list; m; m = m->next) {
+		if (!strncasecmp(word, m->resource, word_len))
+			cw_cli(fd, "%s\n", m->resource);
 	}
 
 	cw_mutex_unlock(&module_lock);
-	return ret;
 }
 
 int cw_module_reload(const char *name)
@@ -517,10 +508,9 @@ static int handle_load(int fd, int argc, char *argv[])
 
 
 struct complete_fn_args {
+	int fd;
 	const char *word;
-	char *ret;
-	int wordlen;
-	int state;
+	int word_len;
 };
 
 static int complete_fn_one(const char *filename, lt_ptr data)
@@ -529,43 +519,32 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 	char *basename;
 
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
-	&& !strncmp(basename, args->word, args->wordlen)) {
-		if (!args->state) {
-			int l = strlen(basename);
-			if ((args->ret = malloc(l + 3 + 1))) {
-				memcpy(args->ret, basename, l);
-				memcpy(args->ret + l, ".so\000", 4);
-				return 1;
-			}
-			cw_log(CW_LOG_ERROR, "Out of memory!\n");
-			return 1;
-		}
-		args->state--;
-	}
+	&& !strncmp(basename, args->word, args->word_len))
+		cw_cli(args->fd, "%s.so\n", basename);
+
 	return 0;
 }
 
-static char *complete_fn(char *line, char *word, int pos, int state)
+static void complete_fn(int fd, char *line, int pos, char *word, int word_len)
 {
-	char filename[256];
-	struct complete_fn_args args = {
-		.ret = NULL,
-	};
+	struct complete_fn_args args;
+	char *p;
+	int i;
 
 	if (pos == 1) {
 		if (word[0] == '/') {
-			cw_copy_string(filename, word, sizeof(filename));
-			args.ret = (char*)rl_filename_completion_function(filename, state);
-			if (args.ret)
-				args.ret = strdup(args.ret);
+			i = 0;
+			while ((p = (char *)rl_filename_completion_function(word, i++))) {
+				cw_cli(fd, "%s\n", p);
+				free(p);
+			}
 		} else {
-			args.state = state;
+			args.fd = fd;
 			args.word = word;
-			args.wordlen = strlen(word);
+			args.word_len = word_len;
 			lt_dlforeachfile(lt_dlgetsearchpath(), complete_fn_one, &args);
 		}
 	}
-	return args.ret;
 }
 
 
@@ -595,9 +574,9 @@ static int handle_reload(int fd, int argc, char *argv[])
 }
 
 
-static char *reload_module_generator(char *line, char *word, int pos, int state)
+static void reload_module_generator(int fd, char *line, int pos, char *word, int word_len)
 {
-	static char *core[] = {
+	static const char *core[] = {
 		"extconfig",
 		"cdr",
 		"enum",
@@ -605,24 +584,14 @@ static char *reload_module_generator(char *line, char *word, int pos, int state)
 		"rtp",
 		"manager",
 	};
-	char *ret = NULL;
-	int i, l;
-
-	l = strlen(word);
+	int i;
 
 	for (i = 0; i < arraysize(core); i++) {
-		if (!strncasecmp(word, core[i], l)) {
-			if (state-- == 0) {
-				ret = strdup(core[i]);
-				break;
-			}
-		}
+		if (!strncasecmp(word, core[i], word_len))
+			cw_cli(fd, "%s\n", core[i]);
 	}
 
-	if (!ret)
-		ret = module_generator(line, word, pos, state - arraysize(core));
-
-	return ret;
+	module_generator(fd, line, pos, word, word_len);
 }
 
 

@@ -2741,43 +2741,26 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static char *complete_show_dialplan_context(char *line, char *word, int pos, int state)
+static void complete_show_dialplan_context(int fd, char *line, int pos, char *word, int word_len)
 {
     struct cw_context *c;
-    int which = 0;
 
-    /* we are do completion of [exten@]context on second position only */
-    if (pos != 2) return NULL;
-
-    /* try to lock contexts list ... */
-    if (cw_lock_contexts())
+    if (pos == 2)
     {
-        cw_log(CW_LOG_ERROR, "Unable to lock context list\n");
-        return NULL;
-    }
-
-    /* ... walk through all contexts ... */
-    c = cw_walk_contexts(NULL);
-    while (c)
-    {
-        /* ... word matches context name? yes? ... */
-        if (!strncasecmp(word, cw_get_context_name(c), strlen(word)))
+        if (!cw_lock_contexts())
         {
-            /* ... for serve? ... */
-            if (++which > state)
-            {
-                /* ... yes, serve this context name ... */
-                char *ret = strdup(cw_get_context_name(c));
-                cw_unlock_contexts();
-                return ret;
-            }
+            for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
+	    {
+                if (!strncasecmp(word, cw_get_context_name(c), word_len))
+                    cw_cli(fd, "%s\n", cw_get_context_name(c));
+	    }
+            cw_unlock_contexts();
         }
-        c = cw_walk_contexts(c);
+        else
+        {
+            cw_log(CW_LOG_ERROR, "Unable to lock context list\n");
+        }
     }
-
-    /* ... unlock and return */
-    cw_unlock_contexts();
-    return NULL;
 }
 
 struct dialplan_counters

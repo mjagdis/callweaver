@@ -735,51 +735,40 @@ static int handle_showchan(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char *complete_show_channels(char *line, char *word, int pos, int state)
+static void complete_show_channels(int fd, char *line, int pos, char *word, int word_len)
 {
-    static char *choices[] = { "concise", "verbose" };
-    int match = 0;
-    int x;
-    if (pos != 2) 
-        return NULL;
-    for (x=0;x<sizeof(choices) / sizeof(choices[0]);x++) {
-        if (!strncasecmp(word, choices[x], strlen(word))) {
-            match++;
-            if (match > state) return strdup(choices[x]);
+    static const char *choices[] = { "concise", "verbose" };
+    int i;
+
+    if (pos == 2) {
+        for (i = 0; i < sizeof(choices) / sizeof(choices[0]); i++) {
+            if (!strncasecmp(word, choices[i], word_len))
+                cw_cli(fd, "%s\n", choices[i]);
         }
     }
-    return NULL;
 }
 
-static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
+static void complete_ch_helper(int fd, char *line, int pos, char *word, int word_len)
 {
     struct cw_channel *c = NULL;
-    int which=0;
-    char *ret = NULL;
 
-    if (pos != rpos)
-        return NULL;
-    while ( (c = cw_channel_walk_locked(c)) != NULL) {
-        if (!strncasecmp(word, c->name, strlen(word))) {
-            if (++which > state) {
-                ret = strdup(c->name);
-                cw_mutex_unlock(&c->lock);
-                break;
-            }
-        }
+    while ((c = cw_channel_walk_locked(c))) {
+        if (!strncasecmp(word, c->name, word_len))
+            cw_cli(fd, "%s\n", c->name);
         cw_mutex_unlock(&c->lock);
     }
-    return ret;
 }
 
-static char *complete_ch_3(char *line, char *word, int pos, int state)
+static void complete_ch_3(int fd, char *line, int pos, char *word, int word_len)
 {
-    return complete_ch_helper(line, word, pos, state, 2);
+    if (pos == 2)
+        complete_ch_helper(fd, line, pos, word, word_len);
 }
 
-static char *complete_ch_4(char *line, char *word, int pos, int state)
+static void complete_ch_4(int fd, char *line, int pos, char *word, int word_len)
 {
-    return complete_ch_helper(line, word, pos, state, 3);
+    if (pos == 3)
+        complete_ch_helper(fd, line, pos, word, word_len);
 }
 
 
@@ -1039,8 +1028,7 @@ static int cli_generator_one(struct cw_object *obj, void *data)
 {
     struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct cli_generator_args *args = data;
-    char *res;
-    int i, j;
+    int i;
 
     for (i = 0; i < args->lastarg; i++) {
         if (!clicmd->cmda[i] || strcasecmp(args->argv[i], clicmd->cmda[i]))
@@ -1053,11 +1041,7 @@ static int cli_generator_one(struct cw_object *obj, void *data)
             if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
                 cw_cli(args->fd, "%s\r\n", clicmd->cmda[i]);
         } else if (clicmd->generator) {
-            j = 0;
-            while ((res = clicmd->generator(args->matchstr, args->argv[args->lastarg], i, j++))) {
-                cw_cli(args->fd, "%s\r\n", res);
-                free(res);
-            }
+            clicmd->generator(args->fd, args->matchstr, i, args->argv[args->lastarg], args->lastarg_len);
         }
     }
 

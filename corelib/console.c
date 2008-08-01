@@ -65,6 +65,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define CALLWEAVER_PROMPT2 "%s*CLI> "
 
 
+const char *rl_basic_word_break_characters = " \t";
+
+
 static int console_sock;
 
 static char remotehostname[MAXHOSTNAMELEN];

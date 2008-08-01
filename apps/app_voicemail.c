@@ -5642,33 +5642,28 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_show_voicemail_users(char *line, char *word, int pos, int state)
+static void complete_show_voicemail_users(int fd, char *line, int pos, char *word, int word_len)
 {
-	int which = 0;
-	struct cw_vm_user *vmu = users;
+	struct cw_vm_user *vmu;
 	char *context = "";
 
 	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
 	if (pos > 4)
-		return NULL;
+		return;
+
 	if (pos == 3) {
-		if (state == 0)
-			return strdup("for");
-		else
-			return NULL;
+		cw_cli(fd, "for\n");
+		return;
 	}
-	while (vmu) {
-		if (!strncasecmp(word, vmu->context, strlen(word))) {
+
+	for (vmu = users; vmu; vmu = vmu->next) {
+		if (!strncasecmp(word, vmu->context, word_len)) {
 			if (context && strcmp(context, vmu->context)) {
-				if (++which > state) {
-					return strdup(vmu->context);
-				}
+				cw_cli(fd, "%s\n", vmu->context);
 				context = vmu->context;
 			}
 		}
-		vmu = vmu->next;
 	}
-	return NULL;
 }
 
 static struct cw_clicmd show_voicemail_users_cli = {

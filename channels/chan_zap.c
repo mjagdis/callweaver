@@ -8975,32 +8975,27 @@ static int start_pri(struct zt_pri *pri)
 	return 0;
 }
 
-static char *complete_span_helper(char *line, char *word, int pos, int state, int rpos)
+static void complete_span_helper(int fd, char *line, int pos, char *word, int word_len, int rpos)
 {
-	int span=1;
 	char tmp[50];
-	if (pos != rpos)
-		return 0;
-	while(span <= NUM_SPANS) {
-		if (span > state && pris[span-1].pri)
-			break;
-		span++;
+	int span=1;
+
+	if (pos == rpos) {
+		for (span = 1; span <= NUM_SPANS; span++) {
+			if (pris[span-1].pri)
+				cw_cli(fd, "%d\n", span);
+		}
 	}
-	if (span <= NUM_SPANS) {
-		snprintf(tmp, sizeof(tmp), "%d", span);
-		return strdup(tmp);
-	} else
-		return NULL;
 }
 
-static char *complete_span_4(char *line, char *word, int pos, int state)
+static void complete_span_4(int fd, char *line, int pos, char *word, int word_len)
 {
-	return complete_span_helper(line,word,pos,state,3);
+	return complete_span_helper(fd, line, pos, word, word_len, 3);
 }
 
-static char *complete_span_5(char *line, char *word, int pos, int state)
+static void complete_span_5(int fd, char *line, int pos, char *word, int word_len)
 {
-	return complete_span_helper(line,word,pos,state,4);
+	return complete_span_helper(fd, line, pos, word, word_len, 4);
 }
 
 static int handle_pri_set_debug_file(int fd, int argc, char **argv)

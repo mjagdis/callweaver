@@ -340,12 +340,9 @@ static const char showmancmd_help[] =
 
 
 struct complete_show_manact_args {
+	int fd;
 	char *word;
-	char *ret;
-	int exact;
-	int len;
-	int which;
-	int state;
+	int word_len;
 };
 
 static int complete_show_manact_one(struct cw_object *obj, void *data)
@@ -353,36 +350,21 @@ static int complete_show_manact_one(struct cw_object *obj, void *data)
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct complete_show_manact_args *args = data;
 
-	if (((args->exact && !strncmp(args->word, it->action, args->len))
-	|| (!args->exact && !strncasecmp(args->word, it->action, args->len)))
-	&& ++args->which > args->state) {
-		args->ret = strdup(it->action);
-		return 1;
-	}
+	if (!strncasecmp(args->word, it->action, args->word_len))
+		cw_cli(args->fd, "%s\n", it->action);
+
 	return 0;
 }
 
-static char *complete_show_manact(char *line, char *word, int pos, int state)
+static void complete_show_manact(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct complete_show_manact_args args = {
+		.fd = fd,
 		.word = word,
-		.len = strlen(word),
-		.which = 0,
-		.state = state,
-		.ret = NULL,
+		.word_len = word_len,
 	};
 
-	/* Pass 1: Look for exact case */
-	args.exact = 1;
 	cw_registry_iterate(&manager_action_registry, complete_show_manact_one, &args);
-
-	if (!args.ret) {
-		/* Pass 2: Look for any case */
-		args.exact = 0;
-		cw_registry_iterate(&manager_action_registry, complete_show_manact_one, &args);
-	}
-
-	return args.ret;
 }
 
 
@@ -415,26 +397,14 @@ static const char showmancmds_help[] =
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
-static char *complete_show_manacts(char *line, char *word, int pos, int state)
+static void complete_show_manacts(int fd, char *line, int pos, char *word, int word_len)
 {
 	if (pos == 3) {
-		if (cw_strlen_zero(word)) {
-			switch (state) {
-				case 0: return strdup("like");
-				case 1: return strdup("describing");
-				default: return NULL;
-			}
-		} else if (! strncasecmp(word, "like", strlen(word))) {
-			if (state == 0)
-				return strdup("like");
-			return NULL;
-		} else if (! strncasecmp(word, "describing", strlen(word))) {
-			if (state == 0)
-				return strdup("describing");
-			return NULL;
-		}
+		if (!strncasecmp(word, "like", word_len))
+			cw_cli(fd, "like\n");
+		if (!strncasecmp(word, "describing", word_len))
+			cw_cli(fd, "describing\n");
 	}
-	return NULL;
 }
 
 

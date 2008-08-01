@@ -2608,43 +2608,29 @@ blt_ag_sendcmd(int fd, int argc, char *argv[])
   return RESULT_SUCCESS;
 }
 
-static char *
-complete_device(char * line, char * word, int pos, int state, int rpos, blt_role_t role)
+static void
+complete_device(int fd, char * line, int pos, char * word, int word_len, int rpos, blt_role_t role)
 {
   blt_dev_t * dev;
-  int which = 0;
-  char *ret;
 
   if (pos != rpos)
-    return NULL;
+    return;
 
   cw_mutex_lock(&iface_lock);
 
-  dev = iface_head;
-
-  while (dev) {
-
-    if ((dev->role == role) && (!strncasecmp(word, dev->name, strlen(word)))) {
-      if (++which > state)
-        break;
+  for (dev = iface_head; dev; dev = dev->next) {
+    if ((dev->role == role) && (!strncasecmp(word, dev->name, word_len))) {
+      cw_cli(fd, "%s\n", dev->name);
     }
-    dev = dev->next;
   }
 
-  if (dev)
-    ret = strdup(dev->name);
-  else
-    ret = NULL;
-
   cw_mutex_unlock(&iface_lock);
-
-  return ret;
 }
 
-static char *
-complete_device_2_ag(char * line, char * word, int pos, int state)
+static void
+complete_device_2_ag(int fd, char * line, int pos, char * word, int word_len)
 {
-  return complete_device(line, word, pos, state, 2, BLT_ROLE_AG);
+  return complete_device(fd, line, pos, word, word_len, 2, BLT_ROLE_AG);
 }
 
 static void remove_sdp_records(void)

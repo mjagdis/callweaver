@@ -1179,95 +1179,78 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	return RESULT_SUCCESS ;
 }
 
-static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
+static void complete_ch(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct cw_channel *c;
-	int which=0;
-	char *ret;
-	if (pos != rpos)
-		return NULL;
-	c = cw_channel_walk_locked(NULL);
-	while(c) {
-		if (!strncasecmp(word, c->name, strlen(word))) {
-			if (++which > state)
-				break;
+
+	if (pos == 3) {
+		for (c = cw_channel_walk_locked(NULL); c; c = cw_channel_walk_locked(c)) {
+			if (!strncasecmp(word, c->name, strlen(word)))
+				cw_cli(fd, "%s\n", c->name);
+
+			cw_mutex_unlock(&c->lock);
 		}
-		cw_mutex_unlock(&c->lock);
-		c = cw_channel_walk_locked(c);
 	}
-	if (c) {
-		ret = strdup(c->name);
-		cw_mutex_unlock(&c->lock);
-	} else
-		ret = NULL;
-	return ret;
 }
 
-static char *complete_ch(char *line, char *word, int pos, int state)
+static void complete_debug_port(int fd, char *line, int pos, char *word, int word_len)
 {
-	return complete_ch_helper(line, word, pos, state, 3);
-}
-
-static char *complete_debug_port (char *line, char *word, int pos, int state)
-{
-	if (state)
-		return NULL;
-
 	switch (pos) {
-	case 4: if (*word == 'p')
-				return strdup("port");
-			else if (*word == 'o')
-				return strdup("only");
+		case 4:
+			if (!strncmp(word, "port", word_len))
+				cw_cli(fd, "port\n");
+			if (!strncmp(word, "only", word_len))
+				cw_cli(fd, "only\n");
 			break;
-	case 6: if (*word == 'o')
-				return strdup("only");
+		case 6:
+			if (!strncmp(word, "only", word_len))
+				cw_cli(fd, "only\n");
 			break;
 	}
-	return NULL;
 }
 
-static char *complete_show_config (char *line, char *word, int pos, int state)
+static void complete_show_config(int fd, char *line, int pos, char *word, int word_len)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
-	int wordlen = strlen(word);
-	int which = 0;
 	int port = 0;
 
 	switch (pos) {
-	case 3: if ((!strncmp(word, "description", wordlen)) && (++which > state))
-				return strdup("description");
-			if ((!strncmp(word, "descriptions", wordlen)) && (++which > state))
-				return strdup("descriptions");
-			if ((!strncmp(word, "0", wordlen)) && (++which > state))
-				return strdup("0");
+		case 3:
+			if ((!strncmp(word, "description", word_len)))
+				cw_cli(fd, "description\n");
+
+			if ((!strncmp(word, "descriptions", word_len)))
+				cw_cli(fd, "descriptions\n");
+
+			if ((!strncmp(word, "0", word_len)))
+				cw_cli(fd, "0\n");
+
 			while ((port = misdn_cfg_get_next_port(port)) != -1) {
 				snprintf(buffer, sizeof(buffer), "%d", port);
-				if ((!strncmp(word, buffer, wordlen)) && (++which > state)) {
-					return strdup(buffer);
-				}
+				if ((!strncmp(word, buffer, word_len)))
+					cw_cli(fd, "%s\n", buffer);
 			}
 			break;
-	case 4:
+
+		case 4:
 			if (strstr(line, "description ")) {
 				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
 					if ((elem == MISDN_CFG_LAST) || (elem == MISDN_GEN_FIRST))
 						continue;
+
 					misdn_cfg_get_name(elem, buffer, BUFFERSIZE);
-					if (!wordlen || !strncmp(word, buffer, wordlen)) {
-						if (++which > state)
-							return strdup(buffer);
-					}
+					if (!strncmp(word, buffer, word_len))
+						cw_cli(fd, "%s\n", buffer);
 				}
 			} else if (strstr(line, "descriptions ")) {
-				if ((!wordlen || !strncmp(word, "general", wordlen)) && (++which > state))
-					return strdup("general");
-				if ((!wordlen || !strncmp(word, "ports", wordlen)) && (++which > state))
-					return strdup("ports");
+				if (!strncmp(word, "general", word_len))
+					cw_cli(fd, "general\n");
+				if (!strncmp(word, "ports", word_len))
+					cw_cli(fd, "ports\n");
 			}
 			break;
 	}
-	return NULL;
 }
 
 static struct cw_clicmd cli_send_cd = {

@@ -2910,22 +2910,13 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char *autoanswer_complete(char *line, char *word, int pos, int state)
+static void autoanswer_complete(int fd, char *line, int pos, char *word, int word_len)
 {
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-	switch(state) {
-	case 0:
-		if (!cw_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
-			return strdup("on");
-	case 1:
-		if (!cw_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
-			return strdup("off");
-	default:
-		return NULL;
-	}
-	return NULL;
+	if (!strncasecmp(word, "on", word_len))
+		cw_cli(fd, "on\n");
+
+	if (!strncasecmp(word, "off", word_len))
+		cw_cli(fd, "off\n");
 }
 
 static char autoanswer_usage[] =

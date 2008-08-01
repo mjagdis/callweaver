@@ -3808,22 +3808,19 @@ static int queue_show(int fd, int argc, char **argv)
     return __queues_show(0, fd, argc, argv, 1);
 }
 
-static char *complete_queue(char *line, char *word, int pos, int state)
+static void complete_queue(int fd, char *line, int pos, char *word, int word_len)
 {
     struct cw_call_queue *q;
-    int which=0;
-    
+
     cw_mutex_lock(&qlock);
+
     for (q = queues; q; q = q->next)
     {
-        if (!strncasecmp(word, q->name, strlen(word)))
-        {
-            if (++which > state)
-                break;
-        }
+        if (!strncasecmp(word, q->name, word_len))
+            cw_cli(fd, "%s\n", q->name);
     }
+
     cw_mutex_unlock(&qlock);
-    return q ? strdup(q->name) : NULL;
 }
 
 /*! \brief callback to display queues status in manager
@@ -4154,51 +4151,30 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
     }
 }
 
-static char *complete_add_queue_member(char *line, char *word, int pos, int state)
+static void complete_add_queue_member(int fd, char *line, int pos, char *word, int word_len)
 {
+    int i;
+
     /* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
     switch (pos)
     {
     case 3:
         /* Don't attempt to complete name of member (infinite possibilities) */
-        return NULL;
+        break;
     case 4:
-        if (state == 0)
-        {
-            return strdup("to");
-        }
-        else
-        {
-            return NULL;
-        }
+        cw_cli(fd, "to\n");
+        break;
     case 5:
         /* No need to duplicate code */
-        return complete_queue(line, word, pos, state);
+        complete_queue(fd, line, pos, word, word_len);
+        break;
     case 6:
-        if (state == 0)
-        {
-            return strdup("penalty");
-        }
-        else
-        {
-            return NULL;
-        }
+        cw_cli(fd, "penalty\n");
+        break;
     case 7:
-        if (state < 100)
-        {  /* 0-99 */
-            char *num = malloc(3);
-            if (num)
-            {
-                sprintf(num, "%d", state);
-            }
-            return num;
-        }
-        else
-        {
-            return NULL;
-        }
-    default:
-        return NULL;
+        for (i = 0; i < 100; i++)
+            cw_cli(fd, "%d\n", i);
+        break;
     }
 }
 
@@ -4237,52 +4213,37 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
     }
 }
 
-static char *complete_remove_queue_member(char *line, char *word, int pos, int state)
+static void complete_remove_queue_member(int fd, char *line, int pos, char *word, int word_len)
 {
-    int which = 0;
     struct cw_call_queue *q;
     struct member *m;
 
     /* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue> */
     if ((pos > 5) || (pos < 3))
     {
-        return NULL;
+        return;
     }
+
     if (pos == 4)
     {
-        if (state == 0)
-        {
-            return strdup("from");
-        }
-        else
-        {
-            return NULL;
-        }
+        cw_cli(fd, "from\n");
+        return;
     }
 
     if (pos == 5)
     {
         /* No need to duplicate code */
-        return complete_queue(line, word, pos, state);
+        complete_queue(fd, line, pos, word, word_len);
+        return;
     }
 
-    if (queues != NULL)
+    for (q = queues; q; q = q->next)
     {
-        for (q = queues ; q ; q = q->next)
-        {
-            cw_mutex_lock(&q->lock);
-            for (m = q->members ; m ; m = m->next)
-            {
-                if (++which > state)
-                {
-                    cw_mutex_unlock(&q->lock);
-                    return strdup(m->interface);
-                }
-            }
-            cw_mutex_unlock(&q->lock);
-        }
+        cw_mutex_lock(&q->lock);
+        for (m = q->members; m; m = m->next)
+            cw_cli(fd, "%s\n", m->interface);
+        cw_mutex_unlock(&q->lock);
     }
-    return NULL;
 }
 
 static char show_queues_usage[] = 

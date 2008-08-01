@@ -131,7 +131,7 @@ static int app_count_exec(struct cw_channel *chan, int argc, char **argv, char *
 
 
 int nconference_admin_exec( int fd, int argc, char *argv[] );
-static char *nconference_admin_complete(char *line, char *word, int pos, int state);
+static void nconference_admin_complete(int fd, char *line, int pos, char *word, int word_len);
 
 static char nconference_admin_usage[] = 
 	"usage: NConference <command>  <conference_name> <usernumber>\n"
@@ -289,9 +289,9 @@ int nconference_admin_exec( int fd, int argc, char *argv[] )
 
 
 
-static char *nconference_admin_complete(char *line, char *word, int pos, int state) {
+static void nconference_admin_complete(int fd, char *line, int pos, char *word, int word_len) {
 #define CONF_COMMANDS 7
-	int which = 0, x = 0;
+	int x = 0;
 	struct cw_conference *cnf 	= NULL;
 	struct cw_conf_member *usr 	= NULL;
 	char *confno 			= NULL;
@@ -301,37 +301,28 @@ static char *nconference_admin_complete(char *line, char *word, int pos, int sta
 	
 	if (pos == 1) {
 		/* Command */
-		for (x = 0;x < CONF_COMMANDS; x++) {
-			if (!strncasecmp(cmds[x], word, strlen(word))) {
-				if (++which > state) {
-					return strdup(cmds[x]);
-				}
-			}
+		for (x = 0; x < CONF_COMMANDS; x++) {
+			if (!strncasecmp(cmds[x], word, word_len))
+				cw_cli(fd, "%s\n", cmds[x]);
 		}
 	} 
 	else if (pos == 2) {
 		// Conference Number 
 		cw_mutex_lock(&conflist_lock);
-		cnf = conflist;
-		while(cnf) {
-			if (!strncasecmp(word, cnf->name, strlen(word))) {
-				if (++which > state)
-					break;
-			}
-			cnf = cnf->next;
+		for (cnf = conflist; cnf; cnf = cnf->next) {
+			if (!strncasecmp(word, cnf->name, word_len))
+				cw_cli(fd, "%s\n", cnf->name);
 		}
 		cw_mutex_unlock(&conflist_lock);
-		return cnf ? strdup(cnf->name) : NULL;
 	} 
 	else if (pos == 3) {
 		// User Number || Conf Command option
 		if ( strstr(line, "mute") || strstr(line, "kick") || strstr(line, "lock") ) {
-			if ( (state == 0) && 
-			     !(strncasecmp(word, "all", strlen(word)))) {
-				return strdup("all");
-			}
-			which++;
+			if ( !(strncasecmp(word, "all", word_len)))
+				cw_cli(fd, "all\n");
+
 			cw_mutex_lock(&conflist_lock);
+
 			cnf = conflist;
 
 			myline = cw_strdupa(line);
@@ -340,31 +331,21 @@ static char *nconference_admin_complete(char *line, char *word, int pos, int sta
 					;
 			}	
 
-			while(cnf) {
-				if (strcmp(confno, cnf->name) == 0) {
+			while (cnf) {
+				if (!strcmp(confno, cnf->name)) {
+					// Search for the user 
+					for (usr = cnf->memberlist; usr; usr = usr->next) {
+						if (!strncasecmp(word, usr->chan->name, word_len))
+							cw_cli(fd, "%s\n", usr->chan->name);
+					}
 					break;
 				}
 				cnf = cnf->next;
 			}
 
-			if (cnf) {
-				// Search for the user 
-				usr = cnf->memberlist;
-				while(usr) {
-					snprintf(usrno, sizeof(usrno), "%s", usr->chan->name);
-					if (!strncasecmp(word, usrno, strlen(word))) {
-						if (++which > state)
-							break;
-					}
-					usr = usr->next;
-				}
-			}
 			cw_mutex_unlock(&conflist_lock);
-			return usr ? strdup(usrno) : NULL;
 		}
 	}
-
-	return NULL;
 }
 
 /* ***************************************************************

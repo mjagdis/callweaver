@@ -1714,7 +1714,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
             &&
             ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (sipmethod >= 0 && (!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]) && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
+             (sipmethod >= 0 && (!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]) && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len)))))
         {
             if (!resp  &&  (seqno == p->pendinginvite))
             {
@@ -10913,153 +10913,102 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
-static char *complete_sipch(char *line, char *word, int pos, int state)
+static void complete_sipch(int fd, char *line, int pos, char *word, int word_len)
 {
-    int which=0;
     struct sip_pvt *cur;
-    char *c = NULL;
 
     cw_mutex_lock(&iflock);
-    cur = iflist;
-    while (cur)
+
+    for (cur = iflist; cur; cur = cur->next)
     {
         if (!strncasecmp(word, cur->callid, strlen(word)))
-        {
-            if (++which > state)
-            {
-                c = strdup(cur->callid);
-                break;
-            }
-        }
-        cur = cur->next;
+		cw_cli(fd, "%s\n", cur->callid);
     }
+
     cw_mutex_unlock(&iflock);
-    return c;
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name */
-static char *complete_sip_peer(char *word, int state, int flags2)
+static void complete_sip_peer(int fd, char *word, int word_len, int flags2)
 {
-    char *result = NULL;
-    int wordlen = strlen(word);
-    int which = 0;
-
-    ASTOBJ_CONTAINER_TRAVERSE(&peerl, !result, do {
+    ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
         /* locking of the object is not required because only the name and flags are being compared */
-        if (!strncasecmp(word, iterator->name, wordlen))
+        if (!strncasecmp(word, iterator->name, word_len))
         {
-            if (flags2 && !cw_test_flag((&iterator->flags_page2), flags2))
-                continue;
-            if (++which > state)
-            {
-                result = strdup(iterator->name);
-            }
+            if (!flags2 || cw_test_flag((&iterator->flags_page2), flags2))
+                cw_cli(fd, "%s\n", iterator->name);
         }
     } while(0) );
-    return result;
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
-static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
+static void complete_sip_show_peer(int fd, char *line, int pos, char *word, int word_len)
 {
     if (pos == 3)
-        return complete_sip_peer(word, state, 0);
-
-    return NULL;
+        complete_sip_peer(fd, word, word_len, 0);
 }
 
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
-static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
+static void complete_sip_debug_peer(int fd, char *line, int pos, char *word, int word_len)
 {
     if (pos == 3)
-        return complete_sip_peer(word, state, 0);
-
-    return NULL;
+         complete_sip_peer(fd, word, word_len, 0);
 }
 
 /*! \brief  complete_sip_user: Do completion on user name */
-static char *complete_sip_user(char *word, int state, int flags2)
+static void complete_sip_user(int fd, char *word, int word_len, int flags2)
 {
-    char *result = NULL;
-    int wordlen = strlen(word);
-    int which = 0;
-
-    ASTOBJ_CONTAINER_TRAVERSE(&userl, !result, do {
+    ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
         /* locking of the object is not required because only the name and flags are being compared */
-        if (!strncasecmp(word, iterator->name, wordlen))
+        if (!strncasecmp(word, iterator->name, word_len))
         {
-            if (flags2 && !cw_test_flag(&(iterator->flags_page2), flags2))
-                continue;
-            if (++which > state)
-            {
-                result = strdup(iterator->name);
-            }
+            if (!flags2 || cw_test_flag(&(iterator->flags_page2), flags2))
+                cw_cli(fd, "%s\n", iterator->name);
         }
     } while(0) );
-    return result;
 }
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
-static char *complete_sip_show_user(char *line, char *word, int pos, int state)
+static void complete_sip_show_user(int fd, char *line, int pos, char *word, int word_len)
 {
     if (pos == 3)
-        return complete_sip_user(word, state, 0);
-
-    return NULL;
+        complete_sip_user(fd, word, word_len, 0);
 }
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
-static char *complete_sipnotify(char *line, char *word, int pos, int state)
+static void complete_sipnotify(int fd, char *line, int pos, char *word, int word_len)
 {
-    char *c = NULL;
-
     if (pos == 2)
     {
-        int which = 0;
         char *cat;
 
         /* do completion for notify type */
 
-        if (!notify_types)
-            return NULL;
-        
-        cat = cw_category_browse(notify_types, NULL);
-        while (cat)
-        {
-            if (!strncasecmp(word, cat, strlen(word)))
+        if (notify_types)
+	{
+            for (cat = cw_category_browse(notify_types, NULL); cat; cat = cw_category_browse(notify_types, cat))
             {
-                if (++which > state)
-                {
-                    c = strdup(cat);
-                    break;
-                }
+                if (!strncasecmp(word, cat, word_len))
+                    cw_cli(fd, "%s\n", cat);
             }
-            cat = cw_category_browse(notify_types, cat);
         }
-        return c;
     }
-
-    if (pos > 2)
-        return complete_sip_peer(word, state, 0);
-
-    return NULL;
+    else if (pos > 2)
+        complete_sip_peer(fd, word, word_len, 0);
 }
 
 /*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI */
-static char *complete_sip_prune_realtime_peer(char *line, char *word, int pos, int state)
+static void complete_sip_prune_realtime_peer(int fd, char *line, int pos, char *word, int word_len)
 {
     if (pos == 4)
-        return complete_sip_peer(word, state, SIP_PAGE2_RTCACHEFRIENDS);
-    return NULL;
+        complete_sip_peer(fd, word, word_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI */
-static char *complete_sip_prune_realtime_user(char *line, char *word, int pos, int state)
+static void complete_sip_prune_realtime_user(int fd, char *line, int pos, char *word, int word_len)
 {
     if (pos == 4)
-        return complete_sip_user(word, state, SIP_PAGE2_RTCACHEFRIENDS);
-
-    return NULL;
+        complete_sip_user(fd, word, word_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  sip_show_channel: Show details of one call */

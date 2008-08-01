@@ -144,81 +144,53 @@ static int handle_context_dont_include(int fd, int argc, char *argv[])
 	return RESULT_FAILURE;
 }
 
-static char *complete_context_dont_include(char *line, char *word,
-	int pos, int state)
+static void complete_context_dont_include(int fd, char *line, int pos, char *word, int word_len)
 {
-	int which = 0;
-
-	/*
-	 * Context completion ...
-	 */
 	if (pos == 2) {
 		struct cw_context *c;
 
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-			return NULL;
-		}
+		if (!cw_lock_contexts()) {
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				struct cw_include *i;
 
-		/* walk pbx_get_contexts ... */
-		c = cw_walk_contexts(NULL); 
-		while (c) {
-			struct cw_include *i;
+				if (!cw_lock_context(c)) {
+					for (i = cw_walk_context_includes(c, NULL); i; i = cw_walk_context_includes(c, i)) {
+						if (!strncmp(word, cw_get_include_name(i), word_len)) {
+							struct cw_context *nc;
+							int already_served = 0;
 
-			if (cw_lock_context(c)) {
-				c = cw_walk_contexts(c);
-				continue;
-			}
+							/* check if this include is already served or not */
+	
+							/* go through all contexts again until we reach actual
+							 * context or already_served = 1
+							 */
+							for (nc = cw_walk_contexts(NULL); nc && nc != c && !already_served; nc = cw_walk_contexts(nc)) {
+								if (!cw_lock_context(nc)) {
+									struct cw_include *ni;
 
-			i = cw_walk_context_includes(c, NULL);
-			while (i) {
-				if (!strlen(word) ||
-					!strncmp(cw_get_include_name(i), word, strlen(word))) {
-					struct cw_context *nc;
-					int already_served = 0;
-
-					/* check if this include is already served or not */
-
-					/* go through all contexts again till we reach actuall
-					 * context or already_served = 1
-					 */
-					nc = cw_walk_contexts(NULL);
-					while (nc && nc != c && !already_served) {
-						if (!cw_lock_context(nc)) {
-							struct cw_include *ni;
-
-							ni = cw_walk_context_includes(nc, NULL);
-							while (ni && !already_served) {
-								if (!strcmp(cw_get_include_name(i),
-									cw_get_include_name(ni)))
-									already_served = 1;
-								ni = cw_walk_context_includes(nc, ni);
-							}	
+									for (ni = cw_walk_context_includes(nc, NULL); ni && !already_served; ni = cw_walk_context_includes(nc, ni)) {
+										if (!strcmp(cw_get_include_name(i), cw_get_include_name(ni)))
+											already_served = 1;
+									}	
 							
-							cw_unlock_context(nc);
+									cw_unlock_context(nc);
+								}
+							}
+
+							if (!already_served)
+								cw_cli(fd, "%s\n", cw_get_include_name(i));
 						}
-						nc = cw_walk_contexts(nc);
 					}
 
-					if (!already_served) {
-						if (++which > state) {
-							char *res =
-								strdup(cw_get_include_name(i));
-							cw_unlock_context(c);
-							cw_unlock_contexts();
-							return res;
-						}
-					}
+					cw_unlock_context(c);
 				}
-				i = cw_walk_context_includes(c, i);
 			}
-
-			cw_unlock_context(c);
-			c = cw_walk_contexts(c);
+		} else {
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 		}
 
 		cw_unlock_contexts();
-		return NULL;
+		return;
 	}
 
 	/*
@@ -229,12 +201,10 @@ static char *complete_context_dont_include(char *line, char *word,
 		struct cw_context *c;
 		char *context, *dupline, *duplinet;
 
-		if (state > 0) return NULL;
-
 		/* take 'context' from line ... */
 		if (!(dupline = strdup(line))) {
 			cw_log(CW_LOG_ERROR, "Out of free memory\n");
-			return NULL;
+			return;
 		}
 
 		duplinet = dupline;
@@ -244,49 +214,39 @@ static char *complete_context_dont_include(char *line, char *word,
 
 		if (!context) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		if (cw_lock_contexts()) {
 			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		/* go through all contexts and check if is included ... */
-		c = cw_walk_contexts(NULL);
-		while (c) {
+		for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 			struct cw_include *i;
-			if (cw_lock_context(c)) {
-				free(dupline);
-				cw_unlock_contexts();
-				return NULL;
-			}
-
-			i = cw_walk_context_includes(c, NULL);
-			while (i) {
-				/* is it our context? */
-				if (!strcmp(cw_get_include_name(i), context)) {
-					/* yes, it is, context is really included, so
-					 * complete "in" command
-					 */
-					free(dupline);
-					cw_unlock_context(c);
-					cw_unlock_contexts();
-					return strdup("in");
+			if (!cw_lock_context(c)) {
+				for (i = cw_walk_context_includes(c, NULL); i; i = cw_walk_context_includes(c, i)) {
+					/* is it our context? */
+					if (!strcmp(cw_get_include_name(i), context)) {
+						/* yes, it is, context is really included, so
+						 * complete "in" command
+						 */
+						cw_cli(fd, "in\n");
+						break;
+					}
 				}
-				i = cw_walk_context_includes(c, i);
+				cw_unlock_context(c);
 			}
-			cw_unlock_context(c);
-			c = cw_walk_contexts(c);
 		}
 		free(dupline);
 		cw_unlock_contexts();
-		return NULL;
+		return;
 	}
 
 	/*
-	 * Context from which we removing include ... 
+	 * Context from which we are removing include ... 
 	 */
 	if (pos == 4) {
 		struct cw_context *c;
@@ -294,7 +254,7 @@ static char *complete_context_dont_include(char *line, char *word,
 
 		if (!(dupline = strdup(line))) {
 			cw_log(CW_LOG_ERROR, "Out of free memory\n");
-			return NULL;
+			return;
 		}
 
 		duplinet = dupline;
@@ -304,65 +264,49 @@ static char *complete_context_dont_include(char *line, char *word,
 
 		if (!(context = strsep(&duplinet, " "))) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		/* third word must be in */
 		in = strsep(&duplinet, " ");
-		if (!in ||
-			strcmp(in, "in")) {
+		if (!in || strcmp(in, "in")) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		if (cw_lock_contexts()) {
 			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		/* walk through all contexts ... */
-		c = cw_walk_contexts(NULL);
-		while (c) {
+		for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 			struct cw_include *i;
-			if (cw_lock_context(c)) {
-				free(dupline);
-				return NULL;
-			}
+			if (cw_lock_context(c))
+				break;
 	
 			/* walk through all includes and check if it is our context */	
-			i = cw_walk_context_includes(c, NULL);
-			while (i) {
+			for (i = cw_walk_context_includes(c, NULL); i; i = cw_walk_context_includes(c, i)) {
 				/* is in this context included another on which we want to
 				 * remove?
 				 */
 				if (!strcmp(context, cw_get_include_name(i))) {
 					/* yes, it's included, is matching our word too? */
-					if (!strncmp(cw_get_context_name(c),
-							word, strlen(word))) {
-						/* check state for completion */
-						if (++which > state) {
-							char *res = strdup(cw_get_context_name(c));
-							free(dupline);
-							cw_unlock_context(c);
-							cw_unlock_contexts();
-							return res;
-						}
-					}
+					if (!strncmp(cw_get_context_name(c), word, word_len))
+						cw_cli(fd, "%s\n", cw_get_context_name(c));
 					break;
 				}
-				i = cw_walk_context_includes(c, i);
 			}	
 			cw_unlock_context(c);
-			c = cw_walk_contexts(c);
 		}
 
 		free(dupline);
 		cw_unlock_contexts();
-		return NULL;
+		return;
 	}
 
-	return NULL;
+	return;
 }
 
 /*
@@ -435,70 +379,9 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 	return RESULT_FAILURE;
 }
 
-#define BROKEN_READLINE 1
 
-#ifdef BROKEN_READLINE
-/*
- * There is one funny thing, when you have word like 300@ and you hit
- * <tab>, you arguments will like as your word is '300 ', so it '@'
- * characters acts sometimes as word delimiter and sometimes as a part
- * of word
- *
- * This fix function, allocates new word variable and store here every
- * time xxx@yyy always as one word and correct pos is set too
- *
- * It's ugly, I know, but I'm waiting for Mark suggestion if upper is
- * bug or feature ...
- */
-static int fix_complete_args(char *line, char **word, int *pos)
+static void complete_context_remove_extension(int fd, char *line, int pos, char *word, int word_len)
 {
-	char *_line, *_strsep_line, *_previous_word = NULL, *_word = NULL;
-	int words = 0;
-
-	_line = strdup(line);
-
-	_strsep_line = _line;
-	while (_strsep_line) {
-		_previous_word = _word;
-		_word = strsep(&_strsep_line, " ");
-
-		if (_word && strlen(_word)) words++;
-	}
-
-
-	if (_word || _previous_word) {
-		if (_word) {
-			if (!strlen(_word)) words++;
-			*word = strdup(_word);
-		} else
-			*word = strdup(_previous_word);
-		*pos = words - 1;
-		free(_line);
-		return 0;
-	}
-
-	free(_line);
-	return -1;
-}
-#endif /* BROKEN_READLINE */
-
-static char *complete_context_remove_extension(char *line, char *word, int pos,
-	int state)
-{
-	char *ret = NULL;
-	int which = 0;
-
-#ifdef BROKEN_READLINE
-	/*
-	 * Fix arguments, *word is a new allocated structure, REMEMBER to
-	 * free *word when you want to return from this function ...
-	 */
-	if (fix_complete_args(line, &word, &pos)) {
-		cw_log(CW_LOG_ERROR, "Out of free memory\n");
-		return NULL;
-	}
-#endif
-
 	/*
 	 * exten@context completion ... 
 	 */
@@ -508,14 +391,10 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		char *context = NULL, *exten = NULL, *delim = NULL;
 
 		/* now, parse values from word = exten@context */
-		if ((delim = strchr(word, (int)'@'))) {
-			/* check for duplicity ... */
-			if (delim != strrchr(word, (int)'@')) {
-#ifdef BROKEN_READLINE
-				free(word);
-#endif
-				return NULL;
-			}
+		if ((delim = strchr(word, '@'))) {
+			/* check for duplicates ... */
+			if (delim != strrchr(word, '@'))
+				return;
 
 			*delim = '\0';
 			exten = strdup(word);
@@ -524,59 +403,37 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		} else {
 			exten = strdup(word);
 		}
-#ifdef BROKEN_READLINE
-		free(word);
-#endif
 
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-			free(context); free(exten);
-			return NULL;
-		}
-
-		/* find our context ... */
-		c = cw_walk_contexts(NULL); 
-		while (c) {
-			/* our context? */
-			if ( (!context || !strlen(context)) ||                            /* if no input, all contexts ... */
-				 (context && !strncmp(cw_get_context_name(c),
-				              context, strlen(context))) ) {                  /* if input, compare ... */
-				/* try to complete extensions ... */
-				e = cw_walk_context_extensions(c, NULL);
-				while (e) {
-					/* our extension? */
-					if ( (!exten || !strlen(exten)) ||                           /* if not input, all extensions ... */
-						 (exten && !strncmp(cw_get_extension_name(e), exten,
-						                    strlen(exten))) ) { /* if input, compare ... */
-						if (++which > state) {
+		if (!cw_lock_contexts()) {
+			/* find our context ... */
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				/* our context? */
+				if ( (!context || !strlen(context)) ||                            /* if no input, all contexts ... */
+					 (context && !strncmp(cw_get_context_name(c), context, strlen(context))) ) {                  /* if input, compare ... */
+					/* try to complete extensions ... */
+					for (e = cw_walk_context_extensions(c, NULL); e; e = cw_walk_context_extensions(c, e)) {
+						/* our extension? */
+						if ( (!exten || !strlen(exten)) ||                           /* if not input, all extensions ... */
+							 (exten && !strncmp(cw_get_extension_name(e), exten, strlen(exten))) ) { /* if input, compare ... */
 							/* If there is an extension then return
 							 * exten@context.
 							 */
-							if (exten) {
-								ret = malloc(strlen(cw_get_extension_name(e)) +
-									strlen(cw_get_context_name(c)) + 2);
-								if (ret)
-									sprintf(ret, "%s@%s", cw_get_extension_name(e),
-										cw_get_context_name(c));
-							}
-							free(exten); free(context);
-
-							cw_unlock_contexts();
-	
-							return ret;
+							if (exten)
+								cw_cli(fd, "%s@%s\n", cw_get_extension_name(e), cw_get_context_name(c));
 						}
 					}
-					e = cw_walk_context_extensions(c, e);
 				}
 			}
-			c = cw_walk_contexts(c);
-		}
 
-		cw_unlock_contexts();
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 
-		free(exten); free(context);
+		free(exten);
+		if (context)
+			free(context);
 
-		return NULL;
+		return;
 	}
 
 	/*
@@ -587,12 +444,8 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		struct cw_context *c;
 
 		dupline = strdup(line);
-		if (!dupline) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			return NULL;
-		}
+		if (!dupline)
+			return;
 		duplinet = dupline;
 
 		strsep(&duplinet, " "); /* skip 'remove' */
@@ -600,109 +453,61 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 
 		if (!(ec = strsep(&duplinet, " "))) {
 			free(dupline);
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			return NULL;
+			return;
 		}
 
 		/* wrong exten@context format? */
-		if (!(delim = strchr(ec, (int)'@')) ||
-			(strchr(ec, (int)'@') != strrchr(ec, (int)'@'))) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
+		if (!(delim = strchr(ec, '@')) || (strchr(ec, '@') != strrchr(ec, '@'))) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		/* check if there is exten and context too ... */
 		*delim = '\0';
 		if ((!strlen(ec)) || (!strlen(delim + 1))) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		exten = strdup(ec);
 		context = strdup(delim + 1);
 		free(dupline);
 
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			free(exten); free(context);
-			return NULL;
-		}
+		if (!cw_lock_contexts()) {
+			/* walk contexts */
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				if (!strcmp(cw_get_context_name(c), context)) {
+					struct cw_exten *e;
 
-		/* walk contexts */
-		c = cw_walk_contexts(NULL); 
-		while (c) {
-			if (!strcmp(cw_get_context_name(c), context)) {
-				struct cw_exten *e;
-
-				/* walk extensions */
-				free(context);
-				e = cw_walk_context_extensions(c, NULL); 
-				while (e) {
-					if (!strcmp(cw_get_extension_name(e), exten)) {
-						struct cw_exten *priority;
-						char buffer[10];
+					/* walk extensions */
+					for (e = cw_walk_context_extensions(c, NULL); e; e = cw_walk_context_extensions(c, e)) {
+						if (!strcmp(cw_get_extension_name(e), exten)) {
+							struct cw_exten *priority;
+							char buffer[10];
 					
-						free(exten);
-						priority = cw_walk_extension_priorities(e, NULL);
-						/* serve priorities */
-						do {
-							snprintf(buffer, 10, "%u",
-								cw_get_extension_priority(priority));
-							if (!strncmp(word, buffer, strlen(word))) {
-								if (++which > state) {
-#ifdef BROKEN_READLINE
-									free(word);
-#endif
-									cw_unlock_contexts();
-									return strdup(buffer);
-								}
+							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
+								snprintf(buffer, 10, "%u", cw_get_extension_priority(priority));
+								if (!strncmp(word, buffer, word_len))
+									cw_cli(fd, "%s\n", buffer);
 							}
-							priority = cw_walk_extension_priorities(e,
-								priority);
-						} while (priority);
 
-#ifdef BROKEN_READLINE
-						free(word);
-#endif
-						cw_unlock_contexts();
-						return NULL;			
+							break;
+						}
 					}
-					e = cw_walk_context_extensions(c, e);
+
+					break;
 				}
-#ifdef BROKEN_READLINE
-				free(word);
-#endif
-				free(exten);
-				cw_unlock_contexts();
-				return NULL;
 			}
-			c = cw_walk_contexts(c);
-		}
 
-#ifdef BROKEN_READLINE
-		free(word);
-#endif
-		free(exten); free(context);
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 
-		cw_unlock_contexts();
-		return NULL;
+		free(exten);
+		free(context);
 	}
 
-#ifdef BROKEN_READLINE
-	free(word);
-#endif
-	return NULL; 
+	return; 
 }
 
 /*
@@ -746,49 +551,30 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_add_include(char *line, char *word, int pos,
-    int state)
+static void complete_context_add_include(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct cw_context *c;
-	int which = 0;
 
-	/* server context for inclusion ... */
-	if (pos == 1)
-	{
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-			return NULL;
-		}
-
-		/* server all contexts */ 
-		c = cw_walk_contexts(NULL); 
-		while (c) {
-			if ((!strlen(word) || 
-				 !strncmp(cw_get_context_name(c), word, strlen(word))) &&
-				++which > state)
-			{
-				char *context = strdup(cw_get_context_name(c));
-				cw_unlock_contexts();
-				return context;
+	if (pos == 1) {
+		if (!cw_lock_contexts()) {
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				if ((!strlen(word) || !strncmp(cw_get_context_name(c), word, word_len)))
+					cw_cli(fd, "%s\n", cw_get_context_name(c));
 			}
-			c = cw_walk_contexts(c);
-		}
 
-		cw_unlock_contexts();
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 	}
 
 	/* complete 'in' only if context exist ... */
-	if (pos == 2)
-	{
+	if (pos == 2) {
 		char *context, *dupline, *duplinet;
-
-		if (state != 0) return NULL;
 
 		/* parse context from line ... */
 		if (!(dupline = strdup(line))) {
-			cw_log(CW_LOG_ERROR, "Out of free memory\n");
-			if (state == 0) return strdup("in");
-			return NULL;
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			return;
 		}
 
 		duplinet = dupline;
@@ -797,37 +583,23 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		context = strsep(&duplinet, " ");
 		if (context) {
 			struct cw_context *c;
-			int context_existence = 0;
 
 			/* check for context existence ... */
-			if (cw_lock_contexts()) {
-				cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-				free(dupline);
-				/* our fault, we can't check, so complete 'in' ... */
-				return strdup("in");
-			}
-
-			c = cw_walk_contexts(NULL);
-			while (c && !context_existence) {
-				if (!strcmp(context, cw_get_context_name(c))) {
-					context_existence = 1;
-					continue;
+			if (!cw_lock_contexts()) {
+				for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+					if (!strcmp(context, cw_get_context_name(c))) {
+						cw_cli(fd, "into\n");
+						break;
+					}
 				}
-				c = cw_walk_contexts(c);
-			}
 
-			/* if context exists, return 'into' ... */
-			if (context_existence) {
-				free(dupline);
 				cw_unlock_contexts();
-				return strdup("into");
-			}
-
-			cw_unlock_contexts();
+			} else
+				cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 		}	
 
 		free(dupline);
-		return NULL;
+		return;
 	}
 
 	/* serve context into which we include another context */
@@ -837,8 +609,8 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		int context_existence = 0;
 
 		if (!(dupline = strdup(line))) {
-			cw_log(CW_LOG_ERROR, "Out of free memory\n");
-			return NULL;
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			return;
 		}
 
 		duplinet = dupline;
@@ -850,13 +622,13 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		/* given some context and third word is in? */
 		if (!strlen(context) || strcmp(in, "in")) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		if (cw_lock_contexts()) {
 			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		/* check for context existence ... */
@@ -872,49 +644,37 @@ static char *complete_context_add_include(char *line, char *word, int pos,
 		if (!context_existence) {
 			free(dupline);
 			cw_unlock_contexts();
-			return NULL;
+			return;
 		}
 
 		/* go through all contexts ... */
-		c = cw_walk_contexts(NULL);
-		while (c) {
+		for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 			/* must be different contexts ... */
 			if (strcmp(context, cw_get_context_name(c))) {
 				if (!cw_lock_context(c)) {
 					struct cw_include *i;
 					int included = 0;
 
-					/* check for duplicity inclusion ... */
-					i = cw_walk_context_includes(c, NULL);
-					while (i && !included) {
+					/* check for duplicate inclusion ... */
+					for (i = cw_walk_context_includes(c, NULL); i && !included; i = cw_walk_context_includes(c, i)) {
 						if (!strcmp(cw_get_include_name(i), context))
 							included = 1;
-						i = cw_walk_context_includes(c, i);
 					}
+
 					cw_unlock_context(c);
 
 					/* not included yet, so show possibility ... */
-					if (!included &&
-						!strncmp(cw_get_context_name(c), word, strlen(word))){
-						
-						if (++which > state) {
-							char *res = strdup(cw_get_context_name(c));
-							free(dupline);
-							cw_unlock_contexts();
-							return res;
-						}
-					}	
+					if (!included && !strncmp(cw_get_context_name(c), word, word_len))
+						cw_cli(fd, "%s\n", cw_get_context_name(c));
 				}
 			}
-			c = cw_walk_contexts(c);
 		}
 
 		cw_unlock_contexts();
 		free(dupline);
-		return NULL;
 	}
 
-	return NULL;
+	return;
 }
 
 /*
@@ -1245,15 +1005,12 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 }
 
 /* add extension 6123,1,Dial,IAX/212.71.138.13/6123 into local */
-static char *complete_context_add_extension(char *line, char *word,
-	int pos, int state)
+static void complete_context_add_extension(int fd, char *line, int pos, char *word, int word_len)
 {
-	int which = 0;
-
 	/* complete 'into' word ... */
 	if (pos == 3) {
-		if (state == 0) return strdup("into");
-		return NULL;
+		cw_cli(fd, "into\n");
+		return;
 	}
 
 	/* complete context */
@@ -1261,32 +1018,25 @@ static char *complete_context_add_extension(char *line, char *word,
 		struct cw_context *c;
 
 		/* try to lock contexts list ... */
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
-			return NULL;
-		}
-
-		/* walk through all contexts */
-		c = cw_walk_contexts(NULL);
-		while (c) {
-			/* matching context? */
-			if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
-				if (++which > state) {
-					char *res = strdup(cw_get_context_name(c));
-					cw_unlock_contexts();
-					return res;
-				}
+		if (!cw_lock_contexts()) {
+			/* walk through all contexts */
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				/* matching context? */
+				if (!strncmp(cw_get_context_name(c), word, word_len))
+					cw_cli(fd, "%s\n", cw_get_context_name(c));
 			}
-			c = cw_walk_contexts(c);
-		}
 
-		cw_unlock_contexts();
-		return NULL;
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
+
+		return;
 	}
 
-	if (pos == 5) return state == 0 ? strdup("replace") : NULL;
+	if (pos == 5)
+		cw_cli(fd, "replace\n");
 
-	return NULL;
+	return;
 }
 
 /*
@@ -1328,14 +1078,15 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_add_ignorepat(char *line, char *word,
-	int pos, int state)
+static void complete_context_add_ignorepat(int fd, char *line, int pos, char *word, int word_len)
 {
-	if (pos == 3) return state == 0 ? strdup("into") : NULL;
+	if (pos == 3) {
+		cw_cli(fd, "into\n");
+		return;
+	}
 
 	if (pos == 4) {
 		struct cw_context *c;
-		int which = 0;
 		char *dupline, *duplinet, *ignorepat = NULL;
 
 		dupline = strdup(line);
@@ -1347,45 +1098,39 @@ static char *complete_context_add_ignorepat(char *line, char *word,
 			ignorepat = strsep(&duplinet, " ");
 		}
 
-		if (cw_lock_contexts()) {
+		if (!cw_lock_contexts()) {
 			cw_log(CW_LOG_ERROR, "Failed to lock contexts list\n");
-			return NULL;
-		}
 
-		c = cw_walk_contexts(NULL);
-		while (c) {
-			if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
-				int serve_context = 1;
-				if (ignorepat) {
-					if (!cw_lock_context(c)) {
-						struct cw_ignorepat *ip;
-						ip = cw_walk_context_ignorepats(c, NULL);
-						while (ip && serve_context) {
-							if (!strcmp(cw_get_ignorepat_name(ip), ignorepat))
-								serve_context = 0;
-							ip = cw_walk_context_ignorepats(c, ip);
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				if (!strncmp(cw_get_context_name(c), word, word_len)) {
+					int serve_context = 1;
+
+					if (ignorepat) {
+						if (!cw_lock_context(c)) {
+							struct cw_ignorepat *ip;
+							ip = cw_walk_context_ignorepats(c, NULL);
+							while (ip && serve_context) {
+								if (!strcmp(cw_get_ignorepat_name(ip), ignorepat))
+									serve_context = 0;
+								ip = cw_walk_context_ignorepats(c, ip);
+							}
+							cw_unlock_context(c);
 						}
-						cw_unlock_context(c);
 					}
-				}
-				if (serve_context) {
-					if (++which > state) {
-						char *context = strdup(cw_get_context_name(c));
-						if (dupline) free(dupline);
-						cw_unlock_contexts();
-						return context;
-					}
+
+					if (serve_context)
+						cw_cli(fd, "%s\n", cw_get_context_name(c));
 				}
 			}
-			c = cw_walk_contexts(c);
-		}
 
-		if (dupline) free(dupline);
-		cw_unlock_contexts();
-		return NULL;
+			if (dupline)
+				free(dupline);
+
+			cw_unlock_contexts();
+		}
 	}
 
-	return NULL;
+	return;
 }
 
 static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
@@ -1429,73 +1174,62 @@ static int handle_reload_extensions(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_remove_ignorepat(char *line, char *word,
-	int pos, int state)
+static void complete_context_remove_ignorepat(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct cw_context *c;
-	int which = 0;
 
 	if (pos == 2) {
-		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
-			return NULL;
-		}
-
-		c = cw_walk_contexts(NULL);
-		while (c) {
-			if (!cw_lock_context(c)) {
-				struct cw_ignorepat *ip;
+		if (!cw_lock_contexts()) {
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				if (!cw_lock_context(c)) {
+					struct cw_ignorepat *ip;
 			
-				ip = cw_walk_context_ignorepats(c, NULL);
-				while (ip) {
-					if (!strncmp(cw_get_ignorepat_name(ip), word, strlen(word))) {
-						if (which + 1 > state) {
+					for (ip = cw_walk_context_ignorepats(c, NULL); ip; ip = cw_walk_context_ignorepats(c, ip)) {
+						if (!strncmp(cw_get_ignorepat_name(ip), word, word_len)) {
 							struct cw_context *cw;
 							int already_served = 0;
-							cw = cw_walk_contexts(NULL);
-							while (cw && cw != c && !already_served) {
+
+							for (cw = cw_walk_contexts(NULL); cw && cw != c && !already_served; cw = cw_walk_contexts(cw)) {
 								if (!cw_lock_context(cw)) {
 									struct cw_ignorepat *ipw;
-									ipw = cw_walk_context_ignorepats(cw, NULL);
-									while (ipw) {
-										if (!strcmp(cw_get_ignorepat_name(ipw),
-											cw_get_ignorepat_name(ip))) already_served = 1;
-										ipw = cw_walk_context_ignorepats(cw, ipw);
+
+									for (ipw = cw_walk_context_ignorepats(cw, NULL); ipw; ipw = cw_walk_context_ignorepats(cw, ipw)) {
+										if (!strcmp(cw_get_ignorepat_name(ipw), cw_get_ignorepat_name(ip)))
+											already_served = 1;
 									}
+
 									cw_unlock_context(cw);
 								}
-								cw = cw_walk_contexts(cw);
 							}
-							if (!already_served) {
-								char *ret = strdup(cw_get_ignorepat_name(ip));
-								cw_unlock_context(c);
-								cw_unlock_contexts();
-								return ret;
-							}
-						} else
-							which++;
+
+							if (!already_served)
+								cw_cli(fd, "%s\n", cw_get_ignorepat_name(ip));
+						}
 					}
-					ip = cw_walk_context_ignorepats(c, ip);
+
+					cw_unlock_context(c);
 				}
-
-				cw_unlock_context(c);
 			}
-			c = cw_walk_contexts(c);
-		}
 
-		cw_unlock_contexts();
-		return NULL;
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
+
+		return;
 	}
  
-	if (pos == 3) return state == 0 ? strdup("from") : NULL;
+	if (pos == 3) {
+		cw_cli(fd, "from\n");
+		return;
+	}
 
 	if (pos == 4) {
 		char *dupline, *duplinet, *ignorepat;
 
 		dupline = strdup(line);
 		if (!dupline) {
-			cw_log(CW_LOG_WARNING, "Out of free memory\n");
-			return NULL;
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			return;
 		}
 
 		duplinet = dupline;
@@ -1505,46 +1239,33 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 
 		if (!ignorepat) {
 			free(dupline);
-			return NULL;
+			return;
 		}
 
 		if (cw_lock_contexts()) {
 			cw_log(CW_LOG_WARNING, "Failed to lock contexts list\n");
 			free(dupline);
-			return NULL;
+			return;
 		}
 
-		c = cw_walk_contexts(NULL);
-		while (c) {
+		for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 			if (!cw_lock_context(c)) {
 				struct cw_ignorepat *ip;
-				ip = cw_walk_context_ignorepats(c, NULL);
-				while (ip) {
-					if (!strcmp(cw_get_ignorepat_name(ip), ignorepat)) {
-						if (!strncmp(cw_get_context_name(c), word, strlen(word))) {
-							if (++which > state) {
-								char *ret = strdup(cw_get_context_name(c));
-								free(dupline);
-								cw_unlock_context(c);
-								cw_unlock_contexts();
-								return ret;
-							}
-						}
-					}
-					ip = cw_walk_context_ignorepats(c, ip);
+
+				for (ip = cw_walk_context_ignorepats(c, NULL); ip; ip = cw_walk_context_ignorepats(c, ip)) {
+					if (!strcmp(cw_get_ignorepat_name(ip), ignorepat) && !strncmp(cw_get_context_name(c), word, word_len))
+						cw_cli(fd, "%s\n", cw_get_context_name(c));
 				}
 
 				cw_unlock_context(c);
 			}
-			c = cw_walk_contexts(c);
 		}
 
 		free(dupline);
 		cw_unlock_contexts();
-		return NULL;
 	}
 
-	return NULL;
+	return;
 }
 
 /*

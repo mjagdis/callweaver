@@ -226,26 +226,14 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 }
 
 
-static char *complete_show_functions(char *line, char *word, int pos, int state)
+static void complete_show_functions(int fd, char *line, int pos, char *word, int word_len)
 {
 	if (pos == 2) {
-		if (cw_strlen_zero(word)) {
-			switch (state) {
-				case 0: return strdup("like");
-				case 1: return strdup("describing");
-				default: return NULL;
-			}
-		} else if (! strncasecmp(word, "like", strlen(word))) {
-			if (state == 0)
-				return strdup("like");
-			return NULL;
-		} else if (! strncasecmp(word, "describing", strlen(word))) {
-			if (state == 0)
-				return strdup("describing");
-			return NULL;
-		}
+		if (!strncasecmp(word, "like", word_len))
+			cw_cli(fd, "like\n");
+		if (!strncasecmp(word, "describing", word_len))
+			cw_cli(fd, "describing\n");
 	}
-	return NULL;
 }
 
 
@@ -329,12 +317,9 @@ static int handle_show_function(int fd, int argc, char *argv[])
 }
 
 struct complete_show_func_args {
+	int fd;
 	char *word;
-	char *ret;
-	int exact;
-	int len;
-	int which;
-	int state;
+	int word_len;
 };
 
 static int complete_show_func_one(struct cw_object *obj, void *data)
@@ -342,35 +327,20 @@ static int complete_show_func_one(struct cw_object *obj, void *data)
 	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	struct complete_show_func_args *args = data;
 
-	if (((args->exact && !strncmp(args->word, it->name, args->len))
-	|| (!args->exact && !strncasecmp(args->word, it->name, args->len)))
-	&& ++args->which > args->state) {
-		args->ret = strdup(it->name);
-		return 1;
-	}
+	if (!strncasecmp(args->word, it->name, args->word_len))
+		cw_cli(args->fd, "%s\n", it->name);
+
 	return 0;
 }
-static char *complete_show_function(char *line, char *word, int pos, int state)
+static void complete_show_function(int fd, char *line, int pos, char *word, int word_len)
 {
 	struct complete_show_func_args args = {
+		.fd = fd,
 		.word = word,
-		.len = strlen(word),
-		.which = 0,
-		.state = state,
-		.ret = NULL,
+		.word_len = word_len,
 	};
 
-	/* Pass 1: Look for exact case */
-	args.exact = 1;
 	cw_registry_iterate(&func_registry, complete_show_func_one, &args);
-
-	if (!args.ret) {
-		/* Pass 2: Look for any case */
-		args.exact = 0;
-		cw_registry_iterate(&func_registry, complete_show_func_one, &args);
-	}
-
-	return args.ret; 
 }
 
 

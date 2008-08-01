@@ -2275,34 +2275,21 @@ static char *model2str(int model)
 	}
 }
 
-static char *complete_peer_helper(char *line, char *word, int pos, int state, int rpos)
+static void complete_peer_4(int fd, char *line, int pos, char *word, int word_len)
 {
-	int which=0;
-	char *ret;
-	struct dundi_peer *p;
 	char eid_str[20];
-	if (pos != rpos)
-		return NULL;
-	cw_mutex_lock(&peerlock);
-	p = peers;
-	while(p) {
-		if (!strncasecmp(word, dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), strlen(word))) {
-			if (++which > state)
-				break;
-		}
-		p = p->next;
-	}
-	if (p) {
-		ret = strdup(dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
-	} else
-		ret = NULL;
-	cw_mutex_unlock(&peerlock);
-	return ret;
-}
+	struct dundi_peer *p;
 
-static char *complete_peer_4(char *line, char *word, int pos, int state)
-{
-	return complete_peer_helper(line, word, pos, state, 3);
+	if (pos == 3) {
+		cw_mutex_lock(&peerlock);
+
+		for (p = peers; p; p = p->next) {
+			if (!strncasecmp(word, dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), word_len))
+				cw_cli(fd, "%s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
+		}
+
+		cw_mutex_unlock(&peerlock);
+	}
 }
 
 static int rescomp(const void *a, const void *b)

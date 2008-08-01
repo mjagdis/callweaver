@@ -3882,23 +3882,12 @@ static int get_group(char *s)
     return group;
 }
 
-static char *complete_span(char *line, char *word, int pos, int state)
+static void complete_span(int fd, char *line, int pos, char *word, int word_len)
 {
     int span;
-    char tmp[50];
 
     for (span = 1;  span <= NUM_SPANS;  span++)
-    {
-        if (span > state)
-        {
-            snprintf(tmp, sizeof(tmp), "%d", span);
-            return strdup(tmp);
-        }
-        /*endif*/
-        span++;
-    }
-    /*endfor*/
-    return NULL;
+        cw_cli(fd, "%d\n", span);
 }
 
 static int handle_uc_debug(int fd, int argc, char *argv[])
