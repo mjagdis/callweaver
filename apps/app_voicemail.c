@@ -5642,22 +5642,22 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static void complete_show_voicemail_users(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_voicemail_users(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_vm_user *vmu;
 	char *context = "";
 
 	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
-	if (pos > 4)
+	if (lastarg > 4)
 		return;
 
-	if (pos == 3) {
+	if (lastarg == 3) {
 		cw_cli(fd, "for\n");
 		return;
 	}
 
 	for (vmu = users; vmu; vmu = vmu->next) {
-		if (!strncasecmp(word, vmu->context, word_len)) {
+		if (!strncasecmp(argv[lastarg], vmu->context, lastarg_len)) {
 			if (context && strcmp(context, vmu->context)) {
 				cw_cli(fd, "%s\n", vmu->context);
 				context = vmu->context;

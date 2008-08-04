@@ -10913,7 +10913,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
-static void complete_sipch(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sipch(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     struct sip_pvt *cur;
 
@@ -10921,7 +10921,7 @@ static void complete_sipch(int fd, char *line, int pos, char *word, int word_len
 
     for (cur = iflist; cur; cur = cur->next)
     {
-        if (!strncasecmp(word, cur->callid, strlen(word)))
+        if (!strncasecmp(argv[lastarg], cur->callid, lastarg_len))
 		cw_cli(fd, "%s\n", cur->callid);
     }
 
@@ -10942,17 +10942,17 @@ static void complete_sip_peer(int fd, char *word, int word_len, int flags2)
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
-static void complete_sip_show_peer(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sip_show_peer(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 3)
-        complete_sip_peer(fd, word, word_len, 0);
+    if (lastarg == 3)
+        complete_sip_peer(fd, argv[3], lastarg_len, 0);
 }
 
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
-static void complete_sip_debug_peer(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sip_debug_peer(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 3)
-         complete_sip_peer(fd, word, word_len, 0);
+    if (lastarg == 3)
+         complete_sip_peer(fd, argv[3], lastarg_len, 0);
 }
 
 /*! \brief  complete_sip_user: Do completion on user name */
@@ -10969,16 +10969,16 @@ static void complete_sip_user(int fd, char *word, int word_len, int flags2)
 }
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
-static void complete_sip_show_user(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sip_show_user(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 3)
-        complete_sip_user(fd, word, word_len, 0);
+    if (lastarg == 3)
+        complete_sip_user(fd, argv[3], lastarg_len, 0);
 }
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
-static void complete_sipnotify(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sipnotify(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 2)
+    if (lastarg == 2)
     {
         char *cat;
 
@@ -10988,27 +10988,27 @@ static void complete_sipnotify(int fd, char *line, int pos, char *word, int word
 	{
             for (cat = cw_category_browse(notify_types, NULL); cat; cat = cw_category_browse(notify_types, cat))
             {
-                if (!strncasecmp(word, cat, word_len))
+                if (!strncasecmp(argv[2], cat, lastarg_len))
                     cw_cli(fd, "%s\n", cat);
             }
         }
     }
-    else if (pos > 2)
-        complete_sip_peer(fd, word, word_len, 0);
+    else if (lastarg > 2)
+        complete_sip_peer(fd, argv[lastarg], lastarg_len, 0);
 }
 
 /*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI */
-static void complete_sip_prune_realtime_peer(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sip_prune_realtime_peer(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 4)
-        complete_sip_peer(fd, word, word_len, SIP_PAGE2_RTCACHEFRIENDS);
+    if (lastarg == 4)
+        complete_sip_peer(fd, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI */
-static void complete_sip_prune_realtime_user(int fd, char *line, int pos, char *word, int word_len)
+static void complete_sip_prune_realtime_user(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 4)
-        complete_sip_user(fd, word, word_len, SIP_PAGE2_RTCACHEFRIENDS);
+    if (lastarg == 4)
+        complete_sip_user(fd, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  sip_show_channel: Show details of one call */

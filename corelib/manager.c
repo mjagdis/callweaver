@@ -356,12 +356,12 @@ static int complete_show_manact_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static void complete_show_manact(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_manact(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_manact_args args = {
 		.fd = fd,
-		.word = word,
-		.word_len = word_len,
+		.word = argv[lastarg],
+		.word_len = lastarg_len,
 	};
 
 	cw_registry_iterate(&manager_action_registry, complete_show_manact_one, &args);
@@ -397,12 +397,12 @@ static const char showmancmds_help[] =
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
-static void complete_show_manacts(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_manacts(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	if (pos == 3) {
-		if (!strncasecmp(word, "like", word_len))
+	if (lastarg == 3) {
+		if (!strncasecmp(argv[3], "like", lastarg_len))
 			cw_cli(fd, "like\n");
-		if (!strncasecmp(word, "describing", word_len))
+		if (!strncasecmp(argv[3], "describing", lastarg_len))
 			cw_cli(fd, "describing\n");
 	}
 }

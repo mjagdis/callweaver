@@ -2275,16 +2275,16 @@ static char *model2str(int model)
 	}
 }
 
-static void complete_peer_4(int fd, char *line, int pos, char *word, int word_len)
+static void complete_peer_4(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	char eid_str[20];
 	struct dundi_peer *p;
 
-	if (pos == 3) {
+	if (lastarg == 3) {
 		cw_mutex_lock(&peerlock);
 
 		for (p = peers; p; p = p->next) {
-			if (!strncasecmp(word, dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), word_len))
+			if (!strncasecmp(argv[3], dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), lastarg_len))
 				cw_cli(fd, "%s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
 		}
 

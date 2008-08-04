@@ -1179,13 +1179,13 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	return RESULT_SUCCESS ;
 }
 
-static void complete_ch(int fd, char *line, int pos, char *word, int word_len)
+static void complete_ch(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_channel *c;
 
-	if (pos == 3) {
+	if (lastarg == 3) {
 		for (c = cw_channel_walk_locked(NULL); c; c = cw_channel_walk_locked(c)) {
-			if (!strncasecmp(word, c->name, strlen(word)))
+			if (!strncasecmp(argv[3], c->name, lastarg_len))
 				cw_cli(fd, "%s\n", c->name);
 
 			cw_mutex_unlock(&c->lock);
@@ -1193,60 +1193,60 @@ static void complete_ch(int fd, char *line, int pos, char *word, int word_len)
 	}
 }
 
-static void complete_debug_port(int fd, char *line, int pos, char *word, int word_len)
+static void complete_debug_port(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	switch (pos) {
+	switch (lastarg) {
 		case 4:
-			if (!strncmp(word, "port", word_len))
+			if (!strncmp(argv[4], "port", lastarg_len))
 				cw_cli(fd, "port\n");
-			if (!strncmp(word, "only", word_len))
+			if (!strncmp(argv[4], "only", lastarg_len))
 				cw_cli(fd, "only\n");
 			break;
 		case 6:
-			if (!strncmp(word, "only", word_len))
+			if (!strncmp(argv[6], "only", lastarg_len))
 				cw_cli(fd, "only\n");
 			break;
 	}
 }
 
-static void complete_show_config(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_config(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
 	int port = 0;
 
-	switch (pos) {
+	switch (lastarg) {
 		case 3:
-			if ((!strncmp(word, "description", word_len)))
+			if ((!strncmp(argv[3], "description", lastarg_len)))
 				cw_cli(fd, "description\n");
 
-			if ((!strncmp(word, "descriptions", word_len)))
+			if ((!strncmp(argv[3], "descriptions", lastarg_len)))
 				cw_cli(fd, "descriptions\n");
 
-			if ((!strncmp(word, "0", word_len)))
+			if ((!strncmp(argv[3], "0", lastarg_len)))
 				cw_cli(fd, "0\n");
 
 			while ((port = misdn_cfg_get_next_port(port)) != -1) {
 				snprintf(buffer, sizeof(buffer), "%d", port);
-				if ((!strncmp(word, buffer, word_len)))
+				if ((!strncmp(argv[3], buffer, lastarg_len)))
 					cw_cli(fd, "%s\n", buffer);
 			}
 			break;
 
 		case 4:
-			if (strstr(line, "description ")) {
+			if (!strcmp(argv[3], "description")) {
 				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
 					if ((elem == MISDN_CFG_LAST) || (elem == MISDN_GEN_FIRST))
 						continue;
 
 					misdn_cfg_get_name(elem, buffer, BUFFERSIZE);
-					if (!strncmp(word, buffer, word_len))
+					if (!strncmp(argv[4], buffer, lastarg_len))
 						cw_cli(fd, "%s\n", buffer);
 				}
-			} else if (strstr(line, "descriptions ")) {
-				if (!strncmp(word, "general", word_len))
+			} else if (!strcmp(argv[3], "descriptions")) {
+				if (!strncmp(argv[4], "general", lastarg_len))
 					cw_cli(fd, "general\n");
-				if (!strncmp(word, "ports", word_len))
+				if (!strncmp(argv[4], "ports", lastarg_len))
 					cw_cli(fd, "ports\n");
 			}
 			break;

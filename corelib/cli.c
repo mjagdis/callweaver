@@ -735,20 +735,20 @@ static int handle_showchan(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static void complete_show_channels(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_channels(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *choices[] = { "concise", "verbose" };
     int i;
 
-    if (pos == 2) {
+    if (lastarg == 2) {
         for (i = 0; i < sizeof(choices) / sizeof(choices[0]); i++) {
-            if (!strncasecmp(word, choices[i], word_len))
+            if (!strncasecmp(argv[2], choices[i], lastarg_len))
                 cw_cli(fd, "%s\n", choices[i]);
         }
     }
 }
 
-static void complete_ch_helper(int fd, char *line, int pos, char *word, int word_len)
+static void complete_ch_helper(int fd, char *word, int word_len)
 {
     struct cw_channel *c = NULL;
 
@@ -759,16 +759,16 @@ static void complete_ch_helper(int fd, char *line, int pos, char *word, int word
     }
 }
 
-static void complete_ch_3(int fd, char *line, int pos, char *word, int word_len)
+static void complete_ch_3(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 2)
-        complete_ch_helper(fd, line, pos, word, word_len);
+    if (lastarg == 2)
+        complete_ch_helper(fd, argv[2], lastarg_len);
 }
 
-static void complete_ch_4(int fd, char *line, int pos, char *word, int word_len)
+static void complete_ch_4(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (pos == 3)
-        complete_ch_helper(fd, line, pos, word, word_len);
+    if (lastarg == 3)
+        complete_ch_helper(fd, argv[3], lastarg_len);
 }
 
 
@@ -1036,13 +1036,11 @@ static int cli_generator_one(struct cw_object *obj, void *data)
     }
 
     /* If we matched everything we were given we have a result. */
-    if (i == args->lastarg) {
-        if (clicmd->cmda[i]) {
-            if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
-                cw_cli(args->fd, "%s\r\n", clicmd->cmda[i]);
-        } else if (clicmd->generator) {
-            clicmd->generator(args->fd, args->matchstr, i, args->argv[args->lastarg], args->lastarg_len);
-        }
+    if (i == args->lastarg && clicmd->cmda[i]) {
+        if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
+            cw_cli(args->fd, "%s\r\n", clicmd->cmda[i]);
+    } else if (!clicmd->cmda[i] && clicmd->generator) {
+        clicmd->generator(args->fd, args->argv, args->lastarg, args->lastarg_len);
     }
 
     return 0;

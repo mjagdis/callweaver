@@ -426,28 +426,27 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 
 
 
-static void complete_exten_at_context(int fd, char *line, int pos, char *word, int word_len)
+static void complete_exten_at_context(int fd, char *argv[], int lastarg, int lastarg_len)
 {
+	struct cw_context *c;
+	struct cw_exten *e;
+	char *context = NULL, *exten = NULL, *delim = NULL;
+
 	/*
 	 * exten@context completion ... 
 	 */
-	if (pos == 2) {
-		struct cw_context *c;
-		struct cw_exten *e;
-		char *context = NULL, *exten = NULL, *delim = NULL;
-
+	if (lastarg == 2) {
 		/* now, parse values from word = exten@context */
-		if ((delim = strchr(word, '@'))) {
+		if ((delim = strchr(argv[2], '@'))) {
 			/* check for duplicity ... */
-			if (delim != strrchr(word, '@'))
+			if (delim != strrchr(argv[2], '@'))
 				return;
 
 			*delim = '\0';
-			exten = strdup(word);
-			context = strdup(delim + 1);
-			*delim = '@';
+			exten = argv[2];
+			context = delim + 1;
 		} else {
-			exten = strdup(word);
+			exten = argv[2];
 		}
 
 		if (!cw_lock_contexts()) {
@@ -480,85 +479,49 @@ static void complete_exten_at_context(int fd, char *line, int pos, char *word, i
 		} else
 			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 
-		free(exten);
-		if (context)
-			free(context);
+		*delim = '@';
 	}
 
 	/*
 	 * Complete priority ...
 	 */
-	if (pos == 3) {
-		char *delim, *exten, *context, *dupline, *duplinet, *ec;
-		struct cw_context *c;
-
-		dupline = strdup(line);
-		if (!dupline)
-			return;
-		duplinet = dupline;
-
-		strsep(&duplinet, " "); /* skip 'remove' */
-		strsep(&duplinet, " "); /* skip 'extension */
-
-		if (!(ec = strsep(&duplinet, " "))) {
-			free(dupline);
-			return;
-		}
-
+	else if (lastarg == 3) {
 		/* wrong exten@context format? */
-		if (!(delim = strchr(ec, (int)'@')) ||
-			(strchr(ec, (int)'@') != strrchr(ec, (int)'@'))) {
-			free(dupline);
+		if (!(delim = strchr(argv[2], '@')) || delim != strrchr(argv[2], '@') || delim == argv[2] || !delim[1])
 			return;
-		}
 
-		/* check if there is exten and context too ... */
 		*delim = '\0';
-		if ((!strlen(ec)) || (!strlen(delim + 1))) {
-			free(dupline);
-			return;
-		}
-
-		exten = strdup(ec);
-		context = strdup(delim + 1);
-		free(dupline);
 
 		if (cw_lock_contexts()) {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-			free(exten); free(context);
-			return;
-		}
+			/* walk contexts */
+			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
+				if (!strcmp(cw_get_context_name(c), delim + 1)) {
+					/* walk extensions */
+					for (e = cw_walk_context_extensions(c, NULL); e; e = cw_walk_context_extensions(c, e)) {
+						if (!strcmp(cw_get_extension_name(e), argv[2])) {
+							struct cw_exten *priority;
+							char buffer[10];
 
-		/* walk contexts */
-		for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
-			if (!strcmp(cw_get_context_name(c), context)) {
-				struct cw_exten *e;
-
-				/* walk extensions */
-				for (e = cw_walk_context_extensions(c, NULL); e; e = cw_walk_context_extensions(c, e)) {
-					if (!strcmp(cw_get_extension_name(e), exten)) {
-						struct cw_exten *priority;
-						char buffer[10];
-
-						for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
-							snprintf(buffer, sizeof(buffer), "%u", cw_get_extension_priority(priority));
-							if (!strncmp(word, buffer, word_len))
-								cw_cli(fd, "%s\n", buffer);
+							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
+								snprintf(buffer, sizeof(buffer), "%u", cw_get_extension_priority(priority));
+								if (!strncmp(argv[3], buffer, lastarg_len))
+									cw_cli(fd, "%s\n", buffer);
+							}
 						}
 					}
 				}
 			}
-		}
 
-		free(exten);
-		free(context);
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 
-		cw_unlock_contexts();
+		*delim = '@';
 	}
 }
 
 
-static void complete_ch_helper(int fd, char *line, int pos, char *word, int word_len)
+static void complete_ch_helper(int fd, char *word, int word_len)
 {
     struct cw_channel *c;
 
@@ -570,21 +533,19 @@ static void complete_ch_helper(int fd, char *line, int pos, char *word, int word
     }
 }
 
-static void complete_cg(int fd, char *line, int pos, char *word, int word_len)
+static void complete_cg(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 
-	if (pos == 1)
-		complete_ch_helper(fd, line, pos, word, word_len);
-	else if (pos >= 2)
-		complete_exten_at_context(fd, line, pos, word, word_len);
-
+	if (lastarg == 1)
+		complete_ch_helper(fd, argv[lastarg], lastarg_len);
+	else if (lastarg >= 2)
+		complete_exten_at_context(fd, argv, lastarg, lastarg_len);
 }
 
-static void complete_org(int fd, char *line, int pos, char *word, int word_len)
+static void complete_org(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	if (pos >= 2)
-		complete_exten_at_context(fd, line, pos, word, word_len);
-
+	if (lastarg >= 2)
+		complete_exten_at_context(fd, argv, lastarg, lastarg_len);
 }
 
 

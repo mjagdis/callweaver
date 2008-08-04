@@ -3882,7 +3882,7 @@ static int get_group(char *s)
     return group;
 }
 
-static void complete_span(int fd, char *line, int pos, char *word, int word_len)
+static void complete_span(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     int span;
 

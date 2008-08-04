@@ -677,69 +677,56 @@ static int conf_cmd(int fd, int argc, char **argv)
     return 0;
 }
 
-static void complete_confcmd(int fd, char *line, int pos, char *word, int word_len)
+static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
 {
+    static const char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
     int x = 0;
     struct cw_conference *cnf = NULL;
     struct cw_conf_user *usr = NULL;
-    char *confno = NULL;
     char usrno[50] = "";
-    const char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
-    char *myline;
 
-    if (pos == 1)
+    if (lastarg == 1)
     {
         /* Command */
         for (x = 0; x < arraysize(cmds); x++)
         {
-            if (!strncasecmp(cmds[x], word, word_len))
+            if (!strncasecmp(cmds[x], argv[1], lastarg_len))
                 cw_cli(fd, "%s\n", cmds[x]);
         }
     }
-    else if (pos == 2)
+    else if (lastarg == 2)
     {
         /* Conference Number */
         cw_mutex_lock(&conflock);
         for (cnf = confs; cnf; cnf = cnf->next)
         {
-            if (!strncasecmp(word, cnf->confno, word_len))
+            if (!strncasecmp(argv[2], cnf->confno, lastarg_len))
                 cw_cli(fd, "%s\n", cnf->confno);
         }
         cw_mutex_unlock(&conflock);
     }
-    else if (pos == 3)
+    else if (lastarg == 3)
     {
         /* User Number || Conf Command option*/
-        if (strstr(line, "mute") || strstr(line, "kick"))
+        if (!strcmp(argv[1], "mute") || !strcmp(argv[1], "kick"))
         {
-            if ((strstr(line, "kick") || strstr(line,"mute")) && !(strncasecmp(word, "all", word_len)))
+            if ((!strcmp(argv[1], "kick") || !strcmp(argv[1],"mute")) && !(strncasecmp(argv[3], "all", lastarg_len)))
                 cw_cli(fd, "all\n");
 
             cw_mutex_lock(&conflock);
 
-            cnf = confs;
-
-            /* TODO: Find the conf number from the cmdline (ignore spaces) <- test this and make it fail-safe! */
-            myline = cw_strdupa(line);
-            if (strsep(&myline, " ") && strsep(&myline, " ") && !confno)
+            for (cnf = confs; cnf; cnf = cnf->next)
             {
-                while ((confno = strsep(&myline, " ")) && (strcmp(confno, " ") == 0))
-                    ;
-            }
-
-            while (cnf)
-            {
-                if (!strcmp(confno, cnf->confno))
+                if (!strcmp(argv[2], cnf->confno))
 		{
                     /* Search for the user */
                     for (usr = cnf->firstuser; usr; usr = usr->nextuser)
                     {
                         snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
-                        if (!strncasecmp(word, usrno, word_len))
+                        if (!strncasecmp(argv[3], usrno, lastarg_len))
                             cw_cli(fd, "%s\n", usrno);
                     }
 		}
-                cnf = cnf->next;
             }
 
             cw_mutex_unlock(&conflock);

@@ -279,7 +279,7 @@ static int ag_unsol_cind(blt_dev_t *, const char *);
 static int ag_unsol_clip(blt_dev_t *, const char *);
 
 static int blt_parse_config(void);
-static void complete_device_2_ag(int, char *, int, char *, int);
+static void complete_device_2_ag(int fd, char *argv[], int lastarg, int lastarg_len);
 
 /*! Bluetooth: channel tech callback information */
 static const struct cw_channel_tech blt_tech = {

@@ -2741,17 +2741,17 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static void complete_show_dialplan_context(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_dialplan_context(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_context *c;
 
-    if (pos == 2)
+    if (lastarg == 2)
     {
         if (!cw_lock_contexts())
         {
             for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
 	    {
-                if (!strncasecmp(word, cw_get_context_name(c), word_len))
+                if (!strncasecmp(argv[2], cw_get_context_name(c), lastarg_len))
                     cw_cli(fd, "%s\n", cw_get_context_name(c));
 	    }
             cw_unlock_contexts();

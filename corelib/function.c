@@ -226,12 +226,12 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 }
 
 
-static void complete_show_functions(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_functions(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	if (pos == 2) {
-		if (!strncasecmp(word, "like", word_len))
+	if (lastarg == 2) {
+		if (!strncasecmp(argv[2], "like", lastarg_len))
 			cw_cli(fd, "like\n");
-		if (!strncasecmp(word, "describing", word_len))
+		if (!strncasecmp(argv[2], "describing", lastarg_len))
 			cw_cli(fd, "describing\n");
 	}
 }
@@ -332,12 +332,12 @@ static int complete_show_func_one(struct cw_object *obj, void *data)
 
 	return 0;
 }
-static void complete_show_function(int fd, char *line, int pos, char *word, int word_len)
+static void complete_show_function(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_func_args args = {
 		.fd = fd,
-		.word = word,
-		.word_len = word_len,
+		.word = argv[lastarg],
+		.word_len = lastarg_len,
 	};
 
 	cw_registry_iterate(&func_registry, complete_show_func_one, &args);

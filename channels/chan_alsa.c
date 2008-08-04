@@ -2910,12 +2910,12 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return res;
 }
 
-static void autoanswer_complete(int fd, char *line, int pos, char *word, int word_len)
+static void autoanswer_complete(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	if (!strncasecmp(word, "on", word_len))
+	if (!strncasecmp(argv[lastarg], "on", lastarg_len))
 		cw_cli(fd, "on\n");
 
-	if (!strncasecmp(word, "off", word_len))
+	if (!strncasecmp(argv[lastarg], "off", lastarg_len))
 		cw_cli(fd, "off\n");
 }
 

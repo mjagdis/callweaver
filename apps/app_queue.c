@@ -3808,7 +3808,7 @@ static int queue_show(int fd, int argc, char **argv)
     return __queues_show(0, fd, argc, argv, 1);
 }
 
-static void complete_queue(int fd, char *line, int pos, char *word, int word_len)
+static void complete_queue(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
 
@@ -3816,7 +3816,7 @@ static void complete_queue(int fd, char *line, int pos, char *word, int word_len
 
     for (q = queues; q; q = q->next)
     {
-        if (!strncasecmp(word, q->name, word_len))
+        if (!strncasecmp(argv[lastarg], q->name, lastarg_len))
             cw_cli(fd, "%s\n", q->name);
     }
 
@@ -4151,25 +4151,27 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
     }
 }
 
-static void complete_add_queue_member(int fd, char *line, int pos, char *word, int word_len)
+static void complete_add_queue_member(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     int i;
 
     /* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
-    switch (pos)
+    switch (lastarg)
     {
     case 3:
         /* Don't attempt to complete name of member (infinite possibilities) */
         break;
     case 4:
-        cw_cli(fd, "to\n");
+        if (!strncmp(argv[4], "to", lastarg_len))
+            cw_cli(fd, "to\n");
         break;
     case 5:
         /* No need to duplicate code */
-        complete_queue(fd, line, pos, word, word_len);
+        complete_queue(fd, argv, lastarg, lastarg_len);
         break;
     case 6:
-        cw_cli(fd, "penalty\n");
+        if (!strncmp(argv[6], "penalty", lastarg_len))
+            cw_cli(fd, "penalty\n");
         break;
     case 7:
         for (i = 0; i < 100; i++)
@@ -4213,27 +4215,28 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
     }
 }
 
-static void complete_remove_queue_member(int fd, char *line, int pos, char *word, int word_len)
+static void complete_remove_queue_member(int fd, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
     struct member *m;
 
     /* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue> */
-    if ((pos > 5) || (pos < 3))
+    if ((lastarg > 5) || (lastarg < 3))
     {
         return;
     }
 
-    if (pos == 4)
+    if (lastarg == 4)
     {
-        cw_cli(fd, "from\n");
+        if (!strncmp(argv[4], "from", lastarg_len))
+            cw_cli(fd, "from\n");
         return;
     }
 
-    if (pos == 5)
+    if (lastarg == 5)
     {
         /* No need to duplicate code */
-        complete_queue(fd, line, pos, word, word_len);
+        complete_queue(fd, argv, lastarg, lastarg_len);
         return;
     }
 
@@ -4241,7 +4244,8 @@ static void complete_remove_queue_member(int fd, char *line, int pos, char *word
     {
         cw_mutex_lock(&q->lock);
         for (m = q->members; m; m = m->next)
-            cw_cli(fd, "%s\n", m->interface);
+            if (!strncmp(argv[lastarg], m->interface, lastarg_len))
+                cw_cli(fd, "%s\n", m->interface);
         cw_mutex_unlock(&q->lock);
     }
 }

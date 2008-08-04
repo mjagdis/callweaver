@@ -2609,28 +2609,27 @@ blt_ag_sendcmd(int fd, int argc, char *argv[])
 }
 
 static void
-complete_device(int fd, char * line, int pos, char * word, int word_len, int rpos, blt_role_t role)
+complete_device(int fd, char *argv[], int lastarg, int lastarg_len, int rpos, blt_role_t role)
 {
   blt_dev_t * dev;
 
-  if (pos != rpos)
-    return;
+  if (lastarg == rpos) {
+    cw_mutex_lock(&iface_lock);
 
-  cw_mutex_lock(&iface_lock);
-
-  for (dev = iface_head; dev; dev = dev->next) {
-    if ((dev->role == role) && (!strncasecmp(word, dev->name, word_len))) {
-      cw_cli(fd, "%s\n", dev->name);
+    for (dev = iface_head; dev; dev = dev->next) {
+      if ((dev->role == role) && (!strncasecmp(argv[lastarg], dev->name, lastarg_len))) {
+        cw_cli(fd, "%s\n", dev->name);
+      }
     }
-  }
 
-  cw_mutex_unlock(&iface_lock);
+    cw_mutex_unlock(&iface_lock);
+  }
 }
 
 static void
-complete_device_2_ag(int fd, char * line, int pos, char * word, int word_len)
+complete_device_2_ag(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-  return complete_device(fd, line, pos, word, word_len, 2, BLT_ROLE_AG);
+  complete_device(fd, argv, lastarg, lastarg_len, 2, BLT_ROLE_AG);
 }
 
 static void remove_sdp_records(void)

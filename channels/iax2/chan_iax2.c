@@ -1614,16 +1614,16 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static void complete_iax2_show_peer(int fd, char *line, int pos, char *word, int word_len)
+static void complete_iax2_show_peer(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct iax2_peer *p;
 
 	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
-	if(pos == 3) {
+	if (lastarg == 3) {
 		cw_mutex_lock(&peerl.lock);
 
 		for (p = peerl.peers; p; p = p->next) {
-			if (!strncasecmp(p->name, word, word_len))
+			if (!strncasecmp(p->name, argv[3], lastarg_len))
 				cw_cli(fd, "%s\n", p->name);
 		}
 

@@ -162,14 +162,14 @@ int cw_unload_resource(const char *resource_name, int hangup)
 	return -1;
 }
 
-static void module_generator(int fd, char *line, int pos, char *word, int word_len)
+static void module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct module *m;
 
 	cw_mutex_lock(&module_lock);
 
 	for (m = module_list; m; m = m->next) {
-		if (!strncasecmp(word, m->resource, word_len))
+		if (!strncasecmp(argv[lastarg], m->resource, lastarg_len))
 			cw_cli(fd, "%s\n", m->resource);
 	}
 
@@ -574,7 +574,7 @@ static int handle_reload(int fd, int argc, char *argv[])
 }
 
 
-static void reload_module_generator(int fd, char *line, int pos, char *word, int word_len)
+static void reload_module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *core[] = {
 		"extconfig",
@@ -587,11 +587,11 @@ static void reload_module_generator(int fd, char *line, int pos, char *word, int
 	int i;
 
 	for (i = 0; i < arraysize(core); i++) {
-		if (!strncasecmp(word, core[i], word_len))
+		if (!strncasecmp(argv[lastarg], core[i], lastarg_len))
 			cw_cli(fd, "%s\n", core[i]);
 	}
 
-	module_generator(fd, line, pos, word, word_len);
+	module_generator(fd, argv, lastarg, lastarg_len);
 }
 
 
