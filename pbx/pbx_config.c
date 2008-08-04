@@ -155,41 +155,17 @@ static void complete_context_dont_include(int fd, char *argv[], int lastarg, int
 			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 				if (!cw_lock_context(c)) {
 					for (i = cw_walk_context_includes(c, NULL); i; i = cw_walk_context_includes(c, i)) {
-						if (!strncmp(argv[2], cw_get_include_name(i), lastarg_len)) {
-							struct cw_context *nc;
-							int already_served = 0;
-
-							/* check if this include is already served or not */
-	
-							/* go through all contexts again until we reach actual
-							 * context or already_served = 1
-							 */
-							for (nc = cw_walk_contexts(NULL); nc && nc != c && !already_served; nc = cw_walk_contexts(nc)) {
-								if (!cw_lock_context(nc)) {
-									struct cw_include *ni;
-
-									for (ni = cw_walk_context_includes(nc, NULL); ni && !already_served; ni = cw_walk_context_includes(nc, ni)) {
-										if (!strcmp(cw_get_include_name(i), cw_get_include_name(ni)))
-											already_served = 1;
-									}	
-							
-									cw_unlock_context(nc);
-								}
-							}
-
-							if (!already_served)
-								cw_cli(fd, "%s\n", cw_get_include_name(i));
-						}
+						if (!strncmp(argv[2], cw_get_include_name(i), lastarg_len))
+							cw_cli(fd, "%s\n", cw_get_include_name(i));
 					}
 
 					cw_unlock_context(c);
 				}
 			}
-		} else {
-			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
-		}
 
-		cw_unlock_contexts();
+			cw_unlock_contexts();
+		} else
+			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 	}
 
 	/*
@@ -506,26 +482,8 @@ static void complete_context_add_include(int fd, char *argv[], int lastarg, int 
 					/* go through all contexts ... */
 					for (c2 = cw_walk_contexts(NULL); c2; c2 = cw_walk_contexts(c2)) {
 						/* must be different contexts ... */
-						if (c2 != c) {
-							if (!cw_lock_context(c2)) {
-								struct cw_include *i;
-								int included = 0;
-
-								/* check for duplicate inclusion ... */
-								for (i = cw_walk_context_includes(c2, NULL); i && !included; i = cw_walk_context_includes(c2, i)) {
-									if (!strcmp(cw_get_include_name(i), argv[1])) {
-										included = 1;
-										break;
-									}
-								}
-
-								cw_unlock_context(c2);
-
-								/* not included yet, so show possibility ... */
-								if (!included && !strncmp(cw_get_context_name(c2), argv[3], lastarg_len))
-									cw_cli(fd, "%s\n", cw_get_context_name(c2));
-							}
-						}
+						if (c2 != c && !strncmp(cw_get_context_name(c2), argv[3], lastarg_len))
+							cw_cli(fd, "%s\n", cw_get_context_name(c2));
 					}
 					break;
 				}
@@ -1021,26 +979,8 @@ static void complete_context_remove_ignorepat(int fd, char *argv[], int lastarg,
 					struct cw_ignorepat *ip;
 			
 					for (ip = cw_walk_context_ignorepats(c, NULL); ip; ip = cw_walk_context_ignorepats(c, ip)) {
-						if (!strncmp(cw_get_ignorepat_name(ip), argv[2], lastarg_len)) {
-							struct cw_context *cw;
-							int already_served = 0;
-
-							for (cw = cw_walk_contexts(NULL); cw && cw != c && !already_served; cw = cw_walk_contexts(cw)) {
-								if (!cw_lock_context(cw)) {
-									struct cw_ignorepat *ipw;
-
-									for (ipw = cw_walk_context_ignorepats(cw, NULL); ipw; ipw = cw_walk_context_ignorepats(cw, ipw)) {
-										if (!strcmp(cw_get_ignorepat_name(ipw), cw_get_ignorepat_name(ip)))
-											already_served = 1;
-									}
-
-									cw_unlock_context(cw);
-								}
-							}
-
-							if (!already_served)
-								cw_cli(fd, "%s\n", cw_get_ignorepat_name(ip));
-						}
+						if (!strncmp(cw_get_ignorepat_name(ip), argv[2], lastarg_len))
+							cw_cli(fd, "%s\n", cw_get_ignorepat_name(ip));
 					}
 
 					cw_unlock_context(c);
