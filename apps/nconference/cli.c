@@ -174,7 +174,7 @@ int nconference_admin_exec( int fd, int argc, char *argv[] )
 			cw_cli(fd, "No active conferences.\n");
 			return RESULT_SUCCESS;
 		}
-		cw_cli(fd, " %-s    %7s\n", "Conf. Num", "mEMBERS");
+		cw_cli(fd, " %-s    %7s\n", "Conf. Num", "Members");
 		while(conf) {
 			if (conf->membercount == 0)
 				cw_copy_string(cmdline, "N/A ", sizeof(cmdline) );
