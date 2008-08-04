@@ -1605,10 +1605,6 @@ static void manager_session_cleanup(void *data)
 				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
 			cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
 		}
-	} else {
-		if (option_verbose > 2 && displayconnects)
-			cw_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", sess->name);
-		cw_log(CW_LOG_EVENT, "Failed attempt from %s\n", sess->name);
 	}
 
 	if (!pthread_equal(sess->reader_tid, CW_PTHREADT_NULL)) {
