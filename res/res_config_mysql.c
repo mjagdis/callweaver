@@ -213,7 +213,7 @@ static struct cw_config *realtime_multi_mysql(const char *database, const char *
 	cfg = cw_config_new();
 	if (!cfg) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 
@@ -281,7 +281,7 @@ static struct cw_config *realtime_multi_mysql(const char *database, const char *
 			var = NULL;
 			cat = cw_category_new("");
 			if(!cat) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				continue;
 			}
 			for(i = 0; i < numFields; i++) {
@@ -443,7 +443,7 @@ static struct cw_config *config_mysql(const char *database, const char *table, c
 			if(strcmp(last, row[0]) || last_cat_metric != atoi(row[3])) {
 				cur_cat = cw_category_new(row[0]);
 				if (!cur_cat) {
-					cw_log(CW_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory\n");
 					break;
 				}
 				strcpy(last, row[0]);

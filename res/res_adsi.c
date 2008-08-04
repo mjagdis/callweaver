@@ -250,7 +250,7 @@ static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg
 				lin = mem;
 				buf = mem + 24000 * 5 * sizeof(uint16_t);
 			} else {
-				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				cw_log(CW_LOG_ERROR, "Out of memory\n");
 				return -1;
 			}
 		}

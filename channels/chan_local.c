@@ -373,7 +373,7 @@ static int local_call(struct cw_channel *ast, char *dest)
 			new->value = &(new->name[0]) + namelen + 1;
 			CW_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
 		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
 		}
 	}
 

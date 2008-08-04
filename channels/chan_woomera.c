@@ -1262,7 +1262,7 @@ static int config_woomera(void)
 						if((profile = create_woomera_profile(&default_profile))) {
 							new = 1;
 						} else {
-							cw_log(CW_LOG_ERROR, "Memory Error!\n");
+							cw_log(CW_LOG_ERROR, "Out of memory\n");
 						}
 					}
 				}

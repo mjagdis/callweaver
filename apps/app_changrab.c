@@ -239,7 +239,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		struct cw_channel *newchan_1, *newchan_2;
 		
 		if (!(newchan_1 = cw_channel_alloc(0))) {
-			cw_log(CW_LOG_WARNING, "Memory Error!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			cw_hangup(newchan_1);
 			return -1;
 		} else {
@@ -270,7 +270,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 		}
 
 		if(!(newchan_2 = cw_channel_alloc(0))) {
-			cw_log(CW_LOG_WARNING, "Memory Error!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			cw_hangup(newchan_1);
 			return -1;
 		} else {
@@ -395,8 +395,8 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	}
 	in = malloc(sizeof(struct fast_originate_helper));
 	if(!in) {
-		cw_cli(fd,"No Memory!\n");
-        return -1;
+		cw_cli(fd,"Out of memory\n");
+		return -1;
 	}
 	memset(in,0,sizeof(struct fast_originate_helper));
 	

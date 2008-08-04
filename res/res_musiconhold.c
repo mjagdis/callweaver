@@ -913,7 +913,7 @@ static int load_moh_classes(void)
 		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {
 			class = moh_class_malloc();
 			if (!class) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				break;
 			}				
 			cw_copy_string(class->name, cat, sizeof(class->name));	
@@ -979,7 +979,7 @@ static int load_moh_classes(void)
 			if (!(get_mohbyname(var->name))) {
 				class = moh_class_malloc();
 				if (!class) {
-					cw_log(CW_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory\n");
 					return numclasses;
 				}
 				
@@ -1007,7 +1007,7 @@ static int load_moh_classes(void)
 				*args++ = '\0';
 			class = moh_class_malloc();
 			if (!class) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				return numclasses;
 			}
 			

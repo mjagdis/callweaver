@@ -5410,7 +5410,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 			cw_log(CW_LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 }
 
 struct iax_dual {

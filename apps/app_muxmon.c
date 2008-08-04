@@ -351,7 +351,7 @@ static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsig
 
     if (!(muxmon = malloc(sizeof(struct muxmon))))
     {
-        cw_log(CW_LOG_ERROR, "Memory Error!\n");
+        cw_log(CW_LOG_ERROR, "Out of memory\n");
         return;
     }
 

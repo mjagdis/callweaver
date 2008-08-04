@@ -120,7 +120,7 @@ struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr)
 	struct cw_cdr *newcdr;
 
 	if (!(newcdr = cw_cdr_alloc())) {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 

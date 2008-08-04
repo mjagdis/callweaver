@@ -74,7 +74,7 @@ static struct cw_frame *jpeg_read_image(int fd, int len)
         return fr;
     }
 
-    cw_log(CW_LOG_ERROR, "Out of memory!\n");
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
     return NULL;
 }
 

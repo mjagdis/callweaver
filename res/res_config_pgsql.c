@@ -230,7 +230,7 @@ static struct cw_config *realtime_multi_pgsql(const char *database, const char *
 	cfg = cw_config_new();
 	if (!cfg) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 
@@ -292,7 +292,7 @@ static struct cw_config *realtime_multi_pgsql(const char *database, const char *
 			var = NULL;
 			cat = cw_category_new("");
 			if (!cat) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				continue;
 			}
 
@@ -439,7 +439,7 @@ static struct cw_config *config_pgsql(const char *database, const char *table, c
 			if (strcmp(last, PQgetvalue(res, row, 0)) || last_cat_metric != atoi(PQgetvalue(res, row, 3))) {
 				cur_cat = cw_category_new(PQgetvalue(res, row, 0));
 				if (!cur_cat) {
-					cw_log(CW_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory\n");
 					break;
 				}
 				strcpy(last, PQgetvalue(res, row, 0));

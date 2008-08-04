@@ -234,7 +234,7 @@ int cw_db_put(const char *family, const char *keys, char *value)
 			res = 0;
 		}
 	} else {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;	/* Return an error */
 	}
 
@@ -305,7 +305,7 @@ retry_1:
 				res = -1;
 		}
 	} else {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -383,7 +383,7 @@ retry_2:
 				res = 0;
 		}
 	} else {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -494,7 +494,7 @@ retry_3:
 			res = 0;
 		}
 	} else {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;   /* Return an error */
 	}
 
@@ -583,7 +583,7 @@ static int database_show(int fd, int argc, char *argv[])
 			res = 0;
 		}
 	} else {
-		cw_log(CW_LOG_ERROR, "Memory Error!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;   /* Return an error */
 	}
 

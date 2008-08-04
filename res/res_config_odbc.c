@@ -280,7 +280,7 @@ static struct cw_config *realtime_multi_odbc(const char *database, const char *t
 
 	cfg = cw_config_new();
 	if (!cfg) {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
@@ -293,7 +293,7 @@ static struct cw_config *realtime_multi_odbc(const char *database, const char *t
 		}
 		cat = cw_category_new("");
 		if (!cat) {
-			cw_log(CW_LOG_WARNING, "Out of memory!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			continue;
 		}
 		for (x=0;x<colcount;x++) {
@@ -481,7 +481,7 @@ static struct cw_config *config_odbc(const char *database, const char *table, co
 		if (strcmp(last, category) || last_cat_metric != cat_metric) {
 			cur_cat = cw_category_new(category);
 			if (!cur_cat) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				break;
 			}
 			strcpy(last, category);

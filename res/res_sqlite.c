@@ -855,7 +855,7 @@ static struct cw_config *config_sqlite(const char *database, const char *table, 
                 {
 			cur_cat = cw_category_new((char *)sqlite3_column_text(stmt,5));
 			if (!cur_cat) {
-				cw_log(CW_LOG_WARNING, "Out of memory!\n");
+				cw_log(CW_LOG_WARNING, "Out of memory\n");
 				break;
 			}
 			strcpy (last, (const char*) sqlite3_column_text(stmt,5));

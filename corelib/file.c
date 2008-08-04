@@ -406,7 +406,7 @@ static struct cw_filestream *cw_fileopen(struct cw_channel *chan, const char *fi
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);
@@ -745,7 +745,7 @@ struct cw_filestream *cw_readfile(const char *filename, const char *fmt, const c
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);
@@ -873,7 +873,7 @@ struct cw_filestream *cw_writefile(const char *filename, const char *type, const
 	};
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 	atomic_set(&args.s->running, 0);

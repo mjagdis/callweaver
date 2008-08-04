@@ -80,7 +80,7 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct c
 		if (registry->onchange)
 			registry->onchange();
 	} else {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 	}
 
 	return entry;

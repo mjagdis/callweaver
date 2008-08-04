@@ -788,7 +788,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					}
 					cw_pthread_create(&tid, &global_attr_rr_detached, cw_bridge_call_thread, tobj);
 				} else {
-					cw_log(CW_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory\n");
 					cw_hangup(xferchan);
 					cw_hangup(newchan);
 				}

@@ -3047,7 +3047,7 @@ static void reload_queue_members(void)
 
             if (add_to_queue(queue_name, interface, penalty, paused, 0) == RES_OUTOFMEMORY)
             {
-                cw_log(CW_LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
+                cw_log(CW_LOG_ERROR, "Out of memory when reloading persistent queue member\n");
                 break;
             }
         }

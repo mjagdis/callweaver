@@ -125,7 +125,7 @@ static int osp_build(struct cw_config *cfg, char *cat)
 		mallocd = 1;
 		osp = malloc(sizeof(struct osp_provider));
 		if (!osp) {
-			cw_log(CW_LOG_WARNING, "Out of memory!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			return -1;
 		}
 		memset(osp, 0, sizeof(struct osp_provider));

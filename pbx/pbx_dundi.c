@@ -371,7 +371,7 @@ static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct 
 					memcpy(&trans->addr, sin, sizeof(trans->addr));
 					trans->dtrans = ntohs(hdr->strans) & 32767;
 				} else
-					cw_log(CW_LOG_WARNING, "Out of memory!\n");
+					cw_log(CW_LOG_WARNING, "Out of memory\n");
 			}
 			break;
 		default:
@@ -808,7 +808,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			return -1;
 		}
 	} else {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
@@ -1036,7 +1036,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			return -1;
 		}
 	} else {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
@@ -1126,7 +1126,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 			return -1;
 		}
 	} else {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);

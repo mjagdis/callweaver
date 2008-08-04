@@ -157,7 +157,7 @@ struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_c
 		/* Establish I/O callback for socket read */
 		ioref = cw_io_add(ioc, netsocket, callback, CW_IO_IN, ns);
 		if (!ioref) {
-			cw_log(CW_LOG_WARNING, "Out of memory!\n");
+			cw_log(CW_LOG_WARNING, "Out of memory\n");
 			close(netsocket);
 			free(ns);
 			return NULL;
@@ -170,7 +170,7 @@ struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_c
 		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
 		ASTOBJ_CONTAINER_LINK(list, ns);
 	} else {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
+		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		close(netsocket);
 	}
 

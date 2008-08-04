@@ -2104,7 +2104,7 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 	namelen = addr_to_str(u.sa.sa_family, &u, buf, sizeof(buf)) + 1;
 
 	if (!(listener = malloc(sizeof(*listener) + namelen))) {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return;
 	}
 
