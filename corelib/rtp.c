@@ -60,6 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
+#include "callweaver/manager.h"
 #include "callweaver/cli.h"
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
@@ -775,7 +776,7 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
     return 1;
 }
 
-struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp)
+struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
 {
     static struct cw_frame null_frame = { CW_FRAME_NULL, };
     uint32_t rtcpdata[1024];
@@ -848,15 +849,44 @@ struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp)
         switch (PT)
         {
             case 200: /* Sender Report */
-                if (rtpdebug || rtp_debug_test_addr(&sin))
-                    cw_log(CW_LOG_NOTICE, "RTCP SR: NTP=%u.%u RTP=%u pkts=%u data=%u\n", ntohl(rtcpdata[i]), ntohl(rtcpdata[i+1]), ntohl(rtcpdata[i+2]), ntohl(rtcpdata[i+3]), ntohl(rtcpdata[i+4]));
+                manager_event(EVENT_FLAG_CALL, "RTCP-SR", 
+                    "Channel: %s\r\n"
+                    "Uniqueid: %s\r\n"
+                    "NTP: %u.%u\r\n"
+                    "RTP: %u\r\n"
+                    "Packets: %u\r\n"
+                    "Data: %u\r\n",
+                    chan->name,
+                    chan->uniqueid, 
+                    ntohl(rtcpdata[i]),
+                    ntohl(rtcpdata[i+1]),
+                    ntohl(rtcpdata[i+2]),
+                    ntohl(rtcpdata[i+3]),
+                    ntohl(rtcpdata[i+4])
+                );
                 i += 5;
                 /* Fall through */
             case 201: /* Reception Report(s) */
                 while (RC--)
                 {
-                    if (rtpdebug || rtp_debug_test_addr(&sin))
-                        cw_log(CW_LOG_NOTICE, "RTCP RR: loss rate=%u/256 loss count=%u extseq=0x%x jitter=%u LSR=%u DLSR=%u\n", ntohl(rtcpdata[i+1]) >> 24, ntohl(rtcpdata[i+1]) & 0x00ffffff, ntohl(rtcpdata[i+2]), ntohl(rtcpdata[i+3]), ntohl(rtcpdata[i+4]), ntohl(rtcpdata[i+5]));
+                    manager_event(EVENT_FLAG_CALL, "RTCP-RR", 
+                        "Channel: %s\r\n"
+                        "Uniqueid: %s\r\n"
+                        "Loss rate: %u/256\r\n"
+                        "Loss count: %u\r\n"
+                        "Extseq: 0x%x\r\n"
+                        "Jitter: %u\r\n"
+                        "LSR: %u\r\n"
+                        "DLSR: %u\r\n",
+                        chan->name,
+                        chan->uniqueid, 
+                        ntohl(rtcpdata[i+1]) >> 24,
+                        ntohl(rtcpdata[i+1]) & 0x00ffffff,
+                        ntohl(rtcpdata[i+2]),
+                        ntohl(rtcpdata[i+3]),
+                        ntohl(rtcpdata[i+4]),
+                        ntohl(rtcpdata[i+5])
+                    );
                     i += 6;
                 }
                 if (i <= pkt + l && (rtpdebug || rtp_debug_test_addr(&sin)))

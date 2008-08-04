@@ -150,7 +150,7 @@ int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *f);
 
 struct cw_frame *cw_rtp_read(struct cw_rtp *rtp);
 
-struct cw_frame *cw_rtcp_read(struct cw_rtp *rtp);
+struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp);
 
 int cw_rtp_fd(struct cw_rtp *rtp);
 

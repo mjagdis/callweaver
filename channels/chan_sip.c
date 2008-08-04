@@ -4152,13 +4152,13 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
             f = cw_rtp_read(p->rtp);          /* RTP Audio */
         break;
     case 1:
-        f = cw_rtcp_read(p->rtp);             /* RTCP Control Channel */
+        f = cw_rtcp_read(ast, p->rtp);             /* RTCP Control Channel */
         break;
     case 2:
         f = cw_rtp_read(p->vrtp);             /* RTP Video */
         break;
     case 3:
-        f = cw_rtcp_read(p->vrtp);            /* RTCP Control Channel for video */
+        f = cw_rtcp_read(ast, p->vrtp);            /* RTCP Control Channel for video */
         break;
     default:
         f = &null_frame;
