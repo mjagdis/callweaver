@@ -684,15 +684,6 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	return errno;
 }
 
-int cw_wait_for_input(int fd, int ms)
-{
-	struct pollfd pfd[1];
-	memset(pfd, 0, sizeof(pfd));
-	pfd[0].fd = fd;
-	pfd[0].events = POLLIN|POLLPRI;
-	return poll(pfd, 1, ms);
-}
-
 int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;

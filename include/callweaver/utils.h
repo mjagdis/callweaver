@@ -270,7 +270,6 @@ extern const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen);
 
 extern int cw_utils_init(void);
-extern int cw_wait_for_input(int fd, int ms);
 
 /*! Compares the source address and port of two sockaddr_in */
 static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
