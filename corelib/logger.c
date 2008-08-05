@@ -93,7 +93,6 @@ static struct {
 
 struct logchannel {
 	struct mansession *sess;
-	int disabled;			/* If this channel is disabled or not */
 	int facility; 			/* syslog facility */
 	char filename[256];		/* Filename */
 	struct logchannel *next;	/* Next channel in chain */
@@ -532,17 +531,17 @@ static int handle_logger_rotate(int fd, int argc, char *argv[])
  	configuration */
 static int handle_logger_show_channels(int fd, int argc, char *argv[])
 {
-#define FORMATL	"%-35.35s %-8.8s %-9.9s "
+#define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;
 
-	cw_cli(fd, FORMATL "%s\n" FORMATL "%s\n",
-		"Channel", "Type", "Status", "Configuration\n",
-		"-------", "----", "------", "-------------\n");
+	cw_cli(fd, FORMATL " %s\n" FORMATL " %s\n",
+		"Channel", "Type", "Configuration\n",
+		"-------", "----", "-------------\n");
 
 	cw_mutex_lock(&loglock);
 
 	for (chan = logchannels; chan; chan = chan->next) {
-		cw_cli(fd, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"), (chan->disabled ? "Disabled" : "Enabled"));
+		cw_cli(fd, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"));
 		if (chan->sess->send_events & (1 << __CW_LOG_DEBUG)) 
 			cw_cli(fd, "Debug ");
 		if (chan->sess->send_events & (1 << __CW_LOG_DTMF)) 
