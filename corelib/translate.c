@@ -439,7 +439,6 @@ static int show_translation(int fd, int argc, char *argv[])
     int x;
     int y;
     int z;
-    char line[120]; /* Assume 120 character wide screen */
 
     if (argc > 4) 
         return RESULT_SHOWUSAGE;
@@ -466,26 +465,27 @@ static int show_translation(int fd, int argc, char *argv[])
     cw_cli(fd, "         Translation times between formats (in milliseconds)\n");
     cw_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 
+    cw_cli(fd, "         ");
+    for (x = 0;  x < SHOW_TRANS;  x++)
+        cw_cli(fd, " %8s", cw_getformatname(1 << x));
+    cw_cli(fd, "\n");
+
     cw_mutex_lock(&tr_matrix_lock);
-    for (x = -1;  x < SHOW_TRANS;  x++)
+    for (x = 0;  x < SHOW_TRANS;  x++)
     {
-        line[0] = ' ';
-        line[1] = '\0';
-        for (y = -1;  y < SHOW_TRANS;  y++)
+        cw_cli(fd, " %8s", cw_getformatname(1 << x));
+
+        for (y = 0;  y < SHOW_TRANS;  y++)
         {
-            if (x >= 0  &&  y >= 0  &&  tr_matrix[x][y].step)
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d.%01d", tr_matrix[x][y].cost / 10, tr_matrix[x][y].cost % 10);
-            else if (((x == -1  &&  y >= 0)  ||  (y == -1  &&  x >= 0)))
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %8s", cw_getformatname(1 << (x + y + 1)));
-            else if (x != -1  &&  y != -1)
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), "        -");
+            if (tr_matrix[x][y].step)
+                cw_cli(fd, " %6d.%01d", tr_matrix[x][y].cost / 10, tr_matrix[x][y].cost % 10);
             else
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), "         ");
+                cw_cli(fd, "        -");
         }
-        snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
-        cw_cli(fd, line);            
+        cw_cli(fd, "\n");
     }
     cw_mutex_unlock(&tr_matrix_lock);
+
     return RESULT_SUCCESS;
 }
 
