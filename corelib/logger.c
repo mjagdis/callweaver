@@ -91,17 +91,10 @@ static struct {
 } logfiles = { 1, 1 };
 
 
-enum logtypes {
-	LOGTYPE_SYSLOG,
-	LOGTYPE_FILE,
-};
-
 struct logchannel {
 	struct mansession *sess;
-	int logmask;			/* What to log to this channel */
 	int disabled;			/* If this channel is disabled or not */
 	int facility; 			/* syslog facility */
-	enum logtypes type;		/* Type of log channel */
 	char filename[256];		/* Filename */
 	struct logchannel *next;	/* Next channel in chain */
 };
@@ -253,6 +246,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 #ifndef SOLARIS
 	CODE *cptr;
 #endif
+	int logmask, family;
 
 	if (cw_strlen_zero(channel))
 		return NULL;
@@ -260,7 +254,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	if (!(chan = calloc(1, sizeof(struct logchannel))))
 		return NULL;
 
-	chan->logmask = manager_str_to_eventmask(components);
+	chan->facility = -1;
 
 	if (!strncasecmp(channel, "syslog", 6)) {
 		/*
@@ -277,7 +271,6 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
  		* Walk through the list of facilitynames (defined in sys/syslog.h)
 		* to see if we can find the one we have been given
 		*/
-		chan->facility = -1;
  		cptr = facilitynames;
 		while (cptr->c_name) {
 			if (!strcasecmp(facility, cptr->c_name)) {
@@ -287,7 +280,6 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			cptr++;
 		}
 #else
-		chan->facility = -1;
 		if (!strcasecmp(facility, "kern")) 
 			chan->facility = LOG_KERN;
 		else if (!strcasecmp(facility, "USER")) 
@@ -326,38 +318,33 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			chan->facility = LOG_LOCAL7;
 #endif /* Solaris */
 
-		if (0 > chan->facility) {
+		if (chan->facility == -1) {
 			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
 			free(chan);
 			return NULL;
 		}
 
+		family = AF_INTERNAL;
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 
-		if (!(chan->sess = manager_session_start(logger_manager_session, -1, AF_INTERNAL, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
-			/* Can't log here, since we're called with a lock */
-			fprintf(stderr, "Logger Warning: Unable to start syslog logging: %s\n", strerror(errno));
-			free(chan);
-			return NULL;
-		}
-
-		chan->type = LOGTYPE_SYSLOG;
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
+		family = AF_PATHNAME;
 		snprintf(chan->filename, sizeof(chan->filename), "%s%s%s%s%s",
 			(channel[0] != '/' ? cw_config_CW_LOG_DIR : ""),
 			(channel[0] != '/' ? "/" : ""),
 			channel,
 			(cfg_appendhostname ? "." : ""),
 			(cfg_appendhostname ? hostname : ""));
+	}
 
-		if (!(chan->sess = manager_session_start(logger_manager_session, -1, AF_PATHNAME, chan->filename, sizeof(chan->filename) - 1, chan->logmask, 0, chan->logmask))) {
-			/* Can't log here, since we're called with a lock */
-			fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
-			free(chan);
-			return NULL;
-		}
-		chan->type = LOGTYPE_FILE;
+	logmask = manager_str_to_eventmask(components);
+
+	if (!(chan->sess = manager_session_start(logger_manager_session, -1, family, chan->filename, sizeof(chan->filename) - 1, logmask, 0, logmask))) {
+		/* Can't log here, since we're called with a lock */
+		fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
+		free(chan);
+		return NULL;
 	}
 
 	return chan;
@@ -548,36 +535,34 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
 	struct logchannel *chan;
 
+	cw_cli(fd, FORMATL "%s\n" FORMATL "%s\n",
+		"Channel", "Type", "Status", "Configuration\n",
+		"-------", "----", "------", "-------------\n");
+
 	cw_mutex_lock(&loglock);
 
-	chan = logchannels;
-	cw_cli(fd,FORMATL, "Channel", "Type", "Status");
-	cw_cli(fd, "Configuration\n");
-	cw_cli(fd,FORMATL, "-------", "----", "------");
-	cw_cli(fd, "-------------\n");
-	while (chan) {
-		cw_cli(fd, FORMATL, chan->filename, (chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"), (chan->disabled ? "Disabled" : "Enabled"));
-		cw_cli(fd, " - ");
-		if (chan->logmask & (1 << __CW_LOG_DEBUG)) 
+	for (chan = logchannels; chan; chan = chan->next) {
+		cw_cli(fd, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"), (chan->disabled ? "Disabled" : "Enabled"));
+		if (chan->sess->send_events & (1 << __CW_LOG_DEBUG)) 
 			cw_cli(fd, "Debug ");
-		if (chan->logmask & (1 << __CW_LOG_DTMF)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_DTMF)) 
 			cw_cli(fd, "DTMF ");
-		if (chan->logmask & (1 << __CW_LOG_VERBOSE)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_VERBOSE)) 
 			cw_cli(fd, "Verbose ");
-		if (chan->logmask & (1 << __CW_LOG_WARNING)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_WARNING)) 
 			cw_cli(fd, "Warning ");
-		if (chan->logmask & (1 << __CW_LOG_NOTICE)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_NOTICE)) 
 			cw_cli(fd, "Notice ");
-		if (chan->logmask & (1 << __CW_LOG_ERROR)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_ERROR)) 
 			cw_cli(fd, "Error ");
-		if (chan->logmask & (1 << __CW_LOG_EVENT)) 
+		if (chan->sess->send_events & (1 << __CW_LOG_EVENT)) 
 			cw_cli(fd, "Event ");
 		cw_cli(fd, "\n");
-		chan = chan->next;
 	}
-	cw_cli(fd, "\n");
 
 	cw_mutex_unlock(&loglock);
+
+	cw_cli(fd, "\n");
  		
 	return RESULT_SUCCESS;
 }
