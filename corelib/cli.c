@@ -144,19 +144,24 @@ extern unsigned long global_fin, global_fout;
 
 void cw_cli(int fd, char *fmt, ...)
 {
-    char *stuff;
-    int res = 0;
-    va_list ap;
+	va_list ap, ap2;
+	char *s;
+	int n;
+	char c;
 
-    va_start(ap, fmt);
-    res = vasprintf(&stuff, fmt, ap);
-    va_end(ap);
-    if (res == -1) {
-        cw_log(CW_LOG_ERROR, "Out of memory\n");
-    } else {
-        cw_carefulwrite(fd, stuff, strlen(stuff), 100);
-        free(stuff);
-    }
+	va_start(ap, fmt);
+
+	va_copy(ap2, ap);
+	n = vsnprintf(&c, 1, fmt, ap2);
+	va_end(ap2);
+
+	if (n > 0) {
+		s = alloca(n + 1);
+		vsnprintf(s, n + 1, fmt, ap);
+        	cw_carefulwrite(fd, s, n, 100);
+	}
+
+	va_end(ap);
 }
 
 
