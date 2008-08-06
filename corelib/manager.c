@@ -1618,6 +1618,8 @@ static void manager_session_cleanup(void *data)
 
 static void *manager_session(void *data)
 {
+	static const int on = 1;
+	static const int off = 0;
 	struct mansession *sess = data;
 	int res;
 
@@ -1631,6 +1633,9 @@ static void *manager_session(void *data)
 
 	/* If there is an fd already supplied we will read AMI requests from it */
 	if (sess->fd >= 0) {
+		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
+		setsockopt(sess->fd, SOL_TCP, TCP_CORK, &on, sizeof(on));
+
 		if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
 			cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
 			return NULL;
@@ -1648,8 +1653,19 @@ static void *manager_session(void *data)
 		/* If there's no request message and no queued events
 		 * we have to wait for activity.
 		 */
-		if (!sess->m && sess->q_r == sess->q_w)
+		if (!sess->m && sess->q_r == sess->q_w) {
+#ifdef TCP_CORK
+			if (sess->fd >= 0)
+				setsockopt(sess->fd, SOL_TCP, TCP_CORK, &off, sizeof(off));
+#endif
+
 			pthread_cond_wait(&sess->activity, &sess->lock);
+
+#ifdef TCP_CORK
+			if (sess->fd >= 0)
+				setsockopt(sess->fd, SOL_TCP, TCP_CORK, &on, sizeof(on));
+#endif
+		}
 
 		/* Fetch the next event (if any) now. Once we have that
 		 * we can unlock the session.
@@ -1783,7 +1799,6 @@ static void *accept_thread(void *data)
 	struct mansession *sess;
 	socklen_t salen;
 	int fd;
-	const int arg = 1;
 
 	pthread_cleanup_push(accept_thread_cleanup, listener);
 
@@ -1804,7 +1819,6 @@ static void *accept_thread(void *data)
 		}
 
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
-		setsockopt(fd, SOL_TCP, TCP_NODELAY, &arg, sizeof(arg));
 
 		if (u.sa.sa_family == AF_LOCAL) {
 			/* Local sockets don't return a path in their sockaddr (there isn't
