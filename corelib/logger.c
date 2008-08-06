@@ -642,16 +642,19 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	time_t now;
 	va_list ap;
 	int msglen;
-	
+
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
 	   is zero, if option_verbose is non-zero (this allows for 'level zero'
 	   LOG_DEBUG messages to be displayed, if the logmask on any channel
 	   allows it)
 	*/
-	if (!option_verbose && !option_debug && (level == __CW_LOG_DEBUG)) {
+	if (!option_verbose && !option_debug && (level == __CW_LOG_DEBUG))
 		return;
-	}
+
+	/* We only want the base name... */
+	if ((msg = strrchr(file, '/')))
+		file = msg + 1;
 
 	/* Ignore anything other than the currently debugged file if there is one */
 	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
