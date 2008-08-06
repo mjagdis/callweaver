@@ -215,7 +215,7 @@ int jabber_manager_session(struct mansession *sess, const struct manager_event *
 {
 	struct jabber_message_node *node;
 
-	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
+	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "Event: %s\r\n%s", event->event, event->data)))
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 
 	return 0;

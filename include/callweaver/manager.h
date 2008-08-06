@@ -61,6 +61,8 @@
 
 struct manager_event {
 	struct cw_object obj;
+	const char *event;
+	int category;
 	int len;
 	char data[0];
 };
@@ -154,7 +156,7 @@ extern int manager_str_to_eventmask(char *events);
 	\param event	Event name
 	\param contents	Contents of event
 */ 
-extern int manager_event(int category, char *event, char *contents, ...)
+extern int manager_event(int category, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 3,4)));
 
 /*! Get header from mananger transaction */

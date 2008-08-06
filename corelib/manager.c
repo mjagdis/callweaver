@@ -140,40 +140,25 @@ static struct {
 #define MANAGER_AMI_HELLO	"CallWeaver Call Manager/1.0\r\n"
 
 
-static int authority_to_str(int authority, char *res, int reslen)
+static int authority_to_str(int fd, int authority)
 {
-	char *p;
-	int i;
+	int i, n, sep = 0;
 
-	p = res;
-
-	if (reslen > 0) {
-		*res = '\0';
-
-		for (i = 0; i < arraysize(perms); i++) {
-			if ((authority & (1 << i)) && perms[i].label) {
-				if (p != res) {
-					if (reslen > 1) {
-						p[0] = ',';
-						p[1] = '\0';
-					}
-					p++;
-					reslen--;
-				}
-				if (reslen > 0)
-					cw_copy_string(p, perms[i].label, reslen);
-				p += perms[i].len;
-				reslen -= perms[i].len;
-			}
-		}
-
-		if (p == res) {
-			cw_copy_string(res, "<none>", reslen);
-			p += sizeof("<none>") - 1;
+	n = 0;
+	for (i = 0; i < arraysize(perms); i++) {
+		if ((authority & (1 << i)) && perms[i].label) {
+			cw_cli(fd, (sep ? ", %s" : "%s"), perms[i].label);
+			n += perms[i].len + sep;
+			sep = 2;
 		}
 	}
 
-	return p - res;
+	if (!sep) {
+		cw_cli(fd, "<none>");
+		n = sizeof("<none>") - 1;
+	}
+
+	return n;
 }
 
 
@@ -370,7 +355,6 @@ static void complete_show_manact(int fd, char *argv[], int lastarg, int lastarg_
 
 static int handle_show_manact(int fd, int argc, char *argv[])
 {
-	char buf[80];
 	struct cw_object *it;
 	struct manager_action *act;
 
@@ -384,8 +368,9 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 	act = container_of(it, struct manager_action, obj);
 
 	/* FIXME: Tidy up this output and make it more like function output */
-	authority_to_str(act->authority, buf, sizeof(buf) - 1);
-	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", act->action, act->synopsis, buf, (act->description ? act->description : ""));
+	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: ", act->action, act->synopsis);
+	authority_to_str(fd, act->authority);
+	cw_cli(fd, "\n%s\n", (act->description ? act->description : ""));
 
 	cw_object_put(act);
 	return RESULT_SUCCESS;
@@ -415,14 +400,16 @@ struct manacts_print_args {
 	char **argv;
 };
 
-#define MANACTS_FORMAT	"  %-15.15s  %-15.15s  %-55.55s\n"
+#define MANACTS_FORMAT_A	"  %-15.15s  "
+#define MANACTS_FORMAT_B	"%-15.15s"
+#define MANACTS_FORMAT_C	"  %s\n"
 
 static int manacts_print(struct cw_object *obj, void *data)
 {
-	char buf[80];
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct manacts_print_args *args = data;
 	int printapp = 1;
+	int n;
 
 	if (args->like) {
 		if (!strcasestr(it->action, args->argv[4]))
@@ -441,8 +428,11 @@ static int manacts_print(struct cw_object *obj, void *data)
 
 	if (printapp) {
 		args->matches++;
-		authority_to_str(it->authority, buf, sizeof(buf) - 1);
-		cw_cli(args->fd, MANACTS_FORMAT, it->action, buf, it->synopsis);
+		cw_cli(args->fd, MANACTS_FORMAT_A, it->action);
+		n = authority_to_str(args->fd, it->authority);
+		if (n < 15)
+			cw_cli(args->fd, "%.*s", 15 - n, "               ");
+		cw_cli(args->fd, MANACTS_FORMAT_C, it->synopsis);
 	}
 
 	return 0;
@@ -462,7 +452,9 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 	else if ((argc > 4) && (!strcmp(argv[3], "describing")))
 		args.describing = 1;
 
-	cw_cli(fd, "    -= %s Manager Actions =-\n" MANACTS_FORMAT MANACTS_FORMAT,
+	cw_cli(fd, "    -= %s Manager Actions =-\n"
+		MANACTS_FORMAT_A MANACTS_FORMAT_B MANACTS_FORMAT_C
+		MANACTS_FORMAT_A MANACTS_FORMAT_B MANACTS_FORMAT_C,
 		(args.like || args.describing ? "Matching" : "Registered"),
 		"Action", "Privilege", "Synopsis",
 		"------", "---------", "--------");
@@ -789,12 +781,12 @@ struct listcommands_print_args {
 
 static int listcommands_print(struct cw_object *obj, void *data)
 {
-	char buf[80];
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct listcommands_print_args *args = data;
 
-	authority_to_str(it->authority, buf, sizeof(buf));
-	cw_cli(args->s->fd, "%s: %s (Priv: %s)\r\n", it->action, it->synopsis, buf);
+	cw_cli(args->s->fd, "%s: %s (Priv: ", it->action, it->synopsis);
+	authority_to_str(args->s->fd, it->authority);
+	cw_cli(args->s->fd, ")\r\n");
 
 	return 0;
 }
@@ -1588,6 +1580,14 @@ static void *manager_session_ami_read(void *data)
 
 int manager_session_ami(struct mansession *sess, const struct manager_event *event)
 {
+	/* "Event: ..." is necessary, "Privilege: ..." is not.
+	 * The privilege header is sent solely because it was sent
+	 * in the past and there might be AMI clients out there that
+	 * depend on it being there.
+	 */
+	cw_cli(sess->fd, "Event: %s\r\nPrivilege: ", event->event);
+	authority_to_str(sess->fd, event->category);
+	cw_cli(sess->fd, "\r\n");
 	return cw_write_all(sess->fd, event->data, event->len);
 }
 
@@ -1829,8 +1829,8 @@ struct manager_event_args {
 	int ret;
 	int category;
 	struct manager_event *me;
-	char *event;
-	char *fmt;
+	const char *event;
+	const char *fmt;
 	va_list ap;
 };
 
@@ -1850,13 +1850,9 @@ static int make_event(struct manager_event_args *args)
 
 	if ((args->me = malloc(sizeof(struct manager_event) + alloc))) {
 again:
-		used = snprintf(args->me->data, alloc, "Event: %s\r\nPrivilege: ", args->event);
-		used += authority_to_str(args->category, args->me->data + used, alloc - used);
-		if (alloc - used > 2)
-			strcpy(args->me->data + used, "\r\n");
-		used += 2;
+		used = 0;
 		va_copy(aq, args->ap);
-		n = vsnprintf(args->me->data + used, (alloc < used ? 0 : alloc - used), args->fmt, aq);
+		n = vsnprintf(args->me->data + used, alloc, args->fmt, aq);
 		va_end(aq);
 		if (n >= 0)
 			used += n;
@@ -1865,6 +1861,8 @@ again:
 		used += 2;
 
 		if (used < alloc) {
+			args->me->event = args->event;
+			args->me->category = args->category;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
 			cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
@@ -1898,7 +1896,7 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	return args->ret;
 }
 
-int manager_event(int category, char *event, char *fmt, ...)
+int manager_event(int category, const char *event, const char *fmt, ...)
 {
 	struct manager_event_args args = {
 		.ret = 0,

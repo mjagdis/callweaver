@@ -166,11 +166,6 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 			lkey = ekey - key;
 			lval = eval - val;
 
-			/* We shouldn't get anything other than log events. */
-			if (unlikely(lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1)
-			&& (lval != sizeof("Log") - 1 || memcmp(val, "Log", sizeof("Log") - 1))))
-				break;
-
 			for (i = 0; i < arraysize(keys); i++) {
 				if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
 					vals[i].l = lval;
