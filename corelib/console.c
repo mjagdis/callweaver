@@ -712,9 +712,9 @@ void *console(void *data)
 		iov[2].iov_base = "\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
 		iov[3].iov_base = "Action: Command\r\nCommand: set debug atleast ";
-		iov[3].iov_len = sizeof("Action: Command\r\nCommand: set verbose atleast ") - 1;
-		iov[4].iov_base = buf;
-		iov[4].iov_len = snprintf(buf, sizeof(buf), "%d", option_debug);
+		iov[3].iov_len = sizeof("Action: Command\r\nCommand: set debug atleast ") - 1;
+		iov[4].iov_base = buf + iov[1].iov_len;
+		iov[4].iov_len = snprintf(buf + iov[1].iov_len, sizeof(buf) - iov[1].iov_len, "%d", option_debug);
 		iov[5].iov_base = "\r\n\r\n";
 		iov[5].iov_len = sizeof("\r\n\r\n") - 1;
 		cw_writev_all(console_sock, iov, 6);
