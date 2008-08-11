@@ -298,6 +298,11 @@ static int read_message(int s, int nresp)
 					if (buf[pos] == '\r') {
 						break;
 					} else if (buf[pos] == '\n') {
+						if (msgtype == MSG_FOLLOWS) {
+							state = 4;
+							lval = 0;
+							goto is_data;
+						}
 						if (msgtype != MSG_UNKNOWN) {
 							if (nresp > 0)
 								nresp--;
@@ -475,8 +480,12 @@ is_data:
 									matches[++matches_count] = NULL;
 								}
 							}
-						} else
+						} else {
 							state = 0;
+							msgtype = MSG_UNKNOWN;
+							if (nresp > 0)
+								nresp--;
+						}
 
 						memmove(buf, &buf[pos + 1], res - 1);
 						lval = pos = -1;
