@@ -434,7 +434,7 @@ main (int argc, const char *argv[])
       *queue = "",
       *udfile = 0,
       *process = 0,
-      *spooldir = "/var/spool/callweaver.org",
+      *spooldir = SPOOLDIR,
       *motxchannel = "Local/1709400X",
       *motxcallerid = 0,
       *mttxchannel = 0,

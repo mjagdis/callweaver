@@ -16,6 +16,7 @@ endif USE_NEWT
 
 if WANT_SMSQ
     cwutils_PROGRAMS += smsq
+    smsq_CFLAGS = $(AM_CFLAGS) -DSPOOLDIR=\"$(cwspooldir)\"
     smsq_SOURCES = smsq.c
     smsq_LDADD = -lpopt
 endif WANT_SMSQ
