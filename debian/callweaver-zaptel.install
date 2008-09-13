@@ -1,2 +1,2 @@
 usr/lib*/callweaver/modules/chan_zap.so
-etc/callweaver/zapata.conf
+etc/callweaver/chan_dahdi.conf
