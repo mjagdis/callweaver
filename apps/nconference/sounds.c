@@ -55,7 +55,6 @@ static int conf_play_soundfile( struct cw_conf_member *member, char * file )
 
 
     cw_set_write_format( member->chan, CW_FORMAT_SLINEAR );
-    cw_generator_activate(member->chan, &member->chan->generator, &membergen, member);
 
     return res;
 }
@@ -70,7 +69,8 @@ int conf_play_soundqueue( struct cw_conf_member *member )
     queue_incoming_silent_frame(member,3);
 
     struct cw_conf_soundq *toplay, *delitem;
-
+    
+    cw_generator_deactivate(member->chan);	
     cw_mutex_lock(&member->lock);
 
     toplay = member->soundq;
@@ -93,6 +93,7 @@ int conf_play_soundqueue( struct cw_conf_member *member )
 	member->soundq = toplay;
 	free(delitem);
     }
+    cw_generator_activate(member->chan, &member->chan->generator, &membergen, member);
     cw_mutex_unlock(&member->lock);
 
     if (res != 0)
