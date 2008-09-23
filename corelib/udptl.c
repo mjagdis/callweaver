@@ -213,6 +213,7 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 {
     int res;
     int actions;
+    struct sockaddr_in original_dest;
     struct sockaddr_in sin;
     socklen_t len;
     char iabuf[INET_ADDRSTRLEN];
@@ -220,7 +221,9 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
     static struct cw_frame null_frame = { CW_FRAME_NULL, };
 
     len = sizeof(sin);
-    
+
+    memcpy(&original_dest, udp_socket_get_them(udptl->udptl_sock_info), sizeof(original_dest));
+
     /* Cache where the header will go */
     res = udp_socket_recvfrom(udptl->udptl_sock_info,
                               udptl->rawdata + CW_FRIENDLY_OFFSET,
@@ -258,7 +261,9 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 #if 0
     printf("Got UDPTL packet from %s:%d (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 #endif
-    cw_udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res);
+    /* If its not a valid UDPTL packet, restore the original port */
+    if (udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
+        udp_socket_set_them(udptl->udptl_sock_info, &original_dest);
 
     return &udptl->f[0];
 }
@@ -412,10 +417,10 @@ int cw_udptl_set_active(cw_udptl_t *udptl, int active)
     return 0;
 }
 
-int cw_udptl_settos(cw_udptl_t *udptl, int tos)
-{
-    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
-}
+//int cw_udptl_settos(cw_udptl_t *udptl, int tos)
+//{
+//    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
+//}
 
 void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
 {
