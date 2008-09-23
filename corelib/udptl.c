@@ -222,7 +222,7 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 
     len = sizeof(sin);
 
-    memcpy(&original_dest, udp_socket_get_them(udptl->udptl_sock_info), sizeof(original_dest));
+    memcpy(&original_dest, udp_socket_get_far(udptl->udptl_sock_info), sizeof(original_dest));
 
     /* Cache where the header will go */
     res = udp_socket_recvfrom(udptl->udptl_sock_info,
@@ -263,7 +263,7 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 #endif
     /* If its not a valid UDPTL packet, restore the original port */
     if (udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
-        udp_socket_set_them(udptl->udptl_sock_info, &original_dest);
+        udp_socket_set_far(udptl->udptl_sock_info, &original_dest);
 
     return &udptl->f[0];
 }
