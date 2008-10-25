@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <tiffio.h>
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -165,7 +166,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
 		
-    		if ( ( chan->t38_status == T38_NEGOTIATING ) || ( peer->t38_status == T38_NEGOTIATING ) ) {
+    		if ((chan->t38_status == T38_NEGOTIATING) || (peer->t38_status == T38_NEGOTIATING)) {
 		/*  TODO 
 		    This is a very BASIC method to mute a channel. It should be improved
 		    and we should send EMPTY frames (not just avoid sending them) 
@@ -230,9 +231,9 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
         }
         /* Check if we need to change to gateway operation */
         if ( 
-	        ( chan->t38_status != T38_NEGOTIATING ) 
-	     && ( peer->t38_status != T38_NEGOTIATING )
-	     && ( chan->t38_status != peer->t38_status) 
+	        (chan->t38_status != T38_NEGOTIATING) 
+	     && (peer->t38_status != T38_NEGOTIATING)
+	     && (chan->t38_status != peer->t38_status) 
 	   ) {
             cw_log(CW_LOG_DEBUG, "Stop bridging frames. [ %d,%d]\n", chan->t38_status, peer->t38_status);
             running = RUNNING;
@@ -286,8 +287,9 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     t38_gateway_state_t t38_state;
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
+    t38_core_state_t *t38_core;
 
-    if ( chan->t38_status == T38_NEGOTIATED )
+    if (chan->t38_status == T38_NEGOTIATED)
     {
         channels[0] = chan;
         channels[1] = peer;
@@ -300,7 +302,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
     original_read_fmt = channels[1]->readformat;
     original_write_fmt = channels[1]->writeformat;
-    if ( channels[1]->t38_status != T38_NEGOTIATED)
+    if (channels[1]->t38_status != T38_NEGOTIATED)
     {
         if (original_read_fmt != CW_FORMAT_SLINEAR)
         {
@@ -328,6 +330,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
         return -1;
     }
     t38_gateway_set_transmit_on_idle(&t38_state, TRUE);
+    t38_core = t38_gateway_get_t38_core_state(&t38_state);
     x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
     if (x  &&  x[0])
         t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
@@ -335,13 +338,13 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
         t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     span_log_set_message_handler(&t38_state.logging, span_message);
-    span_log_set_message_handler(&t38_state.t38.logging, span_message);
+    span_log_set_message_handler(&t38_core->logging, span_message);
     if (verbose)
     {
         span_log_set_level(&t38_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&t38_state.t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t38_core->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
-    t38_set_t38_version(&t38_state.t38, 0);
+    t38_set_t38_version(t38_core, 0);
     t38_gateway_set_ecm_capability(&t38_state, 1);
 
 
@@ -349,8 +352,8 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     {
 //cw_log(CW_LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
         if ( 
-            ( chan->t38_status == T38_NEGOTIATED ) 
-             && ( peer->t38_status == T38_NEGOTIATED )
+            (chan->t38_status == T38_NEGOTIATED) 
+         && (peer->t38_status == T38_NEGOTIATED)
         ) {
             cw_log(CW_LOG_DEBUG, "Stop gateway-ing frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
             running = RUNNING;
@@ -363,7 +366,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
             {
                 if ((f = cw_read(active)))
                 {
-                    t38_core_rx_ifp_packet(&t38_state.t38, f->data, f->datalen, f->seq_no);
+                    t38_core_rx_ifp_packet(t38_core, f->data, f->datalen, f->seq_no);
                     clean_frame(f);
                 }
                 else
@@ -638,9 +641,9 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
 
         res = RUNNING;
 
-        while ( res == RUNNING ) {
+        while (res == RUNNING) {
 
-            if ( res && ( chan->t38_status == peer->t38_status ) )
+            if (res && (chan->t38_status == peer->t38_status))
             {
                 // Same on both sides, so just bridge 
                 cw_log(CW_LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
@@ -648,9 +651,9 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
             }
 
             if ( 
-                   ( res == RUNNING )
-                && ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status == T38_STATUS_UNKNOWN ) )
-                && ( chan->t38_status != peer->t38_status ) 
+                   (res == RUNNING)
+                && ((chan->t38_status == T38_STATUS_UNKNOWN) || (peer->t38_status == T38_STATUS_UNKNOWN))
+                && (chan->t38_status != peer->t38_status) 
                )
             {
                 // Different on each side, so gateway 

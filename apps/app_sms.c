@@ -36,6 +36,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
