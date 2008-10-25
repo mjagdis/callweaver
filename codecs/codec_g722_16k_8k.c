@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver.h"
 

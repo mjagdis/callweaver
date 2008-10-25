@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver.h"
 
