@@ -22,8 +22,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <sys/time.h>
-
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver.h"
 
@@ -276,6 +276,8 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
 			res = 0;
     uint64_t 		now;
     uint64_t 		passage;
+    t30_state_t *t30;
+    t38_core_state_t *t38_core;
 
     memset(t38, 0, sizeof(*t38));
 
@@ -284,52 +286,54 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
         cw_log(CW_LOG_WARNING, "Unable to start T.38 termination.\n");
         return -1;
     }
+    t30 = t38_terminal_get_t30_state(t38);
+    t38_core = t38_terminal_get_t38_core_state(t38);
 
     span_log_set_message_handler(&t38->logging, span_message);
-    span_log_set_message_handler(&t38->t30_state.logging, span_message);
-    span_log_set_message_handler(&t38->t38.logging, span_message);
+    span_log_set_message_handler(&t30->logging, span_message);
+    span_log_set_message_handler(&t38_core->logging, span_message);
 
     if (verbose)
     {
         span_log_set_level(&t38->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&t38->t30_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&t38->t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t30->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t38_core->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
 
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
-        t30_set_tx_ident(&t38->t30_state, x);
+        t30_set_tx_ident(t30, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
     if (x  &&  x[0])
-        t30_set_tx_sub_address(&t38->t30_state, x);
+        t30_set_tx_sub_address(t30, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
-        t30_set_tx_page_header_info(&t38->t30_state, x);
-    t30_set_rx_file(&t38->t30_state, file, -1);
+        t30_set_tx_page_header_info(t30, x);
+    t30_set_rx_file(t30, file, -1);
 
-    //t30_set_phase_b_handler(&t38->t30_state, phase_b_handler, chan);
-    t30_set_phase_d_handler(&t38->t30_state, phase_d_handler, chan);
-    t30_set_phase_e_handler(&t38->t30_state, phase_e_handler, chan);
+    //t30_set_phase_b_handler(t30, phase_b_handler, chan);
+    t30_set_phase_d_handler(t30, phase_d_handler, chan);
+    t30_set_phase_e_handler(t30, phase_e_handler, chan);
 
     x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
     if (x  &&  x[0])
-        t30_set_supported_modems(&t38->t30_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+        t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
     else
-        t30_set_supported_modems(&t38->t30_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+        t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
-    t30_set_supported_image_sizes(&t38->t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
-                                	        | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
-    t30_set_supported_resolutions(&t38->t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
-                                                | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+    t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
+                                     | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
+    t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
+                                     | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
 
     if (ecm) {
-        t30_set_ecm_capability(&t38->t30_state, TRUE);
-        t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+        t30_set_ecm_capability(t30, TRUE);
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
         cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
     }
     else 
     {
-        t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION );
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION );
     }
 
     passage = nowis();
@@ -338,7 +342,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
     while (ready  &&  ready_to_talk(chan))
     {
     
-	if ( chan->t38_status != T38_NEGOTIATED )
+	if (chan->t38_status != T38_NEGOTIATED)
 	    break;
 
         if ((res = cw_waitfor(chan, 20)) < 0) {
@@ -350,7 +354,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
         t38_terminal_send_timeout(t38, (now - passage)/125);
         passage = now;
         /* End application when T38/T30 has finished */
-        if ((t38->current_tx_type == T30_MODEM_DONE)  ||  (t38->current_rx_type == T30_MODEM_DONE)) 
+        if (!t30_call_active(t30)) 
             break;
 
         inf = cw_read(chan);
@@ -360,13 +364,12 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
         }
 
         if (inf->frametype == CW_FRAME_MODEM  &&  inf->subclass == CW_MODEM_T38)
-    	    t38_core_rx_ifp_packet(&t38->t38, inf->data, inf->datalen, inf->seq_no);
+    	    t38_core_rx_ifp_packet(t38_core, inf->data, inf->datalen, inf->seq_no);
 
         cw_fr_free(inf);
     }
 
     return ready;
-
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -384,6 +387,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 			received_frames = 0;
 
     struct cw_dsp *dsp = NULL;
+    t30_state_t *t30;
 
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
@@ -395,42 +399,43 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
         cw_log(CW_LOG_WARNING, "Unable to start FAX\n");
         return -1;
     }
+    t30 = fax_get_t30_state(fax);
     fax_set_transmit_on_idle(fax, TRUE);
     span_log_set_message_handler(&fax->logging, span_message);
-    span_log_set_message_handler(&fax->t30_state.logging, span_message);
+    span_log_set_message_handler(&t30->logging, span_message);
     if (verbose)
     {
         span_log_set_level(&fax->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&fax->t30_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t30->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
     x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
     if (x  &&  x[0])
-        t30_set_tx_ident(&fax->t30_state, x);
+        t30_set_tx_ident(t30, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
     if (x  &&  x[0])
-        t30_set_tx_sub_address(&fax->t30_state, x);
+        t30_set_tx_sub_address(t30, x);
     x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
     if (x  &&  x[0])
-        t30_set_tx_page_header_info(&fax->t30_state, x);
-    t30_set_rx_file(&fax->t30_state, file, -1);
-    //t30_set_phase_b_handler(&fax->t30_state, phase_b_handler, chan);
-    t30_set_phase_d_handler(&fax->t30_state, phase_d_handler, chan);
-    t30_set_phase_e_handler(&fax->t30_state, phase_e_handler, chan);
+        t30_set_tx_page_header_info(t30, x);
+    t30_set_rx_file(t30, file, -1);
+    //t30_set_phase_b_handler(t30, phase_b_handler, chan);
+    t30_set_phase_d_handler(t30, phase_d_handler, chan);
+    t30_set_phase_e_handler(t30, phase_e_handler, chan);
 
     x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
     if (x  &&  x[0])
-        t30_set_supported_modems(&fax->t30_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+        t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
     else
-        t30_set_supported_modems(&fax->t30_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+        t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     /* Support for different image sizes && resolutions*/
-    t30_set_supported_image_sizes(&fax->t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
-                                                | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
-    t30_set_supported_resolutions(&fax->t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
-                                                | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+    t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
+                                     | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
+    t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
+                                     | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
     if (ecm) {
-        t30_set_ecm_capability(&fax->t30_state, TRUE);
-        t30_set_supported_compressions(&fax->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+        t30_set_ecm_capability(t30, TRUE);
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
         cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
     }
 
@@ -440,19 +445,17 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
         cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
     else {
 	cw_dsp_set_threshold(dsp, 256); 
-	cw_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
-	cw_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+	cw_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+	cw_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
     }
-
 
     /* This is the main loop */
 
     begin = nowis();
 
-    while ( ready && ready_to_talk(chan) )
+    while (ready && ready_to_talk(chan))
     {
-    
-	if ( chan->t38_status == T38_NEGOTIATED )
+	if (chan->t38_status == T38_NEGOTIATED)
 	    break;
 
         if ((res = cw_waitfor(chan, 20)) < 0) {
@@ -460,7 +463,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
             break;
 	}
 
-        if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+        if (!t30_call_active(t30))
             break;
 
         inf = cw_read(chan);
@@ -485,7 +488,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 	        }
 	    }
  
-            if ( dspf && (inf != dspf) ) {
+            if (dspf  &&  (inf != dspf)) {
                 cw_fr_free(dspf);
                 dspf = NULL;
 	    }
@@ -553,9 +556,9 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 
 	cw_generator_activate(chan, &chan->generator, &faxgen, fax);
 
-	while ( ready && ready_to_talk(chan) ) {
+	while (ready && ready_to_talk(chan)) {
 
-	    if ( chan->t38_status == T38_NEGOTIATED )
+	    if (chan->t38_status == T38_NEGOTIATED)
 		break;
 
 	    if ((res = cw_waitfor(chan, 20)) < 0) {
@@ -563,7 +566,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
         	break;
 	    }
 
-    	    if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+    	    if (!t30_call_active(t30))
         	break;
 
     	    inf = cw_read(chan);
@@ -586,7 +589,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 		    }
 	        }
  
-    	        if ( dspf && (inf != dspf) ) {
+    	        if (dspf  &&  (inf != dspf)) {
         	    cw_fr_free(dspf);
         	    dspf = NULL;
 	        }
@@ -619,6 +622,7 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 {
     fax_state_t fax;
     t38_terminal_state_t t38;
+    t30_state_t *t30;
 
     int res = 0;
     char target_file[256];
@@ -642,7 +646,7 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
         return -1;
     }
 
-    /* make sure they are initialized to zero */
+    /* Make sure they are initialized to zero */
     memset(&fax, 0, sizeof(fax));
     memset(&t38, 0, sizeof(t38));
 
@@ -731,25 +735,28 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 
     ready = TRUE;        
 
-    while ( ready && ready_to_talk(chan) )
+    if (chan->t38_status == T38_NEGOTIATED)
+	t30 = t38_terminal_get_t30_state(&t38);
+    else
+	t30 = fax_get_t30_state(&fax);
+    while (ready  &&  ready_to_talk(chan))
     {
-        if ( ready && chan->t38_status != T38_NEGOTIATED ) {
+        if (ready && chan->t38_status != T38_NEGOTIATED) {
+	    t30 = fax_get_t30_state(&fax);
 	    ready = rxfax_audio(chan, &fax, target_file, calling_party, verbose, ecm);
 	}
 
-        if ( ready && chan->t38_status == T38_NEGOTIATED ) {
+        if (ready && chan->t38_status == T38_NEGOTIATED) {
+	    t30 = t38_terminal_get_t30_state(&t38);
 	    ready = rxfax_t38(chan, &t38, target_file, calling_party, verbose, ecm);
 	}
 
-	if ( chan->t38_status != T38_NEGOTIATING )
-	    ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
+	if (chan->t38_status != T38_NEGOTIATING)
+	    ready = FALSE; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
 
     }
 
-    if (chan->t38_status != T38_NEGOTIATED)
-	t30_terminate(&fax.t30_state);
-    else
-	t30_terminate(&t38.t30_state);
+    t30_terminate(t30);
 
     fax_release(&fax);
     t38_terminal_release(&t38);

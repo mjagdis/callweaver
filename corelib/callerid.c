@@ -34,6 +34,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <spandsp.h>
+#include <spandsp/expose.h>
 
 #include "callweaver.h"
 
@@ -138,8 +139,8 @@ int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
 int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 {
 	int16_t lin[MAX_CALLERID_SIZE];
-	int slen;
 	adsi_tx_state_t adsi;
+	int slen;
 
 	adsi_tx_init(&adsi, ADSI_STANDARD_CLASS);
     adsi_tx_set_preamble(&adsi, 0, 80, -1, -1);
