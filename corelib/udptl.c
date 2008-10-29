@@ -417,10 +417,10 @@ int cw_udptl_set_active(cw_udptl_t *udptl, int active)
     return 0;
 }
 
-//int cw_udptl_settos(cw_udptl_t *udptl, int tos)
-//{
+int cw_udptl_settos(cw_udptl_t *udptl, int tos)
+{
 //    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
-//}
+}
 
 void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
 {
