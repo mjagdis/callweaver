@@ -48,6 +48,8 @@
 #include <math.h>
 #include <errno.h>
 #include <spandsp.h>
+
+#include <spandsp/expose.h>
 #include <spandsp/adsi.h>
 
 #include "callweaver.h"

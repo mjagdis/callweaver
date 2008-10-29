@@ -41,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <spandsp.h>
 
+#include <spandsp/expose.h>
 
 #include <math.h>
 #include ZAPTEL_H

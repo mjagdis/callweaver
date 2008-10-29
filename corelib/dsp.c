@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <spandsp.h>
 
+#include <spandsp/expose.h>
+
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")

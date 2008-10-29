@@ -34,6 +34,8 @@
 
 #include <spandsp.h>
 
+#include <spandsp/expose.h>
+
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
@@ -554,9 +556,9 @@ static void *faxmodem_thread(void *obj)
 			 * FIXME: If we're connected but waiting for TX to send data we'll just spin
 			 * here. That's "unfortunate".
 			 */
-			avail = T31_TX_BUF_LEN - fm->t31_state.tx_in_bytes + fm->t31_state.tx_out_bytes - 1;
+			avail = T31_TX_BUF_LEN - fm->t31_state.tx.in_bytes + fm->t31_state.tx.out_bytes - 1;
 			if (fm->state != FAXMODEM_STATE_CONNECTED
-			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx_holding && avail)) {
+			|| (fm->state == FAXMODEM_STATE_CONNECTED && !fm->t31_state.tx.holding && avail)) {
 				int len;
 				while (avail > 0 && (len = read(fm->pfd.fd, modembuf, avail)) > 0) {
 #ifdef TRACE
