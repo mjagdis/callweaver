@@ -691,7 +691,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		 * so just log to stdout 
 		*/
 		if (level != __CW_LOG_VERBOSE)
-			fprintf(stdout, "%s %s[" TIDFMT "]: %s:%d %s: %s", date, levels[level], GETTID(), file, line, function, msg);
+			fprintf(stdout, "%s %s[" TIDFMT "]: %s:%d %s: %s\n", date, levels[level], GETTID(), file, line, function, msg);
 	}
 }
 
