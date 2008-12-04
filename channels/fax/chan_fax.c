@@ -1124,7 +1124,7 @@ static void activate_fax_modems(void)
 			FAXMODEM_POOL[x].thread = CW_PTHREADT_NULL;
 			FAXMODEM_POOL[x].clock_thread = CW_PTHREADT_NULL;
 
-			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_detached, faxmodem_thread, &FAXMODEM_POOL[x]);
+			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
 	}
 
