@@ -137,21 +137,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "libltdl/ltdl.h"
 
-#include <readline/readline.h>
-#include <readline/history.h>
 
 /* defines various compile-time defaults */
 #include "defaults.h"
 
 #include "console.h"
-
-#ifndef AF_LOCAL
-#define AF_LOCAL AF_UNIX
-#define PF_LOCAL PF_UNIX
-#endif
-
-#define CW_MAX_CONNECTS 128
-#define NUM_MSGS 64
 
 
 #if defined(_POSIX_TIMERS)
@@ -191,11 +181,6 @@ char record_cache_dir[CW_CACHE_DIR_LEN] = cwtmpdir_default;
 char debug_filename[CW_FILENAME_MAX] = "";
 
 int cw_mainpid;
-struct console {
-	int fd;				/*!< File descriptor */
-	int p[2];			/*!< Pipe */
-	pthread_t t;			/*!< Thread of handler */
-};
 
 time_t cw_startuptime;
 time_t cw_lastreloadtime;
