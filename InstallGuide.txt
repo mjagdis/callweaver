@@ -130,5 +130,5 @@ KERNEL=="zappseudo", NAME="zap/pseudo", OWNER="callweaver", GROUP="callweaver", 
 KERNEL=="zap[0-9]*", NAME="zap/%n", OWNER="callweaver", GROUP="callweaver", MODE="0660"
 
 You can test your udev settings with 'udevstart' then 
-ls -lasp /dev/zap should show all devices can be used by callweaver.
+ls -lasp /dev/dahdi should show all devices can be used by callweaver.
 

@@ -33,7 +33,7 @@
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>
-#include ZAPTEL_H
+#include DAHDI_H
 
 #include <spandsp.h>
 #include <libsupertone.h>
@@ -248,7 +248,7 @@ struct unicall_subchannel
     char dtmfq[CW_MAX_EXTENSION];
     int super_tone;
     super_tone_tx_state_t tx_state;
-    ZT_CONFINFO curconf;
+    struct dahdi_confinfo curconf;
 };
 
 #define CONF_USER_REAL          (1 << 0)
@@ -501,7 +501,7 @@ static int alloc_sub(unicall_pvt_t *p, int x)
         return -1;
     }
     /*endif*/
-    if (ioctl(p->subs[x].fd, ZT_CHANNO, &p->subs[x].chan))
+    if (ioctl(p->subs[x].fd, DAHDI_CHANNO, &p->subs[x].chan))
     {
         cw_log(CW_LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].fd);
         unicall_close(p->subs[x].fd);
@@ -544,14 +544,14 @@ static int unicall_open_pseudo(void)
     const char *fn;
 	
 	chan = 0;
-    fn = "/dev/zap/pseudo";
+    fn = "/dev/dahdi/pseudo";
 	if ((fd = open(fn, O_RDWR | O_NONBLOCK)) < 0)
     {
 		cw_log(CW_LOG_WARNING, "Unable to open '%s': %s\n", fn, strerror(errno));
 		return -1;
 	}
 	bs = READ_SIZE;
-	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1)
+	if (ioctl(fd, DAHDI_SET_BLOCKSIZE, &bs) == -1)
     {
         close(fd);
         return -1;
@@ -585,7 +585,7 @@ static int unicall_digit(struct cw_channel *cw, char digit)
 }
 
 #if 0
-static char *zt_events[] =
+static char *dahdi_events[] =
 {
     "No event",
     "On hook",
@@ -604,12 +604,12 @@ static char *zt_events[] =
     "Pulse Start"
 };
  
-static char *zt_event2str(int event)
+static char *dahdi_event2str(int event)
 {
     static char buf[256];
 
     if (-1 < event  &&  event < 15)
-        return zt_events[event];
+        return dahdi_events[event];
     /*endif*/
     sprintf(buf, "Event %d", event);
     return buf;
@@ -624,13 +624,13 @@ static char *alarm2str(int alarm)
         char *name;
     } alarms[] =
     {
-        {ZT_ALARM_RED, "Red Alarm"},
-        {ZT_ALARM_YELLOW, "Yellow Alarm"},
-        {ZT_ALARM_BLUE, "Blue Alarm"},
-        {ZT_ALARM_RECOVER, "Recovering"},
-        {ZT_ALARM_LOOPBACK, "Loopback"},
-        {ZT_ALARM_NOTOPEN, "Not Open"},
-        {ZT_ALARM_NONE, "None"},
+        {DAHDI_ALARM_RED, "Red Alarm"},
+        {DAHDI_ALARM_YELLOW, "Yellow Alarm"},
+        {DAHDI_ALARM_BLUE, "Blue Alarm"},
+        {DAHDI_ALARM_RECOVER, "Recovering"},
+        {DAHDI_ALARM_LOOPBACK, "Loopback"},
+        {DAHDI_ALARM_NOTOPEN, "Not Open"},
+        {DAHDI_ALARM_NONE, "None"},
     };
     int x;
 
@@ -656,7 +656,7 @@ static void unicall_report(char *s)
 
 static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, int slavechannel)
 {
-    ZT_CONFINFO zi;
+    struct dahdi_confinfo zi;
 
     /* If the conference already exists, and we're already in it
        don't bother doing anything */
@@ -666,23 +666,23 @@ static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, i
     if (slavechannel > 0)
     {
         /* If we have only one slave, do a digital mon */
-        zi.confmode = ZT_CONF_DIGITALMON;
+        zi.confmode = DAHDI_CONF_DIGITALMON;
         zi.confno = slavechannel;
     }
     else
     {
         if (index)
         {
-            zi.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+            zi.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
         }
         else
         {
             /* Real-side and pseudo-side both participate in conference */
-            zi.confmode = ZT_CONF_REALANDPSEUDO
-                        | ZT_CONF_TALKER
-                        | ZT_CONF_LISTENER
-                        | ZT_CONF_PSEUDO_TALKER
-                        | ZT_CONF_PSEUDO_LISTENER;
+            zi.confmode = DAHDI_CONF_REALANDPSEUDO
+                        | DAHDI_CONF_TALKER
+                        | DAHDI_CONF_LISTENER
+                        | DAHDI_CONF_PSEUDO_TALKER
+                        | DAHDI_CONF_PSEUDO_LISTENER;
         }
         /*endif*/
         zi.confno = p->confno;
@@ -694,7 +694,7 @@ static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, i
     if (c->fd < 0)
         return 0;
     /*endif*/
-    if (ioctl(c->fd, ZT_SETCONF, &zi))
+    if (ioctl(c->fd, DAHDI_SETCONF, &zi))
     {
         cw_log(CW_LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->fd, zi.confmode, zi.confno);
         return -1;
@@ -711,17 +711,17 @@ static int conf_add(unicall_pvt_t *p, struct unicall_subchannel *c, int index, i
 static int isourconf(unicall_pvt_t *p, struct unicall_subchannel *c)
 {
     /* If they're listening to our channel, they're ours */    
-    if ((p->channel == c->curconf.confno)  &&  (c->curconf.confmode == ZT_CONF_DIGITALMON))
+    if ((p->channel == c->curconf.confno)  &&  (c->curconf.confmode == DAHDI_CONF_DIGITALMON))
         return 1;
     /* If they're a talker on our (allocated) conference, they're ours */
-    if ((p->confno > 0)  &&  (p->confno == c->curconf.confno)  &&  (c->curconf.confmode & ZT_CONF_TALKER))
+    if ((p->confno > 0)  &&  (p->confno == c->curconf.confno)  &&  (c->curconf.confmode & DAHDI_CONF_TALKER))
         return 1;
     return 0;
 }
 
 static int conf_del(unicall_pvt_t *p, struct unicall_subchannel *c, int index)
 {
-    ZT_CONFINFO zi;
+    struct dahdi_confinfo zi;
 
     /* Can't delete if there's no fd */
     /* Don't delete from the conference if it's not our conference */
@@ -733,7 +733,7 @@ static int conf_del(unicall_pvt_t *p, struct unicall_subchannel *c, int index)
     zi.chan = 0;
     zi.confno = 0;
     zi.confmode = 0;
-    if (ioctl(c->fd, ZT_SETCONF, &zi))
+    if (ioctl(c->fd, DAHDI_SETCONF, &zi))
     {
         cw_log(CW_LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->fd, c->curconf.confmode, c->curconf.confno);
         return -1;
@@ -2158,10 +2158,10 @@ struct cw_frame *unicall_read(struct cw_channel *cw)
     /* Make sure it sends initial key state as first frame */
     if (p->radio  &&  !p->firstradio)
     {
-        ZT_PARAMS ps;
+        struct dahdi_params ps;
 
         ps.channo = p->channel;
-        if (ioctl(p->subs[SUB_REAL].fd, ZT_GET_PARAMS, &ps))
+        if (ioctl(p->subs[SUB_REAL].fd, DAHDI_GET_PARAMS, &ps))
             return NULL;
         /*endif*/
         p->firstradio = TRUE;
@@ -3185,7 +3185,7 @@ static void *do_monitor(void *data)
                             &&
                             (thispass - last->onhooktime > 3)
                             &&
-                            0) //(last->protocol_class & __ZT_SIG_FXO))
+                            0) //(last->protocol_class & __DAHDI_SIG_FXO))
                         {
                             cw_log(CW_LOG_DEBUG, "Channel %d has mailbox %s\n", last->channel, last->mailbox);
                             if ((res = cw_app_has_voicemail(last->mailbox, NULL)) != last->msgstate)
@@ -3339,7 +3339,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
     int here;
     int x;
     int ret;
-    ZT_PARAMS p;
+    struct dahdi_params p;
 
     here = FALSE;
     for (prev = NULL, tmp2 = iffirst;  tmp2;  prev = tmp2, tmp2 = tmp2->next)

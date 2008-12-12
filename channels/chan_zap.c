@@ -44,7 +44,7 @@
 #include <spandsp/expose.h>
 
 #include <math.h>
-#include ZAPTEL_H
+#include DAHDI_H
 #include TONEZONE_H
 #include <ctype.h>
 #ifdef ZAPATA_PRI
@@ -97,15 +97,19 @@ static struct cw_jb_conf global_jbconf;
 #define TRUE (!FALSE)
 #endif
 
-#if !defined(ZT_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(ZT_SIG_HARDHDLC))
+#if !defined(DAHDI_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(DAHDI_SIG_HARDHDLC))
 #error "Your zaptel is too old.  please update"
 #endif
 
-#ifndef ZT_TONEDETECT
+#ifndef DAHDI_TONEDETECT
 /* Work around older code with no tone detect */
-#define ZT_EVENT_DTMFDOWN 0
-#define ZT_EVENT_DTMFUP 0
+#define DAHDI_EVENT_DTMFDOWN 0
+#define DAHDI_EVENT_DTMFUP 0
 #endif
+
+/* Copied from dahdi/kernel.h */
+#define DAHDI_DEFAULT_RINGTIME 2000
+#define DAHDI_RINGOFFTIME 4000
 
 /*
  * Define ZHONE_HACK to cause us to go off hook and then back on hook when
@@ -129,7 +133,7 @@ static struct cw_jb_conf global_jbconf;
 
 #define CHANNEL_PSEUDO -12
 
-#define CW_LAW(p) (((p)->law == ZT_LAW_MULAW) ? CW_FORMAT_ULAW : CW_FORMAT_ALAW)
+#define CW_LAW(p) (((p)->law == DAHDI_LAW_MULAW) ? CW_FORMAT_ULAW : CW_FORMAT_ALAW)
 
 /* Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FEATB)) 
@@ -151,28 +155,28 @@ static const char zap_type[] = "Zap";
 static const char config_zapata[] = "zapata.conf";
 static const char config_dahdi[] = "chan_dahdi.conf";
 
-#define SIG_EM		ZT_SIG_EM
-#define SIG_EMWINK 	(0x0100000 | ZT_SIG_EM)
-#define SIG_FEATD	(0x0200000 | ZT_SIG_EM)
-#define	SIG_FEATDMF	(0x0400000 | ZT_SIG_EM)
-#define	SIG_FEATB	(0x0800000 | ZT_SIG_EM)
-#define	SIG_E911	(0x1000000 | ZT_SIG_EM)
-#define	SIG_FEATDMF_TA	(0x2000000 | ZT_SIG_EM)
-#define SIG_FXSLS	ZT_SIG_FXSLS
-#define SIG_FXSGS	ZT_SIG_FXSGS
-#define SIG_FXSKS	ZT_SIG_FXSKS
-#define SIG_FXOLS	ZT_SIG_FXOLS
-#define SIG_FXOGS	ZT_SIG_FXOGS
-#define SIG_FXOKS	ZT_SIG_FXOKS
-#define SIG_PRI		ZT_SIG_CLEAR
-#define	SIG_SF		ZT_SIG_SF
-#define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
-#define SIG_SF_FEATD	(0x0200000 | ZT_SIG_SF)
-#define	SIG_SF_FEATDMF	(0x0400000 | ZT_SIG_SF)
-#define	SIG_SF_FEATB	(0x0800000 | ZT_SIG_SF)
-#define SIG_EM_E1	ZT_SIG_EM_E1
-#define SIG_GR303FXOKS	(0x0100000 | ZT_SIG_FXOKS)
-#define SIG_GR303FXSKS	(0x0100000 | ZT_SIG_FXSKS)
+#define SIG_EM		DAHDI_SIG_EM
+#define SIG_EMWINK 	(0x0100000 | DAHDI_SIG_EM)
+#define SIG_FEATD	(0x0200000 | DAHDI_SIG_EM)
+#define	SIG_FEATDMF	(0x0400000 | DAHDI_SIG_EM)
+#define	SIG_FEATB	(0x0800000 | DAHDI_SIG_EM)
+#define	SIG_E911	(0x1000000 | DAHDI_SIG_EM)
+#define	SIG_FEATDMF_TA	(0x2000000 | DAHDI_SIG_EM)
+#define SIG_FXSLS	DAHDI_SIG_FXSLS
+#define SIG_FXSGS	DAHDI_SIG_FXSGS
+#define SIG_FXSKS	DAHDI_SIG_FXSKS
+#define SIG_FXOLS	DAHDI_SIG_FXOLS
+#define SIG_FXOGS	DAHDI_SIG_FXOGS
+#define SIG_FXOKS	DAHDI_SIG_FXOKS
+#define SIG_PRI		DAHDI_SIG_CLEAR
+#define	SIG_SF		DAHDI_SIG_SF
+#define SIG_SFWINK 	(0x0100000 | DAHDI_SIG_SF)
+#define SIG_SF_FEATD	(0x0200000 | DAHDI_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x0400000 | DAHDI_SIG_SF)
+#define	SIG_SF_FEATB	(0x0800000 | DAHDI_SIG_SF)
+#define SIG_EM_E1	DAHDI_SIG_EM_E1
+#define SIG_GR303FXOKS	(0x0100000 | DAHDI_SIG_FXOKS)
+#define SIG_GR303FXSKS	(0x0100000 | DAHDI_SIG_FXSKS)
 
 #define CID_START_RING		1
 #define CID_START_POLARITY	2
@@ -321,7 +325,7 @@ static int matchdigittimeout = 3000;
 static int usecnt =0;
 CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-/* Protect the interface list (of zt_pvt's) */
+/* Protect the interface list (of dahdi_pvt's) */
 CW_MUTEX_DEFINE_STATIC(iflock);
 
 
@@ -353,25 +357,25 @@ static pthread_t monitor_thread = CW_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
+static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 
-static int zt_sendtext(struct cw_channel *c, const char *text);
+static int dahdi_sendtext(struct cw_channel *c, const char *text);
 
-static inline int zt_get_event(int fd)
+static inline int dahdi_get_event(int fd)
 {
-	/* Avoid the silly zt_getevent which ignores a bunch of events */
+	/* Avoid the silly dahdi_getevent which ignores a bunch of events */
 	int j;
-	if (ioctl(fd, ZT_GETEVENT, &j) == -1) return -1;
+	if (ioctl(fd, DAHDI_GETEVENT, &j) == -1) return -1;
 	return j;
 }
 
-static inline int zt_wait_event(int fd)
+static inline int dahdi_wait_event(int fd)
 {
-	/* Avoid the silly zt_waitevent which ignores a bunch of events */
+	/* Avoid the silly dahdi_waitevent which ignores a bunch of events */
 	int i,j=0;
-	i = ZT_IOMUX_SIGEVENT;
-	if (ioctl(fd, ZT_IOMUX, &i) == -1) return -1;
-	if (ioctl(fd, ZT_GETEVENT, &j) == -1) return -1;
+	i = DAHDI_IOMUX_SIGEVENT;
+	if (ioctl(fd, DAHDI_IOMUX, &i) == -1) return -1;
+	if (ioctl(fd, DAHDI_GETEVENT, &j) == -1) return -1;
 	return j;
 }
 
@@ -384,22 +388,22 @@ static inline int zt_wait_event(int fd)
 /* The zaptel driver currently makes this a fixed value but
  * has comments suggesting it may one day be variable.
  */
-#ifndef ZT_CHUNKSIZE
-#  define ZT_CHUNKSIZE	8
+#ifndef DAHDI_CHUNKSIZE
+#  define DAHDI_CHUNKSIZE	8
 #endif
 
 /* Convert milliseconds to samples, assuming the driver is
  * sampling at a standard 64kbit/s.
  */
-#define MS_TO_SAMPLES(X)	((X) * (64 / ZT_CHUNKSIZE))
-#define SAMPLES_TO_MS(X)	((X) / (64 / ZT_CHUNKSIZE))
+#define MS_TO_SAMPLES(X)	((X) * (64 / DAHDI_CHUNKSIZE))
+#define SAMPLES_TO_MS(X)	((X) / (64 / DAHDI_CHUNKSIZE))
 
 #define CALLWAITING_REPEAT_SAMPLES	MS_TO_SAMPLES(10000)	/* 10 s */
 #define CIDCW_EXPIRE_SAMPLES		MS_TO_SAMPLES(500)	/* 500 ms */
 #define DEFAULT_RINGT 			MS_TO_SAMPLES(8000)	/* 8 s */
 #define MIN_MS_SINCE_FLASH		2000			/* 2 s */
 
-struct zt_pvt;
+struct dahdi_pvt;
 
 
 static int ringt_base = DEFAULT_RINGT;
@@ -411,7 +415,7 @@ static int ringt_base = DEFAULT_RINGT;
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
 #define PRI_EXPLICIT(p) (((p) >> 16) & 0x01)
 
-struct zt_pri {
+struct dahdi_pri {
 	pthread_t master;						/* Thread of master */
 	cw_mutex_t lock;						/* Mutex */
 	char idleext[CW_MAX_EXTENSION];				/* Where to idle extra calls */
@@ -447,13 +451,13 @@ struct zt_pri {
 	int resetpos;
 	time_t lastreset;						/* time when unused channels were last reset */
 	long resetinterval;						/* Interval (in seconds) for resetting unused channels */
-	struct zt_pvt *pvts[MAX_CHANNELS];				/* Member channel pvt structs */
-	struct zt_pvt *crvs;						/* Member CRV structs */
-	struct zt_pvt *crvend;						/* Pointer to end of CRV structs */
+	struct dahdi_pvt *pvts[MAX_CHANNELS];				/* Member channel pvt structs */
+	struct dahdi_pvt *crvs;						/* Member CRV structs */
+	struct dahdi_pvt *crvend;						/* Pointer to end of CRV structs */
 };
 
 
-static struct zt_pri pris[NUM_SPANS];
+static struct dahdi_pri pris[NUM_SPANS];
 
 static int pritype = PRI_CPE;
 
@@ -463,7 +467,7 @@ static int pritype = PRI_CPE;
 #define DEFAULT_PRI_DEBUG 0
 #endif
 
-static inline void pri_rel(struct zt_pri *pri)
+static inline void pri_rel(struct dahdi_pri *pri)
 {
 	cw_mutex_unlock(&pri->lock);
 }
@@ -475,7 +479,7 @@ static int localdialplan = PRI_NATIONAL_ISDN + 1;
 
 #else
 /* Shut up the compiler */
-struct zt_pri;
+struct dahdi_pri;
 #endif
 
 #define SUB_REAL		0			/* Active call */
@@ -487,7 +491,7 @@ struct zt_pri;
 #define POLARITY_REV    1
 
 
-static struct zt_distRings drings;
+static struct dahdi_distRings drings;
 
 struct distRingData {
 	int ring[3];
@@ -496,7 +500,7 @@ struct ringContextData {
 	char contextData[CW_MAX_CONTEXT];
 	char extenData[CW_MAX_EXTENSION];
 };
-struct zt_distRings {
+struct dahdi_distRings {
 	struct distRingData ringnum[3];
 	struct ringContextData ringContext[3];
 };
@@ -507,7 +511,7 @@ static char *subnames[] = {
 	"Threeway"
 };
 
-struct zt_subchannel {
+struct dahdi_subchannel {
 	int zfd;
 	struct cw_channel *owner;
 	int chan;
@@ -521,7 +525,7 @@ struct zt_subchannel {
 	unsigned int needflash:1;
 	unsigned int linear:1;
 	unsigned int inthreeway:1;
-	ZT_CONFINFO curconf;
+	struct dahdi_confinfo curconf;
 };
 
 #define CONF_USER_REAL		(1 << 0)
@@ -529,17 +533,17 @@ struct zt_subchannel {
 
 #define MAX_SLAVES	4
 
-static struct zt_pvt {
+static struct dahdi_pvt {
 	cw_mutex_t lock;
 	struct cw_channel *owner;			/* Our current active owner (if applicable) */
 							/* Up to three channels can be associated with this call */
 		
-	struct zt_subchannel sub_unused;		/* Just a safety precaution */
-	struct zt_subchannel subs[3];			/* Sub-channels */
-	struct zt_confinfo saveconf;			/* Saved conference info */
+	struct dahdi_subchannel sub_unused;		/* Just a safety precaution */
+	struct dahdi_subchannel subs[3];			/* Sub-channels */
+	struct dahdi_confinfo saveconf;			/* Saved conference info */
 
-	struct zt_pvt *slaves[MAX_SLAVES];		/* Slave to us (follows our conferencing) */
-	struct zt_pvt *master;				/* Master to us (we follow their conferencing) */
+	struct dahdi_pvt *slaves[MAX_SLAVES];		/* Slave to us (follows our conferencing) */
+	struct dahdi_pvt *master;				/* Master to us (we follow their conferencing) */
 	int inconference;				/* If our real should be in the conference */
 	
 	int sig;					/* Signalling style */
@@ -548,8 +552,8 @@ static struct zt_pvt {
 	float rxgain;
 	float txgain;
 	int tonezone;					/* tone zone for this chan, or -1 for default */
-	struct zt_pvt *next;				/* Next channel in list */
-	struct zt_pvt *prev;				/* Prev channel in list */
+	struct dahdi_pvt *next;				/* Next channel in list */
+	struct dahdi_pvt *prev;				/* Prev channel in list */
 
 	/* flags */
 	unsigned int adsi:1;
@@ -607,7 +611,7 @@ static struct zt_pvt {
 #endif
 	unsigned int polarity_events:1;
 
-	struct zt_distRings drings;
+	struct dahdi_distRings drings;
 
 	char context[CW_MAX_CONTEXT];
 	char defcontext[CW_MAX_CONTEXT];
@@ -665,7 +669,7 @@ static struct zt_pvt {
 	struct timeval flashtime;			/* Last flash-hook time */
 	struct cw_dsp *dsp;
 	int cref;					/* Call reference number */
-	ZT_DIAL_OPERATION dop;
+	struct dahdi_dialoperation dop;
 	int whichwink;					/* SIG_FEATDMF_TA Which wink are we on? */
 	char finaldial[64];
 	char accountcode[CW_MAX_ACCOUNT_CODE];		/* Account code */
@@ -684,9 +688,9 @@ static struct zt_pvt {
 	struct timeval polaritydelaytv;
 	int sendcalleridafter;
 #ifdef ZAPATA_PRI
-	struct zt_pri *pri;
-	struct zt_pvt *bearer;
-	struct zt_pvt *realcall;
+	struct dahdi_pri *pri;
+	struct dahdi_pvt *bearer;
+	struct dahdi_pvt *realcall;
 	q931_call *call;
 	int prioffset;
 	int logicalspan;
@@ -698,56 +702,56 @@ static struct zt_pvt {
 
 } *iflist = NULL, *ifend = NULL;
 
-static struct cw_channel *zt_request(const char *type, int format, void *data, int *cause);
-static int zt_digit(struct cw_channel *cw, char digit);
-static int zt_sendtext(struct cw_channel *c, const char *text);
-static int zt_call(struct cw_channel *cw, char *rdest);
-static int zt_hangup(struct cw_channel *cw);
-static int zt_answer(struct cw_channel *cw);
-struct cw_frame *zt_read(struct cw_channel *cw);
-static int zt_write(struct cw_channel *cw, struct cw_frame *frame);
-struct cw_frame *zt_exception(struct cw_channel *cw);
-static int zt_indicate(struct cw_channel *chan, int condition);
-static int zt_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int zt_setoption(struct cw_channel *chan, int option, void *data, int datalen);
+static struct cw_channel *dahdi_request(const char *type, int format, void *data, int *cause);
+static int dahdi_digit(struct cw_channel *cw, char digit);
+static int dahdi_sendtext(struct cw_channel *c, const char *text);
+static int dahdi_call(struct cw_channel *cw, char *rdest);
+static int dahdi_hangup(struct cw_channel *cw);
+static int dahdi_answer(struct cw_channel *cw);
+struct cw_frame *dahdi_read(struct cw_channel *cw);
+static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame);
+struct cw_frame *dahdi_exception(struct cw_channel *cw);
+static int dahdi_indicate(struct cw_channel *chan, int condition);
+static int dahdi_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
+static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int datalen);
 
 
 static const struct cw_channel_tech dahdi_tech = {
 	.type = dahdi_type,
 	.description = tdesc,
 	.capabilities = CW_FORMAT_SLINEAR,
-	.requester = zt_request,
-	.send_digit = zt_digit,
-	.send_text = zt_sendtext,
-	.call = zt_call,
-	.hangup = zt_hangup,
-	.answer = zt_answer,
-	.read = zt_read,
-	.write = zt_write,
-	.bridge = zt_bridge,
-	.exception = zt_exception,
-	.indicate = zt_indicate,
-	.fixup = zt_fixup,
-	.setoption = zt_setoption,
+	.requester = dahdi_request,
+	.send_digit = dahdi_digit,
+	.send_text = dahdi_sendtext,
+	.call = dahdi_call,
+	.hangup = dahdi_hangup,
+	.answer = dahdi_answer,
+	.read = dahdi_read,
+	.write = dahdi_write,
+	.bridge = dahdi_bridge,
+	.exception = dahdi_exception,
+	.indicate = dahdi_indicate,
+	.fixup = dahdi_fixup,
+	.setoption = dahdi_setoption,
 };
 
 static const struct cw_channel_tech zap_tech = {
 	.type = zap_type,
 	.description = tdesc,
 	.capabilities = CW_FORMAT_SLINEAR,
-	.requester = zt_request,
-	.send_digit = zt_digit,
-	.send_text = zt_sendtext,
-	.call = zt_call,
-	.hangup = zt_hangup,
-	.answer = zt_answer,
-	.read = zt_read,
-	.write = zt_write,
-	.bridge = zt_bridge,
-	.exception = zt_exception,
-	.indicate = zt_indicate,
-	.fixup = zt_fixup,
-	.setoption = zt_setoption,
+	.requester = dahdi_request,
+	.send_digit = dahdi_digit,
+	.send_text = dahdi_sendtext,
+	.call = dahdi_call,
+	.hangup = dahdi_hangup,
+	.answer = dahdi_answer,
+	.read = dahdi_read,
+	.write = dahdi_write,
+	.bridge = dahdi_bridge,
+	.exception = dahdi_exception,
+	.indicate = dahdi_indicate,
+	.fixup = dahdi_fixup,
+	.setoption = dahdi_setoption,
 };
 
 
@@ -757,10 +761,10 @@ static const struct cw_channel_tech zap_tech = {
 #define GET_CHANNEL(p) ((p)->channel)
 #endif
 
-struct zt_pvt *round_robin[32];
+struct dahdi_pvt *round_robin[32];
 
 #ifdef ZAPATA_PRI
-static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
+static inline int pri_grab(struct dahdi_pvt *pvt, struct dahdi_pri *pri)
 {
 	int res;
 	/* Grab the lock first */
@@ -783,7 +787,7 @@ static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 static int num_cadence = 4;
 static int user_has_defined_cadences = 0;
 
-static struct zt_ring_cadence cadences[NUM_CADENCE_MAX] = {
+static struct dahdi_ring_cadence cadences[NUM_CADENCE_MAX] = {
 	{ { 125, 125, 2000, 4000 } },			/* Quick chirp followed by normal ring */
 	{ { 250, 250, 500, 1000, 250, 250, 500, 4000 } }, /* British style ring */
 	{ { 125, 125, 125, 125, 125, 4000 } },	/* Three short bursts */
@@ -804,10 +808,10 @@ static int cidrings[NUM_CADENCE_MAX] = {
 #define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
 			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
 
-#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
-#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
+#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
 
-static int zt_get_index(struct cw_channel *cw, struct zt_pvt *p, int nullok)
+static int dahdi_get_index(struct cw_channel *cw, struct dahdi_pvt *p, int nullok)
 {
 	int res;
 	if (p->subs[0].owner == cw)
@@ -825,9 +829,9 @@ static int zt_get_index(struct cw_channel *cw, struct zt_pvt *p, int nullok)
 }
 
 #ifdef ZAPATA_PRI
-static void wakeup_sub(struct zt_pvt *p, int a, struct zt_pri *pri)
+static void wakeup_sub(struct dahdi_pvt *p, int a, struct dahdi_pri *pri)
 #else
-static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
+static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
 #endif
 {
 	struct cw_frame null = { CW_FRAME_NULL, };
@@ -856,9 +860,9 @@ static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
 }
 
 #ifdef ZAPATA_PRI
-static void zap_queue_frame(struct zt_pvt *p, struct cw_frame *f, struct zt_pri *pri)
+static void zap_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, struct dahdi_pri *pri)
 #else
-static void zap_queue_frame(struct zt_pvt *p, struct cw_frame *f, void *pri)
+static void zap_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, void *pri)
 #endif
 {
 	/* We must unlock the PRI to avoid the possibility of a deadlock */
@@ -916,9 +920,9 @@ static char *ton2str(int plan)
 }
 #endif
 
-static int restore_gains(struct zt_pvt *p);
+static int restore_gains(struct dahdi_pvt *p);
 
-static void swap_subs(struct zt_pvt *p, int a, int b)
+static void swap_subs(struct dahdi_pvt *p, int a, int b)
 {
 	int tchan;
 	int tinthreeway;
@@ -946,7 +950,7 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	wakeup_sub(p, b, NULL);
 }
 
-static int zt_open(char *fn)
+static int dahdi_open(char *fn)
 {
 	int fd;
 	int isnum;
@@ -966,7 +970,7 @@ static int zt_open(char *fn)
 			cw_log(CW_LOG_WARNING, "Invalid channel number '%s'\n", fn);
 			return -1;
 		}
-		fn = "/dev/zap/channel";
+		fn = "/dev/dahdi/channel";
 	}
 	fd = open(fn, O_RDWR | O_NONBLOCK);
 	if (fd < 0) {
@@ -974,7 +978,7 @@ static int zt_open(char *fn)
 		return -1;
 	}
 	if (chan) {
-		if (ioctl(fd, ZT_SPECIFY, &chan)) {
+		if (ioctl(fd, DAHDI_SPECIFY, &chan)) {
 			x = errno;
 			close(fd);
 			errno = x;
@@ -983,55 +987,55 @@ static int zt_open(char *fn)
 		}
 	}
 	bs = READ_SIZE;
-	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1) return -1;
+	if (ioctl(fd, DAHDI_SET_BLOCKSIZE, &bs) == -1) return -1;
 	return fd;
 }
 
-static void zt_close(int fd)
+static void dahdi_close(int fd)
 {
 	if(fd > 0)
 		close(fd);
 }
 
-int zt_setlinear(int zfd, int linear)
+int dahdi_setlinear(int zfd, int linear)
 {
 	int res;
-	res = ioctl(zfd, ZT_SETLINEAR, &linear);
+	res = ioctl(zfd, DAHDI_SETLINEAR, &linear);
 	if (res)
 		return res;
 	return 0;
 }
 
-int zt_setlaw(int zfd, int law)
+int dahdi_setlaw(int zfd, int law)
 {
 	int res;
-	res = ioctl(zfd, ZT_SETLAW, &law);
+	res = ioctl(zfd, DAHDI_SETLAW, &law);
 	if (res)
 		return res;
 	return 0;
 }
 
-static int alloc_sub(struct zt_pvt *p, int x)
+static int alloc_sub(struct dahdi_pvt *p, int x)
 {
-	ZT_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	int res;
 	if (p->subs[x].zfd < 0) {
-		p->subs[x].zfd = zt_open("/dev/zap/pseudo");
+		p->subs[x].zfd = dahdi_open("/dev/dahdi/pseudo");
 		if (p->subs[x].zfd > -1) {
-			res = ioctl(p->subs[x].zfd, ZT_GET_BUFINFO, &bi);
+			res = ioctl(p->subs[x].zfd, DAHDI_GET_BUFINFO, &bi);
 			if (!res) {
-				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+				bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+				bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 				bi.numbufs = numbufs;
-				res = ioctl(p->subs[x].zfd, ZT_SET_BUFINFO, &bi);
+				res = ioctl(p->subs[x].zfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
 				}
 			} else 
 				cw_log(CW_LOG_WARNING, "Unable to check buffer policy on channel %d\n", x);
-			if (ioctl(p->subs[x].zfd, ZT_CHANNO, &p->subs[x].chan) == 1) {
+			if (ioctl(p->subs[x].zfd, DAHDI_CHANNO, &p->subs[x].chan) == 1) {
 				cw_log(CW_LOG_WARNING,"Unable to get channel number for pseudo channel on FD %d\n",p->subs[x].zfd);
-				zt_close(p->subs[x].zfd);
+				dahdi_close(p->subs[x].zfd);
 				p->subs[x].zfd = -1;
 				return -1;
 			}
@@ -1046,7 +1050,7 @@ static int alloc_sub(struct zt_pvt *p, int x)
 	return -1;
 }
 
-static int unalloc_sub(struct zt_pvt *p, int x)
+static int unalloc_sub(struct dahdi_pvt *p, int x)
 {
 	if (!x) {
 		cw_log(CW_LOG_WARNING, "Trying to unalloc the real channel %d?!?\n", p->channel);
@@ -1054,7 +1058,7 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	}
 	cw_log(CW_LOG_DEBUG, "Released sub %d of channel %d\n", x, p->channel);
 	if (p->subs[x].zfd > -1) {
-		zt_close(p->subs[x].zfd);
+		dahdi_close(p->subs[x].zfd);
 	}
 	p->subs[x].zfd = -1;
 	p->subs[x].linear = 0;
@@ -1066,15 +1070,15 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	return 0;
 }
 
-static int zt_digit(struct cw_channel *cw, char digit)
+static int dahdi_digit(struct cw_channel *cw, char digit)
 {
-	ZT_DIAL_OPERATION zo;
-	struct zt_pvt *p;
+	struct dahdi_dialoperation zo;
+	struct dahdi_pvt *p;
 	int res = 0;
 	int index;
 	p = cw->tech_pvt;
 	cw_mutex_lock(&p->lock);
-	index = zt_get_index(cw, p, 0);
+	index = dahdi_get_index(cw, p, 0);
 	if ((index == SUB_REAL) && p->owner) {
 #ifdef ZAPATA_PRI
 		if ((p->sig == SIG_PRI) && (cw->_state == CW_STATE_DIALING) && !p->proceeding) {
@@ -1094,11 +1098,11 @@ static int zt_digit(struct cw_channel *cw, char digit)
 #else
 		{
 #endif
-			zo.op = ZT_DIAL_OP_APPEND;
+			zo.op = DAHDI_DIAL_OP_APPEND;
 			zo.dialstr[0] = 'T';
 			zo.dialstr[1] = digit;
 			zo.dialstr[2] = 0;
-			if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
+			if ((res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &zo)))
 				cw_log(CW_LOG_WARNING, "Couldn't dial digit %c\n", digit);
 			else
 				p->dialing = 1;
@@ -1134,13 +1138,13 @@ static struct {
 	int alarm;
 	char *name;
 } alarms[] = {
-	{ ZT_ALARM_RED, "Red Alarm" },
-	{ ZT_ALARM_YELLOW, "Yellow Alarm" },
-	{ ZT_ALARM_BLUE, "Blue Alarm" },
-	{ ZT_ALARM_RECOVER, "Recovering" },
-	{ ZT_ALARM_LOOPBACK, "Loopback" },
-	{ ZT_ALARM_NOTOPEN, "Not Open" },
-	{ ZT_ALARM_NONE, "None" },
+	{ DAHDI_ALARM_RED, "Red Alarm" },
+	{ DAHDI_ALARM_YELLOW, "Yellow Alarm" },
+	{ DAHDI_ALARM_BLUE, "Blue Alarm" },
+	{ DAHDI_ALARM_RECOVER, "Recovering" },
+	{ DAHDI_ALARM_LOOPBACK, "Loopback" },
+	{ DAHDI_ALARM_NOTOPEN, "Not Open" },
+	{ DAHDI_ALARM_NONE, "None" },
 };
 
 static char *alarm2str(int alarm)
@@ -1230,33 +1234,33 @@ static char *zap_sig2str(int sig)
 
 #define sig2str zap_sig2str
 
-static int conf_add(struct zt_pvt *p, struct zt_subchannel *c, int index, int slavechannel)
+static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, int slavechannel)
 {
 	/* If the conference already exists, and we're already in it
 	   don't bother doing anything */
-	ZT_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	
 	memset(&zi, 0, sizeof(zi));
 	zi.chan = 0;
 
 	if (slavechannel > 0) {
 		/* If we have only one slave, do a digital mon */
-		zi.confmode = ZT_CONF_DIGITALMON;
+		zi.confmode = DAHDI_CONF_DIGITALMON;
 		zi.confno = slavechannel;
 	} else {
 		if (!index) {
 			/* Real-side and pseudo-side both participate in conference */
-			zi.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER |
-								ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER;
+			zi.confmode = DAHDI_CONF_REALANDPSEUDO | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER |
+								DAHDI_CONF_PSEUDO_TALKER | DAHDI_CONF_PSEUDO_LISTENER;
 		} else
-			zi.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+			zi.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
 		zi.confno = p->confno;
 	}
 	if ((zi.confno == c->curconf.confno) && (zi.confmode == c->curconf.confmode))
 		return 0;
 	if (c->zfd < 0)
 		return 0;
-	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
+	if (ioctl(c->zfd, DAHDI_SETCONF, &zi)) {
 		cw_log(CW_LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->zfd, zi.confmode, zi.confno);
 		return -1;
 	}
@@ -1268,20 +1272,20 @@ static int conf_add(struct zt_pvt *p, struct zt_subchannel *c, int index, int sl
 	return 0;
 }
 
-static int isourconf(struct zt_pvt *p, struct zt_subchannel *c)
+static int isourconf(struct dahdi_pvt *p, struct dahdi_subchannel *c)
 {
 	/* If they're listening to our channel, they're ours */	
-	if ((p->channel == c->curconf.confno) && (c->curconf.confmode == ZT_CONF_DIGITALMON))
+	if ((p->channel == c->curconf.confno) && (c->curconf.confmode == DAHDI_CONF_DIGITALMON))
 		return 1;
 	/* If they're a talker on our (allocated) conference, they're ours */
-	if ((p->confno > 0) && (p->confno == c->curconf.confno) && (c->curconf.confmode & ZT_CONF_TALKER))
+	if ((p->confno > 0) && (p->confno == c->curconf.confno) && (c->curconf.confmode & DAHDI_CONF_TALKER))
 		return 1;
 	return 0;
 }
 
-static int conf_del(struct zt_pvt *p, struct zt_subchannel *c, int index)
+static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index)
 {
-	ZT_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	if (/* Can't delete if there's no zfd */
 		(c->zfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
@@ -1292,7 +1296,7 @@ static int conf_del(struct zt_pvt *p, struct zt_subchannel *c, int index)
 	zi.chan = 0;
 	zi.confno = 0;
 	zi.confmode = 0;
-	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
+	if (ioctl(c->zfd, DAHDI_SETCONF, &zi)) {
 		cw_log(CW_LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->zfd, c->curconf.confmode, c->curconf.confno);
 		return -1;
 	}
@@ -1301,11 +1305,11 @@ static int conf_del(struct zt_pvt *p, struct zt_subchannel *c, int index)
 	return 0;
 }
 
-static int isslavenative(struct zt_pvt *p, struct zt_pvt **out)
+static int isslavenative(struct dahdi_pvt *p, struct dahdi_pvt **out)
 {
 	int x;
 	int useslavenative;
-	struct zt_pvt *slave = NULL;
+	struct dahdi_pvt *slave = NULL;
 	/* Start out optimistic */
 	useslavenative = 1;
 	/* Update conference state in a stateless fashion */
@@ -1345,25 +1349,25 @@ static int isslavenative(struct zt_pvt *p, struct zt_pvt **out)
 	return useslavenative;
 }
 
-static int reset_conf(struct zt_pvt *p)
+static int reset_conf(struct dahdi_pvt *p)
 {
-	ZT_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	memset(&zi, 0, sizeof(zi));
 	p->confno = -1;
 	memset(&p->subs[SUB_REAL].curconf, 0, sizeof(p->subs[SUB_REAL].curconf));
 	if (p->subs[SUB_REAL].zfd > -1) {
-		if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &zi))
+		if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETCONF, &zi))
 			cw_log(CW_LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
 	}
 	return 0;
 }
 
-static int update_conf(struct zt_pvt *p)
+static int update_conf(struct dahdi_pvt *p)
 {
 	int needconf = 0;
 	int x;
 	int useslavenative;
-	struct zt_pvt *slave = NULL;
+	struct dahdi_pvt *slave = NULL;
 
 	useslavenative = isslavenative(p, &slave);
 	/* Start with the obvious, general stuff */
@@ -1414,7 +1418,7 @@ static int update_conf(struct zt_pvt *p)
 	return 0;
 }
 
-static void zt_enable_ec(struct zt_pvt *p)
+static void dahdi_enable_ec(struct dahdi_pvt *p)
 {
 	int x;
 	int res;
@@ -1431,12 +1435,12 @@ static void zt_enable_ec(struct zt_pvt *p)
 	if (p->echocancel) {
 		if (p->sig == SIG_PRI) {
 			x = 1;
-			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);
+			res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &x);
 			if (res)
 				cw_log(CW_LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
 		}
 		x = p->echocancel;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_ECHOCANCEL, &x);
 		if (res) 
 			cw_log(CW_LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
 		else {
@@ -1447,13 +1451,13 @@ static void zt_enable_ec(struct zt_pvt *p)
 		cw_log(CW_LOG_DEBUG, "No echo cancellation requested\n");
 }
 
-static void zt_train_ec(struct zt_pvt *p)
+static void dahdi_train_ec(struct dahdi_pvt *p)
 {
 	int x;
 	int res;
 	if (p && p->echocancel && p->echotraining) {
 		x = p->echotraining;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOTRAIN, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_ECHOTRAIN, &x);
 		if (res) 
 			cw_log(CW_LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
 		else {
@@ -1463,13 +1467,13 @@ static void zt_train_ec(struct zt_pvt *p)
 		cw_log(CW_LOG_DEBUG, "No echo training requested\n");
 }
 
-static void zt_disable_ec(struct zt_pvt *p)
+static void dahdi_disable_ec(struct dahdi_pvt *p)
 {
 	int x;
 	int res;
 	if (p->echocancel) {
 		x = 0;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_ECHOCANCEL, &x);
 		if (res) 
 			cw_log(CW_LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
 		else
@@ -1478,14 +1482,14 @@ static void zt_disable_ec(struct zt_pvt *p)
 	p->echocanon = 0;
 }
 
-static void fill_txgain(struct zt_gains *g, float gain, int law)
+static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 {
 	int j;
 	int k;
 	float linear_gain = pow(10.0, gain / 20.0);
 
 	switch (law) {
-	case ZT_LAW_ALAW:
+	case DAHDI_LAW_ALAW:
 		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
 			if (gain) {
 				k = (int) (((float) CW_ALAW(j)) * linear_gain);
@@ -1497,7 +1501,7 @@ static void fill_txgain(struct zt_gains *g, float gain, int law)
 			}
 		}
 		break;
-	case ZT_LAW_MULAW:
+	case DAHDI_LAW_MULAW:
 		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
 			if (gain) {
 				k = (int) (((float) CW_MULAW(j)) * linear_gain);
@@ -1512,14 +1516,14 @@ static void fill_txgain(struct zt_gains *g, float gain, int law)
 	}
 }
 
-static void fill_rxgain(struct zt_gains *g, float gain, int law)
+static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 {
 	int j;
 	int k;
 	float linear_gain = pow(10.0, gain / 20.0);
 
 	switch (law) {
-	case ZT_LAW_ALAW:
+	case DAHDI_LAW_ALAW:
 		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
 			if (gain) {
 				k = (int) (((float) CW_ALAW(j)) * linear_gain);
@@ -1531,7 +1535,7 @@ static void fill_rxgain(struct zt_gains *g, float gain, int law)
 			}
 		}
 		break;
-	case ZT_LAW_MULAW:
+	case DAHDI_LAW_MULAW:
 		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
 			if (gain) {
 				k = (int) (((float) CW_MULAW(j)) * linear_gain);
@@ -1548,12 +1552,12 @@ static void fill_rxgain(struct zt_gains *g, float gain, int law)
 
 int set_actual_txgain(int fd, int chan, float gain, int law)
 {
-	struct zt_gains g;
+	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
 	g.chan = chan;
-	res = ioctl(fd, ZT_GETGAINS, &g);
+	res = ioctl(fd, DAHDI_GETGAINS, &g);
 	if (res) {
 		cw_log(CW_LOG_DEBUG, "Failed to read gains: %s\n", strerror(errno));
 		return res;
@@ -1561,17 +1565,17 @@ int set_actual_txgain(int fd, int chan, float gain, int law)
 
 	fill_txgain(&g, gain, law);
 
-	return ioctl(fd, ZT_SETGAINS, &g);
+	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
 int set_actual_rxgain(int fd, int chan, float gain, int law)
 {
-	struct zt_gains g;
+	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
 	g.chan = chan;
-	res = ioctl(fd, ZT_GETGAINS, &g);
+	res = ioctl(fd, DAHDI_GETGAINS, &g);
 	if (res) {
 		cw_log(CW_LOG_DEBUG, "Failed to read gains: %s\n", strerror(errno));
 		return res;
@@ -1579,7 +1583,7 @@ int set_actual_rxgain(int fd, int chan, float gain, int law)
 
 	fill_rxgain(&g, gain, law);
 
-	return ioctl(fd, ZT_SETGAINS, &g);
+	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
 int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
@@ -1587,7 +1591,7 @@ int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
 	return set_actual_txgain(fd, chan, txgain, law) | set_actual_rxgain(fd, chan, rxgain, law);
 }
 
-static int bump_gains(struct zt_pvt *p)
+static int bump_gains(struct dahdi_pvt *p)
 {
 	int res;
 
@@ -1600,7 +1604,7 @@ static int bump_gains(struct zt_pvt *p)
 	return 0;
 }
 
-static int restore_gains(struct zt_pvt *p)
+static int restore_gains(struct dahdi_pvt *p)
 {
 	int res;
 
@@ -1613,11 +1617,11 @@ static int restore_gains(struct zt_pvt *p)
 	return 0;
 }
 
-static inline int zt_set_hook(int fd, int hs)
+static inline int dahdi_set_hook(int fd, int hs)
 {
 	int x, res;
 	x = hs;
-	res = ioctl(fd, ZT_HOOK, &x);
+	res = ioctl(fd, DAHDI_HOOK, &x);
 	if (res < 0) 
 	{
 		if (errno == EINPROGRESS) return 0;
@@ -1626,32 +1630,32 @@ static inline int zt_set_hook(int fd, int hs)
 	return res;
 }
 
-static inline int zt_confmute(struct zt_pvt *p, int muted)
+static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 {
 	int x, y, res;
 	x = muted;
 	if (p->sig == SIG_PRI) {
 		y = 1;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &y);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &y);
 		if (res)
 			cw_log(CW_LOG_WARNING, "Unable to set audio mode on '%d'\n", p->channel);
 	}
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_CONFMUTE, &x);
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_CONFMUTE, &x);
 	if (res < 0) 
 		cw_log(CW_LOG_WARNING, "zt confmute(%d) failed on channel %d: %s\n", muted, p->channel, strerror(errno));
 	return res;
 }
 
-static int save_conference(struct zt_pvt *p)
+static int save_conference(struct dahdi_pvt *p)
 {
-	struct zt_confinfo c;
+	struct dahdi_confinfo c;
 	int res;
 	if (p->saveconf.confmode) {
 		cw_log(CW_LOG_WARNING, "Can't save conference -- already in use\n");
 		return -1;
 	}
 	p->saveconf.chan = 0;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_GETCONF, &p->saveconf);
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_GETCONF, &p->saveconf);
 	if (res) {
 		cw_log(CW_LOG_WARNING, "Unable to get conference info: %s\n", strerror(errno));
 		p->saveconf.confmode = 0;
@@ -1659,8 +1663,8 @@ static int save_conference(struct zt_pvt *p)
 	}
 	c.chan = 0;
 	c.confno = 0;
-	c.confmode = ZT_CONF_NORMAL;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &c);
+	c.confmode = DAHDI_CONF_NORMAL;
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETCONF, &c);
 	if (res) {
 		cw_log(CW_LOG_WARNING, "Unable to set conference info: %s\n", strerror(errno));
 		return -1;
@@ -1670,11 +1674,11 @@ static int save_conference(struct zt_pvt *p)
 	return 0;
 }
 
-static int restore_conference(struct zt_pvt *p)
+static int restore_conference(struct dahdi_pvt *p)
 {
 	int res;
 	if (p->saveconf.confmode) {
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &p->saveconf);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETCONF, &p->saveconf);
 		p->saveconf.confmode = 0;
 		if (res) {
 			cw_log(CW_LOG_WARNING, "Unable to restore conference info: %s\n", strerror(errno));
@@ -1686,9 +1690,9 @@ static int restore_conference(struct zt_pvt *p)
 	return 0;
 }
 
-static int send_callerid(struct zt_pvt *p);
+static int send_callerid(struct dahdi_pvt *p);
 
-int send_cwcidspill(struct zt_pvt *p)
+int send_cwcidspill(struct dahdi_pvt *p)
 {
 	p->callwaitcas = 0;
 	p->cidcwexpire = 0;
@@ -1703,14 +1707,14 @@ int send_cwcidspill(struct zt_pvt *p)
 	return 0;
 }
 
-static int send_callerid(struct zt_pvt *p)
+static int send_callerid(struct dahdi_pvt *p)
 {
 	/* Assumes spill in p->cidspill, p->cidlen in length and we're p->cidpos into it */
 	int res;
 	/* Take out of linear mode if necessary */
 	if (p->subs[SUB_REAL].linear) {
 		p->subs[SUB_REAL].linear = 0;
-		zt_setlinear(p->subs[SUB_REAL].zfd, 0);
+		dahdi_setlinear(p->subs[SUB_REAL].zfd, 0);
 	}
 	while(p->cidpos < p->cidlen) {
 		res = write(p->subs[SUB_REAL].zfd, p->cidspill + p->cidpos, p->cidlen - p->cidpos);
@@ -1734,9 +1738,9 @@ static int send_callerid(struct zt_pvt *p)
 	return 1;
 }
 
-static int zt_callwait(struct cw_channel *cw)
+static int dahdi_callwait(struct cw_channel *cw)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		cw_log(CW_LOG_WARNING, "%s: Discarded existing spill!\n", cw->name);
@@ -1761,11 +1765,11 @@ static int zt_callwait(struct cw_channel *cw)
 	return 0;
 }
 
-static int zt_call(struct cw_channel *cw, char *rdest)
+static int dahdi_call(struct cw_channel *cw, char *rdest)
 {
-	struct zt_ring_cadence rcad, *cadence;
+	struct dahdi_ring_cadence rcad, *cadence;
 	struct tone_zone *tzone;
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int x, res, index;
 	char *c, *n, *l;
 #ifdef ZAPATA_PRI
@@ -1781,7 +1785,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		return 0;
 	}
 	if ((cw->_state != CW_STATE_DOWN) && (cw->_state != CW_STATE_RESERVED)) {
-		cw_log(CW_LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", cw->name);
+		cw_log(CW_LOG_WARNING, "dahdi_call called on %s, neither down nor reserved\n", cw->name);
 		cw_mutex_unlock(&p->lock);
 		return -1;
 	}
@@ -1793,8 +1797,8 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		cw_mutex_unlock(&p->lock);
 		return 0;
 	}
-	x = ZT_FLUSH_READ | ZT_FLUSH_WRITE;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
+	x = DAHDI_FLUSH_READ | DAHDI_FLUSH_WRITE;
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_FLUSH, &x);
 	if (res)
 		cw_log(CW_LOG_WARNING, "Unable to flush input on channel %d\n", p->channel);
 	p->outgoing = 1;
@@ -1817,7 +1821,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 				c = NULL;
 			}
 			if (c) {
-				p->dop.op = ZT_DIAL_OP_REPLACE;
+				p->dop.op = DAHDI_DIAL_OP_REPLACE;
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "Tw%s", c);
 				cw_log(CW_LOG_DEBUG, "FXO: setup deferred dialstring: %s\n", c);
 			} else {
@@ -1858,14 +1862,14 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 			if (p->distinctivering > 0 && p->distinctivering <= num_cadence) {
 				cadence = &cadences[p->distinctivering-1];
 				p->cidrings = cidrings[p->distinctivering-1];
-			} else if (!ioctl(p->subs[SUB_REAL].zfd, ZT_GETTONEZONE, &res)
+			} else if (!ioctl(p->subs[SUB_REAL].zfd, DAHDI_GETTONEZONE, &res)
 			&& (tzone = tone_zone_find_by_num(res))) {
 				memcpy(rcad.ringcadence, tzone->ringcadence, sizeof(rcad.ringcadence));
 				cadence = &rcad;
 				p->cidrings = -1;
 			} else {
-				rcad.ringcadence[0] = -ZT_DEFAULT_RINGTIME;
-				rcad.ringcadence[1] = ZT_RINGOFFTIME;
+				rcad.ringcadence[0] = -DAHDI_DEFAULT_RINGTIME;
+				rcad.ringcadence[1] = DAHDI_RINGOFFTIME;
 				cadence = &rcad;
 				p->cidrings = 1;
 			}
@@ -1911,7 +1915,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 				cw_log(CW_LOG_DEBUG, "%s: Post-ring CID follows ring %d\n", cw->name, p->cidrings);
 			}
 
-			if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, cadence))
+			if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETCADENCE, cadence))
 				cw_log(CW_LOG_WARNING, "%s: Unable to set ring cadence\n", cw->name);
 
 			if (!p->cidspill || (p->cid_start == CID_START_RING && p->cidrings)) {
@@ -1920,8 +1924,8 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 				 */
 				cw_log(CW_LOG_DEBUG, "%s: Start ringing\n", cw->name);
 				p->cid_send_on = CID_START_RING;
-				x = ZT_RING;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
+				x = DAHDI_RING;
+				if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x) && (errno != EINPROGRESS)) {
 					cw_log(CW_LOG_WARNING, "%s: Unable to ring phone: %s\n", cw->name, strerror(errno));
 					cw_mutex_unlock(&p->lock);
 					return -1;
@@ -1938,10 +1942,10 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 				cw_log(CW_LOG_DEBUG, "%s: Send pre-ring caller ID\n", cw->name);
 				p->cid_send_on = CID_START_POLARITY;
 				x = p->cidlen;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x))
+				if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_ONHOOKTRANSFER, &x))
 					cw_log(CW_LOG_DEBUG, "%s: Unable to start on hook transfer: %s\n", cw->name, strerror(errno));
 				x = POLARITY_REV;
-				ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x);
+				ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETPOLARITY, &x);
 				send_callerid(p);
 			}
 
@@ -1959,12 +1963,12 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 			else
 				p->callwait_name[0] = '\0';
 			/* Call waiting tone instead */
-			if (zt_callwait(cw)) {
+			if (dahdi_callwait(cw)) {
 				cw_mutex_unlock(&p->lock);
 				return -1;
 			}
 			/* Make ring-back */
-			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].zfd, ZT_TONE_RINGTONE))
+			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].zfd, DAHDI_TONE_RINGTONE))
 				cw_log(CW_LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", cw->name);
 				
 		}
@@ -1979,7 +1983,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		else
 			p->lastcid_name[0] = '\0';
 		cw_setstate(cw, CW_STATE_RINGING);
-		index = zt_get_index(cw, p, 0);
+		index = dahdi_get_index(cw, p, 0);
 		if (index > -1) {
 			p->subs[index].needringing = 1;
 		}
@@ -2014,8 +2018,8 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		/* Start the trunk, if not GR-303 */
 		if (!p->pri) {
 #endif
-			x = ZT_START;
-			res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+			x = DAHDI_START;
+			res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 			if (res < 0) {
 				if (errno != EINPROGRESS) {
 					cw_log(CW_LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
@@ -2027,7 +2031,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		}
 #endif
 		cw_log(CW_LOG_DEBUG, "Dialing '%s'\n", c);
-		p->dop.op = ZT_DIAL_OP_REPLACE;
+		p->dop.op = DAHDI_DIAL_OP_REPLACE;
 
 		c += p->stripmsd;
 
@@ -2090,9 +2094,9 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		} else
 			p->echobreak = 0;
 		if (!res) {
-			if (ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop)) {
-				x = ZT_ONHOOK;
-				ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+			if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop)) {
+				x = DAHDI_ONHOOK;
+				ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 				cw_log(CW_LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
 				cw_mutex_unlock(&p->lock);
 				return -1;
@@ -2146,7 +2150,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 			return -1;
 		}
 		if (p->sig != SIG_FXSKS) {
-			p->dop.op = ZT_DIAL_OP_REPLACE;
+			p->dop.op = DAHDI_DIAL_OP_REPLACE;
 			s = strchr(c + p->stripmsd, 'w');
 			if (s) {
 				if (strlen(s) > 1)
@@ -2197,7 +2201,7 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), exclusive, 1);
 		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : cw->transfercapability, 
 					(p->digital ? -1 : 
-						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
+						((p->law == DAHDI_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
 		if (p->pri->facilityenable)
 			pri_facility_enable(p->pri->pri);
 
@@ -2312,9 +2316,9 @@ static int zt_call(struct cw_channel *cw, char *rdest)
 	return 0;
 }
 
-static void destroy_zt_pvt(struct zt_pvt **pvt)
+static void destroy_dahdi_pvt(struct dahdi_pvt **pvt)
 {
-	struct zt_pvt *p = *pvt;
+	struct dahdi_pvt *p = *pvt;
 	/* Remove channel from the list */
 	if(p->prev)
 		p->prev->next = p->next;
@@ -2325,7 +2329,7 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 	*pvt = NULL;
 }
 
-static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
+static int destroy_channel(struct dahdi_pvt *prev, struct dahdi_pvt *cur, int now)
 {
 	int owned = 0;
 	int i = 0;
@@ -2355,9 +2359,9 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 					ifend = NULL;
 			}
 			if (cur->subs[SUB_REAL].zfd > -1) {
-				zt_close(cur->subs[SUB_REAL].zfd);
+				dahdi_close(cur->subs[SUB_REAL].zfd);
 			}
-			destroy_zt_pvt(&cur);
+			destroy_dahdi_pvt(&cur);
 		}
 	} else {
 		if (prev) {
@@ -2374,15 +2378,15 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 				ifend = NULL;
 		}
 		if (cur->subs[SUB_REAL].zfd > -1) {
-			zt_close(cur->subs[SUB_REAL].zfd);
+			dahdi_close(cur->subs[SUB_REAL].zfd);
 		}
-		destroy_zt_pvt(&cur);
+		destroy_dahdi_pvt(&cur);
 	}
 	return 0;
 }
 
 #ifdef ZAPATA_PRI
-int pri_is_up(struct zt_pri *pri)
+int pri_is_up(struct dahdi_pri *pri)
 {
 	int x;
 	for (x=0;x<NUM_DCHANS;x++) {
@@ -2392,7 +2396,7 @@ int pri_is_up(struct zt_pri *pri)
 	return 0;
 }
 
-int pri_assign_bearer(struct zt_pvt *crv, struct zt_pri *pri, struct zt_pvt *bearer)
+int pri_assign_bearer(struct dahdi_pvt *crv, struct dahdi_pri *pri, struct dahdi_pvt *bearer)
 {
 	bearer->owner = &inuse;
 	bearer->realcall = crv;
@@ -2422,7 +2426,7 @@ static char *pri_order(int level)
 }
 
 /* Returns fd of the active dchan */
-int pri_active_dchan_fd(struct zt_pri *pri)
+int pri_active_dchan_fd(struct dahdi_pri *pri)
 {
 	int x = -1;
 
@@ -2434,7 +2438,7 @@ int pri_active_dchan_fd(struct zt_pri *pri)
 	return pri->fds[x];
 }
 
-int pri_find_dchan(struct zt_pri *pri)
+int pri_find_dchan(struct dahdi_pri *pri)
 {
 	int oldslot = -1;
 	struct pri *old;
@@ -2461,18 +2465,18 @@ int pri_find_dchan(struct zt_pri *pri)
 }
 #endif
 
-static int zt_hangup(struct cw_channel *cw)
+static int dahdi_hangup(struct cw_channel *cw)
 {
 	int res;
 	int index,x, law;
-	/*static int restore_gains(struct zt_pvt *p);*/
-	struct zt_pvt *p = cw->tech_pvt;
-	struct zt_pvt *tmp = NULL;
-	struct zt_pvt *prev = NULL;
-	ZT_PARAMS par;
+	/*static int restore_gains(struct dahdi_pvt *p);*/
+	struct dahdi_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *tmp = NULL;
+	struct dahdi_pvt *prev = NULL;
+	struct dahdi_params par;
 
 	if (option_debug)
-		cw_log(CW_LOG_DEBUG, "zt_hangup(%s)\n", cw->name);
+		cw_log(CW_LOG_DEBUG, "dahdi_hangup(%s)\n", cw->name);
 	if (!cw->tech_pvt) {
 		cw_log(CW_LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -2480,7 +2484,7 @@ static int zt_hangup(struct cw_channel *cw)
 	
 	cw_mutex_lock(&p->lock);
 	
-	index = zt_get_index(cw, p, 1);
+	index = dahdi_get_index(cw, p, 1);
 
 	if (p->sig == SIG_PRI) {
 		x = 1;
@@ -2488,7 +2492,7 @@ static int zt_hangup(struct cw_channel *cw)
 	}
 
 	x = 0;
-	zt_confmute(p, 0);
+	dahdi_confmute(p, 0);
 	restore_gains(p);
 	if (p->origcid_num) {
 		cw_copy_string(p->cid_num, p->origcid_num, sizeof(p->cid_num));
@@ -2522,7 +2526,7 @@ static int zt_hangup(struct cw_channel *cw)
 		p->subs[index].linear = 0;
 		p->subs[index].needcallerid = 0;
 		p->polarity = POLARITY_IDLE;
-		zt_setlinear(p->subs[index].zfd, 0);
+		dahdi_setlinear(p->subs[index].zfd, 0);
 		if (index == SUB_REAL) {
 			if ((p->subs[SUB_CALLWAIT].zfd > -1) && (p->subs[SUB_THREEWAY].zfd > -1)) {
 				cw_log(CW_LOG_DEBUG, "Normal call hung up with both three way call and a call waiting call in place?\n");
@@ -2628,8 +2632,8 @@ static int zt_hangup(struct cw_channel *cw)
 			p->dsp = NULL;
 		}
 
-		law = ZT_LAW_DEFAULT;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETLAW, &law);
+		law = DAHDI_LAW_DEFAULT;
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETLAW, &law);
 		if (res < 0) 
 			cw_log(CW_LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
 		/* Perform low level hangup if no owner left */
@@ -2676,7 +2680,7 @@ static int zt_hangup(struct cw_channel *cw)
 		}
 #endif
 		if (p->sig && (p->sig != SIG_PRI))
-			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
+			res = dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_ONHOOK);
 		if (res < 0) {
 			cw_log(CW_LOG_WARNING, "Unable to hangup line %s\n", cw->name);
 		}
@@ -2684,14 +2688,14 @@ static int zt_hangup(struct cw_channel *cw)
 		case SIG_FXOGS:
 		case SIG_FXOLS:
 		case SIG_FXOKS:
-			res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par);
+			res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &par);
 			if (!res) {
 #if 0
 				cw_log(CW_LOG_DEBUG, "Hanging up channel %d, offhook = %d\n", p->channel, par.rxisoffhook);
 #endif
 				/* If they're off hook, try playing congestion */
 				if ((par.rxisoffhook) && (!p->radio))
-					tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+					tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 			}
@@ -2714,7 +2718,7 @@ static int zt_hangup(struct cw_channel *cw)
 		if (p->cidspill2)
 			free(p->cidspill2);
 		if (p->sig)
-			zt_disable_ec(p);
+			dahdi_disable_ec(p);
 		x = 0;
 		cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char));
 		cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char));
@@ -2780,15 +2784,15 @@ static int zt_hangup(struct cw_channel *cw)
 	return 0;
 }
 
-static int zt_answer(struct cw_channel *cw)
+static int dahdi_answer(struct cw_channel *cw)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int res=0;
 	int index;
 	int oldstate = cw->_state;
 	cw_setstate(cw, CW_STATE_UP);
 	cw_mutex_lock(&p->lock);
-	index = zt_get_index(cw, p, 0);
+	index = dahdi_get_index(cw, p, 0);
 	if (index < 0)
 		index = SUB_REAL;
 	/* nothing to do if a radio channel */
@@ -2822,7 +2826,7 @@ static int zt_answer(struct cw_channel *cw)
 		if(p->hanguponpolarityswitch) {
 			gettimeofday(&p->polaritydelaytv, NULL);
 		}
-		res =  zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+		res =  dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 		tone_zone_play_tone(p->subs[index].zfd, -1);
 		p->dialing = 0;
 		if ((index == SUB_REAL) && p->subs[SUB_THREEWAY].inthreeway) {
@@ -2833,9 +2837,9 @@ static int zt_answer(struct cw_channel *cw)
 				p->owner = p->subs[SUB_REAL].owner;
 			}
 		}
-		if (p->sig & __ZT_SIG_FXS) {
-			zt_enable_ec(p);
-			zt_train_ec(p);
+		if (p->sig & __DAHDI_SIG_FXS) {
+			dahdi_enable_ec(p);
+			dahdi_train_ec(p);
 		}
 		break;
 #ifdef ZAPATA_PRI
@@ -2862,13 +2866,13 @@ static int zt_answer(struct cw_channel *cw)
 	return res;
 }
 
-static int zt_setoption(struct cw_channel *chan, int option, void *data, int datalen)
+static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
 	char *cp;
 	signed char *scp;
 	int x;
 	int index;
-	struct zt_pvt *p = chan->tech_pvt;
+	struct dahdi_pvt *p = chan->tech_pvt;
 
 	/* all supported options require data */
 	if (!data || (datalen < 1)) {
@@ -2879,7 +2883,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 	switch(option) {
 	case CW_OPTION_TXGAIN:
 		scp = (signed char *) data;
-		index = zt_get_index(chan, p, 0);
+		index = dahdi_get_index(chan, p, 0);
 		if (index < 0) {
 			cw_log(CW_LOG_WARNING, "No index in TXGAIN?\n");
 			return -1;
@@ -2888,7 +2892,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		return set_actual_txgain(p->subs[index].zfd, 0, p->txgain + (float) *scp, p->law);
 	case CW_OPTION_RXGAIN:
 		scp = (signed char *) data;
-		index = zt_get_index(chan, p, 0);
+		index = dahdi_get_index(chan, p, 0);
 		if (index < 0) {
 			cw_log(CW_LOG_WARNING, "No index in RXGAIN?\n");
 			return -1;
@@ -2897,9 +2901,9 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		return set_actual_rxgain(p->subs[index].zfd, 0, p->rxgain + (float) *scp, p->law);
 	case CW_OPTION_ECHOCANCEL:
 		if (*(char *)data)
-			zt_enable_ec(p);
+			dahdi_enable_ec(p);
 		else
-			zt_disable_ec(p);
+			dahdi_disable_ec(p);
 		return 0;
 	case CW_OPTION_TONE_VERIFY:
 		if (!p->dsp)
@@ -2921,7 +2925,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		}
 		break;
 	case CW_OPTION_MUTECONF:
-		zt_confmute(p, *(char *)data);
+		dahdi_confmute(p, *(char *)data);
 		break;
 	case CW_OPTION_TDD:
 		/* turn on or off TDD */
@@ -2936,7 +2940,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		}
 		cw_log(CW_LOG_DEBUG, "Set option TDD MODE, value: %s(%d) on %s\n",
 			(*cp == 2) ? "MATE" : "ON", (int) *cp, chan->name);
-		zt_disable_ec(p);
+		dahdi_disable_ec(p);
 		/* otherwise, turn it on */
 		if (!p->didtdd) {
 			/* if haven't done it yet */
@@ -2949,7 +2953,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
 			cw_gen_ecdisa(buf + 16000, 16000, CW_LAW(p));  /* put in tone */
 			len = 40000;
-			index = zt_get_index(chan, p, 0);
+			index = dahdi_get_index(chan, p, 0);
 			if (index < 0) {
 				cw_log(CW_LOG_WARNING, "No index in TDD?\n");
 				return -1;
@@ -3010,12 +3014,12 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 		if (!*cp) {		
 			cw_log(CW_LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n", chan->name);
 			x = 0;
-			zt_disable_ec(p);
+			dahdi_disable_ec(p);
 		} else {		
 			cw_log(CW_LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n", chan->name);
 			x = 1;
 		}
-		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
+		if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &x) == -1)
 			cw_log(CW_LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 		break;
 	}
@@ -3024,7 +3028,7 @@ static int zt_setoption(struct cw_channel *chan, int option, void *data, int dat
 	return 0;
 }
 
-static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
+static void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock)
 {
 	/* Unlink a specific slave or all slaves/masters from a given master */
 	int x;
@@ -3082,7 +3086,7 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
 	}
 }
 
-static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
+static void dahdi_link(struct dahdi_pvt *slave, struct dahdi_pvt *master) {
 	int x;
 	if (!slave || !master) {
 		cw_log(CW_LOG_WARNING, "Tried to link to/from NULL??\n");
@@ -3105,40 +3109,40 @@ static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
 	cw_log(CW_LOG_DEBUG, "Making %d slave to master %d at %d\n", slave->channel, master->channel, x);
 }
 
-static void disable_dtmf_detect(struct zt_pvt *p)
+static void disable_dtmf_detect(struct dahdi_pvt *p)
 {
-#ifdef ZT_TONEDETECT
+#ifdef DAHDI_TONEDETECT
 	int val;
 #endif
 
 	p->ignoredtmf = 1;
 
-#ifdef ZT_TONEDETECT
+#ifdef DAHDI_TONEDETECT
 	val = 0;
-	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
+	ioctl(p->subs[SUB_REAL].zfd, DAHDI_TONEDETECT, &val);
 #endif		
 	
 }
 
-static void enable_dtmf_detect(struct zt_pvt *p)
+static void enable_dtmf_detect(struct dahdi_pvt *p)
 {
-#ifdef ZT_TONEDETECT
+#ifdef DAHDI_TONEDETECT
 	int val;
 #endif
 
 	p->ignoredtmf = 0;
 
-#ifdef ZT_TONEDETECT
-	val = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
+#ifdef DAHDI_TONEDETECT
+	val = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
+	ioctl(p->subs[SUB_REAL].zfd, DAHDI_TONEDETECT, &val);
 #endif		
 }
 
-static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms)
+static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms)
 {
 	struct cw_channel *who;
-	struct zt_pvt *p0, *p1, *op0, *op1;
-	struct zt_pvt *master = NULL, *slave = NULL;
+	struct dahdi_pvt *p0, *p1, *op0, *op1;
+	struct dahdi_pvt *master = NULL, *slave = NULL;
 	struct cw_frame *f;
 	int inconf = 0;
 	int nothingok = 1;
@@ -3174,8 +3178,8 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		return CW_BRIDGE_FAILED_NOWARN;
 	}
 
-	oi0 = zt_get_index(c0, p0, 0);
-	oi1 = zt_get_index(c1, p1, 0);
+	oi0 = dahdi_get_index(c0, p0, 0);
+	oi1 = dahdi_get_index(c1, p1, 0);
 	if ((oi0 < 0) || (oi1 < 0)) {
 		cw_mutex_unlock(&c0->lock);
 		cw_mutex_unlock(&c1->lock);
@@ -3261,7 +3265,7 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		    p1->subs[SUB_REAL].inthreeway && 
 		    (p1->subs[SUB_REAL].owner->_state == CW_STATE_RINGING)) {
 			cw_log(CW_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
-			tone_zone_play_tone(p0->subs[oi0].zfd, ZT_TONE_RINGTONE);
+			tone_zone_play_tone(p0->subs[oi0].zfd, DAHDI_TONE_RINGTONE);
 			os1 = p1->subs[SUB_REAL].owner->_state;
 		} else {
 			cw_log(CW_LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p0->channel, oi0, p1->channel, oi1);
@@ -3273,7 +3277,7 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		    p0->subs[SUB_REAL].inthreeway && 
 		    (p0->subs[SUB_REAL].owner->_state == CW_STATE_RINGING)) {
 			cw_log(CW_LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
-			tone_zone_play_tone(p1->subs[oi1].zfd, ZT_TONE_RINGTONE);
+			tone_zone_play_tone(p1->subs[oi1].zfd, DAHDI_TONE_RINGTONE);
 			os0 = p0->subs[SUB_REAL].owner->_state;
 		} else {
 			cw_log(CW_LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p1->channel, oi1, p0->channel, oi0);
@@ -3282,11 +3286,11 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 			if (!p0->echocanbridged || !p1->echocanbridged) {
 				/* Disable echo cancellation if appropriate */
-				zt_disable_ec(p0);
-				zt_disable_ec(p1);
+				dahdi_disable_ec(p0);
+				dahdi_disable_ec(p1);
 			}
 		}
-		zt_link(slave, master);
+		dahdi_link(slave, master);
 		master->inconference = inconf;
 	} else if (!nothingok)
 		cw_log(CW_LOG_WARNING, "Can't link %d/%s with %d/%s\n", p0->channel, subnames[oi0], p1->channel, subnames[oi1]);
@@ -3304,8 +3308,8 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 
 	/* Native bridge failed */
 	if ((!master || !slave) && !nothingok) {
-		zt_enable_ec(p0);
-		zt_enable_ec(p1);
+		dahdi_enable_ec(p0);
+		dahdi_enable_ec(p1);
 		return CW_BRIDGE_FAILED;
 	}
 	
@@ -3327,9 +3331,9 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 		p1 = c1->tech_pvt;
 
 		if (op0 == p0)
-			i0 = zt_get_index(c0, p0, 1);
+			i0 = dahdi_get_index(c0, p0, 1);
 		if (op1 == p1)
-			i1 = zt_get_index(c1, p1, 1);
+			i1 = dahdi_get_index(c1, p1, 1);
 		cw_mutex_unlock(&c0->lock);
 		cw_mutex_unlock(&c1->lock);
 
@@ -3408,10 +3412,10 @@ static enum cw_bridge_result zt_bridge(struct cw_channel *c0, struct cw_channel 
 
 return_from_bridge:
 	if (op0 == p0)
-		zt_enable_ec(p0);
+		dahdi_enable_ec(p0);
 
 	if (op1 == p1)
-		zt_enable_ec(p1);
+		dahdi_enable_ec(p1);
 
 	if (!(flags & CW_BRIDGE_DTMF_CHANNEL_0))
 		enable_dtmf_detect(op0);
@@ -3419,14 +3423,14 @@ return_from_bridge:
 	if (!(flags & CW_BRIDGE_DTMF_CHANNEL_1))
 		enable_dtmf_detect(op1);
 
-	zt_unlink(slave, master, 1);
+	dahdi_unlink(slave, master, 1);
 
 	return res;
 }
 
-static int zt_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
+static int dahdi_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
-	struct zt_pvt *p = newchan->tech_pvt;
+	struct dahdi_pvt *p = newchan->tech_pvt;
 	int x;
 	cw_mutex_lock(&p->lock);
 	cw_log(CW_LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
@@ -3436,27 +3440,27 @@ static int zt_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 	for (x=0;x<3;x++)
 		if (p->subs[x].owner == oldchan) {
 			if (!x)
-				zt_unlink(NULL, p, 0);
+				dahdi_unlink(NULL, p, 0);
 			p->subs[x].owner = newchan;
 		}
 	if (newchan->_state == CW_STATE_RINGING) 
-		zt_indicate(newchan, CW_CONTROL_RINGING);
+		dahdi_indicate(newchan, CW_CONTROL_RINGING);
 	update_conf(p);
 	cw_mutex_unlock(&p->lock);
 	return 0;
 }
 
-static int zt_ring_phone(struct zt_pvt *p)
+static int dahdi_ring_phone(struct dahdi_pvt *p)
 {
 	int x;
 	int res;
 	/* Make sure our transmit state is on hook */
 	x = 0;
-	x = ZT_ONHOOK;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+	x = DAHDI_ONHOOK;
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 	do {
-		x = ZT_RING;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+		x = DAHDI_RING;
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 		if (res) {
 			switch(errno) {
 			case EBUSY:
@@ -3478,9 +3482,9 @@ static int zt_ring_phone(struct zt_pvt *p)
 
 static void *ss_thread(void *data);
 
-static struct cw_channel *zt_new(struct zt_pvt *, int, int, int, int, int);
+static struct cw_channel *dahdi_new(struct dahdi_pvt *, int, int, int, int, int);
 
-static int attempt_transfer(struct zt_pvt *p)
+static int attempt_transfer(struct dahdi_pvt *p)
 {
 	/* In order to transfer, we need at least one of the channels to
 	   actually be in a call bridge.  We can't conference two applications
@@ -3550,14 +3554,14 @@ static int attempt_transfer(struct zt_pvt *p)
 	return 0;
 }
 
-static int check_for_conference(struct zt_pvt *p)
+static int check_for_conference(struct dahdi_pvt *p)
 {
-	ZT_CONFINFO ci;
+	struct dahdi_confinfo ci;
 	/* Fine if we already have a master, etc */
 	if (p->master || (p->confno > -1))
 		return 0;
 	memset(&ci, 0, sizeof(ci));
-	if (ioctl(p->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
+	if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_GETCONF, &ci)) {
 		cw_log(CW_LOG_WARNING, "Failed to get conference info on channel %d\n", p->channel);
 		return 0;
 	}
@@ -3572,13 +3576,13 @@ static int check_for_conference(struct zt_pvt *p)
 	return 0;
 }
 
-static int get_alarms(struct zt_pvt *p)
+static int get_alarms(struct dahdi_pvt *p)
 {
 	int res;
-	ZT_SPANINFO zi;
+	struct dahdi_spaninfo zi;
 	memset(&zi, 0, sizeof(zi));
 	zi.spanno = p->span;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SPANSTAT, &zi);
+	res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_SPANSTAT, &zi);
 	if (res < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
 		return 0;
@@ -3586,16 +3590,16 @@ static int get_alarms(struct zt_pvt *p)
 	return zi.alarms;
 }
 			
-static struct cw_frame *zt_handle_event(struct cw_channel *cw)
+static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 {
 	int res,x;
 	int index;
 	char *c;
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	pthread_t threadid;
 	struct cw_channel *chan;
 
-	index = zt_get_index(cw, p, 0);
+	index = dahdi_get_index(cw, p, 0);
 	if (index < 0) {
 		p->subs[index].f.frametype = CW_FRAME_NULL;
 		return &p->subs[index].f;
@@ -3604,12 +3608,12 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 		res = p->fake_event;
 		p->fake_event = 0;
 	} else
-		res = zt_get_event(p->subs[index].zfd);
+		res = dahdi_get_event(p->subs[index].zfd);
 
 	cw_log(CW_LOG_DEBUG, "%s: Got event %s(%d) on channel %d (index %d)\n", cw->name, event2str(res), res, p->channel, index);
 
-	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
-		if (res & ZT_EVENT_PULSEDIGIT)
+	if (res & (DAHDI_EVENT_PULSEDIGIT | DAHDI_EVENT_DTMFUP)) {
+		if (res & DAHDI_EVENT_PULSEDIGIT)
 			p->pulsedial = 1;
 		else
 			p->pulsedial = 0;
@@ -3626,42 +3630,42 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 		}
 #endif
 		/* Unmute conference, return the captured digit */
-		zt_confmute(p, 0);
+		dahdi_confmute(p, 0);
 		return &p->subs[index].f;
 	}
 
-	if (res & ZT_EVENT_DTMFDOWN) {
+	if (res & DAHDI_EVENT_DTMFDOWN) {
 		cw_log(CW_LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
 		p->subs[index].f.frametype = CW_FRAME_NULL;
 		p->subs[index].f.subclass = 0;
-		zt_confmute(p, 1);
+		dahdi_confmute(p, 1);
 		/* Mute conference, return null frame */
 		return &p->subs[index].f;
 	}
 
 	switch(res) {
-		case ZT_EVENT_BITSCHANGED:
+		case DAHDI_EVENT_BITSCHANGED:
 			cw_log(CW_LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
 			break;
-		case ZT_EVENT_PULSE_START:
+		case DAHDI_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!cw->pbx)
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;
-		case ZT_EVENT_DIALCOMPLETE:
+		case DAHDI_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
-			if (ioctl(p->subs[index].zfd,ZT_DIALING,&x) == -1) {
-				cw_log(CW_LOG_DEBUG, "ZT_DIALING ioctl failed on %s\n",cw->name);
+			if (ioctl(p->subs[index].zfd,DAHDI_DIALING,&x) == -1) {
+				cw_log(CW_LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s\n",cw->name);
 				return NULL;
 			}
 			if (!x) { /* if not still dialing in driver */
-				zt_enable_ec(p);
+				dahdi_enable_ec(p);
 				if (p->echobreak) {
-					zt_train_ec(p);
+					dahdi_train_ec(p);
 					cw_copy_string(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr));
-					p->dop.op = ZT_DIAL_OP_REPLACE;
-					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+					p->dop.op = DAHDI_DIAL_OP_REPLACE;
+					res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop);
 					p->echobreak = 0;
 				} else {
 					p->dialing = 0;
@@ -3691,7 +3695,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				}
 			}
 			break;
-		case ZT_EVENT_ALARM:
+		case DAHDI_EVENT_ALARM:
 #ifdef ZAPATA_PRI
 			if (p->call) {
 				if (p->pri && p->pri->pri) {
@@ -3719,7 +3723,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 								"Channel: %d\r\n",
 								alarm2str(res), p->channel);
 			/* fall through intentionally */
-		case ZT_EVENT_ONHOOK:
+		case DAHDI_EVENT_ONHOOK:
 			if (p->radio)
 			{
 				p->subs[index].f.frametype = CW_FRAME_CONTROL;
@@ -3751,7 +3755,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 						/* Don't start streaming audio yet if the incoming call isn't up yet */
 						if (p->subs[SUB_REAL].owner->_state != CW_STATE_UP)
 							p->dialing = 1;
-						zt_ring_phone(p);
+						dahdi_ring_phone(p);
 					} else if (p->subs[SUB_THREEWAY].owner) {
 						unsigned int mssinceflash;
 						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
@@ -3797,7 +3801,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									p->owner = NULL;
 									/* Ring the phone */
-									zt_ring_phone(p);
+									dahdi_ring_phone(p);
 								} else {
 									if ((res = attempt_transfer(p)) < 0) {
 										p->subs[SUB_THREEWAY].owner->_softhangup |= CW_SOFTHANGUP_DEV;
@@ -3821,7 +3825,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							p->owner = NULL;
 							/* Ring the phone */
-							zt_ring_phone(p);
+							dahdi_ring_phone(p);
 						}
 					}
 				} else {
@@ -3829,11 +3833,11 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				}
 				/* Fall through */
 			default:
-				zt_disable_ec(p);
+				dahdi_disable_ec(p);
 				return NULL;
 			}
 			break;
-		case ZT_EVENT_RINGOFFHOOK:
+		case DAHDI_EVENT_RINGOFFHOOK:
 			if (p->inalarm) break;
 			if (p->radio)
 			{
@@ -3859,9 +3863,9 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 					p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 				} else
 					p->echobreak = 0;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop)) {
-					x = ZT_ONHOOK;
-					ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+				if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop)) {
+					x = DAHDI_ONHOOK;
+					ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 					cw_log(CW_LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
 					return NULL;
 					}
@@ -3874,12 +3878,12 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			case SIG_FXOKS:
 				switch(cw->_state) {
 				case CW_STATE_RINGING:
-					zt_enable_ec(p);
-					zt_train_ec(p);
+					dahdi_enable_ec(p);
+					dahdi_train_ec(p);
 					p->subs[index].f.frametype = CW_FRAME_CONTROL;
 					p->subs[index].f.subclass = CW_CONTROL_ANSWER;
 					/* Make sure it stops ringing */
-					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
+					dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
 					cw_log(CW_LOG_DEBUG, "channel %d answered\n", p->channel);
 					/* Cancel any running CallerID spill */
 					if (p->cidspill) {
@@ -3898,7 +3902,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 						p->subs[index].f.subclass = 0;
 					} else if (!cw_strlen_zero(p->dop.dialstr)) {
 						/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
-						res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+						res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop);
 						if (res < 0) {
 							cw_log(CW_LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 							p->dop.dialstr[0] = '\0';
@@ -3923,7 +3927,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 					return &p->subs[index].f;
 				case CW_STATE_UP:
 					/* Make sure it stops ringing */
-					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
+					dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
 					/* Okay -- probably call waiting*/
 					if (cw_bridged_channel(p->owner))
 							cw_moh_stop(cw_bridged_channel(p->owner));
@@ -3931,9 +3935,9 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				case CW_STATE_RESERVED:
 					/* Start up dialtone */
 					if (cw_app_has_voicemail(p->mailbox, NULL))
-						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
+						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_STUTTER);
 					else
-						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
+						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_DIALTONE);
 					break;
 				default:
 					cw_log(CW_LOG_WARNING, "FXO phone off hook in weird state %d??\n", cw->_state);
@@ -3991,8 +3995,8 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				cw_log(CW_LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 			}
 			break;
-#ifdef ZT_EVENT_RINGBEGIN
-		case ZT_EVENT_RINGBEGIN:
+#ifdef DAHDI_EVENT_RINGBEGIN
+		case DAHDI_EVENT_RINGBEGIN:
 			switch(p->sig) {
 			case SIG_FXSLS:
 			case SIG_FXSGS:
@@ -4003,7 +4007,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			}
 			break;
 #endif			
-		case ZT_EVENT_RINGEROFF:
+		case DAHDI_EVENT_RINGEROFF:
 			if (p->inalarm) break;
 			if (p->radio) break;
 			cw->rings++;
@@ -4012,7 +4016,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			p->subs[index].f.frametype = CW_FRAME_CONTROL;
 			p->subs[index].f.subclass = CW_CONTROL_RINGING;
 			break;
-		case ZT_EVENT_RINGERON:
+		case DAHDI_EVENT_RINGERON:
 			if (p->cidspill && cw->rings > p->cidrings) {
 				cw_log(CW_LOG_WARNING, "%s: Didn't finish sending caller ID before start of ring!\n", cw->name);
 				free(p->cidspill);
@@ -4020,7 +4024,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				p->callwaitcas = 0;
 			}
 			break;
-		case ZT_EVENT_NOALARM:
+		case DAHDI_EVENT_NOALARM:
 			p->inalarm = 0;
 #ifdef ZAPATA_PRI
 			/* Extremely unlikely but just in case */
@@ -4031,7 +4035,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
 								"Channel: %d\r\n", p->channel);
 			break;
-		case ZT_EVENT_WINKFLASH:
+		case DAHDI_EVENT_WINKFLASH:
 			if (p->inalarm) break;
 			if (p->radio) break;
 			/* Remember last time we got a flash-hook */
@@ -4094,7 +4098,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 							goto winkflashdone;
 						}
 						/* Make new channel */
-						chan = zt_new(p, CW_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
+						chan = dahdi_new(p, CW_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
 						if (p->zaptrcallerid) {
 							if (!p->origcid_num)
 								p->origcid_num = strdup(p->cid_num);
@@ -4106,8 +4110,8 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 						/* Swap things around between the three-way and real call */
 						swap_subs(p, SUB_THREEWAY, SUB_REAL);
 						/* Disable echo canceller for better dialing */
-						zt_disable_ec(p);
-						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
+						dahdi_disable_ec(p);
+						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_DIALRECALL);
 						if (res)
 							cw_log(CW_LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 						p->owner = chan;
@@ -4115,8 +4119,8 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 							cw_log(CW_LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
 						} else if (cw_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 							cw_log(CW_LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
-							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
-							zt_enable_ec(p);
+							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
+							dahdi_enable_ec(p);
 							cw_hangup(chan);
 						} else {
 							if (option_verbose > 2)	
@@ -4164,8 +4168,8 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 							p->owner = p->subs[SUB_REAL].owner;
 							if (cw->_state == CW_STATE_RINGING) {
 								cw_log(CW_LOG_DEBUG, "Enabling ringtone on real and threeway\n");
-								res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
-								res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
+								res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_RINGTONE);
+								res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, DAHDI_TONE_RINGTONE);
 							}
 						} else {
 							if (option_verbose > 2)
@@ -4175,7 +4179,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 							p->owner = p->subs[SUB_REAL].owner;
 							if (p->subs[SUB_REAL].owner && cw_bridged_channel(p->subs[SUB_REAL].owner))
 								cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
-							zt_enable_ec(p);
+							dahdi_enable_ec(p);
 						}
 							
 					}
@@ -4219,7 +4223,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			case SIG_SF_FEATB:
 				/* FGD MF *Must* wait for wink */
 				if (!cw_strlen_zero(p->dop.dialstr))
-					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+					res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop);
 				else if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 					p->dop.dialstr[0] = '\0';
@@ -4232,7 +4236,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				cw_log(CW_LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
 			}
 			break;
-		case ZT_EVENT_HOOKCOMPLETE:
+		case DAHDI_EVENT_HOOKCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
 			switch(p->sig) {
@@ -4247,7 +4251,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 			case SIG_SFWINK:
 			case SIG_SF_FEATD:
 				if (!cw_strlen_zero(p->dop.dialstr)) 
-					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+					res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop);
 				else if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 					p->dop.dialstr[0] = '\0';
@@ -4255,7 +4259,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				} else 
 					cw_log(CW_LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
 				p->dop.dialstr[0] = '\0';
-				p->dop.op = ZT_DIAL_OP_REPLACE;
+				p->dop.op = DAHDI_DIAL_OP_REPLACE;
 				break;
 			case SIG_FEATDMF:
 			case SIG_E911:
@@ -4268,7 +4272,7 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 				break;
 			}
 			break;
-		case ZT_EVENT_POLARITY:
+		case DAHDI_EVENT_POLARITY:
                         /*
                          * If we get a Polarity Switch event, check to see
                          * if we should change the polarity state and
@@ -4314,15 +4318,15 @@ static struct cw_frame *zt_handle_event(struct cw_channel *cw)
 	return &p->subs[index].f;
 }
 
-static struct cw_frame *__zt_exception(struct cw_channel *cw)
+static struct cw_frame *__dahdi_exception(struct cw_channel *cw)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int res;
 	int usedindex=-1;
 	int index;
 	struct cw_frame *f;
 
-	index = zt_get_index(cw, p, 1);
+	index = dahdi_get_index(cw, p, 1);
 
 	if ((!p->owner) && (!p->radio)) {
 		/* If nobody owns us, absorb the event appropriately, otherwise
@@ -4334,49 +4338,49 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 			res = p->fake_event;
 			p->fake_event = 0;
 		} else
-			res = zt_get_event(p->subs[SUB_REAL].zfd);
+			res = dahdi_get_event(p->subs[SUB_REAL].zfd);
 		/* Switch to real if there is one and this isn't something really silly... */
-		if ((res != ZT_EVENT_RINGEROFF) && (res != ZT_EVENT_RINGERON) &&
-			(res != ZT_EVENT_HOOKCOMPLETE)) {
+		if ((res != DAHDI_EVENT_RINGEROFF) && (res != DAHDI_EVENT_RINGERON) &&
+			(res != DAHDI_EVENT_HOOKCOMPLETE)) {
 			cw_log(CW_LOG_DEBUG, "Restoring owner of channel %d on event %d\n", p->channel, res);
 			p->owner = p->subs[SUB_REAL].owner;
 			if (p->owner && cw_bridged_channel(p->owner))
 				cw_moh_stop(cw_bridged_channel(p->owner));
 		}
 		switch(res) {
-		case ZT_EVENT_ONHOOK:
-			zt_disable_ec(p);
+		case DAHDI_EVENT_ONHOOK:
+			dahdi_disable_ec(p);
 			if (p->owner) {
 				if (option_verbose > 2) 
 					cw_verbose(VERBOSE_PREFIX_3 "Channel %s still has call, ringing phone\n", p->owner->name);
-				zt_ring_phone(p);
+				dahdi_ring_phone(p);
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
 			} else
 				cw_log(CW_LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
 			update_conf(p);
 			break;
-		case ZT_EVENT_RINGOFFHOOK:
-			zt_enable_ec(p);
-			zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+		case DAHDI_EVENT_RINGOFFHOOK:
+			dahdi_enable_ec(p);
+			dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 			if (p->owner && (p->owner->_state == CW_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
 				p->dialing = 0;
 			}
 			break;
-		case ZT_EVENT_HOOKCOMPLETE:
-		case ZT_EVENT_RINGERON:
-		case ZT_EVENT_RINGEROFF:
+		case DAHDI_EVENT_HOOKCOMPLETE:
+		case DAHDI_EVENT_RINGERON:
+		case DAHDI_EVENT_RINGEROFF:
 			/* Do nothing */
 			break;
-		case ZT_EVENT_WINKFLASH:
+		case DAHDI_EVENT_WINKFLASH:
 			gettimeofday(&p->flashtime, NULL);
 			if (p->owner) {
 				if (option_verbose > 2) 
 					cw_verbose(VERBOSE_PREFIX_3 "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
 				if (p->owner->_state != CW_STATE_UP) {
 					/* Answer if necessary */
-					usedindex = zt_get_index(p->owner, p, 0);
+					usedindex = dahdi_get_index(p->owner, p, 0);
 					if (usedindex > -1) {
 						p->subs[usedindex].needanswer = 1;
 					}
@@ -4405,23 +4409,23 @@ static struct cw_frame *__zt_exception(struct cw_channel *cw)
 		f = &p->subs[index].f;
 		return f;
 	}
-	f = zt_handle_event(cw);
+	f = dahdi_handle_event(cw);
 	return f;
 }
 
-struct cw_frame *zt_exception(struct cw_channel *cw)
+struct cw_frame *dahdi_exception(struct cw_channel *cw)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	struct cw_frame *f;
 	cw_mutex_lock(&p->lock);
-	f = __zt_exception(cw);
+	f = __dahdi_exception(cw);
 	cw_mutex_unlock(&p->lock);
 	return f;
 }
 
-struct cw_frame  *zt_read(struct cw_channel *cw)
+struct cw_frame  *dahdi_read(struct cw_channel *cw)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int res;
 	int index;
 	struct cw_frame *f;
@@ -4429,7 +4433,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 
 	cw_mutex_lock(&p->lock);
 	
-	index = zt_get_index(cw, p, 0);
+	index = dahdi_get_index(cw, p, 0);
 	
 	/* Hang up if we don't really exist */
 	if (index < 0)	{
@@ -4450,10 +4454,10 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))
 	{
-		ZT_PARAMS ps;
+		struct dahdi_params ps;
 
 		ps.channo = p->channel;
-		if (ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
+		if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &ps) < 0) {
 			cw_mutex_unlock(&p->lock);
 			return NULL;
 		}
@@ -4521,7 +4525,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	if (cw->rawreadformat == CW_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
-			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				cw_log(CW_LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, index);
 		}
@@ -4529,7 +4533,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		   (cw->rawreadformat == CW_FORMAT_ALAW)) {
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
-			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				cw_log(CW_LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, index);
 		}
@@ -4556,9 +4560,9 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 				cw_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
 			} else if (errno == ELAST) {
-				f = __zt_exception(cw);
+				f = __dahdi_exception(cw);
 			} else
-				cw_log(CW_LOG_WARNING, "zt_rec: %s\n", strerror(errno));
+				cw_log(CW_LOG_WARNING, "dahdi_rec: %s\n", strerror(errno));
 		}
 		cw_mutex_unlock(&p->lock);
 		return f;
@@ -4610,7 +4614,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 		if (p->callwaitingrepeat <= 0) {
 			/* Repeat callwaiting */
 			p->callwaitrings++;
-			zt_callwait(cw);
+			dahdi_callwait(cw);
 		}
 	}
 
@@ -4631,12 +4635,12 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 			 * if it isn't up and we were sending caller ID before the first ring.
 			 */
 			if (cw->_state != CW_STATE_UP && p->cid_send_on != CID_START_RING && !cw->rings) {
-				ioctl(p->subs[SUB_REAL].zfd, ZT_SYNC, &res);
+				ioctl(p->subs[SUB_REAL].zfd, DAHDI_SYNC, &res);
 				res = POLARITY_IDLE;
-				ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &res);
+				ioctl(p->subs[SUB_REAL].zfd, DAHDI_SETPOLARITY, &res);
 				cw_log(CW_LOG_DEBUG, "%s: Start ringing\n", cw->name);
-				res = ZT_RING;
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &res) && errno != EINPROGRESS)
+				res = DAHDI_RING;
+				if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_HOOK, &res) && errno != EINPROGRESS)
 					cw_log(CW_LOG_WARNING, "%s: Unable to ring phone: %s\n", cw->name, strerror(errno));
 				/* Set up for post-ring caller ID */
 				free(p->cidspill);
@@ -4733,12 +4737,12 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 					cw_log(CW_LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 			} else
 				cw_log(CW_LOG_DEBUG, "Fax already handled\n");
-			zt_confmute(p, 0);
+			dahdi_confmute(p, 0);
 			p->subs[index].f.frametype = CW_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
 			f = &p->subs[index].f;
 		} else
-			zt_confmute(p, 0);
+			dahdi_confmute(p, 0);
 	}
 
 	/* If we have a fake_event, trigger exception to handle it */
@@ -4749,7 +4753,7 @@ struct cw_frame  *zt_read(struct cw_channel *cw)
 	return f;
 }
 
-static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index, int linear)
+static int my_dahdi_write(struct dahdi_pvt *p, unsigned char *buf, int len, int index, int linear)
 {
 	int sent=0;
 	int size;
@@ -4772,13 +4776,13 @@ static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index,
 	return sent;
 }
 
-static int zt_write(struct cw_channel *cw, struct cw_frame *frame)
+static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame)
 {
-	struct zt_pvt *p = cw->tech_pvt;
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int res;
 	unsigned char outbuf[4096];
 	int index;
-	index = zt_get_index(cw, p, 0);
+	index = dahdi_get_index(cw, p, 0);
 	if (index < 0) {
 		cw_log(CW_LOG_WARNING, "%s doesn't really exist?\n", cw->name);
 		return -1;
@@ -4838,20 +4842,20 @@ static int zt_write(struct cw_channel *cw, struct cw_frame *frame)
 	if (frame->subclass == CW_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
-			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res)
 				cw_log(CW_LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 1);
+		res = my_dahdi_write(p, (unsigned char *)frame->data, frame->datalen, index, 1);
 	} else {
 		/* x-law already */
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
-			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res)
 				cw_log(CW_LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 0);
+		res = my_dahdi_write(p, (unsigned char *)frame->data, frame->datalen, index, 0);
 	}
 	if (res < 0) {
 		cw_log(CW_LOG_WARNING, "write failed: %s\n", strerror(errno));
@@ -4860,14 +4864,14 @@ static int zt_write(struct cw_channel *cw, struct cw_frame *frame)
 	return 0;
 }
 
-static int zt_indicate(struct cw_channel *chan, int condition)
+static int dahdi_indicate(struct cw_channel *chan, int condition)
 {
-	struct zt_pvt *p = chan->tech_pvt;
+	struct dahdi_pvt *p = chan->tech_pvt;
 	int res=-1;
 	int index;
-	int func = ZT_FLASH;
+	int func = DAHDI_FLASH;
 	cw_mutex_lock(&p->lock);
-	index = zt_get_index(chan, p, 0);
+	index = dahdi_get_index(chan, p, 0);
 	cw_log(CW_LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
 	if (index == SUB_REAL) {
 		switch(condition) {
@@ -4887,10 +4891,10 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 						cw_log(CW_LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->progress = 1;
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_BUSY);
 			} else
 #endif
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_BUSY);
 			break;
 		case CW_CONTROL_RINGING:
 #ifdef ZAPATA_PRI
@@ -4906,7 +4910,7 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 				p->alerting = 1;
 			}
 #endif
-			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
+			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_RINGTONE);
 			if (chan->_state != CW_STATE_UP) {
 				if ((chan->_state != CW_STATE_RING) ||
 					((p->sig != SIG_FXSKS) &&
@@ -4968,10 +4972,10 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 						cw_log(CW_LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->progress = 1;
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 			} else
 #endif
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 			break;
 #ifdef ZAPATA_PRI
 		case CW_CONTROL_HOLD:
@@ -4995,12 +4999,12 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 #endif
 		case CW_CONTROL_RADIO_KEY:
 			if (p->radio) 
-			    res =  zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
+			    res =  dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
 			res = 0;
 			break;
 		case CW_CONTROL_RADIO_UNKEY:
 			if (p->radio)
-			    res =  zt_set_hook(p->subs[index].zfd, ZT_RINGOFF);
+			    res =  dahdi_set_hook(p->subs[index].zfd, DAHDI_RINGOFF);
 			res = 0;
 			break;
 		case CW_CONTROL_FLASH:
@@ -5008,7 +5012,7 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 			if (ISTRUNK(p) && (p->sig != SIG_PRI)) {
 				/* Clear out the dial buffer */
 				p->dop.dialstr[0] = '\0';
-				if ((ioctl(p->subs[SUB_REAL].zfd,ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
+				if ((ioctl(p->subs[SUB_REAL].zfd,DAHDI_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
 					cw_log(CW_LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n", 
 						chan->name, strerror(errno));
 				} else
@@ -5026,14 +5030,14 @@ static int zt_indicate(struct cw_channel *chan, int condition)
 	return res;
 }
 
-static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law, int transfercapability)
+static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int index, int law, int transfercapability)
 {
 	struct cw_channel *tmp;
 	int deflaw;
 	int res;
 	int x,y;
 	int features;
-	ZT_PARAMS ps;
+	struct dahdi_params ps;
 	if (i->subs[index].owner) {
 		cw_log(CW_LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
@@ -5042,17 +5046,17 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 	if (tmp) {
 		tmp->tech = &dahdi_tech;
 		ps.channo = i->channel;
-		res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
+		res = ioctl(i->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &ps);
 		if (res) {
 			cw_log(CW_LOG_WARNING, "Unable to get parameters, assuming MULAW\n");
-			ps.curlaw = ZT_LAW_MULAW;
+			ps.curlaw = DAHDI_LAW_MULAW;
 		}
-		if (ps.curlaw == ZT_LAW_ALAW)
+		if (ps.curlaw == DAHDI_LAW_ALAW)
 			deflaw = CW_FORMAT_ALAW;
 		else
 			deflaw = CW_FORMAT_ULAW;
 		if (law) {
-			if (law == ZT_LAW_ALAW)
+			if (law == DAHDI_LAW_ALAW)
 				deflaw = CW_FORMAT_ALAW;
 			else
 				deflaw = CW_FORMAT_ULAW;
@@ -5084,7 +5088,7 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 		tmp->rawwriteformat = deflaw;
 		tmp->writeformat = deflaw;
 		i->subs[index].linear = 0;
-		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
+		dahdi_setlinear(i->subs[index].zfd, i->subs[index].linear);
 		features = 0;
 		if (i->busydetect && CANBUSYDETECT(i)) {
 			features |= DSP_FEATURE_BUSY_DETECT;
@@ -5096,13 +5100,13 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 		    (i->outgoing && (i->callprogress & 2))) {
 			features |= DSP_FEATURE_FAX_CNG_DETECT;
 		}
-#ifdef ZT_TONEDETECT
-		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
+#ifdef DAHDI_TONEDETECT
+		x = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
+		if (ioctl(i->subs[index].zfd, DAHDI_TONEDETECT, &x)) {
 #endif		
 			i->hardwaredtmf = 0;
 			features |= DSP_FEATURE_DTMF_DETECT;
-#ifdef ZT_TONEDETECT
+#ifdef DAHDI_TONEDETECT
 		} else if (NEED_MFDETECT(i)) {
 			i->hardwaredtmf = 1;
 			features |= DSP_FEATURE_DTMF_DETECT;
@@ -5187,7 +5191,7 @@ static struct cw_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int 
 		/* clear the fake event in case we posted one before we had cw_channel */
 		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
-		zt_confmute(i, 0);
+		dahdi_confmute(i, 0);
 		cw_setstate(tmp, state);
 		cw_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -5231,25 +5235,25 @@ static int my_getsigstr(struct cw_channel *chan, char *str, const char *term, in
 	}
 }
 
-static int zt_wink(struct zt_pvt *p, int index)
+static int dahdi_wink(struct dahdi_pvt *p, int index)
 {
 	int j;
-	zt_set_hook(p->subs[index].zfd, ZT_WINK);
+	dahdi_set_hook(p->subs[index].zfd, DAHDI_WINK);
 	for(;;)
 	{
 		   /* set bits of interest */
-		j = ZT_IOMUX_SIGEVENT;
+		j = DAHDI_IOMUX_SIGEVENT;
 		    /* wait for some happening */
-		if (ioctl(p->subs[index].zfd,ZT_IOMUX,&j) == -1) return(-1);
+		if (ioctl(p->subs[index].zfd,DAHDI_IOMUX,&j) == -1) return(-1);
 		   /* exit loop if we have it */
-		if (j & ZT_IOMUX_SIGEVENT) break;
+		if (j & DAHDI_IOMUX_SIGEVENT) break;
 	}
 	  /* get the event info */
-	if (ioctl(p->subs[index].zfd,ZT_GETEVENT,&j) == -1) return(-1);
+	if (ioctl(p->subs[index].zfd,DAHDI_GETEVENT,&j) == -1) return(-1);
 	return 0;
 }
 
-static void ss_thread_adsi_get(struct zt_pvt *p, adsi_rx_state_t *adsi_rx, const uint8_t *msg, int len) {
+static void ss_thread_adsi_get(struct dahdi_pvt *p, adsi_rx_state_t *adsi_rx, const uint8_t *msg, int len) {
 	if (!callerid_get(adsi_rx, p->owner, msg, len)) {
 		free(p->adsi_rx1);
 		p->adsi_rx1 = NULL;
@@ -5258,18 +5262,18 @@ static void ss_thread_adsi_get(struct zt_pvt *p, adsi_rx_state_t *adsi_rx, const
 	}
 }
 static void ss_thread_adsi_get1(void *data, const uint8_t *msg, int len) {
-	struct zt_pvt *p = data;
+	struct dahdi_pvt *p = data;
 	ss_thread_adsi_get(p, p->adsi_rx1, msg, len);
 }
 static void ss_thread_adsi_get2(void *data, const uint8_t *msg, int len) {
-	struct zt_pvt *p = data;
+	struct dahdi_pvt *p = data;
 	ss_thread_adsi_get(p, p->adsi_rx2, msg, len);
 }
 
 static void *ss_thread(void *data)
 {
 	struct cw_channel *chan = data;
-	struct zt_pvt *p = chan->tech_pvt;
+	struct dahdi_pvt *p = chan->tech_pvt;
 	char exten[CW_MAX_EXTENSION]="";
 	char exten2[CW_MAX_EXTENSION]="";
 //	unsigned char buf[256];
@@ -5291,7 +5295,7 @@ static void *ss_thread(void *data)
 	int index;
 	if (option_verbose > 2) 
 		cw_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s'\n", chan->name);
-	index = zt_get_index(chan, p, 1);
+	index = dahdi_get_index(chan, p, 1);
 	if (index < 0) {
 		cw_log(CW_LOG_WARNING, "Huh?\n");
 		cw_hangup(chan);
@@ -5310,7 +5314,7 @@ static void *ss_thread(void *data)
 			if (len && !cw_ignore_pattern(chan->context, exten))
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
-				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
+				tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
 			if (cw_exists_extension(chan, chan->context, exten, 1, p->cid_num))
 				timeout = matchdigittimeout;
 			else
@@ -5337,7 +5341,7 @@ static void *ss_thread(void *data)
 			/* Start the real PBX */
 			cw_copy_string(chan->exten, exten, sizeof(chan->exten));
 			if (p->dsp) cw_dsp_digitreset(p->dsp);
-			zt_enable_ec(p);
+			dahdi_enable_ec(p);
 			cw_setstate(chan, CW_STATE_RING);
 			res = cw_pbx_run(chan);
 			if (res) {
@@ -5363,7 +5367,7 @@ static void *ss_thread(void *data)
 	case SIG_SF_FEATDMF:
 	case SIG_SF_FEATB:
 	case SIG_SFWINK:
-		if (zt_wink(p, index))	
+		if (dahdi_wink(p, index))	
 			return NULL;
 		/* Fall through */
 	case SIG_EM:
@@ -5403,7 +5407,7 @@ static void *ss_thread(void *data)
 				if (res > 0) {
 					/* if E911, take off hook */
 					if (p->sig == SIG_E911)
-						zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+						dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "#", 3000);
 				}
 				if ((res < 1) && (p->dsp)) cw_dsp_digitreset(p->dsp);
@@ -5529,9 +5533,9 @@ static void *ss_thread(void *data)
 				cw_log(CW_LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
 		if (p->sig == SIG_FEATDMF) {
-			zt_wink(p, index);
+			dahdi_wink(p, index);
 		}
-		zt_enable_ec(p);
+		dahdi_enable_ec(p);
 		if (NEED_MFDETECT(p)) {
 			if (p->dsp) {
 				if (!p->hardwaredtmf)
@@ -5549,14 +5553,14 @@ static void *ss_thread(void *data)
 			res = cw_pbx_run(chan);
 			if (res) {
 				cw_log(CW_LOG_WARNING, "PBX exited non-zero\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 			}
 			return NULL;
 		} else {
 			if (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_2 "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
 			sleep(2);
-			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_INFO);
+			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_INFO);
 			if (res < 0)
 				cw_log(CW_LOG_WARNING, "Unable to start special tone on %d\n", p->channel);
 			else
@@ -5564,7 +5568,7 @@ static void *ss_thread(void *data)
 			res = cw_streamfile(chan, "ss-noservice", chan->language);
 			if (res >= 0)
 				cw_waitstream(chan, "");
-			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 			cw_hangup(chan);
 			return NULL;
 		}
@@ -5598,7 +5602,7 @@ static void *ss_thread(void *data)
 			if (!cw_ignore_pattern(chan->context, exten))
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
-				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
+				tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
 			if (cw_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, cw_parking_ext())) {
 				if (!res || !cw_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
@@ -5606,14 +5610,14 @@ static void *ss_thread(void *data)
 						cw_copy_string(p->call_forward, exten, sizeof(p->call_forward)); 
 						if (option_verbose > 2)
 							cw_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
-						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 						if (res)
 							break;
 						usleep(500000);
 						res = tone_zone_play_tone(p->subs[index].zfd, -1);
 						sleep(1);
 						memset(exten, 0, sizeof(exten));
-						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
+						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
 						len = 0;
 						getforward = 0;
 					} else  {
@@ -5630,11 +5634,11 @@ static void *ss_thread(void *data)
 								cw_set_callerid(chan, NULL, p->cid_name, NULL);
 						}
 						cw_setstate(chan, CW_STATE_RING);
-						zt_enable_ec(p);
+						dahdi_enable_ec(p);
 						res = cw_pbx_run(chan);
 						if (res) {
 							cw_log(CW_LOG_WARNING, "PBX exited non-zero\n");
-							res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+							res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 						}
 						return NULL;
 					}
@@ -5645,8 +5649,8 @@ static void *ss_thread(void *data)
 				}
 			} else if (res == 0) {
 				cw_log(CW_LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
-				zt_wait_event(p->subs[index].zfd);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+				dahdi_wait_event(p->subs[index].zfd);
 				cw_hangup(chan);
 				return NULL;
 			} else if (p->callwaiting && !strcmp(exten, "*70")) {
@@ -5654,13 +5658,13 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
 				/* Disable call waiting if enabled */
 				p->callwaiting = 0;
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					cw_log(CW_LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
 				}
 				len = 0;
-				ioctl(p->subs[index].zfd,ZT_CONFDIAG,&len);
+				ioctl(p->subs[index].zfd,DAHDI_CONFDIAG,&len);
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 					
@@ -5678,11 +5682,11 @@ static void *ss_thread(void *data)
 					  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
 						unalloc_sub(p, SUB_THREEWAY);
 					}
-					zt_enable_ec(p);
+					dahdi_enable_ec(p);
 					if (cw_pickup_call(chan)) {
 						cw_log(CW_LOG_DEBUG, "No call pickup possible...\n");
-						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
-						zt_wait_event(p->subs[index].zfd);
+						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+						dahdi_wait_event(p->subs[index].zfd);
 					}
 					cw_hangup(chan);
 					return NULL;
@@ -5703,7 +5707,7 @@ static void *ss_thread(void *data)
 				if (chan->cid.cid_name)
 					free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					cw_log(CW_LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -5717,7 +5721,7 @@ static void *ss_thread(void *data)
 					res = cw_say_digit_str(chan, p->lastcid_num, "", chan->language);
 				}
 				if (!res)
-					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+					res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				break;
 			} else if (!strcmp(exten, "*78")) {
 				/* Do not disturb */
@@ -5727,7 +5731,7 @@ static void *ss_thread(void *data)
 								"Channel: Zap/%d\r\n"
 								"Status: enabled\r\n", p->channel);
 				}
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 1;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
@@ -5740,20 +5744,20 @@ static void *ss_thread(void *data)
 								"Channel: Zap/%d\r\n"
 								"Status: disabled\r\n", p->channel);
 				}
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 0;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*72")) {
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				getforward = 1;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*73")) {
 				if (option_verbose > 2)
 					cw_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %d\n", p->channel);
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				memset(p->call_forward, 0, sizeof(p->call_forward));
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
@@ -5772,7 +5776,7 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcid_num);
 				res = cw_db_put("blacklist", p->lastcid_num, "1");
 				if (!res) {
-					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+					res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 					memset(exten, 0, sizeof(exten));
 					len = 0;
 				}
@@ -5788,7 +5792,7 @@ static void *ss_thread(void *data)
 					free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				cw_set_callerid(chan, p->cid_num, p->cid_name, NULL);
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					cw_log(CW_LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -5799,7 +5803,7 @@ static void *ss_thread(void *data)
 			} else if (!strcmp(exten, "*0")) {
 				struct cw_channel *nbridge = 
 					p->subs[SUB_THREEWAY].owner;
-				struct zt_pvt *pbridge = NULL;
+				struct dahdi_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
 				if (nbridge && cw_bridged_channel(nbridge)) 
 					pbridge = cw_bridged_channel(nbridge)->tech_pvt;
@@ -5807,11 +5811,11 @@ static void *ss_thread(void *data)
 				    (!strcmp(nbridge->type, dahdi_tech.type)) && 
 					(!strcmp(cw_bridged_channel(nbridge)->type,  dahdi_tech.type)) &&
 				    ISTRUNK(pbridge)) {
-					int func = ZT_FLASH;
+					int func = DAHDI_FLASH;
 					/* Clear out the dial buffer */
 					p->dop.dialstr[0] = '\0';
 					/* flash hookswitch */
-					if ((ioctl(pbridge->subs[SUB_REAL].zfd,ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
+					if ((ioctl(pbridge->subs[SUB_REAL].zfd,DAHDI_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
 						cw_log(CW_LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n", 
 							nbridge->name, strerror(errno));
 					}
@@ -5823,8 +5827,8 @@ static void *ss_thread(void *data)
 					cw_hangup(chan);
 					return NULL;
 				} else {
-					tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
-					zt_wait_event(p->subs[index].zfd);
+					tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+					dahdi_wait_event(p->subs[index].zfd);
 					tone_zone_play_tone(p->subs[index].zfd, -1);
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
@@ -5887,7 +5891,7 @@ static void *ss_thread(void *data)
 			bump_gains(p);
 
 			/* Take out of linear mode if necessary */
-			zt_setlinear(p->subs[index].zfd, 0);
+			dahdi_setlinear(p->subs[index].zfd, 0);
 
 			/* Pre-ring could be V23 or DTMF but not Bell202 (AFAIK).
 			 * Post-ring could be US style Bell202, Japanese V23 or even UK V23 (sent
@@ -5938,7 +5942,7 @@ static void *ss_thread(void *data)
 					samples += res;
 					p->ringt -= res;
 
-					if (p->law == ZT_LAW_MULAW)
+					if (p->law == DAHDI_LAW_MULAW)
 						for (i = 0; i < res; i++)
 							lin[i] = CW_MULAW(buf[i]);
 					else
@@ -5949,15 +5953,15 @@ static void *ss_thread(void *data)
 				} else if (res == 0) {
 					cw_log(CW_LOG_WARNING, "%s: unexpected zero return from read\n", chan->name);
 				} else if (errno == ELAST) {
-					res = zt_get_event(p->subs[index].zfd);
+					res = dahdi_get_event(p->subs[index].zfd);
 					if (option_debug)
 						cw_log(CW_LOG_DEBUG, "%s: Got event %d (%s)...\n", chan->name, res, event2str(res));
 					switch (res) {
-					case ZT_EVENT_RINGOFFHOOK:
+					case DAHDI_EVENT_RINGOFFHOOK:
 						if (p->adsi_rx1) adsi_rx_init(p->adsi_rx1, ADSI_STANDARD_CLASS, ss_thread_adsi_get1, p);
 						if (p->adsi_rx2) adsi_rx_init(p->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, p);
 						/* Fall through */
-					case ZT_EVENT_RINGBEGIN:
+					case DAHDI_EVENT_RINGBEGIN:
 						p->ringt = p->ringt_base;
 						if (chan->rings >= 0 && !receivedRingT) {
 							int offset;
@@ -6043,7 +6047,7 @@ static void *ss_thread(void *data)
 		if (p->use_callerid) {
 			/* Restore linear mode if necessary */
 			if (p->subs[index].linear)
-				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+				dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
 
 			restore_gains(p);
 
@@ -6071,18 +6075,18 @@ static void *ss_thread(void *data)
 		return NULL;
 	default:
 		cw_log(CW_LOG_WARNING, "Don't know how to handle simple switch with signalling %s on channel %d\n", sig2str(p->sig), p->channel);
-		res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+		res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 		if (res < 0)
 				cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	}
-	res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+	res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
 	if (res < 0)
 			cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	cw_hangup(chan);
 	return NULL;
 }
 
-static int handle_init_event(struct zt_pvt *i, int event)
+static int handle_init_event(struct dahdi_pvt *i, int event)
 {
 	int res;
 	pthread_t threadid;
@@ -6090,13 +6094,13 @@ static int handle_init_event(struct zt_pvt *i, int event)
 
 	/* Handle an event on a given channel for the monitor thread. */
 	switch(event) {
-	case ZT_EVENT_NONE:
-	case ZT_EVENT_BITSCHANGED:
+	case DAHDI_EVENT_NONE:
+	case DAHDI_EVENT_BITSCHANGED:
 		if (i->radio) break;
 		break;
-	case ZT_EVENT_WINKFLASH:
-	case ZT_EVENT_RINGBEGIN:
-	case ZT_EVENT_RINGOFFHOOK:
+	case DAHDI_EVENT_WINKFLASH:
+	case DAHDI_EVENT_RINGBEGIN:
+	case DAHDI_EVENT_RINGOFFHOOK:
 		if (i->inalarm) break;
 		if (i->radio) break;
 		/* Got a ring/answer.  What kind of channel are we? */
@@ -6104,36 +6108,36 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
-		        zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+		        dahdi_set_hook(i->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 			if (i->cidspill) {
 				/* Cancel VMWI spill */
 				free(i->cidspill);
 				i->cidspill = NULL;
 			}
 			if (i->immediate) {
-				zt_enable_ec(i);
+				dahdi_enable_ec(i);
 				/* The channel is immediately up.  Start right away */
-				res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
-				chan = zt_new(i, CW_STATE_RING, 1, SUB_REAL, 0, 0);
+				res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_RINGTONE);
+				chan = dahdi_new(i, CW_STATE_RING, 1, SUB_REAL, 0, 0);
 				if (!chan) {
 					cw_log(CW_LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
-					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
 					if (res < 0)
 						cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, CW_STATE_RESERVED, 0, SUB_REAL, 0, 0);
+				chan = dahdi_new(i, CW_STATE_RESERVED, 0, SUB_REAL, 0, 0);
 				if (chan) {
 					if (cw_app_has_voicemail(i->mailbox, NULL))
-						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_STUTTER);
 					else
-						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_DIALTONE);
 					if (res < 0) 
 						cw_log(CW_LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
 					if (cw_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 						cw_log(CW_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
 						if (res < 0)
 							cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 						cw_hangup(chan);
@@ -6160,10 +6164,10 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF_FEATB:
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, CW_STATE_RING, 0, SUB_REAL, 0, 0);
+				chan = dahdi_new(i, CW_STATE_RING, 0, SUB_REAL, 0, 0);
 				if (chan && cw_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 					cw_log(CW_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
 					if (res < 0)
 						cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 					cw_hangup(chan);
@@ -6173,17 +6177,17 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				break;
 		default:
 			cw_log(CW_LOG_WARNING, "Don't know how to handle ring/answer with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
-			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, DAHDI_TONE_CONGESTION);
 			if (res < 0)
 					cw_log(CW_LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 			return -1;
 		}
 		break;
-	case ZT_EVENT_NOALARM:
+	case DAHDI_EVENT_NOALARM:
 		i->inalarm = 0;
 		cw_log(CW_LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 		break;
-	case ZT_EVENT_ALARM:
+	case DAHDI_EVENT_ALARM:
 		i->inalarm = 1;
 		res = get_alarms(i);
 		cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
@@ -6192,7 +6196,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		              "Channel: %d\r\n",
 		              alarm2str(res), i->channel);
 		/* fall thru intentionally */
-	case ZT_EVENT_ONHOOK:
+	case DAHDI_EVENT_ONHOOK:
 		if (i->radio) break;
 		/* Back on hook.  Hang up. */
 		switch(i->sig) {
@@ -6214,23 +6218,23 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSGS:
 		case SIG_FXSKS:
 		case SIG_GR303FXSKS:
-			zt_disable_ec(i);
+			dahdi_disable_ec(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
-			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
+			dahdi_set_hook(i->subs[SUB_REAL].zfd, DAHDI_ONHOOK);
 			break;
 		case SIG_GR303FXOKS:
 		case SIG_FXOKS:
-			zt_disable_ec(i);
+			dahdi_disable_ec(i);
 			/* Diddle the battery for the zhone */
 #ifdef ZHONE_HACK
-			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+			dahdi_set_hook(i->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 			usleep(1);
 #endif			
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
-			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
+			dahdi_set_hook(i->subs[SUB_REAL].zfd, DAHDI_ONHOOK);
 			break;
 		case SIG_PRI:
-			zt_disable_ec(i);
+			dahdi_disable_ec(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			break;
 		default:
@@ -6240,18 +6244,18 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		}
 		break;
 	default:
-		if (event == ZT_EVENT_POLARITY || (event & ZT_EVENT_DTMFUP))
+		if (event == DAHDI_EVENT_POLARITY || (event & DAHDI_EVENT_DTMFUP))
         {
 			switch (i->sig)
             {
 			case SIG_FXSLS:
 			case SIG_FXSKS:
 			case SIG_FXSGS:
-				if (event == ZT_EVENT_POLARITY)
+				if (event == DAHDI_EVENT_POLARITY)
 					i->polarity = POLARITY_REV;
 				if (option_verbose > 1)
 					cw_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
-				chan = zt_new(i, CW_STATE_PRERING, 0, SUB_REAL, 0, 0);
+				chan = dahdi_new(i, CW_STATE_PRERING, 0, SUB_REAL, 0, 0);
 				if (chan && cw_pthread_create(&threadid, &global_attr_detached, ss_thread, chan)) {
 					cw_log(CW_LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
@@ -6273,8 +6277,8 @@ static void *do_monitor(void *data)
 	uint8_t buf[256];
 	int16_t lin[arraysize(buf)];
 	int count, res, res2, spoint, pollres=0;
-	struct zt_pvt *i;
-	struct zt_pvt *last = NULL;
+	struct dahdi_pvt *i;
+	struct dahdi_pvt *last = NULL;
 	time_t thispass = 0, lastpass = 0;
 	int found;
 	struct pollfd *pfds=NULL;
@@ -6305,7 +6309,7 @@ static void *do_monitor(void *data)
 			lastalloc = ifcount;
 		}
 		/* Build the stuff we're going to poll on, that is the socket of every
-		   zt_pvt that does not have an associated owner channel */
+		   dahdi_pvt that does not have an associated owner channel */
 		count = 0;
 		i = iflist;
 		while(i) {
@@ -6372,22 +6376,22 @@ static void *do_monitor(void *data)
 					last = i;
 					if (last) {
 						if (!last->cidspill && !last->owner && !cw_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3) &&
-							(last->sig & __ZT_SIG_FXO)) {
+							(last->sig & __DAHDI_SIG_FXO)) {
 							res = cw_app_has_voicemail(last->mailbox, NULL);
 							if (last->msgstate != res) {
 								int x;
 								cw_log(CW_LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
-#ifdef ZT_VMWI
-								ioctl(last->subs[SUB_REAL].zfd, ZT_VMWI, res);
+#ifdef DAHDI_VMWI
+								ioctl(last->subs[SUB_REAL].zfd, DAHDI_VMWI, res);
 #endif
-								x = ZT_FLUSH_BOTH;
-								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
+								x = DAHDI_FLUSH_BOTH;
+								res2 = ioctl(last->subs[SUB_REAL].zfd, DAHDI_FLUSH, &x);
 								if (res2)
 									cw_log(CW_LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
 								last->cidspill = malloc(MAX_CALLERID_SIZE);
 								if (last->cidspill) {
 									last->cidlen = vmwi_generate(last->cidspill, MAX_CALLERID_SIZE, res, 1, CW_LAW(last));
-									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &last->cidlen);
+									ioctl(last->subs[SUB_REAL].zfd, DAHDI_ONHOOKTRANSFER, &last->cidlen);
 									last->cidpos = 0;
 									last->msgstate = res;
 									last->onhooktime = thispass;
@@ -6402,7 +6406,7 @@ static void *do_monitor(void *data)
 			if ((i->subs[SUB_REAL].zfd > -1) && i->sig) {
 				if (i->radio && !i->owner)
 				{
-					res = zt_get_event(i->subs[SUB_REAL].zfd);
+					res = dahdi_get_event(i->subs[SUB_REAL].zfd);
 					if (res)
 					{
 						if (option_debug)
@@ -6457,7 +6461,7 @@ static void *do_monitor(void *data)
 							}
 						}
 						if (i->use_callerid && !i->polarity_events) {
-							if (i->law == ZT_LAW_MULAW)
+							if (i->law == DAHDI_LAW_MULAW)
 								for (res2 = 0; res2 < res; res2++)
 									lin[res2] = CW_MULAW(buf[res2]);
 							else
@@ -6468,7 +6472,7 @@ static void *do_monitor(void *data)
 							if ((i->adsi_rx1 && i->adsi_rx1->bit_pos == 0)
 							|| (i->adsi_rx2 && i->adsi_rx2->msg_len)) {
 								cw_mutex_unlock(&iflock);
-								handle_init_event(i, ZT_EVENT_POLARITY);
+								handle_init_event(i, DAHDI_EVENT_POLARITY);
 								cw_mutex_lock(&iflock);	
 							}
 						}
@@ -6486,7 +6490,7 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-					res = zt_get_event(i->subs[SUB_REAL].zfd);
+					res = dahdi_get_event(i->subs[SUB_REAL].zfd);
 					if (option_debug)
 						cw_log(CW_LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
 					/* Don't hold iflock while handling init events */
@@ -6540,7 +6544,7 @@ static int restart_monitor(void)
 }
 
 #ifdef ZAPATA_PRI
-static int pri_resolve_span(int *span, int channel, int offset, struct zt_spaninfo *si)
+static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spaninfo *si)
 {
 	int x;
 	int trunkgroup;
@@ -6579,8 +6583,8 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 
 static int pri_create_trunkgroup(int trunkgroup, int *channels)
 {
-	struct zt_spaninfo si;
-	ZT_PARAMS p;
+	struct dahdi_spaninfo si;
+	struct dahdi_params p;
 	int fd;
 	int span;
 	int ospan=0;
@@ -6596,35 +6600,35 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 			break;
 		memset(&si, 0, sizeof(si));
 		memset(&p, 0, sizeof(p));
-		fd = open("/dev/zap/channel", O_RDWR);
+		fd = open("/dev/dahdi/channel", O_RDWR);
 		if (fd < 0) {
 			cw_log(CW_LOG_WARNING, "Failed to open channel: %s\n", strerror(errno));
 			return -1;
 		}
 		x = channels[y];
-		if (ioctl(fd, ZT_SPECIFY, &x)) {
+		if (ioctl(fd, DAHDI_SPECIFY, &x)) {
 			cw_log(CW_LOG_WARNING, "Failed to specify channel %d: %s\n", channels[y], strerror(errno));
-			zt_close(fd);
+			dahdi_close(fd);
 			return -1;
 		}
-		if (ioctl(fd, ZT_GET_PARAMS, &p)) {
+		if (ioctl(fd, DAHDI_GET_PARAMS, &p)) {
 			cw_log(CW_LOG_WARNING, "Failed to get channel parameters for channel %d: %s\n", channels[y], strerror(errno));
 			return -1;
 		}
-		if (ioctl(fd, ZT_SPANSTAT, &si)) {
+		if (ioctl(fd, DAHDI_SPANSTAT, &si)) {
 			cw_log(CW_LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channels[y], p.spanno);
-			zt_close(fd);
+			dahdi_close(fd);
 			return -1;
 		}
 		span = p.spanno - 1;
 		if (pris[span].trunkgroup) {
 			cw_log(CW_LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
-			zt_close(fd);
+			dahdi_close(fd);
 			return -1;
 		}
 		if (pris[span].pvts[0]) {
 			cw_log(CW_LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
-			zt_close(fd);
+			dahdi_close(fd);
 			return -1;
 		}
 		if (!y) {
@@ -6635,7 +6639,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		pris[ospan].dchannels[y] = channels[y];
 		pris[ospan].dchanavail[y] |= DCHAN_PROVISIONED;
 		pris[span].span = span + 1;
-		zt_close(fd);
+		dahdi_close(fd);
 	}
 	return 0;	
 }
@@ -6653,22 +6657,22 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 
 #endif
 
-static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_pri *pri, int reloading)
+static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct dahdi_pri *pri, int reloading)
 {
-	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
-	struct zt_pvt *tmp = NULL, *tmp2,  *prev = NULL;
+	/* Make a dahdi_pvt structure for this interface (or CRV if "pri" is specified) */
+	struct dahdi_pvt *tmp = NULL, *tmp2,  *prev = NULL;
 	char fn[80];
 #if 1
-	struct zt_bufferinfo bi;
+	struct dahdi_bufferinfo bi;
 #endif
-	struct zt_spaninfo si;
+	struct dahdi_spaninfo si;
 	int res;
 	int span=0;
 	int here = 0;
 	int x;
-	struct zt_pvt **wlist;
-	struct zt_pvt **wend;
-	ZT_PARAMS p;
+	struct dahdi_pvt **wlist;
+	struct dahdi_pvt **wend;
+	struct dahdi_params p;
 
 	wlist = &iflist;
 	wend = &ifend;
@@ -6699,12 +6703,12 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	}
 
 	if (!here && !reloading) {
-		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
+		tmp = (struct dahdi_pvt*)malloc(sizeof(struct dahdi_pvt));
 		if (!tmp) {
 			cw_log(CW_LOG_ERROR, "MALLOC FAILED\n");
 			return NULL;
 		}
-		memset(tmp, 0, sizeof(struct zt_pvt));
+		memset(tmp, 0, sizeof(struct dahdi_pvt));
 		cw_mutex_init(&tmp->lock);
 		ifcount++;
 		for (x = 0; x < 3; x++) {
@@ -6714,7 +6718,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		}
 		tmp->channel = channel;
 
-		/* Assign default jb conf to the new zt_pvt */
+		/* Assign default jb conf to the new dahdi_pvt */
 		memcpy(&tmp->jbconf, &global_jbconf, 
 		       sizeof(struct cw_jb_conf));
 	}
@@ -6725,23 +6729,23 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				snprintf(fn, sizeof(fn), "%d", channel);
 				/* Open non-blocking */
 				if (!here)
-					tmp->subs[SUB_REAL].zfd = zt_open(fn);
+					tmp->subs[SUB_REAL].zfd = dahdi_open(fn);
 				/* Allocate a zapata structure */
 				if (tmp->subs[SUB_REAL].zfd < 0) {
 					cw_log(CW_LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
-					destroy_zt_pvt(&tmp);
+					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
 				memset(&p, 0, sizeof(p));
-				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
+				res = ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &p);
 				if (res < 0) {
 					cw_log(CW_LOG_ERROR, "Unable to get parameters\n");
-					destroy_zt_pvt(&tmp);
+					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
 				if (p.sigtype != (signalling & 0x3ffff)) {
 					cw_log(CW_LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(signalling), sig2str(p.sigtype));
-					destroy_zt_pvt(&tmp);
+					destroy_dahdi_pvt(&tmp);
 					return tmp;
 				}
 				tmp->law = p.curlaw;
@@ -6762,20 +6766,20 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				int matchesdchan;
 				int x,y;
 				offset = 0;
-				if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
+				if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &offset)) {
 					cw_log(CW_LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
-					destroy_zt_pvt(&tmp);
+					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
 				if (span >= NUM_SPANS) {
 					cw_log(CW_LOG_ERROR, "Channel %d does not lie on a span I know of (%d)\n", channel, span);
-					destroy_zt_pvt(&tmp);
+					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				} else {
 					si.spanno = 0;
-					if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
+					if (ioctl(tmp->subs[SUB_REAL].zfd,DAHDI_SPANSTAT,&si) == -1) {
 						cw_log(CW_LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-						destroy_zt_pvt(&tmp);
+						destroy_dahdi_pvt(&tmp);
 						return NULL;
 					}
 					/* Store the logical span first based upon the real span */
@@ -6783,7 +6787,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
 					if (span < 0) {
 						cw_log(CW_LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
-						destroy_zt_pvt(&tmp);
+						destroy_dahdi_pvt(&tmp);
 						return NULL;
 					}
 					if (signalling == SIG_PRI)
@@ -6804,43 +6808,43 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					if (!matchesdchan) {
 						if (pris[span].nodetype && (pris[span].nodetype != pritype)) {
 							cw_log(CW_LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (pris[span].switchtype && (pris[span].switchtype != myswitchtype)) {
 							cw_log(CW_LOG_ERROR, "Span %d is already a %s switch\n", span + 1, pri_switch2str(pris[span].switchtype));
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if ((pris[span].dialplan) && (pris[span].dialplan != dialplan)) {
 							cw_log(CW_LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, dialplan2str(pris[span].dialplan));
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (!cw_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, idledial)) {
 							cw_log(CW_LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, idledial);
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (!cw_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, idleext)) {
 							cw_log(CW_LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, idleext);
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (pris[span].minunused && (pris[span].minunused != minunused)) {
 							cw_log(CW_LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, minunused);
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (pris[span].minidle && (pris[span].minidle != minidle)) {
 							cw_log(CW_LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, minidle);
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						if (pris[span].numchans >= MAX_CHANNELS) {
 							cw_log(CW_LOG_ERROR, "Unable to add channel %d: Too many channels in trunk group %d!\n", channel,
 								pris[span].trunkgroup);
-							destroy_zt_pvt(&tmp);
+							destroy_dahdi_pvt(&tmp);
 							return NULL;
 						}
 						pris[span].nodetype = pritype;
@@ -6868,7 +6872,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 						tmp->call = NULL;
 					} else {
 						cw_log(CW_LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
-						destroy_zt_pvt(&tmp);
+						destroy_dahdi_pvt(&tmp);
 						return NULL;
 					}
 				}
@@ -6881,7 +6885,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			radio = tmp->radio;
 			memset(&p, 0, sizeof(p));
 			if (tmp->subs[SUB_REAL].zfd > -1)
-				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
+				res = ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &p);
 		}
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
@@ -6925,22 +6929,22 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
 		{
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_SET_PARAMS, &p);
 			if (res < 0) {
 				cw_log(CW_LOG_ERROR, "Unable to set parameters\n");
-				destroy_zt_pvt(&tmp);
+				destroy_dahdi_pvt(&tmp);
 				return NULL;
 			}
 		}
 #if 1
 		if (!here && (tmp->subs[SUB_REAL].zfd > -1)) {
 			memset(&bi, 0, sizeof(bi));
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_BUFINFO, &bi);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GET_BUFINFO, &bi);
 			if (!res) {
-				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+				bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+				bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 				bi.numbufs = numbufs;
-				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
+				res = ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Unable to set buffer policy on channel %d\n", channel);
 				}
@@ -6986,7 +6990,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->use_callerid = use_callerid;
 		tmp->cid_signalling = cid_signalling;
 		tmp->cid_start = tmp->cid_send_on = cid_start;
-		tmp->polarity_events = (signalling & __ZT_SIG_FXS) ? polarity_events : 1;
+		tmp->polarity_events = (signalling & __DAHDI_SIG_FXS) ? polarity_events : 1;
 		tmp->zaptrcallerid = zaptrcallerid;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
@@ -7027,9 +7031,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (!here) {
 				if (signalling != SIG_PRI)
 					/* Hang it up to be sure it's good */
-					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
+					dahdi_set_hook(tmp->subs[SUB_REAL].zfd, DAHDI_ONHOOK);
 			}
-			ioctl(tmp->subs[SUB_REAL].zfd,ZT_SETTONEZONE,&tmp->tonezone);
+			ioctl(tmp->subs[SUB_REAL].zfd,DAHDI_SETTONEZONE,&tmp->tonezone);
 #ifdef ZAPATA_PRI
 			/* the dchannel is down so put the channel in alarm */
 			if (tmp->pri && !pri_is_up(tmp->pri))
@@ -7038,9 +7042,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				tmp->inalarm = 0;
 #endif				
 			memset(&si, 0, sizeof(si));
-			if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
+			if (ioctl(tmp->subs[SUB_REAL].zfd,DAHDI_SPANSTAT,&si) == -1) {
 				cw_log(CW_LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-				destroy_zt_pvt(&tmp);
+				destroy_dahdi_pvt(&tmp);
 				return NULL;
 			}
 			if (si.alarms) tmp->inalarm = 1;
@@ -7061,7 +7065,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			*wend = tmp;
 		} else {
 			/* at least one member on the iflist */
-			struct zt_pvt *working = *wlist;
+			struct dahdi_pvt *working = *wlist;
 
 			/* check if we maybe have to put it on the begining */
 			if (working->channel > tmp->channel) {
@@ -7099,10 +7103,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	return tmp;
 }
 
-static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, int *busy)
+static inline int available(struct dahdi_pvt *p, int channelmatch, int groupmatch, int *busy)
 {
 	int res;
-	ZT_PARAMS par;
+	struct dahdi_params par;
 	/* First, check group matching */
 	if ((p->group & groupmatch) != groupmatch)
 		return 0;
@@ -7138,7 +7142,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 				return 1;
 			/* Check hook state */
 			if (p->subs[SUB_REAL].zfd > -1)
-				res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par);
+				res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &par);
 			else {
 				/* Assume not off hook on CVRS */
 				res = 0;
@@ -7196,28 +7200,28 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	return 1;
 }
 
-static struct zt_pvt *chandup(struct zt_pvt *src)
+static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 {
-	struct zt_pvt *p;
-	ZT_BUFFERINFO bi;
+	struct dahdi_pvt *p;
+	struct dahdi_bufferinfo bi;
 	int res;
-	p = malloc(sizeof(struct zt_pvt));
+	p = malloc(sizeof(struct dahdi_pvt));
 	if (p) {
-		memcpy(p, src, sizeof(struct zt_pvt));
+		memcpy(p, src, sizeof(struct dahdi_pvt));
 		cw_mutex_init(&p->lock);
-		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/pseudo");
+		p->subs[SUB_REAL].zfd = dahdi_open("/dev/dahdi/pseudo");
 		/* Allocate a zapata structure */
 		if (p->subs[SUB_REAL].zfd < 0) {
 			cw_log(CW_LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
-			destroy_zt_pvt(&p);
+			destroy_dahdi_pvt(&p);
 			return NULL;
 		}
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_BUFINFO, &bi);
+		res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_GET_BUFINFO, &bi);
 		if (!res) {
-			bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-			bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+			bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+			bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 			bi.numbufs = numbufs;
-			res = ioctl(p->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
+			res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_SET_BUFINFO, &bi);
 			if (res < 0) {
 				cw_log(CW_LOG_WARNING, "Unable to set buffer policy on dup channel\n");
 			}
@@ -7232,7 +7236,7 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	
 
 #ifdef ZAPATA_PRI
-static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
+static int pri_find_empty_chan(struct dahdi_pri *pri, int backwards)
 {
 	int x;
 	if (backwards)
@@ -7258,7 +7262,7 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 }
 #endif
 
-static struct cw_channel *zt_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *dahdi_request(const char *type, int format, void *data, int *cause)
 {
 	static int deprecated = 0;
 	int oldformat;
@@ -7267,7 +7271,7 @@ static struct cw_channel *zt_request(const char *type, int format, void *data, i
 	int roundrobin = 0;
 	int callwait = 0;
 	int busy = 0;
-	struct zt_pvt *p;
+	struct dahdi_pvt *p;
 	struct cw_channel *tmp = NULL;
 	char *dest=NULL;
 	int x;
@@ -7279,9 +7283,9 @@ static struct cw_channel *zt_request(const char *type, int format, void *data, i
 	int crv;
 	int bearer = -1;
 	int trunkgroup;
-	struct zt_pri *pri=NULL;
+	struct dahdi_pri *pri=NULL;
 #endif	
-	struct zt_pvt *exit, *start, *end;
+	struct dahdi_pvt *exit, *start, *end;
 	cw_mutex_t *lock;
 
 	if (!deprecated && !strcmp(type, zap_tech.type)) {
@@ -7453,7 +7457,7 @@ static struct cw_channel *zt_request(const char *type, int format, void *data, i
 				}
 			}
 			p->outgoing = 1;
-			tmp = zt_new(p, CW_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0);
+			tmp = dahdi_new(p, CW_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0);
 #ifdef ZAPATA_PRI
 			if (p->bearer)
             {
@@ -7518,9 +7522,9 @@ next:
 
 
 #ifdef ZAPATA_PRI
-static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
+static struct dahdi_pvt *pri_find_crv(struct dahdi_pri *pri, int crv)
 {
-	struct zt_pvt *p;
+	struct dahdi_pvt *p;
 	p = pri->crvs;
 	while(p) {
 		if (p->channel == crv)
@@ -7531,12 +7535,12 @@ static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
 }
 
 
-static int pri_find_principle(struct zt_pri *pri, int channel)
+static int pri_find_principle(struct dahdi_pri *pri, int channel)
 {
 	int x;
 	int span = PRI_SPAN(channel);
 	int spanfd;
-	ZT_PARAMS param;
+	struct dahdi_params param;
 	int principle = -1;
 	int explicit = PRI_EXPLICIT(channel);
 	span = PRI_SPAN(channel);
@@ -7544,7 +7548,7 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 
 	if (!explicit) {
 		spanfd = pri_active_dchan_fd(pri);
-		if (ioctl(spanfd, ZT_GET_PARAMS, &param))
+		if (ioctl(spanfd, DAHDI_GET_PARAMS, &param))
 			return -1;
 		span = pris[param.spanno - 1].prilogicalspan;
 	}
@@ -7559,10 +7563,10 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	return principle;
 }
 
-static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
+static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *c)
 {
 	int x;
-	struct zt_pvt *crv;
+	struct dahdi_pvt *crv;
 	if (!c) {
 		if (principle < 0)
 			return -1;
@@ -7618,7 +7622,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 			else {
 				/* Looks good.  Drop the pseudo channel now, clear up the assignment, and
 				   wakeup the potential sleeper */
-				zt_close(crv->subs[SUB_REAL].zfd);
+				dahdi_close(crv->subs[SUB_REAL].zfd);
 				pri->pvts[principle]->call = crv->call;
 				pri_assign_bearer(crv, pri, pri->pvts[principle]);
 				cw_log(CW_LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
@@ -7637,7 +7641,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 static void *do_idle_thread(void *vchan)
 {
 	struct cw_channel *chan = vchan;
-	struct zt_pvt *pvt = chan->tech_pvt;
+	struct dahdi_pvt *pvt = chan->tech_pvt;
 	struct cw_frame *f;
 	char ex[80];
 	/* Wait up to 30 seconds for an answer */
@@ -7689,7 +7693,7 @@ static void *do_idle_thread(void *vchan)
 #ifndef PRI_RESTART
 #error "Upgrade your libpri"
 #endif
-static void zt_pri_message(struct pri *pri, char *s)
+static void dahdi_pri_message(struct pri *pri, char *s)
 {
 	int x, y;
 	int dchan = -1, span = -1;
@@ -7728,7 +7732,7 @@ static void zt_pri_message(struct pri *pri, char *s)
 	cw_mutex_unlock(&pridebugfdlock);
 }
 
-static void zt_pri_error(struct pri *pri, char *s)
+static void dahdi_pri_error(struct pri *pri, char *s)
 {
 	int x, y;
 	int dchan = -1, span = -1;
@@ -7767,7 +7771,7 @@ static void zt_pri_error(struct pri *pri, char *s)
 	cw_mutex_unlock(&pridebugfdlock);
 }
 
-static int pri_check_restart(struct zt_pri *pri)
+static int pri_check_restart(struct dahdi_pri *pri)
 {
 	do {
 		pri->resetpos++;
@@ -7786,7 +7790,7 @@ static int pri_check_restart(struct zt_pri *pri)
 	return 0;
 }
 
-static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
+static int pri_hangup_all(struct dahdi_pvt *p, struct dahdi_pri *pri)
 {
 	int x;
 	int redo;
@@ -7827,7 +7831,7 @@ char * redirectingreason2str(int redirectingreason)
 	}
 }
 
-static void apply_plan_to_number(char *buf, size_t size, const struct zt_pri *pri, const char *number, const int plan)
+static void apply_plan_to_number(char *buf, size_t size, const struct dahdi_pri *pri, const char *number, const int plan)
 {
 	switch (plan) {
 	case PRI_INTERNATIONAL_ISDN:		/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
@@ -7853,7 +7857,7 @@ static void apply_plan_to_number(char *buf, size_t size, const struct zt_pri *pr
 
 static void *pri_dchannel(void *vpri)
 {
-	struct zt_pri *pri = vpri;
+	struct dahdi_pri *pri = vpri;
 	pri_event *e;
 	struct pollfd fds[NUM_DCHANS];
 	int res;
@@ -7874,7 +7878,7 @@ static void *pri_dchannel(void *vpri)
 	int i, which=-1;
 	int numdchans;
 	int cause=0;
-	struct zt_pvt *crv;
+	struct dahdi_pvt *crv;
 	pthread_t threadid;
 	char ani2str[6];
 	char plancallingnum[256];
@@ -7942,12 +7946,12 @@ static void *pri_dchannel(void *vpri)
 				if (cw_tvdiff_ms(cw_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = zt_request("DAHDI", CW_FORMAT_ULAW, idlen, &cause);
+					idle = dahdi_request("DAHDI", CW_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (cw_pthread_create(&p, &global_attr_default, do_idle_thread, idle)) {
 							cw_log(CW_LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
-							zt_hangup(idle);
+							dahdi_hangup(idle);
 						}
 					} else
 						cw_log(CW_LOG_WARNING, "Unable to request channel 'Zap/%s' for idle call\n", idlen);
@@ -8032,14 +8036,14 @@ static void *pri_dchannel(void *vpri)
 				if (fds[which].revents & POLLPRI) {
 					/* Check for an event */
 					x = 0;
-					res = ioctl(pri->fds[which], ZT_GETEVENT, &x);
+					res = ioctl(pri->fds[which], DAHDI_GETEVENT, &x);
 					if (x) 
 						cw_log(CW_LOG_NOTICE, "PRI got event: %s (%d) on %s D-channel of span %d\n", event2str(x), x, pri_order(which), pri->span);
 					/* Keep track of alarm state */	
-					if (x == ZT_EVENT_ALARM) {
+					if (x == DAHDI_EVENT_ALARM) {
 						pri->dchanavail[which] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
 						pri_find_dchan(pri);
-					} else if (x == ZT_EVENT_NOALARM) {
+					} else if (x == DAHDI_EVENT_NOALARM) {
 						pri->dchanavail[which] |= DCHAN_NOTINALARM;
 						pri_restart(pri->dchans[which]);
 					}
@@ -8096,7 +8100,7 @@ static void *pri_dchannel(void *vpri)
 					pri->resetting = 0;
 					/* Hangup active channels and put them in alarm mode */
 					for (i=0; i<pri->numchans; i++) {
-						struct zt_pvt *p = pri->pvts[i];
+						struct dahdi_pvt *p = pri->pvts[i];
 						if (p) {
 							if (p->call) {
 								if (p->pri && p->pri->pri) {
@@ -8317,14 +8321,14 @@ static void *pri_dchannel(void *vpri)
 						if (pri->switchtype != PRI_SWITCH_GR303_TMC) {
 							/* Set to audio mode at this point */
 							law = 1;
-							if (ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &law) == -1)
+							if (ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &law) == -1)
 								cw_log(CW_LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", pri->pvts[chanpos]->channel, law);
 						}
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
-							law = ZT_LAW_ALAW;
+							law = DAHDI_LAW_ALAW;
 						else
-							law = ZT_LAW_MULAW;
-						res = zt_setlaw(pri->pvts[chanpos]->subs[SUB_REAL].zfd, law);
+							law = DAHDI_LAW_MULAW;
+						res = dahdi_setlaw(pri->pvts[chanpos]->subs[SUB_REAL].zfd, law);
 						if (res < 0) 
 							cw_log(CW_LOG_WARNING, "Unable to set law on channel %d\n", pri->pvts[chanpos]->channel);
 						res = set_actual_gain(pri->pvts[chanpos]->subs[SUB_REAL].zfd, 0, pri->pvts[chanpos]->rxgain, pri->pvts[chanpos]->txgain, law);
@@ -8350,11 +8354,11 @@ static void *pri_dchannel(void *vpri)
 							if (crv) {
 								/* Set bearer and such */
 								pri_assign_bearer(crv, pri, pri->pvts[chanpos]);
-								c = zt_new(crv, CW_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
+								c = dahdi_new(crv, CW_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
 								pri->pvts[chanpos]->owner = &inuse;
 								cw_log(CW_LOG_DEBUG, "Started up crv %d:%d on bearer channel %d\n", pri->trunkgroup, crv->channel, crv->bearer->channel);
 							} else {
-								c = zt_new(pri->pvts[chanpos], CW_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
+								c = dahdi_new(pri->pvts[chanpos], CW_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
 							}
 							if (!cw_strlen_zero(e->ring.callingsubaddr)) {
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
@@ -8390,7 +8394,7 @@ static void *pri_dchannel(void *vpri)
 						} else  {
 							cw_mutex_unlock(&pri->lock);
 							/* Release PRI lock while we create the channel */
-							c = zt_new(pri->pvts[chanpos], CW_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
+							c = dahdi_new(pri->pvts[chanpos], CW_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
 							cw_mutex_lock(&pri->lock);
 							if (c) {
 								char calledtonstr[10];
@@ -8410,7 +8414,7 @@ static void *pri_dchannel(void *vpri)
 									cw_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, pri->pvts[chanpos]->exten, 
 											pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
-								zt_enable_ec(pri->pvts[chanpos]);
+								dahdi_enable_ec(pri->pvts[chanpos]);
 							} else {
 								cw_log(CW_LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
@@ -8453,7 +8457,7 @@ static void *pri_dchannel(void *vpri)
 					} else {
 						cw_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (cw_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
-							zt_enable_ec(pri->pvts[chanpos]);
+							dahdi_enable_ec(pri->pvts[chanpos]);
 							pri->pvts[chanpos]->subs[SUB_REAL].needringing = 1;
 							pri->pvts[chanpos]->alerting = 1;
 						} else
@@ -8572,7 +8576,7 @@ static void *pri_dchannel(void *vpri)
 						cw_copy_string(pri->pvts[chanpos]->lastcid_num, e->facname.callingnum, sizeof(pri->pvts[chanpos]->lastcid_num));
 						cw_copy_string(pri->pvts[chanpos]->lastcid_name, e->facname.callingname, sizeof(pri->pvts[chanpos]->lastcid_name));
 						pri->pvts[chanpos]->subs[SUB_REAL].needcallerid =1;
-						zt_enable_ec(pri->pvts[chanpos]);
+						dahdi_enable_ec(pri->pvts[chanpos]);
 						cw_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -8603,8 +8607,8 @@ static void *pri_dchannel(void *vpri)
 						}
 						if (pri->pvts[chanpos]->realcall && (pri->pvts[chanpos]->realcall->sig == SIG_FXSKS)) {
 							cw_log(CW_LOG_DEBUG, "Starting up GR-303 trunk now that we got CONNECT...\n");
-							x = ZT_START;
-							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+							x = DAHDI_START;
+							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, DAHDI_HOOK, &x);
 							if (res < 0) {
 								if (errno != EINPROGRESS) {
 									cw_log(CW_LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
@@ -8613,7 +8617,7 @@ static void *pri_dchannel(void *vpri)
 						} else if (!cw_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 							pri->pvts[chanpos]->dialing = 1;
 							/* Send any "w" waited stuff */
-							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, ZT_DIAL, &pri->pvts[chanpos]->dop);
+							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, DAHDI_DIAL, &pri->pvts[chanpos]->dop);
 							if (res < 0) {
 								cw_log(CW_LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", pri->pvts[chanpos]->channel);
 								pri->pvts[chanpos]->dop.dialstr[0] = '\0';
@@ -8625,7 +8629,7 @@ static void *pri_dchannel(void *vpri)
 						} else {
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
 							/* Enable echo cancellation if it's not on already */
-							zt_enable_ec(pri->pvts[chanpos]);
+							dahdi_enable_ec(pri->pvts[chanpos]);
 						}
 						if (!cw_strlen_zero(e->answer.useruserinfo)) {
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->answer.useruserinfo);
@@ -8646,7 +8650,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						cw_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (!pri->pvts[chanpos]->alreadyhungup) {
-							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
+							/* we're calling here dahdi_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvts[chanpos]->alreadyhungup = 1;
 							if (pri->pvts[chanpos]->realcall) 
 								pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
@@ -8886,40 +8890,40 @@ static void *pri_dchannel(void *vpri)
 	return NULL;
 }
 
-static int start_pri(struct zt_pri *pri)
+static int start_pri(struct dahdi_pri *pri)
 {
 	int res, x;
-	ZT_PARAMS p;
-	ZT_BUFFERINFO bi;
-	struct zt_spaninfo si;
+	struct dahdi_params p;
+	struct dahdi_bufferinfo bi;
+	struct dahdi_spaninfo si;
 	int i;
 	
 	for (i=0;i<NUM_DCHANS;i++) {
 		if (!pri->dchannels[i])
 			break;
-		pri->fds[i] = open("/dev/zap/channel", O_RDWR);
+		pri->fds[i] = open("/dev/dahdi/channel", O_RDWR);
 		x = pri->dchannels[i];
-		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],ZT_SPECIFY,&x) == -1)) {
+		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],DAHDI_SPECIFY,&x) == -1)) {
 			cw_log(CW_LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
-		res = ioctl(pri->fds[i], ZT_GET_PARAMS, &p);
+		res = ioctl(pri->fds[i], DAHDI_GET_PARAMS, &p);
 		if (res) {
-			zt_close(pri->fds[i]);
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			cw_log(CW_LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
-		if ((p.sigtype != ZT_SIG_HDLCFCS) && (p.sigtype != ZT_SIG_HARDHDLC)) {
-			zt_close(pri->fds[i]);
+		if ((p.sigtype != DAHDI_SIG_HDLCFCS) && (p.sigtype != DAHDI_SIG_HARDHDLC)) {
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			cw_log(CW_LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
 			return -1;
 		}
 		memset(&si, 0, sizeof(si));
-		res = ioctl(pri->fds[i], ZT_SPANSTAT, &si);
+		res = ioctl(pri->fds[i], DAHDI_SPANSTAT, &si);
 		if (res) {
-			zt_close(pri->fds[i]);
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			cw_log(CW_LOG_ERROR, "Unable to get span state for D-channel %d (%s)\n", x, strerror(errno));
 		}
@@ -8927,13 +8931,13 @@ static int start_pri(struct zt_pri *pri)
 			pri->dchanavail[i] |= DCHAN_NOTINALARM;
 		else
 			pri->dchanavail[i] &= ~DCHAN_NOTINALARM;
-		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+		bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.numbufs = 32;
 		bi.bufsize = 1024;
-		if (ioctl(pri->fds[i], ZT_SET_BUFINFO, &bi)) {
+		if (ioctl(pri->fds[i], DAHDI_SET_BUFINFO, &bi)) {
 			cw_log(CW_LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
-			zt_close(pri->fds[i]);
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			return -1;
 		}
@@ -8946,7 +8950,7 @@ static int start_pri(struct zt_pri *pri)
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
 		if (!pri->dchans[i]) {
-			zt_close(pri->fds[i]);
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			cw_log(CW_LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
@@ -8967,7 +8971,7 @@ static int start_pri(struct zt_pri *pri)
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;
-			zt_close(pri->fds[i]);
+			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 		}
 		cw_log(CW_LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
@@ -9267,8 +9271,8 @@ static struct cw_clicmd zap_pri_cli[] = {
 static int zap_destroy_channel(int fd, int argc, char **argv)
 {
 	int channel = 0;
-	struct zt_pvt *tmp = NULL;
-	struct zt_pvt *prev = NULL;
+	struct dahdi_pvt *tmp = NULL;
+	struct dahdi_pvt *prev = NULL;
 	
 	if (argc != 4) {
 		return RESULT_SHOWUSAGE;
@@ -9291,13 +9295,13 @@ static int zap_show_channels(int fd, int argc, char **argv)
 {
 #define FORMAT "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
-	struct zt_pvt *tmp = NULL;
+	struct dahdi_pvt *tmp = NULL;
 	char tmps[20] = "";
 	cw_mutex_t *lock;
-	struct zt_pvt *start;
+	struct dahdi_pvt *start;
 #ifdef ZAPATA_PRI
 	int trunkgroup;
-	struct zt_pri *pri=NULL;
+	struct dahdi_pri *pri=NULL;
 	int x;
 #endif
 
@@ -9351,16 +9355,16 @@ static int zap_show_channels(int fd, int argc, char **argv)
 static int zap_show_channel(int fd, int argc, char **argv)
 {
 	int channel;
-	struct zt_pvt *tmp = NULL;
-	ZT_CONFINFO ci;
-	ZT_PARAMS ps;
+	struct dahdi_pvt *tmp = NULL;
+	struct dahdi_confinfo ci;
+	struct dahdi_params ps;
 	int x;
 	cw_mutex_t *lock;
-	struct zt_pvt *start;
+	struct dahdi_pvt *start;
 #ifdef ZAPATA_PRI
 	char *c;
 	int trunkgroup;
-	struct zt_pri *pri=NULL;
+	struct dahdi_pri *pri=NULL;
 #endif
 
 	lock = &iflock;
@@ -9423,7 +9427,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			cw_cli(fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
 			cw_cli(fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
 			cw_cli(fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
-			cw_cli(fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
+			cw_cli(fd, "Default law: %s\n", tmp->law == DAHDI_LAW_MULAW ? "ulaw" : tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown");
 			cw_cli(fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			cw_cli(fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
 			cw_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
@@ -9453,15 +9457,15 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			memset(&ci, 0, sizeof(ci));
 			ps.channo = tmp->channel;
 			if (tmp->subs[SUB_REAL].zfd > -1) {
-				if (!ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
+				if (!ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GETCONF, &ci)) {
 					cw_cli(fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 				}
-#ifdef ZT_GETCONFMUTE
-				if (!ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONFMUTE, &x)) {
+#ifdef DAHDI_GETCONFMUTE
+				if (!ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GETCONFMUTE, &x)) {
 					cw_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
 				}
 #endif
-				if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
+				if (ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &ps) < 0) {
 					cw_log(CW_LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
 				} else {
 					cw_cli(fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
@@ -9518,35 +9522,35 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	char alarms[50];
 
 	int ctl;
-	ZT_SPANINFO s;
+	struct dahdi_spaninfo s;
 
-	ctl = open("/dev/zap/ctl", O_RDWR);
+	ctl = open("/dev/dahdi/ctl", O_RDWR);
 	if (ctl < 0) {
-		cw_log(CW_LOG_WARNING, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		cw_log(CW_LOG_WARNING, "Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
 		cw_cli(fd, "No Zaptel interface found.\n");
 		return RESULT_FAILURE;
 	}
 	cw_cli(fd,FORMAT2, "Description", "Alarms","IRQ","bpviol","CRC4");
 
-	for (span=1;span < ZT_MAX_SPANS;++span) {
+	for (span=1;span < DAHDI_MAX_SPANS;++span) {
 		s.spanno = span;
-		res = ioctl(ctl, ZT_SPANSTAT, &s);
+		res = ioctl(ctl, DAHDI_SPANSTAT, &s);
 		if (res) {
 			continue;
 		}
 		alarms[0] = '\0';
 		if (s.alarms > 0) {
-			if (s.alarms & ZT_ALARM_BLUE)
+			if (s.alarms & DAHDI_ALARM_BLUE)
 				strcat(alarms,"BLU/");
-			if (s.alarms & ZT_ALARM_YELLOW)
+			if (s.alarms & DAHDI_ALARM_YELLOW)
 				strcat(alarms, "YEL/");
-			if (s.alarms & ZT_ALARM_RED)
+			if (s.alarms & DAHDI_ALARM_RED)
 				strcat(alarms, "RED/");
-			if (s.alarms & ZT_ALARM_LOOPBACK)
+			if (s.alarms & DAHDI_ALARM_LOOPBACK)
 				strcat(alarms,"LB/");
-			if (s.alarms & ZT_ALARM_RECOVER)
+			if (s.alarms & DAHDI_ALARM_RECOVER)
 				strcat(alarms,"REC/");
-			if (s.alarms & ZT_ALARM_NOTOPEN)
+			if (s.alarms & DAHDI_ALARM_NOTOPEN)
 				strcat(alarms, "NOP/");
 			if (!strlen(alarms))
 				strcat(alarms, "UUU/");
@@ -9654,15 +9658,15 @@ static struct cw_clicmd zap_cli[] = {
 #define TRANSFER	0
 #define HANGUP		1
 
-static int zap_fake_event(struct zt_pvt *p, int mode)
+static int zap_fake_event(struct dahdi_pvt *p, int mode)
 {
 	if (p) {
 		switch(mode) {
 			case TRANSFER:
-				p->fake_event = ZT_EVENT_WINKFLASH;
+				p->fake_event = DAHDI_EVENT_WINKFLASH;
 				break;
 			case HANGUP:
-				p->fake_event = ZT_EVENT_ONHOOK;
+				p->fake_event = DAHDI_EVENT_ONHOOK;
 				break;
 			default:
 				cw_log(CW_LOG_WARNING, "I don't know how to handle transfer event with this: %d on channel %s\n",mode, p->owner->name);	
@@ -9670,9 +9674,9 @@ static int zap_fake_event(struct zt_pvt *p, int mode)
 	}
 	return 0;
 }
-static struct zt_pvt *find_channel(int channel)
+static struct dahdi_pvt *find_channel(int channel)
 {
-	struct zt_pvt *p = iflist;
+	struct dahdi_pvt *p = iflist;
 	while(p) {
 		if (p->channel == channel) {
 			break;
@@ -9685,7 +9689,7 @@ static struct zt_pvt *find_channel(int channel)
 static int action_zapdndon(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *p = NULL;
+	struct dahdi_pvt *p = NULL;
 	char *hdr;
 
 	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
@@ -9713,7 +9717,7 @@ static int action_zapdndon(struct mansession *s, struct message *m)
 static int action_zapdndoff(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *p = NULL;
+	struct dahdi_pvt *p = NULL;
 	char *hdr = astman_get_header(m, "DAHDIChannel");
 
 	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
@@ -9740,7 +9744,7 @@ static int action_zapdndoff(struct mansession *s, struct message *m)
 static int action_transfer(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *p = NULL;
+	struct dahdi_pvt *p = NULL;
 	char *hdr;
 
 	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
@@ -9769,7 +9773,7 @@ static int action_transfer(struct mansession *s, struct message *m)
 static int action_transferhangup(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *p = NULL;
+	struct dahdi_pvt *p = NULL;
 	char *hdr;
 
 	if (!deprecated && (hdr == astman_get_header(m, "Action")) && !strncasecmp(hdr, "Zap", 3)) {
@@ -9797,7 +9801,7 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 static int action_zapdialoffhook(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *p = NULL;
+	struct dahdi_pvt *p = NULL;
 	char *hdr;
 	int i;
 
@@ -9840,7 +9844,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 static int action_zapshowchannels(struct mansession *s, struct message *m)
 {
 	static int deprecated = 0;
-	struct zt_pvt *tmp = NULL;
+	struct dahdi_pvt *tmp = NULL;
 	char *action = astman_get_header(m, "Action");
 	char *id = astman_get_header(m, "ActionID");
 
@@ -9907,12 +9911,12 @@ static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv,
 	cw_log(CW_LOG_WARNING, "channel is not DAHDI or Zap\n");
         return 0;
     }
-    struct zt_pvt *p = chan->tech_pvt;
+    struct dahdi_pvt *p = chan->tech_pvt;
     if (p==NULL) {
 	cw_log(CW_LOG_WARNING, "channel has no PVT structure\n");
         return 0;
     }
-    zt_disable_ec(p);
+    dahdi_disable_ec(p);
     cw_log(CW_LOG_NOTICE, "echo cancelling OFF\n");
     return 0;
 }
@@ -10011,7 +10015,7 @@ static struct manager_action manager_actions[] = {
 static int __unload_module(void)
 {
 	int x = 0;
-	struct zt_pvt *p, *pl;
+	struct dahdi_pvt *p, *pl;
 #ifdef ZAPATA_PRI
 	int i;
 	for(i=0;i<NUM_SPANS;i++) {
@@ -10068,13 +10072,13 @@ static int __unload_module(void)
 				free(p->cidspill2);
 			/* Close the zapata thingy */
 			if (p->subs[SUB_REAL].zfd > -1)
-				zt_close(p->subs[SUB_REAL].zfd);
+				dahdi_close(p->subs[SUB_REAL].zfd);
 			pl = p;
 			p = p->next;
 			x++;
 			/* Free associated memory */
 			if(pl)
-				destroy_zt_pvt(&pl);
+				destroy_dahdi_pvt(&pl);
 			cw_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
 		}
 		iflist = NULL;
@@ -10088,7 +10092,7 @@ static int __unload_module(void)
 	for(i=0;i<NUM_SPANS;i++) {
 		if (pris[i].master && !pthread_equal(pris[i].master, CW_PTHREADT_NULL))
 			pthread_join(pris[i].master, NULL);
-		zt_close(pris[i].fds[i]);
+		dahdi_close(pris[i].fds[i]);
 	}
 #endif
 	return 0;
@@ -10108,7 +10112,7 @@ static int setup_zap(int reload)
 {
 	struct cw_config *cfg;
 	struct cw_variable *v;
-	struct zt_pvt *tmp;
+	struct dahdi_pvt *tmp;
 	char *chan;
 	char *c;
 	char *ringc;
@@ -10122,7 +10126,7 @@ static int setup_zap(int reload)
 	int logicalspan;
 	int trunkgroup;
 	int dchannels[NUM_DCHANS];
-	struct zt_pri *pri;
+	struct dahdi_pri *pri;
 #endif
 
 	if (!(cfg = cw_config_load(config_dahdi))) {
@@ -10754,7 +10758,7 @@ static int setup_zap(int reload)
 				/* setup to scan our argument */
 				int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 				int i;
-				struct zt_ring_cadence new_cadence;
+				struct dahdi_ring_cadence new_cadence;
 				int cid_location = -1;
                 		int firstcadencepos = 0;
 				char original_args[80];
@@ -10853,11 +10857,11 @@ static int setup_zap(int reload)
 				int toneduration;
 				int ctlfd;
 				int res;
-				struct zt_dialparams dps;
+				struct dahdi_dialparams dps;
 
-				ctlfd = open("/dev/zap/ctl", O_RDWR);
+				ctlfd = open("/dev/dahdi/ctl", O_RDWR);
 				if (ctlfd == -1) {
-					cw_log(CW_LOG_ERROR, "Unable to open /dev/zap/ctl to set toneduration\n");
+					cw_log(CW_LOG_ERROR, "Unable to open /dev/dahdi/ctl to set toneduration\n");
 					return -1;
 				}
 
@@ -10865,7 +10869,7 @@ static int setup_zap(int reload)
 				if (toneduration > -1) {
 					memset(&dps, 0, sizeof(dps));
 					dps.dtmf_tonelen = dps.mfv1_tonelen = toneduration;
-					res = ioctl(ctlfd, ZT_SET_DIALPARAMS, &dps);
+					res = ioctl(ctlfd, DAHDI_SET_DIALPARAMS, &dps);
 					if (res < 0) {
 						cw_log(CW_LOG_ERROR, "Invalid tone duration: %d ms\n", toneduration);
 						return -1;
@@ -10946,8 +10950,8 @@ static int load_module(void)
 		for (i=0;i<NUM_DCHANS;i++)
 			pris[y].fds[i] = -1;
 	}
-	pri_set_error(zt_pri_error);
-	pri_set_message(zt_pri_message);
+	pri_set_error(dahdi_pri_error);
+	pri_set_message(dahdi_pri_message);
 #endif
 	res = setup_zap(0);
 	if (res)
@@ -10978,16 +10982,16 @@ static int load_module(void)
 	return res;
 }
 
-static int zt_sendtext(struct cw_channel *c, const char *text)
+static int dahdi_sendtext(struct cw_channel *c, const char *text)
 {
 	uint8_t *buf,*mybuf;
-	struct zt_pvt *p = c->tech_pvt;
+	struct dahdi_pvt *p = c->tech_pvt;
 	struct pollfd fds[1];
 	int size,res,fd,len;
 	//int bytes=0, x=0;
 	int index;
 
-	index = zt_get_index(c, p, 0);
+	index = dahdi_get_index(c, p, 0);
 	if (index < 0) {
 		cw_log(CW_LOG_WARNING, "Huh?  I don't exist?\n");
 		return -1;

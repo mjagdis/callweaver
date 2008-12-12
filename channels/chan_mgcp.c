@@ -2601,7 +2601,7 @@ static void *mgcp_ss(void *data)
 			cw_indicate(chan, -1);
 		} else {
 			/* XXX Redundant?  We should already be playing dialtone */
-			/*tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);*/
+			/*tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);*/
 			transmit_notify_request(sub, "L/dl");
 		}
 		if (cw_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
@@ -2613,7 +2613,7 @@ static void *mgcp_ss(void *data)
 						cw_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
 							p->call_forward, chan->name);
 					}
-					/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+					/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 					transmit_notify_request(sub, "L/sl");
 					if (res)
 						break;
@@ -2622,7 +2622,7 @@ static void *mgcp_ss(void *data)
 					cw_indicate(chan, -1);
 					sleep(1);
 					memset(exten, 0, sizeof(exten));
-					/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);*/
+					/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);*/
 					transmit_notify_request(sub, "L/dl");
 					len = 0;
 					getforward = 0;
@@ -2646,7 +2646,7 @@ static void *mgcp_ss(void *data)
 						chan->cid.cid_ani = strdup(p->cid_num);
 					}
 					cw_setstate(chan, CW_STATE_RING);
-					/*zt_enable_ec(p);*/
+					/*dahdi_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
 						p->dtmfmode |= MGCP_DTMF_INBAND;
 						cw_indicate(chan, -1);
@@ -2654,7 +2654,7 @@ static void *mgcp_ss(void *data)
 					res = cw_pbx_run(chan);
 					if (res) {
 						cw_log(CW_LOG_WARNING, "PBX exited non-zero\n");
-						/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+						/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 						/*transmit_notify_request(p, "nbz", 1);*/
 						transmit_notify_request(sub, "G/cg");
 					}
@@ -2667,9 +2667,9 @@ static void *mgcp_ss(void *data)
 			}
 		} else if (res == 0) {
 			cw_log(CW_LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 			transmit_notify_request(sub, "G/cg");
-			/*zt_wait_event(p->subs[index].zfd);*/
+			/*dahdi_wait_event(p->subs[index].zfd);*/
 			cw_hangup(chan);
 			return NULL;
 		} else if (p->hascallwaiting && p->callwaiting && !strcmp(exten, "*70")) {
@@ -2678,7 +2678,7 @@ static void *mgcp_ss(void *data)
 			}
 			/* Disable call waiting if enabled */
 			p->callwaiting = 0;
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(exten, 0, sizeof(exten));
@@ -2690,7 +2690,7 @@ static void *mgcp_ss(void *data)
 			 */
 			if (cw_pickup_call(chan)) {
 				cw_log(CW_LOG_WARNING, "No call pickup possible...\n");
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 				transmit_notify_request(sub, "G/cg");
 			}
 			cw_hangup(chan);
@@ -2707,7 +2707,7 @@ static void *mgcp_ss(void *data)
 			if (chan->cid.cid_name)
 				free(chan->cid.cid_name);
 			chan->cid.cid_name = NULL;
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(exten, 0, sizeof(exten));
@@ -2718,7 +2718,7 @@ static void *mgcp_ss(void *data)
 				res = cw_say_digit_str(chan, p->lastcallerid, "", chan->language);
 			}
 			if (!res)
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 				transmit_notify_request(sub, "L/sl");
 			break;
 		} else if (!strcmp(exten, "*78")) {
@@ -2726,7 +2726,7 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 1;
 			getforward = 0;
@@ -2737,14 +2737,14 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 0;
 			getforward = 0;
 			memset(exten, 0, sizeof(exten));
 			len = 0;
 		} else if (p->cancallforward && !strcmp(exten, "*72")) {
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			getforward = 1;
 			memset(exten, 0, sizeof(exten));
@@ -2753,7 +2753,7 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			memset(p->call_forward, 0, sizeof(p->call_forward));
 			getforward = 0;
@@ -2774,7 +2774,7 @@ static void *mgcp_ss(void *data)
 			}
 			res = cw_db_put("blacklist", p->lastcallerid, "1");
 			if (!res) {
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 				transmit_notify_request(sub, "L/sl");
 				memset(exten, 0, sizeof(exten));
 				len = 0;
@@ -2793,7 +2793,7 @@ static void *mgcp_ss(void *data)
 				free(chan->cid.cid_name);
 			if (!cw_strlen_zero(p->cid_name))
 				chan->cid.cid_name = strdup(p->cid_name);
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(exten, 0, sizeof(exten));

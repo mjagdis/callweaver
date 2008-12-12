@@ -1078,40 +1078,23 @@ fi
 
 dnl ##########################################################################
 
-AC_ARG_ENABLE([zaptel],
-	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
+AC_ARG_ENABLE([dahdi],
+	[AC_HELP_STRING([--enable-dahdi],[Enable support for DAHDI (default=yes)])],,[enable_dahdi="yes"])
 
-if test "${enable_zaptel}" = "yes"; then
-   AC_CHECK_HEADERS([zaptel/zaptel.h], [ZAPTEL_H="\"zaptel/zaptel.h\""])
-   if test -z "${ZAPTEL_H}"; then
-      AC_CHECK_HEADERS([zaptel.h], [ZAPTEL_H="\"zaptel.h\""])
-   fi
-   if test -z "${ZAPTEL_H}"; then
-      AC_CHECK_HEADERS([linux/zaptel.h], [ZAPTEL_H="\"linux/zaptel.h\""])
-   fi
+if test "${enable_dahdi}" = "yes"; then
+   AC_CHECK_HEADERS([dahdi/user.h], [DAHDI_H="\"dahdi/user.h\""])
 
-   AC_CHECK_HEADERS([zaptel/tonezone.h], [TONEZONE_H="\"zaptel/tonezone.h\""])
-   if test -z "${TONEZONE_H}"; then
-      AC_CHECK_HEADERS([tonezone.h], [TONEZONE_H="\"tonezone.h\""])
-   fi
+   AC_CHECK_HEADERS([dahdi/tonezone.h], [TONEZONE_H="\"dahdi/tonezone.h\""])
 
-   AC_DEFINE_UNQUOTED([ZAPTEL_H], [${ZAPTEL_H}], [Location of zaptel.h header file])
+   AC_DEFINE_UNQUOTED([DAHDI_H], [${DAHDI_H}], [Location of dahdi.h header file])
    AC_DEFINE_UNQUOTED([TONEZONE_H], [${TONEZONE_H}], [Location of tonezone.h header file])
 
-   if test -n "${ZAPTEL_H}"; then
-     AC_CHECK_TYPES(struct zt_radio_stat,[ZAPTEL_V12_OR_HIGHER=1],,[#include ${ZAPTEL_H}])
-
-     if test "${ZAPTEL_V12_OR_HIGHER}" = "1"; then
-       AC_MSG_NOTICE([Zaptel appears to be version 1.2 or higher -- ok.])
-       AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
-       AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
-     else
-       AC_MSG_WARN([Zaptel appears to be older than version 1.2 -- Zaptel support will be disabled.])
-       enable_zaptel="no"
-     fi
+   if test -n "${DAHDI_H}"; then
+     AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
+     AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
    else
-     AC_MSG_WARN([Zaptel could not be found  -- Zaptel support will be disabled.])
-     enable_zaptel="no"
+     AC_MSG_WARN([DAHDI could not be found -- DAHDI support will be disabled.])
+     enable_dahdi="no"
    fi
 fi
 
@@ -1324,7 +1307,7 @@ AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
 	[with_app_flash="yes"])
 
-AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_zaptel}" = "yes" -a "${with_app_flash}" = "yes" -a -n "${ZAPTEL_H}"])
+AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_dahdi}" = "yes" -a "${with_app_flash}" = "yes" -a -n "${DAHDI_H}"])
 
 dnl ###########################################################################
 
@@ -1426,7 +1409,7 @@ AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])
 
-AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_zaptel}" = "yes" -a "${with_app_meetme}" = "yes" -a -n "${ZAPTEL_H}"])
+AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_dahdi}" = "yes" -a "${with_app_meetme}" = "yes" -a -n "${DAHDI_H}"])
 
 dnl ###########################################################################
 
@@ -1943,10 +1926,10 @@ AM_CONDITIONAL([WANT_CHAN_BLUETOOTH], [test "${with_chan_bluetooth}" = "yes" -a 
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_zap],
-	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes) (requires --enable-zaptel)])],,
+	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes) (requires --enable-dahdi)])],,
 	[with_chan_zap="yes"])
 
-AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_zaptel}" = "yes" -a "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}"])
+AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_dahdi}" = "yes" -a "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}"])
 
 dnl ###########################################################################
 

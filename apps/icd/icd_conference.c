@@ -81,14 +81,14 @@ static int careful_write(int fd, unsigned char *data, int len)
 
 static int activate_conference(int fd, int confno, int flags)
 {
-    struct zt_confinfo ztc;
+    struct dahdi_confinfo ztc;
 
     memset(&ztc, 0, sizeof(ztc));
     ztc.chan = 0;
     ztc.confno = confno;
     ztc.confmode = flags;
 
-    if (ioctl(fd, ZT_SETCONF, &ztc)) {
+    if (ioctl(fd, DAHDI_SETCONF, &ztc)) {
         cw_log(CW_LOG_WARNING, "Error setting conference\n");
         close(fd);
         return 0;
@@ -98,13 +98,13 @@ static int activate_conference(int fd, int confno, int flags)
 
 static int wipe_conference(int fd)
 {
-    struct zt_confinfo ztc;
+    struct dahdi_confinfo ztc;
 
     memset(&ztc, 0, sizeof(ztc));
     ztc.chan = 0;
     ztc.confno = 0;
     ztc.confmode = 0;
-    if (ioctl(fd, ZT_SETCONF, &ztc)) {
+    if (ioctl(fd, DAHDI_SETCONF, &ztc)) {
         cw_log(CW_LOG_WARNING, "Error setting conference\n");
         return 0;
     }
@@ -138,10 +138,10 @@ static void conf_play(icd_conference * conf, int sound)
 static int open_pseudo_zap()
 {
     int fd = 0, flags = 0;
-    ZT_BUFFERINFO bi;
+    struct dahdi_bufferinfo bi;
 
     cw_log(CW_LOG_WARNING, "gonna open pseudo channel:\n");
-    fd = open("/dev/zap/pseudo", O_RDWR);
+    fd = open("/dev/dahdi/pseudo", O_RDWR);
     if (fd < 0) {
         cw_log(CW_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
         return 0;
@@ -161,10 +161,10 @@ static int open_pseudo_zap()
     /* Setup buffering information */
     memset(&bi, 0, sizeof(bi));
     bi.bufsize = CONF_SIZE;
-    bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-    bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+    bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+    bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
     bi.numbufs = 4;
-    if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
+    if (ioctl(fd, DAHDI_SET_BUFINFO, &bi)) {
         cw_log(CW_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
         close(fd);
         return 0;
@@ -230,7 +230,7 @@ icd_conference *icd_conference__new(char *name)
     time(&new->start);
     new->owner = NULL;
     new->is_agent_conf = 0;
-    new->fd = open("/dev/zap/pseudo", O_RDWR);
+    new->fd = open("/dev/dahdi/pseudo", O_RDWR);
     if (new->fd < 0) {
         cw_log(CW_LOG_WARNING, "Unable to open pseudo channel\n");
         ICD_STD_FREE(new);
@@ -239,8 +239,8 @@ icd_conference *icd_conference__new(char *name)
         memset(&new->ztc, 0, sizeof(new->ztc));
         new->ztc.chan = 0;
         new->ztc.confno = -1;
-        new->ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-        if (ioctl(new->fd, ZT_SETCONF, &new->ztc)) {
+        new->ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
+        if (ioctl(new->fd, DAHDI_SETCONF, &new->ztc)) {
             cw_log(CW_LOG_WARNING, "Error setting conference\n");
             close(new->fd);
             ICD_STD_FREE(new);
@@ -320,7 +320,7 @@ icd_status icd_conference__join(icd_caller * that)
 
     int x;
     int pseudo_fd=0;
-    ZT_BUFFERINFO bi;
+    struct dahdi_bufferinfo bi;
     char __buf[CONF_SIZE +  CW_FRIENDLY_OFFSET];
     char *buf = __buf +  CW_FRIENDLY_OFFSET;
     struct cw_frame write_frame;
@@ -416,10 +416,10 @@ icd_status icd_conference__join(icd_caller * that)
             /* Setup buffering information */
             memset(&bi, 0, sizeof(bi));
             bi.bufsize = CONF_SIZE / 2;
-            bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-            bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+            bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+            bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
             bi.numbufs = 4;
-            if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
+            if (ioctl(fd, DAHDI_SET_BUFINFO, &bi)) {
                 cw_log(CW_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
@@ -431,7 +431,7 @@ icd_status icd_conference__join(icd_caller * that)
                 return ICD_STDERR;
             }
 
-            if (ioctl(fd, ZT_SETLINEAR, &x)) {
+            if (ioctl(fd, DAHDI_SETLINEAR, &x)) {
                 cw_log(CW_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
                 close(fd);
         	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){

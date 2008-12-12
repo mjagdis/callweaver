@@ -29,7 +29,7 @@
 #if !defined(ICD_CONFERENCE_H)
 #define ICD_CONFERENCE_H
 
-#include ZAPTEL_H
+#include DAHDI_H
 
 struct icd_conference
 {
@@ -40,7 +40,7 @@ struct icd_conference
     time_t start;
     icd_caller *owner;
     int is_agent_conf;
-    struct zt_confinfo ztc;
+    struct dahdi_confinfo ztc;
     icd_memory *memory;
 };
 

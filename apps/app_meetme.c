@@ -32,7 +32,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#include ZAPTEL_H
+#include DAHDI_H
 
 #include "callweaver.h"
 
@@ -271,8 +271,8 @@ static int careful_write(int fd, unsigned char *data, int len)
     int x;
     while (len)
     {
-        x = ZT_IOMUX_WRITE | ZT_IOMUX_SIGEVENT;
-        res = ioctl(fd, ZT_IOMUX, &x);
+        x = DAHDI_IOMUX_WRITE | DAHDI_IOMUX_SIGEVENT;
+        res = ioctl(fd, DAHDI_IOMUX, &x);
         if (res >= 0)
             res = write(fd, data, len);
         if (res < 1)
@@ -436,7 +436,7 @@ static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int s
 static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
 {
     struct cw_conference *cnf;
-    struct zt_confinfo ztc;
+    struct dahdi_confinfo ztc;
     cw_mutex_lock(&conflock);
     cnf = confs;
     while (cnf)
@@ -464,7 +464,7 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
             else
             {
                 cw_log(CW_LOG_WARNING, "Unable to open pseudo channel - trying device\n");
-                cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+                cnf->fd = open("/dev/dahdi/pseudo", O_RDWR);
                 if (cnf->fd < 0)
                 {
                     cw_log(CW_LOG_WARNING, "Unable to open pseudo device\n");
@@ -477,8 +477,8 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
             /* Setup a new zap conference */
             ztc.chan = 0;
             ztc.confno = -1;
-            ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-            if (ioctl(cnf->fd, ZT_SETCONF, &ztc))
+            ztc.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+            if (ioctl(cnf->fd, DAHDI_SETCONF, &ztc))
             {
                 cw_log(CW_LOG_WARNING, "Error setting conference\n");
                 if (cnf->chan)
@@ -749,8 +749,8 @@ static struct cw_clicmd cli_conf = {
 static void conf_flush(int fd)
 {
     int x;
-    x = ZT_FLUSH_ALL;
-    if (ioctl(fd, ZT_FLUSH, &x))
+    x = DAHDI_FLUSH_ALL;
+    if (ioctl(fd, DAHDI_FLUSH, &x))
         cw_log(CW_LOG_WARNING, "Error flushing channel\n");
 }
 
@@ -805,7 +805,7 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     struct cw_conf_user *user = malloc(sizeof(struct cw_conf_user));
     struct cw_conf_user *usr = NULL;
     int fd;
-    struct zt_confinfo ztc, ztc_empty;
+    struct dahdi_confinfo ztc, ztc_empty;
     struct cw_frame *f;
     struct cw_channel *c;
     struct cw_frame fr;
@@ -835,7 +835,7 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     char recordingtmp[CW_MAX_EXTENSION] = "";
     int dtmf;
 
-    ZT_BUFFERINFO bi;
+    struct dahdi_bufferinfo bi;
     char __buf[CONF_SIZE + CW_FRIENDLY_OFFSET];
     char *buf = __buf + CW_FRIENDLY_OFFSET;
 
@@ -1005,7 +1005,7 @@ zapretry:
     origfd = chan->fds[0];
     if (retryzap)
     {
-        fd = open("/dev/zap/pseudo", O_RDWR);
+        fd = open("/dev/dahdi/pseudo", O_RDWR);
         if (fd < 0)
         {
             cw_log(CW_LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
@@ -1029,17 +1029,17 @@ zapretry:
         /* Setup buffering information */
         memset(&bi, 0, sizeof(bi));
         bi.bufsize = CONF_SIZE/2;
-        bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-        bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+        bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+        bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
         bi.numbufs = 4;
-        if (ioctl(fd, ZT_SET_BUFINFO, &bi))
+        if (ioctl(fd, DAHDI_SET_BUFINFO, &bi))
         {
             cw_log(CW_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
             close(fd);
             goto outrun;
         }
         x = 1;
-        if (ioctl(fd, ZT_SETLINEAR, &x))
+        if (ioctl(fd, DAHDI_SETLINEAR, &x))
         {
             cw_log(CW_LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
             close(fd);
@@ -1057,7 +1057,7 @@ zapretry:
     memset(&ztc_empty, 0, sizeof(ztc_empty));
     /* Check to see if we're in a conference... */
     ztc.chan = 0;
-    if (ioctl(fd, ZT_GETCONF, &ztc))
+    if (ioctl(fd, DAHDI_GETCONF, &ztc))
     {
         cw_log(CW_LOG_WARNING, "Error getting conference\n");
         close(fd);
@@ -1090,13 +1090,13 @@ zapretry:
     }
 
     if (confflags & CONFFLAG_MONITOR)
-        ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+        ztc.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
     else if (confflags & CONFFLAG_TALKER)
-        ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+        ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER;
     else
-        ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+        ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
 
-    if (ioctl(fd, ZT_SETCONF, &ztc))
+    if (ioctl(fd, DAHDI_SETCONF, &ztc))
     {
         cw_log(CW_LOG_WARNING, "Error setting conference\n");
         close(fd);
@@ -1211,8 +1211,8 @@ zapretry:
                             break;
                         else
                         {
-                            ztc.confmode = ZT_CONF_CONF;
-                            if (ioctl(fd, ZT_SETCONF, &ztc))
+                            ztc.confmode = DAHDI_CONF_CONF;
+                            if (ioctl(fd, DAHDI_SETCONF, &ztc))
                             {
                                 cw_log(CW_LOG_WARNING, "Error setting conference\n");
                                 close(fd);
@@ -1227,8 +1227,8 @@ zapretry:
                     }
                     else
                     {
-                        ztc.confmode = ZT_CONF_CONF;
-                        if (ioctl(fd, ZT_SETCONF, &ztc))
+                        ztc.confmode = DAHDI_CONF_CONF;
+                        if (ioctl(fd, DAHDI_SETCONF, &ztc))
                         {
                             cw_log(CW_LOG_WARNING, "Error setting conference\n");
                             close(fd);
@@ -1239,12 +1239,12 @@ zapretry:
                 else if(currentmarked >= 1 && lastmarked == 0)
                 {
                     if (confflags & CONFFLAG_MONITOR)
-                        ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+                        ztc.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
                     else if (confflags & CONFFLAG_TALKER)
-                        ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+                        ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER;
                     else
-                        ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-                    if (ioctl(fd, ZT_SETCONF, &ztc))
+                        ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
+                    if (ioctl(fd, DAHDI_SETCONF, &ztc))
                     {
                         cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
@@ -1296,20 +1296,20 @@ zapretry:
             if (user->adminflags)
             {
                 /* Set the new modes */
-                if ((user->adminflags & ADMINFLAG_MUTED) && (ztc.confmode & ZT_CONF_TALKER))
+                if ((user->adminflags & ADMINFLAG_MUTED) && (ztc.confmode & DAHDI_CONF_TALKER))
                 {
-                    ztc.confmode ^= ZT_CONF_TALKER;
-                    if (ioctl(fd, ZT_SETCONF, &ztc))
+                    ztc.confmode ^= DAHDI_CONF_TALKER;
+                    if (ioctl(fd, DAHDI_SETCONF, &ztc))
                     {
                         cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
                         break;
                     }
                 }
-                if (!(user->adminflags & ADMINFLAG_MUTED) && !(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & ZT_CONF_TALKER))
+                if (!(user->adminflags & ADMINFLAG_MUTED) && !(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & DAHDI_CONF_TALKER))
                 {
-                    ztc.confmode |= ZT_CONF_TALKER;
-                    if (ioctl(fd, ZT_SETCONF, &ztc))
+                    ztc.confmode |= DAHDI_CONF_TALKER;
+                    if (ioctl(fd, DAHDI_SETCONF, &ztc))
                     {
                         cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                         ret = -1;
@@ -1325,10 +1325,10 @@ zapretry:
                     break;
                 }
             }
-            else if (!(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & ZT_CONF_TALKER))
+            else if (!(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & DAHDI_CONF_TALKER))
             {
-                ztc.confmode |= ZT_CONF_TALKER;
-                if (ioctl(fd, ZT_SETCONF, &ztc))
+                ztc.confmode |= DAHDI_CONF_TALKER;
+                if (ioctl(fd, DAHDI_SETCONF, &ztc))
                 {
                     cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                     ret = -1;
@@ -1414,7 +1414,7 @@ zapretry:
                 }
                 else if (((f->frametype == CW_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == CW_FRAME_DTMF) && menu_active))
                 {
-                    if (ioctl(fd, ZT_SETCONF, &ztc_empty))
+                    if (ioctl(fd, DAHDI_SETCONF, &ztc_empty))
                     {
                         cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
@@ -1452,23 +1452,23 @@ zapretry:
                             {
                             case '1': /* Un/Mute */
                                 menu_active = 0;
-                                if (ztc.confmode & ZT_CONF_TALKER)
+                                if (ztc.confmode & DAHDI_CONF_TALKER)
                                 {
-                                    ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+                                    ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER;
                                     confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
                                 }
                                 else
                                 {
-                                    ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+                                    ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
                                     confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
                                 }
-                                if (ioctl(fd, ZT_SETCONF, &ztc))
+                                if (ioctl(fd, DAHDI_SETCONF, &ztc))
                                 {
                                     cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
-                                if (ztc.confmode & ZT_CONF_TALKER)
+                                if (ztc.confmode & DAHDI_CONF_TALKER)
                                 {
                                     if (!cw_streamfile(chan, "conf-unmuted", chan->language))
                                         cw_waitstream(chan, "");
@@ -1558,23 +1558,23 @@ zapretry:
                             {
                             case '1': /* Un/Mute */
                                 menu_active = 0;
-                                if (ztc.confmode & ZT_CONF_TALKER)
+                                if (ztc.confmode & DAHDI_CONF_TALKER)
                                 {
-                                    ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+                                    ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER;
                                     confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
                                 }
                                 else if (!(user->adminflags & ADMINFLAG_MUTED))
                                 {
-                                    ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+                                    ztc.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
                                     confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
                                 }
-                                if (ioctl(fd, ZT_SETCONF, &ztc))
+                                if (ioctl(fd, DAHDI_SETCONF, &ztc))
                                 {
                                     cw_log(CW_LOG_WARNING, "Error setting conference - Un/Mute \n");
                                     ret = -1;
                                     break;
                                 }
-                                if (ztc.confmode & ZT_CONF_TALKER)
+                                if (ztc.confmode & DAHDI_CONF_TALKER)
                                 {
                                     if (!cw_streamfile(chan, "conf-unmuted", chan->language))
                                         cw_waitstream(chan, "");
@@ -1612,7 +1612,7 @@ zapretry:
                     if (musiconhold)
                         cw_moh_start(chan, NULL);
 
-                    if (ioctl(fd, ZT_SETCONF, &ztc))
+                    if (ioctl(fd, DAHDI_SETCONF, &ztc))
                     {
                         cw_log(CW_LOG_WARNING, "Error setting conference\n");
                         close(fd);
@@ -1664,7 +1664,7 @@ zapretry:
         ztc.chan = 0;
         ztc.confno = 0;
         ztc.confmode = 0;
-        if (ioctl(fd, ZT_SETCONF, &ztc))
+        if (ioctl(fd, DAHDI_SETCONF, &ztc))
         {
             cw_log(CW_LOG_WARNING, "Error setting conference\n");
         }
