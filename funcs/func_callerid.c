@@ -27,6 +27,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

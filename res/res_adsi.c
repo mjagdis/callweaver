@@ -1,15 +1,3 @@
-/* Temporary things, until everyone is using the latest spandsp */
-#if !defined(CLIP_DTMF_C_TERMINATED)
-    #define CLIP_DTMF_C_TERMINATED 'C'
-#endif
-#if !defined(CLIP_DTMF_HASH_TERMINATED)
-    #define CLIP_DTMF_HASH_TERMINATED '#'
-#endif
-#if !defined(CLIP_DTMF_C_CALLER_NUMBER)
-    #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
-    #define adsi_tx_set_preamble(a,b,c,d,e) /**/
-#endif
-
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
@@ -47,6 +35,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include <spandsp/expose.h>

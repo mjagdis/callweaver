@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

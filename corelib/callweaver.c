@@ -79,6 +79,7 @@
 # include <sys/prctl.h>
 #endif
 #include <regex.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 #include <vale/rfc3489.h>
 #include <vale/udp.h>

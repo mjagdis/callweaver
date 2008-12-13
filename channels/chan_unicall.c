@@ -35,6 +35,7 @@
 #include <ctype.h>
 #include DAHDI_H
 
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 #include <libsupertone.h>
 #include <unicall.h>

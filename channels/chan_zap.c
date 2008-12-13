@@ -39,9 +39,8 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-
-#include <spandsp/expose.h>
 
 #include <math.h>
 #include DAHDI_H

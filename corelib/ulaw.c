@@ -28,12 +28,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <time.h>
-#if defined(HAVE_TGMATH_H)
-#include <tgmath.h>
-#endif
-#if defined(HAVE_MATH_H)
-#include <math.h>
-#endif
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

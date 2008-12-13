@@ -22,8 +22,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <sys/time.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#include <spandsp/expose.h>
 
 #include "callweaver.h"
 

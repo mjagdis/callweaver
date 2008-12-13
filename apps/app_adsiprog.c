@@ -34,6 +34,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

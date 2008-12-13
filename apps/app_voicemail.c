@@ -49,6 +49,7 @@
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

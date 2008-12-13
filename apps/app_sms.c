@@ -35,8 +35,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#include <spandsp/expose.h>
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"

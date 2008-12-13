@@ -31,10 +31,8 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <termios.h>
-
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-
-#include <spandsp/expose.h>
 
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"

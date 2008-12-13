@@ -27,8 +27,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <tiffio.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#include <spandsp/expose.h>
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

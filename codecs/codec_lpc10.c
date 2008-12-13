@@ -35,6 +35,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
 #include "callweaver.h"

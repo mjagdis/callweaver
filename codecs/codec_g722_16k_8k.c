@@ -34,8 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#include <spandsp/expose.h>
 
 #include "callweaver.h"
 

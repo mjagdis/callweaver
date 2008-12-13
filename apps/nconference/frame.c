@@ -16,8 +16,11 @@
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"  
 #endif  
+
 #include <stdio.h> 
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
+
 #include "common.h"
 #include "conference.h"
 #include "member.h"
