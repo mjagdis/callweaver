@@ -4019,10 +4019,11 @@ void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars)
 int cw_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
 	/* Try to write string, but wait no more than ms milliseconds before timing out */
-	int res = 0;
+	int res, n;
 	
 	while (len) {
-		if ((res = write(fd, s, len)) < 0) {
+		while ((res = write(fd, s, len)) < 0 && errno == EINTR);
+		if (res < 0) {
 			if (errno != EAGAIN)
 				break;
 			res = 0;
@@ -4037,7 +4038,8 @@ int cw_carefulwrite(int fd, char *s, int len, int timeoutms)
 			pfd.fd = fd;
 			pfd.events = POLLOUT;
 			res = -1;
-			if (poll(&pfd, 1, timeoutms) < 1)
+			while ((n = poll(&pfd, 1, timeoutms)) < 0 && errno == EINTR);
+			if (n < 1)
 				break;
 		}
 	}
