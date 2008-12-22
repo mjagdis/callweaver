@@ -479,7 +479,8 @@ static void complete_exten_at_context(int fd, char *argv[], int lastarg, int las
 		} else
 			cw_log(CW_LOG_ERROR, "Failed to lock context list\n");
 
-		*delim = '@';
+		if (delim)
+			*delim = '@';
 	}
 
 	/*
