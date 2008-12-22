@@ -4019,7 +4019,7 @@ void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars)
 int cw_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
 	/* Try to write string, but wait no more than ms milliseconds before timing out */
-	int res, n;
+	int res = 0, n;
 	
 	while (len) {
 		while ((res = write(fd, s, len)) < 0 && errno == EINTR);
