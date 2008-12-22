@@ -554,14 +554,14 @@ static struct cw_clicmd cli_changrab = {
 	.handler = changrab_cli,
 	.generator = complete_cg,
 	.summary = "ChanGrab",
-	.usage = "ChanGrab",
+	.usage = "ChanGrab\n",
 };
 static struct cw_clicmd cli_originate = {
 	.cmda = { "originate", NULL },
 	.handler = originate_cli,
 	.generator = complete_org,
 	.summary = "Originate",
-	.usage = "Originate",
+	.usage = "Originate\n",
 };
 
 static int unload_module(void)
