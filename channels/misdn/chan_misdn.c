@@ -5121,9 +5121,8 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 	else if (misdn_debug_only[port] ? 
 			(level==1 && misdn_debug[port]) || (level==misdn_debug[port]) 
 		 : level <= misdn_debug[port]) {
-		
-		cw_console_puts(port_buf);
-		cw_console_puts(buf);
+
+		cw_log(CW_LOG_DEBUG, "%s%s", port_buf, buf);
 	}
 	
 	if ((level <= misdn_debug[0]) && !cw_strlen_zero(global_tracefile) ) {
@@ -5134,14 +5133,9 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 		
 		p=strchr(tmp,'\n');
 		if (p) *p=':';
-		
+
 		if (!fp) {
-			cw_console_puts("Error opening Tracefile: [ ");
-			cw_console_puts(global_tracefile);
-			cw_console_puts(" ] ");
-			
-			cw_console_puts(strerror(errno));
-			cw_console_puts("\n");
+			cw_log(CW_LOG_DEBUG, "Error opening Tracefile: [ %s ] %s\n", global_tracefile, strerrno(errno));
 			return ;
 		}
 		
