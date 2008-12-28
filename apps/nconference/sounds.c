@@ -70,7 +70,7 @@ int conf_play_soundqueue( struct cw_conf_member *member )
 
     struct cw_conf_soundq *toplay, *delitem;
     
-    cw_generator_deactivate(member->chan);	
+    cw_generator_deactivate(&member->chan->generator);	
     cw_mutex_lock(&member->lock);
 
     toplay = member->soundq;
