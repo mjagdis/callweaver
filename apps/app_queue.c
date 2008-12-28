@@ -918,7 +918,6 @@ static struct cw_call_queue *reload_queue_rt(const char *queuename, struct cw_va
                 cw_mutex_unlock(&q->lock);
                 return NULL;
             }
-            cw_mutex_unlock(&q->lock);
             return q;
         }
     }
@@ -1029,7 +1028,6 @@ static struct cw_call_queue *reload_queue_rt(const char *queuename, struct cw_va
         }
         m = next_m;
     }
-    cw_mutex_unlock(&q->lock);
     return q;
 }
 
