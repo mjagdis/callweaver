@@ -78,7 +78,7 @@ static const char descrip[] =
     "If the conference number is omitted, the user will be prompted to enter\n"
     "one. \n"
     "MeetMe returns 0 if user pressed # to exit (see option 'p'), otherwise -1.\n"
-    "Please note: A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
+    "Please note: A DAHDI INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
     "The option string may contain zero or more of the following characters:\n"
     "      'm' -- set monitor only mode (Listen only, no talking)\n"
@@ -104,7 +104,7 @@ static const char descrip[] =
     "      'w' -- wait until the marked user enters the conference\n"
     "      'b' -- run OGI script specified in ${MEETME_OGI_BACKGROUND}\n"
     "         Default: conf-background.ogi\n"
-    "        (Note: This does not work with non-Zap channels in the same conference)\n"
+    "        (Note: This does not work with non-DAHDI channels in the same conference)\n"
     "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
     "      'a' -- set admin mode\n"
     "      'A' -- set marked mode\n"
@@ -115,7 +115,7 @@ static char descrip2[] =
     "If used in an expression playback will be skipped and the value returned.\n"
     "If var is specified, playback will be skipped and the value\n"
     "will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
-    "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+    "A DAHDI INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
 static char descrip3[] =
     "Run admin command for conference\n"
@@ -138,7 +138,7 @@ static struct cw_conference
     char confno[CW_MAX_EXTENSION];        /* Conference */
     struct cw_channel *chan;  /* Announcements channel */
     int fd;                     /* Announcements fd */
-    int zapconf;                /* Zaptel Conf # */
+    int dahdiconf;                /* DAHDI Conf # */
     int users;                  /* Number of active users */
     int markedusers;            /* Number of marked users */
     struct cw_conf_user *firstuser;  /* Pointer to the first user struct */
@@ -170,7 +170,7 @@ struct cw_conf_user
     int adminflags;             /* Flags set by the Admin */
     struct cw_channel *chan;  /* Connected channel */
     int talking;                /* Is user talking */
-    int zapchannel;             /* Is a Zaptel channel */
+    int dahdichannel;             /* Is a DAHDI channel */
     char usrvalue[50];          /* Custom User Value */
     char namerecloc[CW_MAX_EXTENSION];    /* Name Recorded file Location */
     time_t jointime;            /* Time the user joined the conference */
@@ -474,7 +474,7 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
                 }
             }
             memset(&ztc, 0, sizeof(ztc));
-            /* Setup a new zap conference */
+            /* Setup a new DAHDI conference */
             ztc.chan = 0;
             ztc.confno = -1;
             ztc.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
@@ -491,13 +491,13 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
             }
             /* Fill the conference struct */
             cnf->start = time(NULL);
-            cnf->zapconf = ztc.confno;
+            cnf->dahdiconf = ztc.confno;
             cnf->isdynamic = dynamic;
             cnf->firstuser = NULL;
             cnf->lastuser = NULL;
             cnf->locked = 0;
             if (option_verbose > 2)
-                cw_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+                cw_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->dahdiconf, cnf->confno);
             cnf->next = confs;
             confs = cnf;
         }
@@ -814,7 +814,7 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     int nfds;
     int res;
     int flags;
-    int retryzap;
+    int retrydahdi;
     int origfd;
     int musiconhold = 0;
     int firstpass = 0;
@@ -999,11 +999,11 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
         goto outrun;
     }
     cw_indicate(chan, -1);
-    retryzap = strcmp(chan->type, "DAHDI");
-    user->zapchannel = !retryzap;
-zapretry:
+    retrydahdi = strcmp(chan->type, "DAHDI");
+    user->dahdichannel = !retrydahdi;
+dahdiretry:
     origfd = chan->fds[0];
-    if (retryzap)
+    if (retrydahdi)
     {
         fd = open("/dev/dahdi/pseudo", O_RDWR);
         if (fd < 0)
@@ -1066,17 +1066,17 @@ zapretry:
     if (ztc.confmode)
     {
         /* Whoa, already in a conference...  Retry... */
-        if (!retryzap)
+        if (!retrydahdi)
         {
             cw_log(CW_LOG_DEBUG, "DAHDI channel is in a conference already, retrying with pseudo\n");
-            retryzap = 1;
-            goto zapretry;
+            retrydahdi = 1;
+            goto dahdiretry;
         }
     }
     memset(&ztc, 0, sizeof(ztc));
     /* Add us to the conference */
     ztc.chan = 0;
-    ztc.confno = conf->zapconf;
+    ztc.confno = conf->dahdiconf;
     cw_mutex_lock(&conflock);
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1)
     {
@@ -1103,7 +1103,7 @@ zapretry:
         cw_mutex_unlock(&conflock);
         goto outrun;
     }
-    cw_log(CW_LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+    cw_log(CW_LOG_DEBUG, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
 
     manager_event(EVENT_FLAG_CALL, "MeetmeJoin",
                   "Channel: %s\r\n"
@@ -1124,9 +1124,9 @@ zapretry:
     if (confflags & CONFFLAG_OGI)
     {
 
-        if (user->zapchannel)
+        if (user->dahdichannel)
         {
-            /*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
+            /*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones */
             x = 1;
             cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
@@ -1136,18 +1136,18 @@ zapretry:
         ogifile = strdup(ogifile ? ogifile : ogifiledefault);
         ret = cw_function_exec_str(chan, hash_ogi, "OGI", ogifile, NULL, 0);
         free(ogifile);
-        if (user->zapchannel)
+        if (user->dahdichannel)
         {
-            /*  Remove CONFMUTE mode on Zap channel */
+            /*  Remove CONFMUTE mode on DAHDI channel */
             x = 0;
             cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
     }
     else
     {
-        if (user->zapchannel && (confflags & CONFFLAG_STARMENU))
+        if (user->dahdichannel && (confflags & CONFFLAG_STARMENU))
         {
-            /*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
+            /*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones when the menu is enabled */
             x = 1;
             cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
@@ -1347,9 +1347,9 @@ zapretry:
                         using_pseudo = 0;
                     }
                     cw_log(CW_LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-                    retryzap = strcmp(c->type, "DAHDI");
-                    user->zapchannel = !retryzap;
-                    goto zapretry;
+                    retrydahdi = strcmp(c->type, "DAHDI");
+                    user->dahdichannel = !retrydahdi;
+                    goto dahdiretry;
                 }
                 f = cw_read(c);
                 if (!f)
