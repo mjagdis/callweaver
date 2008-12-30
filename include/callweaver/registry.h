@@ -35,6 +35,7 @@ struct cw_list {
 
 static inline void cw_list_init(struct cw_list *list) {
 	list->next = list->prev = list;
+	list->del = NULL;
 }
 
 static inline void __cw_list_add(struct cw_list *prev, struct cw_list *entry, struct cw_list *next)

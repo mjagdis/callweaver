@@ -1249,6 +1249,7 @@ static int unicall_hangup(struct cw_channel *cw)
     unicall_pvt_t *p = cw->tech_pvt;
     unicall_pvt_t *tmp;
     unicall_pvt_t *prev;
+    struct cw_channel *bchan;
     int res;
     int ret;
     int index;
@@ -1338,8 +1339,11 @@ static int unicall_hangup(struct cw_channel *cw)
                 swap_subs(p, SUB_CALLWAIT, SUB_REAL);
                 unalloc_sub(p, SUB_CALLWAIT);
                 p->owner = p->subs[SUB_REAL].owner;
-                if (cw_bridged_channel(p->subs[SUB_REAL].owner))
-                    cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
+                if ((bchan = cw_bridged_channel(p->subs[SUB_REAL].owner)))
+                {
+                    cw_moh_stop(bchan);
+                    cw_object_put(bchan);
+                }
                 /*endif*/
             }
             else if (p->subs[SUB_THREEWAY].fd >= 0)
@@ -1370,8 +1374,11 @@ static int unicall_hangup(struct cw_channel *cw)
             {
                 /* This is actually part of a three way, placed on hold.  Place the third part
                    on music on hold now */
-                if (p->subs[SUB_THREEWAY].owner  &&  cw_bridged_channel(p->subs[SUB_THREEWAY].owner))
-                    cw_moh_start(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+                if (p->subs[SUB_THREEWAY].owner  &&  (bchan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner)))
+                {
+                    cw_moh_start(bchan, NULL);
+                    cw_object_put(bchan);
+                }
                 /*endif*/
                 p->subs[SUB_THREEWAY].inthreeway = FALSE;
                 /* Make it the call wait now */
@@ -1389,8 +1396,11 @@ static int unicall_hangup(struct cw_channel *cw)
             {
                 /* The other party of the three way call is currently in a call-wait state.
                    Start music on hold for them, and take the main guy out of the third call */
-                if (p->subs[SUB_CALLWAIT].owner && cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-                    cw_moh_start(cw_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+                if (p->subs[SUB_CALLWAIT].owner && (bchan = cw_bridged_channel(p->subs[SUB_CALLWAIT].owner)))
+                {
+                    cw_moh_start(bchan, NULL);
+                    cw_object_put(bchan);
+                }
                 /*endif*/
                 p->subs[SUB_CALLWAIT].inthreeway = FALSE;
             }
@@ -2554,17 +2564,12 @@ static int unicall_indicate(struct cw_channel *chan, int condition)
 
 static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx, int index, int law)
 {
+    char buf[sizeof(((struct cw_channel *)0)->name)];
     struct cw_channel *tmp;
     int deflaw;
     int x;
     int y;
 
-    if ((tmp = cw_channel_alloc(0)) == NULL)
-    {
-        cw_log(CW_LOG_WARNING, "Unable to allocate channel structure\n");
-        return  NULL;
-    }
-    /*endif*/
     if (law == 0)
         law = uc_channel_get_api_codec(i->uc, 0);
     /*endif*/
@@ -2576,10 +2581,10 @@ static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx,
     y = 1;
     do
     {
-        snprintf(tmp->name, sizeof(tmp->name), "UniCall/%d-%d", i->channel, y);
+        snprintf(buf, sizeof(buf), "UniCall/%d-%d", i->channel, y);
         for (x = 0;  x < 3;  x++)
         {
-            if (index != x  &&  i->subs[x].owner  &&  strcasecmp(tmp->name, i->subs[x].owner->name) == 0)
+            if (index != x  &&  i->subs[x].owner  &&  strcasecmp(buf, i->subs[x].owner->name) == 0)
                 break;
             /*endif*/
         }
@@ -2587,6 +2592,13 @@ static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx,
         y++;
     }
     while (x < 3);
+    if ((tmp = cw_channel_alloc(0, "%s", buf)) == NULL)
+    {
+        cw_log(CW_LOG_WARNING, "Unable to allocate channel structure\n");
+        return  NULL;
+    }
+    /*endif*/
+
     tmp->type = type;
     tmp->tech = &unicall_tech;
     tmp->fds[0] = i->subs[index].fd;

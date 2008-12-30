@@ -158,6 +158,16 @@ static int spy_queue_translate(struct cw_channel_spy *spy,
 static void *muxmon_thread(void *obj) 
 {
 
+    short buf0[1280], buf1[1280], buf[1280];
+    char post_process[1024] = "";
+    struct cw_slinfactory slinfactory[2];
+    struct cw_channel_spy spy;
+    struct cw_frame frame;
+    struct cw_channel *bchan;
+    struct muxmon *muxmon = obj;
+    struct cw_filestream *fs = NULL;
+    char *ext;
+    char *name;
     int len0 = 0;
     int len1 = 0;
     int samp0 = 0;
@@ -165,16 +175,7 @@ static void *muxmon_thread(void *obj)
     int framelen;
     int minsamp;
     int x = 0;
-    short buf0[1280], buf1[1280], buf[1280];
-    struct cw_frame frame;
-    struct muxmon *muxmon = obj;
-    struct cw_channel_spy spy;
-    struct cw_filestream *fs = NULL;
-    char *ext;
-    char *name;
     unsigned int oflags;
-    struct cw_slinfactory slinfactory[2];
-    char post_process[1024] = "";
     
     name = cw_strdupa(muxmon->chan->name);
 
@@ -225,7 +226,7 @@ static void *muxmon_thread(void *obj)
                 len0 =
                 len1 = 0;
 
-                /* In case of hapgup it is safer to start from testing this */  
+                /* In case of hangup it is safer to start from testing this */
                 if (spy.status != CHANSPY_RUNNING)
                 {
                     cw_clear_flag(muxmon, MUXFLAG_RUNNING);
@@ -237,11 +238,14 @@ static void *muxmon_thread(void *obj)
                     break;
                 }
 
-                if (cw_test_flag(muxmon, MUXFLAG_BRIDGED)  &&  !cw_bridged_channel(muxmon->chan))
+                if (cw_test_flag(muxmon, MUXFLAG_BRIDGED))
                 {
-                    usleep(1000);
-                    sched_yield();
-                    continue;
+                    if (!(bchan = cw_bridged_channel(muxmon->chan))) {
+                        usleep(1000);
+                        sched_yield();
+                        continue;
+                    } else
+                        cw_object_put(bchan);
                 }
                 
                 spy_queue_translate(&spy, &slinfactory[0], &slinfactory[1]);
@@ -323,16 +327,14 @@ static void *muxmon_thread(void *obj)
     
     if (fs)
         cw_closestream(fs);
-    
+
     cw_slinfactory_destroy(&slinfactory[0]);
     cw_slinfactory_destroy(&slinfactory[1]);
 
-    if (muxmon)
-    {
-        if (muxmon->filename)
-            free(muxmon->filename);
-        free(muxmon);
-    }
+    cw_object_put(muxmon->chan);
+    if (muxmon->filename)
+        free(muxmon->filename);
+    free(muxmon);
 
     if (!cw_strlen_zero(post_process))
     {
@@ -348,24 +350,31 @@ static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsig
 {
     pthread_t tid;
     struct muxmon *muxmon;
+    int res;
 
+    if (!(muxmon = calloc(1, sizeof(struct muxmon)))) {
+        muxmon->chan = cw_object_dup(chan);
+        muxmon->filename = strdup(filename);
+        if (post_process)
+            muxmon->post_process = strdup(post_process);
+        muxmon->readvol = readvol;
+        muxmon->writevol = writevol;
+        muxmon->flags = flags;
 
-    if (!(muxmon = malloc(sizeof(struct muxmon))))
-    {
-        cw_log(CW_LOG_ERROR, "Out of memory\n");
-        return;
+        if (!(res = cw_pthread_create(&tid, &global_attr_rr_detached, muxmon_thread, muxmon)))
+		return;
+
+        cw_object_put(chan);
+        if (muxmon->filename)
+            free(filename);
+        if (muxmon->post_process)
+            free(post_process);
+        free(muxmon);
+        cw_log(CW_LOG_ERROR, "pthread_create failed: %s\n", strerror(res));
+	return;
     }
-
-    memset(muxmon, 0, sizeof(struct muxmon));
-    muxmon->chan = chan;
-    muxmon->filename = strdup(filename);
-    if (post_process)
-        muxmon->post_process = strdup(post_process);
-    muxmon->readvol = readvol;
-    muxmon->writevol = writevol;
-    muxmon->flags = flags;
-
-    cw_pthread_create(&tid, &global_attr_rr_detached, muxmon_thread, muxmon);
+    cw_log(CW_LOG_ERROR, "Out of memory\n");
+    return;
 }
 
 
@@ -426,36 +435,6 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *res
 }
 
 
-static struct cw_channel *local_channel_walk(struct cw_channel *chan) 
-{
-    struct cw_channel *ret;
-    cw_mutex_lock(&modlock);    
-    if ((ret = cw_channel_walk_locked(chan)))
-        cw_mutex_unlock(&ret->lock);
-    cw_mutex_unlock(&modlock);            
-    return ret;
-}
-
-static struct cw_channel *local_get_channel_begin_name(char *name) 
-{
-    struct cw_channel *chan;
-    struct cw_channel *ret = NULL;
-    cw_mutex_lock(&modlock);
-    chan = local_channel_walk(NULL);
-    while (chan)
-    {
-        if (!strncmp(chan->name, name, strlen(name)))
-        {
-            ret = chan;
-            break;
-        }
-        chan = local_channel_walk(chan);
-    }
-    cw_mutex_unlock(&modlock);
-    
-    return ret;
-}
-
 static int muxmon_cli(int fd, int argc, char **argv) 
 {
     char *op;
@@ -467,11 +446,12 @@ static int muxmon_cli(int fd, int argc, char **argv)
         op = argv[1];
         chan_name = argv[2];
 
-        if (!(chan = local_get_channel_begin_name(chan_name)))
+        if (!(chan = cw_get_channel_by_name_prefix_locked(chan_name, strlen(chan_name))))
         {
             cw_cli(fd, "Invalid Channel!\n");
             return -1;
         }
+	cw_mutex_unlock(&chan->lock);
 
         if (!strcasecmp(op, "start"))
         {
@@ -483,6 +463,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 	    cw_spy_detach_all(chan);
             cw_mutex_unlock(&chan->lock);
         }
+	cw_object_put(chan);
         return 0;
     }
 

@@ -519,8 +519,8 @@ static struct cw_channel *local_new(struct local_pvt *p, int state)
 	int randnum = cw_random() & 0xffff;
 	int fmt=0;
 
-	tmp = cw_channel_alloc(1);
-	tmp2 = cw_channel_alloc(1);
+	tmp = cw_channel_alloc(1, "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
+	tmp2 = cw_channel_alloc(1, "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
 	if (!tmp || !tmp2) {
 		if (tmp)
 			cw_channel_free(tmp);
@@ -533,8 +533,6 @@ static struct cw_channel *local_new(struct local_pvt *p, int state)
 	tmp2->tech = tmp->tech = &local_tech;
 	tmp->nativeformats = p->reqformat;
 	tmp2->nativeformats = p->reqformat;
-	snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
-	snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
 	tmp->type = type;
 	tmp2->type = type;
 	cw_setstate(tmp, state);

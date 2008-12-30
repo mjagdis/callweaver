@@ -198,7 +198,7 @@ static void *jabber_pbx_session(void *obj);
 #ifdef JABBER_DYNAMIC
 static struct jabber_profile *jabber_profile_new(void);
 #endif
-static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct cw_channel *chan, unsigned int flags);
+static void jabber_profile_init(struct jabber_profile *profile, const char *resource, const char *identifier, struct cw_channel *chan, unsigned int flags);
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
@@ -1599,7 +1599,7 @@ static struct jabber_profile *jabber_profile_new(void)
 
 #endif
 
-static void jabber_profile_init(struct jabber_profile *profile, char *resource, char *identifier, struct cw_channel *chan, unsigned int flags)
+static void jabber_profile_init(struct jabber_profile *profile, const char *resource, const char *identifier, struct cw_channel *chan, unsigned int flags)
 {
 	memset(profile, 0, sizeof(*profile));
 	cw_mutex_init(&profile->ib_qlock);
@@ -1616,9 +1616,9 @@ static void jabber_profile_init(struct jabber_profile *profile, char *resource, 
 
 	cw_set_flag(profile, flags);
 	profile->media_socket = -1;
-	if (chan) {
-		profile->chan = chan;
-	}
+
+	if (chan)
+		profile->chan = cw_object_dup(chan);
 }
 
 
@@ -1635,9 +1635,11 @@ static void jabber_profile_destroy(struct jabber_profile *profile)
 	g_free_if_exists(profile->bridgeto);
 	g_free_if_exists(profile->identifier);
 
-	if (cw_test_flag(profile, JFLAG_MALLOC)) {
+	if (profile->chan)
+		cw_object_put(profile->chan);
+
+	if (cw_test_flag(profile, JFLAG_MALLOC))
 		free(profile);
-	}
 }
 
 
@@ -1774,22 +1776,20 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
     }
 
     if (!strcasecmp(jmsg->command, "call")) {
-		char *type = jabber_message_header(jmsg, "type");
+		const char *type = jabber_message_header(jmsg, "type");
 		char *data = jabber_message_header(jmsg, "data");
-		char *toa = jabber_message_header(jmsg, "timeout");
-		char *cid_name = jabber_message_header(jmsg, "callingpartyname");
-		char *cid_num = jabber_message_header(jmsg, "callingpartynumber");
-		char *formata = jabber_message_header(jmsg, "format");
-		char *pname = jabber_message_header(jmsg, "resource");
-		char *identifier = jabber_message_header(jmsg, "identifier");
-		char *bridgeto = jabber_message_header(jmsg, "bridgeto");
-		
+		const char *toa = jabber_message_header(jmsg, "timeout");
+		const char *cid_name = jabber_message_header(jmsg, "callingpartyname");
+		const char *cid_num = jabber_message_header(jmsg, "callingpartynumber");
+		const char *formata = jabber_message_header(jmsg, "format");
+		const char *pname = jabber_message_header(jmsg, "resource");
+		const char *identifier = jabber_message_header(jmsg, "identifier");
+		const char *bridgeto = jabber_message_header(jmsg, "bridgeto");
 
 		int timeout = 0;
 		int format = 0;
 		int reason = 0;
 
-		
 		timeout = toa ? atoi(toa) : 60000;
 		format = formata ? cw_getformatbyname(formata) : CW_FORMAT_SLINEAR;
 

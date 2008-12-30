@@ -1376,6 +1376,7 @@ struct cw_frame *visdn_exception(struct cw_channel *cw_chan)
 static int visdn_indicate(struct cw_channel *cw_chan, int condition)
 {
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
+	struct cw_channel *bchan;
 	const struct tone_zone_sound *tone = NULL;
 	int res = 0;
 
@@ -1446,20 +1447,17 @@ static int visdn_indicate(struct cw_channel *cw_chan, int condition)
 
 		struct q931_ie_progress_indicator *pi = NULL;
 
-		if (cw_bridged_channel(cw_chan) &&
-		   strcmp(cw_bridged_channel(cw_chan)->type,
-			  				VISDN_CHAN_TYPE)) {
+		if ((bchan = cw_bridged_channel(cw_chan))) {
+			if (strcmp(bchan->type, VISDN_CHAN_TYPE)) {
+				visdn_debug("Channel is not VISDN, sending progress indicator\n");
 
-			visdn_debug("Channel is not VISDN, sending"
-					" progress indicator\n");
-
-			pi = q931_ie_progress_indicator_alloc();
-			pi->coding_standard = Q931_IE_PI_CS_CCITT;
-			pi->location = q931_ie_progress_indicator_location(
-						visdn_chan->q931_call);
-			pi->progress_description =
-				Q931_IE_PI_PD_CALL_NOT_END_TO_END;
-			q931_ies_add_put(&ies, &pi->ie);
+				pi = q931_ie_progress_indicator_alloc();
+				pi->coding_standard = Q931_IE_PI_CS_CCITT;
+				pi->location = q931_ie_progress_indicator_location(visdn_chan->q931_call);
+				pi->progress_description = Q931_IE_PI_PD_CALL_NOT_END_TO_END;
+				q931_ies_add_put(&ies, &pi->ie);
+			}
+			cw_object_put(bchan);
 		}
 
 		pi = q931_ie_progress_indicator_alloc();
@@ -1558,14 +1556,13 @@ static int visdn_indicate(struct cw_channel *cw_chan, int condition)
 		pi->location = q931_ie_progress_indicator_location(
 					visdn_chan->q931_call);
 
-		if (cw_bridged_channel(cw_chan) &&
-		   strcmp(cw_bridged_channel(cw_chan)->type,
-			   				VISDN_CHAN_TYPE)) {
-			pi->progress_description =
-				Q931_IE_PI_PD_CALL_NOT_END_TO_END; // FIXME
-		} else if (visdn_chan->is_voice) {
-			pi->progress_description =
-				Q931_IE_PI_PD_IN_BAND_INFORMATION;
+		if ((bchan = cw_bridged_channel(cw_chan))) {
+			if (strcmp(cw_bridged_channel(cw_chan)->type, VISDN_CHAN_TYPE)) {
+				pi->progress_description = Q931_IE_PI_PD_CALL_NOT_END_TO_END; // FIXME
+			} else if (visdn_chan->is_voice) {
+				pi->progress_description = Q931_IE_PI_PD_IN_BAND_INFORMATION;
+			}
+			cw_object_put(bchan);
 		}
 
 		q931_ies_add_put(&ies, &pi->ie);
@@ -2026,10 +2023,15 @@ cw_verbose(VERBOSE_PREFIX_3 "W %.3f %02d %02x%02x%02x%02x%02x%02x%02x%02x %d\n",
 static const struct cw_channel_tech visdn_tech;
 static struct cw_channel *visdn_new(
 	struct visdn_chan *visdn_chan,
-	int state)
+	int state,
+	const char *fmt,
+	struct q931_call *q931_call)
 {
 	struct cw_channel *cw_chan;
-	cw_chan = cw_channel_alloc(1);
+	cw_chan = cw_channel_alloc(1, "VISDN/%s/%d.%c",
+		q931_call->intf->name,
+		q931_call->call_reference,
+		q931_call->direction == Q931_CALL_DIRECTION_INBOUND ? 'I' : 'O');
 	if (!cw_chan) {
 		cw_log(CW_LOG_WARNING, "Unable to allocate channel\n");
 		goto err_channel_alloc;
@@ -2098,11 +2100,9 @@ static struct cw_channel *visdn_request(
 	}
 
 	struct cw_channel *cw_chan;
-	cw_chan = visdn_new(visdn_chan, CW_STATE_DOWN);
+	cw_chan = visdn_new(visdn_chan, CW_STATE_DOWN, "VISDN/null");
 	if (!cw_chan)
 		goto err_visdn_new;
-
-	snprintf(cw_chan->name, sizeof(cw_chan->name), "VISDN/null");
 
 	cw_mutex_lock(&visdn.usecnt_lock);
 	visdn.usecnt++;
@@ -2884,6 +2884,7 @@ static void visdn_q931_resume_indication(
 	struct q931_call *q931_call,
 	const struct q931_ies *ies)
 {
+	struct cw_channel *bchan;
 	FUNC_DEBUG();
 
 	enum q931_ie_cause_value cause;
@@ -2939,33 +2940,27 @@ static void visdn_q931_resume_indication(
 	visdn_chan->q931_call = q931_call_get(q931_call);
 	visdn_chan->suspended_call = NULL;
 
-	if (cw_bridged_channel(suspended_call->cw_chan)) {
-		if (!strcmp(cw_bridged_channel(suspended_call->cw_chan)->type,
-							VISDN_CHAN_TYPE)) {
+	if ((bchan = cw_bridged_channel(suspended_call->cw_chan))) {
+		if (!strcmp(bchan->type, VISDN_CHAN_TYPE)) {
 			// Wow, the remote channel is ISDN too, let's notify it!
 
 			Q931_DECLARE_IES(response_ies);
 
-			struct visdn_chan *remote_visdn_chan =
-				to_visdn_chan(
-					cw_bridged_channel(suspended_call->
-						cw_chan));
+			struct visdn_chan *remote_visdn_chan = to_visdn_chan(bchan);
 
-			struct q931_call *remote_call =
-					remote_visdn_chan->q931_call;
+			struct q931_call *remote_call = remote_visdn_chan->q931_call;
 
-			struct q931_ie_notification_indicator *notify =
-				q931_ie_notification_indicator_alloc();
+			struct q931_ie_notification_indicator *notify = q931_ie_notification_indicator_alloc();
 			notify->description = Q931_IE_NI_D_USER_RESUMED;
 			q931_ies_add_put(&response_ies, &notify->ie);
 
-			q931_send_primitive(remote_call,
-				Q931_CCB_NOTIFY_REQUEST, &response_ies);
+			q931_send_primitive(remote_call, Q931_CCB_NOTIFY_REQUEST, &response_ies);
 
 			Q931_UNDECLARE_IES(response_ies);
 		}
 
-		cw_moh_stop(cw_bridged_channel(suspended_call->cw_chan));
+		cw_moh_stop(bchan);
+		cw_object_put(bchan);
 	}
 
 	{
@@ -3238,7 +3233,7 @@ static void visdn_q931_setup_indication(
 	visdn_chan->ic = visdn_ic_get(ic);
 
 	struct cw_channel *cw_chan;
-	cw_chan = visdn_new(visdn_chan, CW_STATE_OFFHOOK);
+	cw_chan = visdn_new(visdn_chan, CW_STATE_OFFHOOK, "VISDN/%s/%d.%c", q931_call);
 	if (!cw_chan)
 		goto err_visdn_new;
 
@@ -3284,12 +3279,6 @@ static void visdn_q931_setup_indication(
 	assert(bc);
 
 	q931_call->pvt = cw_chan;
-
-	snprintf(cw_chan->name, sizeof(cw_chan->name), "VISDN/%s/%d.%c",
-		q931_call->intf->name,
-		q931_call->call_reference,
-		q931_call->direction ==
-			Q931_CALL_DIRECTION_INBOUND ? 'I' : 'O');
 
 	strncpy(cw_chan->context,
 		ic->context,
@@ -3693,6 +3682,7 @@ static void visdn_q931_suspend_indication(
 
 	struct cw_channel *cw_chan = callpvt_to_cwchan(q931_call);
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
+	struct cw_channel *bchan;
 
 	enum q931_ie_cause_value cause;
 
@@ -3749,31 +3739,28 @@ static void visdn_q931_suspend_indication(
 
 	q931_send_primitive(q931_call, Q931_CCB_SUSPEND_RESPONSE, NULL);
 
-	if (cw_bridged_channel(cw_chan)) {
-		cw_moh_start(cw_bridged_channel(cw_chan), NULL);
+	if ((bchan = cw_bridged_channel(cw_chan))) {
+		cw_moh_start(bchan, NULL);
 
-		if (!strcmp(cw_bridged_channel(cw_chan)->type,
-							VISDN_CHAN_TYPE)) {
+		if (!strcmp(bchan->type, VISDN_CHAN_TYPE)) {
 			// Wow, the remote channel is ISDN too, let's notify it!
 
 			Q931_DECLARE_IES(response_ies);
 
-			struct visdn_chan *remote_visdn_chan =
-				to_visdn_chan(cw_bridged_channel(cw_chan));
+			struct visdn_chan *remote_visdn_chan = to_visdn_chan(bchan);
 
-			struct q931_call *remote_call =
-					remote_visdn_chan->q931_call;
+			struct q931_call *remote_call = remote_visdn_chan->q931_call;
 
-			struct q931_ie_notification_indicator *notify =
-				q931_ie_notification_indicator_alloc();
+			struct q931_ie_notification_indicator *notify = q931_ie_notification_indicator_alloc();
 			notify->description = Q931_IE_NI_D_USER_SUSPENDED;
 			q931_ies_add_put(&response_ies, &notify->ie);
 
-			q931_send_primitive(remote_call,
-				Q931_CCB_NOTIFY_REQUEST, &response_ies);
+			q931_send_primitive(remote_call, Q931_CCB_NOTIFY_REQUEST, &response_ies);
 
 			Q931_UNDECLARE_IES(response_ies);
 		}
+
+		cw_object_put(bchan);
 	}
 
 	if (!cw_chan->whentohangup ||

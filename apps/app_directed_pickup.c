@@ -58,7 +58,7 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	struct localuser *u = NULL;
 	struct cw_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL;
-	int res = 0, locked = 0;
+	int res = 0;
 
 	if (argc != 1)
 		return cw_function_syntax(pickup_syntax);
@@ -81,13 +81,12 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 		if (tmp) {
 			/* We have a possible channel... now we need to find it! */
 			target = cw_get_channel_by_name_locked(tmp);
-			if (target)
-			  locked = 1;
 		} else {
 			cw_log(CW_LOG_DEBUG, "No target channel found.\n");
 			res = -1;
 		}
 		cw_mutex_unlock(&origin->lock);
+		cw_object_put(origin);
 	} else {
 		cw_log(CW_LOG_DEBUG, "No originating channel found.\n");
 	}
@@ -123,8 +122,10 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	}
 	
  out:
-	if (target)
+	if (target) {
 		cw_mutex_unlock(&target->lock);
+		cw_object_put(target);
+	}
 
 	LOCAL_USER_REMOVE(u);
 

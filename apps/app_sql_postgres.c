@@ -323,8 +323,9 @@ static int aPGSQL_query(struct cw_channel *chan, void *data) {
 
 static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	
-	char *s1,*s2,*fetchid_var,*s4,*s5,*s6,*s7;
 	char s[100];
+	char *s1,*s2,*fetchid_var,*s4,*s5,*s6;
+	const char *s7;
 	char *var;
 	int l;
 	int res;

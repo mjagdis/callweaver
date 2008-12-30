@@ -104,8 +104,6 @@ struct chanspy_translation_helper
 };
 
 /* Prototypes */
-static struct cw_channel *local_get_channel_begin_name(char *name);
-static struct cw_channel *local_channel_walk(struct cw_channel *chan);
 static void spy_release(struct cw_channel *chan, void *data);
 static void *spy_alloc(struct cw_channel *chan, void *params);
 static void cw_flush_spy_queues(struct cw_channel_spy *spy);
@@ -120,48 +118,6 @@ static __inline__ int db_to_scaling_factor(int db)
     return (int) (powf(10.0f, db/10.0f)*32768.0f);
 }
 
-#if 0
-static struct cw_channel *local_get_channel_by_name(char *name)
-{
-    struct cw_channel *ret;
-
-    cw_mutex_lock(&modlock);
-    if ((ret = cw_get_channel_by_name_locked(name)))
-        cw_mutex_unlock(&ret->lock);
-    cw_mutex_unlock(&modlock);
-
-    return ret;
-}
-#endif
-
-static struct cw_channel *local_channel_walk(struct cw_channel *chan)
-{
-    struct cw_channel *ret;
-    cw_mutex_lock(&modlock);
-    if ((ret = cw_channel_walk_locked(chan)))
-        cw_mutex_unlock(&ret->lock);
-    cw_mutex_unlock(&modlock);
-    return ret;
-}
-
-static struct cw_channel *local_get_channel_begin_name(char *name)
-{
-    struct cw_channel *chan, *ret = NULL;
-    cw_mutex_lock(&modlock);
-    chan = local_channel_walk(NULL);
-    while (chan)
-    {
-        if (!strncmp(chan->name, name, strlen(name)))
-        {
-            ret = chan;
-            break;
-        }
-        chan = local_channel_walk(chan);
-    }
-    cw_mutex_unlock(&modlock);
-
-    return ret;
-}
 
 static void spy_release(struct cw_channel *chan, void *data)
 {
@@ -347,7 +303,7 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
     csth->f.samples = x;
     csth->f.datalen = x*sizeof(int16_t);
 
-    if (csth->fd) /* Write audio to file if open */
+    if (csth->fd >= 0) /* Write audio to file if open */
         write(csth->fd, buf1, len1);
     return &csth->f;
 }
@@ -499,218 +455,201 @@ static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *v
     return running;
 }
 
+
+struct chanspy_by_prefix_args {
+	struct cw_channel *chan;
+	const char *group;
+	int fd;
+	int volfactor;
+	int again:1;
+	int bronly:1;
+	int first:1;
+	int silent:1;
+	size_t name_len;
+	const char *prefix;
+	char name[CW_NAME_STRLEN];
+};
+
+static int chanspy_by_prefix_one(struct cw_object *obj, void *data)
+{
+	char peer_name[CW_NAME_STRLEN + sizeof("spy-")];
+	struct cw_channel *peer = container_of(obj, struct cw_channel, obj);
+	struct cw_channel *bchan;
+	struct chanspy_by_prefix_args *args = data;
+	struct cw_var_t *group = NULL;
+	char *ptr;
+	int igrp = 1;
+	int res = 0;
+
+	if (peer == args->chan)
+		goto out;
+
+	res = 1;
+
+	if (args->group) {
+		igrp = 0;
+		if ((group = pbx_builtin_getvar_helper(peer, CW_KEYWORD_SPYGROUP, "SPYGROUP"))) {
+			if (!strcmp(args->group, group->value))
+				igrp = 1;
+			cw_object_put(group);
+		}
+	}
+
+	if (igrp && (!args->prefix || !strncasecmp(peer->name, args->name, args->name_len))) {
+		if (args->bronly) {
+			if (!(bchan = cw_bridged_channel(peer)))
+				goto out_ok;
+			cw_object_put(bchan);
+		}
+		if (!cw_check_hangup(peer) && !cw_test_flag(peer, CW_FLAG_SPYING)) {
+			if (!args->silent) {
+				strncpy(peer_name, "spy-", 5);
+				strncpy(peer_name + sizeof("spy-") - 1, peer->name, CW_NAME_STRLEN);
+				for (ptr = peer_name; *ptr && *ptr != '/'; ptr++)
+					*ptr = tolower(*ptr);
+				if (*ptr == '/')
+					*(ptr++) = '\0';
+
+				if (cw_fileexists(peer_name, NULL, NULL)) {
+					if (cw_streamfile(args->chan, peer_name, args->chan->language) || cw_waitstream(args->chan, ""))
+						goto out;
+				} else {
+					if (cw_say_character_str(args->chan, peer_name, "", args->chan->language))
+						goto out;
+				}
+				if ((res = atoi(ptr)) && cw_say_digits(args->chan, res, "", args->chan->language))
+					goto out;
+			}
+
+			if ((res = channel_spy(args->chan, peer, &args->volfactor, args->fd)) == -1)
+				goto out;
+
+			if (res > 1 && args->prefix) {
+				args->name_len = snprintf(args->name, sizeof(args->name), "%s/%d", args->prefix, res);
+				args->again = 1;
+				goto out;
+			}
+		}
+	}
+
+out_ok:
+	res = 0;
+out:
+	return res;
+}
+
 static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    struct localuser *u;
-    struct cw_channel *peer = NULL;
-    struct cw_channel *prev = NULL;
-    char name[CW_NAME_STRLEN];
-    char peer_name[CW_NAME_STRLEN + 5];
-    char *ptr = NULL;
-    char *mygroup = NULL;
-    char *recbase = NULL;
-    int res = -1;
-    int volfactor = 0;
-    int silent = 0;
-    int bronly = 0;
-    int chosen = 0;
-    int count = 0;
-    int waitms = 100;
-    int num = 0;
-    int oldrf = 0;
-    int oldwf = 0;
-    int fd = 0;
-    struct cw_flags flags;
-    signed char zero_volume = 0;
+	struct chanspy_by_prefix_args args;
+	struct cw_flags flags;
+	struct localuser *u;
+	char *recbase = NULL;
+	int waitms;
+	int oldrf;
+	int oldwf;
+	int res = -1;
+	signed char zero_volume = 0;
 
-    if (argc < 1 || argc > 2)
-        return cw_function_syntax(chanspy_syntax);
+	if (argc < 1 || argc > 2)
+		return cw_function_syntax(chanspy_syntax);
 
-    LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(u);
 
-    oldrf = chan->readformat;
-    oldwf = chan->writeformat;
-    if (cw_set_read_format(chan, CW_FORMAT_SLINEAR) < 0)
-    {
-        cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
-        LOCAL_USER_REMOVE(u);
-        return -1;
-    }
+	oldrf = chan->readformat;
+	oldwf = chan->writeformat;
+	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR) < 0) {
+		cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
-    if (cw_set_write_format(chan, CW_FORMAT_SLINEAR) < 0)
-    {
-        cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
-        LOCAL_USER_REMOVE(u);
-        return -1;
-    }
+	if (cw_set_write_format(chan, CW_FORMAT_SLINEAR) < 0) {
+		cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
-    cw_answer(chan);
+	cw_answer(chan);
 
-    cw_set_flag(chan, CW_FLAG_SPYING); /* so nobody can spy on us while we are spying */
+	cw_set_flag(chan, CW_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
-    if (argc < 2  ||  !argv[1][0]  ||  !strcmp(argv[1], "all"))
-        argv[1] = NULL;
+	if (argc < 2  ||  !argv[1][0]  ||  !strcmp(argv[1], "all"))
+		argv[1] = NULL;
 
-    if (argv[1])
-    {
-        char *opts[3];
-        cw_parseoptions(chanspy_opts, &flags, opts, argv[1]);
-        if (cw_test_flag(&flags, OPTION_GROUP))
-            mygroup = opts[1];
-        if (cw_test_flag(&flags, OPTION_RECORD))
-        {
-            if (!(recbase = opts[2]))
-                recbase = "chanspy";
-        }
-        silent = cw_test_flag(&flags, OPTION_QUIET);
-        bronly = cw_test_flag(&flags, OPTION_BRIDGED);
-        if (cw_test_flag(&flags, OPTION_VOLUME)  &&  opts[1])
-        {
-            int vol;
+	args.chan = chan;
+	cw_copy_string(args.name, argv[0], sizeof(args.name));
+	args.prefix = argv[0];
+	args.name_len = strlen(argv[0]);
+	args.group = NULL;
+	args.fd = -1;
+	args.volfactor = 0;
+	args.again = 0;
+	args.bronly = 0;
+	args.first = 1;
+	args.silent = 0;
 
-            if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 24)  ||  (vol < -24))
-                cw_log(CW_LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
-            else
-                volfactor = vol;
-        }
-    }
+	if (argv[1]) {
+		char *opts[3];
+		cw_parseoptions(chanspy_opts, &flags, opts, argv[1]);
+		if (cw_test_flag(&flags, OPTION_GROUP))
+			args.group = opts[1];
+		if (cw_test_flag(&flags, OPTION_RECORD)) {
+			if (!(recbase = opts[2]))
+				recbase = "chanspy";
+		}
+		args.silent = cw_test_flag(&flags, OPTION_QUIET);
+		args.bronly = cw_test_flag(&flags, OPTION_BRIDGED);
+		if (cw_test_flag(&flags, OPTION_VOLUME)  &&  opts[1]) {
+			int vol;
 
-    if (recbase)
-    {
-        char filename[512];
-        snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",cw_config_CW_MONITOR_DIR, recbase, time(NULL));
-        if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
-        {
-            cw_log(CW_LOG_WARNING, "Cannot open %s for recording\n", filename);
-            fd = 0;
-        }
-    }
+			if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 24)  ||  (vol < -24))
+				cw_log(CW_LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
+			else
+				args.volfactor = vol;
+		}
+	}
 
-    for (;;)
-    {
-        if (!silent)
-        {
-            if ((res = cw_streamfile(chan, "beep", chan->language)) == 0)
-                res = cw_waitstream(chan, "");
-            if (res < 0)
-            {
-                cw_clear_flag(chan, CW_FLAG_SPYING);
-                break;
-            }
-        }
+	if (recbase) {
+		char filename[512];
+		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",cw_config_CW_MONITOR_DIR, recbase, time(NULL));
+		if ((args.fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
+			cw_log(CW_LOG_WARNING, "Cannot open %s for recording\n", filename);
+	}
 
-        count = 0;
-        if ((res = cw_waitfordigit(chan, waitms)) < 0)
-        {
-            cw_clear_flag(chan, CW_FLAG_SPYING);
-            break;
-        }
-                
-        peer = local_channel_walk(NULL);
-        prev = NULL;
-        while (peer)
-        {
-            if (peer != chan)
-            {
-                struct cw_var_t *group = NULL;
-                int igrp = 1;
+	waitms = 100;
+	do {
+		if (!args.silent) {
+			if ((res = cw_streamfile(chan, "beep", chan->language)) == 0)
+				res = cw_waitstream(chan, "");
+			if (res < 0)
+				break;
+		}
 
-                if (peer == prev  &&  !chosen)
-                    break;
+		args.again = 0;
 
-                chosen = 0;
+		if ((res = cw_waitfordigit(chan, waitms)) < 0)
+			break;
 
-                if (mygroup)
-                {
-                    if (!(group = pbx_builtin_getvar_helper(peer, CW_KEYWORD_SPYGROUP, "SPYGROUP")))
-                        igrp = 0;
-		    else {
-                        if (strcmp(mygroup, group->value))
-                            igrp = 0;
-                        cw_object_put(group);
-                    }
-                }
-                
-                if (igrp
-                    &&
-                    (argv[0] == '\0'  ||  ((strlen(argv[0]) <= strlen(peer->name)
-                    &&
-                    strncasecmp(peer->name, argv[0], strlen(argv[0])) == 0))))
-                {
-                    if (peer
-                        &&
-                        (!bronly  ||  cw_bridged_channel(peer))
-                        &&
-                        !cw_check_hangup(peer)
-                        &&
-                        !cw_test_flag(peer, CW_FLAG_SPYING))
-                    {
-                        int x = 0;
-                        strncpy(peer_name, "spy-", 5);
-                        strncpy(peer_name + strlen(peer_name), peer->name, CW_NAME_STRLEN);
-                        ptr = strchr(peer_name, '/');
-                        *ptr = '\0';
-                        ptr++;
-                        for (x = 0;  x < strlen(peer_name);  x++)
-                        {
-                            if (peer_name[x] == '/')
-                                break;
-                            peer_name[x] = tolower(peer_name[x]);
-                        }
+		cw_registry_iterate(&channel_registry, chanspy_by_prefix_one, &args);
 
-                        if (!silent)
-                        {
-                            if (cw_fileexists(peer_name, NULL, NULL))
-                            {
-                                res = cw_streamfile(chan, peer_name, chan->language);
-                                if (!res)
-                                    res = cw_waitstream(chan, "");
-                                if (res)
-                                    break;
-                            }
-                            else
-                            {
-                                res = cw_say_character_str(chan, peer_name, "", chan->language);
-                            }
-                            if ((num = atoi(ptr)))
-                                cw_say_digits(chan, atoi(ptr), "", chan->language);
-                        }
-                        count++;
-                        prev = peer;
-                        res = channel_spy(chan, peer, &volfactor, fd);
-                        if (res == -1)
-                            break;
-                        if (res > 1  &&  argv[0])
-                        {
-                            snprintf(name, CW_NAME_STRLEN, "%s/%d", argv[0], res);
-                            if ((peer = local_get_channel_begin_name(name)))
-                                chosen = 1;
-                            continue;
-                        }
-                    }
-                }
-            }
-            if ((peer = local_channel_walk(peer)) == NULL)
-                break;
-        }
-        waitms = (count)  ?  100  :  5000;
-    }
+		waitms = 5000;
+	} while (args.again);
 
 
-    if (fd > 0)
-        close(fd);
+	if (args.fd >= 0)
+		close(args.fd);
 
-    if (oldrf  &&  cw_set_read_format(chan, oldrf) < 0)
-        cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
+	if (oldrf  &&  cw_set_read_format(chan, oldrf) < 0)
+		cw_log(CW_LOG_ERROR, "Could Not Set Read Format.\n");
 
-    if (oldwf  &&  cw_set_write_format(chan, oldwf) < 0)
-        cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
+	if (oldwf  &&  cw_set_write_format(chan, oldwf) < 0)
+		cw_log(CW_LOG_ERROR, "Could Not Set Write Format.\n");
 
-    cw_clear_flag(chan, CW_FLAG_SPYING);
+	cw_clear_flag(chan, CW_FLAG_SPYING);
 
-    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
+	cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
 
-    ALL_DONE(u, res);
+	ALL_DONE(u, res);
 }
 
 static int unload_module(void)

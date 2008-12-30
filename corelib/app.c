@@ -880,68 +880,91 @@ int cw_app_group_set_channel(struct cw_channel *chan, const char *data)
 	return res;
 }
 
+
+struct app_group_get_count_args {
+	const char *group;
+	const char *category;
+	unsigned int hash;
+	int count;
+};
+
+static int app_group_get_count_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct app_group_get_count_args *args = data;
+	struct cw_var_t *var;
+
+	if ((var = pbx_builtin_getvar_helper(chan, args->hash, args->category))) {
+		if (!strcasecmp(var->value, args->group))
+			args->count++;
+		cw_object_put(var);
+	}
+
+	return 0;
+}
+
 int cw_app_group_get_count(const char *group, const char *category)
 {
-	struct cw_channel *chan;
-	struct cw_var_t *var;
-	unsigned int hash;
-	int count = 0;
+	struct app_group_get_count_args args;
 
 	if (cw_strlen_zero(group))
 		return 0;
 
-	if (cw_strlen_zero(category))
-		category = GROUP_CATEGORY_PREFIX;
+	args.group = group;
+	args.category = (cw_strlen_zero(category) ? GROUP_CATEGORY_PREFIX : category);
+	args.hash = cw_hash_var_name(args.category);
+	args.count = 0;
 
-	hash = cw_hash_var_name(category);
+	cw_registry_iterate(&channel_registry, app_group_get_count_one, &args);
 
-	chan = NULL;
-	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
-		if ((var = pbx_builtin_getvar_helper(chan, hash, category))) {
-			if (!strcasecmp(var->value, group))
-				count++;
-			cw_object_put(var);
-		}
-		cw_mutex_unlock(&chan->lock);
-	}
-
-	return count;
+	return args.count;
 }
 
-int cw_app_group_match_get_count(char *groupmatch, char *category)
-{
+
+struct app_group_match_get_count_args {
 	regex_t regexbuf;
-	struct cw_channel *chan;
-	struct cw_var_t *var;
+	const char *category;
 	unsigned int hash;
-	int count = 0;
+	int count;
+};
+
+static int app_group_match_get_count_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct app_group_match_get_count_args *args = data;
+	struct cw_var_t *var;
+
+	if ((var = pbx_builtin_getvar_helper(chan, args->hash, args->category))) {
+		if (!regexec(&args->regexbuf, var->value, 0, NULL, 0))
+			args->count++;
+		cw_object_put(var);
+	}
+
+	return 0;
+}
+
+int cw_app_group_match_get_count(const char *groupmatch, const char *category)
+{
+	struct app_group_match_get_count_args args;
 
 	if (cw_strlen_zero(groupmatch))
 		return 0;
 
 	/* if regex compilation fails, return zero matches */
-	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
+	if (regcomp(&args.regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	if (cw_strlen_zero(category))
-		category = GROUP_CATEGORY_PREFIX;
+	args.category = (cw_strlen_zero(category) ? GROUP_CATEGORY_PREFIX : category);
+	args.hash = cw_hash_var_name(args.category);
+	args.count = 0;
 
-	hash = cw_hash_var_name(category);
+	cw_registry_iterate(&channel_registry, app_group_match_get_count_one, &args);
 
-	chan = NULL;
-	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
-		if ((var = pbx_builtin_getvar_helper(chan, hash, category))) {
-			if (!regexec(&regexbuf, var->value, 0, NULL, 0))
-				count++;
-			cw_object_put(var);
-		}
-		cw_mutex_unlock(&chan->lock);
-	}
+	regfree(&args.regexbuf);
 
-	regfree(&regexbuf);
-
-	return count;
+	return args.count;
 }
+
 
 int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 {

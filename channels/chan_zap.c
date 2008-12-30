@@ -296,7 +296,7 @@ static char localprefix[20] = "";
 static char privateprefix[20] = "";
 static char unknownprefix[20] = "";
 static long resetinterval = 3600;			/* How often (in seconds) to reset unused channels. Default 1 hour. */
-static struct cw_channel inuse = { "GR-303InUse" };
+static struct cw_channel inuse = { .name = "GR-303InUse" };
 #ifdef PRI_GETSET_TIMERS
 static int pritimers[PRI_MAX_TIMERS];
 #endif
@@ -2435,13 +2435,14 @@ int pri_find_dchan(struct dahdi_pri *pri)
 
 static int dahdi_hangup(struct cw_channel *cw)
 {
-	int res;
-	int index,x, law;
-	/*static int restore_gains(struct dahdi_pvt *p);*/
+	/*static int restore_gains(struct zt_pvt *p);*/
+	struct dahdi_params par;
 	struct dahdi_pvt *p = cw->tech_pvt;
 	struct dahdi_pvt *tmp = NULL;
 	struct dahdi_pvt *prev = NULL;
-	struct dahdi_params par;
+	struct cw_channel *bchan;
+	int res;
+	int index, x, law;
 
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "dahdi_hangup(%s)\n", cw->name);
@@ -2529,8 +2530,10 @@ static int dahdi_hangup(struct cw_channel *cw)
 				p->owner = p->subs[SUB_REAL].owner;
 				if (p->owner->_state != CW_STATE_UP)
 					p->subs[SUB_REAL].needanswer = 1;
-				if (cw_bridged_channel(p->subs[SUB_REAL].owner))
-					cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
+				if ((bchan = cw_bridged_channel(p->subs[SUB_REAL].owner))) {
+					cw_moh_stop(bchan);
+					cw_object_put(bchan);
+				}
 			} else if (p->subs[SUB_THREEWAY].dfd > -1) {
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				unalloc_sub(p, SUB_THREEWAY);
@@ -2551,8 +2554,10 @@ static int dahdi_hangup(struct cw_channel *cw)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
-				if (p->subs[SUB_THREEWAY].owner && cw_bridged_channel(p->subs[SUB_THREEWAY].owner))
-					cw_moh_start(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+				if (p->subs[SUB_THREEWAY].owner && (bchan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
+					cw_moh_start(bchan, NULL);
+					cw_object_put(bchan);
+				}
 				p->subs[SUB_THREEWAY].inthreeway = 0;
 				/* Make it the call wait now */
 				swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
@@ -2563,8 +2568,10 @@ static int dahdi_hangup(struct cw_channel *cw)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
-				if (p->subs[SUB_CALLWAIT].owner && cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-					cw_moh_start(cw_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+				if (p->subs[SUB_CALLWAIT].owner && (bchan = cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))) {
+					cw_moh_start(bchan, NULL);
+					cw_object_put(bchan);
+				}
 				p->subs[SUB_CALLWAIT].inthreeway = 0;
 			}
 			p->subs[SUB_REAL].inthreeway = 0;
@@ -3458,16 +3465,20 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *, int, int, int, int, int)
 
 static int attempt_transfer(struct dahdi_pvt *p)
 {
+	struct cw_channel *bchan, *bchan2;
+
 	/* In order to transfer, we need at least one of the channels to
 	   actually be in a call bridge.  We can't conference two applications
 	   together (but then, why would we want to?) */
-	if (cw_bridged_channel(p->subs[SUB_REAL].owner)) {
+	if ((bchan = cw_bridged_channel(p->subs[SUB_REAL].owner))) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop if now if appropriate */
-		if (cw_bridged_channel(p->subs[SUB_THREEWAY].owner))
-			cw_moh_stop(cw_bridged_channel(p->subs[SUB_THREEWAY].owner));
+		if ((bchan2 = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
+			cw_moh_stop(bchan2);
+			cw_object_put(bchan2);
+		}
 		if (p->subs[SUB_THREEWAY].owner->_state == CW_STATE_RINGING) {
-			cw_indicate(cw_bridged_channel(p->subs[SUB_REAL].owner), CW_CONTROL_RINGING);
+			cw_indicate(bchan, CW_CONTROL_RINGING);
 		}
 		if (p->subs[SUB_REAL].owner->cdr) {
 			/* Move CDR from second channel to current one */
@@ -3475,45 +3486,47 @@ static int attempt_transfer(struct dahdi_pvt *p)
 				cw_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->cdr);
 			p->subs[SUB_REAL].owner->cdr = NULL;
 		}
-		if (cw_bridged_channel(p->subs[SUB_REAL].owner)->cdr) {
+		if (bchan->cdr) {
 			/* Move CDR from second channel's bridge to current one */
 			p->subs[SUB_THREEWAY].owner->cdr =
-				cw_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, cw_bridged_channel(p->subs[SUB_REAL].owner)->cdr);
-			cw_bridged_channel(p->subs[SUB_REAL].owner)->cdr = NULL;
+				cw_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, bchan->cdr);
+			bchan->cdr = NULL;
 		}
-		 if (cw_channel_masquerade(p->subs[SUB_THREEWAY].owner, cw_bridged_channel(p->subs[SUB_REAL].owner))) {
+		 if (cw_channel_masquerade(p->subs[SUB_THREEWAY].owner, bchan)) {
 			cw_log(CW_LOG_WARNING, "Unable to masquerade %s as %s\n",
-					cw_bridged_channel(p->subs[SUB_REAL].owner)->name, p->subs[SUB_THREEWAY].owner->name);
+					bchan->name, p->subs[SUB_THREEWAY].owner->name);
 			return -1;
 		}
 		/* Orphan the channel after releasing the lock */
 		cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+		cw_object_put(bchan);
 		unalloc_sub(p, SUB_THREEWAY);
-	} else if (cw_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
+	} else if ((bchan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
 		if (p->subs[SUB_REAL].owner->_state == CW_STATE_RINGING) {
-			cw_indicate(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), CW_CONTROL_RINGING);
+			cw_indicate(bchan, CW_CONTROL_RINGING);
 		}
-		cw_moh_stop(cw_bridged_channel(p->subs[SUB_THREEWAY].owner));
+		cw_moh_stop(bchan);
 		if (p->subs[SUB_THREEWAY].owner->cdr) {
 			/* Move CDR from second channel to current one */
 			p->subs[SUB_REAL].owner->cdr = 
 				cw_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
 			p->subs[SUB_THREEWAY].owner->cdr = NULL;
 		}
-		if (cw_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr) {
+		if (bchan->cdr) {
 			/* Move CDR from second channel's bridge to current one */
 			p->subs[SUB_REAL].owner->cdr = 
-				cw_cdr_append(p->subs[SUB_REAL].owner->cdr, cw_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr);
-			cw_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr = NULL;
+				cw_cdr_append(p->subs[SUB_REAL].owner->cdr, bchan->cdr);
+			bchan->cdr = NULL;
 		}
-		if (cw_channel_masquerade(p->subs[SUB_REAL].owner, cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
+		if (cw_channel_masquerade(p->subs[SUB_REAL].owner, bchan)) {
 			cw_log(CW_LOG_WARNING, "Unable to masquerade %s as %s\n",
-					cw_bridged_channel(p->subs[SUB_THREEWAY].owner)->name, p->subs[SUB_REAL].owner->name);
+					bchan->name, p->subs[SUB_REAL].owner->name);
 			return -1;
 		}
 		/* Three-way is now the REAL */
 		swap_subs(p, SUB_THREEWAY, SUB_REAL);
 		cw_mutex_unlock(&p->subs[SUB_REAL].owner->lock);
+		cw_object_put(bchan);
 		unalloc_sub(p, SUB_THREEWAY);
 		/* Tell the caller not to hangup */
 		return 1;
@@ -3901,8 +3914,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 					/* Make sure it stops ringing */
 					dahdi_set_hook(p->subs[index].dfd, DAHDI_OFFHOOK);
 					/* Okay -- probably call waiting*/
-					if (cw_bridged_channel(p->owner))
-							cw_moh_stop(cw_bridged_channel(p->owner));
+					if ((chan = cw_bridged_channel(p->owner))) {
+						cw_moh_stop(chan);
+						cw_object_put(chan);
+					}
 					break;
 				case CW_STATE_RESERVED:
 					/* Start up dialtone */
@@ -4038,10 +4053,14 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 					p->callwaitingrepeat = 0;
 					p->cidcwexpire = 0;
 					/* Start music on hold if appropriate */
-					if (!p->subs[SUB_CALLWAIT].inthreeway && cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-						cw_moh_start(cw_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
-					if (cw_bridged_channel(p->subs[SUB_REAL].owner))
-						cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
+					if (!p->subs[SUB_CALLWAIT].inthreeway && (chan = cw_bridged_channel(p->subs[SUB_CALLWAIT].owner))) {
+						cw_moh_start(chan, NULL);
+						cw_object_put(chan);
+					}
+					if ((chan = cw_bridged_channel(p->subs[SUB_REAL].owner))) {
+						cw_moh_stop(chan);
+						cw_object_put(chan);
+					}
 				} else if (!p->subs[SUB_THREEWAY].owner) {
 					char cid_num[256];
 					char cid_name[256];
@@ -4098,8 +4117,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 							if (option_verbose > 2)	
 								cw_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
 							/* Start music on hold if appropriate */
-							if (cw_bridged_channel(p->subs[SUB_THREEWAY].owner))
-								cw_moh_start(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+							if ((chan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
+								cw_moh_start(chan, NULL);
+								cw_object_put(chan);
+							}
 						}		
 					}
 				} else {
@@ -4135,8 +4156,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 								swap_subs(p, SUB_THREEWAY, SUB_REAL);
 								otherindex = SUB_REAL;
 							}
-							if (p->subs[otherindex].owner && cw_bridged_channel(p->subs[otherindex].owner))
-								cw_moh_stop(cw_bridged_channel(p->subs[otherindex].owner));
+							if (p->subs[otherindex].owner && (chan = cw_bridged_channel(p->subs[otherindex].owner))) {
+								cw_moh_stop(chan);
+								cw_object_put(chan);
+							}
 							p->owner = p->subs[SUB_REAL].owner;
 							if (cw->_state == CW_STATE_RINGING) {
 								cw_log(CW_LOG_DEBUG, "Enabling ringtone on real and threeway\n");
@@ -4149,8 +4172,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= CW_SOFTHANGUP_DEV;
 							p->owner = p->subs[SUB_REAL].owner;
-							if (p->subs[SUB_REAL].owner && cw_bridged_channel(p->subs[SUB_REAL].owner))
-								cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
+							if (p->subs[SUB_REAL].owner && (chan = cw_bridged_channel(p->subs[SUB_REAL].owner))) {
+								cw_moh_stop(chan);
+								cw_object_put(chan);
+							}
 							dahdi_enable_ec(p);
 						}
 							
@@ -4293,10 +4318,11 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 static struct cw_frame *__dahdi_exception(struct cw_channel *cw)
 {
 	struct dahdi_pvt *p = cw->tech_pvt;
+	struct cw_frame *f;
+	struct cw_channel *bchan;
 	int res;
 	int usedindex=-1;
 	int index;
-	struct cw_frame *f;
 
 	index = dahdi_get_index(cw, p, 1);
 
@@ -4316,8 +4342,10 @@ static struct cw_frame *__dahdi_exception(struct cw_channel *cw)
 			(res != DAHDI_EVENT_HOOKCOMPLETE)) {
 			cw_log(CW_LOG_DEBUG, "Restoring owner of channel %d on event %d\n", p->channel, res);
 			p->owner = p->subs[SUB_REAL].owner;
-			if (p->owner && cw_bridged_channel(p->owner))
-				cw_moh_stop(cw_bridged_channel(p->owner));
+			if (p->owner && (bchan = cw_bridged_channel(p->owner))) {
+				cw_moh_stop(bchan);
+				cw_object_put(bchan);
+			}
 		}
 		switch(res) {
 		case DAHDI_EVENT_ONHOOK:
@@ -4360,8 +4388,10 @@ static struct cw_frame *__dahdi_exception(struct cw_channel *cw)
 				}
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
-				if (cw_bridged_channel(p->owner))
-					cw_moh_stop(cw_bridged_channel(p->owner));
+				if ((bchan = cw_bridged_channel(p->owner))) {
+					cw_moh_stop(bchan);
+					cw_object_put(bchan);
+				}
 			} else
 				cw_log(CW_LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
 			update_conf(p);
@@ -5004,17 +5034,37 @@ static int dahdi_indicate(struct cw_channel *chan, int condition)
 
 static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int index, int law, int transfercapability)
 {
+	char buf[sizeof(((struct cw_channel *)0)->name)];
 	struct cw_channel *tmp;
 	int deflaw;
 	int res;
 	int x,y;
 	int features;
 	struct dahdi_params ps;
+
 	if (i->subs[index].owner) {
 		cw_log(CW_LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
 	}
-	tmp = cw_channel_alloc(0);
+
+	y = 1;
+	do {
+#ifdef ZAPATA_PRI
+		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
+			snprintf(buf, sizeof(buf), "DAHDI/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+		else
+#endif
+		if (i->channel == CHAN_PSEUDO)
+			snprintf(buf, sizeof(buf), "DAHDI/pseudo-%ld", cw_random());
+		else
+			snprintf(buf, sizeof(buf), "DAHDI/%d-%d", i->channel, y);
+		for (x = 0; x < 3; x++) {
+			if ((index != x) && i->subs[x].owner && !strcasecmp(buf, i->subs[x].owner->name))
+				break;
+		}
+		y++;
+	} while (x < 3);
+	tmp = cw_channel_alloc(0, "%s", buf);
 	if (tmp) {
 		tmp->tech = &dahdi_tech;
 		ps.channo = i->channel;
@@ -5034,23 +5084,6 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 				deflaw = CW_FORMAT_ULAW;
 		}
 		deflaw = CW_FORMAT_SLINEAR;
-		y = 1;
-		do {
-#ifdef ZAPATA_PRI
-			if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
-			else
-#endif
-			if (i->channel == CHAN_PSEUDO)
-				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/pseudo-%ld", cw_random());
-			else	
-				snprintf(tmp->name, sizeof(tmp->name), "DAHDI/%d-%d", i->channel, y);
-			for (x=0;x<3;x++) {
-				if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
-					break;
-			}
-			y++;
-		} while (x < 3);
 		tmp->type = tmp->tech->type;
 		tmp->fds[0] = i->subs[index].dfd;
 		tmp->nativeformats = CW_FORMAT_SLINEAR | deflaw;
@@ -5244,20 +5277,17 @@ static void ss_thread_adsi_get2(void *data, const uint8_t *msg, int len) {
 
 static void *ss_thread(void *data)
 {
-	struct cw_channel *chan = data;
-	struct dahdi_pvt *p = chan->tech_pvt;
+	char dtmfbuf[300];
 	char exten[CW_MAX_EXTENSION]="";
 	char exten2[CW_MAX_EXTENSION]="";
-//	unsigned char buf[256];
-	char dtmfbuf[300];
-//	char *name=NULL, *number=NULL;
+	struct cw_channel *chan = data;
+	struct cw_channel *bchan;
+	struct dahdi_pvt *p = chan->tech_pvt;
 	int curRingData[2 + arraysize(drings.ringnum[0].ring)];
 	int receivedRingT;
-//	int counter1;
 	int counter;
 	int samples = 0;
 
-//	int flags;
 	int i;
 	int timeout;
 	int getforward=0;
@@ -5265,6 +5295,7 @@ static void *ss_thread(void *data)
 	int len = 0;
 	int res;
 	int index;
+
 	if (option_verbose > 2) 
 		cw_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s'\n", chan->name);
 	index = dahdi_get_index(chan, p, 1);
@@ -5734,14 +5765,13 @@ static void *ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && !strcmp(exten, cw_parking_ext()) && 
-						p->subs[SUB_THREEWAY].owner &&
-						cw_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
+			} else if ((p->transfer || p->canpark) && !strcmp(exten, cw_parking_ext()) && p->subs[SUB_THREEWAY].owner && (bchan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
 				/* This is a three way call, the main call being a real channel, 
 					and we're parking the first call. */
-				cw_masq_park_call(cw_bridged_channel(p->subs[SUB_THREEWAY].owner), chan, 0, NULL);
+				cw_masq_park_call(bchan, chan, 0, NULL);
 				if (option_verbose > 2)
 					cw_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
+				cw_object_put(bchan);
 				break;
 			} else if (!cw_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
 				if (option_verbose > 2)
@@ -5776,12 +5806,13 @@ static void *ss_thread(void *data)
 				struct cw_channel *nbridge = 
 					p->subs[SUB_THREEWAY].owner;
 				struct dahdi_pvt *pbridge = NULL;
-				  /* set up the private struct of the bridged one, if any */
-				if (nbridge && cw_bridged_channel(nbridge)) 
-					pbridge = cw_bridged_channel(nbridge)->tech_pvt;
+				/* set up the private struct of the bridged one, if any */
+				bchan = NULL;
+				if (nbridge && (bchan = cw_bridged_channel(nbridge)))
+					pbridge = bchan->tech_pvt;
 				if (nbridge && pbridge && 
 				    (!strcmp(nbridge->type, dahdi_tech.type)) && 
-					(!strcmp(cw_bridged_channel(nbridge)->type,  dahdi_tech.type)) &&
+					(!strcmp(bchan->type,  dahdi_tech.type)) &&
 				    ISTRUNK(pbridge)) {
 					int func = DAHDI_FLASH;
 					/* Clear out the dial buffer */
@@ -5794,11 +5825,17 @@ static void *ss_thread(void *data)
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
-					if (cw_bridged_channel(p->subs[SUB_REAL].owner))
-						cw_moh_stop(cw_bridged_channel(p->subs[SUB_REAL].owner));
+					if (bchan)
+						cw_object_put(bchan);
+					if ((bchan = cw_bridged_channel(p->subs[SUB_REAL].owner))) {
+						cw_moh_stop(bchan);
+						cw_object_put(bchan);
+					}
 					cw_hangup(chan);
 					return NULL;
 				} else {
+					if (bchan)
+						cw_object_put(bchan);
 					tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
 					dahdi_wait_event(p->subs[index].dfd);
 					tone_zone_play_tone(p->subs[index].dfd, -1);
@@ -5807,7 +5844,7 @@ static void *ss_thread(void *data)
 					p->owner = p->subs[SUB_REAL].owner;
 					cw_hangup(chan);
 					return NULL;
-				}					
+				}
 			} else if (!cw_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
 							((exten[0] != '*') || (strlen(exten) > 2))) {
 				if (option_debug)
@@ -7560,8 +7597,7 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 				/* Fix it all up now */
 				pri->pvts[principle]->owner = pri->pvts[x]->owner;
 				if (pri->pvts[principle]->owner) {
-					snprintf(pri->pvts[principle]->owner->name, sizeof(pri->pvts[principle]->owner->name), 
-						"DAHDI/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
+					cw_change_name(pri->pvts[principle]->owner, "DAHDI/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
 					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
 					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].dfd;
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;

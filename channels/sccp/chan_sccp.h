@@ -129,7 +129,6 @@ static inline unsigned long long bswap_64(unsigned long long x) {
 
 #define CS_CW_CHANNEL_PVT(x) x->tech_pvt
 
-#define CS_CW_BRIDGED_CHANNEL(x) cw_bridged_channel(x)
 
 /*
 #ifndef CS_CW_HAS_CW_GROUP_T

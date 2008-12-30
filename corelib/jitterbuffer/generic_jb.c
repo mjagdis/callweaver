@@ -577,6 +577,8 @@ static int create_jb(struct cw_channel *chan, struct cw_frame *frr, int codec)
 			CRASH;
 		}
 		snprintf(name1, sizeof(name1), "%s", bridged->name);
+		cw_object_put(bridged);
+
 		tmp = strchr(name1, '/');
 		if(tmp != NULL)
 		{

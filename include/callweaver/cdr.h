@@ -240,7 +240,7 @@ extern void cw_cdr_submit_batch(int shutdown);
  * Sets the destination channel the CDR is applied to
  * Returns nothing
  */
-extern void cw_cdr_setdestchan(struct cw_cdr *cdr, char *chan);
+extern void cw_cdr_setdestchan(struct cw_cdr *cdr, const char *chan);
 
 /*! Set the last executed application */
 /*!

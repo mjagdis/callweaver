@@ -1008,15 +1008,12 @@ static const struct cw_channel_tech technology = {
 /*! Create a new channel and attach the given fax modem instance to it */
 static struct cw_channel *channel_new(struct faxmodem *fm)
 {
-	struct cw_channel *chan = NULL;
+	struct cw_channel *chan;
 
-	if (!(chan = cw_channel_alloc(1))) {
-		cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
-	} else {
+	if ((chan = cw_channel_alloc(1, "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff))) {
 		chan->type = type;
 		chan->tech = &technology;
 		chan->tech_pvt = fm;
-		snprintf(chan->name, sizeof(chan->name), "%s/%d-%04lx", type, fm->unit, cw_random() & 0xffff);
 		chan->writeformat = chan->rawwriteformat = chan->readformat = chan->nativeformats = CW_FORMAT_SLINEAR;
 
 		if (fm->cid_name)
@@ -1039,9 +1036,11 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 			fm->debug_fax[1] = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0666);
 		}
 #endif
+		return chan;
 	}
-	
-	return chan;
+
+	cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
+	return NULL;
 }
 
 /* \} */

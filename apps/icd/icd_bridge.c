@@ -650,8 +650,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int 
     if (chan->_state == CW_STATE_UP) {
 
 /*  TC experiment to masq b4 bridge        
-newchan = cw_channel_alloc(0);
-snprintf(newchan->name, sizeof (newchan->name), "ChanGrab/%s",chan->name);
+newchan = cw_channel_alloc(0, "ChanGrab/%s", chan->name);
 newchan->readformat = chan->readformat;
 newchan->writeformat = chan->writeformat;
 cw_channel_masquerade(newchan, chan);               
@@ -679,8 +678,7 @@ void icd_bridge__remasq(icd_caller * caller)
     if (!oldchan)               /* nothing to do */
         return;
     icd_caller__add_flag(caller, ICD_NOHANGUP_FLAG);
-    newchan = cw_channel_alloc(0);
-    strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
+    newchan = cw_channel_alloc(0, "%s", oldchan->name);
     newchan->readformat = oldchan->readformat;
     newchan->writeformat = oldchan->writeformat;
     cw_channel_masquerade(newchan, oldchan);
@@ -699,7 +697,6 @@ void icd_bridge__remasq(icd_caller * caller)
         oldchan = NULL;
     }
     icd_caller__set_channel(caller, newchan);
-
 }
 
 void icd_bridge__parse_ubf(icd_caller * caller, icd_unbridge_flag ubf)
@@ -787,10 +784,9 @@ void icd_bridge__safe_hangup(icd_caller * caller)
        if (!cw_mutex_trylock(&oldchan->lock)) {
      */
 
-    newchan = cw_channel_alloc(0);
+    newchan = cw_channel_alloc(0, "%s", oldchan->name);
     if (newchan) {
        cw_mutex_lock(&oldchan->lock);
-       strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
        newchan->readformat = oldchan->readformat;
        newchan->writeformat = oldchan->writeformat;
        cw_mutex_unlock(&oldchan->lock);

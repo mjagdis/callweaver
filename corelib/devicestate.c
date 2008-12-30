@@ -91,18 +91,12 @@ cw_devicestate_t cw_parse_device_state(const char *device)
 
 	strcat(match, "-");
 
-	chan = cw_get_channel_by_name_prefix_locked(match, strlen(match));
-
-	if (!chan)
-		return CW_DEVICE_UNKNOWN;
-
-	if (chan->_state == CW_STATE_RINGING)
-		res = CW_DEVICE_RINGING;
-	else
-		res = CW_DEVICE_INUSE;
-	
-	cw_mutex_unlock(&chan->lock);
-
+	res = CW_DEVICE_UNKNOWN;
+	if ((chan = cw_get_channel_by_name_prefix_locked(match, strlen(match)))) {
+		res = (chan->_state == CW_STATE_RINGING ? CW_DEVICE_RINGING : CW_DEVICE_INUSE);
+		cw_mutex_unlock(&chan->lock);
+		cw_object_put(chan);
+	}
 	return res;
 }
 

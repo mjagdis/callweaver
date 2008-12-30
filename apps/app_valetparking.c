@@ -219,12 +219,10 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 	int x;
 
 	x = *extout;
-	pu = malloc(sizeof(struct valetparkeduser));
+	pu = calloc(1, sizeof(struct valetparkeduser));
 	if (pu) {
 		int res = 0;
 
-		memset(pu,0,sizeof(struct valetparkeduser));
-		
 		cw_mutex_lock(&valetparking_lock);
 		if(lotname) {
 			strncpy(pu->lotname,lotname,sizeof(pu->lotname));
@@ -347,10 +345,7 @@ static int cw_masq_valetpark_call(struct cw_channel *rchan,int timeout, int *ext
 	struct cw_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	chan = cw_channel_alloc(0);
-	if (chan) {
-		/* Let us keep track of the channel name */
-		snprintf(chan->name, sizeof (chan->name), "ValetParked/%s",rchan->name);
+	if ((chan = cw_channel_alloc(0, "ValetParked/%s", rchan->name))) {
 		/* Make formats okay */
 		chan->readformat = rchan->readformat;
 		chan->writeformat = rchan->writeformat;
@@ -363,11 +358,9 @@ static int cw_masq_valetpark_call(struct cw_channel *rchan,int timeout, int *ext
 		if((f = cw_read(chan)))
 			cw_fr_free(f);
 		cw_valetpark_call(chan, timeout, extout, lotname);
-	} else {
-		cw_log(CW_LOG_WARNING, "Unable to create Valet Parked channel\n");
-		return -1;
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 static void *do_valetparking_thread(void *ignore)

@@ -872,12 +872,10 @@ blt_new(blt_dev_t *dev, int state, const char *context, const char *number)
   struct cw_channel *chan;
   char c = 0;
 
-  if ((chan = cw_channel_alloc(1)) == NULL) {
+  if ((chan = cw_channel_alloc(1, "BLT/%s", dev->name)) == NULL) {
     cw_log(CW_LOG_WARNING, "Unable to allocate channel structure\n");
     return NULL;
   }
-
-  snprintf(chan->name, sizeof(chan->name), "BLT/%s", dev->name);
 
   chan->nativeformats       = BLUETOOTH_FORMAT;
   chan->rawreadformat  = BLUETOOTH_FORMAT;

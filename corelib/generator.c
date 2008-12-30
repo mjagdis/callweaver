@@ -167,6 +167,13 @@ int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance 
 	if ((gen->pvt = class->alloc(chan, params))) {
 		gen->class = cw_object_get(class);
 
+		/* Generators don't need to take a counted reference to the channel
+		 * because generator start/stop are synchronous, always occur between
+		 * a cw_channel_alloc()-cw_channel_free() pair (which holds a reference)
+		 * and a stop is always performed as part of cw_channel_free().
+		 * Hence the generator's use of the channel is covered by the reference
+		 * held between the channel driver's alloc/free.
+		 */
 		gen->chan = chan;
 		if (cw_pthread_create(&gen->tid, &global_attr_rr, cw_generator_thread, gen)) {
 			cw_log(CW_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));

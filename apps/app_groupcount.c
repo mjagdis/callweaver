@@ -236,7 +236,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 }
 
 
-struct group_show_channels_args {
+struct group_show_chanvar_args {
 	struct cw_channel *chan;
 	struct cw_var_t *var;
 	int havepattern;
@@ -247,10 +247,10 @@ struct group_show_channels_args {
 
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-static int group_show_channels_one(struct cw_object *obj, void *data)
+static int group_show_chanvar_one(struct cw_object *obj, void *data)
 {
 	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-	struct group_show_channels_args *args = data;
+	struct group_show_chanvar_args *args = data;
 	const char *name = cw_var_name(var);
 
 	if (!strncmp(name, GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX) - 1 + 1)) {
@@ -269,9 +269,21 @@ static int group_show_channels_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
+static int group_show_channels_one(struct cw_object *obj, void *data)
+{
+	struct group_show_chanvar_args *args = data;
+
+	/* Strictly speaking we should lock the channel to guarantee that
+	 * the channel name doesn't change under us. We don't bother though.
+	 * There's a risk of garbage output...
+	 */
+	args->chan = container_of(obj, struct cw_channel, obj);
+	cw_registry_iterate(&args->chan->vars, group_show_chanvar_one, &args);
+}
+
 static int group_show_channels(int fd, int argc, char *argv[])
 {
-	struct group_show_channels_args args = {
+	struct group_show_chanvar_args args = {
 		.havepattern = 0,
 		.fd = fd,
 		.numchans = 0,
@@ -289,10 +301,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
 
-	while ( (args.chan = cw_channel_walk_locked(args.chan)) != NULL) {
-		cw_registry_iterate(&chan->vars, group_show_channels_one, &args);
-		cw_mutex_unlock(&chan->lock);
-	}
+	cw_registry_iterate(&channel_registry, group_show_channels_one, &args);
 
 	if (args.havepattern)
 		regfree(&args.regexbuf);

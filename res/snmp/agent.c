@@ -183,119 +183,115 @@ cw_var_channels(struct variable *vp, oid *name, size_t *length,
     return NULL;
 }
 
-static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *length,
-                                       int exact, size_t *var_len, WriteMethod **write_method)
+struct channels_table_args {
+	u_char *ret;
+	int i;
+	struct variable *vp;
+	oid *name;
+	size_t *length;
+	int exact;
+	size_t *var_len;
+	WriteMethod **write_method;
+};
+
+static int channels_table_one(struct cw_object *obj, void *data)
 {
+    static char string_ret[256];
     static unsigned long long_ret;
     static u_char bits_ret[2];
-    static char string_ret[256];
-    struct cw_channel *chan, *bridge;
+
+    struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+    struct channels_table_args *args = data;
+    struct cw_channel *bridge;
     struct timeval tval;
-    u_char *ret;
-    int i, bit;
+    int bit;
 
-    if (header_simple_table(vp, name, length, exact, var_len, write_method, cw_active_channels()))
-        return NULL;
-
-    i = name[*length - 1] - 1;
-    for (chan = cw_channel_walk_locked(NULL);
-         chan  &&  i;
-         chan = cw_channel_walk_locked(chan), i--)
-    {
-        cw_channel_unlock(chan);
+    if (args->i) {
+        args->i--;
+        return 0;
     }
-    if (chan == NULL)
-        return NULL;
-    *var_len = sizeof(long_ret);
 
-    switch (vp->magic)
+    if (header_simple_table(args->vp, args->name, args->length, args->exact, args->var_len, args->write_method, cw_active_channels()))
+        return 1;
+
+    args->ret = NULL;
+    *args->var_len = sizeof(long_ret);
+
+    cw_mutex_lock(&chan->lock);
+
+    switch (args->vp->magic)
     {
     case CWCHANINDEX:
-        long_ret = name[*length - 1];
-        ret = (u_char *)&long_ret;
+        long_ret = args->name[*args->length - 1];
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANNAME:
         if (!cw_strlen_zero(chan->name))
         {
             strncpy(string_ret, chan->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANLANGUAGE:
         if (!cw_strlen_zero(chan->language))
         {
             strncpy(string_ret, chan->language, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANTYPE:
         strncpy(string_ret, chan->tech->type, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *)string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *)string_ret;
         break;
     case CWCHANMUSICCLASS:
         if (!cw_strlen_zero(chan->musicclass))
         {
             strncpy(string_ret, chan->musicclass, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANBRIDGE:
         if ((bridge = cw_bridged_channel(chan)) != NULL)
         {
             strncpy(string_ret, bridge->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
+	    cw_object_put(bridge);
         }
-        else
-            ret = NULL;
         break;
     case CWCHANMASQ:
         if (chan->masq  &&  !cw_strlen_zero(chan->masq->name))
         {
             strncpy(string_ret, chan->masq->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANMASQR:
         if (chan->masqr  &&  !cw_strlen_zero(chan->masqr->name))
         {
             strncpy(string_ret, chan->masqr->name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANWHENHANGUP:
         if (chan->whentohangup)
         {
             gettimeofday(&tval, NULL);
             long_ret = difftime(chan->whentohangup, tval.tv_sec) * 100 - tval.tv_usec / 10000;
-            ret = (u_char *) &long_ret;
-        }
-        else
-        {
-            ret = NULL;
+            args->ret = (u_char *) &long_ret;
         }
         break;
     case CWCHANAPP:
@@ -303,59 +299,52 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->appl, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *) string_ret;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *) string_ret;
         }
-        else
-            ret = NULL;
         break;
     case CWCHANDATA:
         cw_log(CW_LOG_WARNING, "CWCHANDATA doesn't exist anymore\n");
-        ret = NULL;
         break;
     case CWCHANCONTEXT:
         strncpy(string_ret, chan->context, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *) string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *) string_ret;
         break;
     case CWCHANPROCCONTEXT:
         strncpy(string_ret, chan->proc_context, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *) string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *) string_ret;
         break;
     case CWCHANPROCEXTEN:
         strncpy(string_ret, chan->proc_exten, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *) string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *) string_ret;
         break;
     case CWCHANPROCPRI:
         long_ret = chan->proc_priority;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANEXTEN:
         strncpy(string_ret, chan->exten, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *) string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *) string_ret;
         break;
     case CWCHANPRI:
         long_ret = chan->priority;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANACCOUNTCODE:
         if (!cw_strlen_zero(chan->accountcode))
         {
             strncpy(string_ret, chan->accountcode, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *) string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *) string_ret;
         }
         break;
     case CWCHANFORWARDTO:
@@ -363,51 +352,43 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->call_forward, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *) string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *) string_ret;
         }
         break;
     case CWCHANUNIQUEID:
         strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
         string_ret[sizeof(string_ret) - 1] = '\0';
-        *var_len = strlen(string_ret);
-        ret = (u_char *) string_ret;
+        *args->var_len = strlen(string_ret);
+        args->ret = (u_char *) string_ret;
         break;
     case CWCHANCALLGROUP:
         long_ret = chan->callgroup;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANPICKUPGROUP:
         long_ret = chan->pickupgroup;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANSTATE:
         long_ret = chan->_state & 0xffff;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANMUTED:
         long_ret = chan->_state & CW_STATE_MUTE  ?  1  :  2;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANRINGS:
         long_ret = chan->rings;
-        ret = (u_char *) &long_ret;
+        args->ret = (u_char *) &long_ret;
         break;
     case CWCHANCIDDNID:
         if (chan->cid.cid_dnid)
         {
             strncpy(string_ret, chan->cid.cid_dnid, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *) string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *) string_ret;
         }
         break;
     case CWCHANCIDNUM:
@@ -415,12 +396,8 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->cid.cid_num, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANCIDNAME:
@@ -428,12 +405,8 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->cid.cid_name, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANCIDANI:
@@ -441,12 +414,8 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->cid.cid_ani, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANCIDRDNIS:
@@ -454,64 +423,52 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         {
             strncpy(string_ret, chan->cid.cid_rdnis, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANCIDPRES:
         long_ret = chan->cid.cid_pres;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANCIDANI2:
         long_ret = chan->cid.cid_ani2;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANCIDTON:
         long_ret = chan->cid.cid_ton;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANCIDTNS:
         long_ret = chan->cid.cid_tns;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANAMAFLAGS:
         long_ret = chan->amaflags;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANADSI:
         long_ret = chan->adsicpe;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANTONEZONE:
         if (chan->zone)
         {
             strncpy(string_ret, chan->zone->country, sizeof(string_ret));
             string_ret[sizeof(string_ret) - 1] = '\0';
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANHANGUPCAUSE:
         long_ret = chan->hangupcause;
-        ret = (u_char *)&long_ret;
+        args->ret = (u_char *)&long_ret;
         break;
     case CWCHANVARIABLES:
         if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret)))
         {
-            *var_len = strlen(string_ret);
-            ret = (u_char *)string_ret;
-        }
-        else
-        {
-            ret = NULL;
+            *args->var_len = strlen(string_ret);
+            args->ret = (u_char *)string_ret;
         }
         break;
     case CWCHANFLAGS:
@@ -521,19 +478,36 @@ static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *len
         bits_ret[1] = 0;
         for (bit = 0;  bit < 8;  bit++)
             bits_ret[1] |= (((chan->flags >> 8) & (1 << bit)) >> bit) << (7 - bit);
-        *var_len = 2;
-        ret = bits_ret;
+        *args->var_len = 2;
+        args->ret = bits_ret;
         break;
     case CWCHANTRANSFERCAP:
         long_ret = chan->transfercapability;
-        ret = (u_char *)&long_ret;
-        break;
-    default:
-        ret = NULL;
+        args->ret = (u_char *)&long_ret;
         break;
     }
-    cw_channel_unlock(chan);
-    return ret;
+
+    cw_mutex_unlock(&chan->lock);
+
+    return 1;
+}
+
+static u_char *cw_var_channels_table(struct variable *vp, oid *name, size_t *length,
+                                       int exact, size_t *var_len, WriteMethod **write_method)
+{
+    struct channels_table_args args = {
+	    .i = name[*length - 1],
+	    .vp = vp,
+	    .name = name,
+	    .length = length,
+	    .exact = exact,
+	    .var_len = var_len,
+	    .write_method = write_method,
+    };
+
+    if (cw_registry_iterate(&channel_registry, channels_table_one, &args))
+        return args.ret;
+    return NULL;
 }
 
 static u_char *cw_var_channel_types(struct variable *vp, oid *name, size_t *length,
@@ -557,6 +531,23 @@ static u_char *cw_var_channel_types(struct variable *vp, oid *name, size_t *leng
         break;
     }
     return NULL;
+}
+
+
+struct channeltype_count_args {
+    const struct cw_channel_tech *tech;
+    unsigned long *counter;
+};
+
+static int channeltype_count_one(struct cw_object *obj, void *data)
+{
+    struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+    struct channeltype_count_args *args = data;
+
+    if (chan->tech == args->tech)
+        (*args->counter)++;
+
+    return 0;
 }
 
 static u_char *cw_var_channel_types_table(struct variable *vp, oid *name, size_t *length,
@@ -600,17 +591,15 @@ static u_char *cw_var_channel_types_table(struct variable *vp, oid *name, size_t
     case CWCHANTYPETRANSFER:
         long_ret = tech->transfer  ?  1  :  2;
         return (u_char *) &long_ret;
-    case CWCHANTYPECHANNELS:
+    case CWCHANTYPECHANNELS: {
+        struct channeltype_count_args args = {
+            .counter = &long_ret,
+            .tech = tech,
+        };
         long_ret = 0;
-        for (chan = cw_channel_walk_locked(NULL);
-             chan;
-             chan = cw_channel_walk_locked(chan))
-        {
-            cw_channel_unlock(chan);
-            if (chan->tech == tech)
-                long_ret++;
-        }
+        cw_registry_iterate(&channel_registry, channeltype_count_one, &args);
         return (u_char *)&long_ret;
+    }
     default:
         break;
     }

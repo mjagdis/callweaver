@@ -389,150 +389,122 @@ static int handle_version(int fd, int argc, char *argv[])
 
     return RESULT_SUCCESS;
 }
-static int handle_chanlist(int fd, int argc, char *argv[])
-{
+
+
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%d!%s!%s\n"
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
-    struct cw_channel *c = NULL;
-    struct cw_channel *bc = NULL;
-    char durbuf[10] = "-";
-    char locbuf[40];
-    char appdata[40];
-    int duration;
-    int durh;
-    int durm;
-    int durs;
-    int numchans = 0;
-    int concise = 0;
-    int verbose = 0;
+struct handle_chanlist_args {
+	int fd;
+	int concise;
+	int verbose;
+	int numchans;
+};
 
-    concise = (argc == 3  &&  (!strcasecmp(argv[2], "concise")));
-    verbose = (argc == 3  &&  (!strcasecmp(argv[2], "verbose")));
+static int handle_chanlist_one(struct cw_object *obj, void *data)
+{
+	char buf[30] = "-";
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct handle_chanlist_args *args = data;
+	struct cw_channel *bc = NULL;
+	int duration;
 
-    if (argc < 2  ||  argc > 3  ||  (argc == 3  &&  !concise  &&  !verbose))
-        return RESULT_SHOWUSAGE;
+	bc = cw_bridged_channel(chan);
 
-    if (!concise  &&  !verbose)
-    {
-        cw_cli(fd,
-                 FORMAT_STRING2,
-                 "Channel",
-                 "Location",
-                 "State",
-                 "Application");
-    }
-    else if (verbose)
-    {
-        cw_cli(fd,
-                 VERBOSE_FORMAT_STRING2,
-                 "Channel",
-                 "Context",
-                 "Extension",
-                 "Priority",
-                 "State",
-                 "Application",
-                 "CallerID",
-                 "Duration",
-                 "Accountcode",
-                 "BridgedTo");
-    }
-    while ((c = cw_channel_walk_locked(c)))
-    {
-        bc = cw_bridged_channel(c);
-        if ((concise  ||  verbose)  &&  c->cdr  &&  !cw_tvzero(c->cdr->start))
-        {
-            duration = (int)(cw_tvdiff_ms(cw_tvnow(), c->cdr->start) / 1000);
-            if (verbose)
-            {
-                durh = duration / 3600;
-                durm = (duration % 3600) / 60;
-                durs = duration % 60;
-                snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
-            }
-            else
-            {
-                snprintf(durbuf, sizeof(durbuf), "%d", duration);
-            }
-        }
-        else
-        {
-            durbuf[0] = '\0';
-        }
-        if (concise)
-        {
-            cw_cli(fd,
-                     CONCISE_FORMAT_STRING,
-                     c->name,
-                     c->context,
-                     c->exten,
-                     c->priority,
-                     cw_state2str(c->_state),
-                     c->appl  ?  c->appl  :  "(None)",
-                     (c->cid.cid_num  &&  !cw_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
-                     (c->accountcode  &&  !cw_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
-                     c->amaflags,
-                     durbuf,
-                     bc  ?  bc->name  :  "(None)");
-        }
-        else if (verbose)
-        {
-            cw_cli(fd,
-                     VERBOSE_FORMAT_STRING,
-                     c->name,
-                     c->context,
-                     c->exten,
-                     c->priority,
-                     cw_state2str(c->_state),
-                     c->appl  ?  c->appl : "(None)",
-                     (c->cid.cid_num  &&  !cw_strlen_zero(c->cid.cid_num))  ?  c->cid.cid_num  :  "",
-                     durbuf,
-                     (c->accountcode  &&  !cw_strlen_zero(c->accountcode))  ?  c->accountcode  :  "",
-                     bc  ?  bc->name  :  "(None)");
-        }
-        else
-        {
-            if (!cw_strlen_zero(c->context)  &&  !cw_strlen_zero(c->exten))
-                snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
-            else
-                strcpy(locbuf, "(None)");
-            if (c->appl)
-                snprintf(appdata, sizeof(appdata), "%s", c->appl);
-            else
-                strcpy(appdata, "(None)");
-            cw_cli(fd, FORMAT_STRING, c->name, locbuf, cw_state2str(c->_state), appdata);
-        }
-        numchans++;
-        cw_mutex_unlock(&c->lock);
-    }
-    if (!concise)
-    {
-        cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1)  ?  "s"  :  "");
-        if (option_maxcalls)
-        {
-            cw_cli(fd,
-                     "%d of %d max active call%s (%5.2f%% of capacity)\n",
-                     cw_active_calls(),
-                     option_maxcalls,
-                     (cw_active_calls() != 1)  ?  "s"  :  "",
-                     ((float) cw_active_calls() / (float) option_maxcalls)*100.0);
-        }
-        else
-        {
-            cw_cli(fd, "%d active call%s\n", cw_active_calls(), (cw_active_calls() != 1)  ?  "s"  :  "");
-        }
-    }
-    return RESULT_SUCCESS;
+	if ((args->concise || args->verbose) && chan->cdr && !cw_tvzero(chan->cdr->start)) {
+		duration = (int)(cw_tvdiff_ms(cw_tvnow(), chan->cdr->start) / 1000);
+		if (args->verbose) {
+			snprintf(buf, sizeof(buf), "%02d:%02d:%02d", duration / 3600, (duration % 3600) / 60, duration % 60);
+		} else {
+			snprintf(buf, sizeof(buf), "%d", duration);
+		}
+	} else {
+		buf[0] = '\0';
+	}
 
+	if (args->concise) {
+		cw_cli(args->fd, CONCISE_FORMAT_STRING, chan->name,
+			chan->context, chan->exten, chan->priority,
+			cw_state2str(chan->_state),
+			(chan->appl ? chan->appl : "(None)"),
+			(!cw_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : ""),
+			(!cw_strlen_zero(chan->accountcode) ? chan->accountcode : ""),
+			chan->amaflags,
+			buf,
+			(bc ? bc->name : "(None)"));
+	} else if (args->verbose) {
+		cw_cli(args->fd, VERBOSE_FORMAT_STRING, chan->name,
+			chan->context, chan->exten, chan->priority,
+			cw_state2str(chan->_state),
+			(chan->appl ? chan->appl : "(None)"),
+			(!cw_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : ""),
+			buf,
+			(!cw_strlen_zero(chan->accountcode) ? chan->accountcode : ""),
+			(bc ? bc->name : "(None)"));
+	} else {
+		if (!cw_strlen_zero(chan->context) && !cw_strlen_zero(chan->exten))
+			snprintf(buf, sizeof(buf), "%s@%s:%d", chan->exten, chan->context, chan->priority);
+		else
+			strcpy(buf, "(None)");
+
+		cw_cli(args->fd, FORMAT_STRING, chan->name,
+			buf,
+			cw_state2str(chan->_state),
+			(chan->appl ? chan->appl : "(None)"));
+	}
+
+	args->numchans++;
+
+	if (bc)
+		cw_object_put(bc);
+
+	return 0;
+}
+
+static int handle_chanlist(int fd, int argc, char *argv[])
+{
+	struct handle_chanlist_args args;
+
+	args.concise = (argc == 3  &&  (!strcasecmp(argv[2], "concise")));
+	args.verbose = (argc == 3  &&  (!strcasecmp(argv[2], "verbose")));
+
+	if (argc < 2  ||  argc > 3  ||  (argc == 3  &&  !args.concise  &&  !args.verbose))
+		return RESULT_SHOWUSAGE;
+
+	if (!args.concise  &&  !args.verbose)
+		cw_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application");
+	else if (args.verbose)
+		cw_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "CallerID", "Duration", "Accountcode", "BridgedTo");
+
+	args.fd = fd;
+	args.numchans = 0;
+	cw_registry_iterate(&channel_registry, handle_chanlist_one, &args);
+
+	if (!args.concise) {
+		cw_cli(fd, "%d active channel%s\n", args.numchans, (args.numchans != 1)  ?  "s"  :  "");
+		if (option_maxcalls) {
+			cw_cli(fd,
+				"%d of %d max active call%s (%5.2f%% of capacity)\n",
+				cw_active_calls(),
+				option_maxcalls,
+				(cw_active_calls() != 1)  ?  "s"  :  "",
+				((float) cw_active_calls() / (float) option_maxcalls)*100.0);
+		} else {
+			cw_cli(fd, "%d active call%s\n", cw_active_calls(), (cw_active_calls() != 1)  ?  "s"  :  "");
+		}
+	}
+
+	return RESULT_SUCCESS;
+}
 #undef FORMAT_STRING
 #undef FORMAT_STRING2
 #undef CONCISE_FORMAT_STRING
 #undef VERBOSE_FORMAT_STRING
 #undef VERBOSE_FORMAT_STRING2
-}
+
 
 static char showchan_help[] = 
 "Usage: show channel <channel>\n"
@@ -551,16 +523,19 @@ static char nodebugchan_help[] =
 "Usage: no debug channel <channel>\n"
 "       Disables debugging on a specific channel.\n";
 
+
 static int handle_softhangup(int fd, int argc, char *argv[])
 {
-    struct cw_channel *c=NULL;
+    struct cw_channel *c = NULL;
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    c = cw_get_channel_by_name_locked(argv[2]);
-    if (c) {
+
+    if ((c = cw_get_channel_by_name_locked(argv[2]))) {
         cw_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
         cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
         cw_mutex_unlock(&c->lock);
+	cw_object_put(c);
     } else
         cw_cli(fd, "%s is not a known channel\n", argv[2]);
     return RESULT_SUCCESS;
@@ -587,98 +562,118 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 }
 
 #define DEBUGCHAN_FLAG  0x80000000
+static int debugchan_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	int *fd = data;
+
+	cw_mutex_lock(&chan->lock);
+
+        if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
+            chan->fin |= DEBUGCHAN_FLAG;
+            chan->fout |= DEBUGCHAN_FLAG;
+            cw_cli(*fd, "Debugging enabled on channel %s\n", chan->name);
+        }
+
+	cw_mutex_unlock(&chan->lock);
+	return 0;
+}
+
+static int nodebugchan_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	int *fd = data;
+
+	cw_mutex_lock(&chan->lock);
+
+        if ((chan->fin & DEBUGCHAN_FLAG) || (chan->fout & DEBUGCHAN_FLAG)) {
+            chan->fin &= ~DEBUGCHAN_FLAG;
+            chan->fout &= ~DEBUGCHAN_FLAG;
+            cw_cli(*fd, "Debugging disabled on channel %s\n", chan->name);
+        }
+
+	cw_mutex_unlock(&chan->lock);
+	return 0;
+}
+
 /* XXX todo: merge next two functions!!! */
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
-    struct cw_channel *c=NULL;
-    int is_all;
-    if (argc != 3)
-        return RESULT_SHOWUSAGE;
+	struct cw_channel *chan;
 
-    is_all = !strcasecmp("all", argv[2]);
-    if (is_all) {
-        global_fin |= DEBUGCHAN_FLAG;
-        global_fout |= DEBUGCHAN_FLAG;
-        c = cw_channel_walk_locked(NULL);
-    } else {
-        c = cw_get_channel_by_name_locked(argv[2]);
-        if (c == NULL)
-            cw_cli(fd, "No such channel %s\n", argv[2]);
-    }
-    while(c) {
-        if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
-            c->fin |= DEBUGCHAN_FLAG;
-            c->fout |= DEBUGCHAN_FLAG;
-            cw_cli(fd, "Debugging enabled on channel %s\n", c->name);
-        }
-        cw_mutex_unlock(&c->lock);
-        if (!is_all)
-            break;
-        c = cw_channel_walk_locked(c);
-    }
-    cw_cli(fd, "Debugging on new channels is enabled\n");
-    return RESULT_SUCCESS;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	if (strcasecmp("all", argv[2])) {
+		if ((chan = cw_get_channel_by_name_locked(argv[2]))) {
+			debugchan_one(&chan->obj, &fd);
+			cw_object_put(chan);
+		} else
+			cw_cli(fd, "No such channel %s\n", argv[2]);
+		return RESULT_SUCCESS;
+	}
+
+	global_fin |= DEBUGCHAN_FLAG;
+	global_fout |= DEBUGCHAN_FLAG;
+	cw_cli(fd, "Debugging on new channels is enabled\n");
+
+	cw_registry_iterate(&channel_registry, debugchan_one, &fd);
+
+	return RESULT_SUCCESS;
 }
 
 static int handle_nodebugchan(int fd, int argc, char *argv[])
 {
-    struct cw_channel *c=NULL;
-    int is_all;
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-    is_all = !strcasecmp("all", argv[3]);
-    if (is_all) {
-        global_fin &= ~DEBUGCHAN_FLAG;
-        global_fout &= ~DEBUGCHAN_FLAG;
-        c = cw_channel_walk_locked(NULL);
-    } else {
-        c = cw_get_channel_by_name_locked(argv[3]);
-        if (c == NULL)
-            cw_cli(fd, "No such channel %s\n", argv[3]);
-    }
-    while(c) {
-        if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
-            c->fin &= ~DEBUGCHAN_FLAG;
-            c->fout &= ~DEBUGCHAN_FLAG;
-            cw_cli(fd, "Debugging disabled on channel %s\n", c->name);
-        }
-        cw_mutex_unlock(&c->lock);
-        if (!is_all)
-            break;
-        c = cw_channel_walk_locked(c);
-    }
-    cw_cli(fd, "Debugging on new channels is disabled\n");
-    return RESULT_SUCCESS;
+	struct cw_channel *chan;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	if (strcasecmp("all", argv[3])) {
+		if ((chan = cw_get_channel_by_name_locked(argv[3]))) {
+			debugchan_one(&chan->obj, &fd);
+			cw_object_put(chan);
+		} else
+			cw_cli(fd, "No such channel %s\n", argv[3]);
+		return RESULT_SUCCESS;
+	}
+
+	global_fin &= ~DEBUGCHAN_FLAG;
+	global_fout &= ~DEBUGCHAN_FLAG;
+	cw_cli(fd, "Debugging on new channels is disabled\n");
+
+	cw_registry_iterate(&channel_registry, nodebugchan_one, &fd);
+
+	return RESULT_SUCCESS;
 }
-        
-    
+
 
 static int handle_showchan(int fd, int argc, char *argv[])
 {
-    struct cw_channel *c=NULL;
-    struct timeval now;
     char buf[2048];
     char cdrtime[256];
-    long elapsed_seconds=0;
-    int hour=0, min=0, sec=0;
-    
+    struct timeval now;
+    struct cw_channel *chan, *bchan;
+    long secs;
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    now = cw_tvnow();
-    c = cw_get_channel_by_name_locked(argv[2]);
-    if (!c) {
+
+    if (!(chan = cw_get_channel_by_name_locked(argv[2]))) {
         cw_cli(fd, "%s is not a known channel\n", argv[2]);
         return RESULT_SUCCESS;
     }
-    if(c->cdr) {
-        elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
-        hour = elapsed_seconds / 3600;
-        min = (elapsed_seconds % 3600) / 60;
-        sec = elapsed_seconds % 60;
-        snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
+
+    if (chan->cdr) {
+        now = cw_tvnow();
+        secs = now.tv_sec - chan->cdr->start.tv_sec;
+        snprintf(cdrtime, sizeof(cdrtime), "%ldh%ldm%lds", secs / 3600, (secs % 3600) / 60, secs % 60);
     } else
         strcpy(cdrtime, "N/A");
-    cw_cli(fd, 
+
+    bchan = cw_bridged_channel(chan);
+
+    cw_cli(fd,
         " -- General --\n"
         "           Name: %s\n"
         "           Type: %s\n"
@@ -714,31 +709,34 @@ static int handle_showchan(int fd, int argc, char *argv[])
         "    Application: %s\n"
         "    Blocking in: %s\n"
         "    T38 mode on: %d\n",
-        c->name, c->type, c->uniqueid,
-        (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
-        (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-        (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), cw_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
-        c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
-        c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-        cdrtime, c->_bridge ? c->_bridge->name : "<none>", cw_bridged_channel(c) ? cw_bridged_channel(c)->name : "<none>", 
-        c->jb.conf.impl,
-        c->jb.conf.flags,
-        c->jb.conf.max_size,
-        c->jb.conf.resync_threshold,
-        c->jb.conf.timing_compensation,
-        c->jb.flags,
-        c->context, c->exten, c->priority, (int)c->callgroup, 
-        (int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-        (cw_test_flag(c, CW_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"),
-        c->t38_status
+        chan->name, chan->type, chan->uniqueid,
+        (chan->cid.cid_num ? chan->cid.cid_num : "(N/A)"),
+        (chan->cid.cid_name ? chan->cid.cid_name : "(N/A)"),
+        (chan->cid.cid_dnid ? chan->cid.cid_dnid : "(N/A)" ), cw_state2str(chan->_state), chan->_state, chan->rings, chan->nativeformats, chan->writeformat, chan->readformat,
+        chan->fds[0], chan->fin & 0x7fffffff, (chan->fin & 0x80000000) ? " (DEBUGGED)" : "",
+        chan->fout & 0x7fffffff, (chan->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)chan->whentohangup,
+        cdrtime, (chan->_bridge ? chan->_bridge->name : "<none>"), (bchan ? bchan->name : "<none>"),
+        chan->jb.conf.impl,
+        chan->jb.conf.flags,
+        chan->jb.conf.max_size,
+        chan->jb.conf.resync_threshold,
+        chan->jb.conf.timing_compensation,
+        chan->jb.flags,
+        chan->context, chan->exten, chan->priority, (int)chan->callgroup,
+        (int)chan->pickupgroup, ( chan->appl ? chan->appl : "(N/A)" ),
+        (cw_test_flag(chan, CW_FLAG_BLOCKING) ? chan->blockproc : "(Not Blocking)"),
+        chan->t38_status
         );
+
+    if (pbx_builtin_serialize_variables(chan, buf, sizeof(buf)))
+        cw_cli(fd, "      Variables:\n%s\n", buf);
+    if (chan->cdr && cw_cdr_serialize_variables(chan->cdr, buf, sizeof(buf), '=', '\n', 1))
+        cw_cli(fd, "  CDR Variables:\n%s\n", buf);
     
-    if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-        cw_cli(fd,"      Variables:\n%s\n",buf);
-    if(c->cdr && cw_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
-        cw_cli(fd,"  CDR Variables:\n%s\n",buf);
-    
-    cw_mutex_unlock(&c->lock);
+    cw_mutex_unlock(&chan->lock);
+    if (bchan)
+	    cw_object_put(bchan);
+    cw_object_put(chan);
     return RESULT_SUCCESS;
 }
 
@@ -755,27 +753,17 @@ static void complete_show_channels(int fd, char *argv[], int lastarg, int lastar
     }
 }
 
-static void complete_ch_helper(int fd, char *word, int word_len)
-{
-    struct cw_channel *c = NULL;
-
-    while ((c = cw_channel_walk_locked(c))) {
-        if (!strncasecmp(word, c->name, word_len))
-            cw_cli(fd, "%s\n", c->name);
-        cw_mutex_unlock(&c->lock);
-    }
-}
 
 static void complete_ch_3(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (lastarg == 2)
-        complete_ch_helper(fd, argv[2], lastarg_len);
+	if (lastarg == 2)
+		cw_complete_channel(fd, argv[2], lastarg_len);
 }
 
 static void complete_ch_4(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    if (lastarg == 3)
-        complete_ch_helper(fd, argv[3], lastarg_len);
+	if (lastarg == 3)
+		cw_complete_channel(fd, argv[3], lastarg_len);
 }
 
 

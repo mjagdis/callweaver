@@ -2835,10 +2835,9 @@ static int alsa_indicate(struct cw_channel *chan, int cond)
 static struct cw_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct cw_channel *tmp;
-	tmp = cw_channel_alloc(1);
+	tmp = cw_channel_alloc(1, "ALSA/%s", indevname);
 	if (tmp) {
 		tmp->tech = &alsa_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
 		tmp->fds[0] = readdev;
 		tmp->nativeformats = CW_FORMAT_SLINEAR;

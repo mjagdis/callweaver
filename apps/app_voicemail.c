@@ -1626,31 +1626,33 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 		strftime(date, sizeof(date), emaildateformat, &tm);
 
 		if (*fromstring) {
-			struct cw_channel *ast = cw_channel_alloc(0);
-			if (ast) {
+			struct cw_channel *chan;
+
+			if ((chan = cw_channel_alloc(0, NULL))) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				passdata = alloca(vmlen);
-				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-				pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
-				fprintf(p, "From: %s <%s>\n",passdata,who);
-				cw_channel_free(ast);
-			} else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+				pbx_substitute_variables_helper(chan, fromstring, passdata, vmlen);
+				fprintf(p, "From: %s <%s>\n", passdata, who);
+				cw_channel_free(chan);
+			}
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
 		if (emailsubject) {
-			struct cw_channel *ast = cw_channel_alloc(0);
-			if (ast) {
+			struct cw_channel *chan;
+
+			if ((chan = cw_channel_alloc(0, NULL))) {
 				char *passdata;
 				int vmlen = strlen(emailsubject)*3 + 200;
 				passdata = alloca(vmlen);
-				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-				pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
-				fprintf(p, "Subject: %s\n",passdata);
-				cw_channel_free(ast);
-			} else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+				pbx_substitute_variables_helper(chan, emailsubject, passdata, vmlen);
+				fprintf(p, "Subject: %s\n", passdata);
+				cw_channel_free(chan);
+			}
 		} else
 		if (*emailtitle) {
 			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
@@ -1671,16 +1673,17 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 		}
 		fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", charset);
 		if (emailbody) {
-			struct cw_channel *ast = cw_channel_alloc(0);
-			if (ast) {
+			struct cw_channel *chan;
+
+			if ((chan = cw_channel_alloc(0, NULL))) {
 				char *passdata;
 				int vmlen = strlen(emailbody)*3 + 200;
 				passdata = alloca(vmlen);
-				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-				pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
-				fprintf(p, "%s\n",passdata);
-				cw_channel_free(ast);
-			} else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+				pbx_substitute_variables_helper(chan, emailbody, passdata, vmlen);
+				fprintf(p, "%s\n", passdata);
+				cw_channel_free(chan);
+			}
 		} else {
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
@@ -1771,44 +1774,47 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		fprintf(p, "Date: %s\n", date);
 
 		if (*pagerfromstring) {
-			struct cw_channel *ast = cw_channel_alloc(0);
-			if (ast) {
+			struct cw_channel *chan;
+
+			if ((chan = cw_channel_alloc(0, NULL))) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				passdata = alloca(vmlen);
-				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-				pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
-				fprintf(p, "From: %s <%s>\n",passdata,who);
-				cw_channel_free(ast);
-			} else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+				pbx_substitute_variables_helper(chan, pagerfromstring, passdata, vmlen);
+				fprintf(p, "From: %s <%s>\n", passdata, who);
+				cw_channel_free(chan);
+			}
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
                if (pagersubject) {
-                       struct cw_channel *ast = cw_channel_alloc(0);
-                       if (ast) {
+                       struct cw_channel *chan;
+
+		       if ((chan = cw_channel_alloc(0, NULL))) {
                                char *passdata;
                                int vmlen = strlen(pagersubject)*3 + 200;
                                passdata = alloca(vmlen);
-                               prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-                               pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
-                               fprintf(p, "Subject: %s\n\n",passdata);
-                               cw_channel_free(ast);
-                       } else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+                               prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+                               pbx_substitute_variables_helper(chan, pagersubject, passdata, vmlen);
+                               fprintf(p, "Subject: %s\n\n", passdata);
+                               cw_channel_free(chan);
+                       }
                } else
                        fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
                if (pagerbody) {
-                       struct cw_channel *ast = cw_channel_alloc(0);
-                       if (ast) {
+                       struct cw_channel *chan;
+
+		       if ((chan = cw_channel_alloc(0, NULL))) {
                                char *passdata;
                                int vmlen = strlen(pagerbody)*3 + 200;
                                passdata = alloca(vmlen);
-                               prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-                               pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
-                               fprintf(p, "%s\n",passdata);
-                               cw_channel_free(ast);
-                       } else cw_log(CW_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+                               prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
+                               pbx_substitute_variables_helper(chan, pagerbody, passdata, vmlen);
+                               fprintf(p, "%s\n", passdata);
+                               cw_channel_free(chan);
+                       }
                } else {
                        fprintf(p, "New %s long msg in box %s\n"
                                        "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);

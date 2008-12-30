@@ -40,6 +40,8 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
 #include "callweaver/pbx.h"
 #include "callweaver/frame.h"
 #include "callweaver/options.h"
@@ -87,14 +89,9 @@ struct chanlist {
 
 static struct chanlist *backends = NULL;
 
-/*
- * the list of channels we have
- */
-static struct cw_channel *channels = NULL;
-
-/* Protect the channel list, both backends and channels.
- */
+/* Protect the backend list */
 CW_MUTEX_DEFINE_STATIC(chlock);
+
 
 const struct cw_cause
 {
@@ -174,6 +171,39 @@ const struct cw_control
 	{CW_CONTROL_UNHOLD, "Indicate call is left from hold"},
 	{CW_CONTROL_VIDUPDATE, "Indicate video frame update"},
 };
+
+
+static const char *channel_object_name(struct cw_object *obj)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	return chan->name;
+}
+
+static int channel_object_cmp(struct cw_object *a, struct cw_object *b)
+{
+	struct cw_channel *channel_a = container_of(a, struct cw_channel, obj);
+	struct cw_channel *channel_b = container_of(b, struct cw_channel, obj);
+
+	return strcasecmp(channel_a->name, channel_b->name);
+}
+
+static int channel_object_match(struct cw_object *obj, const void *pattern)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	return !strcasecmp(chan->name, pattern);
+}
+
+static struct cw_object_isa cw_object_isa_channel = {
+	.name = channel_object_name,
+};
+
+struct cw_registry channel_registry = {
+	.name = "Channels",
+	.cmp = channel_object_cmp,
+	.match = channel_object_match,
+};
+
 
 /* this code is broken - if someone knows how to rewrite the list traversal, please tell */
 struct cw_variable *cw_channeltype_list(void)
@@ -265,50 +295,41 @@ int cw_check_hangup(struct cw_channel *chan)
 	return 1;
 }
 
-static int cw_check_hangup_locked(struct cw_channel *chan)
-{
-	int res;
-	cw_mutex_lock(&chan->lock);
-	res = cw_check_hangup(chan);
-	cw_mutex_unlock(&chan->lock);
-	return res;
-}
 
 /*--- cw_begin_shutdown: Initiate system shutdown */
-void cw_begin_shutdown(int hangup)
+static int channel_hangup_one(struct cw_object *obj, void *data)
 {
-	struct cw_channel *c;
-	
-    shutting_down = 1;
-	if (hangup)
-    {
-		cw_mutex_lock(&chlock);
-		c = channels;
-		while (c)
-        {
-			cw_softhangup(c, CW_SOFTHANGUP_SHUTDOWN);
-			c = c->next;
-		}
-		cw_mutex_unlock(&chlock);
-	}
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	cw_softhangup(chan, CW_SOFTHANGUP_SHUTDOWN);
+	return 0;
 }
 
+void cw_begin_shutdown(int hangup)
+{
+	shutting_down = 1;
+	if (hangup)
+		cw_registry_iterate(&channel_registry, channel_hangup_one, NULL);
+}
+
+
 /*--- cw_active_channels: returns number of active/allocated channels */
+static int channel_count(struct cw_object *obj, void *data)
+{
+	int *n = data;
+
+	(*n)++;
+	return 0;
+}
+
 int cw_active_channels(void)
 {
-	struct cw_channel *c;
-	int cnt = 0;
-	
-    cw_mutex_lock(&chlock);
-	c = channels;
-	while (c)
-    {
-		cnt++;
-		c = c->next;
-	}
-	cw_mutex_unlock(&chlock);
-	return cnt;
+	int n = 0;
+
+	cw_registry_iterate(&channel_registry, channel_count, &n);
+	return n;
 }
+
 
 /*--- cw_cancel_shutdown: Cancel a shutdown in progress */
 void cw_cancel_shutdown(void)
@@ -575,83 +596,141 @@ static const struct cw_channel_tech null_tech =
 	.description = "Null channel (should not see this)",
 };
 
-/*--- cw_channel_alloc: Create a new channel structure */
-struct cw_channel *cw_channel_alloc(int needqueue)
+
+static void free_cid(struct cw_callerid *cid)
 {
-	struct cw_channel *tmp;
+	if (cid->cid_dnid)
+		free(cid->cid_dnid);
+	if (cid->cid_num)
+		free(cid->cid_num);
+	if (cid->cid_name)
+		free(cid->cid_name);
+	if (cid->cid_ani)
+		free(cid->cid_ani);
+	if (cid->cid_rdnis)
+		free(cid->cid_rdnis);
+}
+
+
+static void cw_channel_release(struct cw_object *obj)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct cw_frame *f;
+
+cw_log(CW_LOG_NOTICE, "%p", chan);
+	if (chan->tech_pvt) {
+		cw_log(CW_LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
+		free(chan->tech_pvt);
+	}
+
+	free_cid(&chan->cid);
+
+	/* Close pipes if appropriate */
+	if (chan->alertpipe[0] > -1)
+		close(chan->alertpipe[0]);
+	if (chan->alertpipe[1] > -1)
+		close(chan->alertpipe[1]);
+
+	while ((f = chan->readq)) {
+		chan->readq = chan->readq->next;
+		cw_fr_free(f);
+	}
+
+	cw_mutex_destroy(&chan->lock);
+	cw_registry_destroy(&chan->vars);
+
+	/* Destroy the jitterbuffer */
+	cw_jb_destroy(chan);
+
+	free(chan);
+}
+
+
+/*--- cw_channel_alloc: Create a new channel structure */
+struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
+{
+	va_list ap;
+	struct cw_channel *chan;
 	int x;
-	int flags;
 
-	/* If shutting down, don't allocate any new channels */
-	if (shutting_down)
-        {
-		cw_log(CW_LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
-		return NULL;
-	}
+	if (!shutting_down) {
+		if ((chan = calloc(1, sizeof(*chan)))) {
+			chan->alertpipe[0] = chan->alertpipe[1] = -1;
+			for (x = 0;  x < CW_MAX_FDS;  x++)
+				chan->fds[x] = -1;
 
-	if ((tmp = malloc(sizeof(*tmp))) == NULL)
-	{
-		cw_log(CW_LOG_ERROR, "Channel allocation failed: Out of memory\n");
-		return NULL;
-	}
-	memset(tmp, 0, sizeof(*tmp));
+			if (needqueue) {
+				if (!pipe(chan->alertpipe)) {
+					fcntl(chan->alertpipe[0], F_SETFL, fcntl(chan->alertpipe[0], F_GETFL) | O_NONBLOCK);
+					fcntl(chan->alertpipe[1], F_SETFL, fcntl(chan->alertpipe[1], F_GETFL) | O_NONBLOCK);
 
-	for (x = 0;  x < CW_MAX_FDS - 1;  x++)
-		tmp->fds[x] = -1;
+					/* Always watch the alertpipe */
+					chan->fds[CW_MAX_FDS-1] = chan->alertpipe[0];
+				} else {
+					cw_log(CW_LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+					free(chan);
+					return NULL;
+				}
+			}
 
-	if (needqueue)
-        {
-		if (pipe(tmp->alertpipe))
-                {
-			cw_log(CW_LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
-			free(tmp);
-			return NULL;
+			chan->tech = &null_tech;
+
+			/* Initial state */
+			chan->_state = CW_STATE_DOWN;
+			chan->appl = NULL;
+			chan->fin = global_fin;
+			chan->fout = global_fout;
+			chan->generator.tid = CW_PTHREADT_NULL;
+			chan->t38_status = T38_STATUS_UNKNOWN;
+
+			strcpy(chan->context, "default");
+			strcpy(chan->exten, "s");
+			chan->priority = 1;
+
+//			snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+			if (cw_strlen_zero(cw_config_CW_SYSTEM_NAME))
+				snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+			else
+				snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%s-%li.%d", cw_config_CW_SYSTEM_NAME, (long) time(NULL), uniqueint++);
+
+			cw_mutex_init(&chan->lock);
+			cw_var_registry_init(&chan->vars, 1024);
+
+			chan->amaflags = cw_default_amaflags;
+			cw_copy_string(chan->accountcode, cw_default_accountcode, sizeof(chan->accountcode));
+			cw_copy_string(chan->language, defaultlanguage, sizeof(chan->language));
+
+cw_log(CW_LOG_NOTICE, "%p", chan);
+			cw_object_init(chan, &cw_object_isa_channel, NULL, 1);
+			chan->obj.release = cw_channel_release;
+
+			if (fmt) {
+				va_start(ap, fmt);
+				vsnprintf((char *)chan->name, sizeof(chan->name), fmt, ap);
+				va_end(ap);
+				chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(chan->name), &chan->obj);
+			}
+
+			/* N.B. cw_channel_alloc returns an uncounted reference. The reference
+			 * we have here is expected to be released by cw_channel_free(). The expectation
+			 * is that the alloc/free sequence is owned by the calling technology and
+			 * that guarantees not to access the channel after a hangup. All other
+			 * channel access come via look ups of the channel in registries and
+			 * thus get counted references that need to be put.
+			 * Logically you can think of this as a channel driver getting a reference
+			 * to the channel with cw_channel_alloc() and putting it with cw_hangup
+			 * or cw_channel_free(). This means the channel driver owns a reference
+			 * to the channel throughout its natural life.
+			 */
+			return chan;
 		}
-		flags = fcntl(tmp->alertpipe[0], F_GETFL);
-		fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
-		flags = fcntl(tmp->alertpipe[1], F_GETFL);
-		fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
+
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
+		return NULL;
 	}
-        else 
-	{
-		/* Make sure we've got it done right if they don't */
-		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
-        }
-	/* Init channel generator data struct */
-	tmp->generator.tid = CW_PTHREADT_NULL;
 
-	/* Always watch the alertpipe */
-	tmp->fds[CW_MAX_FDS-1] = tmp->alertpipe[0];
-	strcpy(tmp->name, "**Unknown**");
-	/* Initial state */
-	tmp->_state = CW_STATE_DOWN;
-	tmp->appl = NULL;
-	tmp->fin = global_fin;
-	tmp->fout = global_fout;
-//	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++); 
-	if (cw_strlen_zero(cw_config_CW_SYSTEM_NAME))
-		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
-	else
-		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%s-%li.%d", cw_config_CW_SYSTEM_NAME, (long) time(NULL), uniqueint++);
-	cw_mutex_init(&tmp->lock);
-	cw_var_registry_init(&tmp->vars, 1024);
-
-	strcpy(tmp->context, "default");
-	cw_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
-	strcpy(tmp->exten, "s");
-	tmp->priority = 1;
-	tmp->amaflags = cw_default_amaflags;
-	cw_copy_string(tmp->accountcode, cw_default_accountcode, sizeof(tmp->accountcode));
-
-	tmp->tech = &null_tech;
-	tmp->t38_status = T38_STATUS_UNKNOWN;
-
-	cw_mutex_lock(&chlock);
-	tmp->next = channels;
-	channels = tmp;
-
-	cw_mutex_unlock(&chlock);
-	return tmp;
+	cw_log(CW_LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
+	return NULL;
 }
 
 /* Sets the channel t38 status */
@@ -781,120 +860,179 @@ void cw_channel_undefer_dtmf(struct cw_channel *chan)
 		cw_clear_flag(chan, CW_FLAG_DEFER_DTMF);
 }
 
-/*
- * Helper function to find channels. It supports these modes:
- *
- * prev != NULL : get channel next in list after prev
- * name != NULL : get channel with matching name
- * name != NULL && namelen != 0 : get channel whose name starts with prefix
- * exten != NULL : get channel whose exten or proc_exten matches
- * context != NULL && exten != NULL : get channel whose context or proc_context
- *                                    
- * It returns with the channel's lock held. If getting the individual lock fails,
- * unlock and retry quickly up to 10 times, then give up.
- * 
- * XXX Note that this code has cost O(N) because of the need to verify
- * that the object is still on the global list.
- *
- * XXX also note that accessing fields (e.g. c->name in cw_log())
- * can only be done with the lock held or someone could delete the
- * object while we work on it. This causes some ugliness in the code.
- * Note that removing the first cw_log() may be harmful, as it would
- * shorten the retry period and possibly cause failures.
- * We should definitely go for a better scheme that is deadlock-free.
- */
-static struct cw_channel *channel_find_locked(const struct cw_channel *prev,
-						   const char *name, const int namelen,
-						   const char *context, const char *exten)
-{
-	const char *msg = prev ? "deadlock" : "initial deadlock";
-	int retries, done;
-	struct cw_channel *c;
-
-	for (retries = 0; retries < 10; retries++) {
-		cw_mutex_lock(&chlock);
-		for (c = channels; c; c = c->next) {
-			if (!prev) {
-				/* want head of list */
-				if (!name && !exten)
-					break;
-				if (name) {
-					/* want match by full name */
-					if (!namelen) {
-						if (!strcasecmp(c->name, name))
-							break;
-						else
-							continue;
-					}
-					/* want match by name prefix */
-					if (!strncasecmp(c->name, name, namelen))
-						break;
-				} else if (exten) {
-					/* want match by context and exten */
-					if (context && (strcasecmp(c->context, context) &&
-							strcasecmp(c->proc_context, context)))
-						continue;
-					/* match by exten */
-					if (strcasecmp(c->exten, exten) &&
-						strcasecmp(c->proc_exten, exten))
-						continue;
-					else
-						break;
-				}
-			} else if (c == prev) { /* found, return c->next */
-				c = c->next;
-				break;
-			}
-		}
-		/* exit if chan not found or mutex acquired successfully */
-		done = (c == NULL) || (cw_mutex_trylock(&c->lock) == 0);
-		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
-		if (!done && c)
-			cw_log(CW_LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
-		cw_mutex_unlock(&chlock);
-		if (done)
-			return c;
-		usleep(1);
-	}
-	/*
-	 * c is surely not null, but we don't have the lock so cannot
-	 * access c->name
-	 */
-	cw_log(CW_LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
-		msg, c, retries);
-
-	return NULL;
-}
-
-/*--- cw_channel_walk_locked: Browse channels in use */
-struct cw_channel *cw_channel_walk_locked(const struct cw_channel *prev)
-{
-	return channel_find_locked(prev, NULL, 0, NULL, NULL);
-}
 
 /*--- cw_get_channel_by_name_locked: Get channel by name and lock it */
 struct cw_channel *cw_get_channel_by_name_locked(const char *name)
 {
-	return channel_find_locked(NULL, name, 0, NULL, NULL);
+	static const struct timespec ts = { .tv_sec = 0, .tv_nsec = 3000000 };
+	struct cw_object *obj;
+	int tries = 10;
+
+	/* We are most likely already holding a locked channel at this point.
+	 * Since another thread may be waiting on that lock while holding the
+	 * lock on the channel we want here we're going to try non-blocking
+	 * locks up to 10 times with 3ms between tries and then give in and
+	 * pretend the channel doesn't exist.
+	 * Why 3ms? Because older Linux systems will busy wait delays up to
+	 * 2ms rather than rescheduling.
+	 */
+	while (tries-- && (obj = cw_registry_find(&channel_registry, 1, cw_hash_string(name), name))) {
+		struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+		if (!cw_mutex_trylock(&chan->lock)) {
+			if (chan->reg_entry)
+				return chan;
+			cw_mutex_unlock(&chan->lock);
+		} else
+			nanosleep(&ts, NULL);
+		cw_object_put(chan);
+	}
+	return NULL;
 }
+
+
+struct complete_channel_args {
+	int fd;
+	const char *prefix;
+	size_t prefix_len;
+};
+
+static int complete_channel_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct complete_channel_args *args = data;
+
+	/* FIXME: we only need to lock because there are things that rename existing
+	 * channels. Renaming channels is evil.
+	 */
+	cw_mutex_lock(&chan->lock);
+
+	if (!strncasecmp(chan->name, args->prefix, args->prefix_len))
+		cw_cli(args->fd, "%s\n", chan->name);
+
+	cw_mutex_unlock(&chan->lock);
+	return 0;
+}
+
+void cw_complete_channel(int fd, const char *prefix, size_t prefix_len)
+{
+	struct complete_channel_args args = {
+		.fd = fd,
+		.prefix = prefix,
+		.prefix_len = prefix_len,
+	};
+
+	cw_registry_iterate(&channel_registry, complete_channel_one, &args);
+}
+
 
 /*--- cw_get_channel_by_name_prefix_locked: Get channel by name prefix and lock it */
-struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *name, const int namelen)
+/* FIXME: this is used by device state to find the device (name is <tech>/<device>-<call>)
+ * and by ChanGrab
+ */
+struct channel_by_name_prefix_args {
+	const char *prefix;
+	size_t prefix_len;
+	struct cw_channel *chan;
+};
+
+static int channel_by_name_prefix_one(struct cw_object *obj, void *data)
 {
-	return channel_find_locked(NULL, name, namelen, NULL, NULL);
+	static const struct timespec ts = { .tv_sec = 0, .tv_nsec = 3000000 };
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct channel_by_name_prefix_args *args = data;
+	int tries = 10;
+
+	if (strncasecmp(chan->name, args->prefix, args->prefix_len))
+		return 0;
+
+	/* We are most likely already holding a locked channel at this point.
+	 * Since another thread may be waiting on that lock while holding the
+	 * lock on the channel we want here we're going to try non-blocking
+	 * locks up to 10 times with 3ms between tries and then give in and
+	 * pretend the channel doesn't exist.
+	 * Why 3ms? Because older Linux systems will busy wait delays up to
+	 * 2ms rather than rescheduling.
+	 */
+	while (tries--) {
+		if (!cw_mutex_trylock(&chan->lock)) {
+			if (chan->reg_entry) {
+				args->chan = cw_object_dup(chan);
+				break;
+			}
+			cw_mutex_unlock(&chan->lock);
+		} else
+			nanosleep(&ts, NULL);
+	}
+
+	return 1;
 }
 
-/*--- cw_walk_channel_by_name_prefix_locked: Get next channel by name prefix and lock it */
-struct cw_channel *cw_walk_channel_by_name_prefix_locked(struct cw_channel *chan, const char *name, const int namelen)
+struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len)
 {
-	return channel_find_locked(chan, name, namelen, NULL, NULL);
+	struct channel_by_name_prefix_args args = {
+		.prefix = prefix,
+		.prefix_len = prefix_len,
+		.chan = NULL,
+	};
+
+	cw_registry_iterate(&channel_registry, channel_by_name_prefix_one, &args);
+	return args.chan;
 }
+
 
 /*--- cw_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+/* FIXME: this is used in call pickup - really we want a registry of just ringing channels keyed by context/exten */
+struct channel_by_exten_prefix_args {
+	const char *context;
+	const char *exten;
+	struct cw_channel *chan;
+};
+
+static int channel_by_exten_one(struct cw_object *obj, void *data)
+{
+	static const struct timespec ts = { .tv_sec = 0, .tv_nsec = 3000000 };
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct channel_by_exten_prefix_args *args = data;
+	int tries = 10;
+
+	if ((args->context && strcasecmp(chan->context, args->context))
+	|| strcasecmp(chan->exten, args->exten))
+		return 0;
+
+	/* We are most likely already holding a locked channel at this point.
+	 * Since another thread may be waiting on that lock while holding the
+	 * lock on the channel we want here we're going to try non-blocking
+	 * locks up to 10 times with 3ms between tries and then give in and
+	 * pretend the channel doesn't exist.
+	 * Why 3ms? Because older Linux systems will busy wait delays up to
+	 * 2ms rather than rescheduling.
+	 */
+	while (tries--) {
+		if (!cw_mutex_trylock(&chan->lock)) {
+			if (chan->reg_entry) {
+				args->chan = cw_object_dup(chan);
+				break;
+			}
+			cw_mutex_unlock(&chan->lock);
+		} else
+			nanosleep(&ts, NULL);
+	}
+
+	return 1;
+}
+
 struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context)
 {
-	return channel_find_locked(NULL, NULL, 0, context, exten);
+	struct channel_by_exten_prefix_args args = {
+		.context = context,
+		.exten = exten,
+		.chan = NULL,
+	};
+
+	cw_registry_iterate(&channel_registry, channel_by_exten_one, &args);
+	return args.chan;
 }
+
 
 /*--- cw_safe_sleep_conditional: Wait, look for hangups and condition arg */
 int cw_safe_sleep_conditional(	struct cw_channel *chan, int ms,
@@ -941,103 +1079,6 @@ int cw_safe_sleep(struct cw_channel *chan, int ms)
 	return 0;
 }
 
-static void free_cid(struct cw_callerid *cid)
-{
-	if (cid->cid_dnid)
-		free(cid->cid_dnid);
-	if (cid->cid_num)
-		free(cid->cid_num);	
-	if (cid->cid_name)
-		free(cid->cid_name);	
-	if (cid->cid_ani)
-		free(cid->cid_ani);
-	if (cid->cid_rdnis)
-		free(cid->cid_rdnis);
-}
-
-/*--- cw_channel_free: Free a channel structure */
-void cw_channel_free(struct cw_channel *chan)
-{
-	char name[CW_CHANNEL_NAME];
-	struct cw_channel *last=NULL, *cur;
-	int fd;
-	struct cw_frame *f, *fp;
-
-	cw_mutex_lock(&chlock);
-	cur = channels;
-	while (cur)
-	{
-			if (cur == chan)
-			{
-			if (last)
-				last->next = cur->next;
-			else
-				channels = cur->next;
-			break;
-		}
-		last = cur;
-		cur = cur->next;
-	}
-	if (!cur)
-		cw_log(CW_LOG_WARNING, "Unable to find channel in list\n");
-	else {
-		/* Lock and unlock the channel just to be sure nobody
-		   has it locked still */
-		cw_mutex_lock(&cur->lock);
-		cw_mutex_unlock(&cur->lock);
-	}
-	if (chan->tech_pvt)
-	{
-		cw_log(CW_LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
-		free(chan->tech_pvt);
-	}
-
-	cw_copy_string(name, chan->name, sizeof(name));
-
-	/* Stop generator thread */
-	cw_generator_deactivate(&chan->generator);
-
-	/* Stop monitoring */
-	if (chan->monitor)
-		chan->monitor->stop(chan, 0);
-
-	/* If there is native format music-on-hold state, free it */
-	if (chan->music_state)
-		cw_moh_cleanup(chan);
-
-	/* Free translators */
-	if (chan->readtrans)
-		cw_translator_free_path(chan->readtrans);
-	if (chan->writetrans)
-		cw_translator_free_path(chan->writetrans);
-	if (chan->pbx) 
-		cw_log(CW_LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
-	free_cid(&chan->cid);
-	cw_mutex_destroy(&chan->lock);
-	/* Close pipes if appropriate */
-	if ((fd = chan->alertpipe[0]) > -1)
-		close(fd);
-	if ((fd = chan->alertpipe[1]) > -1)
-		close(fd);
-	f = chan->readq;
-	chan->readq = NULL;
-	while (f)
-	{
-		fp = f;
-		f = f->next;
-		cw_fr_free(fp);
-	}
-	
-	cw_registry_destroy(&chan->vars);
-
-	/* Destroy the jitterbuffer */
-	cw_jb_destroy(chan);
-
-	free(chan);
-	cw_mutex_unlock(&chlock);
-
-	cw_device_state_changed_literal(name);
-}
 
 /*--- cw_spy_detach_all: Detach all spies from a channel. */
 /*! Detach all spies from a channel.
@@ -1073,9 +1114,10 @@ void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy)
 	newspy->next = chan->spies;
 	chan->spies = newspy;
 	cw_mutex_unlock(&chan->lock);
-	if (cw_test_flag(chan, CW_FLAG_NBRIDGE)
-		&& (peer = cw_bridged_channel(chan)))
+	if (cw_test_flag(chan, CW_FLAG_NBRIDGE) && (peer = cw_bridged_channel(chan))) {
 		cw_softhangup(peer, CW_SOFTHANGUP_UNBRIDGE);
+		cw_object_put(peer);
+	}
 }
 
 /*--- cw_spy_detach: Detach a spy from the given channel. */
@@ -1219,6 +1261,7 @@ void cw_spy_queue_frame(struct cw_channel_spy *spy, struct cw_frame *f, int pos)
     cw_mutex_unlock(&spy->lock);
 }
 
+
 static void free_translation(struct cw_channel *clone)
 {
 	if (clone->writetrans)
@@ -1230,6 +1273,45 @@ static void free_translation(struct cw_channel *clone)
 	clone->rawwriteformat = clone->nativeformats;
 	clone->rawreadformat = clone->nativeformats;
 }
+
+
+/*--- cw_channel_free: Free a channel structure */
+void cw_channel_free(struct cw_channel *chan)
+{
+	cw_mutex_lock(&chan->lock);
+
+	if (chan->reg_entry) {
+		cw_registry_del(&channel_registry, chan->reg_entry);
+		chan->reg_entry = NULL;
+	}
+
+	if (chan->pbx)
+		cw_log(CW_LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
+
+	if (chan->stream)
+		cw_stopstream(chan);
+
+	if (chan->monitor)
+		chan->monitor->stop(chan, 0);
+
+	cw_generator_deactivate(&chan->generator);
+
+	if (chan->music_state)
+		cw_moh_cleanup(chan);
+
+	free_translation(chan);
+
+	if (chan->name[0])
+		cw_device_state_changed_literal(chan->name);
+
+	cw_mutex_unlock(&chan->lock);
+
+	/* This is the reference that was created by cw_channel_alloc that
+	 * we are putting here.
+	 */
+	cw_object_put(chan);
+}
+
 
 /*--- cw_hangup: Hangup a channel */
 int cw_hangup(struct cw_channel *chan)
@@ -1263,13 +1345,6 @@ int cw_hangup(struct cw_channel *chan)
 		return 0;
 	}
 
-	if (chan->stream)		/* Close audio stream */
-		cw_stopstream(chan);
-
-	cw_generator_deactivate(&chan->generator);
-
-	free_translation(chan);
-
 	if (chan->cdr)
 	{
         /* End the CDR if it hasn't already */ 
@@ -1296,19 +1371,20 @@ int cw_hangup(struct cw_channel *chan)
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 	}
-			
+
 	cw_mutex_unlock(&chan->lock);
 
-	manager_event(EVENT_FLAG_CALL, "Hangup", 
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Cause: %d\r\n"
-			"Cause-txt: %s\r\n",
-			chan->name, 
-			chan->uniqueid, 
-			chan->hangupcause,
-			cw_cause2str(chan->hangupcause)
-			);
+	manager_event(EVENT_FLAG_CALL, "Hangup",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Cause: %d\r\n"
+		"Cause-txt: %s\r\n",
+		chan->name,
+		chan->uniqueid,
+		chan->hangupcause,
+		cw_cause2str(chan->hangupcause)
+	);
+
 	cw_channel_free(chan);
 	return res;
 }
@@ -2836,11 +2912,30 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
     return res;
 }
 
-void cw_change_name(struct cw_channel *chan, char *newname)
+
+void cw_change_name(struct cw_channel *chan, const char *fmt, ...)
 {
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
-	cw_copy_string(chan->name, newname, sizeof(chan->name));
+	char oldname[sizeof(chan->name)];
+	va_list ap;
+	int is_registered;
+
+	cw_mutex_lock(&chan->lock);
+
+	if ((is_registered = (chan->reg_entry != NULL)))
+		cw_registry_del(&channel_registry, chan->reg_entry);
+
+	cw_copy_string(oldname, chan->name, sizeof(chan->name));
+	va_start(ap, fmt);
+	vsnprintf((char *)chan->name, sizeof(chan->name), fmt, ap);
+	va_end(ap);
+	if (is_registered)
+		chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(chan->name), &chan->obj);
+
+	cw_mutex_unlock(&chan->lock);
+
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", oldname, chan->name, chan->uniqueid);
 }
+
 
 /* Clone channel variables from 'clone' channel into 'original' channel
    All variables except those related to app_groupcount are cloned
@@ -2897,10 +2992,6 @@ int cw_do_masquerade(struct cw_channel *original)
 	struct cw_channel *clone = original->masq;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
-	char newn[100];
-	char orig[100];
-	char masqn[100];
-	char zombn[100];
 
 	if (option_debug > 3)
 		cw_log(CW_LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
@@ -2921,27 +3012,15 @@ int cw_do_masquerade(struct cw_channel *original)
 	free_translation(clone);
 	free_translation(original);
 
-
 	/* Unlink the masquerade */
 	original->masq = NULL;
 	clone->masqr = NULL;
-	
-	/* Save the original name */
-	cw_copy_string(orig, original->name, sizeof(orig));
-	/* Save the new name */
-	cw_copy_string(newn, clone->name, sizeof(newn));
-	/* Create the masq name */
-	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
-		
+
 	/* Copy the name from the clone channel */
-	cw_copy_string(original->name, newn, sizeof(original->name));
+	cw_change_name(original, "%s", clone->name);
 
 	/* Mangle the name of the clone channel */
-	cw_copy_string(clone->name, masqn, sizeof(clone->name));
-	
-	/* Notify any managers of the change, first the masq then the other */
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
+	cw_change_name(clone, "%s<MASQ>", clone->name);
 
 	/* Swap the technlogies */	
 	t = original->tech;
@@ -2958,8 +3037,7 @@ int cw_do_masquerade(struct cw_channel *original)
 	clone->readq = cur;
 
 	/* Swap the alertpipes */
-	for (i = 0;  i < 2;  i++)
-    {
+	for (i = 0;  i < 2;  i++) {
 		x = original->alertpipe[i];
 		original->alertpipe[i] = clone->alertpipe[i];
 		clone->alertpipe[i] = x;
@@ -2978,23 +3056,19 @@ int cw_do_masquerade(struct cw_channel *original)
 	prev = NULL;
 	cur = clone->readq;
 	x = 0;
-	while (cur)
-    {
+	while (cur) {
 		x++;
 		prev = cur;
 		cur = cur->next;
 	}
 	/* If we had any, prepend them to the ones already in the queue, and 
 	 * load up the alertpipe */
-	if (prev)
-    {
+	if (prev) {
 		prev->next = original->readq;
 		original->readq = clone->readq;
 		clone->readq = NULL;
-		if (original->alertpipe[1] > -1)
-        {
-			for (i = 0;  i < x;  i++)
-			{
+		if (original->alertpipe[1] > -1) {
+			for (i = 0;  i < x;  i++) {
 				char c;
 				write(original->alertpipe[1], &c, sizeof(c));
 			}
@@ -3011,8 +3085,7 @@ int cw_do_masquerade(struct cw_channel *original)
 	original->_state = clone->_state;
 	clone->_state = origstate;
 
-	if (clone->tech->fixup)
-    {
+	if (clone->tech->fixup) {
 		if ((res = clone->tech->fixup(original, clone)))
 			cw_log(CW_LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
 	}
@@ -3020,17 +3093,15 @@ int cw_do_masquerade(struct cw_channel *original)
 	/* Start by disconnecting the original's physical side */
 	if (clone->tech->hangup)
 		res = clone->tech->hangup(clone);
-	if (res)
-    {
+	if (res) {
 		cw_log(CW_LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
 		cw_mutex_unlock(&clone->lock);
 		return -1;
 	}
 	
-	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
-	cw_copy_string(clone->name, zombn, sizeof(clone->name));
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
+	x = strrchr(clone->name, '<') - clone->name;
+	cw_change_name(clone, "%*.*s<ZOMBIE>", x, x, clone->name);
 
 	/* Update the type. */
 	original->type = clone->type;
@@ -3040,19 +3111,25 @@ int cw_do_masquerade(struct cw_channel *original)
 	
 	/* Keep the same language.  */
 	cw_copy_string(original->language, clone->language, sizeof(original->language));
+
 	/* Copy the FD's */
 	for (x = 0;  x < CW_MAX_FDS;  x++)
 		original->fds[x] = clone->fds[x];
+
 	clone_variables(original, clone);
+
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
+
 	/* Bridge remains the same */
 	/* CDR fields remain the same */
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
+
 	/* Clone exception  becomes real one, as with fdno */
 	cw_copy_flags(original, clone, CW_FLAG_EXCEPTION);
 	original->fdno = clone->fdno;
+
 	/* Stream stuff stays the same */
 	/* Keep the original state.  The fixup code will need to work with it most likely */
 
@@ -3081,19 +3158,15 @@ int cw_do_masquerade(struct cw_channel *original)
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
-	if (original->tech->fixup)
-    {
+	if (original->tech->fixup) {
 		res = original->tech->fixup(clone, original);
-		if (res)
-        {
+		if (res) {
 			cw_log(CW_LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
 				original->type, original->name);
 			cw_mutex_unlock(&clone->lock);
 			return -1;
 		}
-	}
-    else
-    {
+	} else {
 		cw_log(CW_LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
                  original->type, original->name);
 	}
@@ -3101,8 +3174,7 @@ int cw_do_masquerade(struct cw_channel *original)
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
-	if (cw_test_flag(clone, CW_FLAG_ZOMBIE))
-    {
+	if (cw_test_flag(clone, CW_FLAG_ZOMBIE)) {
 		cw_log(CW_LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
 		cw_mutex_unlock(&clone->lock);
 		cw_channel_free(clone);
@@ -3116,9 +3188,7 @@ int cw_do_masquerade(struct cw_channel *original)
 			clone->hangupcause,
 			cw_cause2str(clone->hangupcause)
 			);
-	}
-    else
-    {
+	} else {
 		struct cw_frame null_frame = { CW_FRAME_NULL, };
 		cw_log(CW_LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		cw_set_flag(clone, CW_FLAG_ZOMBIE);
@@ -3211,9 +3281,16 @@ struct cw_channel *cw_bridged_channel(struct cw_channel *chan)
 
         if ( !chan ) return NULL;
 
+	cw_mutex_lock(&chan->lock);
+
 	bridged = chan->_bridge;
-	if (bridged && bridged->tech->bridged_channel) 
+	if (bridged && bridged->tech->bridged_channel)
 		bridged = bridged->tech->bridged_channel(chan, bridged);
+
+	cw_object_dup(bridged);
+
+	cw_mutex_unlock(&chan->lock);
+
 	return bridged;
 }
 
@@ -3455,7 +3532,6 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	struct cw_channel *who = NULL;
 	enum cw_bridge_result res = CW_BRIDGE_COMPLETE;
 	int nativefailed=0;
-	int nativeretry=0;
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
@@ -3464,22 +3540,42 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	char caller_warning = 0;
 	char callee_warning = 0;
 	int to;
+	int x;
 
-	if (c0->_bridge) {
-		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", 
-			c0->name, c0->_bridge->name);
-		return -1;
+	/* Check neither channel is bridged, a zombie or in soft hangup and keep track
+	 * of the bridge. _bridge is only set for the duration of the following loop.
+	 * Since both c0 and c1 were passed as arguments we know they remain valid
+	 * references until we return. Therefore we do not need to use cw_object_dup
+	 * to count these.
+	 */
+
+	x = -1;
+	cw_mutex_lock(&c0->lock);
+	if (c0->_bridge)
+		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", c0->name, c0->_bridge->name);
+	else if (!cw_test_flag(c0, CW_FLAG_ZOMBIE) && !cw_check_hangup(c0)) {
+		x = 0;
+		c0->_bridge = c1;
 	}
-	if (c1->_bridge) {
-		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", 
-			c1->name, c1->_bridge->name);
-		return -1;
+	cw_mutex_unlock(&c0->lock);
+	if (x)
+		return x;
+
+	x = -1;
+	cw_mutex_lock(&c1->lock);
+	if (c1->_bridge)
+		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", c1->name, c1->_bridge->name);
+	else if (!cw_test_flag(c1, CW_FLAG_ZOMBIE) && !cw_check_hangup(c1)) {
+		x = 0;
+		c1->_bridge = c0;
 	}
-	
-	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(c0, CW_FLAG_ZOMBIE) || cw_check_hangup_locked(c0) ||
-		cw_test_flag(c1, CW_FLAG_ZOMBIE) || cw_check_hangup_locked(c1)) 
-		return -1;
+	cw_mutex_unlock(&c1->lock);
+	if (x) {
+		cw_mutex_lock(&c0->lock);
+		c0->_bridge = NULL;
+		cw_mutex_unlock(&c0->lock);
+		return x;
+	}
 
 	*fo = NULL;
 	firstpass = config->firstpass;
@@ -3499,19 +3595,15 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 			bridge_playfile(c1, c0, config->start_sound, time_left_ms / 1000);
 	}
 
-	/* Keep track of bridge */
-	c0->_bridge = c1;
-	c1->_bridge = c0;
-	
 	manager_event(EVENT_FLAG_CALL, "Link", 
-			  "Channel1: %s\r\n"
-			  "Channel2: %s\r\n"
-			  "Uniqueid1: %s\r\n"
-			  "Uniqueid2: %s\r\n"
-			  "CallerID1: %s\r\n"
-			  "CallerID2: %s\r\n",
-			  c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-                                                                        
+		"Channel1: %s\r\n"
+		"Channel2: %s\r\n"
+		"Uniqueid1: %s\r\n"
+		"Uniqueid2: %s\r\n"
+		"CallerID1: %s\r\n"
+		"CallerID2: %s\r\n",
+		c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
 
@@ -3564,115 +3656,68 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 				c0->_softhangup = 0;
 			if (c1->_softhangup == CW_SOFTHANGUP_UNBRIDGE)
 				c1->_softhangup = 0;
-			c0->_bridge = c1;
-			c1->_bridge = c0;
 			cw_log(CW_LOG_DEBUG, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
-		
+
 		/* Stop if we're a zombie or need a soft hangup */
-		if (cw_test_flag(c0, CW_FLAG_ZOMBIE) || cw_check_hangup_locked(c0) ||
-			cw_test_flag(c1, CW_FLAG_ZOMBIE) || cw_check_hangup_locked(c1))
-			{
+		cw_mutex_lock(&c0->lock);
+		if ((x = (cw_test_flag(c0, CW_FLAG_ZOMBIE) || cw_check_hangup(c0))))
+			cw_log(CW_LOG_DEBUG, "Bridge stops because %s is %s", c0->name, (cw_test_flag(c0, CW_FLAG_ZOMBIE) ? "a zombie" : "in soft hangup"));
+		else if ((x = (cw_test_flag(c1, CW_FLAG_ZOMBIE) || cw_check_hangup(c1))))
+			cw_log(CW_LOG_DEBUG, "Bridge stops because %s is %s", c1->name, (cw_test_flag(c1, CW_FLAG_ZOMBIE) ? "a zombie" : "in soft hangup"));
+		cw_mutex_unlock(&c0->lock);
+		if (x) {
 			*fo = NULL;
 			if (who)
 				*rc = who;
 			res = 0;
-			cw_log(CW_LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
-				c0->name, c1->name,
-				cw_test_flag(c0, CW_FLAG_ZOMBIE) ? "Yes" : "No",
-				cw_check_hangup(c0) ? "Yes" : "No",
-				cw_test_flag(c1, CW_FLAG_ZOMBIE) ? "Yes" : "No",
-				cw_check_hangup(c1) ? "Yes" : "No");
 			break;
 		}
 
-                nativeretry=0;
-
-		if (c0->tech->bridge &&
-			(config->timelimit == 0) &&
-			(c0->tech->bridge == c1->tech->bridge) &&
-			!nativefailed && !c0->monitor && !c1->monitor && !c0->spies && !c1->spies)
-			{
+		if (c0->tech == c1->tech && c0->tech->bridge && config->timelimit == 0 && !nativefailed && !c0->monitor && !c1->monitor && !c0->spies && !c1->spies) {
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
 				cw_log(CW_LOG_DEBUG,"Attempting native bridge of %s and %s\n", c0->name, c1->name);
+
 			cw_set_flag(c0, CW_FLAG_NBRIDGE);
 			cw_set_flag(c1, CW_FLAG_NBRIDGE);
-			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == CW_BRIDGE_COMPLETE)
-				{
-				manager_event(EVENT_FLAG_CALL, "Unlink", 
-						  "Channel1: %s\r\n"
-						  "Channel2: %s\r\n"
-						  "Uniqueid1: %s\r\n"
-						  "Uniqueid2: %s\r\n"
-						  "CallerID1: %s\r\n"
-						  "CallerID2: %s\r\n",
-						  c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-				cw_log(CW_LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
+			res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to);
+			cw_clear_flag(c0, CW_FLAG_NBRIDGE);
+			cw_clear_flag(c1, CW_FLAG_NBRIDGE);
 
-				cw_clear_flag(c0, CW_FLAG_NBRIDGE);
-				cw_clear_flag(c1, CW_FLAG_NBRIDGE);
-
-				if (c0->_softhangup == CW_SOFTHANGUP_UNBRIDGE || c1->_softhangup == CW_SOFTHANGUP_UNBRIDGE)
-					continue;
-
-				c0->_bridge = NULL;
-				c1->_bridge = NULL;
-
-				return res;
+			if (res == CW_BRIDGE_COMPLETE) {
+				if (c0->_softhangup != CW_SOFTHANGUP_UNBRIDGE && c1->_softhangup != CW_SOFTHANGUP_UNBRIDGE)
+					break;
+			} else {
+				if (res != CW_BRIDGE_FAILED_NOWARN)
+					cw_log(CW_LOG_WARNING, "Native bridge between %s and %s failed\n", c0->name, c1->name);
+				nativefailed++;
 			}
-				else
-				{
-				cw_clear_flag(c0, CW_FLAG_NBRIDGE);
-				cw_clear_flag(c1, CW_FLAG_NBRIDGE);
+		} else {
+			if ((c0->writeformat != c1->readformat || c0->readformat != c1->writeformat
+			|| c0->nativeformats != o0nativeformats || c1->nativeformats != o1nativeformats)
+			&& !(cw_generator_is_active(c0) || cw_generator_is_active(c1))) {
+				if (cw_channel_make_compatible(c0, c1)) {
+					cw_log(CW_LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
+					res = CW_BRIDGE_FAILED;
+					break;
+				}
+				o0nativeformats = c0->nativeformats;
+				o1nativeformats = c1->nativeformats;
 			}
-			
-			if (res == CW_BRIDGE_RETRY)
-				continue;
-			switch (res)
-				{
-			case CW_BRIDGE_RETRY:
+			if ((res = cw_generic_bridge(c0, c1, config, fo, rc, nexteventts)) != CW_BRIDGE_RETRY)
 				break;
-                        case CW_BRIDGE_RETRY_NATIVE:
-                                nativeretry++;
-                                break;
-			default:
-				cw_log(CW_LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
-				/* fallthrough */
-			case CW_BRIDGE_FAILED_NOWARN:
-					nativefailed++;
-				break;
-			}
 		}
-	
-		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
-			(c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
-			!(cw_generator_is_active(c0) || cw_generator_is_active(c1)))
-			{
-			if (cw_channel_make_compatible(c0, c1))
-				{
-				cw_log(CW_LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
-                                manager_event(EVENT_FLAG_CALL, "Unlink",
-						  "Channel1: %s\r\n"
-						  "Channel2: %s\r\n"
-						  "Uniqueid1: %s\r\n"
-						  "Uniqueid2: %s\r\n"
-						  "CallerID1: %s\r\n"
-						  "CallerID2: %s\r\n",
-						  c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-				return CW_BRIDGE_FAILED;
-			}
-			o0nativeformats = c0->nativeformats;
-			o1nativeformats = c1->nativeformats;
-		}
-		res = cw_generic_bridge(c0, c1, config, fo, rc, nexteventts);
-		if (res != CW_BRIDGE_RETRY)
-			break;
 	}
 
+	cw_mutex_lock(&c0->lock);
 	c0->_bridge = NULL;
+	cw_mutex_unlock(&c0->lock);
+
+	cw_mutex_lock(&c1->lock);
 	c1->_bridge = NULL;
+	cw_mutex_unlock(&c1->lock);
 
 	manager_event(EVENT_FLAG_CALL, "Unlink",
 			  "Channel1: %s\r\n"

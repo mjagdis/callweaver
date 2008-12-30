@@ -271,7 +271,6 @@ static void send_digit_to_chan(struct chan_list *cl, char digit );
 static int pbx_start_chan(struct chan_list *ch);
 
 #define CW_CID_P(cw) cw->cid.cid_num
-#define CW_BRIDGED_P(cw) cw_bridged_channel(cw) 
 #define CW_LOAD_CFG cw_config_load
 #define CW_DESTROY_CFG cw_config_destroy
 
@@ -1184,14 +1183,8 @@ static void complete_ch(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_channel *c;
 
-	if (lastarg == 3) {
-		for (c = cw_channel_walk_locked(NULL); c; c = cw_channel_walk_locked(c)) {
-			if (!strncasecmp(argv[3], c->name, lastarg_len))
-				cw_cli(fd, "%s\n", c->name);
-
-			cw_mutex_unlock(&c->lock);
-		}
-	}
+	if (lastarg == 3)
+		cw_complete_channel(fd, argv[3], lastarg_len);
 }
 
 static void complete_debug_port(int fd, char *argv[], int lastarg, int lastarg_len)
@@ -3005,7 +2998,7 @@ static struct cw_channel_tech misdn_tech_wo_bridge = {
 
 static int glob_channel=0;
 
-static void update_name(struct cw_channel *tmp, int port, int c) 
+static int update_name(int port, int c)
 {
 	int chan_offset=0;
 	int tmp_port = misdn_cfg_get_next_port(0);
@@ -3015,26 +3008,21 @@ static void update_name(struct cw_channel *tmp, int port, int c)
 	}
 	
 	if (c<0) c=0;
-	snprintf(tmp->name, sizeof(tmp->name), "%s/%d-u%d",
-				 misdn_type, chan_offset+c, ++glob_channel);
 
-	chan_misdn_log(3,port," --> updating channel name to [%s]\n",tmp->name);
-	
+	return chan_offset + c;
 }
 
 static struct cw_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
 {
 	struct cw_channel *tmp;
-	
-	tmp = cw_channel_alloc(1);
-	
+
+	tmp = cw_channel_alloc(1, "%s/%d-u%d", misdn_type, update_name(port, c), ++glob_channel);
+
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n",exten,callerid);
-		
-		update_name(tmp, port, c);		
-			
+
 		tmp->type = misdn_type;
-		
+
 		tmp->nativeformats = prefformat;
 
 		tmp->readformat = format;
@@ -3369,15 +3357,20 @@ static void release_chan(struct misdn_bchannel *bc) {
 
 static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded_chan)
 {
-	chan_misdn_log(4,0,"TRANSFERING %s to %s\n",holded_chan->cw->name, tmp_ch->cw->name);
-	
-	tmp_ch->state=MISDN_HOLD_DISCONNECT;
-  
-	cw_moh_stop(CW_BRIDGED_P(holded_chan->cw));
+	struct cw_channel *bchan;
 
-	holded_chan->state=MISDN_CONNECTED;
-	misdn_lib_transfer(holded_chan->bc?holded_chan->bc:holded_chan->holded_bc);
-	cw_channel_masquerade(holded_chan->cw, CW_BRIDGED_P(tmp_ch->cw));
+	chan_misdn_log(4, 0, "TRANSFERING %s to %s\n", holded_chan->cw->name, tmp_ch->cw->name);
+	
+	tmp_ch->state = MISDN_HOLD_DISCONNECT;
+  
+	if ((bchan = cw_bridged_channel(holded_chan->cw))) {
+		cw_moh_stop(bchan);
+		holded_chan->state = MISDN_CONNECTED;
+		misdn_lib_transfer(holded_chan->bc ? holded_chan->bc : holded_chan->holded_bc);
+		cw_channel_masquerade(holded_chan->cw, bchan);
+
+		cw_object_put(bchan);
+	}
 }
 
 
@@ -3675,7 +3668,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 		
 	case EVENT_NEW_CHANNEL:
-		update_name(ch->cw,bc->port,bc->channel);
+		cw_change_name(ch->cw, "%s/%d-u%d", misdn_type, update_name(bc->port, bc->channel), ++glob_channel);
 		break;
 		
 	case EVENT_NEW_L3ID:
@@ -4067,8 +4060,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->state = MISDN_CALLING_ACKNOWLEDGE;
 
 		if (bc->channel) 
-			update_name(ch->cw,bc->port,bc->channel);
-		
+			cw_change_name(ch->cw, "%s/%d-u%d", misdn_type, update_name(bc->port, bc->channel), ++glob_channel);
+
 		if (!cw_strlen_zero(bc->infos_pending)) {
 			/* TX Pending Infos */
 			
@@ -4145,21 +4138,25 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_CONNECT:
 	{
 		/*we answer when we've got our very new L3 ID from the NT stack */
-		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
+		misdn_lib_send_event(bc, EVENT_CONNECT_ACKNOWLEDGE);
 	
-		struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
-		
-		misdn_lib_echo(bc,0);
+		struct cw_channel *bridged = cw_bridged_channel(ch->cw);
+
+		misdn_lib_echo(bc, 0);
 		stop_indicate(ch);
 
-		if (bridged && !strcasecmp(bridged->tech->type,"mISDN")) {
-			struct chan_list *bridged_ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
+		if (bridged) {
+			if (!strcasecmp(bridged->tech->type, "mISDN")) {
+				struct chan_list *bridged_ch = MISDN_CALLWEAVER_TECH_PVT(bridged);
 
-			chan_misdn_log(1,bc->port," --> copying cpndialplan:%d and cad:%s to the A-Channel\n",bc->cpnnumplan,bc->cad);
-			if (bridged_ch) {
-				bridged_ch->bc->cpnnumplan=bc->cpnnumplan;
-				cw_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
+				chan_misdn_log(1, bc->port, " --> copying cpndialplan:%d and cad:%s to the A-Channel\n", bc->cpnnumplan, bc->cad);
+				if (bridged_ch) {
+					bridged_ch->bc->cpnnumplan = bc->cpnnumplan;
+					cw_copy_string(bridged_ch->bc->cad, bc->cad, sizeof(bc->cad));
+				}
 			}
+
+			cw_object_put(bridged);
 		}
 	}
 	
@@ -4334,23 +4331,24 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	/***************************/
 	case EVENT_RETRIEVE:
 	{
+		struct cw_channel *hold_cw;
+
 		ch=find_holded(cl_te, bc);
 		if (!ch) {
 			cw_log(CW_LOG_WARNING, "Found no Holded channel, cannot Retrieve\n");
 			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
 			break;
 		}
-		struct cw_channel *hold_cw=CW_BRIDGED_P(ch->cw);
+
 		ch->state = MISDN_CONNECTED;
-		
-		if (hold_cw) {
+
+		if ((hold_cw = cw_bridged_channel(ch->cw))) {
 			cw_moh_stop(hold_cw);
+			cw_object_put(hold_cw);
 		}
-		
-		if ( misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0)
+
+		if (misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0)
 			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
-		
-		
 	}
 	break;
     
@@ -4377,17 +4375,20 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 #endif
-		struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
-		
-		if (bridged){
-			struct chan_list *bridged_ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
+		struct cw_channel *bridged;
+
+		if ((bridged = cw_bridged_channel(ch->cw))) {
+			struct chan_list *bridged_ch = MISDN_CALLWEAVER_TECH_PVT(bridged);
+
 			ch->state = MISDN_HOLDED;
 			ch->l3id = bc->l3_id;
 			
-			bc->holded_bc=bridged_ch->bc;
+			bc->holded_bc = bridged_ch->bc;
 			misdn_lib_send_event(bc, EVENT_HOLD_ACKNOWLEDGE);
 
 			cw_moh_start(bridged, NULL);
+
+			cw_object_put(bridged);
 		} else {
 			misdn_lib_send_event(bc, EVENT_HOLD_REJECT);
 			chan_misdn_log(0, bc->port, "We aren't bridged to anybody\n");
@@ -4401,18 +4402,20 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		switch (bc->fac_type) {
 		case FACILITY_CALLDEFLECT:
 		{
-			struct cw_channel *bridged=CW_BRIDGED_P(ch->cw);
+			struct cw_channel *bridged;
 			struct chan_list *ch;
 			
 			misdn_lib_send_event(bc, EVENT_DISCONNECT);
 
-			if (bridged && MISDN_CALLWEAVER_TECH_PVT(bridged)) {
-				ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
-				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
-				if (ch->bc) {
-					/* todo */
+			if ((bridged = cw_bridged_channel(ch->cw))) {
+				if (MISDN_CALLWEAVER_TECH_PVT(bridged)) {
+					ch = MISDN_CALLWEAVER_TECH_PVT(bridged);
+					/*ch->state = MISDN_FACILITY_DEFLECTED;*/
+					if (ch->bc) {
+						/* todo */
+					}
 				}
-				
+				cw_object_put(bridged);
 			}
 			
 		} 

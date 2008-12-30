@@ -574,16 +574,16 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 	do { channel++; } while (isspace(*channel));
 
 	tmp[0] = '\0';
-	chan2 = cw_get_channel_by_name_locked(channel);
-	if (chan2) {
+	if ((chan2 = cw_get_channel_by_name_locked(channel))) {
 		if ((s = alloca(strlen(argv[1]) + 4))) {
 			sprintf(s, "${%s}", argv[1]);
 			pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp));
 		}
 		cw_mutex_unlock(&chan2->lock);
+		cw_object_put(chan2);
 	}
-	pbx_builtin_setvar_helper(chan, argv[0], tmp);
 
+	pbx_builtin_setvar_helper(chan, argv[0], tmp);
 	return(0);
 }
 

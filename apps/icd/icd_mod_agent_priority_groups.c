@@ -441,6 +441,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
     icd_list_iterator *iter;
     struct cw_channel *chan;
     struct cw_channel *chan_associate;
+    struct cw_channel *bchan;
     icd_status result;
     icd_status final_result;
 
@@ -465,10 +466,15 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != cw_bridged_channel(chan_associate)->name) {
-                    result = icd_caller__unlink_from_caller(that, associate);
-                    if (result != ICD_SUCCESS)
-                        final_result = result;
+                if (chan && chan_associate) {
+                    if ((bchan = cw_bridged_channel(chan_associate))) {
+                        if (chan->name != bchan->name) {
+                            result = icd_caller__unlink_from_caller(that, associate);
+                            if (result != ICD_SUCCESS)
+                                final_result = result;
+                        }
+                        cw_object_put(bchan);
+                    }
                 }
                 break;
             case ICD_BRIDGE_CONFERENCE:
@@ -504,6 +510,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
 
     struct cw_channel *chan;
     struct cw_channel *chan_associate;
+    struct cw_channel *bchan;
     int link_count = 0;
     icd_status result;
     icd_status final_result;
@@ -534,12 +541,17 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != cw_bridged_channel(chan_associate)->name) {
-                    result = icd_caller__unlink_from_caller(that, associate);
-                    if (result != ICD_SUCCESS)
-                        final_result = result;
-                    else
-                        link_count--;
+                if (chan && chan_associate) {
+                    if ((bchan = cw_bridged_channel(chan_associate))) {
+                        if (chan->name != bchan->name) {
+                            result = icd_caller__unlink_from_caller(that, associate);
+                            if (result != ICD_SUCCESS)
+                                final_result = result;
+                            else
+                                link_count--;
+                        }
+                        cw_object_put(bchan);
+                    }
                 }
                 /* check if this associate has any other associations 
                  *  if so leave them alone if not then ask em to hang up

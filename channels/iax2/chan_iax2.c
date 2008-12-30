@@ -2719,13 +2719,12 @@ static struct cw_channel *cw_iax2_new(int callno, int state, int capability)
 	struct cw_variable *v = NULL;
 
 	/* Don't hold call lock */
-	cw_mutex_unlock(&iaxsl[callno]);
-	tmp = cw_channel_alloc(1);
-	cw_mutex_lock(&iaxsl[callno]);
 	i = iaxs[callno];
+	cw_mutex_unlock(&iaxsl[callno]);
+	tmp = cw_channel_alloc(1, "IAX2/%s-%d", i->host, i->callno);
+	cw_mutex_lock(&iaxsl[callno]);
 	if (i && tmp) {
 		tmp->tech = &iax2_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s-%d", i->host, i->callno);
 		tmp->type = channeltype;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
@@ -5443,10 +5442,12 @@ static int iax_park(struct cw_channel *chan1, struct cw_channel *chan2)
 	struct iax_dual *d;
 	struct cw_channel *chan1m, *chan2m;
 	pthread_t th;
-	chan1m = cw_channel_alloc(0);
-	chan2m = cw_channel_alloc(0);
+
+	/* We make a clone of the peer channel too, so we can play back the announcement */
+	chan1m = cw_channel_alloc(0, "Parking/%s", chan1->name);
+	chan2m = cw_channel_alloc(0, "IAXPeer/%s",chan2->name);
+
 	if (chan2m && chan1m) {
-		snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
 		/* Make formats okay */
 		chan1m->readformat = chan1->readformat;
 		chan1m->writeformat = chan1->writeformat;
@@ -5455,10 +5456,7 @@ static int iax_park(struct cw_channel *chan1, struct cw_channel *chan2)
 		cw_copy_string(chan1m->context, chan1->context, sizeof(chan1m->context));
 		cw_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
 		chan1m->priority = chan1->priority;
-		
-		/* We make a clone of the peer channel too, so we can play
-		   back the announcement */
-		snprintf(chan2m->name, sizeof (chan2m->name), "IAXPeer/%s",chan2->name);
+
 		/* Make formats okay */
 		chan2m->readformat = chan2->readformat;
 		chan2m->writeformat = chan2->writeformat;
@@ -5547,6 +5545,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		struct iax_frame fr;
 		char dblbuf[4096];
 	} frb;
+	struct cw_channel *bchan;
 	struct iax_frame *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	struct cw_frame f;
@@ -6038,9 +6037,10 @@ retryowner:
 
 					cw_set_flag(iaxs[frb.fr.callno], IAX_QUELCH);
 					if (ies.musiconhold) {
-						if (iaxs[frb.fr.callno]->owner &&
-							cw_bridged_channel(iaxs[frb.fr.callno]->owner))
-								cw_moh_start(cw_bridged_channel(iaxs[frb.fr.callno]->owner), NULL);
+						if (iaxs[frb.fr.callno]->owner && (bchan = cw_bridged_channel(iaxs[frb.fr.callno]->owner))) {
+							cw_moh_start(bchan, NULL);
+							cw_object_put(bchan);
+						}
 					}
 				}
 				break;
@@ -6056,9 +6056,10 @@ retryowner:
 					}
 
 					cw_clear_flag(iaxs[frb.fr.callno], IAX_QUELCH);
-					if (iaxs[frb.fr.callno]->owner &&
-						cw_bridged_channel(iaxs[frb.fr.callno]->owner))
-							cw_moh_stop(cw_bridged_channel(iaxs[frb.fr.callno]->owner));
+					if (iaxs[frb.fr.callno]->owner && (bchan = cw_bridged_channel(iaxs[frb.fr.callno]->owner))) {
+						cw_moh_stop(bchan);
+						cw_object_put(bchan);
+					}
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -6296,20 +6297,21 @@ retryowner:
 				}
 				break;
 			case IAX_COMMAND_TRANSFER:
-				if (iaxs[frb.fr.callno]->owner && cw_bridged_channel(iaxs[frb.fr.callno]->owner) && ies.called_number) {
+				if (iaxs[frb.fr.callno]->owner && ies.called_number && (bchan = cw_bridged_channel(iaxs[frb.fr.callno]->owner))) {
 					if (!strcmp(ies.called_number, cw_parking_ext())) {
-						if (iax_park(cw_bridged_channel(iaxs[frb.fr.callno]->owner), iaxs[frb.fr.callno]->owner)) {
-							cw_log(CW_LOG_WARNING, "Failed to park call on '%s'\n", cw_bridged_channel(iaxs[frb.fr.callno]->owner)->name);
+						if (iax_park(bchan, iaxs[frb.fr.callno]->owner)) {
+							cw_log(CW_LOG_WARNING, "Failed to park call on '%s'\n", bchan->name);
 						} else
-							cw_log(CW_LOG_DEBUG, "Parked call on '%s'\n", cw_bridged_channel(iaxs[frb.fr.callno]->owner)->name);
+							cw_log(CW_LOG_DEBUG, "Parked call on '%s'\n", bchan->name);
 					} else {
-						if (cw_async_goto_n(cw_bridged_channel(iaxs[frb.fr.callno]->owner), iaxs[frb.fr.callno]->context, ies.called_number, 1))
-							cw_log(CW_LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", cw_bridged_channel(iaxs[frb.fr.callno]->owner)->name, 
+						if (cw_async_goto_n(bchan, iaxs[frb.fr.callno]->context, ies.called_number, 1))
+							cw_log(CW_LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", bchan->name, 
 								ies.called_number, iaxs[frb.fr.callno]->context);
 						else
-							cw_log(CW_LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", cw_bridged_channel(iaxs[frb.fr.callno]->owner)->name, 
+							cw_log(CW_LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", bchan->name, 
 								ies.called_number, iaxs[frb.fr.callno]->context);
 					}
+					cw_object_put(bchan);
 				} else
 						cw_log(CW_LOG_DEBUG, "Async goto not applicable on call %d\n", frb.fr.callno);
 				break;

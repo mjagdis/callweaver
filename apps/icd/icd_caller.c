@@ -623,6 +623,8 @@ icd_status icd_caller__clear(icd_caller * that)
 
     that->owner = NULL;
     that->authorization = NULL;
+    if (that->chan)
+	    cw_object_put(that->chan);
     that->chan = NULL;
     that->authenticated = 0;
     that->priority = 0;
@@ -1465,7 +1467,7 @@ icd_status icd_caller__set_channel(icd_caller * that, cw_channel * chan)
 {
     assert(that != NULL);
 
-    that->chan = chan;
+    that->chan = cw_object_get(chan);
     time(&(that->last_mod));
     return ICD_SUCCESS;
 }

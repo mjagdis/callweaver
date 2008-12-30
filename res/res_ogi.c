@@ -50,6 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
+#include "callweaver/object.h"
 #include "callweaver/module.h"
 #include "callweaver/callweaver_db.h"
 #include "callweaver/phone_no_utils.h"
@@ -1045,22 +1046,23 @@ static int handle_autohangup(struct cw_channel *chan, OGI *ogi, int argc, char *
 	return RESULT_SUCCESS;
 }
 
+
 static int handle_hangup(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	struct cw_channel *c;
+
 	if (argc == 1) {
 		/* no argument: hangup the current channel */
-		cw_softhangup(chan,CW_SOFTHANGUP_EXPLICIT);
+		cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 		fdprintf(ogi->fd, "200 result=1\n");
 		return RESULT_SUCCESS;
 	} else if (argc == 2) {
 		/* one argument: look for info on the specified channel */
-		c = cw_get_channel_by_name_locked(argv[1]);
-		if (c) {
-			/* we have a matching channel */
-			cw_softhangup(c,CW_SOFTHANGUP_EXPLICIT);
-			fdprintf(ogi->fd, "200 result=1\n");
+		if ((c = cw_get_channel_by_name_locked(argv[1]))) {
+			cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
 			cw_mutex_unlock(&c->lock);
+			fdprintf(ogi->fd, "200 result=1\n");
+			cw_object_put(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1070,6 +1072,7 @@ static int handle_hangup(struct cw_channel *chan, OGI *ogi, int argc, char **arg
 		return RESULT_SHOWUSAGE;
 	}
 }
+
 
 static int handle_exec(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
@@ -1106,6 +1109,7 @@ static int handle_setcallerid(struct cw_channel *chan, OGI *ogi, int argc, char 
 	return RESULT_SUCCESS;
 }
 
+
 static int handle_channelstatus(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	struct cw_channel *c;
@@ -1115,10 +1119,10 @@ static int handle_channelstatus(struct cw_channel *chan, OGI *ogi, int argc, cha
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
-		c = cw_get_channel_by_name_locked(argv[2]);
-		if (c) {
+		if ((c = cw_get_channel_by_name_locked(argv[2]))) {
 			fdprintf(ogi->fd, "200 result=%d\n", c->_state);
 			cw_mutex_unlock(&c->lock);
+			cw_object_put(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1128,6 +1132,7 @@ static int handle_channelstatus(struct cw_channel *chan, OGI *ogi, int argc, cha
 		return RESULT_SHOWUSAGE;
 	}
 }
+
 
 static int handle_setvariable(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
@@ -1163,28 +1168,32 @@ static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 	return RESULT_SUCCESS;
 }
 
+
 static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	char tmp[4096];
-	struct cw_channel *chan2=NULL;
+	struct cw_channel *chan2;
 
 	if ((argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
-	if (argc == 5) {
-		chan2 = cw_get_channel_by_name_locked(argv[4]);
-	} else {
-		chan2 = chan;
-	}
-	if (chan) { /* XXX isn't this chan2 ? */
+
+	chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
+
+	if (chan) {
 		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp));
 		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
 	} else {
 		fdprintf(ogi->fd, "200 result=0\n");
 	}
-	if (chan2 && (chan2 != chan))
+
+	if (chan2 && (chan2 != chan)) {
 		cw_mutex_unlock(&chan2->lock);
+		cw_object_put(chan2);
+	}
+
 	return RESULT_SUCCESS;
 }
+
 
 static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {

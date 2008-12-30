@@ -839,6 +839,7 @@ static int action_logoff(struct mansession *s, struct message *m)
 	return -1;
 }
 
+
 static const char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
@@ -846,23 +847,26 @@ static const char mandescr_hangup[] =
 
 static int action_hangup(struct mansession *s, struct message *m)
 {
-	struct cw_channel *c = NULL;
+	struct cw_channel *chan = NULL;
 	char *name = astman_get_header(m, "Channel");
 
-	if (cw_strlen_zero(name)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	c = cw_get_channel_by_name_locked(name);
-	if (!c) {
+	if (!cw_strlen_zero(name)) {
+		if ((chan = cw_get_channel_by_name_locked(name))) {
+			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
+			cw_mutex_unlock(&chan->lock);
+			astman_send_ack(s, m, "Channel Hungup");
+			cw_object_put(chan);
+			return 0;
+		}
+
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
-	cw_mutex_unlock(&c->lock);
-	astman_send_ack(s, m, "Channel Hungup");
+
+	astman_send_error(s, m, "No channel specified");
 	return 0;
 }
+
 
 static const char mandescr_setvar[] =
 "Description: Set a local channel variable.\n"
@@ -873,32 +877,33 @@ static const char mandescr_setvar[] =
 
 static int action_setvar(struct mansession *s, struct message *m)
 {
-        struct cw_channel *c = NULL;
+        struct cw_channel *chan;
         char *name = astman_get_header(m, "Channel");
-        char *varname = astman_get_header(m, "Variable");
-        char *varval = astman_get_header(m, "Value");
-	
-	if (cw_strlen_zero(name)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	if (cw_strlen_zero(varname)) {
+        char *varname;
+
+	if (!cw_strlen_zero(name)) {
+		varname = astman_get_header(m, "Variable");
+		if (!cw_strlen_zero(varname)) {
+			if ((chan = cw_get_channel_by_name_locked(name))) {
+				pbx_builtin_setvar_helper(chan, varname, astman_get_header(m, "Value"));
+				cw_mutex_unlock(&chan->lock);
+				astman_send_ack(s, m, "Variable Set");
+				cw_object_put(chan);
+				return 0;
+			}
+
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
+
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
 
-	c = cw_get_channel_by_name_locked(name);
-	if (!c) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	
-	pbx_builtin_setvar_helper(c,varname,varval);
-	  
-	cw_mutex_unlock(&c->lock);
-	astman_send_ack(s, m, "Variable Set");
+	astman_send_error(s, m, "No channel specified");
 	return 0;
 }
+
 
 static const char mandescr_getvar[] =
 "Description: Get the value of a local channel variable.\n"
@@ -909,131 +914,151 @@ static const char mandescr_getvar[] =
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
-        struct cw_channel *chan = NULL;
-        char *name = astman_get_header(m, "Channel");
-        char *varname = astman_get_header(m, "Variable");
+	struct cw_channel *chan;
+	char *name = astman_get_header(m, "Channel");
+	char *varname;
 	struct cw_var_t *var;
-	unsigned int hash;
 
-	if (cw_strlen_zero(name)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	if (cw_strlen_zero(varname)) {
+	if (!cw_strlen_zero(name)) {
+		varname = astman_get_header(m, "Variable");
+		if (!cw_strlen_zero(varname)) {
+			if ((chan = cw_get_channel_by_name_locked(name))) {
+				cw_mutex_unlock(&chan->lock);
+				var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varname), varname);
+
+				astman_send_response(s, m, "Success", NULL, 0);
+				cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, (var ? var->value : ""));
+
+				if (var)
+					cw_object_put(var);
+				cw_object_put(chan);
+				return 0;
+			}
+
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
+
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
 
-	hash = cw_hash_var_name(name);
+	astman_send_error(s, m, "No channel specified");
+	return 0;
+}
 
-	chan = cw_get_channel_by_name_locked(name);
-	if (!chan) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
+
+/*! \brief  action_status: Manager "status" command to show channels */
+/* Needs documentation... */
+struct action_status_args {
+	int fd;
+	const char *id;
+	struct timeval now;
+};
+
+static int action_status_one(struct cw_object *obj, void *data)
+{
+	char bridge[sizeof ("Link: ") - 1 + CW_CHANNEL_NAME + sizeof("\r\n") - 1 + 1];
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct action_status_args *args = data;
+	long elapsed_seconds = 0;
+	long billable_seconds = 0;
+
+	cw_mutex_lock(&chan->lock);
+
+	if (chan->_bridge)
+		snprintf(bridge, sizeof(bridge), "Link: %s\r\n", chan->_bridge->name);
+	else
+		bridge[0] = '\0';
+
+	if (chan->pbx) {
+		if (chan->cdr)
+			elapsed_seconds = args->now.tv_sec - chan->cdr->start.tv_sec;
+			if (chan->cdr->answer.tv_sec > 0)
+				billable_seconds = args->now.tv_sec - chan->cdr->answer.tv_sec;
+		cw_cli(args->fd,
+			"Event: Status\r\n"
+			"Privilege: Call\r\n"
+			"Channel: %s\r\n"
+			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"Account: %s\r\n"
+			"State: %s\r\n"
+ 			"Context: %s\r\n"
+			"Extension: %s\r\n"
+			"Priority: %d\r\n"
+			"Seconds: %ld\r\n"
+			"BillableSeconds: %ld\r\n"
+			"%s"
+			"Uniqueid: %s\r\n"
+			"%s"
+			"\r\n",
+			chan->name,
+			(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>"),
+			(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>"),
+			chan->accountcode,
+			cw_state2str(chan->_state),
+			chan->context, chan->exten, chan->priority,
+			elapsed_seconds, billable_seconds,
+			bridge, chan->uniqueid, args->id);
+	} else {
+		cw_cli(args->fd,
+			"Event: Status\r\n"
+			"Privilege: Call\r\n"
+			"Channel: %s\r\n"
+			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"Account: %s\r\n"
+			"State: %s\r\n"
+			"%s"
+			"Uniqueid: %s\r\n"
+			"%s"
+			"\r\n",
+			chan->name,
+			(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>"),
+			(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>"),
+			chan->accountcode,
+			cw_state2str(chan->_state), bridge, chan->uniqueid, args->id);
 	}
-	
-	var = pbx_builtin_getvar_helper(chan, hash, varname);
+
 	cw_mutex_unlock(&chan->lock);
-
-	astman_send_response(s, m, "Success", NULL, 0);
-	cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, (var ? var->value : ""));
-
-	if (var)
-		cw_object_put(var);
 
 	return 0;
 }
 
-/*! \brief  action_status: Manager "status" command to show channels */
-/* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
-  	char *name = astman_get_header(m,"Channel");
 	char idText[256] = "";
-	struct cw_channel *c;
-	char bridge[256];
-	struct timeval now = cw_tvnow();
-	long elapsed_seconds=0;
-	long billable_seconds=0;
-	int all = cw_strlen_zero(name); /* set if we want all channels */
+	struct action_status_args args;
+	char *name = astman_get_header(m, "Channel");
+	struct cw_channel *chan;
 
 	astman_send_ack(s, m, "Channel status will follow");
 	if (!cw_strlen_zero(m->actionid))
 		snprintf(idText, 256, "ActionID: %s\r\n", m->actionid);
-	if (all) {
-		c = cw_channel_walk_locked(NULL);
-	} else {
-		c = cw_get_channel_by_name_locked(name);
-		if (!c) {
+
+	args.fd = s->fd;
+	args.id = idText;
+	args.now = cw_tvnow();
+
+	if (!cw_strlen_zero(name)) {
+		if (!(chan = cw_get_channel_by_name_locked(name))) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
+		action_status_one(&chan->obj, &args);
+		cw_object_put(chan);
+	} else {
+		cw_registry_iterate(&channel_registry, action_status_one, &args);
 	}
-	/* if we look by name, we break after the first iteration */
-	while (c) {
-		if (c->_bridge)
-			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
-		else
-			bridge[0] = '\0';
-		if (c->pbx) {
-			if (c->cdr)
-				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
-				if (c->cdr->answer.tv_sec > 0)
-					billable_seconds = now.tv_sec - c->cdr->answer.tv_sec;
-			cw_cli(s->fd,
-        			"Event: Status\r\n"
-        			"Privilege: Call\r\n"
-        			"Channel: %s\r\n"
-        			"CallerID: %s\r\n"
-        			"CallerIDName: %s\r\n"
-        			"Account: %s\r\n"
-        			"State: %s\r\n"
-        			"Context: %s\r\n"
-        			"Extension: %s\r\n"
-        			"Priority: %d\r\n"
-        			"Seconds: %ld\r\n"
-				"BillableSeconds: %ld\r\n"
-        			"%s"
-        			"Uniqueid: %s\r\n"
-        			"%s"
-        			"\r\n",
-        			c->name, 
-        			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-        			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
-        			c->accountcode,
-        			cw_state2str(c->_state), c->context,
-        			c->exten, c->priority, (long)elapsed_seconds, (long)billable_seconds,
-				bridge, c->uniqueid, idText);
-		} else {
-			cw_cli(s->fd,
-        			"Event: Status\r\n"
-        			"Privilege: Call\r\n"
-        			"Channel: %s\r\n"
-        			"CallerID: %s\r\n"
-        			"CallerIDName: %s\r\n"
-        			"Account: %s\r\n"
-        			"State: %s\r\n"
-        			"%s"
-        			"Uniqueid: %s\r\n"
-        			"%s"
-        			"\r\n",
-        			c->name, 
-        			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-        			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
-        			c->accountcode,
-        			cw_state2str(c->_state), bridge, c->uniqueid, idText);
-		}
-		cw_mutex_unlock(&c->lock);
-		if (!all)
-			break;
-		c = cw_channel_walk_locked(c);
-	}
+
 	cw_cli(s->fd,
-         	 "Event: StatusComplete\r\n"
-        	 "%s"
-        	 "\r\n",idText);
+		"Event: StatusComplete\r\n"
+		"%s"
+		"\r\n", idText);
 	return 0;
 }
+
 
 static const char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
@@ -1048,49 +1073,58 @@ static const char mandescr_redirect[] =
 /*! \brief  action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, struct message *m)
 {
+	char buf[BUFSIZ];
 	char *name = astman_get_header(m, "Channel");
-	char *name2 = astman_get_header(m, "ExtraChannel");
-	char *exten = astman_get_header(m, "Exten");
-	char *context = astman_get_header(m, "Context");
-	char *priority = astman_get_header(m, "Priority");
-	struct cw_channel *chan, *chan2 = NULL;
+	struct cw_channel *chan;
+	char *context;
+	char *exten;
+	char *priority;
 	int res;
 
 	if (cw_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	chan = cw_get_channel_by_name_locked(name);
-	if (!chan) {
-		char buf[BUFSIZ];
 
-		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
-		astman_send_error(s, m, buf);
+	if ((chan = cw_get_channel_by_name_locked(name))) {
+		context = astman_get_header(m, "Context");
+		exten = astman_get_header(m, "Exten");
+		priority = astman_get_header(m, "Priority");
+
+		res = cw_async_goto(chan, context, exten, priority);
+		cw_mutex_unlock(&chan->lock);
+		cw_object_put(chan);
+
+		if (!res) {
+			name = astman_get_header(m, "ExtraChannel");
+			if (!cw_strlen_zero(name)) {
+				if (!(chan = cw_get_channel_by_name_locked(name)))
+					goto no_chan;
+
+				if (!cw_async_goto(chan, context, exten, priority))
+					astman_send_ack(s, m, "Dual Redirect successful");
+				else
+					astman_send_error(s, m, "Secondary redirect failed");
+
+				cw_mutex_unlock(&chan->lock);
+				cw_object_put(chan);
+				return 0;
+			}
+
+			astman_send_ack(s, m, "Redirect successful");
+			return 0;
+		}
+
+		astman_send_error(s, m, "Redirect failed");
 		return 0;
 	}
-	if (!cw_strlen_zero(name2))
-		chan2 = cw_get_channel_by_name_locked(name2);
-	res = cw_async_goto(chan, context, exten, priority);
-	if (!res) {
-		if (!cw_strlen_zero(name2)) {
-			if (chan2)
-				res = cw_async_goto(chan2, context, exten, priority);
-			else
-				res = -1;
-			if (!res)
-				astman_send_ack(s, m, "Dual Redirect successful");
-			else
-				astman_send_error(s, m, "Secondary redirect failed");
-		} else
-			astman_send_ack(s, m, "Redirect successful");
-	} else
-		astman_send_error(s, m, "Redirect failed");
-	if (chan)
-		cw_mutex_unlock(&chan->lock);
-	if (chan2)
-		cw_mutex_unlock(&chan2->lock);
+
+no_chan:
+	snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
+	astman_send_error(s, m, buf);
 	return 0;
 }
+
 
 static const char mandescr_command[] =
 "Description: Run a CLI command.\n"
@@ -1396,6 +1430,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+
 static const char mandescr_timeout[] =
 "Description: Hangup a channel after a certain time.\n"
 "Variables: (Names marked with * are required)\n"
@@ -1405,27 +1440,32 @@ static const char mandescr_timeout[] =
 
 static int action_timeout(struct mansession *s, struct message *m)
 {
-	struct cw_channel *c = NULL;
+	struct cw_channel *chan = NULL;
 	char *name = astman_get_header(m, "Channel");
-	int timeout = atoi(astman_get_header(m, "Timeout"));
-	if (cw_strlen_zero(name)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	if (!timeout) {
+	int timeout;
+
+	if (!cw_strlen_zero(name)) {
+		if ((timeout = atoi(astman_get_header(m, "Timeout")))) {
+			if ((chan = cw_get_channel_by_name_locked(name))) {
+				cw_channel_setwhentohangup(chan, timeout);
+				cw_mutex_unlock(&chan->lock);
+				astman_send_ack(s, m, "Timeout Set");
+				cw_object_put(chan);
+				return 0;
+			}
+
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
+
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
-	c = cw_get_channel_by_name_locked(name);
-	if (!c) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	cw_channel_setwhentohangup(c, timeout);
-	cw_mutex_unlock(&c->lock);
-	astman_send_ack(s, m, "Timeout Set");
+
+	astman_send_error(s, m, "No channel specified");
 	return 0;
 }
+
 
 static int process_message(struct mansession *s, struct message *m)
 {

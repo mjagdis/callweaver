@@ -3862,10 +3862,15 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
     char iabuf[INET_ADDRSTRLEN];
     char peer[MAXHOSTNAMELEN];
 #endif    
-    
+
     cw_mutex_unlock(&i->lock);
     /* Don't hold a sip pvt lock while we allocate a channel */
-    tmp = cw_channel_alloc(1);
+    if (title)
+        tmp = cw_channel_alloc(1, "SIP/%s-%04x", title, thread_safe_cw_random() & 0xffff);
+    else if (strchr(i->fromdomain, ':'))
+        tmp = cw_channel_alloc(1, "SIP/%s-%08x", strchr(i->fromdomain, ':') + 1, (int)(long)(i));
+    else
+        tmp = cw_channel_alloc(1, "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
     cw_mutex_lock(&i->lock);
     if (tmp == NULL)
     {
@@ -3884,13 +3889,6 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
         tmp->nativeformats = cw_codec_choose(&i->prefs, global_capability, 1);
 //    cw_mutex_unlock(&i->lock);
     fmt = cw_best_codec(tmp->nativeformats);
-
-    if (title)
-        snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, thread_safe_cw_random() & 0xffff);
-    else if (strchr(i->fromdomain, ':'))
-        snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain, ':') + 1, (int)(long)(i));
-    else
-        snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
 
     tmp->type = channeltype;
     if (cw_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND)
@@ -5242,7 +5240,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         cw_set_read_format(p->owner, p->owner->readformat);
         cw_set_write_format(p->owner, p->owner->writeformat);
     }
-    if ((bridgepeer=cw_bridged_channel(p->owner)))
+    if ((bridgepeer = cw_bridged_channel(p->owner)))
     {
         /* We have a bridge */
         /* Turn on/off music on hold if we are holding/unholding */
@@ -5264,6 +5262,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             /* Activate a re-invite */
             cw_queue_frame(p->owner, &af);
         }
+        cw_object_put(bridgepeer);
     }
 
     /* Manager Hold and Unhold events must be generated, if necessary */
@@ -9167,6 +9166,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
             pbx_builtin_setvar_helper(chan, "SIPREFERTO", get_header(req, "Refer-To"));
             pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
             pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+            cw_object_put(peer);
         }
         return 0;
     }
@@ -11140,8 +11140,9 @@ void sip_dump_history(struct sip_pvt *dialog)
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
     char buf[1024];
-    unsigned int event;
+    struct cw_channel *bchan;
     char *c;
+    unsigned int event;
     
     /* Need to check the media/type */
     if (!strcasecmp(get_header(req, "Content-Type"), "application/dtmf-relay")
@@ -11236,8 +11237,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         {
             if (p->owner && p->owner->cdr)
                 cw_cdr_setuserfield(p->owner, c);
-            if (p->owner && cw_bridged_channel(p->owner) && cw_bridged_channel(p->owner)->cdr)
-                cw_cdr_setuserfield(cw_bridged_channel(p->owner), c);
+            if (p->owner && (bchan = cw_bridged_channel(p->owner)))
+            {
+                if (bchan->cdr)
+                    cw_cdr_setuserfield(bchan, c);
+                cw_object_put(bchan);
+            }
             transmit_response(p, "200 OK", req);
         }
         else if (strcasecmp(get_header(req, "Content-Length"), "0") == 0) {
@@ -12220,6 +12225,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                         p->t38state = SIP_T38_STATUS_UNKNOWN;
                         cw_log(CW_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                 }
+                cw_object_put(bridgepeer);
             }
             else
             {
@@ -12955,8 +12961,11 @@ static int sip_park(struct cw_channel *chan1, struct cw_channel *chan2, struct s
     struct sip_dual *d;
     struct cw_channel *chan1m, *chan2m;
     pthread_t th;
-    chan1m = cw_channel_alloc(0);
-    chan2m = cw_channel_alloc(0);
+
+    /* We make a clone of the peer channel too, so we can play
+       back the announcement */
+    chan1m = cw_channel_alloc(0, "Parking/%s", chan1->name);
+    chan2m = cw_channel_alloc(0, "SIPPeer/%s", chan2->name);
     if ((!chan2m) || (!chan1m))
     {
         if (chan1m)
@@ -12965,7 +12974,6 @@ static int sip_park(struct cw_channel *chan1, struct cw_channel *chan2, struct s
             cw_hangup(chan2m);
         return -1;
     }
-    snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
     /* Make formats okay */
     chan1m->readformat = chan1->readformat;
     chan1m->writeformat = chan1->writeformat;
@@ -12975,9 +12983,6 @@ static int sip_park(struct cw_channel *chan1, struct cw_channel *chan2, struct s
     cw_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
     chan1m->priority = chan1->priority;
         
-    /* We make a clone of the peer channel too, so we can play
-       back the announcement */
-    snprintf(chan2m->name, sizeof (chan2m->name), "SIPPeer/%s",chan2->name);
     /* Make formats okay */
     chan2m->readformat = chan2->readformat;
     chan2m->writeformat = chan2->writeformat;
@@ -13098,7 +13103,6 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
             cw_log(CW_LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
             res = -1;
         }
-        return res;
     }
     else
     {
@@ -13107,9 +13111,15 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
             cw_softhangup_nolock(chana, CW_SOFTHANGUP_DEV);
         if (chanb)
             cw_softhangup_nolock(chanb, CW_SOFTHANGUP_DEV);
-        return -1;
+        res = -1;
     }
-    return 0;
+
+    if (bridgea)
+        cw_object_put(bridgea);
+    if (bridgeb)
+        cw_object_put(bridgeb);
+
+    return res;
 }
 
 /*! \brief  gettag: Get tag from packet */
@@ -13430,7 +13440,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 struct cw_channel *bridgepeer = NULL;
                 struct sip_pvt *bridgepvt = NULL;
                 
-                if ((bridgepeer=cw_bridged_channel(p->owner)))
+                if ((bridgepeer = cw_bridged_channel(p->owner)))
                 {
                     /* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
                     /*! XXX: we should also check here does the other side supports t38 at all !!! XXX */  
@@ -13482,6 +13492,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                         cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                         cw_set_flag(p, SIP_NEEDDESTROY);        
                     }    
+                    cw_object_put(bridgepeer);
                 }
                 else
                 {
@@ -13504,7 +13515,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 struct cw_channel *bridgepeer = NULL;
                 struct sip_pvt *bridgepvt = NULL;
     
-                if ( (bridgepeer=cw_bridged_channel(p->owner) ) && !strcasecmp(bridgepeer->type,"SIP") ) 
+                if ( (bridgepeer = cw_bridged_channel(p->owner) ) && !strcasecmp(bridgepeer->type,"SIP") )
 		{
                     {
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
@@ -13524,6 +13535,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                             transmit_response_with_sdp(p, "200 OK", req, 1);
                         }
                     }
+                    cw_object_put(bridgepeer);
                 }
         	else
 		    transmit_response_with_sdp(p, "200 OK", req, 1);
@@ -13596,8 +13608,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                 c = p->owner;
                 if (c)
                 {
-                    transfer_to = cw_bridged_channel(c);
-                    if (transfer_to)
+                    if ((transfer_to = cw_bridged_channel(c)))
                     {
                         cw_log(CW_LOG_DEBUG, "Got SIP blind transfer, applying to '%s'\n", transfer_to->name);
                         cw_moh_stop(transfer_to);
@@ -13618,6 +13629,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                             cw_mutex_unlock(&c->lock);
                             cw_async_goto_n(transfer_to, (transfercontext ? transfercontext->value : p->context), p->refer_to, 1);
                         }
+                        cw_object_put(transfer_to);
                     }
                     else
                     {
@@ -13723,12 +13735,12 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
             c = p->owner;
             if (c)
             {
-                bridged_to = cw_bridged_channel(c);
-                if (bridged_to)
+                if ((bridged_to = cw_bridged_channel(c)))
                 {
                     /* Don't actually hangup here... */
                     cw_moh_stop(bridged_to);
                     cw_async_goto_n(bridged_to, p->context, p->refer_to, 1);
+                    cw_object_put(bridged_to);
                 }
                 else
                     cw_queue_hangup(p->owner);
@@ -16806,6 +16818,7 @@ static char sipt38switchover_description[] = ""
 static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
+    struct cw_channel *bchan;
     struct cw_var_t *var;
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_T38_DISABLE, "T38_DISABLE"))) {
@@ -16858,13 +16871,18 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
         }
     }
     else {
-	if ( ! t38udptlsupport ) /* Don't warn if it's disabled */
-	cw_log(CW_LOG_WARNING,
-		    "Cannot execute T38 reinvite [ t38udptlsupport: %d, p->t38state %d, bridged %d ]\n",
-		    t38udptlsupport,
-		    p->t38state, 
-		    ( cw_bridged_channel(chan) ) ? 1 : 0
-		);
+        if ( ! t38udptlsupport ) /* Don't warn if it's disabled */
+        {
+            bchan = cw_bridged_channel(chan);
+            cw_log(CW_LOG_WARNING,
+                "Cannot execute T38 reinvite [ t38udptlsupport: %d, p->t38state %d, bridged %d ]\n",
+                t38udptlsupport,
+                p->t38state,
+                (bchan ? 1 : 0)
+            );
+            if (bchan)
+                cw_object_put(bchan);
+        }
     }
 
     cw_mutex_unlock(&chan->lock);

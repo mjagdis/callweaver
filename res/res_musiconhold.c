@@ -1028,20 +1028,27 @@ static int load_moh_classes(void)
 	return numclasses;
 }
 
-static void moh_on_off(int on)
-{
-	struct cw_channel *chan = NULL;
 
-	while ( (chan = cw_channel_walk_locked(chan)) != NULL) {
-		if (cw_test_flag(chan, CW_FLAG_MOH)) {
-			if (on)
-				local_cw_moh_start(chan, NULL);
-			else
-				cw_generator_deactivate(&chan->generator);
-		}
-		cw_mutex_unlock(&chan->lock);
-	}
+static int moh_on_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	if (cw_test_flag(chan, CW_FLAG_MOH))
+		local_cw_moh_start(chan, NULL);
+
+	return 0;
 }
+
+static int moh_off_one(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	if (cw_test_flag(chan, CW_FLAG_MOH))
+		cw_generator_deactivate(&chan->generator);
+
+	return 0;
+}
+
 
 static int moh_reload(int fd, int argc, char *argv[]) 
 {
@@ -1050,9 +1057,10 @@ static int moh_reload(int fd, int argc, char *argv[])
 
 	/* FIXME: logically this should be after we have the moh_lock so nothing
 	 * else can start before we destroy the old classes. But that leads to
-	 * a deadlock???
+	 * a deadlock because we'd be taking mohlock, chan->lock whereas other
+	 * paths take chan->lock, mohlock.
 	 */
-	moh_on_off(0);
+	cw_registry_iterate(&channel_registry, moh_off_one, NULL);
 
 	if (option_verbose > 1)
 		cw_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
@@ -1070,7 +1078,7 @@ static int moh_reload(int fd, int argc, char *argv[])
 	cw_mutex_unlock(&moh_lock);
 
 	x = load_moh_classes();
-	moh_on_off(1);
+	cw_registry_iterate(&channel_registry, moh_on_one, NULL);
 
 	if (fd >= 0)
 		cw_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");

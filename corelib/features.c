@@ -189,7 +189,7 @@ static void check_goto_on_transfer(struct cw_channel *chan)
 	struct cw_var_t *var;
 
 	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_GOTO_ON_BLINDXFR, "GOTO_ON_BLINDXFR"))) {
-		if (!cw_strlen_zero(var->value) && (xferchan = cw_channel_alloc(0))) {
+		if (!cw_strlen_zero(var->value) && (xferchan = cw_channel_alloc(0, "%s", chan->name))) {
 			char *tmp, *x;
 			struct cw_frame *f;
 		
@@ -197,8 +197,6 @@ static void check_goto_on_transfer(struct cw_channel *chan)
 				for (x = tmp; *x; x++)
 					if (*x == '^')
 						*x = ',';
-
-				strcpy(xferchan->name, chan->name);
 
 				/* Make formats okay */
 				xferchan->readformat = chan->readformat;
@@ -232,8 +230,10 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 static void *cw_bridge_call_thread(void *data) 
 {
 	struct cw_bridge_thread_obj *tobj = data;
+
 	tobj->chan->appl = tobj->peer->name;
 	tobj->peer->appl = tobj->chan->name;
+
 	if (tobj->chan->cdr) {
 		cw_cdr_reset(tobj->chan->cdr,0);
 		cw_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
@@ -243,13 +243,15 @@ static void *cw_bridge_call_thread(void *data)
 		cw_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
 	}
 
-
 	cw_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
+
 	cw_hangup(tobj->chan);
 	cw_hangup(tobj->peer);
-	tobj->chan = tobj->peer = NULL;
+
+	cw_object_put(tobj->chan);
+	cw_object_put(tobj->peer);
+
 	free(tobj);
-	tobj=NULL;
 	return NULL;
 }
 
@@ -400,11 +402,8 @@ int cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *peer, int tim
 	struct cw_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	chan = cw_channel_alloc(0);
+	chan = cw_channel_alloc(0, "Parked/%s", rchan->name);
 	if (chan) {
-		/* Let us keep track of the channel name */
-		snprintf(chan->name, sizeof (chan->name), "Parked/%s",rchan->name);
-
 		/* Make formats okay */
 		chan->readformat = rchan->readformat;
 		chan->writeformat = rchan->writeformat;
@@ -777,8 +776,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					goto out;
 				}
 
-				if ((xferchan = cw_channel_alloc(0))) {
-					snprintf(xferchan->name, sizeof (xferchan->name), "Transfered/%s",transferee->name);
+				if ((xferchan = cw_channel_alloc(0, "Transfered/%s", transferee->name))) {
 					/* Make formats okay */
 					xferchan->readformat = transferee->readformat;
 					xferchan->writeformat = transferee->writeformat;
@@ -803,25 +801,28 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 				cw_clear_flag(newchan, CW_FLAGS_ALL);	
 				newchan->_softhangup = 0;
 
-				tobj = malloc(sizeof(struct cw_bridge_thread_obj));
-				if (tobj) {
-					memset(tobj,0,sizeof(struct cw_bridge_thread_obj));
-					tobj->chan = xferchan;
-					tobj->peer = newchan;
+				res = -1;
+				if ((tobj = calloc(1, sizeof(struct cw_bridge_thread_obj)))) {
+					tobj->chan = cw_object_dup(xferchan);
+					tobj->peer = cw_object_dup(newchan);
 					tobj->bconfig = *config;
-	
+
 					if (!cw_strlen_zero(xfersound) && !cw_streamfile(newchan, xfersound, newchan->language)) {
 						if (cw_waitstream(newchan, "") < 0) {
 							cw_log(CW_LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					cw_pthread_create(&tid, &global_attr_rr_detached, cw_bridge_call_thread, tobj);
-				} else {
-					cw_log(CW_LOG_WARNING, "Out of memory\n");
-					cw_hangup(xferchan);
-					cw_hangup(newchan);
-				}
-				res = -1;
+
+					if (!cw_pthread_create(&tid, &global_attr_rr_detached, cw_bridge_call_thread, tobj))
+						goto out;
+
+					cw_object_put(tobj->chan);
+					cw_object_put(tobj->peer);
+				} else
+					cw_log(CW_LOG_ERROR, "Out of memory\n");
+
+				cw_hangup(xferchan);
+				cw_hangup(newchan);
 				goto out;
 				
 			} else {
@@ -1359,37 +1360,35 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 		char *argv[4];
 		struct cw_var_t *var;
 
-		argv[3] = NULL;
+		argv[0] = argv[3] = NULL;
+		argv[1] = argv[2] = "";
 
 		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FORMAT, "AUTO_MONITOR_FORMAT"))) {
-			argv[0] = strdup(var->value);
+			argv[0] = cw_strdupa(var->value);
 			cw_object_put(var);
-			var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE");
-			argv[1] = strdup(var ? var->value : "");
-			cw_object_put(var);
-			var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS");
-			argv[2] = strdup(var ? var->value : "");
-			cw_object_put(var);
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE"))) {
+				argv[1] = cw_strdupa(var->value);
+				cw_object_put(var);
+			}
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS"))) {
+				argv[2] = cw_strdupa(var->value);
+				cw_object_put(var);
+			}
 		} else if ((var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FORMAT, "AUTO_MONITOR_FORMAT"))) {
-			argv[0] = strdup(var->value);
+			argv[0] = cw_strdupa(var->value);
 			cw_object_put(var);
-			var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE");
-			argv[1] = strdup(var ? var->value : "");
-			cw_object_put(var);
-			var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS");
-			argv[2] = strdup(var ? var->value : "");
-			cw_object_put(var);
+			if ((var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE"))) {
+				argv[1] = cw_strdupa(var->value);
+				cw_object_put(var);
+			}
+			if ((var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS"))) {
+				argv[2] = cw_strdupa(var->value);
+				cw_object_put(var);
+			}
 		}
 
-		if (argv[0] && argv[1] && argv[2])
+		if (argv[0])
 			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
-		else
-			cw_log(CW_LOG_ERROR, "Out of memory!\n");
-
-		for (res = 0; res < arraysize(argv); res++) {
-			if (argv[res])
-				free(argv[res]);
-		}
 	}
 	
 	allowdisconnect_in = cw_test_flag(&(config->features_callee), CW_FEATURE_DISCONNECT);
@@ -2032,34 +2031,49 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 }
 
 
+struct pickup_finder_args {
+	struct cw_channel *chan;
+	cw_group_t pickupgroup;
+};
+
+static int pickup_finder(struct cw_object *obj, void *data)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct pickup_finder_args *args = data;
+
+	if (chan->pbx || chan == args->chan || !(args->pickupgroup & chan->callgroup) || (chan->_state != CW_STATE_RINGING && chan->_state != CW_STATE_RING))
+		return 0;
+
+	args->chan = cw_object_dup(chan);
+	return 0;
+}
+
 int cw_pickup_call(struct cw_channel *chan)
 {
-	struct cw_channel *cur = NULL;
+	struct pickup_finder_args args;
 	int res = -1;
 
-	while ( (cur = cw_channel_walk_locked(cur)) != NULL) {
-		if (!cur->pbx && 
-			(cur != chan) &&
-			(chan->pickupgroup & cur->callgroup) &&
-			((cur->_state == CW_STATE_RINGING) ||
-			 (cur->_state == CW_STATE_RING))) {
-			break;
-		}
-		cw_mutex_unlock(&cur->lock);
-	}
-	if (cur) {
+	args.chan = NULL;
+	args.pickupgroup = chan->pickupgroup;
+	cw_registry_iterate(&channel_registry, pickup_finder, &args);
+
+	if (args.chan) {
+		cw_mutex_lock(&args.chan->lock);
+
 		if (option_debug)
-			cw_log(CW_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
-		res = cw_answer(chan);
-		if (res)
+			cw_log(CW_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",args.chan->name, chan->name);
+
+		if (!(res = cw_answer(chan))) {
+			if (!(res = cw_queue_control(chan, CW_CONTROL_ANSWER))) {
+				if ((res = cw_channel_masquerade(args.chan, chan)))
+					cw_log(CW_LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, args.chan->name);
+			} else
+				cw_log(CW_LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		} else
 			cw_log(CW_LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = cw_queue_control(chan, CW_CONTROL_ANSWER);
-		if (res)
-			cw_log(CW_LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		res = cw_channel_masquerade(cur, chan);
-		if (res)
-			cw_log(CW_LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
-		cw_mutex_unlock(&cur->lock);
+
+		cw_mutex_unlock(&args.chan->lock);
+		cw_object_put(args.chan);
 	} else	{
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "No call pickup possible...\n");

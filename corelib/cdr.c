@@ -465,7 +465,7 @@ int cw_cdr_disposition(struct cw_cdr *cdr, int cause)
 	return res;
 }
 
-void cw_cdr_setdestchan(struct cw_cdr *cdr, char *chann)
+void cw_cdr_setdestchan(struct cw_cdr *cdr, const char *chann)
 {
 	char *chan; 
 

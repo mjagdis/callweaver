@@ -1450,10 +1450,9 @@ static struct cw_channel *woomera_new(const char *type, int format, void *data, 
 	private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
 	
-	if ((chan = cw_channel_alloc(1))) {
+	if ((chan = cw_channel_alloc(1, "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff))) {
 		chan->nativeformats = WFORMAT;
 		chan->type = type;
-		snprintf(chan->name, sizeof(chan->name), "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff);
 		chan->writeformat = chan->rawwriteformat = chan->readformat = WFORMAT;
 		chan->_state = CW_STATE_DOWN;
 		chan->_softhangup = 0;

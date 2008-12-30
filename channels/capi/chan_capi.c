@@ -2042,20 +2042,12 @@ static struct cw_channel *capi_new(struct capi_pvt *i, int state)
 	int fds[2];
 	int flags;
 
-	tmp = cw_channel_alloc(0);
-	
+	tmp = cw_channel_alloc(0, "CAPI/%s/%s-%x", i->name, i->dnid, capi_counter++);
 	if (tmp == NULL) {
 		cc_log(CW_LOG_ERROR,"Unable to allocate channel!\n");
 		return(NULL);
 	}
 
-#ifdef CC_CW_HAS_STRINGFIELD_IN_CHANNEL
-	cw_string_field_build(tmp, name, "CAPI/%s/%s-%x",
-		i->name, i->dnid, capi_counter++);
-#else
-	snprintf(tmp->name, sizeof(tmp->name) - 1, "CAPI/%s/%s-%x",
-		i->name, i->dnid, capi_counter++);
-#endif
 	tmp->type = channeltype;
 
 	if (pipe(fds) != 0) {

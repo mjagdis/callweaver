@@ -27,6 +27,10 @@
 #include "confdefs.h"
 #endif
 
+#include <stdarg.h>
+
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
 #include "callweaver/frame.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/config.h"
@@ -192,8 +196,11 @@ typedef enum {
  * This is the side of it mostly used by the pbx and call management.
  */
 struct cw_channel {
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
+
 	/*! ASCII Description of channel name */
-	char name[CW_CHANNEL_NAME];
+	const char name[CW_CHANNEL_NAME];
 	
 	/*! Technology */
 	const struct cw_channel_tech *tech;
@@ -354,6 +361,10 @@ struct cw_channel {
 
 };
 
+
+extern struct cw_registry channel_registry;
+
+
 typedef struct cw_channel cw_channel_t;
 
 /* Spy related stuff */
@@ -485,7 +496,7 @@ struct outgoing_helper {
 	by default set to the "default" context and
 	extension "s"
  */
-struct cw_channel *cw_channel_alloc(int needalertpipe);
+struct cw_channel *cw_channel_alloc(int needalertpipe, const char *fmt, ...);
 
 /*! Sets the T38 channel status */
 #define cw_channel_set_t38_status(c,s) cw_channel_perform_set_t38_status(c,s, __FILE__, __LINE__)
@@ -506,7 +517,7 @@ int cw_queue_control(struct cw_channel *chan, int control);
 /*! Change the state of a channel */
 int cw_setstate(struct cw_channel *chan, int state);
 
-void cw_change_name(struct cw_channel *chan, char *newname);
+void cw_change_name(struct cw_channel *chan, const char *fmt, ...);
 
 /*! Free a channel structure */
 void  cw_channel_free(struct cw_channel *);
@@ -765,23 +776,13 @@ int cw_senddigit(struct cw_channel *chan, char digit);
  */
 char *cw_recvtext(struct cw_channel *chan, int timeout);
 
-/*! Browse channels in use */
-/*! 
- * \param prev where you want to start in the channel list
- * Browse the channels currently in use 
- * Returns the next channel in the list, NULL on end.
- * If it returns a channel, that channel *has been locked*!
- */
-struct cw_channel *cw_channel_walk_locked(const struct cw_channel *prev);
-
 /*! Get channel by name (locks channel) */
 struct cw_channel *cw_get_channel_by_name_locked(const char *chan);
 
-/*! Get channel by name prefix (locks channel) */
-struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *name, const int namelen);
+void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);
 
 /*! Get channel by name prefix (locks channel) */
-struct cw_channel *cw_walk_channel_by_name_prefix_locked(struct cw_channel *chan, const char *name, const int namelen);
+struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len);
 
 /*--- cw_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
 struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context);

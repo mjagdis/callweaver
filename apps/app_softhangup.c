@@ -54,14 +54,48 @@ static const char softhangup_descrip[] =
 "     'a' : hang up all channels on a specified device instead of a single resource\n";
 
 
+struct softhangup_args {
+	char *name;
+	int all;
+};
+
+static int softhangup_one(struct cw_object *obj, void *data)
+{
+	char name[CW_CHANNEL_NAME];
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct softhangup_args *args = data;
+	char *cut;
+
+	cw_mutex_lock(&chan->lock);
+
+	strncpy(name, chan->name, sizeof(name)-1);
+	if (args->all) {
+		/* CAPI is set up like CAPI[foo/bar]/clcnt */
+		if (!strcmp(chan->type, "CAPI"))
+			cut = strrchr(name, '/');
+		/* Basically everything else is Foo/Bar-Z */
+		else
+			cut = strchr(name, '-');
+		/* Get rid of what we've cut */
+		if (cut)
+			*cut = 0;
+	}
+
+	cw_mutex_unlock(&chan->lock);
+
+	if (!strcasecmp(name, args->name)) {
+		cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n", chan->name);
+		cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
+	}
+
+	return !args->all;
+}
+
 static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	struct softhangup_args args;
 	struct localuser *u;
-	struct cw_channel *c=NULL;
-	char *cut;
-	char name[CW_CHANNEL_NAME] = "";
-	int all = 0;
-	
+
 	if (argc == 0) {
 		if (chan){
 			cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n",chan->name);
@@ -74,32 +108,11 @@ static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char 
 	
 	LOCAL_USER_ADD(u);
 
-	all = (argc > 1 && strchr(argv[1], 'a'));
+	args.name = argv[0];
+	args.all = (argc > 1 && strchr(argv[1], 'a'));
 
-	c = cw_channel_walk_locked(NULL);
-	while (c) {
-		strncpy(name, c->name, sizeof(name)-1);
-		if (all) {
-			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
-			if (!strcmp(c->type,"CAPI")) 
-				cut = strrchr(name,'/');
-			/* Basically everything else is Foo/Bar-Z */
-			else
-				cut = strchr(name,'-');
-			/* Get rid of what we've cut */
-			if (cut)
-				*cut = 0;
-		}
-		cw_mutex_unlock(&c->lock);
-		if (!strcasecmp(name, argv[0])) {
-			cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n",c->name);
-			cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
-			if(!all)
-				break;
-		}
-		c = cw_channel_walk_locked(c);
-	}
-	
+	cw_registry_iterate(&channel_registry, softhangup_one, &args);
+
 	LOCAL_USER_REMOVE(u);
 
 	return 0;

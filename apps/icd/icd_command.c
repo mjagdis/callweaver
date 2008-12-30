@@ -1216,7 +1216,6 @@ int icd_command_logout (int fd, int argc, char **argv)
 
 int icd_command_hangup_channel (int fd, int argc, char **argv)
 {
-   char *chan_name;
    struct cw_channel *chan;
 
    if (argc != 2) {
@@ -1224,21 +1223,22 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
        manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: HangupChannel\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
 	   return -1;
-    }
-   chan_name = argv[1];
-   chan = cw_get_channel_by_name_locked(chan_name);
-   if (chan == NULL) {
-       cw_cli(fd, "Function Hang up channel failed - channel not found [%s]\n", chan_name);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: HangupChannel\r\nResult: Fail\r\nCause: Channel not found\r\nChannel : %s\r\n", chan_name);
-	   return -1;
    }
-   cw_mutex_unlock (&chan->lock);
-   cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-   cw_cli(fd, "Function Hang Up succeed - channel[%s]\n", chan_name);
+
+   if ((chan = cw_get_channel_by_name_locked(argv[1]))) {
+       cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
+       cw_mutex_unlock(&chan->lock);
+       cw_cli(fd, "Function Hang Up succeed - channel[%s]\n", argv[1]);
+       manager_event(EVENT_FLAG_USER, "icd_command",
+          "Command: HangupChannel\r\nResult: OK\r\nChannel : %s\r\n", argv[1]);
+       cw_object_put(chan);
+       return 0;
+   }
+
+   cw_cli(fd, "Function Hang up channel failed - channel not found [%s]\n", argv[1]);
    manager_event(EVENT_FLAG_USER, "icd_command",
-      "Command: HangupChannel\r\nResult: OK\r\nChannel : %s\r\n", chan_name);
-   return 0;
+            "Command: HangupChannel\r\nResult: Fail\r\nCause: Channel not found\r\nChannel : %s\r\n", argv[1]);
+   return -1;
 }
 
 

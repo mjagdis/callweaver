@@ -517,7 +517,7 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 		return 0;
 	}
 
-	tmp = cw_channel_alloc(1);
+	tmp = cw_channel_alloc(1, "SCCP/%s-%08x", l->name, c->callid);
 	if (!tmp) {
 		cw_log(CW_LOG_ERROR, "%s: Unable to allocate callweaver channel on line %s\n", d->id, l->name);
 		return 0;
@@ -544,8 +544,6 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	cw_mutex_unlock(&l->lock);
 	cw_mutex_unlock(&d->lock);
 	sccp_log(2)(VERBOSE_PREFIX_3 "%s: format request: %d/%d\n", d->id, tmp->nativeformats, c->format);
-
-	snprintf(tmp->name, sizeof(tmp->name), "SCCP/%s-%08x", l->name, c->callid);
 
 	if (GLOB(debug) > 2) {
 	  const unsigned slen=512;

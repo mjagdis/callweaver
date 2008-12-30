@@ -482,6 +482,8 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
 	if (!f) {
 		/* If there's a channel, hang it up (if it's on a callback) make it NULL */
 		if (p->chan) {
+			if (p->chan->_bridge)
+				cw_object_put(p->chan->_bridge);
 			p->chan->_bridge = NULL;
 			/* Note that we don't hangup if it's not a callback because CallWeaver will do it
 			   for us when the PBX instance that called login finishes */
@@ -544,7 +546,7 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
 		if (strcasecmp(p->chan->type, "Local")) {
-			p->chan->_bridge = ast;
+			p->chan->_bridge = cw_object_dup(ast);
 			if (p->chan)
 				cw_log(CW_LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
 		}
@@ -763,6 +765,8 @@ static int agent_hangup(struct cw_channel *ast)
 	} else
 		p->start = 0; 
 	if (p->chan) {
+		if (p->chan->_bridge)
+			cw_object_put(p->chan->_bridge);
 		p->chan->_bridge = NULL;
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!cw_strlen_zero(p->loginchan)) {
@@ -940,7 +944,11 @@ static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 		return NULL;
 	}
 #endif	
-	tmp = cw_channel_alloc(0);
+	if (p->pending)
+		tmp = cw_channel_alloc(0, "Agent/P%s-%ld", p->agent, cw_random() & 0xffff);
+	else
+		tmp = cw_channel_alloc(0, "Agent/%s", p->agent);
+
 	if (tmp) {
 		tmp->tech = &agent_tech;
 		if (p->chan) {
@@ -959,10 +967,6 @@ static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->readformat = CW_FORMAT_SLINEAR;
 			tmp->rawreadformat = CW_FORMAT_SLINEAR;
 		}
-		if (p->pending)
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%ld", p->agent, cw_random() & 0xffff);
-		else
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/%s", p->agent);
 		tmp->type = channeltype;
 		/* Safe, agentlock already held */
 		cw_setstate(tmp, state);
@@ -1586,11 +1590,12 @@ static void complete_agent_logoff_cmd(int fd, char *argv[], int lastarg, int las
  */
 static int agents_show(int fd, int argc, char **argv)
 {
-	struct agent_pvt *p;
 	char username[CW_MAX_BUF];
 	char location[CW_MAX_BUF] = "";
 	char talkingto[CW_MAX_BUF] = "";
 	char moh[CW_MAX_BUF];
+	struct agent_pvt *p;
+	struct cw_channel *bchan;
 	int count_agents = 0;		/* Number of agents configured */
 	int online_agents = 0;		/* Number of online agents */
 	int offline_agents = 0;		/* Number of offline agents */
@@ -1612,8 +1617,9 @@ static int agents_show(int fd, int argc, char **argv)
 				username[0] = '\0';
 			if (p->chan) {
 				snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
-				if (p->owner && cw_bridged_channel(p->owner)) {
-					snprintf(talkingto, sizeof(talkingto), " talking to %s", cw_bridged_channel(p->owner)->name);
+				if (p->owner && (bchan = cw_bridged_channel(p->owner))) {
+					snprintf(talkingto, sizeof(talkingto), " talking to %s", bchan->name);
+					cw_object_put(bchan);
 				} else {
 					strcpy(talkingto, " is idle");
 				}

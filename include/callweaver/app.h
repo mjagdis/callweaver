@@ -181,7 +181,7 @@ int cw_app_group_set_channel(struct cw_channel *chan, const char *data);
 int cw_app_group_get_count(const char *group, const char *category);
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
-int cw_app_group_match_get_count(char *groupmatch, char *category);
+int cw_app_group_match_get_count(const char *groupmatch, const char *category);
 
 
 /*!

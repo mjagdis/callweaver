@@ -363,7 +363,7 @@ void sccp_channel_stopmediatransmission(sccp_channel_t * c) {
 
 void sccp_channel_endcall(sccp_channel_t * c) {
 	sccp_device_t * d;
-	struct cw_channel * ast;
+	struct cw_channel * ast, * bchan;
 
 	if (!c || !c->device)
 		return;
@@ -387,7 +387,9 @@ void sccp_channel_endcall(sccp_channel_t * c) {
 	cw_mutex_unlock(&c->lock);
 	if (ast) {
 		cw_mutex_unlock(&ast->lock);
-		if (c->calltype == SKINNY_CALLTYPE_INBOUND || ast->pbx || ast->blocker || CS_CW_BRIDGED_CHANNEL(ast)) {
+
+		bchan = cw_bridged_channel(ast);
+		if (c->calltype == SKINNY_CALLTYPE_INBOUND || ast->pbx || ast->blocker || bchan) {
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending (queue) hangup request to %s\n", DEV_ID_LOG(d), ast->name);
 			cw_queue_hangup(ast);
 		} else {
@@ -395,6 +397,8 @@ void sccp_channel_endcall(sccp_channel_t * c) {
 			cw_hangup(ast);
 		}
 //			cw_softhangup(ast, CW_SOFTHANGUP_EXPLICIT);
+		if (bchan)
+			cw_object_put(bchan);
 	}
 	return;
 }
@@ -479,9 +483,10 @@ void sccp_channel_answer(sccp_channel_t * c) {
     sccp_dev_set_activeline(c->line);
 	if (c->owner) {
 		/* the old channel state could be CALLTRANSFER, so the bridged channel is on hold */
-		bridged = CS_CW_BRIDGED_CHANNEL(c->owner);
-		if (bridged && cw_test_flag(bridged, CW_FLAG_MOH)) {
-			cw_moh_stop(bridged);
+		if ((bridged = cw_bridged_channel(c->owner))) {
+			if (cw_test_flag(bridged, CW_FLAG_MOH))
+				cw_moh_stop(bridged);
+			cw_object_put(bridged);
 		}
 	}
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONNECTED);
@@ -515,11 +520,11 @@ int sccp_channel_hold(sccp_channel_t * c) {
 		return 0;
 	}
 
-	peer = CS_CW_BRIDGED_CHANNEL(c->owner);
-
-	if (peer) {
+	if ((peer = cw_bridged_channel(c->owner))) {
 		cw_moh_start(peer, NULL);
+		cw_object_put(peer);
 	}
+
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Hold the channel %s-%d\n", d->id, l->name, c->callid);
 	cw_mutex_lock(&d->lock);
 	d->active_channel = NULL;
@@ -570,10 +575,9 @@ int sccp_channel_resume(sccp_channel_t * c) {
 	}
 	cw_mutex_unlock(&d->lock);
 
-	peer = CS_CW_BRIDGED_CHANNEL(c->owner);
-	if (peer) {
+	if ((peer = cw_bridged_channel(c->owner))) {
 		cw_moh_stop(peer);
-            /* this is for STABLE version */
+		cw_object_put(peer);
 	}
 
 	sccp_channel_set_active(c);
@@ -699,6 +703,7 @@ void sccp_channel_stop_rtp(sccp_channel_t * c) {
 void sccp_channel_transfer(sccp_channel_t * c) {
 	sccp_device_t * d;
 	sccp_channel_t * newcall = NULL;
+	struct cw_channel *bchan;
 
 	if (!c)
 		return;
@@ -738,8 +743,10 @@ void sccp_channel_transfer(sccp_channel_t * c) {
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLTRANSFER);
 	newcall = sccp_channel_newcall(c->line, NULL);
 	/* set a var for BLINDTRANSFER. It will be removed if the user manually answer the call Otherwise it is a real BLINDTRANSFER*/
-	if (newcall && newcall->owner && CS_CW_BRIDGED_CHANNEL(c->owner))
-		pbx_builtin_setvar_helper(newcall->owner, "_BLINDTRANSFER", CS_CW_BRIDGED_CHANNEL(c->owner)->name);
+	if (newcall && newcall->owner && (bchan = cw_bridged_channel(c->owner))) {
+		pbx_builtin_setvar_helper(newcall->owner, "_BLINDTRANSFER", bchan->name);
+		cw_object_put(bchan);
+	}
 }
 
 static void * sccp_channel_transfer_ringing_thread(void *data) {
@@ -761,14 +768,16 @@ static void * sccp_channel_transfer_ringing_thread(void *data) {
 		cw_indicate(ast, CW_CONTROL_RINGING);
 	else if (GLOB(blindtransferindication) == SCCP_BLINDTRANSFER_MOH)
 		cw_moh_start(ast, NULL);
+
 	cw_mutex_unlock(&ast->lock);
+	cw_object_put(ast);
 	return NULL;
 }
 
 void sccp_channel_transfer_complete(sccp_channel_t * c) {
-	struct cw_channel	*transferred = NULL, *original_transferred=NULL,	*transferee = NULL, *destination = NULL;
+	struct cw_channel	*transferred, *transferee, *destination;
 	sccp_channel_t * peer;
-	sccp_device_t * d = NULL;
+	sccp_device_t * d;
 
 	if (!c)
 		return;
@@ -797,9 +806,8 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		return;
 	}
 
-	transferred = CS_CW_BRIDGED_CHANNEL(peer->owner);
-	original_transferred = transferred;
-	destination = CS_CW_BRIDGED_CHANNEL(c->owner);
+	transferred = cw_bridged_channel(peer->owner);
+	destination = cw_bridged_channel(c->owner);
 	transferee = c->owner;
 
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: transferred: %s(%p)\npeer->owner: %s(%p)\ndestination: %s(%p)\nc->owner:%s(%p)\n", d->id,
@@ -811,6 +819,10 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	if (!transferred || !transferee) {
 		cw_log(CW_LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
+		if (destination)
+			cw_object_put(destination);
+		if (transferred)
+			cw_object_put(transferred);
 		return;
 	}
 
@@ -834,14 +846,14 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	if (cw_channel_masquerade(transferee, transferred)) {
 		cw_log(CW_LOG_WARNING, "Failed to masquerade %s into %s\n", transferee->name, transferred->name);
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
+		if (destination)
+			cw_object_put(destination);
+		cw_object_put(transferred);
 		return;
 	}
 
-	if (c->state == SCCP_CHANNELSTATE_RINGOUT) {
+	if (c->state == SCCP_CHANNELSTATE_RINGOUT)
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Blind transfer. Signalling ringing state to %s\n", d->id, transferred->name);
-
-
-	}
 
 	cw_queue_hangup(peer->owner);
 	cw_mutex_unlock(&transferee->lock);
@@ -850,28 +862,25 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	d->transfer_channel = NULL;
 	cw_mutex_unlock(&d->lock);
 
-	if (!destination) {
-		/* the channel was ringing not answered yet. BLIND TRANSFER */
-		return;
-	}
-
-	if (strncasecmp(destination->type,"SCCP",4)) {
+	/* if there is no destination the channel was ringing not answered yet. BLIND TRANSFER */
+	if (destination) {
 		/* nothing to do with different channel types */
-		return;
-	}
+		if (!strncasecmp(destination->type,"SCCP",4)) {
+			/* it's a SCCP channel destination on transfer */
+			if ((c = CS_CW_CHANNEL_PVT(destination))) {
+				sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer confirmation destination on channel %s\n", d->id, destination->name);
+				/* display the transferred CID info to destination */
+				sccp_channel_set_callingparty(c, transferred->cid.cid_name, transferred->cid.cid_num);
+				sccp_channel_send_callinfo(c);
+				if (GLOB(transfer_tone) && c->state == SCCP_CHANNELSTATE_CONNECTED)
+					/* while connected not all the tones can be played */
+					sccp_dev_starttone(c->device, GLOB(autoanswer_tone), c->line->instance, c->callid, 0);
+			}
+		}
 
-	/* it's a SCCP channel destination on transfer */
-	c = CS_CW_CHANNEL_PVT(destination);
-
-	if (c) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer confirmation destination on channel %s\n", d->id, destination->name);
-		/* display the transferred CID info to destination */
-		sccp_channel_set_callingparty(c, transferred->cid.cid_name, transferred->cid.cid_num);
-		sccp_channel_send_callinfo(c);
-		if (GLOB(transfer_tone) && c->state == SCCP_CHANNELSTATE_CONNECTED)
-			/* while connected not all the tones can be played */
-			sccp_dev_starttone(c->device, GLOB(autoanswer_tone), c->line->instance, c->callid, 0);
+		cw_object_put(destination);
 	}
+	cw_object_put(transferred);
 }
 
 #ifdef CS_SCCP_PARK
@@ -882,33 +891,30 @@ struct sccp_dual {
 };
 
 static void * sccp_channel_park_thread(void *stuff) {
-	struct cw_channel *chan1, *chan2;
-	struct sccp_dual *dual;
-	struct cw_frame *f;
-	int ext;
-	int res;
 	char extstr[20];
-	sccp_channel_t * c;
-	memset(&extstr, 0 , sizeof(extstr));
+	struct sccp_dual *dual = stuff;
+	struct cw_frame *f;
+	sccp_channel_t *c;
+	int ext;
 
-	dual = stuff;
-	chan1 = dual->chan1;
-	chan2 = dual->chan2;
-	free(dual);
-	f = cw_read(chan1);
-	if (f)
+	if ((f = cw_read(dual->chan1)))
 		cw_fr_free(f);
-	res = cw_park_call(chan1, chan2, 0, &ext);
-	if (!res) {
+
+	if (!cw_park_call(dual->chan1, dual->chan2, 0, &ext)) {
 		extstr[0] = 128;
 		extstr[1] = SKINNY_LBL_CALL_PARK_AT;
-		sprintf(&extstr[2]," %d",ext);
-		c = CS_CW_CHANNEL_PVT(chan2);
+		sprintf(&extstr[2]," %d", ext);
+		c = CS_CW_CHANNEL_PVT(dual->chan2);
 //		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, extstr, 0);
 		sccp_dev_displaynotify(c->device, extstr, 10);
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Parked channel %s on %d\n", DEV_ID_LOG(c->device), chan1->name, ext);
+		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Parked channel %s on %d\n", DEV_ID_LOG(c->device), dual->chan1->name, ext);
 	}
-	cw_hangup(chan2);
+
+	cw_hangup(dual->chan2);
+
+	cw_object_put(dual->chan1);
+	cw_object_put(dual->chan2);
+	free(dual);
 	return NULL;
 }
 
@@ -934,28 +940,28 @@ void sccp_channel_park(sccp_channel_t * c) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver channel\n", d->id);
 		return;
 	}
-	bridged = CS_CW_BRIDGED_CHANNEL(c->owner);
-	if (!bridged) {
+	if (!(bridged = cw_bridged_channel(c->owner))) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver bridged channel\n", d->id);
 		return;
 	}
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLPARK);
 
-	chan1m = cw_channel_alloc(0);
+	chan1m = cw_channel_alloc(0, "Parking/%s", bridged->name);
 	if (!chan1m) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
 		return;
 	}
-	chan2m = cw_channel_alloc(0);
+	/* We make a clone of the peer channel too, so we can play back the announcement */
+	chan2m = cw_channel_alloc(0, "SCCPParking/%s", c->owner->name);
 	if (!chan1m) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
 		cw_hangup(chan1m);
+		cw_object_put(bridged);
 		return;
 	}
 
-	snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", bridged->name);
 	/* Make formats okay */
 	chan1m->readformat = bridged->readformat;
 	chan1m->writeformat = bridged->writeformat;
@@ -965,9 +971,8 @@ void sccp_channel_park(sccp_channel_t * c) {
 	cw_copy_string(chan1m->exten, bridged->exten, sizeof(chan1m->exten));
 	chan1m->priority = bridged->priority;
 
-	/* We make a clone of the peer channel too, so we can play
-	   back the announcement */
-	snprintf(chan2m->name, sizeof (chan2m->name), "SCCPParking/%s",c->owner->name);
+	cw_object_put(bridged);
+
 	/* Make formats okay */
 	chan2m->readformat = c->owner->readformat;
 	chan2m->writeformat = c->owner->writeformat;
@@ -982,14 +987,15 @@ void sccp_channel_park(sccp_channel_t * c) {
 		return;
 	}
 
-	dual = malloc(sizeof(struct sccp_dual));
+	dual = calloc(1, sizeof(struct sccp_dual));
 	if (dual) {
-		memset(d, 0, sizeof(*dual));
-		dual->chan1 = chan1m;
-		dual->chan2 = chan2m;
-		if (!cw_pthread_create(&th, &global_attr_default, sccp_channel_park_thread, dual))
-			return;
-		free(dual);
+		dual->chan1 = cw_object_dup(chan1m);
+		dual->chan2 = cw_object_dup(chan2m);
+		if (cw_pthread_create(&th, &global_attr_default, sccp_channel_park_thread, dual)) {
+			cw_object_put(chan1m);
+			cw_object_put(chan2m);
+			free(dual);
+		}
 	}
 }
 #endif

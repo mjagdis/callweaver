@@ -1563,6 +1563,7 @@ int callweaver_main(int argc, char *argv[])
 		cw_verbose("[ Initializing Custom Configuration Options ]");
 
 	cw_registry_init(&atexit_registry, 1);
+	cw_registry_init(&channel_registry, 1024);
 	cw_registry_init(&cdrbe_registry, 64);
 	cw_registry_init(&clicmd_registry, 1024);
 	cw_registry_init(&config_engine_registry, 64);

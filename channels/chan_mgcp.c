@@ -986,6 +986,7 @@ static int mgcp_hangup(struct cw_channel *ast)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
+	struct cw_channel *bchan;
 
 	if (option_debug) {
 		cw_log(CW_LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
@@ -1023,16 +1024,18 @@ static int mgcp_hangup(struct cw_channel *ast)
 	sub->cxident[0] = '\0';
 	if ((sub == p->sub) && sub->next->owner) {
 		if (p->hookstate == MGCP_OFFHOOK) {
-			if (sub->next->owner && cw_bridged_channel(sub->next->owner)) {
-				transmit_notify_request_with_callerid(p->sub, "L/wt", cw_bridged_channel(sub->next->owner)->cid.cid_num, cw_bridged_channel(sub->next->owner)->cid.cid_name);
+			if (sub->next->owner && (bchan = cw_bridged_channel(sub->next->owner))) {
+				transmit_notify_request_with_callerid(p->sub, "L/wt", bchan->cid.cid_num, bchan->cid.cid_name);
+				cw_object_put(bchan);
 			}
 		} else {
 			/* set our other connection as the primary and swith over to it */
 			p->sub = sub->next;
 			p->sub->cxmode = MGCP_CX_RECVONLY;
 			transmit_modify_request(p->sub);
-			if (sub->next->owner && cw_bridged_channel(sub->next->owner)) {
-				transmit_notify_request_with_callerid(p->sub, "L/rg", cw_bridged_channel(sub->next->owner)->cid.cid_num, cw_bridged_channel(sub->next->owner)->cid.cid_name);
+			if (sub->next->owner && (bchan = cw_bridged_channel(sub->next->owner))) {
+				transmit_notify_request_with_callerid(p->sub, "L/rg", bchan->cid.cid_num, bchan->cid.cid_name);
+				cw_object_put(bchan);
 			}
 		}
 
@@ -1398,14 +1401,13 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 	struct mgcp_endpoint *i = sub->parent;
 	int fmt;
 
-	tmp = cw_channel_alloc(1);
+	tmp = cw_channel_alloc(1, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 	if (tmp) {
 		tmp->tech = &mgcp_tech;
 		tmp->nativeformats = i->capability;
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
 		fmt = cw_best_codec(tmp->nativeformats);
-		snprintf(tmp->name, sizeof(tmp->name), "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 		if (sub->rtp)
 			tmp->fds[0] = cw_rtp_fd(sub->rtp);
 		tmp->type = type;
@@ -2574,10 +2576,11 @@ static void start_rtp(struct mgcp_subchannel *sub)
 
 static void *mgcp_ss(void *data)
 {
+	char exten[CW_MAX_EXTENSION] = "";
 	struct cw_channel *chan = data;
 	struct mgcp_subchannel *sub = chan->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
-	char exten[CW_MAX_EXTENSION] = "";
+	struct cw_channel *bchan;
 	int len = 0;
 	int timeout = firstdigittimeout;
 	int res;
@@ -2760,10 +2763,11 @@ static void *mgcp_ss(void *data)
 			memset(exten, 0, sizeof(exten));
 			len = 0;
 		} else if (!strcmp(exten, cw_parking_ext()) && 
-			sub->next->owner && cw_bridged_channel(sub->next->owner)) {
+			sub->next->owner && (bchan = cw_bridged_channel(sub->next->owner))) {
 			/* This is a three way call, the main call being a real channel, 
 			   and we're parking the first call. */
-			cw_masq_park_call(cw_bridged_channel(sub->next->owner), chan, 0, NULL);
+			cw_masq_park_call(bchan, chan, 0, NULL);
+			cw_object_put(bchan);
 			if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 			}
@@ -2852,6 +2856,8 @@ static void *mgcp_ss(void *data)
 
 static int attempt_transfer(struct mgcp_endpoint *p)
 {
+	struct cw_channel *chan, *bchan;
+
 	/* *************************
 	 * I hope this works.
 	 * Copied out of chan_zap
@@ -2861,35 +2867,39 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 	/* In order to transfer, we need at least one of the channels to
 	   actually be in a call bridge.  We can't conference two applications
 	   together (but then, why would we want to?) */
-	if (cw_bridged_channel(p->sub->owner)) {
+	if ((chan = cw_bridged_channel(p->sub->owner))) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop if now if appropriate */
-		if (cw_bridged_channel(p->sub->next->owner))
-			cw_moh_stop(cw_bridged_channel(p->sub->next->owner));
+		if ((bchan = cw_bridged_channel(p->sub->next->owner)))
+			cw_moh_stop(bchan);
 		if (p->sub->owner->_state == CW_STATE_RINGING) {
-			cw_indicate(cw_bridged_channel(p->sub->next->owner), CW_CONTROL_RINGING);
+			cw_indicate(bchan, CW_CONTROL_RINGING);
 		}
-		if (cw_channel_masquerade(p->sub->next->owner, cw_bridged_channel(p->sub->owner))) {
+		if (cw_channel_masquerade(p->sub->next->owner, chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to masquerade %s as %s\n",
-				cw_bridged_channel(p->sub->owner)->name, p->sub->next->owner->name);
+				chan->name, p->sub->next->owner->name);
 			return -1;
 		}
+		if (bchan)
+			cw_object_put(bchan);
+		cw_object_put(chan);
 		/* Orphan the channel */
 		unalloc_sub(p->sub->next);
-	} else if (cw_bridged_channel(p->sub->next->owner)) {
+	} else if ((chan = cw_bridged_channel(p->sub->next->owner))) {
 		if (p->sub->owner->_state == CW_STATE_RINGING) {
-			cw_indicate(cw_bridged_channel(p->sub->next->owner), CW_CONTROL_RINGING);
+			cw_indicate(chan, CW_CONTROL_RINGING);
 		}
-		cw_moh_stop(cw_bridged_channel(p->sub->next->owner));
-		if (cw_channel_masquerade(p->sub->owner, cw_bridged_channel(p->sub->next->owner))) {
+		cw_moh_stop(chan);
+		if (cw_channel_masquerade(p->sub->owner, chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to masquerade %s as %s\n",
-				cw_bridged_channel(p->sub->next->owner)->name, p->sub->owner->name);
+				chan->name, p->sub->owner->name);
 			return -1;
 		}
 		/*swap_subs(p, SUB_THREEWAY, SUB_REAL);*/
 		if (option_verbose > 2) {
 			cw_verbose(VERBOSE_PREFIX_3 "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
 		}
+		cw_object_put(chan);
 		p->sub = p->sub->next;
 		unalloc_sub(p->sub->next);
 		/* Tell the caller not to hangup */
@@ -2916,8 +2926,9 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 	if (sub->outgoing) {
 		/* Answered */
 		if (sub->owner) {
-			if (cw_bridged_channel(sub->owner)) {
-				cw_moh_stop(cw_bridged_channel(sub->owner));
+			if ((c = cw_bridged_channel(sub->owner))) {
+				cw_moh_stop(c);
+				cw_object_put(c);
 			}
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
@@ -2974,8 +2985,9 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				cw_log(CW_LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
 				cw_log(CW_LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
 			}
-			if (cw_bridged_channel(sub->owner)) {
-				cw_moh_stop(cw_bridged_channel(sub->owner));
+			if ((c = cw_bridged_channel(sub->owner))) {
+				cw_moh_stop(c);
+				cw_object_put(c);
 			}
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
@@ -2992,11 +3004,12 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 
 static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req, struct sockaddr_in *sin)
 {
-	char *ev, *s;
+	char iabuf[INET_ADDRSTRLEN];
 	struct cw_frame f = { 0, };
 	struct mgcp_endpoint *p = sub->parent;
 	struct mgcp_gateway *g = NULL;
-	char iabuf[INET_ADDRSTRLEN];
+	struct cw_channel *chan;
+	char *ev, *s;
 	int res;
 
 	if (mgcpdebug) {
@@ -3098,8 +3111,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						cw_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 					}
 					transmit_modify_request(sub);
-					if (sub->owner && cw_bridged_channel(sub->owner)) {
-						cw_moh_start(cw_bridged_channel(sub->owner), NULL);
+					if (sub->owner && (chan = cw_bridged_channel(sub->owner))) {
+						cw_moh_start(chan, NULL);
+						cw_object_put(chan);
 					}
 					sub->next->cxmode = MGCP_CX_RECVONLY;
 					handle_hd_hf(sub->next, ev);
@@ -3113,8 +3127,10 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						}
 						sub->cxmode = MGCP_CX_CONF;
 						sub->next->cxmode = MGCP_CX_CONF;
-						if (cw_bridged_channel(sub->next->owner)) 
-							cw_moh_stop(cw_bridged_channel(sub->next->owner));
+						if ((chan = cw_bridged_channel(sub->next->owner))) {
+							cw_moh_stop(chan);
+							cw_object_put(chan);
+						}
 						transmit_modify_request(sub);
 						transmit_modify_request(sub->next);
 					} else {
@@ -3130,11 +3146,15 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 							cw_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 						}
 						transmit_modify_request(sub);
-						if (cw_bridged_channel(sub->owner)) 
-							cw_moh_start(cw_bridged_channel(sub->owner), NULL);
-                        
-						if (cw_bridged_channel(sub->next->owner)) 
-							cw_moh_stop(cw_bridged_channel(sub->next->owner));
+						if ((chan = cw_bridged_channel(sub->owner))) {
+							cw_moh_start(chan, NULL);
+							cw_object_put(chan);
+						}
+
+						if ((chan = cw_bridged_channel(sub->next->owner))) {
+							cw_moh_stop(chan);
+							cw_object_put(chan);
+						}
                         
 						handle_hd_hf(sub->next, ev);
 #if 0
@@ -3158,8 +3178,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						/* XXX - What do we do now? */
 						return -1;
 					}
-					if (cw_bridged_channel(p->sub->owner)) {
-						cw_moh_stop(cw_bridged_channel(p->sub->owner));
+					if ((chan = cw_bridged_channel(p->sub->owner))) {
+						cw_moh_stop(chan);
+						cw_object_put(chan);
 					}
 					p->sub->cxmode = MGCP_CX_SENDRECV;
 					transmit_modify_request(p->sub);

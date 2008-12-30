@@ -2239,9 +2239,6 @@ static void decrease_call_count(void)
 
 static void *pbx_thread(void *data)
 {
-    /* Oh joyeous kernel, we're a new thread, with nothing to do but
-       answer this channel and get it going.
-    */
     /* NOTE:
        The launcher of this function _MUST_ increment 'countcalls'
        before invoking the function; it will be decremented when the
@@ -2251,8 +2248,7 @@ static void *pbx_thread(void *data)
 
     __cw_pbx_run(c);
     decrease_call_count();
-
-    pthread_exit(NULL);
+    cw_object_put(c);
 
     return NULL;
 }
@@ -2271,9 +2267,10 @@ enum cw_pbx_result cw_pbx_start(struct cw_channel *c)
         return CW_PBX_CALL_LIMIT;
 
     /* Start a new thread, and get something handling this channel. */
-    if (cw_pthread_create(&t, &global_attr_detached, pbx_thread, c))
+    if (cw_pthread_create(&t, &global_attr_detached, pbx_thread, cw_object_dup(c)))
     {
         cw_log(CW_LOG_WARNING, "Failed to create new channel thread\n");
+        cw_object_put(c);
         return CW_PBX_FAILED;
     }
 
@@ -4073,10 +4070,9 @@ int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *ex
            at the new location */
         struct cw_channel *tmpchan;
         
-        tmpchan = cw_channel_alloc(0);
+        tmpchan = cw_channel_alloc(0, "AsyncGoto/%s", chan->name);
         if (tmpchan)
         {
-            snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
             cw_setstate(tmpchan, chan->_state);
             /* Make formats okay */
             tmpchan->readformat = chan->readformat;
@@ -4172,6 +4168,7 @@ int cw_async_goto_by_name(const char *channame, const char *context, const char 
     {
         res = cw_goto(chan, context, exten, priority, 1, 1);
         cw_mutex_unlock(&chan->lock);
+        cw_object_put(chan);
     }
     return res;
 }
@@ -4536,9 +4533,11 @@ static void *async_wait(void *data)
         }
             
     }
-    free(as);
     if (chan)
         cw_hangup(chan);
+
+    cw_object_put(as->chan);
+    free(as);
     return NULL;
 }
 
@@ -4552,7 +4551,7 @@ static void *async_wait(void *data)
 int cw_pbx_outgoing_cdr_failed(void)
 {
     /* allocate a channel */
-    struct cw_channel *chan = cw_channel_alloc(0);
+    struct cw_channel *chan = cw_channel_alloc(0, NULL);
 
     if (!chan)
     {
@@ -4687,10 +4686,9 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
             /* check if "failed" exists */
             if (cw_exists_extension(chan, context, "failed", 1, NULL))
             {
-                chan = cw_channel_alloc(0);
+                chan = cw_channel_alloc(0, "OutgoingSpoolFailed");
                 if (chan)
                 {
-                    cw_copy_string(chan->name, "OutgoingSpoolFailed", sizeof(chan->name));
                     if (!cw_strlen_zero(context))
                         cw_copy_string(chan->context, context, sizeof(chan->context));
                     cw_copy_string(chan->exten, "failed", sizeof(chan->exten));
@@ -4707,12 +4705,11 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
     }
     else
     {
-        if ((as = malloc(sizeof(struct async_stat))) == NULL)
+        if (!(as = calloc(1, sizeof(struct async_stat))))
         {
             cw_log(CW_LOG_ERROR, "Out of memory!\n");
             return -1;
         }
-        memset(as, 0, sizeof(struct async_stat));
         chan = cw_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
         if (channel)
         {
@@ -4725,7 +4722,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
             free(as);
             return -1;
         }
-        as->chan = chan;
+        as->chan = cw_object_dup(chan);
         cw_copy_string(as->context, context, sizeof(as->context));
         cw_copy_string(as->exten,  exten, sizeof(as->exten));
         as->priority = priority;
@@ -4734,10 +4731,11 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         if (cw_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             cw_log(CW_LOG_WARNING, "Failed to start async wait\n");
-            free(as);
             if (channel)
                 *channel = NULL;
             cw_hangup(chan);
+	    cw_object_put(chan);
+            free(as);
             return -1;
         }
         res = 0;
@@ -4760,6 +4758,7 @@ static void *cw_pbx_run_app(void *data)
     cw_function_exec_str(tmp->chan, cw_hash_string(tmp->app), tmp->app, tmp->data, NULL, 0);
 
     cw_hangup(tmp->chan);
+    cw_object_put(tmp->chan);
     free(tmp);
     return NULL;
 }
@@ -4815,7 +4814,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                     cw_copy_string(tmp->app, app, sizeof(tmp->app));
                     if (appdata)
                         cw_copy_string(tmp->data, appdata, sizeof(tmp->data));
-                    tmp->chan = chan;
+                    tmp->chan = cw_object_dup(chan);
                     if (sync > 1)
                     {
                         if (locked_channel)
@@ -4829,10 +4828,11 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                         if (cw_pthread_create(&tmp->t, &global_attr_detached, cw_pbx_run_app, tmp))
                         {
                             cw_log(CW_LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
-                            free(tmp);
                             if (locked_channel) 
                                 cw_mutex_unlock(&chan->lock);
                             cw_hangup(chan);
+			    cw_object_put(chan);
+                            free(tmp);
                             res = -1;
                         }
                         else
