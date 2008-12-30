@@ -470,18 +470,15 @@ static int cw_extension_match(const char *pattern, const char *data)
 struct cw_context *cw_context_find(const char *name)
 {
     struct cw_context *tmp;
-    unsigned int hash = cw_hash_string(name);
+    unsigned int hash;
     
     cw_mutex_lock(&conlock);
     if (name)
     {
-        tmp = contexts;
-        while (tmp)
-        {
-            if (hash == tmp->hash)
+        hash = cw_hash_string(name);
+        for (tmp = contexts; tmp; tmp = tmp->next)
+            if (hash == tmp->hash && !strcmp(name, tmp->name))
                 break;
-            tmp = tmp->next;
-        }
     }
     else
     {
@@ -523,7 +520,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
     struct cw_include *i;
     struct cw_sw *sw;
     struct cw_switch *asw;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash;
 
     /* Initialize status if appropriate */
     if (!*stacklen)
@@ -544,6 +541,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
         if (!strcasecmp(incstack[x], context))
             return NULL;
     }
+    hash = cw_hash_string(context);
     if (bypass)
         tmp = bypass;
     else
@@ -551,7 +549,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
     while (tmp)
     {
         /* Match context */
-        if (bypass || (hash == tmp->hash))
+        if (bypass || (hash == tmp->hash && !strcmp(context, tmp->name)))
         {
             struct cw_exten *earlymatch = NULL;
 
@@ -721,7 +719,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
     int offset, offset2;
     struct cw_var_t *variables;
     int no_match_yet = 0; // start optimistic
-    unsigned int hash = cw_hash_var_name(var);
+    unsigned int hash;
 
     // warnings for (potentially) unsafe pre-conditions
     // TODO: these cases really ought to be safeguarded against
@@ -801,13 +799,15 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
     }
     else /* not sliced */
     {
+        hash = cw_hash_var_name(var);
+
         if /* channel exists */ (c)
         {
             // ----------------------------------------------
             // search builtin channel variables (scenario #1)
             // ----------------------------------------------
                         
-            if /* CALLERID */(hash == CW_KEYWORD_CALLERID)
+            if (hash == CW_KEYWORD_CALLERID && !strcmp(var, "CALLERID"))
             {
                 if (c->cid.cid_num)
                 {
@@ -827,7 +827,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if /* CALLERIDNUM */ (hash == CW_KEYWORD_CALLERIDNUM)
+            else if (hash == CW_KEYWORD_CALLERIDNUM && !strcmp(var, "CALLERIDNUM"))
             {
                 if (c->cid.cid_num)
                 {
@@ -839,7 +839,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if /* CALLERIDNAME */ (hash == CW_KEYWORD_CALLERIDNAME)
+            else if (hash == CW_KEYWORD_CALLERIDNAME && !strcmp(var, "CALLERIDNAME"))
             {
                 if (c->cid.cid_name)
                 {
@@ -849,7 +849,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 else
                     *ret = NULL;
             }
-            else if /* CALLERANI */ (hash == CW_KEYWORD_CALLERANI)
+            else if (hash == CW_KEYWORD_CALLERANI && !strcmp(var, "CALLERANI"))
             {
                 if (c->cid.cid_ani)
                 {
@@ -859,27 +859,27 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 else
                     *ret = NULL;
             }            
-            else if /* CALLINGPRES */ (hash == CW_KEYWORD_CALLINGPRES)
+            else if (hash == CW_KEYWORD_CALLINGPRES && !strcmp(var, "CALLINGPRES"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
                 *ret = workspace;
             }            
-            else if /* CALLINGANI2 */ (hash == CW_KEYWORD_CALLINGANI2)
+            else if (hash == CW_KEYWORD_CALLINGANI2 && !strcmp(var, "CALLINGANI2"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
                 *ret = workspace;
             }            
-            else if /* CALLINGTON */ (hash == CW_KEYWORD_CALLINGTON)
+            else if (hash == CW_KEYWORD_CALLINGTON && !strcmp(var, "CALLINGTON"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
                 *ret = workspace;
             }            
-            else if /* CALLINGTNS */ (hash == CW_KEYWORD_CALLINGTNS)
+            else if (hash == CW_KEYWORD_CALLINGTNS && !strcmp(var, "CALLINGTNS"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
                 *ret = workspace;
             }            
-            else if /* DNID */ (hash == CW_KEYWORD_DNID)
+            else if (hash == CW_KEYWORD_DNID && !strcmp(var, "DNID"))
             {
                 if (c->cid.cid_dnid)
                 {
@@ -891,26 +891,26 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }            
-            else if /* HINT */ (hash == CW_KEYWORD_HINT)
+            else if (hash == CW_KEYWORD_HINT && !strcmp(var, "HINT"))
             {
                 if (!cw_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
                     *ret = NULL;
                 else
                     *ret = workspace;
             }
-            else if /* HINTNAME */ (hash == CW_KEYWORD_HINTNAME)
+            else if (hash == CW_KEYWORD_HINTNAME && !strcmp(var, "HINTNAME"))
             {
                 if (!cw_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
                     *ret = NULL;
                 else
                     *ret = workspace;
             }
-            else if /* EXTEN */ (hash == CW_KEYWORD_EXTEN)
+            else if (hash == CW_KEYWORD_EXTEN && !strcmp(var, "EXTEN"))
             {
                 cw_copy_string(workspace, c->exten, workspacelen);
                 *ret = workspace;
             }
-            else if /* RDNIS */ (hash == CW_KEYWORD_RDNIS)
+            else if (hash == CW_KEYWORD_RDNIS && !strcmp(var, "RDNIS"))
             {
                 if (c->cid.cid_rdnis)
                 {
@@ -922,42 +922,42 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if /* CONTEXT */ (hash == CW_KEYWORD_CONTEXT)
+            else if (hash == CW_KEYWORD_CONTEXT && !strcmp(var, "CONTEXT"))
             {
                 cw_copy_string(workspace, c->context, workspacelen);
                 *ret = workspace;
             }
-            else if /* PRIORITY */ (hash == CW_KEYWORD_PRIORITY)
+            else if (hash == CW_KEYWORD_PRIORITY && !strcmp(var, "PRIORITY"))
             {
                 snprintf(workspace, workspacelen, "%d", c->priority);
                 *ret = workspace;
             }
-            else if /* CHANNEL */ (hash == CW_KEYWORD_CHANNEL)
+            else if (hash == CW_KEYWORD_CHANNEL && !strcmp(var, "CHANNEL"))
             {
                 cw_copy_string(workspace, c->name, workspacelen);
                 *ret = workspace;
             }
-            else if /* UNIQUEID */ (hash == CW_KEYWORD_UNIQUEID)
+            else if (hash == CW_KEYWORD_UNIQUEID && !strcmp(var, "UNIQUEID"))
             {
                 snprintf(workspace, workspacelen, "%s", c->uniqueid);
                 *ret = workspace;
             }
-            else if /* HANGUPCAUSE */ (hash == CW_KEYWORD_HANGUPCAUSE)
+            else if (hash == CW_KEYWORD_HANGUPCAUSE && !strcmp(var, "HANGUPCAUSE"))
             {
                 snprintf(workspace, workspacelen, "%d", c->hangupcause);
                 *ret = workspace;
             }
-            else if /* ACCOUNTCODE */ (hash == CW_KEYWORD_ACCOUNTCODE)
+            else if (hash == CW_KEYWORD_ACCOUNTCODE && !strcmp(var, "ACCOUNTCODE"))
             {
                 cw_copy_string(workspace, c->accountcode, workspacelen);
                 *ret = workspace;
             }
-            else if /* LANGUAGE */ (hash == CW_KEYWORD_LANGUAGE)
+            else if (hash == CW_KEYWORD_LANGUAGE && !strcmp(var, "LANGUAGE"))
             {
                 cw_copy_string(workspace, c->language, workspacelen);
                 *ret = workspace;
             }
-	    else if /* SYSTEMNAME */ (hash == CW_KEYWORD_SYSTEMNAME)
+	    else if (hash == CW_KEYWORD_SYSTEMNAME && !strcmp(var, "SYSTEMNAME"))
 	    {
 		cw_copy_string(workspace, cw_config_CW_SYSTEM_NAME, workspacelen);
 		*ret = workspace;
@@ -965,7 +965,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
             else if /* user defined channel variables exist */ (&c->varshead)
             {
                 no_match_yet = 1;
-                
+
                 // ---------------------------------------------------
                 // search user defined channel variables (scenario #2)
                 // ---------------------------------------------------
@@ -1028,12 +1028,12 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
             // ------------------------------------
             // search builtin globals (scenario #4)
             // ------------------------------------
-            if /* EPOCH */ (hash == CW_KEYWORD_EPOCH)
+            if (hash == CW_KEYWORD_EPOCH && !strcmp(var, "EPOCH"))
             {
                 snprintf(workspace, workspacelen, "%u",(int)time(NULL));
                 *ret = workspace;
             }
-            else if /* DATETIME */ (hash == CW_KEYWORD_DATETIME)
+            else if (hash == CW_KEYWORD_DATETIME && !strcmp(var, "DATETIME"))
             {
                 thistime = time(NULL);
                 localtime_r(&thistime, &brokentime);
@@ -1047,7 +1047,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                          );
                 *ret = workspace;
             }
-            else if /* TIMESTAMP */ (hash == CW_KEYWORD_TIMESTAMP)
+            else if (hash == CW_KEYWORD_TIMESTAMP && !strcmp(var, "TIMESTAMP"))
             {
                 thistime=time(NULL);
                 localtime_r(&thistime, &brokentime);
@@ -2187,8 +2187,8 @@ static int __cw_pbx_run(struct cw_channel *c)
                 if (option_verbose > 2)
                     cw_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
 
-                if (hash == CW_KEYWORD_BUSY) {
-                    cw_indicate(c, CW_CONTROL_BUSY);        
+                if (hash == CW_KEYWORD_BUSY && !strcmp(status, "BUSY")) {
+                    cw_indicate(c, CW_CONTROL_BUSY);
                     if (c->_state != CW_STATE_UP)
                         cw_setstate(c, CW_STATE_BUSY);
 		} else { /* CHANUNAVAIL, CONGESTION or UNKNOWN */
@@ -2354,32 +2354,22 @@ int cw_context_remove_include(const char *context, const char *include, const ch
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
         return -1;
 
-    /* walk contexts and search for the right one ...*/
-    c = cw_walk_contexts(NULL);
-    while (c)
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
-        /* we found one ... */
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret;
-            /* remove include from this context ... */    
             ret = cw_context_remove_include2(c, include, registrar);
-
-            cw_unlock_contexts();
-
-            /* ... return results */
-            return ret;
+	    break;
         }
-        c = cw_walk_contexts(c);
     }
 
-    /* we can't find the right one context */
     cw_unlock_contexts();
-    return -1;
+    return ret;
 }
 
 /*
@@ -2434,32 +2424,22 @@ int cw_context_remove_switch(const char *context, const char *sw, const char *da
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
         return -1;
 
-    /* walk contexts and search for the right one ...*/
-    c = cw_walk_contexts(NULL);
-    while (c)
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
-        /* we found one ... */
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret;
-            /* remove switch from this context ... */    
             ret = cw_context_remove_switch2(c, sw, data, registrar);
-
-            cw_unlock_contexts();
-
-            /* ... return results */
-            return ret;
+	    break;
         }
-        c = cw_walk_contexts(c);
     }
 
-    /* we can't find the right one context */
     cw_unlock_contexts();
-    return -1;
+    return ret;
 }
 
 /*
@@ -2514,30 +2494,24 @@ int cw_context_remove_extension(const char *context, const char *extension, int 
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
         return -1;
 
     /* walk contexts ... */
-    c = cw_walk_contexts(NULL);
-    while (c)
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
         /* ... search for the right one ... */
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            /* ... remove extension ... */
-            int ret = cw_context_remove_extension2(c, extension, priority,
-                registrar);
-            /* ... unlock contexts list and return */
-            cw_unlock_contexts();
-            return ret;
+            ret = cw_context_remove_extension2(c, extension, priority, registrar);
+            break;
         }
-        c = cw_walk_contexts(c);
     }
 
-    /* we can't find the right context */
     cw_unlock_contexts();
-    return -1;
+    return ret;
 }
 
 /*
@@ -3131,7 +3105,7 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
     tmp = *local_contexts;
     while (tmp)
     {
-        if (hash == tmp->hash)
+        if (hash == tmp->hash && !strcmp(name, tmp->name))
         {
             cw_mutex_unlock(&conlock);
             cw_log(CW_LOG_WARNING, "Failed to register context '%s' because it is already in use\n", name);
@@ -3298,6 +3272,7 @@ int cw_context_add_include(const char *context, const char *include, const char 
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
     {
@@ -3305,25 +3280,19 @@ int cw_context_add_include(const char *context, const char *include, const char 
         return -1;
     }
 
-    /* walk contexts ... */
-    c = cw_walk_contexts(NULL);
-    while (c)
+    errno = ENOENT;
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
         /* ... search for the right one ... */
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret = cw_context_add_include2(c, include, registrar);
-            /* ... unlock contexts list and return */
-            cw_unlock_contexts();
-            return ret;
+            ret = cw_context_add_include2(c, include, registrar);
+	    break;
         }
-        c = cw_walk_contexts(c);
     }
 
-    /* we can't find the right context */
     cw_unlock_contexts();
-    errno = ENOENT;
-    return -1;
+    return ret;
 }
 
 #define FIND_NEXT \
@@ -3791,6 +3760,7 @@ int cw_context_add_switch(const char *context, const char *sw, const char *data,
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
     
     if (cw_lock_contexts())
     {
@@ -3798,25 +3768,19 @@ int cw_context_add_switch(const char *context, const char *sw, const char *data,
         return -1;
     }
 
-    /* walk contexts ... */
-    c = cw_walk_contexts(NULL);
-    while (c)
+    errno = ENOENT;
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
         /* ... search for the right one ... */
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret = cw_context_add_switch2(c, sw, data, eval, registrar);
-            /* ... unlock contexts list and return */
-            cw_unlock_contexts();
-            return ret;
+            ret = cw_context_add_switch2(c, sw, data, eval, registrar);
+            break;
         }
-        c = cw_walk_contexts(c);
     }
 
-    /* we can't find the right context */
     cw_unlock_contexts();
-    errno = ENOENT;
-    return -1;
+    return ret;
 }
 
 /*
@@ -3920,6 +3884,7 @@ int cw_context_remove_ignorepat(const char *context, const char *ignorepat, cons
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
     {
@@ -3927,21 +3892,18 @@ int cw_context_remove_ignorepat(const char *context, const char *ignorepat, cons
         return -1;
     }
 
-    c = cw_walk_contexts(NULL);
-    while (c)
+    errno = ENOENT;
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret = cw_context_remove_ignorepat2(c, ignorepat, registrar);
-            cw_unlock_contexts();
-            return ret;
+            ret = cw_context_remove_ignorepat2(c, ignorepat, registrar);
+	    break;
         }
-        c = cw_walk_contexts(c);
     }
 
     cw_unlock_contexts();
-    errno = ENOENT;
-    return -1;
+    return ret;
 }
 
 int cw_context_remove_ignorepat2(struct cw_context *con, const char *ignorepat, const char *registrar)
@@ -3991,6 +3953,7 @@ int cw_context_add_ignorepat(const char *con, const char *value, const char *reg
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(con);
+    int ret = -1;
 
     if (cw_lock_contexts())
     {
@@ -3998,21 +3961,17 @@ int cw_context_add_ignorepat(const char *con, const char *value, const char *reg
         return -1;
     }
 
-    c = cw_walk_contexts(NULL);
-    while (c)
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(con, c->name))
         {
-            int ret = cw_context_add_ignorepat2(c, value, registrar);
-            cw_unlock_contexts();
-            return ret;
+            ret = cw_context_add_ignorepat2(c, value, registrar);
+	    break;
         } 
-        c = cw_walk_contexts(c);
     }
 
     cw_unlock_contexts();
-    errno = ENOENT;
-    return -1;
+    return ret;
 }
 
 int cw_context_add_ignorepat2(struct cw_context *con, const char *value, const char *registrar)
@@ -4089,6 +4048,7 @@ int cw_add_extension(const char *context, int replace, const char *extension, in
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
+    int ret = -1;
 
     if (cw_lock_contexts())
     {
@@ -4096,22 +4056,19 @@ int cw_add_extension(const char *context, int replace, const char *extension, in
         return -1;
     }
 
-    c = cw_walk_contexts(NULL);
-    while (c)
+    errno = ENOENT;
+    for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
     {
-        if (hash == c->hash)
+        if (hash == c->hash && !strcmp(context, c->name))
         {
-            int ret = cw_add_extension2(c, replace, extension, priority, label, callerid,
+            ret = cw_add_extension2(c, replace, extension, priority, label, callerid,
                 application, data, datad, registrar);
-            cw_unlock_contexts();
-            return ret;
+	    break;
         }
-        c = cw_walk_contexts(c);
     }
 
     cw_unlock_contexts();
-    errno = ENOENT;
-    return -1;
+    return ret;
 }
 
 int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority)
@@ -4212,7 +4169,7 @@ int cw_goto(struct cw_channel *chan, const char *context, const char *exten, con
     if (!context || !*context)
 	    context = chan->context;
 
-    if (exten && cw_hash_app_name(exten) == CW_KEYWORD_BYEXTENSION) {
+    if (exten && !strcmp(exten, "BYEXTENSION")) {
         cw_log(CW_LOG_WARNING, "Use of BYEXTENSTION in Goto is deprecated. Use ${EXTEN} instead\n");
         exten = chan->exten;
     } else if (!exten || !*exten)
@@ -5036,7 +4993,7 @@ void __cw_context_destroy(struct cw_context *con, const char *registrar)
     tmp = contexts;
     while (tmp)
     {
-        if (((con  &&  (tmp->hash == con->hash))  ||  !con)
+        if (((con  &&  tmp->hash == con->hash  &&  !strcmp(tmp->name, con->name))  ||  !con)
             &&
             (!registrar ||  !strcasecmp(registrar, tmp->registrar)))
         {
@@ -5148,7 +5105,7 @@ char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name)
 {
     struct cw_var_t *variables;
     struct varshead *headp;
-    unsigned int hash = cw_hash_var_name(name);
+    unsigned int hash;
     char *ret = NULL;
 
     if (chan)
@@ -5158,11 +5115,13 @@ char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name)
 
     if (name)
     {
+        hash = cw_hash_var_name(name);
+
         if (headp == &globals)
             cw_mutex_lock(&globalslock);
         CW_LIST_TRAVERSE(headp,variables,entries)
         {
-            if (hash == cw_var_hash(variables))
+            if (hash == cw_var_hash(variables) && !strcmp(name, cw_var_name(variables)))
             {
                 ret = cw_var_value(variables);
                 break;
@@ -5177,7 +5136,7 @@ char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name)
             cw_mutex_lock(&globalslock);
             CW_LIST_TRAVERSE(headp,variables,entries)
             {
-                if (hash == cw_var_hash(variables))
+                if (hash == cw_var_hash(variables) && !strcmp(name, cw_var_name(variables)))
                 {
                     ret = cw_var_value(variables);
                     break;
@@ -5240,7 +5199,7 @@ void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const 
 
     CW_LIST_TRAVERSE (headp, newvariable, entries)
     {
-        if (hash == cw_var_hash(newvariable))
+        if (hash == cw_var_hash(newvariable) && !strcmp(nametail, cw_var_name(newvariable)))
         {
             /* there is already such a variable, delete it */
             CW_LIST_REMOVE(headp, newvariable, entries);
