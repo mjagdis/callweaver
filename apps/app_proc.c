@@ -160,7 +160,10 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		chan->proc_priority = chan->priority;
 		setproccontext=1;
 	}
+
 	/* Save old proc variables */
+	save_proc_exten = save_proc_context = save_proc_priority = save_proc_offset = NULL;
+
 	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_EXTEN, "PROC_EXTEN"))) {
 		save_proc_exten = strdup(var->value);
 		cw_object_put(var);
