@@ -28,7 +28,6 @@ CORE_SRC = \
     acl.c \
     rtp.c \
     manager.c \
-    callweaver_hash.c\
 	dsp.c \
     chanvars.c \
     indications.c \

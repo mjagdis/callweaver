@@ -73,8 +73,18 @@
  *
  * \return 0 if 'string' is a zero-length string or NULL.
  */
+static inline unsigned int cw_hash_string(const char *string)
+{
+	unsigned int hash;
 
-extern unsigned int cw_hash_string(const char *string);
+	hash = 0;
+	if (string) {
+		while (*string)
+			hash = cw_hash_add(hash, *(string++));
+	}
+
+	return hash;
+}
 
 #endif
 
