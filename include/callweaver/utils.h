@@ -61,6 +61,13 @@
 #define AF_INTERNAL	(AF_MAX + 1)
 
 
+#ifdef DO_CRASH
+#  define CRASH do { *((int *)(0)) = 1; } while(0)
+#else
+#  define CRASH do { } while(0)
+#endif
+
+
 /*! \note
  \verbatim
    Note:

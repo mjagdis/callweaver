@@ -1120,11 +1120,6 @@ static inline int cw_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, 
     }))
 #endif
 
-#ifdef DO_CRASH
-#define CRASH do { fprintf(stderr, "!! Forcing immediate crash a-la abort !!\nFile %s Line %d\n\n", __FILE__, __LINE__); *((int *)0) = 0; } while(0)
-#else
-#define CRASH do { } while(0)
-#endif
 
 #define CHECK_BLOCKING(c) { 	 \
 							if (cw_test_flag(c, CW_FLAG_BLOCKING)) {\

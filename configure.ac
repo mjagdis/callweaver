@@ -832,9 +832,19 @@ AC_ARG_ENABLE(debug,
 
 if test "${enable_debug}" = "yes"; then
    AC_DEFINE([DEBUG],[],[Enable extra debugging.])
+   enable_do_crash="yes"
    enable_debug_mutex="yes"
 fi
 AM_CONDITIONAL([WANT_DEBUG],[test "${enable_debug}" = "yes"])
+
+dnl Enable forced crashes
+AC_ARG_ENABLE(do-crash,
+	[AC_HELP_STRING([--enable-do-crash],[build with forced crashes])],,[enable_do_crash="no"])
+
+if test "${enable_do_crash}" = "yes"; then
+   AC_DEFINE([DO_CRASH],[],[Enable forced crashes on critical problem detection.])
+fi
+AC_SUBST(DO_CRASH)
 
 dnl Enable mutex debugging
 AC_ARG_ENABLE(debug-mutex,
@@ -851,14 +861,6 @@ AC_ARG_ENABLE(stack-backtraces,
 
 if test "${enable_stack_backtraces}" = "yes"; then
    AC_DEFINE([STACK_BACKTRACES],[],[Enable generation of stack backtraces.])
-fi
-
-dnl
-AC_ARG_ENABLE(do-crash,
-	[AC_HELP_STRING([--enable-do-crash],[enable DO_CRASH])],,[enable_do_crash="no"])
-
-if test "${enable_do_crash}" = "yes"; then
-   AC_DEFINE([DO_CRASH],[],[Enable DO_CRASH.])
 fi
 
 dnl Enable valgrind

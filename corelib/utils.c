@@ -705,12 +705,6 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 
 #ifdef DEBUG_MUTEX
 
-#ifdef THREAD_CRASH
-#  define DEBUG_MUTEX_MAYBE_DUMPCORE() do { *((int *)(0)) = 1; } while(0)
-#else
-#  define DEBUG_MUTEX_MAYBE_DUMPCORE() do { } while(0)
-#endif
-
 #define debug_mutex_log(...) do { \
 	if (canlog) \
 		cw_log(CW_LOG_ERROR, __VA_ARGS__); \
@@ -770,7 +764,7 @@ int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const
 			   filename, lineno, func, mutex_name);
 		debug_mutex_log("%s:%d %s: previously initialized mutex '%s'\n",
 			   t->file, t->lineno, t->func, mutex_name);
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 		return 0;
 	}
 #endif
@@ -890,7 +884,7 @@ int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char
 	} else {
 		debug_mutex_log("%s:%d %s: Error obtaining mutex: %s\n",
 			filename, lineno, func, strerror(res));
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	return res;
@@ -933,7 +927,7 @@ int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const ch
 		debug_mutex_log("%s:%d %s: attempted unlock mutex '%s' without owning it!\n",
 			filename, lineno, func, mutex_name);
 		show_locks(canlog, t);
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	pop_thread_info(canlog, t, filename, lineno, func, mutex_name, "freed more times than we've locked!");
@@ -941,7 +935,7 @@ int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const ch
 	if ((res = pthread_mutex_unlock(&t->mutex))) {
 		debug_mutex_log("%s line %d (%s): Error releasing mutex: %s\n",
 			filename, lineno, func, strerror(res));
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	return res;
@@ -964,7 +958,7 @@ int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char 
 		debug_mutex_log("%s:%d %s: attempted cond wait using mutex '%s' without owning it!\n",
 			filename, lineno, func, mutex_name);
 		show_locks(canlog, t);
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	if (t->reentrancy > 1) {
@@ -982,7 +976,7 @@ int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char 
 	if (res) {
 		debug_mutex_log("%s:%d %s: Error waiting on condition mutex '%s': %s\n",
 			filename, lineno, func, mutex_name, strerror(res));
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	return res;
@@ -1006,7 +1000,7 @@ int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const 
 			filename, lineno, func, mutex_name);
 		debug_mutex_log("%s:%d %s: '%s' was locked here\n",
 			t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	if (t->reentrancy > 1) {
@@ -1024,7 +1018,7 @@ int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const 
 	if (res && res != ETIMEDOUT) {
 		debug_mutex_log("%s:%d %s: Error waiting on condition mutex '%s': %s\n",
 			filename, lineno, func, mutex_name, strerror(res));
-		DEBUG_MUTEX_MAYBE_DUMPCORE();
+		CRASH;
 	}
 
 	return res;
