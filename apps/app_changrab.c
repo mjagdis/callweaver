@@ -74,7 +74,9 @@ static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *b
 		if (oldchan->_bridge && strchr(argv[1], 'b')) {
 			newchan = oldchan;
 			oldchan = cw_object_get(oldchan->_bridge);
+			cw_mutex_unlock(&newchan->lock);
 			cw_object_put(newchan);
+			cw_mutex_lock(&oldchan->lock);
 		}
 		if (strchr(argv[1],'r') && oldchan->_state == CW_STATE_UP) {
 			cw_mutex_unlock(&oldchan->lock);
