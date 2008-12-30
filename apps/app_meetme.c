@@ -801,8 +801,10 @@ static int conf_free(struct cw_conference *conf)
 
 static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int confflags)
 {
+    static char *ogifiledefault = "conf-background.ogi";
     struct cw_conf_user *user = malloc(sizeof(struct cw_conf_user));
     struct cw_conf_user *usr = NULL;
+    struct cw_var_t *var;
     int fd;
     struct dahdi_confinfo ztc, ztc_empty;
     struct cw_frame *f;
@@ -827,8 +829,6 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     int duration=20;
     struct cw_dsp *dsp=NULL;
 
-    char *ogifile;
-    char *ogifiledefault = "conf-background.ogi";
     char meetmesecs[30] = "";
     char exitcontext[CW_MAX_CONTEXT] = "";
     char recordingtmp[CW_MAX_EXTENSION] = "";
@@ -847,15 +847,17 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
 
     if (confflags & CONFFLAG_RECORDCONF && conf->recording !=MEETME_RECORD_ACTIVE)
     {
-        conf->recordingfilename = pbx_builtin_getvar_helper(chan,"MEETME_RECORDINGFILE");
-        if (!conf->recordingfilename)
-        {
+        if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_RECORDINGFILE, "MEETME_RECORDINGFILE"))) {
+            conf->recordingfilename = cw_strdupa(var->value);
+            cw_object_put(var);
+        } else {
             snprintf(recordingtmp,sizeof(recordingtmp),"meetme-conf-rec-%s-%s",conf->confno,chan->uniqueid);
             conf->recordingfilename = cw_strdupa(recordingtmp);
         }
-        conf->recordingformat = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT");
-        if (!conf->recordingformat)
-        {
+        if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_RECORDINGFORMAT, "MEETME_RECORDINGFORMAT"))) {
+            conf->recordingformat = cw_strdupa(var->value);
+            cw_object_put(var);
+        } else {
             snprintf(recordingtmp,sizeof(recordingtmp), "wav");
             conf->recordingformat = cw_strdupa(recordingtmp);
         }
@@ -914,9 +916,10 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     origquiet = confflags & CONFFLAG_QUIET;
     if (confflags & CONFFLAG_EXIT_CONTEXT)
     {
-        if ((ogifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT")))
-            cw_copy_string(exitcontext, ogifile, sizeof(exitcontext));
-        else if (!cw_strlen_zero(chan->proc_context))
+        if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_EXIT_CONTEXT, "MEETME_EXIT_CONTEXT"))) {
+            cw_copy_string(exitcontext, var->value, sizeof(exitcontext));
+            cw_object_put(var);
+	} else if (!cw_strlen_zero(chan->proc_context))
             cw_copy_string(exitcontext, chan->proc_context, sizeof(exitcontext));
         else
             cw_copy_string(exitcontext, chan->context, sizeof(exitcontext));
@@ -1129,12 +1132,22 @@ dahdiretry:
             x = 1;
             cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
         }
+
         /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
           or use default filename of conf-background.ogi */
-        ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
-        ogifile = strdup(ogifile ? ogifile : ogifiledefault);
-        ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", ogifile, NULL, 0);
-        free(ogifile);
+        if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_OGI_BACKGROUND, "MEETME_OGI_BACKGROUND"))) {
+            char *tmp;
+            if ((tmp = strdup(var->value))) {
+                ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", tmp, NULL, 0);
+                free(tmp);
+            } else {
+                cw_log(CW_LOG_ERROR, "Out of memory!\n");
+                ret = -1;
+            }
+            cw_object_put(var);
+        } else
+            ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", ogifiledefault, NULL, 0);
+
         if (user->dahdichannel)
         {
             /*  Remove CONFMUTE mode on DAHDI channel */

@@ -532,7 +532,7 @@ int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char
 	char tmp[256]="", *l, *n;
 	OSPE_DEST_PROT prot;
 	OSPE_DEST_OSP_ENABLED ospenabled;
-	char *devinfo = NULL;
+	struct cw_var_t *devinfo;
 
 	result->handle = -1;
 	result->numresults = 0;
@@ -581,11 +581,8 @@ int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char
 		/* No more than 10 back */
 		counts = 10;
 		dummy = 0;
-		devinfo = pbx_builtin_getvar_helper (chan, "OSPPEER");
-		if (!devinfo) {
-			devinfo = "";
-		}
-		if (!OSPPTransactionRequestAuthorisation(result->handle, source, devinfo, 
+		devinfo = pbx_builtin_getvar_helper(chan, CW_KEYWORD_OSPPEER, "OSPPEER");
+		if (!OSPPTransactionRequestAuthorisation(result->handle, source, (devinfo ? devinfo->value : ""),
 			  callerid,OSPC_E164, extension, OSPC_E164, NULL, 0, NULL, NULL, &counts, &dummy, NULL)) {
 			if (counts) {
 				tokenlen = sizeof(token);
@@ -648,7 +645,8 @@ int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char
 			OSPPTransactionDelete(result->handle);
 			result->handle = -1;
 		}
-		
+		if (devinfo)
+			cw_object_put(devinfo);
 	}
 	if (!osp) 
 		cw_log(CW_LOG_NOTICE, "OSP Provider '%s' does not exist!\n", provider);

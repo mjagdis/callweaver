@@ -88,12 +88,13 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned
 	return entry;
 }
 
+
 int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry)
 {
 	atomic_inc(&registry->inuse);
 
 	cw_mutex_lock(&registry->lock);
-	cw_list_del(&registry->list, &entry->list);
+	cw_list_del(&registry->del, &entry->list);
 	cw_mutex_unlock(&registry->lock);
 
 	if (option_verbose > 1 && entry->obj)
@@ -109,18 +110,70 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 }
 
 
-int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data)
+int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj)
+{
+	struct cw_registry_entry *entry;
+	struct cw_list *list;
+	int ret = -1;
+
+	entry = NULL;
+
+	atomic_inc(&registry->inuse);
+
+	if (obj && !(entry = cw_registry_add(registry, hash, obj)))
+		goto out;
+
+	if (pattern && registry->match) {
+		cw_list_for_each(list, (entry ? &entry->list : &registry->list[hash % registry->size])) {
+			struct cw_registry_entry *entry2 = container_of(list, struct cw_registry_entry, list);
+			if (entry2->hash == hash && registry->match(entry2->obj, pattern)) {
+				cw_registry_del(registry, entry2);
+				break;
+			}
+		}
+	}
+
+	ret = 0;
+
+out:
+	if (atomic_dec_and_test(&registry->inuse))
+		registry_purge(registry);
+
+	return ret;
+}
+
+
+int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data)
 {
 	struct cw_list *list;
-	struct cw_registry_entry *entry;
 	int i, ret = 0;
 
 	atomic_inc(&registry->inuse);
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each(list, &registry->list[i]) {
-			entry = container_of(list, struct cw_registry_entry, list);
-			if ((ret = func(entry->obj, data)))
+			if ((ret = func(container_of(list, struct cw_registry_entry, list), data)))
+				break;
+		}
+	}
+
+	if (atomic_dec_and_test(&registry->inuse))
+		registry_purge(registry);
+
+	return ret;
+}
+
+
+int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data)
+{
+	struct cw_list *list;
+	int i, ret = 0;
+
+	atomic_inc(&registry->inuse);
+
+	for (i = 0; i < registry->size; i++) {
+		cw_list_for_each_rev(list, &registry->list[i]) {
+			if ((ret = func(container_of(list, struct cw_registry_entry, list), data)))
 				break;
 		}
 	}
@@ -176,4 +229,30 @@ int cw_registry_init(struct cw_registry *registry, size_t estsize)
 
 	cw_log(CW_LOG_ERROR, "Out of memory");
 	return -1;
+}
+
+
+void cw_registry_flush(struct cw_registry *registry)
+{
+	struct cw_list *list;
+	int i;
+
+	atomic_inc(&registry->inuse);
+
+	for (i = 0; i < registry->size; i++) {
+		cw_list_for_each(list, &registry->list[i]) {
+			cw_list_del(&registry->del, list);
+		}
+	}
+
+	if (atomic_dec_and_test(&registry->inuse))
+		registry_purge(registry);
+}
+
+
+void cw_registry_destroy(struct cw_registry *registry)
+{
+	cw_registry_flush(registry);
+	cw_mutex_destroy(&registry->lock);
+	free(registry->list);
 }

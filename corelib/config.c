@@ -1043,9 +1043,9 @@ int cw_update_realtime(const char *family, const char *keyfield, const char *loo
 	return res;
 }
 
-static int config_engine_print(struct cw_object *obj, void *data)
+static int config_engine_print(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_config_engine *eng = container_of(obj, struct cw_config_engine, obj);
+	struct cw_config_engine *eng = container_of(entry->obj, struct cw_config_engine, obj);
 	int *fd = data;
 	struct cw_config_map *map;
 

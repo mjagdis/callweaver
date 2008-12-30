@@ -36,9 +36,6 @@ extern "C" {
 #endif
 
 
-#define cw_hash_app_name(x)    cw_hash_string(x)
-
-
 #define CW_PBX_KEEP    0
 #define CW_PBX_REPLACE 1
 
@@ -495,11 +492,11 @@ int cw_unlock_context(struct cw_context *con);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_variable *vars, struct cw_channel **locked_channel);
+int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_variable *vars, struct cw_channel **locked_channel);
+int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
 
 /* Functions for returning values from structures */
 const char *cw_get_context_name(struct cw_context *con);
@@ -537,13 +534,13 @@ struct cw_ignorepat *cw_walk_context_ignorepats(struct cw_context *con,
 struct cw_sw *cw_walk_context_switches(struct cw_context *con, struct cw_sw *sw);
 
 int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size);
-extern char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name);
+extern struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name);
 extern void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
-extern void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
+extern void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg);
 extern void pbx_builtin_clear_globals(void);
 extern int pbx_substitute_variables_helper(struct cw_channel *c,const char *cp1,char *cp2,int count);
-extern int pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
+extern int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count);
 
 int cw_extension_patmatch(const char *pattern, const char *data);
 
@@ -578,7 +575,7 @@ extern int cw_function_syntax(const char *syntax);
  * and returns any result as a string in the given result buffer.
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from cw_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_string())
  * \param name		name of function to execute
  * \param argc		the number of arguments
  * \param argv		an array of pointers to argument strings
@@ -601,7 +598,7 @@ extern int cw_function_exec(struct cw_channel *chan, unsigned int hash, const ch
  * cw_function_exec().
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from cw_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_string())
  * \param name		name of function to execute
  * \param args		the argument string
  * \param result	where to write any result

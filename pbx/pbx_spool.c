@@ -43,6 +43,8 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
@@ -90,8 +92,8 @@ struct outgoing {
 	char cid_num[256];
 	char cid_name[256];
 
-	/* Variables and Functions */
-	struct cw_variable *vars;
+	/* Variables */
+	struct cw_registry vars;
 	
 	/* Maximum length of call */
 	int maxlen;
@@ -100,6 +102,7 @@ struct outgoing {
 static void init_outgoing(struct outgoing *o)
 {
 	memset(o, 0, sizeof(struct outgoing));
+	cw_registry_init(&o->vars, 1024);
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
@@ -107,6 +110,7 @@ static void init_outgoing(struct outgoing *o)
 
 static void free_outgoing(struct outgoing *o)
 {
+	cw_registry_destroy(&o->vars);
 	free(o);
 }
 
@@ -115,7 +119,6 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	char buf[256];
 	char *c, *c2;
 	int lineno = 0;
-	struct cw_variable *var;
 
 	while(fgets(buf, sizeof(buf), f)) {
 		lineno++;
@@ -203,19 +206,10 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					c2 = c;
 					strsep(&c2, "=");
 					/* This is naughty. We silently ignore bad lines */
-					if (c2) {
-						var = cw_variable_new(c, c2);
-						if (var) {
-							var->next = o->vars;
-							o->vars = var;
-						}
-					}
+					if (c2)
+						cw_var_assign(&o->vars, c, c2);
 				} else if (!strcasecmp(buf, "account")) {
-					var = cw_variable_new("CDR(accountcode|r)", c);
-					if (var) {	
-						var->next = o->vars;
-						o->vars = var;
-					}
+					cw_var_assign(&o->vars, "CDR(accountcode|r)", c);
 				} else {
 					cw_log(CW_LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 				}
@@ -256,14 +250,15 @@ static void *attempt_thread(void *data)
 {
 	struct outgoing *o = (struct outgoing *) data;
 	int res, reason;
+
 	if (!cw_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = cw_pbx_outgoing_app(o->tech, CW_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, NULL);
+		res = cw_pbx_outgoing_app(o->tech, CW_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, &o->vars, NULL);
 	} else {
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = cw_pbx_outgoing_exten(o->tech, CW_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, NULL);
+		res = cw_pbx_outgoing_exten(o->tech, CW_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, &o->vars, NULL);
 	}
 	if (res) {
 		cw_log(CW_LOG_NOTICE, "Call failed to go through, reason %d\n", reason);
@@ -280,6 +275,7 @@ static void *attempt_thread(void *data)
 		cw_log(CW_LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
 		unlink(o->fn);
 	}
+
 	free_outgoing(o);
 	return NULL;
 }

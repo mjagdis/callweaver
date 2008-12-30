@@ -35,7 +35,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/musiconhold.h"
 #include "callweaver/say.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -46,6 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
+#include "callweaver/musiconhold.h"
 
 #ifndef VAR_BUF_SIZE
 #    define VAR_BUF_SIZE 4096
@@ -266,9 +266,9 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
 	    if ((args = strchr(s, '(')) && (p = strrchr(s, ')'))) {
 		*(args++) = '\0';
 		*p = '\0';
-		return cw_function_exec_str(chan, cw_hash_app_name(s), s, args, NULL, 0);
+		return cw_function_exec_str(chan, cw_hash_string(s), s, args, NULL, 0);
 	    } else {
-		return cw_function_exec(chan, cw_hash_app_name(s), s, argc - 4, argv + 5, NULL, 0);
+		return cw_function_exec(chan, cw_hash_string(s), s, argc - 4, argv + 5, NULL, 0);
 	    }
     }
 
@@ -353,7 +353,7 @@ static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv
         lang = argv[2];
     case 2:
         options = argv[1];
-        hash = cw_hash_app_name(options);
+        hash = cw_hash_string(options);
     case 1:
         filename = argv[0];
         break;
@@ -533,7 +533,7 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, ch
 				l = strlen(value) + 1;
 				*(p++) = ',';
 				memmove(p, value, l);
-				cw_function_exec_str(chan, cw_hash_app_name(argv[0]), argv[0], args, NULL, 0);
+				cw_function_exec_str(chan, cw_hash_string(argv[0]), argv[0], args, NULL, 0);
 			} else {
 				pbx_builtin_setvar_helper(chan, argv[0], value);
 			}

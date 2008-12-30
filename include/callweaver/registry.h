@@ -68,6 +68,9 @@ static inline void cw_list_del(struct cw_list **del, struct cw_list *entry)
 #define cw_list_for_each(var, head) \
 	for (var = (head)->next; var != (head); var = var->next)
 
+#define cw_list_for_each_rev(var, head) \
+	for (var = (head)->prev; var != (head); var = var->prev)
+
 
 struct cw_object;
 
@@ -106,9 +109,14 @@ extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, u
  */
 extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
 
-extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj);
+
+extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data);
+extern int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data);
 extern struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
 extern int cw_registry_init(struct cw_registry *registry, size_t estsize);
+extern void cw_registry_flush(struct cw_registry *registry);
+extern void cw_registry_destroy(struct cw_registry *registry);
 
 
 #endif /* _CALLWEAVER_REGISTRY_H */

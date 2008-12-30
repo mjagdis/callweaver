@@ -35,6 +35,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/transcap.h"
+#include "callweaver/keywords.h"
 
 
 static const char tdesc[] = "v.110 dialin Application";
@@ -152,13 +153,13 @@ static struct cw_generator v110_gen = {
 
 static int login_v110(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res=-1;
 	struct localuser *u;
+	struct cw_var_t *var;
 	struct cw_frame *f;
 	struct v110_state *vs;
 	int urate=-1;
 	int primelen;
-	const char *tmp=NULL;
+	int res=-1;
 	
 	LOCAL_USER_ADD(u);
 
@@ -177,10 +178,9 @@ static int login_v110(struct cw_channel *chan, int argc, char **argv, char *resu
 		return 0;
 	}
 
-	tmp=pbx_builtin_getvar_helper(chan,"MISDN_URATE");
-
-	if (tmp) {
-		urate=atoi(tmp);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MISDN_URATE, "MISDN_URATE"))) {
+		urate=atoi(var->value);
+		cw_object_put(var);
 	}
 	if (urate == -1)
 		urate = URATE_9600;

@@ -123,9 +123,9 @@ struct read_image_args {
 	struct cw_frame *frame;
 };
 
-static int read_image_try(struct cw_object *obj, void *data)
+static int read_image_try(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
+	struct cw_imager *img = container_of(entry->obj, struct cw_imager, obj);
 	struct read_image_args *args = data;
 
 	if (img->format & args->format) {
@@ -188,9 +188,9 @@ int cw_send_image(struct cw_channel *chan, char *filename)
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
 
-static int imager_print(struct cw_object *obj, void *data)
+static int imager_print(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
+	struct cw_imager *img = container_of(entry->obj, struct cw_imager, obj);
 	int *fd = data;
 
 	cw_cli(*fd, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));

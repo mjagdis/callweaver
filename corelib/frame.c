@@ -449,7 +449,7 @@ static struct cw_codec_alias_table
     {"g711a", "alaw"},
 };
 
-static char *cw_expand_codec_alias(char *in)
+static const char *cw_expand_codec_alias(const char *in)
 {
     int x;
 
@@ -461,7 +461,7 @@ static char *cw_expand_codec_alias(char *in)
     return in;
 }
 
-int cw_getformatbyname(char *name)
+int cw_getformatbyname(const char *name)
 {
     int x = 0;
     int all = 0;

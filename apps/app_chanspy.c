@@ -50,6 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
+#include "callweaver/keywords.h"
 
 CW_MUTEX_DEFINE_STATIC(modlock);
 
@@ -611,17 +612,23 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
         {
             if (peer != chan)
             {
-                char *group = NULL;
+                struct cw_var_t *group = NULL;
                 int igrp = 1;
 
                 if (peer == prev  &&  !chosen)
                     break;
+
                 chosen = 0;
-                group = pbx_builtin_getvar_helper(peer, "SPYGROUP");
+
                 if (mygroup)
                 {
-                    if (!group  ||  strcmp(mygroup, group))
+                    if (!(group = pbx_builtin_getvar_helper(peer, CW_KEYWORD_SPYGROUP, "SPYGROUP")))
                         igrp = 0;
+		    else {
+                        if (strcmp(mygroup, group->value))
+                            igrp = 0;
+                        cw_object_put(group);
+                    }
                 }
                 
                 if (igrp

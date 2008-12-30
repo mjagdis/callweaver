@@ -105,7 +105,7 @@ int cw_function_syntax(const char *syntax)
  * after use by passing it to cw_object_put().
  *
  * \param hash		the hash of the function name to find
- * 			(given by cw_hash_app_name())
+ * 			(given by cw_hash_string())
  * \param name		the name of the function
  *
  * \return a pointer to the function object or NULL if
@@ -131,7 +131,7 @@ static struct cw_func* cw_find_function(unsigned int hash, const char *name)
  * and returns any result as a string in the given result buffer.
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from cw_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_string())
  * \param name		name of function to execute
  * \param argc		the number of arguments
  * \param argv		an array of pointers to argument strings
@@ -190,7 +190,7 @@ out:
  * cw_function_exec().
  *
  * \param chan		channel to execute on
- * \param hash		hash of the name of function to execute (from cw_hash_app_name())
+ * \param hash		hash of the name of function to execute (from cw_hash_string())
  * \param name		name of function to execute
  * \param args		the argument string
  * \param result	where to write any result
@@ -243,9 +243,9 @@ struct funcs_print_args {
 	char **argv;
 };
 
-static int funcs_print(struct cw_object *obj, void *data)
+static int funcs_print(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_func *it = container_of(obj, struct cw_func, obj);
+	struct cw_func *it = container_of(entry->obj, struct cw_func, obj);
 	struct funcs_print_args *args = data;
 	int printapp = 1;
 
@@ -300,7 +300,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 	if (argc < 3)
         return RESULT_SHOWUSAGE;
 
-	if (!(acf = cw_find_function(cw_hash_app_name(argv[2]), argv[2]))) {
+	if (!(acf = cw_find_function(cw_hash_string(argv[2]), argv[2]))) {
 		cw_cli(fd, "No function by that name registered.\n");
 		return RESULT_FAILURE;
 	}
@@ -321,9 +321,9 @@ struct complete_show_func_args {
 	int word_len;
 };
 
-static int complete_show_func_one(struct cw_object *obj, void *data)
+static int complete_show_func_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_func *it = container_of(obj, struct cw_func, obj);
+	struct cw_func *it = container_of(entry->obj, struct cw_func, obj);
 	struct complete_show_func_args *args = data;
 
 	if (!strncasecmp(args->word, it->name, args->word_len))

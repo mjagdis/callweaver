@@ -332,13 +332,12 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	int id,id1,i,j,fnd;
 	int *lalares=NULL;
 	int nres;
-        struct cw_var_t *variables;
-        struct varshead *headp;
+	struct cw_object *obj;
+        struct cw_var_t *variable;
 	char *stringp=NULL;
-        
-        headp=&chan->varshead;
-	
+
 	res=0;
+	obj=NULL;
 	l=strlen(data)+2;
 	s7=NULL;
 	s1=malloc(l);
@@ -348,20 +347,13 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	strsep(&stringp," "); /* eat the first token, we already know it :P  */
 	fetchid_var=strsep(&stringp," ");
 	while (1) {	/* ugly trick to make branches with break; */
-	  var=fetchid_var; /* fetchid */
-		fnd=0;
-		
-		CW_LIST_TRAVERSE(headp,variables,entries) {
-	    if (strncasecmp(cw_var_name(variables),fetchid_var,strlen(fetchid_var))==0) {
-	                        s7=cw_var_value(variables);
-	                        fnd=1;
-                                break;
-			}
-		}
-		
-		if (fnd==0) { 
-			s7="0";
-	    pbx_builtin_setvar_helper(chan,fetchid_var,s7);
+		var = fetchid_var; /* fetchid */
+		if ((obj = cw_registry_find(&chan->vars, 0, 0, fetchid_var))) {
+			variable = container_of(obj, struct cw_var_t, obj);
+			s7 = variable->value;
+		} else {
+			s7 = "0";
+			pbx_builtin_setvar_helper(chan, fetchid_var, s7);
 		}
 
 		s4=strsep(&stringp," ");
@@ -409,6 +401,9 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	  pbx_builtin_setvar_helper(chan,fetchid_var,s);
 	 	break;
 	}
+
+	if (obj)
+		cw_object_put_obj(obj);
 	
 	free(s1);
 	free(s2);

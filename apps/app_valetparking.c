@@ -55,6 +55,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/manager.h"
 #include "callweaver/devicestate.h"
+#include "callweaver/keywords.h"
 
 
 #define DEFAULT_VALETPARK_TIME 45000
@@ -214,6 +215,7 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 	/* We put the user in the valetparking list, then wake up the valetparking thread to be sure it looks
 	   after these channels too */
 	struct valetparkeduser *pu, *cur;
+	struct cw_var_t *var;
 	int x;
 
 	x = *extout;
@@ -284,7 +286,9 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 			pu->next = valetparkinglot;
 			valetparkinglot = pu;
 			cw_mutex_unlock(&valetparking_lock);
-			if (chan && !pbx_builtin_getvar_helper(chan, "BLINDTRANSFER")) {
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_BLINDTRANSFER, "BLINDTRANSFER")))
+				cw_object_put(var);
+			if (chan && !var) {
 				time_t now = 0, then = 0;
 				time(&then);
 				cw_moh_stop(chan);
@@ -368,14 +372,16 @@ static int cw_masq_valetpark_call(struct cw_channel *rchan,int timeout, int *ext
 
 static void *do_valetparking_thread(void *ignore)
 {
-	int ms, tms, max;
-	struct valetparkeduser *pu, *pl, *pt = NULL;
-	struct timeval tv;
-	struct cw_frame *f;
-	int x;
-	int gc=0;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
+	struct timeval tv;
+	struct cw_var_t *var;
+	struct valetparkeduser *pu, *pl, *pt = NULL;
+	struct cw_frame *f;
+	int ms, tms, max;
+	int x;
+	int gc=0;
+
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 	for (;;) {
@@ -388,7 +394,8 @@ static void *do_valetparking_thread(void *ignore)
 		FD_ZERO(&nrfds);
 		FD_ZERO(&nefds);
 		while(pu) {
-			if (pbx_builtin_getvar_helper(pu->chan,"BLINDTRANSFER") && !pu->old) {
+			if (!pu->old && (var = pbx_builtin_getvar_helper(pu->chan, CW_KEYWORD_BLINDTRANSFER, "BLINDTRANSFER"))) {
+				cw_object_put(var);
 				gc = 0;
 				cw_indicate(pu->chan, -1);
 				pu->old++;

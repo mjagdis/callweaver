@@ -1424,7 +1424,7 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
     if (!(context != NULL && strlen(context) > 0)) {
         context = chan->context;
         /* TC this should work i want the specfic include context * finds a match in for this app
-           context = pbx_builtin_getvar_helper(chan, "CONTEXT");
+           context = pbx_builtin_getvar_helper(chan, CW_KEYWORD_CONTEXT, "CONTEXT");
            chan->proc_context; chan->context;
         */
     }

@@ -50,6 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/strings.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/dsp.h"
+#include "callweaver/keywords.h"
 
 
 #include "chan_capi20.h"
@@ -1172,11 +1173,12 @@ static void capi_activehangup(struct cw_channel *c, int state)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
-	const char *cause;
+	struct cw_var_t *var;
 
 	i->cause = c->hangupcause;
-	if ((cause = pbx_builtin_getvar_helper(c, "PRI_CAUSE"))) {
-		i->cause = atoi(cause);
+	if ((var = pbx_builtin_getvar_helper(c, CW_KEYWORD_PRI_CAUSE, "PRI_CAUSE"))) {
+		i->cause = atoi(var->value);
+		cw_object_put(var);
 	}
 	
 	if ((i->isdnstate & CAPI_ISDN_STATE_ECT)) {
@@ -1370,11 +1372,12 @@ static int pbx_capi_call(struct cw_channel *c, char *idest)
 	int CLIR;
 	int callernplan = 0;
 	int use_defaultcid = 0;
-	const char *ton, *p;
+	const char *p;
 	char *osa = NULL;
 	char *dsa = NULL;
 	char callingsubaddress[CW_MAX_EXTENSION];
 	char calledsubaddress[CW_MAX_EXTENSION];
+	struct cw_var_t *var;
 	
 	_cmsg CMSG;
 	MESSAGE_EXCHANGE_ERROR  error;
@@ -1424,24 +1427,27 @@ static int pbx_capi_call(struct cw_channel *c, char *idest)
 	CLIR = c->cid.cid_pres;
 	callernplan = c->cid.cid_ton & 0x7f;
 
-	if ((ton = pbx_builtin_getvar_helper(c, "CALLERTON"))) {
-		callernplan = atoi(ton) & 0x7f;
+	if ((var = pbx_builtin_getvar_helper(c, CW_KEYWORD_CALLERTON, "CALLERTON"))) {
+		callernplan = atoi(var->value) & 0x7f;
+		cw_object_put(var);
 	}
 	cc_verbose(1, 1, VERBOSE_PREFIX_2 "%s: Call %s %s%s (pres=0x%02x, ton=0x%02x)\n",
 		i->vname, c->name, i->doB3 ? "with B3 ":" ",
 		i->doOverlap ? "overlap":"", CLIR, callernplan);
 
-	if ((p = pbx_builtin_getvar_helper(c, "CALLINGSUBADDRESS"))) {
-		callingsubaddress[0] = strlen(p) + 1;
+	if ((var = pbx_builtin_getvar_helper(c, CW_KEYWORD_CALLINGSUBADDRESS, "CALLINGSUBADDRESS"))) {
+		callingsubaddress[0] = strlen(var->value) + 1;
 		callingsubaddress[1] = 0x80;
-		strncpy(&callingsubaddress[2], p, sizeof(callingsubaddress) - 3);
+		strncpy(&callingsubaddress[2], var->value, sizeof(callingsubaddress) - 3);
 		osa = callingsubaddress;
+		cw_object_put(var);
 	}
-	if ((p = pbx_builtin_getvar_helper(c, "CALLEDSUBADDRESS"))) {
-		calledsubaddress[0] = strlen(p) + 1;
+	if ((var = pbx_builtin_getvar_helper(c, CW_KEYWORD_CALLEDSUBADDRESS, "CALLEDSUBADDRESS"))) {
+		calledsubaddress[0] = strlen(var->value) + 1;
 		calledsubaddress[1] = 0x80;
-		strncpy(&calledsubaddress[2], p, sizeof(calledsubaddress) - 3);
+		strncpy(&calledsubaddress[2], var->value, sizeof(calledsubaddress) - 3);
 		dsa = calledsubaddress;
+		cw_object_put(var);
 	}
 
 	i->MessageNumber = get_capi_MessageNumber();
@@ -1525,8 +1531,8 @@ static int capi_send_answer(struct cw_channel *c, _cstruct b3conf)
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
 	char buf[CAPI_MAX_STRING];
+	struct cw_var_t *connectednumber;
 	const char *dnid;
-	const char *connectednumber;
     
 	if ((i->isdnmode == CAPI_ISDNMODE_DID) &&
 	    ((strlen(i->incomingmsn) < strlen(i->dnid)) && 
@@ -1535,9 +1541,8 @@ static int capi_send_answer(struct cw_channel *c, _cstruct b3conf)
 	} else {
 		dnid = i->dnid;
 	}
-	if ((connectednumber = pbx_builtin_getvar_helper(c, "CONNECTEDNUMBER"))) {
-		dnid = connectednumber;
-	}
+	if ((connectednumber = pbx_builtin_getvar_helper(c, CW_KEYWORD_CONNECTEDNUMBER, "CONNECTEDNUMBER")))
+		dnid = connectednumber->value;
 
 	CONNECT_RESP_HEADER(&CMSG, capi_ApplID, i->MessageNumber, 0);
 	CONNECT_RESP_PLCI(&CMSG) = i->PLCI;
@@ -1563,7 +1568,10 @@ static int capi_send_answer(struct cw_channel *c, _cstruct b3conf)
 
 	cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: Answering for %s\n",
 		i->vname, dnid);
-		
+
+	if (connectednumber)
+		cw_object_put(connectednumber);
+
 	if (_capi_put_cmsg(&CMSG) != 0) {
 		return -1;	
 	}
@@ -4245,15 +4253,14 @@ static int pbx_capi_ect(struct cw_channel *c, int argc, char **argv)
 	struct capi_pvt *ii = NULL;
 	_cmsg CMSG;
 	char fac[8];
-	const char *id;
+	struct cw_var_t *var;
 	unsigned int plci = 0;
 
-	if ((id = pbx_builtin_getvar_helper(c, "CALLERHOLDID"))) {
-		plci = (unsigned int)strtoul(id, NULL, 0);
-	}
-	
 	if (argc > 0 && argv[0][0]) {
 		plci = (unsigned int)strtoul(argv[0], NULL, 0);
+	} else if ((var = pbx_builtin_getvar_helper(c, CW_KEYWORD_CALLERHOLDID, "CALLERHOLDID"))) {
+		plci = (unsigned int)strtoul(var->value, NULL, 0);
+		cw_object_put(var);
 	}
 
 	if (!plci) {

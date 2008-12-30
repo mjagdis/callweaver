@@ -57,6 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+#include "callweaver/chanvars.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
 #include "callweaver/switch.h"
@@ -557,8 +558,6 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			cw_clear_flag(&flags, DUNDI_FLAG_MATCHMORE|DUNDI_FLAG_CANMATCH);
 		}
 		if (cw_test_flag(&flags, CW_FLAGS_ALL)) {
-			struct varshead headp;
-			struct cw_var_t *newvariable;
 			cw_set_flag(&flags, map->options & 0xffff);
 			cw_copy_flags(dr + anscnt, &flags, CW_FLAGS_ALL);
 			dr[anscnt].techint = map->tech;
@@ -568,20 +567,14 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (cw_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
-				CW_LIST_HEAD_INIT_NOLOCK(&headp);
-				newvariable = cw_var_assign("NUMBER", called_number);
-				CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = cw_var_assign("EID", dr[anscnt].eid_str);
-				CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = cw_var_assign("SECRET", cursecret);
-				CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = cw_var_assign("IPADDR", ipaddr);
-				CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				pbx_substitute_variables_varshead(&headp, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
-				while (!CW_LIST_EMPTY(&headp)) {           /* List Deletion. */
-					newvariable = CW_LIST_REMOVE_HEAD(&headp, entries);
-					cw_var_delete(newvariable);
-				}
+				struct cw_registry reg;
+				cw_var_registry_init(&reg, 8);
+				cw_var_assign(&reg, "NUMBER", called_number);
+				cw_var_assign(&reg, "EID", dr[anscnt].eid_str);
+				cw_var_assign(&reg, "SECRET", cursecret);
+				cw_var_assign(&reg, "IPADDR", ipaddr);
+				pbx_substitute_variables_varshead(&reg, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
+				cw_registry_destroy(&reg);
 			} else
 				dr[anscnt].dest[0] = '\0';
 			anscnt++;
@@ -4457,9 +4450,11 @@ static void build_peer(dundi_eid *eid, struct cw_variable *v, int *globalpcmode)
 static int dundi_helper(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *data, int flag)
 {
 	struct dundi_result results[MAX_RESULTS];
+	struct cw_var_t *var;
 	int res;
 	int x;
 	int found = 0;
+
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
 			cw_log(CW_LOG_NOTICE, "Can't use Proc mode without a channel!\n");
@@ -4467,14 +4462,17 @@ static int dundi_helper(struct cw_channel *chan, const char *context, const char
 		}
 		/* If done as a proc, use proc extension */
 		if (!strcasecmp(exten, "s")) {
-			exten = pbx_builtin_getvar_helper(chan, "ARG1");
-			if (!exten || cw_strlen_zero(exten))
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_ARG1, "ARG1")))
+				exten = var->value;
+			else {
 				exten = chan->proc_exten;
-			if (!exten || cw_strlen_zero(exten))
-				exten = chan->exten;
-			if (!exten || cw_strlen_zero(exten)) {	
-				cw_log(CW_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
-				return -1;
+				if (cw_strlen_zero(exten)) {
+					exten = chan->exten;
+					if (cw_strlen_zero(exten)) {
+						cw_log(CW_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
+						return -1;
+					}
+				}
 			}
 		}
 		if (!data || cw_strlen_zero(data))
@@ -4483,13 +4481,20 @@ static int dundi_helper(struct cw_channel *chan, const char *context, const char
 		if (!data || cw_strlen_zero(data))
 			data = context;
 	}
+
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
-	for (x=0;x<res;x++) {
+
+	if (var)
+		cw_object_put(var);
+
+	for (x = 0; x < res; x++) {
 		if (cw_test_flag(results + x, flag))
 			found++;
 	}
+
 	if (found >= priority)
 		return 1;
+
 	return 0;
 }
 
@@ -4505,10 +4510,11 @@ static int dundi_canmatch(struct cw_channel *chan, const char *context, const ch
 
 static int dundi_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	char req[1024];
 	struct dundi_result results[MAX_RESULTS];
+	struct cw_var_t *var;
 	int res;
 	int x=0;
-	char req[1024];
 
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
@@ -4517,14 +4523,17 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 		}
 		/* If done as a proc, use proc extension */
 		if (!strcasecmp(exten, "s")) {
-			exten = pbx_builtin_getvar_helper(chan, "ARG1");
-			if (!exten || cw_strlen_zero(exten))
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_ARG1, "ARG1")))
+				exten = var->value;
+			else {
 				exten = chan->proc_exten;
-			if (!exten || cw_strlen_zero(exten))
-				exten = chan->exten;
-			if (!exten || cw_strlen_zero(exten)) {	
-				cw_log(CW_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
-				return -1;
+				if (cw_strlen_zero(exten)) {
+					exten = chan->exten;
+					if (cw_strlen_zero(exten)) {
+						cw_log(CW_LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
+						return -1;
+					}
+				}
 			}
 		}
 		if (!data || cw_strlen_zero(data))
@@ -4533,22 +4542,28 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 		if (!data || cw_strlen_zero(data))
 			data = context;
 	}
+
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
+
+	if (var)
+		cw_object_put(var);
+
 	if (res > 0) {
 		sort_results(results, res);
-		for (x=0;x<res;x++) {
+		for (x = 0; x < res; x++) {
 			if (cw_test_flag(results + x, DUNDI_FLAG_EXISTS)) {
 				if (!--priority)
 					break;
 			}
 		}
+		if (x < res) {
+			/* Got a hit! */
+			snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
+			res = cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
+		} else
+			res = -1;
 	}
-	if (x < res) {
-		/* Got a hit! */
-		snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
-		res = cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
-	} else
-		res = -1;
+
 	return res;
 }
 

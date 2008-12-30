@@ -106,6 +106,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
+#include "callweaver/chanvars.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/atexit.h"
 #include "callweaver/module.h"
@@ -252,9 +253,9 @@ struct cw_registry atexit_registry = {
 	.match = atexit_object_match,
 };
 
-static int cw_run_atexit_one(struct cw_object *obj, void *data)
+static int cw_run_atexit_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
+	struct cw_atexit *it = container_of(entry->obj, struct cw_atexit, obj);
 	if (option_verbose > 2)
 		cw_verbose(VERBOSE_PREFIX_3 "atexit: run \"%s\"\n", it->name);
 	/* Get the module now so it's pinned (atexits don't hold counted refs
@@ -1571,6 +1572,7 @@ int callweaver_main(int argc, char *argv[])
 	cw_registry_init(&manager_action_registry, 1024);
 	cw_registry_init(&switch_registry, 16);
 	cw_registry_init(&translator_registry, 64);
+	cw_registry_init(&var_registry, 1024);
 
 	/* custom config setup */
 	register_config_cli();

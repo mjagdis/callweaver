@@ -597,6 +597,7 @@ static int visdn_request_call(
 {
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 	struct visdn_ic *ic = intf->current_ic;
+	struct cw_var_t *var;
 	int err;
 
 	visdn_debug("Calling on interface '%s'\n", intf->name);
@@ -606,20 +607,19 @@ static int visdn_request_call(
 	Q931_DECLARE_IES(ies);
 
 	/* ------------- Bearer Capability ---------------- */
-	char *raw_bc = pbx_builtin_getvar_helper(cw_chan, "BEARERCAP_RAW");
-	if (raw_bc) {
+	if ((var = pbx_builtin_getvar_helper(cw_chan, CW_KEYWORD_BEARERCAP_RAW, "BEARERCAP_RAW"))) {
 		visdn_debug("Taking bearer capability from bridged channel\n");
 
+		char buf[20];
 		struct q931_ie_bearer_capability *bc;
 		bc = q931_ie_bearer_capability_alloc();
-		char buf[20];
 
-		if (strlen(raw_bc) % 2) {
+		if (strlen(var->value) % 2) {
 			cw_log(CW_LOG_WARNING, "BEARERCAP_RAW is invalid\n");
 			goto hlc_failure;
 		}
 
-		int len = strlen(raw_bc) / 2;
+		int len = strlen(var->value) / 2;
 
 		if (len > sizeof(buf)) {
 			cw_log(CW_LOG_WARNING,
@@ -629,15 +629,15 @@ static int visdn_request_call(
 
 		int i;
 		for (i=0; i<len; i++) {
-			if (char_to_hexdigit(raw_bc[i * 2]) < 0 ||
-			    char_to_hexdigit(raw_bc[i * 2 + 1]) < 0) {
+			if (char_to_hexdigit(var->value[i * 2]) < 0 ||
+			    char_to_hexdigit(var->value[i * 2 + 1]) < 0) {
 				cw_log(CW_LOG_WARNING,
 					"BEARERCAP_RAW is invalid\n");
 				goto bc_failure;
 			}
 
-			buf[i] = char_to_hexdigit(raw_bc[i * 2]) << 4;
-			buf[i] |= char_to_hexdigit(raw_bc[i * 2 + 1]);
+			buf[i] = char_to_hexdigit(var->value[i * 2]) << 4;
+			buf[i] |= char_to_hexdigit(var->value[i * 2 + 1]);
 		}
 
 		buf[len] = '\0';
@@ -658,9 +658,15 @@ static int visdn_request_call(
 
 		q931_ies_add_put(&ies, &bc->ie);
 
+		cw_object_put(var);
+
 	} else {
 bc_failure:;
 		struct q931_ie_bearer_capability *bc;
+
+		if (var)
+			cw_object_put(var);
+
 		bc = q931_ie_bearer_capability_alloc();
 
 		bc->coding_standard = Q931_IE_BC_CS_CCITT;
@@ -691,20 +697,19 @@ bc_failure:;
 	}
 
 	/* ------------- High Layer Compatibility ---------------- */
-	char *raw_hlc = pbx_builtin_getvar_helper(cw_chan, "HLC_RAW");
-	if (raw_hlc) {
+	if ((var = pbx_builtin_getvar_helper(cw_chan, CW_KEYWORD_HLC_RAW, "HLC_RAW"))) {
 		visdn_debug("Taking HLC from bridged channel\n");
 
+		char buf[20];
 		struct q931_ie_high_layer_compatibility *hlc;
 		hlc = q931_ie_high_layer_compatibility_alloc();
-		char buf[20];
 
-		if (strlen(raw_hlc) % 2) {
+		if (strlen(var->value) % 2) {
 			cw_log(CW_LOG_WARNING, "HLC_RAW is invalid\n");
 			goto hlc_failure;
 		}
 
-		int len = strlen(raw_hlc) / 2;
+		int len = strlen(var->value) / 2;
 
 		if (len > sizeof(buf)) {
 			cw_log(CW_LOG_WARNING, "HLC_RAW is too long\n");
@@ -713,14 +718,14 @@ bc_failure:;
 
 		int i;
 		for (i=0; i<len; i++) {
-			if (char_to_hexdigit(raw_hlc[i * 2]) < 0 ||
-			    char_to_hexdigit(raw_hlc[i * 2 + 1]) < 0) {
+			if (char_to_hexdigit(var->value[i * 2]) < 0 ||
+			    char_to_hexdigit(var->value[i * 2 + 1]) < 0) {
 				cw_log(CW_LOG_WARNING, "HLC_RAW is invalid\n");
 				goto hlc_failure;
 			}
 
-			buf[i] = char_to_hexdigit(raw_hlc[i * 2]) << 4;
-			buf[i] |= char_to_hexdigit(raw_hlc[i * 2 + 1]);
+			buf[i] = char_to_hexdigit(var->value[i * 2]) << 4;
+			buf[i] |= char_to_hexdigit(var->value[i * 2 + 1]);
 		}
 
 		buf[len] = '\0';
@@ -733,10 +738,15 @@ bc_failure:;
 
 		q931_ies_add_put(&ies, &hlc->ie);
 
+		cw_object_put(var);
+
 	} else {
 hlc_failure:;
-
 		struct q931_ie_high_layer_compatibility *hlc;
+
+		if (var)
+			cw_object_put(var);
+
 		hlc = q931_ie_high_layer_compatibility_alloc();
 
 		hlc->coding_standard = Q931_IE_HLC_CS_CCITT;
@@ -748,20 +758,19 @@ hlc_failure:;
 	}
 
 	/* ------------- Low Layer Compatibility ---------------- */
-	char *raw_llc = pbx_builtin_getvar_helper(cw_chan, "LLC_RAW");
-	if (raw_llc) {
+	if ((var = pbx_builtin_getvar_helper(cw_chan, "LLC_RAW"))) {
 		visdn_debug("Taking LLC from bridged channel\n");
 
+		char buf[20];
 		struct q931_ie_low_layer_compatibility *llc;
 		llc = q931_ie_low_layer_compatibility_alloc();
-		char buf[20];
 
-		if (strlen(raw_llc) % 2) {
+		if (strlen(var->value) % 2) {
 			cw_log(CW_LOG_WARNING, "LLC_RAW is invalid\n");
 			goto llc_failure;
 		}
 
-		int len = strlen(raw_llc) / 2;
+		int len = strlen(var->value) / 2;
 
 		if (len > sizeof(buf)) {
 			cw_log(CW_LOG_WARNING, "LLC_RAW is too long\n");
@@ -770,14 +779,14 @@ hlc_failure:;
 
 		int i;
 		for (i=0; i<len; i++) {
-			if (char_to_hexdigit(raw_llc[i * 2]) < 0 ||
-			    char_to_hexdigit(raw_llc[i * 2 + 1]) < 0) {
+			if (char_to_hexdigit(var->value[i * 2]) < 0 ||
+			    char_to_hexdigit(var->value[i * 2 + 1]) < 0) {
 				cw_log(CW_LOG_WARNING, "LLC_RAW is invalid\n");
 				goto llc_failure;
 			}
 
-			buf[i] = char_to_hexdigit(raw_llc[i * 2]) << 4;
-			buf[i] |= char_to_hexdigit(raw_llc[i * 2 + 1]);
+			buf[i] = char_to_hexdigit(var->value[i * 2]) << 4;
+			buf[i] |= char_to_hexdigit(var->value[i * 2 + 1]);
 		}
 
 		buf[len] = '\0';
@@ -790,12 +799,18 @@ hlc_failure:;
 
 		q931_ies_add_put(&ies, &llc->ie);
 
+		cw_object_put(var);
+
 	}
 llc_failure:;
 
 	/* ------------- END HLC ---------------- */
 
 	struct q931_call *q931_call;
+
+	if (var)
+		cw_object_put(var);
+
 	q931_call = q931_call_alloc_out(intf->q931_intf);
 	if (!q931_call) {
 		cw_log(CW_LOG_WARNING, "Cannot allocate outbound call\n");

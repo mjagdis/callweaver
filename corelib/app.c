@@ -837,7 +837,7 @@ int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfil
 
 /* Channel group core functions */
 
-int cw_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
+int cw_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max)
 {
 	int res=0;
 	char tmp[256];
@@ -866,7 +866,7 @@ int cw_app_group_split_group(char *data, char *group, int group_max, char *categ
 	return res;
 }
 
-int cw_app_group_set_channel(struct cw_channel *chan, char *data)
+int cw_app_group_set_channel(struct cw_channel *chan, const char *data)
 {
 	int res=0;
 	char group[80] = "";
@@ -880,25 +880,28 @@ int cw_app_group_set_channel(struct cw_channel *chan, char *data)
 	return res;
 }
 
-int cw_app_group_get_count(char *group, char *category)
+int cw_app_group_get_count(const char *group, const char *category)
 {
 	struct cw_channel *chan;
+	struct cw_var_t *var;
+	unsigned int hash;
 	int count = 0;
-	char *test;
-	char cat[80];
-	char *s;
 
 	if (cw_strlen_zero(group))
 		return 0;
 
- 	s = (!cw_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
-	cw_copy_string(cat, s, sizeof(cat));
+	if (cw_strlen_zero(category))
+		category = GROUP_CATEGORY_PREFIX;
+
+	hash = cw_hash_var_name(category);
 
 	chan = NULL;
 	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
- 		test = pbx_builtin_getvar_helper(chan, cat);
-		if (test && !strcasecmp(test, group))
- 			count++;
+		if ((var = pbx_builtin_getvar_helper(chan, hash, category))) {
+			if (!strcasecmp(var->value, group))
+				count++;
+			cw_object_put(var);
+		}
 		cw_mutex_unlock(&chan->lock);
 	}
 
@@ -909,10 +912,9 @@ int cw_app_group_match_get_count(char *groupmatch, char *category)
 {
 	regex_t regexbuf;
 	struct cw_channel *chan;
+	struct cw_var_t *var;
+	unsigned int hash;
 	int count = 0;
-	char *test;
-	char cat[80];
-	char *s;
 
 	if (cw_strlen_zero(groupmatch))
 		return 0;
@@ -921,14 +923,18 @@ int cw_app_group_match_get_count(char *groupmatch, char *category)
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = (!cw_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
-	cw_copy_string(cat, s, sizeof(cat));
+	if (cw_strlen_zero(category))
+		category = GROUP_CATEGORY_PREFIX;
+
+	hash = cw_hash_var_name(category);
 
 	chan = NULL;
 	while ((chan = cw_channel_walk_locked(chan)) != NULL) {
-		test = pbx_builtin_getvar_helper(chan, cat);
-		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
-			count++;
+		if ((var = pbx_builtin_getvar_helper(chan, hash, category))) {
+			if (!regexec(&regexbuf, var->value, 0, NULL, 0))
+				count++;
+			cw_object_put(var);
+		}
 		cw_mutex_unlock(&chan->lock);
 	}
 

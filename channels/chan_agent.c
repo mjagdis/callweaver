@@ -66,6 +66,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/callweaver_db.h"
 #include "callweaver/devicestate.h"
+#include "callweaver/keywords.h"
 
 static const char desc[] = "Agent Proxy Channel";
 static const char channeltype[] = "Agent";
@@ -669,7 +670,7 @@ static int agent_call(struct cw_channel *ast, char *dest)
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		cw_set_callerid(p->chan, ast->cid.cid_num, ast->cid.cid_name, NULL);
-		cw_channel_inherit_variables(ast, p->chan);
+		cw_var_inherit(&ast->vars, &p->chan->vars);
 		res = cw_call(p->chan, p->loginchan);
 		CLEANUP(ast,p);
 		cw_mutex_unlock(&p->lock);
@@ -1686,51 +1687,55 @@ static struct cw_clicmd cli_agent_logoff = {
  */
 static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max, int callbackmode)
 {
-	int res=0;
-	int tries = 0;
-	int max_login_tries = maxlogintries;
-	struct agent_pvt *p;
-	struct localuser *u;
-	int login_state = 0;
+	char agent_goodbye[CW_MAX_FILENAME_LEN];
 	char user[CW_MAX_AGENT] = "";
 	char pass[CW_MAX_AGENT];
 	char agent[CW_MAX_AGENT] = "";
 	char xpass[CW_MAX_AGENT] = "";
+	struct agent_pvt *p;
+	struct localuser *u;
+	struct cw_var_t *var;
 	char *errmsg;
 	char *tmpoptions = NULL;
 	char *context = NULL;
-	int play_announcement = 1;
-	char agent_goodbye[CW_MAX_FILENAME_LEN];
-	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
+	int tries = 0;
+	int max_login_tries = maxlogintries;
+	int login_state = 0;
+	int play_announcement = 1;
+	int update_cdr = updatecdr;
+	int res = 0;
 
 	LOCAL_USER_ADD(u);
 
 	cw_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
 	/* Set Channel Specific Login Overrides */
-	if (pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES") && strlen(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
-		max_login_tries = atoi(pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES"));
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTMAXLOGINTRIES, "AGENTLMAXLOGINTRIES"))) {
+		max_login_tries = atoi(var->value);
 		if (max_login_tries < 0)
 			max_login_tries = 0;
-		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES");
+
 		if (option_verbose > 2)
-			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
+			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n", var->value, max_login_tries, chan->name);
+
+		cw_object_put(var);
 	}
-	if (pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR") && !cw_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
-		if (cw_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
-			update_cdr = 1;
-		else
-			update_cdr = 0;
-		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR");
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTUPDATECDR, "AGENTUPDATECDR"))) {
+		update_cdr = cw_true(var->value);
+
 		if (option_verbose > 2)
-			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
+			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n", var->value, update_cdr, chan->name);
+
+		cw_object_put(var);
 	}
-	if (pbx_builtin_getvar_helper(chan, "AGENTGOODBYE") && !cw_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
-		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
-		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTGOODBYE");
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTGOODBYE, "AGENTGOODBYE"))) {
+		strcpy(agent_goodbye, var->value);
+
 		if (option_verbose > 2)
-			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
+			cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n", var->value, agent_goodbye, chan->name);
+
+		cw_object_put(var);
 	}
 	/* End Channel Specific Login Overrides */
 	
@@ -1792,32 +1797,36 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 				p->lastdisc.tv_sec++;
 
 				/* Set Channel Specific Agent Overides */
-				if (pbx_builtin_getvar_helper(chan, "AGENTACKCALL") && strlen(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
-					if (!strcasecmp(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"), "always"))
+				if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTACKCALL, "AGENTACKCALL"))) {
+					if (!strcasecmp(var->value, "always"))
 						p->ackcall = 2;
-					else if (cw_true(pbx_builtin_getvar_helper(chan, "AGENTACKCALL")))
-						p->ackcall = 1;
 					else
-						p->ackcall = 0;
-					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
+						p->ackcall = cw_true(var->value);
+
 					if (option_verbose > 2)
-						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
+						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n", var->value, p->ackcall, p->agent);
+
+					cw_object_put(var);
 				}
-				if (pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF") && strlen(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
-					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
+				if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTAUTOLOGOFF, "AGENTAUTOLOGOFF"))) {
+					p->autologoff = atoi(var->value);
 					if (p->autologoff < 0)
 						p->autologoff = 0;
-					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
+
 					if (option_verbose > 2)
-						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
+						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n", var->value, p->autologoff, p->agent);
+
+					cw_object_put(var);
 				}
-				if (pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME") && strlen(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
-					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
+				if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AGENTWRAPUPTIME, "AGENTWRAPUPTIME"))) {
+					p->wrapuptime = atoi(var->value);
 					if (p->wrapuptime < 0)
 						p->wrapuptime = 0;
-					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
+
 					if (option_verbose > 2)
-						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
+						cw_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n", var->value, p->wrapuptime, p->agent);
+
+					cw_object_put(var);
 				}
 				/* End Channel Specific Agent Overides */
 				if (!p->chan) {
@@ -2234,11 +2243,11 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
  */
 static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	struct cw_var_t *var;
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
 	int changeoutgoing = 0;
 	int res = 0;
-	char agent[CW_MAX_AGENT], *tmp;
 
 	if (argc > 1) {
 		for (; argv[0][0]; argv[0]++) {
@@ -2253,20 +2262,20 @@ static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **a
 	if (chan->cid.cid_num) {
 		char agentvar[CW_MAX_BUF];
 		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->cid.cid_num);
-		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {
-			struct agent_pvt *p = agents;
-			cw_copy_string(agent, tmp, sizeof(agent));
+		if ((var = pbx_builtin_getvar_helper(NULL, cw_hash_var_name(agentvar), agentvar))) {
+			struct agent_pvt *p;
+
 			cw_mutex_lock(&agentlock);
-			while (p) {
-				if (!strcasecmp(p->agent, tmp)) {
+			for (p = agents; p; p = p->next) {
+				if (!strcasecmp(p->agent, var->value)) {
 					if (changeoutgoing) snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 					__agent_start_monitoring(chan, p, 1);
 					break;
 				}
-				p = p->next;
 			}
 			cw_mutex_unlock(&agentlock);
-			
+
+			cw_object_put(var);
 		} else {
 			res = -1;
 			if (!nowarnings)

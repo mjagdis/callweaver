@@ -364,21 +364,8 @@ static int local_call(struct cw_channel *ast, char *dest)
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
-	CW_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
-		namelen = strlen(varptr->name);
-		len = sizeof(struct cw_var_t) + namelen + strlen(varptr->value) + 2;
-		new = malloc(len);
-		if (new) {
-			memcpy(new, varptr, len);
-			new->value = &(new->name[0]) + namelen + 1;
-			CW_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory\n");
-		}
-	}
+	cw_var_copy(&p->owner->vars, &p->chan->vars);
 
-	/* Is this line needed? Please test - Mikael */
-/*	cw_channel_inherit_variables(p->owner, p->chan); */
 	p->launchedpbx = 1;
 
 	/* Start switch on sub channel */

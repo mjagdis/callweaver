@@ -221,7 +221,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 						  "AppData: %s\r\n"
 						  "Uniqueid: %s\r\n",
 						  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
-			res = cw_function_exec_str(chan, cw_hash_app_name(app), app, appdata, NULL, 0);
+			res = cw_function_exec_str(chan, cw_hash_string(app), app, appdata, NULL, 0);
 		}
 	}
 	return res;

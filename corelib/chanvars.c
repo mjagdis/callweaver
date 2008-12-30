@@ -32,65 +32,148 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/options.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/logger.h"
 #include "callweaver/strings.h"
 #include "callweaver/callweaver_hash.h"
+#include "callweaver/utils.h"
 
 
-struct cw_var_t *cw_var_assign(const char *name, const char *value)
+static const char *var_object_name(struct cw_object *obj)
+{
+	struct cw_var_t *it = container_of(obj, struct cw_var_t, obj);
+	return it->name;
+}
+
+static int var_object_cmp(struct cw_object *a, struct cw_object *b)
+{
+	struct cw_var_t *var_a = container_of(a, struct cw_var_t, obj);
+	struct cw_var_t *var_b = container_of(b, struct cw_var_t, obj);
+
+	return strcmp(
+		(var_a->name[0] == '_' ? (var_a->name[1] == '_' ? &var_a->name[2] : &var_a->name[1]) : var_a->name),
+		(var_b->name[0] == '_' ? (var_b->name[1] == '_' ? &var_b->name[2] : &var_b->name[1]) : var_b->name)
+	);
+}
+
+static int var_object_match(struct cw_object *obj, const void *pattern)
+{
+	struct cw_var_t *it = container_of(obj, struct cw_var_t, obj);
+	const char *name = pattern;
+
+	return !strcmp(
+		(it->name[0] == '_' ? (it->name[1] == '_' ? &it->name[2] : &it->name[1]) : it->name),
+		(name[0] == '_' ? (name[1] == '_' ? &name[2] : &name[1]) : name)
+	);
+}
+
+const struct cw_object_isa cw_object_isa_var = {
+	.name = var_object_name,
+};
+
+struct cw_registry var_registry = {
+	.name = "Global variables",
+	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = var_object_cmp,
+	.match = var_object_match,
+};
+
+
+int cw_var_registry_init(struct cw_registry *reg, int estsize)
+{
+	memset(reg, 0, sizeof(*reg));
+	cw_mutex_init(&reg->lock);
+	reg->name = "Channel variables";
+	reg->cmp = var_object_cmp;
+	reg->match = var_object_match;
+	return cw_registry_init(reg, estsize);
+}
+
+
+static void var_release(struct cw_object *obj)
+{
+	struct cw_var_t *it = container_of(obj, struct cw_var_t, obj);
+	free(it);
+}
+
+
+struct cw_var_t *cw_var_new(const char *name, const char *value, int refs)
 {
 	struct cw_var_t *var;
 	int name_len = strlen(name) + 1;
 	int value_len = strlen(value) + 1;
 
-	if ((var = calloc(sizeof(struct cw_var_t) + name_len + value_len, sizeof(char)))) {
-		var->hash = cw_hash_var_name(name);
+	if ((var = malloc(sizeof(struct cw_var_t) + name_len + value_len))) {
+		cw_object_init(var, &cw_object_isa_var, NULL, refs);
+		var->obj.release = var_release;
 		var->value = var->name + name_len;
-		memcpy(var->name, name, name_len);
-		memcpy(var->value, value, value_len);
+		memcpy((char *)var->name, name, name_len);
+		var->hash = cw_hash_var_name(name);
+		memcpy((char *)var->value, value, value_len);
 		return var;
 	} else {
 		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 }
-	
-void cw_var_delete(struct cw_var_t *var)
+
+
+int cw_var_assign(struct cw_registry *registry, const char *name, const char *value)
 {
-	if (var)
-		free(var);
+	struct cw_var_t *var;
+
+	/* Strictly we should create the var with one reference and
+	 * put it after the add. But we know what's happening and how
+	 * objects work so we can optimize an atomic op away.
+	 */
+	if ((var = cw_var_new(name, value, 0))) {
+		if (cw_registry_add(registry, var->hash, &var->obj))
+			return 0;
+		var->obj.release(var);
+	}
+
+	return -1;
 }
 
-char *cw_var_name(struct cw_var_t *var)
-{
-	char *name;
 
-	if (var == NULL)
-		return NULL;
-	if (var->name == NULL)
-		return NULL;
-	/* Return the name without the initial underscores */
+static int cw_var_inherit_one(struct cw_registry_entry *entry, void *data)
+{
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_registry *reg = data;
+	int err = 0;
+
 	if (var->name[0] == '_') {
-		if (var->name[1] == '_')
-			name = (char*)&(var->name[2]);
-		else
-			name = (char*)&(var->name[1]);
-	} else
-		name = var->name;
-	return name;
+		if (var->name[1] == '_') {
+			if (option_debug)
+				cw_log(CW_LOG_DEBUG, "Copying hard-transferable variable %s.\n", var->name);
+			err = !cw_registry_add(reg, var->hash, &var->obj);
+		} else {
+			if (option_debug)
+				cw_log(CW_LOG_DEBUG, "Copying soft-transferable variable %s.\n", &var->name[1]);
+			err = cw_var_assign(reg, &var->name[1], var->value);
+		}
+	} else if (option_debug)
+		cw_log(CW_LOG_DEBUG, "Not copying variable %s.\n", cw_var_name(var));
+
+	return err;
 }
 
-char *cw_var_full_name(struct cw_var_t *var)
+int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst)
 {
-	return (var ? var->name : NULL);
+	return cw_registry_iterate_rev(src, cw_var_inherit_one, dst);
 }
 
-char *cw_var_value(struct cw_var_t *var)
+
+static int cw_var_copy_one(struct cw_registry_entry *entry, void *data)
 {
-	return (var ? var->value : NULL);
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_registry *reg = data;
+
+	return !cw_registry_add(reg, var->hash, &var->obj);
 }
 
-
-// END OF FILE
-
+int cw_var_copy(struct cw_registry *src, struct cw_registry *dst)
+{
+	return cw_registry_iterate_rev(src, cw_var_copy_one, dst);
+}

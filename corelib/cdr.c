@@ -123,37 +123,29 @@ struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr)
 {
 	struct cw_cdr *newcdr;
 
-	if (!(newcdr = cw_cdr_alloc())) {
+	if ((newcdr = malloc(sizeof(*newcdr)))) {
+		memcpy(newcdr, cdr, sizeof(*newcdr));
+		cw_var_registry_init(&newcdr->vars, 256);
+		cw_var_copy(&cdr->vars, &newcdr->vars);
+	} else
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
-
-	memcpy(newcdr, cdr, sizeof(*newcdr));
-	/* The varshead is unusable, volatile even, after the memcpy so we take care of that here */
-	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
-	cw_cdr_copy_vars(newcdr, cdr);
-	newcdr->next = NULL;
 
 	return newcdr;
 }
 
-static const char *cw_cdr_getvar_internal(struct cw_cdr *cdr, const char *name, int recur) 
+static struct cw_var_t *cw_cdr_getvar_internal(struct cw_cdr *cdr, const char *name, int recur)
 {
-	struct cw_var_t *variables;
-	struct varshead *headp;
+	struct cw_object *obj;
+	unsigned int hash;
 
-	if (cw_strlen_zero(name))
-		return NULL;
+	if (cdr && !cw_strlen_zero(name)) {
+		hash = cw_hash_var_name(name);
 
-	while (cdr) {
-		headp = &cdr->varshead;
-		CW_LIST_TRAVERSE(headp, variables, entries) {
-			if (!strcasecmp(name, cw_var_name(variables)))
-				return cw_var_value(variables);
-		}
-		if (!recur)
-			break;
-		cdr = cdr->next;
+		do {
+			if ((obj = cw_registry_find(&cdr->vars, 1, hash, name)))
+				return container_of(obj, struct cw_var_t, obj);
+			cdr = cdr->next;
+		} while (!obj && recur && cdr);
 	}
 
 	return NULL;
@@ -163,8 +155,8 @@ void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, char **ret, char *works
 {
 	struct tm tm;
 	time_t t;
+	struct cw_var_t *var;
 	const char *fmt = "%Y-%m-%d %T";
-	const char *varbuf;
 
 	*ret = NULL;
 	/* special vars (the ones from the struct cw_cdr when requested by name) 
@@ -218,8 +210,10 @@ void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, char **ret, char *works
 		cw_copy_string(workspace, cdr->uniqueid, workspacelen);
 	else if (!strcasecmp(name, "userfield"))
 		cw_copy_string(workspace, cdr->userfield, workspacelen);
-	else if ((varbuf = cw_cdr_getvar_internal(cdr, name, recur)))
-		cw_copy_string(workspace, varbuf, workspacelen);
+	else if ((var = cw_cdr_getvar_internal(cdr, name, recur))) {
+		cw_copy_string(workspace, var->value, workspacelen);
+		cw_object_put(var);
+	}
 
 	if (!cw_strlen_zero(workspace))
 		*ret = workspace;
@@ -227,84 +221,73 @@ void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, char **ret, char *works
 
 int cw_cdr_setvar(struct cw_cdr *cdr, const char *name, const char *value, int recur) 
 {
-	struct cw_var_t *newvariable;
-	struct varshead *headp;
-	const char *read_only[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
+	static const char *read_only[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
 				    "lastapp", "lastdata", "start", "answer", "end", "duration",
 				    "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
 				    "userfield", NULL };
+	struct cw_var_t *var;
+	unsigned int hash;
 	int x;
-	
-	for(x = 0; read_only[x]; x++) {
+
+	for (x = 0; read_only[x]; x++) {
 		if (!strcasecmp(name, read_only[x])) {
 			cw_log(CW_LOG_ERROR, "Attempt to set a read-only variable!.\n");
 			return -1;
 		}
 	}
 
-	if (!cdr) {
+	if (cdr) {
+		if (value) {
+			var = cw_var_new(name, value, 1);
+			hash = var->hash;
+		} else {
+			var = NULL;
+			hash = cw_hash_var_name(name);
+		}
+
+		do {
+			cw_registry_replace(&cdr->vars, hash, name, (var ? &var->obj : NULL));
+			cdr = cdr->next;
+		} while (recur && cdr);
+
+		if (var)
+			cw_object_put(var);
+	} else {
 		cw_log(CW_LOG_ERROR, "Attempt to set a variable on a nonexistent CDR record.\n");
 		return -1;
-	}
-
-	while (cdr) {
-		headp = &cdr->varshead;
-		CW_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
-			if (!strcasecmp(cw_var_name(newvariable), name)) {
-				/* there is already such a variable, delete it */
-				CW_LIST_REMOVE_CURRENT(headp, entries);
-				cw_var_delete(newvariable);
-				break;
-			}
-		}
-		CW_LIST_TRAVERSE_SAFE_END;
-
-		if (value) {
-			newvariable = cw_var_assign(name, value);
-			CW_LIST_INSERT_HEAD(headp, newvariable, entries);
-		}
-
-		if (!recur) {
-			break;
-		}
-
-		cdr = cdr->next;
 	}
 
 	return 0;
 }
 
-int cw_cdr_copy_vars(struct cw_cdr *to_cdr, struct cw_cdr *from_cdr)
+
+struct cdr_serialize_args {
+	char **buf_p;
+	size_t *size_p;
+	char delim;
+	char sep;
+	int x, total;
+};
+
+static int cdr_serialize_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_var_t *variables, *newvariable = NULL;
-	struct varshead *headpa, *headpb;
-	char *var, *val;
-	int x = 0;
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cdr_serialize_args *args = data;
+	int ret = 0;
 
-	headpa = &from_cdr->varshead;
-	headpb = &to_cdr->varshead;
-
-	CW_LIST_TRAVERSE(headpa,variables,entries) {
-		if (variables &&
-		    (var = cw_var_name(variables)) && (val = cw_var_value(variables)) &&
-		    !cw_strlen_zero(var) && !cw_strlen_zero(val)) {
-			newvariable = cw_var_assign(var, val);
-			CW_LIST_INSERT_HEAD(headpb, newvariable, entries);
-			x++;
-		}
+	if (!cw_build_string(args->buf_p, args->size_p, "level %d: %s%c%s%c", args->x, cw_var_name(var), args->delim, var->value, args->sep))
+		args->total++;
+	else {
+		cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
+		ret = 1;
 	}
 
-	return x;
+	return ret;
 }
 
 int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
 {
-	struct cw_var_t *variables;
-	char *var, *val;
-	char *tmp;
-	char workspace[256];
-	int total = 0, x = 0, i;
-	const char *cdrcols[] = { 
+	static const char *cdrcols[] = {
 		"clid",
 		"src",
 		"dst",
@@ -324,63 +307,42 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 		"uniqueid",
 		"userfield"
 	};
+	char workspace[256];
+	struct cdr_serialize_args args = {
+		.buf_p = &buf,
+		.size_p = &size,
+		.delim = delim,
+		.sep = sep,
+		.x = 0,
+		.total = 0,
+	};
+	char *tmp;
+	int i;
 
 	memset(buf, 0, size);
 
-	for (; cdr; cdr = recur ? cdr->next : NULL) {
-		if (++x > 1)
+	for (; cdr; cdr = (recur ? cdr->next : NULL)) {
+		if (++args.x > 1)
 			cw_build_string(&buf, &size, "\n");
 
-		CW_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
-			if (variables &&
-			    (var = cw_var_name(variables)) && (val = cw_var_value(variables)) &&
-			    !cw_strlen_zero(var) && !cw_strlen_zero(val)) {
-				if (cw_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, val, sep)) {
- 					cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
- 					break;
-				} else
-					total++;
-			} else 
-				break;
-		}
+		cw_registry_iterate(&cdr->vars, cdr_serialize_one, &args);
 
 		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
 			cw_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
-			if (!tmp)
-				continue;
-			
-			if (cw_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep)) {
-				cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
-				break;
-			} else
-				total++;
+			if (tmp) {
+				if (!cw_build_string(&buf, &size, "level %d: %s%c%s%c", args.x, cdrcols[i], delim, tmp, sep))
+					args.total++;
+				else {
+					cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
+					break;
+				}
+			}
 		}
 	}
 
-	return total;
+	return args.total;
 }
 
-
-void cw_cdr_free_vars(struct cw_cdr *cdr, int recur)
-{
-	struct varshead *headp;
-	struct cw_var_t *vardata;
-
-	/* clear variables */
-	while (cdr) {
-		headp = &cdr->varshead;
-		while (!CW_LIST_EMPTY(headp)) {
-			vardata = CW_LIST_REMOVE_HEAD(headp, entries);
-			cw_var_delete(vardata);
-		}
-
-		if (!recur) {
-			break;
-		}
-
-		cdr = cdr->next;
-	}
-}
 
 void cw_cdr_free(struct cw_cdr *cdr)
 {
@@ -397,7 +359,7 @@ void cw_cdr_free(struct cw_cdr *cdr)
 		if (cw_tvzero(cdr->start))
 			cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 
-		cw_cdr_free_vars(cdr, 0);
+		cw_registry_destroy(&cdr->vars);
 		free(cdr);
 		cdr = next;
 	}
@@ -407,9 +369,10 @@ struct cw_cdr *cw_cdr_alloc(void)
 {
 	struct cw_cdr *cdr;
 
-	cdr = malloc(sizeof(*cdr));
-	if (cdr)
-		memset(cdr, 0, sizeof(*cdr));
+	if ((cdr = calloc(1, sizeof(*cdr)))) {
+		cw_var_registry_init(&cdr->vars, 256);
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 
 	return cdr;
 }
@@ -752,9 +715,9 @@ int cw_cdr_amaflags2int(const char *flag)
 }
 
 
-static int post_cdrbe(struct cw_object *obj, void *data)
+static int post_cdrbe(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
+	struct cw_cdrbe *cdrbe = container_of(entry->obj, struct cw_cdrbe, obj);
 	struct cw_cdr *cdr = data;
 
 	cdrbe->handler(cdr);
@@ -800,7 +763,7 @@ void cw_cdr_reset(struct cw_cdr *cdr, int flags)
 
 			/* clear variables */
 			if (!cw_test_flag(&tmp, CW_CDR_FLAG_KEEP_VARS)) {
-				cw_cdr_free_vars(cdr, 0);
+				cw_registry_flush(&cdr->vars);
 			}
 
 			/* Reset to initial state */
@@ -985,9 +948,9 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 }
 
 
-static int cdrbe_print(struct cw_object *obj, void *data)
+static int cdrbe_print(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
+	struct cw_cdrbe *cdrbe = container_of(entry->obj, struct cw_cdrbe, obj);
 	int *fd = data;
 
 	cw_cli(*fd, "CDR registered backend: %s\n", cdrbe->name);

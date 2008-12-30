@@ -42,6 +42,7 @@
 #include "callweaver/translate.h"
 #include "callweaver/frame.h"
 #include "callweaver/features.h"
+#include "callweaver/keywords.h"
 
 /* standard includes */
 #include <stdio.h>

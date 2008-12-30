@@ -92,6 +92,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/callweaver_db.h"
 #include "callweaver/devicestate.h"
+#include "callweaver/keywords.h"
 
 
 static void *queueagentcount_function;
@@ -1615,7 +1616,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
 
     /* Inherit specially named variables from parent channel */
-    cw_channel_inherit_variables(qe->chan, tmp->chan);
+    cw_var_inherit(&qe->chan->vars, &tmp->chan->vars);
 
     /* Presense of ADSI CPE on outgoing channel follows ours */
     tmp->chan->adsicpe = qe->chan->adsicpe;
@@ -1940,7 +1941,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                     }
                     else
                     {
-                        cw_channel_inherit_variables(in, o->chan);
+                        cw_var_copy(&in->vars, &o->chan->vars);
                         if (o->chan->cid.cid_num)
                             free(o->chan->cid.cid_num);
                         o->chan->cid.cid_num = NULL;
@@ -2595,13 +2596,25 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         /* Begin Monitoring */
         if (qe->parent->monfmt && *qe->parent->monfmt)
         {
-            const char *monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
-            if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
+            struct cw_var_t *var;
+            if ((var = pbx_builtin_getvar_helper(qe->chan, CW_KEYWORD_MONITOR_EXEC, "MONITOR_EXEC")))
+            {
                 which = qe->chan;
+                cw_object_put(var);
+            }
+            if ((var = pbx_builtin_getvar_helper(qe->chan, CW_KEYWORD_MONITOR_EXEC_ARGS, "MONITOR_EXEC_ARGS")))
+            {
+                which = qe->chan;
+                cw_object_put(var);
+            }
             else
                 which = peer;
-            if (monitorfilename)
-                cw_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
+
+	    if ((var = pbx_builtin_getvar_helper(qe->chan, CW_KEYWORD_MONITOR_FILENAME, "MONITOR_FILENAME")))
+            {
+                cw_monitor_start(which, qe->parent->monfmt, var->value, 1 );
+                cw_object_put(var);
+            }
             else if (qe->chan->cdr)
                 cw_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
             else
@@ -3229,11 +3242,11 @@ static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 
 static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    int res=-1;
-    int ringing=0;
     struct localuser *u;
-    const char *user_priority;
+    struct cw_var_t *var;
     int prio;
+    int ringing = 0;
+    int res = -1;
     enum queue_result reason = QUEUE_UNKNOWN;
 
     /* whether to exit Queue application after the timeout hits */
@@ -3255,10 +3268,9 @@ static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     qe.expire = (argc > 4 ? qe.start + atoi(argv[4]) : 0);
 
     /* Get the priority from the variable ${QUEUE_PRIO} */
-    user_priority = pbx_builtin_getvar_helper(chan, "QUEUE_PRIO");
-    if (user_priority)
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_QUEUE_PRIO, "QUEUE_PRIO")))
     {
-        if (sscanf(user_priority, "%d", &prio) == 1)
+        if (sscanf(var->value, "%d", &prio) == 1)
         {
             if (option_debug)
                 cw_log(CW_LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
@@ -3267,9 +3279,10 @@ static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *resu
         else
         {
             cw_log(CW_LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
-                user_priority, chan->name);
+                var->value, chan->name);
             prio = 0;
         }
+        cw_object_put(var);
     }
     else
     {

@@ -45,6 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
+#include "callweaver/registry.h"
 #include "callweaver/file.h"
 #include "callweaver/app.h"
 #include "callweaver/chanvars.h"
@@ -78,14 +79,15 @@ struct calloutdata {
 	char tech[64];
 	char resource[256];
 	char nconferenceopts[64];
-	struct cw_variable *variables;
+	struct cw_registry vars;
 };
 
 static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
 	cw_pbx_outgoing_app(cd->tech, CW_FORMAT_SLINEAR, cd->resource, 30000,
-		"NConference", cd->nconferenceopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
+		"NConference", cd->nconferenceopts, NULL, 0, cd->cidnum, cd->cidname, &cd->vars, NULL);
+	cw_registry_destroy(&cd->vars);
 	free(cd);
 	return NULL;
 }
@@ -93,46 +95,26 @@ static void *page_thread(void *data)
 static void launch_page(struct cw_channel *chan, const char *nconferenceopts, const char *tech, const char *resource)
 {
 	struct calloutdata *cd;
-	const char *varname;
-	struct cw_variable *lastvar = NULL;
-	struct cw_var_t *varptr;
 	pthread_t t;
 
-	cd = malloc(sizeof(struct calloutdata));
-	if (cd) {
-		memset(cd, 0, sizeof(struct calloutdata));
+	if ((cd = calloc(1, sizeof(struct calloutdata)))) {
 		cw_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
 		cw_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
 		cw_copy_string(cd->tech, tech, sizeof(cd->tech));
 		cw_copy_string(cd->resource, resource, sizeof(cd->resource));
 		cw_copy_string(cd->nconferenceopts, nconferenceopts, sizeof(cd->nconferenceopts));
 
-		CW_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
-			if (!(varname = cw_var_full_name(varptr)))
-				continue;
-			if (varname[0] == '_') {
-				struct cw_variable *newvar = NULL;
+		if (!cw_var_registry_init(&cd->vars, 1024)) {
+			if (!cw_var_copy(&chan->vars, &cd->vars)) {
+				if (!cw_pthread_create(&t, &global_attr_detached, page_thread, cd))
+					return;
 
-				if (varname[1] == '_') {
-					newvar = cw_variable_new(varname, cw_var_value(varptr));
-				} else {
-					newvar = cw_variable_new(&varname[1], cw_var_value(varptr));
-				}
-
-				if (newvar) {
-					if (lastvar)
-						lastvar->next = newvar;
-					else
-						cd->variables = newvar;
-					lastvar = newvar;
-				}
+				cw_log(CW_LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			}
+			cw_registry_destroy(&cd->vars);
 		}
 
-		if (cw_pthread_create(&t, &global_attr_detached, page_thread, cd)) {
-			cw_log(CW_LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
-			free(cd);
-		}
+		free(cd);
 	}
 }
 

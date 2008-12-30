@@ -115,6 +115,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 #include "callweaver/dsp.h"
+#include "callweaver/keywords.h"
 
 
 #ifndef IPTOS_MINCOST
@@ -895,21 +896,20 @@ static int mgcp_call(struct cw_channel *ast, char *dest)
 	struct mgcp_endpoint *p;
 	struct mgcp_subchannel *sub;
 	char tone[50] = "";
-	char *distinctive_ring = NULL;
-	struct varshead *headp;
-	struct cw_var_t *current;
+	const char *distinctive_ring = NULL;
+	struct cw_object *obj;
+	struct cw_var_t *var;
 
 	if (mgcpdebug) {
 		cw_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
 	}
 	sub = ast->tech_pvt;
 	p = sub->parent;
-	headp = &ast->varshead;
-	CW_LIST_TRAVERSE(headp,current,entries) {
-		/* Check whether there is an ALERT_INFO variable */
-		if (strcasecmp(cw_var_name(current),"ALERT_INFO") == 0) {
-			distinctive_ring = cw_var_value(current);
-		}
+
+	if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_ALERT_INFO, "ALERT_INFO"))) {
+		var = container_of(obj, struct cw_var_t, obj);
+		distinctive_ring = var->value;
+		cw_object_put_obj(obj);
 	}
 
 	cw_mutex_lock(&sub->lock);

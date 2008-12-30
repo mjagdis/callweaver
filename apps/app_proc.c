@@ -45,6 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
+#include "callweaver/keywords.h"
 
 #define MAX_ARGS 80
 
@@ -92,7 +93,7 @@ static const char exit_descrip[] =
 
 static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char *tmp;
+	struct cw_var_t *var;
 	char *proc;
 	char fullproc[80];
 	char varname[80];
@@ -103,7 +104,6 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int oldpriority;
 	char pc[80], depthc[12];
 	char oldcontext[CW_MAX_CONTEXT] = "";
-	char *offsets;
 	int offset, depth;
 	int setproccontext=0;
 	int autoloopflag;
@@ -120,11 +120,10 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	LOCAL_USER_ADD(u);
 
 	/* Count how many levels deep the rabbit hole goes */
-	tmp = pbx_builtin_getvar_helper(chan, "PROC_DEPTH");
-	if (tmp) {
-		sscanf(tmp, "%d", &depth);
-	} else {
-		depth = 0;
+	depth = 0;
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_DEPTH, "PROC_DEPTH"))) {
+		sscanf(var->value, "%d", &depth);
+		cw_object_put(var);
 	}
 
 	if (depth >= 7) {
@@ -162,25 +161,29 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		setproccontext=1;
 	}
 	/* Save old proc variables */
-	save_proc_exten = pbx_builtin_getvar_helper(chan, "PROC_EXTEN");
-	if (save_proc_exten) 
-		save_proc_exten = strdup(save_proc_exten);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_EXTEN, "PROC_EXTEN"))) {
+		save_proc_exten = strdup(var->value);
+		cw_object_put(var);
+	}
 	pbx_builtin_setvar_helper(chan, "PROC_EXTEN", oldexten);
 
-	save_proc_context = pbx_builtin_getvar_helper(chan, "PROC_CONTEXT");
-	if (save_proc_context)
-		save_proc_context = strdup(save_proc_context);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_CONTEXT, "PROC_CONTEXT"))) {
+		save_proc_context = strdup(var->value);
+		cw_object_put(var);
+	}
 	pbx_builtin_setvar_helper(chan, "PROC_CONTEXT", oldcontext);
 
-	save_proc_priority = pbx_builtin_getvar_helper(chan, "PROC_PRIORITY");
-	if (save_proc_priority) 
-		save_proc_priority = strdup(save_proc_priority);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_PRIORITY, "PROC_PRIORITY"))) {
+		save_proc_priority = strdup(var->value);
+		cw_object_put(var);
+	}
 	snprintf(pc, sizeof(pc), "%d", oldpriority);
 	pbx_builtin_setvar_helper(chan, "PROC_PRIORITY", pc);
   
-	save_proc_offset = pbx_builtin_getvar_helper(chan, "PROC_OFFSET");
-	if (save_proc_offset) 
-		save_proc_offset = strdup(save_proc_offset);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_OFFSET, "PROC_OFFSET"))) {
+		save_proc_offset = strdup(var->value);
+		cw_object_put(var);
+	}
 	pbx_builtin_setvar_helper(chan, "PROC_OFFSET", NULL);
 
 	/* Setup environment for new run */
@@ -193,9 +196,10 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
   		/* Save copy of old arguments if we're overwriting some, otherwise
 	   	let them pass through to the other macro */
   		snprintf(varname, sizeof(varname), "ARG%d", x);
-		oldargs[x] = pbx_builtin_getvar_helper(chan, varname);
-		if (oldargs[x])
-			oldargs[x] = strdup(oldargs[x]);
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varname), varname))) {
+			oldargs[x] = strdup(var->value);
+			cw_object_put(var);
+		}
 		pbx_builtin_setvar_helper(chan, varname, argv[x]);
 	}
 	autoloopflag = cw_test_flag(chan, CW_FLAG_IN_AUTOLOOP);
@@ -283,10 +287,10 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		if (!(chan->_softhangup & CW_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
 			cw_copy_string(chan->exten, oldexten, sizeof(chan->exten));
-			if ((offsets = pbx_builtin_getvar_helper(chan, "PROC_OFFSET"))) {
+			if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PROC_OFFSET, "PROC_OFFSET"))) {
 				/* Handle proc offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */
-				if (sscanf(offsets, "%d", &offset) == 1) {
+				if (sscanf(var->value, "%d", &offset) == 1) {
 					if (cw_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
 						chan->priority += offset;
 					}

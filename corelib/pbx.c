@@ -166,9 +166,6 @@ struct cw_hint
 
 int cw_pbx_outgoing_cdr_failed(void);
 
-CW_MUTEX_DEFINE_STATIC(globalslock);
-static struct varshead globals;
-
 static int autofallthrough = 0;
 
 CW_MUTEX_DEFINE_STATIC(maxcalllock);
@@ -226,9 +223,9 @@ static inline struct cw_switch *pbx_findswitch(const char *name)
 
 
 /*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
-static int switch_print(struct cw_object *obj, void *data)
+static int switch_print(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
+	struct cw_switch *sw = container_of(entry->obj, struct cw_switch, obj);
 	int *fd = data;
 
         cw_cli(*fd, "%s: %s\n", sw->name, sw->description);
@@ -243,21 +240,32 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 }
 
 /*! \brief  handle_show_globals: CLI support for listing global variables */
+struct handle_show_globals_args {
+	int fd;
+	int count;
+};
+
+static int handle_show_globals_one(struct cw_registry_entry *entry, void *data)
+{
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct handle_show_globals_args *args = data;
+
+	args->count++;
+        cw_cli(args->fd, "  %s=%s\n", cw_var_name(var), var->value);
+	return 0;
+}
+
 static int handle_show_globals(int fd, int argc, char *argv[])
 {
-    struct cw_var_t *variable;
-    int count = 0;
+	struct handle_show_globals_args args = {
+		.fd = fd,
+		.count = 0,
+	};
 
-    cw_mutex_lock(&globalslock);
-    CW_LIST_TRAVERSE(&globals, variable, entries)
-    {
-        cw_cli(fd, "  %s=%s\n", cw_var_name(variable), cw_var_value(variable));
-        ++count;
-    }
-    cw_mutex_unlock(&globalslock);
+	cw_registry_iterate(&var_registry, handle_show_globals_one, &args);
 
-    cw_cli(fd, "\n    -- %d variables\n", count);
-    return RESULT_SUCCESS;
+	cw_cli(fd, "\n    -- %d variables\n", args.count);
+	return RESULT_SUCCESS;
 }
 
 /*! \brief  CLI support for setting global variables */
@@ -711,15 +719,16 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
 //
 // NOTE: There may be further unsafeguarded cases not yet documented here!
 
-void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
+void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg)
 {
-    char *first, *second;
     char tmpvar[80];
-    time_t thistime;
     struct tm brokentime;
+    char *first, *second;
+    struct cw_object *obj;
+    struct cw_var_t *var;
+    time_t thistime;
     int offset, offset2;
-    struct cw_var_t *variables;
-    int no_match_yet = 0; // start optimistic
+    int no_match_yet;
     unsigned int hash;
 
     // warnings for (potentially) unsafe pre-conditions
@@ -741,21 +750,21 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
 
     // actual work starts here
     
-    if /* channel exists */ (c) 
-        headp = &c->varshead;
-    
+    if (c)
+        var_reg = &c->vars;
+
     *ret = NULL;
     
     // check for slicing modifier
-    if /* sliced */ ((first=strchr(var,':')))
+    if /* sliced */ ((first = strchr(varname, ':')))
     {
         // remove characters counting from end or start of string */
-        cw_copy_string(tmpvar, var, sizeof(tmpvar));
+        cw_copy_string(tmpvar, varname, sizeof(tmpvar));
         first = strchr(tmpvar, ':');
         if (!first)
             first = tmpvar + strlen(tmpvar);
         *first='\0';
-        pbx_retrieve_variable(c,tmpvar,ret,workspace,workspacelen - 1, headp);
+        pbx_retrieve_variable(c, tmpvar, ret, workspace, workspacelen - 1, var_reg);
         if (!(*ret)) 
             return;
         offset = atoi(first + 1);    /* The number of characters, 
@@ -800,15 +809,17 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
     }
     else /* not sliced */
     {
-        hash = cw_hash_var_name(var);
+        no_match_yet = 0;
+        obj = NULL;
+        hash = cw_hash_var_name(varname);
 
-        if /* channel exists */ (c)
+        if (c)
         {
             // ----------------------------------------------
             // search builtin channel variables (scenario #1)
             // ----------------------------------------------
-                        
-            if (hash == CW_KEYWORD_CALLERID && !strcmp(var, "CALLERID"))
+
+            if (hash == CW_KEYWORD_CALLERID && !strcmp(varname, "CALLERID"))
             {
                 if (c->cid.cid_num)
                 {
@@ -828,7 +839,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if (hash == CW_KEYWORD_CALLERIDNUM && !strcmp(var, "CALLERIDNUM"))
+            else if (hash == CW_KEYWORD_CALLERIDNUM && !strcmp(varname, "CALLERIDNUM"))
             {
                 if (c->cid.cid_num)
                 {
@@ -840,7 +851,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if (hash == CW_KEYWORD_CALLERIDNAME && !strcmp(var, "CALLERIDNAME"))
+            else if (hash == CW_KEYWORD_CALLERIDNAME && !strcmp(varname, "CALLERIDNAME"))
             {
                 if (c->cid.cid_name)
                 {
@@ -850,7 +861,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 else
                     *ret = NULL;
             }
-            else if (hash == CW_KEYWORD_CALLERANI && !strcmp(var, "CALLERANI"))
+            else if (hash == CW_KEYWORD_CALLERANI && !strcmp(varname, "CALLERANI"))
             {
                 if (c->cid.cid_ani)
                 {
@@ -860,27 +871,27 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 else
                     *ret = NULL;
             }            
-            else if (hash == CW_KEYWORD_CALLINGPRES && !strcmp(var, "CALLINGPRES"))
+            else if (hash == CW_KEYWORD_CALLINGPRES && !strcmp(varname, "CALLINGPRES"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
                 *ret = workspace;
             }            
-            else if (hash == CW_KEYWORD_CALLINGANI2 && !strcmp(var, "CALLINGANI2"))
+            else if (hash == CW_KEYWORD_CALLINGANI2 && !strcmp(varname, "CALLINGANI2"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
                 *ret = workspace;
             }            
-            else if (hash == CW_KEYWORD_CALLINGTON && !strcmp(var, "CALLINGTON"))
+            else if (hash == CW_KEYWORD_CALLINGTON && !strcmp(varname, "CALLINGTON"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
                 *ret = workspace;
             }            
-            else if (hash == CW_KEYWORD_CALLINGTNS && !strcmp(var, "CALLINGTNS"))
+            else if (hash == CW_KEYWORD_CALLINGTNS && !strcmp(varname, "CALLINGTNS"))
             {
                 snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
                 *ret = workspace;
             }            
-            else if (hash == CW_KEYWORD_DNID && !strcmp(var, "DNID"))
+            else if (hash == CW_KEYWORD_DNID && !strcmp(varname, "DNID"))
             {
                 if (c->cid.cid_dnid)
                 {
@@ -892,26 +903,26 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }            
-            else if (hash == CW_KEYWORD_HINT && !strcmp(var, "HINT"))
+            else if (hash == CW_KEYWORD_HINT && !strcmp(varname, "HINT"))
             {
                 if (!cw_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
                     *ret = NULL;
                 else
                     *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_HINTNAME && !strcmp(var, "HINTNAME"))
+            else if (hash == CW_KEYWORD_HINTNAME && !strcmp(varname, "HINTNAME"))
             {
                 if (!cw_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
                     *ret = NULL;
                 else
                     *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_EXTEN && !strcmp(var, "EXTEN"))
+            else if (hash == CW_KEYWORD_EXTEN && !strcmp(varname, "EXTEN"))
             {
                 cw_copy_string(workspace, c->exten, workspacelen);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_RDNIS && !strcmp(var, "RDNIS"))
+            else if (hash == CW_KEYWORD_RDNIS && !strcmp(varname, "RDNIS"))
             {
                 if (c->cid.cid_rdnis)
                 {
@@ -923,118 +934,85 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                     *ret = NULL;
                 }
             }
-            else if (hash == CW_KEYWORD_CONTEXT && !strcmp(var, "CONTEXT"))
+            else if (hash == CW_KEYWORD_CONTEXT && !strcmp(varname, "CONTEXT"))
             {
                 cw_copy_string(workspace, c->context, workspacelen);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_PRIORITY && !strcmp(var, "PRIORITY"))
+            else if (hash == CW_KEYWORD_PRIORITY && !strcmp(varname, "PRIORITY"))
             {
                 snprintf(workspace, workspacelen, "%d", c->priority);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_CHANNEL && !strcmp(var, "CHANNEL"))
+            else if (hash == CW_KEYWORD_CHANNEL && !strcmp(varname, "CHANNEL"))
             {
                 cw_copy_string(workspace, c->name, workspacelen);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_UNIQUEID && !strcmp(var, "UNIQUEID"))
+            else if (hash == CW_KEYWORD_UNIQUEID && !strcmp(varname, "UNIQUEID"))
             {
                 snprintf(workspace, workspacelen, "%s", c->uniqueid);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_HANGUPCAUSE && !strcmp(var, "HANGUPCAUSE"))
+            else if (hash == CW_KEYWORD_HANGUPCAUSE && !strcmp(varname, "HANGUPCAUSE"))
             {
                 snprintf(workspace, workspacelen, "%d", c->hangupcause);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_ACCOUNTCODE && !strcmp(var, "ACCOUNTCODE"))
+            else if (hash == CW_KEYWORD_ACCOUNTCODE && !strcmp(varname, "ACCOUNTCODE"))
             {
                 cw_copy_string(workspace, c->accountcode, workspacelen);
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_LANGUAGE && !strcmp(var, "LANGUAGE"))
+            else if (hash == CW_KEYWORD_LANGUAGE && !strcmp(varname, "LANGUAGE"))
             {
                 cw_copy_string(workspace, c->language, workspacelen);
                 *ret = workspace;
             }
-	    else if (hash == CW_KEYWORD_SYSTEMNAME && !strcmp(var, "SYSTEMNAME"))
+	    else if (hash == CW_KEYWORD_SYSTEMNAME && !strcmp(varname, "SYSTEMNAME"))
 	    {
 		cw_copy_string(workspace, cw_config_CW_SYSTEM_NAME, workspacelen);
 		*ret = workspace;
 	    }	
-            else if /* user defined channel variables exist */ (&c->varshead)
+            else
             {
-                no_match_yet = 1;
-
                 // ---------------------------------------------------
                 // search user defined channel variables (scenario #2)
                 // ---------------------------------------------------
-                
-                CW_LIST_TRAVERSE(&c->varshead, variables, entries) {
-#if 0
-                    cw_log(CW_LOG_WARNING, "Comparing variable '%s' with '%s' in channel '%s'\n",
-                             var, cw_var_name(variables), c->name);
-#endif
-                    if (strcasecmp(cw_var_name(variables),var) == 0)
-                    {
-                        *ret = cw_var_value(variables);
-                        if (*ret)
-                        {
-                            cw_copy_string(workspace, *ret, workspacelen);
-                            *ret = workspace;
-                        }
-                        no_match_yet = 0; // remember that we found a match
-                        break;
-                    }
+                no_match_yet = 1;
+                if ((obj = cw_registry_find(&c->vars, 1, hash, varname))) {
+                    var = container_of(obj, struct cw_var_t, obj);
+                    cw_copy_string(workspace, var->value, workspacelen);
+                    no_match_yet = 0;
+                    *ret = workspace;
                 }
             }            
-            else /* not a channel variable, neither built-in nor user-defined */
-            {
-                no_match_yet = 1;
-            }        
         }
         else /* channel does not exist */
         {
-            no_match_yet = 1;
-            
             // -------------------------------------------------------------------------
             // search for user defined variables not bound to this channel (scenario #3)
             // -------------------------------------------------------------------------
-            
-            if /* parameter headp points to an address other than NULL */ (headp)
-            {
-            
-                CW_LIST_TRAVERSE(headp, variables, entries) {
-#if 0
-                    cw_log(CW_LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,cw_var_name(variables));
-#endif
-                    if (strcasecmp(cw_var_name(variables), var) == 0)
-                    {
-                        *ret = cw_var_value(variables);
-                        if (*ret)
-                        {
-                            cw_copy_string(workspace, *ret, workspacelen);
-                            *ret = workspace;
-                        }
-                        no_match_yet = 0; // remember that we found a match
-                        break;
-                    }
-                }
+            no_match_yet = 1;
+            if (var_reg && (obj = cw_registry_find(var_reg, 1, hash, varname))) {
+                var = container_of(obj, struct cw_var_t, obj);
+                cw_copy_string(workspace, var->value, workspacelen);
+                no_match_yet = 0;
+                *ret = workspace;
             }
-            
-        }        
-        if /* no match yet */ (no_match_yet)
+        }
+
+        if (no_match_yet)
         {
             // ------------------------------------
             // search builtin globals (scenario #4)
             // ------------------------------------
-            if (hash == CW_KEYWORD_EPOCH && !strcmp(var, "EPOCH"))
+            if (hash == CW_KEYWORD_EPOCH && !strcmp(varname, "EPOCH"))
             {
                 snprintf(workspace, workspacelen, "%u",(int)time(NULL));
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_DATETIME && !strcmp(var, "DATETIME"))
+            else if (hash == CW_KEYWORD_DATETIME && !strcmp(varname, "DATETIME"))
             {
                 thistime = time(NULL);
                 localtime_r(&thistime, &brokentime);
@@ -1048,7 +1026,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                          );
                 *ret = workspace;
             }
-            else if (hash == CW_KEYWORD_TIMESTAMP && !strcmp(var, "TIMESTAMP"))
+            else if (hash == CW_KEYWORD_TIMESTAMP && !strcmp(varname, "TIMESTAMP"))
             {
                 thistime=time(NULL);
                 localtime_r(&thistime, &brokentime);
@@ -1068,30 +1046,20 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, ch
                 // -----------------------------------------
                 // search user defined globals (scenario #5)
                 // -----------------------------------------
-                cw_mutex_lock(&globalslock);
-                CW_LIST_TRAVERSE(&globals, variables, entries)
-                {
-#if 0
-                    cw_log(CW_LOG_WARNING,"Comparing variable '%s' with '%s' in globals\n",
-                             var, cw_var_name(variables));
-#endif
-                    if (hash == cw_var_hash(variables))
-                    {
-                        *ret = cw_var_value(variables);
-                        if (*ret)
-                        {
-                            cw_copy_string(workspace, *ret, workspacelen);
-                            *ret = workspace;
-                        }
-                    }
+                if ((obj = cw_registry_find(&var_registry, 1, hash, varname))) {
+                    var = container_of(obj, struct cw_var_t, obj);
+                    cw_copy_string(workspace, var->value, workspacelen);
+                    *ret = workspace;
                 }
-                cw_mutex_unlock(&globalslock);
             }
         }
+
+        if (obj)
+            cw_object_put_obj(obj);
     }
 }
 
-static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
+static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count)
 {
     char *cp4 = 0;
     const char *tmp, *whereweare;
@@ -1189,7 +1157,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                if (pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE))
+                if (pbx_substitute_variables_helper_full(c, var_reg, var, ltmp, VAR_BUF_SIZE))
 			break;
                 vars = ltmp;
             }
@@ -1205,7 +1173,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
                 *p = '\0';
                 if (p[1] == ':')
                     sscanf(p+2, "%d:%d", &offset, &length);
-                len = cw_function_exec_str(c, cw_hash_app_name(vars), vars, args, cp2, count+1);
+                len = cw_function_exec_str(c, cw_hash_string(vars), vars, args, cp2, count+1);
 		if (len)
 			break;
                 cp4 = cp2;
@@ -1219,7 +1187,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
                 while (count && *cp4 && length-- > 0) { *(cp2++) = *(cp4++); count--; }
             } else {
                 /* Retrieve variable value */
-                pbx_retrieve_variable(c, vars, &cp4, cp2, count, headp);
+                pbx_retrieve_variable(c, vars, &cp4, cp2, count, var_reg);
                 if (cp4 == cp2) {
 	            while (count && *cp2) cp2++, count--;;
 		} else if (cp4)
@@ -1281,7 +1249,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                if (pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1))
+                if (pbx_substitute_variables_helper_full(c, var_reg, var, ltmp, VAR_BUF_SIZE - 1))
 			break;
                 vars = ltmp;
             }
@@ -1312,12 +1280,12 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct var
 
 int pbx_substitute_variables_helper(struct cw_channel *c, const char *cp1, char *cp2, int count)
 {
-    return pbx_substitute_variables_helper_full(c, (c) ? &c->varshead : NULL, cp1, cp2, count);
+    return pbx_substitute_variables_helper_full(c, (c) ? &c->vars : NULL, cp1, cp2, count);
 }
 
-int pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count)
+int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count)
 {
-    return pbx_substitute_variables_helper_full(NULL, headp, cp1, cp2, count);
+    return pbx_substitute_variables_helper_full(NULL, vars, cp1, cp2, count);
 }
 
 static int pbx_substitute_variables(char *passdata, int datalen, struct cw_channel *c, struct cw_exten *e)
@@ -1336,7 +1304,7 @@ static int pbx_substitute_variables(char *passdata, int datalen, struct cw_chann
 #endif
     
     return pbx_substitute_variables_helper(c, e->data, passdata, datalen);
-}                                                        
+}
 
 static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
 {
@@ -1947,7 +1915,6 @@ static int __cw_pbx_run(struct cw_channel *c)
     int waittime;
     int res=0;
     int autoloopflag;
-    unsigned int hash;
 
     /* A little initial setup here */
     if (c->pbx)
@@ -2170,25 +2137,17 @@ static int __cw_pbx_run(struct cw_channel *c)
             }
             else
             {
-                char *status;
+                struct cw_var_t *var;
 
                 // this should really use c->hangupcause instead of dialstatus
                 // let's go along with it for now but we should revisit it later
                 
-                status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
-                if (!status)
-                {
-                    hash = 0;
-                    status = "UNKNOWN";
-                }
-                else
-                {
-                    hash = cw_hash_var_name(status);
-                }
-                if (option_verbose > 2)
-                    cw_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
+                var = pbx_builtin_getvar_helper(c, CW_KEYWORD_DIALSTATUS, "DIALSTATUS");
 
-                if (hash == CW_KEYWORD_BUSY && !strcmp(status, "BUSY")) {
+                if (option_verbose > 2)
+                    cw_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, (var ? var->value : "UNKNOWN"));
+
+                if (var && !strcmp(var->value, "BUSY")) {
                     cw_indicate(c, CW_CONTROL_BUSY);
                     if (c->_state != CW_STATE_UP)
                         cw_setstate(c, CW_STATE_BUSY);
@@ -2197,6 +2156,10 @@ static int __cw_pbx_run(struct cw_channel *c)
                     if (c->_state != CW_STATE_UP)
                         cw_setstate(c, CW_STATE_BUSY);
 		}
+
+		if (var)
+			cw_object_put(var);
+
                 cw_safe_sleep(c, 10000);
                 goto out;
             }
@@ -4320,7 +4283,7 @@ int cw_add_extension2(struct cw_context *con,
         }
         tmp->app = p;
         strcpy(tmp->app, application);
-	tmp->apphash = cw_hash_app_name(application);
+	tmp->apphash = cw_hash_string(application);
         tmp->parent = con;
         tmp->data = data;
         tmp->datad = datad;
@@ -4551,7 +4514,7 @@ static void *async_wait(void *data)
     {
         if (!cw_strlen_zero(as->app))
         {
-	    cw_function_exec_str(chan, cw_hash_app_name(as->app), as->app, as->appdata, NULL, 0);
+	    cw_function_exec_str(chan, cw_hash_string(as->app), as->app, as->appdata, NULL, 0);
         }
         else
         {
@@ -4620,7 +4583,7 @@ int cw_pbx_outgoing_cdr_failed(void)
     return 0;  /* success */
 }
 
-int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_variable *vars, struct cw_channel **channel)
+int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **channel)
 {
     struct cw_channel *chan;
     struct async_stat *as;
@@ -4652,7 +4615,6 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                     /* allocation of the cdr failed */
                     cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
                     free(chan->pbx);
-                    cw_variables_destroy(vars);
                     return -1;
                 }
                 /* allocation of the cdr was successful */
@@ -4719,10 +4681,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                  * update the cdr with the failed message */
                 cdr_res = cw_pbx_outgoing_cdr_failed();
                 if (cdr_res != 0)
-                {
-                    cw_variables_destroy(vars);
                     return cdr_res;
-                }
             }
             
             /* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
@@ -4737,7 +4696,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                         cw_copy_string(chan->context, context, sizeof(chan->context));
                     cw_copy_string(chan->exten, "failed", sizeof(chan->exten));
                     chan->priority = 1;
-                    cw_set_variables(chan, vars);
+                    cw_var_copy(vars, &chan->vars);
                     cw_pbx_run(chan);    
                 }
                 else
@@ -4751,9 +4710,9 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
     {
         if ((as = malloc(sizeof(struct async_stat))) == NULL)
         {
-            cw_variables_destroy(vars);
+            cw_log(CW_LOG_ERROR, "Out of memory!\n");
             return -1;
-        }    
+        }
         memset(as, 0, sizeof(struct async_stat));
         chan = cw_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
         if (channel)
@@ -4765,7 +4724,6 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         if (!chan)
         {
             free(as);
-            cw_variables_destroy(vars);
             return -1;
         }
         as->chan = chan;
@@ -4773,7 +4731,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         cw_copy_string(as->exten,  exten, sizeof(as->exten));
         as->priority = priority;
         as->timeout = timeout;
-        cw_set_variables(chan, vars);
+        cw_var_copy(vars, &chan->vars);
         if (cw_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             cw_log(CW_LOG_WARNING, "Failed to start async wait\n");
@@ -4781,12 +4739,10 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
             if (channel)
                 *channel = NULL;
             cw_hangup(chan);
-            cw_variables_destroy(vars);
             return -1;
         }
         res = 0;
     }
-    cw_variables_destroy(vars);
     return res;
 }
 
@@ -4802,14 +4758,14 @@ static void *cw_pbx_run_app(void *data)
 {
     struct app_tmp *tmp = data;
 
-    cw_function_exec_str(tmp->chan, cw_hash_app_name(tmp->app), tmp->app, tmp->data, NULL, 0);
+    cw_function_exec_str(tmp->chan, cw_hash_string(tmp->app), tmp->app, tmp->data, NULL, 0);
 
     cw_hangup(tmp->chan);
     free(tmp);
     return NULL;
 }
 
-int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_variable *vars, struct cw_channel **locked_channel)
+int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel)
 {
     struct cw_channel *chan;
     struct async_stat *as;
@@ -4818,15 +4774,12 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
     struct outgoing_helper oh;
 
     memset(&oh, 0, sizeof(oh));
-    oh.vars = vars;    
+    oh.vars = vars;
 
     if (locked_channel) 
         *locked_channel = NULL;
     if (cw_strlen_zero(app))
-    {
-           cw_variables_destroy(vars);
         return -1;
-    }
     if (sync)
     {
         chan = __cw_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
@@ -4845,14 +4798,13 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                     /* allocation of the cdr failed */
                     cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
                     free(chan->pbx);
-                       cw_variables_destroy(vars);
                     return -1;
                 }
                 /* allocation of the cdr was successful */
                 cw_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
                 cw_cdr_start(chan->cdr);
             }
-            cw_set_variables(chan, vars);
+            cw_var_copy(vars, &chan->vars);
             if (chan->_state == CW_STATE_UP)
             {
                 res = 0;
@@ -4922,10 +4874,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                  * update the cdr with the failed message */
                 cdr_res = cw_pbx_outgoing_cdr_failed();
                 if (cdr_res != 0)
-                {
-                    cw_variables_destroy(vars);
                     return cdr_res;
-                }
             }
         }
 
@@ -4934,7 +4883,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
     {
         if ((as = malloc(sizeof(struct async_stat))) == NULL)
         {
-            cw_variables_destroy(vars);
+            cw_log(CW_LOG_ERROR, "Out of memory!\n");
             return -1;
         }
         memset(as, 0, sizeof(struct async_stat));
@@ -4942,7 +4891,6 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
         if (!chan)
         {
             free(as);
-            cw_variables_destroy(vars);
             return -1;
         }
         as->chan = chan;
@@ -4950,7 +4898,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
         if (appdata)
             cw_copy_string(as->appdata,  appdata, sizeof(as->appdata));
         as->timeout = timeout;
-        cw_set_variables(chan, vars);
+        cw_var_copy(vars, &chan->vars);
         /* Start a new thread, and get something handling this channel. */
         if (locked_channel) 
             cw_mutex_lock(&chan->lock);
@@ -4961,14 +4909,12 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
             if (locked_channel) 
                 cw_mutex_unlock(&chan->lock);
             cw_hangup(chan);
-            cw_variables_destroy(vars);
             return -1;
         }
         if (locked_channel)
             *locked_channel = chan;
         res = 0;
     }
-    cw_variables_destroy(vars);
     return res;
 }
 
@@ -5070,168 +5016,110 @@ void cw_context_destroy(struct cw_context *con, const char *registrar)
     __cw_context_destroy(con,registrar);
 }
 
-int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size) 
+
+struct pbx_builtin_serialize_variables_args {
+	char **buf_p;
+	size_t *size_p;
+	int total;
+};
+
+static int pbx_builtin_serialize_variables_one(struct cw_registry_entry *entry, void *data)
 {
-    struct cw_var_t *variables;
-    char *var;
-    char *val;
-    int total = 0;
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct pbx_builtin_serialize_variables_args *args = data;
 
-    if (!chan)
-        return 0;
+	args->total++;
 
-    memset(buf, 0, size);
+	if (!cw_build_string(args->buf_p, args->size_p, "%s=%s\n", cw_var_name(var), var->value))
+		return 0;
 
-    CW_LIST_TRAVERSE(&chan->varshead, variables, entries)
-    {
-        if ((var = cw_var_name(variables))  &&  (val = cw_var_value(variables)))
-        {
-            if (cw_build_string(&buf, &size, "%s=%s\n", var, val))
-            {
-                cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
-                break;
-            }
-            total++;
-        }
-        else
-        {
-            break;
-        }
-    }
-    
-    return total;
+	cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
+	return 1;
 }
 
-char *pbx_builtin_getvar_helper(struct cw_channel *chan, const char *name) 
+int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size)
 {
-    struct cw_var_t *variables;
-    struct varshead *headp;
-    unsigned int hash;
-    char *ret = NULL;
+	struct pbx_builtin_serialize_variables_args args = {
+		.buf_p = &buf,
+		.size_p = &size,
+		.total = 0,
+	};
 
-    if (chan)
-        headp = &chan->varshead;
-    else
-        headp = &globals;
+	if (chan) {
+		memset(buf, 0, size);
+		cw_registry_iterate(&chan->vars, pbx_builtin_serialize_variables_one, &args);
+	}
 
-    if (name)
-    {
-        hash = cw_hash_var_name(name);
+	return args.total;
+}
 
-        if (headp == &globals)
-            cw_mutex_lock(&globalslock);
-        CW_LIST_TRAVERSE(headp,variables,entries)
-        {
-            if (hash == cw_var_hash(variables) && !strcmp(name, cw_var_name(variables)))
-            {
-                ret = cw_var_value(variables);
-                break;
-            }
-        }
-        if (headp == &globals)
-            cw_mutex_unlock(&globalslock);
-        if (ret == NULL && headp != &globals)
-        {
-            /* Check global variables if we haven't already */
-            headp = &globals;
-            cw_mutex_lock(&globalslock);
-            CW_LIST_TRAVERSE(headp,variables,entries)
-            {
-                if (hash == cw_var_hash(variables) && !strcmp(name, cw_var_name(variables)))
-                {
-                    ret = cw_var_value(variables);
-                    break;
-                }
-            }
-            cw_mutex_unlock(&globalslock);
-        }
-    }
-    return ret;
+struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name)
+{
+	struct cw_object *obj;
+
+	if (name
+	&& ((chan && (obj = cw_registry_find(&chan->vars, 1, hash, name)))
+	|| (obj = cw_registry_find(&var_registry, 1, hash, name))))
+		return container_of(obj, struct cw_var_t, obj);
+
+	return NULL;
 }
 
 void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value)
 {
-    struct cw_var_t *newvariable;
-    struct varshead *headp;
+    int err = 0;
 
-    if (name[strlen(name)-1] == ')') {
-        cw_log(CW_LOG_ERROR, "Cannot push a value onto a function\n");
-        cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
-	return;
-    }
+    if (value) {
+        if (name[strlen(name)-1] == ')') {
+            cw_log(CW_LOG_ERROR, "Cannot push a value onto a function\n");
+            err = 1;
+        } else {
+            if ((option_verbose > 1) && chan)
+                cw_verbose(VERBOSE_PREFIX_2 "Pushing global variable '%s' = '%s'\n", name, value);
 
-    headp = (chan) ? &chan->varshead : &globals;
+            err = cw_var_assign((chan ? &chan->vars : &var_registry), name, value);
+	}
 
-    if (value)
-    {
-        if ((option_verbose > 1) && (headp == &globals))
-            cw_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
-        newvariable = cw_var_assign(name, value);      
-        if (headp == &globals)
-            cw_mutex_lock(&globalslock);
-        CW_LIST_INSERT_HEAD(headp, newvariable, entries);
-        if (headp == &globals)
-            cw_mutex_unlock(&globalslock);
+	if (err && chan)
+            cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
     }
 }
 
 
 void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value)
 {
-    struct cw_var_t *newvariable;
-    struct varshead *headp;
-    const char *nametail = name;
+    struct cw_registry *reg = (chan ? &chan->vars : &var_registry);
+    struct cw_var_t *var;
     unsigned int hash;
+    int err = 0;
 
-    headp = (chan) ? &chan->varshead : &globals;
-
-    /* For comparison purposes, we have to strip leading underscores */
-    if (*nametail == '_')
-    {
-        nametail++;
-        if (*nametail == '_') 
-            nametail++;
-    }
-    
-    hash = cw_hash_var_name(nametail);
-
-    if (headp == &globals)
-        cw_mutex_lock(&globalslock);
-
-    CW_LIST_TRAVERSE (headp, newvariable, entries)
-    {
-        if (hash == cw_var_hash(newvariable) && !strcmp(nametail, cw_var_name(newvariable)))
-        {
-            /* there is already such a variable, delete it */
-            CW_LIST_REMOVE(headp, newvariable, entries);
-            cw_var_delete(newvariable);
-            break;
-        }
-    } 
-
-    if (value)
-    {
-        if ((option_verbose > 1) && (headp == &globals))
-            cw_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
-        newvariable = cw_var_assign(name, value);    
-        CW_LIST_INSERT_HEAD(headp, newvariable, entries);
+    if (option_verbose > 1 && !chan) {
+        if (value)
+            cw_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' = '%s'\n", name, value);
+        else
+            cw_verbose(VERBOSE_PREFIX_2 "Removing global variable '%s'\n", name);
     }
 
-    if (headp == &globals)
-        cw_mutex_unlock(&globalslock);
+    if (value) {
+        if (!(var = cw_var_new(name, value, 1)))
+            err = 1;
+        hash = var->hash;
+    } else {
+        hash = cw_hash_var_name(name);
+	var = NULL;
+    }
+
+    if ((err || cw_registry_replace(reg, hash, name, (var ? &var->obj : NULL))) && chan)
+        cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
+
+    if (var)
+        cw_object_put(var);
 }
+
 
 void pbx_builtin_clear_globals(void)
 {
-    struct cw_var_t *vardata;
-    
-    cw_mutex_lock(&globalslock);
-    while (!CW_LIST_EMPTY(&globals))
-    {
-        vardata = CW_LIST_REMOVE_HEAD(&globals, entries);
-        cw_var_delete(vardata);
-    }
-    cw_mutex_unlock(&globalslock);
+    cw_registry_flush(&var_registry);
 }
 
 int load_pbx(void)
@@ -5241,7 +5129,6 @@ int load_pbx(void)
     {
         cw_verbose( "CallWeaver Core Initializing\n");
     }
-    CW_LIST_HEAD_INIT_NOLOCK(&globals);
     cw_function_registry_initialize();
     cw_cli_register_multiple(pbx_cli, arraysize(pbx_cli));
 

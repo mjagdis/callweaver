@@ -337,10 +337,10 @@ int ldap_lookup(char *host,
 
 char *replace_cw_vars(struct cw_channel *chan, const char *_string)
 {
+    struct cw_var_t *var;
     char *var_start;
     char *var_end;
     char *key;
-    char *value;
     char *string;
     int begin;
     int end;
@@ -357,12 +357,14 @@ char *replace_cw_vars(struct cw_channel *chan, const char *_string)
         key = (char *) alloca((end - begin - 1)*sizeof(char));
         memcpy(key, var_start + 2, end - begin - 2);
         key[end - begin - 2] = '\0';
-        value = pbx_builtin_getvar_helper(chan, key);
-        if (value)
+
+        if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(key), key)))
         {
-            string = (char *) realloc(string, (strlen(string) - (end-begin + 1)+strlen(value) + 1)*sizeof(char));
-            memmove(var_start+strlen(value), var_end + 1, strlen(var_end + 1) + 1);
-            memcpy(var_start, value, strlen(value));
+            int l = strlen(var->value);
+            string = realloc(string, (strlen(string) - (end-begin + 1) + l + 1)*sizeof(char));
+            memmove(var_start + l, var_end + 1, strlen(var_end + 1) + 1);
+            memcpy(var_start, var->value, l);
+	    cw_object_put(var);
         }
         else
         {

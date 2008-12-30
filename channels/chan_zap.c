@@ -79,6 +79,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/utils.h"
 #include "callweaver/transcap.h"
+#include "callweaver/keywords.h"
 
 #include "callweaver/callweaver_pcm.h"
 
@@ -2022,21 +2023,19 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 			break;
 		case SIG_FEATDMF_TA:
 		{
-			char *cic = NULL, *ozz = NULL;
+			struct cw_var_t *cic, *ozz;
 
 			/* If you have to go through a Tandem Access point you need to use this */
-			ozz = pbx_builtin_getvar_helper(p->owner, "FEATDMF_OZZ");
-			if (!ozz)
-				ozz = defaultozz;
-			cic = pbx_builtin_getvar_helper(p->owner, "FEATDMF_CIC");
-			if (!cic)
-				cic = defaultcic;
-			if (!ozz || !cic) {
+			ozz = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_FEATDMF_OZZ, "FEATDMF_OZZ");
+			cic = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_FEATDMF_CIC, "FEATDMF_CIC");
+
+			if ((!ozz && !defaultozz) || (!cic && !defaultcic)) {
 				cw_log(CW_LOG_WARNING, "Unable to dial channel of type feature group D MF tandem access without CIC or OZZ set\n");
 				cw_mutex_unlock(&p->lock);
 				return -1;
 			}
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s%s#", ozz, cic);
+
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s%s#", (ozz ? ozz->value : defaultozz), (cic ? cic->value : defaultcic));
 			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c);
 			p->whichwink = 0;
 		}
@@ -2093,9 +2092,8 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 	}
 #ifdef ZAPATA_PRI
 	if (p->pri) {
+		struct cw_var_t *var;
 		struct pri_sr *sr;
-		char *useruser;
-		char *t;
 		int pridialplan;
 		int dp_strip;
 		int prilocaldialplan;
@@ -2200,21 +2198,21 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 			}
 		}
 
-		t = pbx_builtin_getvar_helper(cw, "PRITON");
-		if (t) {
-			if (!strcasecmp(t, "INTERNATIONAL")) {
+		if ((var = pbx_builtin_getvar_helper(cw, CW_KEYWORD_PRITON, "PRITON"))) {
+			if (!strcasecmp(var->value, "INTERNATIONAL")) {
 				pridialplan = PRI_INTERNATIONAL_ISDN;
-			} else if (!strcasecmp(t, "NATIONAL")) {
+			} else if (!strcasecmp(var->value, "NATIONAL")) {
 				pridialplan = PRI_NATIONAL_ISDN;
-			} else if (!strcasecmp(t, "LOCAL")) {
+			} else if (!strcasecmp(var->value, "LOCAL")) {
 				pridialplan = PRI_LOCAL_ISDN;
-			} else if (!strcasecmp(t, "PRIVATE")) {
+			} else if (!strcasecmp(var->value, "PRIVATE")) {
 				pridialplan = PRI_PRIVATE;
-			} else if (!strcasecmp(t, "UNKNOWN")) {
+			} else if (!strcasecmp(var->value, "UNKNOWN")) {
 				pridialplan = PRI_UNKNOWN;
 			} else {
-				cw_log(CW_LOG_WARNING, "Unable to determine PRI type of number '%s', using instead '%s'\n", t, ton2str(pridialplan));
+				cw_log(CW_LOG_WARNING, "Unable to determine PRI type of number '%s', using instead '%s'\n", var->value, ton2str(pridialplan));
 			}
+			cw_object_put(var);
 		}
 		
 
@@ -2242,21 +2240,21 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 				prilocaldialplan = PRI_LOCAL_ISDN;
 			}
 		}
-		t = pbx_builtin_getvar_helper(cw, "PRILOCALTON");
-		if (t) {
-			if (!strcasecmp(t, "INTERNATIONAL")) {
+		if ((var = pbx_builtin_getvar_helper(cw, CW_KEYWORD_PRILOCALTON, "PRILOCALTON"))) {
+			if (!strcasecmp(var->value, "INTERNATIONAL")) {
 				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
-			} else if (!strcasecmp(t, "NATIONAL")) {
+			} else if (!strcasecmp(var->value, "NATIONAL")) {
 				prilocaldialplan = PRI_NATIONAL_ISDN;
-			} else if (!strcasecmp(t, "LOCAL")) {
+			} else if (!strcasecmp(var->value, "LOCAL")) {
 				prilocaldialplan = PRI_LOCAL_ISDN;
-			} else if (!strcasecmp(t, "PRIVATE")) {
+			} else if (!strcasecmp(var->value, "PRIVATE")) {
 				prilocaldialplan = PRI_PRIVATE;
-			} else if (!strcasecmp(t, "UNKNOWN")) {
+			} else if (!strcasecmp(var->value, "UNKNOWN")) {
 				prilocaldialplan = PRI_UNKNOWN;
 			} else {
 				cw_log(CW_LOG_WARNING, "Unable to determine local PRI type of number '%s', using instead '%s'\n", x, ton2str(prilocaldialplan));
 			}
+			cw_object_put(var);
 		}
 
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan, 
@@ -2264,10 +2262,10 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 						 PRES_NUMBER_NOT_AVAILABLE);
 		pri_sr_set_redirecting(sr, cw->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
 		/* User-user info */
-		useruser = pbx_builtin_getvar_helper(p->owner, "USERUSERINFO");
-
-		if (useruser)
-			pri_sr_set_useruser(sr, useruser);
+		if ((var = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_USERUSERINFO, "USERUSERINFO"))) {
+			pri_sr_set_useruser(sr, var->value);
+			cw_object_put(var);
+		}
 
 		if (pri_setup(p->pri->pri, p->call,  sr)) {
  			cw_log(CW_LOG_WARNING, "Unable to setup call to %s (using %s)\n", 
@@ -2609,31 +2607,35 @@ static int dahdi_hangup(struct cw_channel *cw)
 		/* Perform low level hangup if no owner left */
 #ifdef ZAPATA_PRI
 		if (p->pri) {
-			char *useruser = pbx_builtin_getvar_helper(cw, "USERUSERINFO");
 			/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 			if (p->call && (!p->bearer || (p->bearer->call == p->call))) {
 				if (!pri_grab(p, p->pri)) {
+					struct cw_var_t *useruser = pbx_builtin_getvar_helper(cw, CW_KEYWORD_USERUSERINFO, "USERUSERINFO");
 					if (p->alreadyhungup) {
 						cw_log(CW_LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
-						pri_call_set_useruser(p->call, useruser);
+						pri_call_set_useruser(p->call, (useruser ? useruser->value : NULL));
 						pri_hangup(p->pri->pri, p->call, -1);
 						p->call = NULL;
 						if (p->bearer) 
 							p->bearer->call = NULL;
 					} else {
-						char *cause = pbx_builtin_getvar_helper(cw, "PRI_CAUSE");
+						struct cw_var_t *cause;
 						int icause = cw->hangupcause ? cw->hangupcause : -1;
 						cw_log(CW_LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
-						pri_call_set_useruser(p->call, useruser);
+						pri_call_set_useruser(p->call, (useruser ? useruser->value : NULL));
 						p->alreadyhungup = 1;
 						if (p->bearer)
 							p->bearer->alreadyhungup = 1;
-						if (cause) {
-							if (atoi(cause))
-								icause = atoi(cause);
+						if ((cause = pbx_builtin_getvar_helper(cw, CW_KEYWORD_PRI_CAUSE, "PRI_CAUSE"))) {
+							int n;
+							if ((n = atoi(cause->value)))
+								icause = n;
+							cw_object_put(cause);
 						}
 						pri_hangup(p->pri->pri, p->call, icause);
 					}
+					if (useruser)
+						cw_object_put(useruser);
 					if (res < 0) 
 						cw_log(CW_LOG_WARNING, "pri_disconnect failed\n");
 					pri_rel(p->pri);			

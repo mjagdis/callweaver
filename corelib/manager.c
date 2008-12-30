@@ -84,7 +84,7 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct cw_variable *vars;
+	struct cw_registry vars;
 };
 
 
@@ -339,9 +339,9 @@ struct complete_show_manact_args {
 	int word_len;
 };
 
-static int complete_show_manact_one(struct cw_object *obj, void *data)
+static int complete_show_manact_one(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_action *it = container_of(obj, struct manager_action, obj);
+	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
 	struct complete_show_manact_args *args = data;
 
 	if (!strncasecmp(args->word, it->action, args->word_len))
@@ -413,9 +413,9 @@ struct manacts_print_args {
 #define MANACTS_FORMAT_B	"%-15.15s"
 #define MANACTS_FORMAT_C	"  %s\n"
 
-static int manacts_print(struct cw_object *obj, void *data)
+static int manacts_print(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_action *it = container_of(obj, struct manager_action, obj);
+	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
 	struct manacts_print_args *args = data;
 	int printapp = 1;
 	int n;
@@ -486,9 +486,9 @@ struct listener_print_args {
 
 #define MANLISTEN_FORMAT "%-7s %s\n"
 
-static int listener_print(struct cw_object *obj, void *data)
+static int listener_print(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
 	struct listener_print_args *args = data;
 
 	cw_cli(args->fd, MANLISTEN_FORMAT, (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN"), it->name);
@@ -524,9 +524,9 @@ struct mansess_print_args {
 #define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
 #define MANSESS_FORMAT2	"%-40s %-15s %6u %9u %8u\n"
 
-static int mansess_print(struct cw_object *obj, void *data)
+static int mansess_print(struct cw_registry_entry *entry, void *data)
 {
-	struct mansession *it = container_of(obj, struct mansession, obj);
+	struct mansession *it = container_of(entry->obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
 	cw_cli(args->fd, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
@@ -610,29 +610,20 @@ char *astman_get_header(struct message *m, char *key)
 	return NULL;
 }
 
-struct cw_variable *astman_get_variables(struct message *m)
+void astman_get_variables(struct cw_registry *vars, struct message *m)
 {
-	struct cw_variable *head = NULL, *cur;
-	char *var, *val;
+	char *name, *val;
 	int x;
 
 	for (x = 0;  x < m->hdrcount;  x++) {
 		if (!strcasecmp("Variable", m->header[x].key)) {
-			var = val = cw_strdupa(m->header[x].val);
+			name = val = cw_strdupa(m->header[x].val);
 			strsep(&val, "=");
-			if (!val || cw_strlen_zero(var))
+			if (!val || cw_strlen_zero(name))
 				continue;
-			cur = cw_variable_new(var, val);
-			if (head) {
-				cur->next = head;
-				head = cur;
-			} else {
-				head = cur;
-			}
+			cw_var_assign(vars, name, val);
 		}
 	}
-
-	return head;
 }
 
 
@@ -788,9 +779,9 @@ struct listcommands_print_args {
 	struct mansession *s;
 };
 
-static int listcommands_print(struct cw_object *obj, void *data)
+static int listcommands_print(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_action *it = container_of(obj, struct manager_action, obj);
+	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
 	struct listcommands_print_args *args = data;
 
 	cw_cli(args->s->fd, "%s: %s (Priv: ", it->action, it->synopsis);
@@ -921,11 +912,11 @@ static const char mandescr_getvar[] =
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
-        struct cw_channel *c = NULL;
+        struct cw_channel *chan = NULL;
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
-	char *varval;
-	char *varval2=NULL;
+	struct cw_var_t *var;
+	unsigned int hash;
 
 	if (cw_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -936,21 +927,22 @@ static int action_getvar(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	c = cw_get_channel_by_name_locked(name);
-	if (!c) {
+	hash = cw_hash_var_name(name);
+
+	chan = cw_get_channel_by_name_locked(name);
+	if (!chan) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	
-	varval=pbx_builtin_getvar_helper(c,varname);
-	if (varval)
-		varval2 = cw_strdupa(varval);
-	if (!varval2)
-		varval2 = "";
-	cw_mutex_unlock(&c->lock);
+	var = pbx_builtin_getvar_helper(chan, hash, varname);
+	cw_mutex_unlock(&chan->lock);
 
 	astman_send_response(s, m, "Success", NULL, 0);
-	cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, varval2);
+	cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, (var ? var->value : ""));
+
+	if (var)
+		cw_object_put(var);
 
 	return 0;
 }
@@ -1160,12 +1152,12 @@ static void *fast_originate(void *data)
 		res = cw_pbx_outgoing_app(in->tech, CW_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
 			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan);
+			&in->vars, &chan);
 	} else {
 		res = cw_pbx_outgoing_exten(in->tech, CW_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
 			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan);
+			&in->vars, &chan);
 	}
 	if (!res) {
 		manager_event(EVENT_FLAG_CALL,
@@ -1191,6 +1183,7 @@ static void *fast_originate(void *data)
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
 	if (chan)
 		cw_mutex_unlock(&chan->lock);
+	cw_registry_destroy(&in->vars);
 	free(in);
 	return NULL;
 }
@@ -1213,6 +1206,7 @@ static const char mandescr_originate[] =
 
 static int action_originate(struct mansession *s, struct message *m)
 {
+	struct fast_originate_helper *fast;
 	char *name = astman_get_header(m, "Channel");
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
@@ -1223,7 +1217,6 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
 	char *async = astman_get_header(m, "Async");
-	struct cw_variable *vars = astman_get_variables(m);
 	char *tech, *data;
 	char *l=NULL, *n=NULL;
 	int pi = 0;
@@ -1266,18 +1259,16 @@ static int action_originate(struct mansession *s, struct message *m)
 		if (cw_strlen_zero(l))
 			l = NULL;
 	}
-	if (account) {
-		struct cw_variable *newvar;
-		newvar = cw_variable_new("CDR(accountcode|r)", account);
-		newvar->next = vars;
-		vars = newvar;
-	}
-	if (cw_true(async)) {
-		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
 
-		if (!fast) {
-			res = -1;
-		} else {
+	if ((fast = malloc(sizeof(struct fast_originate_helper)))) {
+		cw_var_registry_init(&fast->vars, 1024);
+		astman_get_variables(&fast->vars, m);
+		if (account) {
+			/* FIXME: this is rubbish, surely? */
+			cw_var_assign(&fast->vars, "CDR(accountcode|r)", account);
+		}
+
+		if (cw_true(async)) {
 			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (!cw_strlen_zero(m->actionid))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", m->actionid);
@@ -1289,28 +1280,34 @@ static int action_originate(struct mansession *s, struct message *m)
 				cw_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
 				cw_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
-			fast->vars = vars;	
 			cw_copy_string(fast->context, context, sizeof(fast->context));
 			cw_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
 			fast->priority = pi;
 			if (cw_pthread_create(&th, &global_attr_detached, fast_originate, fast)) {
+				cw_registry_destroy(&fast->vars);
 				free(fast);
 				res = -1;
 			} else {
 				res = 0;
 			}
+		} else if (!cw_strlen_zero(app)) {
+			res = cw_pbx_outgoing_app(tech, CW_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, &fast->vars, NULL);
+			cw_registry_destroy(&fast->vars);
+			free(fast);
+		} else {
+			if (exten && context && pi)
+				res = cw_pbx_outgoing_exten(tech, CW_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, &fast->vars, NULL);
+			else {
+				astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
+				res = -1;
+			}
+			cw_registry_destroy(&fast->vars);
+			free(fast);
 		}
-	} else if (!cw_strlen_zero(app)) {
-        	res = cw_pbx_outgoing_app(tech, CW_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
-    	} else {
-		if (exten && context && pi)
-	        	res = cw_pbx_outgoing_exten(tech, CW_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
-		else {
-			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
-			return 0;
-		}
-	}   
+	} else
+		res = -1;
+
 	if (!res)
 		astman_send_ack(s, m, "Originate successfully queued");
 	else
@@ -1906,9 +1903,9 @@ again:
 	return -1;
 }
 
-static int manager_event_print(struct cw_object *obj, void *data)
+static int manager_event_print(struct cw_registry_entry *entry, void *data)
 {
-	struct mansession *it = container_of(obj, struct mansession, obj);
+	struct mansession *it = container_of(entry->obj, struct mansession, obj);
 	struct manager_event_args *args = data;
 
 	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
@@ -2179,9 +2176,9 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 }
 
 
-static int listener_cancel(struct cw_object *obj, void *data)
+static int listener_cancel(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
 
 	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
 		pthread_cancel(it->tid);
@@ -2189,14 +2186,14 @@ static int listener_cancel(struct cw_object *obj, void *data)
 }
 
 
-static int listener_join(struct cw_object *obj, void *data)
+static int listener_join(struct cw_registry_entry *entry, void *data)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
 
 	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
 		pthread_join(it->tid, NULL);
 
-	cw_registry_del(&manager_listener_registry, it->reg_entry);
+	cw_registry_del(&manager_listener_registry, entry);
 	cw_object_put(it);
 	return 0;
 }

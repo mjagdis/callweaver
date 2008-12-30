@@ -156,7 +156,7 @@ static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, char *re
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
-	char *temp;
+	struct cw_var_t *var;
 	int cause;
 	int res = 0;
 
@@ -166,33 +166,37 @@ static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	LOCAL_USER_ADD(u);
 
 	cause = str2cause(argv[0]);
-	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	ospres.handle = -1;
-	if (!cw_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
-		if ((res = cw_osp_next(&ospres, cause)) > 0) {
-			char tmp[80];
-			snprintf(tmp, sizeof(tmp), "%d", ospres.handle);
-			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
-			pbx_builtin_setvar_helper(chan, "_OSPTECH", ospres.tech);
-			pbx_builtin_setvar_helper(chan, "_OSPDEST", ospres.dest);
-			pbx_builtin_setvar_helper(chan, "_OSPTOKEN", ospres.token);
-			snprintf(tmp, sizeof(tmp), "%d", ospres.numresults);
-			pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_OSPHANDLE, "OSPHANDLE"))) {
+		if (sscanf(var->value, "%d", &ospres.handle) == 1 && ospres.handle > -1) {
+			if ((res = cw_osp_next(&ospres, cause)) > 0) {
+				char tmp[80];
+				snprintf(tmp, sizeof(tmp), "%d", ospres.handle);
+				pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
+				pbx_builtin_setvar_helper(chan, "_OSPTECH", ospres.tech);
+				pbx_builtin_setvar_helper(chan, "_OSPDEST", ospres.dest);
+				pbx_builtin_setvar_helper(chan, "_OSPTOKEN", ospres.token);
+				snprintf(tmp, sizeof(tmp), "%d", ospres.numresults);
+				pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+			}
+		} else {
+			if (!res) {
+				if (ospres.handle < 0)
+					cw_log(CW_LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
+				else
+					cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
+			} else
+				cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
 		}
-	} else {
-		if (!res) {
-			if (ospres.handle < 0)
-				cw_log(CW_LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", ospres.handle);
-			else
-				cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
-		} else
-			cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
+		cw_object_put(var);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
 		cw_goto_if_exists_n(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -201,7 +205,7 @@ static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, char
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
-	char *temp;
+	struct cw_var_t *var;
 	time_t start=0, duration=0;
 	int cause;
 	int res=0;
@@ -221,27 +225,32 @@ static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, char
 		cw_log(CW_LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
 	cause = str2cause(argv[0]);
-	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	ospres.handle = -1;
-	if (!cw_strlen_zero(temp) && (sscanf(temp, "%d", &ospres.handle) == 1) && (ospres.handle > -1)) {
-		if (!cw_osp_terminate(ospres.handle, cause, start, duration)) {
-			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
-			res = 1;
+
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_OSPHANDLE, "OSPHANDLE"))) {
+		if (sscanf(var->value, "%d", &ospres.handle) == 1 && ospres.handle > -1) {
+			if (!cw_osp_terminate(ospres.handle, cause, start, duration)) {
+				pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
+				res = 1;
+			}
+		} else {
+			if (!res) {
+				if (ospres.handle > -1)
+					cw_log(CW_LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
+				else
+					cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
+			} else
+				cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
 		}
-	} else {
-		if (!res) {
-			if (ospres.handle > -1)
-				cw_log(CW_LOG_NOTICE, "OSP Finish failed for handle '%d'\n", ospres.handle);
-			else
-				cw_log(CW_LOG_DEBUG, "No OSP handle specified\n");
-		} else
-			cw_log(CW_LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
+		cw_object_put(var);
 	}
+
 	if (!res) {
 		/* Look for a "busy" place */
 		cw_goto_if_exists_n(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

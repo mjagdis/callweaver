@@ -310,13 +310,14 @@ chan_wait(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_getdigits(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	struct jchan *jc = JS_GetPrivate(cx, obj);
 	char buf[512];
+	char path_info[256];
+	struct jchan *jc = JS_GetPrivate(cx, obj);
+	char *filename = NULL;
+	char *path = NULL;
+	struct cw_var_t *var;
 	int maxdigits = 0;
 	int timeout = 0;
-	char *filename = NULL;
-	char path_info[256];
-    char *path = NULL, *prefix = NULL;
 
 	if (argc > 0)
 		filename = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
@@ -330,8 +331,9 @@ chan_getdigits(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 	if (strstr(filename, ".."))
 		return JS_FALSE;
 
-	if ((prefix = pbx_builtin_getvar_helper(jc->chan, "private_sound_dir"))) {
-		snprintf(path_info, sizeof(path_info), "%s/%s", prefix, filename);
+	if ((var = pbx_builtin_getvar_helper(jc->chan, CW_KEYWORD_private_sound_dir, "private_sound_dir"))) {
+		snprintf(path_info, sizeof(path_info), "%s/%s", var->value, filename);
+		cw_object_put(var);
 		path = path_info;
 	} else 
 		path = filename;
@@ -351,11 +353,11 @@ chan_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
 	JSString *str = NULL;
-    char *varname = NULL;
-	char *varval = NULL;
+	char *varname = NULL;
+	struct cw_var_t *var;
 	int x = 0, deny = 0;
 
-    if (argc > 0) {
+	if (argc > 0) {
 		if ((str = JS_ValueToString(cx, argv[0])) && (varname = JS_GetStringBytes(str))) {
 			if (!strncmp(varname, "private_", 8)) {
 				*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
@@ -385,8 +387,9 @@ chan_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 				
 			}
 
-			if ((varval = pbx_builtin_getvar_helper(jc->chan, varname))) {
-				*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, varval));
+			if ((var = pbx_builtin_getvar_helper(jc->chan, cw_hash_var_name(varname), varname))) {
+				*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, var->value));
+				cw_object_put(var);
 			} else 
 				*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
 		}
@@ -485,7 +488,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		}
 
 		data = strdup(data ? data : "");
-		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_app_name(app), app, data, NULL, 0) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(app), app, data, NULL, 0) ? JS_FALSE : JS_TRUE );
 		if (data)
 			free(data);
 
@@ -541,7 +544,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 			
 		}
 
-		if (!cw_function_exec_str(jc->chan, cw_hash_app_name(fname), fname, args, dbuf, sizeof(dbuf)))
+		if (!cw_function_exec_str(jc->chan, cw_hash_string(fname), fname, args, dbuf, sizeof(dbuf)))
 			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, dbuf) );
 
 		free(fname);
@@ -573,9 +576,9 @@ static JSBool
 chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	char *filename = NULL;
 	char path_info[256] = "";
-    char *prefix = NULL;
+	struct cw_var_t *var;
+	char *filename = NULL;
 	char *silence = "", *maxduration = "", *options = "";
 	
 	if (argc > 0)
@@ -588,14 +591,16 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 		options = JS_GetStringBytes(JS_ValueToString(cx, argv[3]));
 	
 	if (strstr(filename, ".."))
-        return JS_FALSE;
+		return JS_FALSE;
 
-	if (filename && (prefix = pbx_builtin_getvar_helper(jc->chan, "private_sound_dir"))) {
-		snprintf(path_info, sizeof(path_info), "%s/%s,%s,%s,%s", prefix, filename, silence, maxduration, options);
-	} else if (filename) {
-		snprintf(path_info, sizeof(path_info), "%s,%s,%s,%s", filename, silence, maxduration, options);
+	if (filename) {
+		if ((var = pbx_builtin_getvar_helper(jc->chan, CW_KEYWORD_private_sound_dir, "private_sound_dir"))) {
+			snprintf(path_info, sizeof(path_info), "%s/%s,%s,%s,%s", var->value, filename, silence, maxduration, options);
+			cw_object_put(var);
+		} else
+			snprintf(path_info, sizeof(path_info), "%s,%s,%s,%s", filename, silence, maxduration, options);
 	} else {
-		cw_log(CW_LOG_ERROR, "Invalid Arguements.\n");
+		cw_log(CW_LOG_ERROR, "Invalid Arguments.\n");
 		return JS_FALSE;
 	}
 	
@@ -608,19 +613,21 @@ static JSBool
 chan_streamfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+	char path_info[256];
+	char ret[2];
+	struct cw_var_t *var;
 	JSString *str = NULL;
 	char *filename = NULL;
-	char path_info[256];
-	char *path = NULL, *prefix = NULL;
+	char *path = NULL;
 	int res = 0;
-	char ret[2];
 
 	if (argc > 0) {
-        if ((str = JS_ValueToString(cx, argv[0])) && (filename = JS_GetStringBytes(str))) {
+		if ((str = JS_ValueToString(cx, argv[0])) && (filename = JS_GetStringBytes(str))) {
 			if (strstr(filename, ".."))
 				return JS_FALSE;
-			if ((prefix = pbx_builtin_getvar_helper(jc->chan, "private_sound_dir"))) {
-				snprintf(path_info, sizeof(path_info), "%s/%s", prefix, filename);
+			if ((var = pbx_builtin_getvar_helper(jc->chan, CW_KEYWORD_private_sound_dir, "private_sound_dir"))) {
+				snprintf(path_info, sizeof(path_info), "%s/%s", var->value, filename);
+				cw_object_put(var);
 				path = path_info;
 			} else 
 				path = filename;
@@ -639,8 +646,8 @@ chan_streamfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 				return JS_FALSE;
 
 			return JS_TRUE;
-        }
-    }
+		}
+	}
 	return JS_FALSE;
 
 }
@@ -956,15 +963,18 @@ static int write_buf(int fd, char *buf) {
 static JSBool
 js_unlinksound(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	struct cw_channel *chan = JS_GetPrivate(cx, obj);
-	char *path = NULL, *prefix = NULL, *filename = NULL;
 	char path_info[256];
+	struct cw_channel *chan = JS_GetPrivate(cx, obj);
+	struct cw_var_t *var;
+	char *path = NULL, *filename = NULL;
 	
+	if (strstr(filename, ".."))
+		return JS_FALSE;
+
 	if ( chan && argc > 0 && (filename = JS_GetStringBytes(JS_ValueToString(cx, argv[0])))) {
-		if ((prefix = pbx_builtin_getvar_helper(chan, "private_sound_dir"))) {
-			if (strstr(filename, ".."))
-				return JS_FALSE;
-			snprintf(path_info, sizeof(path_info), "%s/%s", prefix, filename);
+		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_private_sound_dir, "private_sound_dir"))) {
+			snprintf(path_info, sizeof(path_info), "%s/%s", var->value, filename);
+			cw_object_put(var);
 			path = path_info;
 		} else
 			return JS_FALSE;
@@ -983,18 +993,19 @@ static const char c64[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 static JSBool
 js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
+	char path_info[256];
+	char filename[80], buf[B64BUFFLEN];
+	unsigned char in[B64BUFFLEN];
+	unsigned char out[B64BUFFLEN+512];
 	char *to = NULL, *from = NULL, *headers, *body = NULL, *file = NULL;
 	char *bound = "XXXX_boundary_XXXX";
-	char filename[80], buf[B64BUFFLEN];
+	char *path = NULL;
+	struct cw_var_t *var;
+	struct cw_channel *chan = JS_GetPrivate(cx, obj);
 	int fd = 0, ifd = 0;
 	int x=0, y=0, bytes=0, ilen=0;
 	unsigned int b=0, l=0;
-	unsigned char in[B64BUFFLEN];
-	unsigned char out[B64BUFFLEN+512];
-	char path_info[256];
-	char *path = NULL, *prefix = NULL;
-	struct cw_channel *chan = JS_GetPrivate(cx, obj);
-	
+
 	if ( chan && 
 		 argc > 3 && 
 		 (from = JS_GetStringBytes(JS_ValueToString(cx, argv[0]))) &&
@@ -1012,8 +1023,9 @@ js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 			if (file) {
 				if (strstr(file, ".."))
 					return JS_FALSE;
-				if ((prefix = pbx_builtin_getvar_helper(chan, "private_sound_dir"))) {
-					snprintf(path_info, sizeof(path_info), "%s/%s", prefix, file);
+				if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_private_sound_dir, "private_sound_dir"))) {
+					snprintf(path_info, sizeof(path_info), "%s/%s", var->value, file);
+					cw_object_put(var);
 					path = path_info;
 				} else 
 					path = file;
@@ -1123,20 +1135,22 @@ js_die(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 js_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	JSString *str = NULL;
-    char *varname = NULL;
-	char *varval = NULL;
-    if (argc > 0) {
+	JSString *str;
+	char *varname;
+	struct cw_var_t *var;
+
+	if (argc > 0) {
 		if ((str = JS_ValueToString(cx, argv[0])) && (varname = JS_GetStringBytes(str))) {
-			if ((varval = pbx_builtin_getvar_helper(NULL, varname))) {
-				*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, varval));
+			if ((var = pbx_builtin_getvar_helper(NULL, cw_hash_var_name(varname), varname))) {
+				*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, var->value));
+				cw_object_put(var);
 			} else 
 				*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
 		}
 		return JS_TRUE;
 	}
 
-   return JS_FALSE;
+	return JS_FALSE;
 }
 
 static JSBool
@@ -1348,13 +1362,14 @@ static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result,
 
 static int function_js_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *ret;
+	struct cw_var_t *var;
 
 	if (argc < 1 || !argv[0][0])
 		return cw_function_syntax(js_func_syntax);
 
-	if (js_exec(chan, argc, argv, NULL, 0) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
-		cw_copy_string(buf, ret, len);
+	if (js_exec(chan, argc, argv, NULL, 0) > -1 && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_JSFUNC, "JSFUNC"))) {
+		cw_copy_string(buf, var->value, len);
+		cw_object_put(var);
 		return 0;
 	}
 	return -1;

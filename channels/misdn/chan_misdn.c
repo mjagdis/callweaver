@@ -61,6 +61,7 @@
 #include "callweaver/app.h"
 #include "callweaver/features.h"
 #include "callweaver/sched.h"
+#include "callweaver/keywords.h"
 
 
 #include <chan_misdn_config.h>
@@ -1965,7 +1966,7 @@ static int misdn_call(struct cw_channel *cw, char *dest)
 static int misdn_answer(struct cw_channel *cw)
 {
 	struct chan_list *p;
-
+	struct cw_var_t *var;
 	
 	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw)) ) return -1;
 	
@@ -1982,32 +1983,25 @@ static int misdn_answer(struct cw_channel *cw)
 		cw_queue_hangup(cw);
 	}
 
-	{
-		const char *tmp_key = pbx_builtin_getvar_helper(p->cw, "CRYPT_KEY");
-		
-		if (tmp_key ) {
-			chan_misdn_log(1, p->bc->port, " --> Connection will be BF crypted\n");
-			{
-				int l = sizeof(p->bc->crypt_key);
-				strncpy(p->bc->crypt_key,tmp_key, l);
-				p->bc->crypt_key[l-1] = 0;
-			}
-		} else {
-			chan_misdn_log(3, p->bc->port, " --> Connection is without BF encryption\n");
+	if ((var = pbx_builtin_getvar_helper(p->cw, CW_KEYWORD_CRYPT_KEY, "CRYPT_KEY"))) {
+		chan_misdn_log(1, p->bc->port, " --> Connection will be BF crypted\n");
+		{
+			int l = sizeof(p->bc->crypt_key);
+			strncpy(p->bc->crypt_key, var->value, l);
+			p->bc->crypt_key[l-1] = 0;
 		}
-    
+	} else {
+		chan_misdn_log(3, p->bc->port, " --> Connection is without BF encryption\n");
 	}
 
-	{
-		const char *nodsp=pbx_builtin_getvar_helper(cw, "MISDN_DIGITAL_TRANS");
-		if (nodsp) {
-			chan_misdn_log(1, p->bc->port, " --> Connection is transparent digital\n");
-			p->bc->nodsp=1;
-			p->bc->hdlc=0;
-			p->bc->nojitter=1;
-		}
+	if ((var = pbx_builtin_getvar_helper(cw, CW_KEYWORD_MISDN_DIGITAL_TRANS, "MISDN_DIGITAL_TRANS"))) {
+		cw_object_put(var);
+		chan_misdn_log(1, p->bc->port, " --> Connection is transparent digital\n");
+		p->bc->nodsp=1;
+		p->bc->hdlc=0;
+		p->bc->nojitter=1;
 	}
-	
+
 	p->state = MISDN_CONNECTED;
 	misdn_lib_echo(p->bc,0);
 	stop_indicate(p);
@@ -2235,7 +2229,8 @@ static int misdn_hangup(struct cw_channel *cw)
 {
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
-	
+	struct cw_var_t *var;
+
 	if (!cw || ! (p=MISDN_CALLWEAVER_TECH_PVT(cw) ) ) return -1;
 	
 	cw_log(CW_LOG_DEBUG, "misdn_hangup(%s)\n", cw->name);
@@ -2278,108 +2273,103 @@ static int misdn_hangup(struct cw_channel *cw)
 	if (!p->bc->nt) 
 		stop_bc_tones(p);
 
-	
-	{
-		const char *varcause=NULL;
-		bc->out_cause=cw->hangupcause?cw->hangupcause:16;
-		
-		if ( (varcause=pbx_builtin_getvar_helper(cw, "HANGUPCAUSE")) ||
-		     (varcause=pbx_builtin_getvar_helper(cw, "PRI_CAUSE"))) {
-			int tmpcause=atoi(varcause);
-			bc->out_cause=tmpcause?tmpcause:16;
-		}
-    
-		chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, cw->context, cw->exten, CW_CID_P(cw), misdn_get_ch_state(p));
-		chan_misdn_log(2, bc->port, " --> l3id:%x\n",p->l3id);
-		chan_misdn_log(1, bc->port, " --> cause:%d\n",bc->cause);
-		chan_misdn_log(1, bc->port, " --> out_cause:%d\n",bc->out_cause);
-		chan_misdn_log(1, bc->port, " --> state:%s\n", misdn_get_ch_state(p));
-		
-		switch (p->state) {
-		case MISDN_CALLING:
-			p->state=MISDN_CLEANING;
-			misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
-			break;
-		case MISDN_HOLDED:
-		case MISDN_DIALING:
-			start_bc_tones(p);
-			hanguptone_indicate(p);
-		
-			if (bc->need_disconnect)
-				misdn_lib_send_event( bc, EVENT_DISCONNECT);
-			break;
+	bc->out_cause = (cw->hangupcause ? cw->hangupcause : 16);
 
-		case MISDN_CALLING_ACKNOWLEDGE:
-			start_bc_tones(p);
-			hanguptone_indicate(p);
-		
-			if (bc->need_disconnect)
-				misdn_lib_send_event( bc, EVENT_DISCONNECT);
-			break;
-      
-		case MISDN_ALERTING:
-		case MISDN_PROGRESS:
-		case MISDN_PROCEEDING:
-			if (p->orginator != ORG_CW) 
-				hanguptone_indicate(p);
-      
-			/*p->state=MISDN_CLEANING;*/
-			if (bc->need_disconnect)
-				misdn_lib_send_event( bc, EVENT_DISCONNECT);
-			break;
-		case MISDN_CONNECTED:
-		case MISDN_PRECONNECTED:
-			/*  Alerting or Disconect */
-			if (p->bc->nt) {
-				start_bc_tones(p);
-				hanguptone_indicate(p);
-				p->bc->progress_indicator=8;
-			}
-			if (bc->need_disconnect)
-				misdn_lib_send_event( bc, EVENT_DISCONNECT);
-
-			/*p->state=MISDN_CLEANING;*/
-			break;
-		case MISDN_DISCONNECTED:
-			misdn_lib_send_event( bc, EVENT_RELEASE);
-			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_CW; */
-			break;
-
-		case MISDN_RELEASED:
-		case MISDN_CLEANING:
-			p->state=MISDN_CLEANING;
-			break;
-
-		case MISDN_BUSY:
-			break;
-      
-		case MISDN_HOLD_DISCONNECT:
-			/* need to send release here */
-			chan_misdn_log(1, bc->port, " --> cause %d\n",bc->cause);
-			chan_misdn_log(1, bc->port, " --> out_cause %d\n",bc->out_cause);
-			
-			bc->out_cause=-1;
-			misdn_lib_send_event(bc,EVENT_RELEASE);
-			p->state=MISDN_CLEANING;
-			break;
-		default:
-			if (bc->nt) {
-				bc->out_cause=-1;
-				misdn_lib_send_event(bc, EVENT_RELEASE);
-				p->state=MISDN_CLEANING; 
-			} else {
-				if (bc->need_disconnect)
-					misdn_lib_send_event(bc, EVENT_DISCONNECT);
-			}
-		}
-
-		p->state=MISDN_CLEANING;
-    
+	if ( (var = pbx_builtin_getvar_helper(cw, CW_KEYWORD_HANGUPCAUSE, "HANGUPCAUSE")) ||
+	     (var = pbx_builtin_getvar_helper(cw, CW_KEYWORD_PRI_CAUSE, "PRI_CAUSE"))) {
+		int tmpcause = atoi(var->value);
+		bc->out_cause = tmpcause ? tmpcause : 16;
+		cw_object_put(var);
 	}
+
+	chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, cw->context, cw->exten, CW_CID_P(cw), misdn_get_ch_state(p));
+	chan_misdn_log(2, bc->port, " --> l3id:%x\n",p->l3id);
+	chan_misdn_log(1, bc->port, " --> cause:%d\n",bc->cause);
+	chan_misdn_log(1, bc->port, " --> out_cause:%d\n",bc->out_cause);
+	chan_misdn_log(1, bc->port, " --> state:%s\n", misdn_get_ch_state(p));
 	
+	switch (p->state) {
+	case MISDN_CALLING:
+		p->state=MISDN_CLEANING;
+		misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
+		break;
+	case MISDN_HOLDED:
+	case MISDN_DIALING:
+		start_bc_tones(p);
+		hanguptone_indicate(p);
+
+		if (bc->need_disconnect)
+			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+		break;
+
+	case MISDN_CALLING_ACKNOWLEDGE:
+		start_bc_tones(p);
+		hanguptone_indicate(p);
+
+		if (bc->need_disconnect)
+			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+		break;
+
+	case MISDN_ALERTING:
+	case MISDN_PROGRESS:
+	case MISDN_PROCEEDING:
+		if (p->orginator != ORG_CW)
+			hanguptone_indicate(p);
+
+		/*p->state=MISDN_CLEANING;*/
+		if (bc->need_disconnect)
+			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+		break;
+	case MISDN_CONNECTED:
+	case MISDN_PRECONNECTED:
+		/*  Alerting or Disconect */
+		if (p->bc->nt) {
+			start_bc_tones(p);
+			hanguptone_indicate(p);
+			p->bc->progress_indicator=8;
+		}
+		if (bc->need_disconnect)
+			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+
+		/*p->state=MISDN_CLEANING;*/
+		break;
+	case MISDN_DISCONNECTED:
+		misdn_lib_send_event( bc, EVENT_RELEASE);
+		p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_CW; */
+		break;
+
+	case MISDN_RELEASED:
+	case MISDN_CLEANING:
+		p->state=MISDN_CLEANING;
+		break;
+
+	case MISDN_BUSY:
+		break;
+
+	case MISDN_HOLD_DISCONNECT:
+		/* need to send release here */
+		chan_misdn_log(1, bc->port, " --> cause %d\n",bc->cause);
+		chan_misdn_log(1, bc->port, " --> out_cause %d\n",bc->out_cause);
+
+		bc->out_cause=-1;
+		misdn_lib_send_event(bc,EVENT_RELEASE);
+		p->state=MISDN_CLEANING;
+		break;
+	default:
+		if (bc->nt) {
+			bc->out_cause=-1;
+			misdn_lib_send_event(bc, EVENT_RELEASE);
+			p->state=MISDN_CLEANING; 
+		} else {
+			if (bc->need_disconnect)
+				misdn_lib_send_event(bc, EVENT_DISCONNECT);
+		}
+	}
+
+	p->state=MISDN_CLEANING;
 
 	chan_misdn_log(1, bc->port, "Channel: %s hanguped new state:%s\n",cw->name,misdn_get_ch_state(p));
-	
+
 	return 0;
 }
 
@@ -3504,15 +3494,17 @@ static void send_cause2cw(struct cw_channel *cw, struct misdn_bchannel*bc, struc
 
 void import_ch(struct cw_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
-	char *tmp;
-	tmp=pbx_builtin_getvar_helper(chan,"MISDN_PID");
-	if (tmp) {
-		ch->other_pid=atoi(tmp);
-		chan_misdn_log(1,bc->port,"IMPORT_PID: importing pid:%s\n",tmp);
+	struct cw_var_t *var;
 
-		if (ch->other_pid >0) {
-			ch->other_ch=find_chan_by_pid(cl_te,ch->other_pid);
-			if (ch->other_ch) ch->other_ch->other_ch=ch;
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MISDN_PID, "MISDN_PID"))) {
+		ch->other_pid = atoi(var->value);
+		chan_misdn_log(1,bc->port, "IMPORT_PID: importing pid:%s\n", var->value);
+		cw_object_put(var);
+
+		if (ch->other_pid > 0) {
+			ch->other_ch = find_chan_by_pid(cl_te,ch->other_pid);
+			if (ch->other_ch)
+				ch->other_ch->other_ch = ch;
 		}
 	}
 }

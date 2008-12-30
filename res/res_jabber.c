@@ -32,6 +32,7 @@
 #include "callweaver/musiconhold.h"
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
+#include "callweaver/keywords.h"
 
 
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
@@ -860,7 +861,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			data = "";
 		}
 		
-		res = cw_function_exec_str(chan, cw_hash_app_name(app), app, data, NULL, 0);
+		res = cw_function_exec_str(chan, cw_hash_string(app), app, data, NULL, 0);
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
 											   "EVENT ENDAPP\n"
@@ -888,6 +889,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		cw_openstream(chan, arg, chan->language);
 		pbx_builtin_setvar_helper(chan, "STREAMFILE", arg);
 	} else if (!strcasecmp(jmsg->command, "stopstream")) {
+		struct cw_var_t *var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_STREAMFILE, "STREAMFILE");
 		cw_stopstream(chan);
 		chan->stream = NULL;
 		if ((node = jabber_message_node_printf(profile->master,
@@ -903,11 +905,12 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 											   profile->resource,
 											   profile->identifier,
 											   profile->callid,
-											   pbx_builtin_getvar_helper(chan, "STREAMFILE")
+											   (var ? var->value : NULL)
 											   ))) {
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
-
+		if (var)
+			cw_object_put(var);
 	} else if (!strcasecmp(jmsg->command, "info")) {
 		if ((node = jabber_message_node_printf(jmsg->jabber_id,
 											   "Event",
@@ -1329,6 +1332,7 @@ static void *jabber_pbx_session(void *obj)
 				cw_write(chan, &sf);
 				cw_fr_free(sf);
 			} else {
+				struct cw_var_t *var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_STREAMFILE, "STREAMFILE");
 				cw_stopstream(chan);
 				chan->stream = NULL;
 				if ((node = jabber_message_node_printf(profile->master,
@@ -1344,11 +1348,13 @@ static void *jabber_pbx_session(void *obj)
 													   profile->resource,
 													   profile->identifier,
 													   profile->callid,
-													   pbx_builtin_getvar_helper(chan, "STREAMFILE")
+													   (var ? var->value : NULL)
 													  
 													   ))) {
 					jabber_message_node_push(profile, node, Q_OUTBOUND);
 				}
+				if (var)
+					cw_object_put(var);
 			}
 		}
 

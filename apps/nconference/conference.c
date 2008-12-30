@@ -753,7 +753,6 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct cw_variable *vars;
 	struct cw_conf_member *frommember;
 };
 
@@ -775,7 +774,7 @@ static void *fast_originate(void *data)
 			&reason, 1, 
 			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan );
+			NULL, &chan );
     } else {
 		res = cw_pbx_outgoing_exten(
 			in->tech, CW_FORMAT_SLINEAR, 
@@ -784,7 +783,7 @@ static void *fast_originate(void *data)
 			&reason, 1, 
 			!cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, NULL );
+			NULL, NULL );
     }   
 
     cw_log(CW_CONF_DEBUG,"Originate returned %d \n",reason);
@@ -805,38 +804,39 @@ static void *fast_originate(void *data)
 
 
 static int conf_do_originate(struct cw_conf_member *member, char *ext) {
-    int res;
-
-    pthread_t th;
-    struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
-
     char dst[80]="";
     char appdata[80]="";
-    char *var;
+    pthread_t th;
+    struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
+    struct cw_var_t *var;
+    int res;
     
     if (!fast) {
 	res = -1;
     } else {
 	memset(fast, 0, sizeof(struct fast_originate_helper));
 
-	if (  (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_TIMEOUT")) ) {
-	    fast->timeout = atoi(var) * 1000;
+	if (  (var = pbx_builtin_getvar_helper(member->chan, CW_KEYWORD_NCONF_OUTBOUND_TIMEOUT, "NCONF_OUTBOUND_TIMEOUT")) ) {
+	    fast->timeout = atoi(var->value) * 1000;
+	    cw_object_put(var);
 	} else
 	    fast->timeout = 30000;
 
 	strcat(dst,ext);
 	strcat(dst,"@");
-	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CONTEXT")) )
-	    strcat(dst,var);
-	else
+	if ( (var = pbx_builtin_getvar_helper(member->chan, CW_KEYWORD_NCONF_OUTBOUND_CONTEXT, "NCONF_OUTBOUND_CONTEXT")) ) {
+	    strcat(dst,var->value);
+	    cw_object_put(var);
+	} else
 	    strcat(dst,member->chan->context);
 
 
 	strcat(appdata,member->id);
 	strcat(appdata,"/");
-	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_PARAMS")) )
-	    strcat(appdata,var);
-	else {
+	if ( (var = pbx_builtin_getvar_helper(member->chan, CW_KEYWORD_NCONF_OUTBOUND_PARAMS, "NCONF_OUTBOUND_PARAMS")) ) {
+	    strcat(appdata,var->value);
+	    cw_object_put(var);
+	} else {
 	    strcat(appdata,"Sdq");
 #if ENABLE_VAD
 	    strcat(appdata,"V");
@@ -848,20 +848,21 @@ static int conf_do_originate(struct cw_conf_member *member, char *ext) {
 	cw_copy_string( fast->app, 	 APP_CONFERENCE_NAME, sizeof(fast->app) );
 	cw_copy_string( fast->appdata, appdata, sizeof(fast->appdata) );
 
-	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NAME")) )
-	    cw_copy_string( fast->cid_name, var, sizeof(fast->cid_name) );
-	else
+	if ( (var = pbx_builtin_getvar_helper(member->chan, CW_KEYWORD_NCONF_OUTBOUND_CID_NAME, "NCONF_OUTBOUND_CID_NAME")) ) {
+	    cw_copy_string( fast->cid_name, var->value, sizeof(fast->cid_name) );
+	    cw_object_put(var);
+	} else
 	    cw_copy_string( fast->cid_name,"NavyConference",sizeof(fast->cid_name) );
 
-	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NUM")) )
-	    cw_copy_string( fast->cid_num, var,sizeof(fast->cid_num) );
-	else
+	if ( (var = pbx_builtin_getvar_helper(member->chan, CW_KEYWORD_NCONF_OUTBOUND_CID_NUM, "NCONF_OUTBOUND_CID_NUM")) ) {
+	    cw_copy_string( fast->cid_num, var->value, sizeof(fast->cid_num) );
+	    cw_object_put(var);
+	} else
 	    cw_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
 
 	cw_copy_string( fast->context, "internal", sizeof(fast->context) );
 	cw_copy_string( fast->exten, ext, sizeof(fast->exten) );
 	fast->priority = 1;
-	fast->vars=NULL;
 /**/
 
 	fast->frommember=member;

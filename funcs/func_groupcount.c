@@ -71,18 +71,19 @@ static const char group_list_func_desc[] = "Gets a list of the groups set on a c
 
 static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	int count;
 	char group[80] = "";
 	char category[80] = "";
-	char *grp;
+	struct cw_var_t *var;
+	int count;
 
 	if (buf) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
 		if (cw_strlen_zero(group)) {
-			if ((grp = pbx_builtin_getvar_helper(chan, category)))
-				cw_copy_string(group, grp, sizeof(group));
-			else
+			if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(category), category))) {
+				cw_copy_string(group, var->value, sizeof(group));
+				cw_object_put(var);
+			} else
 				cw_log(CW_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 		}
 
@@ -113,7 +114,7 @@ static int group_match_count_function_read(struct cw_channel *chan, int argc, ch
 
 static int group_function_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *group;
+	struct cw_var_t *var;
 
 	if (argc > 0) {
 		char tmp[256];
@@ -137,11 +138,41 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cha
 			cw_copy_string(buf, GROUP_CATEGORY_PREFIX, len);
 		}
 
-		group = pbx_builtin_getvar_helper(chan, buf);
-		if (group)
-			cw_copy_string(buf, group, len);
-		else
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(buf), buf))) {
+			cw_copy_string(buf, var->value, len);
+			cw_object_put(var);
+		} else
 			*buf = '\0';
+	}
+
+	return 0;
+}
+
+
+struct group_list_function_read_args {
+	char tmp1[1024];
+	char tmp2[1024];
+};
+
+static int group_list_function_read_one(struct cw_registry_entry *entry, void *data)
+{
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct group_list_function_read_args *args = data;
+
+	if (!strncmp(cw_var_name(var), GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX "_"))) {
+		if (!cw_strlen_zero(args->tmp1)) {
+			cw_copy_string(args->tmp2, args->tmp1, sizeof(args->tmp2));
+			snprintf(args->tmp1, sizeof(args->tmp1), "%s %s@%s", args->tmp2, var->value, cw_var_name(var) + sizeof(GROUP_CATEGORY_PREFIX));
+		} else {
+			snprintf(args->tmp1, sizeof(args->tmp1), "%s@%s", var->value, cw_var_name(var) + sizeof(GROUP_CATEGORY_PREFIX));
+		}
+	} else if (!strcmp(cw_var_name(var), GROUP_CATEGORY_PREFIX)) {
+		if (!cw_strlen_zero(args->tmp1)) {
+			cw_copy_string(args->tmp2, args->tmp1, sizeof(args->tmp2));
+			snprintf(args->tmp1, sizeof(args->tmp1), "%s %s", args->tmp2, var->value);
+		} else {
+			snprintf(args->tmp1, sizeof(args->tmp1), "%s", var->value);
+		}
 	}
 
 	return 0;
@@ -149,31 +180,14 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cha
 
 static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct cw_var_t *current;
-	struct varshead *headp;
-	char tmp1[1024] = "";
-	char tmp2[1024] = "";
+	struct group_list_function_read_args args = {
+		.tmp1 = "",
+		.tmp2 = "",
+	};
 
 	if (buf) {
-		headp=&chan->varshead;
-		CW_LIST_TRAVERSE(headp,current,entries) {
-			if (!strncmp(cw_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-				if (!cw_strlen_zero(tmp1)) {
-					cw_copy_string(tmp2, tmp1, sizeof(tmp2));
-					snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, cw_var_value(current), (cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
-				} else {
-					snprintf(tmp1, sizeof(tmp1), "%s@%s", cw_var_value(current), (cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
-				}
-			} else if (!strcmp(cw_var_name(current), GROUP_CATEGORY_PREFIX)) {
-				if (!cw_strlen_zero(tmp1)) {
-					cw_copy_string(tmp2, tmp1, sizeof(tmp2));
-					snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, cw_var_value(current));
-				} else {
-					snprintf(tmp1, sizeof(tmp1), "%s", cw_var_value(current));
-				}
-			}
-		}
-		cw_copy_string(buf, tmp1, len);
+		cw_registry_iterate(&chan->vars, group_list_function_read_one, &args);
+		cw_copy_string(buf, args.tmp1, len);
 	}
 
 	return 0;

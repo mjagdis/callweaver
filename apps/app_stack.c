@@ -94,12 +94,14 @@ static int pop_exec(struct cw_channel *chan, int argc, char **argv, char *result
 static int return_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[3 + 3 + 1];
+	struct cw_var_t *var;
 	char *label;
 	int i;
 
-	label = pbx_builtin_getvar_helper(chan, STACKVAR);
-
-	if (cw_strlen_zero(label)) {
+	if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(STACKVAR), STACKVAR))) {
+		label = cw_strdupa(var->value);
+		cw_object_put(var);
+	} else {
 		cw_log(CW_LOG_ERROR, "Return without Gosub: stack is empty\n");
 		return -1;
 	}

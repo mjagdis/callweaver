@@ -3178,7 +3178,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
         verify_app_arg = icd_caller__get_param(that, "verify_app_arg");
         result = 0;
         if (verify_app) {
-            result = cw_function_exec_str(that->chan, cw_hash_app_name(verify_app), verify_app, verify_app_arg, NULL, 0);
+            result = cw_function_exec_str(that->chan, cw_hash_string(verify_app), verify_app, verify_app_arg, NULL, 0);
         }
         if (result == 0 && that->chan) {
             return ICD_SUCCESS;

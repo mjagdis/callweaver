@@ -186,34 +186,43 @@ struct cw_bridge_thread_obj
 static void check_goto_on_transfer(struct cw_channel *chan) 
 {
 	struct cw_channel *xferchan;
-	char *goto_on_transfer;
+	struct cw_var_t *var;
 
-	goto_on_transfer = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
-
-	if (goto_on_transfer && !cw_strlen_zero(goto_on_transfer) && (xferchan = cw_channel_alloc(0))) {
-		char *x;
-		struct cw_frame *f;
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_GOTO_ON_BLINDXFR, "GOTO_ON_BLINDXFR"))) {
+		if (!cw_strlen_zero(var->value) && (xferchan = cw_channel_alloc(0))) {
+			char *tmp, *x;
+			struct cw_frame *f;
 		
-		for (x = goto_on_transfer; x && *x; x++)
-			if (*x == '^')
-				*x = ',';
+			if ((tmp = strdup(var->value))) {
+				for (x = tmp; *x; x++)
+					if (*x == '^')
+						*x = ',';
 
-		strcpy(xferchan->name, chan->name);
-		/* Make formats okay */
-		xferchan->readformat = chan->readformat;
-		xferchan->writeformat = chan->writeformat;
-		cw_channel_masquerade(xferchan, chan);
-		cw_parseable_goto(xferchan, goto_on_transfer);
-		xferchan->_state = CW_STATE_UP;
-		cw_clear_flag(xferchan, CW_FLAGS_ALL);	
-		xferchan->_softhangup = 0;
-		if ((f = cw_read(xferchan))) {
-			cw_fr_free(f);
-			f = NULL;
-			cw_pbx_start(xferchan);
-		} else {
-			cw_hangup(xferchan);
+				strcpy(xferchan->name, chan->name);
+
+				/* Make formats okay */
+				xferchan->readformat = chan->readformat;
+				xferchan->writeformat = chan->writeformat;
+
+				cw_channel_masquerade(xferchan, chan);
+
+				cw_parseable_goto(xferchan, tmp);
+				free(tmp);
+
+				xferchan->_state = CW_STATE_UP;
+				cw_clear_flag(xferchan, CW_FLAGS_ALL);
+				xferchan->_softhangup = 0;
+				if ((f = cw_read(xferchan))) {
+					cw_fr_free(f);
+					f = NULL;
+					cw_pbx_start(xferchan);
+				} else {
+					cw_hangup(xferchan);
+				}
+			} else
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		}
+		cw_object_put(var);
 	}
 }
 
@@ -433,7 +442,8 @@ int cw_masq_park_call(struct cw_channel *rchan, struct cw_channel *peer, int tim
 
 static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
 {
-	char *touch_monitor = NULL, *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_format = NULL;
+	struct cw_var_t *touch_monitor, *touch_format;
+	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL;
 	int x = 0;
 	size_t len;
 	struct cw_channel *caller_chan = NULL, *callee_chan = NULL;
@@ -474,25 +484,29 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 	}
 
 	if (caller_chan && callee_chan) {
-		touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
+		touch_format = pbx_builtin_getvar_helper(caller_chan, CW_KEYWORD_TOUCH_MONITOR_FORMAT, "TOUCH_MONITOR_FORMAT");
 		if (!touch_format)
-			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_FORMAT");
+			touch_format = pbx_builtin_getvar_helper(callee_chan, CW_KEYWORD_TOUCH_MONITOR_FORMAT, "TOUCH_MONITOR_FORMAT");
 
-		touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
+		touch_monitor = pbx_builtin_getvar_helper(caller_chan, CW_KEYWORD_TOUCH_MONITOR, "TOUCH_MONITOR");
 		if (!touch_monitor)
-			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
+			touch_monitor = pbx_builtin_getvar_helper(callee_chan, CW_KEYWORD_TOUCH_MONITOR, "TOUCH_MONITOR");
 		
 		if (touch_monitor) {
-			len = strlen(touch_monitor) + 50;
+			len = strlen(touch_monitor->value) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s,auto-%ld-%s,m", (touch_format) ? touch_format : "wav", time(NULL), touch_monitor);
+			snprintf(args, len, "%s,auto-%ld-%s,m", (touch_format->value ? touch_format->value : "wav"), time(NULL), touch_monitor->value);
+			cw_object_put(touch_monitor);
 		} else {
 			caller_chan_id = cw_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
 			callee_chan_id = cw_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s,auto-%ld-%s-%s,m", (touch_format) ? touch_format : "wav", time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s,auto-%ld-%s-%s,m", (touch_format->value ? touch_format->value : "wav"), time(NULL), caller_chan_id, callee_chan_id);
 		}
+
+		if (touch_format)
+			cw_object_put(touch_format);
 
 		for( x = 0; x < strlen(args); x++)
 			if (args[x] == '/')
@@ -516,10 +530,11 @@ static int builtin_disconnect(struct cw_channel *chan, struct cw_channel *peer, 
 
 static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
 {
+	char newext[256];
 	struct cw_channel *transferer;
 	struct cw_channel *transferee;
-	char *transferer_real_context;
-	char newext[256];
+	struct cw_var_t *var;
+	const char *transferer_real_context;
 	int res;
 
 	if (sense == FEATURE_SENSE_PEER) {
@@ -529,14 +544,16 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 		transferer = chan;
 		transferee = peer;
 	}
-	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-		!(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+	if (!(var = pbx_builtin_getvar_helper(transferee, CW_KEYWORD_TRANSFER_CONTEXT, "TRANSFER_CONTEXT"))
+	&& !(var = pbx_builtin_getvar_helper(transferer, CW_KEYWORD_TRANSFER_CONTEXT, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
 		if (!cw_strlen_zero(transferer->proc_context))
 			transferer_real_context = transferer->proc_context;
 		else
 			transferer_real_context = transferer->context;
-	}
+	} else
+		transferer_real_context = var->value;
+
 	/* Start autoservice on chan while we talk
 	   to the originator */
 	cw_indicate(transferee, CW_CONTROL_HOLD);
@@ -550,13 +567,13 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	}
 	if ((res=cw_waitstream(transferer, CW_DIGIT_ANY)) < 0) {
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	} else if (res > 0) {
 		/* If they've typed a digit already, handle it */
 		newext[0] = (char) res;
@@ -568,7 +585,7 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	}
 	if (!strcmp(newext, cw_parking_ext())) {
 		cw_moh_stop(transferee);
@@ -586,7 +603,7 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 				res = CW_PBX_KEEPALIVE;
 			else
 				res = CW_PBX_NO_HANGUP_PEER;
-			return res;
+			goto out;
 		} else {
 			cw_log(CW_LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
@@ -612,7 +629,7 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 			transferee->priority = 0;
 		}
 		check_goto_on_transfer(transferer);
-		return res;
+		goto out;
 	} else {
 		if (option_verbose > 2)	
 			cw_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
@@ -625,7 +642,7 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	}
 	res = cw_waitstream(transferer, CW_DIGIT_ANY);
 	cw_stopstream(transferer);
@@ -635,9 +652,13 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 	if (res) {
 		if (option_verbose > 1)
 			cw_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
-		return res;
+		goto out;
 	}
-	return FEATURE_RETURN_SUCCESS;
+	res = FEATURE_RETURN_SUCCESS;
+out:
+	if (var)
+		cw_object_put(var);
+	return res;
 }
 
 static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
@@ -648,10 +669,11 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 	struct cw_channel *newchan, *xferchan = NULL;
 	int outstate=0;
 	struct cw_bridge_config bconfig;
-	char *transferer_real_context;
+	const char *transferer_real_context;
 	char xferto[256],dialstr[265];
 	char *cid_num;
 	char *cid_name;
+	struct cw_var_t *var;
 	int res;
 	struct cw_frame *f = NULL;
 	struct cw_bridge_thread_obj *tobj;
@@ -664,14 +686,16 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 		transferer = chan;
 		transferee = peer;
 	}
-	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-		!(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+	if (!(var = pbx_builtin_getvar_helper(transferee, CW_KEYWORD_TRANSFER_CONTEXT, "TRANSFER_CONTEXT"))
+	&& !(var = pbx_builtin_getvar_helper(transferer, CW_KEYWORD_TRANSFER_CONTEXT, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
 		if (!cw_strlen_zero(transferer->proc_context))
 			transferer_real_context = transferer->proc_context;
 		else
 			transferer_real_context = transferer->context;
-	}
+	} else
+		transferer_real_context = var->value;
+
 	/* Start autoservice on chan while we talk
 	   to the originator */
 	cw_indicate(transferee, CW_CONTROL_HOLD);
@@ -683,13 +707,13 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	}
 	if ((res=cw_waitstream(transferer, CW_DIGIT_ANY)) < 0) {
 		cw_moh_stop(transferee);
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
-		return res;
+		goto out;
 	} else if(res > 0) {
 		/* If they've typed a digit already, handle it */
 		xferto[0] = (char) res;
@@ -697,7 +721,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 	if ((cw_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
 		cid_num = transferer->cid.cid_num;
 		cid_name = transferer->cid.cid_name;
-		if (cw_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
+		if (cw_exists_extension(transferer, transferer_real_context, xferto, 1, cid_num)) {
 			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
 			newchan = cw_feature_request_and_dial(transferer, "Local", cw_best_codec(transferer->nativeformats), dialstr, 15000, &outstate, cid_num, cid_name);
 			cw_indicate(transferer, -1);
@@ -706,7 +730,8 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
 					cw_hangup(newchan);
-					return -1;
+					res = -1;
+					goto out;
 				}
 				memset(&bconfig,0,sizeof(struct cw_bridge_config));
 				cw_set_flag(&(bconfig.features_caller), CW_FEATURE_DISCONNECT);
@@ -727,19 +752,21 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					cw_autoservice_stop(transferee);
 					cw_indicate(transferee, CW_CONTROL_UNHOLD);
 					transferer->_softhangup = 0;
-					return FEATURE_RETURN_SUCCESS;
+					res = FEATURE_RETURN_SUCCESS;
+					goto out;
 				}
 				
 				res = cw_channel_make_compatible(transferee, newchan);
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferee->name, newchan->name);
 					cw_hangup(newchan);
-					return -1;
+					res = -1;
+					goto out;
 				}
 				
 				
 				cw_moh_stop(transferee);
-				
+
 				if ((cw_autoservice_stop(transferee) < 0)
 					|| (cw_waitfordigit(transferee, 100) < 0)
 					|| (cw_waitfordigit(newchan, 100) < 0) 
@@ -747,7 +774,7 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					|| cw_check_hangup(newchan)) {
 					cw_hangup(newchan);
 					res = -1;
-					return -1;
+					goto out;
 				}
 
 				if ((xferchan = cw_channel_alloc(0))) {
@@ -768,7 +795,8 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					
 				} else {
 					cw_hangup(newchan);
-					return -1;
+					res = -1;
+					goto out;
 				}
 
 				newchan->_state = CW_STATE_UP;
@@ -793,7 +821,8 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 					cw_hangup(xferchan);
 					cw_hangup(newchan);
 				}
-				return -1;
+				res = -1;
+				goto out;
 				
 			} else {
 				cw_moh_stop(transferee);
@@ -801,43 +830,43 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 				cw_indicate(transferee, CW_CONTROL_UNHOLD);
 				/* any reason besides user requested cancel and busy triggers the failed sound */
 				if (outstate != CW_CONTROL_UNHOLD && outstate != CW_CONTROL_BUSY && !cw_strlen_zero(xferfailsound)) {
-					res = cw_streamfile(transferer, xferfailsound, transferer->language);
-					if (!res && (cw_waitstream(transferer, "") < 0)) {
-						return -1;
-					}
+					if ((res = cw_streamfile(transferer, xferfailsound, transferer->language))
+					|| (res = cw_waitstream(transferer, "")) < 0)
+						goto out;
 				}
-				return FEATURE_RETURN_SUCCESS;
+				res = FEATURE_RETURN_SUCCESS;
+				goto out;
 			}
 		} else {
-			cw_log(CW_LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
+			cw_log(CW_LOG_WARNING, "Extension %s does not exist in context %s\n", xferto, transferer_real_context);
 			cw_moh_stop(transferee);
 			cw_autoservice_stop(transferee);
 			cw_indicate(transferee, CW_CONTROL_UNHOLD);
-			res = cw_streamfile(transferer, "beeperr", transferer->language);
-			if (!res && (cw_waitstream(transferer, "") < 0)) {
-				return -1;
-			}
+			if ((res = cw_streamfile(transferer, "beeperr", transferer->language))
+			|| (res = cw_waitstream(transferer, "")) < 0)
+				goto out;
 		}
 	}  else {
 		cw_log(CW_LOG_WARNING, "Did not read data.\n");
-		res = cw_streamfile(transferer, "beeperr", transferer->language);
-		if (cw_waitstream(transferer, "") < 0) {
-			return -1;
-		}
+		if ((res = cw_streamfile(transferer, "beeperr", transferer->language))
+		|| (res = cw_waitstream(transferer, "")) < 0)
+			goto out;
 	}
 	cw_moh_stop(transferee);
 	cw_autoservice_stop(transferee);
 	cw_indicate(transferee, CW_CONTROL_UNHOLD);
-
-	return FEATURE_RETURN_SUCCESS;
+	res = FEATURE_RETURN_SUCCESS;
+out:
+	if (var)
+		cw_object_put(var);
+	return res;
 }
 
 static int builtin_autopark(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
 {
+	char newext[256];
 	struct cw_channel *transferer;
 	struct cw_channel *transferee;
-	char *transferer_real_context;
-	char newext[256];
 	int res;
 
 	if (sense == FEATURE_SENSE_PEER) {
@@ -847,14 +876,7 @@ static int builtin_autopark(struct cw_channel *chan, struct cw_channel *peer, st
 		transferer = chan;
 		transferee = peer;
 	}
-	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-			!(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
-		/* Use the non-macro context to transfer the call */
-		if (!cw_strlen_zero(transferer->proc_context))
-			transferer_real_context = transferer->proc_context;
-		else
-			transferer_real_context = transferer->context;
-	}
+
 	/* Start autoservice on chan while we talk
 	   to the originator */
 	cw_indicate(transferee, CW_CONTROL_HOLD);
@@ -1011,7 +1033,7 @@ static int feature_exec_app(struct cw_channel *chan, struct cw_channel *peer, st
 	res = strlen(feature->app_args) + 1;
 	args = alloca(res);
 	memcpy(args, feature->app_args, res);
-	res = cw_function_exec_str(work, cw_hash_app_name(feature->app), feature->app, args, NULL, 0);
+	res = cw_function_exec_str(work, cw_hash_string(feature->app), feature->app, args, NULL, 0);
 	if (res < 0)
 		return res; 
 	
@@ -1047,7 +1069,7 @@ static int cw_feature_interpret(struct cw_channel *chan, struct cw_channel *peer
 	struct cw_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
 	struct cw_call_feature *feature;
-	char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
+	struct cw_var_t *var;
 
 	if (sense == FEATURE_SENSE_CHAN)
 		cw_copy_flags(&features, &(config->features_caller), CW_FLAGS_ALL);	
@@ -1069,10 +1091,11 @@ static int cw_feature_interpret(struct cw_channel *chan, struct cw_channel *peer
 		}
 	}
 
-
-	if (dynamic_features && !cw_strlen_zero(dynamic_features)) {
-		char *tmp = cw_strdupa(dynamic_features);
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_DYNAMIC_FEATURES, "DYNAMIC_FEATURES"))) {
+		char *tmp = cw_strdupa(var->value);
 		char *tok;
+
+		cw_object_put(var);
 
 		while ((tok = strsep(&tmp, "#")) != NULL) {
 			feature = find_feature(tok);
@@ -1110,14 +1133,14 @@ static void set_config_flags(struct cw_channel *chan, struct cw_channel *peer, s
 	}
 	
 	if (chan && peer && !(cw_test_flag(config, CW_BRIDGE_DTMF_CHANNEL_0) && cw_test_flag(config, CW_BRIDGE_DTMF_CHANNEL_1))) {
-		char *dynamic_features;
+		struct cw_var_t *var;
 
-		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
-
-		if (dynamic_features) {
-			char *tmp = cw_strdupa(dynamic_features);
+		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_DYNAMIC_FEATURES, "DYNAMIC_FEATURES"))) {
+			char *tmp = cw_strdupa(var->value);
 			char *tok;
 			struct cw_call_feature *feature;
+
+			cw_object_put(var);
 
 			/* while we have a feature */
 			while (NULL != (tok = strsep(&tmp, "#"))) {
@@ -1309,10 +1332,10 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
-	struct cw_frame *f;
-	struct cw_channel *who;
 	char chan_featurecode[FEATURE_MAX_LEN + 1]="";
 	char peer_featurecode[FEATURE_MAX_LEN + 1]="";
+	struct cw_frame *f;
+	struct cw_channel *who;
 	int res;
 	int diff;
 	int hasfeatures=0;
@@ -1334,21 +1357,38 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 
 	if (monitor_ok) {
 		char *argv[4];
+		struct cw_var_t *var;
+
 		argv[3] = NULL;
-		if ((argv[0] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FORMAT"))) {
-			argv[1] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_BASE");
-			argv[1] = (argv[1] ? argv[1] : "");
-			argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
-			argv[2] = (argv[2] ? argv[2] : "");
-			argv[3] = NULL;
-			cw_function_exec(chan, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
-		} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
-			argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
-			argv[1] = (argv[1] ? argv[1] : "");
-			argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
-			argv[2] = (argv[2] ? argv[2] : "");
-			argv[3] = NULL;
+
+		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FORMAT, "AUTO_MONITOR_FORMAT"))) {
+			argv[0] = strdup(var->value);
+			cw_object_put(var);
+			var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE");
+			argv[1] = strdup(var ? var->value : "");
+			cw_object_put(var);
+			var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS");
+			argv[2] = strdup(var ? var->value : "");
+			cw_object_put(var);
+		} else if ((var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FORMAT, "AUTO_MONITOR_FORMAT"))) {
+			argv[0] = strdup(var->value);
+			cw_object_put(var);
+			var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_BASE, "AUTO_MONITOR_FNAME_BASE");
+			argv[1] = strdup(var ? var->value : "");
+			cw_object_put(var);
+			var = pbx_builtin_getvar_helper(peer, CW_KEYWORD_AUTO_MONITOR_FNAME_OPTS, "AUTO_MONITOR_FNAME_OPTS");
+			argv[2] = strdup(var ? var->value : "");
+			cw_object_put(var);
+		}
+
+		if (argv[0] && argv[1] && argv[2])
 			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
+		else
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+
+		for (res = 0; res < arraysize(argv); res++) {
+			if (argv[res])
+				free(argv[res]);
 		}
 	}
 	

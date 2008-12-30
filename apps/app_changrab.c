@@ -315,7 +315,6 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct cw_variable *vars;
 };
 
 

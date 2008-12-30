@@ -314,8 +314,8 @@ struct cw_channel {
 	/* Why is the channel hanged up */
 	int hangupcause;
 	
-	/* A linked list for variables */
-	struct varshead varshead;
+	/* Registry of channel variables */
+	struct cw_registry vars;
 
 	cw_group_t callgroup;
 	cw_group_t pickupgroup;
@@ -430,7 +430,7 @@ struct outgoing_helper {
 	int priority;
 	const char *cid_num;
 	const char *cid_name;
-	struct cw_variable *vars;
+	struct cw_registry *vars;
 };
 
 #define CW_CDR_TRANSFER	(1 << 0)
@@ -990,20 +990,6 @@ int cw_do_masquerade(struct cw_channel *chan);
 	\param chan Current channel
 */
 struct cw_channel *cw_bridged_channel(struct cw_channel *chan);
-
-/*!
-  \brief Inherits channel variable from parent to child channel
-  \param parent Parent channel
-  \param child Child channel
-
-  Scans all channel variables in the parent channel, looking for those
-  that should be copied into the child channel.
-  Variables whose names begin with a single '_' are copied into the
-  child channel with the prefix removed.
-  Variables whose names begin with '__' are copied into the child
-  channel with their names unchanged.
-*/
-void cw_channel_inherit_variables(const struct cw_channel *parent, struct cw_channel *child);
 
 /*!
   \brief adds a list of channel variables to a channel

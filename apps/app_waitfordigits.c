@@ -36,6 +36,7 @@
 #include <callweaver/translate.h>
 #include <callweaver/utils.h>
 #include <callweaver/cli.h>
+#include <callweaver/keywords.h>
 
 #ifdef CW_MODULE_INFO
 #define CW_VERSION_1_4
@@ -98,7 +99,8 @@ static const char waitfordigits_descrip[] =
 
 static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res = 0;
+	char numsubst[255];
+	struct cw_var_t *var;
 	struct localuser *u;
 
 	/** Default values **/
@@ -109,12 +111,10 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 	int control=0;
 	int nextprio=0;
 
-	const char *tmp=pbx_builtin_getvar_helper(chan,"ALREADY_WAITED") ;
-	const char *stopkey=pbx_builtin_getvar_helper(chan,"WAIT_STOPKEY") ;
 	char aw=0;
 
 	char dig=0;
-	char numsubst[255];
+	int res = 0;
 	
 	if (argc < 1 || argc > 5)
 	{
@@ -122,13 +122,14 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 		return -1;
 	}
 
-	if (tmp)
-	{
-		aw=atoi(tmp);
-	}
-	
 	LOCAL_USER_ADD(u);
 	
+	if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_ALREADY_WAITED, "ALREADY_WAITED")))
+	{
+		aw = atoi(var->value);
+		cw_object_put(var);
+	}
+
 // waitfordigits(milliseconds,[maxnum],addexten,[control],[priority]):\n"
 	if (argv[0])
 	{
@@ -165,17 +166,18 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 
 	cw_verbose("You passed timeout:%d maxnum:%d addexten:%d control:%d\n",
 	      timeout, maxnum, addexten, control);
-	
+
 	/** Check wether we have something to do **/
 	if (chan->_state == CW_STATE_UP || aw > 0 )
 	{
 	  LOCAL_USER_REMOVE(u);
 	  return 0;
 	}
-	
+
 	pbx_builtin_setvar_helper(chan,"ALREADY_WAITED","1");
-	  
+
 	/** Saving predialed Extension **/
+	var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_WAIT_STOPKEY, "WAIT_STOPKEY") ;
 	strcpy(numsubst, chan->exten);
 	while ( (strlen(numsubst)< maxnum) && (dig=cw_waitfordigit(chan, timeout)))
 	{
@@ -194,15 +196,17 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 			break;
 		}
 
-		if (stopkey && (dig == stopkey[0]) ) {
+		if (var && (dig == var->value[0])) {
 			break;
 		}
-		  
+
 		numsubst[l]=dig;
 		numsubst[l+1]=0;
 		//cw_log(CW_LOG_NOTICE, "Adding Dig to Chan: %c\n",dig);
 	}
-	  
+	if (var)
+		cw_object_put(var);
+
 	/** Restoring Extension if requested **/
 	if (addexten)
 	{

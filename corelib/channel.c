@@ -581,8 +581,7 @@ struct cw_channel *cw_channel_alloc(int needqueue)
 	struct cw_channel *tmp;
 	int x;
 	int flags;
-	struct varshead *headp;        
-			
+
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
         {
@@ -634,9 +633,9 @@ struct cw_channel *cw_channel_alloc(int needqueue)
 		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
 	else
 		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%s-%li.%d", cw_config_CW_SYSTEM_NAME, (long) time(NULL), uniqueint++);
-	headp = &tmp->varshead;
 	cw_mutex_init(&tmp->lock);
-	CW_LIST_HEAD_INIT_NOLOCK(headp);
+	cw_var_registry_init(&tmp->vars, 1024);
+
 	strcpy(tmp->context, "default");
 	cw_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
 	strcpy(tmp->exten, "s");
@@ -959,15 +958,11 @@ static void free_cid(struct cw_callerid *cid)
 /*--- cw_channel_free: Free a channel structure */
 void cw_channel_free(struct cw_channel *chan)
 {
+	char name[CW_CHANNEL_NAME];
 	struct cw_channel *last=NULL, *cur;
 	int fd;
-	struct cw_var_t *vardata;
 	struct cw_frame *f, *fp;
-	struct varshead *headp;
-	char name[CW_CHANNEL_NAME];
-	
-	headp=&chan->varshead;
-	
+
 	cw_mutex_lock(&chlock);
 	cur = channels;
 	while (cur)
@@ -1033,15 +1028,7 @@ void cw_channel_free(struct cw_channel *chan)
 		cw_fr_free(fp);
 	}
 	
-	/* loop over the variables list, freeing all data and deleting list items */
-	/* no need to lock the list, as the channel is already locked */
-	
-	while (!CW_LIST_EMPTY(headp))
-	{
-        /* List Deletion. */
-		vardata = CW_LIST_REMOVE_HEAD(headp, entries);
-		cw_var_delete(vardata);
-	}
+	cw_registry_destroy(&chan->vars);
 
 	/* Destroy the jitterbuffer */
 	cw_jb_destroy(chan);
@@ -2398,11 +2385,10 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 	int res = 0;
 	
 	chan = cw_request(type, format, data, &cause);
-	if (chan)
-    {
-		if (oh)
-        {
-			cw_set_variables(chan, oh->vars);
+	if (chan) {
+		if (oh) {
+			if (oh->vars)
+				cw_var_copy(oh->vars, &chan->vars);
 			cw_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
 		}
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
@@ -2852,91 +2838,46 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
 
 void cw_change_name(struct cw_channel *chan, char *newname)
 {
-	char tmp[256];
-	cw_copy_string(tmp, chan->name, sizeof(tmp));
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
 	cw_copy_string(chan->name, newname, sizeof(chan->name));
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
-}
-
-void cw_channel_inherit_variables(const struct cw_channel *parent, struct cw_channel *child)
-{
-	struct cw_var_t *current, *newvar;
-	char *varname;
-
-	CW_LIST_TRAVERSE(&parent->varshead, current, entries)
-    {
-		int vartype = 0;
-
-		varname = cw_var_full_name(current);
-		if (!varname)
-			continue;
-
-		if (varname[0] == '_')
-        {
-			vartype = 1;
-			if (varname[1] == '_')
-				vartype = 2;
-		}
-
-		switch (vartype)
-        {
-		case 1:
-			newvar = cw_var_assign(&varname[1], cw_var_value(current));
-			if (newvar)
-            {
-				CW_LIST_INSERT_TAIL(&child->varshead, newvar, entries);
-				if (option_debug)
-					cw_log(CW_LOG_DEBUG, "Copying soft-transferable variable %s.\n", cw_var_name(newvar));
-			}
-			break;
-		case 2:
-			newvar = cw_var_assign(cw_var_full_name(current), cw_var_value(current));
-			if (newvar)
-            {
-				CW_LIST_INSERT_TAIL(&child->varshead, newvar, entries);
-				if (option_debug)
-					cw_log(CW_LOG_DEBUG, "Copying hard-transferable variable %s.\n", cw_var_name(newvar));
-			}
-			break;
-		default:
-			if (option_debug)
-				cw_log(CW_LOG_DEBUG, "Not copying variable %s.\n", cw_var_name(current));
-			break;
-		}
-	}
 }
 
 /* Clone channel variables from 'clone' channel into 'original' channel
    All variables except those related to app_groupcount are cloned
-   Variables are actually _removed_ from 'clone' channel, presumably
-   because it will subsequently be destroyed.
    Assumes locks will be in place on both channels when called.
 */
    
-static void clone_variables(struct cw_channel *original, struct cw_channel *clone)
+static int clone_variables_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_var_t *varptr;
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_registry *reg = data;
 
 	/* we need to remove all app_groupcount related variables from the original
 	   channel before merging in the clone's variables; any groups assigned to the
 	   original channel should be released, only those assigned to the clone
 	   should remain
 	*/
+	if (strncmp(cw_var_name(var), GROUP_CATEGORY_PREFIX, sizeof(GROUP_CATEGORY_PREFIX) - 1))
+		cw_registry_add(reg, var->hash, &var->obj);
 
-	CW_LIST_TRAVERSE_SAFE_BEGIN(&original->varshead, varptr, entries)
-    {
-		if (!strncmp(cw_var_name(varptr), GROUP_CATEGORY_PREFIX, strlen(GROUP_CATEGORY_PREFIX)))
-        {
-			CW_LIST_REMOVE(&original->varshead, varptr, entries);
-			cw_var_delete(varptr);
-		}
-	}
-	CW_LIST_TRAVERSE_SAFE_END;
+	return 0;
+}
 
-	/* Append variables from clone channel into original channel */
-	/* XXX Is this always correct?  We have to in order to keep PROCS working XXX */
-	if (CW_LIST_FIRST(&clone->varshead))
-		CW_LIST_INSERT_TAIL(&original->varshead, CW_LIST_FIRST(&clone->varshead), entries);
+static void clone_variables(struct cw_channel *original, struct cw_channel *clone)
+{
+	struct cw_registry tmp;
+
+	/* Append variables from clone channel into original channel by pushing
+	 * the variables from the original channel onto the clone and flipping
+	 * the registries. This ensures that the ordering of variables remains
+	 * correct. This is needed because gosub, proc etc assume a push down
+	 * stack :-(
+	 */
+	cw_registry_iterate_rev(&original->vars, clone_variables_one, &clone->vars);
+
+	tmp = clone->vars;
+	clone->vars = original->vars;
+	original->vars = tmp;
 }
 
 /*--- cw_do_masquerade: Masquerade a channel */
@@ -3100,7 +3041,6 @@ int cw_do_masquerade(struct cw_channel *original)
 	for (x = 0;  x < CW_MAX_FDS;  x++)
 		original->fds[x] = clone->fds[x];
 	clone_variables(original, clone);
-	CW_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */

@@ -2303,7 +2303,6 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 	char tmp[256] = "", *tmpptr;
 	struct cw_vm_user *vmu;
 	struct cw_vm_user svm;
-	char *category = NULL;
 
 	cw_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
@@ -2320,8 +2319,6 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 		*tmpptr = '\0';
 		tmpptr++;
 	}
-
-	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
 	if (!(vmu = find_user(&svm, context, ext))) {
 		cw_log(CW_LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
@@ -2484,6 +2481,7 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 			snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
 			txt = fopen(txtfile, "w+");
 			if (txt) {
+				struct cw_var_t *category = pbx_builtin_getvar_helper(chan, CW_KEYWORD_VM_CATEGORY, "VM_CATEGORY");
 				get_date(date, sizeof(date));
 				fprintf(txt, 
 					";\n"
@@ -2508,7 +2506,9 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 					chan->name,
 					cw_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
 					date, (long)time(NULL),
-					category ? category : ""); 
+					category ? category->value : "");
+				if (category)
+					cw_object_put(category);
 			} else
 				cw_log(CW_LOG_WARNING, "Error opening text file for output\n");
 			res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir, options->record_gain);

@@ -283,9 +283,9 @@ struct filehelper_args {
 	int res;
 };
 
-static int filehelper_one(struct cw_object *obj, void *data)
+static int filehelper_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_format *f = container_of(obj, struct cw_format, obj);
+	struct cw_format *f = container_of(entry->obj, struct cw_format, obj);
 	struct filehelper_args *args = data;
 
 	/* Check for a specific format */
@@ -365,9 +365,9 @@ struct fileopen_args {
 	struct cw_filestream *s;
 };
 
-static int fileopen_one(struct cw_object *obj, void *data)
+static int fileopen_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_format *f = container_of(obj, struct cw_format, obj);
+	struct cw_format *f = container_of(entry->obj, struct cw_format, obj);
 	struct fileopen_args *args = data;
 	FILE *bfile;
 
@@ -772,9 +772,9 @@ struct writefile_args {
 	struct cw_filestream *s;
 };
 
-static int writefile_one(struct cw_object *obj, void *data)
+static int writefile_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_format *f = container_of(obj, struct cw_format, obj);
+	struct cw_format *f = container_of(entry->obj, struct cw_format, obj);
 	struct writefile_args *args = data;
 	/* compiler claims this variable can be used before initialization... */
 	FILE *bfile = NULL;
@@ -1146,9 +1146,9 @@ struct show_file_formats_args {
 	int count;
 };
 
-static int show_file_formats_one(struct cw_object *obj, void *data)
+static int show_file_formats_one(struct cw_registry_entry *entry, void *data)
 {
-	struct cw_format *f = container_of(obj, struct cw_format, obj);
+	struct cw_format *f = container_of(entry->obj, struct cw_format, obj);
 	struct show_file_formats_args *args = data;
 
 	cw_cli(args->fd, FORMAT2, cw_getformatname(f->format), f->name, f->exts);

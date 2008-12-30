@@ -172,13 +172,13 @@ int cw_unlock_path(const char *path);
 #define GROUP_CATEGORY_PREFIX "GROUP"
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
-int cw_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max);
+int cw_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
 
 /*! Set the group for a channel, splitting the provided data into group and category, if specified. */
-int cw_app_group_set_channel(struct cw_channel *chan, char *data);
+int cw_app_group_set_channel(struct cw_channel *chan, const char *data);
 
 /*! Get the current channel count of the specified group and category. */
-int cw_app_group_get_count(char *group, char *category);
+int cw_app_group_get_count(const char *group, const char *category);
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
 int cw_app_group_match_get_count(char *groupmatch, char *category);

@@ -77,7 +77,7 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 			pbx_substitute_variables_helper(chan, s, args, sizeof(args));
 		}
 		if (appname)
-			res = cw_function_exec_str(chan, cw_hash_app_name(appname), appname, args, NULL, 0);
+			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, args, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);

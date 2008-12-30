@@ -39,6 +39,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 #include "callweaver/manager.h"
+#include "callweaver/keywords.h"
 
 static const char tdesc[] = "Trivial FAX Receive Application";
 
@@ -270,7 +271,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 /*- End of function --------------------------------------------------------*/
 
 static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *file, int calling_party,int verbose, int ecm) {
-    char 		*x;
+    struct cw_var_t	*var;
     struct cw_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
@@ -300,25 +301,28 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
         span_log_set_level(&t38_core->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
 
-    x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
-    if (x  &&  x[0])
-        t30_set_tx_ident(t30, x);
-    x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
-    if (x  &&  x[0])
-        t30_set_tx_sub_address(t30, x);
-    x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
-    if (x  &&  x[0])
-        t30_set_tx_page_header_info(t30, x);
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSTATIONID, "LOCALSTATIONID"))) {
+        t30_set_tx_ident(t30, var->value);
+	cw_object_put(var);
+    }
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSUBADDRESS, "LOCALSUBADDRESS"))) {
+        t30_set_tx_sub_address(t30, var->value);
+	cw_object_put(var);
+    }
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALHEADERINFO, "LOCALHEADERINFO"))) {
+        t30_set_tx_page_header_info(t30, var->value);
+	cw_object_put(var);
+    }
     t30_set_rx_file(t30, file, -1);
 
     //t30_set_phase_b_handler(t30, phase_b_handler, chan);
     t30_set_phase_d_handler(t30, phase_d_handler, chan);
     t30_set_phase_e_handler(t30, phase_e_handler, chan);
 
-    x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
-    if (x  &&  x[0])
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
         t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-    else
+	cw_object_put(var);
+    } else
         t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
@@ -374,7 +378,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
 /*- End of function --------------------------------------------------------*/
 
 static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, int calling_party,int verbose, int ecm) {
-    char 		*x;
+    struct cw_var_t 	*var;
     struct cw_frame 	*inf = NULL,
 			*dspf = NULL;
     struct cw_frame 	outf, *fout;
@@ -408,24 +412,27 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
         span_log_set_level(&fax->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
         span_log_set_level(&t30->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
-    x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
-    if (x  &&  x[0])
-        t30_set_tx_ident(t30, x);
-    x = pbx_builtin_getvar_helper(chan, "LOCALSUBADDRESS");
-    if (x  &&  x[0])
-        t30_set_tx_sub_address(t30, x);
-    x = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO");
-    if (x  &&  x[0])
-        t30_set_tx_page_header_info(t30, x);
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSTATIONID, "LOCALSTATIONID"))) {
+        t30_set_tx_ident(t30, var->value);
+	cw_object_put(var);
+    }
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSUBADDRESS, "LOCALSUBADDRESS"))) {
+        t30_set_tx_sub_address(t30, var->value);
+	cw_object_put(var);
+    }
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALHEADERINFO, "LOCALHEADERINFO"))) {
+        t30_set_tx_page_header_info(t30, var->value);
+	cw_object_put(var);
+    }
     t30_set_rx_file(t30, file, -1);
     //t30_set_phase_b_handler(t30, phase_b_handler, chan);
     t30_set_phase_d_handler(t30, phase_d_handler, chan);
     t30_set_phase_e_handler(t30, phase_e_handler, chan);
 
-    x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
-    if (x  &&  x[0])
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
         t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-    else
+	cw_object_put(var);
+    } else
         t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     /* Support for different image sizes && resolutions*/

@@ -227,7 +227,7 @@ static void hanguptree(struct outchan *outgoing, struct cw_channel *exception)
 } while (0)
 
 
-static int onedigit_goto(struct cw_channel *chan, char *context, char exten) 
+static int onedigit_goto(struct cw_channel *chan, const char *context, const char exten)
 {
 	char rexten[2] = { exten, '\0' };
 
@@ -297,7 +297,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 	int pos;
 	int single;
 	struct cw_channel *winner;
-	char *context = NULL;
+	struct cw_var_t *context = NULL;
 	char cidname[CW_MAX_EXTENSION];
 
 	single = (outgoing && !outgoing->next && !cw_test_flag(outgoing, DIAL_MUSICONHOLD | DIAL_RINGBACKONLY));
@@ -579,8 +579,11 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 
 			if (f && (f->frametype == CW_FRAME_DTMF)) {
 				if (cw_test_flag(peerflags, DIAL_HALT_ON_DTMF)) {
-					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
-					if (onedigit_goto(in, context, (char) f->subclass)) {
+					context = pbx_builtin_getvar_helper(in, CW_KEYWORD_EXITCONTEXT, "EXITCONTEXT");
+					found = onedigit_goto(in, (context ? context->value : NULL), (char) f->subclass);
+					if (context)
+						cw_object_put(context);
+					if (found) {
 						if (option_verbose > 3)
 							cw_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 						*to=0;
@@ -629,6 +632,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 
 static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct cw_flags *peerflags)
 {
+	struct cw_var_t *tmpvar;
 	int res=-1;
 	struct localuser *u;
 	char *peers, *timeout, *tech, *number, *rest, *cur;
@@ -667,9 +671,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq=0;
-	char *warning_sound=NULL;
-	char *end_sound=NULL;
-	char *start_sound=NULL;
 	char *limitptr;
 	char limitdata[256];
 	char *sdtmfptr;
@@ -678,11 +679,10 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	char *mac = NULL, *proc_name = NULL;
 	char status[256];
 	char toast[80];
-	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
 	char *mohclass = NULL;
-	char *outbound_group = NULL;
-	char *proc_result = NULL, *proc_transfer_dest = NULL;
+	struct cw_var_t *outbound_group;
+	char *proc_transfer_dest = NULL;
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
 	char *dblgoto = NULL;
@@ -703,6 +703,8 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		else
 			cw_log(CW_LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
 	}
+
+	memset(&config,0,sizeof(struct cw_bridge_config));
 
 	if (options) {
 
@@ -748,25 +750,41 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			else
 				cw_log(CW_LOG_WARNING, "Limit Data lacking trailing ')'\n");
 
-			var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
-			play_to_caller = var ? cw_true(var) : 1;
-		  
-			var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLEE");
-			play_to_callee = var ? cw_true(var) : 0;
-		  
-			if (!play_to_caller && !play_to_callee)
-				play_to_caller=1;
-		  
-			var = pbx_builtin_getvar_helper(chan,"LIMIT_WARNING_FILE");
-			warning_sound = var ? var : "timeleft";
+			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLER, "LIMIT_PLAYAUDIO_CALLER"))) {
+				if (cw_true(tmpvar->value))
+					cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+				cw_object_put(tmpvar);
+			} else
+				cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
 
-			var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
-			end_sound = var ? var : NULL;
+			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLEE, "LIMIT_PLAYAUDIO_CALLEE"))) {
+				if (cw_true(tmpvar->value))
+					cw_set_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
+				cw_object_put(tmpvar);
+			}
 
-			var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
-			start_sound = var ? var : NULL;
+			if (!cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING)
+			&& !cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING))
+				cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
 
-			var=stack=limitdata;
+			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_CONNECT_FILE, "LIMIT_CONNECT_FILE"))) {
+				config.start_sound = strdup(tmpvar->value);
+				cw_object_put(tmpvar);
+			} else
+				config.start_sound = NULL;
+
+			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_TIMEOUT_FILE, "LIMIT_TIMEOUT_FILE"))) {
+				config.end_sound = strdup(tmpvar->value);
+				cw_object_put(tmpvar);
+			}
+
+			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_WARNING_FILE, "LIMIT_WARNING_FILE"))) {
+				config.warning_sound = strdup(tmpvar->value);
+				cw_object_put(tmpvar);
+			} else
+				config.warning_sound = strdup("timeleft");
+
+			var = stack = limitdata;
 
 			var = strsep(&stack, ":");
 			if (var) {
@@ -785,27 +803,34 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			}
 		  
 			if (!timelimit) {
-				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
-				warning_sound = NULL;
+				timelimit = play_warning = warning_freq = 0;
+				cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+				cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
+				if (config.warning_sound) {
+					free(config.warning_sound);
+					config.warning_sound = NULL;
+				}
 			}
 			/* undo effect of S(x) in case they are both used */
 			calldurationlimit = 0; 
 			/* more efficient do it like S(x) does since no advanced opts*/
-			if (!play_warning && !start_sound && !end_sound && timelimit) { 
+			if (!play_warning && !config.start_sound && !config.end_sound && timelimit) {
 				calldurationlimit = timelimit/1000;
-				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
+				timelimit = play_warning = warning_freq = 0;
+				cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+				cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
 				if (option_verbose > 2)
 					cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
 			} else if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
 				cw_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
 				cw_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
-				cw_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", play_to_caller ? "yes" : "no");
-				cw_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", play_to_callee ? "yes" : "no");
+				cw_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
+				cw_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
 				cw_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
-				cw_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", start_sound ? start_sound : "UNDEF");
-				cw_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
-				cw_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", config.start_sound ? config.start_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", config.warning_sound ? config.warning_sound : "UNDEF");
+				cw_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", config.end_sound ? config.end_sound : "UNDEF");
 			}
 		}
 		
@@ -1025,7 +1050,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	}
 
 	/* If a channel group has been specified, get it for use when we create peer channels */
-	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
+	outbound_group = pbx_builtin_getvar_helper(chan, CW_KEYWORD_OUTBOUND_GROUP, "OUTBOUND_GROUP");
 
 	cur = peers;
 	do {
@@ -1128,7 +1153,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		}
 
 		/* Inherit specially named variables from parent channel */
-		cw_channel_inherit_variables(chan, tmp->chan);
+		cw_var_inherit(&chan->vars, &tmp->chan->vars);
 
 		tmp->chan->appl = "AppDial (Outgoing Line)";
 		tmp->chan->whentohangup = 0;
@@ -1170,7 +1195,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
-			cw_app_group_set_channel(tmp->chan, outbound_group);
+			cw_app_group_set_channel(tmp->chan, outbound_group->value);
 
 		res = cw_call(tmp->chan, numsubst);
 
@@ -1207,6 +1232,9 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			break;
 		cur = rest;
 	} while (cur);
+
+	if (outbound_group)
+		cw_object_put(outbound_group);
 	
 	if (!cw_strlen_zero(timeout)) {
 		to = atoi(timeout);
@@ -1263,10 +1291,12 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 
-		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
-		if (!number)
-			number = numsubst;
-		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
+		if ((tmpvar = pbx_builtin_getvar_helper(peer, CW_KEYWORD_DIALEDPEERNUMBER, "DIALEDPEERNUMBER"))) {
+			cw_registry_add(&chan->vars, tmpvar->hash, &tmpvar->obj);
+			cw_object_put(tmpvar);
+		} else
+			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
+
  		if (!cw_strlen_zero(url) && cw_channel_supports_html(peer) ) {
  			cw_log(CW_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			cw_channel_sendurl( peer, url );
@@ -1514,27 +1544,27 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			}
 
 			if (!res) {
-				if ((proc_result = pbx_builtin_getvar_helper(peer, "PROC_RESULT"))) {
-					if (!strcasecmp(proc_result, "BUSY")) {
-						cw_copy_string(status, proc_result, sizeof(status));
+				if ((tmpvar = pbx_builtin_getvar_helper(peer, CW_KEYWORD_PROC_RESULT, "PROC_RESULT"))) {
+					if (!strcasecmp(tmpvar->value, "BUSY")) {
+						cw_copy_string(status, tmpvar->value, sizeof(status));
 						res = -1;
 					}
-					else if (!strcasecmp(proc_result, "CONGESTION") || !strcasecmp(proc_result, "CHANUNAVAIL")) {
-						cw_copy_string(status, proc_result, sizeof(status));
+					else if (!strcasecmp(tmpvar->value, "CONGESTION") || !strcasecmp(tmpvar->value, "CHANUNAVAIL")) {
+						cw_copy_string(status, tmpvar->value, sizeof(status));
 						cw_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
 					}
-					else if (!strcasecmp(proc_result, "CONTINUE")) {
+					else if (!strcasecmp(tmpvar->value, "CONTINUE")) {
 						/* hangup peer and keep chan alive assuming the proc has changed 
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
 						*/
 						cw_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
-					} else if (!strcasecmp(proc_result, "ABORT")) {
+					} else if (!strcasecmp(tmpvar->value, "ABORT")) {
 						/* Hangup both ends unless the caller has the g flag */
 						res = -1;
-					} else if (!strncasecmp(proc_result, "GOTO:",5) && (proc_transfer_dest = cw_strdupa(proc_result + 5))) {
+					} else if (!strncasecmp(tmpvar->value, "GOTO:",5) && (proc_transfer_dest = cw_strdupa(tmpvar->value + 5))) {
 						res = -1;
 						/* perform a transfer to a new extension */
 						if (strchr(proc_transfer_dest,'^')) { /* context^exten^priority*/
@@ -1548,6 +1578,8 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 
 						}
 					}
+
+					cw_object_put(tmpvar);
 				}
 			}
 		}
@@ -1578,11 +1610,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		}
 		
 		if (!res) {
-			memset(&config,0,sizeof(struct cw_bridge_config));
-			if (play_to_caller)
-				cw_set_flag(&(config.features_caller), CW_FEATURE_PLAY_WARNING);
-			if (play_to_callee)
-				cw_set_flag(&(config.features_callee), CW_FEATURE_PLAY_WARNING);
 			if (cw_test_flag(peerflags, DIAL_ALLOWREDIRECT_IN))
 				cw_set_flag(&(config.features_callee), CW_FEATURE_REDIRECT);
 			if (cw_test_flag(peerflags, DIAL_ALLOWREDIRECT_OUT))
@@ -1599,9 +1626,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
 			config.warning_freq = warning_freq;
-			config.warning_sound = warning_sound;
-			config.end_sound = end_sound;
-			config.start_sound = start_sound;
 			if (moh) {
 				moh = 0;
 				cw_moh_stop(chan);
@@ -1616,8 +1640,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			if (res < 0) {
 				cw_log(CW_LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
 				cw_hangup(peer);
-				LOCAL_USER_REMOVE(u);
-				return -1;
+				goto out;
 			}
 			res = cw_bridge_call(chan,peer,&config);
 			time(&end_time);
@@ -1634,7 +1657,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				chan->hangupcause = peer->hangupcause;
 			cw_hangup(peer);
 		}
-	}	
+	}
 out:
 	if (moh) {
 		moh = 0;
@@ -1643,15 +1666,23 @@ out:
 		sentringing = 0;
 		cw_indicate(chan, -1);
 	}
+
 	hanguptree(outgoing, NULL);
+
+	if (config.start_sound)
+		free(config.start_sound);
+	if (config.end_sound)
+		free(config.end_sound);
+	if (config.warning_sound)
+		free(config.warning_sound);
+
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	cw_log(CW_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
-	
+
 	if ((cw_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != CW_PBX_KEEPALIVE))
-		res=0;
+		res = 0;
 
 	LOCAL_USER_REMOVE(u);
-
 	return res;
 }
 
@@ -1664,7 +1695,8 @@ static int dial_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 
 static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char *announce = NULL, *context = NULL;
+	struct cw_var_t *context;
+	char *announce = NULL;
 	int sleep = 0, loops = 0, res = 0;
 	struct localuser *u;
 	struct cw_flags peerflags;
@@ -1683,8 +1715,8 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 	argv += 3;
 	argc -= 3;
 
-	context = pbx_builtin_getvar_helper(chan, "EXITCONTEXT");
-	
+	context = pbx_builtin_getvar_helper(chan, CW_KEYWORD_EXITCONTEXT, "EXITCONTEXT");
+
 	while (loops) {
 		if (cw_test_flag(chan, CW_FLAG_MOH))
 			cw_moh_stop(chan);
@@ -1713,14 +1745,17 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 		if (res < 0)
 			break;
 		else if (res > 0) { /* Trying to send the call elsewhere (1 digit ext) */
-			if (onedigit_goto(chan, context, (char) res)) {
+			if (onedigit_goto(chan, context->value, (char) res)) {
 				res = 0;
 				break;
 			}
 		}
 		loops--;
 	}
-	
+
+	if (context)
+		cw_object_put(context);
+
 	if (cw_test_flag(chan, CW_FLAG_MOH))
 		cw_moh_stop(chan);
 

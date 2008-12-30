@@ -107,7 +107,7 @@ static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char
 	char category[80] = "";
 	char ret[80] = "";
 	struct localuser *u;
-	char *grp;
+	struct cw_var_t *var;
 	int res = 0;
 	int count;
 
@@ -124,8 +124,10 @@ static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char
 	cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
 	if (cw_strlen_zero(group)) {
-		grp = pbx_builtin_getvar_helper(chan, category);
-		strncpy(group, grp, sizeof(group) - 1);
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(category), category))) {
+			strncpy(group, var->value, sizeof(group) - 1);
+			cw_object_put(var);
+		}
 	}
 
 	count = cw_app_group_get_count(group, category);
@@ -199,6 +201,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 	char limit[80]="";
 	char category[80]="";
 	struct localuser *u;
+	struct cw_var_t *var;
 	int res = 0;
 	int max, count;
 
@@ -215,7 +218,11 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
   	cw_app_group_split_group(argv[0], limit, sizeof(limit), category, sizeof(category));
 
  	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
-		count = cw_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
+		count = 0;
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(category), category))) {
+			count = cw_app_group_get_count(var->value, category);
+			cw_object_put(var);
+		}
 		if (count > max) {
 			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "OK");
 		} else {
@@ -228,54 +235,72 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 	return res;
 }
 
-static int group_show_channels(int fd, int argc, char *argv[])
-{
+
+struct group_show_channels_args {
+	struct cw_channel *chan;
+	struct cw_var_t *var;
+	int havepattern;
+	int fd;
+	int numchans;
+	regex_t regexbuf;
+};
+
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-	struct cw_channel *c = NULL;
-	int numchans = 0;
-	struct cw_var_t *current;
-	struct varshead *headp;
-	regex_t regexbuf;
-	int havepattern = 0;
+static int group_show_channels_one(struct cw_registry_entry *entry, void *data)
+{
+	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct group_show_channels_args *args = data;
+	const char *name = cw_var_name(var);
+
+	if (!strncmp(name, GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX) - 1 + 1)) {
+		if (!args->havepattern || !regexec(&args->regexbuf, var->value, 0, NULL, 0)) {
+			cw_cli(args->fd, FORMAT_STRING, args->chan->name, var->value,
+				(name + sizeof(GROUP_CATEGORY_PREFIX) - 1 + 1));
+			args->numchans++;
+		}
+	} else if (!strcmp(name, GROUP_CATEGORY_PREFIX)) {
+		if (!args->havepattern || !regexec(&args->regexbuf, var->value, 0, NULL, 0)) {
+			cw_cli(args->fd, FORMAT_STRING, args->chan->name, var->value, "(default)");
+			args->numchans++;
+		}
+	}
+
+	return 0;
+}
+
+static int group_show_channels(int fd, int argc, char *argv[])
+{
+	struct group_show_channels_args args = {
+		.havepattern = 0,
+		.fd = fd,
+		.numchans = 0,
+	};
+	struct cw_channel *chan = NULL;
 
 	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (argc == 4) {
-		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+		if (regcomp(&args.regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
 			return RESULT_SHOWUSAGE;
-		havepattern = 1;
+		args.havepattern = 1;
 	}
 
 	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
-	while ( (c = cw_channel_walk_locked(c)) != NULL) {
-		headp=&c->varshead;
-		CW_LIST_TRAVERSE(headp,current,entries) {
-			if (!strncmp(cw_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-				if (!havepattern || !regexec(&regexbuf, cw_var_value(current), 0, NULL, 0)) {
-					cw_cli(fd, FORMAT_STRING, c->name, cw_var_value(current),
-						(cw_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
-					numchans++;
-				}
-			} else if (!strcmp(cw_var_name(current), GROUP_CATEGORY_PREFIX)) {
-				if (!havepattern || !regexec(&regexbuf, cw_var_value(current), 0, NULL, 0)) {
-					cw_cli(fd, FORMAT_STRING, c->name, cw_var_value(current), "(default)");
-					numchans++;
-				}
-			}
-		}
-		numchans++;
-		cw_mutex_unlock(&c->lock);
+
+	while ( (args.chan = cw_channel_walk_locked(args.chan)) != NULL) {
+		cw_registry_iterate(&chan->vars, group_show_channels_one, &args);
+		cw_mutex_unlock(&chan->lock);
 	}
 
-	if (havepattern)
-		regfree(&regexbuf);
+	if (args.havepattern)
+		regfree(&args.regexbuf);
 
-	cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	cw_cli(fd, "%d active channel%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
-#undef FORMAT_STRING
 }
+#undef FORMAT_STRING
 
 
 static char show_channels_usage[] =

@@ -89,6 +89,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/localtime.h"
 #include "callweaver/udpfromto.h"
 #include "callweaver/stun.h"
+#include "callweaver/keywords.h"
 
 #ifdef OSP_SUPPORT
 #include "callweaver/astosp.h"
@@ -613,15 +614,15 @@ struct sip_pkt;
 
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
-    char *distinctive_ring;    /*!< Distinctive ring header */
-    char *osptoken;        /*!< OSP token for this call */
-    int addsipheaders;    /*!< Add extra SIP headers */
-    char *uri_options;    /*!< URI options to add to the URI */
-    char *vxml_url;        /*!< VXML url for Cisco phones */
+    struct cw_var_t *distinctive_ring;    /*!< Distinctive ring header */
+    struct cw_var_t *uri_options;    /*!< URI options to add to the URI */
+    struct cw_var_t *vxml_url;        /*!< VXML url for Cisco phones */
     char *auth;        /*!< Authentication */
     char *authheader;    /*!< Auth header */
     enum sip_auth_type auth_type;    /*!< Authentication type */
-    int t38txdetection;    /*!< Detect outgoing fax CNG */
+#ifdef OSP_SUPPORT
+    struct cw_var_t *osptoken;        /*!< OSP token for this call */
+#endif
 };
 
 struct sip_route {
@@ -2908,13 +2909,10 @@ static int sip_call(struct cw_channel *ast, char *dest)
     int res;
     struct sip_pvt *p;
 #ifdef OSP_SUPPORT
-    char *osphandle = NULL;
+    struct cw_var_t *osphandle = NULL;
 #endif    
-    struct varshead *headp;
-    struct cw_var_t *current;
+    struct cw_object *obj;
 
-
-    
     p = ast->tech_pvt;
     if ((ast->_state != CW_STATE_DOWN) && (ast->_state != CW_STATE_RESERVED))
     {
@@ -2922,67 +2920,44 @@ static int sip_call(struct cw_channel *ast, char *dest)
         return -1;
     }
 
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_ALERT_INFO, "ALERT_INFO")))
+        p->options->distinctive_ring = container_of(obj, struct cw_var_t, obj);
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_VXML_URL, "VXML_URL")))
+        p->options->vxml_url = container_of(obj, struct cw_var_t, obj);
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_SIP_URI_OPTIONS, "SIP_URI_OPTIONS")))
+        p->options->uri_options = container_of(obj, struct cw_var_t, obj);
 
-    /* Check whether there is vxml_url, distinctive ring variables */
-
-    headp=&ast->varshead;
-    CW_LIST_TRAVERSE(headp,current,entries)
-    {
-        /* Check whether there is a VXML_URL variable */
-        if (!p->options->vxml_url && !strcasecmp(cw_var_name(current), "VXML_URL"))
-        {
-            p->options->vxml_url = cw_var_value(current);
-               }
-        else if (!p->options->uri_options && !strcasecmp(cw_var_name(current), "SIP_URI_OPTIONS"))
-        {
-                       p->options->uri_options = cw_var_value(current);
-        }
-        else if (!p->options->distinctive_ring  &&  !strcasecmp(cw_var_name(current), "ALERT_INFO"))
-        {
-            /* Check whether there is a ALERT_INFO variable */
-            p->options->distinctive_ring = cw_var_value(current);
-        }
-        else if (!p->options->addsipheaders  &&  !strncasecmp(cw_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER")))
-        {
-            /* Check whether there is a variable with a name starting with SIPADDHEADER */
-            p->options->addsipheaders = 1;
-        }
-        else if (!p->options->t38txdetection  &&  !strncasecmp(cw_var_name(current), "T38TXDETECT", strlen("T38TXDETECT")))
-        {
-            /* Check whether there is a variable with a name starting with SIPADDHEADER */
-            p->options->t38txdetection = 1;
-        }
-        else if (!strncasecmp(cw_var_name(current), "T38CALL", strlen("T38CALL")))
-        {
-            /* Check whether there is a variable with a name starting with T38CALL */
-            p->t38state = SIP_T38_OFFER_SENT_DIRECT;
-            cw_log(CW_LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
-        }
-        
-#ifdef OSP_SUPPORT
-        else if (!p->options->osptoken && !strcasecmp(cw_var_name(current), "OSPTOKEN"))
-        {
-            p->options->osptoken = cw_var_value(current);
-        }
-        else if (!osphandle && !strcasecmp(cw_var_name(current), "OSPHANDLE"))
-        {
-            osphandle = cw_var_value(current);
-        }
-#endif
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_T38CALL, "T38CALL"))) {
+        cw_object_put_obj(obj);
+        p->t38state = SIP_T38_OFFER_SENT_DIRECT;
+        cw_log(CW_LOG_DEBUG, "%s: T38State change to %d\n", ast->name, SIP_T38_OFFER_SENT_DIRECT);
     }
-    
-    res = 0;
-    cw_set_flag(p, SIP_OUTGOING);
+
 #ifdef OSP_SUPPORT
-    if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1))
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_OSPTOKEN, "OSPTOKEN")))
+        p->options->osptoken = container_of(obj, struct cw_var_t, obj);
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_OSPHANDLE, "OSPHANDLE")))
+        osphandle = container_of(obj, struct cw_var_t, obj);
+
+    if (!p->options->osptoken || !osphandle || (sscanf(osphandle->value, "%d", &p->osphandle) != 1))
     {
         /* Force Disable OSP support */
-        cw_log(CW_LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
+        cw_log(CW_LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n",
+            (p->options->osptoken ? p->options->osptoken->value : "missing"),
+            (osphandle ? osphandle->value : "missing"));
+
+        if (p->options->osptoken)
+            cw_object_put(p->options->osptoken);
+
         p->options->osptoken = NULL;
-        osphandle = NULL;
         p->osphandle = -1;
     }
+    if (osphandle)
+        cw_object_put(osphandle);
 #endif
+
+    res = 0;
+    cw_set_flag(p, SIP_OUTGOING);
     cw_log(CW_LOG_DEBUG, "Outgoing Call for %s\n", p->username);
     res = update_call_counter(p, INC_CALL_LIMIT);
     if (res != -1)
@@ -3035,8 +3010,19 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
     if (dumphistory)
         sip_dump_history(p);
 
-    if (p->options)
+    if (p->options) {
+        if (p->options->distinctive_ring)
+            cw_object_put(p->options->distinctive_ring);
+        if (p->options->vxml_url)
+            cw_object_put(p->options->vxml_url);
+        if (p->options->uri_options)
+            cw_object_put(p->options->uri_options);
+#ifdef OSP_SUPPORT
+        if (p->options->osptoken)
+            cw_object_put(p->options->osptoken);
+#endif
         free(p->options);
+    }
 
     if (p->stateid > -1)
         cw_extension_state_del(p->stateid, NULL);
@@ -3472,23 +3458,24 @@ static int sip_hangup(struct cw_channel *ast)
 /*! \brief Try setting codec suggested by the SIP_CODEC channel variable */
 static void try_suggested_sip_codec(struct sip_pvt *p)
 {
+	struct cw_var_t *var;
 	int fmt;
-	char *codec;
 
-	codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
-	if (!codec) 
+	if (!(var = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_SIP_CODEC, "SIP_CODEC")))
 		return;
 
-	fmt = cw_getformatbyname(codec);
+	fmt = cw_getformatbyname(var->value);
 	if (fmt) {
-		cw_log(CW_LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
+		cw_log(CW_LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",var->value);
 		if (p->jointcapability & fmt) {
 			p->jointcapability &= fmt;
 			p->capability &= fmt;
 		} else
 			cw_log(CW_LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
 	} else
-		cw_log(CW_LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
+		cw_log(CW_LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n", var->value);
+
+	cw_object_put(var);
 	return;	
 }
 
@@ -4771,32 +4758,34 @@ static int find_sdp(struct sip_request *req)
 /*! \brief  process_sdp: Process SIP SDP and activate RTP channels */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
+    char host[258];
+    char s[256];
+    char iabuf[INET_ADDRSTRLEN];
+    struct sockaddr_in sin;
+    struct cw_hostent ahp;
     char *m;
     char *c;
     char *a;
-    char host[258];
-    char iabuf[INET_ADDRSTRLEN];
+    char *codecs;
+    struct hostent *hp;
+    struct cw_channel *bridgepeer = NULL;
+    struct cw_var_t *var;
     int len = -1;
     int portno = -1;
     int vportno = -1;
     int peercapability, peernoncodeccapability;
     int vpeercapability=0, vpeernoncodeccapability=0;
-    struct sockaddr_in sin;
-    char *codecs;
-    struct hostent *hp;
-    struct cw_hostent ahp;
     int codec;
     int destiterator = 0;
     int iterator;
     int sendonly = 0;
     int x,y;
     int debug=sip_debug_test_pvt(p);
-    struct cw_channel *bridgepeer = NULL;
     int ec_found;
     int udptlportno = -1;
     int peert38capability = 0;
-    char s[256];
     int old = 0;
+    int t38_disabled;
 
     if (!p->rtp)
     {
@@ -4856,9 +4845,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
 	
-	char *t38_disabled = pbx_builtin_getvar_helper(p->owner, "T38_DISABLE");
+	t38_disabled = 0;
+	if ((var = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_T38_DISABLE, "T38_DISABLE"))) {
+		t38_disabled = 1;
+		cw_object_put(var);
+	}
 
-        if (p->udptl && t38udptlsupport && (t38_disabled == NULL)
+        if (p->udptl && t38udptlsupport && !t38_disabled
             && 
                 ((sscanf(m, "image %d udptl t38 %n", &x, &len) == 1)
                 ||
@@ -4873,7 +4866,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
             cw_log(CW_LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
             cw_rtp_set_active(p->rtp, 0);
-    	    if (t38udptlsupport && p->udptl && (t38_disabled == NULL) ) {
+	    if (t38udptlsupport && p->udptl && !t38_disabled ) {
         	cw_udptl_set_active(p->udptl, 1);
     		p->udptl_active = 1;
 		cw_channel_set_t38_status(p->owner,T38_NEGOTIATED);
@@ -6980,13 +6973,13 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
 
     /* If custom URI options have been provided, append them */
     if (p->options && p->options->uri_options)
-        cw_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
+        cw_build_string(&invite, &invite_max, ";%s", p->options->uri_options->value);
 
     cw_copy_string(p->uri, invite_buf, sizeof(p->uri));
 
     /* If there is a VXML URL append it to the SIP URL */
     if (p->options && p->options->vxml_url)
-        snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+        snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url->value);
     else
         snprintf(to, sizeof(to), "<%s>", p->uri);
 
@@ -6995,7 +6988,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
 	snprintf(to, sizeof(to), "<sip:%s>;tag=%s", p->uri, p->theirtag);
     } else if (p->options && p->options->vxml_url) {
 	/* If there is a VXML URL append it to the SIP URL */
-	snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+	snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url->value);
     } else {
     	snprintf(to, sizeof(to), "<%s>", p->uri);
     }
@@ -7060,65 +7053,52 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
             add_header(&req, "Referred-By", p->referred_by, SIP_DL_DONTCARE);
     }
 #ifdef OSP_SUPPORT
-    if ((req.method != SIP_OPTIONS) && p->options && !cw_strlen_zero(p->options->osptoken))
+    if (req.method != SIP_OPTIONS && p->options && p->options->osptoken && !cw_strlen_zero(p->options->osptoken->value))
     {
-        cw_log(CW_LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
-        add_header(&req, "P-OSP-Auth-Token", p->options->osptoken, SIP_DL_DONTCARE);
+        cw_log(CW_LOG_DEBUG, "Adding OSP Token: %s\n", p->options->osptoken->value);
+        add_header(&req, "P-OSP-Auth-Token", p->options->osptoken->value, SIP_DL_DONTCARE);
     }
 #endif
-    if (p->options && !cw_strlen_zero(p->options->distinctive_ring))
+    if (p->options && p->options->distinctive_ring && !cw_strlen_zero(p->options->distinctive_ring->value))
     {
-        add_header(&req, "Alert-Info", p->options->distinctive_ring, SIP_DL_DONTCARE);
+        add_header(&req, "Alert-Info", p->options->distinctive_ring->value, SIP_DL_DONTCARE);
     }
     add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
-    if (p->options && p->options->addsipheaders )
+    if (p->owner)
     {
-        struct cw_channel *chan;
-        char *header = (char *) NULL;
-        char *content = (char *) NULL;
-        char *end = (char *) NULL;
-        struct varshead *headp = (struct varshead *) NULL;
-        struct cw_var_t *current;
+        char buf[] = "SIPADDHEADER0\000";
+        struct cw_object *obj;
+        int i = 1;
 
-        chan = p->owner;    /* The owner channel */
-        if (chan)
-        {
-            char *headdup;
+        while ((obj = cw_registry_find(&p->owner->vars, 1, cw_hash_var_name(buf), buf))) {
+            struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
+            char *headdup = cw_strdupa(var->value);
+            char *content, *end;
 
-            headp = &chan->varshead;
-            if (!headp)
-                cw_log(CW_LOG_WARNING,"No Headp for the channel...ooops!\n");
-            else
+            cw_object_put_obj(obj);
+
+            /* Strip of the starting " (if it's there) */
+            if (*headdup == '"')
+                 headdup++;
+            if ((content = strchr(headdup, ':')))
             {
-                CW_LIST_TRAVERSE(headp, current, entries)
-                { 
-                    /* SIPADDHEADER: Add SIP header to outgoing call        */
-                    if (!strncasecmp(cw_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER")))
-                    {
-                        header = cw_var_value(current);
-                        headdup = cw_strdupa(header);
-                        /* Strip of the starting " (if it's there) */
-                        if (*headdup == '"')
-                             headdup++;
-                        if ((content = strchr(headdup, ':')))
-                        {
-                            *content = '\0';
-                            content++;    /* Move pointer ahead */
-                            /* Skip white space */
-                            while (*content == ' ')
-                                  content++;
-                            /* Strip the ending " (if it's there) */
-                             end = content + strlen(content) -1;    
-                            if (*end == '"')
-                                *end = '\0';
-                        
-                            add_header(&req, headdup, content, SIP_DL_DONTCARE);
-                            if (sipdebug)
-                                cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
-                        }
-                    }
-                }
+                *content = '\0';
+                content++;    /* Move pointer ahead */
+                /* Skip white space */
+                while (*content == ' ')
+                      content++;
+                /* Strip the ending " (if it's there) */
+                end = content + strlen(content) - 1;
+                if (*end == '"')
+                    *end = '\0';
+
+                add_header(&req, headdup, content, SIP_DL_DONTCARE);
+
+                if (sipdebug)
+                    cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
             }
+
+            sprintf(buf + sizeof(buf) - 2, "%.2d", i++);
         }
     }
     if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
@@ -9033,9 +9013,8 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 }
 
 /*! \brief  get_refer_info: Call transfer support (the REFER method) */
-static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req, char **transfercontext)
+static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req, const char *transfercontext)
 {
-
     char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
     char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL;
     struct sip_request *req = NULL;
@@ -9128,13 +9107,9 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
             *ptr = '\0';
     }
 
-    *transfercontext = pbx_builtin_getvar_helper(sip_pvt->owner, "TRANSFER_CONTEXT");
-    if (cw_strlen_zero(*transfercontext))
-        *transfercontext = sip_pvt->context;
-
     if (sip_debug_test_pvt(sip_pvt))
     {
-        cw_verbose("Transfer to %s in %s\n", refer_to, *transfercontext);
+        cw_verbose("Transfer to %s in %s\n", refer_to, transfercontext);
         if (referred_by)
             cw_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
     }
@@ -9170,7 +9145,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
             /* The only way to find out is to use the dialplan - oej */
         }
     }
-    else if (cw_exists_extension(NULL, *transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, cw_parking_ext()))
+    else if (cw_exists_extension(NULL, transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, cw_parking_ext()))
     {
         /* This is an unsupervised transfer (blind transfer) */
         
@@ -9195,7 +9170,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
         }
         return 0;
     }
-    else if (cw_canmatch_extension(NULL, *transfercontext, refer_to, 1, NULL))
+    else if (cw_canmatch_extension(NULL, transfercontext, refer_to, 1, NULL))
     {
         return 1;
     }
@@ -13584,15 +13559,17 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
     struct cw_channel *c=NULL;
     int res;
     struct cw_channel *transfer_to;
-    char *transfercontext = NULL;
+    struct cw_var_t *transfercontext;
 
     if (option_debug > 2)
         cw_log(CW_LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
-    res = get_refer_info(p, req, &transfercontext);
+
+    transfercontext = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_TRANSFER_CONTEXT, "TRANSFER_CONTEXT");
+    res = get_refer_info(p, req, (transfercontext ? transfercontext->value : p->context));
+
     if (cw_strlen_zero(p->context))
         strcpy(p->context, default_context);
-    if (cw_strlen_zero(transfercontext))
-        transfercontext = p->context;
+
     if (res < 0)
         transmit_response(p, "603 Declined", req);
     else if (res > 0)
@@ -13639,7 +13616,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                                 be accessible after the transfer! */
                             *nounlock = 1;
                             cw_mutex_unlock(&c->lock);
-                            cw_async_goto_n(transfer_to, transfercontext, p->refer_to, 1);
+                            cw_async_goto_n(transfer_to, (transfercontext ? transfercontext->value : p->context), p->refer_to, 1);
                         }
                     }
                     else
@@ -13660,6 +13637,10 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
             }
         }
     }
+
+    if (transfercontext)
+        cw_object_put(transfercontext);
+
     return res;
 }
 /*! \brief  handle_request_cancel: Handle incoming CANCEL request */
@@ -16825,15 +16806,16 @@ static char sipt38switchover_description[] = ""
 static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
-    
-    char *tmp_var = NULL;
+    struct cw_var_t *var;
 
-    cw_mutex_lock(&chan->lock);
-    if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
-        cw_mutex_unlock(&chan->lock);
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_T38_DISABLE, "T38_DISABLE"))) {
+        cw_object_put(var);
         cw_log(CW_LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         return 0;
     }
+
+    cw_mutex_lock(&chan->lock);
+
     if (chan->type != channeltype)
     {
         cw_log(CW_LOG_WARNING, "This function can only be used on SIP channels.\n");
@@ -17029,7 +17011,7 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *bu
 static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     char varbuf[128];
-    char *content = (char *) NULL;
+    struct cw_var_t *var;
     int no = 0;
     int ok = 0;
     
@@ -17039,18 +17021,16 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
     cw_mutex_lock(&chan->lock);
 
     /* Check for headers */
-    while (!ok  &&  no <= 50)
+    for (no = 1; no <= 50; no++)
     {
-        no++;
         snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%.2d", no);
-        content = pbx_builtin_getvar_helper(chan, varbuf);
-
-        if (!content)
-            ok = 1;
+        if (!(var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varbuf), varbuf)))
+            break;
+        cw_object_put(var);
     }
-    if (ok)
+    if (no <= 50)
     {
-        pbx_builtin_setvar_helper (chan, varbuf, argv[0]);
+        pbx_builtin_setvar_helper(chan, varbuf, argv[0]);
         if (sipdebug)
             cw_log(CW_LOG_DEBUG,"SIP Header added \"%s\" as %s\n", argv[0], varbuf);
     }
@@ -17058,6 +17038,7 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
     {
         cw_log(CW_LOG_WARNING, "Too many SIP headers added, max 50\n");
     }
+
     cw_mutex_unlock(&chan->lock);
     return 0;
 }

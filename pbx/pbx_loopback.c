@@ -86,24 +86,19 @@ static const char tdesc[] = "Loopback Switch";
 
 static char *loopback_helper(char *buf, int buflen, const char *exten, const char *context, int priority, const char *data)
 {
-	struct cw_var_t *newvariable;
-	struct varshead headp;
 	char tmp[80];
+	struct cw_registry reg;
 
+	cw_var_registry_init(&reg, 8);
 	snprintf(tmp, sizeof(tmp), "%d", priority);
-	CW_LIST_HEAD_INIT_NOLOCK(&headp);
-	newvariable = cw_var_assign("EXTEN", exten);
-	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = cw_var_assign("CONTEXT", context);
-	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = cw_var_assign("PRIORITY", tmp);
-	CW_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
-	/* Substitute variables */
-	while (!CW_LIST_EMPTY(&headp)) {           /* List Deletion. */
-		newvariable = CW_LIST_REMOVE_HEAD(&headp, entries);
-		cw_var_delete(newvariable);
-	}
+	cw_var_assign(&reg, "EXTEN", exten);
+	cw_var_assign(&reg, "CONTEXT", context);
+	cw_var_assign(&reg, "PRIORITY", tmp);
+
+	pbx_substitute_variables_varshead(&reg, data, buf, buflen);
+
+	cw_registry_destroy(&reg);
+
 	return buf;
 }
 

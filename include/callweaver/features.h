@@ -32,6 +32,7 @@
 
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
+#include "callweaver/linkedlists.h"
 
 /*! \brief main call feature structure */
 struct cw_call_feature {

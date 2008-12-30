@@ -23,28 +23,79 @@
 #ifndef _CALLWEAVER_CHANVARS_H
 #define _CALLWEAVER_CHANVARS_H
 
-#include "callweaver/linkedlists.h"
+#include "callweaver/atomic.h"
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/callweaver_hash.h"
+
 
 struct cw_var_t {
-	CW_LIST_ENTRY(cw_var_t) entries;
-	// added 'hash' to accommodate hash based system to recognise identifiers
+	struct cw_object obj;
+	struct cw_registry_entry *reg_entry;
 	unsigned int hash;
-	char *value;
-	char name[0];
+	const char *value;
+	const char name[0];
 };
 
-CW_LIST_HEAD_NOLOCK(varshead, cw_var_t);
+
+extern const struct cw_object_isa cw_object_isa_var;
+extern struct cw_registry var_registry;
 
 
-#define cw_hash_var_name(x)	cw_hash_string(x)
+extern int cw_var_registry_init(struct cw_registry *reg, int estsize);
 
 
-extern struct cw_var_t *cw_var_assign(const char *name, const char *value);
-extern void cw_var_delete(struct cw_var_t *var);
-extern char *cw_var_name(struct cw_var_t *var);
-extern char *cw_var_full_name(struct cw_var_t *var);
-extern char *cw_var_value(struct cw_var_t *var);
+static inline __attribute__ ((pure)) unsigned int cw_hash_var_name(const char *name)
+{
+	return cw_hash_string(name[0] == '_' ? (name[1] == '_' ? &name[2] : &name[1]) : name);
+}
+
+
+extern struct cw_var_t *cw_var_new(const char *name, const char *value, int refs);
+extern int cw_var_assign(struct cw_registry *registry, const char *name, const char *value);
 
 #define cw_var_hash(v) (v ? v->hash : 0)
+
+static inline __attribute__ ((pure)) const char *cw_var_name(struct cw_var_t *var)
+{
+	if (var == NULL)
+		return NULL;
+	if (var->name == NULL)
+		return NULL;
+	/* Return the name without the initial underscores */
+	return (var->name[0] == '_' ? (var->name[1] == '_' ? &var->name[2] : &var->name[1]) : var->name);
+}
+
+static inline __attribute__ ((pure)) const char *cw_var_full_name(struct cw_var_t *var)
+{
+	return (var ? var->name : NULL);
+}
+
+
+/*!\brief Inherit variables
+ * \param src  Variable registry to copy from
+ * \param dst  Variable registry to copy to
+ *
+ * Scans all variables in the source registry, looking for those
+ * that should be copied into the destination registry.
+ * Variables whose names begin with a single '_' are copied into the
+ * destination with the prefix removed.
+ * Variables whose names begin with '__' are copied into the destination
+ * with their names unchanged.
+ *
+ * \return 0 if no error
+ */
+extern int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst);
+
+/*!\brief Inherit variables
+ * \param src  Variable registry to copy from
+ * \param dst  Variable registry to copy to
+ *
+ * Copies all variables in the source registry into the destination
+ * registry.
+ *
+ * \return 0 if no error
+ */
+extern int cw_var_copy(struct cw_registry *src, struct cw_registry *dst);
 
 #endif /* _CALLWEAVER_CHANVARS_H */

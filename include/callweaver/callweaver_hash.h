@@ -73,7 +73,7 @@
  *
  * \return 0 if 'string' is a zero-length string or NULL.
  */
-static inline unsigned int cw_hash_string(const char *string)
+static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *string)
 {
 	unsigned int hash;
 

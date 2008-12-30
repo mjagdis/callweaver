@@ -86,20 +86,12 @@ static int execif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	LOCAL_USER_ADD(u);
 
 	if (cw_true(argv[0]))
-		res = cw_function_exec(chan, cw_hash_app_name(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
+		res = cw_function_exec(chan, cw_hash_string(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
 		
 	ALL_DONE(u,res);
 }
 
 #define VAR_SIZE 64
-
-
-static char *get_index(struct cw_channel *chan, const char *prefix, int index) {
-	char varname[VAR_SIZE];
-
-	snprintf(varname, VAR_SIZE, "%s_%d", prefix, index);
-	return pbx_builtin_getvar_helper(chan, varname);
-}
 
 static struct cw_exten *find_matching_priority(struct cw_context *c, const char *exten, int priority, const char *callerid)
 {
@@ -207,16 +199,15 @@ static int find_matching_endwhile(struct cw_channel *chan)
 
 static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max, int end)
 {
-	int res=0;
+	char used_index[VAR_SIZE] = "-1", new_index[VAR_SIZE];
+	char varname[VAR_SIZE], end_varname[VAR_SIZE];
 	struct localuser *u;
-	char *while_pri = NULL;
+	struct cw_var_t *while_pri, *var;
 	char *goto_str = NULL, *my_name = NULL;
 	char *label = NULL;
-	char varname[VAR_SIZE], end_varname[VAR_SIZE];
-	const char *prefix = "WHILE";
 	size_t size=0;
-	int used_index_i = -1, x=0;
-	char used_index[VAR_SIZE] = "0", new_index[VAR_SIZE] = "0";
+	int x;
+	int res = 0;
 
 	if (!end && argc != 1)
 		return cw_function_syntax(while_syntax);
@@ -234,35 +225,36 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	if (cw_waitfordigit(chan,1) < 0)
 		ALL_DONE(u,-1);
 
+	x = 0;
+	do {
+		snprintf(new_index, VAR_SIZE, "WHILE_%d", x);
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(new_index), new_index))) {
+			cw_object_put(var);
+			x++;
+		}
+	} while (var);
 
-	for (x=0;;x++) {
-		if (get_index(chan, prefix, x)) {
-			used_index_i = x;
-		} else 
-			break;
-	}
-	
-	snprintf(used_index, VAR_SIZE, "%d", used_index_i);
-	snprintf(new_index, VAR_SIZE, "%d", used_index_i + 1);
-	
+	snprintf(used_index, VAR_SIZE, "%d", x - 1);
+
 	size = strlen(chan->context) + strlen(chan->exten) + 32;
 	my_name = alloca(size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
+	var = NULL;
 	if (cw_strlen_zero(label)) {
 		if (end) 
 			label = used_index;
-		else if (!(label = pbx_builtin_getvar_helper(chan, my_name))) {
+		else if (!(var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(my_name), my_name))) {
 			label = new_index;
 			pbx_builtin_setvar_helper(chan, my_name, label);
 		}
 		
 	}
-	
-	snprintf(varname, VAR_SIZE, "%s_%s", prefix, label);
-	while_pri = pbx_builtin_getvar_helper(chan, varname);
-	
-	if ((while_pri = pbx_builtin_getvar_helper(chan, varname)) && !end) {
+
+	snprintf(varname, VAR_SIZE, "WHILE_%s", (var ? var-> value : label));
+	if (var)
+		cw_object_put(var);
+	if ((while_pri = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varname), varname)) && !end) {
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
 	}
 	
@@ -272,9 +264,10 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
-		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(end_varname), end_varname))) {
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
-			cw_parseable_goto(chan, goto_str);
+			cw_parseable_goto(chan, var->value);
+			cw_object_put(var);
 		} else {
 			int pri = find_matching_endwhile(chan);
 			if (pri > 0) {
@@ -298,17 +291,17 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	else if (end && while_pri) {
 		/* END of loop */
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
-		if (! pbx_builtin_getvar_helper(chan, end_varname)) {
+		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(end_varname), end_varname))) {
+			cw_object_put(var);
+		} else {
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
 			goto_str = alloca(size);
 			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
-		cw_parseable_goto(chan, while_pri);
+		cw_parseable_goto(chan, while_pri->value);
+		cw_object_put(while_pri);
 	}
-	
-
-
 
 	ALL_DONE(u, res);
 }

@@ -8398,17 +8398,18 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 {
 	char odata[256];
 	char req[256];
+	struct cw_var_t *var;
 	char *ncontext;
-	char *dialstatus;
 	struct iax2_dpcache *dp;
 #if 0
 	cw_log(CW_LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
-		dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
-		if (dialstatus)
-			cw_function_exec_str(chan, cw_hash_app_name(dialstatus), dialstatus, "", NULL, 0);
+		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_DIALSTATUS, "DIALSTATUS"))) {
+			cw_function_exec_str(chan, var->hash, var->value, "", NULL, 0);
+			cw_object_put(var);
+		}
 		return -1;
 	} else if (priority != 1)
 		return -1;

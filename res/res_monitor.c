@@ -49,6 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/utils.h"
 #include "callweaver/config.h"
+#include "callweaver/keywords.h"
 
 CW_MUTEX_DEFINE_STATIC(monitorlock);
 
@@ -228,11 +229,6 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 {
-	char *execute;
-	char *execute_args;
-    int explicit_file_type;
-	int delfiles = 0;
-
 	if (need_lock) {
 		if (cw_mutex_lock(&chan->lock)) {
 			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
@@ -279,46 +275,32 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : cw_config_CW_MONITOR_DIR;
+			struct cw_var_t *execute;
+			struct cw_var_t *execute_args;
 
-			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
-			if (execute_args == NULL  ||  execute_args[0] == '\0')
-				execute_args = "";
-			/* Set the execute application */
-			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
-            explicit_file_type = FALSE;
-			if (execute == NULL  ||  execute[0] == '\0')
-            { 
-				execute = "nice -n 19 soxmix";
-				delfiles = 1;
-                /* Explicitly specify the file type, so file names with multiple '.'
-                   characters don't confuse things. */
-                explicit_file_type = TRUE;
-			}
-			snprintf(tmp,
-                     sizeof(tmp),
-                     "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" %s%s \"%s/%s.%s\" %s &",
-                     execute,
-                     dir,
-                     name,
-                     format,
-                     dir,
-                     name,
-                     format,
-                     (explicit_file_type)  ?  "-t "  :  "",
-                     (explicit_file_type)  ?  format  :  "",
-                     dir,
-                     name,
-                     format,
-                     execute_args);
-			if (delfiles)
-            {
-                /* Remove legs when done mixing */
+			execute = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MONITOR_EXEC, "MONITOR_EXEC");
+			execute_args = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MONITOR_EXEC_ARGS, "MONITOR_EXEC_ARGS");
+
+			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" %s%s \"%s/%s.%s\" %s &",
+				(execute ? execute->value : "nice -n 19 soxmix"),
+				dir, name, format, dir, name, format,
+				(execute ? "" : "-t "),
+				(execute ? "" : format),
+				dir, name, format,
+				(execute_args ? execute_args->value : ""));
+
+			if (execute_args)
+				cw_object_put(execute_args);
+			if (execute)
+				cw_object_put(execute);
+			else {
+				/* Remove legs when done mixing */
 				snprintf(tmp2, sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &", tmp, dir ,name);
 				cw_copy_string(tmp, tmp2, sizeof(tmp));
 			}
-			cw_log(CW_LOG_DEBUG,"monitor executing %s\n",tmp);
+			cw_log(CW_LOG_DEBUG,"monitor executing %s\n", tmp);
 			if (cw_safe_system(tmp) == -1)
-				cw_log(CW_LOG_WARNING, "Execute of %s failed.\n",tmp);
+				cw_log(CW_LOG_WARNING, "Execute of %s failed.\n", tmp);
 		}
 		
 		free(chan->monitor->format);

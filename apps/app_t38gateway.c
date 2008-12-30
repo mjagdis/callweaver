@@ -39,6 +39,7 @@
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
+#include "callweaver/keywords.h"
 
 static const char tdesc[] = "T.38 Gateway Dialer Application";
 
@@ -274,6 +275,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     struct cw_channel *channels[2];
     struct cw_frame *f;
     struct cw_frame outf;
+    struct cw_var_t *var;
     int timeout = -1;
     int running = RUNNING;
     int original_read_fmt;
@@ -281,7 +283,6 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     int res;
     int samples;
     int len;
-    char *x;
     char text[128];
     t38_stats_t stats;
     t38_gateway_state_t t38_state;
@@ -331,10 +332,10 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     }
     t38_gateway_set_transmit_on_idle(&t38_state, TRUE);
     t38_core = t38_gateway_get_t38_core_state(&t38_state);
-    x = pbx_builtin_getvar_helper(chan, "FAX_DISABLE_V17");
-    if (x  &&  x[0])
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
         t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-    else
+        cw_object_put(var);
+    } else
         t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
     span_log_set_message_handler(&t38_state.logging, span_message);
@@ -470,7 +471,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
 
         if (peer)
         {
-            cw_channel_inherit_variables(chan, peer);
+            cw_var_inherit(&chan->vars, &peer->vars);
             peer->appl = "AppT38GW (Outgoing Line)";
             peer->whentohangup = 0;
             if (peer->cid.cid_num)

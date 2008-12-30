@@ -997,7 +997,7 @@ static int unicall_call(struct cw_channel *cw, char *rdest)
     char *c;
     char *n;
     char *l;
-    char *category;
+    struct cw_var_t *category;
     int cat;
     int ret;
     uc_makecall_t makecall;
@@ -1096,13 +1096,13 @@ static int unicall_call(struct cw_channel *cw, char *rdest)
     uc_callparm_original_called_number_npi(callparms, npi);
     uc_callparm_original_called_number(callparms, num);
 #endif
-    if ((category = pbx_builtin_getvar_helper(cw, "CALLING_PARTY_CATEGORY")) == NULL)
+    if ((category = pbx_builtin_getvar_helper(cw, CW_KEYWORD_CALLING_PARTY_CATEGORY, "CALLING_PARTY_CATEGORY")) == NULL)
     {
         uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
     }
     else
     {
-        cat = atoi(category);
+        cat = atoi(category->value);
         if (cat >= 0  &&  cat <= 9)
         {
             cw_log(CW_LOG_DEBUG, "Calling party category set to %s (%d).\n", category, cat);
@@ -1113,6 +1113,7 @@ static int unicall_call(struct cw_channel *cw, char *rdest)
             cw_log(CW_LOG_WARNING, "Strange value (%d) for ${CAT} variable - using default\n", cat);
             uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
         }
+	cw_object_put(category);
     }
     uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
     uc_callparm_originating_number(callparms, l);

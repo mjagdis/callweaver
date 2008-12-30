@@ -96,8 +96,7 @@ struct cw_cdr {
 	/* User field */
 	char userfield[CW_MAX_USER_FIELD];
 
-	/* A linked list for variables */
-	struct varshead varshead;
+	struct cw_registry vars;
 
 	struct cw_cdr *next;
 };

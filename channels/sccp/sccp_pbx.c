@@ -28,6 +28,7 @@
 #include "callweaver/callerid.h"
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
+#include "callweaver/keywords.h"
 
 
 static struct cw_frame * sccp_rtp_read(sccp_channel_t * c) {
@@ -82,7 +83,7 @@ static int sccp_pbx_call(struct cw_channel *ast, char *dest) {
 	sccp_device_t  * d;
 	sccp_session_t * s;
 	sccp_channel_t * c;
-	char * ringermode = NULL;
+	struct cw_var_t *var;
 	pthread_t t;
 
 	c = CS_CW_CHANNEL_PVT(ast);
@@ -163,19 +164,18 @@ static int sccp_pbx_call(struct cw_channel *ast, char *dest) {
 
 	if (!c->ringermode) {
 		c->ringermode = SKINNY_STATION_OUTSIDERING;
-		ringermode = pbx_builtin_getvar_helper(ast, "ALERT_INFO");
-	}
-
-	if ( ringermode && !cw_strlen_zero(ringermode) ) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Found ALERT_INFO=%s\n", d->id, ringermode);
-		if (strcasecmp(ringermode, "inside") == 0)
-			c->ringermode = SKINNY_STATION_INSIDERING;
-		else if (strcasecmp(ringermode, "feature") == 0)
-			c->ringermode = SKINNY_STATION_FEATURERING;
-		else if (strcasecmp(ringermode, "silent") == 0)
-			c->ringermode = SKINNY_STATION_SILENTRING;
-		else if (strcasecmp(ringermode, "urgent") == 0)
-			c->ringermode = SKINNY_STATION_URGENTRING;
+		if ((var = pbx_builtin_getvar_helper(ast, CW_KEYWORD_ALERT_INFO, "ALERT_INFO"))) {
+			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Found ALERT_INFO=%s\n", d->id, var->value);
+			if (strcasecmp(var->value, "inside") == 0)
+				c->ringermode = SKINNY_STATION_INSIDERING;
+			else if (strcasecmp(var->value, "feature") == 0)
+				c->ringermode = SKINNY_STATION_FEATURERING;
+			else if (strcasecmp(var->value, "silent") == 0)
+				c->ringermode = SKINNY_STATION_SILENTRING;
+			else if (strcasecmp(var->value, "urgent") == 0)
+				c->ringermode = SKINNY_STATION_URGENTRING;
+			cw_object_put(var);
+		}
 	}
 
 	/* release the callweaver lock */
