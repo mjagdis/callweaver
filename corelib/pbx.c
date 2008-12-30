@@ -4590,7 +4590,10 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
 
     if (sync)
     {
-        LOAD_OH(oh);
+        oh.context = context;
+        oh.exten = exten;
+        oh.priority = priority;
+        oh.vars = vars;
         chan = __cw_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
         if (channel)
         {

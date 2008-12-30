@@ -2445,13 +2445,10 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 	struct cw_frame *f;
 	int res = 0;
 	
-	chan = cw_request(type, format, data, &cause);
-	if (chan) {
-		if (oh) {
-			if (oh->vars)
-				cw_var_copy(oh->vars, &chan->vars);
-			cw_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
-		}
+	if ((chan = cw_request(type, format, data, &cause))) {
+		if (oh && oh->vars)
+			cw_var_copy(oh->vars, &chan->vars);
+
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
 
 		if (!cw_call(chan, data)) {

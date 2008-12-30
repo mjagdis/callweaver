@@ -427,21 +427,11 @@ struct cw_bridge_config {
 
 struct chanmon;
 
-#define LOAD_OH(oh) {	\
-	oh.context = context; \
-	oh.exten = exten; \
-	oh.priority = priority; \
-	oh.cid_num = cid_num; \
-	oh.cid_name = cid_name; \
-	oh.vars = vars; \
-} 
 
 struct outgoing_helper {
 	const char *context;
 	const char *exten;
 	int priority;
-	const char *cid_num;
-	const char *cid_name;
 	struct cw_registry *vars;
 };
 
