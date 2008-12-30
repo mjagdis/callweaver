@@ -269,9 +269,9 @@ struct cdr_serialize_args {
 	int x, total;
 };
 
-static int cdr_serialize_one(struct cw_registry_entry *entry, void *data)
+static int cdr_serialize_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cdr_serialize_args *args = data;
 	int ret = 0;
 
@@ -715,9 +715,9 @@ int cw_cdr_amaflags2int(const char *flag)
 }
 
 
-static int post_cdrbe(struct cw_registry_entry *entry, void *data)
+static int post_cdrbe(struct cw_object *obj, void *data)
 {
-	struct cw_cdrbe *cdrbe = container_of(entry->obj, struct cw_cdrbe, obj);
+	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
 	struct cw_cdr *cdr = data;
 
 	cdrbe->handler(cdr);
@@ -948,9 +948,9 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 }
 
 
-static int cdrbe_print(struct cw_registry_entry *entry, void *data)
+static int cdrbe_print(struct cw_object *obj, void *data)
 {
-	struct cw_cdrbe *cdrbe = container_of(entry->obj, struct cw_cdrbe, obj);
+	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
 	int *fd = data;
 
 	cw_cli(*fd, "CDR registered backend: %s\n", cdrbe->name);

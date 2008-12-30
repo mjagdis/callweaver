@@ -339,9 +339,9 @@ out:
     return NULL;
 }
 
-static int rebuild_matrix_one(struct cw_registry_entry *entry, void *data)
+static int rebuild_matrix_one(struct cw_object *obj, void *data)
 {
-	struct cw_translator *t = container_of(entry->obj, struct cw_translator, obj);
+	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
 	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
 	int *samples = data;
 

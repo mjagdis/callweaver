@@ -2847,9 +2847,9 @@ void cw_change_name(struct cw_channel *chan, char *newname)
    Assumes locks will be in place on both channels when called.
 */
    
-static int clone_variables_one(struct cw_registry_entry *entry, void *data)
+static int clone_variables_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cw_registry *reg = data;
 
 	/* we need to remove all app_groupcount related variables from the original
@@ -2875,6 +2875,9 @@ static void clone_variables(struct cw_channel *original, struct cw_channel *clon
 	 */
 	cw_registry_iterate_rev(&original->vars, clone_variables_one, &clone->vars);
 
+	/* This is highly dangerous if anything else could touch either
+	 * registry in parallel!
+	 */
 	tmp = clone->vars;
 	clone->vars = original->vars;
 	original->vars = tmp;

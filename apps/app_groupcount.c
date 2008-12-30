@@ -247,9 +247,9 @@ struct group_show_channels_args {
 
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-static int group_show_channels_one(struct cw_registry_entry *entry, void *data)
+static int group_show_channels_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct group_show_channels_args *args = data;
 	const char *name = cw_var_name(var);
 

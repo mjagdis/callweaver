@@ -901,10 +901,10 @@ struct help_workhorse_args {
     int match;
 };
 
-static int help_workhorse_one(struct cw_registry_entry *entry, void *data)
+static int help_workhorse_one(struct cw_object *obj, void *data)
 {
     char fullcmd[80];
-    struct cw_clicmd *clicmd = container_of(entry->obj, struct cw_clicmd, obj);
+    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct help_workhorse_args *args = data;
 
     join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
@@ -1032,9 +1032,9 @@ struct cli_generator_args {
     int lastarg_len;
 };
 
-static int cli_generator_one(struct cw_registry_entry *entry, void *data)
+static int cli_generator_one(struct cw_object *obj, void *data)
 {
-    struct cw_clicmd *clicmd = container_of(entry->obj, struct cw_clicmd, obj);
+    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     struct cli_generator_args *args = data;
     int i;
 

@@ -253,16 +253,19 @@ struct cw_registry atexit_registry = {
 	.match = atexit_object_match,
 };
 
-static int cw_run_atexit_one(struct cw_registry_entry *entry, void *data)
+static int cw_run_atexit_one(struct cw_object *obj, void *data)
 {
-	struct cw_atexit *it = container_of(entry->obj, struct cw_atexit, obj);
+	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
+
 	if (option_verbose > 2)
 		cw_verbose(VERBOSE_PREFIX_3 "atexit: run \"%s\"\n", it->name);
+
 	/* Get the module now so it's pinned (atexits don't hold counted refs
 	 * while registered)
 	 */
 	cw_module_get(it->obj.module);
 	it->function();
+
 	/* We'd prefer not to put the module. If we are running atexits we're
 	 * shutting down so there's no need to release modules. However, shutdowns
 	 * can be cancelled...

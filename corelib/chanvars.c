@@ -130,16 +130,16 @@ int cw_var_assign(struct cw_registry *registry, const char *name, const char *va
 	if ((var = cw_var_new(name, value, 0))) {
 		if (cw_registry_add(registry, var->hash, &var->obj))
 			return 0;
-		var->obj.release(var);
+		var->obj.release(&var->obj);
 	}
 
 	return -1;
 }
 
 
-static int cw_var_inherit_one(struct cw_registry_entry *entry, void *data)
+static int cw_var_inherit_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cw_registry *reg = data;
 	int err = 0;
 
@@ -165,9 +165,9 @@ int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst)
 }
 
 
-static int cw_var_copy_one(struct cw_registry_entry *entry, void *data)
+static int cw_var_copy_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cw_registry *reg = data;
 
 	return !cw_registry_add(reg, var->hash, &var->obj);

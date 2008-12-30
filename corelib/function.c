@@ -243,9 +243,9 @@ struct funcs_print_args {
 	char **argv;
 };
 
-static int funcs_print(struct cw_registry_entry *entry, void *data)
+static int funcs_print(struct cw_object *obj, void *data)
 {
-	struct cw_func *it = container_of(entry->obj, struct cw_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	struct funcs_print_args *args = data;
 	int printapp = 1;
 
@@ -321,9 +321,9 @@ struct complete_show_func_args {
 	int word_len;
 };
 
-static int complete_show_func_one(struct cw_registry_entry *entry, void *data)
+static int complete_show_func_one(struct cw_object *obj, void *data)
 {
-	struct cw_func *it = container_of(entry->obj, struct cw_func, obj);
+	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	struct complete_show_func_args *args = data;
 
 	if (!strncasecmp(args->word, it->name, args->word_len))

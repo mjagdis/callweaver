@@ -143,7 +143,7 @@ out:
 }
 
 
-int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data)
+int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data)
 {
 	struct cw_list *list;
 	int i, ret = 0;
@@ -152,7 +152,8 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_regi
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each(list, &registry->list[i]) {
-			if ((ret = func(container_of(list, struct cw_registry_entry, list), data)))
+			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
+			if ((ret = func(entry->obj, data)))
 				break;
 		}
 	}
@@ -164,7 +165,7 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_regi
 }
 
 
-int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data)
+int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data)
 {
 	struct cw_list *list;
 	int i, ret = 0;
@@ -173,7 +174,8 @@ int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each_rev(list, &registry->list[i]) {
-			if ((ret = func(container_of(list, struct cw_registry_entry, list), data)))
+			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
+			if ((ret = func(entry->obj, data)))
 				break;
 		}
 	}

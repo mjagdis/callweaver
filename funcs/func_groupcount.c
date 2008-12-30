@@ -154,9 +154,9 @@ struct group_list_function_read_args {
 	char tmp2[1024];
 };
 
-static int group_list_function_read_one(struct cw_registry_entry *entry, void *data)
+static int group_list_function_read_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct group_list_function_read_args *args = data;
 
 	if (!strncmp(cw_var_name(var), GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX "_"))) {

@@ -339,9 +339,9 @@ struct complete_show_manact_args {
 	int word_len;
 };
 
-static int complete_show_manact_one(struct cw_registry_entry *entry, void *data)
+static int complete_show_manact_one(struct cw_object *obj, void *data)
 {
-	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
+	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct complete_show_manact_args *args = data;
 
 	if (!strncasecmp(args->word, it->action, args->word_len))
@@ -413,9 +413,9 @@ struct manacts_print_args {
 #define MANACTS_FORMAT_B	"%-15.15s"
 #define MANACTS_FORMAT_C	"  %s\n"
 
-static int manacts_print(struct cw_registry_entry *entry, void *data)
+static int manacts_print(struct cw_object *obj, void *data)
 {
-	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
+	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct manacts_print_args *args = data;
 	int printapp = 1;
 	int n;
@@ -486,9 +486,9 @@ struct listener_print_args {
 
 #define MANLISTEN_FORMAT "%-7s %s\n"
 
-static int listener_print(struct cw_registry_entry *entry, void *data)
+static int listener_print(struct cw_object *obj, void *data)
 {
-	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 	struct listener_print_args *args = data;
 
 	cw_cli(args->fd, MANLISTEN_FORMAT, (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN"), it->name);
@@ -524,9 +524,9 @@ struct mansess_print_args {
 #define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
 #define MANSESS_FORMAT2	"%-40s %-15s %6u %9u %8u\n"
 
-static int mansess_print(struct cw_registry_entry *entry, void *data)
+static int mansess_print(struct cw_object *obj, void *data)
 {
-	struct mansession *it = container_of(entry->obj, struct mansession, obj);
+	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
 	cw_cli(args->fd, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
@@ -779,9 +779,9 @@ struct listcommands_print_args {
 	struct mansession *s;
 };
 
-static int listcommands_print(struct cw_registry_entry *entry, void *data)
+static int listcommands_print(struct cw_object *obj, void *data)
 {
-	struct manager_action *it = container_of(entry->obj, struct manager_action, obj);
+	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct listcommands_print_args *args = data;
 
 	cw_cli(args->s->fd, "%s: %s (Priv: ", it->action, it->synopsis);
@@ -1903,9 +1903,9 @@ again:
 	return -1;
 }
 
-static int manager_event_print(struct cw_registry_entry *entry, void *data)
+static int manager_event_print(struct cw_object *obj, void *data)
 {
-	struct mansession *it = container_of(entry->obj, struct mansession, obj);
+	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct manager_event_args *args = data;
 
 	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
@@ -2176,9 +2176,9 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 }
 
 
-static int listener_cancel(struct cw_registry_entry *entry, void *data)
+static int listener_cancel(struct cw_object *obj, void *data)
 {
-	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 
 	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
 		pthread_cancel(it->tid);
@@ -2186,14 +2186,14 @@ static int listener_cancel(struct cw_registry_entry *entry, void *data)
 }
 
 
-static int listener_join(struct cw_registry_entry *entry, void *data)
+static int listener_join(struct cw_object *obj, void *data)
 {
-	struct manager_listener *it = container_of(entry->obj, struct manager_listener, obj);
+	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 
 	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
 		pthread_join(it->tid, NULL);
 
-	cw_registry_del(&manager_listener_registry, entry);
+	cw_registry_del(&manager_listener_registry, it->reg_entry);
 	cw_object_put(it);
 	return 0;
 }

@@ -111,8 +111,8 @@ extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entr
 
 extern int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj);
 
-extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data);
-extern int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_registry_entry *, void *), void *data);
+extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
 extern struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
 extern int cw_registry_init(struct cw_registry *registry, size_t estsize);
 extern void cw_registry_flush(struct cw_registry *registry);

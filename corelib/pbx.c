@@ -223,9 +223,9 @@ static inline struct cw_switch *pbx_findswitch(const char *name)
 
 
 /*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
-static int switch_print(struct cw_registry_entry *entry, void *data)
+static int switch_print(struct cw_object *obj, void *data)
 {
-	struct cw_switch *sw = container_of(entry->obj, struct cw_switch, obj);
+	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
 	int *fd = data;
 
         cw_cli(*fd, "%s: %s\n", sw->name, sw->description);
@@ -245,9 +245,9 @@ struct handle_show_globals_args {
 	int count;
 };
 
-static int handle_show_globals_one(struct cw_registry_entry *entry, void *data)
+static int handle_show_globals_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct handle_show_globals_args *args = data;
 
 	args->count++;
@@ -5023,9 +5023,9 @@ struct pbx_builtin_serialize_variables_args {
 	int total;
 };
 
-static int pbx_builtin_serialize_variables_one(struct cw_registry_entry *entry, void *data)
+static int pbx_builtin_serialize_variables_one(struct cw_object *obj, void *data)
 {
-	struct cw_var_t *var = container_of(entry->obj, struct cw_var_t, obj);
+	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct pbx_builtin_serialize_variables_args *args = data;
 
 	args->total++;
