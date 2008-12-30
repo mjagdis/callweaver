@@ -44,7 +44,7 @@ static const char devstate_descrip[] = "Generate a device state change event giv
 
 static char devstate_cli_usage[] = 
 "Usage: DevState device state\n" 
-"       Generate a device state change event given the input parameters.\n Mainly used for lighting the LEDs on the snoms.\n";
+"       Generate a device state change event given the input parameters.\n";
 
 static int devstate_cli(int fd, int argc, char *argv[]);
 static struct cw_clicmd  cli_dev_state = {
