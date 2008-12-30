@@ -621,6 +621,10 @@ int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen)
 
 struct sched_param global_sched_param_default;
 struct sched_param global_sched_param_rr;
+
+pthread_mutexattr_t  global_mutexattr_errorcheck;
+pthread_mutexattr_t  global_mutexattr_recursive;
+
 pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
 pthread_attr_t global_attr_fifo;
@@ -778,15 +782,6 @@ int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const
 	return pthread_mutex_init(&t->mutex, attr);
 }
 
-int cw_mutex_init_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
-{
-	static pthread_mutexattr_t  attr;
-
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, CW_MUTEX_KIND);
-
-	return cw_mutex_init_attr_debug(canlog, filename, lineno, func, mutex_name, t, &attr);
-}
 
 int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
 {
@@ -1393,6 +1388,16 @@ int cw_utils_init(void)
 {
 	global_sched_param_default.sched_priority = 0;
 	global_sched_param_rr.sched_priority = 50;
+
+	pthread_mutexattr_init(&global_mutexattr_errorcheck);
+	pthread_mutexattr_init(&global_mutexattr_recursive);
+#ifdef PTHREAD_MUTEX_RECURSIVE
+	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE);
+#else /* old LinuxThreads? */
+	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_ERRORCHECK_NP);
+	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE_NP);
+#endif
 
 	pthread_attr_init(&global_attr_default);
 	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);

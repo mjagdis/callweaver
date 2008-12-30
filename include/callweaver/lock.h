@@ -58,15 +58,18 @@
    and will not run without them. */
 #ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define CW_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE_NP
 #else
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_MUTEX_INITIALIZER
-#define CW_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE
 #endif /* PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP */
 
 #ifdef SOLARIS
 #define CW_MUTEX_INIT_W_CONSTRUCTORS
 #endif
+
+
+extern pthread_mutexattr_t  global_mutexattr_errorcheck;
+extern pthread_mutexattr_t  global_mutexattr_recursive;
+
 
 #ifdef DEBUG_MUTEX
 
@@ -107,28 +110,26 @@ typedef struct cw_mutex_info cw_mutex_t;
 
 extern int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t, pthread_mutexattr_t *attr);
 
-extern int cw_mutex_init_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
-
 extern int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
 
 #if defined(CW_MUTEX_INIT_W_CONSTRUCTORS)
 /* if CW_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constrictors/destructors to create/destroy mutexes.  */
+ constructors/destructors to create/destroy mutexes.  */
 #define __CW_MUTEX_DEFINE(scope,mutex) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
 { \
-	cw_mutex_init_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, #mutex, &mutex); \
+	cw_mutex_init_attr_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, #mutex, &mutex, &global_mutexattr_recursive); \
 } \
 static void  __attribute__ ((destructor)) fini_##mutex(void) \
 { \
 	cw_mutex_destroy_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, #mutex, &mutex); \
 }
 #elif defined(CW_MUTEX_INIT_ON_FIRST_USE)
-/* if CW_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
- first use.  The performance impact on FreeBSD should be small since
+/* if CW_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are initialized
+ on first use.  The performance impact on FreeBSD should be small since
  the pthreads library does this itself to initialize errror checking
- (defaulty type) mutexes.  If nither is defined, the pthreads librariy
+ (defaulty type) mutexes.  If neither is defined, the pthreads librariy
  does the initialization itself on first use. */ 
 #define __CW_MUTEX_DEFINE(scope,mutex) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE
@@ -150,7 +151,8 @@ extern int cw_cond_wait_debug(int canlog, const char *filename, int lineno, cons
 extern int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime);
 
 
-#define cw_mutex_init(pmutex)                cw_mutex_init_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define cw_mutex_init_attr(pmutex, attr)     cw_mutex_init_attr_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)
+#define cw_mutex_init(pmutex)                cw_mutex_init_attr_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, &global_mutexattr_recursive)
 #define cw_mutex_destroy(a)                  cw_mutex_destroy_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define cw_mutex_lock(a)                     cw_mutex_lock_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define cw_mutex_trylock(a)                  cw_mutex_trylock_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
@@ -172,13 +174,9 @@ extern int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno,
 
 #define cw_mutex_t pthread_mutex_t
 
-static inline int cw_mutex_init(cw_mutex_t *pmutex)
-{
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, CW_MUTEX_KIND);
-	return pthread_mutex_init(pmutex, &attr);
-}
+
+#define cw_mutex_init_attr(pmutex, attr) pthread_mutex_init(pmutex, attr)
+#define cw_mutex_init(pmutex)            pthread_mutex_init(pmutex, &global_mutexattr_recursive)
 
 #define cw_pthread_mutex_init(pmutex,a) pthread_mutex_init(pmutex,a)
 
@@ -187,12 +185,12 @@ static inline int cw_mutex_init(cw_mutex_t *pmutex)
 
 #if defined(CW_MUTEX_INIT_W_CONSTRUCTORS)
 /* if CW_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constrictors/destructors to create/destroy mutexes.  */ 
+ constructors/destructors to create/destroy mutexes.  */ 
 #define __CW_MUTEX_DEFINE(scope,mutex) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
 { \
-	cw_mutex_init(&mutex); \
+	cw_mutex_init(&mutex, &global_mutexattr_recursive); \
 } \
 static void  __attribute__ ((destructor)) fini_##mutex(void) \
 { \
@@ -212,13 +210,13 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 
 #define cw_mutex_lock(pmutex) ({ \
 	const cw_mutex_t *__m = (pmutex); \
-	if (*__m == (cw_mutex_t)CW_MUTEX_KIND) \
+	if (*__m == (cw_mutex_t)CW_MUTEX_INIT_VALUE) \
 		cw_mutex_init(__m); \
 	pthread_mutex_lock(__m); \
 })
 #define cw_mutex_trylock(pmutex) ({ \
 	const cw_mutex_t *__m = (pmutex); \
-	if (*__m == (cw_mutex_t)CW_MUTEX_KIND) \
+	if (*__m == (cw_mutex_t)CW_MUTEX_INIT_VALUE) \
 		cw_mutex_init(__m); \
 	pthread_mutex_trylock(__m); \
 })
