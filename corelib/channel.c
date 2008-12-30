@@ -1797,50 +1797,44 @@ int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int cmdfd)
 	/* Stop if we're a zombie or need a soft hangup */
 	if (cw_test_flag(c, CW_FLAG_ZOMBIE) || cw_check_hangup(c)) 
 		return -1;
+
 	/* Wait for a digit, no more than ms milliseconds total. */
-	while (ms)
-	{
+	while (ms) {
 		errno = 0;
 		rchan = cw_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
-		if ((!rchan) && (outfd < 0) && (ms))
-			{ 
+		if ((!rchan) && (outfd < 0) && (ms)) {
 			if (errno == 0 || errno == EINTR)
 				continue;
 			cw_log(CW_LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
-		}
-			else if (outfd > -1)
+		} else if (outfd > -1)
 			{
 			/* The FD we were watching has something waiting */
 			return 1;
-		}
-			else if (rchan)
-			{
+		} else if (rchan) {
 			if ((f = cw_read(c)) == 0)
 				return -1;
-			switch (f->frametype)
-				{
+			switch (f->frametype) {
 				case CW_FRAME_DTMF:
-				res = f->subclass;
-				cw_fr_free(f);
-				return res;
-				case CW_FRAME_CONTROL:
-				switch(f->subclass)
-						{
-					case CW_CONTROL_HANGUP:
+					res = f->subclass;
 					cw_fr_free(f);
-					return -1;
-					case CW_CONTROL_RINGING:
-					case CW_CONTROL_ANSWER:
-					/* Unimportant */
-					break;
-				default:
-					cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
-				}
+					return res;
+				case CW_FRAME_CONTROL:
+					switch(f->subclass) {
+						case CW_CONTROL_HANGUP:
+							cw_fr_free(f);
+							return -1;
+						case CW_CONTROL_RINGING:
+						case CW_CONTROL_ANSWER:
+							/* Unimportant */
+							break;
+						default:
+							cw_log(CW_LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
+					}
 				case CW_FRAME_VOICE:
-				/* Write audio if appropriate */
-				if (audiofd > -1)
-					write(audiofd, f->data, f->datalen);
+					/* Write audio if appropriate */
+					if (audiofd > -1)
+						write(audiofd, f->data, f->datalen);
 			}
 			/* Ignore */
 			cw_fr_free(f);
@@ -1859,15 +1853,11 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	};
 	
 	cw_channel_lock(chan);
-	if (chan->masq)
-	{
-		if (cw_do_masquerade(chan))
-			{
+	if (chan->masq) {
+		if (cw_do_masquerade(chan)) {
 			cw_log(CW_LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
-		}
-			else
-			{
+		} else {
 			f =  &null_frame;
 		}
 			cw_channel_unlock(chan);
@@ -1875,16 +1865,14 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(chan, CW_FLAG_ZOMBIE)  ||  cw_check_hangup(chan))
-	{
+	if (cw_test_flag(chan, CW_FLAG_ZOMBIE)  ||  cw_check_hangup(chan)) {
 		cw_channel_unlock(chan);
 		cw_generator_deactivate(&chan->generator);
 		return NULL;
 	}
 	prestate = chan->_state;
 
-	if (!cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && !cw_strlen_zero(chan->dtmfq))
-	{
+	if (!cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && !cw_strlen_zero(chan->dtmfq)) {
 		/* We have DTMF that has been deferred.  Return it now */
 			cw_fr_init_ex(&chan->dtmff, CW_FRAME_DTMF, chan->dtmfq[0]);
 		/* Drop first digit */
@@ -1895,37 +1883,27 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1)
-	{
+	if (chan->alertpipe[0] > -1) {
 		char blah;
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 	}
 
 	/* Check for pending read queue */
-	if (chan->readq)
-	{
+	if (chan->readq) {
 		f = chan->readq;
 		chan->readq = f->next;
-	}
-	else
-	{
+	} else {
 		chan->blocker = pthread_self();
-		if (cw_test_flag(chan, CW_FLAG_EXCEPTION))
-			{
-			if (chan->tech->exception) 
-			{
-						f = chan->tech->exception(chan);
-			}
-				else
-				{
+		if (cw_test_flag(chan, CW_FLAG_EXCEPTION)) {
+			if (chan->tech->exception) {
+				f = chan->tech->exception(chan);
+			} else {
 				cw_log(CW_LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
 				f = &null_frame;
 			}
 			/* Clear the exception flag */
 			cw_clear_flag(chan, CW_FLAG_EXCEPTION);
-		}
-			else
-			{
+		} else {
 			if (chan->tech->read)
 				f = chan->tech->read(chan);
 			else
@@ -1933,110 +1911,86 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 		}
 	}
 
-	if (f)
-	{
+	if (f) {
 		/* If the channel driver returned more than one frame, stuff the excess
 		   into the readq for the next cw_read call */
-		if (f->next)
-			{
-				/* We can safely assume the read queue is empty, or we wouldn't be here */
+		if (f->next) {
+			/* We can safely assume the read queue is empty, or we wouldn't be here */
 			chan->readq = f->next;
 			f->next = NULL;
 		}
 
-		if ((f->frametype == CW_FRAME_VOICE))
-        {
-			if (!(f->subclass & chan->nativeformats))
-			{
+		if ((f->frametype == CW_FRAME_VOICE)) {
+			if (!(f->subclass & chan->nativeformats)) {
 				/* This frame can't be from the current native formats -- drop it on the floor */
 				cw_log(CW_LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, cw_getformatname(f->subclass), cw_getformatname(chan->nativeformats));
 				cw_fr_free(f);
 				f = &null_frame;
-			}
-			else
-			{
-				if (chan->spies)
-					{
+			} else {
+				if (chan->spies) {
 					struct cw_channel_spy *spying;
 
 					for (spying = chan->spies;  spying;  spying = spying->next)
 						cw_spy_queue_frame(spying, f, 0);
 				}
-				if (chan->monitor && chan->monitor->read_stream)
-					{
+				if (chan->monitor && chan->monitor->read_stream) {
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
 
-					if (jump >= 0)
-						{
+					if (jump >= 0) {
 						if (cw_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
 							cw_log(CW_LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
 						chan->insmpl += jump + 2 * f->samples;
-					}
-						else
-						{
+					} else {
 						chan->insmpl+= f->samples;
-						}
+					}
 #else
 					int jump = chan->outsmpl - chan->insmpl;
 
-					if (jump - MONITOR_DELAY >= 0)
-						{
+					if (jump - MONITOR_DELAY >= 0) {
 						if (cw_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
 							cw_log(CW_LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
 						chan->insmpl += jump;
-					}
-						else
-						{
+					} else {
 						chan->insmpl += f->samples;
-						}
+					}
 #endif
 					if (cw_writestream(chan->monitor->read_stream, f) < 0)
 						cw_log(CW_LOG_WARNING, "Failed to write data to channel monitor read stream\n");
 				}
 			
-				if (chan->readtrans)
-					{
+				if (chan->readtrans) {
 					if ((f = cw_translate(chan->readtrans, f, 1)) == NULL)
 						f = &null_frame;
 				}
 			}
+		} else if (f->frametype == CW_FRAME_CONTROL && f->subclass == CW_CONTROL_HANGUP) {
+			cw_fr_free(f);
+			f = NULL;
+		}
 	}
-	else if (f->frametype == CW_FRAME_CONTROL && f->subclass == CW_CONTROL_HANGUP)
-		{
-		cw_fr_free(f);
-		f = NULL;
-	}
-    }
 
-    if (!f)
-    {
+	if (!f) {
 		/* Make sure we always return NULL in the future */
 		chan->_softhangup |= CW_SOFTHANGUP_DEV;
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			cw_cdr_end(chan->cdr);
-    }
-    else if (cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && f->frametype == CW_FRAME_DTMF)
-    {
+	} else if (cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && f->frametype == CW_FRAME_DTMF) {
 		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
 			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 		else
 			cw_log(CW_LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
-    }
-    else if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_ANSWER))
-    {
-		if (prestate == CW_STATE_UP)
-			{
+	} else if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_ANSWER)) {
+		if (prestate == CW_STATE_UP) {
 			cw_log(CW_LOG_DEBUG, "Dropping duplicate answer!\n");
 			f = &null_frame;
 		}
 		/* Answer the CDR */
 		cw_setstate(chan, CW_STATE_UP);
 		cw_cdr_answer(chan->cdr);
-    }
-
+	}
 
 	/* High bit prints debugging */
 	if (chan->fin & 0x80000000)
@@ -2056,75 +2010,62 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 
 int cw_indicate(struct cw_channel *chan, int condition)
 {
-    int res = -1;
+	int res = -1;
 
-    /* Stop if we're a zombie or need a soft hangup */
-    if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan)) 
+	/* Stop if we're a zombie or need a soft hangup */
+	if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan))
 		return -1;
-    cw_channel_lock(chan);
-    if (chan->tech->indicate)
+
+	cw_channel_lock(chan);
+
+	if (chan->tech->indicate)
 		res = chan->tech->indicate(chan, condition);
-    cw_channel_unlock(chan);
-    if (!chan->tech->indicate  ||  res)
-    {
-	/*
-	 * Device does not support (that) indication, lets fake
-	 * it by doing our own tone generation. (PM2002)
-	 */
-	if (condition >= 0)
-		{
-		const struct tone_zone_sound *ts = NULL;
-		switch (condition)
-			{
-		case CW_CONTROL_RINGING:
-			ts = cw_get_indication_tone(chan->zone, "ring");
-			break;
-		case CW_CONTROL_BUSY:
-			ts = cw_get_indication_tone(chan->zone, "busy");
-			break;
-		case CW_CONTROL_CONGESTION:
-			ts = cw_get_indication_tone(chan->zone, "congestion");
-			break;
-		}
-		if (ts  &&  ts->data[0])
-			{
-			cw_log(CW_LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
-			cw_playtones_start(chan,0,ts->data, 1);
-			res = 0;
-		}
-            else if (condition == CW_CONTROL_PROGRESS)
-            {
+
+	cw_channel_unlock(chan);
+
+	if (!chan->tech->indicate  ||  res) {
+		/*
+		 * Device does not support (that) indication, lets fake
+		 * it by doing our own tone generation. (PM2002)
+		 */
+		if (condition >= 0) {
+			const struct tone_zone_sound *ts = NULL;
+			switch (condition) {
+				case CW_CONTROL_RINGING:
+					ts = cw_get_indication_tone(chan->zone, "ring");
+					break;
+				case CW_CONTROL_BUSY:
+					ts = cw_get_indication_tone(chan->zone, "busy");
+					break;
+				case CW_CONTROL_CONGESTION:
+					ts = cw_get_indication_tone(chan->zone, "congestion");
+					break;
+			}
+			if (ts  &&  ts->data[0]) {
+				cw_log(CW_LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+				cw_playtones_start(chan,0,ts->data, 1);
+				res = 0;
+			} else if (condition == CW_CONTROL_PROGRESS) {
 				/* cw_playtones_stop(chan); */
-		}
-            else if (condition == CW_CONTROL_PROCEEDING)
-            {
+			} else if (condition == CW_CONTROL_PROCEEDING) {
 				/* Do nothing, really */
-		}
-            else if (condition == CW_CONTROL_HOLD)
-            {
+			} else if (condition == CW_CONTROL_HOLD) {
 				/* Do nothing.... */
-		}
-            else if (condition == CW_CONTROL_UNHOLD)
-            {
+			} else if (condition == CW_CONTROL_UNHOLD) {
 				/* Do nothing.... */
-		}
-            else if (condition == CW_CONTROL_VIDUPDATE)
-            {
+			} else if (condition == CW_CONTROL_VIDUPDATE) {
 				/* Do nothing.... */
-		}
-            else
-            {
+			} else {
 				/* not handled */
 				cw_log(CW_LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
 				res = -1;
+			}
+		} else {
+			cw_playtones_stop(chan);
 		}
 	}
-	else
-        {
-            cw_playtones_stop(chan);
-        }
-    }
-    return res;
+
+	return res;
 }
 
 int cw_recvchar(struct cw_channel *chan, int timeout)
@@ -2144,8 +2085,7 @@ char *cw_recvtext(struct cw_channel *chan, int timeout)
 	int res, done = 0;
 	char *buf = NULL;
 	
-	while (!done)
-	{
+	while (!done) {
 		struct cw_frame *f;
 
 		if (cw_check_hangup(chan))
@@ -2155,13 +2095,10 @@ char *cw_recvtext(struct cw_channel *chan, int timeout)
 		timeout = res;	/* update timeout */
 		if ((f = cw_read(chan)) == NULL)
 			break; /* no frame */
-		if (f->frametype == CW_FRAME_CONTROL  &&  f->subclass == CW_CONTROL_HANGUP)
-		{
+		if (f->frametype == CW_FRAME_CONTROL  &&  f->subclass == CW_CONTROL_HANGUP) {
 			done = 1;	/* force a break */
-		}
-			else if (f->frametype == CW_FRAME_TEXT)
-			{
-				/* what we want */
+		} else if (f->frametype == CW_FRAME_TEXT) {
+			/* what we want */
 			buf = strndup((char *) f->data, f->datalen);	/* dup and break */
 			done = 1;
 		}
@@ -2190,14 +2127,13 @@ static int do_senddigit(struct cw_channel *chan, char digit)
 
 	if (chan->tech->send_digit)
 		res = chan->tech->send_digit(chan, digit);
-	if (!chan->tech->send_digit || res < 0)
-    {
+
+	if (!chan->tech->send_digit || res < 0) {
 		/*
 		 * Device does not support DTMF tones, lets fake
 		 * it by doing our own generation. (PM2002)
 		 */
-		static const char* dtmf_tones[] =
-        {
+		static const char* dtmf_tones[] = {
 			"!0/100,!0/100",	/* silence */
 			"!941+1336/100,!0/100",	/* 0 */
 			"!697+1209/100,!0/100",	/* 1 */
@@ -2215,7 +2151,7 @@ static int do_senddigit(struct cw_channel *chan, char digit)
 			"!941+1633/100,!0/100",	/* D */
 			"!941+1209/100,!0/100",	/* * */
 			"!941+1477/100,!0/100"	/* # */
-        };
+		};
 		if (res == -2)
 			cw_playtones_start(chan, 0, dtmf_tones[0], 0);
 		else if (digit >= '0'  &&  digit <='9')
@@ -2226,8 +2162,7 @@ static int do_senddigit(struct cw_channel *chan, char digit)
 			cw_playtones_start(chan, 0, dtmf_tones[15], 0);
 		else if (digit == '#')
 			cw_playtones_start(chan, 0, dtmf_tones[16], 0);
-		else
-        {
+		else {
 			/* not handled */
 			cw_log(CW_LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
 		}
@@ -2247,8 +2182,7 @@ int cw_prod(struct cw_channel *chan)
 	char nothing[128];
 
 	/* Send an empty audio frame to get things moving */
-	if (chan->_state != CW_STATE_UP)
-    {
+	if (chan->_state != CW_STATE_UP) {
 		cw_log(CW_LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->rawwriteformat;
 		a.data = nothing + CW_FRIENDLY_OFFSET;
@@ -2267,25 +2201,21 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	cw_channel_lock(chan);
-	if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan))
-    {
+	if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan)) {
 		cw_channel_unlock(chan);
 		return -1;
 	}
 	/* Handle any pending masquerades */
-	if (chan->masq)
-    {
+	if (chan->masq) {
 		*fr_p = cw_frisolate(*fr_p);
-		if (cw_do_masquerade(chan))
-        {
+		if (cw_do_masquerade(chan)) {
 			cw_log(CW_LOG_WARNING, "Failed to perform masquerade\n");
 			cw_channel_unlock(chan);
 			return -1;
 		}
 	}
 
-	if (chan->masqr)
-    {
+	if (chan->masqr) {
 		cw_channel_unlock(chan);
 		return 0;
 	}
@@ -2295,12 +2225,10 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	 * whether the CW_FLAG_WRITE_INT is set or not for the
 	 * channel. If CW_FLAG_WRITE_INT is set, channel generator
 	 * is deactivated. Otherwise, the write is simply ignored. */
-	if (!cw_generator_is_self(chan)  &&  cw_generator_is_active(chan))
-	{
+	if (!cw_generator_is_self(chan)  &&  cw_generator_is_active(chan)) {
 		/* We weren't called by the generator
 		 * thread and channel generator is active */
-		if (cw_test_flag(chan, CW_FLAG_WRITE_INT))
-        {
+		if (cw_test_flag(chan, CW_FLAG_WRITE_INT)) {
 			/* Deactivate generator */
 
 			/** unlock & lock added - testing if this caused crashes*/
@@ -2309,9 +2237,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 				cw_log(CW_LOG_DEBUG, "trying deactivate generator with unlock/lock channel (cw_write function)\n");
 			cw_generator_deactivate(&chan->generator);
 			cw_channel_lock(chan);
-		}
-        else
-        {
+		} else {
 			/* Write doesn't interrupt generator.
 			 * Write gets ignored instead */
 			cw_channel_unlock(chan);
@@ -2331,8 +2257,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	 * at the same time. Writing is no longer tied to reading as before */
 	CHECK_BLOCKING(chan);
 #endif
-	switch (fr->frametype)
-    {
+	switch (fr->frametype) {
 	case CW_FRAME_CONTROL:
 		/* XXX Interpret control frames XXX */
 		cw_log(CW_LOG_WARNING, "Don't know how to handle control frames yet\n");
@@ -2370,21 +2295,18 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 			res = 0;
 		break;
 	default:
-		if (chan->tech->write)
-        {
+		if (chan->tech->write) {
 			if (chan->writetrans && fr->frametype == CW_FRAME_VOICE) 
 				f = cw_translate(chan->writetrans, fr, 0);
 			else
 				f = fr;
-			if (f)
-            {
+			if (f) {
 				/* CMANTUNES: Instead of writing directly here,
 				 * we could insert frame into output queue and
 				 * let the channel driver use a writer thread
 				 * to actually write the stuff, for example. */
 
-				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies)
-                {
+				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies) {
 					struct cw_channel_spy *spying;
 
 					for (spying = chan->spies;  spying;  spying = spying->next)
@@ -2395,23 +2317,19 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 						f && ( f->frametype == CW_FRAME_VOICE ) ) {
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->insmpl - chan->outsmpl - 2 * f->samples;
-					if (jump >= 0)
-                    {
+					if (jump >= 0) {
 						if (cw_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
 							cw_log(CW_LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 						chan->outsmpl += jump + 2 * f->samples;
-					}
-                    else
+					} else
 						chan->outsmpl += f->samples;
 #else
 					int jump = chan->insmpl - chan->outsmpl;
-					if (jump - MONITOR_DELAY >= 0)
-                    {
+					if (jump - MONITOR_DELAY >= 0) {
 						if (cw_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
 							cw_log(CW_LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 						chan->outsmpl += jump;
-					}
-                    else
+					} else
 						chan->outsmpl += f->samples;
 #endif
 					if (cw_writestream(chan->monitor->write_stream, f) < 0)
@@ -2419,18 +2337,16 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 				}
 
 				res = chan->tech->write(chan, f);
-			}
-            else
-            {
+			} else {
 				res = 0;
-            }
+			}
 		}
 	}
 
 	/* It's possible this is a translated frame */
 	if (f && f->frametype == CW_FRAME_DTMF)
 		cw_log(CW_LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
-    else if (fr->frametype == CW_FRAME_DTMF)
+	else if (fr->frametype == CW_FRAME_DTMF)
 		cw_log(CW_LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
 
 	if (f && (f != fr))
@@ -2439,8 +2355,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
 		chan->_softhangup |= CW_SOFTHANGUP_DEV;
-	else
-    {
+	else {
 		if ((chan->fout & 0x7fffffff) == 0x7fffffff)
 			chan->fout &= 0x80000000;
 		else
@@ -2471,8 +2386,7 @@ static int set_format(
 		/* writing */
 		res = cw_translator_best_choice(&native, &fmt);
 
-	if (res < 0)
-	{
+	if (res < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
 			cw_getformatname(native), cw_getformatname(fmt));
 		return -1;
@@ -2500,13 +2414,15 @@ static int set_format(
 	else
 		/* writing */
 		*trans = cw_translator_build_path(*rawformat, 8000, *format, 8000);
+
 	cw_channel_unlock(chan);
-	if (option_debug)
-    {
+
+	if (option_debug) {
 		cw_log(CW_LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
 			direction ? "write" : "read", cw_getformatname(fmt));
 	}
-    return 0;
+
+	return 0;
 }
 
 int cw_set_read_format(struct cw_channel *chan, int fmt)
@@ -2538,12 +2454,9 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 		}
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
 
-		if (!cw_call(chan, data))
-        {
-			while (timeout  &&  (chan->_state != CW_STATE_UP))
-            {
-				if ((res = cw_waitfor(chan, timeout)) < 0)
-                {
+		if (!cw_call(chan, data)) {
+			while (timeout  &&  (chan->_state != CW_STATE_UP)) {
+				if ((res = cw_waitfor(chan, timeout)) < 0) {
 					/* Something not cool, or timed out */
 					break;
 				}
@@ -2552,67 +2465,48 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 					break;
 				if (timeout > -1)
 					timeout = res;
-				if ((f = cw_read(chan)) == 0)
-				{
+				if ((f = cw_read(chan)) == 0) {
 					state = CW_CONTROL_HANGUP;
 					res = 0;
 					break;
 				}
-				if (f->frametype == CW_FRAME_CONTROL)
-                {
-					if (f->subclass == CW_CONTROL_RINGING)
-                    {
+				if (f->frametype == CW_FRAME_CONTROL) {
+					if (f->subclass == CW_CONTROL_RINGING) {
 						state = CW_CONTROL_RINGING;
-                    }
-					else if ((f->subclass == CW_CONTROL_BUSY)  ||  (f->subclass == CW_CONTROL_CONGESTION))
-                    {
+					} else if ((f->subclass == CW_CONTROL_BUSY)  ||  (f->subclass == CW_CONTROL_CONGESTION)) {
 						state = f->subclass;
 						cw_fr_free(f);
 						break;
-					}
-                    else if (f->subclass == CW_CONTROL_ANSWER)
-                    {
+					} else if (f->subclass == CW_CONTROL_ANSWER) {
 						state = f->subclass;
 						cw_fr_free(f);
 						break;
-					}
-                    else if (f->subclass == CW_CONTROL_PROGRESS)
-                    {
+					} else if (f->subclass == CW_CONTROL_PROGRESS) {
 						/* Ignore */
-					}
-                    else if (f->subclass == -1)
-                    {
+					} else if (f->subclass == -1) {
 						/* Ignore -- just stopping indications */
-					}
-                    else
-                    {
+					} else {
 						cw_log(CW_LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 					}
 				}
 				cw_fr_free(f);
 			}
-		}
-        else
+		} else
 			cw_log(CW_LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
-	}
-    else
-    {
+	} else {
 		cw_log(CW_LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-		switch(cause)
-        {
-		case CW_CAUSE_BUSY:
-			state = CW_CONTROL_BUSY;
-			break;
-		case CW_CAUSE_CONGESTION:
-			state = CW_CONTROL_CONGESTION;
-			break;
+		switch(cause) {
+			case CW_CAUSE_BUSY:
+				state = CW_CONTROL_BUSY;
+				break;
+			case CW_CAUSE_CONGESTION:
+				state = CW_CONTROL_CONGESTION;
+				break;
 		}
 	}
-	if (chan)
-    {
+	if (chan) {
 		/* Final fixups */
-		if (oh)
-        {
+		if (oh) {
 			if (oh->context && *oh->context)
 				cw_copy_string(chan->context, oh->context, sizeof(chan->context));
 			if (oh->exten && *oh->exten)
@@ -2625,16 +2519,13 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 	}
 	if (outstate)
 		*outstate = state;
-	if (chan  &&  res <= 0)
-    {
-		if (!chan->cdr)
-        {
+	if (chan  &&  res <= 0) {
+		if (!chan->cdr) {
 			chan->cdr = cw_cdr_alloc();
 			if (chan->cdr)
 				cw_cdr_init(chan->cdr, chan);
 		}
-		if (chan->cdr)
-        {
+		if (chan->cdr) {
 			char tmp[256];
 			snprintf(tmp, 256, "%s/%s", type, (char *)data);
 			cw_cdr_setapp(chan->cdr,"Dial",tmp);
@@ -2644,14 +2535,13 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 			/* If the cause wasn't handled properly */
 			if (cw_cdr_disposition(chan->cdr,chan->hangupcause))
 				cw_cdr_failed(chan->cdr);
-		}
-        else 
-		{
+		} else {
 			cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
 		}
-        cw_hangup(chan);
+		cw_hangup(chan);
 		chan = NULL;
 	}
+
 	return chan;
 }
 
@@ -2672,22 +2562,16 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 	if (!cause)
 		cause = &foo;
 	*cause = CW_CAUSE_NOTDEFINED;
-	if (cw_mutex_lock(&chlock))
-	{
-		cw_log(CW_LOG_WARNING, "Unable to lock channel list\n");
-		return NULL;
-	}
+
+	cw_mutex_lock(&chlock);
 
 	chan = backends;
-	while (chan)
-	{
-			if (!strcasecmp(type, chan->tech->type))
-			{
+	while (chan) {
+		if (!strcasecmp(type, chan->tech->type)) {
 			capabilities = chan->tech->capabilities;
 			fmt = format;
 			res = cw_translator_best_choice(&fmt, &capabilities);
-			if (res < 0)
-				{
+			if (res < 0) {
 				cw_log(CW_LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
 				cw_mutex_unlock(&chlock);
 				return NULL;
@@ -2695,10 +2579,8 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 			cw_mutex_unlock(&chlock);
 			if (chan->tech->requester)
 				c = chan->tech->requester(type, capabilities, data, cause);
-			if (c)
-				{
-				if (c->_state == CW_STATE_DOWN)
-						{
+			if (c) {
+				if (c->_state == CW_STATE_DOWN) {
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
 					"State: %s\r\n"
@@ -2714,12 +2596,14 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 		}
 		chan = chan->next;
 	}
-	if (!chan)
-	{
+
+	if (!chan) {
 		cw_log(CW_LOG_WARNING, "No channel type registered for '%s'\n", type);
 		*cause = CW_CAUSE_NOSUCHDRIVER;
 	}
+
 	cw_mutex_unlock(&chlock);
+
 	return c;
 }
 
@@ -2729,8 +2613,7 @@ int cw_call(struct cw_channel *chan, char *addr)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	cw_channel_lock(chan);
-	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE)  &&  !cw_check_hangup(chan))
-	{
+	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE)  &&  !cw_check_hangup(chan)) {
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr);
 	}
@@ -2746,18 +2629,14 @@ int cw_transfer(struct cw_channel *chan, char *dest)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	cw_channel_lock(chan);
-	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE) && !cw_check_hangup(chan))
-	{
-		if (chan->tech->transfer)
-			{
+	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE) && !cw_check_hangup(chan)) {
+		if (chan->tech->transfer) {
 			res = chan->tech->transfer(chan, dest);
 			if (!res)
 				res = 1;
-		}
-			else
-			{
+		} else {
 			res = 0;
-			}
+		}
 	}
 	cw_channel_unlock(chan);
 	return res;
@@ -2775,31 +2654,25 @@ int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int ftime
 		return -1;
 	if (!len)
 		return -1;
-	for (;;)
-	{
-		if (c->stream)
-			{
+	for (;;) {
+		if (c->stream) {
 			d = cw_waitstream(c, CW_DIGIT_ANY);
 			cw_stopstream(c);
 			usleep(1000);
 			if (!d)
 				d = cw_waitfordigit(c, to);
-		}
-        else
-			{
+		} else {
 			d = cw_waitfordigit(c, to);
 		}
 		if (d < 0)
 			return -1;
-		if (d == 0)
-			{
+		if (d == 0) {
 			s[pos]='\0';
 			return 1;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
-		if (strchr(enders, d)  ||  (pos >= len))
-			{
+		if (strchr(enders, d)  ||  (pos >= len)) {
 			s[pos]='\0';
 			return 0;
 		}
@@ -2820,36 +2693,29 @@ int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int 
 		return -1;
 	if (!len)
 		return -1;
-	for (;;)
-	{
-		if (c->stream)
-			{
+	for (;;) {
+		if (c->stream) {
 			d = cw_waitstream_full(c, CW_DIGIT_ANY, audiofd, ctrlfd);
 			cw_stopstream(c);
 			usleep(1000);
 			if (!d)
 				d = cw_waitfordigit_full(c, to, audiofd, ctrlfd);
-		}
-			else
-			{
+		} else {
 			d = cw_waitfordigit_full(c, to, audiofd, ctrlfd);
 		}
 		if (d < 0)
 			return -1;
-		if (d == 0)
-			{
+		if (d == 0) {
 			s[pos]='\0';
 			return 1;
 		}
-		if (d == 1)
-			{
+		if (d == 1) {
 			s[pos]='\0';
 			return 2;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
-		if (strchr(enders, d)  ||  (pos >= len))
-			{
+		if (strchr(enders, d)  ||  (pos >= len)) {
 			s[pos]='\0';
 			return 0;
 		}
@@ -2888,8 +2754,7 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 	/* Set up translation from the chan to the peer */
 	src = chan->nativeformats;
 	dst = peer->nativeformats;
-	if (cw_translator_best_choice(&dst, &src) < 0)
-    {
+	if (cw_translator_best_choice(&dst, &src) < 0) {
 		cw_log(CW_LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, src, peer->name, dst);
 		return -1;
 	}
@@ -2899,13 +2764,11 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 	   to use SLINEAR between channels */
 	if ((src != dst) && option_transcode_slin)
 		dst = CW_FORMAT_SLINEAR;
-	if (cw_set_read_format(chan, src) < 0)
-    {
+	if (cw_set_read_format(chan, src) < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
-	if (cw_set_write_format(peer, src) < 0)
-    {
+	if (cw_set_write_format(peer, src) < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
@@ -2913,8 +2776,7 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 	/* Set up translation from the peer to the chan */
 	src = peer->nativeformats;
 	dst = chan->nativeformats;
-	if (cw_translator_best_choice(&dst, &src) < 0)
-    {
+	if (cw_translator_best_choice(&dst, &src) < 0) {
 		cw_log(CW_LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, src, chan->name, dst);
 		return -1;
 	}
@@ -2923,13 +2785,11 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 	   to use SLINEAR between channels */
 	if ((src != dst) && option_transcode_slin)
 		dst = CW_FORMAT_SLINEAR;
-	if (cw_set_read_format(peer, dst) < 0)
-    {
+	if (cw_set_read_format(peer, dst) < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
-	if (cw_set_write_format(chan, dst) < 0)
-    {
+	if (cw_set_write_format(chan, dst) < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
@@ -2941,15 +2801,13 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
     struct cw_frame null = { CW_FRAME_NULL, };
     int res = -1;
 
-    if (original == clone)
-    {
+    if (original == clone) {
 		cw_log(CW_LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
 		return -1;
     }
 
     cw_channel_lock(original);
-    while (cw_channel_trylock(clone))
-    {
+    while (cw_channel_trylock(clone)) {
 		cw_channel_unlock(original);
 		usleep(1);
 		cw_channel_lock(original);
@@ -2957,18 +2815,13 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
     cw_log(CW_LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
 		clone->name, original->name);
 
-    if (original->masq)
-    {
+    if (original->masq) {
 	cw_log(CW_LOG_WARNING, "%s is already going to masquerade as %s\n", 
 		original->masq->name, original->name);
-    }
-    else if (clone->masqr)
-    {
+    } else if (clone->masqr) {
 		cw_log(CW_LOG_WARNING, "%s is already going to masquerade as %s\n", 
 			clone->name, clone->masqr->name);
-    }
-    else
-    {
+    } else {
 		original->masq = clone;
 		clone->masqr = original;
 		cw_queue_frame(original, &null);
@@ -3272,8 +3125,7 @@ int cw_do_masquerade(struct cw_channel *original)
 
 void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *calleridname, const char *ani)
 {
-	if (callerid)
-    {
+	if (callerid) {
 		if (chan->cid.cid_num)
 			free(chan->cid.cid_num);
 		if (cw_strlen_zero(callerid))
@@ -3281,8 +3133,7 @@ void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *
 		else
 			chan->cid.cid_num = strdup(callerid);
 	}
-	if (calleridname)
-    {
+	if (calleridname) {
 		if (chan->cid.cid_name)
 			free(chan->cid.cid_name);
 		if (cw_strlen_zero(calleridname))
@@ -3290,8 +3141,7 @@ void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *
 		else
 			chan->cid.cid_name = strdup(calleridname);
 	}
-	if (ani)
-    {
+	if (ani) {
 		if (chan->cid.cid_ani)
 			free(chan->cid.cid_ani);
 		if (cw_strlen_zero(ani))
@@ -3369,39 +3219,30 @@ static void bridge_playfile(struct cw_channel *chan, struct cw_channel *peer, ch
 	if(check) 
 		return;
 
-	if (remain > 0)
-    {
-		if (remain / 60 > 1)
-        {
+	if (remain > 0) {
+		if (remain / 60 > 1) {
 			min = remain / 60;
 			sec = remain % 60;
-		}
-        else
-        {
+		} else {
 			sec = remain;
 		}
 	}
-	
-	if (!strcmp(sound, "timeleft"))
-    {
+
+	if (!strcmp(sound, "timeleft")) {
 		/* Queue support */
 		res = cw_streamfile(chan, "vm-youhave", chan->language);
 		res = cw_waitstream(chan, "");
-		if (min)
-        {
+		if (min) {
 			res = cw_say_number(chan, min, CW_DIGIT_ANY, chan->language, (char *) NULL);
 			res = cw_streamfile(chan, "queue-minutes", chan->language);
 			res = cw_waitstream(chan, "");
 		}
-		if (sec)
-        {
+		if (sec) {
 			res = cw_say_number(chan, sec, CW_DIGIT_ANY, chan->language, (char *) NULL);
 			res = cw_streamfile(chan, "queue-seconds", chan->language);
 			res = cw_waitstream(chan, "");
 		}
-	}
-    else
-    {
+	} else {
 		res = cw_streamfile(chan, sound, chan->language);
 		res = cw_waitstream(chan, "");
 	}
@@ -3490,7 +3331,7 @@ static enum cw_bridge_result cw_generic_bridge(struct cw_channel *c0,
 			}
 		} else {
 			to = -1;
-        }
+		}
 
 		/* Calculate the appropriate max sleep interval - 
 		 * in general, this is the time,
@@ -3894,8 +3735,7 @@ int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duratio
     if (vol >= 0)
 	vol = -13;
 
-    if (duration == 0)
-    {
+    if (duration == 0) {
         make_tone_gen_descriptor(&d.tone_desc,
                                  freq1,
                                  vol,
@@ -3906,9 +3746,7 @@ int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duratio
                                  0,
                                  0,
                                  1);
-    }
-    else
-    {
+    } else {
         make_tone_gen_descriptor(&d.tone_desc,
                                  freq1,
                                  vol,
@@ -3948,37 +3786,31 @@ cw_group_t cw_get_group(char *s)
 	char *piece;
 	char *c = NULL;
 	int start = 0;
-    int finish = 0;
-    int x;
+	int finish = 0;
+	int x;
 	cw_group_t group = 0;
 
 	c = cw_strdupa(s);
 
-    while ((piece = strsep(&c, ",")))
-    {
-	if (sscanf(piece, "%d-%d", &start, &finish) == 2)
-		{
-		/* Range */
-	}
-        else if (sscanf(piece, "%d", &start))
-        {
+	while ((piece = strsep(&c, ","))) {
+		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+			/* Range */
+		} else if (sscanf(piece, "%d", &start)) {
 			/* Just one */
 			finish = start;
-	}
-        else
-        {
+		} else {
 			cw_log(CW_LOG_ERROR, "Syntax error parsing group configuration '%s' at '%s'. Ignoring.\n", s, piece);
 			continue;
-	}
-	for (x = start;  x <= finish;  x++)
-        {
+		}
+		for (x = start;  x <= finish;  x++) {
 			if ((x > 63)  ||  (x < 0))
 				cw_log(CW_LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
-				else
+			else
 				group |= ((cw_group_t) 1 << x);
+		}
 	}
-    }
-    return group;
+
+	return group;
 }
 
 static int (*cw_moh_start_ptr)(struct cw_channel *, char *) = NULL;
