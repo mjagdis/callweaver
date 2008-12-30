@@ -40,6 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/cdr.h"
 #include "callweaver/module.h"
+#include "callweaver/registry.h"
 
 static const char tdesc[] = "Fork The CDR into 2 separate entities.";
 
@@ -66,7 +67,7 @@ static void cw_cdr_fork(struct cw_channel *chan)
 	cw_cdr_append(cdr, newcdr);
 	cw_cdr_reset(newcdr, CW_CDR_FLAG_KEEP_VARS);
 	if (!cw_test_flag(cdr, CW_CDR_FLAG_KEEP_VARS))
-		cw_cdr_free_vars(cdr, 0);
+		cw_registry_flush(&cdr->vars);
 	cw_set_flag(cdr, CW_CDR_FLAG_CHILD | CW_CDR_FLAG_LOCKED);
 }
 
