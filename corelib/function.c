@@ -113,7 +113,7 @@ int cw_function_syntax(const char *syntax)
  */
 static struct cw_func* cw_find_function(unsigned int hash, const char *name) 
 {
-	struct cw_object *obj = cw_registry_find(&func_registry, 0, 0, name);
+	struct cw_object *obj = cw_registry_find(&func_registry, 1, hash, name);
 
 	if (!obj)
 		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", name);
