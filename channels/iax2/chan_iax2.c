@@ -8834,7 +8834,7 @@ static int load_module(void)
 		cw_mutex_init(&iaxsl[x]);
 	
 	io = io_context_create();
-	sched = sched_context_create();
+	sched = sched_context_create(1);
 	
 	if (!io || !sched) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");

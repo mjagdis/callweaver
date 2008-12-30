@@ -457,7 +457,7 @@ static void print_bearer(struct misdn_bchannel *bc)
 static inline int _misdn_tasks_add_variable (int timeout, cw_sched_cb callback, void *data, int variable)
 {
 	if (!misdn_tasks)
-		misdn_tasks = sched_context_create();
+		misdn_tasks = sched_context_create(1);
 	return cw_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
 }
 

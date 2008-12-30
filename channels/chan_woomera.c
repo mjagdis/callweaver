@@ -1923,7 +1923,7 @@ static int load_module(void)
 
 	ASTOBJ_CONTAINER_INIT(&private_object_list);
 	/*
-	sched = sched_context_create();
+	sched = sched_context_create(1);
     if (!sched) {
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
     }

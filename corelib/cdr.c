@@ -1128,7 +1128,7 @@ int cw_cdr_engine_init(void)
 {
 	int res;
 
-	sched = sched_context_create();
+	sched = sched_context_create(1);
 	if (!sched) {
 		cw_log(CW_LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;

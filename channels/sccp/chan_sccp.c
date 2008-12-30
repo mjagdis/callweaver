@@ -1273,7 +1273,7 @@ static int sccp_setcalledparty_exec(struct cw_channel *chan, int argc, char **ar
 
 static int load_module(void) {
 
-       if ((sched = sched_context_create()) == NULL)
+       if ((sched = sched_context_create(1)) == NULL)
                cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
        if ((io = io_context_create()) == NULL)
                cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");

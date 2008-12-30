@@ -40,10 +40,11 @@ struct sched_context;
 
 /*! New schedule context */
 /* !
+ * \param nthreads number of service threads to start
  * Create a scheduling context
  * Returns a malloc'd sched_context structure, NULL on failure
  */
-extern struct sched_context *sched_context_create(void);
+extern struct sched_context *sched_context_create(int nthreads);
 
 /*! destroys a schedule context */
 /*!
@@ -64,21 +65,7 @@ typedef int (*cw_sched_cb)(void *data);
 
 /*!Adds a scheduled event */
 /*! 
- * \param con Schduler context to add
- * \param when how many milliseconds to wait for event to occur
- * \param callback function to call when the amount of time expires
- * \param data data to pass to the callback
- * Schedule an event to take place at some point in the future.  callback 
- * will be called with data as the argument, when milliseconds into the
- * future (approximately)
- * If callback returns 0, no further events will be re-scheduled
- * Returns a schedule item ID on success, -1 on failure
- */
-extern int cw_sched_add(struct sched_context *con, int when, cw_sched_cb callback, void *data);
-
-/*!Adds a scheduled event */
-/*! 
- * \param con Schduler context to add
+ * \param con scheduler context to add
  * \param when how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data data to pass to the callback
@@ -91,6 +78,7 @@ extern int cw_sched_add(struct sched_context *con, int when, cw_sched_cb callbac
  * Returns a schedule item ID on success, -1 on failure
  */
 extern int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable);
+#define cw_sched_add(con, when, callback, data) cw_sched_add_variable(con, when, callback, data, 0)
 
 /*! Deletes a scheduled event */
 /*!
@@ -107,8 +95,8 @@ extern int cw_sched_del(struct sched_context *con, int id);
  * \param ...    See cw_sched_add
  * Returns a new schedule item ID on success, -1 on failure
  */
-extern int cw_sched_modify(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data);
 extern int cw_sched_modify_variable(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data, int variable);
+#define cw_sched_modify(con, id, when, callback, data) cw_sched_modify_variable(con, id, when, callback, data, 0)
 
 /*!Returns the number of seconds before an event takes place */
 /*!

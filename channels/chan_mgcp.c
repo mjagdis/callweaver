@@ -4313,7 +4313,7 @@ static int load_module(void)
 	}
 
 
-	sched = sched_context_create();
+	sched = sched_context_create(1);
 	if (!sched) {
 		cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
 		return -1;

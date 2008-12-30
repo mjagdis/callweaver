@@ -2754,7 +2754,7 @@ static load_module(void)
     return -1;
   }
 
-  if ((sched = sched_context_create()) == NULL) {
+  if ((sched = sched_context_create(1)) == NULL) {
     cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
     return -1;
   }
