@@ -31,6 +31,7 @@
 
 
 struct cw_object;
+struct cw_registry_entry;
 
 
 struct cw_object_isa {
@@ -43,6 +44,7 @@ struct cw_object_isa {
 struct cw_object {
 	atomic_t refs;
 	struct module *module;
+	struct cw_registry_entry *registrations;
 	const struct cw_object_isa *type;
 	void (*release)(struct cw_object *);
 };

@@ -87,8 +87,20 @@ struct cw_registry {
 };
 
 
+/*! \brief Add an object to a registry
+ *
+ * \param registry	the registry the object is to be added to
+ * \param obj		the object to add
+ */
 extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct cw_object *obj);
+
+/*! \brief Delete an object from a registry
+ *
+ * \param registry	the registry the object is to be deleted from
+ * \param entry		the registry entry to be deleted
+ */
 extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
+
 extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
 extern struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern);
 extern void cw_registry_init(struct cw_registry *registry);
