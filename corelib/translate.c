@@ -57,8 +57,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
    by default, but it would also complicate virtually every application. */
    
 
-struct cw_registry translator_registry;
-
 static int translator_initialized;
 
 
@@ -596,7 +594,6 @@ const struct cw_object_isa cw_object_isa_translator = {
 
 struct cw_registry translator_registry = {
 	.name = "Translator",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = translator_object_cmp,
 	.onchange = translator_registry_onchange,
 };

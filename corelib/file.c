@@ -75,7 +75,6 @@ const struct cw_object_isa cw_object_isa_format = {
 
 struct cw_registry format_registry = {
 	.name = "Format",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = format_object_cmp,
 };
 

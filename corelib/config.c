@@ -99,7 +99,6 @@ const struct cw_object_isa cw_object_isa_config_engine = {
 
 struct cw_registry config_engine_registry = {
 	.name = "Config Engine",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = config_engine_object_cmp,
 	.match = config_engine_object_match,
 };

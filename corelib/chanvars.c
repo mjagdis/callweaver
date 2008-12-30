@@ -74,7 +74,6 @@ const struct cw_object_isa cw_object_isa_var = {
 
 struct cw_registry var_registry = {
 	.name = "Global variables",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = var_object_cmp,
 	.match = var_object_match,
 };
@@ -83,7 +82,6 @@ struct cw_registry var_registry = {
 int cw_var_registry_init(struct cw_registry *reg, int estsize)
 {
 	memset(reg, 0, sizeof(*reg));
-	cw_mutex_init(&reg->lock);
 	reg->name = "Channel variables";
 	reg->cmp = var_object_cmp;
 	reg->match = var_object_match;

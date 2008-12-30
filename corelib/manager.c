@@ -258,7 +258,6 @@ const struct cw_object_isa cw_object_isa_listener = {
 
 struct cw_registry manager_listener_registry = {
 	.name = "Manager Listener",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = manager_listener_object_cmp,
 	.match = manager_listener_object_match,
 };
@@ -290,7 +289,6 @@ const struct cw_object_isa cw_object_isa_session = {
 
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = manager_session_object_cmp,
 	.match = manager_session_object_match,
 };
@@ -322,7 +320,6 @@ const struct cw_object_isa cw_object_isa_manager_action = {
 
 struct cw_registry manager_action_registry = {
 	.name = "Manager Action",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = manager_action_object_cmp,
 	.match = manager_action_object_match,
 };

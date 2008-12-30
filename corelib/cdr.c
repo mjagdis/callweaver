@@ -76,7 +76,6 @@ const struct cw_object_isa cw_object_isa_cdrbe = {
 
 struct cw_registry cdrbe_registry = {
 	.name = "CDR back-end",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = cdrbe_object_cmp,
 };
 

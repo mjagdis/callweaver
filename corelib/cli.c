@@ -117,7 +117,6 @@ const struct cw_object_isa cw_object_isa_clicmd = {
 
 struct cw_registry clicmd_registry = {
     .name = "CLI Command",
-    .lock = CW_MUTEX_INIT_VALUE,
     .cmp = clicmd_object_cmp,
     .match = clicmd_object_match,
 };

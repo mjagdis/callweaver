@@ -249,7 +249,6 @@ const struct cw_object_isa cw_object_isa_atexit = {
 
 struct cw_registry atexit_registry = {
 	.name = "At Exit",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.match = atexit_object_match,
 };
 

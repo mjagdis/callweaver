@@ -78,7 +78,6 @@ const struct cw_object_isa cw_object_isa_function = {
 
 struct cw_registry func_registry = {
 	.name = "Function",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = func_object_cmp,
 	.match = func_object_match,
 };

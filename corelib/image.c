@@ -76,7 +76,6 @@ const struct cw_object_isa cw_object_isa_imager = {
 
 struct cw_registry imager_registry = {
 	.name = "Imager",
-	.lock = CW_MUTEX_INIT_VALUE,
 	.cmp = imager_object_cmp,
 	.match = imager_object_match,
 };

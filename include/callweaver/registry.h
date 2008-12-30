@@ -82,7 +82,7 @@ struct cw_registry_entry {
 };
 
 struct cw_registry {
-	cw_mutex_t lock;
+	pthread_spinlock_t lock;
 	atomic_t inuse;
 	size_t size;
 	struct cw_list *list;
