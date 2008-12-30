@@ -1559,18 +1559,18 @@ int callweaver_main(int argc, char *argv[])
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_verbose("[ Initializing Custom Configuration Options ]");
 
-	cw_registry_init(&atexit_registry);
-	cw_registry_init(&cdrbe_registry);
-	cw_registry_init(&clicmd_registry);
-	cw_registry_init(&config_engine_registry);
-	cw_registry_init(&format_registry);
-	cw_registry_init(&func_registry);
-	cw_registry_init(&imager_registry);
-	cw_registry_init(&manager_listener_registry);
-	cw_registry_init(&manager_session_registry);
-	cw_registry_init(&manager_action_registry);
-	cw_registry_init(&switch_registry);
-	cw_registry_init(&translator_registry);
+	cw_registry_init(&atexit_registry, 1);
+	cw_registry_init(&cdrbe_registry, 64);
+	cw_registry_init(&clicmd_registry, 1024);
+	cw_registry_init(&config_engine_registry, 64);
+	cw_registry_init(&format_registry, 128);
+	cw_registry_init(&func_registry, 4096);
+	cw_registry_init(&imager_registry,16);
+	cw_registry_init(&manager_listener_registry, 1);
+	cw_registry_init(&manager_session_registry, 1);
+	cw_registry_init(&manager_action_registry, 1024);
+	cw_registry_init(&switch_registry, 16);
+	cw_registry_init(&translator_registry, 64);
 
 	/* custom config setup */
 	register_config_cli();

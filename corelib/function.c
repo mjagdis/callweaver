@@ -104,20 +104,16 @@ int cw_function_syntax(const char *syntax)
  * is already reference counted and must be released
  * after use by passing it to cw_object_put().
  *
- * \note The name argument is only used to log "not found"
- * messages. If it is given as NULL cw_find_function()
- * will fail silently.
- *
  * \param hash		the hash of the function name to find
  * 			(given by cw_hash_app_name())
- * \param name		the name of the function (may be NULL)
+ * \param name		the name of the function
  *
  * \return a pointer to the function object or NULL if
  * not found
  */
 static struct cw_func* cw_find_function(unsigned int hash, const char *name) 
 {
-	struct cw_object *obj = cw_registry_find(&func_registry, name);
+	struct cw_object *obj = cw_registry_find(&func_registry, 0, 0, name);
 
 	if (!obj)
 		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", name);

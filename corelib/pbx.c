@@ -216,7 +216,7 @@ struct cw_registry switch_registry = {
 
 static inline struct cw_switch *pbx_findswitch(const char *name)
 {
-	struct cw_object *obj = cw_registry_find(&switch_registry, name);
+	struct cw_object *obj = cw_registry_find(&switch_registry, 0, 0, name);
 
 	if (obj)
 		return container_of(obj, struct cw_switch, obj);

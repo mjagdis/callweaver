@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Ltd, UK
+ * Copyright (C) 2007-2008, Eris Associates Ltd, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -35,7 +35,6 @@ struct cw_list {
 
 static inline void cw_list_init(struct cw_list *list) {
 	list->next = list->prev = list;
-	list->del = NULL;
 }
 
 static inline void __cw_list_add(struct cw_list *prev, struct cw_list *entry, struct cw_list *next)
@@ -57,12 +56,12 @@ static inline void __cw_list_del(struct cw_list *prev, struct cw_list *next)
 	prev->next = next;
 }
 
-static inline void cw_list_del(struct cw_list *head, struct cw_list *entry)
+static inline void cw_list_del(struct cw_list **del, struct cw_list *entry)
 {
 	if (!entry->del) {
 		__cw_list_del(entry->prev, entry->next);
-		entry->del = head->del;
-		head->del = entry;
+		entry->del = *del;
+		*del = entry;
 	}
 }
 
@@ -76,12 +75,15 @@ struct cw_object;
 struct cw_registry_entry {
 	struct cw_list list;
 	struct cw_object *obj;
+	unsigned int hash;
 };
 
 struct cw_registry {
 	cw_mutex_t lock;
 	atomic_t inuse;
-	struct cw_list list;
+	size_t size;
+	struct cw_list *list;
+	struct cw_list *del;
 	char *name;
 	void (*onchange)(void);
 };
@@ -90,9 +92,10 @@ struct cw_registry {
 /*! \brief Add an object to a registry
  *
  * \param registry	the registry the object is to be added to
+ * \param hash		a hash of the object key
  * \param obj		the object to add
  */
-extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct cw_object *obj);
+extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned int hash, struct cw_object *obj);
 
 /*! \brief Delete an object from a registry
  *
@@ -102,8 +105,8 @@ extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, s
 extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
 
 extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
-extern struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern);
-extern void cw_registry_init(struct cw_registry *registry);
+extern struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
+extern int cw_registry_init(struct cw_registry *registry, size_t estsize);
 
 
 #endif /* _CALLWEAVER_REGISTRY_H */

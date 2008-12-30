@@ -125,7 +125,7 @@ extern struct cw_registry manager_action_registry;
 	 */ \
 	if (!cw_object_refs(__ptr)) \
 		cw_object_init_obj(&__ptr->obj, &cw_object_isa_manager_action, CW_OBJECT_CURRENT_MODULE, 0); \
-	__ptr->reg_entry = cw_registry_add(&manager_action_registry, &__ptr->obj); \
+	__ptr->reg_entry = cw_registry_add(&manager_action_registry, 0, &__ptr->obj); \
 	0; \
 })
 #define cw_manager_action_unregister(ptr) ({ \

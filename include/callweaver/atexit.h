@@ -54,7 +54,7 @@ extern struct cw_registry atexit_registry;
 		 */ \
 		__ptr->obj.module = get_modinfo()->self; \
 	} \
-	__ptr->reg_entry = cw_registry_add(&atexit_registry, &__ptr->obj); \
+	__ptr->reg_entry = cw_registry_add(&atexit_registry, 0, &__ptr->obj); \
 	0; \
 })
 #define cw_atexit_unregister(ptr) ({ \

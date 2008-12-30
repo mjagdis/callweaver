@@ -61,7 +61,7 @@ extern struct cw_registry imager_registry;
 	 */ \
 	if (!cw_object_refs(__ptr)) \
 		cw_object_init_obj(&__ptr->obj, &cw_object_isa_imager, CW_OBJECT_CURRENT_MODULE, 0); \
-	__ptr->reg_entry = cw_registry_add(&imager_registry, &__ptr->obj); \
+	__ptr->reg_entry = cw_registry_add(&imager_registry, 0, &__ptr->obj); \
 	0; \
 })
 #define cw_image_unregister(ptr) ({ \

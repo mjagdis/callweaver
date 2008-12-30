@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Ltd, UK
+ * Copyright (C) 2007-2008, Eris Associates Ltd, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -49,8 +49,8 @@ static void registry_purge(struct cw_registry *registry)
 	struct cw_list *list;
 
 	cw_mutex_lock(&registry->lock);
-	list = registry->list.del;
-	registry->list.del = NULL;
+	list = registry->del;
+	registry->del = NULL;
 	cw_mutex_unlock(&registry->lock);
 
 	while (list) {
@@ -63,16 +63,17 @@ static void registry_purge(struct cw_registry *registry)
 	}
 }
 
-struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct cw_object *obj)
+struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned int hash, struct cw_object *obj)
 {
 	struct cw_registry_entry *entry = malloc(sizeof(*entry));
 
 	if (entry) {
 		cw_list_init(&entry->list);
 		entry->obj = cw_object_get_obj(obj);
+		entry->hash = hash;
 
 		cw_mutex_lock(&registry->lock);
-		cw_list_add(&registry->list, &entry->list);
+		cw_list_add(&registry->list[hash % registry->size], &entry->list);
 		cw_mutex_unlock(&registry->lock);
 
 		if (option_verbose > 1)
@@ -112,14 +113,16 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 {
 	struct cw_list *list;
 	struct cw_registry_entry *entry;
-	int ret = 0;
+	int i, ret = 0;
 
 	atomic_inc(&registry->inuse);
 
-	cw_list_for_each(list, &registry->list) {
-		entry = container_of(list, struct cw_registry_entry, list);
-		if ((ret = func(entry->obj, data)))
-			break;
+	for (i = 0; i < registry->size; i++) {
+		cw_list_for_each(list, &registry->list[i]) {
+			entry = container_of(list, struct cw_registry_entry, list);
+			if ((ret = func(entry->obj, data)))
+				break;
+		}
 	}
 
 	if (atomic_dec_and_test(&registry->inuse))
@@ -129,20 +132,26 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 }
 
 
-struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern)
+struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern)
 {
 	struct cw_object *obj = NULL;
 	struct cw_list *list;
+	int i;
 
 	atomic_inc(&registry->inuse);
 
-	cw_list_for_each(list, &registry->list) {
-		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
-		if (entry->obj->type->match && entry->obj->type->match(entry->obj, pattern)) {
-			obj = cw_object_dup_obj(entry->obj);
-			break;
+	i = (have_hash ? hash % registry->size : 0);
+	do {
+		cw_list_for_each(list, &registry->list[i]) {
+			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
+			if ((!have_hash || entry->hash == hash) && entry->obj->type->match && entry->obj->type->match(entry->obj, pattern)) {
+				obj = cw_object_dup_obj(entry->obj);
+				i = registry->size;
+				break;
+			}
 		}
-	}
+		i++;
+	} while (!have_hash && i < registry->size);
 
 	if (atomic_dec_and_test(&registry->inuse))
 		registry_purge(registry);
@@ -151,9 +160,20 @@ struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pat
 }
 
 
-void cw_registry_init(struct cw_registry *registry)
+int cw_registry_init(struct cw_registry *registry, size_t estsize)
 {
-	cw_mutex_init(&registry->lock);
-	cw_list_init(&registry->list);
-	atomic_set(&registry->inuse, 0);
+	int i;
+
+	if ((registry->list = malloc(sizeof(*registry->list) * estsize))) {
+		registry->size = estsize;
+		registry->del = NULL;
+		cw_mutex_init(&registry->lock);
+		atomic_set(&registry->inuse, 0);
+		for (i = 0; i < estsize; i++)
+			cw_list_init(&registry->list[i]);
+		return 0;
+	}
+
+	cw_log(CW_LOG_ERROR, "Out of memory");
+	return -1;
 }

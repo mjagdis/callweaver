@@ -56,7 +56,7 @@ extern struct cw_registry func_registry;
 	 */ \
 	if (!cw_object_refs(__ptr)) \
 		cw_object_init_obj(&__ptr->obj, &cw_object_isa_function, CW_OBJECT_CURRENT_MODULE, 0); \
-	__ptr->reg_entry = cw_registry_add(&func_registry, &__ptr->obj); \
+	__ptr->reg_entry = cw_registry_add(&func_registry, 0, &__ptr->obj); \
 	0; \
 })
 #define cw_function_unregister(ptr) ({ \

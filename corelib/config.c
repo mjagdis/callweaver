@@ -899,7 +899,7 @@ static struct cw_config_engine *find_engine(const char *family, char *database, 
 	/* Check if the required driver (engine) exist */
 	eng = NULL;
 	if (map) {
-		obj = cw_registry_find(&config_engine_registry, map->driver);
+		obj = cw_registry_find(&config_engine_registry, 0, 0, map->driver);
 		if (obj)
 			eng = container_of(obj, struct cw_config_engine, obj);
 		else

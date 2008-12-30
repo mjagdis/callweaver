@@ -134,7 +134,7 @@ static struct cw_clicmd *find_cli(char *cmds[], int exact)
     for (args.ncmds = 0; cmds[args.ncmds]; args.ncmds++);
 
     for (; args.ncmds; args.ncmds--) {
-        obj = cw_registry_find(&clicmd_registry, &args);
+        obj = cw_registry_find(&clicmd_registry, 0, 0, &args);
         if (obj) {
             return container_of(obj, struct cw_clicmd, obj);
         }

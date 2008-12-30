@@ -370,7 +370,7 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 
-	if (!(it = cw_registry_find(&manager_action_registry, argv[3]))) {
+	if (!(it = cw_registry_find(&manager_action_registry, 0, 0, argv[3]))) {
 		cw_cli(fd, "No manager action by that name registered.\n");
 		return RESULT_FAILURE;
 	}
@@ -1442,7 +1442,7 @@ static int process_message(struct mansession *s, struct message *m)
 	else if (s->authenticated) {
 		struct cw_object *it;
 
-		if ((it = cw_registry_find(&manager_action_registry, m->action))) {
+		if ((it = cw_registry_find(&manager_action_registry, 0, 0, m->action))) {
 			struct manager_action *act = container_of(it, struct manager_action, obj);
 			if ((s->writeperm & act->authority) == act->authority)
 				ret = act->func(s, m);
@@ -1638,7 +1638,7 @@ static void *manager_session(void *data)
 
 	pthread_cleanup_push(manager_session_cleanup, sess);
 
-	sess->reg_entry = cw_registry_add(&manager_session_registry, &sess->obj);
+	sess->reg_entry = cw_registry_add(&manager_session_registry, 0, &sess->obj);
 
 	/* If there is an fd already supplied we will read AMI requests from it */
 	if (sess->fd >= 0) {
@@ -2163,7 +2163,7 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 	if (u.sa.sa_family == AF_LOCAL && !writeperm)
 		chmod(u.sun.sun_path, 0666);
 
-	if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, &listener->obj))) {
+	if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, 0, &listener->obj))) {
 		cw_object_dup(listener);
 		if (!cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener)) {
 			if (option_verbose)

@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Ltd, UK
+ * Copyright (C) 2007-2008, Eris Associates Ltd, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
