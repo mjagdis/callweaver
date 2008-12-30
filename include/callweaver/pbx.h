@@ -38,8 +38,6 @@ extern "C" {
 
 #define cw_hash_app_name(x)    cw_hash_string(x)
 
-#define cw_hash_var_name(x)    cw_hash_string(x)
-
 
 #define CW_PBX_KEEP    0
 #define CW_PBX_REPLACE 1

@@ -38,9 +38,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_hash.h"
 
 
-#define cw_hash_var_name(x)	cw_hash_string(x)
-
-
 struct cw_var_t *cw_var_assign(const char *name, const char *value)
 {
 	struct cw_var_t *var;

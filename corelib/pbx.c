@@ -44,6 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/switch.h"
 #include "callweaver/pbx.h"
 #include "callweaver/channel.h"
+#include "callweaver/chanvars.h"
 #include "callweaver/options.h"
 #include "callweaver/logger.h"
 #include "callweaver/file.h"

@@ -35,11 +35,16 @@ struct cw_var_t {
 
 CW_LIST_HEAD_NOLOCK(varshead, cw_var_t);
 
-struct cw_var_t *cw_var_assign(const char *name, const char *value);
-void cw_var_delete(struct cw_var_t *var);
-char *cw_var_name(struct cw_var_t *var);
-char *cw_var_full_name(struct cw_var_t *var);
-char *cw_var_value(struct cw_var_t *var);
+
+#define cw_hash_var_name(x)	cw_hash_string(x)
+
+
+extern struct cw_var_t *cw_var_assign(const char *name, const char *value);
+extern void cw_var_delete(struct cw_var_t *var);
+extern char *cw_var_name(struct cw_var_t *var);
+extern char *cw_var_full_name(struct cw_var_t *var);
+extern char *cw_var_value(struct cw_var_t *var);
+
 #define cw_var_hash(v) (v ? v->hash : 0)
 
 #endif /* _CALLWEAVER_CHANVARS_H */
