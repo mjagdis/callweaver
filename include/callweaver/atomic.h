@@ -154,7 +154,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
 /* The IEEE Std. 1003.1j-2000 introduces functions to implement spinlocks.
  * If we have an earlier 1003.1j we have to use mutexes.
  * If we use mutexes the current callweaver/lock.h forces us to use
- * cw_mutexes. If DEBUG_THREADS is on cw_mutexes are unnecessarily
+ * cw_mutexes. If DEBUG_MUTEX is on cw_mutexes are unnecessarily
  * heavyweight for what we want here :-(
  * To enable __USE_XOPEN2K (if available) in a GNU libc environment
  * you need to compile with either _POSIX_C_SOURCE >= 200112L,

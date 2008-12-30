@@ -832,10 +832,20 @@ AC_ARG_ENABLE(debug,
 
 if test "${enable_debug}" = "yes"; then
    AC_DEFINE([DEBUG],[],[Enable extra debugging.])
+   enable_debug_mutex="yes"
 fi
 AM_CONDITIONAL([WANT_DEBUG],[test "${enable_debug}" = "yes"])
 
-dnl Enable debugging
+dnl Enable mutex debugging
+AC_ARG_ENABLE(debug-mutex,
+	[AC_HELP_STRING([--enable-debug-mutex],[build with mutex debugging])],,[enable_debug_mutex="no"])
+
+if test "${enable_debug_mutex}" = "yes"; then
+   AC_DEFINE([DEBUG_MUTEX],[],[Enable mutex debugging and deadlock detection.])
+fi
+AC_SUBST(DEBUG_MUTEX)
+
+dnl Enable stack backtraces
 AC_ARG_ENABLE(stack-backtraces,
 	[AC_HELP_STRING([--enable-stack-backtraces],[build with stack backtraces])],,[enable_stack_backtraces="no"])
 
@@ -2439,7 +2449,6 @@ AC_SUBST(SOLINK)
 AC_SUBST(ASTLINK)
 AC_SUBST(CPU_OPTIONS)
 AC_SUBST(all_debug)
-AC_SUBST(DEBUG_THREADS)
 AC_SUBST(DEBUG_MALLOC)
 AC_SUBST(LOW_MEMORY)
 AC_SUBST(prefix)

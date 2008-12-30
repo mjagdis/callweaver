@@ -52,7 +52,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#define MUTEX_DEBUG_CANLOG 0
+#define DEBUG_MUTEX_CANLOG 0
 
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"

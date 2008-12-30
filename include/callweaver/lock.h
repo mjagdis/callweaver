@@ -68,10 +68,10 @@
 #define CW_MUTEX_INIT_W_CONSTRUCTORS
 #endif
 
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 
-#ifndef MUTEX_DEBUG_CANLOG
-#  define MUTEX_DEBUG_CANLOG 1
+#ifndef DEBUG_MUTEX_CANLOG
+#  define DEBUG_MUTEX_CANLOG 1
 #endif
 
 #include <errno.h>
@@ -150,21 +150,21 @@ extern int cw_cond_wait_debug(int canlog, const char *filename, int lineno, cons
 extern int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime);
 
 
-#define cw_mutex_init(pmutex)                cw_mutex_init_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
-#define cw_mutex_destroy(a)                  cw_mutex_destroy_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_lock(a)                     cw_mutex_lock_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_trylock(a)                  cw_mutex_trylock_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define cw_mutex_unlock(a)                   cw_mutex_unlock_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_init(pmutex)                cw_mutex_init_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define cw_mutex_destroy(a)                  cw_mutex_destroy_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_lock(a)                     cw_mutex_lock_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_trylock(a)                  cw_mutex_trylock_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define cw_mutex_unlock(a)                   cw_mutex_unlock_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
 #define cw_cond_init(cond, cond_attr)        pthread_cond_init((cond), (cond_attr))
 #define cw_cond_signal(cond)                 pthread_cond_signal((cond))
 #define cw_cond_broadcast(cond)              pthread_cond_broadcast((cond))
 #define cw_cond_destroy(cond)                pthread_cond_destroy((cond))
 
-#define cw_cond_wait(cond, mutex)            cw_cond_wait_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
-#define cw_cond_timedwait(cond, mutex, time) cw_cond_timedwait_debug(MUTEX_DEBUG_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
+#define cw_cond_wait(cond, mutex)            cw_cond_wait_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define cw_cond_timedwait(cond, mutex, time) cw_cond_timedwait_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
-#else /* !DEBUG_THREADS */
+#else /* !DEBUG_MUTEX */
 
 
 #define CW_MUTEX_INIT_VALUE	PTHREAD_MUTEX_INIT_VALUE
@@ -241,7 +241,7 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 #define cw_cond_wait(cond, t)               pthread_cond_wait((cond), (t))
 #define cw_cond_timedwait(cond, t, abstime) pthread_cond_timedwait((cond), (t), (abstime))
 
-#endif /* !DEBUG_THREADS */
+#endif /* !DEBUG_MUTEX */
 
 
 /* mutex unlock is sometimes used in a pthread_cleanup_push */

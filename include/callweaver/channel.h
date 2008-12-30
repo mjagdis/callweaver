@@ -778,7 +778,7 @@ int cw_senddigit(struct cw_channel *chan, char digit);
 char *cw_recvtext(struct cw_channel *chan, int timeout);
 
 /*! Get channel by name (locks channel) */
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_name_locked(chan) __cw_get_by_name_locked(&channel_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -791,7 +791,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);
 
 /*! Get channel by name prefix (locks channel) */
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_name_prefix_locked(prefix, prefix_len) __cw_get_channel_by_name_prefix_locked(prefix, prefix_len, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
@@ -799,7 +799,7 @@ struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size
 #endif
 
 /*--- cw_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_channel_by_exten_locked(const char *exten, const char *context, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_exten_locked(exten, context) __cw_get_channel_by_exten_locked(exten, context, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
@@ -1052,7 +1052,7 @@ static inline int cw_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 }
 
 
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 #  define cw_channel_lock(chan)		({ \
 	typeof(chan) __chan = (chan); \
 	cw_mutex_lock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \

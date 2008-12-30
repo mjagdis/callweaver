@@ -889,7 +889,7 @@ void cw_channel_undefer_dtmf(struct cw_channel *chan)
 
 
 /*--- cw_get_channel_by_name_locked: Get channel by name and lock it */
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *name, const char *file, int lineno, const char *func)
 #else
 struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *name)
@@ -909,7 +909,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 	 */
 	while (tries-- && (obj = cw_registry_find(registry, 1, cw_hash_string(name), name))) {
 		struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 		if (!cw_mutex_trylock_debug(1, file, lineno, func, chan->name, &chan->lock)) {
 #else
 		if (!cw_channel_trylock(chan)) {
@@ -968,7 +968,7 @@ struct channel_by_name_prefix_args {
 	const char *prefix;
 	size_t prefix_len;
 	struct cw_channel *chan;
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 	const char *file;
 	int lineno;
 	const char *func;
@@ -994,7 +994,7 @@ static int channel_by_name_prefix_one(struct cw_object *obj, void *data)
 	 * 2ms rather than rescheduling.
 	 */
 	while (tries--) {
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 		if (!cw_mutex_trylock_debug(1, args->file, args->lineno, args->func, chan->name, &chan->lock)) {
 #else
 		if (!cw_channel_trylock(chan)) {
@@ -1012,7 +1012,7 @@ static int channel_by_name_prefix_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len, const char *file, int lineno, const char *func)
 #else
 struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len)
@@ -1022,7 +1022,7 @@ struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size
 		.prefix = prefix,
 		.prefix_len = prefix_len,
 		.chan = NULL,
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 		.file = file,
 		.lineno = lineno,
 		.func = func,
@@ -1040,7 +1040,7 @@ struct channel_by_exten_prefix_args {
 	const char *context;
 	const char *exten;
 	struct cw_channel *chan;
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 	const char *file;
 	int lineno;
 	const char *func;
@@ -1067,7 +1067,7 @@ static int channel_by_exten_one(struct cw_object *obj, void *data)
 	 * 2ms rather than rescheduling.
 	 */
 	while (tries--) {
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 		if (!cw_mutex_trylock_debug(1, args->file, args->lineno, args->func, chan->name, &chan->lock)) {
 #else
 		if (!cw_channel_trylock(chan)) {
@@ -1085,7 +1085,7 @@ static int channel_by_exten_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 struct cw_channel *__cw_get_channel_by_exten_locked(const char *exten, const char *context, const char *file, int lineno, const char *func)
 #else
 struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context)
@@ -1095,7 +1095,7 @@ struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char 
 		.context = context,
 		.exten = exten,
 		.chan = NULL,
-#ifdef DEBUG_THREADS
+#ifdef DEBUG_MUTEX
 		.file = file,
 		.lineno = lineno,
 		.func = func,
