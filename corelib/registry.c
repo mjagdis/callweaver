@@ -144,7 +144,7 @@ struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, 
 	do {
 		cw_list_for_each(list, &registry->list[i]) {
 			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
-			if ((!have_hash || entry->hash == hash) && entry->obj->type->match && entry->obj->type->match(entry->obj, pattern)) {
+			if ((!have_hash || entry->hash == hash) && registry->match && registry->match(entry->obj, pattern)) {
 				obj = cw_object_dup_obj(entry->obj);
 				i = registry->size;
 				break;

@@ -71,13 +71,13 @@ static int cdrbe_object_cmp(struct cw_object *a, struct cw_object *b)
 
 const struct cw_object_isa cw_object_isa_cdrbe = {
 	.name = cdrbe_object_name,
-	.cmp = cdrbe_object_cmp,
 };
 
 
 struct cw_registry cdrbe_registry = {
 	.name = "CDR back-end",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = cdrbe_object_cmp,
 };
 
 

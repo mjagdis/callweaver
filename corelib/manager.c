@@ -254,13 +254,13 @@ static int manager_listener_object_match(struct cw_object *obj, const void *patt
 
 const struct cw_object_isa cw_object_isa_listener = {
 	.name = manager_listener_object_name,
-	.cmp = manager_listener_object_cmp,
-	.match = manager_listener_object_match,
 };
 
 struct cw_registry manager_listener_registry = {
 	.name = "Manager Listener",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = manager_listener_object_cmp,
+	.match = manager_listener_object_match,
 };
 
 
@@ -286,13 +286,13 @@ static int manager_session_object_match(struct cw_object *obj, const void *patte
 
 const struct cw_object_isa cw_object_isa_session = {
 	.name = manager_session_object_name,
-	.cmp = manager_session_object_cmp,
-	.match = manager_session_object_match,
 };
 
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = manager_session_object_cmp,
+	.match = manager_session_object_match,
 };
 
 
@@ -318,13 +318,13 @@ static int manager_action_object_match(struct cw_object *obj, const void *patter
 
 const struct cw_object_isa cw_object_isa_manager_action = {
 	.name = manager_action_object_name,
-	.cmp = manager_action_object_cmp,
-	.match = manager_action_object_match,
 };
 
 struct cw_registry manager_action_registry = {
 	.name = "Manager Action",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = manager_action_object_cmp,
+	.match = manager_action_object_match,
 };
 
 

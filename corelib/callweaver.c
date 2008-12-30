@@ -244,12 +244,12 @@ static int atexit_object_match(struct cw_object *obj, const void *pattern)
 
 const struct cw_object_isa cw_object_isa_atexit = {
 	.name = atexit_object_name,
-	.match = atexit_object_match,
 };
 
 struct cw_registry atexit_registry = {
 	.name = "At Exit",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.match = atexit_object_match,
 };
 
 static int cw_run_atexit_one(struct cw_object *obj, void *data)

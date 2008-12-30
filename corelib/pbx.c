@@ -204,13 +204,13 @@ static int switch_object_match(struct cw_object *obj, const void *pattern)
 
 const struct cw_object_isa cw_object_isa_switch = {
 	.name = switch_object_name,
-	.cmp = switch_object_cmp,
-	.match = switch_object_match,
 };
 
 struct cw_registry switch_registry = {
 	.name = "Switch",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = switch_object_cmp,
+	.match = switch_object_match,
 };
 
 

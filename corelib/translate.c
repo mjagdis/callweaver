@@ -592,13 +592,13 @@ static void translator_registry_onchange(void)
 
 const struct cw_object_isa cw_object_isa_translator = {
 	.name = translator_object_name,
-	.cmp = translator_object_cmp,
 };
 
 struct cw_registry translator_registry = {
 	.name = "Translator",
-	.onchange = translator_registry_onchange,
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = translator_object_cmp,
+	.onchange = translator_registry_onchange,
 };
 
 

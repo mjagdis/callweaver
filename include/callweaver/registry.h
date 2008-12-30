@@ -84,6 +84,8 @@ struct cw_registry {
 	size_t size;
 	struct cw_list *list;
 	struct cw_list *del;
+	int (*cmp)(struct cw_object *a, struct cw_object *b);
+	int (*match)(struct cw_object *obj, const void *pattern);
 	char *name;
 	void (*onchange)(void);
 };

@@ -95,13 +95,13 @@ static int config_engine_object_match(struct cw_object *obj, const void *pattern
 
 const struct cw_object_isa cw_object_isa_config_engine = {
 	.name = config_engine_object_name,
-	.cmp = config_engine_object_cmp,
-	.match = config_engine_object_match,
 };
 
 struct cw_registry config_engine_registry = {
 	.name = "Config Engine",
 	.lock = CW_MUTEX_INIT_VALUE,
+	.cmp = config_engine_object_cmp,
+	.match = config_engine_object_match,
 };
 
 #define MAX_INCLUDE_LEVEL 10
