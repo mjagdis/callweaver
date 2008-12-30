@@ -2579,7 +2579,7 @@ static int alsa_text(struct cw_channel *c, const char *text)
 
 static void grab_owner(void)
 {
-	while(alsa.owner && cw_mutex_trylock(&alsa.owner->lock)) {
+	while(alsa.owner && cw_channel_trylock(alsa.owner)) {
 		cw_mutex_unlock(&alsalock);
 		usleep(1);
 		cw_mutex_lock(&alsalock);
@@ -2598,7 +2598,7 @@ static int alsa_call(struct cw_channel *c, char *dest)
 		if (alsa.owner) {
 			f.subclass = CW_CONTROL_ANSWER;
 			cw_queue_frame(alsa.owner, &f);
-			cw_mutex_unlock(&alsa.owner->lock);
+			cw_channel_unlock(alsa.owner);
 		}
 	} else {
 		cw_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
@@ -2606,7 +2606,7 @@ static int alsa_call(struct cw_channel *c, char *dest)
 		if (alsa.owner) {
 			f.subclass = CW_CONTROL_RINGING;
 			cw_queue_frame(alsa.owner, &f);
-			cw_mutex_unlock(&alsa.owner->lock);
+			cw_channel_unlock(alsa.owner);
 		}
 		write(sndcmd[1], &res, sizeof(res));
 	}
@@ -2940,7 +2940,7 @@ static int console_answer(int fd, int argc, char *argv[])
 		if (alsa.owner) {
 			struct cw_frame f = { CW_FRAME_CONTROL, CW_CONTROL_ANSWER };
 			cw_queue_frame(alsa.owner, &f);
-			cw_mutex_unlock(&alsa.owner->lock);
+			cw_channel_unlock(alsa.owner);
 		}
 		answer_sound();
 	}
@@ -2984,7 +2984,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 			f.data = NULL;
 			f.datalen = 0;
 			cw_queue_frame(alsa.owner, &f);
-			cw_mutex_unlock(&alsa.owner->lock);
+			cw_channel_unlock(alsa.owner);
 		}
 	}
 	cw_mutex_unlock(&alsalock);
@@ -3010,7 +3010,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 		grab_owner();
 		if (alsa.owner) {
 			cw_queue_hangup(alsa.owner);
-			cw_mutex_unlock(&alsa.owner->lock);
+			cw_channel_unlock(alsa.owner);
 		}
 	}
 	cw_mutex_unlock(&alsalock);
@@ -3042,7 +3042,7 @@ static int console_dial(int fd, int argc, char *argv[])
 					cw_queue_frame(alsa.owner, &f);
 					d++;
 				}
-				cw_mutex_unlock(&alsa.owner->lock);
+				cw_channel_unlock(alsa.owner);
 			}
 		} else {
 			cw_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");

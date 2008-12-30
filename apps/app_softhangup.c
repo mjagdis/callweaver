@@ -66,7 +66,7 @@ static int softhangup_one(struct cw_object *obj, void *data)
 	struct softhangup_args *args = data;
 	char *cut;
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
 	strncpy(name, chan->name, sizeof(name)-1);
 	if (args->all) {
@@ -81,7 +81,7 @@ static int softhangup_one(struct cw_object *obj, void *data)
 			*cut = 0;
 	}
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 
 	if (!strcasecmp(name, args->name)) {
 		cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n", chan->name);

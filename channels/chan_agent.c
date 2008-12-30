@@ -586,10 +586,10 @@ static int agent_write(struct cw_channel *ast, struct cw_frame *f)
 	CHECK_FORMATS(ast, p);
 	cw_mutex_lock(&p->lock);
 	if (p->chan) {
-		cw_mutex_lock(&p->chan->lock);
+		cw_channel_lock(p->chan);
 		if (cw_test_flag(p->chan, CW_FLAG_ZOMBIE) || cw_check_hangup(p->chan))
 			res = -1;
-		cw_mutex_unlock(&p->chan->lock);
+		cw_channel_unlock(p->chan);
 		if (!res) {
 			if ((f->frametype != CW_FRAME_VOICE) ||
 			    (f->subclass == p->chan->writeformat)) {
@@ -803,13 +803,13 @@ static int agent_hangup(struct cw_channel *ast)
 					dump_agents();
 			}
 		} else if (p->dead) {
-			cw_mutex_lock(&p->chan->lock);
+			cw_channel_lock(p->chan);
 			cw_softhangup(p->chan, CW_SOFTHANGUP_EXPLICIT);
-			cw_mutex_unlock(&p->chan->lock);
+			cw_channel_unlock(p->chan);
 		} else if (p->loginstart) {
-			cw_mutex_lock(&p->chan->lock);
+			cw_channel_lock(p->chan);
 			cw_moh_start(p->chan, p->moh);
-			cw_mutex_unlock(&p->chan->lock);
+			cw_channel_unlock(p->chan);
 		}
 	}
 	cw_mutex_unlock(&p->lock);
@@ -1220,10 +1220,10 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				cw_copy_string(parent->context, chan->context, sizeof(parent->context));
 				/* Go ahead and mark the channel as a zombie so that masquerade will
 				   destroy it for us, and we need not call cw_hangup */
-				cw_mutex_lock(&parent->lock);
+				cw_channel_lock(parent);
 				cw_set_flag(chan, CW_FLAG_ZOMBIE);
 				cw_channel_masquerade(parent, chan);
-				cw_mutex_unlock(&parent->lock);
+				cw_channel_unlock(parent);
 				p->abouttograb = 0;
 			} else {
 				if (option_debug)

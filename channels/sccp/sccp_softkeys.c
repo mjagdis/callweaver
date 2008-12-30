@@ -257,9 +257,9 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	}
 
 	if (ast) {
-		cw_mutex_lock(&ast->lock);
+		cw_channel_lock(ast);
 		original = ast->masqr;
-		cw_mutex_unlock(&ast->lock);
+		cw_channel_unlock(ast);
 	}
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Pickup the call from %s\n", d->id, original->name);

@@ -113,7 +113,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 	char tmp[256];
 
 	if (need_lock) {
-		if (cw_mutex_lock(&chan->lock)) {
+		if (cw_channel_lock(chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -134,7 +134,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 		monitor = malloc(sizeof(struct cw_channel_monitor));
 		if (!monitor) {
 			if (need_lock) 
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 			return -1;
 		}
 		memset(monitor, 0, sizeof(struct cw_channel_monitor));
@@ -195,7 +195,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 			cw_log(CW_LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 			return -1;
 		}
 		if (cw_fileexists(monitor->write_filename, NULL, NULL)) {
@@ -208,7 +208,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 						monitor->write_filename);
 			cw_closestream(monitor->read_stream);
 			free(monitor);
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 			return -1;
 		}
 		chan->monitor = monitor;
@@ -221,7 +221,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 	}
 
 	if (need_lock) {
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 	}
 	return res;
 }
@@ -230,7 +230,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 {
 	if (need_lock) {
-		if (cw_mutex_lock(&chan->lock)) {
+		if (cw_channel_lock(chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -309,7 +309,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 	}
 
 	if (need_lock)
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 	return 0;
 }
 
@@ -323,7 +323,7 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 	}
 	
 	if (need_lock) {
-		if (cw_mutex_lock(&chan->lock)) {
+		if (cw_channel_lock(chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -345,7 +345,7 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 	}
 
 	if (need_lock)
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 
 	return 0;
 }
@@ -434,7 +434,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 
 			if (__cw_monitor_start(chan, format, fname, 1)) {
 				if (__cw_monitor_change_fname(chan, fname, 1)) {
-					cw_mutex_unlock(&chan->lock);
+					cw_channel_unlock(chan);
 					astman_send_error(s, m, "Could not start monitoring channel");
 					cw_object_put(chan);
 					return 0;
@@ -444,7 +444,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 			if (cw_true(mix))
 				__cw_monitor_setjoinfiles(chan, 1);
 
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 			astman_send_ack(s, m, "Started monitoring channel");
 			cw_object_put(chan);
 			return 0;
@@ -473,7 +473,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			res = __cw_monitor_stop(chan, 1);
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 
 			if (!res)
 				astman_send_ack(s, m, "Stopped monitoring channel");
@@ -511,13 +511,13 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		if (!cw_strlen_zero(fname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
 				if (__cw_monitor_change_fname(chan, fname, 1)) {
-					cw_mutex_unlock(&chan->lock);
+					cw_channel_unlock(chan);
 					astman_send_error(s, m, "Could not change monitored filename of channel");
 					cw_object_put(chan);
 					return 0;
 				}
 
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 				astman_send_ack(s, m, "Stopped monitoring channel");
 				cw_object_put(chan);
 				return 0;

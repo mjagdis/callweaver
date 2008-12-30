@@ -71,14 +71,14 @@ static int sendtext_exec(struct cw_channel *chan, int argc, char **argv, char *r
 
 	LOCAL_USER_ADD(u);
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 	if (!chan->tech->send_text) {
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		/* Does not support transport */
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 
 	res = 0;
 	for (; !res && argc; argv++, argc--)

@@ -853,7 +853,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 			astman_send_ack(s, m, "Channel Hungup");
 			cw_object_put(chan);
 			return 0;
@@ -886,7 +886,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 		if (!cw_strlen_zero(varname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
 				pbx_builtin_setvar_helper(chan, varname, astman_get_header(m, "Value"));
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 				astman_send_ack(s, m, "Variable Set");
 				cw_object_put(chan);
 				return 0;
@@ -923,7 +923,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 		varname = astman_get_header(m, "Variable");
 		if (!cw_strlen_zero(varname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 				var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varname), varname);
 
 				astman_send_response(s, m, "Success", NULL, 0);
@@ -964,7 +964,7 @@ static int action_status_one(struct cw_object *obj, void *data)
 	long elapsed_seconds = 0;
 	long billable_seconds = 0;
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
 	if (chan->_bridge)
 		snprintf(bridge, sizeof(bridge), "Link: %s\r\n", chan->_bridge->name);
@@ -1021,7 +1021,7 @@ static int action_status_one(struct cw_object *obj, void *data)
 			cw_state2str(chan->_state), bridge, chan->uniqueid, args->id);
 	}
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 
 	return 0;
 }
@@ -1092,7 +1092,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 		priority = astman_get_header(m, "Priority");
 
 		res = cw_async_goto(chan, context, exten, priority);
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		cw_object_put(chan);
 
 		if (!res) {
@@ -1106,7 +1106,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 				else
 					astman_send_error(s, m, "Secondary redirect failed");
 
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 				cw_object_put(chan);
 				return 0;
 			}
@@ -1213,7 +1213,7 @@ static void *fast_originate(void *data)
 	}
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
 	if (chan)
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 	cw_registry_destroy(&in->vars);
 	free(in);
 	return NULL;
@@ -1448,7 +1448,7 @@ static int action_timeout(struct mansession *s, struct message *m)
 		if ((timeout = atoi(astman_get_header(m, "Timeout")))) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
 				cw_channel_setwhentohangup(chan, timeout);
-				cw_mutex_unlock(&chan->lock);
+				cw_channel_unlock(chan);
 				astman_send_ack(s, m, "Timeout Set");
 				cw_object_put(chan);
 				return 0;

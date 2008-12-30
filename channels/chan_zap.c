@@ -812,13 +812,13 @@ static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
 #endif			
 	for (;;) {
 		if (p->subs[a].owner) {
-			if (cw_mutex_trylock(&p->subs[a].owner->lock)) {
+			if (cw_channel_trylock(p->subs[a].owner)) {
 				cw_mutex_unlock(&p->lock);
 				usleep(1);
 				cw_mutex_lock(&p->lock);
 			} else {
 				cw_queue_frame(p->subs[a].owner, &null);
-				cw_mutex_unlock(&p->subs[a].owner->lock);
+				cw_channel_unlock(p->subs[a].owner);
 				break;
 			}
 		} else
@@ -843,13 +843,13 @@ static void dahdi_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, void *pri
 #endif		
 	for (;;) {
 		if (p->owner) {
-			if (cw_mutex_trylock(&p->owner->lock)) {
+			if (cw_channel_trylock(p->owner)) {
 				cw_mutex_unlock(&p->lock);
 				usleep(1);
 				cw_mutex_lock(&p->lock);
 			} else {
 				cw_queue_frame(p->owner, f);
-				cw_mutex_unlock(&p->owner->lock);
+				cw_channel_unlock(p->owner);
 				break;
 			}
 		} else
@@ -3145,23 +3145,23 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 	if (flags & (CW_BRIDGE_DTMF_CHANNEL_0 | CW_BRIDGE_DTMF_CHANNEL_1))
 		return CW_BRIDGE_FAILED_NOWARN;
 
-	cw_mutex_lock(&c0->lock);
-	cw_mutex_lock(&c1->lock);
+	cw_channel_lock(c0);
+	cw_channel_lock(c1);
 
 	p0 = c0->tech_pvt;
 	p1 = c1->tech_pvt;
 	/* cant do pseudo-channels here */
 	if (!p0 || (!p0->sig) || !p1 || (!p1->sig)) {
-		cw_mutex_unlock(&c0->lock);
-		cw_mutex_unlock(&c1->lock);
+		cw_channel_unlock(c0);
+		cw_channel_unlock(c1);
 		return CW_BRIDGE_FAILED_NOWARN;
 	}
 
 	oi0 = dahdi_get_index(c0, p0, 0);
 	oi1 = dahdi_get_index(c1, p1, 0);
 	if ((oi0 < 0) || (oi1 < 0)) {
-		cw_mutex_unlock(&c0->lock);
-		cw_mutex_unlock(&c1->lock);
+		cw_channel_unlock(c0);
+		cw_channel_unlock(c1);
 		return CW_BRIDGE_FAILED;
 	}
 
@@ -3176,8 +3176,8 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 	if (cw_mutex_trylock(&p1->lock)) {
 		/* Don't block, due to potential for deadlock */
 		cw_mutex_unlock(&p0->lock);
-		cw_mutex_unlock(&c0->lock);
-		cw_mutex_unlock(&c1->lock);
+		cw_channel_unlock(c0);
+		cw_channel_unlock(c1);
 		cw_log(CW_LOG_NOTICE, "Avoiding deadlock...\n");
 		return CW_BRIDGE_RETRY;
 	}
@@ -3282,8 +3282,8 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 	cw_mutex_unlock(&p0->lock);
 	cw_mutex_unlock(&p1->lock);
 
-	cw_mutex_unlock(&c0->lock);
-	cw_mutex_unlock(&c1->lock);
+	cw_channel_unlock(c0);
+	cw_channel_unlock(c1);
 
 	/* Native bridge failed */
 	if ((!master || !slave) && !nothingok) {
@@ -3304,8 +3304,8 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
-		cw_mutex_lock(&c0->lock);
-		cw_mutex_lock(&c1->lock);
+		cw_channel_lock(c0);
+		cw_channel_lock(c1);
 		p0 = c0->tech_pvt;
 		p1 = c1->tech_pvt;
 
@@ -3313,8 +3313,8 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 			i0 = dahdi_get_index(c0, p0, 1);
 		if (op1 == p1)
 			i1 = dahdi_get_index(c1, p1, 1);
-		cw_mutex_unlock(&c0->lock);
-		cw_mutex_unlock(&c1->lock);
+		cw_channel_unlock(c0);
+		cw_channel_unlock(c1);
 
 		if (!timeoutms
             || 
@@ -3498,7 +3498,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 			return -1;
 		}
 		/* Orphan the channel after releasing the lock */
-		cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+		cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 		cw_object_put(bchan);
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if ((bchan = cw_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
@@ -3525,7 +3525,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 		}
 		/* Three-way is now the REAL */
 		swap_subs(p, SUB_THREEWAY, SUB_REAL);
-		cw_mutex_unlock(&p->subs[SUB_REAL].owner->lock);
+		cw_channel_unlock(p->subs[SUB_REAL].owner);
 		cw_object_put(bchan);
 		unalloc_sub(p, SUB_THREEWAY);
 		/* Tell the caller not to hangup */
@@ -3745,15 +3745,15 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 						unsigned int mssinceflash;
 						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
 						   the private structure -- not especially easy or clean */
-						while(p->subs[SUB_THREEWAY].owner && cw_mutex_trylock(&p->subs[SUB_THREEWAY].owner->lock)) {
+						while(p->subs[SUB_THREEWAY].owner && cw_channel_trylock(p->subs[SUB_THREEWAY].owner)) {
 							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
 							cw_mutex_unlock(&p->lock);
-							cw_mutex_unlock(&cw->lock);
+							cw_channel_unlock(cw);
 							usleep(1);
 							/* We can grab cw and p in that order, without worry.  We should make sure
 							   nothing seriously bad has happened though like some sort of bizarre double
 							   masquerade! */
-							cw_mutex_lock(&cw->lock);
+							cw_channel_lock(cw);
 							cw_mutex_lock(&p->lock);
 							if (p->owner != cw) {
 								cw_log(CW_LOG_WARNING, "This isn't good...\n");
@@ -3773,7 +3773,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 								cw_queue_hangup(p->subs[SUB_THREEWAY].owner);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= CW_SOFTHANGUP_DEV;
 							cw_log(CW_LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
-							cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+							cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 						} else if ((cw->pbx) || (cw->_state == CW_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
@@ -3781,7 +3781,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 								p->subs[SUB_THREEWAY].inthreeway = 0;
 								/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
 								if (!p->transfertobusy && cw->_state == CW_STATE_BUSY) {
-									cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 									/* Swap subs and dis-own channel */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									p->owner = NULL;
@@ -3791,21 +3791,21 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 									if ((res = attempt_transfer(p)) < 0) {
 										p->subs[SUB_THREEWAY].owner->_softhangup |= CW_SOFTHANGUP_DEV;
 										if (p->subs[SUB_THREEWAY].owner)
-											cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+											cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 									} else if (res) {
 										/* Don't actually hang up at this point */
 										if (p->subs[SUB_THREEWAY].owner)
-											cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+											cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 										break;
 									}
 								}
 							} else {
 								p->subs[SUB_THREEWAY].owner->_softhangup |= CW_SOFTHANGUP_DEV;
 								if (p->subs[SUB_THREEWAY].owner)
-									cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 							}
 						} else {
-							cw_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+							cw_channel_unlock(p->subs[SUB_THREEWAY].owner);
 							/* Swap subs and dis-own channel */
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							p->owner = NULL;
@@ -7801,7 +7801,7 @@ static int pri_hangup_all(struct dahdi_pvt *p, struct dahdi_pri *pri)
 	do {
 		redo = 0;
 		for (x=0;x<3;x++) {
-			while(p->subs[x].owner && cw_mutex_trylock(&p->subs[x].owner->lock)) {
+			while(p->subs[x].owner && cw_channel_trylock(p->subs[x].owner)) {
 				redo++;
 				cw_mutex_unlock(&p->lock);
 				usleep(1);
@@ -7809,7 +7809,7 @@ static int pri_hangup_all(struct dahdi_pvt *p, struct dahdi_pri *pri)
 			}
 			if (p->subs[x].owner) {
 				cw_queue_hangup(p->subs[x].owner);
-				cw_mutex_unlock(&p->subs[x].owner->lock);
+				cw_channel_unlock(p->subs[x].owner);
 			}
 		}
 	} while (redo);

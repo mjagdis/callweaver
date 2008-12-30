@@ -217,7 +217,7 @@ static int channels_table_one(struct cw_object *obj, void *data)
     args->ret = NULL;
     *args->var_len = sizeof(long_ret);
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
 
     switch (args->vp->magic)
     {
@@ -487,7 +487,7 @@ static int channels_table_one(struct cw_object *obj, void *data)
         break;
     }
 
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
 
     return 1;
 }

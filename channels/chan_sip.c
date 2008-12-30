@@ -1572,7 +1572,7 @@ static int retrans_pkt(void *data)
          
         if (cw_test_flag(pkt, FLAG_FATAL))
         {
-            while (pkt->owner->owner  &&  cw_mutex_trylock(&pkt->owner->owner->lock))
+            while (pkt->owner->owner  &&  cw_channel_trylock(pkt->owner->owner))
             {
                 cw_mutex_unlock(&pkt->owner->lock);
                 usleep(1);
@@ -1583,7 +1583,7 @@ static int retrans_pkt(void *data)
                 cw_set_flag(pkt->owner, SIP_ALREADYGONE);
                 cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
                 cw_queue_hangup(pkt->owner->owner);
-                cw_mutex_unlock(&pkt->owner->owner->lock);
+                cw_channel_unlock(pkt->owner->owner);
             }
             else
             {
@@ -2888,11 +2888,11 @@ static int auto_congest(void *nothing)
     p->initid = -1;
     if (p->owner)
     {
-        if (!cw_mutex_trylock(&p->owner->lock))
+        if (!cw_channel_trylock(p->owner))
         {
             cw_log(CW_LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
             cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
-            cw_mutex_unlock(&p->owner->lock);
+            cw_channel_unlock(p->owner);
         }
     }
     cw_mutex_unlock(&p->lock);
@@ -3063,11 +3063,11 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
     if (p->owner)
     {
         if (lockowner)
-            cw_mutex_lock(&p->owner->lock);
+            cw_channel_lock(p->owner);
         cw_log(CW_LOG_DEBUG, "Detaching from %s\n", p->owner->name);
         p->owner->tech_pvt = NULL;
         if (lockowner)
-            cw_mutex_unlock(&p->owner->lock);
+            cw_channel_unlock(p->owner);
     }
     /* Clear history */
     while (p->history)
@@ -3815,20 +3815,20 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
     int res2 = 0;
     int bridge_res;
 
-    cw_mutex_lock(&c0->lock);
+    cw_channel_lock(c0);
     if (c0->tech->bridge == sip_bridge)
     {
         res1 = cw_channel_get_t38_status(c0);
         cw_log(CW_LOG_DEBUG, "T38 on channel %s is: %s", c0->name, ( res1 == T38_NEGOTIATED )  ?  "enabled\n"  :  "not enabled\n");
     }
-    cw_mutex_unlock(&c0->lock);
-    cw_mutex_lock(&c1->lock);
+    cw_channel_unlock(c0);
+    cw_channel_lock(c1);
     if (c1->tech->bridge == sip_bridge)
     {
         res2 = cw_channel_get_t38_status(c1);
         cw_log(CW_LOG_DEBUG, "T38 on channel %s is: %s", c1->name, ( res2 == T38_NEGOTIATED ) ?  "enabled\n"  :  "not enabled\n");
     }
-    cw_mutex_unlock(&c1->lock);
+    cw_channel_unlock(c1);
 
     /* We start trying rtp bridge. */ 
     if ( ( res1==res2) && ((res1 == T38_STATUS_UNKNOWN)  ||  (res1 == T38_OFFER_REJECTED))  ) {
@@ -8994,7 +8994,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
             cw_mutex_lock(&sip_pvt_ptr->lock);
             if (sip_pvt_ptr->owner)
             {
-                while (cw_mutex_trylock(&sip_pvt_ptr->owner->lock))
+                while (cw_channel_trylock(sip_pvt_ptr->owner))
                 {
                     cw_mutex_unlock(&sip_pvt_ptr->lock);
                     usleep(1);
@@ -11763,12 +11763,12 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
     if (argc != 1 || !argv[0][0])
 	    return cw_function_syntax(sipheader_func_syntax);
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
 
     if (chan->type != channeltype)
     {
         cw_log(CW_LOG_WARNING, "This function can only be used on SIP channels.\n");
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return -1;
     }
 
@@ -11777,7 +11777,7 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
     /* If there is no private structure, this channel is no longer alive */
     if (!p)
     {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return -1;
     }
 
@@ -11788,7 +11788,7 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
             cw_copy_string(buf, content, len);
 
     }
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     return 0;
 }
 
@@ -11955,11 +11955,11 @@ static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **a
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(sipchaninfo_func_syntax);
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
     if (chan->type != channeltype)
     {
         cw_log(CW_LOG_WARNING, "This function can only be used on SIP channels.\n");
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return -1;
     }
 
@@ -11969,12 +11969,12 @@ static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **a
     /* If there is no private structure, this channel is no longer alive */
     if (!p)
     {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return -1;
     }
 
     if (!buf) {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return 0;
     }
 
@@ -12004,10 +12004,10 @@ static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **a
     }
     else
     {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return -1;
     }
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
 
     return 0;
 }
@@ -12945,9 +12945,9 @@ static void *sip_park_thread(void *stuff)
     chan2 = d->chan2;
     copy_request(&req, &d->req);
     free(d);
-    cw_mutex_lock(&chan1->lock);
+    cw_channel_lock(chan1);
     cw_do_masquerade(chan1);
-    cw_mutex_unlock(&chan1->lock);
+    cw_channel_unlock(chan1);
     res = cw_park_call(chan1, chan2, 0, &ext);
     /* Then hangup */
     cw_hangup(chan2);
@@ -12991,15 +12991,15 @@ static int sip_park(struct cw_channel *chan1, struct cw_channel *chan2, struct s
     cw_copy_string(chan2m->context, chan2->context, sizeof(chan2m->context));
     cw_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
     chan2m->priority = chan2->priority;
-    cw_mutex_lock(&chan2m->lock);
+    cw_channel_lock(chan2m);
     if (cw_do_masquerade(chan2m))
     {
         cw_log(CW_LOG_WARNING, "Masquerade failed :(\n");
-        cw_mutex_unlock(&chan2m->lock);
+        cw_channel_unlock(chan2m);
         cw_hangup(chan2m);
         return -1;
     }
-    cw_mutex_unlock(&chan2m->lock);
+    cw_channel_unlock(chan2m);
     d = malloc(sizeof(struct sip_dual));
     if (d)
     {
@@ -13342,7 +13342,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             if (c)
             {
                 /* Pre-lock the call */
-                cw_mutex_lock(&c->lock);
+                cw_channel_lock(c);
             }
         }
     }
@@ -13394,7 +13394,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 {
                     cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
                     /* Unlock locks so cw_hangup can do its magic */
-                    cw_mutex_unlock(&c->lock);
+                    cw_channel_unlock(c);
                     cw_mutex_unlock(&p->lock);
                     cw_hangup(c);
                     cw_mutex_lock(&p->lock);
@@ -13403,7 +13403,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             }
             else
             {
-                cw_mutex_unlock(&c->lock);
+                cw_channel_unlock(c);
                 if (cw_pickup_call(c))
                 {
                     cw_log(CW_LOG_NOTICE, "Nothing to pick up\n");
@@ -13597,7 +13597,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                 cw_log(CW_LOG_DEBUG,"202 Accepted (supervised)\n");
                 attempt_transfer(p, p->refer_call);
                 if (p->refer_call->owner)
-                    cw_mutex_unlock(&p->refer_call->owner->lock);
+                    cw_channel_unlock(p->refer_call->owner);
                 cw_mutex_unlock(&p->refer_call->lock);
                 p->refer_call = NULL;
                 cw_set_flag(p, SIP_GOTREFER);    
@@ -13617,7 +13617,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                             /* Must release c's lock now, because it will not longer
                                be accessible after the transfer! */
                             *nounlock = 1;
-                            cw_mutex_unlock(&c->lock);
+                            cw_channel_unlock(c);
                             sip_park(transfer_to, c, req);
                             nobye = 1;
                         }
@@ -13626,7 +13626,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                             /* Must release c's lock now, because it will not longer
                                 be accessible after the transfer! */
                             *nounlock = 1;
-                            cw_mutex_unlock(&c->lock);
+                            cw_channel_unlock(c);
                             cw_async_goto_n(transfer_to, (transfercontext ? transfercontext->value : p->context), p->refer_to, 1);
                         }
                         cw_object_put(transfer_to);
@@ -14433,7 +14433,7 @@ retrylock:
     if (p)
     {
         /* Go ahead and lock the owner if it has one -- we may need it */
-        if (p->owner && cw_mutex_trylock(&p->owner->lock))
+        if (p->owner && cw_channel_trylock(p->owner))
         {
             cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
             cw_mutex_unlock(&p->lock);
@@ -14464,7 +14464,7 @@ retrylock:
         }
         
         if (p->owner && !nounlock)
-            cw_mutex_unlock(&p->owner->lock);
+            cw_channel_unlock(p->owner);
         cw_mutex_unlock(&p->lock);
     }
     cw_mutex_unlock(&netlock);
@@ -14579,7 +14579,7 @@ restartsearch:
                         /* Needs a hangup */
                         if (sip->rtptimeout)
                         {
-                            while (sip->owner && cw_mutex_trylock(&sip->owner->lock))
+                            while (sip->owner && cw_channel_trylock(sip->owner))
                             {
                                 cw_mutex_unlock(&sip->lock);
                                 usleep(1);
@@ -14590,7 +14590,7 @@ restartsearch:
                                 cw_log(CW_LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
                                 /* Issue a softhangup */
                                 cw_softhangup(sip->owner, CW_SOFTHANGUP_DEV);
-                                cw_mutex_unlock(&sip->owner->lock);
+                                cw_channel_unlock(sip->owner);
 				/* forget the timeouts for this call, since a hangup
 				   has already been requested and we don't want to
 				   repeatedly request hangups
@@ -16827,12 +16827,12 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
         return 0;
     }
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
 
     if (chan->type != channeltype)
     {
         cw_log(CW_LOG_WARNING, "This function can only be used on SIP channels.\n");
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return 0;
     }
 
@@ -16841,7 +16841,7 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
     /* If there is no private structure, this channel is no longer alive */
     if (!p)
     {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return 0;
     }
 
@@ -16885,7 +16885,7 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
         }
     }
 
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
 
     return 0;
 }
@@ -16937,24 +16937,24 @@ static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result,
 		argv[0]=(char*)blank;
 	}
 	/* checking the chan channel structure require locking it */
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 	if ( (chan->tech != &sip_tech) && (chan->type != channeltype) ) {
 		cw_log(CW_LOG_WARNING, "sip_osd: Call this application only on SIP incoming calls\n");
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		return 0;
 	}
 	if (chan->_state != CW_STATE_UP) {
 		cw_log(CW_LOG_WARNING, "sip_osd: channel is NOT YET answered!\n");
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		return 0;
 	}
 	p = chan->tech_pvt;
 	if (!p) {
 		cw_log(CW_LOG_WARNING, "sip_osd: P IS NULL\n");
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		return 0;
 	}
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 	/* clone sendtext using sendtext2 (all in one) */
 	if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan)) return -1;
 	CHECK_BLOCKING(chan);
@@ -16973,17 +16973,17 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *bu
     if (argc != 1 || !argv[0][0])
         return cw_function_syntax(dtmfmode_syntax);
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
     if (chan->type != channeltype)
     {
         cw_log(CW_LOG_WARNING, "Call this application only on SIP incoming calls\n");
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return 0;
     }
     p = chan->tech_pvt;
     if (!p)
     {
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         return 0;
     }
     cw_mutex_lock(&p->lock);
@@ -17021,7 +17021,7 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *bu
         }
     }
     cw_mutex_unlock(&p->lock);
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     return 0;
 }
 
@@ -17036,7 +17036,7 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
     if (argc < 1 || !argv[0][0])
         return cw_function_syntax(sipaddheader_syntax);
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
 
     /* Check for headers */
     for (no = 1; no <= 50; no++)
@@ -17057,7 +17057,7 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
         cw_log(CW_LOG_WARNING, "Too many SIP headers added, max 50\n");
     }
 
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     return 0;
 }
 

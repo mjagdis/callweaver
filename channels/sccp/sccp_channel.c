@@ -372,7 +372,7 @@ void sccp_channel_endcall(sccp_channel_t * c) {
 
 	ast = c->owner;
 	if (ast)
-		cw_mutex_lock(&ast->lock);
+		cw_channel_lock(ast);
 	/* this is a station active endcall or onhook */
 	d = c->device;
 
@@ -386,7 +386,7 @@ void sccp_channel_endcall(sccp_channel_t * c) {
 	sccp_indicate_nolock(c, SCCP_CHANNELSTATE_ONHOOK);
 	cw_mutex_unlock(&c->lock);
 	if (ast) {
-		cw_mutex_unlock(&ast->lock);
+		cw_channel_unlock(ast);
 
 		bchan = cw_bridged_channel(ast);
 		if (c->calltype == SKINNY_CALLTYPE_INBOUND || ast->pbx || ast->blocker || bchan) {
@@ -769,7 +769,7 @@ static void * sccp_channel_transfer_ringing_thread(void *data) {
 	else if (GLOB(blindtransferindication) == SCCP_BLINDTRANSFER_MOH)
 		cw_moh_start(ast, NULL);
 
-	cw_mutex_unlock(&ast->lock);
+	cw_channel_unlock(ast);
 	cw_object_put(ast);
 	return NULL;
 }
@@ -856,7 +856,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Blind transfer. Signalling ringing state to %s\n", d->id, transferred->name);
 
 	cw_queue_hangup(peer->owner);
-	cw_mutex_unlock(&transferee->lock);
+	cw_channel_unlock(transferee);
 
 	cw_mutex_lock(&d->lock);
 	d->transfer_channel = NULL;

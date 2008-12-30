@@ -179,7 +179,7 @@ static int sccp_pbx_call(struct cw_channel *ast, char *dest) {
 	}
 
 	/* release the callweaver lock */
-	cw_mutex_unlock(&ast->lock);
+	cw_channel_unlock(ast);
 	if ( sccp_channel_get_active(d) ) {
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLWAITING);
 		cw_queue_control(ast, CW_CONTROL_RINGING);

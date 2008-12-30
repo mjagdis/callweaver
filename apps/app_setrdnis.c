@@ -75,11 +75,11 @@ static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	cw_callerid_parse(argv[0], &n, &l);
 	if (l) {
 		cw_shrink_phone_number(l);
-		cw_mutex_lock(&chan->lock);
+		cw_channel_lock(chan);
 		if (chan->cid.cid_rdnis)
 			free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = (l[0]) ? strdup(l) : NULL;
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 	}
 
 	LOCAL_USER_REMOVE(u);

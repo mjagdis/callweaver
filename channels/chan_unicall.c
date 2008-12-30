@@ -1732,8 +1732,8 @@ static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_cha
     if (p0->protocol_class == NULL  ||  p1->protocol_class == NULL)
         return -2;
     /*endif*/
-    cw_mutex_lock(&c0->lock);
-    cw_mutex_lock(&c1->lock);
+    cw_channel_lock(c0);
+    cw_channel_lock(c1);
     op0 =
     p0 = c0->tech_pvt;
     op1 =
@@ -1752,8 +1752,8 @@ static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_cha
     {
         /* Don't block, due to potential for deadlock */
         cw_mutex_unlock(&p0->lock);
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         cw_log(CW_LOG_NOTICE, "Avoiding deadlock...\n");
         return -3;
     }
@@ -1916,8 +1916,8 @@ static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_cha
     cw_mutex_unlock(&p0->lock);
     cw_mutex_unlock(&p1->lock);
 
-    cw_mutex_unlock(&c0->lock);
-    cw_mutex_unlock(&c1->lock);
+    cw_channel_unlock(c0);
+    cw_channel_unlock(c1);
 
     /* Native bridge failed */
     if ((master == NULL  ||  slave == NULL)  &&  !nothingok)
@@ -1930,8 +1930,8 @@ static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_cha
     {
         /* Here's our main loop...  Start by locking things, looking for private parts, 
            and then balking if anything is wrong */
-        cw_mutex_lock(&c0->lock);
-        cw_mutex_lock(&c1->lock);
+        cw_channel_lock(c0);
+        cw_channel_lock(c1);
         p0 = c0->tech_pvt;
         p1 = c1->tech_pvt;
         if (op0 == p0)
@@ -1940,8 +1940,8 @@ static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_cha
         if (op1 == p1)
             i2 = unicall_get_index(c1, p1, 1);
         /*endif*/
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         if (timeoutms == 0
             ||
             op0 != p0

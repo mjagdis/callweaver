@@ -74,18 +74,18 @@ static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *b
 		if (oldchan->_bridge && strchr(argv[1], 'b')) {
 			newchan = oldchan;
 			oldchan = cw_object_get(oldchan->_bridge);
-			cw_mutex_unlock(&newchan->lock);
+			cw_channel_unlock(newchan);
 			cw_object_put(newchan);
-			cw_mutex_lock(&oldchan->lock);
+			cw_channel_lock(oldchan);
 		}
 		if (strchr(argv[1],'r') && oldchan->_state == CW_STATE_UP) {
-			cw_mutex_unlock(&oldchan->lock);
+			cw_channel_unlock(oldchan);
 			cw_object_put(oldchan);
 			return -1;
 		}
 	}
 
-	cw_mutex_unlock(&oldchan->lock);
+	cw_channel_unlock(oldchan);
 	
 	LOCAL_USER_ADD(u);
 
@@ -181,7 +181,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 			chan_name_1 = argv[x++];
 			if (!(xferchan_1 = cw_get_channel_by_name_prefix_locked(chan_name_1, strlen(chan_name_1))))
 				return -1;
-			cw_mutex_unlock(&xferchan_1->lock);
+			cw_channel_unlock(xferchan_1);
 			cw_hangup(xferchan_1);
 			cw_object_put(xferchan_1);
 			cw_verbose("OK, good luck!\n");
@@ -190,7 +190,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 			chan_name_1 = argv[x++];
 			if (!(xferchan_1 = cw_get_channel_by_name_prefix_locked(chan_name_1, strlen(chan_name_1))))
 				return 1;
-			cw_mutex_unlock(&xferchan_1->lock);
+			cw_channel_unlock(xferchan_1);
 			strchr(flags,'m') ? cw_moh_start(xferchan_1,NULL) : cw_moh_stop(xferchan_1);
 			cw_object_put(xferchan_1);
 			return 0;
@@ -228,13 +228,13 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 
 	if (flags && strchr(flags,'b')) {
 		if ((chan = cw_bridged_channel(xferchan_1))) {
-			cw_mutex_unlock(&xferchan_1->lock);
+			cw_channel_unlock(xferchan_1);
 			cw_object_put(xferchan_1);
 			xferchan_1 = chan;
-			cw_mutex_lock(&xferchan_1->lock);
+			cw_channel_lock(xferchan_1);
 		}
 	}
-	cw_mutex_unlock(&xferchan_1->lock);
+	cw_channel_unlock(xferchan_1);
 
 	if (chan_name_2) {
 		struct cw_frame *f;
@@ -265,13 +265,13 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 
 		if (flags && strchr(flags, 'B')) {
 			if ((chan = cw_bridged_channel(xferchan_2))) {
-				cw_mutex_unlock(&xferchan_2->lock);
+				cw_channel_unlock(xferchan_2);
 				cw_object_put(xferchan_2);
 				xferchan_2 = chan;
-				cw_mutex_lock(&xferchan_2->lock);
+				cw_channel_lock(xferchan_2);
 			}
 		}
-		cw_mutex_unlock(&xferchan_2->lock);
+		cw_channel_unlock(xferchan_2);
 
 		if (!(newchan_2 = cw_channel_alloc(0, "ChanGrab/%s", xferchan_2->name))) {
 			cw_hangup(newchan_1);
@@ -353,7 +353,7 @@ static void *originate(void *arg) {
 
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
 	if (chan) {
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 	}
 	free(in);
 	return NULL;

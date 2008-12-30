@@ -139,11 +139,11 @@ retrylock:
 		p->glaredetect = 0;
 		return 0;
 	}
-	if (cw_mutex_trylock(&other->lock)) {
+	if (cw_channel_trylock(other)) {
 		/* Failed to lock.  Release main lock and try again */
 		cw_mutex_unlock(&p->lock);
 		if (us) {
-			if (cw_mutex_unlock(&us->lock)) {
+			if (cw_channel_unlock(us)) {
 				cw_log(CW_LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
 					us->name, f->frametype, f->subclass);
 				us = NULL;
@@ -153,12 +153,12 @@ retrylock:
 		usleep(1);
 		/* Only we can destroy ourselves, so we can't disappear here */
 		if (us)
-			cw_mutex_lock(&us->lock);
+			cw_channel_lock(us);
 		cw_mutex_lock(&p->lock);
 		goto retrylock;
 	}
 	cw_queue_frame(other, f);
-	cw_mutex_unlock(&other->lock);
+	cw_channel_unlock(other);
 	p->glaredetect = 0;
 	return 0;
 }
@@ -199,16 +199,16 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
 
-		if (!cw_mutex_trylock(&(p->chan->_bridge)->lock)) {
+		if (!cw_channel_trylock(p->chan->_bridge)) {
 			if (!p->chan->_bridge->_softhangup) {
-				if (!cw_mutex_trylock(&p->owner->lock)) {
+				if (!cw_channel_trylock(p->owner)) {
 					if (!p->owner->_softhangup) {
 						cw_channel_masquerade(p->owner, p->chan->_bridge);
 						p->alreadymasqed = 1;
 					}
-					cw_mutex_unlock(&p->owner->lock);
+					cw_channel_unlock(p->owner);
 				}
-				cw_mutex_unlock(&(p->chan->_bridge)->lock);
+				cw_channel_unlock(p->chan->_bridge);
 			}
 		}
 	/* We only allow masquerading in one 'direction'... it's important to preserve the state
@@ -218,17 +218,17 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 #if 0
 	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
 		/* Masquerade bridged channel into chan */
-		if (!cw_mutex_trylock(&(p->owner->_bridge)->lock)) {
+		if (!cw_channel_trylock(p->owner->_bridge)) {
 			if (!p->owner->_bridge->_softhangup) {
-				if (!cw_mutex_trylock(&p->chan->lock)) {
+				if (!cw_channel_trylock(p->chan)) {
 					if (!p->chan->_softhangup) {
 						cw_channel_masquerade(p->chan, p->owner->_bridge);
 						p->alreadymasqed = 1;
 					}
-					cw_mutex_unlock(&p->chan->lock);
+					cw_channel_unlock(p->chan);
 				}
 			}
-			cw_mutex_unlock(&(p->owner->_bridge)->lock);
+			cw_channel_unlock(p->owner->_bridge);
 		}
 #endif
 	}

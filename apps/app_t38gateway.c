@@ -58,9 +58,9 @@ static int cw_check_hangup_locked(struct cw_channel *chan)
 {
     int res;
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
     res = cw_check_hangup(chan);
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     return res;
 }
 

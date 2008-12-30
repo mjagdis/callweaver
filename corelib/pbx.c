@@ -4055,7 +4055,7 @@ int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *ex
 {
     int res = 0;
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
 
     if (chan->pbx)
     {
@@ -4087,9 +4087,9 @@ int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *ex
             cw_channel_masquerade(tmpchan, chan);
         
             /* Grab the locks and get going */
-            cw_mutex_lock(&tmpchan->lock);
+            cw_channel_lock(tmpchan);
             cw_do_masquerade(tmpchan);
-            cw_mutex_unlock(&tmpchan->lock);
+            cw_channel_unlock(tmpchan);
             /* Start the PBX going on our stolen channel */
             if (cw_pbx_start(tmpchan))
             {
@@ -4103,7 +4103,7 @@ int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *ex
             res = -1;
         }
     }
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     return res;
 }
 
@@ -4167,7 +4167,7 @@ int cw_async_goto_by_name(const char *channame, const char *context, const char 
     if (chan)
     {
         res = cw_goto(chan, context, exten, priority, 1, 1);
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
         cw_object_put(chan);
     }
     return res;
@@ -4596,7 +4596,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         {
             *channel = chan;
             if (chan)
-                cw_mutex_lock(&chan->lock);
+                cw_channel_lock(chan);
         }
         if (chan)
         {
@@ -4628,7 +4628,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                 if (sync > 1)
                 {
                     if (channel)
-                        cw_mutex_unlock(&chan->lock);
+                        cw_channel_unlock(chan);
                     if (cw_pbx_run(chan))
                     {
                         cw_log(CW_LOG_ERROR, "Unable to run PBX on %s\n", chan->name);
@@ -4715,7 +4715,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         {
             *channel = chan;
             if (chan)
-                cw_mutex_lock(&chan->lock);
+                cw_channel_lock(chan);
         }
         if (!chan)
         {
@@ -4818,18 +4818,18 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                     if (sync > 1)
                     {
                         if (locked_channel)
-                            cw_mutex_unlock(&chan->lock);
+                            cw_channel_unlock(chan);
                         cw_pbx_run_app(tmp);
                     }
                     else
                     {
                         if (locked_channel) 
-                            cw_mutex_lock(&chan->lock);
+                            cw_channel_lock(chan);
                         if (cw_pthread_create(&tmp->t, &global_attr_detached, cw_pbx_run_app, tmp))
                         {
                             cw_log(CW_LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
                             if (locked_channel) 
-                                cw_mutex_unlock(&chan->lock);
+                                cw_channel_unlock(chan);
                             cw_hangup(chan);
 			    cw_object_put(chan);
                             free(tmp);
@@ -4900,13 +4900,13 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
         cw_var_copy(vars, &chan->vars);
         /* Start a new thread, and get something handling this channel. */
         if (locked_channel) 
-            cw_mutex_lock(&chan->lock);
+            cw_channel_lock(chan);
         if (cw_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             cw_log(CW_LOG_WARNING, "Failed to start async wait\n");
             free(as);
             if (locked_channel) 
-                cw_mutex_unlock(&chan->lock);
+                cw_channel_unlock(chan);
             cw_hangup(chan);
             return -1;
         }

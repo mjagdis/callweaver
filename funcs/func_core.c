@@ -579,7 +579,7 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 			sprintf(s, "${%s}", argv[1]);
 			pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp));
 		}
-		cw_mutex_unlock(&chan2->lock);
+		cw_channel_unlock(chan2);
 		cw_object_put(chan2);
 	}
 

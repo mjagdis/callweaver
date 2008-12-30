@@ -334,9 +334,9 @@ static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy)
     if (spy->status != CHANSPY_RUNNING)
         return;
 
-    cw_mutex_lock(&chan->lock);
+    cw_channel_lock(chan);
     cw_spy_detach(chan, spy);
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
 }
 
 /* attempt to set the desired gain adjustment via the channel driver;

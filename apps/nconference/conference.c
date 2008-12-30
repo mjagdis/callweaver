@@ -797,7 +797,7 @@ static void *fast_originate(void *data)
     }
 
     if (chan)
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
     free(in);
     return NULL;
 }
@@ -876,7 +876,7 @@ static int conf_do_originate(struct cw_conf_member *member, char *ext) {
 
     }
 
-    cw_mutex_unlock(&member->chan->lock);
+    cw_channel_unlock(member->chan);
     cw_conf_member_genactivate( member ) ;
 
     return res;

@@ -479,9 +479,9 @@ static void visdn_defer_dtmf_in(
 	struct visdn_chan *visdn_chan)
 {
 
-	cw_mutex_lock(&visdn_chan->cw_chan->lock);
+	cw_channel_lock(visdn_chan->cw_chan);
 	visdn_chan->dtmf_deferred = TRUE;
-	cw_mutex_unlock(&visdn_chan->cw_chan->lock);
+	cw_channel_unlock(visdn_chan->cw_chan);
 }
 
 static enum q931_ie_called_party_number_numbering_plan_identificator
@@ -509,7 +509,7 @@ static void visdn_undefer_dtmf_in(
 {
 	struct visdn_ic *ic = visdn_chan->ic;
 
-	cw_mutex_lock(&visdn_chan->cw_chan->lock);
+	cw_channel_lock(visdn_chan->cw_chan);
 	visdn_chan->dtmf_deferred = FALSE;
 
 	/* Flush queue */
@@ -543,20 +543,20 @@ static void visdn_queue_dtmf(
 	struct visdn_chan *visdn_chan,
 	char digit)
 {
-	cw_mutex_lock(&visdn_chan->cw_chan->lock);
+	cw_channel_lock(visdn_chan->cw_chan);
 
 	int len = strlen(visdn_chan->dtmf_queue);
 
 	if (len >= sizeof(visdn_chan->dtmf_queue) - 1) {
 		cw_log(CW_LOG_WARNING, "DTMF queue is full, dropping digit\n");
-		cw_mutex_unlock(&visdn_chan->cw_chan->lock);
+		cw_channel_unlock(visdn_chan->cw_chan);
 		return;
 	}
 
 	visdn_chan->dtmf_queue[len] = digit;
 	visdn_chan->dtmf_queue[len + 1] = '\0';
 
-	cw_mutex_unlock(&visdn_chan->cw_chan->lock);
+	cw_channel_unlock(visdn_chan->cw_chan);
 }
 
 static int char_to_hexdigit(char c)
@@ -1867,7 +1867,7 @@ static int visdn_hangup(struct cw_channel *cw_chan)
 	}
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 
 	if (visdn_chan->suspended_call) {
 		// We are responsible for the channel
@@ -1910,7 +1910,7 @@ static int visdn_hangup(struct cw_channel *cw_chan)
 	visdn_destroy(visdn_chan);
 	cw_chan->tech_pvt = NULL;
 
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	FUNC_DEBUG("%s DONE", cw_chan->name);
 
@@ -2541,9 +2541,9 @@ static void visdn_q931_alerting_indication(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 	visdn_handle_eventual_progind(cw_chan, ies);
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	cw_queue_control(cw_chan, CW_CONTROL_RINGING);
 	cw_setstate(cw_chan, CW_STATE_RINGING);
@@ -2614,10 +2614,10 @@ static void visdn_q931_disconnect_indication(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 	visdn_handle_eventual_progind(cw_chan, ies);
 	visdn_set_hangupcause_by_ies(cw_chan, ies);
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 
@@ -2744,9 +2744,9 @@ static void visdn_q931_proceeding_indication(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 	visdn_handle_eventual_progind(cw_chan, ies);
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 
@@ -2766,9 +2766,9 @@ static void visdn_q931_progress_indication(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 	visdn_handle_eventual_progind(cw_chan, ies);
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	cw_queue_control(cw_chan, CW_CONTROL_PROGRESS);
 }
@@ -2805,10 +2805,10 @@ static void visdn_hunt_next_or_hangup(
 				visdn_chan->ic->intf,
 				visdn_chan->hg_first_intf);
 		if (!intf) {
-			cw_mutex_lock(&cw_chan->lock);
+			cw_channel_lock(cw_chan);
 			visdn_set_hangupcause_by_ies(cw_chan, ies);
 			cw_chan->_softhangup |= CW_SOFTHANGUP_DEV;
-			cw_mutex_unlock(&cw_chan->lock);
+			cw_channel_unlock(cw_chan);
 
 			return;
 		}
@@ -2819,10 +2819,10 @@ static void visdn_hunt_next_or_hangup(
 		visdn_intf_put(intf);
 		intf = NULL;
 	} else {
-		cw_mutex_lock(&cw_chan->lock);
+		cw_channel_lock(cw_chan);
 		visdn_set_hangupcause_by_ies(cw_chan, ies);
 		cw_chan->_softhangup |= CW_SOFTHANGUP_DEV;
-		cw_mutex_unlock(&cw_chan->lock);
+		cw_channel_unlock(cw_chan);
 	}
 }
 
@@ -2852,10 +2852,10 @@ static void visdn_q931_release_confirm(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 	visdn_set_hangupcause_by_ies(cw_chan, ies);
 	cw_chan->_softhangup |= CW_SOFTHANGUP_DEV;
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 }
 
 static void visdn_q931_release_indication(
@@ -3510,13 +3510,13 @@ no_cgpn:;
 			cw_setstate(cw_chan, CW_STATE_RING);
 
 			// Prevents race conditions after pbx_start
-			cw_mutex_lock(&cw_chan->lock);
+			cw_channel_lock(cw_chan);
 
 			if (cw_pbx_start(cw_chan)) {
 				cw_log(CW_LOG_ERROR,
 					"Unable to start PBX on %s\n",
 					cw_chan->name);
-				cw_mutex_unlock(&cw_chan->lock);
+				cw_channel_unlock(cw_chan);
 				cw_hangup(cw_chan);
 
 				Q931_DECLARE_IES(ies);
@@ -3545,7 +3545,7 @@ no_cgpn:;
 
 				cw_setstate(cw_chan, CW_STATE_RING);
 
-				cw_mutex_unlock(&cw_chan->lock);
+				cw_channel_unlock(cw_chan);
 			}
 		} else {
 			cw_log(CW_LOG_NOTICE,
@@ -3575,13 +3575,13 @@ no_cgpn:;
 		strncpy(cw_chan->exten, "s",
 			sizeof(cw_chan->exten)-1);
 
-		cw_mutex_lock(&cw_chan->lock);
+		cw_channel_lock(cw_chan);
 
 		if (cw_pbx_start(cw_chan)) {
 			cw_log(CW_LOG_ERROR,
 				"Unable to start PBX on %s\n",
 				cw_chan->name);
-			cw_mutex_unlock(&cw_chan->lock);
+			cw_channel_unlock(cw_chan);
 			cw_hangup(cw_chan);
 
 			Q931_DECLARE_IES(ies_proc);
@@ -3639,7 +3639,7 @@ no_cgpn:;
 			cw_queue_frame(cw_chan, &f);
 		}
 
-		cw_mutex_unlock(&cw_chan->lock);
+		cw_channel_unlock(cw_chan);
 	}
 
 	return;
@@ -4011,7 +4011,7 @@ static void visdn_q931_connect_channel(
 	if (!cw_chan)
 		return;
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 	struct visdn_ic *ic = visdn_chan->ic;
@@ -4066,7 +4066,7 @@ static void visdn_q931_connect_channel(
 			visdn_connect_channels(visdn_chan);
 	}
 
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 
 	return;
 
@@ -4075,7 +4075,7 @@ err_open:
 err_invalid_chanid:
 err_readlink:
 
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 }
 
 static void visdn_q931_disconnect_channel(
@@ -4093,11 +4093,11 @@ static void visdn_q931_disconnect_channel(
 
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 
-	cw_mutex_lock(&cw_chan->lock);
+	cw_channel_lock(cw_chan);
 
 	visdn_disconnect_chan_from_visdn(visdn_chan);
 
-	cw_mutex_unlock(&cw_chan->lock);
+	cw_channel_unlock(cw_chan);
 }
 
 static void visdn_q931_start_tone(struct q931_channel *channel,

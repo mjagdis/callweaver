@@ -2031,12 +2031,12 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
         return CW_BRIDGE_FAILED_NOWARN;
 
     /* Lock channels */
-    cw_mutex_lock(&c0->lock);
-    while (cw_mutex_trylock(&c1->lock))
+    cw_channel_lock(c0);
+    while (cw_channel_trylock(c1))
     {
-        cw_mutex_unlock(&c0->lock);
+        cw_channel_unlock(c0);
         usleep(1);
-        cw_mutex_lock(&c0->lock);
+        cw_channel_lock(c0);
     }
 
     /* Find channel driver interfaces */
@@ -2045,15 +2045,15 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     if (!pr0)
     {
         cw_log(CW_LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         return CW_BRIDGE_FAILED;
     }
     if (!pr1)
     {
         cw_log(CW_LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         return CW_BRIDGE_FAILED;
     }
 
@@ -2077,8 +2077,8 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     if (!p0  ||  !p1)
     {
         /* Somebody doesn't want to play... */
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         return CW_BRIDGE_FAILED_NOWARN;
     }
 
@@ -2086,8 +2086,8 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     if (p0->srtp  ||  p1->srtp)
     {
         cw_log(CW_LOG_NOTICE, "Cannot native bridge in SRTP.\n");
-        cw_mutex_unlock(&c0->lock);
-        cw_mutex_unlock(&c1->lock);
+        cw_channel_unlock(c0);
+        cw_channel_unlock(c1);
         return CW_BRIDGE_FAILED_NOWARN;
     }
 #endif
@@ -2107,8 +2107,8 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
         {
             if (option_debug)
                 cw_log(CW_LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
-            cw_mutex_unlock(&c0->lock);
-            cw_mutex_unlock(&c1->lock);
+            cw_channel_unlock(c0);
+            cw_channel_unlock(c1);
             return CW_BRIDGE_FAILED_NOWARN;
         }
     }
@@ -2137,8 +2137,8 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
         if (vp0)
             cw_rtp_get_peer(vp0, &vac0);
     }
-    cw_mutex_unlock(&c0->lock);
-    cw_mutex_unlock(&c1->lock);
+    cw_channel_unlock(c0);
+    cw_channel_unlock(c1);
     /* External RTP Bridge up, now loop and see if something happes that force us to take the
        media back to CallWeaver */
     cs[0] = c0;

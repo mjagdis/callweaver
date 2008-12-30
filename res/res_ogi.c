@@ -1060,7 +1060,7 @@ static int handle_hangup(struct cw_channel *chan, OGI *ogi, int argc, char **arg
 		/* one argument: look for info on the specified channel */
 		if ((c = cw_get_channel_by_name_locked(argv[1]))) {
 			cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
-			cw_mutex_unlock(&c->lock);
+			cw_channel_unlock(c);
 			fdprintf(ogi->fd, "200 result=1\n");
 			cw_object_put(c);
 			return RESULT_SUCCESS;
@@ -1121,7 +1121,7 @@ static int handle_channelstatus(struct cw_channel *chan, OGI *ogi, int argc, cha
 		/* one argument: look for info on the specified channel */
 		if ((c = cw_get_channel_by_name_locked(argv[2]))) {
 			fdprintf(ogi->fd, "200 result=%d\n", c->_state);
-			cw_mutex_unlock(&c->lock);
+			cw_channel_unlock(c);
 			cw_object_put(c);
 			return RESULT_SUCCESS;
 		}
@@ -1187,7 +1187,7 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 	}
 
 	if (chan2 && (chan2 != chan)) {
-		cw_mutex_unlock(&chan2->lock);
+		cw_channel_unlock(chan2);
 		cw_object_put(chan2);
 	}
 

@@ -2058,7 +2058,7 @@ int cw_pickup_call(struct cw_channel *chan)
 	cw_registry_iterate(&channel_registry, pickup_finder, &args);
 
 	if (args.chan) {
-		cw_mutex_lock(&args.chan->lock);
+		cw_channel_lock(args.chan);
 
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",args.chan->name, chan->name);
@@ -2072,7 +2072,7 @@ int cw_pickup_call(struct cw_channel *chan)
 		} else
 			cw_log(CW_LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 
-		cw_mutex_unlock(&args.chan->lock);
+		cw_channel_unlock(args.chan);
 		cw_object_put(args.chan);
 	} else	{
 		if (option_debug)

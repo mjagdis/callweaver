@@ -121,9 +121,9 @@ static void stopmon(struct cw_channel *chan, struct cw_channel_spy *spy)
 
     if (chan)
     {
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 	cw_spy_detach(chan, spy);
-        cw_mutex_unlock(&chan->lock);
+        cw_channel_unlock(chan);
     }
 }
 
@@ -451,7 +451,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
             cw_cli(fd, "Invalid Channel!\n");
             return -1;
         }
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 
         if (!strcasecmp(op, "start"))
         {
@@ -459,9 +459,9 @@ static int muxmon_cli(int fd, int argc, char **argv)
         }
         else if (!strcasecmp(op, "stop"))
         {
-            cw_mutex_lock(&chan->lock);
+            cw_channel_lock(chan);
 	    cw_spy_detach_all(chan);
-            cw_mutex_unlock(&chan->lock);
+            cw_channel_unlock(chan);
         }
 	cw_object_put(chan);
         return 0;

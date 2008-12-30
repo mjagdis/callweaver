@@ -129,7 +129,7 @@ void cw_generator_deactivate(struct cw_generator_instance *gen)
 	if (!gen->chan)
 		return;
 
-	cw_mutex_lock(&gen->chan->lock);
+	cw_channel_lock(gen->chan);
 
 	if (!pthread_equal(gen->tid, CW_PTHREADT_NULL)) {
 		char name[CW_CHANNEL_NAME];
@@ -142,7 +142,7 @@ void cw_generator_deactivate(struct cw_generator_instance *gen)
 		gen->tid = CW_PTHREADT_NULL;
 		cw_clear_flag(gen->chan, CW_FLAG_WRITE_INT);
 
-		cw_mutex_unlock(&gen->chan->lock);
+		cw_channel_unlock(gen->chan);
 
 		pthread_cancel(generator.tid);
 		pthread_join(generator.tid, NULL);
@@ -150,18 +150,18 @@ void cw_generator_deactivate(struct cw_generator_instance *gen)
 		cw_object_put(generator.class);
 		cw_log(CW_LOG_DEBUG, "%s: Generator stopped\n", name);
 	} else
-		cw_mutex_unlock(&gen->chan->lock);
+		cw_channel_unlock(gen->chan);
 }
 
 
 int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params)
 {
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
 	while (!pthread_equal(gen->tid, CW_PTHREADT_NULL)) {
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		cw_generator_deactivate(gen);
-		cw_mutex_lock(&chan->lock);
+		cw_channel_lock(chan);
 	}
 
 	if ((gen->pvt = class->alloc(chan, params))) {
@@ -178,13 +178,13 @@ int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance 
 		if (cw_pthread_create(&gen->tid, &global_attr_rr, cw_generator_thread, gen)) {
 			cw_log(CW_LOG_ERROR, "%s: unable to start generator thread: %s\n", chan->name, strerror(errno));
 			class->release(chan, gen->pvt);
-			cw_mutex_unlock(&chan->lock);
+			cw_channel_unlock(chan);
 			cw_object_put(class);
 			return -1;
 		}
 	}
 	/* It's down to the class allocator to log its problem */
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 	return 0;
 }

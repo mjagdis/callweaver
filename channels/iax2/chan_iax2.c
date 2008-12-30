@@ -1086,7 +1086,7 @@ static int iax2_queue_frame(int callno, struct cw_frame *f)
 	/* Assumes lock for callno is already held... */
 	for (;;) {
 		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (cw_mutex_trylock(&iaxs[callno]->owner->lock)) {
+			if (cw_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
 				cw_mutex_unlock(&iaxsl[callno]);
 				sched_yield();
@@ -1094,7 +1094,7 @@ static int iax2_queue_frame(int callno, struct cw_frame *f)
 				cw_mutex_lock(&iaxsl[callno]);
 			} else {
 				cw_queue_frame(iaxs[callno]->owner, f);
-				cw_mutex_unlock(&iaxs[callno]->owner->lock);
+				cw_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
 		} else
@@ -1302,7 +1302,7 @@ retry:
 	else
 		owner = NULL;
 	if (owner) {
-		if (cw_mutex_trylock(&owner->lock)) {
+		if (cw_channel_trylock(owner)) {
 			cw_log(CW_LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
 			cw_mutex_unlock(&iaxsl[callno]);
 			usleep(1);
@@ -1372,7 +1372,7 @@ retry:
 		}
 	}
 	if (owner) {
-		cw_mutex_unlock(&owner->lock);
+		cw_channel_unlock(owner);
 	}
 	cw_mutex_unlock(&iaxsl[callno]);
 	if (callno & 0x4000)
@@ -5971,7 +5971,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					if (iaxs[frb.fr.callno]->owner) {
 						int orignative;
 retryowner:
-						if (cw_mutex_trylock(&iaxs[frb.fr.callno]->owner->lock)) {
+						if (cw_channel_trylock(iaxs[frb.fr.callno]->owner)) {
 							cw_mutex_unlock(&iaxsl[frb.fr.callno]);
 							usleep(1);
 							cw_mutex_lock(&iaxsl[frb.fr.callno]);
@@ -5984,7 +5984,7 @@ retryowner:
 								if (iaxs[frb.fr.callno]->owner->readformat)
 									cw_set_read_format(iaxs[frb.fr.callno]->owner, iaxs[frb.fr.callno]->owner->readformat);
 								iaxs[frb.fr.callno]->owner->nativeformats = orignative;
-								cw_mutex_unlock(&iaxs[frb.fr.callno]->owner->lock);
+								cw_channel_unlock(iaxs[frb.fr.callno]->owner);
 							}
 						} else {
 							cw_log(CW_LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
@@ -6350,7 +6350,7 @@ retryowner:
 						if (option_verbose > 2)
 							cw_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", cw_getformatname(iaxs[frb.fr.callno]->owner->nativeformats));
 retryowner2:
-						if (cw_mutex_trylock(&iaxs[frb.fr.callno]->owner->lock)) {
+						if (cw_channel_trylock(iaxs[frb.fr.callno]->owner)) {
 							cw_mutex_unlock(&iaxsl[frb.fr.callno]);
 							usleep(1);
 							cw_mutex_lock(&iaxsl[frb.fr.callno]);
@@ -6363,7 +6363,7 @@ retryowner2:
 								cw_set_write_format(iaxs[frb.fr.callno]->owner, iaxs[frb.fr.callno]->owner->writeformat);	
 							if (iaxs[frb.fr.callno]->owner->readformat)
 								cw_set_read_format(iaxs[frb.fr.callno]->owner, iaxs[frb.fr.callno]->owner->readformat);	
-							cw_mutex_unlock(&iaxs[frb.fr.callno]->owner->lock);
+							cw_channel_unlock(iaxs[frb.fr.callno]->owner);
 						}
 					}
 				}

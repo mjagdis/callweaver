@@ -1227,7 +1227,7 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
 
    if ((chan = cw_get_channel_by_name_locked(argv[1]))) {
        cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
-       cw_mutex_unlock(&chan->lock);
+       cw_channel_unlock(chan);
        cw_cli(fd, "Function Hang Up succeed - channel[%s]\n", argv[1]);
        manager_event(EVENT_FLAG_USER, "icd_command",
           "Command: HangupChannel\r\nResult: OK\r\nChannel : %s\r\n", argv[1]);

@@ -97,7 +97,7 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 			cw_cdr_appenduserfield(c, userfield);
 		else
 			cw_cdr_setuserfield(c, userfield);
-		cw_mutex_unlock(&c->lock);
+		cw_channel_unlock(c);
 		astman_send_ack(s, m, "CDR Userfield Set");
 		cw_object_put(c);
 		return 0;

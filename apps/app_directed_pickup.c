@@ -85,7 +85,7 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 			cw_log(CW_LOG_DEBUG, "No target channel found.\n");
 			res = -1;
 		}
-		cw_mutex_unlock(&origin->lock);
+		cw_channel_unlock(origin);
 		cw_object_put(origin);
 	} else {
 		cw_log(CW_LOG_DEBUG, "No originating channel found.\n");
@@ -123,7 +123,7 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	
  out:
 	if (target) {
-		cw_mutex_unlock(&target->lock);
+		cw_channel_unlock(target);
 		cw_object_put(target);
 	}
 

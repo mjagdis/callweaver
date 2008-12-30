@@ -534,7 +534,7 @@ static int handle_softhangup(int fd, int argc, char *argv[])
     if ((c = cw_get_channel_by_name_locked(argv[2]))) {
         cw_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
         cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
-        cw_mutex_unlock(&c->lock);
+        cw_channel_unlock(c);
 	cw_object_put(c);
     } else
         cw_cli(fd, "%s is not a known channel\n", argv[2]);
@@ -567,7 +567,7 @@ static int debugchan_one(struct cw_object *obj, void *data)
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 	int *fd = data;
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
         if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
             chan->fin |= DEBUGCHAN_FLAG;
@@ -575,7 +575,7 @@ static int debugchan_one(struct cw_object *obj, void *data)
             cw_cli(*fd, "Debugging enabled on channel %s\n", chan->name);
         }
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 	return 0;
 }
 
@@ -584,7 +584,7 @@ static int nodebugchan_one(struct cw_object *obj, void *data)
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 	int *fd = data;
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
         if ((chan->fin & DEBUGCHAN_FLAG) || (chan->fout & DEBUGCHAN_FLAG)) {
             chan->fin &= ~DEBUGCHAN_FLAG;
@@ -592,7 +592,7 @@ static int nodebugchan_one(struct cw_object *obj, void *data)
             cw_cli(*fd, "Debugging disabled on channel %s\n", chan->name);
         }
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 	return 0;
 }
 
@@ -733,7 +733,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
     if (chan->cdr && cw_cdr_serialize_variables(chan->cdr, buf, sizeof(buf), '=', '\n', 1))
         cw_cli(fd, "  CDR Variables:\n%s\n", buf);
     
-    cw_mutex_unlock(&chan->lock);
+    cw_channel_unlock(chan);
     if (bchan)
 	    cw_object_put(bchan);
     cw_object_put(chan);

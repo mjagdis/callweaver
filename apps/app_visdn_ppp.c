@@ -104,14 +104,14 @@ static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, char *
 	if (chan->_state != CW_STATE_UP)
 		cw_answer(chan);
 
-	cw_mutex_lock(&chan->lock);
+	cw_channel_lock(chan);
 
 	if (strcmp(chan->type, "VISDN")) {
 		cw_log(CW_LOG_WARNING,
 			"Only VISDN channels may be connected to"
 			" this application\n");
 
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		return -1;
 	}
 
@@ -120,7 +120,7 @@ static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, char *
 	if (!visdn_chan->bearer_channel_id) {
 		cw_log(CW_LOG_WARNING,
 			"vISDN crossconnector channel ID not present\n");
-		cw_mutex_unlock(&chan->lock);
+		cw_channel_unlock(chan);
 		return -1;
 	}
 
@@ -138,7 +138,7 @@ static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, char *
 	nargv[2 + argc + 2] = chan_id_arg;
 	nargv[2 + argc + 3] = NULL;
 
-	cw_mutex_unlock(&chan->lock);
+	cw_channel_unlock(chan);
 
 #if 0
 	int i;

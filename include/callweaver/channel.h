@@ -243,7 +243,7 @@ struct cw_channel {
 	/*! If anyone is blocking, this is them */
 	pthread_t blocker;			
 	/*! Lock, can be used to lock a channel for some operations */
-	cw_mutex_t lock;			
+	cw_mutex_t lock;
 	/*! Procedure causing blocking */
 	const char *blockproc;			
 
@@ -777,15 +777,30 @@ int cw_senddigit(struct cw_channel *chan, char digit);
 char *cw_recvtext(struct cw_channel *chan, int timeout);
 
 /*! Get channel by name (locks channel) */
+#ifdef DEBUG_THREADS
+struct cw_channel *__cw_get_channel_by_name_locked(const char *chan, const char *file, int lineno, const char *func);
+#define cw_get_channel_by_name_locked(chan) __cw_get_channel_by_name_locked(chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 struct cw_channel *cw_get_channel_by_name_locked(const char *chan);
+#endif
 
 void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);
 
 /*! Get channel by name prefix (locks channel) */
+#ifdef DEBUG_THREADS
+struct cw_channel *__cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len, const char *file, int lineno, const char *func);
+#define cw_get_channel_by_name_prefix_locked(prefix, prefix_len) __cw_get_channel_by_name_prefix_locked(prefix, prefix_len, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len);
+#endif
 
 /*--- cw_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+#ifdef DEBUG_THREADS
+struct cw_channel *__cw_get_channel_by_exten_locked(const char *exten, const char *context, const char *file, int lineno, const char *func);
+#define cw_get_channel_by_exten_locked(exten, context) __cw_get_channel_by_exten_locked(exten, context, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context);
+#endif
 
 /*! Waits for a digit */
 /*! 
@@ -1032,32 +1047,26 @@ static inline int cw_fdisset(struct pollfd *pfds, int fd, int max, int *start)
     return 0;
 }
 
-#if defined(DEBUG_CHANNEL_LOCKS)
-/*! \brief Unlock CW channel (and print debugging output)
-    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int cw_channel_unlock(struct cw_channel *chan);
 
-/*! \brief Lock CW channel (and print debugging output)
-    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int cw_channel_lock(struct cw_channel *chan);
-
-/*! \brief Lock CW channel (and print debugging output)
-    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int cw_channel_trylock(struct cw_channel *chan);
+#ifdef DEBUG_THREADS
+#  define cw_channel_lock(chan)		({ \
+	typeof(chan) __chan = (chan); \
+	cw_mutex_lock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+})
+#  define cw_channel_trylock(chan)	({ \
+	typeof(chan) __chan = (chan); \
+	cw_mutex_trylock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+})
+#  define cw_channel_unlock(chan)	({ \
+	typeof(chan) __chan = (chan); \
+	cw_mutex_unlock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+})
+#else
+#  define cw_channel_lock(chan)		cw_mutex_lock(&(chan)->lock)
+#  define cw_channel_trylock(chan)	cw_mutex_trylock(&(chan)->lock)
+#  define cw_channel_unlock(chan)	cw_mutex_unlock(&(chan)->lock)
 #endif
 
-#ifdef SOLARIS
-static inline void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff)
-{
-	tvdiff->tv_sec = tvend->tv_sec - tvstart->tv_sec;
-	tvdiff->tv_usec = tvend->tv_usec - tvstart->tv_usec;
-	if (tvdiff->tv_usec < 0) {
-		tvdiff->tv_sec --;
-		tvdiff->tv_usec += 1000000;
-	}
-
-}
-#endif
 
 /*! Waits for activity on a group of channels */
 /*! 

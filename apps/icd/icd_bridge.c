@@ -781,15 +781,15 @@ void icd_bridge__safe_hangup(icd_caller * caller)
        %TC Danger race condition here oldchan may have gone aways
        we should lock the oldchan while be do the masquerade
        Why do we masq if we already icd_caller__owns_channel(caller) ???
-       if (!cw_mutex_trylock(&oldchan->lock)) {
+       if (!cw_channel_trylock(oldchan)) {
      */
 
     newchan = cw_channel_alloc(0, "%s", oldchan->name);
     if (newchan) {
-       cw_mutex_lock(&oldchan->lock);
+       cw_channel_lock(oldchan);
        newchan->readformat = oldchan->readformat;
        newchan->writeformat = oldchan->writeformat;
-       cw_mutex_unlock(&oldchan->lock);
+       cw_channel_unlock(oldchan);
        /*note masq will blindly lock both channels, does not check if the channels are still there ? */
        if (!cw_channel_masquerade(newchan, oldchan)) {
            f = cw_read(newchan);
@@ -847,11 +847,11 @@ int ok_exit(icd_caller * that, char digit)
     if (chan != NULL && cw_exists_extension(chan, context, tmp, 1, chan->cid.cid_num)) {
         cw_log(CW_LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
         /* possible race here caller might hangup while we figure things out */
-        if (!cw_mutex_trylock(&chan->lock)) {
+        if (!cw_channel_trylock(chan)) {
             strncpy(chan->context, context, sizeof(chan->context) - 1);
             strncpy(chan->exten, tmp, sizeof(chan->exten) - 1);
             chan->priority = 0;
-            cw_mutex_unlock(&chan->lock);
+            cw_channel_unlock(chan);
             return 1;
         } else
             return 0;
