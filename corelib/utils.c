@@ -44,13 +44,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
-#include "callweaver/io.h"
-#include "callweaver/logger.h"
-#include "callweaver/options.h"
-#include "callweaver/config.h"
-#include "callweaver/module.h"
-
 #define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/strings.h"
 
@@ -59,6 +52,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/utils.h"
+
+#include "callweaver/lock.h"
+#include "callweaver/io.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/config.h"
+#include "callweaver/module.h"
+
 
 static char base64[64];
 static char b2a[256];
@@ -627,28 +628,40 @@ pthread_attr_t global_attr_fifo_detached;
 pthread_attr_t global_attr_rr;
 pthread_attr_t global_attr_rr_detached;
 
-struct cw_pthread_wrapper_args {
+pthread_key_t global_pthread_key_thread_info;
+
+
+struct cw_pthread_info {
+	const char *description;
+#ifdef DEBUG_THREADS
+	const char *file;
+	int lineno;
+	const char *function;
+	const char *mutex_name;
+#endif
 	struct module *module;
 	void *(*func)(void *);
 	void *param;
 };
 
+
 static void cw_pthread_wrapper_cleanup(void *data)
 {
-	struct cw_pthread_wrapper_args *args = data;
+	struct cw_pthread_info *thread_info = data;
 
-	cw_module_put(args->module);
-	free(args);
+	cw_module_put(thread_info->module);
+	free(thread_info);
 }
 
 static void *cw_pthread_wrapper(void *data)
 {
-	struct cw_pthread_wrapper_args *args = data;
+	struct cw_pthread_info *thread_info = data;
 	void *ret;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	pthread_cleanup_push(cw_pthread_wrapper_cleanup, args);
-	ret = args->func(args->param);
+	pthread_cleanup_push(cw_pthread_wrapper_cleanup, thread_info);
+	pthread_setspecific(global_pthread_key_thread_info, thread_info);
+	ret = thread_info->func(thread_info->param);
 	pthread_cleanup_pop(1);
 	return ret;
 }
@@ -657,24 +670,29 @@ static void *cw_pthread_wrapper(void *data)
 #undef pthread_create /* For cw_pthread_create function only */
 #endif /* !__linux__ */
 
-int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
+int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
 {
 	int ret, n;
 
-	struct cw_pthread_wrapper_args *args;
+	struct cw_pthread_info *thread_info;
 
-	if ((args = malloc(sizeof(*args)))) {
-		args->module = cw_module_get(module);
-		args->func = start_routine;
-		args->param = data;
-		ret = pthread_create(thread, attr, cw_pthread_wrapper, args);
+	if ((thread_info = malloc(sizeof(*thread_info)))) {
+		thread_info->description = description;
+#ifdef DEBUG_THREADS
+		thread_info->file = thread_info->function = thread_info->mutex_name = NULL;
+		thread_info->lineno = 0;
+#endif
+		thread_info->module = cw_module_get(module);
+		thread_info->func = start_routine;
+		thread_info->param = data;
+		ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info);
 		if (ret == EPERM && !pthread_attr_getschedpolicy(attr, &n) && n != SCHED_OTHER) {
 			struct sched_param sp;
 			cw_log(CW_LOG_WARNING, "No permission for realtime scheduling - dropping to non-realtime\n");
 			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
 			sp.sched_priority = 0;
 			pthread_attr_setschedparam(attr, &sp);
-			ret = pthread_create(thread, attr, cw_pthread_wrapper, args);
+			ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info);
 		}
 		return ret;
 	}
@@ -683,6 +701,341 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	cw_log(CW_LOG_ERROR, "malloc: %s\n", strerror(errno));
 	return errno;
 }
+
+
+#ifdef DEBUG_THREADS
+
+#ifdef THREAD_CRASH
+#  define MUTEX_DEBUG_MAYBE_DUMPCORE() do { *((int *)(0)) = 1; } while(0)
+#else
+#  define MUTEX_DEBUG_MAYBE_DUMPCORE() do { } while(0)
+#endif
+
+#define mutex_debug_log(...) do { \
+	if (canlog) \
+		cw_log(CW_LOG_ERROR, __VA_ARGS__); \
+	else \
+		fprintf(stderr, __VA_ARGS__); \
+} while (0)
+
+static void show_locks(int canlog, cw_mutex_t *t)
+{
+	int i;
+
+	mutex_debug_log("locked by thread: %s\n", t->tinfo->description);
+	for (i = 0; i < t->reentrancy; i++)
+		mutex_debug_log("    [%d] %s:%d %s\n", i, t->file[i], t->lineno[i], t->func[i]);
+}
+
+
+static void push_thread_info(int canlog, cw_mutex_t *t, const char *filename, int lineno, const char *func, const char *mutex_name, struct cw_pthread_info *thread_info)
+{
+	if (t->reentrancy < CW_MAX_REENTRANCY) {
+		t->file[t->reentrancy] = filename;
+		t->lineno[t->reentrancy] = lineno;
+		t->func[t->reentrancy] = func;
+		if (t->reentrancy == 0)
+			t->tinfo = thread_info;
+		t->reentrancy++;
+	} else {
+		mutex_debug_log("%s:%d %s: '%s' really deep reentrancy!\n",
+			filename, lineno, func, mutex_name);
+		show_locks(canlog, t);
+	}
+}
+
+
+static void pop_thread_info(int canlog, cw_mutex_t *t, const char *filename, int lineno, const char *func, const char *mutex_name, const char *msg)
+{
+	if (--t->reentrancy < 0) {
+		mutex_debug_log("%s:%d %s: mutex '%s' %s\n", filename, lineno, func, mutex_name, msg);
+		t->reentrancy = 0;
+	}
+
+	if (t->reentrancy < CW_MAX_REENTRANCY) {
+		t->file[t->reentrancy] = NULL;
+		t->lineno[t->reentrancy] = 0;
+		t->func[t->reentrancy] = NULL;
+		if (t->reentrancy == 0)
+			t->tinfo = NULL;
+	}
+}
+
+
+int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t, pthread_mutexattr_t *attr)
+{
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is already initialized\n",
+			   filename, lineno, func, mutex_name);
+		mutex_debug_log("%s:%d %s: previously initialized mutex '%s'\n",
+			   t->file, t->lineno, t->func, mutex_name);
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+		return 0;
+	}
+#endif
+
+	t->file[0] = filename;
+	t->lineno[0] = lineno;
+	t->func[0] = func;
+	t->tinfo = pthread_getspecific(global_pthread_key_thread_info);
+	t->reentrancy = 0;
+
+	return pthread_mutex_init(&t->mutex, attr);
+}
+
+int cw_mutex_init_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+{
+	static pthread_mutexattr_t  attr;
+
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, CW_MUTEX_KIND);
+
+	return cw_mutex_init_attr_debug(canlog, filename, lineno, func, mutex_name, t, &attr);
+}
+
+int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+{
+	int res;
+
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is uninitialized\n", filename, lineno, func, mutex_name);
+#endif
+
+	switch ((res = pthread_mutex_trylock(&t->mutex))) {
+		case 0:
+			pthread_mutex_unlock(&t->mutex);
+			break;
+		case EBUSY:
+			mutex_debug_log("%s:%d %s: Error: attempt to destroy locked mutex '%s'\n",
+				filename, lineno, func, mutex_name);
+			show_locks(canlog, t);
+			break;
+		default:
+			mutex_debug_log("%s:%d %s: Error destroying mutex '%s': %s\n",
+				filename, lineno, func, mutex_name, strerror(res));
+			break;
+	}
+
+	if ((res = pthread_mutex_destroy(&t->mutex)))
+		mutex_debug_log("%s:%d %s: Error destroying mutex '%s': %s\n", filename, lineno, func, mutex_name, strerror(res));
+#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+	else
+		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
+#endif
+	t->file[0] = filename;
+	t->lineno[0] = lineno;
+	t->func[0] = func;
+	t->tinfo = pthread_getspecific(global_pthread_key_thread_info);
+
+	return res;
+}
+
+int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+{
+	struct cw_pthread_info *thread_info;
+	unsigned int delay = 100;
+	int res;
+
+#if defined(CW_MUTEX_INIT_W_CONSTRUCTORS) || defined(CW_MUTEX_INIT_ON_FIRST_USE)
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+		cw_mutex_logger("%s:%d %s: Error: mutex '%s' is uninitialized\n", filename, lineno, func, mutex_name);
+#endif
+		cw_mutex_init(t);
+	}
+#endif /* defined(CW_MUTEX_INIT_W_CONSTRUCTORS) || defined(CW_MUTEX_INIT_ON_FIRST_USE) */
+
+	thread_info = pthread_getspecific(global_pthread_key_thread_info);
+
+#ifdef DETECT_DEADLOCKS
+	if ((res = pthread_mutex_trylock(&t->mutex)) == EBUSY) {
+		if (thread_info) {
+			thread_info->file = filename;
+			thread_info->lineno = lineno;
+			thread_info->function = func;
+			thread_info->mutex_name = mutex_name;
+		}
+
+		do {
+			int tries = 10;
+			while ((res = pthread_mutex_trylock(&t->mutex)) == EBUSY && tries--)
+				usleep(100);
+			if (res == EBUSY) {
+				mutex_debug_log("%s:%d %s: %slock on mutex '%s'? Sleeping %dms\n",
+					filename, lineno, func,
+					(t->tinfo && t->tinfo->mutex_name ? "Dead" : "Live"),
+					mutex_name, delay);
+				if (t->tinfo) {
+					show_locks(canlog, t);
+					if (t->tinfo->mutex_name)
+						mutex_debug_log("    blocking on %s at %s:%d %s\n", t->tinfo->mutex_name, t->tinfo->file, t->tinfo->lineno, t->tinfo->function);
+					else
+						mutex_debug_log("    not blocking on a mutex\n");
+				}
+				usleep(delay * 1000);
+				if (delay < 3200)
+					delay <<= 1;
+			}
+		} while (res == EBUSY);
+
+		if (thread_info) {
+			thread_info->file = thread_info->function = thread_info->mutex_name = NULL;
+			thread_info->lineno = 0;
+		}
+	}
+#else
+	res = pthread_mutex_lock(&t->mutex);
+#endif /* DETECT_DEADLOCKS */
+
+	if (!res) {
+		push_thread_info(canlog, t, filename, lineno, func, mutex_name, thread_info);
+	} else {
+		mutex_debug_log("%s:%d %s: Error obtaining mutex: %s\n",
+			filename, lineno, func, strerror(res));
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	return res;
+}
+
+extern int cw_mutex_trylock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+{
+	int res;
+
+#if defined(CW_MUTEX_INIT_W_CONSTRUCTORS) || defined(CW_MUTEX_INIT_ON_FIRST_USE)
+	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is uninitialized\n",
+			filename, lineno, func, mutex_name);
+#endif
+		cw_mutex_init(t);
+	}
+#endif /* defined(CW_MUTEX_INIT_W_CONSTRUCTORS) || defined(CW_MUTEX_INIT_ON_FIRST_USE) */
+
+	if (!(res = pthread_mutex_trylock(&t->mutex)))
+		push_thread_info(canlog, t, filename, lineno, func, mutex_name, pthread_getspecific(global_pthread_key_thread_info));
+
+	return res;
+}
+
+int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+{
+	struct cw_pthread_info *thread_info;
+	int res;
+
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is uninitialized\n",
+			filename, lineno, func, mutex_name);
+#endif
+
+	thread_info = pthread_getspecific(global_pthread_key_thread_info);
+
+	if (t->reentrancy && t->tinfo != thread_info) {
+		mutex_debug_log("%s:%d %s: attempted unlock mutex '%s' without owning it!\n",
+			filename, lineno, func, mutex_name);
+		show_locks(canlog, t);
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	pop_thread_info(canlog, t, filename, lineno, func, mutex_name, "freed more times than we've locked!");
+
+	if ((res = pthread_mutex_unlock(&t->mutex))) {
+		mutex_debug_log("%s line %d (%s): Error releasing mutex: %s\n",
+			filename, lineno, func, strerror(res));
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	return res;
+}
+
+int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t)
+{
+	struct cw_pthread_info *thread_info;
+	int res;
+
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is uninitialized\n",
+			filename, lineno, func, mutex_name);
+#endif
+
+	thread_info = pthread_getspecific(global_pthread_key_thread_info);
+
+	if (t->reentrancy && t->tinfo != thread_info) {
+		mutex_debug_log("%s:%d %s: attempted cond wait using mutex '%s' without owning it!\n",
+			filename, lineno, func, mutex_name);
+		show_locks(canlog, t);
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	if (t->reentrancy > 1) {
+		mutex_debug_log("%s:%d %s: cond wait with mutex '%s' has nested locks!!\n",
+			filename, lineno, func, mutex_name);
+		show_locks(canlog, t);
+	}
+
+	pop_thread_info(canlog, t, filename, lineno, func, mutex_name, "should be locked!");
+
+	res = pthread_cond_wait(cond, &t->mutex);
+
+	push_thread_info(canlog, t, filename, lineno, func, mutex_name, thread_info);
+
+	if (res) {
+		mutex_debug_log("%s:%d %s: Error waiting on condition mutex '%s': %s\n",
+			filename, lineno, func, mutex_name, strerror(res));
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	return res;
+}
+
+int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime)
+{
+	struct cw_pthread_info *thread_info;
+	int res;
+
+#ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
+		mutex_debug_log("%s:%d %s: Error: mutex '%s' is uninitialized\n",
+			filename, lineno, func, mutex_name);
+#endif
+
+	thread_info = pthread_getspecific(global_pthread_key_thread_info);
+
+	if (t->reentrancy && t->tinfo != thread_info) {
+		mutex_debug_log("%s:%d %s: attempted cond timedwait with mutex '%s' without owning it!\n",
+			filename, lineno, func, mutex_name);
+		mutex_debug_log("%s:%d %s: '%s' was locked here\n",
+			t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	if (t->reentrancy > 1) {
+		mutex_debug_log("%s:%d %s: cond timedwait with mutex '%s' has nested locks!!\n",
+			filename, lineno, func, mutex_name);
+		show_locks(canlog, t);
+	}
+
+	pop_thread_info(canlog, t, filename, lineno, func, mutex_name, "should be locked!");
+
+	res = pthread_cond_timedwait(cond, &t->mutex, abstime);
+
+	push_thread_info(canlog, t, filename, lineno, func, mutex_name, thread_info);
+
+	if (res && res != ETIMEDOUT) {
+		mutex_debug_log("%s:%d %s: Error waiting on condition mutex '%s': %s\n",
+			filename, lineno, func, mutex_name, strerror(res));
+		MUTEX_DEBUG_MAYBE_DUMPCORE();
+	}
+
+	return res;
+}
+
+#endif /* DEBUG_THREADS */
+
 
 int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
@@ -1088,6 +1441,8 @@ int cw_utils_init(void)
 	pthread_attr_setschedpolicy(&global_attr_rr_detached, SCHED_RR);
 	pthread_attr_setschedparam(&global_attr_rr_detached, &global_sched_param_rr);
 	pthread_attr_setdetachstate(&global_attr_rr_detached, PTHREAD_CREATE_DETACHED);
+
+	pthread_key_create(&global_pthread_key_thread_info, NULL);
 
 	base64_init();
 	return 0;

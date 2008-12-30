@@ -36,7 +36,6 @@
 #include <limits.h>
 #include <openssl/evp.h>
 
-#include "callweaver/lock.h"
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
 #include "callweaver/module.h"
@@ -295,8 +294,8 @@ extern pthread_attr_t global_attr_rr;
  * module A and call cw_pthread_create(..., foo, ...) from module B.
  */
 #define CW_STACKSIZE 256 * 1024
-#define cw_pthread_create(a,b,c,d) cw_pthread_create_module((a), (b), (c), (d), get_modinfo()->self)
-extern int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module)
+#define cw_pthread_create(thread, attr, func, data) cw_pthread_create_module((thread), (attr), (func), (data), get_modinfo()->self, #func)
+extern int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
 	__attribute__ ((nonnull (1,2,3)));
 
 #ifdef linux
