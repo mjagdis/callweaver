@@ -197,7 +197,7 @@ typedef enum {
  */
 struct cw_channel {
 	struct cw_object obj;
-	struct cw_registry_entry *reg_entry;
+	struct cw_registry_entry *reg_entry, *dev_reg_entry;
 
 	/*! ASCII Description of channel name */
 	const char name[CW_CHANNEL_NAME];
@@ -363,6 +363,7 @@ struct cw_channel {
 
 
 extern struct cw_registry channel_registry;
+extern struct cw_registry device_registry;
 
 
 typedef struct cw_channel cw_channel_t;
@@ -778,10 +779,13 @@ char *cw_recvtext(struct cw_channel *chan, int timeout);
 
 /*! Get channel by name (locks channel) */
 #ifdef DEBUG_THREADS
-struct cw_channel *__cw_get_channel_by_name_locked(const char *chan, const char *file, int lineno, const char *func);
-#define cw_get_channel_by_name_locked(chan) __cw_get_channel_by_name_locked(chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan, const char *file, int lineno, const char *func);
+#define cw_get_channel_by_name_locked(chan) __cw_get_by_name_locked(&channel_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-struct cw_channel *cw_get_channel_by_name_locked(const char *chan);
+struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan);
+#define cw_get_channel_by_name_locked(chan) __cw_get_by_name_locked(&channel_registry, chan)
+#define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan)
 #endif
 
 void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);

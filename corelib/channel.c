@@ -205,6 +205,21 @@ struct cw_registry channel_registry = {
 };
 
 
+static int device_object_match(struct cw_object *obj, const void *pattern)
+{
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	int l = strlen(pattern);
+
+	return (!strncasecmp(chan->name, pattern, l) && chan->name[l] == '-');
+}
+
+struct cw_registry device_registry = {
+	.name = "Devices",
+	.cmp = channel_object_cmp,
+	.match = device_object_match,
+};
+
+
 /* this code is broken - if someone knows how to rewrite the list traversal, please tell */
 struct cw_variable *cw_channeltype_list(void)
 {
@@ -705,10 +720,20 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 			chan->obj.release = cw_channel_release;
 
 			if (fmt) {
+				const char *p;
+
 				va_start(ap, fmt);
 				vsnprintf((char *)chan->name, sizeof(chan->name), fmt, ap);
 				va_end(ap);
+
 				chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(chan->name), &chan->obj);
+				if ((p = strrchr(chan->name, '-'))) {
+					const char *q;
+					unsigned int hash;
+
+					for (q = chan->name, hash = 0; q != p; hash = cw_hash_add(hash, *(q++)));
+					chan->dev_reg_entry = cw_registry_add(&device_registry, hash, &chan->obj);
+				}
 			}
 
 			cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
@@ -865,9 +890,9 @@ void cw_channel_undefer_dtmf(struct cw_channel *chan)
 
 /*--- cw_get_channel_by_name_locked: Get channel by name and lock it */
 #ifdef DEBUG_THREADS
-struct cw_channel *__cw_get_channel_by_name_locked(const char *name, const char *file, int lineno, const char *func)
+struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *name, const char *file, int lineno, const char *func)
 #else
-struct cw_channel *cw_get_channel_by_name_locked(const char *name)
+struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *name)
 #endif
 {
 	static const struct timespec ts = { .tv_sec = 0, .tv_nsec = 3000000 };
@@ -882,7 +907,7 @@ struct cw_channel *cw_get_channel_by_name_locked(const char *name)
 	 * Why 3ms? Because older Linux systems will busy wait delays up to
 	 * 2ms rather than rescheduling.
 	 */
-	while (tries-- && (obj = cw_registry_find(&channel_registry, 1, cw_hash_string(name), name))) {
+	while (tries-- && (obj = cw_registry_find(registry, 1, cw_hash_string(name), name))) {
 		struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 #ifdef DEBUG_THREADS
 		if (!cw_mutex_trylock_debug(1, file, lineno, func, chan->name, &chan->lock)) {
@@ -1330,6 +1355,7 @@ void cw_channel_free(struct cw_channel *chan)
 
 	if (chan->reg_entry) {
 		cw_registry_del(&channel_registry, chan->reg_entry);
+		cw_registry_del(&device_registry, chan->dev_reg_entry);
 		chan->reg_entry = NULL;
 	}
 

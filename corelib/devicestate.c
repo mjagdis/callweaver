@@ -84,15 +84,10 @@ const char *devstate2str(int devstate)
 cw_devicestate_t cw_parse_device_state(const char *device)
 {
 	struct cw_channel *chan;
-	char match[CW_CHANNEL_NAME] = "";
 	int res;
 
-	cw_copy_string(match, device, sizeof(match)-1);
-
-	strcat(match, "-");
-
 	res = CW_DEVICE_UNKNOWN;
-	if ((chan = cw_get_channel_by_name_prefix_locked(match, strlen(match)))) {
+	if ((chan = cw_get_device_by_name_locked(device))) {
 		res = (chan->_state == CW_STATE_RINGING ? CW_DEVICE_RINGING : CW_DEVICE_INUSE);
 		cw_channel_unlock(chan);
 		cw_object_put(chan);
