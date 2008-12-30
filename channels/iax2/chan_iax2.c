@@ -85,6 +85,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/netsock.h"
 #include "callweaver/generic_jb.h"
+#include "callweaver/keywords.h"
 
 
 static int cw2iax[] = {
@@ -167,7 +168,6 @@ static const char iaxpeer_func_desc[] =
 	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
 	"\n";
 
-static unsigned int hash_dial;
 
 static struct cw_codec_pref prefs;
 
@@ -8434,7 +8434,7 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 		}
 	}
 	cw_mutex_unlock(&dpcache_lock);
-	return cw_function_exec_str(chan, hash_dial, "Dial", req, NULL, 0);
+	return cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
 }
 
 static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
@@ -8819,8 +8819,6 @@ static int load_module(void)
 	
 	struct cw_netsock *ns;
 	struct sockaddr_in sin;
-
-	hash_dial = cw_hash_app_name("Dial");
 
 	iaxpeer_func = cw_register_function(iaxpeer_func_name, function_iaxpeer, iaxpeer_func_synopsis, iaxpeer_func_syntax, iaxpeer_func_desc);
 

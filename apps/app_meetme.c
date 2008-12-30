@@ -53,6 +53,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/say.h"
 #include "callweaver/utils.h"
+#include "callweaver/keywords.h"
 
 
 static const char tdesc[] = "MeetMe conference bridge";
@@ -129,8 +130,6 @@ static char descrip3[] =
     "      'N' -- Mute entire conference (except admin)\n"
     "      'n' -- Unmute entire conference (except admin)\n"
     "";
-
-static unsigned int hash_ogi;
 
 
 static struct cw_conference
@@ -1134,7 +1133,7 @@ dahdiretry:
           or use default filename of conf-background.ogi */
         ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
         ogifile = strdup(ogifile ? ogifile : ogifiledefault);
-        ret = cw_function_exec_str(chan, hash_ogi, "OGI", ogifile, NULL, 0);
+        ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", ogifile, NULL, 0);
         free(ogifile);
         if (user->dahdichannel)
         {
@@ -2379,8 +2378,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-    hash_ogi = cw_hash_app_name("OGI");
-
     cw_cli_register(&cli_show_confs);
     cw_cli_register(&cli_conf);
     app3 = cw_register_function(name3, admin_exec, synopsis3, syntax3, descrip3);

@@ -58,6 +58,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/manager.h"
 #include "callweaver/privacy.h"
+#include "callweaver/keywords.h"
 
 static const char tdesc[] = "Dialing Application";
 
@@ -157,8 +158,6 @@ static const char retrydial_descrip[] =
 "to that extension immmediately.\n\n"
 "All arguments after 'loops' are passed directly to the Dial() application.\n"
 "";
-
-static unsigned int hash_proc;
 
 
 #define DIAL_STILLGOING			(1 << 0)
@@ -1505,7 +1504,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				for (res = 0;  res < strlen(proc_name);  res++)
 					if (proc_name[res] == '^')
 						proc_name[res] = ',';
-				res = cw_function_exec_str(peer, hash_proc, "Proc", proc_name, NULL, 0);
+				res = cw_function_exec_str(peer, CW_KEYWORD_Proc, "Proc", proc_name, NULL, 0);
 				res = 0;
 			}
 
@@ -1741,8 +1740,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	hash_proc = cw_hash_app_name("Proc");
-
 	dial_app = cw_register_function(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
 	retrydial_app = cw_register_function(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
 	return 0;

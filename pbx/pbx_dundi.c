@@ -72,6 +72,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/crypto.h"
 #include "callweaver/callweaver_db.h"
 #include "callweaver/acl.h"
+#include "callweaver/keywords.h"
 
 #include "include/dundi.h"
 
@@ -97,7 +98,6 @@ static const char dundifunc_desc[] =
 	"If the 'b' option is specified, the internal DUNDi cache will\n"
 	"be bypassed.\n";
 
-static unsigned int hash_dial;
 
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
@@ -4546,7 +4546,7 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 	if (x < res) {
 		/* Got a hit! */
 		snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
-		res = cw_function_exec_str(chan, hash_dial, "Dial", req, NULL, 0);
+		res = cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
 	} else
 		res = -1;
 	return res;
@@ -4788,8 +4788,6 @@ static int load_module(void)
 	int res = 0;
 	char iabuf[INET_ADDRSTRLEN];
 	
-	hash_dial = cw_hash_app_name("Dial");
-
 	dundi_set_output(dundi_debug_output);
 	dundi_set_error(dundi_error_output);
 

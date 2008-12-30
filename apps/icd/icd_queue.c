@@ -33,6 +33,8 @@
 #include "confdefs.h"
 #endif 
 
+#include "callweaver/keywords.h"
+
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_queue.h"
 #include "callweaver/icd/icd_event.h"
@@ -756,7 +758,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
         chan = icd_caller__get_channel(caller);
         if (chan) {
             pbx_substitute_variables_helper(chan, buf, buf2, sizeof(buf2));
-            cw_function_exec_str(chan, cw_hash_app_name("Muxmon"), "Muxmon", buf2, NULL, 0);
+            cw_function_exec_str(chan, CW_KEYWORD_Muxmon, "Muxmon", buf2, NULL, 0);
         }
       
     }

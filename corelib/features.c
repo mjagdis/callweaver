@@ -61,6 +61,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL: https://svn.callweaver.org/callweaver/trunk/r
 #include "callweaver/cli.h"
 #include "callweaver/manager.h"
 #include "callweaver/utils.h"
+#include "callweaver/keywords.h"
 
 #include "callweaver_addon/adsi.h"
 
@@ -140,7 +141,6 @@ static const char parkcall_descrip[] =
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static unsigned int hash_monitor;
 
 static int monitor_ok=1;
 
@@ -498,7 +498,7 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 			if (args[x] == '/')
 				args[x] = '-';
 		
-		cw_function_exec_str(callee_chan, hash_monitor, "Monitor", args, NULL, 0);
+		cw_function_exec_str(callee_chan, CW_KEYWORD_Monitor, "Monitor", args, NULL, 0);
 		
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -1341,14 +1341,14 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 			argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
 			argv[2] = (argv[2] ? argv[2] : "");
 			argv[3] = NULL;
-			cw_function_exec(chan, hash_monitor, "Monitor", 3, argv, NULL, 0);
+			cw_function_exec(chan, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
 		} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
 			argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
 			argv[1] = (argv[1] ? argv[1] : "");
 			argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
 			argv[2] = (argv[2] ? argv[2] : "");
 			argv[3] = NULL;
-			cw_function_exec(peer, hash_monitor, "Monitor", 3, argv, NULL, 0);
+			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
 		}
 	}
 	
@@ -2219,8 +2219,6 @@ static struct manager_action manager_actions[] = {
 int init_features(void)
 {
 	int res;
-
-	hash_monitor = cw_hash_app_name("Monitor");
 
 	CW_LIST_HEAD_INIT(&feature_list);
 	memset(parking_ext, 0, sizeof(parking_ext));

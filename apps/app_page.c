@@ -48,6 +48,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/app.h"
 #include "callweaver/chanvars.h"
+#include "callweaver/keywords.h"
 
 
 static const char tdesc[] = "Page Multiple Phones";
@@ -63,8 +64,6 @@ static const char page_descrip[] =
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
 "	 q - quiet, do not play beep to caller\n";
-
-static unsigned int hash_nconference;
 
 
 enum {
@@ -177,7 +176,7 @@ static int page_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	}
 	if (!res) {
 		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
-		cw_function_exec_str(chan, hash_nconference, "NConference", nconferenceopts, NULL, 0);
+		cw_function_exec_str(chan, CW_KEYWORD_NConference, "NConference", nconferenceopts, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -195,8 +194,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	hash_nconference = cw_hash_app_name("NConference");
-
 	page_app = cw_register_function(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
 	return 0;
 }

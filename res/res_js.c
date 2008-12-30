@@ -52,6 +52,7 @@
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 #include "callweaver/callweaver_db.h"
+#include "callweaver/keywords.h"
 
 #define EXITCODE_RUNTIME_ERROR 3
 #define EXITCODE_FILE_NOT_FOUND 4
@@ -598,7 +599,7 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 		return JS_FALSE;
 	}
 	
-	*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_app_name("Record"), "Record", path_info, NULL, 0) ? JS_FALSE : JS_TRUE );
+	*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, CW_KEYWORD_Record, "Record", path_info, NULL, 0) ? JS_FALSE : JS_TRUE );
 	return JS_TRUE;
 	
 }

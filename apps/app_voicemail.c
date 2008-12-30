@@ -72,6 +72,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 #include "callweaver/phone_no_utils.h"
+#include "callweaver/keywords.h"
 
 #include "callweaver_addon/adsi.h"
 
@@ -344,7 +345,6 @@ static const char descrip_vmauthenticate[] =
 "be set with the authenticated mailbox.\n"
 "If the options contain 's' then no initial prompts will be played.\n";
 
-static unsigned int hash_directory;
 
 /* Leave a message */
 static void *app;
@@ -3333,7 +3333,7 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 				memcpy(old_exten, chan->exten, sizeof(chan->exten));
 				old_priority = chan->priority;
 
-				res = cw_function_exec_str(chan, hash_directory, "Directory", s, NULL, 0);
+				res = cw_function_exec_str(chan, CW_KEYWORD_Directory, "Directory", s, NULL, 0);
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 					cw_clear_flag((&globalflags), VM_DIRECFORWARD);	
@@ -6137,8 +6137,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
-
-	hash_directory = cw_hash_app_name("Directory");
 
 	app = cw_register_function(name, vm_exec, synopsis_vm, syntax_vm, descrip_vm);
 	app2 = cw_register_function(name2, vm_execmain, synopsis_vmain, syntax_vmain, descrip_vmain);
