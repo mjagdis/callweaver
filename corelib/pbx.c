@@ -5069,22 +5069,17 @@ struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int
 
 void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value)
 {
-    int err = 0;
+	int err = 0;
 
-    if (value) {
-        if (name[strlen(name)-1] == ')') {
-            cw_log(CW_LOG_ERROR, "Cannot push a value onto a function\n");
-            err = 1;
-        } else {
-            if ((option_verbose > 1) && chan)
-                cw_verbose(VERBOSE_PREFIX_2 "Pushing global variable '%s' = '%s'\n", name, value);
+	if (value) {
+		if (option_verbose > 1 && chan)
+			cw_verbose(VERBOSE_PREFIX_2 "Pushing global variable '%s' = '%s'\n", name, value);
 
-            err = cw_var_assign((chan ? &chan->vars : &var_registry), name, value);
+		err = cw_var_assign((chan ? &chan->vars : &var_registry), name, value);
+
+		if (err && chan)
+			cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
 	}
-
-	if (err && chan)
-            cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
-    }
 }
 
 
