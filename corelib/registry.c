@@ -154,9 +154,10 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 		cw_list_for_each(list, &registry->list[i]) {
 			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 			if ((ret = func(entry->obj, data)))
-				break;
+				goto scan_complete;
 		}
 	}
+scan_complete:
 
 	if (atomic_dec_and_test(&registry->inuse))
 		registry_purge(registry);
@@ -176,9 +177,10 @@ int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_
 		cw_list_for_each_rev(list, &registry->list[i]) {
 			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 			if ((ret = func(entry->obj, data)))
-				break;
+				goto scan_complete;
 		}
 	}
+scan_complete:
 
 	if (atomic_dec_and_test(&registry->inuse))
 		registry_purge(registry);
@@ -201,12 +203,11 @@ struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, 
 			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 			if ((!have_hash || entry->hash == hash) && registry->match && registry->match(entry->obj, pattern)) {
 				obj = cw_object_dup_obj(entry->obj);
-				i = registry->size;
 				break;
 			}
 		}
 		i++;
-	} while (!have_hash && i < registry->size);
+	} while (!have_hash && !obj && i < registry->size);
 
 	if (atomic_dec_and_test(&registry->inuse))
 		registry_purge(registry);
