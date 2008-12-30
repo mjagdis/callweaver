@@ -39,7 +39,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/say.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
-#include "callweaver/callweaver_keywords.h"
+#include "callweaver/keywords.h"
 #include "callweaver/channel.h"
 #include "callweaver/options.h"
 #include "callweaver/pbx.h"

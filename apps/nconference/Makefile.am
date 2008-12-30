@@ -19,4 +19,4 @@ app_nconference_la_LIBADD               = @CALLWEAVER_LIB@
 app_nconference_la_CFLAGS		= $(AM_CFLAGS) 
 #app_nconference_la_CFLAGS		+= -DDETECT_DEADLOCKS -DTHREAD_CRASH -DDEBUG_THREADS
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

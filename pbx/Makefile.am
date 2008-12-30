@@ -48,4 +48,4 @@ ael/ael_lex.c: ael/ael.l
 endif WANT_PBX_AEL
 
 
-INCLUDES = -I$(top_srcdir)/include 
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include 

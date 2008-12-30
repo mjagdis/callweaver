@@ -9,7 +9,6 @@ cwinclude_HEADERS = acl.h \
                       callweaver_db.h \
                       callweaver_expr.h \
                       callweaver_hash.h \
-                      callweaver_keywords.h \
                       callweaver_mm.h \
                       callweaver_pcm.h \
                       causes.h \
@@ -32,6 +31,7 @@ cwinclude_HEADERS = acl.h \
                       indications.h \
                       inline_api.h \
                       io.h \
+		      keywords.h \
                       linkedlists.h \
                       localtime.h \
                       lock.h \
@@ -68,3 +68,5 @@ cwinclude_HEADERS = acl.h \
 		      hashtable.h hashtable_helper.h \
 	              file.h filestreams.h
 
+keywords.h:	$(top_builddir)/utils/genkeywords
+	$(top_builddir)/utils/genkeywords > $@

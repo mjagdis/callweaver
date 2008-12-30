@@ -7,5 +7,5 @@ libcwresample_la_SOURCES        = \
                                     resample.c \
                                     resamplesubs.c
 
-INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I${top_srcdir}/corelib -I$(top_srcdir)/include
 

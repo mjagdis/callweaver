@@ -60,7 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/callweaver_hash.h"
-#include "callweaver/callweaver_keywords.h"
+#include "callweaver/keywords.h"
 
 
 #ifdef LOW_MEMORY

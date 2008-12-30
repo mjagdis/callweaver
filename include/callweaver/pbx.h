@@ -36,30 +36,9 @@ extern "C" {
 #endif
 
 
-/*!
- * Function and variable names are no longer case insensitive. If the old behaviour
- * is desired, this file should be compiled with the following macros defined:
- *
- *        o  CW_USE_CASE_INSENSITIVE_APP_NAMES
- *        o  CW_USE_CASE_INSENSITIVE_VAR_NAMES
- *
- */
-
-#ifdef CW_USE_CASE_INSENSITIVE_APP_NAMES
-#define cw_hash_app_name(x)    cw_hash_string_toupper(x)
-#define CW_CASE_INFO_STRING_FOR_APP_NAMES    "insensitive"
-#else
 #define cw_hash_app_name(x)    cw_hash_string(x)
-#define CW_CASE_INFO_STRING_FOR_APP_NAMES    "sensitive"
-#endif
 
-#ifdef CW_USE_CASE_INSENSITIVE_VAR_NAMES
-#define cw_hash_var_name(x)    cw_hash_string_toupper(x)
-#define CW_CASE_INFO_STRING_FOR_VAR_NAMES    "insensitive"
-#else
 #define cw_hash_var_name(x)    cw_hash_string(x)
-#define CW_CASE_INFO_STRING_FOR_VAR_NAMES    "sensitive"
-#endif
 
 
 #define CW_PBX_KEEP    0

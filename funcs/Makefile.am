@@ -143,4 +143,4 @@ func_uri_la_CFLAGS		= $(AM_CFLAGS)
 func_uri_la_LIBADD		= @CALLWEAVER_LIB@
 endif WANT_FUNC_URI
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

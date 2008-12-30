@@ -13,4 +13,4 @@ chan_fax_la_LIBADD		= @CHAN_FAX_LIBS@ @CALLWEAVER_LIB@
 chan_fax_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
 endif WANT_CHAN_FAX
 
-INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I${top_srcdir}/corelib -I$(top_srcdir)/include

@@ -1,13 +1,12 @@
-/* API to use string hashes for keywords in place of strcmp()
+/*
+ * CallWeaver -- An open source telephony toolkit.
  *
- *  cw_hash.h
- *  CallWeaver Keywords
+ * Copyright (C) 2008, Eris Associates Limited, UK
+ * Copyright (C) 2006 Sunrise Telephone Systems Ltd. All rights reserved.
  *
- * Hash functions
- *
- * Author: Benjamin Kowarsch <benjamin at sunrise dash tel dot com>
- *
- * (C) 2006 Sunrise Telephone Systems Ltd. All rights reserved.
+ * Authors:
+ *     Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *     Benjamin Kowarsch <benjamin at sunrise dash tel dot com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,66 +55,26 @@
  * LAW. ANY LIABILITY OF ANY KIND IS CATEGORICALLY RULED OUT AT ALL TIMES.
  */
 
+/*! \file
+ * \brief API to use string hashes for keywords in place of strcmp()
+ */
 
 #ifndef _CW_HASH_H
 #define _CW_HASH_H
 
 
-// --------------------------------------------------------------------------
-// Number of significant characters
-// --------------------------------------------------------------------------
-//
+#define cw_hash_add(hash, val)	((val) + ((hash) << 6) + ((hash) << 16) - (hash))
 
-#define CWHASH_SIGNIFICANT_CHARS	32
 
-// --------------------------------------------------------------------------
-// function:  cw_hash_string(string)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm. The number of significant characters for which the
-// hash value will be calculated is limited to CWHASH_SIGNIFICANT_CHARS.
-// Returns 0 if 'string' is a zero-length string or NULL.
+/*! \brief Returns the hash value of the null terminated C string 'string' using the
+ * SDBM hash algorithm.
+ *
+ * \param string  the string to hash
+ *
+ * \return 0 if 'string' is a zero-length string or NULL.
+ */
 
-unsigned int cw_hash_string(const char *string);
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_tolower(string)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm after converting 'string' to its lowercase equivalent.
-// Case conversion is limited to characters in the ASCII range 'A' to 'Z'.
-// The number of significant characters for which the hash value will be
-// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_tolower(const char *string);
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_toupper(string)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm after converting 'string' to its uppercase equivalent.
-// Case conversion is limited to characters in the ASCII range 'a' to 'z'.
-// The number of significant characters for which the hash value will be
-// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_toupper(const char *string);	
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_with_limit(string, limit)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm. The number of significant characters for which the
-// hash value will be calculated is limited to 'limit'.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_with_limit(const char *string, unsigned int limit);
-
+extern unsigned int cw_hash_string(const char *string);
 
 #endif
 

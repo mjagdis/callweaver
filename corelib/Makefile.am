@@ -97,8 +97,8 @@ if !WANT_DEBUG
 CORE_CFLAGS 	+= -fomit-frame-pointer
 #CORE_CFLAGS	+= -DDETECT_DEADLOCKS -DCW_MUTEX_INIT_W_CONSTRUCTORS -DTHREAD_CRASH
 endif
-CORE_CFLAGS	+= -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
+CORE_CFLAGS	+= -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
+CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 CORE_CFLAGS	+= @SSL_CFLAGS@
 
 CORE_LIBS	=  -lvale -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@

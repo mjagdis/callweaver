@@ -18,6 +18,6 @@ chan_iax2_la_CFLAGS		= $(AM_CFLAGS) -I${top_srcdir}/corelib
 chan_iax2_la_LDFLAGS 		= -module -avoid-version @NO_UNDEFINED@
 chan_iax2_la_LIBADD             = @CALLWEAVER_LIB@
 
-INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I${top_srcdir}/corelib -I$(top_srcdir)/include
 
 endif WANT_CHAN_IAX2

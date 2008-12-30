@@ -2,8 +2,14 @@ AUTOMAKE_OPTS = gnu
 
 DEFS += -include $(top_builddir)/include/confdefs.h
 
+noinst_PROGRAMS = genkeywords
 cwutils_PROGRAMS = streamplayer # check_expr 
+
 streamplayer_SOURCES = streamplayer.c ${top_srcdir}/corelib/strcompat.c
+
+genkeywords_SOURCES = genkeywords.c
+genkeywords_CFLAGS	= -I$(top_srcdir)/include $(AM_CFLAGS) 
+
 # check_expr_SOURCES = check_expr.c ../cw_expr2.c ../cw_expr2f.c
 # check_expr_CFLAGS  = -DNO_OPX_MM -D_GNU_SOURCE -DSTANDALONE $(AM_CFLAGS)
 

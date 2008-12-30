@@ -11,4 +11,4 @@ chan_capi_la_LIBADD  		= -lcapi20 @CALLWEAVER_LIB@
 chan_capi_la_LDFLAGS 		= -module -avoid-version @NO_UNDEFINED@
 endif WANT_CHAN_CAPI
 
-INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I${top_srcdir}/corelib -I$(top_srcdir)/include

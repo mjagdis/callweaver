@@ -37,26 +37,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/strings.h"
 #include "callweaver/callweaver_hash.h"
 
-/*!
- * \note I M P O R T A N T :
- *
- *		This file has been modified to accommodate the new hash code based system
- * to recognise identifiers, which increases the efficiency of dialplan execution.
- *
- *		As a result of the change to the hash code based system, variable names
- * are no longer case insensitive. If the old behaviour is desired, this file
- * should be compiled with the following macro defined:
- *
- *		o  CW_USE_CASE_INSENSITIVE_VAR_NAMES
- *
- */
 
-
-#ifdef CW_USE_CASE_INSENSITIVE_VAR_NAMES
-#define cw_hash_var_name(x)	cw_hash_string_toupper(x)
-#else
 #define cw_hash_var_name(x)	cw_hash_string(x)
-#endif
 
 
 struct cw_var_t *cw_var_assign(const char *name, const char *value)

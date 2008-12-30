@@ -107,4 +107,4 @@ res_snmp_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
 res_snmp_la_LIBADD	= @ODBC_LIBS@ -lnetsnmp -lnetsnmpagent -lnetsnmphelpers -lnetsnmpmibs @CALLWEAVER_LIB@
 endif WANT_RES_SNMP
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

@@ -540,4 +540,4 @@ app_faxdetect_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
 app_faxdetect_la_LIBADD			= @CALLWEAVER_LIB@
 endif WANT_APP_FAXDETECT
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

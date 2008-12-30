@@ -64,4 +64,4 @@ format_wav_la_SOURCES 		= format_wav.c
 format_wav_la_LDFLAGS           = -module -avoid-version @NO_UNDEFINED@
 format_wav_la_LIBADD		= @CALLWEAVER_LIB@  
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

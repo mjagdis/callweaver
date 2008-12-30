@@ -48,4 +48,4 @@ codec_speex_la_CFLAGS	= $(AM_CFLAGS) @SPEEX_CFLAGS@
 codec_speex_la_LDFLAGS  = -module -avoid-version @NO_UNDEFINED@
 endif WANT_CODEC_SPEEX
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

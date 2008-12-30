@@ -1,13 +1,12 @@
-/* API to use string hashes for keywords in place of strcmp()
+/*
+ * CallWeaver -- An open source telephony toolkit.
  *
- *  cw_hash.c
- *  CallWeaver Keywords
+ * Copyright (C) 2008, Eris Associates Limited, UK
+ * Copyright (C) 2006 Sunrise Telephone Systems Ltd. All rights reserved.
  *
- * Hash functions
- *
- * Author: Benjamin Kowarsch <benjamin at sunrise dash tel dot com>
- *
- * (C) 2006 Sunrise Telephone Systems Ltd. All rights reserved.
+ * Authors:
+ *     Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *     Benjamin Kowarsch <benjamin at sunrise dash tel dot com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,8 +55,6 @@
  * LAW. ANY LIABILITY OF ANY KIND IS CATEGORICALLY RULED OUT AT ALL TIMES.
  */
 
-
-#include <string.h>
 #include "callweaver/callweaver_hash.h"
 
 
@@ -66,132 +63,20 @@
 // --------------------------------------------------------------------------
 //
 // Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm. The number of significant characters for which the
-// hash value will be calculated is limited to CWHASH_SIGNIFICANT_CHARS.
+// SDBM hash algorithm.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int cw_hash_string(const char *string) {
-	register unsigned int len, index, hash = 0;
-	register char ch;
-	
-	if (string == NULL)
-		return 0;
+unsigned int cw_hash_string(const char *string)
+{
+	unsigned int hash;
+	const char *p;
 
-	len = strlen(string);
-	if (len > CWHASH_SIGNIFICANT_CHARS) {
-		len = CWHASH_SIGNIFICANT_CHARS;
-	} // end if
-	
 	// PUBLIC DOMAIN ALGORITHM FOLLOWS
-	for (index = 0; index < len; index++) {
-		ch = string[index];
-		hash = ch + (hash << 6) + (hash << 16) - hash;
-	} // end for
-	
-	return (hash & 0x7FFFFFFF);
-} // end cw_hash_string
+	hash = 0;
+	if (string) {
+		for (p = string; *p; p++)
+			hash = cw_hash_add(hash, *p);
+	}
 
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_tolower(string)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm after converting 'string' to its lowercase equivalent.
-// Case conversion is limited to characters in the ASCII range 'A' to 'Z'.
-// The number of significant characters for which the hash value will be
-// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_tolower(const char *string) {
-	register unsigned int len, index, hash = 0;
-	register char ch;
-	
-	if (string == NULL)
-		return 0;
-
-	len = strlen(string);
-	if (len > CWHASH_SIGNIFICANT_CHARS) {
-		len = CWHASH_SIGNIFICANT_CHARS;
-	} // end if
-	
-	for (index = 0; index < len; index++) {
-		ch = string[index];
-		// checking for ch <= 'Z' first is faster
-		if /* UPPERCASE CHARACTER */ ((ch <= 'Z') && (ch >= 'A')) {
-			ch = ch + 32;
-		} // end if
-		hash = ch + (hash << 6) + (hash << 16) - hash;
-	} // end for
-	
-	return (hash & 0x7FFFFFFF);
-} // end cw_hash_string_tolower
-
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_toupper(string)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm after converting 'string' to its uppercase equivalent.
-// Case conversion is limited to characters in the ASCII range 'a' to 'z'.
-// The number of significant characters for which the hash value will be
-// calculated is limited to CWHASH_SIGNIFICANT_CHARS.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_toupper(const char *string) {
-	register unsigned int len, index, hash = 0;
-	register char ch;
-	
-	if (string == NULL)
-		return 0;
-
-	len = strlen(string);
-	if (len > CWHASH_SIGNIFICANT_CHARS) {
-		len = CWHASH_SIGNIFICANT_CHARS;
-	} // end if
-	
-	for (index = 0; index < len; index++) {
-		ch = string[index];
-		if /* LOWERCASE CHARACTER */ ((ch >= 'a') && (ch <= 'z')) {
-			ch = ch - 32;
-		} // end if
-		hash = ch + (hash << 6) + (hash << 16) - hash;
-	} // end for
-	
-	return (hash & 0x7FFFFFFF);
-} // end cw_hash_string_toupper
-
-
-// --------------------------------------------------------------------------
-// function:  cw_hash_string_with_limit(string, limit)
-// --------------------------------------------------------------------------
-//
-// Returns the hash value of the null terminated C string 'string' using the
-// SDBM hash algorithm. The number of significant characters for which the
-// hash value will be calculated is limited to 'limit'.
-// Returns 0 if 'string' is a zero-length string or NULL.
-
-unsigned int cw_hash_string_with_limit(const char *string, unsigned int limit) {
-	register unsigned int len, index, hash = 0;
-	register char ch;
-
-	if (string == NULL)
-		return 0;
-	
-	len = strlen(string);
-	if (len > limit) {
-		len = limit;
-	} // end if
-	
-	// PUBLIC DOMAIN ALGORITHM FOLLOWS
-	for (index = 0; index < len; index++) {
-		ch = string[index];
-		hash = ch + (hash << 6) + (hash << 16) - hash;
-	} // end for
-	
-	return (hash & 0x7FFFFFFF);
-} // end cw_hash_string_with_limit
-
-
-// END OF FILE
+	return hash;
+}

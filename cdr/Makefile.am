@@ -68,4 +68,4 @@ cdr_sqlite3_custom_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 cdr_sqlite3_custom_la_CFLAGS	= @SQLITE3_THREADSAFE_CFLAGS@ 
 endif WANT_CDR_SQLITE3_CUSTOM
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include

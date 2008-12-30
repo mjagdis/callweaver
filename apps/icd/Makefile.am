@@ -35,5 +35,5 @@ icd_mod_matchagent_la_SOURCES				= icd_mod_matchagent.c
 icd_mod_matchagent_la_LDFLAGS				= -module -avoid-version @NO_UNDEFINED@
 icd_mod_matchagent_la_LIBADD				= @CALLWEAVER_LIB@ 
 
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include -I$(top_srcdir)
 

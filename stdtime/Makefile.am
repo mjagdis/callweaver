@@ -14,6 +14,6 @@ noinst_LTLIBRARIES = libtime.la
 libtime_la_SOURCES = localtime.c tzfile.h private.h
 libtime_la_LDFLAGS = @NO_UNDEFINED@ -avoid-version 
 
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include
 
 #-static
