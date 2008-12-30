@@ -266,8 +266,6 @@ static void cw_sched_runq(struct sched_context *con)
 	struct timeval tv;
 	int res;
 
-	cw_mutex_lock(&con->lock);
-
 	/* schedule all events which are going to expire within 1ms.
 	 * We only care about millisecond accuracy anyway, so this will
 	 * help us get more than one event at one time if they are very
@@ -303,6 +301,8 @@ static void cw_sched_runq(struct sched_context *con)
 		 	sched_release(con, current);
 		}
 	}
+
+	cw_mutex_lock(&con->lock);
 }
 
 
