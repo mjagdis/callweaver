@@ -636,6 +636,7 @@ pthread_key_t global_pthread_key_thread_info;
 
 
 struct cw_pthread_info {
+	pthread_t tid;
 	const char *description;
 #ifdef DEBUG_MUTEX
 	const char *file;
@@ -662,6 +663,8 @@ static void *cw_pthread_wrapper(void *data)
 	struct cw_pthread_info *thread_info = data;
 	void *ret;
 
+	thread_info->tid = pthread_self();
+
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	pthread_cleanup_push(cw_pthread_wrapper_cleanup, thread_info);
 	pthread_setspecific(global_pthread_key_thread_info, thread_info);
@@ -681,6 +684,7 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	struct cw_pthread_info *thread_info;
 
 	if ((thread_info = malloc(sizeof(*thread_info)))) {
+		thread_info->tid = CW_PTHREADT_NULL;
 		thread_info->description = description;
 #ifdef DEBUG_MUTEX
 		thread_info->file = thread_info->function = thread_info->mutex_name = NULL;
@@ -696,7 +700,8 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
 			sp.sched_priority = 0;
 			pthread_attr_setschedparam(attr, &sp);
-			ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info);
+			if ((ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info)))
+				free(thread_info);
 		}
 		return ret;
 	}
@@ -720,7 +725,7 @@ static void show_locks(int canlog, cw_mutex_t *t)
 {
 	int i;
 
-	debug_mutex_log("locked by thread: %s\n", t->tinfo->description);
+	debug_mutex_log("locked by thread: %s (" TIDFMT ")\n", t->tinfo->description, TIDCAST(t->tinfo->tid));
 	for (i = 0; i < t->reentrancy; i++)
 		debug_mutex_log("    [%d] %s:%d %s\n", i, t->file[i], t->lineno[i], t->func[i]);
 }

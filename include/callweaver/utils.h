@@ -68,6 +68,17 @@
 #endif
 
 
+#if defined(__solaris__)
+#  define TIDCAST(tid) ((unsigned int)(tid))
+#  define TIDFMT "%u"
+#else
+#  define TIDCAST(tid) ((unsigned long)(tid))
+#  define TIDFMT "%lu"
+#endif
+
+#define GETTID() TIDCAST(pthread_self())
+
+
 /*! \note
  \verbatim
    Note:

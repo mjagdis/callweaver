@@ -66,17 +66,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define MAX_MSG_QUEUE 200
 
-#if defined(__linux__)
-#define GETTID() ((unsigned long)pthread_self())
-#define TIDFMT "%lu"
-#elif defined(__solaris__)
-#define GETTID() ((unsigned int)pthread_self())
-#define TIDFMT "%u"
-#else
-#define GETTID() ((long)getpid())
-#define TIDFMT "%ld"
-#endif
-
 
 #define DEFAULT_APPEND_HOSTNAME	0
 
