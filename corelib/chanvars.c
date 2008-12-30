@@ -43,25 +43,21 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 struct cw_var_t *cw_var_assign(const char *name, const char *value)
 {
-	int i;
 	struct cw_var_t *var;
-	unsigned int hash = cw_hash_var_name(name);
-	
-	var = calloc(sizeof(struct cw_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
+	int name_len = strlen(name) + 1;
+	int value_len = strlen(value) + 1;
 
-	if (var == NULL) {
+	if ((var = calloc(sizeof(struct cw_var_t) + name_len + value_len, sizeof(char)))) {
+		var->hash = cw_hash_var_name(name);
+		var->value = var->name + name_len;
+		memcpy(var->name, name, name_len);
+		memcpy(var->value, value, value_len);
+		return var;
+	} else {
 		cw_log(CW_LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
-
-	var->hash = hash;
-	i = strlen(name) + 1;
-	cw_copy_string(var->name, name, i);
-	var->value = var->name + i;
-	cw_copy_string(var->value, value, strlen(value) + 1);
-	
-	return var;
-}	
+}
 	
 void cw_var_delete(struct cw_var_t *var)
 {
