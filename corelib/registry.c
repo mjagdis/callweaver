@@ -56,8 +56,9 @@ static void registry_purge(struct cw_registry *registry)
 	while (list) {
 		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 		list = list->del;
-		if (cw_object_put_obj(entry->obj) && option_verbose > 1)
-			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, registry->obj_name(entry->obj));
+		if (option_verbose > 1)
+			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, entry->obj->type->name(entry->obj));
+		cw_object_put_obj(entry->obj);
 		free(entry);
 	}
 }
@@ -75,7 +76,7 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, struct c
 		cw_mutex_unlock(&registry->lock);
 
 		if (option_verbose > 1)
-			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: registered %s\n", registry->name, registry->obj_name(entry->obj));
+			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: registered %s\n", registry->name, entry->obj->type->name(entry->obj));
 
 		if (registry->onchange)
 			registry->onchange();
@@ -95,7 +96,7 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 	cw_mutex_unlock(&registry->lock);
 
 	if (option_verbose > 1 && entry->obj)
-		cw_verbose(VERBOSE_PREFIX_2 "Registry %s: unregistered %s\n", registry->name, registry->obj_name(entry->obj));
+		cw_verbose(VERBOSE_PREFIX_2 "Registry %s: unregistered %s\n", registry->name, entry->obj->type->name(entry->obj));
 
 	if (registry->onchange)
 		registry->onchange();
@@ -131,23 +132,20 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 struct cw_object *cw_registry_find(struct cw_registry *registry, const void *pattern)
 {
 	struct cw_object *obj = NULL;
+	struct cw_list *list;
 
-	if (registry->obj_match) {
-		struct cw_list *list;
+	atomic_inc(&registry->inuse);
 
-		atomic_inc(&registry->inuse);
-
-		cw_list_for_each(list, &registry->list) {
-			struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
-			if (registry->obj_match(entry->obj, pattern)) {
-				obj = cw_object_dup_obj(entry->obj);
-				break;
-			}
+	cw_list_for_each(list, &registry->list) {
+		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
+		if (entry->obj->type->match && entry->obj->type->match(entry->obj, pattern)) {
+			obj = cw_object_dup_obj(entry->obj);
+			break;
 		}
-
-		if (atomic_dec_and_test(&registry->inuse))
-			registry_purge(registry);
 	}
+
+	if (atomic_dec_and_test(&registry->inuse))
+		registry_purge(registry);
 
 	return obj;
 }

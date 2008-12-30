@@ -49,13 +49,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 
 
-static const char *imager_registry_obj_name(struct cw_object *obj)
+static const char *imager_object_name(struct cw_object *obj)
 {
 	struct cw_imager *it = container_of(obj, struct cw_imager, obj);
 	return it->name;
 }
 
-static int imager_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int imager_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_imager *imager_a = container_of(a, struct cw_imager, obj);
 	struct cw_imager *imager_b = container_of(b, struct cw_imager, obj);
@@ -63,18 +63,21 @@ static int imager_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 	return strcmp(imager_a->name, imager_b->name);
 }
 
-static int imager_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int imager_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	const int *format = pattern;
 	return !(img->format & *format);
 }
 
+const struct cw_object_isa cw_object_isa_imager = {
+	.name = imager_object_name,
+	.cmp = imager_object_cmp,
+	.match = imager_object_match,
+};
+
 struct cw_registry imager_registry = {
 	.name = "Imager",
-	.obj_name = imager_registry_obj_name,
-	.obj_cmp = imager_registry_obj_cmp,
-	.obj_match = imager_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 

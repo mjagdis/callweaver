@@ -73,13 +73,13 @@ static struct cw_config_map {
 
 CW_MUTEX_DEFINE_STATIC(config_lock);
 
-static const char *config_engine_registry_obj_name(struct cw_object *obj)
+static const char *config_engine_object_name(struct cw_object *obj)
 {
 	struct cw_config_engine *it = container_of(obj, struct cw_config_engine, obj);
 	return it->name;
 }
 
-static int config_engine_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int config_engine_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_config_engine *config_engine_a = container_of(a, struct cw_config_engine, obj);
 	struct cw_config_engine *config_engine_b = container_of(b, struct cw_config_engine, obj);
@@ -87,17 +87,20 @@ static int config_engine_registry_obj_cmp(struct cw_object *a, struct cw_object 
 	return strcmp(config_engine_a->name, config_engine_b->name);
 }
 
-static int config_engine_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int config_engine_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_config_engine *ce = container_of(obj, struct cw_config_engine, obj);
 	return strcasecmp(ce->name, pattern);
 }
 
+const struct cw_object_isa cw_object_isa_config_engine = {
+	.name = config_engine_object_name,
+	.cmp = config_engine_object_cmp,
+	.match = config_engine_object_match,
+};
+
 struct cw_registry config_engine_registry = {
 	.name = "Config Engine",
-	.obj_name = config_engine_registry_obj_name,
-	.obj_cmp = config_engine_registry_obj_cmp,
-	.obj_match = config_engine_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 

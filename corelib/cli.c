@@ -51,13 +51,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "libltdl/ltdl.h"
 
 
-static const char *clicmd_registry_obj_name(struct cw_object *obj)
+static const char *clicmd_object_name(struct cw_object *obj)
 {
     struct cw_clicmd *it = container_of(obj, struct cw_clicmd, obj);
     return it->summary;
 }
 
-static int clicmd_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int clicmd_object_cmp(struct cw_object *a, struct cw_object *b)
 {
     struct cw_clicmd *clicmd_a = container_of(a, struct cw_clicmd, obj);
     struct cw_clicmd *clicmd_b = container_of(b, struct cw_clicmd, obj);
@@ -84,7 +84,7 @@ struct match_args {
     int exact;
 };
 
-static int clicmd_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int clicmd_object_match(struct cw_object *obj, const void *pattern)
 {
     struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
     const struct match_args *args = pattern;
@@ -111,11 +111,14 @@ static int clicmd_registry_obj_match(struct cw_object *obj, const void *pattern)
     return m;
 }
 
+const struct cw_object_isa cw_object_isa_clicmd = {
+    .name = clicmd_object_name,
+    .cmp = clicmd_object_cmp,
+    .match = clicmd_object_match,
+};
+
 struct cw_registry clicmd_registry = {
     .name = "CLI Command",
-    .obj_name = clicmd_registry_obj_name,
-    .obj_cmp = clicmd_registry_obj_cmp,
-    .obj_match = clicmd_registry_obj_match,
     .lock = CW_MUTEX_INIT_VALUE,
 };
 

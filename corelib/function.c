@@ -52,13 +52,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static const char *func_registry_obj_name(struct cw_object *obj)
+static const char *func_object_name(struct cw_object *obj)
 {
 	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	return it->name;
 }
 
-static int func_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int func_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_func *func_a = container_of(a, struct cw_func, obj);
 	struct cw_func *func_b = container_of(b, struct cw_func, obj);
@@ -66,17 +66,20 @@ static int func_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 	return strcmp(func_a->name, func_b->name);
 }
 
-static int func_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int func_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	return (!strcmp(it->name, pattern));
 }
 
+const struct cw_object_isa cw_object_isa_function = {
+	.name = func_object_name,
+	.cmp = func_object_cmp,
+	.match = func_object_match,
+};
+
 struct cw_registry func_registry = {
 	.name = "Function",
-	.obj_name = func_registry_obj_name,
-	.obj_cmp = func_registry_obj_cmp,
-	.obj_match = func_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 

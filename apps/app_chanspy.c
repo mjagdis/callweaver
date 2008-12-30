@@ -717,7 +717,7 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!spygen.is_initialized)
-        cw_object_init(&spygen, CW_OBJECT_CURRENT_MODULE, 0);
+        cw_object_init(&spygen, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
     chanspy_app = cw_register_function(chanspy_name, chanspy_exec, chanspy_synopsis, chanspy_syntax, chanspy_desc);
     return 0;

@@ -1911,7 +1911,7 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!smsgen.is_initialized)
-        cw_object_init(&smsgen, CW_OBJECT_CURRENT_MODULE, 0);
+        cw_object_init(&smsgen, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
     snprintf(log_file, sizeof(log_file), "%s/sms", cw_config_CW_LOG_DIR);
     snprintf(spool_dir, sizeof(spool_dir), "%s/sms", cw_config_CW_SPOOL_DIR);

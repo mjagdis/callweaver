@@ -54,13 +54,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/atexit.h"
 
 
-static const char *cdrbe_registry_obj_name(struct cw_object *obj)
+static const char *cdrbe_object_name(struct cw_object *obj)
 {
 	struct cw_cdrbe *it = container_of(obj, struct cw_cdrbe, obj);
 	return it->name;
 }
 
-static int cdrbe_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int cdrbe_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_cdrbe *cdrbe_a = container_of(a, struct cw_cdrbe, obj);
 	struct cw_cdrbe *cdrbe_b = container_of(b, struct cw_cdrbe, obj);
@@ -69,10 +69,14 @@ static int cdrbe_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 }
 
 
+const struct cw_object_isa cw_object_isa_cdrbe = {
+	.name = cdrbe_object_name,
+	.cmp = cdrbe_object_cmp,
+};
+
+
 struct cw_registry cdrbe_registry = {
 	.name = "CDR back-end",
-	.obj_name = cdrbe_registry_obj_name,
-	.obj_cmp = cdrbe_registry_obj_cmp,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 

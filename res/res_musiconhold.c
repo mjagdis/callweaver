@@ -1157,10 +1157,10 @@ static int load_module(void)
 	cw_module_get(get_modinfo()->self);
 
 	if (!mohgen.is_initialized)
-		cw_object_init(&mohgen, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init(&mohgen, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
 	if (!moh_file_stream.is_initialized)
-		cw_object_init(&moh_file_stream, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init(&moh_file_stream, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
 	load_moh_classes();
 

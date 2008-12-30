@@ -38,6 +38,7 @@ extern "C" {
 typedef struct cw_translator cw_translator_t;
 
 
+extern const struct cw_object_isa cw_object_isa_translator;
 extern struct cw_registry translator_registry;
 
 
@@ -48,7 +49,7 @@ extern struct cw_registry translator_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) \
-		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, 0); \
+		cw_object_init_obj(&__ptr->obj, &cw_object_isa_translator, CW_OBJECT_CURRENT_MODULE, 0); \
 	__ptr->reg_entry = cw_registry_add(&translator_registry, &__ptr->obj); \
 	0; \
 })

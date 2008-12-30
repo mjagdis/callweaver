@@ -111,6 +111,7 @@ struct cw_cdrbe {
 };
 
 
+extern const struct cw_object_isa cw_object_isa_cdrbe;
 extern struct cw_registry cdrbe_registry;
 
 
@@ -121,7 +122,7 @@ extern struct cw_registry cdrbe_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) \
-		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, 0); \
+		cw_object_init_obj(&__ptr->obj, &cw_object_isa_cdrbe, CW_OBJECT_CURRENT_MODULE, 0); \
 	__ptr->reg_entry = cw_registry_add(&cdrbe_registry, &__ptr->obj); \
 	0; \
 })

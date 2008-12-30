@@ -570,13 +570,13 @@ int cw_translator_best_choice(int *dst, int *srcs)
 }
 
 
-static const char *translator_registry_obj_name(struct cw_object *obj)
+static const char *translator_object_name(struct cw_object *obj)
 {
 	struct cw_translator *it = container_of(obj, struct cw_translator, obj);
 	return it->name;
 }
 
-static int translator_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int translator_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_translator *translator_a = container_of(a, struct cw_translator, obj);
 	struct cw_translator *translator_b = container_of(b, struct cw_translator, obj);
@@ -590,10 +590,13 @@ static void translator_registry_onchange(void)
 		rebuild_matrix(0);
 }
 
+const struct cw_object_isa cw_object_isa_translator = {
+	.name = translator_object_name,
+	.cmp = translator_object_cmp,
+};
+
 struct cw_registry translator_registry = {
 	.name = "Translator",
-	.obj_name = translator_registry_obj_name,
-	.obj_cmp = translator_registry_obj_cmp,
 	.onchange = translator_registry_onchange,
 	.lock = CW_MUTEX_INIT_VALUE,
 };

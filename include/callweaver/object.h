@@ -30,9 +30,20 @@
 #include "callweaver/module.h"
 
 
+struct cw_object;
+
+
+struct cw_object_isa {
+	int (*cmp)(struct cw_object *a, struct cw_object *b);
+	int (*match)(struct cw_object *obj, const void *pattern);
+	const char *(*name)(struct cw_object *obj);
+};
+
+
 struct cw_object {
 	atomic_t refs;
 	struct module *module;
+	const struct cw_object_isa *type;
 	void (*release)(struct cw_object *);
 };
 
@@ -48,8 +59,9 @@ struct cw_object {
  *
  * \return nothing
  */
-static inline void cw_object_init_obj(struct cw_object *obj, struct module *module, int refs)
+static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs)
 {
+	obj->type = type;
 	obj->module = module;
 
 	if (refs)
@@ -144,10 +156,10 @@ static inline int cw_object_refs_obj(struct cw_object *obj)
  * \return a pointer to the given object. Note that this is only a counted reference if its existence
  *         was allowed for in the value of refs passed as the third argument
  */
-#define cw_object_init(ptr, mod, refs) ({ \
+#define cw_object_init(ptr, type, mod, refs) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
-		cw_object_init_obj(&__ptr->obj, (mod), (refs)); \
+		cw_object_init_obj(&__ptr->obj, (type), (mod), (refs)); \
 	__ptr; \
 })
 

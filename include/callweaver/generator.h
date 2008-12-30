@@ -40,6 +40,10 @@ struct cw_generator_instance {
 	void *pvt;
 };
 
+
+extern const struct cw_object_isa cw_object_isa_generator;
+
+
 extern void cw_generator_deactivate(struct cw_generator_instance *gen);
 extern int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params);
 

@@ -68,6 +68,7 @@ struct cw_format {
 	char *(*getcomment)(void *);
 };
 
+extern const struct cw_object_isa cw_object_isa_format;
 extern struct cw_registry format_registry;
 
 
@@ -78,7 +79,7 @@ extern struct cw_registry format_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) \
-		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, 0); \
+		cw_object_init_obj(&__ptr->obj, &cw_object_isa_format, CW_OBJECT_CURRENT_MODULE, 0); \
 	__ptr->reg_entry = cw_registry_add(&format_registry, &__ptr->obj); \
 	0; \
 })

@@ -182,13 +182,13 @@ struct cw_hint *hints = NULL;
 struct cw_state_cb *statecbs = NULL;
 
 
-static const char *switch_registry_obj_name(struct cw_object *obj)
+static const char *switch_object_name(struct cw_object *obj)
 {
 	struct cw_switch *it = container_of(obj, struct cw_switch, obj);
 	return it->name;
 }
 
-static int switch_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int switch_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_switch *switch_a = container_of(a, struct cw_switch, obj);
 	struct cw_switch *switch_b = container_of(b, struct cw_switch, obj);
@@ -196,17 +196,20 @@ static int switch_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 	return strcmp(switch_a->name, switch_b->name);
 }
 
-static int switch_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int switch_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
 	return strcmp(sw->name, pattern);
 }
 
+const struct cw_object_isa cw_object_isa_switch = {
+	.name = switch_object_name,
+	.cmp = switch_object_cmp,
+	.match = switch_object_match,
+};
+
 struct cw_registry switch_registry = {
 	.name = "Switch",
-	.obj_name = switch_registry_obj_name,
-	.obj_cmp = switch_registry_obj_cmp,
-	.obj_match = switch_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 

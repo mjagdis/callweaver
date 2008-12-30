@@ -55,13 +55,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 
 
-static const char *format_registry_obj_name(struct cw_object *obj)
+static const char *format_object_name(struct cw_object *obj)
 {
 	struct cw_format *it = container_of(obj, struct cw_format, obj);
 	return it->name;
 }
 
-static int format_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int format_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct cw_format *format_a = container_of(a, struct cw_format, obj);
 	struct cw_format *format_b = container_of(b, struct cw_format, obj);
@@ -69,10 +69,13 @@ static int format_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
 	return strcmp(format_a->name, format_b->name);
 }
 
+const struct cw_object_isa cw_object_isa_format = {
+	.name = format_object_name,
+	.cmp = format_object_cmp,
+};
+
 struct cw_registry format_registry = {
 	.name = "Format",
-	.obj_name = format_registry_obj_name,
-	.obj_cmp = format_registry_obj_cmp,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 
@@ -1182,7 +1185,7 @@ struct cw_clicmd show_file = {
 int cw_file_init(void)
 {
 	if (!filestream_generator.is_initialized)
-		cw_object_init(&filestream_generator, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init(&filestream_generator, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
 	cw_cli_register(&show_file);
 	return 0;

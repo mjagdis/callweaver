@@ -33,6 +33,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/time.h"
 
 
+/* Generators are never put in registries so don't need any methods implemented */
+const struct cw_object_isa cw_object_isa_generator;
+
+
 /* Note: clock_nanosleep is an Advanced Realtime POSIX function.
  * With GNU libc it is present if you build with __USE_XOPEN2K. Other platforms
  * will need other tests. If clock_nanosleep is not present we fall back on

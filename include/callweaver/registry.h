@@ -82,10 +82,7 @@ struct cw_registry {
 	cw_mutex_t lock;
 	atomic_t inuse;
 	struct cw_list list;
-	int (*obj_cmp)(struct cw_object *a, struct cw_object *b);
-	int (*obj_match)(struct cw_object *obj, const void *pattern);
 	char *name;
-	const char *(*obj_name)(struct cw_object *obj);
 	void (*onchange)(void);
 };
 

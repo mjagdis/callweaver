@@ -142,7 +142,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (!milliwattgen.is_initialized)
-		cw_object_init(&milliwattgen, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init(&milliwattgen, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
 	milliwatt_app = cw_register_function(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
 	return 0;

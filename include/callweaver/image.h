@@ -49,6 +49,7 @@ struct cw_imager {
 };
 
 
+extern const struct cw_object_isa cw_object_isa_imager;
 extern struct cw_registry imager_registry;
 
 
@@ -59,7 +60,7 @@ extern struct cw_registry imager_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) \
-		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, 0); \
+		cw_object_init_obj(&__ptr->obj, &cw_object_isa_imager, CW_OBJECT_CURRENT_MODULE, 0); \
 	__ptr->reg_entry = cw_registry_add(&imager_registry, &__ptr->obj); \
 	0; \
 })

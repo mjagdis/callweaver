@@ -232,13 +232,13 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 }
 
 
-static const char *manager_listener_registry_obj_name(struct cw_object *obj)
+static const char *manager_listener_object_name(struct cw_object *obj)
 {
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 	return it->name;
 }
 
-static int manager_listener_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int manager_listener_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct manager_listener *item_a = container_of(a, struct manager_listener, obj);
 	struct manager_listener *item_b = container_of(b, struct manager_listener, obj);
@@ -246,28 +246,31 @@ static int manager_listener_registry_obj_cmp(struct cw_object *a, struct cw_obje
 	return strcmp(item_a->name, item_b->name);
 }
 
-static int manager_listener_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int manager_listener_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct manager_listener *item = container_of(obj, struct manager_listener, obj);
 	return strcmp(item->name, pattern);
 }
 
+const struct cw_object_isa cw_object_isa_listener = {
+	.name = manager_listener_object_name,
+	.cmp = manager_listener_object_cmp,
+	.match = manager_listener_object_match,
+};
+
 struct cw_registry manager_listener_registry = {
 	.name = "Manager Listener",
-	.obj_name = manager_listener_registry_obj_name,
-	.obj_cmp = manager_listener_registry_obj_cmp,
-	.obj_match = manager_listener_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-static const char *manager_session_registry_obj_name(struct cw_object *obj)
+static const char *manager_session_object_name(struct cw_object *obj)
 {
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	return it->name;
 }
 
-static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int manager_session_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct mansession *item_a = container_of(a, struct mansession, obj);
 	struct mansession *item_b = container_of(b, struct mansession, obj);
@@ -275,28 +278,31 @@ static int manager_session_registry_obj_cmp(struct cw_object *a, struct cw_objec
 	return strcmp(item_a->name,  item_b->name);
 }
 
-static int manager_session_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int manager_session_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct mansession *item = container_of(obj, struct mansession, obj);
 	return !strcmp(item->name, pattern);
 }
 
+const struct cw_object_isa cw_object_isa_session = {
+	.name = manager_session_object_name,
+	.cmp = manager_session_object_cmp,
+	.match = manager_session_object_match,
+};
+
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
-	.obj_name = manager_session_registry_obj_name,
-	.obj_cmp = manager_session_registry_obj_cmp,
-	.obj_match = manager_session_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 
 
-static const char *manager_action_registry_obj_name(struct cw_object *obj)
+static const char *manager_action_object_name(struct cw_object *obj)
 {
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	return it->action;
 }
 
-static int manager_action_registry_obj_cmp(struct cw_object *a, struct cw_object *b)
+static int manager_action_object_cmp(struct cw_object *a, struct cw_object *b)
 {
 	struct manager_action *item_a = container_of(a, struct manager_action, obj);
 	struct manager_action *item_b = container_of(b, struct manager_action, obj);
@@ -304,17 +310,20 @@ static int manager_action_registry_obj_cmp(struct cw_object *a, struct cw_object
 	return strcasecmp(item_a->action, item_b->action);
 }
 
-static int manager_action_registry_obj_match(struct cw_object *obj, const void *pattern)
+static int manager_action_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct manager_action *item = container_of(obj, struct manager_action, obj);
 	return (!strcasecmp(item->action, pattern));
 }
 
+const struct cw_object_isa cw_object_isa_manager_action = {
+	.name = manager_action_object_name,
+	.cmp = manager_action_object_cmp,
+	.match = manager_action_object_match,
+};
+
 struct cw_registry manager_action_registry = {
 	.name = "Manager Action",
-	.obj_name = manager_action_registry_obj_name,
-	.obj_cmp = manager_action_registry_obj_cmp,
-	.obj_match = manager_action_registry_obj_match,
 	.lock = CW_MUTEX_INIT_VALUE,
 };
 
@@ -1748,7 +1757,7 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	sess->send_events = send_events;
 	sess->handler = handler;
 
-	cw_object_init(sess, NULL, 2);
+	cw_object_init(sess, &cw_object_isa_session, NULL, 2);
 	pthread_mutex_init(&sess->lock, NULL);
 	pthread_cond_init(&sess->activity, NULL);
 	pthread_cond_init(&sess->ack, NULL);
@@ -1837,6 +1846,9 @@ static void *accept_thread(void *data)
 }
 
 
+static const struct cw_object_isa cw_object_isa_manager_event;
+
+
 struct manager_event_args {
 	int ret;
 	int category;
@@ -1877,7 +1889,7 @@ again:
 			args->me->category = args->category;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
-			cw_object_init(args->me, NULL, 1);
+			cw_object_init(args->me, &cw_object_isa_manager_event, NULL, 1);
 			return 0;
 		}
 
@@ -2119,7 +2131,7 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 
 	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
 
-	cw_object_init(listener, NULL, 1);
+	cw_object_init(listener, &cw_object_isa_listener, NULL, 1);
 	listener->obj.release = listener_free;
 	listener->reg_entry = NULL;
 	listener->tid = CW_PTHREADT_NULL;
