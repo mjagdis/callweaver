@@ -37,7 +37,6 @@ struct cw_object {
 };
 
 
-#define CW_OBJECT_NO_REFS 0
 #define CW_OBJECT_CURRENT_MODULE (get_modinfo()->self)
 
 
@@ -51,8 +50,12 @@ struct cw_object {
  */
 static inline void cw_object_init_obj(struct cw_object *obj, struct module *module, int refs)
 {
-	atomic_set(&obj->refs, refs);
 	obj->module = module;
+
+	if (refs)
+		cw_module_get(module);
+
+	atomic_set(&obj->refs, refs);
 }
 
 
@@ -76,7 +79,7 @@ static inline void cw_object_init_obj(struct cw_object *obj, struct module *modu
  */
 static inline struct cw_object *cw_object_get_obj(struct cw_object *obj)
 {
-	if (atomic_fetch_and_add(&obj->refs, 1) == CW_OBJECT_NO_REFS)
+	if (atomic_fetch_and_add(&obj->refs, 1) == 0)
 		cw_module_get(obj->module);
 
 	return obj;
@@ -112,7 +115,7 @@ static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
  */
 static inline int cw_object_put_obj(struct cw_object *obj)
 {
-	if (atomic_fetch_and_sub(&obj->refs, 1) == CW_OBJECT_NO_REFS + 1) {
+	if (atomic_fetch_and_sub(&obj->refs, 1) == 0 + 1) {
 		struct module *module = obj->module;
 		if (obj->release)
 			obj->release(obj);

@@ -792,7 +792,7 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!faxgen.is_initialized)
-        cw_object_init(&faxgen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
+        cw_object_init(&faxgen, CW_OBJECT_CURRENT_MODULE, 0);
 
     rxfax_app = cw_register_function(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
     return 0;

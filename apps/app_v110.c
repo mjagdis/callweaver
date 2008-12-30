@@ -816,7 +816,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (!v110_gen.is_initialized)
-		cw_object_init(&v110_gen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
+		cw_object_init(&v110_gen, CW_OBJECT_CURRENT_MODULE, 0);
 
 	v110_app = cw_register_function(v110_name, login_v110, v110_synopsis, v110_syntax, v110_descrip);
 	return 0;

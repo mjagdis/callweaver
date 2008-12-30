@@ -3834,7 +3834,7 @@ int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duratio
     struct tonepair_def d;
 
     if (!tonepair.is_initialized)
-        cw_object_init(&tonepair, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
+        cw_object_init(&tonepair, CW_OBJECT_CURRENT_MODULE, 0);
 
     if (vol >= 0)
 	vol = -13;

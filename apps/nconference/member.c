@@ -858,7 +858,7 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
 		member->chan->name, member->type, chan->readformat, chan->writeformat ) ;
 
     if (!membergen.is_initialized)
-        cw_object_init(&membergen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
+        cw_object_init(&membergen, CW_OBJECT_CURRENT_MODULE, 0);
 
     if ( !cw_generator_is_active(chan) )
 	cw_generator_activate(chan, &chan->generator, &membergen, member);

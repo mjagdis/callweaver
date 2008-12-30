@@ -46,7 +46,7 @@ extern struct cw_registry atexit_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) { \
-		cw_object_init_obj(&__ptr->obj, NULL, CW_OBJECT_NO_REFS); \
+		cw_object_init_obj(&__ptr->obj, NULL, 0); \
 		/* atexits don't pin the module when registered, but they do pin it \
 		 * just before being run or unregistered so the normal puts only \
 		 * release the module once we're done. \

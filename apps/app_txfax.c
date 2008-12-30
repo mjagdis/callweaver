@@ -740,7 +740,7 @@ static int unload_module(void)
 static int load_module(void)
 {
     if (!faxgen.is_initialized)
-        cw_object_init(&faxgen, CW_OBJECT_CURRENT_MODULE, CW_OBJECT_NO_REFS);
+        cw_object_init(&faxgen, CW_OBJECT_CURRENT_MODULE, 0);
 
     txfax_app = cw_register_function(txfax_name, txfax_exec, txfax_synopsis, txfax_syntax, txfax_descrip);
     return 0;

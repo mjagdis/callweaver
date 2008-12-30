@@ -1748,14 +1748,12 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	sess->send_events = send_events;
 	sess->handler = handler;
 
-	cw_object_init(sess, NULL, CW_OBJECT_NO_REFS);
-	cw_object_get(sess);
+	cw_object_init(sess, NULL, 2);
 	pthread_mutex_init(&sess->lock, NULL);
 	pthread_cond_init(&sess->activity, NULL);
 	pthread_cond_init(&sess->ack, NULL);
 	sess->obj.release = mansession_release;
 
-	cw_object_dup(sess);
 	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, manager_session, sess)) {
 		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 		cw_object_put(sess);
@@ -1879,8 +1877,7 @@ again:
 			args->me->category = args->category;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
-			cw_object_init(args->me, NULL, CW_OBJECT_NO_REFS);
-			cw_object_get(args->me);
+			cw_object_init(args->me, NULL, 1);
 			return 0;
 		}
 
@@ -2122,8 +2119,7 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 
 	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
 
-	cw_object_init(listener, NULL, CW_OBJECT_NO_REFS);
-	cw_object_get(listener);
+	cw_object_init(listener, NULL, 1);
 	listener->obj.release = listener_free;
 	listener->reg_entry = NULL;
 	listener->tid = CW_PTHREADT_NULL;
