@@ -1925,7 +1925,6 @@ static struct cw_frame *visdn_read(struct cw_channel *cw_chan)
 	/* Acknowledge timer */
 	read(cw_chan->fds[0], visdn_chan->buf, 1);
 
-	f.src = VISDN_CHAN_TYPE;
 	f.mallocd = 0;
 	f.delivery.tv_sec = 0;
 	f.delivery.tv_usec = 0;
