@@ -855,14 +855,6 @@ if test "${enable_debug_mutex}" = "yes"; then
 fi
 AC_SUBST(DEBUG_MUTEX)
 
-dnl Enable stack backtraces
-AC_ARG_ENABLE(stack-backtraces,
-	[AC_HELP_STRING([--enable-stack-backtraces],[build with stack backtraces])],,[enable_stack_backtraces="no"])
-
-if test "${enable_stack_backtraces}" = "yes"; then
-   AC_DEFINE([STACK_BACKTRACES],[],[Enable generation of stack backtraces.])
-fi
-
 dnl Enable valgrind
 AC_ARG_ENABLE(valgrind,
         [AC_HELP_STRING([--enable-valgrind],[Build with valgrind information])],,[enable_valgrind="no"])

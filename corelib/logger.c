@@ -37,11 +37,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#ifdef STACK_BACKTRACES
-#if defined(__linux__)
-#include <execinfo.h>
-#endif
-#endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
 		        from <syslog.h> which is included by logger.h */
@@ -684,33 +679,4 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		if (level != __CW_LOG_VERBOSE)
 			fprintf(stdout, "%s %s[" TIDFMT "]: %s:%d %s: %s\n", date, levels[level], GETTID(), file, line, function, msg);
 	}
-}
-
-void cw_backtrace(int levels)
-{
-#if defined(STACK_BACKTRACES) && defined(__linux__)
-	int count=0, i=0;
-	void **addresses;
-	char **strings;
-
-	addresses = calloc(levels, sizeof(void *));
-	if (addresses) {
-		count = backtrace(addresses, levels);
-		strings = backtrace_symbols(addresses, count);
-		if (strings) {
-			cw_log(CW_LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
-			for (i=0; i < count ; i++) {
-				cw_log(CW_LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
-			}
-			free(strings);
-		} else {
-			cw_log(CW_LOG_WARNING, "Could not allocate memory for backtrace\n");
-		}
-		free(addresses);
-	} else {
-		cw_log(CW_LOG_WARNING, "Could not allocate memory for backtrace\n");
-	}
-#else
-	cw_log(CW_LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
-#endif
 }
