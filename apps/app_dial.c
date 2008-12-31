@@ -117,6 +117,7 @@ static const char dial_descrip[] =
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "      'R' -- wait for # to be pressed before bridging the call\n"
 "      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
+"      'J(context^exten^pri)' -- When the caller hangs up, send the destination channel to the specified extension.\n"
 "      'D([called][:calling])'  -- Send DTMF strings *after* called party has answered, but before the\n"
 "             call gets bridged. The 'called' DTMF string is sent to the called party, and the\n"
 "             'calling' DTMF string is sent to the calling party. Both parameters can be used alone.\n"  	
@@ -686,6 +687,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
 	char *dblgoto = NULL;
+	char *jumpdst = NULL;
 
 	if (argc < 1 || argc > 4)
 		return cw_function_syntax(dial_syntax);
@@ -877,6 +879,26 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			} else {
 				cw_log(CW_LOG_WARNING, "Could not find exten to which we should jump.\n");
 				dblgoto = NULL;
+			}
+		}
+
+		/* Get the jump destination from the dial option string */
+		if ((mac = strstr(options, "J("))) {
+			jumpdst = cw_strdupa(mac + 2);
+			while (*mac && (*mac != ')'))
+				*(mac++) = 'X';
+			if (*mac) {
+				*mac = 'X';
+				mac = strchr(jumpdst, ')');
+				if (mac)
+					*mac = '\0';
+				else {
+					cw_log(LOG_WARNING, "Destination jump flag set without trailing ')'\n");
+					jumpdst = NULL;
+				}
+			} else {
+				cw_log(LOG_WARNING, "Could not find exten to which we should jump.\n");
+				jumpdst = NULL;
 			}
 		}
 
@@ -1655,7 +1677,16 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		if (res != CW_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
 				chan->hangupcause = peer->hangupcause;
-			cw_hangup(peer);
+			if (!cw_check_hangup(peer) && jumpdst) {
+				for (mac = jumpdst; *mac; mac++) {
+					if(*mac == '^') {
+						*mac = ',';
+					}
+				}
+				cw_parseable_goto(peer, jumpdst);
+				cw_pbx_start(peer);
+			} else
+				cw_hangup(peer);
 		}
 	}
 out:
