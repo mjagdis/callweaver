@@ -893,11 +893,11 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				if (mac)
 					*mac = '\0';
 				else {
-					cw_log(LOG_WARNING, "Destination jump flag set without trailing ')'\n");
+					cw_log(CW_LOG_WARNING, "Destination jump flag set without trailing ')'\n");
 					jumpdst = NULL;
 				}
 			} else {
-				cw_log(LOG_WARNING, "Could not find exten to which we should jump.\n");
+				cw_log(CW_LOG_WARNING, "Could not find exten to which we should jump.\n");
 				jumpdst = NULL;
 			}
 		}
