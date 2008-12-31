@@ -1174,24 +1174,6 @@ static void sip_debug_ports(struct sip_pvt *p) {
 
 }
 
-/*!
-  \brief Thread-safe random number generator
-  \return a random number
-
-  This function uses a mutex lock to guarantee that no
-  two threads will receive the same random number.
- */
-static int thread_safe_cw_random(void)
-{
-    int val;
-
-    cw_mutex_lock(&rand_lock);
-    val = rand();
-    cw_mutex_unlock(&rand_lock);
-    
-    return val;
-}
-
 /*! \brief  find_sip_method: Find SIP method from header
  * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
  * following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
@@ -3866,7 +3848,7 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
     cw_mutex_unlock(&i->lock);
     /* Don't hold a sip pvt lock while we allocate a channel */
     if (title)
-        tmp = cw_channel_alloc(1, "SIP/%s-%04x", title, thread_safe_cw_random() & 0xffff);
+        tmp = cw_channel_alloc(1, "SIP/%s-%04x", title, cw_random() & 0xffff);
     else if (strchr(i->fromdomain, ':'))
         tmp = cw_channel_alloc(1, "SIP/%s-%08x", strchr(i->fromdomain, ':') + 1, (int)(long)(i));
     else
@@ -4198,7 +4180,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 
     for (x = 0;  x < 4;  x++)
     {
-        val = thread_safe_cw_random();
+        val = cw_random();
         res = snprintf(callid, len, "%08x", val);
         len -= res;
         callid += res;
@@ -4212,7 +4194,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 
 static void make_our_tag(char *tagbuf, size_t len)
 {
-    snprintf(tagbuf, len, "as%08x", thread_safe_cw_random());
+    snprintf(tagbuf, len, "as%08x", cw_random());
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
@@ -4255,7 +4237,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
         memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
     }
 
-    p->branch = thread_safe_cw_random();    
+    p->branch = cw_random();    
     make_our_tag(p->tag, sizeof(p->tag));
     /* Start with 101 instead of 1 */
     p->ocseq = 101;
@@ -5792,7 +5774,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
     
     if (newbranch)
     {
-        p->branch ^= thread_safe_cw_random();
+        p->branch ^= cw_random();
         build_via(p, p->via, sizeof(p->via));
     }
 
@@ -7030,7 +7012,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
     if (init)
     {
         /* Bump branch even on initial requests */
-        p->branch ^= thread_safe_cw_random();
+        p->branch ^= cw_random();
         build_via(p, p->via, sizeof(p->via));
         if (init > 1)
             initreqprep(&req, p, sipmethod);
@@ -7671,7 +7653,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
     cw_copy_string(p->uri, addr, sizeof(p->uri));
 
-    p->branch ^= thread_safe_cw_random();
+    p->branch ^= cw_random();
 
     memset(&req, 0, sizeof(req));
     init_req(&req, sipmethod, addr);
@@ -7957,7 +7939,7 @@ static void reg_source_db(struct sip_peer *peer)
         /* SIP is already up, so schedule a poke in the near future */
         if (peer->pokeexpire > -1)
             cw_sched_del(sched, peer->pokeexpire);
-        peer->pokeexpire = cw_sched_add(sched, thread_safe_cw_random() % 5000 + 1, sip_poke_peer, peer);
+        peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, peer);
     }
 
     if (peer->expire > -1)
@@ -8484,7 +8466,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
     }
     else if (cw_strlen_zero(randdata) || cw_strlen_zero(authtoken))
     {
-        snprintf(randdata, randlen, "%08x", thread_safe_cw_random());
+        snprintf(randdata, randlen, "%08x", cw_random());
         transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
         /* Schedule auto destroy in 15 seconds */
         sip_scheddestroy(p, 15000);
@@ -8578,7 +8560,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
         /* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
         if (strlen(randdata) != usednonce_len || strncasecmp(randdata, usednonce, usednonce_len))
         {
-            snprintf(randdata, randlen, "%08x", thread_safe_cw_random());
+            snprintf(randdata, randlen, "%08x", cw_random());
             if (ua_hash && strlen(a1_hash) == ua_hash_len && !strncasecmp(ua_hash, a1_hash, ua_hash_len))
             {
                 if (sipdebug)
@@ -8645,7 +8627,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 */
 static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, int reliable)
 {
-	snprintf(randdata, randlen, "%08x", thread_safe_cw_random());
+	snprintf(randdata, randlen, "%08x", cw_random());
 	transmit_response_with_auth(p, "401 Unauthorized", req, randdata, reliable, "WWW-Authenticate", 0);
 }
 
@@ -11612,7 +11594,7 @@ static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char* di
     else
         snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 
-    snprintf(cnonce, sizeof(cnonce), "%08x", thread_safe_cw_random());
+    snprintf(cnonce, sizeof(cnonce), "%08x", cw_random());
 
      /* Check if we have separate auth credentials */
      if ((auth = find_realm_authentication(authl, p->realm)))
@@ -17185,7 +17167,7 @@ static void sip_send_all_registers(void)
 {
     int ms;
     int regspacing;
-    int shift = 1 + (int) (100.0 * (thread_safe_cw_random() / (RAND_MAX + 1.0)));
+    int shift = 1 + (int) (100.0 * (cw_random() / (RAND_MAX + 1.0)));
 
     if (!regobjs)
         return;
