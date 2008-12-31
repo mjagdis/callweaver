@@ -1366,14 +1366,15 @@ int getloadavg(double *list, int nelem)
  * BSD libc (and others) do not. */
 #ifndef linux
 
-CW_MUTEX_DEFINE_STATIC(randomlock);
+pthread_spinlock_t randomlock;
 
 long int cw_random(void)
 {
 	long int res;
-	cw_mutex_lock(&randomlock);
+
+	pthread_spin_lock(&randomlock);
 	res = random();
-	cw_mutex_unlock(&randomlock);
+	pthread_spin_unlock(&randomlock);
 	return res;
 }
 #endif
@@ -1391,6 +1392,10 @@ void cw_enable_packet_fragmentation(int sock)
 
 int cw_utils_init(void)
 {
+#ifndef linux
+	pthread_spin_init(randomlock, PTHREAD_PROCESS_PRIVATE);
+#endif
+
 	global_sched_param_default.sched_priority = 0;
 	global_sched_param_rr.sched_priority = 50;
 
