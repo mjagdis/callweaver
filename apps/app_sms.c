@@ -220,7 +220,7 @@ static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
     int file;
     sms_t *h;
 
-    cw_log(CW_LOG_EVENT, "Good message received (%d bytes)\n", len);
+    cw_log(CW_LOG_DEBUG, "Good message received (%d bytes)\n", len);
 
     h = (sms_t *) user_data;
 #if 0
@@ -241,11 +241,11 @@ static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
             {
                 memcpy(body, field_body, field_len);
                 body[field_len] = '\0';
-                cw_log(CW_LOG_EVENT, "Type %x, len %d, '%s'\n", field_type, field_len, body);
+                cw_log(CW_LOG_DEBUG, "Type %x, len %d, '%s'\n", field_type, field_len, body);
             }
             else
             {
-                cw_log(CW_LOG_EVENT, "Message type %x\n", field_type);
+                cw_log(CW_LOG_DEBUG, "Message type %x\n", field_type);
                 switch (field_type)
                 {
                 case DLL_SMS_P2_INFO_MO:
@@ -905,7 +905,7 @@ static void sms_readfile(sms_t *h, char *fn)
     FILE *s;
     char dcsset = 0;                 /* if DSC set */
 
-    cw_log(CW_LOG_EVENT, "Sending %s\n", fn);
+    cw_log(CW_LOG_DEBUG, "Sending %s\n", fn);
     h->rx =
     h->udl =
     h->oa[0] =
@@ -1216,7 +1216,7 @@ static void sms_writefile(sms_t *h)
         if (rename(fn, fn2))
             unlink(fn);
         else
-            cw_log(CW_LOG_EVENT, "Received to %s\n", fn2);
+            cw_log(CW_LOG_DEBUG, "Received to %s\n", fn2);
     }
 }
 
@@ -1662,7 +1662,7 @@ static void sms_process(sms_t *h, const int16_t *data, int samples)
             if (h->idle++ == 80000)
             {
                 /* Nothing happening */
-                cw_log(CW_LOG_EVENT, "No data, hanging up\n");
+                cw_log(CW_LOG_DEBUG, "No data, hanging up\n");
                 h->hangup = 1;
                 h->err = 1;
             }

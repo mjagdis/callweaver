@@ -264,7 +264,7 @@ static void *attempt_thread(void *data)
 		cw_log(CW_LOG_NOTICE, "Call failed to go through, reason %d\n", reason);
 		if (o->retries >= o->maxretries + 1) {
 			/* Max retries exceeded */
-			cw_log(CW_LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+			cw_log(CW_LOG_ERROR, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 			unlink(o->fn);
 		} else {
 			/* Notate that the call is still active */
@@ -272,7 +272,6 @@ static void *attempt_thread(void *data)
 		}
 	} else {
 		cw_log(CW_LOG_NOTICE, "Call completed to %s/%s\n", o->tech, o->dest);
-		cw_log(CW_LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
 		unlink(o->fn);
 	}
 
@@ -322,7 +321,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					now += o->retrytime;
 					return now;
 				} else {
-					cw_log(CW_LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+					cw_log(CW_LOG_ERROR, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 					free_outgoing(o);
 					unlink(fn);
 					return 0;
