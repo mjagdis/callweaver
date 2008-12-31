@@ -1278,13 +1278,6 @@ static int load_module(void) {
        if ((io = io_context_create()) == NULL)
                cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");
 
-        char *test = cw_pickup_ext();
-	if ( test == NULL ) {
-    	    cw_log(CW_LOG_ERROR, "Unable to register channel type SCCP. res_features is not loaded.\n");
-    	    return 0;
-	}
-
-
 	/* make globals */
 	sccp_globals = malloc(sizeof(struct sccp_global_vars));
 	if (!sccp_globals) {

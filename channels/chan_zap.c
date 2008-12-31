@@ -10795,12 +10795,6 @@ static int load_module(void)
 {
 	int res;
 
-	char *test = cw_pickup_ext();
-	if ( test == NULL ) {
-    	    cw_log(CW_LOG_ERROR, "Unable to register channel type DAHDI. res_features is not loaded.\n");
-    	    return 0;
-	}
-
 #ifdef ZAPATA_PRI
 	int y,i;
 	memset(pris, 0, sizeof(pris));

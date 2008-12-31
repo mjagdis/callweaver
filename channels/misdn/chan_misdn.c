@@ -4462,13 +4462,6 @@ static int load_module(void)
 	int i, port;
 	char ports[256]="";
 
-
-        char *test = cw_pickup_ext();
-	if ( test == NULL ) {
-    	    cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", misdn_type);
-    	    return -1;
-	}
-
 	max_ports=misdn_lib_maxports_get();
 	
 	if (max_ports<=0) {

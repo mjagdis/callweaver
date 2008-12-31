@@ -17446,12 +17446,6 @@ static int load_module(void)
     if ((io = io_context_create()) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");
 
-    char *test = cw_pickup_ext();
-    if ( test == NULL ) {
-        cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", channeltype);
-        return 0;
-    }
-
     reload_config();    /* Load the configuration from sip.conf */
 
     /* Make sure we can register our sip channel type */

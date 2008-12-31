@@ -42,7 +42,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: https://svn.callweaver.org/callweaver/trunk/res/res_features.c $", "$Revision: 4698 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
@@ -118,7 +118,7 @@ static int featuredigittimeout;
 /* Default courtesy tone played when party joins conference */
 
 /* Registrar for operations */
-static char *registrar = "res_features";
+static char *registrar = "features";
 
 static void *parkedcall_app;
 static const char parkedcall_name[] = "ParkedCall";
@@ -2179,7 +2179,7 @@ int cw_features_reload(void)
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				cw_log(CW_LOG_ERROR, "res_features: strdup failed\n");
+				cw_log(CW_LOG_ERROR, "features: strdup failed\n");
 				continue;
 			}
 			

@@ -4306,13 +4306,6 @@ static int load_module(void)
 {
 	int res;
 
-        char *test = cw_pickup_ext();
-	if ( test == NULL ) {
-    	    cw_log(CW_LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
-    	    return 0;
-	}
-
-
 	sched = sched_context_create(1);
 	if (!sched) {
 		cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
