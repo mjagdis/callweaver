@@ -74,6 +74,7 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned
 
 		pthread_spin_lock(&registry->lock);
 		cw_list_add(&registry->list[hash % registry->size], &entry->list);
+		registry->entries++;
 		pthread_spin_unlock(&registry->lock);
 
 		if (option_verbose > 1)
@@ -95,6 +96,7 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 
 	pthread_spin_lock(&registry->lock);
 	cw_list_del(&registry->del, &entry->list);
+	registry->entries--;
 	pthread_spin_unlock(&registry->lock);
 
 	if (option_verbose > 1 && entry->obj)
@@ -189,6 +191,48 @@ scan_complete:
 }
 
 
+int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data)
+{
+	struct cw_object **objs;
+	struct cw_list *list;
+	int size, n, i, ret = 0;
+
+	if ((objs = malloc((size = registry->entries + 1) * sizeof(objs[0])))) {
+		atomic_inc(&registry->inuse);
+
+		for (n = 0, i = 0; i < registry->size; i++) {
+			cw_list_for_each(list, &registry->list[i]) {
+				struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
+				objs[n++] = cw_object_dup_obj(entry->obj);
+				if (unlikely(n == size && !(objs = realloc(objs, (size += 4) * sizeof(objs[0]))))) {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					ret = -1;
+					goto skip_action;
+				}
+			}
+		}
+
+		if (atomic_dec_and_test(&registry->inuse))
+			registry_purge(registry);
+	}
+
+	qsort(objs, n, sizeof(objs[0]), registry->qsort_compare);
+
+	for (i = 0; i < n; i++) {
+		if ((ret = func(objs[i], data)))
+			break;
+	}
+
+skip_action:
+	for (i = 0; i < n; i++)
+		cw_object_put_obj(objs[i]);
+
+	free(objs);
+
+	return ret;
+}
+
+
 struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern)
 {
 	struct cw_object *obj = NULL;
@@ -223,6 +267,7 @@ int cw_registry_init(struct cw_registry *registry, size_t estsize)
 	if ((registry->list = malloc(sizeof(*registry->list) * estsize))) {
 		registry->size = estsize;
 		registry->del = NULL;
+		registry->entries = 0;
 		pthread_spin_init(&registry->lock, PTHREAD_PROCESS_PRIVATE);
 		atomic_set(&registry->inuse, 0);
 		for (i = 0; i < estsize; i++)

@@ -57,25 +57,27 @@ static const char *clicmd_object_name(struct cw_object *obj)
     return it->summary;
 }
 
-static int clicmd_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_clicmd_qsort_compare(const void *a, const void *b)
 {
-    struct cw_clicmd *clicmd_a = container_of(a, struct cw_clicmd, obj);
-    struct cw_clicmd *clicmd_b = container_of(b, struct cw_clicmd, obj);
-    int m, i;
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_clicmd *clicmd_a = container_of(*objp_a, struct cw_clicmd, obj);
+	const struct cw_clicmd *clicmd_b = container_of(*objp_b, struct cw_clicmd, obj);
+	int m, i;
 
-    m = 0;
-    for (i = 0; !m; i++) {
-        if (clicmd_a->cmda[i] && clicmd_b->cmda[i])
-            m = strcasecmp(clicmd_a->cmda[i], clicmd_b->cmda[i]);
-        else if (!clicmd_a->cmda[i] && clicmd_b->cmda[i])
-            m = 1;
-        else if (clicmd_a->cmda[i] && !clicmd_b->cmda[i])
-            m = -1;
-        else
-            break;
-    }
+	m = 0;
+	for (i = 0; !m; i++) {
+		if (clicmd_a->cmda[i] && clicmd_b->cmda[i])
+			m = strcasecmp(clicmd_a->cmda[i], clicmd_b->cmda[i]);
+		else if (!clicmd_a->cmda[i] && clicmd_b->cmda[i])
+			m = 1;
+		else if (clicmd_a->cmda[i] && !clicmd_b->cmda[i])
+			m = -1;
+		else
+			break;
+	}
 
-    return m;
+	return m;
 }
 
 struct match_args {
@@ -117,7 +119,7 @@ const struct cw_object_isa cw_object_isa_clicmd = {
 
 struct cw_registry clicmd_registry = {
     .name = "CLI Command",
-    .cmp = clicmd_object_cmp,
+    .qsort_compare = cw_clicmd_qsort_compare,
     .match = clicmd_object_match,
 };
 
@@ -481,7 +483,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 
 	args.fd = fd;
 	args.numchans = 0;
-	cw_registry_iterate(&channel_registry, handle_chanlist_one, &args);
+	cw_registry_iterate_ordered(&channel_registry, handle_chanlist_one, &args);
 
 	if (!args.concise) {
 		cw_cli(fd, "%d active channel%s\n", args.numchans, (args.numchans != 1)  ?  "s"  :  "");
@@ -617,7 +619,7 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 	global_fout |= DEBUGCHAN_FLAG;
 	cw_cli(fd, "Debugging on new channels is enabled\n");
 
-	cw_registry_iterate(&channel_registry, debugchan_one, &fd);
+	cw_registry_iterate_ordered(&channel_registry, debugchan_one, &fd);
 
 	return RESULT_SUCCESS;
 }
@@ -642,7 +644,7 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 	global_fout &= ~DEBUGCHAN_FLAG;
 	cw_cli(fd, "Debugging on new channels is disabled\n");
 
-	cw_registry_iterate(&channel_registry, nodebugchan_one, &fd);
+	cw_registry_iterate_ordered(&channel_registry, nodebugchan_one, &fd);
 
 	return RESULT_SUCCESS;
 }
@@ -915,7 +917,7 @@ static int help_workhorse(int fd, char *match[])
         join(args.matchstr, sizeof(args.matchstr), match, 0);
     }
 
-    cw_registry_iterate(&clicmd_registry, help_workhorse_one, &args);
+    cw_registry_iterate_ordered(&clicmd_registry, help_workhorse_one, &args);
     return 0;
 }
 

@@ -60,10 +60,12 @@ static const char *cdrbe_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int cdrbe_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_cdrbe_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_cdrbe *cdrbe_a = container_of(a, struct cw_cdrbe, obj);
-	struct cw_cdrbe *cdrbe_b = container_of(b, struct cw_cdrbe, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_cdrbe *cdrbe_a = container_of(*objp_a, struct cw_cdrbe, obj);
+	const struct cw_cdrbe *cdrbe_b = container_of(*objp_b, struct cw_cdrbe, obj);
 
 	return strcmp(cdrbe_a->name, cdrbe_b->name);
 }
@@ -76,7 +78,7 @@ const struct cw_object_isa cw_object_isa_cdrbe = {
 
 struct cw_registry cdrbe_registry = {
 	.name = "CDR back-end",
-	.cmp = cdrbe_object_cmp,
+	.qsort_compare = cw_cdrbe_qsort_compare_by_name,
 };
 
 
@@ -324,7 +326,7 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 		if (++args.x > 1)
 			cw_build_string(&buf, &size, "\n");
 
-		cw_registry_iterate(&cdr->vars, cdr_serialize_one, &args);
+		cw_registry_iterate_ordered(&cdr->vars, cdr_serialize_one, &args);
 
 		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
 			cw_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
@@ -981,7 +983,7 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 			cw_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
 		}
 
-		cw_registry_iterate(&cdrbe_registry, cdrbe_print, &fd);
+		cw_registry_iterate_ordered(&cdrbe_registry, cdrbe_print, &fd);
 	}
 
 	return 0;

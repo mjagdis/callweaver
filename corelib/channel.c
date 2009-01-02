@@ -179,10 +179,12 @@ static const char *channel_object_name(struct cw_object *obj)
 	return chan->name;
 }
 
-static int channel_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_channel_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_channel *channel_a = container_of(a, struct cw_channel, obj);
-	struct cw_channel *channel_b = container_of(b, struct cw_channel, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_channel *channel_a = container_of(*objp_a, struct cw_channel, obj);
+	const struct cw_channel *channel_b = container_of(*objp_b, struct cw_channel, obj);
 
 	return strcasecmp(channel_a->name, channel_b->name);
 }
@@ -200,7 +202,7 @@ static struct cw_object_isa cw_object_isa_channel = {
 
 struct cw_registry channel_registry = {
 	.name = "Channels",
-	.cmp = channel_object_cmp,
+	.qsort_compare = cw_channel_qsort_compare_by_name,
 	.match = channel_object_match,
 };
 
@@ -215,7 +217,7 @@ static int device_object_match(struct cw_object *obj, const void *pattern)
 
 struct cw_registry device_registry = {
 	.name = "Devices",
-	.cmp = channel_object_cmp,
+	.qsort_compare = cw_channel_qsort_compare_by_name,
 	.match = device_object_match,
 };
 

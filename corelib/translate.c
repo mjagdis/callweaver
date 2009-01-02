@@ -574,10 +574,12 @@ static const char *translator_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int translator_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_translator_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_translator *translator_a = container_of(a, struct cw_translator, obj);
-	struct cw_translator *translator_b = container_of(b, struct cw_translator, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_translator *translator_a = container_of(*objp_a, struct cw_translator, obj);
+	const struct cw_translator *translator_b = container_of(*objp_b, struct cw_translator, obj);
 
 	return strcmp(translator_a->name, translator_b->name);
 }
@@ -594,7 +596,7 @@ const struct cw_object_isa cw_object_isa_translator = {
 
 struct cw_registry translator_registry = {
 	.name = "Translator",
-	.cmp = translator_object_cmp,
+	.qsort_compare = cw_translator_qsort_compare_by_name,
 	.onchange = translator_registry_onchange,
 };
 

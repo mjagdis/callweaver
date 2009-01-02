@@ -238,10 +238,12 @@ static const char *manager_listener_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int manager_listener_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_manager_listener_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct manager_listener *item_a = container_of(a, struct manager_listener, obj);
-	struct manager_listener *item_b = container_of(b, struct manager_listener, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct manager_listener *item_a = container_of(*objp_a, struct manager_listener, obj);
+	const struct manager_listener *item_b = container_of(*objp_b, struct manager_listener, obj);
 
 	return strcmp(item_a->name, item_b->name);
 }
@@ -258,7 +260,7 @@ const struct cw_object_isa cw_object_isa_listener = {
 
 struct cw_registry manager_listener_registry = {
 	.name = "Manager Listener",
-	.cmp = manager_listener_object_cmp,
+	.qsort_compare = cw_manager_listener_qsort_compare_by_name,
 	.match = manager_listener_object_match,
 };
 
@@ -269,10 +271,12 @@ static const char *manager_session_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int manager_session_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_mansession_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct mansession *item_a = container_of(a, struct mansession, obj);
-	struct mansession *item_b = container_of(b, struct mansession, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct mansession *item_a = container_of(*objp_a, struct mansession, obj);
+	const struct mansession *item_b = container_of(*objp_b, struct mansession, obj);
 
 	return strcmp(item_a->name,  item_b->name);
 }
@@ -289,7 +293,7 @@ const struct cw_object_isa cw_object_isa_session = {
 
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
-	.cmp = manager_session_object_cmp,
+	.qsort_compare = cw_mansession_qsort_compare_by_name,
 	.match = manager_session_object_match,
 };
 
@@ -300,10 +304,12 @@ static const char *manager_action_object_name(struct cw_object *obj)
 	return it->action;
 }
 
-static int manager_action_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_manager_action_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct manager_action *item_a = container_of(a, struct manager_action, obj);
-	struct manager_action *item_b = container_of(b, struct manager_action, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct manager_action *item_a = container_of(*objp_a, struct manager_action, obj);
+	const struct manager_action *item_b = container_of(*objp_b, struct manager_action, obj);
 
 	return strcasecmp(item_a->action, item_b->action);
 }
@@ -320,7 +326,7 @@ const struct cw_object_isa cw_object_isa_manager_action = {
 
 struct cw_registry manager_action_registry = {
 	.name = "Manager Action",
-	.cmp = manager_action_object_cmp,
+	.qsort_compare = cw_manager_action_qsort_compare_by_name,
 	.match = manager_action_object_match,
 };
 
@@ -465,7 +471,7 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 		"Action", "Privilege", "Synopsis",
 		"------", "---------", "--------");
 
-	cw_registry_iterate(&manager_action_registry, manacts_print, &args);
+	cw_registry_iterate_ordered(&manager_action_registry, manacts_print, &args);
 
 	cw_cli(fd, "    -= %d Actions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
 	return RESULT_SUCCESS;
@@ -502,7 +508,7 @@ static int handle_show_listener(int fd, int argc, char *argv[])
 		"State", "Address",
 		"-----", "-------");
 
-	cw_registry_iterate(&manager_listener_registry, listener_print, &args);
+	cw_registry_iterate_ordered(&manager_listener_registry, listener_print, &args);
 
 	return RESULT_SUCCESS;
 }
@@ -540,7 +546,7 @@ static int handle_show_mansess(int fd, int argc, char *argv[])
 		"Address", "Username", "Queued", "Max Queue", "Overflow",
 		"--------", "-------", "------", "---------", "--------");
 
-	cw_registry_iterate(&manager_session_registry, mansess_print, &args);
+	cw_registry_iterate_ordered(&manager_session_registry, mansess_print, &args);
 
 	return RESULT_SUCCESS;
 }
@@ -795,7 +801,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	};
 
 	astman_send_response(s, m, "Success", NULL, 0);
-	cw_registry_iterate(&manager_action_registry, listcommands_print, &args);
+	cw_registry_iterate_ordered(&manager_action_registry, listcommands_print, &args);
 	cw_cli(s->fd, "\r\n");
 
 	return RESULT_SUCCESS;

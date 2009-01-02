@@ -111,7 +111,7 @@ static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char 
 	args.name = argv[0];
 	args.all = (argc > 1 && strchr(argv[1], 'a'));
 
-	cw_registry_iterate(&channel_registry, softhangup_one, &args);
+	cw_registry_iterate_ordered(&channel_registry, softhangup_one, &args);
 
 	LOCAL_USER_REMOVE(u);
 

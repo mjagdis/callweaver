@@ -186,10 +186,12 @@ static const char *switch_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int switch_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_switch_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_switch *switch_a = container_of(a, struct cw_switch, obj);
-	struct cw_switch *switch_b = container_of(b, struct cw_switch, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_switch *switch_a = container_of(*objp_a, struct cw_switch, obj);
+	const struct cw_switch *switch_b = container_of(*objp_b, struct cw_switch, obj);
 
 	return strcmp(switch_a->name, switch_b->name);
 }
@@ -206,7 +208,7 @@ const struct cw_object_isa cw_object_isa_switch = {
 
 struct cw_registry switch_registry = {
 	.name = "Switch",
-	.cmp = switch_object_cmp,
+	.qsort_compare = cw_switch_qsort_compare_by_name,
 	.match = switch_object_match,
 };
 
@@ -234,7 +236,7 @@ static int switch_print(struct cw_object *obj, void *data)
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	cw_cli(fd, "\n    -= Registered CallWeaver Alternative Switches =-\n");
-	cw_registry_iterate(&cdrbe_registry, switch_print, &fd);
+	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, &fd);
 	return RESULT_SUCCESS;
 }
 
@@ -261,7 +263,7 @@ static int handle_show_globals(int fd, int argc, char *argv[])
 		.count = 0,
 	};
 
-	cw_registry_iterate(&var_registry, handle_show_globals_one, &args);
+	cw_registry_iterate_ordered(&var_registry, handle_show_globals_one, &args);
 
 	cw_cli(fd, "\n    -- %d variables\n", args.count);
 	return RESULT_SUCCESS;
@@ -5049,7 +5051,7 @@ int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t s
 
 	if (chan) {
 		memset(buf, 0, size);
-		cw_registry_iterate(&chan->vars, pbx_builtin_serialize_variables_one, &args);
+		cw_registry_iterate_ordered(&chan->vars, pbx_builtin_serialize_variables_one, &args);
 	}
 
 	return args.total;

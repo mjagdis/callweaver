@@ -186,7 +186,7 @@ static int group_list_function_read(struct cw_channel *chan, int argc, char **ar
 	};
 
 	if (buf) {
-		cw_registry_iterate(&chan->vars, group_list_function_read_one, &args);
+		cw_registry_iterate_ordered(&chan->vars, group_list_function_read_one, &args);
 		cw_copy_string(buf, args.tmp1, len);
 	}
 

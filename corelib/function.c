@@ -58,10 +58,12 @@ static const char *func_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int func_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_func_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_func *func_a = container_of(a, struct cw_func, obj);
-	struct cw_func *func_b = container_of(b, struct cw_func, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_func *func_a = container_of(*objp_a, struct cw_func, obj);
+	const struct cw_func *func_b = container_of(*objp_b, struct cw_func, obj);
 
 	return strcmp(func_a->name, func_b->name);
 }
@@ -78,7 +80,7 @@ const struct cw_object_isa cw_object_isa_function = {
 
 struct cw_registry func_registry = {
 	.name = "Function",
-	.cmp = func_object_cmp,
+	.qsort_compare = cw_func_qsort_compare_by_name,
 	.match = func_object_match,
 };
 
@@ -286,7 +288,7 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 
 	cw_cli(fd, "    -= %s CallWeaver Functions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
 
-	cw_registry_iterate(&func_registry, funcs_print, &args);
+	cw_registry_iterate_ordered(&func_registry, funcs_print, &args);
 
 	cw_cli(fd, "    -= %d Functions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
 	return RESULT_SUCCESS;

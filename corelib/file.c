@@ -61,10 +61,12 @@ static const char *format_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int format_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_format_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_format *format_a = container_of(a, struct cw_format, obj);
-	struct cw_format *format_b = container_of(b, struct cw_format, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_format *format_a = container_of(*objp_a, struct cw_format, obj);
+	const struct cw_format *format_b = container_of(*objp_b, struct cw_format, obj);
 
 	return strcmp(format_a->name, format_b->name);
 }
@@ -75,7 +77,7 @@ const struct cw_object_isa cw_object_isa_format = {
 
 struct cw_registry format_registry = {
 	.name = "Format",
-	.cmp = format_object_cmp,
+	.qsort_compare = cw_format_qsort_compare_by_name,
 };
 
 
@@ -1163,7 +1165,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	cw_cli(fd, FORMAT, "Format", "Name", "Extensions");
-	cw_registry_iterate(&format_registry, show_file_formats_one, &args);
+	cw_registry_iterate_ordered(&format_registry, show_file_formats_one, &args);
 	cw_cli(fd, "%d file formats registered.\n", args.count);
 
 	return RESULT_SUCCESS;

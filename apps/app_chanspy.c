@@ -630,7 +630,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 		if ((res = cw_waitfordigit(chan, waitms)) < 0)
 			break;
 
-		cw_registry_iterate(&channel_registry, chanspy_by_prefix_one, &args);
+		cw_registry_iterate_ordered(&channel_registry, chanspy_by_prefix_one, &args);
 
 		waitms = 5000;
 	} while (args.again);

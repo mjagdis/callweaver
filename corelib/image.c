@@ -55,10 +55,12 @@ static const char *imager_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int imager_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_imager_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_imager *imager_a = container_of(a, struct cw_imager, obj);
-	struct cw_imager *imager_b = container_of(b, struct cw_imager, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_imager *imager_a = container_of(*objp_a, struct cw_imager, obj);
+	const struct cw_imager *imager_b = container_of(*objp_b, struct cw_imager, obj);
 
 	return strcmp(imager_a->name, imager_b->name);
 }
@@ -76,7 +78,7 @@ const struct cw_object_isa cw_object_isa_imager = {
 
 struct cw_registry imager_registry = {
 	.name = "Imager",
-	.cmp = imager_object_cmp,
+	.qsort_compare = cw_imager_qsort_compare_by_name,
 	.match = imager_object_match,
 };
 
@@ -202,7 +204,7 @@ static int show_image_formats(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	cw_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	cw_registry_iterate(&imager_registry, imager_print, &fd);
+	cw_registry_iterate_ordered(&imager_registry, imager_print, &fd);
 	return RESULT_SUCCESS;
 }
 

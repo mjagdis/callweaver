@@ -301,7 +301,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
 
-	cw_registry_iterate(&channel_registry, group_show_channels_one, &args);
+	cw_registry_iterate_ordered(&channel_registry, group_show_channels_one, &args);
 
 	if (args.havepattern)
 		regfree(&args.regexbuf);

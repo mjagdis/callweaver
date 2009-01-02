@@ -88,7 +88,8 @@ struct cw_registry {
 	size_t size;
 	struct cw_list *list;
 	struct cw_list *del;
-	int (*cmp)(struct cw_object *a, struct cw_object *b);
+	int entries;
+	int (*qsort_compare)(const void *a, const void *b);
 	int (*match)(struct cw_object *obj, const void *pattern);
 	char *name;
 	void (*onchange)(void);
@@ -114,6 +115,8 @@ extern int cw_registry_replace(struct cw_registry *registry, unsigned int hash, 
 
 extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
 extern int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+
 extern struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
 extern int cw_registry_init(struct cw_registry *registry, size_t estsize);
 extern void cw_registry_flush(struct cw_registry *registry);

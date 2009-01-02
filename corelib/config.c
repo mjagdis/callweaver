@@ -79,10 +79,12 @@ static const char *config_engine_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int config_engine_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_config_engine_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_config_engine *config_engine_a = container_of(a, struct cw_config_engine, obj);
-	struct cw_config_engine *config_engine_b = container_of(b, struct cw_config_engine, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_config_engine *config_engine_a = container_of(*objp_a, struct cw_config_engine, obj);
+	const struct cw_config_engine *config_engine_b = container_of(*objp_b, struct cw_config_engine, obj);
 
 	return strcmp(config_engine_a->name, config_engine_b->name);
 }
@@ -99,7 +101,7 @@ const struct cw_object_isa cw_object_isa_config_engine = {
 
 struct cw_registry config_engine_registry = {
 	.name = "Config Engine",
-	.cmp = config_engine_object_cmp,
+	.qsort_compare = cw_config_engine_qsort_compare_by_name,
 	.match = config_engine_object_match,
 };
 
@@ -1061,7 +1063,7 @@ static int config_engine_print(struct cw_object *obj, void *data)
 
 static int config_command(int fd, int argc, char **argv) 
 {
-	cw_registry_iterate(&config_engine_registry, config_engine_print, &fd);
+	cw_registry_iterate_ordered(&config_engine_registry, config_engine_print, &fd);
 	return 0;
 }
 

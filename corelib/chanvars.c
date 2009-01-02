@@ -46,10 +46,12 @@ static const char *var_object_name(struct cw_object *obj)
 	return it->name;
 }
 
-static int var_object_cmp(struct cw_object *a, struct cw_object *b)
+static int cw_var_qsort_compare_by_name(const void *a, const void *b)
 {
-	struct cw_var_t *var_a = container_of(a, struct cw_var_t, obj);
-	struct cw_var_t *var_b = container_of(b, struct cw_var_t, obj);
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct cw_var_t *var_a = container_of(*objp_a, struct cw_var_t, obj);
+	const struct cw_var_t *var_b = container_of(*objp_b, struct cw_var_t, obj);
 
 	return strcmp(
 		(var_a->name[0] == '_' ? (var_a->name[1] == '_' ? &var_a->name[2] : &var_a->name[1]) : var_a->name),
@@ -74,7 +76,7 @@ const struct cw_object_isa cw_object_isa_var = {
 
 struct cw_registry var_registry = {
 	.name = "Global variables",
-	.cmp = var_object_cmp,
+	.qsort_compare = cw_var_qsort_compare_by_name,
 	.match = var_object_match,
 };
 
@@ -83,7 +85,7 @@ int cw_var_registry_init(struct cw_registry *reg, int estsize)
 {
 	memset(reg, 0, sizeof(*reg));
 	reg->name = "Channel variables";
-	reg->cmp = var_object_cmp;
+	reg->qsort_compare = cw_var_qsort_compare_by_name;
 	reg->match = var_object_match;
 	return cw_registry_init(reg, estsize);
 }
