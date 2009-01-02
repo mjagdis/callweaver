@@ -1694,8 +1694,6 @@ static void *manager_session(void *data)
 	for (;;) {
 		struct manager_event *event = NULL;
 
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
 		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
 		pthread_mutex_lock(&sess->lock);
 
@@ -1703,6 +1701,7 @@ static void *manager_session(void *data)
 		 * we have to wait for activity.
 		 */
 		if (!sess->m && sess->q_r == sess->q_w) {
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 #ifdef TCP_CORK
 			if (sess->fd >= 0)
 				setsockopt(sess->fd, SOL_TCP, TCP_CORK, &off, sizeof(off));
@@ -1714,6 +1713,7 @@ static void *manager_session(void *data)
 			if (sess->fd >= 0)
 				setsockopt(sess->fd, SOL_TCP, TCP_CORK, &on, sizeof(on));
 #endif
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		}
 
 		/* Fetch the next event (if any) now. Once we have that
@@ -1726,8 +1726,6 @@ static void *manager_session(void *data)
 		}
 
 		pthread_cleanup_pop(1);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		if (sess->m) {
 			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL, 0) | O_NONBLOCK);
@@ -1814,9 +1812,25 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 }
 
 
+void manager_session_shutdown(struct mansession *sess)
+{
+	/* Do not send any more events */
+	sess->send_events = 0;
+
+	/* If there is a reader tell it to stop handling incoming requests */
+	if (!pthread_equal(sess->reader_tid, CW_PTHREADT_NULL))
+		pthread_cancel(sess->reader_tid);
+
+	/* Tell the writer to go down as soon as it as drained the queue */
+	pthread_cancel(sess->writer_tid);
+}
+
 void manager_session_end(struct mansession *sess)
 {
-	pthread_cancel(sess->writer_tid);
+	/* If it wasn't shut down before, it is now */
+	manager_session_shutdown(sess);
+
+	/* The writer handles the reader clean up */
 	pthread_join(sess->writer_tid, NULL);
 	cw_object_put(sess);
 }

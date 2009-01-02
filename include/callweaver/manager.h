@@ -175,6 +175,7 @@ extern void astman_send_ack(struct mansession *s, struct message *m, const char 
 extern int manager_session_ami(struct mansession *sess, const struct manager_event *event);
 
 extern struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
+extern void manager_session_shutdown(struct mansession *sess);
 extern void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */

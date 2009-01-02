@@ -332,17 +332,19 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 void close_logger(void)
 {
-	struct logchannel *chan, *cur;
+	struct logchannel *chan;
  
 	cw_mutex_lock(&loglock);
-	chan = logchannels;
-	while (chan) {
-		cur = chan->next;
+
+	for (chan = logchannels; chan; chan = chan->next)
+		manager_session_shutdown(chan->sess);
+
+	while ((chan = logchannels)) {
+		logchannels = chan->next;
 		manager_session_end(chan->sess);
 		free(chan);
-		chan = cur;
 	}
-	logchannels = NULL;
+
 	cw_mutex_unlock(&loglock);
 }
 
