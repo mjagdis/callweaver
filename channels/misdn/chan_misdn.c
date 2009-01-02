@@ -5123,7 +5123,7 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 		if (p) *p=':';
 
 		if (!fp) {
-			cw_log(CW_LOG_DEBUG, "Error opening Tracefile: [ %s ] %s\n", global_tracefile, strerrno(errno));
+			cw_log(CW_LOG_DEBUG, "Error opening Tracefile: [ %s ] %s\n", global_tracefile, strerror(errno));
 			return ;
 		}
 		
