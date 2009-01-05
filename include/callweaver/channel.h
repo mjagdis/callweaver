@@ -958,7 +958,7 @@ void cw_begin_shutdown(int hangup);
 void cw_cancel_shutdown(void);
 
 /*! Returns number of active/allocated channels */
-int cw_active_channels(void);
+#define cw_active_channels()	channel_registry.entries
 
 /*! Returns non-zero if CallWeaver is being shut down */
 int cw_shutting_down(void);

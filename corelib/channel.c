@@ -330,24 +330,6 @@ void cw_begin_shutdown(int hangup)
 }
 
 
-/*--- cw_active_channels: returns number of active/allocated channels */
-static int channel_count(struct cw_object *obj, void *data)
-{
-	int *n = data;
-
-	(*n)++;
-	return 0;
-}
-
-int cw_active_channels(void)
-{
-	int n = 0;
-
-	cw_registry_iterate(&channel_registry, channel_count, &n);
-	return n;
-}
-
-
 /*--- cw_cancel_shutdown: Cancel a shutdown in progress */
 void cw_cancel_shutdown(void)
 {
