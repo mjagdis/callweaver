@@ -21,7 +21,7 @@
 #include <pthread.h>
 #include <sqlite3.h>
 
-#include "callweaver/hashtable_helper.h"
+#include "callweaver/registry.h"
 #include "callweaver/switch.h"
 #include "callweaver/cdr.h"
 #include "callweaver/file.h"
@@ -108,19 +108,9 @@ static char config_dbfile[ARRAY_SIZE];
 static char switch_table[ARRAY_SIZE];
 static char switch_dbfile[ARRAY_SIZE];
 
-typedef struct extension_cache extension_cache;
 typedef struct switch_config switch_config;
 
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames);
-
-struct extension_cache {
-	time_t expires;
-	char exten[ARRAY_SIZE];
-	char context[ARRAY_SIZE];
-	char app_name[ARRAY_SIZE][ARRAY_LEN];
-	char app_data[ARRAY_SIZE][ARRAY_LEN];
-	int argc;
-};
 
 struct switch_config {
 	int timeout;
@@ -133,9 +123,6 @@ static char default_dbfile[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweav
 static char clidb[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 
 
-static hash_table_t 	extens;
-
-
 static const char tdesc[] = "SQLite SQL Interface";
 
 static void *app;
@@ -143,6 +130,45 @@ static const char name[] = "SQL";
 static const char synopsis[] = "SQL(\"[sql statement]\"[, dbname])\n" 
 "[if it's a select it will auto-vivify chan vars matching the selected column names.]\n";
 static const char syntax[] = "SQL(\"[sql statement]\"[, dbname])";
+
+
+struct extcon {
+	const char *exten;
+	const char *context;
+};
+
+struct cache {
+	struct cw_object obj;
+	time_t expires;
+	char exten[ARRAY_SIZE];
+	char context[ARRAY_SIZE];
+	char app_name[ARRAY_SIZE][ARRAY_LEN];
+	char app_data[ARRAY_SIZE][ARRAY_LEN];
+	int argc;
+};
+
+
+static const char *cache_object_name(struct cw_object *obj)
+{
+	const struct cache *it = container_of(obj, struct cache, obj);
+	return it->exten;
+}
+
+static int cache_object_match(struct cw_object *obj, const void *pattern)
+{
+	const struct cache *it = container_of(obj, struct cache, obj);
+	const struct extcon *extcon = pattern;
+	return !strcmp(it->exten, extcon->exten) && !strcmp(it->context, extcon->context);
+}
+
+const struct cw_object_isa cw_object_isa_cache = {
+	.name = cache_object_name,
+};
+
+static struct cw_registry cache_registry = {
+	.name = "SQLite cache",
+	.match = cache_object_match,
+};
 
 
 static void pick_path(char *dbname,char *buf, size_t size) {
@@ -263,17 +289,16 @@ static int cli_callback(void *pArg, int argc, char **argv, char **columnNames){
 }
 
 static int sqlite_cli(int fd, int argc, char *argv[]) {
-	char *errmsg = NULL;
 	char sqlbuf[1024];
+	char path[ARRAY_SIZE];
+	switch_config config;
+	char *sql = NULL;
+	char *errmsg = NULL;
 	int x = 0;
 	int start = 0;
-	switch_config config;
-	extension_cache *cache;
+
 	memset(&config,0,sizeof(switch_config));
 	sqlite3 *db=NULL;
-        hash_entry_t *entry;
-	char path[ARRAY_SIZE];
-	char *sql = NULL;
 
 	if (has_switch) {
 		if (argv[1] && !strcmp(argv[1],"switchtable")) {
@@ -385,36 +410,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"clearcache")) {
-                        hash_search_t search;
-
-			cw_mutex_lock(&switch_lock);
-
-                        for (entry = hash_first_entry(&extens, &search);
-                             entry;
-                             entry = hash_next_entry(&search))
-                        {
-                            cache = hash_get_key(&extens, entry);
-			    cw_cli(fd,"OK Erasing %s@%s\n",cache->exten,cache->context);
-			    free(cache);
-			    cache = NULL;
-                            hash_delete_entry(entry);
-                        }
-                        hash_delete_table(&extens);
-                        hash_init_table(&extens, HASH_STRING_KEYS);
-/*
-			elem = extens.first;
-			while ( elem ){
-				HashElem *next_elem = elem->next;
-				cache = elem->data;
-				cw_cli(fd,"OK Erasing %s@%s\n",cache->exten,cache->context);
-				free(cache);
-				cache = NULL;
-				elem = next_elem;
-			}
-			sqlite3HashClear(&extens);
-			sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
-*/
-			cw_mutex_unlock(&switch_lock);
+			cw_registry_flush(&cache_registry);
 			cw_cli(fd,"\nOK. Cache Clear!\n\n");
 			return 0;
 		}
@@ -461,15 +457,17 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 
 
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames){
-	extension_cache *cache = NULL;
-	char key[ARRAY_SIZE];
+	struct extcon extcon;
+	struct cw_object *obj;
+	struct cache *cache;
 	int pri;
 	time_t now;
 	int needs_add=0;
 	switch_config *config=NULL;
 	int timeout=0;
 	char *context;
-
+	const char *p;
+	unsigned int hash;
 
 	if (pArg) {
 		config = pArg;
@@ -485,37 +483,47 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 		return 0;
 	}
 
-	snprintf(key, ARRAY_SIZE, "%s.%s", argv[1], context);
+	extcon.exten = argv[1];
+	extcon.context = context;
+	hash = 0;
+	for (p = argv[1]; *p; hash = cw_hash_add(hash, *(p++)));
+	for (p = context; *p; hash = cw_hash_add(hash, *(p++)));
+
 	time(&now);
 	pri = atoi(argv[2]);
 
 	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
-        cw_core_hash_get ( &extens, key, (void*)cache );
-
-	if (! cache) {
-		cache = malloc(sizeof(extension_cache));
+	if ((obj = cw_registry_find(&cache_registry, 1, hash, &extcon))) {
+		cache = container_of(obj, struct cache, obj);
+	} else {
+		cache = malloc(sizeof(*cache));
+		cw_object_init(cache, &cw_object_isa_cache, NULL, 0);
 		needs_add = 1;
 	}
 
-	if (needs_add || cache->expires < now) {
-		memset(cache,0,sizeof(extension_cache));
-		strncpy(cache->context,argv[0],sizeof(cache->context));
-		strncpy(cache->exten,argv[1],sizeof(cache->exten));
-	}
-	cache->expires = now + timeout;
+	if (cache) {
+		if (needs_add || cache->expires < now) {
+			memset(cache, 0, sizeof(*cache));
+			strncpy(cache->context, argv[0], sizeof(cache->context));
+			strncpy(cache->exten, argv[1], sizeof(cache->exten));
+		}
+		cache->expires = now + timeout;
 
-	if (config && ! config->seeheads) {
-		cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch: extension %s@%s will expire in %d seconds\n",argv[1],context,timeout);
-		config->seeheads = 1;
-	}
+		if (config && ! config->seeheads) {
+			cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch: extension %s@%s will expire in %d seconds\n",argv[1],context,timeout);
+			config->seeheads = 1;
+		}
 
-	strncpy(cache->app_name[pri], argv[3], sizeof(cache->app_name[pri]));
-	strncpy(cache->app_data[pri], argv[4], sizeof(cache->app_data[pri]));
+		strncpy(cache->app_name[pri], argv[3], sizeof(cache->app_name[pri]));
+		strncpy(cache->app_data[pri], argv[4], sizeof(cache->app_data[pri]));
 	
-	if (needs_add) {
-		//sqlite3HashInsert(&extens, key, strlen(key), cache);
-                cw_core_hash_insert ( &extens, key, cache );
+		if (needs_add) {
+			//sqlite3HashInsert(&extens, key, strlen(key), cache);
+			cw_registry_replace(&cache_registry, hash, &extcon, &cache->obj);
+		} else
+			cw_object_put(cache);
 	}
+
 	return 0;
 }
 
@@ -524,17 +532,20 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 
 static int SQLiteSwitch_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	int res = 0; 
-	char key[ARRAY_SIZE];
-	extension_cache *cache = NULL;
-	time_t now;
-	char *errmsg = NULL;
 	char databuf[ARRAY_SIZE];
+	switch_config config;
+	struct extcon extcon;
+	time_t now;
+	struct cw_object *obj;
+	struct cache *cache;
+	char *errmsg = NULL;
 	char *table,*tmp,*filename=NULL;
 	int expires=0;
-	switch_config config;
 	sqlite3 *db=NULL;
 	char *sql = NULL;
+	const char *p;
+	unsigned int hash;
+	int res = 0; 
 
 	memset(&config,0,sizeof(switch_config));
 	memset(databuf,0,ARRAY_SIZE);
@@ -561,37 +572,32 @@ static int SQLiteSwitch_exists(struct cw_channel *chan, const char *context, con
 	if (!filename)
 		filename = switch_dbfile;
 
+	extcon.exten = exten;
+	extcon.context = context;
+	hash = 0;
+	for (p = exten; *p; hash = cw_hash_add(hash, *(p++)));
+	for (p = context; *p; hash = cw_hash_add(hash, *(p++)));
 
 	//cw_log(CW_LOG_NOTICE, "SQLiteSwitch_exists %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 	time(&now);
-	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
 
-	cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exists lookup [%s]: ",key);
+	cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exists lookup [%s@%s]: ", exten, context);
 
 	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
-        cw_core_hash_get ( &extens, key, (void*)cache );
+	obj = cw_registry_find(&cache_registry, 1, hash, &extcon);
+	cache = container_of(obj, struct cache, obj);
 
-	cw_verbose("%s\n",cache ? "match" : "fail");
+	cw_verbose("%s\n", (obj ? "match" : "fail"));
 
-
-
-	if (! cache || (cache && cache->expires < now) ) {
+	if (!obj || (obj && cache->expires < now)) {
+		if (obj)
+			cw_object_put(cache);
+		cache = NULL;
 		if ((db = open_db(filename))) {
-
-		
-			if((sql = sqlite3_mprintf("select *,'%q' as real_context from %q where (context='%q' or context='_any_') and exten='%q' order by context,exten,pri",
-								  context,
-								  table,
-								  context,
-								  exten
-									  ))) {
-				sqlite3_exec(
-							 db,
-							 sql,
-							 exist_callback,
-							 &config,
-							 &errmsg
-							 );
+			sql = sqlite3_mprintf("select *,'%q' as real_context from %q where (context='%q' or context='_any_') and exten='%q' order by context,exten,pri",
+				context, table, context, exten);
+			if (sql) {
+				sqlite3_exec(db, sql, exist_callback, &config, &errmsg);
 				if (errmsg) {
 					cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n",errmsg);
 					sqlite3_free(errmsg);
@@ -606,17 +612,18 @@ static int SQLiteSwitch_exists(struct cw_channel *chan, const char *context, con
 				sql = NULL;
 			}
 			//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
-                        cw_core_hash_get ( &extens, key, (void*)cache );
+			if ((obj = cw_registry_find(&cache_registry, 1, hash, &extcon)))
+				cache = container_of(obj, struct cache, obj);
 		}  else {
 			cw_log(CW_LOG_WARNING,"ERROR OPEINING DB.\n");
 			return -1;
 		}
-
 	}
-	
+
 	if (cache) {
-		cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exists lookup [%s,%d]: ",key,priority);
+		cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exists lookup [%s@%s,%d]: ", exten, context, priority);
 		res = strlen(cache->app_name[priority]) ? 1 : 0;
+		cw_object_put(cache);
 		cw_verbose("%s\n",res ? "match" : "fail");
 	}
 
@@ -638,30 +645,40 @@ static int SQLiteSwitch_canmatch(struct cw_channel *chan, const char *context, c
 
 static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	int res = 0;
-	extension_cache *cache = NULL;
-	char key[ARRAY_SIZE];
-	time_t now;
 	char app_data[1024];
-	
+	struct extcon extcon;
+	time_t now;
+	struct cw_object *obj;
+	struct cache *cache;
+	const char *p;
+	unsigned int hash;
+	int res = 0;
 
 	time(&now);
 	//cw_log(CW_LOG_NOTICE, "SQLiteSwitch_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 
-	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
+	extcon.exten = exten;
+	extcon.context = context;
+	hash = 0;
+	for (p = exten; *p; hash = cw_hash_add(hash, *(p++)));
+	for (p = context; *p; hash = cw_hash_add(hash, *(p++)));
 
-	cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec lookup [%s]: ",key);
+	cw_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec lookup [%s@%s]: ", exten, context);
+
 	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
-        cw_core_hash_get ( &extens, key, (void*)cache );
-	cw_verbose("%s\n",cache ? "match" : "fail");
+	obj = cw_registry_find(&cache_registry, 1, hash, &extcon);
 
-	if (cache) {
+	cw_verbose("%s\n", (obj ? "match" : "fail"));
+
+	if (obj) {
+		cache = container_of(obj, struct cache, obj);
 		pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data));
 		res = cw_function_exec_str(chan, 
                                 cw_hash_string(cache->app_name[priority]),
                                 cache->app_name[priority], app_data, NULL, 0);
+		cw_object_put(cache);
 	}
-		
+
 	return res;
 }
 
@@ -1172,7 +1189,7 @@ static struct cw_cdrbe sqlite_cdrbe = {
 static void release(void)
 {
 	if (has_switch)
-                hash_delete_table(&extens);
+		cw_registry_destroy(&cache_registry);
 //		sqlite3HashClear(&extens);
 }
 
@@ -1192,7 +1209,7 @@ static int load_module(void)
 
 	if (has_switch) {
 		//sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
-                hash_init_table(&extens, HASH_STRING_KEYS);
+		cw_registry_init(&cache_registry, 1024);
         }
 
 	if (has_cli) {
