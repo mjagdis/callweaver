@@ -68,8 +68,8 @@ struct cw_format {
 	char *(*getcomment)(void *);
 };
 
-extern const struct cw_object_isa cw_object_isa_format;
-extern struct cw_registry format_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_format;
+extern CW_API_PUBLIC struct cw_registry format_registry;
 
 
 #define cw_format_register(ptr) ({ \
@@ -111,7 +111,7 @@ struct cw_filestream;
  * Also, it will stop any existing streams on the channel.
  * Returns 0 on success, or -1 on failure.
  */
-int cw_streamfile(struct cw_channel *c, const char *filename, const char *preflang);
+extern CW_API_PUBLIC int cw_streamfile(struct cw_channel *c, const char *filename, const char *preflang);
 
 /*! Stops a stream */
 /*!
@@ -119,7 +119,7 @@ int cw_streamfile(struct cw_channel *c, const char *filename, const char *prefla
  * Stop playback of a stream 
  * Returns 0 regardless
  */
-int cw_stopstream(struct cw_channel *c);
+extern CW_API_PUBLIC int cw_stopstream(struct cw_channel *c);
 
 /*! Checks for the existence of a given file */
 /*!
@@ -129,7 +129,7 @@ int cw_stopstream(struct cw_channel *c);
  * See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.
  * Returns 0 if file does not exist, non-zero positive otherwise (actually a bit vector of available formats).
  */
-int cw_fileexists(const char *filename, const char *fmt, const char *preflang);
+extern CW_API_PUBLIC int cw_fileexists(const char *filename, const char *fmt, const char *preflang);
 
 /*! Renames a file */
 /*! 
@@ -139,7 +139,7 @@ int cw_fileexists(const char *filename, const char *fmt, const char *preflang);
  * Rename a given file in a given format, or if fmt is NULL, then do so for all 
  * Returns -1 on failure
  */
-int cw_filerename(const char *oldname, const char *newname, const char *fmt);
+extern CW_API_PUBLIC int cw_filerename(const char *oldname, const char *newname, const char *fmt);
 
 /*! Deletes a file */
 /*! 
@@ -147,7 +147,7 @@ int cw_filerename(const char *oldname, const char *newname, const char *fmt);
  * \param format of the file
  * Delete a given file in a given format, or if fmt is NULL, then do so for all 
  */
-int cw_filedelete(const char *filename, const char *fmt);
+extern CW_API_PUBLIC int cw_filedelete(const char *filename, const char *fmt);
 
 /*! Copies a file */
 /*!
@@ -156,7 +156,7 @@ int cw_filedelete(const char *filename, const char *fmt);
  * \param fmt the format of the file
  * Copy a given file in a given format, or if fmt is NULL, then do so for all 
  */
-int cw_filecopy(const char *oldname, const char *newname, const char *fmt);
+extern CW_API_PUBLIC int cw_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*! Waits for a stream to stop or digit to be pressed */
 /*!
@@ -166,7 +166,7 @@ int cw_filecopy(const char *oldname, const char *newname, const char *fmt);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int cw_waitstream(struct cw_channel *c, const char *breakon);
+extern CW_API_PUBLIC int cw_waitstream(struct cw_channel *c, const char *breakon);
 
 /*! Waits for a stream to stop or digit matching a valid one digit exten to be pressed */
 /*!
@@ -176,7 +176,7 @@ int cw_waitstream(struct cw_channel *c, const char *breakon);
  * Wait for a stream to stop or for any one of a valid extension digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int cw_waitstream_exten(struct cw_channel *c, const char *context);
+extern CW_API_PUBLIC int cw_waitstream_exten(struct cw_channel *c, const char *context);
 
 /*! Same as waitstream but allows stream to be forwarded or rewound */
 /*!
@@ -189,11 +189,11 @@ int cw_waitstream_exten(struct cw_channel *c, const char *context);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
+extern CW_API_PUBLIC int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
 
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */
-int cw_waitstream_full(struct cw_channel *c, const char *breakon, int audiofd, int monfd);
+extern CW_API_PUBLIC int cw_waitstream_full(struct cw_channel *c, const char *breakon, int audiofd, int monfd);
 
 /*! Starts reading from a file */
 /*!
@@ -209,7 +209,7 @@ int cw_waitstream_full(struct cw_channel *c, const char *breakon, int audiofd, i
  * Please note, this is a blocking function.  Program execution will not return until cw_waitstream completes it's execution.
  * Returns a struct cw_filestream on success, NULL on failure
  */
-struct cw_filestream *cw_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
+extern CW_API_PUBLIC struct cw_filestream *cw_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
 
 /*! Starts writing a file */
 /*!
@@ -225,7 +225,7 @@ struct cw_filestream *cw_readfile(const char *filename, const char *type, const 
  * Please note, this is a blocking function.  Program execution will not return until cw_waitstream completes it's execution.
  * Returns a struct cw_filestream on success, NULL on failure
  */
-struct cw_filestream *cw_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
+extern CW_API_PUBLIC struct cw_filestream *cw_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
 
 /*! Writes a frame to a stream */
 /*! 
@@ -234,7 +234,7 @@ struct cw_filestream *cw_writefile(const char *filename, const char *type, const
  * Send a frame to a filestream -- note: does NOT free the frame, call cw_fr_free manually
  * Returns 0 on success, -1 on failure.
  */
-int cw_writestream(struct cw_filestream *fs, struct cw_frame *f);
+extern CW_API_PUBLIC int cw_writestream(struct cw_filestream *fs, struct cw_frame *f);
 
 /*! Closes a stream */
 /*!
@@ -242,7 +242,7 @@ int cw_writestream(struct cw_filestream *fs, struct cw_frame *f);
  * Close a playback or recording stream
  * Returns 0 on success, -1 on failure
  */
-int cw_closestream(struct cw_filestream *f);
+extern CW_API_PUBLIC int cw_closestream(struct cw_filestream *f);
 
 /*! Opens stream for use in seeking, playing */
 /*!
@@ -251,7 +251,7 @@ int cw_closestream(struct cw_filestream *f);
  * \param preflang prefered language to use
  * Returns a cw_filestream pointer if it opens the file, NULL on error
  */
-struct cw_filestream *cw_openstream(struct cw_channel *chan, const char *filename, const char *preflang);
+extern CW_API_PUBLIC struct cw_filestream *cw_openstream(struct cw_channel *chan, const char *filename, const char *preflang);
 
 /*! Opens stream for use in seeking, playing */
 /*!
@@ -261,14 +261,14 @@ struct cw_filestream *cw_openstream(struct cw_channel *chan, const char *filenam
  * \param asis if set, don't clear generators
  * Returns a cw_filestream pointer if it opens the file, NULL on error
  */
-struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *filename, const char *preflang, int asis);
+extern CW_API_PUBLIC struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *filename, const char *preflang, int asis);
 
 /*! play a open stream on a channel. */
 /*!
  * \param cw_filestream s to play
  * Returns 0 for success, -1 on failure
  */
-int cw_playstream(struct cw_filestream *s);
+extern CW_API_PUBLIC int cw_playstream(struct cw_filestream *s);
 
 /*! Seeks into stream */
 /*!
@@ -277,14 +277,14 @@ int cw_playstream(struct cw_filestream *s);
  * \param whence SEEK_SET, SEEK_CUR, SEEK_END 
  * Returns 0 for success, or -1 for error
  */
-int cw_seekstream(struct cw_filestream *fs, long sample_offset, int whence);
+extern CW_API_PUBLIC int cw_seekstream(struct cw_filestream *fs, long sample_offset, int whence);
 
 /*! Trunc stream at current location */
 /*!
  * \param cw_filestream fs 
  * Returns 0 for success, or -1 for error
  */
-int cw_truncstream(struct cw_filestream *fs);
+extern CW_API_PUBLIC int cw_truncstream(struct cw_filestream *fs);
 
 /*! Fast forward stream ms */
 /*!
@@ -292,7 +292,7 @@ int cw_truncstream(struct cw_filestream *fs);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int cw_stream_fastforward(struct cw_filestream *fs, long ms);
+extern CW_API_PUBLIC int cw_stream_fastforward(struct cw_filestream *fs, long ms);
 
 /*! Rewind stream ms */
 /*!
@@ -300,7 +300,7 @@ int cw_stream_fastforward(struct cw_filestream *fs, long ms);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int cw_stream_rewind(struct cw_filestream *fs, long ms);
+extern CW_API_PUBLIC int cw_stream_rewind(struct cw_filestream *fs, long ms);
 
 /*! Fast forward stream ms */
 /*!
@@ -308,7 +308,7 @@ int cw_stream_rewind(struct cw_filestream *fs, long ms);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int cw_stream_fastforward(struct cw_filestream *fs, long ms);
+extern CW_API_PUBLIC int cw_stream_fastforward(struct cw_filestream *fs, long ms);
 
 /*! Rewind stream ms */
 /*!
@@ -316,21 +316,21 @@ int cw_stream_fastforward(struct cw_filestream *fs, long ms);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int cw_stream_rewind(struct cw_filestream *fs, long ms);
+extern CW_API_PUBLIC int cw_stream_rewind(struct cw_filestream *fs, long ms);
 
 /*! Tell where we are in a stream */
 /*!
  * \param cw_filestream fs to act on
  * Returns a long as a sample offset into stream
  */
-long cw_tellstream(struct cw_filestream *fs);
+extern CW_API_PUBLIC long cw_tellstream(struct cw_filestream *fs);
 
 /*! Read a frame from a filestream */
 /*!
  * \param cw_filestream fs to act on
  * Returns a frame or NULL if read failed
  */ 
-struct cw_frame *cw_readframe(struct cw_filestream *s);
+extern CW_API_PUBLIC struct cw_frame *cw_readframe(struct cw_filestream *s);
 
 /*! Initialize file stuff */
 /*!

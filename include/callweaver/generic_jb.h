@@ -159,7 +159,7 @@ typedef struct jb_frame
  * appropriate internal jb flags to the channels, determining further behaviour
  * of the bridged jitterbuffers.
  */
-void cw_jb_do_usecheck(struct cw_channel *c0, struct cw_channel *c1);
+extern CW_API_PUBLIC void cw_jb_do_usecheck(struct cw_channel *c0, struct cw_channel *c1);
 
 
 /*!
@@ -174,7 +174,7 @@ void cw_jb_do_usecheck(struct cw_channel *c0, struct cw_channel *c1);
  *
  * \return maximum time to wait.
  */
-int cw_jb_get_when_to_wakeup(struct cw_channel *c0, struct cw_channel *c1, int time_left);
+extern CW_API_PUBLIC int cw_jb_get_when_to_wakeup(struct cw_channel *c0, struct cw_channel *c1, int time_left);
 
 
 /*!
@@ -197,7 +197,7 @@ int cw_jb_get_when_to_wakeup(struct cw_channel *c0, struct cw_channel *c1, int t
  *
  * \return zero if the frame was queued, -1 if not.
  */
-int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec);
+extern CW_API_PUBLIC int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec);
 
 
 /*!
@@ -210,7 +210,7 @@ int cw_jb_put(struct cw_channel *chan, struct cw_frame *f, int codec);
  * or has any frames currently queued in. The function delivers frames usig cw_write()
  * each of the channels.
  */
-void cw_jb_get_and_deliver(struct cw_channel *c0, struct cw_channel *c1);
+extern CW_API_PUBLIC void cw_jb_get_and_deliver(struct cw_channel *c0, struct cw_channel *c1);
 
 
 /*!
@@ -219,7 +219,7 @@ void cw_jb_get_and_deliver(struct cw_channel *c0, struct cw_channel *c1);
  *
  * Called from cw_channel_free() when a channel is destroyed.
  */
-void cw_jb_destroy(struct cw_channel *chan);
+extern CW_API_PUBLIC void cw_jb_destroy(struct cw_channel *chan);
 
 /*!
  * \brief Sets default jitterbuffer data.
@@ -229,7 +229,7 @@ void cw_jb_destroy(struct cw_channel *chan);
  * default configuration data.
  * returns nothing.
  */
-void cw_jb_default_config(struct cw_jb_conf *conf);
+extern CW_API_PUBLIC void cw_jb_default_config(struct cw_jb_conf *conf);
 
 
 /*!
@@ -246,7 +246,7 @@ void cw_jb_default_config(struct cw_jb_conf *conf);
  *
  * \return zero if the property was set to the configuration, -1 if not.
  */
-int cw_jb_read_conf(struct cw_jb_conf *conf, char *varname, char *value);
+extern CW_API_PUBLIC int cw_jb_read_conf(struct cw_jb_conf *conf, char *varname, char *value);
 
 
 /*!
@@ -257,7 +257,7 @@ int cw_jb_read_conf(struct cw_jb_conf *conf, char *varname, char *value);
  * Called from a channel driver when a channel is created and its jitterbuffer needs
  * to be configured.
  */
-void cw_jb_configure(struct cw_channel *chan, struct cw_jb_conf *conf);
+extern CW_API_PUBLIC void cw_jb_configure(struct cw_channel *chan, struct cw_jb_conf *conf);
 
 
 /*!
@@ -265,20 +265,20 @@ void cw_jb_configure(struct cw_channel *chan, struct cw_jb_conf *conf);
  * \param chan channel.
  * \param conf destination.
  */
-void cw_jb_get_config(struct cw_channel *chan, struct cw_jb_conf *conf);
+extern CW_API_PUBLIC void cw_jb_get_config(struct cw_channel *chan, struct cw_jb_conf *conf);
 
 /*!
  * \brief Get jitter buffer stats
  * \param chan channel.
  * \param info destination stats structure.
  */
-void cw_jb_get_info(struct cw_channel *chan, cw_jb_info *info);
+extern CW_API_PUBLIC void cw_jb_get_info(struct cw_channel *chan, cw_jb_info *info);
 
 /*!
  * \brief Check if jitterbuffer is active
  * \param chan channel.
  */
-int cw_jb_is_active(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_jb_is_active(struct cw_channel *chan);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

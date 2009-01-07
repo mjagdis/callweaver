@@ -36,28 +36,28 @@ struct cw_netsock;
 
 struct cw_netsock_list;
 
-struct cw_netsock_list *cw_netsock_list_alloc(void);
+extern CW_API_PUBLIC struct cw_netsock_list *cw_netsock_list_alloc(void);
 
-int cw_netsock_init(struct cw_netsock_list *list);
+extern CW_API_PUBLIC int cw_netsock_init(struct cw_netsock_list *list);
 
-struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, struct io_context *ioc,
+extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, struct io_context *ioc,
 				     const char *bindinfo, int defaultport, int tos, cw_io_cb callback, void *data);
 
-struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_context *ioc,
+extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_context *ioc,
 					 struct sockaddr_in *bindaddr, int tos, cw_io_cb callback, void *data);
 
-int cw_netsock_free(struct cw_netsock_list *list, struct cw_netsock *netsock);
+extern CW_API_PUBLIC int cw_netsock_free(struct cw_netsock_list *list, struct cw_netsock *netsock);
 
-int cw_netsock_release(struct cw_netsock_list *list);
+extern CW_API_PUBLIC int cw_netsock_release(struct cw_netsock_list *list);
 
-struct cw_netsock *cw_netsock_find(struct cw_netsock_list *list,
+extern CW_API_PUBLIC struct cw_netsock *cw_netsock_find(struct cw_netsock_list *list,
 				     struct sockaddr_in *sa);
 
-int cw_netsock_sockfd(const struct cw_netsock *ns);
+extern CW_API_PUBLIC int cw_netsock_sockfd(const struct cw_netsock *ns);
 
-const struct sockaddr_in *cw_netsock_boundaddr(const struct cw_netsock *ns);
+extern CW_API_PUBLIC const struct sockaddr_in *cw_netsock_boundaddr(const struct cw_netsock *ns);
 
-void *cw_netsock_data(const struct cw_netsock *ns);
+extern CW_API_PUBLIC void *cw_netsock_data(const struct cw_netsock *ns);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

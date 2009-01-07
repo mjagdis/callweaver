@@ -38,16 +38,16 @@ extern "C" {
 
 struct cw_ha;
 
-extern void cw_free_ha(struct cw_ha *ha);
-extern struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path);
-extern int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin);
-extern int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+extern CW_API_PUBLIC void cw_free_ha(struct cw_ha *ha);
+extern CW_API_PUBLIC struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path);
+extern CW_API_PUBLIC int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin);
+extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
 #define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)
-extern int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);
-extern int cw_lookup_iface(char *iface, struct in_addr *address);
-extern struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original);
-extern int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
-extern int cw_str2tos(const char *value, int *tos);
+extern CW_API_PUBLIC int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);
+extern CW_API_PUBLIC int cw_lookup_iface(char *iface, struct in_addr *address);
+extern CW_API_PUBLIC struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original);
+extern CW_API_PUBLIC int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+extern CW_API_PUBLIC int cw_str2tos(const char *value, int *tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

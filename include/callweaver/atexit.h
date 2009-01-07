@@ -36,8 +36,8 @@ struct cw_atexit {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_atexit;
-extern struct cw_registry atexit_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_atexit;
+extern CW_API_PUBLIC struct cw_registry atexit_registry;
 
 
 #define cw_atexit_register(ptr) ({ \

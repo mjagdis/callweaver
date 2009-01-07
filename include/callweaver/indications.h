@@ -61,31 +61,31 @@ struct tone_zone
 };
 
 /* set the default tone country */
-extern int cw_set_indication_country(const char *country);
+extern CW_API_PUBLIC int cw_set_indication_country(const char *country);
 
 /* locate tone_zone, given the country. if country == NULL, use the default country */
-extern struct tone_zone *cw_get_indication_zone(const char *country);
+extern CW_API_PUBLIC struct tone_zone *cw_get_indication_zone(const char *country);
 /* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
-extern struct tone_zone_sound *cw_get_indication_tone(const struct tone_zone *zone, const char *indication);
+extern CW_API_PUBLIC struct tone_zone_sound *cw_get_indication_tone(const struct tone_zone *zone, const char *indication);
 
 /* add a new country, if country exists, it will be replaced. */
-extern int cw_register_indication_country(struct tone_zone *country);
+extern CW_API_PUBLIC int cw_register_indication_country(struct tone_zone *country);
 /* remove an existing country and all its indications, country must exist */
-extern int cw_unregister_indication_country(const char *country);
+extern CW_API_PUBLIC int cw_unregister_indication_country(const char *country);
 /* add a new indication to a tone_zone. tone_zone must exist. if the indication already
  * exists, it will be replaced. */
-extern int cw_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist);
+extern CW_API_PUBLIC int cw_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist);
 /* remove an existing tone_zone's indication. tone_zone must exist */
-extern int cw_unregister_indication(struct tone_zone *zone, const char *indication);
+extern CW_API_PUBLIC int cw_unregister_indication(struct tone_zone *zone, const char *indication);
 
 /* Start a tone-list going */
-int cw_playtones_start(struct cw_channel *chan, int vol, const char* tonelist, int interruptible);
+extern CW_API_PUBLIC int cw_playtones_start(struct cw_channel *chan, int vol, const char* tonelist, int interruptible);
 /*! Stop the tones from playing */
-void cw_playtones_stop(struct cw_channel *chan);
+extern CW_API_PUBLIC void cw_playtones_stop(struct cw_channel *chan);
 
-extern struct tone_zone *tone_zones;
-extern cw_mutex_t tzlock;
+extern CW_API_PUBLIC struct tone_zone *tone_zones;
+extern CW_API_PUBLIC cw_mutex_t tzlock;
 
-struct tone_zone *cw_walk_indications(const struct tone_zone *cur);
+extern CW_API_PUBLIC struct tone_zone *cw_walk_indications(const struct tone_zone *cur);
 
 #endif /* _CALLWEAVER_INDICATIONS_H */

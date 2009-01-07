@@ -1,6 +1,6 @@
 libexecdir = ${cwexecdir}
 
-DEFS += -include $(top_builddir)/include/confdefs.h
+DEFS += -include $(top_builddir)/include/global.h
 
 SUBDIRS=jitterbuffer resample
 
@@ -91,7 +91,7 @@ CORE_SRC = \
 
 CORE_NODIST = defaults.h
 
-CORE_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+CORE_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -DCW_API_IMPLEMENTATION
 if !WANT_DEBUG
 CORE_CFLAGS 	+= -fomit-frame-pointer
 #CORE_CFLAGS	+= -DCW_MUTEX_INIT_W_CONSTRUCTORS

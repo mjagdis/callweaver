@@ -41,11 +41,11 @@ struct cw_generator_instance {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_generator;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_generator;
 
 
-extern void cw_generator_deactivate(struct cw_generator_instance *gen);
-extern int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params);
+extern CW_API_PUBLIC void cw_generator_deactivate(struct cw_generator_instance *gen);
+extern CW_API_PUBLIC int cw_generator_activate(struct cw_channel *chan, struct cw_generator_instance *gen, struct cw_generator *class, void *params);
 
 #define cw_generator_is_active(chan) (!pthread_equal((chan)->generator.tid, CW_PTHREADT_NULL))
 

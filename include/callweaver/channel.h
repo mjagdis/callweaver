@@ -362,19 +362,19 @@ struct cw_channel {
 };
 
 
-extern struct cw_registry channel_registry;
-extern struct cw_registry device_registry;
+extern CW_API_PUBLIC struct cw_registry channel_registry;
+extern CW_API_PUBLIC struct cw_registry device_registry;
 
 
 typedef struct cw_channel cw_channel_t;
 
 /* Spy related stuff */
-void cw_spy_queue_frame(struct cw_channel_spy *spy, struct cw_frame *f, int q);
-void cw_spy_empty_queues(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
-void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
-void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy);
-void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *newspy);
-void cw_spy_detach_all(struct cw_channel *chan);
+extern CW_API_PUBLIC void cw_spy_queue_frame(struct cw_channel_spy *spy, struct cw_frame *f, int q);
+extern CW_API_PUBLIC void cw_spy_empty_queues(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
+extern CW_API_PUBLIC void cw_spy_get_frames(struct cw_channel_spy *spy, struct cw_frame **f0, struct cw_frame **f1);
+extern CW_API_PUBLIC void cw_spy_attach(struct cw_channel *chan, struct cw_channel_spy *newspy);
+extern CW_API_PUBLIC void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *newspy);
+extern CW_API_PUBLIC void cw_spy_detach_all(struct cw_channel *chan);
 
 /* Channel tech properties: */
 /* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
@@ -487,31 +487,31 @@ struct outgoing_helper {
 	by default set to the "default" context and
 	extension "s"
  */
-struct cw_channel *cw_channel_alloc(int needalertpipe, const char *fmt, ...);
+extern CW_API_PUBLIC struct cw_channel *cw_channel_alloc(int needalertpipe, const char *fmt, ...);
 
 /*! Sets the T38 channel status */
 #define cw_channel_set_t38_status(c,s) cw_channel_perform_set_t38_status(c,s, __FILE__, __LINE__)
-void cw_channel_perform_set_t38_status( struct cw_channel *tmp, t38_status_t status, const char *file, int line );
+extern CW_API_PUBLIC void cw_channel_perform_set_t38_status( struct cw_channel *tmp, t38_status_t status, const char *file, int line );
 
 /*! Gets the T38 channel status */
-t38_status_t cw_channel_get_t38_status( struct cw_channel *tmp );
+extern CW_API_PUBLIC t38_status_t cw_channel_get_t38_status( struct cw_channel *tmp );
 
 /*! Queue an outgoing frame */
-int cw_queue_frame(struct cw_channel *chan, struct cw_frame *f);
+extern CW_API_PUBLIC int cw_queue_frame(struct cw_channel *chan, struct cw_frame *f);
 
 /*! Queue a hangup frame */
-int cw_queue_hangup(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_queue_hangup(struct cw_channel *chan);
 
 /*! Queue a control frame */
-int cw_queue_control(struct cw_channel *chan, int control);
+extern CW_API_PUBLIC int cw_queue_control(struct cw_channel *chan, int control);
 
 /*! Change the state of a channel */
-int cw_setstate(struct cw_channel *chan, int state);
+extern CW_API_PUBLIC int cw_setstate(struct cw_channel *chan, int state);
 
-void cw_change_name(struct cw_channel *chan, const char *fmt, ...);
+extern CW_API_PUBLIC void cw_change_name(struct cw_channel *chan, const char *fmt, ...);
 
 /*! Free a channel structure */
-void  cw_channel_free(struct cw_channel *);
+extern CW_API_PUBLIC void  cw_channel_free(struct cw_channel *);
 
 /*! Requests a channel */
 /*! 
@@ -522,7 +522,7 @@ void  cw_channel_free(struct cw_channel *);
  * by the low level module
  * Returns an cw_channel on success, NULL on failure.
  */
-struct cw_channel *cw_request(const char *type, int format, void *data, int *status);
+extern CW_API_PUBLIC struct cw_channel *cw_request(const char *type, int format, void *data, int *status);
 
 /*!
  * \param type type of channel to request
@@ -535,7 +535,7 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *sta
  * Returns an cw_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct cw_channel *cw_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname);
+extern CW_API_PUBLIC struct cw_channel *cw_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname);
 
 struct cw_channel *__cw_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname, struct outgoing_helper *oh);
 
@@ -545,20 +545,20 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
  * Called by a channel module to register the kind of channels it supports.
  * Returns 0 on success, -1 on failure.
  */
-int cw_channel_register(const struct cw_channel_tech *tech);
+extern CW_API_PUBLIC int cw_channel_register(const struct cw_channel_tech *tech);
 
 /*! Unregister a channel technology */
 /*
  * \param tech Structure defining channel technology or "type" that was previously registered
  * No return value.
  */
-void cw_channel_unregister(const struct cw_channel_tech *tech);
+extern CW_API_PUBLIC void cw_channel_unregister(const struct cw_channel_tech *tech);
 
 /*! Get a channel technology structure by name
  * \param name name of technology to find
  * \return a pointer to the structure, or NULL if no matching technology found
  */
-const struct cw_channel_tech *cw_get_channel_tech(const char *name);
+extern CW_API_PUBLIC const struct cw_channel_tech *cw_get_channel_tech(const char *name);
 
 /*! Hang up a channel  */
 /*! 
@@ -568,7 +568,7 @@ const struct cw_channel_tech *cw_get_channel_tech(const char *name);
  * chan is no longer valid after this call.
  * Returns 0 on success, -1 on failure.
  */
-int cw_hangup(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_hangup(struct cw_channel *chan);
 
 /*! Softly hangup up a channel */
 /*! 
@@ -578,10 +578,10 @@ int cw_hangup(struct cw_channel *chan);
  * \param cause	cw hangupcause for hangup
  * Returns 0 regardless
  */
-int cw_softhangup(struct cw_channel *chan, int cause);
+extern CW_API_PUBLIC int cw_softhangup(struct cw_channel *chan, int cause);
 /*! Softly hangup up a channel (no channel lock) 
  * \param cause	cw hangupcause for hangup */
-int cw_softhangup_nolock(struct cw_channel *chan, int cause);
+extern CW_API_PUBLIC int cw_softhangup_nolock(struct cw_channel *chan, int cause);
 
 /*! Check to see if a channel is needing hang up */
 /*! 
@@ -589,7 +589,7 @@ int cw_softhangup_nolock(struct cw_channel *chan, int cause);
  * This function determines if the channel is being requested to be hung up.
  * Returns 0 if not, or 1 if hang up is requested (including time-out).
  */
-int cw_check_hangup(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_check_hangup(struct cw_channel *chan);
 
 /*! Compare a offset with the settings of when to hang a channel up */
 /*! 
@@ -601,7 +601,7 @@ int cw_check_hangup(struct cw_channel *chan);
  * is earlier than current time plus the offset, it returns 1, if the two
  * time values are equal, it return 0, otherwise, it retturn -1.
  */
-int cw_channel_cmpwhentohangup(struct cw_channel *chan, time_t offset);
+extern CW_API_PUBLIC int cw_channel_cmpwhentohangup(struct cw_channel *chan, time_t offset);
 
 /*! Set when to hang a channel up */
 /*! 
@@ -609,7 +609,7 @@ int cw_channel_cmpwhentohangup(struct cw_channel *chan, time_t offset);
  * \param offset offset in seconds from current time of when to hang up
  * This function sets the absolute time out on a channel (when to hang up).
  */
-void cw_channel_setwhentohangup(struct cw_channel *chan, time_t offset);
+extern CW_API_PUBLIC void cw_channel_setwhentohangup(struct cw_channel *chan, time_t offset);
 
 /*! Answer a ringing call */
 /*!
@@ -618,7 +618,7 @@ void cw_channel_setwhentohangup(struct cw_channel *chan, time_t offset);
  * setup functions.
  * Returns 0 on success, -1 on failure
  */
-int cw_answer(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_answer(struct cw_channel *chan);
 
 /*! Make a call
  * 
@@ -627,7 +627,7 @@ int cw_answer(struct cw_channel *chan);
  *
  * \return 0 on success, -1 on failure
  */
-int cw_call(struct cw_channel *chan, char *addr);
+extern CW_API_PUBLIC int cw_call(struct cw_channel *chan, char *addr);
 
 /*! Indicates condition of channel */
 /*! 
@@ -636,7 +636,7 @@ int cw_call(struct cw_channel *chan, char *addr);
  * Indicate a condition such as CW_CONTROL_BUSY, CW_CONTROL_RINGING, or CW_CONTROL_CONGESTION on a channel
  * Returns 0 on success, -1 on failure
  */
-int cw_indicate(struct cw_channel *chan, int condition);
+extern CW_API_PUBLIC int cw_indicate(struct cw_channel *chan, int condition);
 
 /* Misc stuff */
 
@@ -646,7 +646,7 @@ int cw_indicate(struct cw_channel *chan, int condition);
  * \param ms length of time to wait on the channel
  * Wait for input on a channel for a given # of milliseconds (<0 for indefinite). 
   Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
-int cw_waitfor(struct cw_channel *chan, int ms);
+extern CW_API_PUBLIC int cw_waitfor(struct cw_channel *chan, int ms);
 
 /*! Wait for a specied amount of time, looking for hangups */
 /*!
@@ -655,7 +655,7 @@ int cw_waitfor(struct cw_channel *chan, int ms);
  * Waits for a specified amount of time, servicing the channel as required.
  * returns -1 on hangup, otherwise 0.
  */
-int cw_safe_sleep(struct cw_channel *chan, int ms);
+extern CW_API_PUBLIC int cw_safe_sleep(struct cw_channel *chan, int ms);
 
 /*! Wait for a specied amount of time, looking for hangups and a condition argument */
 /*!
@@ -667,7 +667,7 @@ int cw_safe_sleep(struct cw_channel *chan, int ms);
  * returns 0, this function returns.
  * returns -1 on hangup, otherwise 0.
  */
-int cw_safe_sleep_conditional(struct cw_channel *chan, int ms, int (*cond)(void*), void *data );
+extern CW_API_PUBLIC int cw_safe_sleep_conditional(struct cw_channel *chan, int ms, int (*cond)(void*), void *data );
 
 /*! Waits for activity on a group of channels */
 /*! 
@@ -682,16 +682,16 @@ int cw_safe_sleep_conditional(struct cw_channel *chan, int ms, int (*cond)(void*
    file descriptors.  Returns the channel with activity, or NULL on error or if an FD
    came first.  If the FD came first, it will be returned in outfd, otherwise, outfd
    will be -1 */
-struct cw_channel *cw_waitfor_nandfds(struct cw_channel **chan, int n, int *fds, int nfds, int *exception, int *outfd, int *ms);
+extern CW_API_PUBLIC struct cw_channel *cw_waitfor_nandfds(struct cw_channel **chan, int n, int *fds, int nfds, int *exception, int *outfd, int *ms);
 
 /*! Waits for input on a group of channels */
 /*! Wait for input on an array of channels for a given # of milliseconds. Return channel
    with activity, or NULL if none has activity.  time "ms" is modified in-place, if applicable */
-struct cw_channel *cw_waitfor_n(struct cw_channel **chan, int n, int *ms);
+extern CW_API_PUBLIC struct cw_channel *cw_waitfor_n(struct cw_channel **chan, int n, int *ms);
 
 /*! Waits for input on an fd */
 /*! This version works on fd's only.  Be careful with it. */
-int cw_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
+extern CW_API_PUBLIC int cw_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 /*! Reads a frame */
 /*!
@@ -699,7 +699,7 @@ int cw_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
  * Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
    best just stop reading frames and assume the channel has been
    disconnected. */
-struct cw_frame *cw_read(struct cw_channel *chan);
+extern CW_API_PUBLIC struct cw_frame *cw_read(struct cw_channel *chan);
 
 /*! Write a frame to a channel */
 /*!
@@ -708,10 +708,10 @@ struct cw_frame *cw_read(struct cw_channel *chan);
  * This function writes the given frame to the indicated channel.
  * It returns 0 on success, -1 on failure.
  */
-int cw_write(struct cw_channel *chan, struct cw_frame **frame);
+extern CW_API_PUBLIC int cw_write(struct cw_channel *chan, struct cw_frame **frame);
 
 /* Send empty audio to prime a channel driver */
-int cw_prod(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_prod(struct cw_channel *chan);
 
 /*! Sets read format on channel chan */
 /*! 
@@ -720,7 +720,7 @@ int cw_prod(struct cw_channel *chan);
  * Set read format for channel to whichever component of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int cw_set_read_format(struct cw_channel *chan, int format);
+extern CW_API_PUBLIC int cw_set_read_format(struct cw_channel *chan, int format);
 
 /*! Sets write format on channel chan */
 /*! 
@@ -729,7 +729,7 @@ int cw_set_read_format(struct cw_channel *chan, int format);
  * Set write format for channel to whichever compoent of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int cw_set_write_format(struct cw_channel *chan, int format);
+extern CW_API_PUBLIC int cw_set_write_format(struct cw_channel *chan, int format);
 
 /*! Sends text to a channel */
 /*! 
@@ -738,7 +738,7 @@ int cw_set_write_format(struct cw_channel *chan, int format);
  * Write text to a display on a channel
  * Returns 0 on success, -1 on failure
  */
-int cw_sendtext(struct cw_channel *chan, const char *text);
+extern CW_API_PUBLIC int cw_sendtext(struct cw_channel *chan, const char *text);
 
 /*! Receives a text character from a channel */
 /*! 
@@ -747,7 +747,7 @@ int cw_sendtext(struct cw_channel *chan, const char *text);
  * Read a char of text from a channel
  * Returns 0 on success, -1 on failure
  */
-int cw_recvchar(struct cw_channel *chan, int timeout);
+extern CW_API_PUBLIC int cw_recvchar(struct cw_channel *chan, int timeout);
 
 /*! Send a DTMF digit to a channel */
 /*! 
@@ -756,7 +756,7 @@ int cw_recvchar(struct cw_channel *chan, int timeout);
  * Send a DTMF digit to a channel.
  * Returns 0 on success, -1 on failure
  */
-int cw_senddigit(struct cw_channel *chan, char digit);
+extern CW_API_PUBLIC int cw_senddigit(struct cw_channel *chan, char digit);
 
 /*! Receives a text string from a channel */
 /*! 
@@ -765,35 +765,35 @@ int cw_senddigit(struct cw_channel *chan, char digit);
  * \return the received text, or NULL to signify failure.
  * Read a string of text from a channel
  */
-char *cw_recvtext(struct cw_channel *chan, int timeout);
+extern CW_API_PUBLIC char *cw_recvtext(struct cw_channel *chan, int timeout);
 
 /*! Get channel by name (locks channel) */
 #ifdef DEBUG_MUTEX
-struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_name_locked(chan) __cw_get_by_name_locked(&channel_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan);
+extern CW_API_PUBLIC struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const char *chan);
 #define cw_get_channel_by_name_locked(chan) __cw_get_by_name_locked(&channel_registry, chan)
 #define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan)
 #endif
 
-void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);
+extern CW_API_PUBLIC void cw_complete_channel(int fd, const char *prefix, size_t prefix_len);
 
 /*! Get channel by name prefix (locks channel) */
 #ifdef DEBUG_MUTEX
-struct cw_channel *__cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC struct cw_channel *__cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_name_prefix_locked(prefix, prefix_len) __cw_get_channel_by_name_prefix_locked(prefix, prefix_len, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len);
+extern CW_API_PUBLIC struct cw_channel *cw_get_channel_by_name_prefix_locked(const char *prefix, size_t prefix_len);
 #endif
 
 /*--- cw_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
 #ifdef DEBUG_MUTEX
-struct cw_channel *__cw_get_channel_by_exten_locked(const char *exten, const char *context, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC struct cw_channel *__cw_get_channel_by_exten_locked(const char *exten, const char *context, const char *file, int lineno, const char *func);
 #define cw_get_channel_by_exten_locked(exten, context) __cw_get_channel_by_exten_locked(exten, context, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context);
+extern CW_API_PUBLIC struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char *context);
 #endif
 
 /*! Waits for a digit */
@@ -801,11 +801,11 @@ struct cw_channel *cw_get_channel_by_exten_locked(const char *exten, const char 
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
  * Wait for a digit.  Returns <0 on error, 0 on no entry, and the digit on success. */
-int cw_waitfordigit(struct cw_channel *c, int ms);
+extern CW_API_PUBLIC int cw_waitfordigit(struct cw_channel *c, int ms);
 
 /* Same as above with audio fd for outputing read audio and ctrlfd to monitor for
    reading. Returns 1 if ctrlfd becomes available */
-int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int ctrlfd);
 
 /*! Reads multiple digits */
 /*! 
@@ -820,8 +820,8 @@ int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int ctrlfd);
    for the first digit.  Returns 0 on normal return, or 1 on a timeout.  In the case of
    a timeout, any digits that were read before the timeout will still be available in s.  
    RETURNS 2 in full version when ctrlfd is available, NOT 1*/
-int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
-int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
+extern CW_API_PUBLIC int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders, int audiofd, int ctrlfd);
 
 /*! Report DTMF on channel 0 */
 #define CW_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		
@@ -841,7 +841,7 @@ int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int 
  * \param c1 other channel to make compatible
  * Set two channels to compatible formats -- call before cw_channel_bridge in general .  Returns 0 on success
    and -1 if it could not be done */
-int cw_channel_make_compatible(struct cw_channel *c0, struct cw_channel *c1);
+extern CW_API_PUBLIC int cw_channel_make_compatible(struct cw_channel *c0, struct cw_channel *c1);
 
 /*! Bridge two channels together */
 /*! 
@@ -853,7 +853,7 @@ int cw_channel_make_compatible(struct cw_channel *c0, struct cw_channel *c1);
  * Bridge two channels (c0 and c1) together.  If an important frame occurs, we return that frame in
    *rf (remember, it could be NULL) and which channel (0 or 1) in rc */
 /* int cw_channel_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc); */
-int cw_channel_bridge(struct cw_channel *c0,struct cw_channel *c1,struct cw_bridge_config *config, struct cw_frame **fo, struct cw_channel **rc);
+extern CW_API_PUBLIC int cw_channel_bridge(struct cw_channel *c0,struct cw_channel *c1,struct cw_bridge_config *config, struct cw_frame **fo, struct cw_channel **rc);
 
 /*! Weird function made for call transfers */
 /*! 
@@ -865,7 +865,7 @@ int cw_channel_bridge(struct cw_channel *c0,struct cw_channel *c1,struct cw_brid
    channel driver of the change, asking it to fixup any private information (like the
    p->owner pointer) that is affected by the change.  The physical layer of the original
    channel is hung up.  */
-int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone);
+extern CW_API_PUBLIC int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone);
 
 /*! Gives the string form of a given cause code */
 /*! 
@@ -873,7 +873,7 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
  * Give a name to a cause code
  * Returns the text form of the binary cause code given
  */
-const char *cw_cause2str(int state);
+extern CW_API_PUBLIC const char *cw_cause2str(int state);
 
 /*! Gives the string form of a given control frame type */
 /*! 
@@ -881,14 +881,14 @@ const char *cw_cause2str(int state);
  * Give a name to a control code
  * Returns the text form of the binary control code given
  */
-const char *cw_control2str(int control);
+extern CW_API_PUBLIC const char *cw_control2str(int control);
 /*! Gives the string form of a given channel state */
 /*! 
  * \param state state to get the name of
  * Give a name to a state 
  * Returns the text form of the binary state given
  */
-char *cw_state2str(int state);
+extern CW_API_PUBLIC char *cw_state2str(int state);
 
 /*! Gives the string form of a given transfer capability */
 /*!
@@ -897,7 +897,7 @@ char *cw_state2str(int state);
  * See above
  * Returns the text form of the binary transfer capbility
  */
-char *cw_transfercapability2str(int transfercapability);
+extern CW_API_PUBLIC char *cw_transfercapability2str(int transfercapability);
 
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support
@@ -913,11 +913,11 @@ char *cw_transfercapability2str(int transfercapability);
  * Set an option on a channel (see frame.h)
  * Returns 0 on success and -1 on failure
  */
-int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen);
+extern CW_API_PUBLIC int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen);
 
 /*! Pick the best codec  */
 /* Choose the best codec...  Uhhh...   Yah. */
-extern int cw_best_codec(int fmts);
+extern CW_API_PUBLIC int cw_best_codec(int fmts);
 
 
 /*! Checks the value of an option */
@@ -925,67 +925,59 @@ extern int cw_best_codec(int fmts);
  * Query the value of an option, optionally blocking until a reply is received
  * Works similarly to setoption except only reads the options.
  */
-struct cw_frame *cw_channel_queryoption(struct cw_channel *channel, int option, void *data, int *datalen, int block);
+extern CW_API_PUBLIC struct cw_frame *cw_channel_queryoption(struct cw_channel *channel, int option, void *data, int *datalen, int block);
 
 /*! Checks for HTML support on a channel */
 /*! Returns 0 if channel does not support HTML or non-zero if it does */
-int cw_channel_supports_html(struct cw_channel *channel);
+extern CW_API_PUBLIC int cw_channel_supports_html(struct cw_channel *channel);
 
 /*! Sends HTML on given channel */
 /*! Send HTML or URL on link.  Returns 0 on success or -1 on failure */
-int cw_channel_sendhtml(struct cw_channel *channel, int subclass, const char *data, int datalen);
+extern CW_API_PUBLIC int cw_channel_sendhtml(struct cw_channel *channel, int subclass, const char *data, int datalen);
 
 /*! Sends a URL on a given link */
 /*! Send URL on link.  Returns 0 on success or -1 on failure */
-int cw_channel_sendurl(struct cw_channel *channel, const char *url);
+extern CW_API_PUBLIC int cw_channel_sendurl(struct cw_channel *channel, const char *url);
 
 /*! Defers DTMF */
 /*! Defer DTMF so that you only read things like hangups and audio.  Returns
    non-zero if channel was already DTMF-deferred or 0 if channel is just now
    being DTMF-deferred */
-int cw_channel_defer_dtmf(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_channel_defer_dtmf(struct cw_channel *chan);
 
 /*! Undeos a defer */
 /*! Undo defer.  cw_read will return any dtmf characters that were queued */
-void cw_channel_undefer_dtmf(struct cw_channel *chan);
-
-/*! Initiate system shutdown -- prevents new channels from being allocated.
-    If "hangup" is non-zero, all existing channels will receive soft
-     hangups */
-void cw_begin_shutdown(int hangup);
-
-/*! Cancels an existing shutdown and returns to normal operation */
-void cw_cancel_shutdown(void);
+extern CW_API_PUBLIC void cw_channel_undefer_dtmf(struct cw_channel *chan);
 
 /*! Returns number of active/allocated channels */
 #define cw_active_channels()	channel_registry.entries
 
 /*! Returns non-zero if CallWeaver is being shut down */
-int cw_shutting_down(void);
+extern CW_API_PUBLIC int cw_shutting_down(void);
 
-void cw_set_callerid(struct cw_channel *chan, const char *cidnum, const char *cidname, const char *ani);
+extern CW_API_PUBLIC void cw_set_callerid(struct cw_channel *chan, const char *cidnum, const char *cidname, const char *ani);
 
 /*! Start a tone going */
-int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duration, int vol);
+extern CW_API_PUBLIC int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duration, int vol);
 
 /*! Stop a tone from playing */
-void cw_tonepair_stop(struct cw_channel *chan);
+extern CW_API_PUBLIC void cw_tonepair_stop(struct cw_channel *chan);
 
 /*! Play a tone pair for a given amount of time */
-int cw_tonepair(struct cw_channel *chan, int freq1, int freq2, int duration, int vol);
+extern CW_API_PUBLIC int cw_tonepair(struct cw_channel *chan, int freq1, int freq2, int duration, int vol);
 
 /*! Automatically service a channel for us... */
-int cw_autoservice_start(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_autoservice_start(struct cw_channel *chan);
 
 /*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
-int cw_autoservice_stop(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_autoservice_stop(struct cw_channel *chan);
 
 /*!	\brief Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
    and 1 if supported and requested 
 	\param chan current channel
 	\param dest destination extension for transfer
 */
-int cw_transfer(struct cw_channel *chan, char *dest);
+extern CW_API_PUBLIC int cw_transfer(struct cw_channel *chan, char *dest);
 
 /*!	\brief  Start masquerading a channel
 	XXX This is a seriously wacked out operation.  We're essentially putting the guts of
@@ -994,12 +986,12 @@ int cw_transfer(struct cw_channel *chan, char *dest);
            while the features are nice, the cost is very high in terms of pure nastiness. XXX
 	\param chan 	Channel to masquerade
 */
-int cw_do_masquerade(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_do_masquerade(struct cw_channel *chan);
 
 /*!	\brief Find bridged channel 
 	\param chan Current channel
 */
-struct cw_channel *cw_bridged_channel(struct cw_channel *chan);
+extern CW_API_PUBLIC struct cw_channel *cw_bridged_channel(struct cw_channel *chan);
 
 /*!
   \brief adds a list of channel variables to a channel
@@ -1009,7 +1001,7 @@ struct cw_channel *cw_bridged_channel(struct cw_channel *chan);
   Variable names can be for a regular channel variable or a dialplan function
   that has the ability to be written to.
 */
-void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars);
+extern CW_API_PUBLIC void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars);
 
 /* Misc. functions below */
 
@@ -1017,9 +1009,9 @@ void cw_set_variables(struct cw_channel *chan, struct cw_variable *vars);
    it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
    there is only one system call made to do a write, unless we actually
    have a need to wait.  This way, we get better performance. */
-int cw_carefulwrite(int fd, char *s, int len, int timeoutms);
+extern CW_API_PUBLIC int cw_carefulwrite(int fd, char *s, int len, int timeoutms);
 
-struct cw_variable *cw_channeltype_list(void);
+extern CW_API_PUBLIC struct cw_variable *cw_channeltype_list(void);
 
 /* Helper function for migrating select to poll */
 static inline int cw_fdisset(struct pollfd *pfds, int fd, int max, int *start)
@@ -1121,9 +1113,19 @@ static inline int cw_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 									cw_set_flag(c, CW_FLAG_BLOCKING); \
 									} }
 
-extern cw_group_t cw_get_group(char *s);
+extern CW_API_PUBLIC cw_group_t cw_get_group(char *s);
 /* print call- and pickup groups into buffer */
-extern char *cw_print_group(char *buf, int buflen, cw_group_t group);
+extern CW_API_PUBLIC char *cw_print_group(char *buf, int buflen, cw_group_t group);
+
+
+/*! Initiate system shutdown -- prevents new channels from being allocated.
+    If "hangup" is non-zero, all existing channels will receive soft
+     hangups */
+extern void cw_begin_shutdown(int hangup);
+
+/*! Cancels an existing shutdown and returns to normal operation */
+extern void cw_cancel_shutdown(void);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

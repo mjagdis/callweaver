@@ -81,7 +81,7 @@ const char *devstate2str(int devstate)
 }
 
 /*--- cw_parse_device_state: Find out if device is active in a call or not */
-cw_devicestate_t cw_parse_device_state(const char *device)
+static cw_devicestate_t cw_parse_device_state(const char *device)
 {
 	struct cw_channel *chan;
 	int res;

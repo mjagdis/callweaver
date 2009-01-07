@@ -33,11 +33,11 @@ extern "C" {
 #define CW_PRIVACY_TORTURE	(1 << 3)		/* Send directly to tele-torture */
 #define CW_PRIVACY_UNKNOWN (1 << 16)
 
-int cw_privacy_check(char *dest, char *cid);
+extern CW_API_PUBLIC int cw_privacy_check(char *dest, char *cid);
 
-int cw_privacy_set(char *dest, char *cid, int status);
+extern CW_API_PUBLIC int cw_privacy_set(char *dest, char *cid, int status);
 
-int cw_privacy_reset(char *dest);
+extern CW_API_PUBLIC int cw_privacy_reset(char *dest);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

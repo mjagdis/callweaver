@@ -37,12 +37,12 @@ struct cw_osp_result {
 
 /* Note: Channel will be auto-serviced if specified.  Returns -1 on hangup, 
    0 if nothing found, or 1 if something is found */
-int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char *callerid, struct cw_osp_result *result);
+extern CW_RES_API_PUBLIC int cw_osp_lookup(struct cw_channel *chan, char *provider, char *extension, char *callerid, struct cw_osp_result *result);
 
-int cw_osp_next(struct cw_osp_result *result, int cause);
+extern CW_RES_API_PUBLIC int cw_osp_next(struct cw_osp_result *result, int cause);
 
-int cw_osp_terminate(int handle, int cause, time_t start, time_t duration);
+extern CW_RES_API_PUBLIC int cw_osp_terminate(int handle, int cause, time_t start, time_t duration);
 
-int cw_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, char *callerid, struct in_addr addr, char *extension);
+extern CW_RES_API_PUBLIC int cw_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, char *callerid, struct in_addr addr, char *extension);
 
 #endif /* _CALLWEAVER_OSP_H */

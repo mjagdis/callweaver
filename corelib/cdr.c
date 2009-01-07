@@ -839,7 +839,7 @@ static void *do_batch_backend_process(void *data)
 	return NULL;
 }
 
-void cw_cdr_submit_batch(int shutdown)
+static void cw_cdr_submit_batch(int shutdown)
 {
 	struct cw_cdr_batch_item *oldbatchitems = NULL;
 	pthread_t batch_post_thread = CW_PTHREADT_NULL;

@@ -128,85 +128,85 @@ struct cw_rtp
 };
 
 
-struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
+extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
-void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
+extern CW_API_PUBLIC void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
 
-void cw_rtp_get_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
+extern CW_API_PUBLIC void cw_rtp_get_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
 
-void cw_rtp_get_us(struct cw_rtp *rtp, struct sockaddr_in *us);
+extern CW_API_PUBLIC void cw_rtp_get_us(struct cw_rtp *rtp, struct sockaddr_in *us);
 
-int cw_rtp_get_stunstate(struct cw_rtp *rtp);
+extern CW_API_PUBLIC int cw_rtp_get_stunstate(struct cw_rtp *rtp);
 
-void cw_rtp_destroy(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_destroy(struct cw_rtp *rtp);
 
-void cw_rtp_reset(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_reset(struct cw_rtp *rtp);
 
-void cw_rtp_set_callback(struct cw_rtp *rtp, cw_rtp_callback callback);
+extern CW_API_PUBLIC void cw_rtp_set_callback(struct cw_rtp *rtp, cw_rtp_callback callback);
 
-void cw_rtp_set_data(struct cw_rtp *rtp, void *data);
+extern CW_API_PUBLIC void cw_rtp_set_data(struct cw_rtp *rtp, void *data);
 
-int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *f);
+extern CW_API_PUBLIC int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *f);
 
-struct cw_frame *cw_rtp_read(struct cw_rtp *rtp);
+extern CW_API_PUBLIC struct cw_frame *cw_rtp_read(struct cw_rtp *rtp);
 
-struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp);
+extern CW_API_PUBLIC struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp);
 
-int cw_rtp_fd(struct cw_rtp *rtp);
+extern CW_API_PUBLIC int cw_rtp_fd(struct cw_rtp *rtp);
 
-int cw_rtcp_fd(struct cw_rtp *rtp);
+extern CW_API_PUBLIC int cw_rtcp_fd(struct cw_rtp *rtp);
 
-udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
+extern CW_API_PUBLIC udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
                                  udp_state_t *sock_info);
 
-udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
+extern CW_API_PUBLIC udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
                                   udp_state_t *sock_info);
 
-int cw_rtp_sendevent(struct cw_rtp *const rtp, char event, uint16_t duration);
+extern CW_API_PUBLIC int cw_rtp_sendevent(struct cw_rtp *const rtp, char event, uint16_t duration);
 
-int cw_rtp_sendcng(struct cw_rtp *rtp, int level);
+extern CW_API_PUBLIC int cw_rtp_sendcng(struct cw_rtp *rtp, int level);
 
-int cw_rtp_set_active(struct cw_rtp *rtp, int active);
+extern CW_API_PUBLIC int cw_rtp_set_active(struct cw_rtp *rtp, int active);
 
-int cw_rtp_settos(struct cw_rtp *rtp, int tos);
+extern CW_API_PUBLIC int cw_rtp_settos(struct cw_rtp *rtp, int tos);
 
 /*  Setting RTP payload types from lines in a SDP description: */
-void cw_rtp_pt_clear(struct cw_rtp* rtp);
+extern CW_API_PUBLIC void cw_rtp_pt_clear(struct cw_rtp* rtp);
 /* Set payload types to defaults */
-void cw_rtp_pt_default(struct cw_rtp* rtp);
-void cw_rtp_set_m_type(struct cw_rtp* rtp, int pt);
-void cw_rtp_set_rtpmap_type(struct cw_rtp* rtp, int pt,
+extern CW_API_PUBLIC void cw_rtp_pt_default(struct cw_rtp* rtp);
+extern CW_API_PUBLIC void cw_rtp_set_m_type(struct cw_rtp* rtp, int pt);
+extern CW_API_PUBLIC void cw_rtp_set_rtpmap_type(struct cw_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype);
 
 /*  Mapping between RTP payload format codes and CallWeaver codes: */
-struct rtpPayloadType cw_rtp_lookup_pt(struct cw_rtp* rtp, int pt);
-int cw_rtp_lookup_code(struct cw_rtp* rtp, int is_cw_format, int code);
-void cw_rtp_offered_from_local(struct cw_rtp* rtp, int local);
+extern CW_API_PUBLIC struct rtpPayloadType cw_rtp_lookup_pt(struct cw_rtp* rtp, int pt);
+extern CW_API_PUBLIC int cw_rtp_lookup_code(struct cw_rtp* rtp, int is_cw_format, int code);
+extern CW_API_PUBLIC void cw_rtp_offered_from_local(struct cw_rtp* rtp, int local);
 
-void cw_rtp_get_current_formats(struct cw_rtp* rtp,
+extern CW_API_PUBLIC void cw_rtp_get_current_formats(struct cw_rtp* rtp,
 			     int* cw_formats, int* non_cw_formats);
 
 /*  Mapping an CallWeaver code into a MIME subtype (string): */
-char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
+extern CW_API_PUBLIC char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */
-char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format);
+extern CW_API_PUBLIC char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format);
 
-void cw_rtp_setnat(struct cw_rtp *rtp, int nat);
+extern CW_API_PUBLIC void cw_rtp_setnat(struct cw_rtp *rtp, int nat);
 
-int cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
+extern CW_API_PUBLIC int cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 
-int cw_rtp_proto_register(struct cw_rtp_protocol *proto);
+extern CW_API_PUBLIC int cw_rtp_proto_register(struct cw_rtp_protocol *proto);
 
-void cw_rtp_proto_unregister(struct cw_rtp_protocol *proto);
+extern CW_API_PUBLIC void cw_rtp_proto_unregister(struct cw_rtp_protocol *proto);
 
-void cw_rtp_stop(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_stop(struct cw_rtp *rtp);
 
 int cw_rtp_init(void);
 
 void cw_rtp_reload(void);
 
-int cw_rtp_set_framems(struct cw_rtp *rtp, int ms);
+extern CW_API_PUBLIC int cw_rtp_set_framems(struct cw_rtp *rtp, int ms);
 
 #ifdef ENABLE_SRTP
 
@@ -225,30 +225,30 @@ typedef int (*rtp_generate_key_cb)(struct cw_rtp *rtp,
                                    uint32_t ssrc,
                                    void *data);
 
-unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp);
-void cw_rtp_set_generate_key_cb(struct cw_rtp *rtp,
+extern CW_API_PUBLIC unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_set_generate_key_cb(struct cw_rtp *rtp,
 				  rtp_generate_key_cb cb);
-int cw_rtp_add_policy(struct cw_rtp *rtp, cw_policy_t *policy);
-cw_policy_t *cw_policy_alloc(void);
-int cw_policy_set_suite(cw_policy_t *policy, int suite);
-int cw_policy_set_master_key(cw_policy_t *policy,
+extern CW_API_PUBLIC int cw_rtp_add_policy(struct cw_rtp *rtp, cw_policy_t *policy);
+extern CW_API_PUBLIC cw_policy_t *cw_policy_alloc(void);
+extern CW_API_PUBLIC int cw_policy_set_suite(cw_policy_t *policy, int suite);
+extern CW_API_PUBLIC int cw_policy_set_master_key(cw_policy_t *policy,
 			      const unsigned char *key, size_t key_len,
 			      const unsigned char *salt, size_t salt_len);
-int cw_policy_set_encr_alg(cw_policy_t *policy, int ealg);
-int cw_policy_set_auth_alg(cw_policy_t *policy, int aalg);
-void cw_policy_set_encr_keylen(cw_policy_t *policy, int ekeyl);
-void cw_policy_set_auth_keylen(cw_policy_t *policy, int akeyl);
-void cw_policy_set_srtp_auth_taglen(cw_policy_t *policy, int autht);
-void cw_policy_set_srtp_encr_enable(cw_policy_t *policy, int enable);
-void cw_policy_set_srtcp_encr_enable(cw_policy_t *policy, int enable);
-void cw_policy_set_srtp_auth_enable(cw_policy_t *policy, int enable);
-void cw_policy_set_ssrc(cw_policy_t *policy,
+extern CW_API_PUBLIC int cw_policy_set_encr_alg(cw_policy_t *policy, int ealg);
+extern CW_API_PUBLIC int cw_policy_set_auth_alg(cw_policy_t *policy, int aalg);
+extern CW_API_PUBLIC void cw_policy_set_encr_keylen(cw_policy_t *policy, int ekeyl);
+extern CW_API_PUBLIC void cw_policy_set_auth_keylen(cw_policy_t *policy, int akeyl);
+extern CW_API_PUBLIC void cw_policy_set_srtp_auth_taglen(cw_policy_t *policy, int autht);
+extern CW_API_PUBLIC void cw_policy_set_srtp_encr_enable(cw_policy_t *policy, int enable);
+extern CW_API_PUBLIC void cw_policy_set_srtcp_encr_enable(cw_policy_t *policy, int enable);
+extern CW_API_PUBLIC void cw_policy_set_srtp_auth_enable(cw_policy_t *policy, int enable);
+extern CW_API_PUBLIC void cw_policy_set_ssrc(cw_policy_t *policy,
                           struct cw_rtp *rtp, 
 			              uint32_t ssrc,
                           int inbound);
     
-void cw_policy_destroy(cw_policy_t *policy);
-int cw_get_random(unsigned char *key, size_t len);
+extern CW_API_PUBLIC void cw_policy_destroy(cw_policy_t *policy);
+extern CW_API_PUBLIC int cw_get_random(unsigned char *key, size_t len);
 
 #endif	/* ENABLE_SRTP */
 

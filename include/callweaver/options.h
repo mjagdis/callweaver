@@ -33,31 +33,31 @@ extern "C" {
 #define CW_CACHE_DIR_LEN 512
 #define CW_FILENAME_MAX	80
 
-extern char hostname[MAXHOSTNAMELEN];
-extern int option_verbose;
-extern int option_debug;
-extern int option_nofork;
-extern int option_quiet;
-extern int option_console;
-extern int option_initcrypto;
-extern int option_nocolor;
-extern int option_remote;
-extern int option_reconnect;
-extern int fully_booted;
-extern int option_exec_includes;
-extern int option_cache_record_files;
-extern int option_timestamp;
-extern int option_transcode_slin;
-extern int option_maxcalls;
-extern double option_maxload;
-extern int option_dontwarn;
-extern int option_priority_jumping;
-extern char defaultlanguage[];
-extern time_t cw_startuptime;
-extern time_t cw_lastreloadtime;
-extern int cw_mainpid;
-extern char record_cache_dir[CW_CACHE_DIR_LEN];
-extern char debug_filename[CW_FILENAME_MAX];
+extern CW_API_PUBLIC char hostname[MAXHOSTNAMELEN];
+extern CW_API_PUBLIC int option_verbose;
+extern CW_API_PUBLIC int option_debug;
+extern CW_API_PUBLIC int option_nofork;
+extern CW_API_PUBLIC int option_quiet;
+extern CW_API_PUBLIC int option_console;
+extern CW_API_PUBLIC int option_initcrypto;
+extern CW_API_PUBLIC int option_nocolor;
+extern CW_API_PUBLIC int option_remote;
+extern CW_API_PUBLIC int option_reconnect;
+extern CW_API_PUBLIC int fully_booted;
+extern CW_API_PUBLIC int option_exec_includes;
+extern CW_API_PUBLIC int option_cache_record_files;
+extern CW_API_PUBLIC int option_timestamp;
+extern CW_API_PUBLIC int option_transcode_slin;
+extern CW_API_PUBLIC int option_maxcalls;
+extern CW_API_PUBLIC double option_maxload;
+extern CW_API_PUBLIC int option_dontwarn;
+extern CW_API_PUBLIC int option_priority_jumping;
+extern CW_API_PUBLIC char defaultlanguage[];
+extern CW_API_PUBLIC time_t cw_startuptime;
+extern CW_API_PUBLIC time_t cw_lastreloadtime;
+extern CW_API_PUBLIC int cw_mainpid;
+extern CW_API_PUBLIC char record_cache_dir[CW_CACHE_DIR_LEN];
+extern CW_API_PUBLIC char debug_filename[CW_FILENAME_MAX];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

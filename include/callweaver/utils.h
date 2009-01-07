@@ -191,7 +191,7 @@ struct cw_flags {
  *
  * \return -1 on error, otherwise number of bytes written
  */
-extern int cw_writev_all(int fd, struct iovec *iov, int count);
+extern CW_API_PUBLIC int cw_writev_all(int fd, struct iovec *iov, int count);
 
 
 /*! write equivalent that does not assume the descriptor used will never
@@ -205,7 +205,7 @@ extern int cw_writev_all(int fd, struct iovec *iov, int count);
  *
  * \return -1 on error, otherwise number of bytes written
  */
-extern int cw_write_all(int fd, const char *data, int len);
+extern CW_API_PUBLIC int cw_write_all(int fd, const char *data, int len);
 
 
 /*! Open a file and set the close-on-exec flag
@@ -218,7 +218,7 @@ extern int cw_write_all(int fd, const char *data, int len);
 #  define open_cloexec(pathname, flags, mode)	open((pathname), (flags) | O_CLOEXEC, (mode))
 #else
 #  define open_cloexec(pathname, flags, mode)	open_cloexec_compat((pathname), (flags), (mode))
-extern int open_cloexec_compat(const char *pathname, int flags, mode_t mode);
+extern CW_API_PUBLIC int open_cloexec_compat(const char *pathname, int flags, mode_t mode);
 #endif
 
 
@@ -227,31 +227,31 @@ struct cw_hostent {
 	char buf[1024];
 };
 
-extern struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp);
+extern CW_API_PUBLIC struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp);
 
 #define CW_MAX_BINARY_MD_SIZE EVP_MAX_MD_SIZE
 #define CW_MAX_HEX_MD_SIZE ((EVP_MAX_MD_SIZE * 2) + 1)
 
 /* cw_hash_to_hex
    \brief Convert binary message digest to hex-encoded version. */
-extern void cw_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len);
+extern CW_API_PUBLIC void cw_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len);
 
-extern int cw_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len);
+extern CW_API_PUBLIC int cw_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len);
 
 /* cw_md5_hash 
 	\brief Produces MD5 hash based on input string */
-extern void cw_md5_hash(char *output, char *input);
+extern CW_API_PUBLIC void cw_md5_hash(char *output, char *input);
 
-extern int cw_md5_hash_two_bin(unsigned char *output,
+extern CW_API_PUBLIC int cw_md5_hash_two_bin(unsigned char *output,
 				 unsigned char *input1, unsigned int input1_len,
 				 unsigned char *input2, unsigned int input2_len);
 
 /* cw_md5_hash_two 
 	\brief Produces MD5 hash based on two input strings */
-extern void cw_md5_hash_two(char *output, char *input1, char *input2);
+extern CW_API_PUBLIC void cw_md5_hash_two(char *output, char *input1, char *input2);
 
-extern int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max);
-extern int cw_base64decode(unsigned char *dst, const char *src, int max);
+extern CW_API_PUBLIC int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max);
+extern CW_API_PUBLIC int cw_base64decode(unsigned char *dst, const char *src, int max);
 
 /*! cw_uri_encode
 	\brief Turn text string to URI-encoded %XX version 
@@ -268,23 +268,23 @@ extern int cw_base64decode(unsigned char *dst, const char *src, int max);
 	\param doreserved	Convert reserved characters
 */
 
-char *cw_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
+extern CW_API_PUBLIC char *cw_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
 	\param s	String to be decoded 
  */
-void cw_uri_decode(char *s);
+extern CW_API_PUBLIC void cw_uri_decode(char *s);
 
 extern int test_for_thread_safety(void);
 
-extern const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
+extern CW_API_PUBLIC const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__cw_inet_ntoa__instead__
 
-extern int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen);
+extern CW_API_PUBLIC int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen);
 
 extern int cw_utils_init(void);
 
@@ -296,14 +296,14 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 }
 
 
-extern struct sched_param global_sched_param_default;
-extern struct sched_param global_sched_param_rr;
-extern pthread_attr_t global_attr_default;
-extern pthread_attr_t global_attr_detached;
-extern pthread_attr_t global_attr_fifo_detached;
-extern pthread_attr_t global_attr_fifo;
-extern pthread_attr_t global_attr_rr_detached;
-extern pthread_attr_t global_attr_rr;
+extern CW_API_PUBLIC struct sched_param global_sched_param_default;
+extern CW_API_PUBLIC struct sched_param global_sched_param_rr;
+extern CW_API_PUBLIC pthread_attr_t global_attr_default;
+extern CW_API_PUBLIC pthread_attr_t global_attr_detached;
+extern CW_API_PUBLIC pthread_attr_t global_attr_fifo_detached;
+extern CW_API_PUBLIC pthread_attr_t global_attr_fifo;
+extern CW_API_PUBLIC pthread_attr_t global_attr_rr_detached;
+extern CW_API_PUBLIC pthread_attr_t global_attr_rr;
 
 
 /*! cw_pthread_create pins a reference to the module it is called from
@@ -313,13 +313,13 @@ extern pthread_attr_t global_attr_rr;
  */
 #define CW_STACKSIZE 256 * 1024
 #define cw_pthread_create(thread, attr, func, data) cw_pthread_create_module((thread), (attr), (func), (data), get_modinfo()->self, #func)
-extern int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
+extern CW_API_PUBLIC int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
 	__attribute__ ((nonnull (1,2,3)));
 
 #ifdef linux
 #define cw_random random
 #else
-long int cw_random(void);
+extern CW_API_PUBLIC long int cw_random(void);
 #endif
 
 /*!
@@ -335,6 +335,6 @@ long int cw_random(void);
   of any hop in the path will be lost. This function can be called on a socket
   to ensure that the DF bit will not be set.
  */
-void cw_enable_packet_fragmentation(int sock);
+extern CW_API_PUBLIC void cw_enable_packet_fragmentation(int sock);
 
 #endif /* _CALLWEAVER_UTILS_H */

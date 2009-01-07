@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS = gnu
 
-DEFS += -include $(top_builddir)/include/confdefs.h
+DEFS += -include $(top_builddir)/include/global.h
 
 cwinclude_HEADERS = acl.h \
                       app.h \

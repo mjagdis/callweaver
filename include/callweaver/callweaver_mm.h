@@ -38,13 +38,13 @@
 #undef strndup
 #undef vasprintf
 
-void *__cw_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
-void *__cw_malloc(size_t size, const char *file, int lineno, const char *func);
-void __cw_free(void *ptr, const char *file, int lineno, const char *func);
-void *__cw_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
-char *__cw_strdup(const char *s, const char *file, int lineno, const char *func);
-char *__cw_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
-int __cw_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC void *__cw_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC void *__cw_malloc(size_t size, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC void __cw_free(void *ptr, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC void *__cw_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC char *__cw_strdup(const char *s, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC char *__cw_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
+extern CW_API_PUBLIC int __cw_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
 
 void __cw_mm_init(void);
 

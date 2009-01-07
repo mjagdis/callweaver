@@ -42,6 +42,6 @@ struct cw_channel;
 	\param	port Port number (return value)
 	\param service Service tag for SRV lookup (like "_sip._udp" or "_stun._udp"
 */
-extern int cw_get_srv(struct cw_channel *chan, char *host, int hostlen, int *port, const char *service);
+extern CW_API_PUBLIC int cw_get_srv(struct cw_channel *chan, char *host, int hostlen, int *port, const char *service);
 
 #endif

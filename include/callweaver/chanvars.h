@@ -38,11 +38,11 @@ struct cw_var_t {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_var;
-extern struct cw_registry var_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_var;
+extern CW_API_PUBLIC struct cw_registry var_registry;
 
 
-extern int cw_var_registry_init(struct cw_registry *reg, int estsize);
+extern CW_API_PUBLIC int cw_var_registry_init(struct cw_registry *reg, int estsize);
 
 
 static inline __attribute__ ((pure)) unsigned int cw_hash_var_name(const char *name)
@@ -51,8 +51,8 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_var_name(const char *n
 }
 
 
-extern struct cw_var_t *cw_var_new(const char *name, const char *value, int refs);
-extern int cw_var_assign(struct cw_registry *registry, const char *name, const char *value);
+extern CW_API_PUBLIC struct cw_var_t *cw_var_new(const char *name, const char *value, int refs);
+extern CW_API_PUBLIC int cw_var_assign(struct cw_registry *registry, const char *name, const char *value);
 
 #define cw_var_hash(v) (v ? v->hash : 0)
 
@@ -85,7 +85,7 @@ static inline __attribute__ ((pure)) const char *cw_var_full_name(struct cw_var_
  *
  * \return 0 if no error
  */
-extern int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst);
+extern CW_API_PUBLIC int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst);
 
 /*!\brief Inherit variables
  * \param src  Variable registry to copy from
@@ -96,6 +96,6 @@ extern int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst);
  *
  * \return 0 if no error
  */
-extern int cw_var_copy(struct cw_registry *src, struct cw_registry *dst);
+extern CW_API_PUBLIC int cw_var_copy(struct cw_registry *src, struct cw_registry *dst);
 
 #endif /* _CALLWEAVER_CHANVARS_H */

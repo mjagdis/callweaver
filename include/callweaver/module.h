@@ -42,12 +42,12 @@ struct module;
 /*!
  * \brief Get a reference to a module
  */
-extern struct module *cw_module_get(struct module *mod);
+extern CW_API_PUBLIC struct module *cw_module_get(struct module *mod);
 
 /*!
  * \brief Put a reference to a module
  */
-extern void cw_module_put(struct module *mod);
+extern CW_API_PUBLIC void cw_module_put(struct module *mod);
 
 /*! 
  * \brief Load a module.

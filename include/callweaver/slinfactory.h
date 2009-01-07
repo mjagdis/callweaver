@@ -46,11 +46,10 @@ struct cw_slinfactory {
 
 };
 
-void cw_slinfactory_init(struct cw_slinfactory *sf);
-void cw_slinfactory_destroy(struct cw_slinfactory *sf);
-int cw_slinfactory_feed(struct cw_slinfactory *sf, struct cw_frame *f);
-int cw_slinfactory_read(struct cw_slinfactory *sf, short *buf, size_t bytes);
-		 
+extern CW_API_PUBLIC void cw_slinfactory_init(struct cw_slinfactory *sf);
+extern CW_API_PUBLIC void cw_slinfactory_destroy(struct cw_slinfactory *sf);
+extern CW_API_PUBLIC int cw_slinfactory_feed(struct cw_slinfactory *sf, struct cw_frame *f);
+extern CW_API_PUBLIC int cw_slinfactory_read(struct cw_slinfactory *sf, short *buf, size_t bytes);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

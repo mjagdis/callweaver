@@ -163,12 +163,12 @@ static __inline__ hash_entry_t *hash_create_entry(hash_table_t *table_ptr, const
     return (*table_ptr->create_proc)(table_ptr, key, new_ptr);
 }
 
-EXTERN void hash_delete_entry(hash_entry_t *entryPtr);
-EXTERN void hash_delete_table(hash_table_t *table_ptr);
-EXTERN hash_entry_t *hash_first_entry(hash_table_t *table_ptr, hash_search_t *search_ptr);
-EXTERN char *hash_stats(hash_table_t *table_ptr);
-EXTERN void hash_init_table(hash_table_t *table_ptr, int key_type);
-EXTERN hash_entry_t *hash_next_entry(hash_search_t *search_ptr);
+EXTERN CW_API_PUBLIC void hash_delete_entry(hash_entry_t *entryPtr);
+EXTERN CW_API_PUBLIC void hash_delete_table(hash_table_t *table_ptr);
+EXTERN CW_API_PUBLIC hash_entry_t *hash_first_entry(hash_table_t *table_ptr, hash_search_t *search_ptr);
+EXTERN CW_API_PUBLIC char *hash_stats(hash_table_t *table_ptr);
+EXTERN CW_API_PUBLIC void hash_init_table(hash_table_t *table_ptr, int key_type);
+EXTERN CW_API_PUBLIC hash_entry_t *hash_next_entry(hash_search_t *search_ptr);
 
 EXTERN void panic(char *format, ...);
 

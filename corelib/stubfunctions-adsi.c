@@ -17,9 +17,14 @@
 #include "confdefs.h"
 #endif
 
-//#include <callweaver/adsi.h>
+#include <callweaver.h>
+
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+
 #include <stdio.h>
+
 #include "callweaver/channel.h"
+#include <callweaver_addon/adsi.h>
 
 
 

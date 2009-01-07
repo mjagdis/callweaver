@@ -116,8 +116,8 @@ struct cw_timing
 	unsigned int minmask[24];		/* Mask for minute */
 };
 
-extern int cw_build_timing(struct cw_timing *i, char *info);
-extern int cw_check_timing(struct cw_timing *i);
+extern CW_API_PUBLIC int cw_build_timing(struct cw_timing *i, char *info);
+extern CW_API_PUBLIC int cw_check_timing(struct cw_timing *i);
 
 struct cw_pbx
 {
@@ -136,7 +136,7 @@ struct cw_pbx
  *     Numbers are true if non-zero, false otherwise
  * Returns zero for false, non-zero for true
  */
-extern int pbx_checkcondition(char *condition);
+extern CW_API_PUBLIC int pbx_checkcondition(char *condition);
 
 
 /*! Register a new context */
@@ -149,14 +149,14 @@ extern int pbx_checkcondition(char *condition);
  * and registrar.
  * It returns NULL on failure, and an cw_context structure on success
  */
-struct cw_context *cw_context_create(struct cw_context **extcontexts, const char *name, const char *registrar);
+extern CW_API_PUBLIC struct cw_context *cw_context_create(struct cw_context **extcontexts, const char *name, const char *registrar);
 
 /*! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added */
 /*!
  * \param extcontexts pointer to the cw_context structure pointer
  * \param registar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
  */
-void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *registrar);
+extern CW_API_PUBLIC void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *registrar);
 
 /*! Destroy a context (matches the specified context (or ANY context if NULL) */
 /*!
@@ -166,7 +166,7 @@ void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *r
  * based on either the cw_context or the registrar name.
  * Returns nothing
  */
-void cw_context_destroy(struct cw_context *con, const char *registrar);
+extern CW_API_PUBLIC void cw_context_destroy(struct cw_context *con, const char *registrar);
 
 /*! Find a context */
 /*!
@@ -174,7 +174,7 @@ void cw_context_destroy(struct cw_context *con, const char *registrar);
  * Will search for the context with the given name.
  * Returns the cw_context on success, NULL on failure.
  */
-struct cw_context *cw_context_find(const char *name);
+extern CW_API_PUBLIC struct cw_context *cw_context_find(const char *name);
 
 enum cw_pbx_result
 {
@@ -188,7 +188,7 @@ enum cw_pbx_result
  * \param c channel to start the pbx on
  * \return Zero on success, non-zero on failure
  */
-enum cw_pbx_result cw_pbx_start(struct cw_channel *c);
+extern CW_API_PUBLIC enum cw_pbx_result cw_pbx_start(struct cw_channel *c);
 
 /*! Execute the PBX in the current thread */
 /*!
@@ -197,7 +197,7 @@ enum cw_pbx_result cw_pbx_start(struct cw_channel *c);
  * This executes the PBX on a given channel. It allocates a new
  * PBX structure for the channel, and provides all PBX functionality.
  */
-enum cw_pbx_result cw_pbx_run(struct cw_channel *c);
+extern CW_API_PUBLIC enum cw_pbx_result cw_pbx_run(struct cw_channel *c);
 
 /*! 
  * \param context context to add the extension to
@@ -213,14 +213,14 @@ enum cw_pbx_result cw_pbx_run(struct cw_channel *c);
  * Callerid is a pattern to match CallerID, or NULL to match any callerid
  * Returns 0 on success, -1 on failure
  */
-int cw_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
+extern CW_API_PUBLIC int cw_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
 /*! Add an extension to an extension context, this time with an cw_context *.  CallerID is a pattern to match on callerid, or NULL to not care about callerid */
 /*! 
  * For details about the arguements, check cw_add_extension()
  */
-int cw_add_extension2(struct cw_context *con,
+extern CW_API_PUBLIC int cw_add_extension2(struct cw_context *con,
 				      int replace, const char *extension, int priority, const char *label, const char *callerid, 
 					  const char *application, void *data, void (*datad)(void *),
 					  const char *registrar);
@@ -232,14 +232,14 @@ int cw_add_extension2(struct cw_context *con,
  * \param exten which extension to get state
  * Returns extension state !! = CW_EXTENSION_???
  */
-int cw_extension_state(struct cw_channel *c, char *context, char *exten);
+extern CW_API_PUBLIC int cw_extension_state(struct cw_channel *c, char *context, char *exten);
 
 /*! Return string of the state of an extension */
 /*!
  * \param extension_state is the numerical state delivered by cw_extension_state
  * Returns the state of an extension as string
  */
-const char *cw_extension_state2str(int extension_state);
+extern CW_API_PUBLIC const char *cw_extension_state2str(int extension_state);
 
 /*! Registers a state change callback */
 /*!
@@ -250,7 +250,7 @@ const char *cw_extension_state2str(int extension_state);
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success
  */ 
-int cw_extension_state_add(const char *context, const char *exten, 
+extern CW_API_PUBLIC int cw_extension_state_add(const char *context, const char *exten, 
 			    cw_state_cb_type callback, void *data);
 
 /*! Deletes a registered state change callback by ID */
@@ -259,7 +259,7 @@ int cw_extension_state_add(const char *context, const char *exten,
  * Removes the callback from list of callbacks
  * Return 0 on success, -1 on failure
  */
-int cw_extension_state_del(int id, cw_state_cb_type callback);
+extern CW_API_PUBLIC int cw_extension_state_del(int id, cw_state_cb_type callback);
 
 /*! If an extension exists, return non-zero */
 /*!
@@ -274,7 +274,7 @@ int cw_extension_state_del(int id, cw_state_cb_type callback);
  * is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int cw_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct cw_channel *c, const char *context, const char *exten);
+extern CW_API_PUBLIC int cw_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct cw_channel *c, const char *context, const char *exten);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -287,7 +287,7 @@ int cw_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct cw_ch
  * If an extension within the given context(or callerid) with the given priority is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int cw_exists_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+extern CW_API_PUBLIC int cw_exists_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -299,9 +299,9 @@ int cw_exists_extension(struct cw_channel *c, const char *context, const char *e
  * \param callerid callerid to search for
  * If an priority which matches given label in extension or -1 if not found.
 \ */
-int cw_findlabel_extension(struct cw_channel *c, const char *context, const char *exten, const char *label, const char *callerid);
+extern CW_API_PUBLIC int cw_findlabel_extension(struct cw_channel *c, const char *context, const char *exten, const char *label, const char *callerid);
 
-int cw_findlabel_extension2(struct cw_channel *c, struct cw_context *con, const char *exten, const char *label, const char *callerid);
+extern CW_API_PUBLIC int cw_findlabel_extension2(struct cw_channel *c, struct cw_context *con, const char *exten, const char *label, const char *callerid);
 
 /*! Looks for a valid matching extension */
 /*!
@@ -314,7 +314,7 @@ int cw_findlabel_extension2(struct cw_channel *c, struct cw_context *con, const 
    some more digits, return non-zero.  Basically, when this returns 0, no matter
    what you add to exten, it's not going to be a valid extension anymore
 */
-int cw_canmatch_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+extern CW_API_PUBLIC int cw_canmatch_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Looks to see if adding anything to this extension might match something. (exists ^ canmatch) */
 /*!
@@ -328,9 +328,9 @@ int cw_canmatch_extension(struct cw_channel *c, const char *context, const char 
    an exact-match only.  Basically, when this returns 0, no matter
    what you add to exten, it's not going to be a valid extension anymore
 */
-int cw_matchmore_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+extern CW_API_PUBLIC int cw_matchmore_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-const char *cw_extension_match_to_str(int match);
+extern CW_API_PUBLIC const char *cw_extension_match_to_str(int match);
 
 /*! Determine how well a given extension matches a given pattern (in NXX format) */
 /*!
@@ -339,7 +339,7 @@ const char *cw_extension_match_to_str(int match);
  * Checks the extent to which the given extension matches the given pattern.
  * \return one of the enum cw_extension_match_conditions values
  */
-int cw_extension_pattern_match(const char *destination, const char *pattern);
+extern CW_API_PUBLIC int cw_extension_pattern_match(const char *destination, const char *pattern);
 
 /*! Execute an extension. */
 /*!
@@ -351,7 +351,7 @@ int cw_extension_pattern_match(const char *destination, const char *pattern);
    default extensions and halt the thread if necessary.  This function does not
    return, except on error.
 */
-int cw_exec_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+extern CW_API_PUBLIC int cw_exec_extension(struct cw_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Add an include */
 /*!
@@ -361,7 +361,7 @@ int cw_exec_extension(struct cw_channel *c, const char *context, const char *ext
    Adds an include taking a char * string as the context parameter
    Returns 0 on success, -1 on error
 */
-int cw_context_add_include(const char *context, const char *include, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_include(const char *context, const char *include, const char *registrar);
 
 /*! Add an include */
 /*!
@@ -371,25 +371,25 @@ int cw_context_add_include(const char *context, const char *include, const char 
    Adds an include taking a struct cw_context as the first parameter
    Returns 0 on success, -1 on failure
 */
-int cw_context_add_include2(struct cw_context *con, const char *include, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_include2(struct cw_context *con, const char *include, const char *registrar);
 
 /*! Removes an include */
 /*!
  * See add_include
  */
-int cw_context_remove_include(const char *context, const char *include,const  char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_include(const char *context, const char *include,const  char *registrar);
 /*! Removes an include by an cw_context structure */
 /*!
  * See add_include2
  */
-int cw_context_remove_include2(struct cw_context *con, const char *include, const char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_include2(struct cw_context *con, const char *include, const char *registrar);
 
 /*! Verifies includes in an cw_contect structure */
 /*!
  * \param con context in which to verify the includes
  * Returns 0 if no problems found, -1 if there were any missing context
  */
-int cw_context_verify_includes(struct cw_context *con);
+extern CW_API_PUBLIC int cw_context_verify_includes(struct cw_context *con);
 	  
 /*! Add a switch */
 /*!
@@ -401,20 +401,20 @@ int cw_context_verify_includes(struct cw_context *con);
  * This function registers a switch with the callweaver switch architecture
  * It returns 0 on success, -1 on failure
  */
-int cw_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
 /*! Adds a switch (first param is a cw_context) */
 /*!
  * See cw_context_add_switch()
  */
-int cw_context_add_switch2(struct cw_context *con, const char *sw, const char *data, int eval, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_switch2(struct cw_context *con, const char *sw, const char *data, int eval, const char *registrar);
 
 /*! Remove a switch */
 /*!
  * Removes a switch with the given parameters
  * Returns 0 on success, -1 on failure
  */
-int cw_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar);
-int cw_context_remove_switch2(struct cw_context *con, const char *sw, const char *data, const char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_switch2(struct cw_context *con, const char *sw, const char *data, const char *registrar);
 
 /*! Simply remove extension from context */
 /*!
@@ -425,9 +425,9 @@ int cw_context_remove_switch2(struct cw_context *con, const char *sw, const char
  * This function removes an extension from a given context.
  * Returns 0 on success, -1 on failure
  */
-int cw_context_remove_extension(const char *context, const char *extension, int priority,
+extern CW_API_PUBLIC int cw_context_remove_extension(const char *context, const char *extension, int priority,
 	const char *registrar);
-int cw_context_remove_extension2(struct cw_context *con, const char *extension,
+extern CW_API_PUBLIC int cw_context_remove_extension2(struct cw_context *con, const char *extension,
 	int priority, const char *registrar);
 
 /*! Add an ignorepat */
@@ -438,8 +438,8 @@ int cw_context_remove_extension2(struct cw_context *con, const char *extension,
  * Adds an ignore pattern to a particular context.
  * Returns 0 on success, -1 on failure
  */
-int cw_context_add_ignorepat(const char *context, const char *ignorepat, const char *registrar);
-int cw_context_add_ignorepat2(struct cw_context *con, const char *ignorepat, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_ignorepat(const char *context, const char *ignorepat, const char *registrar);
+extern CW_API_PUBLIC int cw_context_add_ignorepat2(struct cw_context *con, const char *ignorepat, const char *registrar);
 
 /* Remove an ignorepat */
 /*!
@@ -449,8 +449,8 @@ int cw_context_add_ignorepat2(struct cw_context *con, const char *ignorepat, con
  * This removes the given ignorepattern
  * Returns 0 on success, -1 on failure
  */
-int cw_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar);
-int cw_context_remove_ignorepat2(struct cw_context *con, const char *ignorepat, const char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar);
+extern CW_API_PUBLIC int cw_context_remove_ignorepat2(struct cw_context *con, const char *ignorepat, const char *registrar);
 
 /*! Checks to see if a number should be ignored */
 /*!
@@ -459,20 +459,20 @@ int cw_context_remove_ignorepat2(struct cw_context *con, const char *ignorepat, 
  * Check if a number should be ignored with respect to dialtone cancellation.  
  * Returns 0 if the pattern should not be ignored, or non-zero if the pattern should be ignored 
  */
-int cw_ignore_pattern(const char *context, const char *pattern);
+extern CW_API_PUBLIC int cw_ignore_pattern(const char *context, const char *pattern);
 
 /* Locking functions for outer modules, especially for completion functions */
 /*! Locks the contexts */
 /*! Locks the context list
  * Returns 0 on success, -1 on error
  */
-int cw_lock_contexts(void);
+extern CW_API_PUBLIC int cw_lock_contexts(void);
 
 /*! Unlocks contexts */
 /*!
  * Returns 0 on success, -1 on failure
  */
-int cw_unlock_contexts(void);
+extern CW_API_PUBLIC int cw_unlock_contexts(void);
 
 /*! Locks a given context */
 /*!
@@ -480,85 +480,81 @@ int cw_unlock_contexts(void);
  * Locks the context.
  * Returns 0 on success, -1 on failure
  */
-int cw_lock_context(struct cw_context *con);
+extern CW_API_PUBLIC int cw_lock_context(struct cw_context *con);
 /*! Unlocks the given context */
 /*!
  * \param con context to unlock
  * Unlocks the given context
  * Returns 0 on success, -1 on failure
  */
-int cw_unlock_context(struct cw_context *con);
+extern CW_API_PUBLIC int cw_unlock_context(struct cw_context *con);
 
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
+extern CW_API_PUBLIC int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
+extern CW_API_PUBLIC int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel);
 
 /* Functions for returning values from structures */
-const char *cw_get_context_name(struct cw_context *con);
-const char *cw_get_extension_name(struct cw_exten *exten);
-const char *cw_get_include_name(struct cw_include *include);
-const char *cw_get_ignorepat_name(struct cw_ignorepat *ip);
-const char *cw_get_switch_name(struct cw_sw *sw);
-const char *cw_get_switch_data(struct cw_sw *sw);
+extern CW_API_PUBLIC const char *cw_get_context_name(struct cw_context *con);
+extern CW_API_PUBLIC const char *cw_get_extension_name(struct cw_exten *exten);
+extern CW_API_PUBLIC const char *cw_get_include_name(struct cw_include *include);
+extern CW_API_PUBLIC const char *cw_get_ignorepat_name(struct cw_ignorepat *ip);
+extern CW_API_PUBLIC const char *cw_get_switch_name(struct cw_sw *sw);
+extern CW_API_PUBLIC const char *cw_get_switch_data(struct cw_sw *sw);
 
 /* Other extension stuff */
-int cw_get_extension_priority(struct cw_exten *exten);
-int cw_get_extension_matchcid(struct cw_exten *e);
-const char *cw_get_extension_cidmatch(struct cw_exten *e);
-const char *cw_get_extension_app(struct cw_exten *e);
-const char *cw_get_extension_label(struct cw_exten *e);
-void *cw_get_extension_app_data(struct cw_exten *e);
+extern CW_API_PUBLIC int cw_get_extension_priority(struct cw_exten *exten);
+extern CW_API_PUBLIC int cw_get_extension_matchcid(struct cw_exten *e);
+extern CW_API_PUBLIC const char *cw_get_extension_cidmatch(struct cw_exten *e);
+extern CW_API_PUBLIC const char *cw_get_extension_app(struct cw_exten *e);
+extern CW_API_PUBLIC const char *cw_get_extension_label(struct cw_exten *e);
+extern CW_API_PUBLIC void *cw_get_extension_app_data(struct cw_exten *e);
 
 /* Registrar info functions ... */
-const char *cw_get_context_registrar(struct cw_context *c);
-const char *cw_get_extension_registrar(struct cw_exten *e);
-const char *cw_get_include_registrar(struct cw_include *i);
-const char *cw_get_ignorepat_registrar(struct cw_ignorepat *ip);
-const char *cw_get_switch_registrar(struct cw_sw *sw);
+extern CW_API_PUBLIC const char *cw_get_context_registrar(struct cw_context *c);
+extern CW_API_PUBLIC const char *cw_get_extension_registrar(struct cw_exten *e);
+extern CW_API_PUBLIC const char *cw_get_include_registrar(struct cw_include *i);
+extern CW_API_PUBLIC const char *cw_get_ignorepat_registrar(struct cw_ignorepat *ip);
+extern CW_API_PUBLIC const char *cw_get_switch_registrar(struct cw_sw *sw);
 
 /* Walking functions ... */
-struct cw_context *cw_walk_contexts(struct cw_context *con);
-struct cw_exten *cw_walk_context_extensions(struct cw_context *con,
-	struct cw_exten *priority);
-struct cw_exten *cw_walk_extension_priorities(struct cw_exten *exten,
-	struct cw_exten *priority);
-struct cw_include *cw_walk_context_includes(struct cw_context *con,
-	struct cw_include *inc);
-struct cw_ignorepat *cw_walk_context_ignorepats(struct cw_context *con,
-	struct cw_ignorepat *ip);
-struct cw_sw *cw_walk_context_switches(struct cw_context *con, struct cw_sw *sw);
+extern CW_API_PUBLIC struct cw_context *cw_walk_contexts(struct cw_context *con);
+extern CW_API_PUBLIC struct cw_exten *cw_walk_context_extensions(struct cw_context *con, struct cw_exten *priority);
+extern CW_API_PUBLIC struct cw_exten *cw_walk_extension_priorities(struct cw_exten *exten, struct cw_exten *priority);
+extern CW_API_PUBLIC struct cw_include *cw_walk_context_includes(struct cw_context *con, struct cw_include *inc);
+extern CW_API_PUBLIC struct cw_ignorepat *cw_walk_context_ignorepats(struct cw_context *con, struct cw_ignorepat *ip);
+extern CW_API_PUBLIC struct cw_sw *cw_walk_context_switches(struct cw_context *con, struct cw_sw *sw);
 
-int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size);
-extern struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name);
-extern void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value);
-extern void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
-extern void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg);
-extern void pbx_builtin_clear_globals(void);
-extern int pbx_substitute_variables_helper(struct cw_channel *c,const char *cp1,char *cp2,int count);
-extern int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count);
+extern CW_API_PUBLIC int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size);
+extern CW_API_PUBLIC struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name);
+extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value);
+extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
+extern CW_API_PUBLIC void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg);
+extern CW_API_PUBLIC void pbx_builtin_clear_globals(void);
+extern CW_API_PUBLIC int pbx_substitute_variables_helper(struct cw_channel *c,const char *cp1,char *cp2,int count);
+extern CW_API_PUBLIC int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count);
 
-int cw_extension_patmatch(const char *pattern, const char *data);
+extern CW_API_PUBLIC int cw_extension_patmatch(const char *pattern, const char *data);
 
 /* Set "autofallthrough" flag, if newval is <0, does not acutally set.  If
   set to 1, sets to auto fall through.  If newval set to 0, sets to no auto
   fall through (reads extension instead).  Returns previous value. */
-extern int pbx_set_autofallthrough(int newval);
+extern CW_API_PUBLIC int pbx_set_autofallthrough(int newval);
 /* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
-int cw_parseable_goto(struct cw_channel *chan, const char *goto_string);
-int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
-int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
-int cw_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority, int async, int ifexists);
-int cw_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async, int ifexists);
+extern CW_API_PUBLIC int cw_parseable_goto(struct cw_channel *chan, const char *goto_string);
+extern CW_API_PUBLIC int cw_explicit_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
+extern CW_API_PUBLIC int cw_async_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority);
+extern CW_API_PUBLIC int cw_goto_n(struct cw_channel *chan, const char *context, const char *exten, int priority, int async, int ifexists);
+extern CW_API_PUBLIC int cw_goto(struct cw_channel *chan, const char *context, const char *exten, const char *priority, int async, int ifexists);
 #define cw_explicit_goto(chan, context, exten, priority)    cw_goto((chan), (context), (exten), (priority), 0, 0)
 #define cw_async_goto(chan, context, exten, priority)       cw_goto((chan), (context), (exten), (priority), 1, 0)
 #define cw_goto_if_exists_n(chan, context, exten, priority) cw_goto_n((chan), (context), (exten), (priority), 0, 1)
 #define cw_goto_if_exists(chan, context, exten, priority)   cw_goto((chan), (context), (exten), (priority), 0, 1)
-int cw_async_goto_by_name(const char *chan, const char *context, const char *exten, const char *priority);
+extern CW_API_PUBLIC int cw_async_goto_by_name(const char *chan, const char *context, const char *exten, const char *priority);
 
 
 /*! \brief Logs a syntax error for a function
@@ -567,7 +563,7 @@ int cw_async_goto_by_name(const char *chan, const char *context, const char *ext
  *
  * \return -1. Propogating this back up the call chain will hang up the current call.
  */
-extern int cw_function_syntax(const char *syntax);
+extern CW_API_PUBLIC int cw_function_syntax(const char *syntax);
 
 /*! \brief Executes a function using an array of arguments
  *
@@ -584,7 +580,7 @@ extern int cw_function_syntax(const char *syntax);
  *
  * \return 0 on success, -1 on failure
  */
-extern int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *result, size_t result_max);
+extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *result, size_t result_max);
 
 /*! \brief Executes a function using an argument string
  *
@@ -606,15 +602,15 @@ extern int cw_function_exec(struct cw_channel *chan, unsigned int hash, const ch
  *
  * \return 0 on success, -1 on failure
  */
-extern int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *result, size_t result_max);
+extern CW_API_PUBLIC int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *result, size_t result_max);
 
 
 /* Number of active calls */
-int cw_active_calls(void);
-	
-void cw_hint_state_changed(const char *device);
+extern CW_API_PUBLIC int cw_active_calls(void);
 
-int pbx_checkcondition(char *condition);
+extern CW_API_PUBLIC void cw_hint_state_changed(const char *device);
+
+extern CW_API_PUBLIC int pbx_checkcondition(char *condition);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

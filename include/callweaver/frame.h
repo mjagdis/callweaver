@@ -380,7 +380,7 @@ static inline void cw_fr_free(struct cw_frame *frame)
  *
  * \return Replacement frame on success, NULL on error
  */
-struct cw_frame *cw_frisolate(struct cw_frame *frame);
+extern CW_API_PUBLIC struct cw_frame *cw_frisolate(struct cw_frame *frame);
 
 
 /*! \brief Duplicate a frame
@@ -393,10 +393,10 @@ struct cw_frame *cw_frisolate(struct cw_frame *frame);
  *
  * \return Duplicate frame on success, NULL on error
  */
-struct cw_frame *cw_frdup(struct cw_frame *frame);
+extern CW_API_PUBLIC struct cw_frame *cw_frdup(struct cw_frame *frame);
 
 
-void cw_swapcopy_samples(void *dst, const void *src, int samples);
+extern CW_API_PUBLIC void cw_swapcopy_samples(void *dst, const void *src, int samples);
 
 /* Helpers for byteswapping native samples to/from 
    little-endian and big-endian. */
@@ -414,7 +414,7 @@ void cw_swapcopy_samples(void *dst, const void *src, int samples);
  * \param format id of format
  * \return A static string containing the name of the format or "UNKN" if unknown.
  */
-extern char* cw_getformatname(int format);
+extern CW_API_PUBLIC char *cw_getformatname(int format);
 
 /*! Get the names of a set of formats */
 /*!
@@ -425,14 +425,14 @@ extern char* cw_getformatname(int format);
  * ex: for format=CW_FORMAT_GSM|CW_FORMAT_SPEEX|CW_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.
  */
-extern char* cw_getformatname_multiple(char *buf, size_t size, int format);
+extern CW_API_PUBLIC char *cw_getformatname_multiple(char *buf, size_t size, int format);
 
 /*!
  * \param name string of format
  * Gets a format from a name.
  * This returns the form of the format in binary on success, 0 on error.
  */
-extern int cw_getformatbyname(const char *name);
+extern CW_API_PUBLIC int cw_getformatbyname(const char *name);
 
 /*! Get a name from a format */
 /*!
@@ -440,20 +440,20 @@ extern int cw_getformatbyname(const char *name);
  * Gets a name from a format
  * This returns a static string identifying the format on success, 0 on error.
  */
-extern char *cw_codec2str(int codec);
+extern CW_API_PUBLIC char *cw_codec2str(int codec);
 
 struct cw_smoother;
 
-extern struct cw_smoother *cw_smoother_new(int bytes);
-extern void cw_smoother_set_flags(struct cw_smoother *smoother, int flags);
-extern int cw_smoother_test_flag(struct cw_smoother *s, int flag);
-extern int cw_smoother_get_flags(struct cw_smoother *smoother);
-extern void cw_smoother_free(struct cw_smoother *s);
-extern void cw_smoother_reset(struct cw_smoother *s, int bytes);
-extern int __cw_smoother_feed(struct cw_smoother *s, struct cw_frame *f, int swap);
-extern struct cw_frame *cw_smoother_read(struct cw_smoother *s);
+extern CW_API_PUBLIC struct cw_smoother *cw_smoother_new(int bytes);
+extern CW_API_PUBLIC void cw_smoother_set_flags(struct cw_smoother *smoother, int flags);
+extern CW_API_PUBLIC int cw_smoother_test_flag(struct cw_smoother *s, int flag);
+extern CW_API_PUBLIC int cw_smoother_get_flags(struct cw_smoother *smoother);
+extern CW_API_PUBLIC void cw_smoother_free(struct cw_smoother *s);
+extern CW_API_PUBLIC void cw_smoother_reset(struct cw_smoother *s, int bytes);
+extern CW_API_PUBLIC int __cw_smoother_feed(struct cw_smoother *s, struct cw_frame *f, int swap);
+extern CW_API_PUBLIC struct cw_frame *cw_smoother_read(struct cw_smoother *s);
 
-extern int cw_codec_sample_rate(struct cw_frame *f);
+extern CW_API_PUBLIC int cw_codec_sample_rate(struct cw_frame *f);
 
 #define cw_smoother_feed(s,f) __cw_smoother_feed(s, f, 0)
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -464,39 +464,39 @@ extern int cw_codec_sample_rate(struct cw_frame *f);
 #define cw_smoother_feed_le(s,f) __cw_smoother_feed(s, f, 1)
 #endif
 
-extern void cw_frame_dump(char *name, struct cw_frame *f, char *prefix);
+extern CW_API_PUBLIC void cw_frame_dump(char *name, struct cw_frame *f, char *prefix);
 
 /* Initialize a codec preference to "no preference" */
-extern void cw_codec_pref_init(struct cw_codec_pref *pref);
+extern CW_API_PUBLIC void cw_codec_pref_init(struct cw_codec_pref *pref);
 
 /* Codec located at  a particular place in the preference index */
-extern int cw_codec_pref_index(struct cw_codec_pref *pref, int index);
+extern CW_API_PUBLIC int cw_codec_pref_index(struct cw_codec_pref *pref, int index);
 
 /* Remove a codec from a preference list */
-extern void cw_codec_pref_remove(struct cw_codec_pref *pref, int format);
+extern CW_API_PUBLIC void cw_codec_pref_remove(struct cw_codec_pref *pref, int format);
 
 /* Append a codec to a preference list, removing it first if it was already there */
-extern int cw_codec_pref_append(struct cw_codec_pref *pref, int format);
+extern CW_API_PUBLIC int cw_codec_pref_append(struct cw_codec_pref *pref, int format);
 
 /* Select the best format according to preference list from supplied options. 
    If "find_best" is non-zero then if nothing is found, the "Best" format of 
    the format list is selected, otherwise 0 is returned. */
-extern int cw_codec_choose(struct cw_codec_pref *pref, int formats, int find_best);
+extern CW_API_PUBLIC int cw_codec_choose(struct cw_codec_pref *pref, int formats, int find_best);
 
 /* Parse an "allow" or "deny" line and update the mask and pref if provided */
-extern void cw_parse_allow_disallow(struct cw_codec_pref *pref, int *mask, const char *list, int allowing);
+extern CW_API_PUBLIC void cw_parse_allow_disallow(struct cw_codec_pref *pref, int *mask, const char *list, int allowing);
 
 /* Dump codec preference list into a string */
-extern int cw_codec_pref_string(struct cw_codec_pref *pref, char *buf, size_t size);
+extern CW_API_PUBLIC int cw_codec_pref_string(struct cw_codec_pref *pref, char *buf, size_t size);
 
 /* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
-extern void cw_codec_pref_convert(struct cw_codec_pref *pref, char *buf, size_t size, int right);
+extern CW_API_PUBLIC void cw_codec_pref_convert(struct cw_codec_pref *pref, char *buf, size_t size, int right);
 
 /* Returns the number of samples contained in the frame */
-extern int cw_codec_get_samples(struct cw_frame *f);
+extern CW_API_PUBLIC int cw_codec_get_samples(struct cw_frame *f);
 
 /* Returns the number of bytes for the number of samples of the given format */
-extern int cw_codec_get_len(int format, int samples);
+extern CW_API_PUBLIC int cw_codec_get_len(int format, int samples);
 
 /* Gets duration in ms of interpolation frame for a format */
 static inline int cw_codec_interp_len(int format) 
@@ -510,7 +510,7 @@ static inline int cw_codec_interp_len(int format)
   \param adjustment The number of dB to adjust up or down.
   \return 0 for success, non-zero for an error
  */
-int cw_frame_adjust_volume(struct cw_frame *f, int adjustment);
+extern CW_API_PUBLIC int cw_frame_adjust_volume(struct cw_frame *f, int adjustment);
 
 /*!
   \brief Sums two frames of audio samples.
@@ -521,7 +521,7 @@ int cw_frame_adjust_volume(struct cw_frame *f, int adjustment);
   The frames must be CW_FRAME_VOICE and must contain CW_FORMAT_SLINEAR samples,
   and must contain the same number of samples.
  */
-int cw_frame_slinear_sum(struct cw_frame *f1, struct cw_frame *f2);
+extern CW_API_PUBLIC int cw_frame_slinear_sum(struct cw_frame *f1, struct cw_frame *f2);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

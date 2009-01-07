@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS		= gnu foreign
 
-DEFS += -include $(top_builddir)/include/confdefs.h
+DEFS += -include $(top_builddir)/include/global.h
 
 cwmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \

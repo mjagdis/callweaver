@@ -99,9 +99,9 @@ extern "C"
 #endif
 
 #if (__STDC__ > 0) || defined(__cplusplus)
-extern int poll (struct pollfd *pArray, unsigned long n_fds, int timeout);
+extern CW_API_PUBLIC int poll (struct pollfd *pArray, unsigned long n_fds, int timeout);
 #else
-extern int poll();
+extern CW_API_PUBLIC int poll();
 #endif
 
 #ifdef __cplusplus

@@ -12,25 +12,25 @@
  * at the top of the source tree.
  */
 
-extern char stunserver_host[MAXHOSTNAMELEN];
-extern struct sockaddr_in stunserver_ip;
-extern int stunserver_portno;
-extern int stundebug;               /*!< Are we debugging stun? */
+extern CW_API_PUBLIC char stunserver_host[MAXHOSTNAMELEN];
+extern CW_API_PUBLIC struct sockaddr_in stunserver_ip;
+extern CW_API_PUBLIC int stunserver_portno;
+extern CW_API_PUBLIC int stundebug;               /*!< Are we debugging stun? */
 
-rfc3489_addr_t *cw_stun_find_request(rfc3489_trans_id_t *st);
+extern CW_API_PUBLIC rfc3489_addr_t *cw_stun_find_request(rfc3489_trans_id_t *st);
 
-rfc3489_request_t *cw_udp_stun_bindrequest(int fdus,
+extern CW_API_PUBLIC rfc3489_request_t *cw_udp_stun_bindrequest(int fdus,
                                              struct sockaddr_in *suggestion, 
                                              const char *username,
                                              const char *password);
 
-int stun_remove_request(rfc3489_trans_id_t *st);
+extern CW_API_PUBLIC int stun_remove_request(rfc3489_trans_id_t *st);
 
-int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len, rfc3489_state_t *st);
+extern CW_API_PUBLIC int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len, rfc3489_state_t *st);
 
-int stun_do_debug(int fd, int argc, char *argv[]);
+extern CW_API_PUBLIC int stun_do_debug(int fd, int argc, char *argv[]);
 
-int stun_no_debug(int fd, int argc, char *argv[]);
+extern CW_API_PUBLIC int stun_no_debug(int fd, int argc, char *argv[]);
 
 int cw_stun_init(void);
 

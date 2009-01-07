@@ -41,7 +41,7 @@ struct cw_key;
  *
  * Returns the key on success or NULL on failure
  */
-struct cw_key *cw_key_get(const char *key, int type);
+extern CW_API_PUBLIC struct cw_key *cw_key_get(const char *key, int type);
 
 
 /*! \brief Check the authenticity of a message signature using a given public key 
@@ -52,7 +52,7 @@ struct cw_key *cw_key_get(const char *key, int type);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-int cw_check_signature(struct cw_key *key, const char *msg, const char *sig);
+extern CW_API_PUBLIC int cw_check_signature(struct cw_key *key, const char *msg, const char *sig);
 
 /*! \brief Check the authenticity of a message signature using a given public key 
  * \param key a public key to use to verify
@@ -62,7 +62,7 @@ int cw_check_signature(struct cw_key *key, const char *msg, const char *sig);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-int cw_check_signature_bin(struct cw_key *key, const char *msg, int msglen, const unsigned char *sig);
+extern CW_API_PUBLIC int cw_check_signature_bin(struct cw_key *key, const char *msg, int msglen, const unsigned char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -73,7 +73,7 @@ int cw_check_signature_bin(struct cw_key *key, const char *msg, int msglen, cons
  * Returns 0 on success or -1 on failure.
  *
  */
-int cw_sign(struct cw_key *key, char *msg, char *sig);
+extern CW_API_PUBLIC int cw_sign(struct cw_key *key, char *msg, char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -84,7 +84,7 @@ int cw_sign(struct cw_key *key, char *msg, char *sig);
  * Returns 0 on success or -1 on failure.
  *
  */
-int cw_sign_bin(struct cw_key *key, const char *msg, int msglen, unsigned char *sig);
+extern CW_API_PUBLIC int cw_sign_bin(struct cw_key *key, const char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to encrypt
@@ -96,7 +96,7 @@ int cw_sign_bin(struct cw_key *key, const char *msg, int msglen, unsigned char *
  * Returns length of encrypted data on success or -1 on failure.
  *
  */
-int cw_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key);
+extern CW_API_PUBLIC int cw_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key);
 
 /*!
  * \param key a private key to use to decrypt
@@ -108,7 +108,7 @@ int cw_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, str
  * Returns length of decrypted data on success or -1 on failure.
  *
  */
-int cw_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key);
+extern CW_API_PUBLIC int cw_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct cw_key *key);
 
 int cw_crypto_init(void);
 	

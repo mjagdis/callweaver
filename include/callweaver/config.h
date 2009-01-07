@@ -67,8 +67,8 @@ struct cw_config_engine {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_config_engine;
-extern struct cw_registry config_engine_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_config_engine;
+extern CW_API_PUBLIC struct cw_registry config_engine_registry;
 
 
 #define cw_config_engine_register(ptr) ({ \
@@ -96,14 +96,14 @@ extern struct cw_registry config_engine_registry;
  *
  * Returns NULL on error, or an cw_config data structure on success
  */
-struct cw_config *cw_config_load(const char *filename);
+extern CW_API_PUBLIC struct cw_config *cw_config_load(const char *filename);
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure
  * Free memory associated with a given config
  *
  */
-void cw_config_destroy(struct cw_config *config);
+extern CW_API_PUBLIC void cw_config_destroy(struct cw_config *config);
 
 /*! \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
@@ -112,7 +112,7 @@ void cw_config_destroy(struct cw_config *config);
  *
  * Returns a category on success, or NULL on failure/no-more-categories
  */
-char *cw_category_browse(struct cw_config *config, const char *prev);
+extern CW_API_PUBLIC char *cw_category_browse(struct cw_config *config, const char *prev);
 
 /*! \brief Goes through variables
  * Somewhat similar in intent as the cw_category_browse.
@@ -120,7 +120,7 @@ char *cw_category_browse(struct cw_config *config, const char *prev);
  *
  * Returns cw_variable list on success, or NULL on failure
  */
-struct cw_variable *cw_variable_browse(const struct cw_config *config, const char *category);
+extern CW_API_PUBLIC struct cw_variable *cw_variable_browse(const struct cw_config *config, const char *category);
 
 /*! \brief Gets a variable 
  * \param config which (opened) config to use
@@ -130,7 +130,7 @@ struct cw_variable *cw_variable_browse(const struct cw_config *config, const cha
  *
  * Returns the variable value on success, or NULL if unable to find it.
  */
-char *cw_variable_retrieve(const struct cw_config *config, const char *category, const char *variable);
+extern CW_API_PUBLIC char *cw_variable_retrieve(const struct cw_config *config, const char *category, const char *variable);
 
 /*! \brief Retrieve a category if it exists
  * \param config which config to use
@@ -139,7 +139,7 @@ char *cw_variable_retrieve(const struct cw_config *config, const char *category,
  *
  * Returns pointer to category if found, NULL if not.
  */
-struct cw_category *cw_category_get(const struct cw_config *config, const char *category_name);
+extern CW_API_PUBLIC struct cw_category *cw_category_get(const struct cw_config *config, const char *category_name);
 
 /*! \brief Check for category duplicates 
  * \param config which config to use
@@ -148,7 +148,7 @@ struct cw_category *cw_category_get(const struct cw_config *config, const char *
  *
  * Return non-zero if found
  */
-int cw_category_exist(const struct cw_config *config, const char *category_name);
+extern CW_API_PUBLIC int cw_category_exist(const struct cw_config *config, const char *category_name);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
@@ -159,7 +159,7 @@ int cw_category_exist(const struct cw_config *config, const char *category_name)
  * that unlike the variables in cw_config, the resulting list of variables
  * MUST be fred with cw_free_runtime() as there is no container.
  */
-struct cw_variable *cw_load_realtime(const char *family, ...);
+extern CW_API_PUBLIC struct cw_variable *cw_load_realtime(const char *family, ...);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
@@ -171,7 +171,7 @@ struct cw_variable *cw_load_realtime(const char *family, ...);
  * is thus stored inside a taditional cw_config structure rather than 
  * just returning a linked list of variables.
  */
-struct cw_config *cw_load_realtime_multientry(const char *family, ...);
+extern CW_API_PUBLIC struct cw_config *cw_load_realtime_multientry(const char *family, ...);
 
 /*! \brief Update realtime configuration 
  * \param family which family/config to be updated
@@ -182,41 +182,41 @@ struct cw_config *cw_load_realtime_multientry(const char *family, ...);
  * This function is used to update a parameter in realtime configuration space.
  *
  */
-int cw_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+extern CW_API_PUBLIC int cw_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
 /*! \brief Check if realtime engine is configured for family 
  * returns 1 if family is configured in realtime and engine exists
  * \param family which family/config to be checked
 */
-int cw_check_realtime(const char *family);
+extern CW_API_PUBLIC int cw_check_realtime(const char *family);
 
 /*! \brief Free variable list 
  * \param var the linked list of variables to free
  * This function frees a list of variables.
  */
-void cw_variables_destroy(struct cw_variable *var);
+extern CW_API_PUBLIC void cw_variables_destroy(struct cw_variable *var);
 
 int register_config_cli(void);
 void read_config_maps(void);
 
-struct cw_config *cw_config_new(void);
-struct cw_category *cw_config_get_current_category(const struct cw_config *cfg);
-void cw_config_set_current_category(struct cw_config *cfg, const struct cw_category *cat);
+extern CW_API_PUBLIC struct cw_config *cw_config_new(void);
+extern CW_API_PUBLIC struct cw_category *cw_config_get_current_category(const struct cw_config *cfg);
+extern CW_API_PUBLIC void cw_config_set_current_category(struct cw_config *cfg, const struct cw_category *cat);
 
-struct cw_category *cw_category_new(const char *name);
-void cw_category_append(struct cw_config *config, struct cw_category *cat);
-int cw_category_delete(struct cw_config *cfg, char *category);
-void cw_category_destroy(struct cw_category *cat);
-struct cw_variable *cw_category_detach_variables(struct cw_category *cat);
-void cw_category_rename(struct cw_category *cat, const char *name);
+extern CW_API_PUBLIC struct cw_category *cw_category_new(const char *name);
+extern CW_API_PUBLIC void cw_category_append(struct cw_config *config, struct cw_category *cat);
+extern CW_API_PUBLIC int cw_category_delete(struct cw_config *cfg, char *category);
+extern CW_API_PUBLIC void cw_category_destroy(struct cw_category *cat);
+extern CW_API_PUBLIC struct cw_variable *cw_category_detach_variables(struct cw_category *cat);
+extern CW_API_PUBLIC void cw_category_rename(struct cw_category *cat, const char *name);
 
-struct cw_variable *cw_variable_new(const char *name, const char *value);
-void cw_variable_append(struct cw_category *category, struct cw_variable *variable);
-int cw_variable_delete(struct cw_config *cfg, char *category, char *variable, char *value);
+extern CW_API_PUBLIC struct cw_variable *cw_variable_new(const char *name, const char *value);
+extern CW_API_PUBLIC void cw_variable_append(struct cw_category *category, struct cw_variable *variable);
+extern CW_API_PUBLIC int cw_variable_delete(struct cw_config *cfg, char *category, char *variable, char *value);
 
-int config_text_file_save(const char *filename, const struct cw_config *cfg, const char *generator);
+extern CW_API_PUBLIC int config_text_file_save(const char *filename, const struct cw_config *cfg, const char *generator);
 
-struct cw_config *cw_config_internal_load(const char *configfile, struct cw_config *cfg);
+extern CW_API_PUBLIC struct cw_config *cw_config_internal_load(const char *configfile, struct cw_config *cfg);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

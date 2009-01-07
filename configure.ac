@@ -199,6 +199,11 @@ if test "$have_host_cc" = "no"; then
 fi
 AC_SUBST(HOST_CC)
 
+gl_VISIBILITY
+if test -n "${CFLAG_VISIBILITY}"; then
+	CFLAGS="$CFLAGS ${CFLAG_VISIBILITY}"
+fi
+
 dnl ##########################
 dnl #
 dnl # Installation directories

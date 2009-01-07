@@ -28,14 +28,14 @@
 /*!
  * \param n The number to be stripped/shrunk
  */
-extern void cw_shrink_phone_number(char *n);
+extern CW_API_PUBLIC void cw_shrink_phone_number(char *n);
 
 /*! Check if a string consists only of digits.  Returns non-zero if so */
 /*!
  * \param n number to be checked.
  * \return 0 if n is a number, 1 if it's not.
  */
-extern int cw_isphonenumber(const char *n);
+extern CW_API_PUBLIC int cw_isphonenumber(const char *n);
 
 /* Various defines and bits for handling PRI- and SS7-type restriction */
 
@@ -78,15 +78,15 @@ extern int cw_isphonenumber(const char *n);
 #define CW_PRES_NUMBER_NOT_AVAILABLE \
 	CW_PRES_NETWORK_NUMBER + CW_PRES_UNAVAILABLE
 
-extern int cw_parse_caller_presentation(const char *data);
+extern CW_API_PUBLIC int cw_parse_caller_presentation(const char *data);
 
-extern const char *cw_describe_caller_presentation(int data);
+extern CW_API_PUBLIC const char *cw_describe_caller_presentation(int data);
 
-extern int cw_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
+extern CW_API_PUBLIC int cw_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
 
-extern char *cw_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
+extern CW_API_PUBLIC char *cw_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
 
 /*! Destructively parse inbuf into name and location (or number) */
-extern int cw_callerid_parse(char *instr, char **name, char **location);
+extern CW_API_PUBLIC int cw_callerid_parse(char *instr, char **name, char **location);
 
 #endif /* _CALLWEAVER_PHONE_NO_UTILS_H */

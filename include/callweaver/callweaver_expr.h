@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-int cw_expr(char *expr, char *buf, int length);
+extern CW_API_PUBLIC int cw_expr(char *expr, char *buf, int length);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

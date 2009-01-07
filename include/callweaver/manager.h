@@ -113,8 +113,8 @@ struct manager_action {
 extern struct cw_registry manager_listener_registry;
 extern struct cw_registry manager_session_registry;
 
-extern const struct cw_object_isa cw_object_isa_manager_action;
-extern struct cw_registry manager_action_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_manager_action;
+extern CW_API_PUBLIC struct cw_registry manager_action_registry;
 
 
 #define cw_manager_action_register(ptr) ({ \
@@ -151,32 +151,32 @@ extern struct cw_registry manager_action_registry;
 } while (0)
 
 
-extern int manager_str_to_eventmask(char *events);
+extern CW_API_PUBLIC int manager_str_to_eventmask(char *events);
 
 /*! External routines may send callweaver manager events this way */
 /*! 	\param category	Event category, matches manager authorization
 	\param event	Event name
 	\param contents	Contents of event
 */ 
-extern int manager_event(int category, const char *event, const char *fmt, ...)
+extern CW_API_PUBLIC int manager_event(int category, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 3,4)));
 
 /*! Get header from mananger transaction */
-extern char *astman_get_header(struct message *m, char *var);
+extern CW_API_PUBLIC char *astman_get_header(struct message *m, char *var);
 
 /*! Fill a registry with the contents of the Variable: headers */
-extern void astman_get_variables(struct cw_registry *vars, struct message *m);
+extern CW_API_PUBLIC void astman_get_variables(struct cw_registry *vars, struct message *m);
 
 /*! Send error in manager transaction */
-extern void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete);
-extern void astman_send_error(struct mansession *s, struct message *m, const char *error);
-extern void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
+extern CW_API_PUBLIC void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete);
+extern CW_API_PUBLIC void astman_send_error(struct mansession *s, struct message *m, const char *error);
+extern CW_API_PUBLIC void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
 
-extern int manager_session_ami(struct mansession *sess, const struct manager_event *event);
+extern CW_API_PUBLIC int manager_session_ami(struct mansession *sess, const struct manager_event *event);
 
-extern struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
-extern void manager_session_shutdown(struct mansession *sess);
-extern void manager_session_end(struct mansession *sess);
+extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events);
+extern CW_API_PUBLIC void manager_session_shutdown(struct mansession *sess);
+extern CW_API_PUBLIC void manager_session_end(struct mansession *sess);
 
 /*! Reload manager configuration */
 extern int manager_reload(void);

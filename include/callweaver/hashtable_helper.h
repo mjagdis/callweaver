@@ -26,9 +26,9 @@
 #include "callweaver/hashtable.h"
 
 
-int cw_core_hash_insert ( hash_table_t *hash, char *key, void *data );
-int cw_core_hash_get ( hash_table_t *hash, char *key, void **data );
-int cw_core_hash_delete (hash_table_t *hash, char *key, int mustfree );
+extern CW_API_PUBLIC int cw_core_hash_insert ( hash_table_t *hash, char *key, void *data );
+extern CW_API_PUBLIC int cw_core_hash_get ( hash_table_t *hash, char *key, void **data );
+extern CW_API_PUBLIC int cw_core_hash_delete (hash_table_t *hash, char *key, int mustfree );
 
 
 

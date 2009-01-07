@@ -17,6 +17,10 @@
 #include "confdefs.h"
 #endif
 
+#include <callweaver.h>
+
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+
 #include <callweaver/monitor.h>
 
 static int stub_cw_monitor_start( struct cw_channel *chan, const char *format_spec, const char *fname_base, int need_lock )

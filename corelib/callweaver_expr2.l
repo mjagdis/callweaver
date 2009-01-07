@@ -255,8 +255,8 @@ int cw_expr(char *expr, char *buf, int length)
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;
-void  cw_expr_register_extra_error_info(char *message);
-void  cw_expr_clear_extra_error_info(void);
+extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(char *message);
+extern CW_API_PUBLIC void  cw_expr_clear_extra_error_info(void);
 
 void  cw_expr_register_extra_error_info(char *message)
 {

@@ -44,7 +44,7 @@ struct sched_context;
  * Create a scheduling context
  * Returns a malloc'd sched_context structure, NULL on failure
  */
-extern struct sched_context *sched_context_create(int nthreads);
+extern CW_API_PUBLIC struct sched_context *sched_context_create(int nthreads);
 
 /*! destroys a schedule context */
 /*!
@@ -52,7 +52,7 @@ extern struct sched_context *sched_context_create(int nthreads);
  * Destroys (free's) the given sched_context structure
  * Returns 0 on success, -1 on failure
  */
-void sched_context_destroy(struct sched_context *c);
+extern CW_API_PUBLIC void sched_context_destroy(struct sched_context *c);
 
 /*! callback for a cheops scheduler */
 /*! 
@@ -77,7 +77,7 @@ typedef int (*cw_sched_cb)(void *data);
  * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
-extern int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable);
+extern CW_API_PUBLIC int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable);
 #define cw_sched_add(con, when, callback, data) cw_sched_add_variable(con, when, callback, data, 0)
 
 /*! Deletes a scheduled event */
@@ -88,14 +88,14 @@ extern int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_c
  * own event, but return 0 instead.
  * Returns 0 on success, -1 on failure
  */
-extern int cw_sched_del(struct sched_context *con, int id);
+extern CW_API_PUBLIC int cw_sched_del(struct sched_context *con, int id);
 
 /*! Atomically modifies a scheduled event or adds it if the ID did not exist.
  * \param con,id See cw_sched_del
  * \param ...    See cw_sched_add
  * Returns a new schedule item ID on success, -1 on failure
  */
-extern int cw_sched_modify_variable(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data, int variable);
+extern CW_API_PUBLIC int cw_sched_modify_variable(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data, int variable);
 #define cw_sched_modify(con, id, when, callback, data) cw_sched_modify_variable(con, id, when, callback, data, 0)
 
 /*!Returns the number of seconds before an event takes place */
@@ -103,7 +103,7 @@ extern int cw_sched_modify_variable(struct sched_context *con, int id, int when,
  * \param con Context to use
  * \param id Id to dump
  */
-extern long cw_sched_when(struct sched_context *con,int id);
+extern CW_API_PUBLIC long cw_sched_when(struct sched_context *con,int id);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

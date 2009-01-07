@@ -52,16 +52,7 @@ typedef int (*cw_devstate_cb_type)(const char *dev, int state, void *data);
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
  */
-const char *devstate2str(cw_devicestate_t devstate);
-
-/*! \brief Search the Channels by Name
- * \param device like a dialstring
- * Search the Device in active channels by compare the channelname against 
- * the devicename. Compared are only the first chars to the first '-' char.
- * Returns an CW_DEVICE_UNKNOWN if no channel found or
- * CW_DEVICE_INUSE if a channel is found
- */
-cw_devicestate_t cw_parse_device_state(const char *device);
+extern CW_API_PUBLIC const char *devstate2str(cw_devicestate_t devstate);
 
 /*! \brief Asks a channel for device state
  * \param device like a dialstring
@@ -71,7 +62,7 @@ cw_devicestate_t cw_parse_device_state(const char *device);
  * active channels list for the device.
  * Returns an CW_DEVICE_??? state -1 on failure
  */
-cw_devicestate_t cw_device_state(const char *device);
+extern CW_API_PUBLIC cw_devicestate_t cw_device_state(const char *device);
 
 /*! \brief Tells CallWeaver that the State for a Device has changed
  * \param fmt devicename like a dialstring with format parameters
@@ -79,7 +70,7 @@ cw_devicestate_t cw_device_state(const char *device);
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
-int cw_device_state_changed(const char *fmt, ...)
+extern CW_API_PUBLIC int cw_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 
@@ -89,15 +80,15 @@ int cw_device_state_changed(const char *fmt, ...)
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
-int cw_device_state_changed_literal(const char *device);
+extern CW_API_PUBLIC int cw_device_state_changed_literal(const char *device);
 
 /*! \brief Registers a device state change callback 
  * \param data to pass to callback
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success
  */ 
-int cw_devstate_add(cw_devstate_cb_type callback, void *data);
-void cw_devstate_del(cw_devstate_cb_type callback, void *data);
+extern CW_API_PUBLIC int cw_devstate_add(cw_devstate_cb_type callback, void *data);
+extern CW_API_PUBLIC void cw_devstate_del(cw_devstate_cb_type callback, void *data);
 
 int cw_device_state_engine_init(void);
 

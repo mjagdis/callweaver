@@ -102,12 +102,10 @@ typedef enum {
 	\param function	Will be provided by the LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
-extern void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
+extern CW_API_PUBLIC void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
-extern void cw_backtrace(int levels);
-
-extern void cw_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+extern CW_API_PUBLIC void cw_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
 /*! Send a verbose message (based on verbose level) 

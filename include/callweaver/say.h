@@ -78,10 +78,10 @@ int cw_intl_say_unregister( cw_intl_say_engine_t *implementation );
  * Vocally says a number on a given channel
  * Returns 0 on success, DTMF digit on interrupt, -1 on failure
  */
-int cw_say_number(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options);
+extern CW_API_PUBLIC int cw_say_number(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options);
 
 /* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
-int cw_say_number_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_number_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd);
 
 /* says an enumeration
  * \param chan channel to say them enumeration on
@@ -93,8 +93,8 @@ int cw_say_number_full(struct cw_channel *chan, int num, const char *ints, const
  * especially useful for dates and messages. says 'last' if num equals to INT_MAX
  * Returns 0 on success, DTMF digit on interrupt, -1 on failure
  */
-int cw_say_enumeration(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options);
-int cw_say_enumeration_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_enumeration(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options);
+extern CW_API_PUBLIC int cw_say_enumeration_full(struct cw_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd);
 
 /* says digits
  * \param chan channel to act upon
@@ -104,8 +104,8 @@ int cw_say_enumeration_full(struct cw_channel *chan, int num, const char *ints, 
  * Vocally says digits of a given number
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
-int cw_say_digits(struct cw_channel *chan, int num, const char *ints, const char *lang);
-int cw_say_digits_full(struct cw_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_digits(struct cw_channel *chan, int num, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_digits_full(struct cw_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd);
 
 /* says digits of a string
  * \param chan channel to act upon
@@ -115,22 +115,22 @@ int cw_say_digits_full(struct cw_channel *chan, int num, const char *ints, const
  * Vocally says the digits of a given string
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
-int cw_say_digit_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
-int cw_say_digit_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
-int cw_say_character_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
-int cw_say_character_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
-int cw_say_phonetic_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
-int cw_say_phonetic_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_digit_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_digit_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_character_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_character_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_say_phonetic_str(struct cw_channel *chan, const char *num, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_phonetic_str_full(struct cw_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd);
 
-int cw_say_datetime(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_datetime(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
 
-int cw_say_time(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_time(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
 
-int cw_say_date(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_date(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
 
-int cw_say_datetime_from_now(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
+extern CW_API_PUBLIC int cw_say_datetime_from_now(struct cw_channel *chan, time_t t, const char *ints, const char *lang);
 
-int cw_say_date_with_format(struct cw_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *timezone);
+extern CW_API_PUBLIC int cw_say_date_with_format(struct cw_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *timezone);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

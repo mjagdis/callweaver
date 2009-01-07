@@ -27,25 +27,27 @@
 extern "C" {
 #endif
 
+
 struct cw_db_entry {
 	struct cw_db_entry *next;
 	char *key;
 	char data[0];
 };
 
-int cw_db_get(const char *family, const char *key, char *out, int outlen);
 
-int cw_db_put(const char *family, const char *key, char *value);
+extern CW_API_PUBLIC int cw_db_get(const char *family, const char *key, char *out, int outlen);
 
-int cw_db_del(const char *family, const char *key);
+extern CW_API_PUBLIC int cw_db_put(const char *family, const char *key, char *value);
 
-int cw_db_deltree(const char *family, const char *keytree);
+extern CW_API_PUBLIC int cw_db_del(const char *family, const char *key);
 
-int cw_db_deltree_with_value(const char *family, const char *keytree, const char *value);
+extern CW_API_PUBLIC int cw_db_deltree(const char *family, const char *keytree);
 
-struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree);
+extern CW_API_PUBLIC int cw_db_deltree_with_value(const char *family, const char *keytree, const char *value);
 
-void cw_db_freetree(struct cw_db_entry *entry);
+extern CW_API_PUBLIC struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree);
+
+extern CW_API_PUBLIC void cw_db_freetree(struct cw_db_entry *entry);
 
 
 #define cw_db_mprintf sqlite3_mprintf

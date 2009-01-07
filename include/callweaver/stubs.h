@@ -58,13 +58,13 @@ typedef struct cw_stubfunction_type_s cw_stubfunction_type_t;
 // The internal list of registered stub functions is stored in an hashtable
 //
 
-int cw_stub_function_register( cw_stubfunction_type_t *function );
-int cw_stub_function_unregister( cw_stubfunction_type_t *function );
+extern CW_API_PUBLIC int cw_stub_function_register( cw_stubfunction_type_t *function );
+extern CW_API_PUBLIC int cw_stub_function_unregister( cw_stubfunction_type_t *function );
 
-cw_stubfunction_type_t *cw_stub_lookup( char *name );
+extern CW_API_PUBLIC cw_stubfunction_type_t *cw_stub_lookup( char *name );
 
-cw_stubfunction_type_t *cw_stub_walk_first( Something );
-cw_stubfunction_type_t *cw_stub_walk_next ( Something );
+extern CW_API_PUBLIC cw_stubfunction_type_t *cw_stub_walk_first( Something );
+extern CW_API_PUBLIC cw_stubfunction_type_t *cw_stub_walk_next ( Something );
 
 
 
@@ -119,8 +119,8 @@ containing the details of what has been done.
                           ALTERNATE APPROACH
     ***************************************************************** */
 
-void *cw_stubfunction_getarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
-boolean cw_stubfunction_testarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
+extern CW_API_PUBLIC void *cw_stubfunction_getarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
+extern CW_API_PUBLIC boolean cw_stubfunction_testarg(cw_stubfunction_arg_t args, cw_stubfunction_argtype_t ARG_TYPE, ARG_INDEX)
 
 enum cw_stubfunction_argtype {
     TYPE_NULL,	// Used if optional arg and no value supplied

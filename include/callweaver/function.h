@@ -44,8 +44,8 @@ struct cw_func {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_function;
-extern struct cw_registry func_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_function;
+extern CW_API_PUBLIC struct cw_registry func_registry;
 
 
 #define cw_function_register(ptr) ({ \

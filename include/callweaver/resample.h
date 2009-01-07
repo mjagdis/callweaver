@@ -34,11 +34,11 @@ extern "C" {
 
 typedef struct cw_resampler_s cw_resampler_t;
 
-cw_resampler_t *cw_resample_create( int from_rate, int to_rate, cw_mpool_t *usepool );
+extern cw_resampler_t *cw_resample_create( int from_rate, int to_rate, cw_mpool_t *usepool );
 
-int cw_resample_destroy( cw_resampler_t *resampler );
+extern int cw_resample_destroy( cw_resampler_t *resampler );
 
-uint32_t cw_resample_execute( 
+extern uint32_t cw_resample_execute( 
                             cw_resampler_t *resampler, 
                             int16_t *from, 
                             uint32_t from_len, 

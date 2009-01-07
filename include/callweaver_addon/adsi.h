@@ -119,9 +119,9 @@
 #define ADSI_DIR_FROM_RIGHT (1)
 
 
-extern int (*adsi_begin_download)(struct cw_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
+extern CW_API_PUBLIC int (*adsi_begin_download)(struct cw_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
 
-extern int (*adsi_end_download)(struct cw_channel *chan);
+extern CW_API_PUBLIC int (*adsi_end_download)(struct cw_channel *chan);
 
 /*! Restore ADSI initialization (for applications that play with ADSI */
 /*   and want to restore it to normal.  If you touch "INFO" then you */
@@ -132,7 +132,7 @@ extern int (*adsi_end_download)(struct cw_channel *chan);
  * Returns 0 on success (or adsi unavailable) and -1 on hangup
  *
  */
-extern int (*adsi_channel_restore)(struct cw_channel *chan);
+extern CW_API_PUBLIC int (*adsi_channel_restore)(struct cw_channel *chan);
 
 /*! Display some stuff on the screen */
 /*!
@@ -144,7 +144,7 @@ extern int (*adsi_channel_restore)(struct cw_channel *chan);
  * Return 0 on success (or adsi unavailable) and -1 on hangup
  *
  */
-extern int (*adsi_print)(struct cw_channel *chan, char **lines, int *align, int voice);
+extern CW_API_PUBLIC int (*adsi_print)(struct cw_channel *chan, char **lines, int *align, int voice);
 
 /*! Check if scripts for a given app are already loaded.  Version may be -1 */
 /*   if any version is okay, or 0-255 for a specific version. */
@@ -157,18 +157,18 @@ extern int (*adsi_print)(struct cw_channel *chan, char **lines, int *align, int 
  * Returns 0 if scripts is not loaded or not an ADSI CPE.  Returns -1
  * on hangup.  Returns 1 if script already loaded.
  */
-extern int (*adsi_load_session)(struct cw_channel *chan, unsigned char *app, int ver, int data);
-extern int (*adsi_unload_session)(struct cw_channel *chan);
+extern CW_API_PUBLIC int (*adsi_load_session)(struct cw_channel *chan, unsigned char *app, int ver, int data);
+extern CW_API_PUBLIC int (*adsi_unload_session)(struct cw_channel *chan);
 
 /* ADSI Layer 2 transmission functions */
-extern int (*adsi_transmit_messages)(struct cw_channel *chan, unsigned char **msg, int *msglen, int *msgtype);
-extern int (*adsi_transmit_message)(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype);
-extern int (*adsi_transmit_message_full)(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait);
+extern CW_API_PUBLIC int (*adsi_transmit_messages)(struct cw_channel *chan, unsigned char **msg, int *msglen, int *msgtype);
+extern CW_API_PUBLIC int (*adsi_transmit_message)(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype);
+extern CW_API_PUBLIC int (*adsi_transmit_message_full)(struct cw_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait);
 /*! Read some encoded DTMF data.   */
 /*!
  * Returns number of bytes received
  */
-extern int (*adsi_read_encoded_dtmf)(struct cw_channel *chan, unsigned char *buf, int maxlen);
+extern CW_API_PUBLIC int (*adsi_read_encoded_dtmf)(struct cw_channel *chan, unsigned char *buf, int maxlen);
 
 /* ADSI Layer 3 creation functions */
 
@@ -182,14 +182,14 @@ extern int (*adsi_read_encoded_dtmf)(struct cw_channel *chan, unsigned char *buf
  *
  */
 
-extern int (*adsi_connect_session)(unsigned char *buf, unsigned char *fdn, int ver);
+extern CW_API_PUBLIC int (*adsi_connect_session)(unsigned char *buf, unsigned char *fdn, int ver);
 
 /*! Build Query CPE ID of equipment */ 
 /*!
  *  Returns number of bytes added to message
  */
-extern int (*adsi_query_cpeid)(unsigned char *buf);
-extern int (*adsi_query_cpeinfo)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_query_cpeid)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_query_cpeinfo)(unsigned char *buf);
 
 /*! Get CPE ID from an attached ADSI compatible CPE. */
 /*!
@@ -197,9 +197,9 @@ extern int (*adsi_query_cpeinfo)(unsigned char *buf);
  * or -1 on hangup, or 0 if there was no hangup but it failed to find the
  * device ID.  Returns to voice mode if "voice" is non-zero.
  */
-extern int (*adsi_get_cpeid)(struct cw_channel *chan, unsigned char *cpeid, int voice);
+extern CW_API_PUBLIC int (*adsi_get_cpeid)(struct cw_channel *chan, unsigned char *cpeid, int voice);
 
-extern int (*adsi_get_cpeinfo)(struct cw_channel *chan, int *width, int *height, int *buttons, int voice);
+extern CW_API_PUBLIC int (*adsi_get_cpeinfo)(struct cw_channel *chan, int *width, int *height, int *buttons, int voice);
 
 /*! Begin an ADSI script download */ 
 /*!
@@ -213,7 +213,7 @@ extern int (*adsi_get_cpeinfo)(struct cw_channel *chan, int *width, int *height,
  *
  */
 
-extern int (*adsi_download_connect)(unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver);
+extern CW_API_PUBLIC int (*adsi_download_connect)(unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver);
 
 /*! Disconnects a running session */
 /*!
@@ -222,7 +222,7 @@ extern int (*adsi_download_connect)(unsigned char *buf, char *service, unsigned 
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_disconnect_session)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_disconnect_session)(unsigned char *buf);
 
 /*! Disconnects (and hopefully saves) a downloaded script */
 /*!
@@ -231,7 +231,7 @@ extern int (*adsi_disconnect_session)(unsigned char *buf);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_download_disconnect)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_download_disconnect)(unsigned char *buf);
 
 /*! Puts CPE in data mode... */
 /*!
@@ -240,9 +240,9 @@ extern int (*adsi_download_disconnect)(unsigned char *buf);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_data_mode)(unsigned char *buf);
-extern int (*adsi_clear_soft_keys)(unsigned char *buf);
-extern int (*adsi_clear_screen)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_data_mode)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_clear_soft_keys)(unsigned char *buf);
+extern CW_API_PUBLIC int (*adsi_clear_screen)(unsigned char *buf);
 
 /*! Puts CPE in voice mode... */
 /*!
@@ -252,14 +252,14 @@ extern int (*adsi_clear_screen)(unsigned char *buf);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_voice_mode)(unsigned char *buf, int when);
+extern CW_API_PUBLIC int (*adsi_voice_mode)(unsigned char *buf, int when);
 
 /*! Returns non-zero if Channel does or might support ADSI */
 /*!
  * \param chan Channel to check
  *
  */
-extern int (*adsi_available)(struct cw_channel *chan);
+extern CW_API_PUBLIC int (*adsi_available)(struct cw_channel *chan);
 
 /*! Loads a line of info into the display */ 
 /*!
@@ -275,7 +275,7 @@ extern int (*adsi_available)(struct cw_channel *chan);
  *
  */
 
-extern int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
+extern CW_API_PUBLIC int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
 
 /*! Sets the current line and page */ 
 /*!
@@ -287,7 +287,7 @@ extern int (*adsi_display)(unsigned char *buf, int page, int line, int just, int
  *
  */
 
-extern int (*adsi_set_line)(unsigned char *buf, int page, int line);
+extern CW_API_PUBLIC int (*adsi_set_line)(unsigned char *buf, int page, int line);
 
 /*! Creates "load soft key" parameters */
 /*! 
@@ -301,7 +301,7 @@ extern int (*adsi_set_line)(unsigned char *buf, int page, int line);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_load_soft_key)(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data);
+extern CW_API_PUBLIC int (*adsi_load_soft_key)(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data);
 
 /*! Set which soft keys should be displayed */
 /*!
@@ -312,7 +312,7 @@ extern int (*adsi_load_soft_key)(unsigned char *buf, int key, char *llabel, char
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_set_keys)(unsigned char *buf, unsigned char *keys);
+extern CW_API_PUBLIC int (*adsi_set_keys)(unsigned char *buf, unsigned char *keys);
 
 /*! Set input information */
 /*!
@@ -326,7 +326,7 @@ extern int (*adsi_set_keys)(unsigned char *buf, unsigned char *keys);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_input_control)(unsigned char *buf, int page, int line, int display, int format, int just);
+extern CW_API_PUBLIC int (*adsi_input_control)(unsigned char *buf, int page, int line, int display, int format, int just);
 
 /*! Set input format */
 /*!
@@ -340,6 +340,6 @@ extern int (*adsi_input_control)(unsigned char *buf, int page, int line, int dis
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
+extern CW_API_PUBLIC int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
 
 #endif /* _CALLWEAVER_ADSI_H */

@@ -17,9 +17,13 @@
 #if !defined(_CALLWEAVER_H)
 #define _CALLWEAVER_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
+
+#ifdef CW_API_IMPLEMENTATION
+#  define CW_API_PUBLIC DLL_PUBLIC_EXPORT
+#else
+#  define CW_API_PUBLIC DLL_PUBLIC_IMPORT
 #endif
+
 
 #if !defined(FALSE)
 #define FALSE 0
@@ -34,27 +38,27 @@
 
 
 /* provided in callweaver.c */
-extern int callweaver_main(int argc, char *argv[]);
-extern char cw_config_CW_CONFIG_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_CONFIG_FILE[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_SPOOL_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_MONITOR_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_VAR_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_LOG_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_OGI_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_DB[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_DB_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_KEY_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_PID[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_CTL_PERMISSIONS[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_CTL_OWNER[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_CTL[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_SYSTEM_NAME[20];
-extern char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
-extern char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
+extern CW_API_PUBLIC int callweaver_main(int argc, char *argv[]);
+extern CW_API_PUBLIC char cw_config_CW_CONFIG_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_CONFIG_FILE[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_SPOOL_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_MONITOR_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_VAR_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_LOG_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_OGI_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_DB[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_DB_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_KEY_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_PID[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_CTL_PERMISSIONS[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_CTL_OWNER[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_CTL[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_SYSTEM_NAME[20];
+extern CW_API_PUBLIC char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
+extern CW_API_PUBLIC char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
 
 /* Provided by version.c */
 extern const char cw_version_string[];

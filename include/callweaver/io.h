@@ -62,7 +62,7 @@ struct io_context;
  * Basically mallocs an IO structure and sets up some default values.
  * Returns an allocated io_context structure
  */
-extern struct io_context *io_context_create(void);
+extern CW_API_PUBLIC struct io_context *io_context_create(void);
 
 /*! Destroys a context */
 /*
@@ -70,7 +70,7 @@ extern struct io_context *io_context_create(void);
  * Destroy a context for I/O operations
  * Frees all memory associated with the given io_context structure along with the structure itself
  */
-extern void io_context_destroy(struct io_context *ioc);
+extern CW_API_PUBLIC void io_context_destroy(struct io_context *ioc);
 
 typedef int (*cw_io_cb)(int *id, int fd, short events, void *cbdata);
 #define CW_IO_CB(a) ((cw_io_cb)(a))
@@ -85,7 +85,7 @@ typedef int (*cw_io_cb)(int *id, int fd, short events, void *cbdata);
  * Watch for any of revents activites on fd, calling callback with data as 
  * callback data.  Returns a pointer to ID of the IO event, or NULL on failure.
  */
-extern int *cw_io_add(struct io_context *ioc, int fd, cw_io_cb callback, short events, void *data);
+extern CW_API_PUBLIC int *cw_io_add(struct io_context *ioc, int fd, cw_io_cb callback, short events, void *data);
 
 /*! Changes an IO handler */
 /*!
@@ -99,7 +99,7 @@ extern int *cw_io_add(struct io_context *ioc, int fd, cw_io_cb callback, short e
  * if >-1, and data if non-null.  Returns a pointero to the ID of the IO event,
  * or NULL on failure.
  */
-extern int *cw_io_change(struct io_context *ioc, int *id, int fd, cw_io_cb callback, short events, void *data);
+extern CW_API_PUBLIC int *cw_io_change(struct io_context *ioc, int *id, int fd, cw_io_cb callback, short events, void *data);
 
 /*! Removes an IO context */
 /*! 
@@ -107,7 +107,7 @@ extern int *cw_io_change(struct io_context *ioc, int *id, int fd, cw_io_cb callb
  * \param id which ID to remove
  * Remove an I/O id from consideration  Returns 0 on success or -1 on failure.
  */
-extern int cw_io_remove(struct io_context *ioc, int *id);
+extern CW_API_PUBLIC int cw_io_remove(struct io_context *ioc, int *id);
 
 /*! Waits for IO */
 /*!
@@ -118,7 +118,7 @@ extern int cw_io_remove(struct io_context *ioc, int *id);
  * any necessary I/O.  Returns the number of
  * I/O events which took place.
  */
-extern int cw_io_wait(struct io_context *ioc, int howlong);
+extern CW_API_PUBLIC int cw_io_wait(struct io_context *ioc, int howlong);
 
 /*! Dumps the IO array */
 /*

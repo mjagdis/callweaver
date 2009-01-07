@@ -49,8 +49,8 @@ struct cw_imager {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_imager;
-extern struct cw_registry imager_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_imager;
+extern CW_API_PUBLIC struct cw_registry imager_registry;
 
 
 #define cw_image_register(ptr) ({ \
@@ -78,7 +78,7 @@ extern struct cw_registry imager_registry;
  * Checks the channel to see if it supports the transmission of images
  * Returns non-zero if image transmission is supported
  */
-extern int cw_supports_images(struct cw_channel *chan);
+extern CW_API_PUBLIC int cw_supports_images(struct cw_channel *chan);
 
 /*! Sends an image */
 /*!
@@ -87,7 +87,7 @@ extern int cw_supports_images(struct cw_channel *chan);
  * Sends an image on the given channel.
  * Returns 0 on success, -1 on error
  */
-extern int cw_send_image(struct cw_channel *chan, char *filename);
+extern CW_API_PUBLIC int cw_send_image(struct cw_channel *chan, char *filename);
 
 /*! Make an image */
 /*! 
@@ -97,7 +97,7 @@ extern int cw_send_image(struct cw_channel *chan, char *filename);
  * Make an image from a filename ??? No estoy positivo
  * Returns an cw_frame on success, NULL on failure
  */
-extern struct cw_frame *cw_read_image(char *filename, char *lang, int format);
+extern CW_API_PUBLIC struct cw_frame *cw_read_image(char *filename, char *lang, int format);
 
 /*! Initialize image stuff */
 /*!

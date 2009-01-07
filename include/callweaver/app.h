@@ -84,7 +84,7 @@ struct cw_option {
 	int arg_index;
 };
 
-extern int cw_parseoptions(const struct cw_option *options, struct cw_flags *flags, char **args, char *optstr);
+extern CW_API_PUBLIC int cw_parseoptions(const struct cw_option *options, struct cw_flags *flags, char **args, char *optstr);
 
 #define CW_DECLARE_OPTIONS(holder,args...) \
 	static struct cw_option holder[128] = args
@@ -107,50 +107,50 @@ extern int cw_parseoptions(const struct cw_option *options, struct cw_flags *fla
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-extern int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout);
+extern CW_API_PUBLIC int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout);
 
 /* Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
-extern int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 
-void cw_install_t38_functions( int (*has_request_t38_func)(const struct cw_channel *chan) );
+void CW_API_PUBLIC cw_install_t38_functions( int (*has_request_t38_func)(const struct cw_channel *chan) );
 
-void cw_uninstall_t38_functions(void);
+void CW_API_PUBLIC cw_uninstall_t38_functions(void);
 
-int cw_app_request_t38(const struct cw_channel *chan);
+int CW_API_PUBLIC cw_app_request_t38(const struct cw_channel *chan);
 
 
-void cw_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
+void CW_API_PUBLIC cw_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs));
   
-void cw_uninstall_vm_functions(void);
+void CW_API_PUBLIC cw_uninstall_vm_functions(void);
 
 /*! Determine if a given mailbox has any voicemail */
-int cw_app_has_voicemail(const char *mailbox, const char *folder);
+int CW_API_PUBLIC cw_app_has_voicemail(const char *mailbox, const char *folder);
 
 /*! Determine number of new/old messages in a mailbox */
-int cw_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
+int CW_API_PUBLIC cw_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
 /*! Safely spawn an external program while closingn file descriptors */
-extern int cw_safe_system(const char *s);
+extern CW_API_PUBLIC int cw_safe_system(const char *s);
 
 /*! Send DTMF to chan (optionally entertain peer)   */
-int cw_dtmf_stream(struct cw_channel *chan, struct cw_channel *peer, char *digits, int between);
+extern CW_API_PUBLIC int cw_dtmf_stream(struct cw_channel *chan, struct cw_channel *peer, char *digits, int between);
 
 /*! Stream a file with fast forward, pause, reverse, restart. */
-int cw_control_streamfile(struct cw_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
+extern CW_API_PUBLIC int cw_control_streamfile(struct cw_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
 
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
-int cw_play_and_wait(struct cw_channel *chan, const char *fn);
+extern CW_API_PUBLIC int cw_play_and_wait(struct cw_channel *chan, const char *fn);
 
 /*! Record a file for a max amount of time (in seconds), in a given list of formats separated by ',', outputting the duration of the recording, and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
      calls cw_unlock_path() on 'path' if passed */
-int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
+extern CW_API_PUBLIC int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
 
 /*! Record a message and prepend the message to the given record file after playing the optional playfile (or a beep), storing the duration in 'duration' and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. */
-int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
+extern CW_API_PUBLIC int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
 enum CW_LOCK_RESULT {
 	CW_LOCK_SUCCESS = 0,
@@ -164,24 +164,24 @@ enum CW_LOCK_RESULT {
  * \param path the path to be locked
  * \return one of CW_LOCK_RESULT values
  */
-enum CW_LOCK_RESULT cw_lock_path(const char *path);
+extern CW_API_PUBLIC enum CW_LOCK_RESULT cw_lock_path(const char *path);
 
 /* Unlock a path */
-int cw_unlock_path(const char *path);
+extern CW_API_PUBLIC int cw_unlock_path(const char *path);
 
 #define GROUP_CATEGORY_PREFIX "GROUP"
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
-int cw_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
+extern CW_API_PUBLIC int cw_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
 
 /*! Set the group for a channel, splitting the provided data into group and category, if specified. */
-int cw_app_group_set_channel(struct cw_channel *chan, const char *data);
+extern CW_API_PUBLIC int cw_app_group_set_channel(struct cw_channel *chan, const char *data);
 
 /*! Get the current channel count of the specified group and category. */
-int cw_app_group_get_count(const char *group, const char *category);
+extern CW_API_PUBLIC int cw_app_group_get_count(const char *group, const char *category);
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
-int cw_app_group_match_get_count(const char *groupmatch, const char *category);
+extern CW_API_PUBLIC int cw_app_group_match_get_count(const char *groupmatch, const char *category);
 
 
 /*!
@@ -196,13 +196,13 @@ int cw_app_group_match_get_count(const char *groupmatch, const char *category);
 
   \return The number of arguments found, or zero if the function arguments are not valid.
 */
-int cw_separate_app_args(char *buf, char delim, int max_args, char **argv);
+extern CW_API_PUBLIC int cw_separate_app_args(char *buf, char delim, int max_args, char **argv);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
-int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
+extern CW_API_PUBLIC int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 
 /*! Allow to record message and have a review option */
-int cw_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
+extern CW_API_PUBLIC int cw_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

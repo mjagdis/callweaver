@@ -68,7 +68,7 @@
  *
  * \return It returns the size (in bytes) of the data.
  */
-extern int cw_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec);
+extern CW_API_PUBLIC int cw_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec);
 
 /*! \brief Parse the caller ID decoded from an adsi_rx decoded FSK/DTMF stream and apply it to the channel
  *
@@ -83,7 +83,7 @@ extern int cw_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, 
  * callback function that knows the correct adsi and chan arguments.
  * See channels/chan_zap.c for an example.
  */
-extern int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *msg, int len);
+extern CW_API_PUBLIC int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *msg, int len);
 
 /*! \brief Generates an FSK encoded message waiting indication in [ua]law format
  *         suitable for transmission.
@@ -97,7 +97,7 @@ extern int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const ui
  *
  * \return It returns the size (in bytes) of the data.
  */
-extern int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec);
+extern CW_API_PUBLIC int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec);
 
 /*! \brief Generate a CAS (CPE Alert Signal) tone, optionally preceeded by SAS (Subscriber Alert Signal)
  *
@@ -108,7 +108,7 @@ extern int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int 
  *
  * \return Returns -1 on error (if len is less than 2400), 0 on success.
  */
-extern int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
+extern CW_API_PUBLIC int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
 
 	/* A 2100Hz monotone (commonly known as a fax tone) may be used to cause
 	 * most switches (with the possible exceptio of some ancient pre-fax
@@ -121,7 +121,7 @@ extern int cw_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
  * \param outlen      Length of "outbuf" to use.
  * \param codec       Either CW_FORMAT_ULAW or CW_FORMAT_ALAW.
  */
-extern int cw_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
+extern CW_API_PUBLIC int cw_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
 
 
 /*
@@ -129,19 +129,19 @@ extern int cw_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
  * routines (used by ADSI for example)
  */
 
-extern int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec);
+extern CW_API_PUBLIC int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec);
 
 #define	TDD_SAMPLES_PER_CHAR	2700
 
 struct tdd_state;
 
-extern int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char *str, int codec);
+extern CW_API_PUBLIC int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char *str, int codec);
 
-extern int tdd_feed(struct tdd_state *tdd, uint8_t *xlaw, int len, int codec);
+extern CW_API_PUBLIC int tdd_feed(struct tdd_state *tdd, uint8_t *xlaw, int len, int codec);
 
-extern struct tdd_state *tdd_new(void);
+extern CW_API_PUBLIC struct tdd_state *tdd_new(void);
 
-extern void tdd_free(struct tdd_state *tdd);
+extern CW_API_PUBLIC void tdd_free(struct tdd_state *tdd);
 
 
 #endif /* _CALLWEAVER_CALLERID_H */

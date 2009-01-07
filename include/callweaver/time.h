@@ -32,7 +32,7 @@
 
 #ifdef _POSIX_TIMERS
 
-extern clockid_t global_clock_monotonic;
+extern CW_API_PUBLIC clockid_t global_clock_monotonic;
 
 #define cw_clock_gettime(clock_id, timespec_p) clock_gettime((clock_id), (timespec_p))
 
@@ -183,12 +183,12 @@ struct timeval cw_tvnow(void),
 /*!
  * \brief Returns the sum of two timevals a + b
  */
-struct timeval cw_tvadd(struct timeval a, struct timeval b);
+extern CW_API_PUBLIC struct timeval cw_tvadd(struct timeval a, struct timeval b);
 
 /*!
  * \brief Returns the difference of two timevals a - b
  */
-struct timeval cw_tvsub(struct timeval a, struct timeval b);
+extern CW_API_PUBLIC struct timeval cw_tvsub(struct timeval a, struct timeval b);
 
 /*!
  * \brief Returns a timeval from sec, usec

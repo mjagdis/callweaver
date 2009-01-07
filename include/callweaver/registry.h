@@ -102,25 +102,25 @@ struct cw_registry {
  * \param hash		a hash of the object key
  * \param obj		the object to add
  */
-extern struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned int hash, struct cw_object *obj);
+extern CW_API_PUBLIC struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned int hash, struct cw_object *obj);
 
 /*! \brief Delete an object from a registry
  *
  * \param registry	the registry the object is to be deleted from
  * \param entry		the registry entry to be deleted
  */
-extern int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
+extern CW_API_PUBLIC int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
 
-extern int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj);
+extern CW_API_PUBLIC int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj);
 
-extern int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
-extern int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
-extern int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern CW_API_PUBLIC int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern CW_API_PUBLIC int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
+extern CW_API_PUBLIC int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
 
-extern struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
-extern int cw_registry_init(struct cw_registry *registry, size_t estsize);
-extern void cw_registry_flush(struct cw_registry *registry);
-extern void cw_registry_destroy(struct cw_registry *registry);
+extern CW_API_PUBLIC struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, unsigned int hash, const void *pattern);
+extern CW_API_PUBLIC int cw_registry_init(struct cw_registry *registry, size_t estsize);
+extern CW_API_PUBLIC void cw_registry_flush(struct cw_registry *registry);
+extern CW_API_PUBLIC void cw_registry_destroy(struct cw_registry *registry);
 
 
 #endif /* _CALLWEAVER_REGISTRY_H */

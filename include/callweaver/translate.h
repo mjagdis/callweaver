@@ -38,8 +38,8 @@ extern "C" {
 typedef struct cw_translator cw_translator_t;
 
 
-extern const struct cw_object_isa cw_object_isa_translator;
-extern struct cw_registry translator_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_translator;
+extern CW_API_PUBLIC struct cw_registry translator_registry;
 
 
 #define cw_translator_register(ptr) ({ \
@@ -72,7 +72,7 @@ extern int cw_translator_init(void);
    I choose? Returns 0 on success, -1 if no path could be found.  Modifies
    dests and srcs in place 
    */
-extern int cw_translator_best_choice(int *dsts, int *srcs);
+extern CW_API_PUBLIC int cw_translator_best_choice(int *dsts, int *srcs);
 
 /*!Builds a translator path */
 /*! 
@@ -81,14 +81,14 @@ extern int cw_translator_best_choice(int *dsts, int *srcs);
  * Build a path (possibly NULL) from source to dest 
  * Returns cw_trans_pvt on success, NULL on failure
  * */
-extern struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate);
+extern CW_API_PUBLIC struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate);
 
 /*! Frees a translator path */
 /*!
  * \param tr translator path to get rid of
  * Frees the given translator path structure
  */
-extern void cw_translator_free_path(struct cw_trans_pvt *tr);
+extern CW_API_PUBLIC void cw_translator_free_path(struct cw_trans_pvt *tr);
 
 /*! translates one or more frames */
 /*! 
@@ -99,7 +99,7 @@ extern void cw_translator_free_path(struct cw_trans_pvt *tr);
  * determines whether the original frame should be freed
  * Returns an cw_frame of the new translation format on success, NULL on failure
  */
-extern struct cw_frame *cw_translate(struct cw_trans_pvt *tr, struct cw_frame *f, int consume);
+extern CW_API_PUBLIC struct cw_frame *cw_translate(struct cw_trans_pvt *tr, struct cw_frame *f, int consume);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

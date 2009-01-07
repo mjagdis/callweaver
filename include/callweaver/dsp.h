@@ -55,44 +55,44 @@
 
 struct cw_dsp;
 
-struct cw_dsp *cw_dsp_new(void);
+extern CW_API_PUBLIC struct cw_dsp *cw_dsp_new(void);
 
-void cw_dsp_free(struct cw_dsp *dsp);
+extern CW_API_PUBLIC void cw_dsp_free(struct cw_dsp *dsp);
 
 /*! \brief Set threshold value for silence */
-void cw_dsp_set_threshold(struct cw_dsp *dsp, int threshold);
+extern CW_API_PUBLIC void cw_dsp_set_threshold(struct cw_dsp *dsp, int threshold);
 
 /*! \brief Set number of required cadences for busy */
-void cw_dsp_set_busy_count(struct cw_dsp *dsp, int cadences);
+extern CW_API_PUBLIC void cw_dsp_set_busy_count(struct cw_dsp *dsp, int cadences);
 
 /*! \brief Set expected lengths of the busy tone */
-void cw_dsp_set_busy_pattern(struct cw_dsp *dsp, int tonelength, int quietlength);
+extern CW_API_PUBLIC void cw_dsp_set_busy_pattern(struct cw_dsp *dsp, int tonelength, int quietlength);
 
 /*! \brief Set zone for doing progress detection */
-int cw_dsp_set_call_progress_zone(struct cw_dsp *dsp, char *zone);
+extern CW_API_PUBLIC int cw_dsp_set_call_progress_zone(struct cw_dsp *dsp, char *zone);
 
 /*! \brief Return CW_FRAME_NULL frames when there is silence, CW_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
-struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, struct cw_frame *inf);
+extern CW_API_PUBLIC struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, struct cw_frame *inf);
 
 /*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */
-int cw_dsp_silence(struct cw_dsp *dsp, struct cw_frame *f, int *totalsilence);
+extern CW_API_PUBLIC int cw_dsp_silence(struct cw_dsp *dsp, struct cw_frame *f, int *totalsilence);
 
 /*! \brief Return non-zero if historically this should be a busy, request that
   cw_dsp_silence has already been called */
-int cw_dsp_busydetect(struct cw_dsp *dsp);
+extern CW_API_PUBLIC int cw_dsp_busydetect(struct cw_dsp *dsp);
 
 /*! \brief Reset total silence count */
-void cw_dsp_reset(struct cw_dsp *dsp);
+extern CW_API_PUBLIC void cw_dsp_reset(struct cw_dsp *dsp);
 
 /*! \brief Reset DTMF detector */
-void cw_dsp_digitreset(struct cw_dsp *dsp);
+extern CW_API_PUBLIC void cw_dsp_digitreset(struct cw_dsp *dsp);
 
 /*! \brief Select feature set */
-void cw_dsp_set_features(struct cw_dsp *dsp, int features);
+extern CW_API_PUBLIC void cw_dsp_set_features(struct cw_dsp *dsp, int features);
 
 /*! \brief Set digit mode */
-int cw_dsp_digitmode(struct cw_dsp *dsp, int digitmode);
+extern CW_API_PUBLIC int cw_dsp_digitmode(struct cw_dsp *dsp, int digitmode);
 
 #endif /* _CALLWEAVER_DSP_H */

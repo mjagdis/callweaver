@@ -44,16 +44,16 @@ struct cw_channel_monitor
 };
 
 /* Start monitoring a channel */
-extern int (*cw_monitor_start)(	struct cw_channel *chan, const char *format_spec,
+extern CW_API_PUBLIC int (*cw_monitor_start)(	struct cw_channel *chan, const char *format_spec,
 						const char *fname_base, int need_lock );
 
 /* Stop monitoring a channel */
-extern int (*cw_monitor_stop)( struct cw_channel *chan, int need_lock);
+extern CW_API_PUBLIC int (*cw_monitor_stop)( struct cw_channel *chan, int need_lock);
 
 /* Change monitoring filename of a channel */
-extern int (*cw_monitor_change_fname)(	struct cw_channel *chan,
+extern CW_API_PUBLIC int (*cw_monitor_change_fname)(	struct cw_channel *chan,
 								const char *fname_base, int need_lock );
 
-extern void (*cw_monitor_setjoinfiles)(struct cw_channel *chan, int turnon);
+extern CW_API_PUBLIC void (*cw_monitor_setjoinfiles)(struct cw_channel *chan, int turnon);
 
 #endif /* _CALLWEAVER_MONITOR_H */

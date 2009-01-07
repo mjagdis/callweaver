@@ -34,7 +34,7 @@ extern "C" {
 #include "callweaver/module.h"
 
 
-extern void cw_cli(int fd, char *fmt, ...)
+extern CW_API_PUBLIC void cw_cli(int fd, char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
 #define RESULT_SUCCESS		0
@@ -65,8 +65,8 @@ struct cw_clicmd {
 };
 
 
-extern const struct cw_object_isa cw_object_isa_clicmd;
-extern struct cw_registry clicmd_registry;
+extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_clicmd;
+extern CW_API_PUBLIC struct cw_registry clicmd_registry;
 
 
 #define cw_cli_register(ptr) ({ \
@@ -106,7 +106,7 @@ extern struct cw_registry clicmd_registry;
  * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
-extern int cw_cli_command(int fd, char *s);
+extern CW_API_PUBLIC int cw_cli_command(int fd, char *s);
 
 /*! \brief Readline madness 
  * Useful for readline, that's about it

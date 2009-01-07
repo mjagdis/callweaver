@@ -33,10 +33,10 @@
 extern void cw_ulaw_init(void);
 
 /*! converts signed linear to mulaw */
-extern uint8_t __cw_lin2mu[16384];
+extern CW_API_PUBLIC uint8_t __cw_lin2mu[16384];
 
 /*! converts mulaw to signed linear */
-extern int16_t __cw_mulaw[256];
+extern CW_API_PUBLIC int16_t __cw_mulaw[256];
 
 #define CW_LIN2MU(a) (__cw_lin2mu[((unsigned short)(a)) >> 2])
 #define CW_MULAW(a) (__cw_mulaw[(a)])
@@ -50,10 +50,10 @@ extern int16_t __cw_mulaw[256];
 extern void cw_alaw_init(void);
 
 /*! converts signed linear to alaw */
-extern uint8_t __cw_lin2a[8192];
+extern CW_API_PUBLIC uint8_t __cw_lin2a[8192];
 
 /*! converts alaw to signed linear */
-extern int16_t __cw_alaw[256];
+extern CW_API_PUBLIC int16_t __cw_alaw[256];
 
 
 #define CW_LIN2A(a) (__cw_lin2a[((unsigned short)(a)) >> 3])

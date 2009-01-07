@@ -67,8 +67,8 @@
 #endif
 
 
-extern pthread_mutexattr_t  global_mutexattr_errorcheck;
-extern pthread_mutexattr_t  global_mutexattr_recursive;
+extern CW_API_PUBLIC pthread_mutexattr_t  global_mutexattr_errorcheck;
+extern CW_API_PUBLIC pthread_mutexattr_t  global_mutexattr_recursive;
 
 
 #ifdef DEBUG_MUTEX
@@ -108,9 +108,9 @@ typedef struct cw_mutex_info cw_mutex_t;
 
 #define cw_cond_t pthread_cond_t
 
-extern int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t, pthread_mutexattr_t *attr);
+extern CW_API_PUBLIC int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t, pthread_mutexattr_t *attr);
 
-extern int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
+extern CW_API_PUBLIC int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
 
 #if defined(CW_MUTEX_INIT_W_CONSTRUCTORS)
 /* if CW_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
@@ -139,16 +139,16 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	scope cw_mutex_t mutex = CW_MUTEX_INIT_VALUE
 #endif /* CW_MUTEX_INIT_W_CONSTRUCTORS */
 
-extern int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
+extern CW_API_PUBLIC int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
 
-extern int cw_mutex_trylock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
+extern CW_API_PUBLIC int cw_mutex_trylock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
 
-extern int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
+extern CW_API_PUBLIC int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t);
 
 
-extern int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t);
+extern CW_API_PUBLIC int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t);
 
-extern int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime);
+extern CW_API_PUBLIC int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime);
 
 
 #define cw_mutex_init_attr(pmutex, attr)     cw_mutex_init_attr_debug(DEBUG_MUTEX_CANLOG, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)

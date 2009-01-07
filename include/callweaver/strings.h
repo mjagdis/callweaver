@@ -150,7 +150,7 @@ void cw_copy_string(char *dst, const char *src, size_t size),
   \param space remaining space in buffer (will be updated on return)
   \param fmt printf-style format string
 */
-int cw_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern CW_API_PUBLIC int cw_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
@@ -164,7 +164,7 @@ int cw_build_string(char **buffer, size_t *space, const char *fmt, ...) __attrib
   \param fmt printf-style format string
   \param ap varargs list of arguments for format
 */
-int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
+extern CW_API_PUBLIC int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
 
 /*! Make sure something is true */
 /*!
@@ -173,7 +173,7 @@ int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap
  *
  * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
  */
-int cw_true(const char *val);
+extern CW_API_PUBLIC int cw_true(const char *val);
 
 /*! Make sure something is false */
 /*!
@@ -182,39 +182,39 @@ int cw_true(const char *val);
  *
  * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
  */
-int cw_false(const char *val);
+extern CW_API_PUBLIC int cw_false(const char *val);
 
 
 #ifndef HAVE_STRCASESTR
-char *strcasestr(const char *, const char *);
+extern CW_API_PUBLIC char *strcasestr(const char *, const char *);
 #endif
 
 #if !defined(HAVE_STRNDUP) && !defined(__CW_DEBUG_MALLOC)
-char *strndup(const char *, size_t);
+extern CW_API_PUBLIC char *strndup(const char *, size_t);
 #endif
 
 #ifndef HAVE_STRNLEN
-size_t strnlen(const char *, size_t);
+extern CW_API_PUBLIC size_t strnlen(const char *, size_t);
 #endif
 
 #if !defined(HAVE_VASPRINTF) && !defined(__CW_DEBUG_MALLOC)
-int vasprintf(char **strp, const char *fmt, va_list ap);
+extern CW_API_PUBLIC int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
 #ifndef HAVE_STRTOQ
-uint64_t strtoq(const char *nptr, char **endptr, int base);
+extern CW_API_PUBLIC uint64_t strtoq(const char *nptr, char **endptr, int base);
 #endif
 
 #ifndef HAVE_STRSEP
-char* strsep(char** str, const char* delims);
+extern CW_API_PUBLIC char* strsep(char** str, const char* delims);
 #endif
 
 #ifndef HAVE_SETENV
-int setenv(const char *name, const char *value, int overwrite);
+extern CW_API_PUBLIC int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 #ifndef HAVE_UNSETENV
-int unsetenv(const char *name);   
+extern CW_API_PUBLIC int unsetenv(const char *name);
 #endif
 
 #endif /* _CALLWEAVER_STRINGS_H */
