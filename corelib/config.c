@@ -708,68 +708,6 @@ static struct cw_config *config_text_file_load(const char *database, const char 
 	return cfg;
 }
 
-int config_text_file_save(const char *configfile, const struct cw_config *cfg, const char *generator)
-{
-	FILE *f;
-	char fn[256];
-	char date[256]="";
-	time_t t;
-	struct cw_variable *var;
-	struct cw_category *cat;
-	int blanklines = 0;
-
-	if (configfile[0] == '/') {
-		cw_copy_string(fn, configfile, sizeof(fn));
-	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", cw_config_CW_CONFIG_DIR, configfile);
-	}
-	time(&t);
-	cw_copy_string(date, ctime(&t), sizeof(date));
-#if defined(__CYGWIN__)
-	if ((f = fopen(fn, "w+"))) {
-#else
- 	if ((f = fopen(fn, "w"))) {
-#endif
-		if ((option_verbose > 1) && !option_debug)
-			cw_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
-		fprintf(f, ";!\n");
-		fprintf(f, ";! Automatically generated configuration file\n");
-		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
-		fprintf(f, ";! Generator: %s\n", generator);
-		fprintf(f, ";! Creation Date: %s", date);
-		fprintf(f, ";!\n");
-		cat = cfg->root;
-		while(cat) {
-			/* Dump section with any appropriate comment */
-			fprintf(f, "[%s]\n", cat->name);
-			var = cat->root;
-			while(var) {
-				if (var->sameline) 
-					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
-				else	
-					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
-				if (var->blanklines) {
-					blanklines = var->blanklines;
-					while (blanklines--)
-						fprintf(f, "\n");
-				}
-					
-				var = var->next;
-			}
-#if 0
-			/* Put an empty line */
-			fprintf(f, "\n");
-#endif
-			cat = cat->next;
-		}
-		fclose(f);
-	} else {
-		cw_log(CW_LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
 static void clear_config_maps(void) 
 {
 	struct cw_config_map *map;

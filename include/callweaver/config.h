@@ -214,8 +214,6 @@ extern CW_API_PUBLIC struct cw_variable *cw_variable_new(const char *name, const
 extern CW_API_PUBLIC void cw_variable_append(struct cw_category *category, struct cw_variable *variable);
 extern CW_API_PUBLIC int cw_variable_delete(struct cw_config *cfg, char *category, char *variable, char *value);
 
-extern CW_API_PUBLIC int config_text_file_save(const char *filename, const struct cw_config *cfg, const char *generator);
-
 extern CW_API_PUBLIC struct cw_config *cw_config_internal_load(const char *configfile, struct cw_config *cfg);
 
 #if defined(__cplusplus) || defined(c_plusplus)
