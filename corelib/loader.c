@@ -521,23 +521,23 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 	return 0;
 }
 
-static void complete_fn(int fd, char *line, int pos, char *word, int word_len)
+static void complete_fn(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_fn_args args;
 	char *p;
 	int i;
 
-	if (pos == 1) {
-		if (word[0] == '/') {
+	if (lastarg == 1) {
+		if (argv[lastarg][0] == '/') {
 			i = 0;
-			while ((p = (char *)rl_filename_completion_function(word, i++))) {
+			while ((p = (char *)rl_filename_completion_function(argv[lastarg], i++))) {
 				cw_cli(fd, "%s\n", p);
 				free(p);
 			}
 		} else {
 			args.fd = fd;
-			args.word = word;
-			args.word_len = word_len;
+			args.word = argv[lastarg];
+			args.word_len = lastarg_len;
 			lt_dlforeachfile(lt_dlgetsearchpath(), complete_fn_one, &args);
 		}
 	}
