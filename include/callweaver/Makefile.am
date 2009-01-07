@@ -16,7 +16,6 @@ cwinclude_HEADERS = acl.h \
                       channel.h \
                       chanvars.h \
                       cli.h \
-                      compiler.h \
                       config.h \
                       crypto.h \
                       devicestate.h \

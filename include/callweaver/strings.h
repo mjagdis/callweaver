@@ -32,7 +32,7 @@
 #include <ctype.h>
 
 #include "callweaver/inline_api.h"
-#include "callweaver/compiler.h"
+
 
 static inline int cw_strlen_zero(const char *s)
 {
@@ -129,12 +129,13 @@ char *cw_strip(char *s),
 CW_INLINE_API(
 void cw_copy_string(char *dst, const char *src, size_t size),
 {
-	while (*src && size) {
+	while (*src) {
 		*dst++ = *src++;
-		size--;
-	}
-	if (__builtin_expect(!size, 0))
+		if (--size)
+			continue;
 		dst--;
+		break;
+	}
 	*dst = '\0';
 }
 )

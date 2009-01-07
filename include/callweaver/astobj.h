@@ -26,7 +26,7 @@
 #include <string.h>
 
 #include "callweaver/lock.h"
-#include "callweaver/compiler.h"
+
 
 /*! \file
  * \brief A set of macros implementing objects and containers.
@@ -220,7 +220,7 @@ extern "C" {
 	do { \
 		int newcount = 0; \
 		ASTOBJ_WRLOCK(object); \
-		if (__builtin_expect((object)->refcount > 0, 1)) \
+		if ((object)->refcount > 0) \
 			newcount = --((object)->refcount); \
 		else \
 			cw_log(CW_LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
