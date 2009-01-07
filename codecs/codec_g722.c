@@ -24,10 +24,6 @@
  * \brief codec_g722.c - translate between signed linear and ITU G.722
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>

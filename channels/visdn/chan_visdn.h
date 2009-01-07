@@ -13,10 +13,6 @@
 #ifndef _CHAN_VISDN_H
 #define _CHAN_VISDN_H
 
-#ifdef HAVE_CONFIG_H
- #include "confdefs.h"
-#endif
-
 #include <callweaver/channel.h>
 #include <libq931/list.h>
 

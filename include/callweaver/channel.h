@@ -23,10 +23,6 @@
 #ifndef _CALLWEAVER_CHANNEL_H
 #define _CALLWEAVER_CHANNEL_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdarg.h>
 
 #include "callweaver/object.h"

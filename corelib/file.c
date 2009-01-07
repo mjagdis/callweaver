@@ -21,10 +21,6 @@
  * \brief Generic File Format Support.
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <errno.h>
 #include <unistd.h>

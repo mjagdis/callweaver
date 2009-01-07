@@ -23,10 +23,6 @@
  * \brief ENUM Support for CallWeaver
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

@@ -21,10 +21,6 @@
  * \brief Translate between signed linear and GSM 06.10
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

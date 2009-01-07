@@ -9,11 +9,6 @@
  * under the terms and conditions of the GNU General Public License.
  *
  */
-
-#ifdef HAVE_CONFIG_H
- #include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 
 #include <callweaver/pbx.h>

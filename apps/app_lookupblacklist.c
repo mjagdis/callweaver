@@ -23,10 +23,6 @@
  * \brief App to lookup the caller ID number, and see if it is blacklisted
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -63,10 +63,6 @@
 /* FS: Changes
    -- fixed reload_config() / do_monitor to stay responsive during reloads
 */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

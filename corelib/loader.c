@@ -21,10 +21,6 @@
  * \brief Module Loader
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>

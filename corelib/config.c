@@ -23,10 +23,6 @@
  * Includes the CallWeaver Realtime API - ARA
  * See README.realtime
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

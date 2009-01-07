@@ -23,10 +23,6 @@
  * \brief Core PBX function registry.
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <ctype.h>
 #include <errno.h>

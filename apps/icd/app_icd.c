@@ -45,11 +45,6 @@
  * @deffunc function prototype if required
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include "callweaver/icd/app_icd.h"
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_globals.h"

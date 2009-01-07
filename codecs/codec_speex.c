@@ -25,10 +25,6 @@
  * \note This work was motivated by Jeremy McNamara 
  * hacked to be configurable by anthm and bkw 9/28/2004
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

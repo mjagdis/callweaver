@@ -24,10 +24,6 @@
  * \author Anthony Minessale <anthmct@yahoo.com>
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <string.h>
 
 #include "callweaver.h"

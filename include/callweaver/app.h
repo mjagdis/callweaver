@@ -27,10 +27,6 @@
 extern "C" {
 #endif
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include "callweaver/channel.h"
 
 /* IVR stuff */

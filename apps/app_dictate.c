@@ -23,10 +23,6 @@
  * \brief Virtual Dictation Machine Application For CallWeaver
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

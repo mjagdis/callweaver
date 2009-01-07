@@ -24,10 +24,6 @@
 #ifndef _CALLWEAVER_LOCALTIME_H
 #define _CALLWEAVER_LOCALTIME_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 extern CW_API_PUBLIC int cw_tzsetwall(void);
 extern CW_API_PUBLIC void cw_tzset(const char *name);
 extern CW_API_PUBLIC struct tm *cw_localtime(const time_t *timep, struct tm *p_tm, const char *zone);

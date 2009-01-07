@@ -21,10 +21,6 @@
  * \brief Full-featured outgoing call spool support
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>

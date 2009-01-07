@@ -22,10 +22,6 @@
  * so please use them in favour of other routines.
  * Please consult the CODING GUIDELINES for more information.
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>

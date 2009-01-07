@@ -36,11 +36,6 @@
  * icd_member elements and amalgamates them into one place.
  *
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include <assert.h>
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_member_list.h"

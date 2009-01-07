@@ -28,11 +28,6 @@
  * \brief icd_mod_external.c - example of an external Module
  * 
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include "callweaver/icd/icd_module_api.h"
 
 /* Private implemenations */

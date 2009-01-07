@@ -40,12 +40,6 @@
  * would register yourself with icd_caller_list__set_assigned_agent_notify_fn().
  *
  */
- 
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_caller_list.h"

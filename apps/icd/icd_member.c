@@ -40,11 +40,6 @@
  * structure.
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_member.h"
 #include "callweaver/icd/icd_caller.h"

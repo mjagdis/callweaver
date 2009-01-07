@@ -46,11 +46,6 @@
  * interpretation of the token.
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 
 #include "callweaver/icd/icd_types.h"

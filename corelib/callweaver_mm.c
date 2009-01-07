@@ -21,10 +21,6 @@
  * Memory Management
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #ifdef __CW_DEBUG_MALLOC
 
 #include <stdio.h>

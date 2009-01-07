@@ -30,11 +30,6 @@
  *  \brief icd_plugable_fn_list.c - a list of lists
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_plugable_fn.h"

@@ -21,10 +21,6 @@
  * \brief codec_a_mu.c - translate between alaw and ulaw directly
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>

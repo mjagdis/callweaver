@@ -21,10 +21,6 @@
  * \brief Core PBX routines.
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>

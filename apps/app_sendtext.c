@@ -21,10 +21,6 @@
  * \brief App to transmit a text message
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h> 
 #include <string.h>
 #include <stdlib.h>

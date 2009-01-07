@@ -49,11 +49,6 @@
  * example of how you can keep list elements in an arbitrary sort order.
  *
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_metalist.h"

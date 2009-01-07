@@ -92,11 +92,6 @@
  *
  *   4. icd_event__notify(event_id, extra, hook_fn, extra) - Calls icd_event_factory__notify
 */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

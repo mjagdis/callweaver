@@ -13,10 +13,6 @@
  * terms of the GNU Public License V2.
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"  
-#endif  
-
 #include <stdio.h> 
 #define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>

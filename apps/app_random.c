@@ -21,10 +21,6 @@
  *
  * \author Tilghman Lesher <asterisk__app_random__200508 at the-tilghman.com>
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

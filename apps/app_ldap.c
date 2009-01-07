@@ -7,10 +7,6 @@
  * http://www.mezzo.net/asterisk
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

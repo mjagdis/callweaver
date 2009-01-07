@@ -29,11 +29,6 @@
  /*! \file
   *  \brief icd_mod_event_cwmgr.c - interface to send events to the callweaver.org manager
   */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/icd_module_api.h"
 #include "callweaver/icd/icd_conference.h"
 #include "callweaver/icd/app_icd.h"

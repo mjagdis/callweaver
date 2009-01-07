@@ -21,10 +21,6 @@
  * \brief Trivial application to playback a sound file
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h> 
 #include <string.h>
 #include <stdlib.h>

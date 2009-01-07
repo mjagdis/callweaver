@@ -21,10 +21,6 @@
  * CallerID Generation support 
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <time.h>
 #include <string.h>
 #include <stdio.h>

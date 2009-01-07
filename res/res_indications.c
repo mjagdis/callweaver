@@ -24,10 +24,6 @@
  *
  * Load the country specific dialtones into the callweaver PBX.
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h> 
 #include <unistd.h>
 #include <string.h>

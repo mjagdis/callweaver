@@ -25,10 +25,6 @@
  * \brief Translate between signed linear and LPC10 (Linear Predictor Code)
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

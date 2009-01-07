@@ -21,10 +21,6 @@
  * \brief codec_ulaw.c - translate between signed linear and ulaw
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>

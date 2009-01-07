@@ -43,12 +43,6 @@
  * the comparison function set to icd_agent__cmp_priority().
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
-
 #include <assert.h>
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_distributor.h"

@@ -21,10 +21,6 @@
  * \brief Save GSM in the proprietary Microsoft format.
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
- 
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

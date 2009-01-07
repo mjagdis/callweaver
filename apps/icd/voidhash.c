@@ -25,11 +25,6 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

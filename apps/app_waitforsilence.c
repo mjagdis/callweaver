@@ -27,10 +27,6 @@
  *   - WaitForSilence(1000,1) will wait for 1 second of silence, once
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

@@ -34,11 +34,8 @@
  *
  * Don't mess with these unless you're really sure you know what you're doing.
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
+
 #ifndef _THREAD_SAFE
 #define _THREAD_SAFE
 #endif

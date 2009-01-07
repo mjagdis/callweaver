@@ -29,11 +29,6 @@
  /*! \file
   * \brief icd_command.c - cli commands for icd
   */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/app_icd.h"
 #include "callweaver/icd/icd_command.h"
 #include "callweaver/icd/icd_common.h"

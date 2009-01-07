@@ -13,11 +13,6 @@
  * terms of the GNU Public License V2.
  *
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #ifndef _NCONFERENCE_COMMON_H
 #define NCONFERENCE_COMMON_H
 

@@ -26,10 +26,6 @@
  *
  * Logs in LOG_DIR/cdr_custom
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <sys/types.h>
 

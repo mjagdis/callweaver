@@ -24,11 +24,6 @@
  * \arg \ref Config_omi
  * \ingroup cdr_drivers
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <strings.h>

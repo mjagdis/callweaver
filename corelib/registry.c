@@ -21,10 +21,6 @@
  * \brief Registry API
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>

@@ -26,10 +26,6 @@
  * \arg http://www.unixodbc.org
  * \arg \ref Config_cdr
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>

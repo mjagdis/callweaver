@@ -24,13 +24,6 @@
  *
  * \ingroup channel_drivers
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
-
-
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>

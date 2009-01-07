@@ -29,14 +29,7 @@
  /*! \file
   *  \brief icd_mod_matchagent.c - module that matches a customer to a defined agent in a queue
   */
-  
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
-
 #include "callweaver/icd/icd_module_api.h"
-
 #include "callweaver/icd/icd_member_list.h"
 
 

@@ -25,10 +25,6 @@
  * Specially written for Malcolm Davenport, but I think I'll use it too
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #ifndef __Darwin__
 #include <linux/soundcard.h>
 #else

@@ -21,10 +21,6 @@
  * \brief App to set caller ID name from database, based on directory number
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

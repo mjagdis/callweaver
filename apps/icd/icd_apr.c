@@ -29,11 +29,6 @@
  /*! \file
   * \brief icd_apr.c - functions to use apr
   */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_apr.h"
 

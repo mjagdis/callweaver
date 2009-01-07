@@ -24,10 +24,6 @@
  * @brief This file is the implementation of Agents modules.
  * It is a dynamic module that is loaded by CallWeaver. At load time, load_module is run.
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

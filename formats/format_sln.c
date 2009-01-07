@@ -20,10 +20,6 @@
  * \brief RAW SLINEAR Format
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
- 
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

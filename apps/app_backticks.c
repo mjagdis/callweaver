@@ -23,10 +23,6 @@
  * \brief Execute a shell command and save the result as a variable
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>

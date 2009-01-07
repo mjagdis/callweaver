@@ -23,10 +23,6 @@
 #ifndef _CALLWEAVER_STRINGS_H
 #define _CALLWEAVER_STRINGS_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>

@@ -21,10 +21,6 @@
  * \brief Distributed Universal Number Discovery (DUNDi)
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

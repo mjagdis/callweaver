@@ -38,11 +38,6 @@
  * connection most of the time.
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include "callweaver/icd/icd_distributor_list.h"
 #include "callweaver/icd/icd_types.h"
 

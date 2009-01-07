@@ -21,10 +21,6 @@
  * Implementation of IAX Version 2
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>

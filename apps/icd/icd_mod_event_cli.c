@@ -25,11 +25,6 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include "callweaver/icd/icd_module_api.h"
 #include "callweaver/icd/icd_command.h"
 #include "callweaver/icd/icd_conference.h"

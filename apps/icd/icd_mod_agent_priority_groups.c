@@ -62,11 +62,6 @@
  *  hangus em u
  *  
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/icd_module_api.h"
 
 /* public apis */

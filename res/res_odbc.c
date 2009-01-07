@@ -27,10 +27,6 @@
  * \arg See also: \ref cdrodbc
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

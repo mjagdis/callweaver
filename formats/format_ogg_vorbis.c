@@ -19,10 +19,6 @@
  * \brief OGG/Vorbis streams.
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
- 
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>

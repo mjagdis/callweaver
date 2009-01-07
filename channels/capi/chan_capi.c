@@ -15,10 +15,6 @@
  * This program is free software and may be modified and 
  * distributed under the terms of the GNU Public License.
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <stdlib.h>

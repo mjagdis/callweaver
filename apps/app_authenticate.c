@@ -20,10 +20,6 @@
  * \brief Execute arbitrary authenticate commands
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

@@ -24,10 +24,6 @@
  *                              the 32kbps variant.
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>

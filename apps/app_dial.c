@@ -21,10 +21,6 @@
  * \brief dial() & retrydial() - Trivial application to dial a channel and send an URL on answer
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

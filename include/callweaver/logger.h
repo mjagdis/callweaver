@@ -25,10 +25,6 @@
 #ifndef _CALLWEAVER_LOGGER_H
 #define _CALLWEAVER_LOGGER_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdarg.h>
 
 

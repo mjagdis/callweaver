@@ -22,11 +22,6 @@
  * \brief Common implementation-independent jitterbuffer stuff.
  * 
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>

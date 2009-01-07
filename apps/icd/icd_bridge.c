@@ -29,11 +29,6 @@
  /*! \file
   * \brief icd_bridge.c - direct bridging taken mostly out of the asterisk pbx
   */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include "callweaver/icd/icd_types.h"
 #include "callweaver/icd/icd_globals.h"
 #include "callweaver/icd/icd_common.h"

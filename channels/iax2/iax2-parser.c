@@ -21,10 +21,6 @@
  * \brief Implementation of Inter-CallWeaver eXchange Protocol, v 2
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <string.h>

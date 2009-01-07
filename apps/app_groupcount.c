@@ -21,10 +21,6 @@
  * \brief Group Manipulation Applications
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>

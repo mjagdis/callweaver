@@ -37,11 +37,6 @@
  * v1.2   - (11-DD-04) - Added reload. Updated load and unload.
  *                       Code beautification (doc/CODING-GUIDELINES)
  */
-
-#ifdef HAVE_CONFIG_H
-	#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

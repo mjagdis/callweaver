@@ -70,10 +70,6 @@
 /*---------------------------------------------------------------------------*\
 				 Includes
 \*---------------------------------------------------------------------------*/
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <unistd.h>			     /* standard Unix definitions */
 #include <sys/types.h>                       /* system types */
 #include <sys/time.h>                        /* time definitions */

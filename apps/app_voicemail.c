@@ -32,10 +32,6 @@
  * \brief Comedian Mail - Voicemail System
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>

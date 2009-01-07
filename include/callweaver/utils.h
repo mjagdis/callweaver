@@ -23,10 +23,6 @@
 #ifndef _CALLWEAVER_UTILS_H
 #define _CALLWEAVER_UTILS_H
 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <netinet/in.h>

@@ -9,11 +9,6 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

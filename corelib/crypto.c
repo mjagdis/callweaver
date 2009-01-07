@@ -21,10 +21,6 @@
  * \brief Provide Cryptographic Signature capability
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>

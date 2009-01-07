@@ -29,11 +29,6 @@
  /* \file
   * \brief icd_pluggable_fn.c Pluggable function definitions
   */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include <assert.h>
 #include "callweaver/icd/icd_types.h"
 #include "callweaver/icd/icd_plugable_fn.h"

@@ -22,10 +22,6 @@
  * 
  * \arg See also: \ref chan_sip.c
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <osp.h>
 #include <openssl/err.h>

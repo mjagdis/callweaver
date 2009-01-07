@@ -21,10 +21,6 @@
  * \brief I/O Managment (Derived from Cheops-NG)
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

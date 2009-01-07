@@ -26,10 +26,6 @@
  * \todo SIP over TLS
  * \todo Better support of forking
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>

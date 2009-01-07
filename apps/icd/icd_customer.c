@@ -38,11 +38,6 @@
  * of a call will be here.
  *
  */
- 
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif  
-
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_bridge.h"
 #include "callweaver/icd/icd_customer.h"

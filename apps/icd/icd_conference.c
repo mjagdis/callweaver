@@ -29,11 +29,6 @@
  /*! \file
   * \brief icd_conference.c  -  conferencing and conference type bridging features
 */
-
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif 
-
 #include <assert.h>
 #include "callweaver/icd/icd_types.h"
 #include "callweaver/icd/icd_common.h"

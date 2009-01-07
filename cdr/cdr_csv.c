@@ -24,10 +24,6 @@
  * 
  * \arg See also \ref cwCDR
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <stdio.h>
 #include <sys/types.h>
 

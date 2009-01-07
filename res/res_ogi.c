@@ -21,10 +21,6 @@
  * \brief OGI - the CallWeaver Gateway Interface
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>

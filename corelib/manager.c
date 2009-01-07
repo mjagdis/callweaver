@@ -23,10 +23,6 @@
  * Channel Management and more
  * 
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
