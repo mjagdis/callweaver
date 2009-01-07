@@ -112,7 +112,7 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 }
 
 
-int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj)
+int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const void *pattern, struct cw_object *obj)
 {
 	struct cw_registry_entry *entry;
 	struct cw_list *list;

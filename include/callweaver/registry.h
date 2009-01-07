@@ -111,7 +111,7 @@ extern CW_API_PUBLIC struct cw_registry_entry *cw_registry_add(struct cw_registr
  */
 extern CW_API_PUBLIC int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry);
 
-extern CW_API_PUBLIC int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const char *pattern, struct cw_object *obj);
+extern CW_API_PUBLIC int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const void *pattern, struct cw_object *obj);
 
 extern CW_API_PUBLIC int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
 extern CW_API_PUBLIC int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_object *, void *), void *data);
