@@ -2,7 +2,7 @@ libexecdir = ${cwexecdir}
 
 DEFS += -include $(top_builddir)/include/global.h
 
-SUBDIRS=jitterbuffer resample
+SUBDIRS=jitterbuffer
 
 CORE_SRC = \
     version.c \
@@ -60,15 +60,7 @@ CORE_SRC = \
 	ecdisa.h \
     callweaver_expr2.h \
     jitterbuffer/libcwjb.la \
-	resample.c \
-	directory_engine.c \
-	hashtable.c \
-    mpool.c \
-    xml_parser.c \
-    eventlib.c \
-	hashtable_helper.c \
 	file.c \
-    filestreams.c \
     crypto.c \
     lang/say_br.c \
     lang/say_cz.c \
@@ -104,7 +96,6 @@ CORE_LIBS	=  -lvale -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 CORE_LIBS	+= @SQLITE3_THREADSAFE_LIBS@
 CORE_LIBS 	+= ${top_builddir}/stdtime/libtime.la 
 CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
-CORE_LIBS 	+= ${top_builddir}/corelib/resample/libcwresample.la
 CORE_LIBS	+= -lreadline
 CORE_LIBS	+= -lssl -lcrypto
 

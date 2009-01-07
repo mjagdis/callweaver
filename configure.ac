@@ -2484,7 +2484,6 @@ AC_OUTPUT([Makefile
  		 corelib/Makefile
 		 corelib/version.sh
  		 corelib/jitterbuffer/Makefile
- 		 corelib/resample/Makefile
                  funcs/Makefile
                  pbx/Makefile
                  res/Makefile
@@ -2493,9 +2492,7 @@ AC_OUTPUT([Makefile
 		 configs/Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
-                 directories/Makefile
                  formats/Makefile
-                 filestreams/Makefile
 ])
 
 dnl #                 channels/sofia/Makefile

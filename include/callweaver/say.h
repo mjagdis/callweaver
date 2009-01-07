@@ -59,9 +59,6 @@ struct cw_intl_say_engine_s {
 
 typedef struct cw_intl_say_engine_s cw_intl_say_engine_t;
 
- //CW_MUTEX_DEFINE_STATIC(intl_say_lock);
- //hash_table_t intl_say_hashtable;
-
 int cw_intl_say_register( cw_intl_say_engine_t *implementation );
 int cw_intl_say_unregister( cw_intl_say_engine_t *implementation );
 

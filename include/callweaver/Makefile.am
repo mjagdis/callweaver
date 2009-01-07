@@ -60,13 +60,7 @@ cwinclude_HEADERS = acl.h \
                       udptl.h \
                       unaligned.h \
                       utils.h \
-                      resample.h \
-                      directory_engine.h \
-		      eventlib.h \
-		      xml_parser.h \
-		      mpool.h \
-		      hashtable.h hashtable_helper.h \
-	              file.h filestreams.h
+	              file.h
 
 keywords.h:	$(top_builddir)/utils/genkeywords
 	$(top_builddir)/utils/genkeywords > $@
