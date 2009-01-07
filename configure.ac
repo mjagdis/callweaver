@@ -978,6 +978,10 @@ AC_SUBST([ODBC_LIBS])
 
 dnl ###########################################################################
 
+LIBCURL_CHECK_CONFIG([yes], , ,)
+
+dnl ###########################################################################
+
 AC_ARG_ENABLE([postgresql],
 	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=no)])],,[enable_postgresql="no"])
 
@@ -2244,7 +2248,7 @@ dnl ###########################################################################
 AC_ARG_WITH([res_config_curl],
         [AC_HELP_STRING([--with-res_config_curl],[Build and install res_config_curl (default=no)])],,[with_res_config_curl="no"])
 
-AM_CONDITIONAL([WANT_RES_CONFIG_CURL],[test "${with_res_config_curl}" = "yes"])
+AM_CONDITIONAL([WANT_RES_CONFIG_CURL],[test "${with_res_config_curl}" = "yes" -a -n "${LIBCURL}"])
 
 dnl ###########################################################################
 

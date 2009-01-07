@@ -95,8 +95,8 @@ if WANT_RES_CONFIG_CURL
 cwmod_LTLIBRARIES		+= res_config_curl.la
 res_config_curl_la_SOURCES	= res_config_curl.c
 res_config_curl_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
-res_config_curl_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
-res_config_curl_la_LIBADD	= @ODBC_LIBS@ @CALLWEAVER_LIB@
+res_config_curl_la_CFLAGS	= $(AM_CFLAGS) @LIBCURL_CPPFLAGS@
+res_config_curl_la_LIBADD	= @LIBCURL@ @CALLWEAVER_LIB@
 endif WANT_RES_CONFIG_CURL
 
 if WANT_RES_SNMP
