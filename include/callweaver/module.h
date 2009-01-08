@@ -49,33 +49,6 @@ extern CW_API_PUBLIC struct module *cw_module_get(struct module *mod);
  */
 extern CW_API_PUBLIC void cw_module_put(struct module *mod);
 
-/*! 
- * \brief Load a module.
- * \param resource_name The filename of the module to load.
- *
- * This function is run by the PBX to load the modules.  It performs
- * all loading and initilization tasks.   Basically, to load a module, just
- * give it the name of the module and it will do the rest.
- *
- * \return Zero on success, -1 on error.
- */
-int cw_load_resource(const char *resource_name);
-
-/*! 
- * \brief Unloads a module.
- * \param resource_name The name of the module to unload.
- * \param hangup        If true any channels using or depending on the module
- *                      will be hung up.
- *
- * Deregister the module's functionality so that it will be unloaded as soon
- * as it is no longer in use. Optionally hangup channels which are using or
- * depending on the module's presence. The module will not be unloaded as
- * long as channels are using it.
- *
- * \return Zero on success, -1 on error.
- */
-int cw_unload_resource(const char *resource_name, int hangup);
-
 
 void cw_loader_init(void);
 int cw_loader_cli_init(void);

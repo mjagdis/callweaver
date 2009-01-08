@@ -130,7 +130,7 @@ void cw_module_put(struct module *mod)
 }
 
 
-int cw_unload_resource(const char *resource_name, int hangup)
+static int cw_unload_resource(const char *resource_name, int hangup)
 {
 	struct module *mod;
 	int res = -1;
@@ -236,7 +236,7 @@ int cw_module_reload(const char *name)
 	return reloaded;
 }
 
-int cw_load_resource(const char *resource_name)
+static int cw_load_resource(const char *resource_name)
 {
 	struct module *newmod, *mod, **m;
 	struct modinfo *(*modinfo)(void);
