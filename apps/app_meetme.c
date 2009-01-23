@@ -510,7 +510,7 @@ static int confs_show(int fd, int argc, char **argv)
     return RESULT_SUCCESS;
 }
 
-static char show_confs_usage[] =
+static const char show_confs_usage[] =
     "Deprecated! Please use 'meetme' instead.\n";
 
 static struct cw_clicmd cli_show_confs =
@@ -729,7 +729,7 @@ static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
     }
 }
 
-static char conf_usage[] =
+static const char conf_usage[] =
     "Usage: meetme  (un)lock|(un)mute|kick|list <confno> <usernumber>\n"
     "       Executes a command for the conference or on a conferee\n";
 

@@ -5174,19 +5174,19 @@ static int pbxcli_capi_no_debug(int fd, int argc, char *argv[])
 /*
  * usages
  */
-static char info_usage[] = 
+static const char info_usage[] =
 "Usage: capi info\n"
 "       Show info about B channels on controllers.\n";
 
-static char show_channels_usage[] = 
+static const char show_channels_usage[] =
 "Usage: capi show channels\n"
 "       Show info about B channels.\n";
 
-static char debug_usage[] = 
+static const char debug_usage[] =
 "Usage: capi debug\n"
 "       Enables dumping of CAPI packets for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] =
 "Usage: capi no debug\n"
 "       Disables dumping of CAPI packets for debugging purposes\n";
 

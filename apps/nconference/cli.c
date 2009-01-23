@@ -128,7 +128,7 @@ static int app_count_exec(struct cw_channel *chan, int argc, char **argv, char *
 int nconference_admin_exec( int fd, int argc, char *argv[] );
 static void nconference_admin_complete(int fd, char *argv[], int lastarg, int lastarg_len);
 
-static char nconference_admin_usage[] = 
+static const char nconference_admin_usage[] =
 	"usage: NConference <command>  <conference_name> <usernumber>\n"
 	"       Admin commands for conference\n"
 	"       <command> can be: kick, list, lock, mute, show, unlock, unmute\n"

@@ -2571,23 +2571,23 @@ int cw_context_remove_extension2(struct cw_context *con, const char *extension, 
 /*
  * Help for CLI commands ...
  */
-static char show_dialplan_help[] =
+static const char show_dialplan_help[] =
 "Usage: show dialplan [exten@][context]\n"
 "       Show dialplan\n";
 
-static char show_switches_help[] = 
+static const char show_switches_help[] =
 "Usage: show switches\n"
 "       Show registered switches\n";
 
-static char show_hints_help[] = 
+static const char show_hints_help[] =
 "Usage: show hints\n"
 "       Show registered hints\n";
 
-static char show_globals_help[] =
+static const char show_globals_help[] =
 "Usage: show globals\n"
 "       List current global dialplan variables and their values\n";
 
-static char set_global_help[] =
+static const char set_global_help[] =
 "Usage: set global <name> <value>\n"
 "       Set global dialplan variable <name> to <value>\n";
 

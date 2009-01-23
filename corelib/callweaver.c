@@ -718,56 +718,56 @@ static void shutdown_restart(int fd, int doit, int nice, int timeout)
 }
 
 
-static char shutdown_restart_status_help[] =
+static const char shutdown_restart_status_help[] =
 "Usage: stop|restart status\n"
 "       Shows status of any pending shutdown or restart\n";
 
-static char shutdown_restart_cancel_help[] = 
+static const char shutdown_restart_cancel_help[] =
 "Usage: stop|restart cancel\n"
 "       Causes CallWeaver to cancel a pending shutdown or restart, and resume normal\n"
 "       call operations.\n";
 
-static char shutdown_now_help[] = 
+static const char shutdown_now_help[] =
 "Usage: stop now\n"
 "       Shuts down a running CallWeaver immediately, hanging up all active calls .\n";
 
-static char shutdown_gracefully_help[] = 
+static const char shutdown_gracefully_help[] =
 "Usage: stop gracefully [timeout]\n"
 "       Causes CallWeaver to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n"
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
 "       many seconds an immediate stop will be initiated.\n";
 
-static char shutdown_when_convenient_help[] = 
+static const char shutdown_when_convenient_help[] =
 "Usage: stop when convenient [timeout]\n"
 "       Causes CallWeaver to perform a shutdown when all active calls have ended.\n"
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
 "       any seconds an immediate stop will be initiated.\n";
 
-static char restart_now_help[] = 
+static const char restart_now_help[] =
 "Usage: restart now\n"
 "       Causes CallWeaver to hangup all calls and exec() itself performing a cold\n"
 "       restart.\n";
 
-static char restart_gracefully_help[] = 
+static const char restart_gracefully_help[] =
 "Usage: restart gracefully [timeout]\n"
 "       Causes CallWeaver to stop accepting new calls and exec() itself performing a cold\n"
 "       restart when all active calls have ended.\n"
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
 "       any seconds an immediate stop will be initiated.\n";
 
-static char restart_when_convenient_help[] = 
+static const char restart_when_convenient_help[] =
 "Usage: restart when convenient [timeout]\n"
 "       Causes CallWeaver to perform a cold restart when all active calls have ended.\n"
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
 "       any seconds an immediate stop will be initiated.\n";
 
-static char bang_help[] =
+static const char bang_help[] =
 "Usage: !<command>\n"
 "       Executes a given shell command\n";
 
 /* DEPRECATED */
-static char abort_halt_help[] = 
+static const char abort_halt_help[] =
 "Usage: abort halt\n"
 "       Causes CallWeaver to abort a pending shutdown or restart, and resume normal\n"
 "       call operations.\n";

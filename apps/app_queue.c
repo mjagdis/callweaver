@@ -4257,7 +4257,7 @@ static void complete_remove_queue_member(int fd, char *argv[], int lastarg, int 
     }
 }
 
-static char show_queues_usage[] = 
+static const char show_queues_usage[] =
     "Usage: show queues\n"
     "       Provides summary information on call queues.\n";
 
@@ -4268,7 +4268,7 @@ static struct cw_clicmd cli_show_queues = {
     .usage = show_queues_usage,
 };
 
-static char show_queue_usage[] = 
+static const char show_queue_usage[] =
     "Usage: show queue\n"
     "       Provides summary information on a specified queue.\n";
 
@@ -4280,7 +4280,7 @@ static struct cw_clicmd cli_show_queue = {
     .usage = show_queue_usage,
 };
 
-static char aqm_cmd_usage[] =
+static const char aqm_cmd_usage[] =
     "Usage: add queue member <channel> to <queue> [penalty <penalty>]\n";
 
 static struct cw_clicmd cli_add_queue_member = {
@@ -4291,7 +4291,7 @@ static struct cw_clicmd cli_add_queue_member = {
     .usage = aqm_cmd_usage,
 };
 
-static char rqm_cmd_usage[] =
+static const char rqm_cmd_usage[] =
     "Usage: remove queue member <channel> from <queue>\n";
 
 static struct cw_clicmd cli_remove_queue_member = {

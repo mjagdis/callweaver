@@ -5563,11 +5563,11 @@ static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, char *
 	return res;
 }
 
-static char show_voicemail_users_help[] =
+static const char show_voicemail_users_help[] =
 "Usage: show voicemail users [for <context>]\n"
 "       Lists all mailboxes currently set up\n";
 
-static char show_voicemail_zones_help[] =
+static const char show_voicemail_zones_help[] =
 "Usage: show voicemail zones\n"
 "       Lists zone message formats\n";
 

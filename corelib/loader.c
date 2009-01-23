@@ -692,11 +692,11 @@ static int handle_unload(int fd, int argc, char *argv[])
 }
 
 
-static char modlist_help[] =
+static const char modlist_help[] =
 "Usage: show modules [like keyword]\n"
 "       Shows CallWeaver modules currently in use, and usage statistics.\n";
 
-static char load_help[] = 
+static const char load_help[] =
 "Usage: load <module name>\n"
 "       Loads the specified module into CallWeaver.\n"
 "       If the module is already present but deregistered (see unload)\n"
@@ -704,12 +704,12 @@ static char load_help[] =
 "       the module has not actually been unloaded and reloaded this\n"
 "       may mean that internal state is NOT reset.\n";
 
-static char reconfigure_help[] =
+static const char reconfigure_help[] =
 "Usage: reconfigure [module ...]\n"
 "       Reloads configuration files for all listed modules which support\n"
 "       reloading, or for all supported modules if none are listed.\n";
 
-static char unload_help[] = 
+static const char unload_help[] =
 "Usage: unload [-h] <module name>\n"
 "       Deregisters the functionality provided by the specified\n"
 "       module from CallWeaver so that it will be removed as soon\n"

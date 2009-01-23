@@ -992,7 +992,7 @@ static int config_command(int fd, int argc, char **argv)
 	return 0;
 }
 
-static char show_config_help[] =
+static const char show_config_help[] =
 	"Usage: show config mappings\n"
 	"	Shows the filenames to config engines.\n";
 

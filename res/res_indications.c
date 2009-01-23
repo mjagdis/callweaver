@@ -56,15 +56,15 @@ static const char config[] = "indications.conf";
 /*
  * Help for commands provided by this module ...
  */
-static char help_add_indication[] =
+static const char help_add_indication[] =
 "Usage: indication add <country> <indication> \"<tonelist>\"\n"
 "       Add the given indication to the country.\n";
 
-static char help_remove_indication[] =
+static const char help_remove_indication[] =
 "Usage: indication remove <country> <indication>\n"
 "       Remove the given indication from the country.\n";
 
-static char help_show_indications[] =
+static const char help_show_indications[] =
 "Usage: show indications [<country> ...]\n"
 "       Show either a condensed for of all country/indications, or the\n"
 "       indications for the specified countries.\n";

@@ -2356,11 +2356,11 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char debug_usage[] =
+static const char debug_usage[] =
     "Usage: rtp debug [ip host[:port]]\n"
     "       Enable dumping of all RTP packets to and from host.\n";
 
-static char no_debug_usage[] =
+static const char no_debug_usage[] =
     "Usage: rtp no debug\n"
     "       Disable all RTP debugging\n";
 

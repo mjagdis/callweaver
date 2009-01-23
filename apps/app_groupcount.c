@@ -308,7 +308,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 #undef FORMAT_STRING
 
 
-static char show_channels_usage[] =
+static const char show_channels_usage[] =
 "Usage: group show channels [pattern]\n"
 "       Lists all currently active channels with channel group(s) specified.\n"
 "       Optional regular expression pattern is matched to group names for each channel.\n";

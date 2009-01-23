@@ -65,28 +65,28 @@ static struct cw_context *local_contexts = NULL;
 /*
  * Help for commands provided by this module ...
  */
-static char context_dont_include_help[] =
+static const char context_dont_include_help[] =
 "Usage: dont include <context> in <context>\n"
 "       Remove an included context from another context.\n";
 
-static char context_remove_extension_help[] =
+static const char context_remove_extension_help[] =
 "Usage: remove extension exten@context [priority]\n"
 "       Remove an extension from a given context. If a priority\n"
 "       is given, only that specific priority from the given extension\n"
 "       will be removed.\n";
 
-static char context_add_include_help[] =
+static const char context_add_include_help[] =
 "Usage: include <context> in <context>\n"
 "       Include a context in another context.\n";
 
-static char save_dialplan_help[] =
+static const char save_dialplan_help[] =
 "Usage: save dialplan [/path/to/extension/file]\n"
 "       Save dialplan created by pbx_config module.\n"
 "\n"
 "Example: save dialplan                 (/etc/callweaver/extensions.conf)\n"
 "         save dialplan /home/markster  (/home/markster/extensions.conf)\n";
 
-static char context_add_extension_help[] =
+static const char context_add_extension_help[] =
 "Usage: add extension <exten>,<priority>,<app>,<app-data> into <context>\n"
 "       [replace]\n\n"
 "       This command will add new extension into <context>. If there is an\n"
@@ -96,19 +96,19 @@ static char context_add_extension_help[] =
 "Example: add extension 6123,1,Dial,IAX/216.207.245.56/6123 into local\n"
 "         Now, you can dial 6123 and talk to Markster :)\n";
 
-static char context_add_ignorepat_help[] =
+static const char context_add_ignorepat_help[] =
 "Usage: add ignorepat <pattern> into <context>\n"
 "       This command adds a new ignore pattern into context <context>\n"
 "\n"
 "Example: add ignorepat _3XX into local\n";
 
-static char context_remove_ignorepat_help[] =
+static const char context_remove_ignorepat_help[] =
 "Usage: remove ignorepat <pattern> from <context>\n"
 "       This command removes an ignore pattern from context <context>\n"
 "\n"
 "Example: remove ignorepat _3XX from local\n";
 
-static char reload_extensions_help[] =
+static const char reload_extensions_help[] =
 "Usage: reload extensions.conf without reloading any other modules\n"
 "       This command does not delete global variables unless\n"
 "       clearglobalvars is set to yes in extensions.conf\n"

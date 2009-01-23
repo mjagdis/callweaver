@@ -65,7 +65,7 @@ CW_MUTEX_DEFINE_STATIC(mysql_lock);
 
 static MYSQL mysql;
 
-static char cdr_mysql_status_help[] =
+static const char cdr_mysql_status_help[] =
 "Usage: cdr mysql status\n"
 "       Shows current connection status for cdr_mysql\n";
 

@@ -1116,7 +1116,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_endpoints_usage[] = 
+static const char show_endpoints_usage[] =
 "Usage: mgcp show endpoints\n"
 "       Lists all endpoints known to the MGCP (Media Gateway Control Protocol) subsystem.\n";
 
@@ -1180,7 +1180,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char audit_endpoint_usage[] = 
+static const char audit_endpoint_usage[] =
 "Usage: mgcp audit endpoint <endpointid>\n"
 "       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
 "       mgcp debug MUST be on to see the results of this command.\n";
@@ -4000,15 +4000,15 @@ static int mgcp_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char debug_usage[] = 
+static const char debug_usage[] =
 "Usage: mgcp debug\n"
 "       Enables dumping of MGCP packets for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] =
 "Usage: mgcp no debug\n"
 "       Disables dumping of MGCP packets for debugging purposes\n";
 
-static char mgcp_reload_usage[] =
+static const char mgcp_reload_usage[] =
 "Usage: mgcp reload\n"
 "       Reloads MGCP configuration from mgcp.conf\n";
 

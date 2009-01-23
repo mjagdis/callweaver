@@ -691,8 +691,8 @@ static struct cw_switch sqlite_switch =
 		matchmore:		SQLiteSwitch_matchmore,
 	};
 
-static char scmd[] = "SQLite command\n";
-static char shelp[] = "\n\nsql [sql statement]\n"
+static const char scmd[] = "SQLite command\n";
+static const char shelp[] = "\n\nsql [sql statement]\n"
 "sql cacheall\n"
 "sql clearcache\n"
 "sql vh [v|h]\n"

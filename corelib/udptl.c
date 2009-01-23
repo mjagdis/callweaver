@@ -788,19 +788,19 @@ static int udptl_show_settings(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char debug_usage[] =
+static const char debug_usage[] =
     "Usage: udptl debug [ip host[:port]]\n"
     "       Enable dumping of all UDPTL packets to and from host.\n";
 
-static char no_debug_usage[] =
+static const char no_debug_usage[] =
     "Usage: udptl no debug\n"
     "       Disable all UDPTL debugging\n";
 
-static char reload_usage[] =
+static const char reload_usage[] =
     "Usage: udptl reload\n"
     "       Reload UDPTL settings\n";
 
-static char show_settings_usage[] =
+static const char show_settings_usage[] =
     "Usage: udptl show settings\n"
     "       Show UDPTL settings\n";
 

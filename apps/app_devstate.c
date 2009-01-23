@@ -37,7 +37,7 @@ static const char devstate_synopsis[] = "Generate a device state change event gi
 static const char devstate_syntax[] = "DevState(device, state)";
 static const char devstate_descrip[] = "Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
 
-static char devstate_cli_usage[] = 
+static const char devstate_cli_usage[] =
 "Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n";
 

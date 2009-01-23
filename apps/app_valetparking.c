@@ -813,7 +813,7 @@ static int valetparked_devicestate(void *data)
 
 
 
-static char showvaletparked_help[] =
+static const char showvaletparked_help[] =
 "Usage: show valetparkedcalls\n"
 "       Lists currently Valet Parked calls.\n";
 

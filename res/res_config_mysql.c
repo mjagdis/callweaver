@@ -75,7 +75,7 @@ static int parse_config(void);
 static int mysql_reconnect(const char *database);
 static int realtime_mysql_status(int fd, int argc, char **argv);
 
-static char cli_realtime_mysql_status_usage[] =
+static const char cli_realtime_mysql_status_usage[] =
 "Usage: realtime mysql status\n"
 "       Shows connection information for the MySQL RealTime driver\n";
 

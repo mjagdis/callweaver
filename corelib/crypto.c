@@ -546,11 +546,11 @@ static int init_keys(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_key_usage[] =
+static const char show_key_usage[] =
 "Usage: show keys\n"
 "       Displays information about RSA keys known by CallWeaver\n";
 
-static char init_keys_usage[] =
+static const char init_keys_usage[] =
 "Usage: init keys\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 

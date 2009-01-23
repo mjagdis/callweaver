@@ -548,7 +548,7 @@ static int show_codecs(int fd, int argc, char *argv[])
         return RESULT_SUCCESS;
 }
 
-static char frame_show_codecs_usage[] =
+static const char frame_show_codecs_usage[] =
     "Usage: show [audio|video|image] codecs\n"
     "       Displays codec mapping\n";
 
@@ -578,7 +578,7 @@ static int show_codec_n(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char frame_show_codec_n_usage[] =
+static const char frame_show_codec_n_usage[] =
     "Usage: show codec <number>\n"
     "       Displays codec mapping\n";
 

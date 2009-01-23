@@ -655,27 +655,27 @@ static int database_deltree(int fd, int argc, char *argv[])
 }
 
 
-static char database_show_usage[] =
+static const char database_show_usage[] =
 "Usage: database show [family [keytree]]\n"
 "       Shows CallWeaver database contents, optionally restricted\n"
 "to a given family, or family and keytree.\n";
 
-static char database_put_usage[] =
+static const char database_put_usage[] =
 "Usage: database put <family> <key> <value>\n"
 "       Adds or updates an entry in the CallWeaver database for\n"
 "a given family, key, and value.\n";
 
-static char database_get_usage[] =
+static const char database_get_usage[] =
 "Usage: database get <family> <key>\n"
 "       Retrieves an entry in the CallWeaver database for a given\n"
 "family and key.\n";
 
-static char database_del_usage[] =
+static const char database_del_usage[] =
 "Usage: database del <family> <key>\n"
 "       Deletes an entry in the CallWeaver database for a given\n"
 "family and key.\n";
 
-static char database_deltree_usage[] =
+static const char database_deltree_usage[] =
 "Usage: database deltree <family> [keytree]\n"
 "       Deletes a family or specific keytree within a family\n"
 "in the CallWeaver database.\n";

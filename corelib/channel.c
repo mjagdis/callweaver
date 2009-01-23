@@ -265,7 +265,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 }
 
-static char show_channeltypes_usage[] = 
+static const char show_channeltypes_usage[] = 
 "Usage: show channeltypes\n"
 "       Shows available channel types registered in your CallWeaver server.\n";
 

@@ -3504,13 +3504,13 @@ static int attempt_transfer(struct dahdi_pvt *p)
 		cw_moh_stop(bchan);
 		if (p->subs[SUB_THREEWAY].owner->cdr) {
 			/* Move CDR from second channel to current one */
-			p->subs[SUB_REAL].owner->cdr = 
+			p->subs[SUB_REAL].owner->cdr =
 				cw_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
 			p->subs[SUB_THREEWAY].owner->cdr = NULL;
 		}
 		if (bchan->cdr) {
 			/* Move CDR from second channel's bridge to current one */
-			p->subs[SUB_REAL].owner->cdr = 
+			p->subs[SUB_REAL].owner->cdr =
 				cw_cdr_append(p->subs[SUB_REAL].owner->cdr, bchan->cdr);
 			bchan->cdr = NULL;
 		}
@@ -5799,7 +5799,7 @@ static void *ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 			} else if (!strcmp(exten, "*0")) {
-				struct cw_channel *nbridge = 
+				struct cw_channel *nbridge =
 					p->subs[SUB_THREEWAY].owner;
 				struct dahdi_pvt *pbridge = NULL;
 				/* set up the private struct of the bridged one, if any */
@@ -9203,19 +9203,19 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char pri_debug_help[] = 
+static const char pri_debug_help[] =
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
 	
-static char pri_no_debug_help[] = 
+static const char pri_no_debug_help[] =
 	"Usage: pri no debug span <span>\n"
 	"       Disables debugging on a given PRI span\n";
 
-static char pri_really_debug_help[] = 
+static const char pri_really_debug_help[] =
 	"Usage: pri intensive debug span <span>\n"
 	"       Enables debugging down to the Q.921 level\n";
 
-static char pri_show_span_help[] = 
+static const char pri_show_span_help[] =
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information\n";
 
@@ -9572,19 +9572,19 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 #undef FORMAT2
 }
 
-static char show_channels_usage[] =
+static const char show_channels_usage[] =
 	"Usage: dahdi show channels\n"
 	"	Shows a list of available channels\n";
 
-static char show_channel_usage[] =
+static const char show_channel_usage[] =
 	"Usage: dahdi show channel <chan num>\n"
 	"	Detailed information about a given channel\n";
 
-static char dahdi_show_status_usage[] =
+static const char dahdi_show_status_usage[] =
 	"Usage: dahdi show status\n"
 	"       Shows a list of DAHDI cards with status\n";
 
-static char destroy_channel_usage[] =
+static const char destroy_channel_usage[] =
 	"Usage: dahdi destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 

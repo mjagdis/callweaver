@@ -3977,11 +3977,11 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char uc_debug_help[] = 
+static const char uc_debug_help[] =
     "Usage: UC debug span <span>\n"
     "       Enables debugging on a given PRI span\n";
     
-static char uc_no_debug_help[] = 
+static const char uc_no_debug_help[] =
     "Usage: UC no debug span <span>\n"
     "       Disables debugging on a given PRI span\n";
 
@@ -4131,14 +4131,14 @@ static int unicall_show_channel(int fd, int argc, char **argv)
     return RESULT_FAILURE;
 }
 
-static char show_channels_usage[] =
+static const char show_channels_usage[] =
     "Usage: UC show channels\n"
     "    Shows a list of available channels\n";
 
-static char show_channel_usage[] =
+static const char show_channel_usage[] =
     "Usage: UC show channel <chan num>\n"
     "    Detailed information about a given channel\n";
-static char destroy_channel_usage[] =
+static const char destroy_channel_usage[] =
     "Usage: UC destroy channel <chan num>\n"
     "    DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 

@@ -155,32 +155,32 @@ void cw_cli(int fd, char *fmt, ...)
 }
 
 
-static char help_help[] =
+static const char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
 "       information on the given command. If called without a\n"
 "       topic, it provides a list of commands.\n";
 
-static char chanlist_help[] = 
+static const char chanlist_help[] =
 "Usage: show channels [concise|verbose]\n"
 "       Lists currently defined channels and some information about them. If\n"
 "       'concise' is specified, the format is abridged and in a more easily\n"
 "       machine parsable format. If 'verbose' is specified, the output includes\n"
 "       more and longer fields.\n";
 
-static char set_verbose_help[] = 
+static const char set_verbose_help[] =
 "Usage: set verbose <level>\n"
 "       Sets level of verbose messages to be displayed.  0 means\n"
 "       no messages should be displayed. Equivalent to -v[v[v...]]\n"
 "       on startup\n";
 
-static char set_debug_help[] = 
+static const char set_debug_help[] =
 "Usage: set debug <level>\n"
 "       Sets level of core debug messages to be displayed.  0 means\n"
 "       no messages should be displayed. Equivalent to -d[d[d...]]\n"
 "       on startup.\n";
 
-static char softhangup_help[] =
+static const char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
 "       Request that a channel be hung up. The hangup takes effect\n"
 "       the next time the driver reads or writes from the channel\n";
@@ -240,11 +240,11 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 }
 
 
-static char version_help[] =
+static const char version_help[] =
 "Usage: show version\n"
 "       Shows CallWeaver version information.\n";
 
-static char uptime_help[] =
+static const char uptime_help[] =
 "Usage: show uptime [seconds]\n"
 "       Shows CallWeaver uptime information.\n"
 "       The seconds word returns the uptime in seconds only.\n";
@@ -494,20 +494,20 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 #undef VERBOSE_FORMAT_STRING2
 
 
-static char showchan_help[] = 
+static const char showchan_help[] =
 "Usage: show channel <channel>\n"
 "       Shows lots of information about the specified channel.\n";
 
-static char debugchan_help[] = 
+static const char debugchan_help[] =
 "Usage: debug channel <channel>\n"
 "       Enables debugging on a specific channel.\n";
 
-static char debuglevel_help[] = 
+static const char debuglevel_help[] =
 "Usage: debug level <level> [filename]\n"
 "       Set debug to specified level (0 to disable).  If filename\n"
 "is specified, debugging will be limited to just that file.\n";
 
-static char nodebugchan_help[] = 
+static const char nodebugchan_help[] =
 "Usage: no debug channel <channel>\n"
 "       Disables debugging on a specific channel.\n";
 

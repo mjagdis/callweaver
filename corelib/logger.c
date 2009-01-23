@@ -546,15 +546,15 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 }
 
 
-static char logger_reload_help[] =
+static const char logger_reload_help[] =
 "Usage: logger reload\n"
 "       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
 
-static char logger_rotate_help[] =
+static const char logger_rotate_help[] =
 "Usage: logger rotate\n"
 "       Rotates and Reopens the log files.\n";
 
-static char logger_show_channels_help[] =
+static const char logger_show_channels_help[] =
 "Usage: logger show channels\n"
 "       Show configured logger channels.\n";
 

@@ -989,7 +989,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_trans_usage[] =
+static const char show_trans_usage[] =
 "Usage: show translation [recalc | rel | raw | ns | us | ms]\n"
 "       Displays known codec translators and the cost associated with each conversion.\n"
 "       If no argument is supplied the costs will be shown in the \"most appropriate\" units.\n"

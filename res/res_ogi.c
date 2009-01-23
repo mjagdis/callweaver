@@ -1289,11 +1289,11 @@ static int handle_dbdeltree(struct cw_channel *chan, OGI *ogi, int argc, char **
 	return RESULT_SUCCESS;
 }
 
-static char debug_usage[] = 
+static const char debug_usage[] =
 "Usage: ogi debug\n"
 "       Enables dumping of OGI transactions for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] =
 "Usage: ogi no debug\n"
 "       Disables dumping of OGI transactions for debugging purposes\n";
 
@@ -1432,12 +1432,12 @@ static char usage_hangup[] =
 "	Hangs up the specified channel.\n"
 " If no channel name is given, hangs up the current channel\n";
 
-static char usage_answer[] = 
+static char usage_answer[] =
 " Usage: ANSWER\n"
 "	Answers channel if not already in answer state. Returns -1 on\n"
 " channel failure, or 0 if successful.\n";
 
-static char usage_waitfordigit[] = 
+static char usage_waitfordigit[] =
 " Usage: WAIT FOR DIGIT <timeout>\n"
 "	Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
 " Returns -1 on channel failure, 0 if no digit is received in the timeout, or\n"
@@ -1498,7 +1498,7 @@ static char usage_controlstreamfile[] =
 " extension must not be included in the filename.\n\n"
 " Note: ffchar and rewchar default to * and # respectively.\n";
 
-static char usage_getoption[] = 
+static char usage_getoption[] =
 " Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
 "	Behaves similar to STREAM FILE but used with a timeout option.\n";
 

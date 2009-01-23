@@ -323,7 +323,7 @@ atcmd_list[] =
  * CW.org CLI command definitions for Channel:Bluetooth
  */
 
-static char show_peers_usage[] =
+static const char show_peers_usage[] =
 "Usage: bluetooth show peers\n"
 "       List all bluetooth peers and their status\n";
 
@@ -336,7 +336,7 @@ static struct cw_clicmd cli_show_peers =
     };
 
 
-static char ag_sendcmd[] =
+static const char ag_sendcmd[] =
 "Usage: bluetooth ag <device> sendcmd <cmd>\n"
 "       Sends a AT cmd over the RFCOMM link, and print result (AG only)\n";
 
@@ -349,7 +349,7 @@ static struct cw_clicmd cli_ag_sendcmd =
 	    .generator = complete_device_2_ag,
     };
 
-static char show_information[] =
+static const char show_information[] =
 "Usage: bluetooth show information\n"
 "       Lists information about the bluetooth subsystem\n";
 

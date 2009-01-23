@@ -466,11 +466,11 @@ int stun_no_debug(int fd, int argc, char *argv[])
 
 /* ************************************************************************* */
 
-static char stun_debug_usage[] =
+static const char stun_debug_usage[] =
     "Usage: stun debug\n"
     "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
 
-static char stun_no_debug_usage[] =
+static const char stun_no_debug_usage[] =
     "Usage: stun no debug\n"
     "       Disable STUN debugging\n";
 

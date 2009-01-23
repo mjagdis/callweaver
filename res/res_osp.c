@@ -835,7 +835,7 @@ static int config_load(void)
 	return 0;
 }
 
-static char show_osp_usage[] = 
+static const char show_osp_usage[] =
 "Usage: show osp\n"
 "       Displays information on Open Settlement Protocol\n";
 

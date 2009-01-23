@@ -453,17 +453,17 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char show_memory_help[] = 
+static const char show_memory_help[] =
 "Usage: show memory allocations [<file>]\n"
 "       Dumps a list of all segments of allocated memory, optionally\n"
 "limited to those from a specific file\n";
 
-static char show_memory_summary_help[] = 
+static const char show_memory_summary_help[] =
 "Usage: show memory summary [<file>]\n"
 "       Summarizes heap memory allocations by file, or optionally\n"
 "by function, if a file is specified\n";
 
-static struct cw_clicmd show_memory_allocations_cli = 
+static struct cw_clicmd show_memory_allocations_cli =
 {
     .cmda = { "show", "memory", "allocations", NULL }, 
     .handler = handle_show_memory,
@@ -471,7 +471,7 @@ static struct cw_clicmd show_memory_allocations_cli =
     .usage = show_memory_help,
 };
 
-static struct cw_clicmd show_memory_summary_cli = 
+static struct cw_clicmd show_memory_summary_cli =
 {
     .cmda = { "show", "memory", "summary", NULL }, 
     .handler = handle_show_memory_summary,

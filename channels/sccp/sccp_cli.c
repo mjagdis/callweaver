@@ -474,11 +474,11 @@ static struct cw_clicmd cli_system_message = {
 
 /* ------------------------------------------------------------ */
 
-static char debug_usage[] =
+static const char debug_usage[] =
 "Usage: SCCP debug <level>\n"
 "		Set the debug level of the sccp protocol from none (0) to high (10)\n";
 
-static char no_debug_usage[] =
+static const char no_debug_usage[] =
 "Usage: SCCP no debug\n"
 "		Disables dumping of SCCP packets for debugging purposes\n";
 
@@ -528,7 +528,7 @@ static int sccp_do_reload(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static char reload_usage[] =
+static const char reload_usage[] =
 "Usage: sccp reload\n"
 "		Reloads SCCP configuration from sccp.conf (It will close all active connections)\n";
 
@@ -539,7 +539,7 @@ static struct cw_clicmd cli_reload = {
   .usage = reload_usage,
 };
 
-static char version_usage[] =
+static const char version_usage[] =
 "Usage: SCCP show version\n"
 "		Show the SCCP channel version\n";
 

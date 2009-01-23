@@ -2911,7 +2911,7 @@ static void autoanswer_complete(int fd, char *argv[], int lastarg, int lastarg_l
 		cw_cli(fd, "off\n");
 }
 
-static char autoanswer_usage[] =
+static const char autoanswer_usage[] =
 "Usage: autoanswer [on|off]\n"
 "       Enables or disables autoanswer feature.  If used without\n"
 "       argument, displays the current on/off status of autoanswer.\n"
@@ -2943,7 +2943,7 @@ static int console_answer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char sendtext_usage[] =
+static const char sendtext_usage[] =
 "Usage: send text <message>\n"
 "       Sends a text message for display on the remote terminal.\n";
 
@@ -2984,7 +2984,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char answer_usage[] =
+static const char answer_usage[] =
 "Usage: answer\n"
 "       Answers an incoming call on the console (ALSA) channel.\n";
 
@@ -3010,7 +3010,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char hangup_usage[] =
+static const char hangup_usage[] =
 "Usage: hangup\n"
 "       Hangs up any call currently placed on the console.\n";
 
@@ -3067,7 +3067,7 @@ static int console_dial(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char dial_usage[] =
+static const char dial_usage[] =
 "Usage: dial [extension[@context]]\n"
 "       Dials a given extension (and context if specified)\n";
 

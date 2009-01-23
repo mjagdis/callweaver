@@ -1935,7 +1935,7 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char showfeatures_help[] =
+static const char showfeatures_help[] =
 "Usage: show features\n"
 "       Lists currently configured features.\n";
 
@@ -1972,7 +1972,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char showparked_help[] =
+static const char showparked_help[] =
 "Usage: show parkedcalls\n"
 "       Lists currently parked calls.\n";
 
