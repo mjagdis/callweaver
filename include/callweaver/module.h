@@ -125,6 +125,8 @@ struct modinfo {
 	/*! \brief Provides a description of the module. */
 	const char *description;
 
+	int state;
+
 	cw_mutex_t localuser_lock;
 	struct localuser *localusers;
 	int localusecnt;
@@ -139,6 +141,7 @@ extern struct modinfo *get_modinfo(void);
 		.deregister = module_deregister, \
 		.release = module_release, \
 		.description = module_description, \
+		.state = 0, \
 	}; \
 	__attribute__((visibility("protected"))) struct modinfo *get_modinfo(void) \
 		{ return &__modinfo; }

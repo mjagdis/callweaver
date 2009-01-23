@@ -4,6 +4,13 @@
 ; Module Loader configuration file
 ;
 
+; Module names do not require an extension (bit after the '.') however it
+; is allowed to be present for backward compatibility with existing configs.
+; If given it is silently ignored (i.e. module.abc matches module.xyz).
+;
+; All modules MUST be in one of the paths specified in the cwmoddir setting
+; in callweaver.conf. Absolute and arbitrary paths are NOT allowed!
+
 [modules]
 autoload=yes
 ;

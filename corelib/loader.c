@@ -1,9 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 2008, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com>
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -32,6 +32,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/atomic.h"
+#include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
 #include "callweaver/cli.h"
@@ -53,6 +54,19 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <readline/readline.h>
 
 
+#define MODINFO_STATE_UNINITIALIZED	0
+#define MODINFO_STATE_ACTIVE		1
+#define MODINFO_STATE_UNMAP_ON_IDLE	2
+
+
+/* We guarantee modules that their register, deregister and reconfigure functions
+ * are serialized both with respect to themselves and to other modules. This lets
+ * them to, for instance, do lock init/deinit without first requiring a lock to
+ * serialize them.
+ */
+static pthread_mutex_t modlock = PTHREAD_MUTEX_INITIALIZER;
+
+
 static struct modinfo core_modinfo = {
 	.self = NULL,
 };
@@ -64,346 +78,414 @@ struct modinfo *get_modinfo(void)
 
 
 struct module {
-	atomic_t refs;
+	struct cw_object obj;
 	struct modinfo *modinfo;
 	void *lib;
-	struct module *next;
-	char resource[0];
+	struct cw_registry_entry *reg_entry;
+	char name[0];
 };
 
-CW_MUTEX_DEFINE_STATIC(module_lock);
-static struct module *module_list = NULL;
-static int modlistver = 0;
 
-CW_MUTEX_DEFINE_STATIC(reloadlock);
+static const char *module_object_name(struct cw_object *obj)
+{
+	struct module *mod = container_of(obj, struct module, obj);
+	return mod->name;
+}
+
+static int cw_module_qsort_compare_by_name(const void *a, const void *b)
+{
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct module *module_a = container_of(*objp_a, struct module, obj);
+	const struct module *module_b = container_of(*objp_b, struct module, obj);
+
+	return strcmp(module_a->name, module_b->name);
+}
+
+static int module_object_match(struct cw_object *obj, const void *pattern)
+{
+	struct module *mod = container_of(obj, struct module, obj);
+
+	return !strcmp(mod->name, pattern);
+}
+
+static struct cw_object_isa cw_object_isa_module = {
+	.name = module_object_name,
+};
+
+struct cw_registry module_registry = {
+	.name = "Modules",
+	.qsort_compare = cw_module_qsort_compare_by_name,
+	.match = module_object_match,
+};
 
 
 struct module *cw_module_get(struct module *mod)
 {
 	if (mod)
-		atomic_inc(&mod->refs);
+		cw_object_get(mod);
 	return mod;
 }
 
-static void cw_module_release(struct module *mod)
+static void module_release(struct cw_object *obj)
 {
-	struct module **m;
-	int n;
+	struct module *mod = container_of(obj, struct module, obj);
 
-	/* If it is still in the module list it's possible that
-	 * someone else can grab a reference before we removed it.
-	 * If that happens their put will do the close and free
-	 * rather than ours. We just need to recheck the ref count
-	 * _while_holding_the_module_list_lock_ to know if we
-	 * are responsible or not.
-	 */
-	n = 0;
-	cw_mutex_lock(&module_lock);
-	for (m = &module_list; *m; m = &(*m)->next) {
-		if (*m == mod) {
-			if (atomic_read(&mod->refs)) {
-				cw_mutex_unlock(&module_lock);
-				return;
-			}
-
-			*m = mod->next;
-
-			if (mod->modinfo && mod->modinfo->release)
-				mod->modinfo->release();
-
-			cw_mutex_destroy(&mod->modinfo->localuser_lock);
-			atomic_destroy(&mod->refs);
-			lt_dlclose(mod->lib);
-			cw_mutex_unlock(&module_lock);
-			free(mod);
+	if (mod->modinfo) {
+		if (mod->modinfo->state == MODINFO_STATE_UNMAP_ON_IDLE) {
+			/* This was an explicit removal rather than a replacement by
+			 * a load of a newer module so we need to log it.
+			 */
 			if (option_verbose)
-				cw_verbose(VERBOSE_PREFIX_1 "Module %s closed and unloaded\n", mod->resource);
-			break;
+				cw_verbose(VERBOSE_PREFIX_1 "Unloaded %s => (%s)\n", mod->name, mod->modinfo->description);
+			cw_log(CW_LOG_NOTICE, "Unloaded %s => (%s)\n", mod->name, mod->modinfo->description);
 		}
+
+		if (mod->modinfo->release)
+			mod->modinfo->release();
+
+		cw_mutex_destroy(&mod->modinfo->localuser_lock);
 	}
+
+	if (mod->lib) {
+		/* If the module exposes symbols that have since been linked
+		 * from other objects it won't actually be unmapped and a
+		 * subsequent load might _say_ it was loaded but it will
+		 * actually be a resurrection of the existing module and
+		 * statically initialised data won't be reset.
+		 * Now we could futz around taking a copy of the data segment
+		 * and restoring it on load but if the module doesn't get
+		 * unmapped here there must be a reason why and that reason
+		 * might mean the module is still in use and that trashing
+		 * its data might be unexpected, unwelcome and fatal.
+		 */
+		lt_dlclose(mod->lib);
+	}
+
+	free(mod);
 }
 
 void cw_module_put(struct module *mod)
 {
-	if (mod && atomic_dec_and_test(&mod->refs))
-		cw_module_release(mod);
+	if (mod)
+		cw_object_put(mod);
 }
 
 
-static int cw_unload_resource(const char *resource_name, int hangup)
+static int unload_module(const char *name, int hangup)
 {
-	struct module *mod;
+	struct cw_object *obj;
 	int res = -1;
 
-	cw_mutex_lock(&module_lock);
+	pthread_mutex_lock(&modlock);
 
-	for (mod = module_list; mod; mod = mod->next) {
-		if (!strcasecmp(mod->resource, resource_name)) {
-			cw_module_get(mod);
-			res = mod->modinfo->deregister();
-			cw_mutex_unlock(&module_lock);
+	if ((obj = cw_registry_find(&module_registry, 1, cw_hash_string(name), name))) {
+		struct module *mod = container_of(obj, struct module, obj);
+
+		if (option_verbose)
+			cw_verbose(VERBOSE_PREFIX_1 "Deregistering %s => (%s)\n", mod->name, mod->modinfo->description);
+
+		if (!(res = mod->modinfo->deregister())) {
+			mod->modinfo->state = MODINFO_STATE_UNMAP_ON_IDLE;
+			cw_registry_del(&module_registry, mod->reg_entry);
+
 			if (hangup) {
 				struct localuser *u;
+
 				cw_mutex_lock(&mod->modinfo->localuser_lock);
 				for (u = mod->modinfo->localusers; u; u = u->next)
 					cw_softhangup(u->chan, CW_SOFTHANGUP_APPUNLOAD);
 				cw_mutex_unlock(&mod->modinfo->localuser_lock);
 			}
-			cw_module_put(mod);
-			return 0;
+
+			res = 0;
 		}
+
+		cw_object_put(mod);
 	}
 
-	cw_mutex_unlock(&module_lock);
-	return -1;
+	pthread_mutex_unlock(&modlock);
+
+	return res;
+}
+
+
+struct module_generator_args {
+	int fd;
+	const char *name;
+	int name_len;
+};
+
+static int module_generator_one(struct cw_object *obj, void *data)
+{
+	struct module *mod = container_of(obj, struct module, obj);
+	struct module_generator_args *args = data;
+
+	if (!strncmp(args->name, mod->name, args->name_len))
+		cw_cli(args->fd, "%s\n", mod->name);
+
+	return 0;
 }
 
 static void module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-	struct module *m;
+	struct module_generator_args args = {
+		.fd = fd,
+		.name = argv[lastarg],
+		.name_len = lastarg_len,
+	};
 
-	cw_mutex_lock(&module_lock);
+	cw_registry_iterate(&module_registry, module_generator_one, &args);
+}
 
-	for (m = module_list; m; m = m->next) {
-		if (!strncasecmp(argv[lastarg], m->resource, lastarg_len))
-			cw_cli(fd, "%s\n", m->resource);
+
+struct module_reload_args {
+	const char *name;
+	int reloaded;
+};
+
+static int module_reload_one(struct cw_object *obj, void *data)
+{
+	struct module *mod = container_of(obj, struct module, obj);
+	struct module_reload_args *args = data;
+
+	if (!args->name || !strcmp(args->name, mod->name)) {
+		if (args->reloaded < 1)
+			args->reloaded = 1;
+
+		if (mod->modinfo->reconfig) {
+			args->reloaded = 2;
+			if (option_verbose > 2)
+				cw_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", mod->name, mod->modinfo->description);
+			mod->modinfo->reconfig();
+		}
 	}
 
-	cw_mutex_unlock(&module_lock);
+	return 0;
 }
 
 int cw_module_reload(const char *name)
 {
-	struct module *m;
-	int reloaded = 0;
-	int oldversion;
-	int (*reload)(void);
+	struct module_reload_args args = {
+		.name = name,
+		.reloaded = 0,
+	};
+
 	/* We'll do the logger and manager the favor of calling its reload here first */
 
-	if (cw_mutex_trylock(&reloadlock)) {
-		cw_verbose("The previous reload command didn't finish yet\n");
-		return -1;
+	pthread_mutex_lock(&modlock);
+
+	time(&cw_lastreloadtime);
+
+	if (!name || !strcasecmp(name, "manager")) {
+		manager_reload();
+		args.reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "extconfig")) {
 		read_config_maps();
-		reloaded = 2;
+		args.reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "cdr")) {
 		cw_cdr_engine_reload();
-		reloaded = 2;
+		args.reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "enum")) {
 		cw_enum_reload();
-		reloaded = 2;
+		args.reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "features")) {
 		cw_features_reload();
-		reloaded = 2;
+		args.reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "rtp")) {
 		cw_rtp_reload();
-		reloaded = 2;
+		args.reloaded = 2;
 	}
-	if (!name || !strcasecmp(name, "manager")) {
-		manager_reload();
-		reloaded = 2;
-	}
-	time(&cw_lastreloadtime);
 
-	cw_mutex_lock(&module_lock);
-	oldversion = modlistver;
-	m = module_list;
-	while(m) {
-		if (!name || !strcasecmp(name, m->resource)) {
-			if (reloaded < 1)
-				reloaded = 1;
-			reload = m->modinfo->reconfig;
-			cw_mutex_unlock(&module_lock);
-			if (reload) {
-				reloaded = 2;
-				if (option_verbose > 2) 
-					cw_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->modinfo->description);
-				reload();
-			}
-			cw_mutex_lock(&module_lock);
-			if (oldversion != modlistver)
-				break;
-		}
-		m = m->next;
-	}
-	cw_mutex_unlock(&module_lock);
-	cw_mutex_unlock(&reloadlock);
-	return reloaded;
+	cw_registry_iterate(&module_registry, module_reload_one, &args);
+
+	pthread_mutex_unlock(&modlock);
+
+	return args.reloaded;
 }
 
-static int cw_load_resource(const char *resource_name)
+static int module_load(const char *filename)
 {
-	struct module *newmod, *mod, **m;
+	struct module *mod, *oldmod;
+	struct cw_object *oldobj;
 	struct modinfo *(*modinfo)(void);
+	const char *p;
+	unsigned int hash;
 	int res;
 
-	res = strlen(resource_name) + 1;
+#if 0
+	/* This MUST be ok since we're called via an lt_dlforeach() search */
+	if (*filename != '/')
+		return -1;
+#endif
 
-	if (!(newmod = mod = malloc(sizeof(struct module) + res))) {
+	p = strrchr(filename, '/') + 1;
+	res = strlen(p) + 1;
+
+	if (!(mod = malloc(sizeof(struct module) + res))) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
-	memcpy(mod->resource, resource_name, res);
+	memcpy(mod->name, p, res);
 
-	cw_mutex_lock(&module_lock);
+	res = -1;
 
-	mod->lib = lt_dlopen(resource_name);
-	if (!mod->lib) {
-		cw_mutex_unlock(&module_lock);
-		cw_log(CW_LOG_ERROR, "Resource '%s', error '%s'\n", resource_name, lt_dlerror());
-		free(mod);
-		return -1;
+	cw_object_init(mod, &cw_object_isa_module, NULL, 1);
+	mod->obj.release = module_release;
+	mod->modinfo = NULL;
+	mod->reg_entry = NULL;
+
+	if (!(mod->lib = lt_dlopenext(filename))) {
+		cw_log(CW_LOG_ERROR, "Module '%s', error '%s'\n", mod->name, lt_dlerror());
+		goto out_put_newmod;
 	}
 
 	modinfo = lt_dlsym(mod->lib, "get_modinfo");
 	if (modinfo == NULL)
 		modinfo = lt_dlsym(mod->lib, "_get_modinfo");
 	if (modinfo == NULL) {
-		lt_dlclose(mod->lib);
-		cw_mutex_unlock(&module_lock);
-		cw_log(CW_LOG_ERROR, "No get_modinfo in module %s\n", resource_name);
-		free(mod);
-		return -1;
+		cw_log(CW_LOG_ERROR, "No get_modinfo in module %s\n", mod->name);
+		goto out_put_newmod;
 	}
 
-	mod->modinfo = (*modinfo)();
+	oldmod = NULL;
+	hash = cw_hash_string(mod->name);
 
-	/* Add to the modules list in alphabetic order
-	 * This used to append to the list so that "reloads will be issued in the
-	 * same order modules were loaded" but that makes no sense since modules
-	 * can be unloaded and loaded dynamically
+	pthread_mutex_lock(&modlock);
+
+	if ((oldobj = cw_registry_find(&module_registry, 1, hash, mod->name)))
+		oldmod = container_of(oldobj, struct module, obj);
+
+	/* If it wasn't previously registered or lt_dlopenext() says it has mapped something
+	 * different we can go ahead and plug it in.
 	 */
-	res = -1;
-	for (m = &module_list; *m; m = &(*m)->next) {
-		res = strcasecmp(resource_name, (*m)->resource);
-		if (res <= 0)
-			break;
-	}
-	if (res) {
-		/* Start with one ref - that's us */
-		atomic_set(&mod->refs, 1);
+	if (!oldmod || mod->lib != oldmod->lib) {
+		mod->modinfo = (*modinfo)();
 		mod->modinfo->self = mod;
-		cw_mutex_init(&mod->modinfo->localuser_lock);
-		mod->next = *m;
-		*m = mod;
-	} else {
-		lt_dlclose(mod->lib);
-		free(mod);
-		mod = cw_module_get(*m);
-	}
 
-	/* The init has to happen within the lock otherwise we have races
-	 * between simultaneous loads/unloads of the same module
-	 */
-	res = mod->modinfo->init();
+		if (!(mod->reg_entry = cw_registry_add(&module_registry, hash, &mod->obj)))
+			goto out_put_oldmod;
 
-	modlistver++;
-	cw_mutex_unlock(&module_lock);
+		if ((res = mod->modinfo->init())) {
+			cw_log(CW_LOG_WARNING, "%s: register failed, returned %d\n", mod->name, res);
+			mod->modinfo->deregister();
+			cw_registry_del(&module_registry, mod->reg_entry);
+			goto out_put_oldmod;
+		}
 
-	if (!fully_booted) {
-		if (option_verbose) {
-			cw_verbose("[%s] => (%s)\n", resource_name, mod->modinfo->description);
-		} else if (option_console || option_nofork)
-			cw_log(CW_LOG_PROGRESS, ".");
-	} else {
-		if (option_verbose)
-			cw_verbose(VERBOSE_PREFIX_1 "%s %s => (%s)\n", (mod == newmod ? "Loaded" : "Reregistered"), resource_name, mod->modinfo->description);
-	}
+		/* CAUTION: we may be resurrecting a module that had been deregistered and
+		 * queued for removal when it went idle but that had not yet been removed.
+		 */
+		if (mod->modinfo->state == MODINFO_STATE_UNINITIALIZED)
+			cw_mutex_init(&mod->modinfo->localuser_lock);
 
-	if (res) {
-		cw_log(CW_LOG_WARNING, "%s: register failed, returned %d\n", resource_name, res);
-		cw_unload_resource(resource_name, 0);
-		return -1;
-	}
+		if (!fully_booted) {
+			if (option_verbose) {
+				cw_verbose("[%s] => (%s)\n", mod->name, mod->modinfo->description);
+			} else if (option_console || option_nofork)
+				cw_log(CW_LOG_PROGRESS, ".");
+		} else {
+			if (option_verbose)
+				cw_verbose(VERBOSE_PREFIX_1 "%s %s => (%s)\n",
+					(mod->modinfo->state != MODINFO_STATE_UNINITIALIZED ? "Resurrected" : "Loaded"), mod->name, mod->modinfo->description);
+			cw_log(CW_LOG_NOTICE, "%s %s => (%s)\n",
+				(mod->modinfo->state != MODINFO_STATE_UNINITIALIZED ? "Resurrected" : "Loaded"), mod->name, mod->modinfo->description);
+		}
 
-	/* Drop our reference. If the module didn't register any capabilities
-	 * this will be the last reference so the module will be removed.
-	 * Otherwise there has to be one or more unregisters plus everything
-	 * with a reference has to release it.
-	 */
-	cw_module_put(mod);
-	return 0;
+		mod->modinfo->state = MODINFO_STATE_ACTIVE;
+
+		if (oldmod) {
+			if ((res = oldmod->modinfo->deregister()))
+				cw_log(CW_LOG_WARNING, "%s: deregister of old instance failed, returned %d. Memory leaked.\n", oldmod->name, res);
+			cw_registry_del(&module_registry, oldmod->reg_entry);
+		}
+	} else
+		cw_log(CW_LOG_NOTICE, "%s: already loaded and current\n", mod->name);
+
+	res = 0;
+
+out_put_oldmod:
+	pthread_mutex_unlock(&modlock);
+
+	if (oldmod)
+		cw_object_put(oldmod);
+
+out_put_newmod:
+	cw_object_put(mod);
+
+	return res;
 }
 
-static int cw_resource_exists(const char *resource)
-{
-	struct module *m;
-	if (cw_mutex_lock(&module_lock))
-		cw_log(CW_LOG_WARNING, "Failed to lock\n");
-	m = module_list;
-	while(m) {
-		if (!strcasecmp(resource, m->resource))
-			break;
-		m = m->next;
-	}
-	cw_mutex_unlock(&module_lock);
-	if (m)
-		return -1;
-	else
-		return 0;
-}
 
-static const char *loadorder[] =
-{
-	"res_",
-	"chan_",
-	"pbx_",
-	NULL,
-};
-
-struct load_modules_one_args {
+struct load_module_args {
 	struct cw_config *cfg;
-	int prefix;
+	const char *prefix;
 	int prefix_len;
+	int reload_ok;
+	int loaded;
 };
 
-static int load_modules_one(const char *filename, lt_ptr data)
+static int load_module(const char *filename, lt_ptr data)
 {
-	char soname[256+1];
-	struct load_modules_one_args *args = (struct load_modules_one_args *)data;
+	struct load_module_args *args = (struct load_module_args *)data;
+	struct cw_object *obj = NULL;
 	char *basename;
 
-	/* Sadly the names produced by lt_dlforeachfile cannot be used as
-	 * arguments to lt_dlopen so we have to fix them up.
-	 * We want: basenames that start with the given prefix, with ".so" added
-	 * and which are not already loaded
+	/* We want _basenames_ that match the given prefix, completely if prefix_len is not set,
+	 * otherwise with the given prefix.
 	 */
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
-		&& (!loadorder[args->prefix] || !strncasecmp(basename, loadorder[args->prefix], args->prefix_len))
-		&& (snprintf(soname, sizeof(soname), "%s.so", basename), !cw_resource_exists(soname)))
-	{
+	&& (!args->prefix
+		|| (args->prefix_len && !strncmp(basename, args->prefix, args->prefix_len))
+		|| (!args->prefix_len && !strcmp(basename, args->prefix)))
+	&& (args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(basename), basename)))) {
+		int baselen = strlen(basename);
 		struct cw_variable *v;
 
-		/* It's a shared library -- Just be sure we're allowed to load it -- kinda
-		   an inefficient way to do it, but oh well. */
+		/* If we were given a config check that this module is not barred from loading.
+		 * N.B. The extension part of a module name in the config is ignored. Really we
+		 * should generate a deprecated message.
+		 */
 		v = NULL;
 		if (args->cfg) {
 			for (v = cw_variable_browse(args->cfg, "modules");
-				v && (strcasecmp(v->name, "noload") || strcasecmp(v->value, soname));
+				v && (strcasecmp(v->name, "noload") || strncasecmp(v->value, basename, baselen) || (v->value[baselen] && v->value[baselen] != '.'));
 				v = v->next);
 			if (option_verbose && v)
 				cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
 		}
-		if (v == NULL)
-        {
-			if (cw_load_resource(soname))
+		if (v == NULL) {
+			if (!module_load(filename))
+				args->loaded++;
+			else
 				cw_log(CW_LOG_WARNING, "Unable to load module %s\n", basename);
-        }
+		}
 	}
+
+	if (obj)
+		cw_object_put_obj(obj);
 
 	return 0;
 }
 
 int load_modules(const int preload_only)
 {
+	static const char *loadorder[] = {
+		"res_",
+		"chan_",
+		"pbx_",
+		NULL,
+	};
+	struct load_module_args args;
 	struct cw_config *cfg;
 	struct cw_variable *v;
+	int i;
 
 	if (option_verbose) {
 		if (preload_only)
@@ -412,11 +494,15 @@ int load_modules(const int preload_only)
 			cw_verbose("CallWeaver Dynamic Loader Starting:\n");
 	}
 
+	args.reload_ok = 0;
+	args.loaded = 0;
+
 	cfg = cw_config_load(CW_MODULE_CONFIG);
 	if (cfg) {
 		int doload;
 
 		/* Load explicitly defined modules */
+		args.cfg = NULL;
 		for (v = cw_variable_browse(cfg, "modules"); v; v = v->next) {
 			doload = 0;
 
@@ -428,11 +514,9 @@ int load_modules(const int preload_only)
 		       if (doload) {
 				if (option_debug && !option_verbose)
 					cw_log(CW_LOG_DEBUG, "Loading module %s\n", v->value);
-				if (cw_load_resource(v->value)) {
-					cw_log(CW_LOG_WARNING, "Unable to load module %s\n", v->value);
-					cw_config_destroy(cfg);
-					return -1;
-				}
+				args.prefix = v->value;
+				args.prefix_len = 0;
+				lt_dlforeachfile(lt_dlgetsearchpath(), load_module, &args);
 			}
 		}
 	}
@@ -443,12 +527,11 @@ int load_modules(const int preload_only)
 	}
 
 	if (!cfg || cw_true(cw_variable_retrieve(cfg, "modules", "autoload"))) {
-		struct load_modules_one_args args;
 		args.cfg = cfg;
-		for (args.prefix = 0; args.prefix < arraysize(loadorder); args.prefix++) {
-			if (loadorder[args.prefix])
-				args.prefix_len = strlen(loadorder[args.prefix]);
-			lt_dlforeachfile(lt_dlgetsearchpath(), load_modules_one, &args);
+		for (i = 0; i < arraysize(loadorder); i++) {
+			if ((args.prefix = loadorder[i]))
+				args.prefix_len = strlen(loadorder[i]);
+			lt_dlforeachfile(lt_dlgetsearchpath(), load_module, &args);
 		}
 	} 
 	cw_config_destroy(cfg);
@@ -456,48 +539,68 @@ int load_modules(const int preload_only)
 }
 
 
+struct handle_modlist_args {
+	int fd;
+	int count;
+	const char *like;
+};
+
+static int handle_modlist_one(struct cw_object *obj, void *data)
+{
+	struct module *mod = container_of(obj, struct module, obj);
+	struct handle_modlist_args *args = data;
+
+	if (!args->like || strcasestr(mod->name, args->like) ) {
+		args->count++;
+		cw_cli(args->fd, "%-30s %-40.40s %10d %10d\n",
+			mod->name, mod->modinfo->description, cw_object_refs(mod), mod->modinfo->localusecnt);
+	}
+
+	return 0;
+}
+
 static int handle_modlist(int fd, int argc, char *argv[])
 {
-	char *like = NULL;
-	struct module *m;
-	int count;
+	struct handle_modlist_args args = {
+		.fd = fd,
+		.count = 0,
+		.like = NULL,
+	};
 
 	if (argc == 3)
 		return RESULT_SHOWUSAGE;
-	else if (argc >= 4) {
+
+	if (argc >= 4) {
 		if (strcmp(argv[2], "like")) 
 			return RESULT_SHOWUSAGE;
-		like = argv[3];
+		args.like = argv[3];
 	}
 
 	cw_cli(fd, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
+	cw_registry_iterate_ordered(&module_registry, handle_modlist_one, &args);
+	cw_cli(fd, "%d modules loaded\n", args.count);
 
-	cw_mutex_trylock(&module_lock);
-
-	count = 0;
-	for (m = module_list; m; m = m->next) {
-		if (!like || strcasestr(m->resource, like) ) {
-			count++;
-			cw_cli(fd, "%-30s %-40.40s %10d %10d\n",
-				m->resource, m->modinfo->description, atomic_read(&m->refs), m->modinfo->localusecnt);
-		}
-	}
-	cw_cli(fd, "%d modules loaded\n", count);
-
-	cw_mutex_unlock(&module_lock);
 	return RESULT_SUCCESS;
 }
 
 
 static int handle_load(int fd, int argc, char *argv[])
 {
+	struct load_module_args args;
+	const char *path;
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 
-	if (cw_load_resource(argv[1])) {
-		cw_cli(fd, "Unable to load module %s\n", argv[1]);
-		return RESULT_FAILURE;
-	}
+	args.cfg = NULL;
+	args.prefix = argv[1];
+	args.prefix_len = 0;
+	args.reload_ok = 1;
+	args.loaded = 0;
+	lt_dlforeachfile((path = lt_dlgetsearchpath()), load_module, &args);
+
+	if (!args.loaded)
+		cw_log(CW_LOG_NOTICE, "Module %s not found in %s\n", argv[1], path);
 
 	return RESULT_SUCCESS;
 }
@@ -516,7 +619,7 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
 	&& !strncmp(basename, args->word, args->word_len))
-		cw_cli(args->fd, "%s.so\n", basename);
+		cw_cli(args->fd, "%s\n", basename);
 
 	return 0;
 }
@@ -610,8 +713,8 @@ static int handle_unload(int fd, int argc, char *argv[])
 			}
 		} else if (x !=  argc - 1) 
 			return RESULT_SHOWUSAGE;
-		else if (cw_unload_resource(argv[x], hangup)) {
-			cw_cli(fd, "Unable to unload resource %s\n", argv[x]);
+		else if (unload_module(argv[x], hangup)) {
+			cw_cli(fd, "Unable to unload module %s\n", argv[x]);
 			return RESULT_FAILURE;
 		}
 	}
@@ -731,6 +834,7 @@ void cw_loader_init(void)
 	}
 	pthread_setspecific(loader_err_key, calloc(1, sizeof(struct loader_err)));
 
+	cw_registry_init(&module_registry, 256);
 	lt_dlinit();
 	lt_dlmutex_register(loader_lock, loader_unlock, loader_seterr, loader_geterr);
 }
