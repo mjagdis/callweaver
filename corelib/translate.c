@@ -53,19 +53,22 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
    by default, but it would also complicate virtually every application. */
    
 
-static int translator_initialized;
-
-
 struct cw_translator_dir
 {
-    struct cw_translator *step; /* Next step translator */
-    int cost;                     /* Complete cost to destination */
-    int steps;                    /* Number of steps it takes */
+	struct cw_translator *step; /* Next step translator */
+	unsigned int cost;          /* Complete cost to destination */
+	int steps;                  /* Number of steps it takes */
 };
 
-CW_MUTEX_DEFINE_STATIC(tr_matrix_lock);
-static int tr_matrix_min_cost;
-static struct cw_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
+
+struct trans_state {
+	struct cw_object obj;
+	int min_cost;
+	struct cw_translator_dir matrix[MAX_FORMAT][MAX_FORMAT];
+};
+
+pthread_spinlock_t state_lock;
+static struct trans_state *trans_state;
 
 
 struct cw_frame_delivery
@@ -109,6 +112,7 @@ void cw_translator_free_path(struct cw_trans_pvt *p)
 /* Build a set of translators based upon the given source and destination formats */
 struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate)
 {
+	struct trans_state *tr;
 	struct cw_trans_pvt *tmpr = NULL;
 	struct cw_trans_pvt **next = &tmpr;
 	struct cw_translator *t;
@@ -116,10 +120,14 @@ struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int sourc
 	source = bottom_bit(source);
 	dest = bottom_bit(dest);
     
-	cw_mutex_lock(&tr_matrix_lock);
+	pthread_spin_lock(&state_lock);
+	tr = cw_object_dup(trans_state);
+	pthread_spin_unlock(&state_lock);
+	if (!tr)
+		goto out;
 
 	while (source != dest) {
-		if (!(t = cw_object_dup(tr_matrix[source][dest].step))) {
+		if (!(t = cw_object_dup(tr->matrix[source][dest].step))) {
 			cw_log(CW_LOG_WARNING, "No translator path from %s to %s\n", cw_getformatname(1 << source), cw_getformatname(1 << dest));
 			cw_translator_free_path(tmpr);
 			tmpr = NULL;
@@ -152,8 +160,9 @@ struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int sourc
 		next = &(*next)->next;
 	}
 
-	cw_mutex_unlock(&tr_matrix_lock);
+	cw_object_put(tr);
 
+out:
 	return tmpr;
 }
 
@@ -257,16 +266,17 @@ struct cw_frame *cw_translate(struct cw_trans_pvt *path, struct cw_frame *f, int
 }
 
 
-struct calc_cost_args {
+struct rebuild_matrix_args {
+	struct trans_state *tr;
 	struct cw_translator *t;
 	int secs;
-	int *cost;
+	unsigned int *cost;
 };
 
 
 static void *calc_cost(void *data)
 {
-	struct calc_cost_args *args = data;
+	struct rebuild_matrix_args *args = data;
 	struct cw_translator *t = args->t;
 	struct cw_translator_pvt *pvt;
 	struct cw_frame *f;
@@ -323,8 +333,8 @@ static void *calc_cost(void *data)
 	cw_clock_gettime(global_clock_monotonic, &end);
 
 	*args->cost = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
-	if (*args->cost < tr_matrix_min_cost)
-		tr_matrix_min_cost = *args->cost;
+	if (*args->cost < args->tr->min_cost)
+		args->tr->min_cost = *args->cost;
 
 out:
 	t->destroy(pvt);
@@ -334,17 +344,15 @@ out:
 static int rebuild_matrix_one(struct cw_object *obj, void *data)
 {
 	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
-	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
-	int *secs = data;
-	struct calc_cost_args args = {
-		.t = t,
-		.secs = *secs,
-		.cost = &td->cost,
-	};
+	struct rebuild_matrix_args *args = data;
+	struct cw_translator_dir *td = &args->tr->matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
 	pthread_t tid;
 	int ret;
 
-	if (!(ret = cw_pthread_create(&tid, &global_attr_fifo, calc_cost, &args))) {
+	args->t = t;
+	args->cost = &td->cost;
+
+	if (!(ret = cw_pthread_create(&tid, &global_attr_fifo, calc_cost, args))) {
 		pthread_join(tid, NULL);
 		td->step = cw_object_dup(t);
 		td->steps = 1;
@@ -357,152 +365,147 @@ static int rebuild_matrix_one(struct cw_object *obj, void *data)
 static int rebuild_matrix_norm(struct cw_object *obj, void *data)
 {
 	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
-	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
+	struct trans_state *tr = data;
+	struct cw_translator_dir *td = &tr->matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
 
-	td->cost /= tr_matrix_min_cost;
+	td->cost /= tr->min_cost;
 	return 0;
 }
 
 
 static void rebuild_matrix(int secs)
 {
-    struct cw_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
-    int changed;
-    int x;
-    int y;
-    int z;
+	struct rebuild_matrix_args args;
+	struct trans_state *old_tr, *new_tr;
+	int changed, x, y, z;
 
-    if (option_debug)
-        cw_log(CW_LOG_DEBUG, "Reseting translation matrix\n");
+	if (option_debug)
+		cw_log(CW_LOG_DEBUG, "Reseting translation matrix\n");
 
-    cw_mutex_lock(&tr_matrix_lock);
+	if (!(new_tr = malloc(sizeof(*new_tr)))) {
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		return;
+	}
 
-    /* Regenerate the translation matrix then discard whatever we had before */
-    for (x = 0; x < MAX_FORMAT; x++)
-        for (y = 0; y < MAX_FORMAT; y++)
-		tr_old[x][y] = tr_matrix[x][y];
+	cw_object_init(new_tr, NULL, 1);
+	args.tr = new_tr;
 
-    if (global_clock_monotonic_res.tv_nsec >= 1000000L)
-	    x = 10;
-    else if (global_clock_monotonic_res.tv_nsec >= 100000L)
-	    x = 100;
-    else
-	    x = 1000;
+	if (global_clock_monotonic_res.tv_nsec >= 1000000L)
+		x = 10;
+	else if (global_clock_monotonic_res.tv_nsec >= 100000L)
+		x = 100;
+	else
+		x = 1000;
 
-    z = (secs ? secs : 1);
-    for (;;) {
-        memset(tr_matrix, '\0', sizeof(tr_matrix));
-        tr_matrix_min_cost = INT_MAX;
-        cw_registry_iterate(&translator_registry, rebuild_matrix_one, &z);
-        if (secs || tr_matrix_min_cost >= x * global_clock_monotonic_res.tv_nsec)
-		break;
-	z *= (256 * ((x + 1) * global_clock_monotonic_res.tv_nsec - 1) / tr_matrix_min_cost);
-	z >>= 8;
-    }
+	args.secs = (secs ? secs : 1);
+	for (;;) {
+		memset(&new_tr->matrix, '\0', sizeof(new_tr->matrix));
+		new_tr->min_cost = INT_MAX;
+		cw_registry_iterate(&translator_registry, rebuild_matrix_one, &args);
+		if (secs || new_tr->min_cost >= x * global_clock_monotonic_res.tv_nsec)
+			break;
+		args.secs *= (256 * ((x + 1) * global_clock_monotonic_res.tv_nsec - 1) / new_tr->min_cost);
+		args.secs >>= 8;
+	}
 
-    if (tr_matrix_min_cost < INT_MAX) {
-        tr_matrix_min_cost /= 10; /* We're using 1 fixed point decimal place... */
-        cw_registry_iterate(&translator_registry, rebuild_matrix_norm, NULL);
-    }
+	if (new_tr->min_cost < INT_MAX) {
+		new_tr->min_cost /= 10; /* We're using 1 fixed point decimal place... */
+		cw_registry_iterate(&translator_registry, rebuild_matrix_norm, new_tr);
+	}
 
+	do {
+		changed = 0;
+		/* Don't you just love O(N^3) operations? */
+		for (x = 0;  x < MAX_FORMAT;  x++) {
+		    for (y = 0;  y < MAX_FORMAT;  y++) {
+				if (x != y) {
+					for (z = 0;  z < MAX_FORMAT;  z++) {
+						if ((x != z)  &&  (y != z)) {
+							if (new_tr->matrix[x][y].step
+							&& new_tr->matrix[y][z].step
+							&& (!new_tr->matrix[x][z].step
+							|| (new_tr->matrix[x][y].cost + new_tr->matrix[y][z].cost < new_tr->matrix[x][z].cost))) {
+								/* We can get from x to z via y with a cost that
+								   is the sum of the transition from x to y and
+								   from y to z */
+								new_tr->matrix[x][z].step = cw_object_dup(new_tr->matrix[x][y].step);
+								new_tr->matrix[x][z].cost = new_tr->matrix[x][y].cost + new_tr->matrix[y][z].cost;
+								new_tr->matrix[x][z].steps = new_tr->matrix[x][y].steps + new_tr->matrix[y][z].steps;
+								if (option_debug)
+									cw_log(CW_LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", cw_getformatname(1 << x), cw_getformatname(1 << z), cw_getformatname(1 << y), new_tr->matrix[x][z].steps, new_tr->matrix[x][z].cost);
+								changed++;
+							}
+						}
+					}
+				}
+			}
+		}
+	} while (changed);
 
-    for (x = 0; x < MAX_FORMAT; x++) {
-        for (y = 0; y < MAX_FORMAT; y++) {
-            if (tr_old[x][y].step)
-                cw_object_put(tr_old[x][y].step);
-        }
-    }
+	pthread_spin_lock(&state_lock);
+	old_tr = cw_object_dup(trans_state);
+	trans_state = new_tr;
+	pthread_spin_unlock(&state_lock);
 
-    do
-    {
-        changed = 0;
-        /* Don't you just love O(N^3) operations? */
-        for (x = 0;  x < MAX_FORMAT;  x++)
-        {
-            for (y = 0;  y < MAX_FORMAT;  y++)
-            {
-                if (x != y)
-                {
-                    for (z = 0;  z < MAX_FORMAT;  z++)
-                    {
-                        if ((x != z)  &&  (y != z))
-                        {
-                            if (tr_matrix[x][y].step
-                                &&
-                                tr_matrix[y][z].step
-                                &&
-                                    (!tr_matrix[x][z].step
-                                    ||
-                                    (tr_matrix[x][y].cost + tr_matrix[y][z].cost < tr_matrix[x][z].cost)))
-                            {
-                                /* We can get from x to z via y with a cost that
-                                   is the sum of the transition from x to y and
-                                   from y to z */
-                                tr_matrix[x][z].step = cw_object_dup(tr_matrix[x][y].step);
-                                tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
-                                tr_matrix[x][z].steps = tr_matrix[x][y].steps + tr_matrix[y][z].steps;
-                                if (option_debug)
-                                    cw_log(CW_LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", cw_getformatname(1 << x), cw_getformatname(1 << z), cw_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
-                                changed++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    while (changed);
+	if (old_tr) {
+		for (x = 0; x < MAX_FORMAT; x++) {
+			for (y = 0; y < MAX_FORMAT; y++) {
+				if (old_tr->matrix[x][y].step)
+					cw_object_put(old_tr->matrix[x][y].step);
+			}
+		}
 
-    cw_mutex_unlock(&tr_matrix_lock);
+		cw_object_put(old_tr);
+	}
 }
 
 static int show_translation(int fd, int argc, char *argv[])
 {
+	struct trans_state *tr;
 #define SHOW_TRANS 11
-    int x;
-    int y;
-    int z;
+	int x, y, z;
 
-    if (argc > 4) 
-        return RESULT_SHOWUSAGE;
+	if (argc > 4)
+		return RESULT_SHOWUSAGE;
 
-    if (argv[2]  &&  !strcasecmp(argv[2], "recalc")) {
-        z = argv[3] ? atoi(argv[3]) : 1;
+	if (argv[2]  &&  !strcasecmp(argv[2], "recalc")) {
+		z = argv[3] ? atoi(argv[3]) : 1;
 
-        if (z < 0)
-            z = 0;
-	else if (z > MAX_RECALC) {
-            cw_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
-            z = MAX_RECALC;
-        }
-        rebuild_matrix(z);
-    }
+		if (z < 0)
+			z = 0;
+		else if (z > MAX_RECALC) {
+			cw_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
+			z = MAX_RECALC;
+		}
+		rebuild_matrix(z);
+	}
 
-    cw_cli(fd, "         Relative translation times between formats\n");
-    cw_cli(fd, "         Source Format (Rows) Destination Format(Columns)\n\n");
+	cw_cli(fd, "         Relative translation times between formats\n");
+	cw_cli(fd, "         Source Format (Rows) Destination Format(Columns)\n\n");
 
-    cw_cli(fd, "         ");
-    for (x = 0;  x < SHOW_TRANS;  x++)
-        cw_cli(fd, " %8s", cw_getformatname(1 << x));
-    cw_cli(fd, "\n");
+	cw_cli(fd, "         ");
+	for (x = 0;  x < SHOW_TRANS;  x++)
+		cw_cli(fd, " %8s", cw_getformatname(1 << x));
+	cw_cli(fd, "\n");
 
-    cw_mutex_lock(&tr_matrix_lock);
-    for (x = 0;  x < SHOW_TRANS;  x++)
-    {
-        cw_cli(fd, " %8s", cw_getformatname(1 << x));
+	pthread_spin_lock(&state_lock);
+	tr = cw_object_dup(trans_state);
+	pthread_spin_unlock(&state_lock);
 
-        for (y = 0;  y < SHOW_TRANS;  y++)
-        {
-            if (tr_matrix[x][y].step)
-                cw_cli(fd, " %6d.%01d", tr_matrix[x][y].cost / 10, tr_matrix[x][y].cost % 10);
-            else
-                cw_cli(fd, "        -");
-        }
-        cw_cli(fd, "\n");
-    }
-    cw_mutex_unlock(&tr_matrix_lock);
+	for (x = 0;  x < SHOW_TRANS;  x++) {
+		cw_cli(fd, " %8s", cw_getformatname(1 << x));
 
-    return RESULT_SUCCESS;
+		for (y = 0;  y < SHOW_TRANS;  y++) {
+			if (tr->matrix[x][y].step)
+				cw_cli(fd, " %6u.%01u", tr->matrix[x][y].cost / 10, tr->matrix[x][y].cost % 10);
+			else
+			    cw_cli(fd, "        -");
+		}
+		cw_cli(fd, "\n");
+	}
+
+	cw_object_put(tr);
+	return RESULT_SUCCESS;
 }
 
 static char show_trans_usage[] =
@@ -523,6 +526,7 @@ static struct cw_clicmd show_trans =
 int cw_translator_best_choice(int *dst, int *srcs)
 {
     /* Calculate our best source format, given costs, and a desired destination */
+	struct trans_state *tr;
     int x;
     int y;
     int best = -1;
@@ -550,7 +554,10 @@ int cw_translator_best_choice(int *dst, int *srcs)
     else
     {
         /* We will need to translate */
-        cw_mutex_lock(&tr_matrix_lock);
+        pthread_spin_lock(&state_lock);
+        tr = cw_object_dup(trans_state);
+        pthread_spin_unlock(&state_lock);
+
         for (y = 0;  y < MAX_FORMAT;  y++)
         {
             if (cur & *dst)
@@ -559,21 +566,21 @@ int cw_translator_best_choice(int *dst, int *srcs)
                 {
                     if ((*srcs & (1 << x))          /* x is a valid source format */
                         &&
-                        tr_matrix[x][y].step        /* There's a step */
+                        tr->matrix[x][y].step        /* There's a step */
                         &&
-                        (tr_matrix[x][y].cost < besttime
-			 || (tr_matrix[x][y].cost == besttime && tr_matrix[x][y].steps < beststeps)))
+                        (tr->matrix[x][y].cost < besttime
+			 || (tr->matrix[x][y].cost == besttime && tr->matrix[x][y].steps < beststeps)))
                     {
                         /* It's better than what we have so far */
                         best = 1 << x;
                         bestdst = cur;
-                        besttime = tr_matrix[x][y].cost;
+                        besttime = tr->matrix[x][y].cost;
                     }
                 }
             }
             cur <<= 1;
         }
-        cw_mutex_unlock(&tr_matrix_lock);
+        cw_object_put(tr);
     }
     if (best > -1)
     {
@@ -597,7 +604,7 @@ static int cw_translator_qsort_compare_by_name(const void *a, const void *b)
 
 static void translator_registry_onchange(void)
 {
-	if (translator_initialized)
+	if (trans_state)
 		rebuild_matrix(0);
 }
 
@@ -610,7 +617,7 @@ struct cw_registry translator_registry = {
 
 int cw_translator_init(void)
 {
-	translator_initialized = 1;
+	pthread_spin_init(&state_lock, PTHREAD_PROCESS_PRIVATE);
 	rebuild_matrix(0);
 	cw_cli_register(&show_trans);
 	return 0;
