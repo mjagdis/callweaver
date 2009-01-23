@@ -37,7 +37,6 @@ struct cw_var_t {
 };
 
 
-extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_var;
 extern CW_API_PUBLIC struct cw_registry var_registry;
 
 

@@ -564,12 +564,6 @@ int cw_translator_best_choice(int *dst, int *srcs)
 }
 
 
-static const char *translator_object_name(struct cw_object *obj)
-{
-	struct cw_translator *it = container_of(obj, struct cw_translator, obj);
-	return it->name;
-}
-
 static int cw_translator_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -585,10 +579,6 @@ static void translator_registry_onchange(void)
 	if (translator_initialized)
 		rebuild_matrix(0);
 }
-
-const struct cw_object_isa cw_object_isa_translator = {
-	.name = translator_object_name,
-};
 
 struct cw_registry translator_registry = {
 	.name = "Translator",

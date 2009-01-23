@@ -48,12 +48,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static const char *func_object_name(struct cw_object *obj)
-{
-	struct cw_func *it = container_of(obj, struct cw_func, obj);
-	return it->name;
-}
-
 static int cw_func_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -69,10 +63,6 @@ static int func_object_match(struct cw_object *obj, const void *pattern)
 	struct cw_func *it = container_of(obj, struct cw_func, obj);
 	return (!strcmp(it->name, pattern));
 }
-
-const struct cw_object_isa cw_object_isa_function = {
-	.name = func_object_name,
-};
 
 struct cw_registry func_registry = {
 	.name = "Function",

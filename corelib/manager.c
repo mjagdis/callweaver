@@ -228,12 +228,6 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 }
 
 
-static const char *manager_listener_object_name(struct cw_object *obj)
-{
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
-	return it->name;
-}
-
 static int cw_manager_listener_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -250,22 +244,12 @@ static int manager_listener_object_match(struct cw_object *obj, const void *patt
 	return strcmp(item->name, pattern);
 }
 
-const struct cw_object_isa cw_object_isa_listener = {
-	.name = manager_listener_object_name,
-};
-
 struct cw_registry manager_listener_registry = {
 	.name = "Manager Listener",
 	.qsort_compare = cw_manager_listener_qsort_compare_by_name,
 	.match = manager_listener_object_match,
 };
 
-
-static const char *manager_session_object_name(struct cw_object *obj)
-{
-	struct mansession *it = container_of(obj, struct mansession, obj);
-	return it->name;
-}
 
 static int cw_mansession_qsort_compare_by_name(const void *a, const void *b)
 {
@@ -283,22 +267,12 @@ static int manager_session_object_match(struct cw_object *obj, const void *patte
 	return !strcmp(item->name, pattern);
 }
 
-const struct cw_object_isa cw_object_isa_session = {
-	.name = manager_session_object_name,
-};
-
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
 	.qsort_compare = cw_mansession_qsort_compare_by_name,
 	.match = manager_session_object_match,
 };
 
-
-static const char *manager_action_object_name(struct cw_object *obj)
-{
-	struct manager_action *it = container_of(obj, struct manager_action, obj);
-	return it->action;
-}
 
 static int cw_manager_action_qsort_compare_by_name(const void *a, const void *b)
 {
@@ -315,10 +289,6 @@ static int manager_action_object_match(struct cw_object *obj, const void *patter
 	struct manager_action *item = container_of(obj, struct manager_action, obj);
 	return (!strcasecmp(item->action, pattern));
 }
-
-const struct cw_object_isa cw_object_isa_manager_action = {
-	.name = manager_action_object_name,
-};
 
 struct cw_registry manager_action_registry = {
 	.name = "Manager Action",
@@ -1792,7 +1762,7 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	sess->send_events = send_events;
 	sess->handler = handler;
 
-	cw_object_init(sess, &cw_object_isa_session, NULL, 2);
+	cw_object_init(sess, NULL, 2);
 	pthread_mutex_init(&sess->lock, NULL);
 	pthread_cond_init(&sess->activity, NULL);
 	pthread_cond_init(&sess->ack, NULL);
@@ -1897,9 +1867,6 @@ static void *accept_thread(void *data)
 }
 
 
-static const struct cw_object_isa cw_object_isa_manager_event;
-
-
 struct manager_event_args {
 	int ret;
 	int category;
@@ -1941,7 +1908,7 @@ again:
 			args->me->category = args->category;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
-			cw_object_init(args->me, &cw_object_isa_manager_event, NULL, 1);
+			cw_object_init(args->me, NULL, 1);
 			return 0;
 		}
 
@@ -2184,7 +2151,7 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 
 	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
 
-	cw_object_init(listener, &cw_object_isa_listener, NULL, 1);
+	cw_object_init(listener, NULL, 1);
 	listener->obj.release = listener_free;
 	listener->reg_entry = NULL;
 	listener->tid = CW_PTHREADT_NULL;

@@ -47,12 +47,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "libltdl/ltdl.h"
 
 
-static const char *clicmd_object_name(struct cw_object *obj)
-{
-    struct cw_clicmd *it = container_of(obj, struct cw_clicmd, obj);
-    return it->summary;
-}
-
 static int cw_clicmd_qsort_compare(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -108,10 +102,6 @@ static int clicmd_object_match(struct cw_object *obj, const void *pattern)
 
     return m;
 }
-
-const struct cw_object_isa cw_object_isa_clicmd = {
-    .name = clicmd_object_name,
-};
 
 struct cw_registry clicmd_registry = {
     .name = "CLI Command",

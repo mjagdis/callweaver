@@ -45,12 +45,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 
 
-static const char *imager_object_name(struct cw_object *obj)
-{
-	struct cw_imager *it = container_of(obj, struct cw_imager, obj);
-	return it->name;
-}
-
 static int cw_imager_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -67,10 +61,6 @@ static int imager_object_match(struct cw_object *obj, const void *pattern)
 	const int *format = pattern;
 	return !(img->format & *format);
 }
-
-const struct cw_object_isa cw_object_isa_imager = {
-	.name = imager_object_name,
-};
 
 struct cw_registry imager_registry = {
 	.name = "Imager",

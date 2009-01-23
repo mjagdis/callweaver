@@ -36,12 +36,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static const char *var_object_name(struct cw_object *obj)
-{
-	struct cw_var_t *it = container_of(obj, struct cw_var_t, obj);
-	return it->name;
-}
-
 static int cw_var_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -65,10 +59,6 @@ static int var_object_match(struct cw_object *obj, const void *pattern)
 		(name[0] == '_' ? (name[1] == '_' ? &name[2] : &name[1]) : name)
 	);
 }
-
-const struct cw_object_isa cw_object_isa_var = {
-	.name = var_object_name,
-};
 
 struct cw_registry var_registry = {
 	.name = "Global variables",
@@ -103,7 +93,7 @@ struct cw_var_t *cw_var_new(const char *name, const char *value, int refs)
 	int value_len = strlen(value) + 1;
 
 	if ((var = malloc(sizeof(struct cw_var_t) + name_len + value_len))) {
-		cw_object_init(var, &cw_object_isa_var, NULL, refs);
+		cw_object_init(var, NULL, refs);
 		var->obj.release = var_release;
 		var->value = var->name + name_len;
 		memcpy((char *)var->name, name, name_len);

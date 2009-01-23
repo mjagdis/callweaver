@@ -50,12 +50,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/atexit.h"
 
 
-static const char *cdrbe_object_name(struct cw_object *obj)
-{
-	struct cw_cdrbe *it = container_of(obj, struct cw_cdrbe, obj);
-	return it->name;
-}
-
 static int cw_cdrbe_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -65,12 +59,6 @@ static int cw_cdrbe_qsort_compare_by_name(const void *a, const void *b)
 
 	return strcmp(cdrbe_a->name, cdrbe_b->name);
 }
-
-
-const struct cw_object_isa cw_object_isa_cdrbe = {
-	.name = cdrbe_object_name,
-};
-
 
 struct cw_registry cdrbe_registry = {
 	.name = "CDR back-end",

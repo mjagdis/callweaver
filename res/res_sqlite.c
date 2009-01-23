@@ -144,22 +144,12 @@ struct cache {
 };
 
 
-static const char *cache_object_name(struct cw_object *obj)
-{
-	const struct cache *it = container_of(obj, struct cache, obj);
-	return it->exten;
-}
-
 static int cache_object_match(struct cw_object *obj, const void *pattern)
 {
 	const struct cache *it = container_of(obj, struct cache, obj);
 	const struct extcon *extcon = pattern;
 	return !strcmp(it->exten, extcon->exten) && !strcmp(it->context, extcon->context);
 }
-
-const struct cw_object_isa cw_object_isa_cache = {
-	.name = cache_object_name,
-};
 
 static struct cw_registry cache_registry = {
 	.name = "SQLite cache",
@@ -493,7 +483,7 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 		cache = container_of(obj, struct cache, obj);
 	} else {
 		cache = malloc(sizeof(*cache));
-		cw_object_init(cache, &cw_object_isa_cache, NULL, 0);
+		cw_object_init(cache, NULL, 0);
 		needs_add = 1;
 	}
 

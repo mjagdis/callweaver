@@ -51,12 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 
 
-static const char *format_object_name(struct cw_object *obj)
-{
-	struct cw_format *it = container_of(obj, struct cw_format, obj);
-	return it->name;
-}
-
 static int cw_format_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -66,10 +60,6 @@ static int cw_format_qsort_compare_by_name(const void *a, const void *b)
 
 	return strcmp(format_a->name, format_b->name);
 }
-
-const struct cw_object_isa cw_object_isa_format = {
-	.name = format_object_name,
-};
 
 struct cw_registry format_registry = {
 	.name = "Format",
@@ -1182,7 +1172,7 @@ struct cw_clicmd show_file = {
 int cw_file_init(void)
 {
 	if (!filestream_generator.is_initialized)
-		cw_object_init(&filestream_generator, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init(&filestream_generator, CW_OBJECT_CURRENT_MODULE, 0);
 
 	cw_cli_register(&show_file);
 	return 0;

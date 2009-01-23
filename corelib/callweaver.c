@@ -226,21 +226,11 @@ static void cw_clock_init(void)
 }
 
 
-static const char *atexit_object_name(struct cw_object *obj)
-{
-	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
-	return it->name;
-}
-
 static int atexit_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
 	return (it->function == pattern);
 }
-
-const struct cw_object_isa cw_object_isa_atexit = {
-	.name = atexit_object_name,
-};
 
 struct cw_registry atexit_registry = {
 	.name = "At Exit",

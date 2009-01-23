@@ -62,8 +62,6 @@ static void registry_purge(struct cw_registry *registry, struct cw_list *list)
 	while (list) {
 		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
 		list = list->del;
-		if (option_verbose > 1)
-			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: purged %s\n", registry->name, entry->obj->type->name(entry->obj));
 		cw_object_put_obj(entry->obj);
 		free(entry);
 	}
@@ -83,9 +81,6 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned
 		registry->entries++;
 		pthread_spin_unlock(&registry->lock);
 
-		if (option_verbose > 1)
-			cw_verbose(VERBOSE_PREFIX_2 "Registry %s: registered %s\n", registry->name, entry->obj->type->name(entry->obj));
-
 		if (registry->onchange)
 			registry->onchange();
 	} else {
@@ -104,9 +99,6 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 	cw_list_del(&registry->del, &entry->list);
 	registry->entries--;
 	pthread_spin_unlock(&registry->lock);
-
-	if (option_verbose > 1 && entry->obj)
-		cw_verbose(VERBOSE_PREFIX_2 "Registry %s: unregistered %s\n", registry->name, entry->obj->type->name(entry->obj));
 
 	if (registry->onchange)
 		registry->onchange();

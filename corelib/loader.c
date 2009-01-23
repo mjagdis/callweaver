@@ -77,12 +77,6 @@ struct modinfo *get_modinfo(void)
 }
 
 
-static const char *module_object_name(struct cw_object *obj)
-{
-	struct cw_module *mod = container_of(obj, struct cw_module, obj);
-	return mod->name;
-}
-
 static int cw_module_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -99,10 +93,6 @@ static int module_object_match(struct cw_object *obj, const void *pattern)
 
 	return !strcmp(mod->name, pattern);
 }
-
-static struct cw_object_isa cw_object_isa_module = {
-	.name = module_object_name,
-};
 
 struct cw_registry module_registry = {
 	.name = "Modules",
@@ -315,7 +305,7 @@ static int module_load(const char *filename)
 
 	res = -1;
 
-	cw_object_init(mod, &cw_object_isa_module, NULL, 1);
+	cw_object_init(mod, NULL, 1);
 	mod->obj.release = module_release;
 	mod->modinfo = NULL;
 	mod->reg_entry = NULL;

@@ -176,12 +176,6 @@ struct cw_hint *hints = NULL;
 struct cw_state_cb *statecbs = NULL;
 
 
-static const char *switch_object_name(struct cw_object *obj)
-{
-	struct cw_switch *it = container_of(obj, struct cw_switch, obj);
-	return it->name;
-}
-
 static int cw_switch_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -197,10 +191,6 @@ static int switch_object_match(struct cw_object *obj, const void *pattern)
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
 	return strcmp(sw->name, pattern);
 }
-
-const struct cw_object_isa cw_object_isa_switch = {
-	.name = switch_object_name,
-};
 
 struct cw_registry switch_registry = {
 	.name = "Switch",

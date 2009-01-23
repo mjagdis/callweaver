@@ -69,11 +69,6 @@ static struct cw_config_map {
 
 CW_MUTEX_DEFINE_STATIC(config_lock);
 
-static const char *config_engine_object_name(struct cw_object *obj)
-{
-	struct cw_config_engine *it = container_of(obj, struct cw_config_engine, obj);
-	return it->name;
-}
 
 static int cw_config_engine_qsort_compare_by_name(const void *a, const void *b)
 {
@@ -90,10 +85,6 @@ static int config_engine_object_match(struct cw_object *obj, const void *pattern
 	struct cw_config_engine *ce = container_of(obj, struct cw_config_engine, obj);
 	return strcasecmp(ce->name, pattern);
 }
-
-const struct cw_object_isa cw_object_isa_config_engine = {
-	.name = config_engine_object_name,
-};
 
 struct cw_registry config_engine_registry = {
 	.name = "Config Engine",

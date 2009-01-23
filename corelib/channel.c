@@ -169,12 +169,6 @@ const struct cw_control
 };
 
 
-static const char *channel_object_name(struct cw_object *obj)
-{
-	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	return chan->name;
-}
-
 static int cw_channel_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -191,10 +185,6 @@ static int channel_object_match(struct cw_object *obj, const void *pattern)
 
 	return !strcasecmp(chan->name, pattern);
 }
-
-static struct cw_object_isa cw_object_isa_channel = {
-	.name = channel_object_name,
-};
 
 struct cw_registry channel_registry = {
 	.name = "Channels",
@@ -697,7 +687,7 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 			cw_copy_string(chan->accountcode, cw_default_accountcode, sizeof(chan->accountcode));
 			cw_copy_string(chan->language, defaultlanguage, sizeof(chan->language));
 
-			cw_object_init(chan, &cw_object_isa_channel, NULL, 1);
+			cw_object_init(chan, NULL, 1);
 			chan->obj.release = cw_channel_release;
 
 			if (fmt) {
@@ -3708,7 +3698,7 @@ int cw_tonepair_start(struct cw_channel *chan, int freq1, int freq2, int duratio
     struct tonepair_def d;
 
     if (!tonepair.is_initialized)
-        cw_object_init(&tonepair, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);
+        cw_object_init(&tonepair, CW_OBJECT_CURRENT_MODULE, 0);
 
     if (vol >= 0)
 	vol = -13;

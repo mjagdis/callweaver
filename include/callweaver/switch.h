@@ -44,7 +44,6 @@ struct cw_switch
 };
 
 
-extern CW_API_PUBLIC const struct cw_object_isa cw_object_isa_switch;
 extern CW_API_PUBLIC struct cw_registry switch_registry;
 
 
@@ -55,7 +54,7 @@ extern CW_API_PUBLIC struct cw_registry switch_registry;
 	 * module lock is held. \
 	 */ \
 	if (!cw_object_refs(__ptr)) \
-		cw_object_init_obj(&__ptr->obj, &cw_object_isa_switch, CW_OBJECT_CURRENT_MODULE, 0); \
+		cw_object_init_obj(&__ptr->obj, CW_OBJECT_CURRENT_MODULE, 0); \
 	__ptr->reg_entry = cw_registry_add(&switch_registry, 0, &__ptr->obj); \
 	0; \
 })
