@@ -90,6 +90,8 @@ int cw_var_registry_init(struct cw_registry *reg, int estsize)
 static void var_release(struct cw_object *obj)
 {
 	struct cw_var_t *it = container_of(obj, struct cw_var_t, obj);
+
+	cw_object_destroy(it);
 	free(it);
 }
 

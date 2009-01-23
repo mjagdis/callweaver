@@ -91,6 +91,20 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
 })
 
 
+/*! \brief Destroy the object data for a reference counted struct
+ *
+ * \param ptr		the ref counted struct whose object data is to be destroyed
+ *
+ * \return a pointer to the given object.
+ */
+#define cw_object_destroy(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	if (__ptr) \
+		atomic_destroy(&__ptr->obj.refs); \
+	__ptr; \
+})
+
+
 /*! \brief Get a pointer to a struct that is ref counted
  * (i.e. owns (contains) an cw_object struct) using a,
  * possibly uncounted, pointer that may be the first reference

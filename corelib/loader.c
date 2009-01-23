@@ -146,6 +146,7 @@ static void module_release(struct cw_object *obj)
 		lt_dlclose(mod->lib);
 	}
 
+	cw_object_destroy(mod);
 	free(mod);
 }
 

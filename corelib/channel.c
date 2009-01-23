@@ -638,6 +638,7 @@ static void cw_channel_release(struct cw_object *obj)
 	/* Destroy the jitterbuffer */
 	cw_jb_destroy(chan);
 
+	cw_object_destroy(chan);
 	free(chan);
 }
 

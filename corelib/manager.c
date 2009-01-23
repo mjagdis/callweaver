@@ -594,6 +594,7 @@ static void mansession_release(struct cw_object *obj)
 	pthread_cond_destroy(&sess->ack);
 	pthread_cond_destroy(&sess->activity);
 	free(sess->q);
+	cw_object_destroy(sess);
 	free(sess);
 }
 
@@ -1912,6 +1913,7 @@ static void manager_event_free(struct cw_object *obj)
 {
 	struct manager_event *it = container_of(obj, struct manager_event, obj);
 
+	cw_object_destroy(it);
 	free(it);
 }
 
@@ -2125,6 +2127,7 @@ static void listener_free(struct cw_object *obj)
 {
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 
+	cw_object_destroy(it);
 	free(it);
 }
 
