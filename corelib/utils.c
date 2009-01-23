@@ -640,7 +640,7 @@ struct cw_pthread_info {
 	const char *function;
 	const char *mutex_name;
 #endif
-	struct module *module;
+	struct cw_module *module;
 	void *(*func)(void *);
 	void *param;
 };
@@ -673,7 +673,7 @@ static void *cw_pthread_wrapper(void *data)
 #undef pthread_create /* For cw_pthread_create function only */
 #endif /* !__linux__ */
 
-int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
+int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct cw_module *module, const char *description)
 {
 	int ret, n;
 

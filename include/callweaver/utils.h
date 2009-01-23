@@ -309,7 +309,7 @@ extern CW_API_PUBLIC pthread_attr_t global_attr_rr;
  */
 #define CW_STACKSIZE 256 * 1024
 #define cw_pthread_create(thread, attr, func, data) cw_pthread_create_module((thread), (attr), (func), (data), get_modinfo()->self, #func)
-extern CW_API_PUBLIC int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct module *module, const char *description)
+extern CW_API_PUBLIC int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct cw_module *module, const char *description)
 	__attribute__ ((nonnull (1,2,3)));
 
 #ifdef linux

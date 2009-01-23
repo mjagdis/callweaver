@@ -31,10 +31,8 @@
 extern "C" {
 #endif
 
+#include "callweaver/object.h"
 #include "callweaver/lock.h"
-
-
-struct module;
 
 
 #define CW_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
@@ -62,7 +60,7 @@ int cw_module_reconfigure(const char *name);
 struct localuser;
 
 struct modinfo {
-	struct module *self;
+	struct cw_module *self;
 
 	/*!
 	 * \brief Initialize the module.

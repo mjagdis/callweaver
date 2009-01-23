@@ -100,7 +100,7 @@ int cw_cdr_setcid(struct cw_cdr *cdr, struct cw_channel *chan) {
     return 0;
 }
 
-int cw_cdr_register(struct module *module, struct cw_cdrbe_entry *entry) {
+int cw_cdr_register(struct cw_module *module, struct cw_cdrbe_entry *entry) {
     return 0;
 }
 

@@ -79,7 +79,7 @@ struct modinfo *get_modinfo(void)
 
 static const char *module_object_name(struct cw_object *obj)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 	return mod->name;
 }
 
@@ -87,15 +87,15 @@ static int cw_module_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
 	const struct cw_object * const *objp_b = b;
-	const struct module *module_a = container_of(*objp_a, struct module, obj);
-	const struct module *module_b = container_of(*objp_b, struct module, obj);
+	const struct cw_module *module_a = container_of(*objp_a, struct cw_module, obj);
+	const struct cw_module *module_b = container_of(*objp_b, struct cw_module, obj);
 
 	return strcmp(module_a->name, module_b->name);
 }
 
 static int module_object_match(struct cw_object *obj, const void *pattern)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 
 	return !strcmp(mod->name, pattern);
 }
@@ -113,7 +113,7 @@ struct cw_registry module_registry = {
 
 static void module_release(struct cw_object *obj)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 
 	if (mod->modinfo) {
 		if (mod->modinfo->state == MODINFO_STATE_UNMAP_ON_IDLE) {
@@ -159,7 +159,7 @@ static int unload_module(const char *name, int hangup)
 	pthread_mutex_lock(&modlock);
 
 	if ((obj = cw_registry_find(&module_registry, 1, cw_hash_string(name), name))) {
-		struct module *mod = container_of(obj, struct module, obj);
+		struct cw_module *mod = container_of(obj, struct cw_module, obj);
 
 		if (option_verbose)
 			cw_verbose(VERBOSE_PREFIX_1 "Deregistering %s => (%s)\n", mod->name, mod->modinfo->description);
@@ -197,7 +197,7 @@ struct module_generator_args {
 
 static int module_generator_one(struct cw_object *obj, void *data)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 	struct module_generator_args *args = data;
 
 	if (!strncmp(args->name, mod->name, args->name_len))
@@ -225,7 +225,7 @@ struct module_reload_args {
 
 static int module_reconfigure(struct cw_object *obj, void *data)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 	struct module_reload_args *args = data;
 
 	if (!args->name || !strcmp(args->name, mod->name)) {
@@ -290,7 +290,7 @@ int cw_module_reconfigure(const char *name)
 
 static int module_load(const char *filename)
 {
-	struct module *mod, *oldmod;
+	struct cw_module *mod, *oldmod;
 	struct cw_object *oldobj;
 	struct modinfo *(*modinfo)(void);
 	const char *p;
@@ -306,7 +306,7 @@ static int module_load(const char *filename)
 	p = strrchr(filename, '/') + 1;
 	res = strlen(p) + 1;
 
-	if (!(mod = malloc(sizeof(struct module) + res))) {
+	if (!(mod = malloc(sizeof(*mod) + res))) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
@@ -339,7 +339,7 @@ static int module_load(const char *filename)
 	pthread_mutex_lock(&modlock);
 
 	if ((oldobj = cw_registry_find(&module_registry, 1, hash, mod->name)))
-		oldmod = container_of(oldobj, struct module, obj);
+		oldmod = container_of(oldobj, struct cw_module, obj);
 
 	/* If it wasn't previously registered or lt_dlopenext() says it has mapped something
 	 * different we can go ahead and plug it in.
@@ -526,7 +526,7 @@ struct handle_modlist_args {
 
 static int handle_modlist_one(struct cw_object *obj, void *data)
 {
-	struct module *mod = container_of(obj, struct module, obj);
+	struct cw_module *mod = container_of(obj, struct cw_module, obj);
 	struct handle_modlist_args *args = data;
 
 	if (!args->like || strcasestr(mod->name, args->like) ) {

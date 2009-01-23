@@ -41,18 +41,18 @@ struct cw_object_isa {
 };
 
 
-struct module;
+struct cw_module;
 struct modinfo;
 
 struct cw_object {
 	atomic_t refs;
-	struct module *module;
+	struct cw_module *module;
 	const struct cw_object_isa *type;
 	void (*release)(struct cw_object *);
 };
 
 
-struct module {
+struct cw_module {
 	struct cw_object obj;
 	struct modinfo *modinfo;
 	void *lib;
@@ -64,7 +64,7 @@ struct module {
 #define CW_OBJECT_CURRENT_MODULE (get_modinfo()->self)
 
 
-static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs);
+static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct cw_module *module, int refs);
 static inline struct cw_object *cw_object_get_obj(struct cw_object *obj);
 static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj);
 static inline int cw_object_put_obj(struct cw_object *obj);
@@ -174,7 +174,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  *
  * \return nothing
  */
-static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs)
+static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct cw_module *module, int refs)
 {
 	obj->type = type;
 	obj->module = module;
@@ -243,7 +243,7 @@ static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
 static inline int cw_object_put_obj(struct cw_object *obj)
 {
 	if (atomic_fetch_and_sub(&obj->refs, 1) == 0 + 1) {
-		struct module *module = obj->module;
+		struct cw_module *module = obj->module;
 		if (obj->release)
 			obj->release(obj);
 		cw_object_put(module);
