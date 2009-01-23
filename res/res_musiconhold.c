@@ -1123,21 +1123,21 @@ static struct cw_clicmd cli_moh = {
 	.cmda = { "moh", "reload"},
 	.handler = moh_reload,
 	.summary = "Music On Hold",
-	.usage = "Music On Hold",
+	.usage = "Music On Hold\n",
 };
 
 static struct cw_clicmd cli_moh_classes_show = {
 	.cmda = { "moh", "classes", "show"},
 	.handler = moh_classes_show,
 	.summary = "List MOH classes",
-	.usage = "Lists all MOH classes",
+	.usage = "Lists all MOH classes\n",
 };
 
 static struct cw_clicmd cli_moh_files_show = {
 	.cmda = { "moh", "files", "show"},
 	.handler = cli_files_show,
 	.summary = "List MOH file-based classes",
-	.usage = "Lists all loaded file-based MOH classes and their files",
+	.usage = "Lists all loaded file-based MOH classes and their files\n",
 };
 
 static void moh_killall(void)

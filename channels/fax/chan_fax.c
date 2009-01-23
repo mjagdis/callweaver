@@ -1079,13 +1079,13 @@ static struct cw_clicmd  cli_chan_fax[] = {
 		.cmda = { "fax", "status", NULL },
 		.handler = chan_fax_status,
 		.summary = "Show fax modem status",
-		.usage = "Usage: fax status",
+		.usage = "Usage: fax status\n",
 	},
 	{
 		.cmda = { "fax", "vblevel", NULL },
 		.handler = chan_fax_vblevel,
 		.summary = "Set/show fax modem vblevel",
-		.usage = "Usage: fax vblevel [<n>]",
+		.usage = "Usage: fax vblevel [<n>]\n",
 	},
 };
 

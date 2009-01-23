@@ -356,14 +356,14 @@ static struct cw_clicmd cli_list[] = {
 		.handler = handle_show_functions,
 		.generator = complete_show_functions,
 		.summary = "Shows registered dialplan applications [DEPRECATED: use \"show functions ...\"]",
-		.usage = "DEPRECATED: use \"show functions ...\"",
+		.usage = "DEPRECATED: use \"show functions ...\"\n",
 	},
 	{
 		.cmda = { "show", "application", NULL },
 		.handler = handle_show_function,
 		.generator = complete_show_function,
 		.summary = "Describe a specific dialplan application [DEPRECATED: use \"show function ...\"]",
-		.usage = "DEPRECATED: use \"show function ...\"",
+		.usage = "DEPRECATED: use \"show function ...\"\n",
 	},
 };
 

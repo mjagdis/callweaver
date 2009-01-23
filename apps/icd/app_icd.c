@@ -159,7 +159,7 @@ static struct cw_clicmd icd_command_cli_struct = {
     .cmda = {"icd", NULL, NULL, NULL},
     .handler = icd_command_cli,
     .summary = "Execute ICD Command",
-    .usage = "icd cmd <command>",
+    .usage = "icd cmd <command>\n",
 };
 
 

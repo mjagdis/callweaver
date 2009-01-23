@@ -1889,7 +1889,7 @@ static struct cw_clicmd  cli_woomera = {
 	.cmda = { "woomera", NULL },
 	.handler = woomera_cli,
 	.summary = "Woomera",
-	.usage = "Woomera",
+	.usage = "Woomera\n",
 };
 
 /******************************* CORE INTERFACE ********************************************
