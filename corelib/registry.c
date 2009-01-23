@@ -40,13 +40,23 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static void registry_purge(struct cw_registry *registry)
-{
-	struct cw_list *list;
+#define registry_begin(registry) atomic_inc(&(registry)->inuse);
 
+#define registry_end(registry) do { \
+	struct cw_registry *reg = (registry); \
+	struct cw_list *del = reg->del; \
+	if (atomic_dec_and_test(&reg->inuse)) \
+		registry_purge(reg, del); \
+} while (0)
+
+
+static void registry_purge(struct cw_registry *registry, struct cw_list *list)
+{
 	pthread_spin_lock(&registry->lock);
-	list = registry->del;
-	registry->del = NULL;
+	if ((registry->del == list))
+		registry->del = NULL;
+	else
+		list = NULL;
 	pthread_spin_unlock(&registry->lock);
 
 	while (list) {
@@ -88,7 +98,7 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned
 
 int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entry)
 {
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	pthread_spin_lock(&registry->lock);
 	cw_list_del(&registry->del, &entry->list);
@@ -101,8 +111,7 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 	if (registry->onchange)
 		registry->onchange();
 
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 
 	return 0;
 }
@@ -116,7 +125,7 @@ int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const v
 
 	entry = NULL;
 
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	if (obj && !(entry = cw_registry_add(registry, hash, obj)))
 		goto out;
@@ -134,8 +143,7 @@ int cw_registry_replace(struct cw_registry *registry, unsigned int hash, const v
 	ret = 0;
 
 out:
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 
 	return ret;
 }
@@ -146,7 +154,7 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 	struct cw_list *list;
 	int i, ret = 0;
 
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each(list, &registry->list[i]) {
@@ -157,8 +165,7 @@ int cw_registry_iterate(struct cw_registry *registry, int (*func)(struct cw_obje
 	}
 scan_complete:
 
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 
 	return ret;
 }
@@ -169,7 +176,7 @@ int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_
 	struct cw_list *list;
 	int i, ret = 0;
 
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each_rev(list, &registry->list[i]) {
@@ -180,8 +187,7 @@ int cw_registry_iterate_rev(struct cw_registry *registry, int (*func)(struct cw_
 	}
 scan_complete:
 
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 
 	return ret;
 }
@@ -196,7 +202,7 @@ int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct
 	if ((objs = malloc((size = registry->entries + 1) * sizeof(objs[0])))) {
 		ret = 0;
 
-		atomic_inc(&registry->inuse);
+		registry_begin(registry);
 
 		for (n = 0, i = 0; i < registry->size; i++) {
 			cw_list_for_each(list, &registry->list[i]) {
@@ -210,8 +216,7 @@ int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct
 			}
 		}
 
-		if (atomic_dec_and_test(&registry->inuse))
-			registry_purge(registry);
+		registry_end(registry);
 
 		qsort(objs, n, sizeof(objs[0]), registry->qsort_compare);
 
@@ -238,7 +243,7 @@ struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, 
 	struct cw_list *list;
 	int i;
 
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	i = (have_hash ? hash % registry->size : 0);
 	do {
@@ -252,8 +257,7 @@ struct cw_object *cw_registry_find(struct cw_registry *registry, int have_hash, 
 		i++;
 	} while (!have_hash && !obj && i < registry->size);
 
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 
 	return obj;
 }
@@ -284,7 +288,7 @@ void cw_registry_flush(struct cw_registry *registry)
 	struct cw_list *list;
 	int i;
 
-	atomic_inc(&registry->inuse);
+	registry_begin(registry);
 
 	for (i = 0; i < registry->size; i++) {
 		cw_list_for_each(list, &registry->list[i]) {
@@ -292,8 +296,7 @@ void cw_registry_flush(struct cw_registry *registry)
 		}
 	}
 
-	if (atomic_dec_and_test(&registry->inuse))
-		registry_purge(registry);
+	registry_end(registry);
 }
 
 
