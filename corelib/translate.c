@@ -433,6 +433,7 @@ static void rebuild_matrix(void)
 #if HAVE_SETAFFINITY
 	cpu_set_t old_cpuset, new_cpuset;
 #endif
+	pthread_mutex_t serialize = PTHREAD_MUTEX_INITIALIZER;
 	struct rebuild_matrix_args args;
 	struct trans_state *old_tr, *new_tr;
 	int affinity;
@@ -465,6 +466,8 @@ static void rebuild_matrix(void)
 	args.tr = new_tr;
 	new_tr->min_cost = UINT_MAX;
 	memset(&new_tr->matrix, '\0', sizeof(new_tr->matrix));
+
+	pthread_mutex_lock(&serialize);
 
 #if HAVE_SETAFFINITY
 	/* Bind to a specific CPU if possible to avoid migrations */
@@ -529,6 +532,8 @@ static void rebuild_matrix(void)
 	if (affinity != -1)
 		sched_setaffinity(0, sizeof(old_cpuset), &old_cpuset);
 #endif
+
+	pthread_mutex_unlock(&serialize);
 
 	pthread_attr_destroy(&args.timer_attr);
 	pthread_attr_destroy(&args.calc_attr);
