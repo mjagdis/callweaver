@@ -181,6 +181,8 @@ char debug_filename[CW_FILENAME_MAX] = "";
 
 int cw_mainpid;
 
+int cw_cpu0_governor_fd;
+
 time_t cw_startuptime;
 time_t cw_lastreloadtime;
 
@@ -1420,6 +1422,10 @@ int callweaver_main(int argc, char *argv[])
 			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
 	}
 
+#ifdef __linux__
+	cw_cpu0_governor_fd = open_cloexec("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", O_RDWR, 0);
+#endif
+
 	if (!runuser)
 		runuser = cw_config_CW_RUN_USER;
 	if (!rungroup)
@@ -1509,8 +1515,9 @@ int callweaver_main(int argc, char *argv[])
 		/* Linux specific capabilities:
 		 *     cap_net_admin    allow TOS setting
 		 *     cap_sys_nice     allow use of FIFO and round-robin scheduling
+		 *     cap_ipc_lock	allow memory locking with mlock*()
 		 */
-		if ((caps = cap_from_text("= cap_net_admin,cap_sys_nice=ep"))) {
+		if ((caps = cap_from_text("= cap_net_admin,cap_sys_nice,cap_ipc_lock=ep"))) {
 			if (cap_set_proc(caps))
 				fprintf(stderr, "Failed to set caps\n");
 			cap_free(caps);
