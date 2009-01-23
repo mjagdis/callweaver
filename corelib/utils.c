@@ -756,7 +756,7 @@ static void pop_thread_info(int canlog, cw_mutex_t *t, const char *filename, int
 }
 
 
-int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t, pthread_mutexattr_t *attr)
+int cw_mutex_init_attr_debug(cw_mutex_t *t, pthread_mutexattr_t *attr, int canlog, const char *filename, int lineno, const char *func, const char *mutex_name)
 {
 #ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
 	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
@@ -779,7 +779,7 @@ int cw_mutex_init_attr_debug(int canlog, const char *filename, int lineno, const
 }
 
 
-int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+int cw_mutex_destroy_debug(cw_mutex_t *t, int canlog, const char *filename, int lineno, const char *func, const char *mutex_name)
 {
 	int res;
 
@@ -817,7 +817,7 @@ int cw_mutex_destroy_debug(int canlog, const char *filename, int lineno, const c
 	return res;
 }
 
-int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+int cw_mutex_lock_debug(cw_mutex_t *t, int canlog, const char *filename, int lineno, const char *func, const char *mutex_name)
 {
 	struct cw_pthread_info *thread_info;
 	unsigned int delay = 100;
@@ -881,7 +881,7 @@ int cw_mutex_lock_debug(int canlog, const char *filename, int lineno, const char
 	return res;
 }
 
-extern int cw_mutex_trylock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+extern int cw_mutex_trylock_debug(cw_mutex_t *t, int canlog, const char *filename, int lineno, const char *func, const char *mutex_name)
 {
 	int res;
 
@@ -901,7 +901,7 @@ extern int cw_mutex_trylock_debug(int canlog, const char *filename, int lineno, 
 	return res;
 }
 
-int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const char *func, const char *mutex_name, cw_mutex_t *t)
+int cw_mutex_unlock_debug(cw_mutex_t *t, int canlog, const char *filename, int lineno, const char *func, const char *mutex_name)
 {
 	struct cw_pthread_info *thread_info;
 	int res;
@@ -932,7 +932,7 @@ int cw_mutex_unlock_debug(int canlog, const char *filename, int lineno, const ch
 	return res;
 }
 
-int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t)
+int cw_cond_wait_debug(cw_cond_t *cond, cw_mutex_t *t, int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name)
 {
 	struct cw_pthread_info *thread_info;
 	int res;
@@ -973,7 +973,7 @@ int cw_cond_wait_debug(int canlog, const char *filename, int lineno, const char 
 	return res;
 }
 
-int cw_cond_timedwait_debug(int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name, cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime)
+int cw_cond_timedwait_debug(cw_cond_t *cond, cw_mutex_t *t, const struct timespec *abstime, int canlog, const char *filename, int lineno, const char *func, const char *cond_name, const char *mutex_name)
 {
 	struct cw_pthread_info *thread_info;
 	int res;

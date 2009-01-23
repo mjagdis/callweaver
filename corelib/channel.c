@@ -881,7 +881,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 	while (tries-- && (obj = cw_registry_find(registry, 1, cw_hash_string(name), name))) {
 		struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 #ifdef DEBUG_MUTEX
-		if (!cw_mutex_trylock_debug(1, file, lineno, func, chan->name, &chan->lock)) {
+		if (!cw_mutex_trylock_debug(&chan->lock, 1, file, lineno, func, chan->name)) {
 #else
 		if (!cw_channel_trylock(chan)) {
 #endif
@@ -966,7 +966,7 @@ static int channel_by_name_prefix_one(struct cw_object *obj, void *data)
 	 */
 	while (tries--) {
 #ifdef DEBUG_MUTEX
-		if (!cw_mutex_trylock_debug(1, args->file, args->lineno, args->func, chan->name, &chan->lock)) {
+		if (!cw_mutex_trylock_debug(&chan->lock, 1, args->file, args->lineno, args->func, chan->name)) {
 #else
 		if (!cw_channel_trylock(chan)) {
 #endif
@@ -1039,7 +1039,7 @@ static int channel_by_exten_one(struct cw_object *obj, void *data)
 	 */
 	while (tries--) {
 #ifdef DEBUG_MUTEX
-		if (!cw_mutex_trylock_debug(1, args->file, args->lineno, args->func, chan->name, &chan->lock)) {
+		if (!cw_mutex_trylock_debug(&chan->lock, 1, args->file, args->lineno, args->func, chan->name)) {
 #else
 		if (!cw_channel_trylock(chan)) {
 #endif

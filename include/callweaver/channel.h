@@ -1033,15 +1033,15 @@ static inline int cw_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 #ifdef DEBUG_MUTEX
 #  define cw_channel_lock(chan)		({ \
 	typeof(chan) __chan = (chan); \
-	cw_mutex_lock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+	cw_mutex_lock_debug(&__chan->lock, 1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name); \
 })
 #  define cw_channel_trylock(chan)	({ \
 	typeof(chan) __chan = (chan); \
-	cw_mutex_trylock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+	cw_mutex_trylock_debug(&__chan->lock, 1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name); \
 })
 #  define cw_channel_unlock(chan)	({ \
 	typeof(chan) __chan = (chan); \
-	cw_mutex_unlock_debug(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name, &__chan->lock); \
+	cw_mutex_unlock_debug(&__chan->lock, 1, __FILE__, __LINE__, __PRETTY_FUNCTION__, __chan->name); \
 })
 #else
 #  define cw_channel_lock(chan)		cw_mutex_lock(&(chan)->lock)
