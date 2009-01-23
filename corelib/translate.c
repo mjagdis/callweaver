@@ -324,7 +324,7 @@ static void *calc_cost(void *data)
 
 	*args->cost = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
 	if (*args->cost < tr_matrix_min_cost)
-	tr_matrix_min_cost = *args->cost;
+		tr_matrix_min_cost = *args->cost;
 
 out:
 	t->destroy(pvt);
@@ -363,6 +363,7 @@ static int rebuild_matrix_norm(struct cw_object *obj, void *data)
 	return 0;
 }
 
+
 static void rebuild_matrix(int secs)
 {
     struct cw_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
@@ -381,13 +382,29 @@ static void rebuild_matrix(int secs)
         for (y = 0; y < MAX_FORMAT; y++)
 		tr_old[x][y] = tr_matrix[x][y];
 
-    memset(tr_matrix, '\0', sizeof(tr_matrix));
-    tr_matrix_min_cost = INT_MAX;
-    cw_registry_iterate(&translator_registry, rebuild_matrix_one, &secs);
-    if (tr_matrix_min_cost < INT_MAX) {
-	    tr_matrix_min_cost /= 10;
-	    cw_registry_iterate(&translator_registry, rebuild_matrix_norm, NULL);
+    if (global_clock_monotonic_res.tv_nsec >= 1000000L)
+	    x = 10;
+    else if (global_clock_monotonic_res.tv_nsec >= 100000L)
+	    x = 100;
+    else
+	    x = 1000;
+
+    z = (secs ? secs : 1);
+    for (;;) {
+        memset(tr_matrix, '\0', sizeof(tr_matrix));
+        tr_matrix_min_cost = INT_MAX;
+        cw_registry_iterate(&translator_registry, rebuild_matrix_one, &z);
+        if (secs || tr_matrix_min_cost >= x * global_clock_monotonic_res.tv_nsec)
+		break;
+	z *= (256 * ((x + 1) * global_clock_monotonic_res.tv_nsec - 1) / tr_matrix_min_cost);
+	z >>= 8;
     }
+
+    if (tr_matrix_min_cost < INT_MAX) {
+        tr_matrix_min_cost /= 10; /* We're using 1 fixed point decimal place... */
+        cw_registry_iterate(&translator_registry, rebuild_matrix_norm, NULL);
+    }
+
 
     for (x = 0; x < MAX_FORMAT; x++) {
         for (y = 0; y < MAX_FORMAT; y++) {
@@ -449,22 +466,15 @@ static int show_translation(int fd, int argc, char *argv[])
     if (argc > 4) 
         return RESULT_SHOWUSAGE;
 
-    if (argv[2]  &&  !strcasecmp(argv[2], "recalc"))
-    {
-        z = argv[3]  ?  atoi(argv[3])  :  1;
+    if (argv[2]  &&  !strcasecmp(argv[2], "recalc")) {
+        z = argv[3] ? atoi(argv[3]) : 1;
 
-        if (z <= 0)
-        {
-            cw_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
-            z = 1;
-        }
-
-        if (z > MAX_RECALC)
-        {
+        if (z < 0)
+            z = 0;
+	else if (z > MAX_RECALC) {
             cw_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
             z = MAX_RECALC;
         }
-        cw_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
         rebuild_matrix(z);
     }
 
@@ -588,7 +598,7 @@ static int cw_translator_qsort_compare_by_name(const void *a, const void *b)
 static void translator_registry_onchange(void)
 {
 	if (translator_initialized)
-		rebuild_matrix(1);
+		rebuild_matrix(0);
 }
 
 struct cw_registry translator_registry = {
@@ -601,7 +611,7 @@ struct cw_registry translator_registry = {
 int cw_translator_init(void)
 {
 	translator_initialized = 1;
-	rebuild_matrix(1);
+	rebuild_matrix(0);
 	cw_cli_register(&show_trans);
 	return 0;
 }

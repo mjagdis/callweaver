@@ -149,6 +149,8 @@ clockid_t global_clock_monotonic = CLOCK_REALTIME;
 #  endif
 #endif
 
+struct timespec global_clock_monotonic_res;
+
 
 char hostname[MAXHOSTNAMELEN];
 
@@ -219,10 +221,21 @@ static pthread_t lthread = CW_PTHREADT_NULL;
 
 static void cw_clock_init(void)
 {
-	struct timespec ts;
+	int tickspersec;
 
-	if (clock_gettime(global_clock_monotonic, &ts))
+#ifdef _POSIX_TIMERS
+	if (clock_getres(global_clock_monotonic, &global_clock_monotonic_res)) {
 		global_clock_monotonic = CLOCK_REALTIME;
+		if (clock_getres(global_clock_monotonic, &global_clock_monotonic_res))
+			global_clock_monotonic_res.tv_nsec = 0;
+	}
+#endif
+	if (!global_clock_monotonic_res.tv_nsec) {
+		if ((tickspersec = sysconf(_SC_CLK_TCK)) != -1)
+			global_clock_monotonic_res.tv_nsec = 1000000000L / tickspersec;
+		else
+			global_clock_monotonic_res.tv_nsec = 1000000000L / 100;
+	}
 }
 
 

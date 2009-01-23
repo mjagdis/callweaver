@@ -62,6 +62,9 @@ int cw_clock_gettime(int clk, struct timespec *ts),
 #endif /* _POSIX_TIMERS */
 
 
+extern CW_API_PUBLIC struct timespec global_clock_monotonic_res;
+
+
 CW_INLINE_API(
 int cw_clock_diff_ms(struct timespec *end, struct timespec *start),
 {
