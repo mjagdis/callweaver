@@ -696,9 +696,10 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 			pthread_attr_setschedpolicy(attr, SCHED_OTHER);
 			sp.sched_priority = 0;
 			pthread_attr_setschedparam(attr, &sp);
-			if ((ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info)))
-				free(thread_info);
+			ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info);
 		}
+		if (ret)
+			free(thread_info);
 		return ret;
 	}
 
