@@ -46,7 +46,7 @@
 #if !defined(LOW_MEMORY)
 
 #if !defined(CW_API_MODULE)
-#define CW_INLINE_API(hdr, body) hdr; extern inline hdr body
+#define CW_INLINE_API(hdr, body) hdr; extern CW_API_PUBLIC inline hdr body
 #else
 #define CW_INLINE_API(hdr, body) hdr; hdr body
 #endif
@@ -54,7 +54,7 @@
 #else /* defined(LOW_MEMORY) */
 
 #if !defined(CW_API_MODULE)
-#define CW_INLINE_API(hdr, body) hdr;
+#define CW_INLINE_API(hdr, body) extern CW_API_PUBLIC hdr;
 #else
 #define CW_INLINE_API(hdr, body) hdr; hdr body
 #endif
