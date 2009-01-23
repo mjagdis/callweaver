@@ -58,17 +58,15 @@ int cw_loader_cli_init(void);
  * \brief Reload callweaver modules.
  * \param name the name of the module to reload
  *
- * This function reloads the specified module, or if no modules are specified,
- * it will reload all loaded modules.
- *
- * \note Modules are reloaded using their reload() functions, not unloading
- * them and loading them again.
+ * This function reloads the configuration for the specified module, or if
+ * no modules are specified, it will reload the configuration for all loaded
+ * modules.
  *
  * \return Zero if the specified module was not found, 1 if the module was
- * found but cannot be reloaded, -1 if a reload operation is already in
- * progress, and 2 if the specfied module was found and reloaded.
+ * found but cannot be reconfigured and 2 if the specified module was found
+ * and reconfigured.
  */
-int cw_module_reload(const char *name);
+int cw_module_reconfigure(const char *name);
 
 
 struct localuser;

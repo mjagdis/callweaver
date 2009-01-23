@@ -1618,7 +1618,7 @@ int callweaver_main(int argc, char *argv[])
 				else {
 					if (option_verbose > 1)
 						printf("Received HUP signal -- Reloading configs\n");
-					cw_module_reload(NULL);
+					cw_module_reconfigure(NULL);
 				}
 				break;
 			case SIGTERM:

@@ -244,7 +244,7 @@ struct module_reload_args {
 	int reloaded;
 };
 
-static int module_reload_one(struct cw_object *obj, void *data)
+static int module_reconfigure(struct cw_object *obj, void *data)
 {
 	struct module *mod = container_of(obj, struct module, obj);
 	struct module_reload_args *args = data;
@@ -264,7 +264,7 @@ static int module_reload_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-int cw_module_reload(const char *name)
+int cw_module_reconfigure(const char *name)
 {
 	struct module_reload_args args = {
 		.name = name,
@@ -302,7 +302,7 @@ int cw_module_reload(const char *name)
 		args.reloaded = 2;
 	}
 
-	cw_registry_iterate(&module_registry, module_reload_one, &args);
+	cw_registry_iterate(&module_registry, module_reconfigure, &args);
 
 	pthread_mutex_unlock(&modlock);
 
@@ -647,7 +647,7 @@ static void complete_fn(int fd, char *argv[], int lastarg, int lastarg_len)
 }
 
 
-static int handle_reload(int fd, int argc, char *argv[])
+static int handle_reconfigure(int fd, int argc, char *argv[])
 {
 	int x;
 
@@ -656,24 +656,24 @@ static int handle_reload(int fd, int argc, char *argv[])
 
 	if (argc > 1) { 
 		for (x = 1; x < argc; x++) {
-			int res = cw_module_reload(argv[x]);
+			int res = cw_module_reconfigure(argv[x]);
 			switch (res) {
 			case 0:
 				cw_cli(fd, "No such module '%s'\n", argv[x]);
 				break;
 			case 1:
-				cw_cli(fd, "Module '%s' does not support reload\n", argv[x]);
+				cw_cli(fd, "Module '%s' does not support reconfigure\n", argv[x]);
 				break;
 			}
 		}
 	} else
-		cw_module_reload(NULL);
+		cw_module_reconfigure(NULL);
 
 	return RESULT_SUCCESS;
 }
 
 
-static void reload_module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
+static void reconfigure_module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *core[] = {
 		"extconfig",
@@ -735,8 +735,8 @@ static char load_help[] =
 "       the module has not actually been unloaded and reloaded this\n"
 "       may mean that internal state is NOT reset.\n";
 
-static char reload_help[] = 
-"Usage: reload [module ...]\n"
+static char reconfigure_help[] =
+"Usage: reconfigure [module ...]\n"
 "       Reloads configuration files for all listed modules which support\n"
 "       reloading, or for all supported modules if none are listed.\n";
 
@@ -772,11 +772,11 @@ static struct cw_clicmd clicmds[] = {
 		.usage = load_help,
 	},
 	{
-		.cmda = { "reload", NULL },
-		.handler = handle_reload,
-		.generator = reload_module_generator,
+		.cmda = { "reconfigure", NULL },
+		.handler = handle_reconfigure,
+		.generator = reconfigure_module_generator,
 		.summary = "Reload configuration",
-		.usage = reload_help,
+		.usage = reconfigure_help,
 	},
 	{
 		.cmda = { "unload", NULL },
@@ -784,6 +784,15 @@ static struct cw_clicmd clicmds[] = {
 		.generator = module_generator,
 		.summary = "Unload a dynamic module by name",
 		.usage = unload_help,
+	},
+
+	/* DEPRECATED */
+	{
+		.cmda = { "reconfigure", NULL },
+		.handler = handle_reconfigure,
+		.generator = reconfigure_module_generator,
+		.summary = "Reload configuration",
+		.usage = reconfigure_help,
 	},
 };
 
