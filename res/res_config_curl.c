@@ -357,7 +357,7 @@ static int load_module (void)
 	char cmd[128];
 
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	snprintf(cmd, 128, "/bin/rm -fr %s ; /bin/mkdir -p %s", global_tmp_prefix, global_tmp_prefix);
 	system(cmd);

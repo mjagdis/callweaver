@@ -41,6 +41,9 @@ struct cw_object_isa {
 };
 
 
+struct module;
+struct modinfo;
+
 struct cw_object {
 	atomic_t refs;
 	struct module *module;
@@ -49,100 +52,23 @@ struct cw_object {
 };
 
 
+struct module {
+	struct cw_object obj;
+	struct modinfo *modinfo;
+	void *lib;
+	struct cw_registry_entry *reg_entry;
+	char name[0];
+};
+
+
 #define CW_OBJECT_CURRENT_MODULE (get_modinfo()->self)
 
 
-/*! \brief Initialise an object
- *
- * \param obj		the object to be initialised
- * \param module	the module that owns it
- * \param refs          number of existing references
- *
- * \return nothing
- */
-static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs)
-{
-	obj->type = type;
-	obj->module = module;
-
-	if (refs)
-		cw_module_get(module);
-
-	atomic_set(&obj->refs, refs);
-}
-
-
-/*! \brief Get a counted reference to an object using a, possibly uncounted, reference that may be the first use of the object
- *
- * Atomically increments the reference counter for the given object.
- * If there was no previous reference the owning module's reference count is also incremented.
- *
- * \param obj	the object being referenced
- *
- * This should _only_ be called if you are taking what could be the first reference to an object _and_
- * that object's existence is also protected in some other way - maybe there's a lock we have, maybe
- * we're taking the address of something static.
- * Worry about the following:
- *     thread A: call cw_object_get(x) [context switch]
- *     thread B: call cw_object_get(x) [refs = 1]
- *     thread B: call cw_object_put(x) [refs = 0, x released, context switch]
- *     thread A: call cw_object_get(x) [uh oh, is x still valid?]
- *
- * \return the given object with the reference counter incremented
- */
-static inline struct cw_object *cw_object_get_obj(struct cw_object *obj)
-{
-	if (atomic_fetch_and_add(&obj->refs, 1) == 0)
-		cw_module_get(obj->module);
-
-	return obj;
-}
-
-
-/*! \brief Duplicate a counted reference to a object
- *
- * Atomically increments the reference counter for the given object.
- *
- * \param obj	a counted reference to the object
- *
- * \return a new counted reference to the same object as the given reference
- */
-static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
-{
-	atomic_inc(&obj->refs);
-	return obj;
-}
-
-
-/*! \brief Release a counted reference to a object
- *
- * Atomically decrements the reference counter for the
- * object referenced. If the counter becomes zero the release
- * function (if any) of the object is called and the reference
- * made by the object to the module that registered
- * it is released.
- *
- * \param obj		the counted reference to be released
- *
- * \return 1 if the reference counter became zero, 0 otherwise
- */
-static inline int cw_object_put_obj(struct cw_object *obj)
-{
-	if (atomic_fetch_and_sub(&obj->refs, 1) == 0 + 1) {
-		struct module *module = obj->module;
-		if (obj->release)
-			obj->release(obj);
-		cw_module_put(module);
-		return 1;
-	}
-	return 0;
-}
-
-
-static inline int cw_object_refs_obj(struct cw_object *obj)
-{
-	return atomic_read(&obj->refs);
-}
+static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs);
+static inline struct cw_object *cw_object_get_obj(struct cw_object *obj);
+static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj);
+static inline int cw_object_put_obj(struct cw_object *obj);
+static inline int cw_object_refs_obj(struct cw_object *obj);
 
 
 /*! \brief Initialise a reference counted struct noting the module that owns it and setting an initial count of references
@@ -152,7 +78,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj)
  * \param refs          the count of references already in existence, -1 if there are none.
  *                      N.B. If references already exist the module should be a counted reference to the
  *                      module rather than just a pointer, i.e. instead of get_modinfo()->self you should
- *                      use cw_module_get(get_modinfo()->self)
+ *                      use cw_object_get(get_modinfo()->self)
  *
  * \return a pointer to the given object. Note that this is only a counted reference if its existence
  *         was allowed for in the value of refs passed as the third argument
@@ -224,6 +150,99 @@ static inline int cw_object_refs_obj(struct cw_object *obj)
 
 
 #define cw_object_refs(ptr) cw_object_refs_obj(&(ptr)->obj)
+
+
+/*! \brief Initialise an object
+ *
+ * \param obj		the object to be initialised
+ * \param module	the module that owns it
+ * \param refs          number of existing references
+ *
+ * \return nothing
+ */
+static inline void cw_object_init_obj(struct cw_object *obj, const struct cw_object_isa *type, struct module *module, int refs)
+{
+	obj->type = type;
+	obj->module = module;
+
+	if (refs)
+		cw_object_get(module);
+
+	atomic_set(&obj->refs, refs);
+}
+
+
+/*! \brief Get a counted reference to an object using a, possibly uncounted, reference that may be the first use of the object
+ *
+ * Atomically increments the reference counter for the given object.
+ * If there was no previous reference the owning module's reference count is also incremented.
+ *
+ * \param obj	the object being referenced
+ *
+ * This should _only_ be called if you are taking what could be the first reference to an object _and_
+ * that object's existence is also protected in some other way - maybe there's a lock we have, maybe
+ * we're taking the address of something static.
+ * Worry about the following:
+ *     thread A: call cw_object_get(x) [context switch]
+ *     thread B: call cw_object_get(x) [refs = 1]
+ *     thread B: call cw_object_put(x) [refs = 0, x released, context switch]
+ *     thread A: call cw_object_get(x) [uh oh, is x still valid?]
+ *
+ * \return the given object with the reference counter incremented
+ */
+static inline struct cw_object *cw_object_get_obj(struct cw_object *obj)
+{
+	if (atomic_fetch_and_add(&obj->refs, 1) == 0)
+		cw_object_get(obj->module);
+
+	return obj;
+}
+
+
+/*! \brief Duplicate a counted reference to a object
+ *
+ * Atomically increments the reference counter for the given object.
+ *
+ * \param obj	a counted reference to the object
+ *
+ * \return a new counted reference to the same object as the given reference
+ */
+static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
+{
+	atomic_inc(&obj->refs);
+	return obj;
+}
+
+
+/*! \brief Release a counted reference to a object
+ *
+ * Atomically decrements the reference counter for the
+ * object referenced. If the counter becomes zero the release
+ * function (if any) of the object is called and the reference
+ * made by the object to the module that registered
+ * it is released.
+ *
+ * \param obj		the counted reference to be released
+ *
+ * \return 1 if the reference counter became zero, 0 otherwise
+ */
+static inline int cw_object_put_obj(struct cw_object *obj)
+{
+	if (atomic_fetch_and_sub(&obj->refs, 1) == 0 + 1) {
+		struct module *module = obj->module;
+		if (obj->release)
+			obj->release(obj);
+		cw_object_put(module);
+		return 1;
+	}
+	return 0;
+}
+
+
+static inline int cw_object_refs_obj(struct cw_object *obj)
+{
+	return atomic_read(&obj->refs);
+}
 
 
 #endif /* _CALLWEAVER_OBJECT_H */

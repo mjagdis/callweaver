@@ -33,21 +33,11 @@ extern "C" {
 
 #include "callweaver/lock.h"
 
+
 struct module;
 
 
 #define CW_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
-
-
-/*!
- * \brief Get a reference to a module
- */
-extern CW_API_PUBLIC struct module *cw_module_get(struct module *mod);
-
-/*!
- * \brief Put a reference to a module
- */
-extern CW_API_PUBLIC void cw_module_put(struct module *mod);
 
 
 void cw_loader_init(void);

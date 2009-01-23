@@ -257,14 +257,14 @@ static int cw_run_atexit_one(struct cw_object *obj, void *data)
 	/* Get the module now so it's pinned (atexits don't hold counted refs
 	 * while registered)
 	 */
-	cw_module_get(it->obj.module);
+	cw_object_get(it->obj.module);
 	it->function();
 
 	/* We'd prefer not to put the module. If we are running atexits we're
 	 * shutting down so there's no need to release modules. However, shutdowns
 	 * can be cancelled...
 	 */
-	cw_module_put(it->obj.module);
+	cw_object_put(it->obj.module);
 	return 0;
 }
 

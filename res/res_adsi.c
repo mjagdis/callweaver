@@ -1113,7 +1113,7 @@ static int reload_module(void)
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	adsi_load();
 	adsi_begin_download = __adsi_begin_download;

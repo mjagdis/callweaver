@@ -567,7 +567,7 @@ static struct manager_action manager_actions[] = {
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	monitor_app = cw_register_function(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
 	stopmonitor_app = cw_register_function(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);

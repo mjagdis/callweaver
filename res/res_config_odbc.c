@@ -510,7 +510,7 @@ static int unload_module (void)
 static int load_module (void)
 {
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	cw_config_engine_register(&odbc_engine);
 	return 0;

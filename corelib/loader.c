@@ -77,15 +77,6 @@ struct modinfo *get_modinfo(void)
 }
 
 
-struct module {
-	struct cw_object obj;
-	struct modinfo *modinfo;
-	void *lib;
-	struct cw_registry_entry *reg_entry;
-	char name[0];
-};
-
-
 static const char *module_object_name(struct cw_object *obj)
 {
 	struct module *mod = container_of(obj, struct module, obj);
@@ -119,13 +110,6 @@ struct cw_registry module_registry = {
 	.match = module_object_match,
 };
 
-
-struct module *cw_module_get(struct module *mod)
-{
-	if (mod)
-		cw_object_get(mod);
-	return mod;
-}
 
 static void module_release(struct cw_object *obj)
 {
@@ -163,12 +147,6 @@ static void module_release(struct cw_object *obj)
 	}
 
 	free(mod);
-}
-
-void cw_module_put(struct module *mod)
-{
-	if (mod)
-		cw_object_put(mod);
 }
 
 

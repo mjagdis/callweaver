@@ -856,7 +856,7 @@ static int reload_module(void)
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	config_load();
 	cw_cli_register(&cli_show_osp);

@@ -650,7 +650,7 @@ static void cw_pthread_wrapper_cleanup(void *data)
 {
 	struct cw_pthread_info *thread_info = data;
 
-	cw_module_put(thread_info->module);
+	cw_object_put(thread_info->module);
 	free(thread_info);
 }
 
@@ -686,7 +686,7 @@ int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		thread_info->file = thread_info->function = thread_info->mutex_name = NULL;
 		thread_info->lineno = 0;
 #endif
-		thread_info->module = cw_module_get(module);
+		thread_info->module = cw_object_get(module);
 		thread_info->func = start_routine;
 		thread_info->param = data;
 		ret = pthread_create(thread, attr, cw_pthread_wrapper, thread_info);

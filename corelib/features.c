@@ -2295,7 +2295,7 @@ static int unload_module(void)
 	int res = 0;
 
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	if (!pthread_equal(parking_thread, CW_PTHREADT_NULL)) {
 		pthread_cancel(parking_thread);

@@ -1158,7 +1158,7 @@ static struct cw_atexit moh_atexit = {
 static int load_module(void)
 {
 	/* We should never be unloaded */
-	cw_module_get(get_modinfo()->self);
+	cw_object_get(get_modinfo()->self);
 
 	if (!mohgen.is_initialized)
 		cw_object_init(&mohgen, &cw_object_isa_generator, CW_OBJECT_CURRENT_MODULE, 0);

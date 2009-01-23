@@ -60,7 +60,7 @@ extern CW_API_PUBLIC struct cw_registry atexit_registry;
 #define cw_atexit_unregister(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
 	if (__ptr->reg_entry) { \
-		cw_module_get(__ptr->obj.module); \
+		cw_object_get(__ptr->obj.module); \
 		cw_registry_del(&atexit_registry, __ptr->reg_entry); \
 	} \
 	0; \
