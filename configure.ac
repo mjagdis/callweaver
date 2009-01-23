@@ -641,6 +641,32 @@ AC_TRY_COMPILE([
 	AC_MSG_RESULT(no)
 ])
 
+AC_MSG_CHECKING([for sched_setaffinity])
+AC_CACHE_VAL(ac_cv_sched_setaffinity,
+	save_CFLAGS="$CFLAGS"
+	CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
+	[AC_TRY_COMPILE([#include <sched.h>],
+		[cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);],
+		[ac_cv_sched_setaffinity=new],
+		[ac_cv_sched_setaffinity=bad])]
+	if test $ac_cv_sched_setaffinity = bad ; then
+		[AC_TRY_COMPILE([#include <sched.h>],
+			[cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);],
+			[ac_cv_sched_setaffinity=old],
+			[ac_cv_sched_setaffinity=no])]
+	fi
+	if test $ac_cv_sched_setaffinity = old ; then
+		AC_MSG_RESULT(old)
+		AC_DEFINE(HAVE_OLD_SETAFFINITY,1,[config])
+	elif test $ac_cv_sched_setaffinity = new ; then
+		AC_MSG_RESULT(ok)
+		AC_DEFINE(HAVE_SETAFFINITY,1,[config])
+	else
+		AC_MSG_RESULT(no)
+	fi
+	CFLAGS="$save_CFLAGS")
+
+
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC

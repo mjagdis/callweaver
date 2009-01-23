@@ -3,6 +3,13 @@
 #endif
 
 
+#if HAVE_OLD_SETAFFINITY
+#  define HAVE_SETAFFINITY
+#  define sched_getaffinity(pid, cpusetsize, mask) sched_getaffinity(pid, mask)
+#  define sched_setaffinity(pid, cpusetsize, mask) sched_setaffinity(pid, mask)
+#endif
+
+
 #if defined _WIN32 || defined __CYGWIN__
 #  define DLL_PUBLIC_EXPORT __declspec(dllexport)
 #  define DLL_PUBLIC_IMPORT __declspec(dllimport)

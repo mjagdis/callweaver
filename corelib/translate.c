@@ -29,6 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#if HAVE_SETAFFINITY
+#  include <sched.h>
+#endif
+
 #define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
@@ -276,12 +281,15 @@ struct rebuild_matrix_args {
 
 static void *calc_cost(void *data)
 {
+#if HAVE_SETAFFINITY
+	cpu_set_t old_cpuset, new_cpuset;
+#endif
+	struct timespec start, end;
 	struct rebuild_matrix_args *args = data;
 	struct cw_translator *t = args->t;
 	struct cw_translator_pvt *pvt;
 	struct cw_frame *f;
 	struct cw_frame *out;
-	struct timespec start, end;
 	int samples = args->secs * t->dst_rate;
 	int sofar;
 
@@ -302,6 +310,18 @@ static void *calc_cost(void *data)
 		cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
 		goto out;
 	}
+
+#if HAVE_SETAFFINITY
+	if (!sched_getaffinity(0, sizeof(old_cpuset), &old_cpuset)) {
+		CPU_ZERO(&new_cpuset);
+		for (sofar = 0; sofar < CPU_SETSIZE; sofar++) {
+			CPU_SET(sofar, &new_cpuset);
+			if (!sched_setaffinity(0, sizeof(new_cpuset), &new_cpuset))
+				break;
+			CPU_CLR(sofar, &new_cpuset);
+		}
+	}
+#endif
 
 	/* Untimed first pass to make sure the cache is in a consistent (warm) state */
 	if (t->framein(pvt, f) < 0) {
@@ -337,6 +357,10 @@ static void *calc_cost(void *data)
 		args->tr->min_cost = *args->cost;
 
 out:
+#if HAVE_SETAFFINITY
+	sched_setaffinity(0, sizeof(old_cpuset), &old_cpuset);
+#endif
+
 	t->destroy(pvt);
 	return NULL;
 }
