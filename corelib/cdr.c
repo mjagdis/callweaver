@@ -111,7 +111,7 @@ struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr)
 	if ((newcdr = malloc(sizeof(*newcdr)))) {
 		memcpy(newcdr, cdr, sizeof(*newcdr));
 		cw_var_registry_init(&newcdr->vars, 256);
-		cw_var_copy(&cdr->vars, &newcdr->vars);
+		cw_var_copy(&newcdr->vars, &cdr->vars);
 	} else
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 

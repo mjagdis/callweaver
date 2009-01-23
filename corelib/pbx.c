@@ -4657,7 +4657,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                         cw_copy_string(chan->context, context, sizeof(chan->context));
                     cw_copy_string(chan->exten, "failed", sizeof(chan->exten));
                     chan->priority = 1;
-                    cw_var_copy(vars, &chan->vars);
+                    cw_var_copy(&chan->vars, vars);
                     cw_pbx_run(chan);    
                 }
                 else
@@ -4691,7 +4691,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
         cw_copy_string(as->exten,  exten, sizeof(as->exten));
         as->priority = priority;
         as->timeout = timeout;
-        cw_var_copy(vars, &chan->vars);
+        cw_var_copy(&chan->vars, vars);
         if (cw_pthread_create(&as->p, &global_attr_detached, async_wait, as))
         {
             cw_log(CW_LOG_WARNING, "Failed to start async wait\n");
@@ -4766,7 +4766,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                 cw_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
                 cw_cdr_start(chan->cdr);
             }
-            cw_var_copy(vars, &chan->vars);
+            cw_var_copy(&chan->vars, vars);
             if (chan->_state == CW_STATE_UP)
             {
                 res = 0;
@@ -4861,7 +4861,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
         if (appdata)
             cw_copy_string(as->appdata,  appdata, sizeof(as->appdata));
         as->timeout = timeout;
-        cw_var_copy(vars, &chan->vars);
+        cw_var_copy(&chan->vars, vars);
         /* Start a new thread, and get something handling this channel. */
         if (locked_channel) 
             cw_channel_lock(chan);

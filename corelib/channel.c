@@ -2418,7 +2418,7 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 	
 	if ((chan = cw_request(type, format, data, &cause))) {
 		if (oh && oh->vars)
-			cw_var_copy(oh->vars, &chan->vars);
+			cw_var_copy(&chan->vars, oh->vars);
 
 		cw_set_callerid(chan, cid_num, cid_name, cid_num);
 

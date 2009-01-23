@@ -668,7 +668,7 @@ static int agent_call(struct cw_channel *ast, char *dest)
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		cw_set_callerid(p->chan, ast->cid.cid_num, ast->cid.cid_name, NULL);
-		cw_var_inherit(&ast->vars, &p->chan->vars);
+		cw_var_inherit(&p->chan->vars, &ast->vars);
 		res = cw_call(p->chan, p->loginchan);
 		CLEANUP(ast,p);
 		cw_mutex_unlock(&p->lock);

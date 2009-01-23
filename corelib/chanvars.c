@@ -147,7 +147,7 @@ static int cw_var_inherit_one(struct cw_object *obj, void *data)
 	return err;
 }
 
-int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst)
+int cw_var_inherit(struct cw_registry *dst, struct cw_registry *src)
 {
 	return cw_registry_iterate_rev(src, cw_var_inherit_one, dst);
 }
@@ -161,7 +161,7 @@ static int cw_var_copy_one(struct cw_object *obj, void *data)
 	return !cw_registry_add(reg, var->hash, &var->obj);
 }
 
-int cw_var_copy(struct cw_registry *src, struct cw_registry *dst)
+int cw_var_copy(struct cw_registry *dst, struct cw_registry *src)
 {
 	return cw_registry_iterate_rev(src, cw_var_copy_one, dst);
 }

@@ -71,8 +71,8 @@ static inline __attribute__ ((pure)) const char *cw_var_full_name(struct cw_var_
 
 
 /*!\brief Inherit variables
- * \param src  Variable registry to copy from
  * \param dst  Variable registry to copy to
+ * \param src  Variable registry to copy from
  *
  * Scans all variables in the source registry, looking for those
  * that should be copied into the destination registry.
@@ -83,7 +83,7 @@ static inline __attribute__ ((pure)) const char *cw_var_full_name(struct cw_var_
  *
  * \return 0 if no error
  */
-extern CW_API_PUBLIC int cw_var_inherit(struct cw_registry *src, struct cw_registry *dst);
+extern CW_API_PUBLIC int cw_var_inherit(struct cw_registry *dst, struct cw_registry *src);
 
 /*!\brief Inherit variables
  * \param src  Variable registry to copy from
@@ -94,6 +94,6 @@ extern CW_API_PUBLIC int cw_var_inherit(struct cw_registry *src, struct cw_regis
  *
  * \return 0 if no error
  */
-extern CW_API_PUBLIC int cw_var_copy(struct cw_registry *src, struct cw_registry *dst);
+extern CW_API_PUBLIC int cw_var_copy(struct cw_registry *dst, struct cw_registry *src);
 
 #endif /* _CALLWEAVER_CHANVARS_H */

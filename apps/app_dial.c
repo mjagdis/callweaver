@@ -1171,7 +1171,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		}
 
 		/* Inherit specially named variables from parent channel */
-		cw_var_inherit(&chan->vars, &tmp->chan->vars);
+		cw_var_inherit(&tmp->chan->vars, &chan->vars);
 
 		tmp->chan->appl = "AppDial (Outgoing Line)";
 		tmp->chan->whentohangup = 0;

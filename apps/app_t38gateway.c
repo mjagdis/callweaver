@@ -466,7 +466,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
 
         if (peer)
         {
-            cw_var_inherit(&chan->vars, &peer->vars);
+            cw_var_inherit(&peer->vars, &chan->vars);
             peer->appl = "AppT38GW (Outgoing Line)";
             peer->whentohangup = 0;
             if (peer->cid.cid_num)

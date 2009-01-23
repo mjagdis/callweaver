@@ -360,7 +360,7 @@ static int local_call(struct cw_channel *ast, char *dest)
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
-	cw_var_copy(&p->owner->vars, &p->chan->vars);
+	cw_var_copy(&p->chan->vars, &p->owner->vars);
 
 	p->launchedpbx = 1;
 

@@ -1612,7 +1612,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
 
     /* Inherit specially named variables from parent channel */
-    cw_var_inherit(&qe->chan->vars, &tmp->chan->vars);
+    cw_var_inherit(&tmp->chan->vars, &qe->chan->vars);
 
     /* Presense of ADSI CPE on outgoing channel follows ours */
     tmp->chan->adsicpe = qe->chan->adsicpe;
@@ -1937,7 +1937,7 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                     }
                     else
                     {
-                        cw_var_copy(&in->vars, &o->chan->vars);
+                        cw_var_copy(&o->chan->vars, &in->vars);
                         if (o->chan->cid.cid_num)
                             free(o->chan->cid.cid_num);
                         o->chan->cid.cid_num = NULL;

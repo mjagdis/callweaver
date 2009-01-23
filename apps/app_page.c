@@ -100,7 +100,7 @@ static void launch_page(struct cw_channel *chan, const char *nconferenceopts, co
 		cw_copy_string(cd->nconferenceopts, nconferenceopts, sizeof(cd->nconferenceopts));
 
 		if (!cw_var_registry_init(&cd->vars, 1024)) {
-			if (!cw_var_copy(&chan->vars, &cd->vars)) {
+			if (!cw_var_copy(&cd->vars, &chan->vars)) {
 				if (!cw_pthread_create(&t, &global_attr_detached, page_thread, cd))
 					return;
 
