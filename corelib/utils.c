@@ -40,15 +40,9 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/strings.h"
-
-#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/time.h"
-
-#define CW_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/utils.h"
-
 #include "callweaver/lock.h"
 #include "callweaver/io.h"
 #include "callweaver/logger.h"

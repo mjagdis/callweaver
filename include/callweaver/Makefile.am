@@ -28,7 +28,6 @@ cwinclude_HEADERS = acl.h \
                       generic_jb.h \
                       image.h \
                       indications.h \
-                      inline_api.h \
                       io.h \
 		      keywords.h \
                       linkedlists.h \

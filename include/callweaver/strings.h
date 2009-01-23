@@ -27,8 +27,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#include "callweaver/inline_api.h"
-
 
 static inline int cw_strlen_zero(const char *s)
 {
@@ -40,22 +38,19 @@ static inline int cw_strlen_zero(const char *s)
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
-CW_INLINE_API(
-char *cw_skip_blanks(char *str),
+static inline char *cw_skip_blanks(char *str)
 {
 	while (*str && isspace(*str))
 		str++;
 	return str;
 }
-)
 
 /*!
   \brief Trims trailing whitespace characters from a string.
   \param str the input string
   \return a pointer to the NULL following the string
  */
-CW_INLINE_API(
-char *cw_trim_blanks(char *str),
+static inline char *cw_trim_blanks(char *str)
 {
 	char *work = str;
 
@@ -72,21 +67,18 @@ char *cw_trim_blanks(char *str),
 	}
 	return str;
 }
-)
 
 /*!
   \brief Gets a pointer to first whitespace character in a string.
   \param str the input string
   \return a pointer to the first whitespace character
  */
-CW_INLINE_API(
-char *cw_skip_nonblanks(char *str),
+static inline char *cw_skip_nonblanks(char *str)
 {
 	while (*str && !isspace(*str))
 		str++;
 	return str;
 }
-)
   
 /*!
   \brief Strip leading/trailing whitespace from a string.
@@ -97,15 +89,13 @@ char *cw_skip_nonblanks(char *str),
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
-CW_INLINE_API(
-char *cw_strip(char *s),
+static inline char *cw_strip(char *s)
 {
 	s = cw_skip_blanks(s);
 	if (s)
 		cw_trim_blanks(s);
 	return s;
-} 
-)
+}
 
 /*!
   \brief Size-limited null-terminating string copy.
@@ -122,8 +112,7 @@ char *cw_strip(char *s),
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
 */
-CW_INLINE_API(
-void cw_copy_string(char *dst, const char *src, size_t size),
+static inline void cw_copy_string(char *dst, const char *src, size_t size)
 {
 	while (*src) {
 		*dst++ = *src++;
@@ -134,7 +123,6 @@ void cw_copy_string(char *dst, const char *src, size_t size),
 	}
 	*dst = '\0';
 }
-)
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
