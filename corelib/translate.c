@@ -64,6 +64,7 @@ struct cw_translator_dir
 };
 
 CW_MUTEX_DEFINE_STATIC(tr_matrix_lock);
+static int tr_matrix_min_cost;
 static struct cw_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
 
@@ -258,108 +259,111 @@ struct cw_frame *cw_translate(struct cw_trans_pvt *path, struct cw_frame *f, int
 
 struct calc_cost_args {
 	struct cw_translator *t;
-	int samples;
+	int secs;
+	int *cost;
 };
 
 
 static void *calc_cost(void *data)
 {
-    struct calc_cost_args *args = data;
-    struct cw_translator *t = args->t;
-    struct cw_translator_pvt *pvt;
-    struct cw_frame *f;
-    struct cw_frame *out;
-    struct timeval start;
-    int secs = args->samples;
-    int sofar;
-    int cost;
+	struct calc_cost_args *args = data;
+	struct cw_translator *t = args->t;
+	struct cw_translator_pvt *pvt;
+	struct cw_frame *f;
+	struct cw_frame *out;
+	struct timespec start, end;
+	int samples = args->secs * t->dst_rate;
+	int sofar;
 
-    if (secs < 1)
-        secs = 1;
-    
-    /* If they don't make samples, give them a terrible score */
-    if (t->sample == NULL)
-    {
-        cw_log(CW_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
-        t->cost = INT_MAX;
-        return NULL;
-    }
-    if ((pvt = t->newpvt()) == NULL)
-    {
-        cw_log(CW_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
-        t->cost = INT_MAX;
-        return NULL;
-    }
+	/* If we can't score it it's maximally expensive */
+	*args->cost = INT_MAX;
 
-    t->cost = INT_MAX;
-    if (!(f = t->sample())) {
-        cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
-        goto out;
-    }
-    if (t->framein(pvt, f) < 0) {
-        cw_log(CW_LOG_ERROR, "Translator '%s' can't translate its own sample frame!\n", t->name);
-        goto out;
-    }
-    cw_fr_free(f);
-    while ((out = t->frameout(pvt))) {
-        sofar += out->samples;
-        cw_fr_free(out);
-    }
+	if (t->sample == NULL) {
+		cw_log(CW_LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+		return NULL;
+	}
 
-    start = cw_tvnow();
-    /* Call the encoder until we've processed "secs" seconds of data */
-    for (sofar = 0;  sofar < secs*t->dst_rate;  )
-    {
-        if ((f = t->sample()) == NULL)
-        {
-            cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
-            goto out;
-        }
-        t->framein(pvt, f);
-        cw_fr_free(f);
-        while ((out = t->frameout(pvt)))
-        {
-            sofar += out->samples;
-            cw_fr_free(out);
-        }
-    }
-    cost = cw_tvdiff(cw_tvnow(), start);
-    t->cost = (cost/secs + 99) / 100;
-    if (t->cost <= 0)
-        t->cost = 1;
+	if ((pvt = t->newpvt()) == NULL) {
+		cw_log(CW_LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
+		return NULL;
+	}
+
+	if (!(f = t->sample())) {
+		cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+		goto out;
+	}
+
+	/* Untimed first pass to make sure the cache is in a consistent (warm) state */
+	if (t->framein(pvt, f) < 0) {
+		cw_log(CW_LOG_ERROR, "Translator '%s' can't translate its own sample frame!\n", t->name);
+		goto out;
+	}
+	cw_fr_free(f);
+	while ((out = t->frameout(pvt))) {
+		sofar += out->samples;
+		cw_fr_free(out);
+	}
+
+	cw_clock_gettime(global_clock_monotonic, &start);
+
+	/* Call the encoder until we've processed the required number of samples */
+	for (sofar = 0;  sofar < samples;) {
+		if ((f = t->sample()) == NULL) {
+			cw_log(CW_LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+			goto out;
+		}
+		t->framein(pvt, f);
+		cw_fr_free(f);
+		while ((out = t->frameout(pvt))) {
+			sofar += out->samples;
+			cw_fr_free(out);
+		}
+	}
+
+	cw_clock_gettime(global_clock_monotonic, &end);
+
+	*args->cost = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
+	if (*args->cost < tr_matrix_min_cost)
+	tr_matrix_min_cost = *args->cost;
 
 out:
-    t->destroy(pvt);
-    return NULL;
+	t->destroy(pvt);
+	return NULL;
 }
 
 static int rebuild_matrix_one(struct cw_object *obj, void *data)
 {
 	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
 	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
-	int *samples = data;
+	int *secs = data;
+	struct calc_cost_args args = {
+		.t = t,
+		.secs = *secs,
+		.cost = &td->cost,
+	};
+	pthread_t tid;
+	int ret;
 
-	if (*samples || !t->cost) {
-		struct calc_cost_args args = {
-			.t = t,
-			.samples = *samples,
-		};
-		pthread_t tid;
-		int ret;
-		if (!(ret = cw_pthread_create(&tid, &global_attr_fifo, calc_cost, &args)))
-			pthread_join(tid, NULL);
-		else
-			cw_log(CW_LOG_ERROR, "calc_cost thread: %d %s\n", ret, strerror(ret));
-	}
-
-	td->step = cw_object_dup(t);
-	td->cost = t->cost;
-	td->steps = 1;
+	if (!(ret = cw_pthread_create(&tid, &global_attr_fifo, calc_cost, &args))) {
+		pthread_join(tid, NULL);
+		td->step = cw_object_dup(t);
+		td->steps = 1;
+	} else
+		cw_log(CW_LOG_ERROR, "calc_cost thread: %d %s\n", ret, strerror(ret));
 
 	return 0;
 }
 
-static void rebuild_matrix(int samples)
+static int rebuild_matrix_norm(struct cw_object *obj, void *data)
+{
+	struct cw_translator *t = container_of(obj, struct cw_translator, obj);
+	struct cw_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
+
+	td->cost /= tr_matrix_min_cost;
+	return 0;
+}
+
+static void rebuild_matrix(int secs)
 {
     struct cw_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
     int changed;
@@ -376,8 +380,15 @@ static void rebuild_matrix(int samples)
     for (x = 0; x < MAX_FORMAT; x++)
         for (y = 0; y < MAX_FORMAT; y++)
 		tr_old[x][y] = tr_matrix[x][y];
+
     memset(tr_matrix, '\0', sizeof(tr_matrix));
-    cw_registry_iterate(&translator_registry, rebuild_matrix_one, &samples);
+    tr_matrix_min_cost = INT_MAX;
+    cw_registry_iterate(&translator_registry, rebuild_matrix_one, &secs);
+    if (tr_matrix_min_cost < INT_MAX) {
+	    tr_matrix_min_cost /= 10;
+	    cw_registry_iterate(&translator_registry, rebuild_matrix_norm, NULL);
+    }
+
     for (x = 0; x < MAX_FORMAT; x++) {
         for (y = 0; y < MAX_FORMAT; y++) {
             if (tr_old[x][y].step)
@@ -457,8 +468,8 @@ static int show_translation(int fd, int argc, char *argv[])
         rebuild_matrix(z);
     }
 
-    cw_cli(fd, "         Translation times between formats (in milliseconds)\n");
-    cw_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
+    cw_cli(fd, "         Relative translation times between formats\n");
+    cw_cli(fd, "         Source Format (Rows) Destination Format(Columns)\n\n");
 
     cw_cli(fd, "         ");
     for (x = 0;  x < SHOW_TRANS;  x++)
@@ -577,7 +588,7 @@ static int cw_translator_qsort_compare_by_name(const void *a, const void *b)
 static void translator_registry_onchange(void)
 {
 	if (translator_initialized)
-		rebuild_matrix(0);
+		rebuild_matrix(1);
 }
 
 struct cw_registry translator_registry = {
@@ -590,7 +601,7 @@ struct cw_registry translator_registry = {
 int cw_translator_init(void)
 {
 	translator_initialized = 1;
-	rebuild_matrix(0);
+	rebuild_matrix(1);
 	cw_cli_register(&show_trans);
 	return 0;
 }

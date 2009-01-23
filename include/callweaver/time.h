@@ -66,7 +66,7 @@ CW_INLINE_API(
 int cw_clock_diff_ms(struct timespec *end, struct timespec *start),
 {
 	return (end->tv_sec - start->tv_sec) * 1000L
-		+ ((1000000000L + end->tv_nsec - start->tv_nsec) / 1000000) - 1000L;
+		+ ((end->tv_nsec - start->tv_nsec + 1000000000L) / 1000000) - 1000L;
 }
 )
 

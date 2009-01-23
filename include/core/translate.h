@@ -52,8 +52,6 @@ struct cw_translator {
 	/* For performance measurements */
 	/*! Generate an example frame */
 	struct cw_frame *(*sample)(void);
-	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
-	int cost;
 };
 
 #endif /* _CALLWEAVER_TRANSLATE_H */
