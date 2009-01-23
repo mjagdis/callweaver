@@ -191,9 +191,11 @@ int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct
 {
 	struct cw_object **objs;
 	struct cw_list *list;
-	int size, n, i, ret = 0;
+	int size, n, i, ret = -1;
 
 	if ((objs = malloc((size = registry->entries + 1) * sizeof(objs[0])))) {
+		ret = 0;
+
 		atomic_inc(&registry->inuse);
 
 		for (n = 0, i = 0; i < registry->size; i++) {
@@ -210,20 +212,21 @@ int cw_registry_iterate_ordered(struct cw_registry *registry, int (*func)(struct
 
 		if (atomic_dec_and_test(&registry->inuse))
 			registry_purge(registry);
-	}
 
-	qsort(objs, n, sizeof(objs[0]), registry->qsort_compare);
+		qsort(objs, n, sizeof(objs[0]), registry->qsort_compare);
 
-	for (i = 0; i < n; i++) {
-		if ((ret = func(objs[i], data)))
-			break;
-	}
+		for (i = 0; i < n; i++) {
+			if ((ret = func(objs[i], data)))
+				break;
+		}
 
 skip_action:
-	for (i = 0; i < n; i++)
-		cw_object_put_obj(objs[i]);
+		for (i = 0; i < n; i++)
+			cw_object_put_obj(objs[i]);
 
-	free(objs);
+		free(objs);
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
 	return ret;
 }
