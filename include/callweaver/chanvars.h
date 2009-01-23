@@ -31,7 +31,6 @@
 
 struct cw_var_t {
 	struct cw_object obj;
-	struct cw_registry_entry *reg_entry;
 	unsigned int hash;
 	const char *value;
 	const char name[0];
