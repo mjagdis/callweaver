@@ -68,6 +68,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 
 
+/* Maximum format possible. */
+#define MAX_FORMAT (sizeof(((struct cw_frame *)0)->subclass) * 8)
+
+/* Maximum format to show in the translation matrix.
+ * This should match the highest audio codec used in callweaver/frame.h
+ * but sadly it isn't available as a bit number, just the shifted bit value.
+ */
+#define MAX_FORMAT_SHOWN 12
+
+
 /* Interval to time translators over in nanoseconds (must be < 1s) */
 #define TIMING_INTERVAL 10000000
 
@@ -899,7 +909,6 @@ static int show_translation(int fd, int argc, char *argv[])
 {
 	static const char *scale[] = { "nano", "micro", "milli", "" };
 	struct trans_state *tr;
-#define SHOW_TRANS 11
 	unsigned int mult;
 	unsigned int cost;
 	int x, y;
@@ -952,14 +961,14 @@ static int show_translation(int fd, int argc, char *argv[])
 	cw_cli(fd, "         Source Format (Rows) Destination Format(Columns)\n\n");
 
 	cw_cli(fd, "         ");
-	for (x = 0;  x < SHOW_TRANS;  x++)
+	for (x = 0;  x <= MAX_FORMAT_SHOWN;  x++)
 		cw_cli(fd, " %8s", cw_getformatname(1 << x));
 	cw_cli(fd, "\n");
 
-	for (x = 0;  x < SHOW_TRANS;  x++) {
+	for (x = 0;  x <= MAX_FORMAT_SHOWN;  x++) {
 		cw_cli(fd, " %8s", cw_getformatname(1 << x));
 
-		for (y = 0;  y < SHOW_TRANS;  y++) {
+		for (y = 0;  y <= MAX_FORMAT_SHOWN;  y++) {
 			if (tr->matrix[x][y].step) {
 				if (mult == 1) {
 					cw_cli(fd, " %8u", tr->matrix[x][y].cost);

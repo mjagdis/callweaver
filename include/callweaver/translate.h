@@ -23,7 +23,6 @@
 #ifndef _CALLWEAVER_TRANSLATE_H
 #define _CALLWEAVER_TRANSLATE_H
 
-#define MAX_FORMAT 32
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
