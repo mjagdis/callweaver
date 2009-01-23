@@ -51,7 +51,7 @@ struct cw_translator {
 	void (*destroy)(void *pvt);
 	/* For performance measurements */
 	/*! Generate an example frame */
-	struct cw_frame *(*sample)(void);
+	struct cw_frame *(*sample)(int *index);
 };
 
 #endif /* _CALLWEAVER_TRANSLATE_H */

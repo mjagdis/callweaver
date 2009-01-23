@@ -51,20 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int useplc = 0;
 
-/* Sample 10ms of linear frame data */
-static int16_t slin_ulaw_ex[] =
-{
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-};
 
 /* Sample 10ms of ulaw frame data */
 static uint8_t ulaw_slin_ex[] =
@@ -281,7 +267,7 @@ static struct cw_frame *lintoulaw_frameout(void *pvt)
 /*!
  * \brief ulawtolin_sample
  */
-static struct cw_frame *ulawtolin_sample(void)
+static struct cw_frame *ulawtolin_sample(int *index)
 {
     static struct cw_frame f;
   
@@ -289,21 +275,6 @@ static struct cw_frame *ulawtolin_sample(void)
     f.datalen = sizeof (ulaw_slin_ex);
     f.samples = sizeof(ulaw_slin_ex);
     f.data = ulaw_slin_ex;
-    return &f;
-}
-
-/*!
- * \brief lintoulaw_sample
- */
-static struct cw_frame *lintoulaw_sample(void)
-{
-    static struct cw_frame f;
-  
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-    f.datalen = sizeof(slin_ulaw_ex);
-    /* Assume 8000 Hz */
-    f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);
-    f.data = slin_ulaw_ex;
     return &f;
 }
 
@@ -338,7 +309,7 @@ static cw_translator_t lintoulaw =
     .framein = lintoulaw_framein,
     .frameout = lintoulaw_frameout,
     .destroy = free,
-    .sample = lintoulaw_sample
+    .sample = cw_translate_linear_sample
 };
 
 static void parse_config(void)

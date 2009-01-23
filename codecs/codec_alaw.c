@@ -53,21 +53,6 @@ static int useplc = 0;
 
 /* Sample frame data (re-using the Mu data is okay) */
 
-/* Sample 10ms of linear frame data */
-static int16_t slin_ulaw_ex[] =
-{
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-};
-
 /* Sample 10ms of alaw frame data */
 static uint8_t alaw_slin_ex[] =
 {
@@ -282,7 +267,7 @@ static struct cw_frame *lintoalaw_frameout(void *pvt)
 /*!
  * \brief alawtolin_sample
  */
-static struct cw_frame *alawtolin_sample(void)
+static struct cw_frame *alawtolin_sample(int *index)
 {
     static struct cw_frame f;
   
@@ -290,21 +275,6 @@ static struct cw_frame *alawtolin_sample(void)
     f.datalen = sizeof(alaw_slin_ex);
     f.samples = sizeof(alaw_slin_ex);
     f.data = alaw_slin_ex;
-    return &f;
-}
-
-/*!
- * \brief lintoalaw_sample
- */
-static struct cw_frame *lintoalaw_sample(void)
-{
-    static struct cw_frame f;
-  
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-    f.datalen = sizeof(slin_ulaw_ex);
-    /* Assume 8000 Hz */
-    f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);
-    f.data = slin_ulaw_ex;
     return &f;
 }
 
@@ -339,7 +309,7 @@ static cw_translator_t lintoalaw =
     .framein = lintoalaw_framein,
     .frameout = lintoalaw_frameout,
     .destroy = free,
-    .sample = lintoalaw_sample
+    .sample = cw_translate_linear_sample
 };
 
 static void parse_config(void)

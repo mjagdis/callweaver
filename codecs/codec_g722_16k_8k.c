@@ -55,21 +55,6 @@ static int useplc = 0;
 
 /* Sample frame data */
 
-/* Sample 10ms of linear frame data */
-static const int16_t slin_ex[] =
-{
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-};
-
 /* 10ms of G.722 at 64kbps */
 static const uint8_t g722_ex[] =
 {
@@ -281,7 +266,7 @@ static struct cw_frame *lintog722_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct cw_frame *g722tolin_sample(void)
+static struct cw_frame *g722tolin_sample(int *index)
 {
     static struct cw_frame f;
  
@@ -289,18 +274,6 @@ static struct cw_frame *g722tolin_sample(void)
     f.datalen = sizeof(g722_ex);
     f.samples = sizeof(g722_ex)*2;
     f.data = (uint8_t *) g722_ex;
-    return &f;
-}
-
-static struct cw_frame *lintog722_sample(void)
-{
-    static struct cw_frame f;
-  
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-    f.datalen = sizeof (slin_ex);
-    /* Assume 8000 Hz */
-    f.samples = sizeof (slin_ex)/sizeof(int16_t);
-    f.data = (int16_t *) slin_ex;
     return &f;
 }
 
@@ -335,7 +308,7 @@ static cw_translator_t lintog722 =
     .framein = lintog722_framein,
     .frameout = lintog722_frameout,
     .destroy = free,
-    .sample = lintog722_sample
+    .sample = cw_translate_linear_sample
 };
 
 static void parse_config(void)

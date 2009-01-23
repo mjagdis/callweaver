@@ -65,6 +65,10 @@ struct cw_trans_pvt;
 
 extern int cw_translator_init(void);
 
+
+extern CW_API_PUBLIC struct cw_frame *cw_translate_linear_sample(int *index);
+
+
 /*! Chooses the best translation path */
 /*! 
  * Given a list of sources, and a designed destination format, which should

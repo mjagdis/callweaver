@@ -53,20 +53,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int useplc = 0;
 
-/* Sample 10ms of linear frame data */
-static int16_t slin_ex[] =
-{
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-};
 
 /* Sample 10ms of ADPCM frame data */
 static uint8_t adpcm_ex[] =
@@ -287,7 +273,7 @@ static struct cw_frame *lintookiadpcm_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct cw_frame *okiadpcmtolin_sample(void)
+static struct cw_frame *okiadpcmtolin_sample(int *index)
 {
     static struct cw_frame f;
   
@@ -295,21 +281,6 @@ static struct cw_frame *okiadpcmtolin_sample(void)
     f.datalen = sizeof (adpcm_ex);
     f.samples = sizeof(adpcm_ex)*2;
     f.data = adpcm_ex;
-    return &f;
-}
-
-/*
- * lintookiadpcm_sample
- */
-static struct cw_frame *lintookiadpcm_sample(void)
-{
-    static struct cw_frame f;
-  
-    cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-    f.datalen = sizeof (slin_ex);
-    /* Assume 8000 Hz */
-    f.samples = sizeof (slin_ex)/sizeof(int16_t);
-    f.data = slin_ex;
     return &f;
 }
 
@@ -344,7 +315,7 @@ static cw_translator_t lintookiadpcm =
     .framein = lintookiadpcm_framein,
     .frameout = lintookiadpcm_frameout,
     .destroy = free,
-    .sample = lintookiadpcm_sample
+    .sample = cw_translate_linear_sample
 };
 
 static void parse_config(void)

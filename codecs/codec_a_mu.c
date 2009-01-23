@@ -210,7 +210,7 @@ static struct cw_frame *ulawtoalaw_frameout(void *pvt)
 /*
  * alawtoulaw_sample
  */
-static struct cw_frame *alawtoulaw_sample(void)
+static struct cw_frame *alawtoulaw_sample(int *index)
 {
     static struct cw_frame f;
 
@@ -221,7 +221,7 @@ static struct cw_frame *alawtoulaw_sample(void)
     return &f;
 }
 
-static struct cw_frame *ulawtoalaw_sample(void)
+static struct cw_frame *ulawtoalaw_sample(int *index)
 {
     static struct cw_frame f;
   
