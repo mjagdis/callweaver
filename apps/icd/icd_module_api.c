@@ -27,11 +27,7 @@
  */
 #include "callweaver/icd/icd_module_api.h"
 #include "callweaver/icd/icd_common.h"
-#ifdef __APPLE__
-#include "callweaver/dlfcn-compat.h"
-#else
 #include <dlfcn.h>
-#endif
 #include "callweaver/icd/icd_globals.h"
 #include "callweaver/icd/icd_caller.h"
 #include <dirent.h>
