@@ -198,7 +198,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 		cw_variables_destroy(var);
 		if (!cw_strlen_zero(app)) {
 			if(!cw_strlen_zero(tmp))
-			   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
+			   pbx_substitute_variables(chan, &chan->vars, tmp, appdata, sizeof(appdata));
 			if (option_verbose > 2)
 	 		    cw_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 				    exten, context, priority,

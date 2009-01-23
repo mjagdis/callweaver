@@ -173,45 +173,47 @@ static int pgsql_reconnect(void)
 
 static int pgsql_log(struct cw_cdr *cdr)
 {
-	PGresult *res;
 	char sql_insert_cmd[2048];
 	char sql_tmp_cmd[1024];
-
-	struct cw_channel dummy;
+	struct cw_channel *chan;
+	PGresult *res;
 
 
 	cw_log(CW_LOG_DEBUG,"Inserting a CDR record.\n");
 
-	snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
+	if ((chan = cw_channel_alloc(0, NULL))) {
+		snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
 
-	/* Not quite the first use of a static struct ast_channel, we need it so the var funcs will work */
-	memset(&dummy, 0, sizeof(dummy));
-        dummy.cdr = cdr;
-        pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+		chan->cdr = cdr;
+		pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 
+		cw_channel_free(chan);
 
-	cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
+		cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
 
-	/* check if database connection is still good */
-	if (!pgsql_reconnect()) {
-		cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
-		return -1;
-	}
+		/* check if database connection is still good */
+		if (!pgsql_reconnect()) {
+			cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+			return -1;
+		}
 
-	cw_mutex_lock(&pgsql_lock);
-	res = PQexec(conn, sql_insert_cmd);
+		cw_mutex_lock(&pgsql_lock);
+		res = PQexec(conn, sql_insert_cmd);
 
-	if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
-		cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+		if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+			cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
+			cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+			PQclear(res);
+			cw_mutex_unlock(&pgsql_lock);
+			return -1;
+		}
+
 		PQclear(res);
 		cw_mutex_unlock(&pgsql_lock);
-		return -1;
+		return 0;
 	}
 
-	PQclear(res);
-	cw_mutex_unlock(&pgsql_lock);
-	return 0;
+	return -1;
 }
 
 

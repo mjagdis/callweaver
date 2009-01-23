@@ -70,7 +70,7 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 			endargs = strrchr(s, ')');
 			if (endargs)
 				*endargs = '\0';
-			pbx_substitute_variables_helper(chan, s, args, sizeof(args));
+			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), s, args, sizeof(args));
 		}
 		if (appname)
 			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, args, NULL, 0);

@@ -153,18 +153,19 @@ static int sqlite3_log(struct cw_cdr *cdr)
 	int res = 0;
 	char *zErr = 0;
 	char *sql_cmd;
-	struct cw_channel dummy;
+	struct cw_channel *chan;
 	int count;
 
-	{ /* Make it obvious that only sql_cmd should be used outside of this block */
+	if ((chan = cw_channel_alloc(0, NULL))) {
 		char *sql_tmp_cmd;
 		char sql_insert_cmd[2048] = "";
 		sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
-		dummy.cdr = cdr;
-		pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+		chan->cdr = cdr;
+		pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 		sqlite3_free(sql_tmp_cmd);
 		sql_cmd = alloca(strlen(sql_insert_cmd) * 2 + 1);
 		do_escape(sql_cmd, sql_insert_cmd);
+		cw_channel_free(chan);
 	}
 
 	cw_mutex_lock(&lock);

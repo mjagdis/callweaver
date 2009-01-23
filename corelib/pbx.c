@@ -632,7 +632,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                 {
                     /* Substitute variables now */
                     if (sw->eval) 
-                        pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH);
+                        pbx_substitute_variables(chan, &chan->vars, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH);
                     if (action == HELPER_CANMATCH)
                         res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
                     else if (action == HELPER_MATCHMORE)
@@ -1046,7 +1046,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
     }
 }
 
-static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count)
+int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count)
 {
     char *cp4 = 0;
     const char *tmp, *whereweare;
@@ -1144,7 +1144,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct cw_
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                if (pbx_substitute_variables_helper_full(c, var_reg, var, ltmp, VAR_BUF_SIZE))
+                if (pbx_substitute_variables(c, var_reg, var, ltmp, VAR_BUF_SIZE))
 			break;
                 vars = ltmp;
             }
@@ -1236,7 +1236,7 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct cw_
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                if (pbx_substitute_variables_helper_full(c, var_reg, var, ltmp, VAR_BUF_SIZE - 1))
+                if (pbx_substitute_variables(c, var_reg, var, ltmp, VAR_BUF_SIZE - 1))
 			break;
                 vars = ltmp;
             }
@@ -1265,33 +1265,6 @@ static int pbx_substitute_variables_helper_full(struct cw_channel *c, struct cw_
     return 0;
 }
 
-int pbx_substitute_variables_helper(struct cw_channel *c, const char *cp1, char *cp2, int count)
-{
-    return pbx_substitute_variables_helper_full(c, (c) ? &c->vars : NULL, cp1, cp2, count);
-}
-
-int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count)
-{
-    return pbx_substitute_variables_helper_full(NULL, vars, cp1, cp2, count);
-}
-
-static int pbx_substitute_variables(char *passdata, int datalen, struct cw_channel *c, struct cw_exten *e)
-{
-#if 0
-    /* No variables or expressions in e->data, so why scan it? */
-	/* mjagdis: because that way we only scan it once rather than 4+1 times here?
-	 * I've ifdef'd this in case someone decides it's worth doing some
-	 * intensive profiling. There's an outside chance... hot cache and
-	 * all that...
-	 */
-    if (!strchr(e->data, '$') && !strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
-        cw_copy_string(passdata, e->data, datalen);
-        return;
-    }
-#endif
-    
-    return pbx_substitute_variables_helper(c, e->data, passdata, datalen);
-}
 
 static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
 {
@@ -1328,7 +1301,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
             if (c->exten != exten)
                 cw_copy_string(c->exten, exten, sizeof(c->exten));
             c->priority = priority;
-            pbx_substitute_variables(passdata, sizeof(passdata), c, e);
+            pbx_substitute_variables(c, &c->vars, e->data, passdata, sizeof(passdata));
             manager_event(EVENT_FLAG_CALL, "Newexten", 
                 "Channel: %s\r\n"
                 "Context: %s\r\n"

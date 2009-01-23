@@ -91,7 +91,7 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 	cw_var_assign(&reg, "CONTEXT", context);
 	cw_var_assign(&reg, "PRIORITY", tmp);
 
-	pbx_substitute_variables_varshead(&reg, data, buf, buflen);
+	pbx_substitute_variables(NULL, &reg, data, buf, buflen);
 
 	cw_registry_destroy(&reg);
 

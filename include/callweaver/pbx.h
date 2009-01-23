@@ -535,8 +535,8 @@ extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, co
 extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern CW_API_PUBLIC void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg);
 extern CW_API_PUBLIC void pbx_builtin_clear_globals(void);
-extern CW_API_PUBLIC int pbx_substitute_variables_helper(struct cw_channel *c,const char *cp1,char *cp2,int count);
-extern CW_API_PUBLIC int pbx_substitute_variables_varshead(struct cw_registry *vars, const char *cp1, char *cp2, int count);
+
+extern CW_API_PUBLIC int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count);
 
 extern CW_API_PUBLIC int cw_extension_patmatch(const char *pattern, const char *data);
 

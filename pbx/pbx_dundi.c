@@ -569,7 +569,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 				cw_var_assign(&reg, "EID", dr[anscnt].eid_str);
 				cw_var_assign(&reg, "SECRET", cursecret);
 				cw_var_assign(&reg, "IPADDR", ipaddr);
-				pbx_substitute_variables_varshead(&reg, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
+				pbx_substitute_variables(NULL, &reg, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
 				cw_registry_destroy(&reg);
 			} else
 				dr[anscnt].dest[0] = '\0';

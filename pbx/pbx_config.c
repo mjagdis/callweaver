@@ -1124,7 +1124,7 @@ static int pbx_load_module(void)
 
 		v = cw_variable_browse(cfg, "globals");
 		while(v) {
-			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
+			pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
 		}
@@ -1149,7 +1149,7 @@ static int pbx_load_module(void)
 							ext = strsep(&stringp, ",");
 							if (!ext)
 								ext="";
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext));
+							pbx_substitute_variables(NULL, NULL, ext, realext, sizeof(realext));
 							cidmatch = strchr(realext, '/');
 							if (cidmatch) {
 								*cidmatch = '\0';
@@ -1239,17 +1239,17 @@ static int pbx_load_module(void)
 						} else 
 						    cw_log(CW_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
+						pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
 						if (cw_context_add_include2(con, realvalue, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
+						pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
 						if (cw_context_add_ignorepat2(con, realvalue, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
 						if (!strcasecmp(v->name, "switch"))
-							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
+							pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
 						else
 							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
 						tc = realvalue;

@@ -72,7 +72,7 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	if (argv[0]) {
 		newvar = strsep(&argv[0], "=");
 		if (newvar && (newvar[0] != '\0')) {
-			pbx_substitute_variables_helper(chan, argv[0], tmp, sizeof(tmp));
+			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], tmp, sizeof(tmp));
 			pbx_builtin_setvar_helper(chan, newvar, tmp);
 		}
 	}

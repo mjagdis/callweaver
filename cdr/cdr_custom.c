@@ -105,26 +105,28 @@ static int custom_log(struct cw_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[2048];
-	struct cw_channel dummy;
+	struct cw_channel *chan;
 	FILE *mf;
 
 	/* Abort if no master file is specified */
 	if (cw_strlen_zero(master))
 		return 0;
 
-	/* Quite possibly the first use of a static struct cw_channel, we need it so the var funcs will work */
-	memset(&dummy, 0, sizeof(dummy));
-	dummy.cdr = cdr;
-	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf));
+	if ((chan = cw_channel_alloc(0, NULL))) {
+		chan->cdr = cdr;
+		pbx_substitute_variables(chan, &chan->vars, format, buf, sizeof(buf));
 
-	/* because of the absolutely unconditional need for the
-	   highest reliability possible in writing billing records,
-	   we open write and close the log file each time */
-	if ((mf = fopen(master, "a"))) {
-		fputs(buf, mf);
-		fclose(mf);
-	} else
-		cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+		cw_channel_free(chan);
+
+		/* because of the absolutely unconditional need for the
+		   highest reliability possible in writing billing records,
+		   we open write and close the log file each time */
+		if ((mf = fopen(master, "a"))) {
+			fputs(buf, mf);
+			fclose(mf);
+		} else
+			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+	}
 
 	return 0;
 }

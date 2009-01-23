@@ -1629,7 +1629,7 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 				int vmlen = strlen(fromstring)*3 + 200;
 				passdata = alloca(vmlen);
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables_helper(chan, fromstring, passdata, vmlen);
+				pbx_substitute_variables(chan, &chan->vars, fromstring, passdata, vmlen);
 				fprintf(p, "From: %s <%s>\n", passdata, who);
 				cw_channel_free(chan);
 			}
@@ -1645,7 +1645,7 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 				int vmlen = strlen(emailsubject)*3 + 200;
 				passdata = alloca(vmlen);
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables_helper(chan, emailsubject, passdata, vmlen);
+				pbx_substitute_variables(chan, &chan->vars, emailsubject, passdata, vmlen);
 				fprintf(p, "Subject: %s\n", passdata);
 				cw_channel_free(chan);
 			}
@@ -1676,7 +1676,7 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 				int vmlen = strlen(emailbody)*3 + 200;
 				passdata = alloca(vmlen);
 				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables_helper(chan, emailbody, passdata, vmlen);
+				pbx_substitute_variables(chan, &chan->vars, emailbody, passdata, vmlen);
 				fprintf(p, "%s\n", passdata);
 				cw_channel_free(chan);
 			}
@@ -1777,7 +1777,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				int vmlen = strlen(fromstring)*3 + 200;
 				passdata = alloca(vmlen);
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables_helper(chan, pagerfromstring, passdata, vmlen);
+				pbx_substitute_variables(chan, &chan->vars, pagerfromstring, passdata, vmlen);
 				fprintf(p, "From: %s <%s>\n", passdata, who);
 				cw_channel_free(chan);
 			}
@@ -1792,7 +1792,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                int vmlen = strlen(pagersubject)*3 + 200;
                                passdata = alloca(vmlen);
                                prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-                               pbx_substitute_variables_helper(chan, pagersubject, passdata, vmlen);
+                               pbx_substitute_variables(chan, &chan->vars, pagersubject, passdata, vmlen);
                                fprintf(p, "Subject: %s\n\n", passdata);
                                cw_channel_free(chan);
                        }
@@ -1807,7 +1807,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                int vmlen = strlen(pagerbody)*3 + 200;
                                passdata = alloca(vmlen);
                                prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-                               pbx_substitute_variables_helper(chan, pagerbody, passdata, vmlen);
+                               pbx_substitute_variables(chan, &chan->vars, pagerbody, passdata, vmlen);
                                fprintf(p, "%s\n", passdata);
                                cw_channel_free(chan);
                        }

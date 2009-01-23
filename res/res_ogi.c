@@ -1176,7 +1176,7 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 	chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
 
 	if (chan) {
-		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp));
+		pbx_substitute_variables(chan2, &chan2->vars, argv[4], tmp, sizeof(tmp));
 		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
 	} else {
 		fdprintf(ogi->fd, "200 result=0\n");

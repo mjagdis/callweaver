@@ -753,7 +753,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
 	strncpy(buf2, buf, sizeof(buf2));
         chan = icd_caller__get_channel(caller);
         if (chan) {
-            pbx_substitute_variables_helper(chan, buf, buf2, sizeof(buf2));
+            pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), buf, buf2, sizeof(buf2));
             cw_function_exec_str(chan, CW_KEYWORD_Muxmon, "Muxmon", buf2, NULL, 0);
         }
       
