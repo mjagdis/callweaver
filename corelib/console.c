@@ -441,7 +441,6 @@ static int read_message(int s, int nresp)
 
 									key[lval++] = '\n';
 									if (level != CW_EVENT_NUM_VERBOSE) {
-										smart_write(field[F_DATE].buf, field_len[F_DATE]);
 										for (i = 0; i < arraysize(field); i++) {
 											terminal_write(field[i].buf, field_len[i]);
 											terminal_write(field[i].tail, field[i].tail_len);
