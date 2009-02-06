@@ -80,10 +80,16 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;language=en			; Default language setting for all users/peers
 				; This may also be set for individual users/peers
 ;relaxdtmf=yes			; Relax dtmf handling
-;rtptimeout=60			; Terminate call if 60 seconds of no RTP activity
-				; when we're not on hold
-;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP activity
-				; when we're on hold (must be > rtptimeout)
+;rtptimeout = <secs>		; Terminate call after <secs> seconds of no RTP activity
+				; when we're NOT on hold.
+				; Default 0 (off)
+;rtpholdtimeout = <secs>	; Terminate call after <secs> seconds of no RTP activity
+				; when we ARE on hold (must be > rtptimeout)
+				; Default 0 (off)
+;rtpkeepalive = <secs>		; Send RPT keepalives every <secs> seconds.
+				; This prevents NAT or remote RTP timeouts from breaking
+				; a call if we are being deliberately silent.
+				; Default 0 (off)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
 ;sendrpid = yes			; If Remote-Party-ID should be sent
 ;progressinband=never		; If we should generate in-band ringing always
