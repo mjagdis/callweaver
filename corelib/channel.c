@@ -1818,10 +1818,6 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 {
 	struct cw_frame *f = NULL;
 	int prestate;
-	static struct cw_frame null_frame =
-	{
-		CW_FRAME_NULL,
-	};
 	
 	cw_channel_lock(chan);
 	if (chan->masq) {
@@ -1829,7 +1825,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 			cw_log(CW_LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else {
-			f =  &null_frame;
+			f =  &cw_null_frame;
 		}
 			cw_channel_unlock(chan);
 		return f;
@@ -1870,7 +1866,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 				f = chan->tech->exception(chan);
 			} else {
 				cw_log(CW_LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
-				f = &null_frame;
+				f = &cw_null_frame;
 			}
 			/* Clear the exception flag */
 			cw_clear_flag(chan, CW_FLAG_EXCEPTION);
@@ -1896,7 +1892,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 				/* This frame can't be from the current native formats -- drop it on the floor */
 				cw_log(CW_LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, cw_getformatname(f->subclass), cw_getformatname(chan->nativeformats));
 				cw_fr_free(f);
-				f = &null_frame;
+				f = &cw_null_frame;
 			} else {
 				if (chan->spies) {
 					struct cw_channel_spy *spying;
@@ -1932,7 +1928,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 			
 				if (chan->readtrans) {
 					if ((f = cw_translate(chan->readtrans, f, 1)) == NULL)
-						f = &null_frame;
+						f = &cw_null_frame;
 				}
 			}
 		} else if (f->frametype == CW_FRAME_CONTROL && f->subclass == CW_CONTROL_HANGUP) {
@@ -1952,11 +1948,11 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 		else
 			cw_log(CW_LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
-		f = &null_frame;
+		f = &cw_null_frame;
 	} else if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_ANSWER)) {
 		if (prestate == CW_STATE_UP) {
 			cw_log(CW_LOG_DEBUG, "Dropping duplicate answer!\n");
-			f = &null_frame;
+			f = &cw_null_frame;
 		}
 		/* Answer the CDR */
 		cw_setstate(chan, CW_STATE_UP);
@@ -3077,10 +3073,10 @@ int cw_do_masquerade(struct cw_channel *original)
 			cw_cause2str(clone->hangupcause)
 			);
 	} else {
-		struct cw_frame null_frame = { CW_FRAME_NULL, };
+		struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
 		cw_log(CW_LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		cw_set_flag(clone, CW_FLAG_ZOMBIE);
-		cw_queue_frame(clone, &null_frame);
+		cw_queue_frame(clone, &cw_null_frame);
 		cw_channel_unlock(clone);
 	}
 	

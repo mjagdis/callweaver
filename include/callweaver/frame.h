@@ -519,6 +519,7 @@ extern CW_API_PUBLIC int cw_frame_adjust_volume(struct cw_frame *f, int adjustme
  */
 extern CW_API_PUBLIC int cw_frame_slinear_sum(struct cw_frame *f1, struct cw_frame *f2);
 
+extern struct cw_frame cw_null_frame;
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

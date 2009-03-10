@@ -50,6 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define TYPE_DONTSEND   0x3
 #define TYPE_MASK       0x3
 
+struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
 struct cw_format_list_s
 {
     int visible; /* Can we see this entry */

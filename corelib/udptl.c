@@ -213,7 +213,6 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
     socklen_t len;
     char iabuf[INET_ADDRSTRLEN];
     uint16_t *udptlheader;
-    static struct cw_frame null_frame = { CW_FRAME_NULL, };
 
     len = sizeof(sin);
 
@@ -240,7 +239,7 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
             else
                 cw_log(CW_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
         }
-        return &null_frame;
+        return &cw_null_frame;
     }
     if ((actions & 1))
     {

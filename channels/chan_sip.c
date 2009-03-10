@@ -4098,12 +4098,11 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
 {
     /* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
     struct cw_frame *f;
-    static struct cw_frame null_frame = { CW_FRAME_NULL, };
 
     if (!p->rtp)
     {
         /* We have no RTP allocated for this channel */
-        return &null_frame;
+        return &cw_null_frame;
     }
 
     switch (ast->fdno)
@@ -4124,11 +4123,11 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
         f = cw_rtcp_read(ast, p->vrtp);            /* RTCP Control Channel for video */
         break;
     default:
-        f = &null_frame;
+        f = &cw_null_frame;
     }
     /* Don't forward RFC2833 if we're not supposed to */
     if (f && (f->frametype == CW_FRAME_DTMF) && (cw_test_flag(p, SIP_DTMF) != SIP_DTMF_RFC2833))
-        return &null_frame;
+        return &cw_null_frame;
     if (p->owner)
     {
         /* We already hold the channel lock */
@@ -4139,7 +4138,7 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
 		if (!(f->subclass & p->jointcapability)) {
 		    cw_log(CW_LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
 		    cw_getformatname(f->subclass), p->owner->name);
-		    return &null_frame;
+		    return &cw_null_frame;
 		}
                 cw_log(CW_LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
                 p->owner->nativeformats = f->subclass;

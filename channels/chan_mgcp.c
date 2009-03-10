@@ -1225,12 +1225,11 @@ static struct cw_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 {
 	/* Retrieve audio/etc from channel.  Assumes sub->lock is already held. */
 	struct cw_frame *f;
-	static struct cw_frame null_frame = { CW_FRAME_NULL, };
 
 	f = cw_rtp_read(sub->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == CW_FRAME_DTMF) && !(sub->parent->dtmfmode & MGCP_DTMF_RFC2833))
-		return &null_frame;
+		return &cw_null_frame;
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == CW_FRAME_VOICE) {

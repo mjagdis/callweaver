@@ -462,7 +462,6 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	struct cw_frame *f = NULL;
-	static struct cw_frame null_frame = { CW_FRAME_NULL, };
 	static struct cw_frame answer_frame = { CW_FRAME_CONTROL, CW_CONTROL_ANSWER };
 	cw_mutex_lock(&p->lock); 
 	CHECK_FORMATS(ast, p);
@@ -474,7 +473,7 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
 			p->chan->fdno = ast->fdno;
 		f = cw_read(p->chan);
 	} else
-		f = &null_frame;
+		f = &cw_null_frame;
 	if (!f) {
 		/* If there's a channel, hang it up (if it's on a callback) make it NULL */
 		if (p->chan) {
@@ -506,7 +505,7 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
  						cw_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
  					/* Don't pass answer along */
  					cw_fr_free(f);
- 					f = &null_frame;
+ 					f = &cw_null_frame;
  				} else {
  					p->acknowledged = 1;
  					/* Use the builtin answer frame for the 
@@ -533,7 +532,7 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
  			/* don't pass voice until the call is acknowledged */
  			if (!p->acknowledged) {
  				cw_fr_free(f);
- 				f = &null_frame;
+ 				f = &cw_null_frame;
  			}
  			break;
   		}
@@ -933,7 +932,7 @@ static struct cw_channel *agent_bridgedchannel(struct cw_channel *chan, struct c
 static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct cw_channel *tmp;
-	struct cw_frame null_frame = { CW_FRAME_NULL };
+	struct cw_frame cw_null_frame = { CW_FRAME_NULL };
 #if 0
 	if (!p->chan) {
 		cw_log(CW_LOG_WARNING, "No channel? :(\n");
@@ -983,7 +982,7 @@ static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 		if( cw_strlen_zero(p->loginchan) && cw_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
-				cw_queue_frame(p->chan, &null_frame);
+				cw_queue_frame(p->chan, &cw_null_frame);
 				cw_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
 				cw_mutex_lock(&p->app_lock);
 				cw_mutex_lock(&p->lock);
@@ -1001,7 +1000,7 @@ static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 			}
 		} else if (!cw_strlen_zero(p->loginchan)) {
 			if (p->chan)
-				cw_queue_frame(p->chan, &null_frame);
+				cw_queue_frame(p->chan, &cw_null_frame);
 			if (!p->chan) {
 				cw_log(CW_LOG_WARNING, "Agent disconnected while we were connecting the call\n");
 				p->owner = NULL;

@@ -214,7 +214,6 @@ int cw_rtp_set_framems(struct cw_rtp *rtp, int ms)
 
 static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
 {
-    static struct cw_frame null_frame = { CW_FRAME_NULL, };
     char iabuf[INET_ADDRSTRLEN];
     const struct sockaddr_in *them;
 
@@ -225,7 +224,7 @@ static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
         if (option_debug)
             cw_log(CW_LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
         rtp->lastevent_code = 0;
-        return &null_frame;
+        return &cw_null_frame;
     }
 
     if (option_debug)
@@ -774,7 +773,7 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 
 struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
 {
-    static struct cw_frame null_frame = { CW_FRAME_NULL, };
+    static struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
     uint32_t rtcpdata[1024];
     char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in sin;
@@ -783,7 +782,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
     int actions;
     
     if (rtp == NULL)
-        return &null_frame;
+        return &cw_null_frame;
 
     len = sizeof(sin);
 
@@ -797,7 +796,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
         }
         else if (errno != EAGAIN)
             cw_log(CW_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
-        return &null_frame;
+        return &cw_null_frame;
     }
     if ((actions & 1))
     {
@@ -808,7 +807,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
     if (res < 8)
     {
         cw_log(CW_LOG_DEBUG, "RTCP Read too short\n");
-        return &null_frame;
+        return &cw_null_frame;
     }
 
     pkt = 0;
@@ -894,7 +893,7 @@ next:
         pkt += length + 1;
     }
 
-    return &null_frame;
+    return &cw_null_frame;
 }
 
 
@@ -1038,7 +1037,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     uint32_t timestamp;
     uint32_t ssrc;
     uint32_t *rtpheader;
-    static struct cw_frame *f, null_frame = { CW_FRAME_NULL, };
+    static struct cw_frame *f, cw_null_frame = { CW_FRAME_NULL, };
     struct rtpPayloadType rtpPT;
 
     len = sizeof(sin);
@@ -1057,19 +1056,19 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         }
         else if (errno != EAGAIN)
             cw_log(CW_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
-        return &null_frame;
+        return &cw_null_frame;
     }
 
     if (res < 3*sizeof(uint32_t))
     {
         /* Too short for an RTP packet. */
         cw_log(CW_LOG_DEBUG, "RTP Read too short\n");
-        return &null_frame;
+        return &cw_null_frame;
     }
 
     /* Ignore if the other side hasn't been given an address yet. */
     if (udp_socket_get_far(rtp->rtp_sock_info)->sin_addr.s_addr == 0  ||  udp_socket_get_far(rtp->rtp_sock_info)->sin_port == 0)
-        return &null_frame;
+        return &cw_null_frame;
 
     if (rtp->nat)
     {
@@ -1092,7 +1091,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 
     /* Check RTP version */
     if ((version = (seqno & 0xC0000000) >> 30) != 2)
-        return &null_frame;
+        return &cw_null_frame;
     
     if ((seqno & (1 << 29)))
     {
@@ -1107,7 +1106,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         if (res < hdrlen)
         {
             /* Too short for an RTP packet. */
-            return &null_frame;
+            return &cw_null_frame;
         }
     }
     if ((seqno & (1 << 28)))
@@ -1119,7 +1118,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         if (len < hdrlen)
         {
             cw_log(CW_LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
-            return &null_frame;
+            return &cw_null_frame;
         }
     }
     mark = (seqno >> 23) & 1;
@@ -1166,7 +1165,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
             f = process_rfc2833(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, mark, timestamp);
             if (f) 
                 return f; 
-            return &null_frame;
+            return &cw_null_frame;
         }
         else if (rtpPT.code == CW_RTP_CISCO_DTMF)
         {
@@ -1181,7 +1180,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
             if (f) 
                 return f; 
             else 
-                return &null_frame;
+                return &cw_null_frame;
         }
         else if (rtpPT.code == CW_RTP_CN)
         {
@@ -1190,12 +1189,12 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
             if (f) 
                 return f; 
             else 
-                return &null_frame;
+                return &cw_null_frame;
         }
         else
         {
             cw_log(CW_LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
-            return &null_frame;
+            return &cw_null_frame;
         }
     }
     rtp->f.subclass = rtpPT.code;
