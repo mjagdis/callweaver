@@ -520,15 +520,15 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
     while (timeout  &&  (peer->_state != CW_STATE_UP))
     {
         active = cw_waitfor_n(channels, 2, &timeout);
+        if (timeout == 0)
+        {
+            /* Timed out, so we are done trying */
+            strncpy(status, "NOANSWER", sizeof(status) - 1);
+            cw_log(CW_LOG_NOTICE, "Timeout on peer\n");
+            break;
+        }
         if (active)
         {
-          /* Timed out, so we are done trying */
-            if (timeout == 0)
-            {
-                strncpy(status, "NOANSWER", sizeof(status) - 1);
-                cw_log(CW_LOG_NOTICE, "Timeout on peer\n");
-                break;
-            }
             /* -1 means go forever */
             if (timeout > -1)
             {
@@ -661,7 +661,7 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char 
     }
     else
     {
-        cw_log(CW_LOG_ERROR, "failed to get remote_channel %s/%s\n", argv[0], dest);
+        cw_log(CW_LOG_DEBUG, "failed to get remote_channel %s/%s\n", argv[0], dest);
     }
     if (state == CW_CONTROL_ANSWER)
        strncpy(status, "ANSWER", sizeof(status) - 1);
