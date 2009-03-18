@@ -1074,35 +1074,28 @@ if test "${enable_udpfromto}" = "yes" ; then
    #
    # IP_PKTINFO (Linux)
    #
-   AC_CHECK_DECL([IP_PKTINFO],[HAVE_IP_PKTINFO=1],,
+   AC_CHECK_DECL(IP_PKTINFO, AC_DEFINE(HAVE_IP_PKTINFO,1,[Needed for recv-/sendfromto on Linux]),,
       [#ifdef HAVE_NETINET_IN_H
        #include <netinet/in.h>
        #endif
       ])
-   if test "${HAVE_IP_PKTINFO}" = "yes" ; then
-      AC_DEFINE([HAVE_IP_PKTINFO],,[Needed for recv-/sendfromto on Linux])
-   fi
- 
    #
    # IP_RECVDSTADDR (*BSD)
    #
-   AC_CHECK_DECL([IP_RECVDSTADDR],[HAVE_IP_RECVDSTADDR=1],,
+   AC_CHECK_DECL(IP_RECVDSTADDR, AC_DEFINE(HAVE_IP_RECVDSTADDR,1,[Needed for recvfromto on *BSD]),,
       [#ifdef HAVE_NETINET_IN_H
        #include <netinet/in.h>
        #endif
       ])
+
    #
    # IP_SENDSRCADDR (*BSD)
    #
-   AC_CHECK_DECL([IP_SENDSRCADDR],[HAVE_IP_SENDSRCADDR=1],,
+   AC_CHECK_DECL(IP_SENDSRCADDR, AC_DEFINE(HAVE_IP_SENDSRCADDR,1,[Needed for sendfromto on *BSD]),,
       [#ifdef HAVE_NETINET_IN_H
        #include <netinet/in.h>
        #endif
       ])
-   if test -n "${HAVE_IP_RECVDSTADDR}" -a -n "${HAVE_IP_SENDSRCADDR}"; then
-      AC_DEFINE([HAVE_IP_RECVDSTADDR],,[Needed for recv-/sendfromto on *BSD])
-      AC_DEFINE([HAVE_IP_SENDSRCADDR],,[Needed for recv-/sendfromto on *BSD])
-   fi
 fi     
 
 dnl ##########################################################################
