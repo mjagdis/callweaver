@@ -64,6 +64,14 @@ CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
+static struct cw_jb_conf g_jb_conf = {
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = "",
+};
+
+
 /* Protect the interface list (of sip_pvt's) */
 CW_MUTEX_DEFINE_STATIC(locallock);
 
@@ -101,6 +109,7 @@ static struct local_pvt {
 	char context[CW_MAX_CONTEXT];		/* Context to call */
 	char exten[CW_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;				/* Requested format */
+	struct cw_jb_conf jb_conf;		/*!< jitterbuffer configuration for this local channel */
 	int glaredetect;			/* Detect glare on hangup */
 	int cancelqueue;			/* Cancel queue */
 	int alreadymasqed;			/* Already masqueraded */
@@ -476,12 +485,23 @@ static struct local_pvt *local_alloc(char *data, int format)
 		memset(tmp, 0, sizeof(struct local_pvt));
 		cw_mutex_init(&tmp->lock);
 		strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
+		
+		memcpy(&tmp->jb_conf, &g_jb_conf, sizeof(tmp->jb_conf)); 
+		
 		opts = strchr(tmp->exten, '/');
 		if (opts) {
 			*opts='\0';
 			opts++;
 			if (strchr(opts, 'n'))
 				tmp->nooptimization = 1;
+			if (strchr(opts, 'j')) {
+				if (tmp->nooptimization == 1)
+					cw_set_flag(&tmp->jb_conf, CW_GENERIC_JB_ENABLED);
+				else {
+					cw_log(LOG_ERROR, "You must use the 'n' option for chan_local "
+					"to use the 'j' option to enable the jitterbuffer\n");
+				}
+			}
 		}
 		c = strchr(tmp->exten, '@');
 		if (c) {
@@ -558,6 +578,8 @@ static struct cw_channel *local_new(struct local_pvt *p, int state)
 	tmp->priority = 1;
 	tmp2->priority = 1;
 
+	cw_jb_configure(tmp, &p->jb_conf); 
+	
 	return tmp;
 }
 
