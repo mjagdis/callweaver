@@ -40,6 +40,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char tdesc[] = "Directed Call Pickup Application";
 
+#define PICKUPMARK "PICKUPMARK"
+
 static void *pickup_app;
 static const char pickup_name[] = "Pickup";
 static const char pickup_synopsis[] = "Directed Call Pickup application.";
@@ -47,7 +49,30 @@ static const char pickup_syntax[] = "Pickup(extension[@context])";
 static const char pickup_descrip[] =
 "Steals any calls to a specified extension that are in a ringing state and bridges them to the current channel. Context is an optional argument.\n";
 
-
+static struct cw_channel * find_channel_by_mark(char *mark)
+{
+     struct cw_channel * res= NULL;
+     const char *tmp = NULL;
+     struct cw_channel *cur = NULL;
+ 
+       while ( (cur = cw_channel_walk_locked(cur)) != NULL) 
+       {
+ 	  if (!cur->pbx &&
+              ((cur->_state == CW_STATE_RINGING) ||
+              (cur->_state == CW_STATE_RING))) 
+ 	     {
+ 		tmp = pbx_builtin_getvar_helper(cur, PICKUPMARK);
+ 		if (tmp &&  (!strcasecmp(tmp, mark))) 
+ 		    {
+ 			res=cur;
+                         break;
+ 		    };
+     	    };
+           cw_mutex_unlock(&cur->lock);
+       };
+ return res;
+}
+ 
 static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char workspace[256] = "";
@@ -70,9 +95,12 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	}
 
 	/* Find a channel to pickup */
-	origin = cw_get_channel_by_exten_locked(exten, context);
-	if (origin) {
-		cw_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
+	if (context && (!strcmp(context,PICKUPMARK))) {
+		target=find_channel_by_mark(exten);
+	} else {
+		origin = cw_get_channel_by_exten_locked(exten, context);
+		if (origin) {
+			cw_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
 			       sizeof(workspace), 0);
 		if (tmp) {
 			/* We have a possible channel... now we need to find it! */
@@ -89,7 +117,7 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	
 	if (res)
 		goto out;
-
+}
 	if (target && (!target->pbx) && ((target->_state == CW_STATE_RINGING) || (target->_state == CW_STATE_RING))) {
 		cw_log(CW_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
 			chan->name);
