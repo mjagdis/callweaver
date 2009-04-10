@@ -114,8 +114,6 @@ struct cw_frame* get_outgoing_frame( struct cw_conference *conf, struct cw_conf_
         return NULL ;
     }
 
-    memset(member->framedata,0,sizeof(member->framedata));
-
     // ***********************************
     // Mixing procedure
     // ***********************************

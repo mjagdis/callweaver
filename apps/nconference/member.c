@@ -411,9 +411,18 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
     }
 
     //Play the join info messages
-    if (!member->force_remove_flag && !member->quiet_mode) {
-	conference_queue_sound( member, "conf-youareinconfnum" );
-	conference_queue_number( member, member->id );
+    if (!member->force_remove_flag) {
+	if (!member->quiet_mode) {
+	    conference_queue_sound( member, "conf-youareinconfnum" );
+	    conference_queue_number( member, member->id );
+	} else {
+	    /* XXX: Temporary work around.
+	     * Playing the silence allows conversations between members.
+	     * This is NOT a proper solution, we have to find out why NOT
+	     * playing sounds causes the member to not hear anything.
+	     */
+	    conference_queue_sound( member, "silence/1" );
+	}
     }
 
     // The member at the very beginningis speaking
@@ -837,9 +846,6 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
     //
     // read, write, and translation options
     //
-
-    cw_log( CW_CONF_DEBUG, "created member on channel %s, type => %d, readformat => %d, writeformat => %d\n", 	
-		member->chan->name, member->type, chan->readformat, chan->writeformat ) ;
 
     // set member's audio formats, taking dsp preprocessing into account
     // ( chan->nativeformats, CW_FORMAT_SLINEAR, CW_FORMAT_ULAW, CW_FORMAT_GSM )
