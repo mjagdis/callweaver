@@ -71,7 +71,7 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, char *
 {
 	char *key;
 
-	if (argc < 1 || argc > 2 || !argv[0][0] || !(key = strchr(argv[0], '/')))
+	if (argc < 1 || argc > 2 || !argv[0][0] || !(key = strrchr(argv[0], '/')))
 		return cw_function_syntax(db_func_syntax);
 
 	*(key++) = '\0';
@@ -100,7 +100,7 @@ static int function_db_exists(struct cw_channel *chan, int argc, char **argv, ch
 {
 	char *key;
 
-	if (argc != 1 || !argv[0][0] || !(key = strchr(argv[0], '/')))
+	if (argc != 1 || !argv[0][0] || !(key = strrchr(argv[0], '/')))
 		return cw_function_syntax(db_exists_func_syntax);
 
 	if (len < 2) {
