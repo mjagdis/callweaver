@@ -2231,6 +2231,7 @@ enum cw_pbx_result cw_pbx_start(struct cw_channel *c)
     if (cw_pthread_create(&t, &global_attr_detached, pbx_thread, cw_object_dup(c)))
     {
         cw_log(CW_LOG_WARNING, "Failed to create new channel thread\n");
+	decrease_call_count();
         cw_object_put(c);
         return CW_PBX_FAILED;
     }
