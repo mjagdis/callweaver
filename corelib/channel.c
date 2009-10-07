@@ -1723,39 +1723,17 @@ int cw_waitfor(struct cw_channel *c, int ms)
 	return ms;
 }
 
+/** Wait for a digit discarding.
+ * @param c The channel to wait on.
+ * @param ms Maximum time to wait, in milliseconds.
+ * @return Whatever cw_waitfordigit_full() returns.
+ *
+ * This will simply call cw_waitfordigit_full() with the proper arguments to
+ * get the first DTMF digit on @c c, discarding all sound and video frames.
+ */
 int cw_waitfordigit(struct cw_channel *c, int ms)
 {
-	/* XXX Should I be merged with waitfordigit_full XXX */
-	struct cw_frame *f;
-	int result = 0;
-
-	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(c, CW_FLAG_ZOMBIE) || cw_check_hangup(c)) 
-		return -1;
-
-	/* Wait for a digit, no more than ms milliseconds total. */
-	while (ms && !result)
-	{
-		ms = cw_waitfor(c, ms);
-		if (ms < 0) /* Error */
-			result = -1; 
-		else if (ms > 0)
-			{
-			/* Read something */
-			f = cw_read(c);
-			if (f)
-				{
-				if (f->frametype == CW_FRAME_DTMF) 
-					result = f->subclass;
-				cw_fr_free(f);
-			}
-				else
-				{
-				result = -1;
-				}
-		}
-	}
-	return result;
+	return cw_waitfordigit_full(c, ms, -1, -1);
 }
 
 int cw_waitfordigit_full(struct cw_channel *c, int ms, int audiofd, int cmdfd)
