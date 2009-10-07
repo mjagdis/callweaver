@@ -2709,7 +2709,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			switch_end = new_prio();
 			switch_test->type = AEL_APPCALL;
 			switch_end->type = AEL_APPCALL;
-			snprintf(buf1,sizeof(buf1),"sw-%d-%s|1",control_statement_count, p->u1.str);
+			snprintf(buf1,sizeof(buf1),"sw-%d-%s,1",control_statement_count, p->u1.str);
 			switch_test->app = strdup("Goto");
 			switch_test->appargs = strdup(buf1);
 			snprintf(buf1,sizeof(buf1),"Finish switch-%s-%d", label, control_statement_count);
@@ -2753,21 +2753,21 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_PATTERN) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_DEFAULT) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-.|1",local_control_statement_count);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-.,1",local_control_statement_count);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (!p2->next) {
@@ -2813,21 +2813,21 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_PATTERN) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_DEFAULT) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-.|1",local_control_statement_count);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-.,1",local_control_statement_count);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (!p2->next) {
@@ -2875,21 +2875,21 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_PATTERN) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-%s|1",local_control_statement_count, p2->next->u1.str);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-%s,1",local_control_statement_count, p2->next->u1.str);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (p2->next && p2->next->type == PV_DEFAULT) {
 							fall_thru = new_prio();
 							fall_thru->type = AEL_APPCALL;
 							fall_thru->app = strdup("Goto");
-							snprintf(buf1,sizeof(buf1),"_sw-%d-.|1",local_control_statement_count);
+							snprintf(buf1,sizeof(buf1),"_sw-%d-.,1",local_control_statement_count);
 							fall_thru->appargs = strdup(buf1);
 							linkprio(switch_case, fall_thru);
 						} else if (!p2->next) {
