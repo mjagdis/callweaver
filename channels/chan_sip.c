@@ -9621,7 +9621,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
             p->amaflags = user->amaflags;
             p->callgroup = user->callgroup;
             p->pickupgroup = user->pickupgroup;
-            p->callingpres = user->callingpres;
+            /* Copy callingpres only if the RPID did not indicate any privacy/screening parameters */
+            if (p->callingpres == 0)
+                p->callingpres = user->callingpres;
             p->capability = user->capability;
             p->jointcapability = user->capability;
             if (p->peercapability)
@@ -9700,7 +9702,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
             cw_copy_string(p->subscribecontext, peer->subscribecontext, sizeof(p->subscribecontext));
             cw_copy_string(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret));
             p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
-            p->callingpres = peer->callingpres;
+            /* Copy callingpres only if the RPID did not indicate any privacy/screening parameters */
+            if (p->callingpres == 0)
+                p->callingpres = peer->callingpres;
             if (peer->maxms && peer->lastms)
                 p->timer_t1 = peer->lastms;
             if (cw_test_flag(peer, SIP_INSECURE_INVITE))
