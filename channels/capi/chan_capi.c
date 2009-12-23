@@ -1299,8 +1299,10 @@ static char *capi_number_func(unsigned char *data, unsigned int strip, char *buf
 	
 	return buf;
 }
-#define capi_number(data, strip) \
-  capi_number_func(data, strip, alloca(CW_MAX_EXTENSION))
+#define capi_number(data, strip) ({ \
+  char *s = alloca(CW_MAX_EXTENSION); \
+  capi_number_func(data, strip, s); \
+})
 
 /*
  * parse the dialstring
@@ -2025,6 +2027,7 @@ return_from_bridge:
 static struct cw_channel *capi_new(struct capi_pvt *i, int state)
 {
 	struct cw_channel *tmp;
+	char *s;
 	int fmt;
 	int fds[2];
 	int flags;
@@ -2099,11 +2102,11 @@ static struct cw_channel *capi_new(struct capi_pvt *i, int state)
 	tmp->rawreadformat = fmt;
 	tmp->rawwriteformat = fmt;
 
+	s = alloca(80);
 	cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: setting format %s - %s%s\n",
 		i->vname, cw_getformatname(fmt),
-		cw_getformatname_multiple(alloca(80), 80,
-		tmp->nativeformats),
-		(i->rtp) ? " (RTP)" : "");
+		cw_getformatname_multiple(s, 80, tmp->nativeformats),
+		(i->rtp ? " (RTP)" : ""));
 	cc_copy_string(tmp->context, i->context, sizeof(tmp->context));
 
 	if (!cw_strlen_zero(i->cid)) {
