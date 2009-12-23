@@ -498,7 +498,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 				if (tmp->nooptimization == 1)
 					cw_set_flag(&tmp->jb_conf, CW_GENERIC_JB_ENABLED);
 				else {
-					cw_log(LOG_ERROR, "You must use the 'n' option for chan_local "
+					cw_log(CW_LOG_ERROR, "You must use the 'n' option for chan_local "
 					"to use the 'j' option to enable the jitterbuffer\n");
 				}
 			}
