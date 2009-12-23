@@ -44,8 +44,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 
-#include "libltdl/ltdl.h"
-
 
 static int cw_clicmd_qsort_compare(const void *a, const void *b)
 {
