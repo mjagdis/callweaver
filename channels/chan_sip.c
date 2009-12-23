@@ -145,6 +145,8 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int rfc_timer_b = DEFAULT_RFC_TIMER_B;
 #define RFC_TIMER_F          64        /* non-INVITE transaction timeout, in units of T1 (RFC3261 requires termination after 64*T1 ms) */
 
+#define SIP_ASSUME_SYMMETRIC 1         /* Assume paths are symmetric, i.e. our RTT estimate can be used to judge when to time out waiting for a packet from the remote */
+
 #define MAX_AUTHTRIES        3        /* Try authentication three times, then fail */
 
 
@@ -1727,8 +1729,29 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 {
 	char tmp[80];
 
+	if (ms < 0) {
+#if SIP_ASSUME_SYMMETRIC
+		/* Although timer B is configurable that sets the retransmit interval
+		 * for *us*. We're scheduling the destroy for after the remote side's
+		 * retransmit interval has expired. Since we don't know their config
+		 * we have to assume the max timer B value allowed by RFC3261.
+		 * It should also be noted that paths may vary in each direction and
+		 * really it is strictly the remote side's RTT estimate that we should
+		 * be using here. However it doesn't seem too unreasonable to expect
+		 * that the paths are not _that_ different?
+		 * And, of course, we don't know _what_ the remote might be trying to
+		 * send so we don't clip against timer T2.
+		 * Oh, and, according to RFC3261 max timer B == timer F.
+		 */
+		ms = (dialogue->timer_t1 > 0 ? dialogue->timer_t1 : RFC_TIMER_T1) * DEFAULT_RFC_TIMER_B;
+#else
+		ms = RFC_TIMER_T1 * DEFAULT_RFC_TIMER_B;
+#endif
+	}
+
 	if (sip_debug_test_pvt(dialogue))
-		cw_verbose("Scheduling destruction of call '%s' in %d ms\n", dialogue->callid, ms);
+		cw_verbose("Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
+cw_log(CW_LOG_NOTICE, "Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
 
 	if (recordhistory) {
 		snprintf(tmp, sizeof(tmp), "%d ms", ms);
@@ -3402,9 +3425,9 @@ static int sip_hangup(struct cw_channel *ast)
     */
 
     if (cw_test_flag(p, SIP_ALREADYGONE)) {
-    	needdestroy = 1;	/* Set destroy flag at end of this function */
+        needdestroy = 1;	/* Set destroy flag at end of this function */
     } else {
-    	sip_scheddestroy(p, 32000);
+        sip_scheddestroy(p, -1);
     }
 
     /* Start the process if it's not already started */
@@ -8489,7 +8512,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
                    retransmission should get it */
                 transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
                 /* Schedule auto destroy in 15 seconds */
-                sip_scheddestroy(p, 15000);
+                sip_scheddestroy(p, -1);
             }
             res = 1;
         }
@@ -8499,7 +8522,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
         snprintf(randdata, randlen, "%08x", cw_random());
         transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
         /* Schedule auto destroy in 15 seconds */
-        sip_scheddestroy(p, 15000);
+        sip_scheddestroy(p, -1);
         res = 1;
     }
     else
@@ -8606,8 +8629,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
                 transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
             }
 
-            /* Schedule auto destroy in 15 seconds */
-            sip_scheddestroy(p, 15000);
+            sip_scheddestroy(p, -1);
             return 1;
         } 
         /* a1_hash now has the expected response, compare the two */
@@ -8634,7 +8656,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
     case CW_EXTENSION_REMOVED:    /* Extension is gone */
         if (p->autokillid > -1)
             sip_cancel_destroy(p);    /* Remove subscription expiry for renewals */
-        sip_scheddestroy(p, 15000);    /* Delete subscription in 15 secs */
+        sip_scheddestroy(p, -1);
         cw_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == CW_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
         p->stateid = -1;
         p->subscribed = NONE;
@@ -11503,7 +11525,7 @@ static int sip_notify(int fd, int argc, char *argv[])
         build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
         cw_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
         transmit_sip_request(p, &req);
-        sip_scheddestroy(p, 15000);
+        sip_scheddestroy(p, -1);
     }
 
     return RESULT_SUCCESS;
@@ -12167,7 +12189,7 @@ static void check_pendings(struct sip_pvt *p)
 	else 
 	    transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
 	cw_clear_flag(p, SIP_PENDINGBYE);	
-	sip_scheddestroy(p, 32000);
+	sip_scheddestroy(p, -1);
     }
     else if (cw_test_flag(p, SIP_NEEDREINVITE))
     {
@@ -12518,7 +12540,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         r->dialogue = NULL;
         p->registry = NULL;
         /* Let this one hang around until we have all the responses */
-        sip_scheddestroy(p, 32000);
+        sip_scheddestroy(p, -1);
 
         /* set us up for re-registering */
         /* figure out how long we got registered for */
@@ -14175,7 +14197,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
     {
         /* Destroy the session, but keep us around for just a bit in case they don't
            get our 200 OK */
-        sip_scheddestroy(p, 15*1000);
+        sip_scheddestroy(p, -1);
     }
     return res;
 }
@@ -14619,7 +14641,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     /* Send MWI */
     cw_set_flag(p, SIP_OUTGOING);
     transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
-    sip_scheddestroy(p, 15000);
+    sip_scheddestroy(p, -1);
     return 0;
 }
 
