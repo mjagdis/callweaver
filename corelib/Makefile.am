@@ -64,6 +64,7 @@ CORE_SRC = \
     jitterbuffer/libcwjb.la \
 	file.c \
     crypto.c \
+    dynstr.c \
     lang/say_br.c \
     lang/say_cz.c \
     lang/say_da.c \
