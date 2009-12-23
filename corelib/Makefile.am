@@ -94,7 +94,7 @@ if !WANT_DEBUG
 CORE_CFLAGS 	+= -fomit-frame-pointer
 #CORE_CFLAGS	+= -DCW_MUTEX_INIT_W_CONSTRUCTORS
 endif
-CORE_CFLAGS	+= -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include
+CORE_CFLAGS	+= $(INCLTDL) -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include
 CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include
 
 CORE_LDFLAGS	= @OPENSSL_LDFLAGS@
@@ -159,10 +159,10 @@ install-exec-hook:
 	chmod u+s $(libexecdir)/callweaver
 
 callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
-	$(YACC) -d --name-prefix=cw_yy -o callweaver_expr2.c callweaver_expr2.y
+	$(YACC) -d --name-prefix=cw_yy -o callweaver_expr2.c "${srcdir}/callweaver_expr2.y"
 
 callweaver_expr2f.c: callweaver_expr2.l
-	$(LEX) -f -t callweaver_expr2.l > callweaver_expr2f.c
+	$(LEX) -f -t "${srcdir}/callweaver_expr2.l" > callweaver_expr2f.c
 
 defaults.h: defaults.h.in Makefile
 	rm -f defaults.h.tmp

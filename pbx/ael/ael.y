@@ -30,7 +30,7 @@
 
 #include "callweaver/logger.h"
 
-#include "ael_structs.h"
+#include "ael/ael_structs.h"
 
 static struct pval * linku1(struct pval *head, struct pval *tail);
 
