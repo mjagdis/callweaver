@@ -608,10 +608,7 @@ static void console_handler(char *s)
 
 static int console_connect(char *spec, int events)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_un sun;
-	} u;
+	cw_address_t addr;
 	socklen_t salen;
 	int s = -1;
 
@@ -619,22 +616,24 @@ static int console_connect(char *spec, int events)
 		int sv[2];
 		struct mansession *sess;
 
+		addr.sa.sa_family = AF_INTERNAL;
+		cw_copy_string(addr.sun.sun_path, "console", sizeof(addr.sun.sun_path));
+
 		if (!socketpair(AF_LOCAL, SOCK_STREAM, 0, sv)
-		&& (sess = manager_session_start(manager_session_ami, sv[0], AF_INTERNAL, "console", sizeof("console") - 1, NULL, events, EVENT_FLAG_COMMAND, events))) {
+		&& (sess = manager_session_start(manager_session_ami, sv[0], &addr, NULL, events, EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
 		}
-	} else if (strlen(spec) > sizeof(u.sun.sun_path) - 1) {
+	} else if (strlen(spec) > sizeof(addr.sun.sun_path) - 1) {
 		errno = EINVAL;
 	} else {
-		memset(&u, 0, sizeof(u));
-		u.sun.sun_family = AF_LOCAL;
-		strcpy(u.sun.sun_path, spec);
-		salen = sizeof(u.sun);
+		addr.sa.sa_family = AF_LOCAL;
+		cw_copy_string(addr.sun.sun_path, spec, sizeof(addr.sun.sun_path));
+		salen = sizeof(addr.sun);
 
-		if ((s = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+		if ((s = socket(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
 			fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
-		} else if (connect(s, &u.sa, salen)) {
+		} else if (connect(s, &addr.sa, salen)) {
 			close(s);
 			s = -1;
 		} else {

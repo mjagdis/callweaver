@@ -280,8 +280,6 @@ extern CW_API_PUBLIC const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_a
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__cw_inet_ntoa__instead__
 
-extern CW_API_PUBLIC int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen);
-
 extern int cw_utils_init(void);
 
 /*! Compares the source address and port of two sockaddr_in */

@@ -548,67 +548,6 @@ const char *cw_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 }
 
 
-int addr_to_str(int family, const void *addr, char *buf, ssize_t buflen)
-{
-	char *p = buf;
-	int n;
-
-	switch (family) {
-		case AF_INET: {
-			const struct sockaddr_in *sin = addr;
-			if (buflen)
-				memcpy(p, "ipv4:", (buflen > sizeof("ipv4:") - 1 ? sizeof("ipv4:") - 1 : buflen));
-			p += sizeof("ipv4:") - 1;
-			buflen -= sizeof("ipv4:") - 1;
-			if (buflen >= INET_ADDRSTRLEN && inet_ntop(family, &sin->sin_addr, p, buflen)) {
-				n = strlen(p);
-				p += n;
-				buflen -= n;
-			} else {
-				p += INET_ADDRSTRLEN - 1;
-				buflen -= INET_ADDRSTRLEN - 1;
-			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), ":%u", ntohs(sin->sin_port)) + 1;
-			break;
-		}
-
-		case AF_INET6: {
-			const struct sockaddr_in6 *sin = addr;
-			if (buflen)
-				memcpy(p, "ipv6:[", (buflen > sizeof("ipv6:[") - 1 ? sizeof("ipv6:[") - 1 : buflen));
-			p += sizeof("ipv6:[") - 1;
-			buflen -= sizeof("ipv6:[") - 1;
-			if (buflen >= INET6_ADDRSTRLEN && inet_ntop(family, &sin->sin6_addr, p, buflen)) {
-				n = strlen(p);
-				p += n;
-				buflen -= n;
-			} else {
-				p += INET6_ADDRSTRLEN - 1;
-				buflen -= INET6_ADDRSTRLEN - 1;
-			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), "]:%u", ntohs(sin->sin6_port)) + 1;
-			break;
-		}
-
-		case AF_LOCAL: {
-			const struct sockaddr_un *sun = addr;
-			p += snprintf(p, buflen, "local:%s", sun->sun_path) + 1;
-			break;
-		}
-
-		case AF_PATHNAME:
-			p += snprintf(p, buflen, "file:%s", (char *)addr) + 1;
-			break;
-
-		case AF_INTERNAL:
-			p += snprintf(p, buflen, "internal:%s", (char *)addr) + 1;
-			break;
-	}
-
-	return p - buf;
-}
-
-
 struct sched_param global_sched_param_default;
 struct sched_param global_sched_param_rr;
 

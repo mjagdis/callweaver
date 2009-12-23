@@ -24,16 +24,10 @@
  * 
  */
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/un.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <ctype.h>
 #include <errno.h>
 #include <grp.h>
-#include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -47,6 +41,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/channel.h"
+#include "callweaver/connection.h"
 #include "callweaver/file.h"
 #include "callweaver/manager.h"
 #include "callweaver/config.h"
@@ -101,19 +96,9 @@ struct message {
 
 struct manager_listener_pvt {
 	struct cw_object obj;
-	char banner[0];
-};
-
-
-struct manager_listener {
-	struct cw_object obj;
-	struct cw_registry_entry *reg_entry;
-	int sock;
-	pthread_t tid;
 	int (*handler)(struct mansession *, const struct manager_event *);
-	struct manager_listener_pvt *pvt;
 	int readperm, writeperm, send_events;
-	char name[0];
+	char banner[0];
 };
 
 
@@ -141,6 +126,14 @@ static struct {
 
 
 #define MANAGER_AMI_HELLO	"CallWeaver Call Manager/1.0\r\n"
+
+
+static int manager_listener_read(struct cw_connection *conn);
+
+static const struct cw_connection_tech tech_ami = {
+	.name = "AMI",
+	.read = manager_listener_read,
+};
 
 
 static int snprintf_authority(char *buf, size_t buflen, int authority)
@@ -258,29 +251,6 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 
 	pthread_cleanup_pop(1);
 }
-
-
-static int cw_manager_listener_qsort_compare_by_name(const void *a, const void *b)
-{
-	const struct cw_object * const *objp_a = a;
-	const struct cw_object * const *objp_b = b;
-	const struct manager_listener *item_a = container_of(*objp_a, struct manager_listener, obj);
-	const struct manager_listener *item_b = container_of(*objp_b, struct manager_listener, obj);
-
-	return strcmp(item_a->name, item_b->name);
-}
-
-static int manager_listener_object_match(struct cw_object *obj, const void *pattern)
-{
-	struct manager_listener *item = container_of(obj, struct manager_listener, obj);
-	return strcmp(item->name, pattern);
-}
-
-struct cw_registry manager_listener_registry = {
-	.name = "Manager Listener",
-	.qsort_compare = cw_manager_listener_qsort_compare_by_name,
-	.match = manager_listener_object_match,
-};
 
 
 static int cw_mansession_qsort_compare_by_name(const void *a, const void *b)
@@ -485,14 +455,21 @@ struct listener_print_args {
 	int fd;
 };
 
-#define MANLISTEN_FORMAT "%-7s %s\n"
+#define MANLISTEN_FORMAT "%-10s %s\n"
 
 static int listener_print(struct cw_object *obj, void *data)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	char buf[1024];
+	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
 	struct listener_print_args *args = data;
 
-	cw_cli(args->fd, MANLISTEN_FORMAT, (!pthread_equal(it->tid, CW_PTHREADT_NULL) && it->sock >= 0 ? "LISTEN" : "DOWN"), it->name);
+	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING)) {
+		cw_address_print(buf, sizeof(buf), &conn->addr);
+		buf[sizeof(buf) - 1] = '\0';
+
+		cw_cli(args->fd, MANLISTEN_FORMAT, cw_connection_state_name[conn->state], buf);
+	}
+
 	return 0;
 }
 
@@ -506,7 +483,7 @@ static int handle_show_listener(int fd, int argc, char *argv[])
 		"State", "Address",
 		"-----", "-------");
 
-	cw_registry_iterate_ordered(&manager_listener_registry, listener_print, &args);
+	cw_registry_iterate_ordered(&cw_connection_registry, listener_print, &args);
 
 	return RESULT_SUCCESS;
 }
@@ -700,7 +677,7 @@ static int authenticate(struct mansession *sess, struct message *m)
 				ret = 0;
 
 				if (ha) {
-					if (sess->u.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->u.sin)) {
+					if (sess->addr.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr.sin)) {
 						cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
 						ret = -1;
 					}
@@ -1654,17 +1631,8 @@ static void *manager_session(void *data)
 	static const int on = 1;
 	static const int off = 0;
 	struct mansession *sess = data;
+	struct manager_listener_pvt *pvt;
 	int res;
-
-	if (sess->pvt_obj) {
-		struct manager_listener_pvt *pvt = container_of(sess->pvt_obj, struct manager_listener_pvt, obj);
-
-		cw_write_all(sess->fd, pvt->banner, strlen(pvt->banner));
-		cw_write_all(sess->fd, "\r\n", sizeof("\r\n") - 1);
-		sess->pvt_obj = NULL;
-		cw_object_put(pvt);
-	} else
-		cw_write_all(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
 
 	sess->reader_tid = CW_PTHREADT_NULL;
 
@@ -1676,6 +1644,14 @@ static void *manager_session(void *data)
 	if (sess->fd >= 0) {
 		setsockopt(sess->fd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
 		setsockopt(sess->fd, SOL_TCP, TCP_CORK, &on, sizeof(on));
+
+		if (sess->pvt_obj && (pvt = container_of(sess->pvt_obj, struct manager_listener_pvt, obj)) && pvt->banner[0]) {
+			cw_write_all(sess->fd, pvt->banner, strlen(pvt->banner));
+			cw_write_all(sess->fd, "\r\n", sizeof("\r\n") - 1);
+			sess->pvt_obj = NULL;
+			cw_object_put(pvt);
+		} else
+			cw_write_all(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
 
 		if ((res = cw_pthread_create(&sess->reader_tid, &global_attr_default, manager_session_ami_read, sess))) {
 			cw_log(CW_LOG_ERROR, "session reader thread creation failed: %s\n", strerror(res));
@@ -1749,13 +1725,13 @@ static void *manager_session(void *data)
 }
 
 
-struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
 	char buf[1];
 	struct mansession *sess;
 	int namelen;
 
-	namelen = addr_to_str(family, addr, buf, sizeof(buf)) + 1;
+	namelen = (addr ? cw_address_print(buf, sizeof(buf), addr) + 1 : 1);
 
 	if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
@@ -1769,16 +1745,12 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	}
 	sess->q_size = queuesize;
 
-	addr_to_str(family, addr, sess->name, namelen);
+	if (addr)
+		cw_address_print(sess->name, namelen, addr);
+	else
+		sess->name[0] = '\0';
 
-	/* Only copy the address into the session if it is representable by
-	 * a sockaddr_* type. The address is needed for ACL checks on connection
-	 * so strictly we only need IPv4 addresses at the moment (that's all
-	 * ACLs support)
-	 */
-	if (family == AF_INET || family == AF_INET6 || family == AF_LOCAL)
-		memcpy(&sess->u, addr, addr_len);
-	sess->u.sa.sa_family = family;
+	sess->addr = *addr;
 
 	sess->fd = fd;
 	sess->readperm = readperm;
@@ -1827,76 +1799,6 @@ void manager_session_end(struct mansession *sess)
 	/* The writer handles the reader clean up */
 	pthread_join(sess->writer_tid, NULL);
 	cw_object_put(sess);
-}
-
-
-static void accept_thread_cleanup(void *data)
-{
-	struct manager_listener *listener = data;
-
-	if (listener->sock >= 0) {
-		close(listener->sock);
-		listener->sock = -1;
-
-		if (!strncmp(listener->name, "local:/", sizeof("local:/") - 1))
-			unlink(listener->name + sizeof("local:") - 1);
-	}
-}
-
-static void *accept_thread(void *data)
-{
-	union {
-		struct sockaddr sa;
-		struct sockaddr_in sin;
-		struct sockaddr_un sun;
-	} u;
-	struct manager_listener *listener = data;
-	struct mansession *sess;
-	socklen_t salen;
-	int fd;
-
-	pthread_cleanup_push(accept_thread_cleanup, listener);
-
-	for (;;) {
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-		salen = sizeof(u);
-		fd = accept(listener->sock, &u.sa, &salen);
-
-		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-		if (fd < 0) {
-			if (errno == ENFILE || errno == EMFILE || errno == ENOBUFS || errno == ENOMEM) {
-				cw_log(CW_LOG_ERROR, "Accept failed: %s\n", strerror(errno));
-				sleep(1);
-			}
-			continue;
-		}
-
-		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
-
-		if (u.sa.sa_family == AF_LOCAL) {
-			/* Local sockets don't return a path in their sockaddr (there isn't
-			 * one really). However, if the remote is local so is the address
-			 * we were listening on and the listening path is in the listener's
-			 * name. We'll use that as a meaningful connection source for the
-			 * sake of the connection list command.
-			 */
-			strcpy(u.sun.sun_path, listener->name + sizeof("local:") - 1);
-		}
-
-		if (listener->pvt)
-			cw_object_dup(listener->pvt);
-
-		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen, &listener->pvt->obj, listener->readperm, listener->writeperm, listener->send_events))) {
-			if (listener->pvt)
-				cw_object_put(listener->pvt);
-			cw_object_put(sess);
-		}
-	}
-
-	pthread_cleanup_pop(1);
-	return NULL;
 }
 
 
@@ -2162,14 +2064,44 @@ static struct manager_action manager_actions[] = {
 };
 
 
-static void listener_free(struct cw_object *obj)
+static int manager_listener_read(struct cw_connection *conn)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	cw_address_t addr;
+	struct manager_listener_pvt *pvt = container_of(conn->pvt_obj, struct manager_listener_pvt, obj);
+	struct mansession *sess;
+	socklen_t salen;
+	int fd;
+	int ret = 0;
 
-	if (it->pvt)
-		cw_object_put(it->pvt);
-	cw_object_destroy(it);
-	free(it);
+	salen = sizeof(addr);
+	fd = accept(conn->sock, &addr.sa, &salen);
+
+	if (fd >= 0) {
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+
+		if (addr.sa.sa_family == AF_LOCAL) {
+			/* Local sockets don't return a path in their sockaddr (there isn't
+			 * one really). However, if the remote is local so is the address
+			 * we were listening on and the listening path is in the listener's
+			 * name. We'll use that as a meaningful connection source for the
+			 * sake of the connection list command.
+			 */
+			strcpy(addr.sun.sun_path, conn->addr.sun.sun_path);
+		}
+
+		if ((sess = manager_session_start(pvt->handler, fd, &addr, conn->pvt_obj, pvt->readperm, pvt->writeperm, pvt->send_events)))
+			cw_object_put(sess);
+
+		goto out;
+	}
+
+	if (errno == ENFILE || errno == EMFILE || errno == ENOBUFS || errno == ENOMEM) {
+		cw_log(CW_LOG_ERROR, "Accept failed: %s\n", strerror(errno));
+		ret = 1000;
+	}
+
+out:
+	return ret;
 }
 
 
@@ -2181,20 +2113,13 @@ static void listener_pvt_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct manager_event *), int readperm, int writeperm, int send_events)
+static void manager_listen(char *spec, int (* const handler)(struct mansession *, const struct manager_event *), int readperm, int writeperm, int send_events)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_in sin;
-		struct sockaddr_un sun;
-	} u;
-	struct manager_listener *listener;
+	cw_address_t addr;
+	struct cw_connection *listener;
+	struct manager_listener_pvt *pvt;
 	const char *banner = NULL;
 	int banner_len = 0;
-	socklen_t salen;
-	int namelen;
-	const int arg = 1;
-	char buf[1];
 
 	if (spec[0] == '"') {
 		int i;
@@ -2212,125 +2137,46 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 			spec++;
 	}
 
-	if (spec[0] == '/') {
-		salen = sizeof(u.sun);
-		u.sun.sun_family = AF_LOCAL;
-		strncpy(u.sun.sun_path, spec, sizeof(u.sun.sun_path));
-		unlink(spec);
-	} else {
-		char *port;
-		int portno;
-
-		salen = sizeof(u.sin);
-		u.sin.sin_family = AF_INET;
-		memset(&u.sin.sin_addr, 0, sizeof(u.sin.sin_addr));
-
-		if (!(port = strrchr(spec, ':'))) {
-			u.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
-		} else {
-			if (sscanf(port + 1, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, spec);
-				return;
-			}
-			u.sin.sin_port = htons(portno);
-			*port = '\0';
-		}
-
-		if (!inet_aton(spec, &u.sin.sin_addr)) {
-			cw_log(CW_LOG_ERROR, "Invalid address '%s' specified\n", spec);
-			return;
-		}
-	}
-
-	namelen = addr_to_str(u.sa.sa_family, &u, buf, sizeof(buf)) + 1;
-
-	if (!(listener = malloc(sizeof(*listener) + namelen))) {
+	if (!(pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return;
 	}
 
-	if (banner) {
-		if (!(listener->pvt = malloc(sizeof(*listener->pvt) + banner_len + 1))) {
-			free(listener);
-			cw_log(CW_LOG_ERROR, "Out of memory\n");
+	cw_object_init(pvt, NULL, 1);
+	pvt->obj.release = listener_pvt_free;
+	pvt->handler = handler;
+	pvt->readperm = readperm;
+	pvt->writeperm = writeperm;
+	pvt->send_events = send_events;
+	memcpy(pvt->banner, banner, banner_len);
+	pvt->banner[banner_len] = '\0';
+
+	if (!cw_address_parse(&addr, spec)) {
+		if ((listener = cw_connection_new(&tech_ami, &pvt->obj, addr.sa.sa_family))) {
+			if (!cw_connection_bind(listener, &addr)) {
+				/* Local listener sockets that are not pre-authenticated are public */
+				if (addr.sa.sa_family == AF_LOCAL && !writeperm)
+					chmod(listener->addr.sun.sun_path, 0666);
+
+				cw_connection_listen(listener);
+			} else
+				cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", spec, strerror(errno));
+
+			cw_object_put(listener);
 			return;
 		}
-		cw_object_init(listener->pvt, NULL, 1);
-		listener->pvt->obj.release = listener_pvt_free;
-		memcpy(listener->pvt->banner, banner, banner_len);
-		listener->pvt->banner[banner_len] = '\0';
-	} else
-		listener->pvt = NULL;
-
-	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
-
-	cw_object_init(listener, NULL, 1);
-	listener->obj.release = listener_free;
-	listener->reg_entry = NULL;
-	listener->tid = CW_PTHREADT_NULL;
-	listener->sock = -1;
-	listener->handler = handler;
-	listener->readperm = readperm;
-	listener->writeperm = writeperm;
-	listener->send_events = send_events;
-
-	if ((listener->sock = socket(u.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-		cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
-		return;
 	}
 
-	fcntl(listener->sock, F_SETFD, fcntl(listener->sock, F_GETFD, 0) | FD_CLOEXEC);
-	setsockopt(listener->sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
-
-	if (bind(listener->sock, &u.sa, salen)) {
-		cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", listener->name, strerror(errno));
-		return;
-	}
-
-	if (listen(listener->sock, 1024)) {
-		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", listener->name, strerror(errno));
-		return;
-	}
-
-	/* Local listener sockets that are not pre-authenticated are public */
-	if (u.sa.sa_family == AF_LOCAL && !writeperm)
-		chmod(u.sun.sun_path, 0666);
-
-	if ((listener->reg_entry = cw_registry_add(&manager_listener_registry, 0, &listener->obj))) {
-		cw_object_dup(listener);
-		if (!cw_pthread_create(&listener->tid, &global_attr_default, accept_thread, listener)) {
-			if (option_verbose)
-				cw_verbose("CallWeaver Management interface listening on '%s'\n", listener->name);
-		} else {
-			cw_log(CW_LOG_ERROR, "Failed to start manager thread for %s: %s\n", listener->name, strerror(errno));
-			cw_registry_del(&manager_listener_registry, listener->reg_entry);
-			cw_object_put(listener);
-		}
-	}
-
-	cw_object_put(listener);
+	cw_object_put(pvt);
 }
 
 
-static int listener_cancel(struct cw_object *obj, void *data)
+static int listener_close(struct cw_object *obj, void *data)
 {
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
+	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
 
-	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
-		pthread_cancel(it->tid);
-	return 0;
-}
-
-
-static int listener_join(struct cw_object *obj, void *data)
-{
-	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
-
-	if (!pthread_equal(it->tid, CW_PTHREADT_NULL))
-		pthread_join(it->tid, NULL);
-
-	cw_registry_del(&manager_listener_registry, it->reg_entry);
-	cw_object_put(it);
+	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING))
+		cw_connection_close(conn);
 	return 0;
 }
 
@@ -2344,8 +2190,7 @@ int manager_reload(void)
 	gid_t gid = -1;
 
 	/* Shut down any existing listeners */
-	cw_registry_iterate(&manager_listener_registry, listener_cancel, NULL);
-	cw_registry_iterate(&manager_listener_registry, listener_join, NULL);
+	cw_registry_iterate(&cw_connection_registry, listener_close, NULL);
 
 	/* Reset to hard coded defaults */
 	bindaddr = NULL;

@@ -154,7 +154,7 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 				}
 			}
 		} else {
-			if (sess->u.sa.sa_family == AF_PATHNAME) {
+			if (sess->addr.sa.sa_family == AF_PATHNAME) {
 				/* Strip off the numeric level prefix */
 				while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
 					iov[1].iov_base++, iov[1].iov_len--;
@@ -170,7 +170,7 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 				if (n == sizeof("--END MESSAGE--") - 1 && !memcmp(p, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
 					break;
 
-				if (sess->u.sa.sa_family == AF_PATHNAME) {
+				if (sess->addr.sa.sa_family == AF_PATHNAME) {
 					if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
 						iov[11].iov_base = p;
 						iov[11].iov_len = n;
@@ -211,12 +211,13 @@ out_error:
 
 static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
 {
+	cw_address_t addr;
 	struct logchannel *chan;
 	char *facility;
 #ifndef SOLARIS
 	CODE *cptr;
 #endif
-	int logmask, family;
+	int logmask;
 
 	if (cw_strlen_zero(channel))
 		return NULL;
@@ -294,23 +295,24 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			return NULL;
 		}
 
-		family = AF_INTERNAL;
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
+		addr.sa.sa_family = AF_INTERNAL;
 
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
-		family = AF_PATHNAME;
 		snprintf(chan->filename, sizeof(chan->filename), "%s%s%s%s%s",
 			(channel[0] != '/' ? cw_config_CW_LOG_DIR : ""),
 			(channel[0] != '/' ? "/" : ""),
 			channel,
 			(cfg_appendhostname ? "." : ""),
 			(cfg_appendhostname ? hostname : ""));
+		addr.sa.sa_family = AF_PATHNAME;
 	}
 
+	cw_copy_string(addr.sun.sun_path, chan->filename, sizeof(addr.sun.sun_path));
 	logmask = manager_str_to_eventmask(components);
 
-	if (!(chan->sess = manager_session_start(logger_manager_session, -1, family, chan->filename, sizeof(chan->filename) - 1, NULL, logmask, 0, logmask))) {
+	if (!(chan->sess = manager_session_start(logger_manager_session, -1, &addr, NULL, logmask, 0, logmask))) {
 		/* Can't log here, since we're called with a lock */
 		fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
 		free(chan);

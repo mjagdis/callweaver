@@ -11,6 +11,7 @@ CORE_SRC = \
     logger.c \
     frame.c \
     config.c \
+    connection.c \
     channel.c \
 	generator.c \
     translate.c \

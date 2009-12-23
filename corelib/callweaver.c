@@ -107,6 +107,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/atexit.h"
 #include "callweaver/module.h"
 #include "callweaver/image.h"
+#include "callweaver/connection.h"
 #include "callweaver/manager.h"
 #include "callweaver/cdr.h"
 #include "callweaver/pbx.h"
@@ -1578,7 +1579,7 @@ int callweaver_main(int argc, char *argv[])
 	cw_registry_init(&format_registry, 128);
 	cw_registry_init(&func_registry, 4096);
 	cw_registry_init(&imager_registry,16);
-	cw_registry_init(&manager_listener_registry, 1);
+	cw_registry_init(&cw_connection_registry, 1);
 	cw_registry_init(&manager_session_registry, 1);
 	cw_registry_init(&manager_action_registry, 1024);
 	cw_registry_init(&switch_registry, 16);

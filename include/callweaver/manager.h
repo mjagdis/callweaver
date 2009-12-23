@@ -37,6 +37,7 @@
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 #include "callweaver/preprocessor.h"
+#include "callweaver/connection.h"
 
 
 /*!
@@ -96,12 +97,7 @@ struct mansession {
 	struct manager_event **q;
 	pthread_t reader_tid;
 	pthread_t writer_tid;
-	union {
-		struct sockaddr sa;
-		struct sockaddr_in sin;
-		struct sockaddr_in6 sin6;
-		struct sockaddr_un sun;
-	} u;
+	cw_address_t addr;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
 	char name[0];
@@ -119,7 +115,6 @@ struct manager_action {
 };
 
 
-extern struct cw_registry manager_listener_registry;
 extern struct cw_registry manager_session_registry;
 
 extern CW_API_PUBLIC struct cw_registry manager_action_registry;
@@ -174,7 +169,7 @@ extern CW_API_PUBLIC void astman_send_ack(struct mansession *s, struct message *
 
 extern CW_API_PUBLIC int manager_session_ami(struct mansession *sess, const struct manager_event *event);
 
-extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
+extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
 extern CW_API_PUBLIC void manager_session_shutdown(struct mansession *sess);
 extern CW_API_PUBLIC void manager_session_end(struct mansession *sess);
 
