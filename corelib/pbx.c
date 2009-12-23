@@ -1892,7 +1892,6 @@ static int __cw_pbx_run(struct cw_channel *c)
             c->cdr = cw_cdr_alloc();
             if (!c->cdr)
             {
-                cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
                 free(c->pbx);
                 return -1;
             }
@@ -4529,8 +4528,6 @@ int cw_pbx_outgoing_cdr_failed(void)
 
     if (!chan->cdr)
     {
-        /* allocation of the cdr failed */
-        cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
         cw_channel_free(chan);   /* free the channel */
         return -1;                /* return failure */
     }
@@ -4578,8 +4575,6 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                 chan->cdr = cw_cdr_alloc();   /* allocate a cdr for the channel */
                 if (!chan->cdr)
                 {
-                    /* allocation of the cdr failed */
-                    cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
                     free(chan->pbx);
                     return -1;
                 }
@@ -4765,8 +4760,6 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                 chan->cdr = cw_cdr_alloc();   /* allocate a cdr for the channel */
                 if (!chan->cdr)
                 {
-                    /* allocation of the cdr failed */
-                    cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
                     free(chan->pbx);
                     return -1;
                 }

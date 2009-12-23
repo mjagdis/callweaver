@@ -1314,8 +1314,6 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 			/* If the cause wasn't handled properly */
 			if (cw_cdr_disposition(chan->cdr,chan->hangupcause))
 				cw_cdr_failed(chan->cdr);
-		} else {
-			cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
 		}
 	}
 	

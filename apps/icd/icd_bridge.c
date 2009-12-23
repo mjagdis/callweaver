@@ -635,8 +635,6 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, const char *chanstring
        if (cw_cdr_disposition(chan->cdr, chan->hangupcause)) {
        cw_cdr_failed(chan->cdr);
        }
-       } else {
-       cw_log(CW_LOG_WARNING, "Unable to create Call Detail Record\n");
        }
        icd_bridge__safe_hangup(that);
        }
