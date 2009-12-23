@@ -50,6 +50,9 @@ library headers available, and the headers and libraries for OpenSSL and zlib.
 On many distributions, these files are installed by packages with names like
 'libc-devel', 'openssl-devel' and 'zlib-devel' or similar.
 
+  You will also need spandsp; at least version 0.0.6pre12.  You can download
+0.0.6pre12 here: http://www.soft-switch.org/downloads/spandsp/spandsp-0.0.6pre12.tgz
+
   So let's proceed:
 
 0) SKIP THIS TEST IF YOU HAVE NOT DOWNLOADED THE SOURCES FROM SVN.
