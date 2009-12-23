@@ -2548,7 +2548,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
         cw_sched_del(sched, peer->pokeexpire);
 
     if (peer->dialogue) {
+        cw_mutex_lock(&peer->dialogue->lock);
         sip_destroy(peer->dialogue);
+        cw_mutex_unlock(&peer->dialogue->lock);
         cw_object_put(peer->dialogue);
     }
 
@@ -3065,8 +3067,10 @@ static void sip_registry_destroy(struct sip_registry *reg)
     {
         /* Clear registry before destroying to ensure
            we don't get reentered trying to grab the registry lock */
+        cw_mutex_lock(&reg->dialogue->lock);
         reg->dialogue->registry = NULL;
         sip_destroy(reg->dialogue);
+        cw_mutex_unlock(&reg->dialogue->lock);
         cw_object_put(reg->dialogue);
     }
     if (reg->expire > -1)
@@ -3352,6 +3356,7 @@ static int sip_hangup(struct cw_channel *ast)
         cw_log(CW_LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
     cw_mutex_lock(&p->lock);
+
 #ifdef OSP_SUPPORT
     if ((p->osphandle > -1) && (ast->_state == CW_STATE_UP))
     {
@@ -3451,9 +3456,11 @@ static int sip_hangup(struct cw_channel *ast)
             }
         }
     }
-    cw_mutex_unlock(&p->lock);
+
     if (needdestroy)
 	sip_destroy(p);
+
+    cw_mutex_unlock(&p->lock);
     return 0;
 }
 
@@ -7470,12 +7477,14 @@ static int sip_reg_timeout(void *data)
     {
         /* Unlink us, destroy old dialogue. */
         p = r->dialogue;
+        cw_mutex_lock(&p->lock);
         if (p->registry)
             ASTOBJ_UNREF(p->registry, sip_registry_destroy);
         r->dialogue = NULL;
         /* Pretend to ACK anything just in case */
         __sip_pretend_ack(p);
         sip_destroy(p);
+        cw_mutex_unlock(&p->lock);
         cw_object_put(p);
     }
     /* If we have a limit, stop registration and give up */
@@ -14812,7 +14821,9 @@ static int sip_poke_noanswer(void *data)
     peer->pokeexpire = -1;
     if (peer->dialogue)
     {
+        cw_mutex_lock(&peer->dialogue->lock);
         sip_destroy(peer->dialogue);
+        cw_mutex_unlock(&peer->dialogue->lock);
         cw_object_put(peer->dialogue);
         peer->dialogue = NULL;
     }
@@ -15082,9 +15093,9 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     p->prefcodec = format;
     cw_mutex_lock(&p->lock);
     tmpc = sip_new(p, CW_STATE_DOWN, host);    /* Place the call */
-    cw_mutex_unlock(&p->lock);
     if (!tmpc)
         sip_destroy(p);
+    cw_mutex_unlock(&p->lock);
     restart_monitor();
     return tmpc;
 }
