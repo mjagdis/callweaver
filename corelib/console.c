@@ -56,9 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #endif
 
 
-#define CALLWEAVER_PROMPT "*CLI> "
-
-#define CALLWEAVER_PROMPT2 "%s*CLI> "
+#define CALLWEAVER_PROMPT "%s*CLI> "
 
 
 const char *rl_basic_word_break_characters = " \t";
@@ -241,10 +239,8 @@ static char *cli_prompt(void)
 			}
 #endif
 		}
-	} else if (remotehostname)
-		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT2, remotehostname);
-	else
-		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT);
+	} else
+		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT, remotehostname);
 
 	return (prompt);	
 }
