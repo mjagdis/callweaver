@@ -56,6 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/logger.h"
+#include "callweaver/object.h"
 #include "callweaver/module.h"
 #include "callweaver/pbx.h"
 #include "callweaver/options.h"
@@ -468,9 +469,6 @@ CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 CW_MUTEX_DEFINE_STATIC(rand_lock);
 
-/*! \brief Protect the interface list (of sip_pvt's) */
-CW_MUTEX_DEFINE_STATIC(iflock);
-
 /*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 CW_MUTEX_DEFINE_STATIC(netlock);
@@ -732,7 +730,9 @@ struct sip_auth {
 static int global_rtautoclear = 120;
 
 /*! \brief sip_pvt: PVT structures are used for each SIP conversation, ie. a call  */
-static struct sip_pvt {
+struct sip_pvt {
+    struct cw_object obj;
+    struct cw_registry_entry *reg_entry;
     cw_mutex_t lock;            /*!< Channel private lock */
     enum sipmethod method;                /*!< SIP method of this packet */
     char callid[80];            /*!< Global CallID */
@@ -838,7 +838,6 @@ static struct sip_pvt {
     struct sip_pkt *packets;        /*!< Packets scheduled for re-transmission */
     struct sip_history *history;        /*!< History of this SIP dialog */
     struct cw_variable *chanvars;        /*!< Channel variables to set for call */
-    struct sip_pvt *next;            /*!< Next call in chain */
     struct sip_invite_param *options;    /*!< Options for INVITE */
 
     struct cw_jb_conf jbconf;
@@ -867,7 +866,7 @@ static struct sip_pvt {
     int stun_resreq_id;
     int stun_retrans_no;
     rfc3489_trans_id_t stun_transid;
-} *iflist = NULL;
+};
 
 #define STUN_WAIT_RETRY_TIME    100        /*!< ms to wait between every sip packet check for transmission*/
 #define STUN_MAX_RETRANSMIT    4*1000/STUN_WAIT_RETRY_TIME    /*!< max retrans for a packet before giving up. RFC says 9.5 secs, we use 4 secs */
@@ -1107,7 +1106,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, cha
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);    /* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
-static void sip_dump_history(struct sip_pvt *dialog);    /* Dump history to LOG_DEBUG at end of dialog, before destroying data */
+static void sip_dump_history(struct sip_pvt *dialogue);    /* Dump history to LOG_DEBUG at end of dialogue, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
@@ -1119,6 +1118,91 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
 static char *nat2str(int nat);
 static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p);
 static int sip_poke_peer(void *data);
+
+
+static int dialogue_qsort_compare_by_name(const void *a, const void *b)
+{
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct sip_pvt *dialogue_a = container_of(*objp_a, struct sip_pvt, obj);
+	const struct sip_pvt *dialogue_b = container_of(*objp_b, struct sip_pvt, obj);
+
+	return strcasecmp(dialogue_a->callid, dialogue_b->callid);
+}
+
+static int dialogue_object_match(struct cw_object *obj, const void *pattern)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+
+	return !strcasecmp(dialogue->callid, pattern);
+}
+
+struct cw_registry dialogue_registry = {
+	.name = "SIP dialogue",
+	.qsort_compare = dialogue_qsort_compare_by_name,
+	.match = dialogue_object_match,
+};
+
+
+static void dialogue_release(struct cw_object *obj)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct sip_pkt *cp;
+
+cw_log(CW_LOG_NOTICE, "release %s\n", dialogue->callid);
+	if (dumphistory)
+		sip_dump_history(dialogue);
+
+	while ((cp = dialogue->packets)) {
+		dialogue->packets = dialogue->packets->next;
+		free(cp);
+	}
+
+	if (dialogue->rtp)
+		cw_rtp_destroy(dialogue->rtp);
+
+	if (dialogue->vrtp)
+		cw_rtp_destroy(dialogue->vrtp);
+
+	if (dialogue->udptl)
+		cw_udptl_destroy(dialogue->udptl);
+
+#if 0
+	if (dialogue->tpkt)
+		cw_tpkt_destroy(dialogue->tpkt);
+#endif
+
+	if (dialogue->route) {
+		free_old_route(dialogue->route);
+		dialogue->route = NULL;
+	}
+
+	if (dialogue->options) {
+		if (dialogue->options->distinctive_ring)
+			cw_object_put(dialogue->options->distinctive_ring);
+		if (dialogue->options->vxml_url)
+			cw_object_put(dialogue->options->vxml_url);
+		if (dialogue->options->uri_options)
+			cw_object_put(dialogue->options->uri_options);
+#ifdef OSP_SUPPORT
+		if (dialogue->options->osptoken)
+			cw_object_put(dialogue->options->osptoken);
+#endif
+		free(dialogue->options);
+	}
+
+	if (dialogue->rpid)
+		free(dialogue->rpid);
+
+	if (dialogue->rpid_from)
+		free(dialogue->rpid_from);
+
+	if (dialogue->chanvars)
+		cw_variables_destroy(dialogue->chanvars);
+
+	cw_mutex_destroy(&dialogue->lock);
+	free(dialogue);
+}
 
 
 /*! \brief Definition of this channel for PBX channel registration */
@@ -1574,6 +1658,7 @@ static int retrans_pkt(void *data)
     }
 
     cw_mutex_unlock(&pkt->owner->lock);
+    cw_object_put(pkt->owner);
     free(pkt);
     return 0;
 }
@@ -1585,12 +1670,12 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 
     if ((pkt = malloc(sizeof(struct sip_pkt) + len + 1)) == NULL)
         return -1;
-    memset(pkt, 0, sizeof(struct sip_pkt));
+
     memcpy(pkt->data, data, len);
     pkt->method = sipmethod;
     pkt->packetlen = len;
     pkt->next = p->packets;
-    pkt->owner = p;
+    pkt->owner = cw_object_dup(p);
     pkt->seqno = seqno;
     if (resp)
     	cw_set_flag(pkt, FLAG_RESPONSE);
@@ -1618,64 +1703,79 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
     return 0;
 }
 
+
 /*! \brief  __sip_autodestruct: Kill a call (called by scheduler) */
 static int __sip_autodestruct(void *data)
 {
-    struct sip_pvt *p = data;
+	struct sip_pvt *dialogue = data;
 
-    /* If this is a subscription, tell the phone that we got a timeout */
-    if (p->subscribed)
-    {
-        transmit_state_notify(p, CW_EXTENSION_DEACTIVATED, 1, 1, 1);    /* Send first notification */
-        p->subscribed = NONE;
-        append_history(p, "Subscribestatus", "timeout");
-        return 10000;    /* Reschedule this destruction so that we know that it's gone */
-    }
+cw_log(CW_LOG_NOTICE, "auto destroy %s\n", dialogue->callid);
+	cw_mutex_lock(&dialogue->lock);
 
-    /* This scheduled event is now considered done. */
-    p->autokillid = -1;
+	dialogue->autokillid = -1;
 
-    cw_log(CW_LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
-    append_history(p, "AutoDestroy", "");
-    if (p->owner)
-    {
-        cw_log(CW_LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
-        cw_queue_hangup(p->owner);
-    }
-    else
-    {
-        sip_destroy(p);
-    }
-    return 0;
+	/* If this is a subscription, tell the phone that we got a timeout */
+	if (dialogue->subscribed) {
+		transmit_state_notify(dialogue, CW_EXTENSION_DEACTIVATED, 1, 1, 1);    /* Send first notification */
+		dialogue->subscribed = NONE;
+		append_history(dialogue, "Subscribestatus", "timeout");
+		cw_mutex_unlock(&dialogue->lock);
+		return 10000;    /* Reschedule this destruction so that we know that it's gone */
+	}
+
+	cw_log(CW_LOG_DEBUG, "Auto destroying call '%s'\n", dialogue->callid);
+	append_history(dialogue, "AutoDestroy", "");
+
+	if (dialogue->owner) {
+		cw_log(CW_LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", dialogue->callid);
+		cw_queue_hangup(dialogue->owner);
+	} else
+		sip_destroy(dialogue);
+
+	cw_mutex_unlock(&dialogue->lock);
+	cw_object_put(dialogue);
+	return 0;
 }
+
 
 /*! \brief  sip_scheddestroy: Schedule destruction of SIP call */
-static int sip_scheddestroy(struct sip_pvt *p, int ms)
+static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 {
-    char tmp[80];
-    if (sip_debug_test_pvt(p))
-        cw_verbose("Scheduling destruction of call '%s' in %d ms\n", p->callid, ms);
-    if (recordhistory)
-    {
-        snprintf(tmp, sizeof(tmp), "%d ms", ms);
-        append_history(p, "SchedDestroy", tmp);
-    }
+	char tmp[80];
 
-    if (p->autokillid > -1)
-        cw_sched_del(sched, p->autokillid);
-    p->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, p);
-    return 0;
+cw_log(CW_LOG_NOTICE, "Scheduling destruction of call '%s' in %d ms (old task id %d)\n", dialogue->callid, ms, dialogue->autokillid);
+	if (sip_debug_test_pvt(dialogue))
+		cw_verbose("Scheduling destruction of call '%s' in %d ms\n", dialogue->callid, ms);
+
+	if (recordhistory) {
+		snprintf(tmp, sizeof(tmp), "%d ms", ms);
+		append_history(dialogue, "SchedDestroy", tmp);
+	}
+
+	if (dialogue->autokillid > -1) {
+		if (!cw_sched_del(sched, dialogue->autokillid))
+			dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, dialogue);
+	} else
+		dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, cw_object_dup(dialogue));
+cw_log(CW_LOG_NOTICE, "call '%s' new task id %d\n", dialogue->callid, dialogue->autokillid);
+
+	return 0;
 }
+
 
 /*! \brief  sip_cancel_destroy: Cancel destruction of SIP call */
-static int sip_cancel_destroy(struct sip_pvt *p)
+static int sip_cancel_destroy(struct sip_pvt *dialogue)
 {
-    if (p->autokillid > -1)
-        cw_sched_del(sched, p->autokillid);
-    append_history(p, "CancelDestroy", "");
-    p->autokillid = -1;
-    return 0;
+cw_log(CW_LOG_NOTICE, "Cancel destruction of call '%s'\n", dialogue->callid);
+	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid)) {
+		append_history(dialogue, "CancelDestroy", "");
+		cw_object_put(dialogue);
+		dialogue->autokillid = -1;
+	}
+
+	return 0;
 }
+
 
 /*! \brief  __sip_ack: Acknowledges receipt of a packet and stops retransmission */
 static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
@@ -1716,6 +1816,8 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
                     prev->next = cur->next;
                 else
                     p->packets = cur->next;
+
+		cw_object_put(cur->owner);
                 free(cur);
             }
 	    else
@@ -1968,14 +2070,11 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 
 static int if_callid_exists(char *callid)
 {
-    struct sip_pvt *cur;
+    struct cw_object *obj;
 
-    cur = iflist;
-    while (cur)
-    {
-        if (!strcmp(cur->callid, callid))
-            return 1;
-        cur = cur->next;
+    if ((obj = cw_registry_find(&dialogue_registry, 1, cw_hash_string(callid), callid))) {
+        cw_object_put_obj(obj);
+        return 1;
     }
     return 0;
 }
@@ -2859,22 +2958,28 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
 }
 
 /*! \brief  auto_congest: Scheduled congestion on a call */
-static int auto_congest(void *nothing)
+static int auto_congest(void *data)
 {
-    struct sip_pvt *p = nothing;
-    cw_mutex_lock(&p->lock);
-    p->initid = -1;
-    if (p->owner)
-    {
-        if (!cw_channel_trylock(p->owner))
-        {
-            cw_log(CW_LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
-            cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
-            cw_channel_unlock(p->owner);
-        }
-    }
-    cw_mutex_unlock(&p->lock);
-    return 0;
+	struct sip_pvt *dialogue = data;
+
+	/* Since we are now running we can't be unscheduled therefore
+	 * the reference to the dialogue is our solely responsibility.
+	 */
+
+	cw_mutex_lock(&dialogue->lock);
+
+	dialogue->initid = -1;
+
+	if (dialogue->owner && !cw_channel_trylock(dialogue->owner)) {
+		cw_log(CW_LOG_NOTICE, "Auto-congesting %s\n", dialogue->owner->name);
+		cw_queue_control(dialogue->owner, CW_CONTROL_CONGESTION);
+		cw_channel_unlock(dialogue->owner);
+	}
+
+	cw_mutex_unlock(&dialogue->lock);
+
+	cw_object_put(dialogue);
+	return 0;
 }
 
 
@@ -2948,7 +3053,7 @@ static int sip_call(struct cw_channel *ast, char *dest)
         if (p->maxtime)
         {
             /* Initialize auto-congest time */
-            p->initid = cw_sched_add(sched, p->maxtime * 4, auto_congest, p);
+            p->initid = cw_sched_add(sched, p->maxtime * 4, auto_congest, cw_object_dup(p));
         }
     }
     return res;
@@ -2975,120 +3080,50 @@ static void sip_registry_destroy(struct sip_registry *reg)
     
 }
 
-/*! \brief   __sip_destroy: Execute destrucion of call structure, release memory*/
-static void __sip_destroy(struct sip_pvt *p, int lockowner)
+/*! \brief   sip_destroy: Execute destrucion of call structure, release memory*/
+static void sip_destroy(struct sip_pvt *dialogue)
 {
-    struct sip_pvt *cur, *prev = NULL;
-    struct sip_pkt *cp;
-    struct sip_history *hist;
+	struct sip_pkt *cp;
 
-    if (sip_debug_test_pvt(p))
-        cw_verbose("Destroying call '%s'\n", p->callid);
+cw_log(CW_LOG_NOTICE, "Destroy call %s\n", dialogue->callid);
+	if (sip_debug_test_pvt(dialogue))
+		cw_verbose("Destroying call '%s'\n", dialogue->callid);
 
-    if (dumphistory)
-        sip_dump_history(p);
+	if (dialogue->stateid > -1)
+		cw_extension_state_del(dialogue->stateid, NULL);
 
-    if (p->options) {
-        if (p->options->distinctive_ring)
-            cw_object_put(p->options->distinctive_ring);
-        if (p->options->vxml_url)
-            cw_object_put(p->options->vxml_url);
-        if (p->options->uri_options)
-            cw_object_put(p->options->uri_options);
-#ifdef OSP_SUPPORT
-        if (p->options->osptoken)
-            cw_object_put(p->options->osptoken);
-#endif
-        free(p->options);
-    }
+	/* If we can't delete scheduled tasks it means they are running and will
+	 * release their dialogue reference when done. If we can delete the task
+	 * it's up to us to drop the reference that was given it.
+	 */
 
-    if (p->stateid > -1)
-        cw_extension_state_del(p->stateid, NULL);
-    if (p->initid > -1)
-        cw_sched_del(sched, p->initid);
-    if (p->autokillid > -1)
-        cw_sched_del(sched, p->autokillid);
+	if (dialogue->initid > -1 && !cw_sched_del(sched, dialogue->initid))
+		cw_object_put(dialogue);
 
-    if (p->rtp)
-        cw_rtp_destroy(p->rtp);
-    if (p->vrtp)
-        cw_rtp_destroy(p->vrtp);
-    if (p->udptl)
-        cw_udptl_destroy(p->udptl);
-#if 0
-    if (p->tpkt)
-        cw_tpkt_destroy(p->tpkt);
-#endif
-    if (p->route)
-    {
-        free_old_route(p->route);
-        p->route = NULL;
-    }
-    if (p->registry)
-    {
-        if (p->registry->call == p)
-            p->registry->call = NULL;
-        ASTOBJ_UNREF(p->registry,sip_registry_destroy);
-    }
+	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
+		cw_object_put(dialogue);
 
-    if (p->rpid)
-        free(p->rpid);
+	for (cp = dialogue->packets; cp; cp = cp->next)
+		if (cp->retransid > -1 && !cw_sched_del(sched, cp->retransid))
+			cw_object_put(dialogue);
 
-    if (p->rpid_from)
-        free(p->rpid_from);
+	if (dialogue->registry) {
+		if (dialogue->registry->call == dialogue)
+			dialogue->registry->call = NULL;
+		ASTOBJ_UNREF(dialogue->registry, sip_registry_destroy);
+	}
 
-    /* Unlink us from the owner if we have one */
-    if (p->owner)
-    {
-        if (lockowner)
-            cw_channel_lock(p->owner);
-        cw_log(CW_LOG_DEBUG, "Detaching from %s\n", p->owner->name);
-        p->owner->tech_pvt = NULL;
-        if (lockowner)
-            cw_channel_unlock(p->owner);
-    }
-    /* Clear history */
-    while (p->history)
-    {
-        hist = p->history;
-        p->history = p->history->next;
-        free(hist);
-    }
+	/* Unlink us from the owner if we have one */
+	/* FIXME: why? Is this necessary? */
+	if (dialogue->owner) {
+		cw_channel_lock(dialogue->owner);
+		cw_log(CW_LOG_DEBUG, "Detaching from %s\n", dialogue->owner->name);
+		dialogue->owner->tech_pvt = NULL;
+		cw_channel_unlock(dialogue->owner);
+	}
 
-    cur = iflist;
-    while (cur)
-    {
-        if (cur == p)
-        {
-            if (prev)
-                prev->next = cur->next;
-            else
-                iflist = cur->next;
-            break;
-        }
-        prev = cur;
-        cur = cur->next;
-    }
-    if (!cur)
-    {
-        cw_log(CW_LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
-        return;
-    } 
-    while ((cp = p->packets))
-    {
-        p->packets = p->packets->next;
-        if (cp->retransid > -1)
-                cw_sched_del(sched, cp->retransid);
-        free(cp);
-    }
-
-    if (p->chanvars)
-    {
-        cw_variables_destroy(p->chanvars);
-        p->chanvars = NULL;
-    }
-    cw_mutex_destroy(&p->lock);
-    free(p);
+	if (dialogue->reg_entry)
+		cw_registry_del(&dialogue_registry, dialogue->reg_entry);
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP users 
@@ -3178,14 +3213,6 @@ static int update_call_counter(struct sip_pvt *fup, int event)
     else
         ASTOBJ_UNREF(p,sip_destroy_peer);
     return 0;
-}
-
-/*! \brief  sip_destroy: Destroy SIP call structure */
-static void sip_destroy(struct sip_pvt *p)
-{
-    cw_mutex_lock(&iflock);
-    __sip_destroy(p, 1);
-    cw_mutex_unlock(&iflock);
 }
 
 
@@ -4200,6 +4227,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     if ((p = calloc(1, sizeof(struct sip_pvt))) == NULL)
         return NULL;
 
+    cw_object_init(p, CW_OBJECT_CURRENT_MODULE, 0);
+    p->obj.release = dialogue_release;
+
     cw_mutex_init(&p->lock);
 
     p->method = intended_method;
@@ -4248,13 +4278,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
         if (!p->rtp  ||  (videosupport  &&  !p->vrtp))
         {
             cw_log(CW_LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
-            cw_mutex_destroy(&p->lock);
-            if (p->chanvars)
-            {
-                cw_variables_destroy(p->chanvars);
-                p->chanvars = NULL;
-            }
-            free(p);
+            p->obj.release(&p->obj);
             return NULL;
         }
 
@@ -4322,10 +4346,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     memcpy(&p->jbconf, &global_jbconf, sizeof(struct cw_jb_conf));
 
     /* Add to active dialog list */
-    cw_mutex_lock(&iflock);
-    p->next = iflist;
-    iflist = p;
-    cw_mutex_unlock(&iflock);
+    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+
     if (option_debug)
         cw_log(CW_LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
     return p;
@@ -4335,11 +4357,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 /*               Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const enum sipmethod intended_method)
 {
+    char totag[128];
+    char fromtag[128];
+    struct cw_object *obj;
     struct sip_pvt *p=NULL;
     char *callid;
     char *tag = "";
-    char totag[128];
-    char fromtag[128];
 
     callid = get_header(req, "Call-ID");
 
@@ -4359,25 +4382,23 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
             tag = totag;
         else
             tag = fromtag;
-            
 
         if (option_debug > 4)
             cw_log(CW_LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
     }
 
-    cw_mutex_lock(&iflock);
-    p = iflist;
-    while (p)
-    {
-        /* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
-        int found = 0;
+    while ((obj = cw_registry_find(&dialogue_registry, 1, cw_hash_string(callid), callid))) {
+        int found;
 
-        if (req->method == SIP_REGISTER)
-            found = (!strcmp(p->callid, callid));
-        else 
-            found = (!strcmp(p->callid, callid)
-                    && 
-                    (!pedanticsipchecking  ||  !tag  ||  cw_strlen_zero(p->theirtag)  ||  !strcmp(p->theirtag, tag)));
+        p = container_of(obj, struct sip_pvt, obj);
+
+        if (cw_mutex_trylock(&p->lock)) {
+            cw_object_put(p);
+            usleep(1);
+            continue;
+        }
+
+        found = (req->method == SIP_REGISTER || !pedanticsipchecking || !tag || cw_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag));
 
         if (option_debug > 4)
             cw_log(CW_LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
@@ -4401,17 +4422,15 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
                 cw_log(CW_LOG_DEBUG, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, totag, sip_methods[req->method].text);
         }
 
-
         if (found)
-        {
-            /* Found the call */
-            cw_mutex_lock(&p->lock);
-            cw_mutex_unlock(&iflock);
             return p;
-        }
-        p = p->next;
+
+        cw_mutex_unlock(&p->lock);
+        cw_object_put(p);
+        break;
     }
-    cw_mutex_unlock(&iflock);
+
+
     /* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
     if (!sip_methods[intended_method].can_create)
     {
@@ -4429,13 +4448,14 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	    response = "489 Bad event";
 
 	transmit_response_using_temp(callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
-    }	
+    }
     else
     {
 	p = sip_alloc(callid, sin, 1, intended_method);
-	if (p)
+	if (p) {
+	    cw_object_get(p);
 	    cw_mutex_lock(&p->lock);
-	else {
+	} else {
 	    /* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
 		getting a dialog from sip_alloc. 
 	    	Without a dialog we can't retransmit and handle ACKs and all that, but at least
@@ -8958,34 +8978,23 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 /*! \brief  get_sip_pvt_byid_locked: Lock interface lock and find matching pvt lock  */
 static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
 {
-    struct sip_pvt *sip_pvt_ptr = NULL;
-    
-    /* Search interfaces and find the match */
-    cw_mutex_lock(&iflock);
-    sip_pvt_ptr = iflist;
-    while (sip_pvt_ptr)
-    {
-        if (!strcmp(sip_pvt_ptr->callid, callid))
-        {
-            /* Go ahead and lock it (and its owner) before returning */
-            cw_mutex_lock(&sip_pvt_ptr->lock);
-            if (sip_pvt_ptr->owner)
-            {
-                while (cw_channel_trylock(sip_pvt_ptr->owner))
-                {
-                    cw_mutex_unlock(&sip_pvt_ptr->lock);
-                    usleep(1);
-                    cw_mutex_lock(&sip_pvt_ptr->lock);
-                    if (!sip_pvt_ptr->owner)
-                        break;
-                }
-            }
-            break;
-        }
-        sip_pvt_ptr = sip_pvt_ptr->next;
-    }
-    cw_mutex_unlock(&iflock);
-    return sip_pvt_ptr;
+	struct cw_object *obj;
+	struct sip_pvt *dialogue = NULL;
+	unsigned int hash = cw_hash_string(callid);
+
+	while ((obj = cw_registry_find(&dialogue_registry, 1, hash, callid))) {
+		dialogue = container_of(obj, struct sip_pvt, obj);
+
+		cw_mutex_lock(&dialogue->lock);
+
+		if (!dialogue->owner || !cw_channel_trylock(dialogue->owner))
+			break;
+
+		cw_unlock_mutex(&dialogue->lock);
+		usleep(1);
+	}
+
+	return (obj ? dialogue : NULL);
 }
 
 /*! \brief  get_refer_info: Call transfer support (the REFER method) */
@@ -10813,71 +10822,112 @@ static int sip_show_subscriptions(int fd, int argc, char *argv[])
         return __sip_show_channels(fd, argc, argv, 1);
 }
 
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
-{
+
+struct __sip_show_channels_args {
+	int subscriptions;
+	int fd;
+	int numchans;
+};
+
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s\n"
-    struct sip_pvt *cur;
-    char iabuf[INET_ADDRSTRLEN];
-    int numchans = 0;
+
+static int __sip_show_channels_one(struct cw_object *obj, void *data)
+{
+	char iabuf[INET_ADDRSTRLEN];
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct __sip_show_channels_args *args = data;
+
+	if (dialogue->subscribed == NONE && !args->subscriptions) {
+		cw_cli(args->fd, FORMAT,
+			cw_inet_ntoa(iabuf, sizeof(iabuf), dialogue->sa.sin_addr),
+			(cw_strlen_zero(dialogue->username)
+				? (cw_strlen_zero(dialogue->cid_num) ? "(None)" : dialogue->cid_num)
+				: dialogue->username),
+			dialogue->callid,
+			dialogue->ocseq, dialogue->icseq,
+			(dialogue->t38state == SIP_T38_NEGOTIATED
+				? "T38"
+				: (cw_getformatname(dialogue->owner ? dialogue->owner->nativeformats : 0))),
+			(cw_test_flag(dialogue, SIP_CALL_ONHOLD) ? "Yes" : "No"),
+			(cw_test_flag(dialogue, SIP_NEEDDESTROY) ? "(d)" : ""),
+			dialogue->lastmsg);
+		args->numchans++;
+	}
+	if (dialogue->subscribed != NONE && args->subscriptions) {
+		cw_cli(args->fd, FORMAT3,
+			cw_inet_ntoa(iabuf, sizeof(iabuf), dialogue->sa.sin_addr),
+			(cw_strlen_zero(dialogue->username)
+				? (cw_strlen_zero(dialogue->cid_num) ? "(None)" : dialogue->cid_num)
+				: dialogue->username),
+			dialogue->callid,
+			dialogue->exten,
+			cw_extension_state2str(dialogue->laststate),
+			subscription_type2str(dialogue->subscribed));
+		args->numchans++;
+	}
+
+	return 0;
+}
+
+static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
+{
+    struct __sip_show_channels_args args = {
+	    .subscriptions = subscriptions,
+	    .fd = fd,
+	    .numchans = 0,
+    };
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    cw_mutex_lock(&iflock);
-    cur = iflist;
+
     if (!subscriptions)
         cw_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
     else
         cw_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type");
-    while (cur)
-    {
-        if (cur->subscribed == NONE && !subscriptions)
-        {
-            cw_cli(fd, FORMAT, cw_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
-                cw_strlen_zero(cur->username) ? ( cw_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-                cur->callid, 
-                cur->ocseq, cur->icseq, 
-                (cur->t38state == SIP_T38_NEGOTIATED ? "T38" : cw_getformatname(cur->owner ? cur->owner->nativeformats : 0)), 
-                cw_test_flag(cur, SIP_CALL_ONHOLD) ? "Yes" : "No",
-                cw_test_flag(cur, SIP_NEEDDESTROY) ? "(d)" : "",
-                cur->lastmsg );
-            numchans++;
-        }
-        if (cur->subscribed != NONE && subscriptions)
-        {
-            cw_cli(fd, FORMAT3, cw_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
-                    cw_strlen_zero(cur->username) ? ( cw_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-                    cur->callid, cur->exten, cw_extension_state2str(cur->laststate), 
-                    subscription_type2str(cur->subscribed));
-            numchans++;
-        }
-        cur = cur->next;
-    }
-    cw_mutex_unlock(&iflock);
+
+    cw_registry_iterate_ordered(&dialogue_registry, __sip_show_channels_one, &args);
+
     if (!subscriptions)
-        cw_cli(fd, "%d active SIP channel%s\n", numchans, (numchans != 1) ? "s" : "");
+        cw_cli(fd, "%d active SIP channel%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
     else
-        cw_cli(fd, "%d active SIP subscription%s\n", numchans, (numchans != 1) ? "s" : "");
+        cw_cli(fd, "%d active SIP subscription%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
     return RESULT_SUCCESS;
+}
+
 #undef FORMAT
 #undef FORMAT2
 #undef FORMAT3
+
+
+struct complete_sipch_args {
+	int fd;
+	const char *prefix;
+	int prefix_len;
+};
+
+static int complete_sipch_one(struct cw_object *obj, void *data)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct complete_sipch_args *args = data;
+
+        if (!strncasecmp(args->prefix, dialogue->callid, args->prefix_len))
+		cw_cli(args->fd, "%s\n", dialogue->callid);
+
+	return 0;
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
 static void complete_sipch(int fd, char *argv[], int lastarg, int lastarg_len)
 {
-    struct sip_pvt *cur;
+	struct complete_sipch_args args = {
+		.fd = fd,
+		.prefix = argv[lastarg],
+		.prefix_len = lastarg_len,
+	};
 
-    cw_mutex_lock(&iflock);
-
-    for (cur = iflist; cur; cur = cur->next)
-    {
-        if (!strncasecmp(argv[lastarg], cur->callid, lastarg_len))
-		cw_cli(fd, "%s\n", cur->callid);
-    }
-
-    cw_mutex_unlock(&iflock);
+	cw_registry_iterate(&dialogue_registry, complete_sipch_one, &args);
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name */
@@ -10963,153 +11013,217 @@ static void complete_sip_prune_realtime_user(int fd, char *argv[], int lastarg, 
         complete_sip_user(fd, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
+
+struct sip_show_channel_args {
+	int fd;
+	int found;
+	const char *prefix;
+	size_t prefix_len;
+};
+
+static int sip_show_channel_one(struct cw_object *obj, void *data)
+{
+	char iabuf1[INET_ADDRSTRLEN];
+	char iabuf2[INET_ADDRSTRLEN];
+	char iabuf3[INET_ADDRSTRLEN];
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct sip_show_channel_args *args = data;
+
+	if (!strncasecmp(dialogue->callid, args->prefix, args->prefix_len)) {
+		cw_cli(args->fd,"\n");
+
+		if (dialogue->subscribed != NONE)
+			cw_cli(args->fd, "  * Subscription (type: %s)\n", subscription_type2str(dialogue->subscribed));
+		else
+			cw_cli(args->fd, "  * SIP Call\n");
+
+		cw_cli(args->fd,
+			"  Direction:              %s\n"
+			"  Call-ID:                %s\n"
+			"  Our Codec Capability:   %d\n"
+			"  Non-Codec Capability:   %d\n"
+			"  Their Codec Capability:   %d\n"
+			"  Joint Codec Capability:   %d\n"
+			"  Format                  %s\n"
+			"  Theoretical Address:    %s:%d\n"
+			"  Received Address:       %s:%d\n"
+			"  NAT Support:            %s\n"
+			"  Audio IP:               %s %s\n"
+			"  Our Tag:                %s\n"
+			"  Their Tag:              %s\n"
+			"  SIP User agent:         %s\n",
+			(cw_test_flag(dialogue, SIP_OUTGOING) ? "Outgoing" : "Incoming"),
+			dialogue->callid,
+			dialogue->capability,
+			dialogue->noncodeccapability,
+			dialogue->peercapability,
+			dialogue->jointcapability,
+			cw_getformatname(dialogue->owner ? dialogue->owner->nativeformats : 0),
+			cw_inet_ntoa(iabuf1, sizeof(iabuf1), dialogue->sa.sin_addr), ntohs(dialogue->sa.sin_port),
+			cw_inet_ntoa(iabuf2, sizeof(iabuf2), dialogue->recv.sin_addr), ntohs(dialogue->recv.sin_port),
+			nat2str(cw_test_flag(dialogue, SIP_NAT)),
+			cw_inet_ntoa(iabuf3, sizeof(iabuf3), (dialogue->redirip.sin_addr.s_addr ? dialogue->redirip.sin_addr : dialogue->ourip)), (dialogue->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)"),
+			dialogue->tag,
+			dialogue->theirtag,
+			dialogue->useragent
+		);
+
+		if (!cw_strlen_zero(dialogue->username))
+			cw_cli(args->fd, "  Username:               %s\n", dialogue->username);
+		if (!cw_strlen_zero(dialogue->peername))
+			cw_cli(args->fd, "  Peername:               %s\n", dialogue->peername);
+		if (!cw_strlen_zero(dialogue->uri))
+			cw_cli(args->fd, "  Original uri:           %s\n", dialogue->uri);
+		if (!cw_strlen_zero(dialogue->cid_num))
+			cw_cli(args->fd, "  Caller-ID:              %s\n", dialogue->cid_num);
+
+		cw_cli(args->fd,
+			"  Need Destroy:           %d\n"
+			"  Last Message:           %s\n"
+			"  Promiscuous Redir:      %s\n"
+			"  Route:                  %s\n"
+			"  T38 State:              %d\n"
+			"  DTMF Mode:              %s\n"
+			"  On HOLD:                %s\n"
+			"  SIP Options:            ",
+			cw_test_flag(dialogue, SIP_NEEDDESTROY),
+			dialogue->lastmsg,
+			(cw_test_flag(dialogue, SIP_PROMISCREDIR) ? "Yes" : "No"),
+			dialogue->route ? dialogue->route->hop : "N/A",
+			dialogue->t38state,
+			dtmfmode2str(cw_test_flag(dialogue, SIP_DTMF)),
+			(cw_test_flag(dialogue, SIP_CALL_ONHOLD) ? "Yes" : "No")
+		);
+
+
+		if (dialogue->sipoptions) {
+			int x;
+
+			for (x = 0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
+				if ((dialogue->sipoptions & sip_options[x].id))
+					cw_cli(args->fd, "%s ", sip_options[x].text);
+			}
+		} else
+			cw_cli(args->fd, "(none)\n");
+
+		cw_cli(args->fd, "\n\n");
+		args->found++;
+	}
+
+	return 0;
+}
+
 /*! \brief  sip_show_channel: Show details of one call */
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
-    struct sip_pvt *cur;
-    char iabuf[INET_ADDRSTRLEN];
-    size_t len;
-    int found = 0;
+	struct sip_show_channel_args args = {
+		.fd = fd,
+		.found = 0,
+	};
 
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-    len = strlen(argv[3]);
-    cw_mutex_lock(&iflock);
-    cur = iflist;
-    while (cur)
-    {
-        if (!strncasecmp(cur->callid, argv[3],len))
-        {
-            cw_cli(fd,"\n");
-            if (cur->subscribed != NONE)
-                cw_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
-            else
-                cw_cli(fd, "  * SIP Call\n");
-            cw_cli(fd, "  Direction:              %s\n", cw_test_flag(cur, SIP_OUTGOING)?"Outgoing":"Incoming");
-            cw_cli(fd, "  Call-ID:                %s\n", cur->callid);
-            cw_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
-            cw_cli(fd, "  Non-Codec Capability:   %d\n", cur->noncodeccapability);
-            cw_cli(fd, "  Their Codec Capability:   %d\n", cur->peercapability);
-            cw_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
-            cw_cli(fd, "  Format                  %s\n", cw_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
-            cw_cli(fd, "  Theoretical Address:    %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
-            cw_cli(fd, "  Received Address:       %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
-            cw_cli(fd, "  NAT Support:            %s\n", nat2str(cw_test_flag(cur, SIP_NAT)));
-            cw_cli(fd, "  Audio IP:               %s %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
-            cw_cli(fd, "  Our Tag:                %s\n", cur->tag);
-            cw_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
-            cw_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
-            if (!cw_strlen_zero(cur->username))
-                cw_cli(fd, "  Username:               %s\n", cur->username);
-            if (!cw_strlen_zero(cur->peername))
-                cw_cli(fd, "  Peername:               %s\n", cur->peername);
-            if (!cw_strlen_zero(cur->uri))
-                cw_cli(fd, "  Original uri:           %s\n", cur->uri);
-            if (!cw_strlen_zero(cur->cid_num))
-                cw_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
-            cw_cli(fd, "  Need Destroy:           %d\n", cw_test_flag(cur, SIP_NEEDDESTROY));
-            cw_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
-            cw_cli(fd, "  Promiscuous Redir:      %s\n", cw_test_flag(cur, SIP_PROMISCREDIR) ? "Yes" : "No");
-            cw_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
-            cw_cli(fd, "  T38 State:              %d\n", cur->t38state);
-            cw_cli(fd, "  DTMF Mode:              %s\n", dtmfmode2str(cw_test_flag(cur, SIP_DTMF)));
-            cw_cli(fd, "  On HOLD:                %s\n", cw_test_flag(cur, SIP_CALL_ONHOLD) ? "Yes" : "No" );
-            cw_cli(fd, "  SIP Options:            ");
-            if (cur->sipoptions)
-            {
-                int x;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
 
-                for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++)
-                {
-                    if (cur->sipoptions & sip_options[x].id)
-                        cw_cli(fd, "%s ", sip_options[x].text);
-                }
-            }
-            else
-                cw_cli(fd, "(none)\n");
-            cw_cli(fd, "\n\n");
-            found++;
-        }
-        cur = cur->next;
-    }
-    cw_mutex_unlock(&iflock);
-    if (!found) 
-        cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
-    return RESULT_SUCCESS;
+	args.prefix = argv[3];
+	args.prefix_len = strlen(argv[3]);
+
+	cw_registry_iterate_ordered(&dialogue_registry, sip_show_channel_one, &args);
+
+	if (!args.found)
+		cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
+
+	return RESULT_SUCCESS;
+}
+
+
+struct sip_show_history_args {
+	int fd;
+	int found;
+	const char *prefix;
+	size_t prefix_len;
+};
+
+static int sip_show_history_one(struct cw_object *obj, void *data)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct sip_show_history_args *args = data;
+	struct sip_history *hist;
+	int x;
+
+	if (!strncasecmp(dialogue->callid, args->prefix, args->prefix_len)) {
+		cw_cli(args->fd, "\n");
+
+		if (dialogue->subscribed != NONE)
+			cw_cli(args->fd, "  * Subscription\n");
+		else
+			cw_cli(args->fd, "  * SIP Call\n");
+
+		if ((hist = dialogue->history)) {
+			x = 1;
+			while (hist) {
+				cw_cli(args->fd, "%d. %s\n", x++, hist->event);
+				hist = hist->next;
+			}
+		} else
+			cw_cli(args->fd, "Call '%s' has no history\n", dialogue->callid);
+
+		args->found++;
+	}
+
+	return 0;
 }
 
 /*! \brief  sip_show_history: Show history details of one call */
 static int sip_show_history(int fd, int argc, char *argv[])
 {
-    struct sip_pvt *cur;
-    struct sip_history *hist;
-    size_t len;
-    int x;
-    int found = 0;
+	struct sip_show_history_args args = {
+		.fd = fd,
+		.found = 0,
+	};
 
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-    if (!recordhistory)
-        cw_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
-    len = strlen(argv[3]);
-    cw_mutex_lock(&iflock);
-    cur = iflist;
-    while (cur)
-    {
-        if (!strncasecmp(cur->callid, argv[3], len))
-        {
-            cw_cli(fd,"\n");
-            if (cur->subscribed != NONE)
-                cw_cli(fd, "  * Subscription\n");
-            else
-                cw_cli(fd, "  * SIP Call\n");
-            x = 0;
-            hist = cur->history;
-            while (hist)
-            {
-                x++;
-                cw_cli(fd, "%d. %s\n", x, hist->event);
-                hist = hist->next;
-            }
-            if (!x)
-                cw_cli(fd, "Call '%s' has no history\n", cur->callid);
-            found++;
-        }
-        cur = cur->next;
-    }
-    cw_mutex_unlock(&iflock);
-    if (!found) 
-        cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
-    return RESULT_SUCCESS;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	if (!recordhistory)
+		cw_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
+
+	args.prefix = argv[3];
+	args.prefix_len = strlen(argv[3]);
+
+	cw_registry_iterate_ordered(&dialogue_registry, sip_show_history_one, &args);
+
+	if (!args.found)
+		cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
+
+	return RESULT_SUCCESS;
 }
 
 /*! \brief  dump_history: Dump SIP history to debug log file at end of 
   lifespan for SIP dialog */
-void sip_dump_history(struct sip_pvt *dialog)
+void sip_dump_history(struct sip_pvt *dialogue)
 {
-    int x;
-    struct sip_history *hist;
+	struct sip_history *hist;
+	int x;
 
-    if (!dialog)
-        return;
+	cw_log(CW_LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialogue->callid);
 
-    cw_log(CW_LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
-    if (dialog->subscribed)
-        cw_log(CW_LOG_DEBUG, "  * Subscription\n");
-    else
-        cw_log(CW_LOG_DEBUG, "  * SIP Call\n");
-    x = 0;
-    hist = dialog->history;
-    while (hist)
-    {
-        x++;
-        cw_log(CW_LOG_DEBUG, "  %d. %s\n", x, hist->event);
-        hist = hist->next;
-    }
-    if (!x)
-        cw_log(CW_LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
-    cw_log(CW_LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
-    
+	if (dialogue->subscribed)
+		cw_log(CW_LOG_DEBUG, "  * Subscription\n");
+	else
+		cw_log(CW_LOG_DEBUG, "  * SIP Call\n");
+
+	x = 0;
+	while ((hist = dialogue->history)) {
+		dialogue->history = dialogue->history->next;
+		x++;
+		cw_log(CW_LOG_DEBUG, "  %d. %s\n", x, hist->event);
+		free(hist);
+	}
+
+	if (!x)
+		cw_log(CW_LOG_DEBUG, "Call '%s' has no history\n", dialogue->callid);
+
+	cw_log(CW_LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialogue->callid);
 }
 
 /*! \brief  handle_request_info: Receive SIP INFO Message */
@@ -12583,10 +12697,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
     else if (cw_test_flag(p, SIP_OUTGOING))
     {
         /* Acknowledge sequence number */
-        if (p->initid > -1)
+        /* Cancel the auto-congest if possible since we've got something useful back */
+        if (p->initid > -1 && !cw_sched_del(sched, p->initid))
         {
-            /* Don't auto congest anymore since we've gotten something useful back */
-            cw_sched_del(sched, p->initid);
+            cw_object_put(p);
             p->initid = -1;
         }
         switch(resp)
@@ -13753,6 +13867,29 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req, in
     }
     return 1;
 }
+
+
+static int purge_old_subscription(struct cw_object *obj, void *data)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct sip_pvt *new_dialogue = data;
+
+	if (dialogue != new_dialogue && dialogue->initreq.method == SIP_SUBSCRIBE && dialogue->subscribed != NONE) {
+		cw_mutex_lock(&dialogue->lock);
+
+		if (!strcmp(dialogue->username, new_dialogue->username)
+		 && !strcmp(dialogue->exten, new_dialogue->exten) && !strcmp(dialogue->context, new_dialogue->context)) {
+			cw_set_flag(dialogue, SIP_NEEDDESTROY);
+			cw_mutex_unlock(&dialogue->lock);
+			return 1;
+		}
+
+		cw_mutex_unlock(&dialogue->lock);
+	}
+
+	return 0;
+}
+
 /*! \brief  handle_request_subscribe: Handle incoming SUBSCRIBE request */
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin, int seqno, char *e)
 {
@@ -13994,35 +14131,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
             transmit_state_notify(p, firststate, 1, 1, 0);    /* Send first notification */
             append_history(p, "Subscribestatus", cw_extension_state2str(firststate));
 
-	    struct sip_pvt *p_old;
-
-
 	    /* remove any old subscription from this peer for the same exten/context,
 	       as the peer has obviously forgotten about it and it's wasteful to wait
 	       for it to expire and send NOTIFY messages to the peer only to have them
 	       ignored (or generate errors)
 	    */
-	    cw_mutex_lock(&iflock);
-	    for (p_old = iflist; p_old; p_old = p_old->next) {
-	    	if (p_old == p)
-		    continue;
-		if (p_old->initreq.method != SIP_SUBSCRIBE)
-		    continue;
-		if (p_old->subscribed == NONE)
-		    continue;
-		cw_mutex_lock(&p_old->lock);
-		if (!strcmp(p_old->username, p->username)) {
-		    if (!strcmp(p_old->exten, p->exten) &&
-		        !strcmp(p_old->context, p->context)) 
-		    {
-			cw_set_flag(p_old, SIP_NEEDDESTROY);
-			cw_mutex_unlock(&p_old->lock);
-			break;
-		    }
-		}
-		cw_mutex_unlock(&p_old->lock);
-	    }
-	    cw_mutex_unlock(&iflock);
+	    /* FIXME: this is a bit expensive if we're dealing with many dialogues, no? */
+	    cw_registry_iterate(&dialogue_registry, purge_old_subscription, p);
         }
         if (!p->expiry)
             cw_set_flag(p, SIP_NEEDDESTROY);    
@@ -14309,7 +14424,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     int nounlock;
     int recount = 0;
     char iabuf[INET_ADDRSTRLEN];
-    unsigned int lockretry = 100;
+    unsigned int lockretry;
 
     len = sizeof(sin);
     leno = sizeof(sout);
@@ -14404,6 +14519,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
     }
 
     /* Process request, with netlock held */
+    lockretry = 100;
 retrylock:
     cw_mutex_lock(&netlock);
     p = find_call(&req, &sin, &sout, req.method);
@@ -14417,14 +14533,16 @@ retrylock:
             cw_mutex_unlock(&netlock);
             /* Sleep infintismly short amount of time */
             usleep(1);
-	    if (--lockretry)
+	    if (--lockretry) {
+                cw_object_put(p);
 		goto retrylock;
+            } else {
+	        cw_log(CW_LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
+	        cw_log(CW_LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
+                cw_object_put(p);
+	        return 1;
+	    }
         }
-	if (!lockretry) {
-	    cw_log(CW_LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
-	    cw_log(CW_LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
-	    return 1;
-	}
         memcpy(&p->recv, &sin, sizeof(p->recv));
         if (recordhistory)
         {
@@ -14443,6 +14561,7 @@ retrylock:
         if (p->owner && !nounlock)
             cw_channel_unlock(p->owner);
         cw_mutex_unlock(&p->lock);
+        cw_object_put(p);
     }
     cw_mutex_unlock(&netlock);
     return 1;
@@ -14491,14 +14610,82 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     return 0;
 }
 
+
+struct do_monitor_dialogue_args {
+	time_t t;
+	int fastrestart;
+};
+
+static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
+{
+	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
+	struct do_monitor_dialogue_args *args = data;
+
+	/* If we can't get the lock it's not a problem. We'll just try again next time. */
+	if (!cw_mutex_trylock(&dialogue->lock)) {
+		if (dialogue->rtp && dialogue->owner && (dialogue->owner->_state == CW_STATE_UP) && !dialogue->redirip.sin_addr.s_addr) {
+			if (dialogue->lastrtptx && dialogue->rtpkeepalive && args->t > dialogue->lastrtptx + dialogue->rtpkeepalive) {
+				/* Need to send an empty RTP packet */
+				dialogue->lastrtptx = args->t;
+				cw_rtp_sendcng(dialogue->rtp, 0);
+			}
+
+			if (dialogue->owner && dialogue->lastrtprx && (dialogue->rtptimeout || dialogue->rtpholdtimeout) && args->t > dialogue->lastrtprx + dialogue->rtptimeout) {
+				/* Might be a timeout now -- see if we're on hold */
+				struct sockaddr_in sin;
+
+				cw_rtp_get_peer(dialogue->rtp, &sin);
+
+				if (sin.sin_addr.s_addr
+				|| (dialogue->rtpholdtimeout && args->t > dialogue->lastrtprx + dialogue->rtpholdtimeout)) {
+					/* Needs a hangup */
+					if (dialogue->rtptimeout) {
+						/* If we can't get the lock we'll just try again next time */
+						if (!cw_channel_trylock(dialogue->owner)) {
+							cw_log(CW_LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", dialogue->owner->name, (long)(args->t - dialogue->lastrtprx));
+
+							/* Issue a softhangup */
+							cw_softhangup(dialogue->owner, CW_SOFTHANGUP_DEV);
+							cw_channel_unlock(dialogue->owner);
+
+							/* forget the timeouts for this call, since a hangup
+							 * has already been requested and we don't want to
+							 * repeatedly request hangups
+							 */
+							dialogue->rtptimeout = 0;
+							dialogue->rtpholdtimeout = 0;
+						} else
+							args->fastrestart = 1;
+					}
+				}
+			}
+		}
+
+		if (cw_test_flag(dialogue, SIP_NEEDDESTROY) && !dialogue->owner) {
+			if (dialogue->stun_needed == 0 || dialogue->stun_needed == 3
+			|| (dialogue->stun_needed == 1 && cw_stun_find_request(&dialogue->stun_transid) == NULL)) {
+				cw_mutex_unlock(&dialogue->lock);
+				sip_destroy(dialogue);
+				goto out;
+			} else
+				cw_log(CW_LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", dialogue->callid,dialogue->stun_needed);
+		}
+
+		cw_mutex_unlock(&dialogue->lock);
+	} else
+		args->fastrestart = 1;
+
+out:
+	return 0;
+}
+
 /*! \brief  do_monitor: The SIP monitoring thread */
 static void *do_monitor(void *data)
 {
+    struct do_monitor_dialogue_args args;
     int res;
     struct sip_pvt *sip;
     struct sip_peer *peer = NULL;
-    time_t t;
-    int fastrestart =0;
     int lastpeernum = -1;
     int curpeernum;
     int reloading;
@@ -14506,6 +14693,8 @@ static void *do_monitor(void *data)
     /* Add an I/O event to our UDP socket */
     if (sipsock > -1) 
         sipsock_read_id = cw_io_add(io, sipsock, sipsock_read, CW_IO_IN, NULL);
+
+    args.fastrestart = 0;
 
     /* This thread monitors all the frame relay interfaces which are not yet in use
        (and thus do not have a separate thread) indefinitely */
@@ -14528,76 +14717,10 @@ static void *do_monitor(void *data)
                 sipsock_read_id = cw_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
         }
         /* Check for interfaces needing to be killed */
-        cw_mutex_lock(&iflock);
-restartsearch:        
-        time(&t);
-        sip = iflist;
-        while (!fastrestart && sip)
-        {
-            cw_mutex_lock(&sip->lock);
+        time(&args.t);
+        if (!args.fastrestart)
+            cw_registry_iterate(&dialogue_registry, do_monitor_dialogue_one, &args);
 
-            if (sip->rtp && sip->owner && (sip->owner->_state == CW_STATE_UP) && !sip->redirip.sin_addr.s_addr)
-            {
-                if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive)
-                {
-                    /* Need to send an empty RTP packet */
-                    time(&sip->lastrtptx);
-                    cw_rtp_sendcng(sip->rtp, 0);
-                }
-                if (sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && t > sip->lastrtprx + sip->rtptimeout)
-                {
-                    /* Might be a timeout now -- see if we're on hold */
-                    struct sockaddr_in sin;
-                    cw_rtp_get_peer(sip->rtp, &sin);
-                    if (sin.sin_addr.s_addr || 
-                            (sip->rtpholdtimeout && 
-                              (t > sip->lastrtprx + sip->rtpholdtimeout)))
-                    {
-                        /* Needs a hangup */
-                        if (sip->rtptimeout)
-                        {
-                            while (sip->owner && cw_channel_trylock(sip->owner))
-                            {
-                                cw_mutex_unlock(&sip->lock);
-                                usleep(1);
-                                cw_mutex_lock(&sip->lock);
-                            }
-                            if (sip->owner)
-                            {
-                                cw_log(CW_LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
-                                /* Issue a softhangup */
-                                cw_softhangup(sip->owner, CW_SOFTHANGUP_DEV);
-                                cw_channel_unlock(sip->owner);
-				/* forget the timeouts for this call, since a hangup
-				   has already been requested and we don't want to
-				   repeatedly request hangups
-				*/
-				sip->rtptimeout = 0;
-				sip->rtpholdtimeout = 0;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (cw_test_flag(sip, SIP_NEEDDESTROY) && !sip->packets && !sip->owner)
-            {
-
-                if (sip->stun_needed==0 || sip->stun_needed==3
-                    ||
-                    ( sip->stun_needed==1 && ( cw_stun_find_request(&sip->stun_transid)==NULL )))
-                {
-                    cw_mutex_unlock(&sip->lock);
-                    __sip_destroy(sip, 1);
-                    goto restartsearch;
-                }
-                else
-                    cw_log(CW_LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", sip->callid,sip->stun_needed);
-            }
-            cw_mutex_unlock(&sip->lock);
-            sip = sip->next;
-        }
-        cw_mutex_unlock(&iflock);
         /* Don't let anybody kill us right away.  Nobody should lock the interface list
            and wait for the monitor list, but the other way around is okay. */
         cw_mutex_lock(&monlock);
@@ -14613,7 +14736,7 @@ restartsearch:
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
         /* If we might need to send more mailboxes, don't wait long at all.*/
-        res = (fastrestart ? 1 : 1000);
+        res = (args.fastrestart ? 1 : 1000);
             res = 1;
         res = cw_io_wait(io, res);
         if (res > 20)
@@ -14622,14 +14745,14 @@ restartsearch:
         cw_mutex_lock(&monlock);
 
         /* needs work to send mwi to realtime peers */
-        time(&t);
-        fastrestart = 0;
+        time(&args.t);
+        args.fastrestart = 0;
         curpeernum = 0;
         peer = NULL;
         ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
-            if ((curpeernum > lastpeernum) && !cw_strlen_zero(iterator->mailbox) && ((t - iterator->lastmsgcheck) > global_mwitime))
+            if ((curpeernum > lastpeernum) && !cw_strlen_zero(iterator->mailbox) && ((args.t - iterator->lastmsgcheck) > global_mwitime))
             {
-                fastrestart = 1;
+                args.fastrestart = 1;
                 lastpeernum = curpeernum;
                 peer = ASTOBJ_REF(iterator);
             };
@@ -17413,6 +17536,8 @@ static struct manager_action manager_actions[] = {
 /*! \brief  load_module: PBX load module - initialization */
 static int load_module(void)
 {
+    cw_registry_init(&dialogue_registry, 1024);
+
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
@@ -17529,7 +17654,9 @@ static int release_module(void)
 	close(sipsock);
 	io_context_destroy(io);
 	sched_context_destroy(sched);
-        
+
+	cw_registry_destroy(&dialogue_registry);
+
 	return 0;
 }
 
