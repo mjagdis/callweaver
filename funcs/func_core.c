@@ -212,12 +212,16 @@ static int pbx_builtin_gotoiftime(struct cw_channel *chan, int argc, char **argv
 {
     char tmp[1024];
     struct cw_timing timing;
-    char *s;
+    char *s, *q;
 
     s = NULL;
     if (argc > 3) {
-    	if ((s = strchr(argv[3], '?')))
+    	if ((s = strchr(argv[3], '?'))) {
+            /* Trim trailing spaces from the timespec (before the '?') */
+            for (q = s - 1; q >= argv[3] && isspace(*q); *(q--) = '\0');
+            /* Trim leading spaces before context,exten,priority (after the '?') */
     	    do { *(s++) = '\0'; } while (isspace(*s));
+	}
     }
 
     if (!s || !*s || argc > 6) {
