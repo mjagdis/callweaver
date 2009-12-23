@@ -5525,13 +5525,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     {
         /* We have a bridge */
         /* Turn on/off music on hold if we are holding/unholding */
-        struct cw_frame af = { CW_FRAME_NULL, };
         if (sin.sin_addr.s_addr && !sendonly)
         {
             cw_moh_stop(bridgepeer);
         
             /* Activate a re-invite */
-            cw_queue_frame(p->owner, &af);
+            cw_queue_frame(p->owner, &cw_null_frame);
         }
         else
         {
@@ -5541,7 +5540,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (sendonly)
                 cw_rtp_stop(p->rtp);
             /* Activate a re-invite */
-            cw_queue_frame(p->owner, &af);
+            cw_queue_frame(p->owner, &cw_null_frame);
         }
         cw_object_put(bridgepeer);
     }
@@ -12636,8 +12635,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
             else
             {
                 /* RE-invite */
-                struct cw_frame af = { CW_FRAME_NULL, };
-                cw_queue_frame(p->owner, &af);
+                cw_queue_frame(p->owner, &cw_null_frame);
             }
         }
         else
@@ -13568,7 +13566,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     int res = 1;
     struct cw_channel *c = NULL;
     int gotdest;
-    struct cw_frame af = { CW_FRAME_NULL, };
     char *supported;
     char *required;
     unsigned int required_profile = 0;
@@ -13681,7 +13678,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         }
         /* Queue NULL frame to prod cw_rtp_bridge if appropriate */
         if (p->owner)
-            cw_queue_frame(p->owner, &af);
+            cw_queue_frame(p->owner, &cw_null_frame);
         /* Initialize the context if it hasn't been already */
         if (cw_strlen_zero(p->context))
             strcpy(p->context, default_context);

@@ -478,7 +478,6 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	char *from;
 	char *body;
 	struct jabber_profile *profile;
-	struct cw_frame fr = {CW_FRAME_NULL};
 	struct cw_frame *frx;
 
 	profile = (struct jabber_profile *) user_data;
@@ -495,7 +494,7 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 
 	if (profile->chan)
     {
-        if ((frx = cw_frdup(&fr)))
+        if ((frx = cw_frdup(&cw_null_frame)))
     		cw_queue_frame(profile->chan, frx);
         else
     		cw_log(CW_LOG_WARNING, "Unable to duplicate frame\n");

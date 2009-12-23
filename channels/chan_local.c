@@ -238,9 +238,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 
 static struct cw_frame  *local_read(struct cw_channel *ast)
 {
-	static struct cw_frame null = { CW_FRAME_NULL, };
-
-	return &null;
+	return &cw_null_frame;
 }
 
 static int local_write(struct cw_channel *ast, struct cw_frame *f)

@@ -69,8 +69,6 @@
 
 char global_tracefile[BUFFERSIZE+1];
 
-static struct cw_frame nullframe = { CW_FRAME_NULL, };
-
 struct misdn_jb{
 	int size;
 	int upper_threshold;
@@ -2390,7 +2388,7 @@ static struct cw_frame  *misdn_read(struct cw_channel *cw)
 		return NULL;
 	} else if (tmp->framepos < 160) {
 		/* Not a complete frame, so we send a null-frame */
-		return &nullframe;
+		return &cw_null_frame;
 	}
 
 	/* We have got a complete frame 

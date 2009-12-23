@@ -773,7 +773,6 @@ static void wakeup_sub(struct dahdi_pvt *p, int a, struct dahdi_pri *pri)
 static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
 #endif
 {
-	struct cw_frame null = { CW_FRAME_NULL, };
 #ifdef ZAPATA_PRI
 	if (pri)
 		cw_mutex_unlock(&pri->lock);
@@ -785,7 +784,7 @@ static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
 				usleep(1);
 				cw_mutex_lock(&p->lock);
 			} else {
-				cw_queue_frame(p->subs[a].owner, &null);
+				cw_queue_frame(p->subs[a].owner, &cw_null_frame);
 				cw_channel_unlock(p->subs[a].owner);
 				break;
 			}

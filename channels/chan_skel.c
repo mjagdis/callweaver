@@ -127,17 +127,13 @@ static int skel_hangup(struct cw_channel *chan)
  */
 static struct cw_frame  *skel_read(struct cw_channel *chan)
 {
-	static struct cw_frame null = { CW_FRAME_NULL, };
-
-	return &null;
+	return &cw_null_frame;
 }
 
 
 static struct cw_frame  *skel_exception(struct cw_channel *chan)
 {
-	static struct cw_frame null = { CW_FRAME_NULL, };
-
-	return &null;
+	return &cw_null_frame;
 }
 
 

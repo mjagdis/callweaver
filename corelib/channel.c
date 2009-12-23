@@ -334,14 +334,13 @@ int cw_shutting_down(void)
 void cw_channel_setwhentohangup(struct cw_channel *chan, time_t offset)
 {
 	time_t	myt;
-	struct cw_frame fr = { CW_FRAME_NULL, };
 
 	time(&myt);
 	if (offset)
 		chan->whentohangup = myt + offset;
 	else
 		chan->whentohangup = 0;
-	cw_queue_frame(chan, &fr);
+	cw_queue_frame(chan, &cw_null_frame);
 	return;
 }
 /*--- cw_channel_cmpwhentohangup: Compare a offset with when to hangup channel */
@@ -1197,13 +1196,12 @@ void cw_spy_detach(struct cw_channel *chan, struct cw_channel_spy *oldspy)
 int cw_softhangup_nolock(struct cw_channel *chan, int cause)
 {
 	int res = 0;
-	struct cw_frame f = { CW_FRAME_NULL };
 
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
 	/* Inform channel driver that we need to be hung up, if it cares */
 	chan->_softhangup |= cause;
-	cw_queue_frame(chan, &f);
+	cw_queue_frame(chan, &cw_null_frame);
 	/* Interrupt any poll call or such */
 	if (cw_test_flag(chan, CW_FLAG_BLOCKING))
 		pthread_kill(chan->blocker, SIGURG);
@@ -2742,7 +2740,6 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 
 int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *oldchan)
 {
-    struct cw_frame null = { CW_FRAME_NULL, };
     int res = -1;
 
     if (original == oldchan) {
@@ -2768,8 +2765,8 @@ int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *oldcha
     } else {
 		original->masq = oldchan;
 		oldchan->masqr = original;
-		cw_queue_frame(original, &null);
-		cw_queue_frame(oldchan, &null);
+		cw_queue_frame(original, &cw_null_frame);
+		cw_queue_frame(oldchan, &cw_null_frame);
 		cw_log(CW_LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", oldchan->name, original->name);
 		res = 0;
     }

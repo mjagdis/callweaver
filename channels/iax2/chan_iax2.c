@@ -2440,9 +2440,8 @@ static int iax2_setoption(struct cw_channel *c, int option, void *data, int data
 
 static struct cw_frame *iax2_read(struct cw_channel *c) 
 {
-	static struct cw_frame f = { .frametype = CW_FRAME_NULL, };
 	cw_log(CW_LOG_NOTICE, "I should never be called!\n");
-	return &f;
+	return &cw_null_frame;
 }
 
 static int iax2_start_transfer(unsigned short callno0, unsigned short callno1)
