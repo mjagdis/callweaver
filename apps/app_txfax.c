@@ -40,7 +40,7 @@ static const char tdesc[] = "Trivial FAX Transmit Application";
 static void *txfax_app;
 static const char txfax_name[] = "TxFAX";
 static const char txfax_synopsis[] = "Send a FAX file";
-static const char txfax_syntax[] = "TxFAX(filename[, caller][, debug][, ecm])";
+static const char txfax_syntax[] = "TxFAX(filename[, caller][, debug])";
 static const char txfax_descrip[] = 
 "Send a given TIFF file to the channel as a FAX.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
@@ -50,7 +50,9 @@ static const char txfax_descrip[] =
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
 "     LOCALSUBADDRESS to specify a sub-address to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
-"Sets REMOTESTATIONID to the receiver CSID.\n"
+"     FAX_DISABLE_V17\n"
+"     FAX_DISABLE_ECM\n"
+"Sets REMOTESTATIONID to the remote end's identity.\n"
 "     FAXPAGES to the number of pages sent.\n"
 "     FAXBITRATE to the transmition rate.\n"
 "     FAXRESOLUTION to the resolution.\n"
@@ -236,7 +238,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose, int ecm) {
+static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose) {
     struct cw_var_t 	*var;
     struct cw_frame 	*inf = NULL;
     int 		ready = 1,
@@ -289,24 +291,23 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
         t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-	cw_object_put(var);
+        cw_object_put(var);
     } else
         t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
+        cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
+        cw_object_put(var);
+    } else {
+        t30_set_ecm_capability(t30, TRUE);
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+    }
 
     t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
                                      | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
     t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                      | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
-
-    if (ecm) {
-        t30_set_ecm_capability(t30, TRUE);
-        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-        cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
-    } 
-    else 
-    {
-        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
-    }
 
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
     pthread_setschedparam(pthread_self(), SCHED_RR, &global_sched_param_rr);
@@ -351,7 +352,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose, int ecm) {
+static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose) {
     struct cw_var_t 	*var;
     struct cw_frame 	*inf = NULL;
     struct cw_frame 	outf, *fout;
@@ -404,20 +405,24 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
         t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-	cw_object_put(var);
+        cw_object_put(var);
     } else
         t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
+
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
+        cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
+        cw_object_put(var);
+    } else {
+        t30_set_ecm_capability(t30, TRUE);
+        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+    }
 
     /* Support for different image sizes && resolutions*/
     t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
                                      | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
     t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                      | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
-    if (ecm) {
-        t30_set_ecm_capability(t30, TRUE);
-        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-        cw_log(CW_LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
-    }
 
     /* This is the main loop */
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
@@ -565,8 +570,7 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 
     int calling_party;
     int verbose;
-    int ecm = FALSE;
-    
+
     struct localuser *u;
 
     int original_read_fmt;
@@ -615,10 +619,6 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
         else if (strcmp("debug", argv[0]) == 0)
         {
             verbose = TRUE;
-        }
-        else if (strcmp("ecm", argv[0]) == 0)
-        {
-            ecm = TRUE;
         }
         else if (strcmp("start", argv[0]) == 0)
         {
@@ -693,12 +693,12 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     {
         if (ready && chan->t38_status != T38_NEGOTIATED) {
 	    t30 = fax_get_t30_state(&fax);
-	    ready = txfax_audio(chan, &fax, source_file, calling_party, verbose, ecm);
+	    ready = txfax_audio(chan, &fax, source_file, calling_party, verbose);
 	}
 
         if (ready && chan->t38_status == T38_NEGOTIATED) {
 	    t30 = t38_terminal_get_t30_state(&t38);
-	    ready = txfax_t38(chan, &t38, source_file, calling_party, verbose, ecm);
+	    ready = txfax_t38(chan, &t38, source_file, calling_party, verbose);
 	}
 
 	if (chan->t38_status != T38_NEGOTIATING)
