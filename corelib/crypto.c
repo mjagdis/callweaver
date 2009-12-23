@@ -29,8 +29,9 @@
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "callweaver.h"
 
@@ -98,12 +99,36 @@ struct cw_key {
 
 static struct cw_key *keys = NULL;
 
-#if 0
-static int fdprint(int fd, char *s)
+
+static int noecho(int fd)
 {
-        return write(fd, s, strlen(s) + 1);
+	struct termios tios;
+	int res = -1;
+
+	if (isatty(fd) && !tcgetattr(fd, &tios)) {
+		res = tios.c_lflag & (ECHO | ECHONL);
+		tios.c_lflag &= ~ECHO;
+		tios.c_lflag |= ECHONL;
+		if (tcsetattr(fd, TCSAFLUSH, &tios))
+			res = -1;
+	}
+
+	return res;
 }
-#endif
+
+
+static void restore_tty(int fd, int oldstate)
+{
+	struct termios tios;
+
+	if (!tcgetattr(fd, &tios)) {
+		tios.c_lflag &= ~(ECHO | ECHONL);
+		tios.c_lflag |= oldstate;
+		tcsetattr(fd, TCSAFLUSH, &tios);
+	}
+}
+
+
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct cw_key *key = (struct cw_key *)userdata;
@@ -115,10 +140,11 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 			 key->ktype == CW_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
 		write(key->outfd, prompt, strlen(prompt));
 		memset(buf, 0, sizeof(buf));
-		tmp = cw_hide_password(key->infd);
+		tmp = noecho(key->infd);
 		memset(buf, 0, size);
 		res = read(key->infd, buf, size);
-		cw_restore_tty(key->infd, tmp);
+		if (tmp != -1)
+			restore_tty(key->infd, tmp);
 		if (buf[strlen(buf) -1] == '\n')
 			buf[strlen(buf) - 1] = '\0';
 		return strlen(buf);

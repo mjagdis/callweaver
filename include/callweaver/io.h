@@ -118,16 +118,6 @@ extern CW_API_PUBLIC int cw_io_remove(struct io_context *ioc, int *id);
 extern CW_API_PUBLIC int cw_io_wait(struct io_context *ioc, int howlong);
 
 
-/*! Set fd into non-echoing mode (if fd is a tty) */
-
-extern int cw_hide_password(int fd);
-
-/*! Restores TTY mode */
-/*
- * Call with result from previous cw_hide_password
- */
-extern int cw_restore_tty(int fd, int oldstatus);
-
 extern int cw_get_termcols(int fd);
 
 #if defined(__cplusplus) || defined(c_plusplus)
