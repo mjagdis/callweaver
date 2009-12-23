@@ -1972,15 +1972,6 @@ static int parse_request(struct sip_request *req);
 static char *get_header(struct sip_request *req, char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 
-/*! \brief  parse_copy: Copy SIP request, parse it */
-static void parse_copy(struct sip_request *dst, struct sip_request *src)
-{
-    memset(dst, 0, sizeof(struct sip_request));
-    memcpy(dst->data, src->data, sizeof(dst->data));
-    dst->len = src->len;
-    parse_request(dst);
-}
-
 static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain);
 static int sip_resend_reqresp(void *data);
 
