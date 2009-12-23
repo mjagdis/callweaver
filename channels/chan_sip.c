@@ -1149,7 +1149,6 @@ static void dialogue_release(struct cw_object *obj)
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
 	struct sip_pkt *cp;
 
-cw_log(CW_LOG_NOTICE, "release %s\n", dialogue->callid);
 	if (dumphistory)
 		sip_dump_history(dialogue);
 
@@ -1709,7 +1708,6 @@ static int __sip_autodestruct(void *data)
 {
 	struct sip_pvt *dialogue = data;
 
-cw_log(CW_LOG_NOTICE, "auto destroy %s\n", dialogue->callid);
 	cw_mutex_lock(&dialogue->lock);
 
 	dialogue->autokillid = -1;
@@ -1743,7 +1741,6 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 {
 	char tmp[80];
 
-cw_log(CW_LOG_NOTICE, "Scheduling destruction of call '%s' in %d ms (old task id %d)\n", dialogue->callid, ms, dialogue->autokillid);
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Scheduling destruction of call '%s' in %d ms\n", dialogue->callid, ms);
 
@@ -1757,7 +1754,6 @@ cw_log(CW_LOG_NOTICE, "Scheduling destruction of call '%s' in %d ms (old task id
 			dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, dialogue);
 	} else
 		dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, cw_object_dup(dialogue));
-cw_log(CW_LOG_NOTICE, "call '%s' new task id %d\n", dialogue->callid, dialogue->autokillid);
 
 	return 0;
 }
@@ -1766,7 +1762,6 @@ cw_log(CW_LOG_NOTICE, "call '%s' new task id %d\n", dialogue->callid, dialogue->
 /*! \brief  sip_cancel_destroy: Cancel destruction of SIP call */
 static int sip_cancel_destroy(struct sip_pvt *dialogue)
 {
-cw_log(CW_LOG_NOTICE, "Cancel destruction of call '%s'\n", dialogue->callid);
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid)) {
 		append_history(dialogue, "CancelDestroy", "");
 		cw_object_put(dialogue);
@@ -3088,7 +3083,6 @@ static void sip_destroy(struct sip_pvt *dialogue)
 {
 	struct sip_pkt *cp;
 
-cw_log(CW_LOG_NOTICE, "Destroy call %s\n", dialogue->callid);
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
 
@@ -5220,7 +5214,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     }
     if (!p->jointcapability)
     {
-        cw_log(CW_LOG_NOTICE, "No compatible codecs!\n");
+        cw_log(CW_LOG_DEBUG, "No compatible codecs!\n");
         return -1;
     }
 
