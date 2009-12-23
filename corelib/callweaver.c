@@ -1449,9 +1449,11 @@ int callweaver_main(int argc, char *argv[])
 		exit(EX_OK);
 	}
 
-	/* Check if we're root */
-	if (!geteuid())
-		fprintf(stderr, "Running as root is EXTREMELY dangerous. See the documentation!\n");
+	/* Running the server process as root is NOT allowed */
+	if (!geteuid()) {
+		fprintf(stderr, "Running as root is NOT allowed. It is unnecessary and dangerous. See the documentation!\n");
+		exit(EX_USAGE);
+	}
 
 #if defined(__linux__)
 	/* Linux specific capabilities:
