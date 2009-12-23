@@ -774,7 +774,6 @@ struct sip_pvt {
     struct cw_object obj;
     struct cw_registry_entry *reg_entry;
     cw_mutex_t lock;            /*!< Channel private lock */
-    enum sipmethod method;                /*!< SIP method of this packet */
     char callid[80];            /*!< Global CallID */
     char randdata[80];            /*!< Random data */
     struct cw_codec_pref prefs;        /*!< codec prefs */
@@ -4510,7 +4509,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
     cw_mutex_init(&p->lock);
 
-    p->method = intended_method;
     p->initid = -1;
     p->autokillid = -1;
     p->subscribed = NONE;
@@ -4596,7 +4594,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
             cw_udptl_setnat(p->udptl, natflags);
     }
 
-    if (p->method != SIP_REGISTER)
+    if (intended_method != SIP_REGISTER)
         cw_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
     build_via(p, p->via, sizeof(p->via));
     if (!callid)
@@ -6011,7 +6009,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
     add_header(resp, "User-Agent", default_useragent, SIP_DL_DONTCARE);
     add_header(resp, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
     add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
-    if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER))
+    if (msg[0] == '2' && (req->method == SIP_SUBSCRIBE || req->method == SIP_REGISTER))
     {
         /* For registration responses, we also need expiry and
            contact info */
@@ -6176,39 +6174,38 @@ static int __transmit_response(struct sip_pvt *p, char *status, struct sip_reque
 /*! \brief  transmit_response_using_temp: Transmit response, no retransmits, using temporary pvt */
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method, struct sip_request *req, char *msg)
 {
-    struct sip_pvt *p = alloca(sizeof(struct sip_pvt));
+    struct sip_pvt dialogue;
 
-    memset(p, 0, sizeof(struct sip_pvt));
+    memset(&dialogue, 0, sizeof(dialogue));
 
-    p->method = intended_method;
     if (sin)
     {
-        p->sa = *sin;
-        if (cw_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
-            p->ourip = __ourip;
+        dialogue.sa = *sin;
+        if (cw_sip_ouraddrfor(&dialogue.sa.sin_addr, &dialogue.ourip, &dialogue))
+            dialogue.ourip = __ourip;
     }
     else
     {
-        p->ourip = __ourip;
+        dialogue.ourip = __ourip;
     }
-    p->branch = cw_random();
-    make_our_tag(p);
-    p->ocseq = 101;
+    dialogue.branch = cw_random();
+    make_our_tag(&dialogue);
+    dialogue.ocseq = 101;
 
     if (useglobal_nat && sin)
     {
-        cw_copy_flags(p, &global_flags, SIP_NAT);
-        memcpy(&p->recv, sin, sizeof(p->recv));
+        cw_copy_flags(&dialogue, &global_flags, SIP_NAT);
+        memcpy(&dialogue.recv, sin, sizeof(dialogue.recv));
     }
 
-    cw_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
-    build_via(p, p->via, sizeof(p->via));
-    cw_copy_string(p->callid, callid, sizeof(p->callid));
+    cw_copy_string(dialogue.fromdomain, default_fromdomain, sizeof(dialogue.fromdomain));
+    build_via(&dialogue, dialogue.via, sizeof(dialogue.via));
+    cw_copy_string(dialogue.callid, callid, sizeof(dialogue.callid));
 
-    __transmit_response(p, msg, req, 0);
+    __transmit_response(&dialogue, msg, req, 0);
 
-    if (p->history)
-        free(p->history);
+    if (dialogue.history)
+        free(dialogue.history);
 
     return 0;
 }
@@ -14520,9 +14517,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
        (could be new request in existing SIP dialog as well...)
      */
 
-    p->method = req->method;    /* Find out which SIP method they are using */
     if (option_debug > 2)
-        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, req->data);
+        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[req->method].text, req->method, req->data);
 
     /* RFC3261: 12.2.2
      *     If the remote sequence number was not empty, and
@@ -14559,7 +14555,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
                 return -1;
             }
         }
-        else if (p->icseq == req->seqno && req->method != SIP_ACK && (p->method != SIP_CANCEL || cw_test_flag(p, SIP_ALREADYGONE)))
+        else if (p->icseq == req->seqno && req->method != SIP_ACK && (req->method != SIP_CANCEL || cw_test_flag(p, SIP_ALREADYGONE)))
         {
             /* ignore means "don't do anything with it" but we still have to
              * respond appropriately.  We do this if we receive a repeat of
@@ -14567,7 +14563,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	     */
             ignore = 2;
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, req->seqno);
+                cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[req->method].text, p->icseq, req->seqno);
         }
     }
 
@@ -14593,7 +14589,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             return res;
         }
     }
-    if (!req->data[req->uriresp] && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
+    if (!req->data[req->uriresp] && (req->method == SIP_INVITE || req->method == SIP_SUBSCRIBE || req->method == SIP_REGISTER)) {
         transmit_response(p, "400 Bad request", req);
         sip_destroy(p);
         return -1;
@@ -14613,7 +14609,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     }
 
     /* Handle various incoming SIP methods in requests */
-    switch (p->method)
+    switch (req->method)
     {
     case SIP_OPTIONS:
         res = handle_request_options(p, req, debug);
