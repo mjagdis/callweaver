@@ -343,18 +343,6 @@ void cw_cdr_free(struct cw_cdr *batch)
 	}
 }
 
-struct cw_cdr *cw_cdr_alloc(void)
-{
-	struct cw_cdr *cdr;
-
-	if ((cdr = calloc(1, sizeof(*cdr)))) {
-		cw_var_registry_init(&cdr->vars, 256);
-	} else
-		cw_log(CW_LOG_ERROR, "Out of memory\n");
-
-	return cdr;
-}
-
 void cw_cdr_start(struct cw_cdr *cdr)
 {
 	const char *chan;
@@ -504,42 +492,40 @@ int cw_cdr_setcid(struct cw_cdr *cdr, struct cw_channel *c)
 }
 
 
-int cw_cdr_init(struct cw_cdr *cdr, struct cw_channel *c)
+int cw_cdr_alloc(struct cw_channel *chan)
 {
-	const char *chan;
 	char *num;
-	char tmp[CW_MAX_EXTENSION] = "";
 
-	while (cdr) {
-		if (!cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
-			chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (!cw_strlen_zero(cdr->channel)) 
-				cw_log(CW_LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
-			cw_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
-			/* Grab source from ANI or normal Caller*ID */
-			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
-			
-			if (c->cid.cid_name && num)
-				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
-			else if (c->cid.cid_name)
-				cw_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
-			else if (num)
-				cw_copy_string(tmp, num, sizeof(tmp));
-			cw_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			cw_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+	if ((chan->cdr = calloc(1, sizeof(*chan->cdr)))) {
+		cw_var_registry_init(&chan->cdr->vars, 256);
 
-			cdr->disposition = (c->_state == CW_STATE_UP) ?  CW_CDR_ANSWERED : CW_CDR_NOANSWER;
-			cdr->amaflags = c->amaflags ? c->amaflags :  cw_default_amaflags;
-			cw_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			/* Destination information */
-			cw_copy_string(cdr->dst, c->exten, sizeof(cdr->dst));
-			cw_copy_string(cdr->dcontext, c->context, sizeof(cdr->dcontext));
-			/* Unique call identifier */
-			cw_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
-		}
-		cdr = cdr->next;
+		cw_copy_string(chan->cdr->channel, chan->name, sizeof(chan->cdr->channel));
+
+		/* Grab source from ANI or normal Caller*ID */
+		num = (chan->cid.cid_ani ? chan->cid.cid_ani : chan->cid.cid_num);
+
+		if (chan->cid.cid_name) {
+			if (num)
+				snprintf(chan->cdr->clid, sizeof(chan->cdr->clid), "\"%s\" <%s>", chan->cid.cid_name, num);
+			else
+				cw_copy_string(chan->cdr->clid, chan->cid.cid_name, sizeof(chan->cdr->clid));
+		} else if (num)
+			cw_copy_string(chan->cdr->clid, num, sizeof(chan->cdr->clid));
+
+		cw_copy_string(chan->cdr->src, (num ? num : ""), sizeof(chan->cdr->src));
+
+		chan->cdr->disposition = (chan->_state == CW_STATE_UP ?  CW_CDR_ANSWERED : CW_CDR_NOANSWER);
+		chan->cdr->amaflags = (chan->amaflags ? chan->amaflags : cw_default_amaflags);
+		cw_copy_string(chan->cdr->accountcode, chan->accountcode, sizeof(chan->cdr->accountcode));
+		cw_copy_string(chan->cdr->dcontext, chan->context, sizeof(chan->cdr->dcontext));
+		cw_copy_string(chan->cdr->dst, chan->exten, sizeof(chan->cdr->dst));
+		cw_copy_string(chan->cdr->uniqueid, chan->uniqueid, sizeof(chan->cdr->uniqueid));
+
+		return 0;
 	}
-	return 0;
+
+	cw_log(CW_LOG_ERROR, "Out of memory\n");
+	return -1;
 }
 
 void cw_cdr_end(struct cw_cdr *cdr)

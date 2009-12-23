@@ -138,9 +138,10 @@ extern CW_API_PUBLIC int cw_cdr_setvar(struct cw_cdr *cdr, const char *name, con
 extern int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
 
 /*! \brief Allocate a CDR record 
- * Returns a malloc'd cw_cdr structure, returns NULL on error (malloc failure)
+ * \param chan Channel to bind CDR with
+ * Returns 0 on success, -1 on error
  */
-extern CW_API_PUBLIC struct cw_cdr *cw_cdr_alloc(void);
+extern CW_API_PUBLIC int cw_cdr_alloc(struct cw_channel *chan);
 
 /*! \brief Duplicate a record 
  * Returns a malloc'd cw_cdr structure, returns NULL on error (malloc failure)
@@ -152,14 +153,6 @@ extern CW_API_PUBLIC struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr);
  * Returns nothing important
  */
 extern CW_API_PUBLIC void cw_cdr_free(struct cw_cdr *cdr);
-
-/*! \brief Initialize based on a channel
- * \param cdr Call Detail Record to use for channel
- * \param chan Channel to bind CDR with
- * Initializes a CDR and associates it with a particular channel
- * Return is negligible.  (returns 0 by default)
- */
-extern CW_API_PUBLIC int cw_cdr_init(struct cw_cdr *cdr, struct cw_channel *chan);
 
 /*! Initialize based on a channel */
 /*! 

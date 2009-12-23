@@ -622,21 +622,20 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, const char *chanstring
 
     /* this doesnt work anyway lets make it independant responsibility to activate CDR -Tony
        if (result <= 0) {
-       if (!chan->cdr) {
-       chan->cdr = cw_cdr_alloc();
-       }
-       if (chan->cdr) {
-       cw_cdr_init(chan->cdr, chan);
-       cw_cdr_setapp(chan->cdr, "Dial", chanstring);
-       cw_cdr_update(chan);
-       cw_cdr_start(chan->cdr);
-       cw_cdr_end(chan->cdr);
-       //If the cause wasn't handled properly
-       if (cw_cdr_disposition(chan->cdr, chan->hangupcause)) {
-       cw_cdr_failed(chan->cdr);
-       }
-       }
-       icd_bridge__safe_hangup(that);
+           if (!chan->cdr) {
+               cw_cdr_alloc(chan);
+           }
+           if (chan->cdr) {
+               cw_cdr_setapp(chan->cdr, "Dial", chanstring);
+               cw_cdr_update(chan);
+               cw_cdr_start(chan->cdr);
+               cw_cdr_end(chan->cdr);
+               //If the cause wasn't handled properly
+               if (cw_cdr_disposition(chan->cdr, chan->hangupcause)) {
+                   cw_cdr_failed(chan->cdr);
+               }
+           }
+           icd_bridge__safe_hangup(that);
        }
      */
     if (chan->_state == CW_STATE_UP) {

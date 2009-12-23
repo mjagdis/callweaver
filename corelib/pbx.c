@@ -1889,13 +1889,11 @@ static int __cw_pbx_run(struct cw_channel *c)
     {
         if (!c->cdr)
         {
-            c->cdr = cw_cdr_alloc();
-            if (!c->cdr)
+            if (cw_cdr_alloc(c))
             {
                 free(c->pbx);
                 return -1;
             }
-            cw_cdr_init(c->cdr, c);
         }
     }
     memset(c->pbx, 0, sizeof(struct cw_pbx));
@@ -4514,33 +4512,24 @@ static void *async_wait(void *data)
  */
 int cw_pbx_outgoing_cdr_failed(void)
 {
-    /* allocate a channel */
-    struct cw_channel *chan = cw_channel_alloc(0, NULL);
+    struct cw_channel *chan;
+    int ret = -1;
 
-    if (!chan)
-    {
-        /* allocation of the channel failed, let some peeps know */
-        cw_log(CW_LOG_WARNING, "Unable to allocate channel structure for CDR record\n");
-        return -1;  /* failure */
+    if ((chan = cw_channel_alloc(0, NULL))) {
+        if (!cw_cdr_alloc(chan)) {
+            cw_cdr_start(chan->cdr);
+            cw_cdr_end(chan->cdr);
+            cw_cdr_failed(chan->cdr);
+            cw_cdr_detach(chan->cdr);
+            ret = 0;
+        }
+
+        cw_channel_free(chan);
+	return ret;
     }
 
-    chan->cdr = cw_cdr_alloc();   /* allocate a cdr for the channel */
-
-    if (!chan->cdr)
-    {
-        cw_channel_free(chan);   /* free the channel */
-        return -1;                /* return failure */
-    }
-    
-    /* allocation of the cdr was successful */
-    cw_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
-    cw_cdr_start(chan->cdr);       /* record the start and stop time */
-    cw_cdr_end(chan->cdr);
-    cw_cdr_failed(chan->cdr);      /* set the status to failed */
-    cw_cdr_detach(chan->cdr);      /* post and free the record */
-    cw_channel_free(chan);         /* free the channel */
-    
-    return 0;  /* success */
+    cw_log(CW_LOG_WARNING, "Unable to allocate channel structure for CDR record\n");
+    return -1;
 }
 
 int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int is_sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **channel)
@@ -4572,15 +4561,13 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
             }
             else
             {
-                chan->cdr = cw_cdr_alloc();   /* allocate a cdr for the channel */
-                if (!chan->cdr)
+                if (!cw_cdr_alloc(chan))
+                    cw_cdr_start(chan->cdr);
+                else
                 {
                     free(chan->pbx);
                     return -1;
                 }
-                /* allocation of the cdr was successful */
-                cw_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
-                cw_cdr_start(chan->cdr);
             }
             if (chan->_state == CW_STATE_UP)
             {
@@ -4757,15 +4744,13 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
             }
             else
             {
-                chan->cdr = cw_cdr_alloc();   /* allocate a cdr for the channel */
-                if (!chan->cdr)
+                if (!cw_cdr_alloc(chan))
+                    cw_cdr_start(chan->cdr);
+                else
                 {
                     free(chan->pbx);
                     return -1;
                 }
-                /* allocation of the cdr was successful */
-                cw_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
-                cw_cdr_start(chan->cdr);
             }
             cw_var_copy(&chan->vars, vars);
             if (chan->_state == CW_STATE_UP)

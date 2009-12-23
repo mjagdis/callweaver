@@ -1236,11 +1236,7 @@ static void setup_cdr(struct cw_channel *chan)
 		return;
 	}
 
-	chan->cdr = cw_cdr_alloc();
-	if (chan->cdr) {
-		cw_cdr_init(chan->cdr, chan);
-	}
-	if (chan->cdr) {
+	if (!cw_cdr_alloc(chan)) {
 		cw_cdr_setapp(chan->cdr, name, "");
 		cw_cdr_update(chan);
 		cw_cdr_start(chan->cdr);

@@ -2465,11 +2465,9 @@ struct cw_channel *__cw_request_and_dial(const char *type, int format, void *dat
 	if (outstate)
 		*outstate = state;
 	if (chan  &&  res <= 0) {
-		if (!chan->cdr) {
-			chan->cdr = cw_cdr_alloc();
-			if (chan->cdr)
-				cw_cdr_init(chan->cdr, chan);
-		}
+		if (!chan->cdr)
+			cw_cdr_alloc(chan);
+
 		if (chan->cdr) {
 			char tmp[256];
 			snprintf(tmp, 256, "%s/%s", type, (char *)data);

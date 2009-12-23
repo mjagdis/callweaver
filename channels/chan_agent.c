@@ -442,7 +442,7 @@ static int __agent_start_monitoring(struct cw_channel *ast, struct agent_pvt *p,
 		cw_verbose("name is %s, link is %s\n",tmp, tmp2);
 #endif
 		if (!ast->cdr)
-			ast->cdr = cw_cdr_alloc();
+			cw_cdr_alloc(ast);
 		cw_cdr_setuserfield(ast, tmp2);
 		res = 0;
 	} else

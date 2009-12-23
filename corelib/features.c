@@ -1300,12 +1300,11 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 		*outstate = state;
 
 	if (chan && res <= 0) {
-		if (!chan->cdr) {
-			chan->cdr = cw_cdr_alloc();
-		}
+		if (!chan->cdr)
+			cw_cdr_alloc(chan);
+
 		if (chan->cdr) {
 			char tmp[256];
-			cw_cdr_init(chan->cdr, chan);
 			snprintf(tmp, 256, "%s/%s", type, (char *)data);
 			cw_cdr_setapp(chan->cdr,"Dial",tmp);
 			cw_cdr_update(chan);

@@ -89,7 +89,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **frame) {
 void cw_cdr_free(struct cw_cdr *cdr) {
 }
 
-int cw_cdr_init(struct cw_cdr *cdr, struct cw_channel *chan) {
+int cw_cdr_alloc(struct cw_channel *chan) {
     return 0;
 }
 
