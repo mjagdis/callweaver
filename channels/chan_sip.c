@@ -2339,7 +2339,6 @@ static int sip_resend_reqresp(void *data)
     struct sip_reqresp *rr = data;    
     rfc3489_addr_t *map = NULL;
     struct sip_pvt *p = rr->p;
-    struct sip_request tmp;
     struct sockaddr_in msin;
 
     if (!rr) 
@@ -2435,7 +2434,6 @@ static int sip_resend_reqresp(void *data)
         cw_log(CW_LOG_DEBUG,"** STUN rebuilding payload before sending reqresp\n");
 #endif
     sip_rebuild_payload(rr->p, &rr->req, 1);
-    parse_copy(&tmp,&rr->req);
 
     if (rr->type == 1)
     {
