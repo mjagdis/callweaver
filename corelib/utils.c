@@ -36,6 +36,8 @@
 #include <arpa/inet.h>
 #include <openssl/evp.h>
 
+#include <idna.h>
+
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -219,48 +221,75 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 */
 struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp)
 {
-	int res;
-	int herrno;
-	int dots=0;
 	const char *s;
 	struct hostent *result = NULL;
-	/* Although it is perfectly legitimate to lookup a pure integer, for
-	   the sake of the sanity of people who like to name their peers as
-	   integers, we break with tradition and refuse to look up a
-	   pure integer */
-	s = host;
-	res = 0;
-	while(s && *s) {
-		if (*s == '.')
-			dots++;
-		else if (!isdigit(*s))
-			break;
-		s++;
-	}
-	if (!s || !*s) {
-		/* Forge a reply for IP's to avoid octal IP's being interpreted as octal */
-		if (dots != 3)
-			return NULL;
-		memset(hp, 0, sizeof(struct cw_hostent));
-		hp->hp.h_addr_list = (void *) hp->buf;
-		hp->hp.h_addr = hp->buf + sizeof(void *);
-		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
-			return &hp->hp;
-		return NULL;
-		
-	}
-#ifdef SOLARIS
-	result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
-
-	if (!result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
-		return NULL;
-#else
-	res = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &result, &herrno);
-
-	if (res || !result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
-		return NULL;
+#if !GETHOSTBYNAME_DOES_IDN && HAVE_LIBIDN
+	char *idnahost;
 #endif
-	return &hp->hp;
+	int res;
+	int herrno;
+	int dots;
+
+	if (host && hp) {
+		/* Although it is perfectly legitimate to lookup a pure integer, for
+		   the sake of the sanity of people who like to name their peers as
+		   integers, we break with tradition and refuse to look up a
+		   pure integer */
+		dots = res = 0;
+		for (s = host; *s; s++) {
+			if (!isdigit(*s))
+				break;
+			if (*s == '.')
+				dots++;
+		}
+
+		if (!*s) {
+			/* Forge a reply for IP's to avoid octal IP's being interpreted as octal */
+			if (dots != 3)
+				goto out_fail;
+
+			hp->hp.h_addrtype = AF_INET;
+			hp->hp.h_length = sizeof(struct in_addr);
+			hp->hp.h_addr_list = (char **)hp->buf;
+			hp->hp.h_addr_list[0] = (char *)&hp->hp.h_addr_list[2];
+			hp->hp.h_addr_list[1] = NULL;
+			hp->hp.h_aliases = &hp->hp.h_addr_list[1];
+			hp->hp.h_name = hp->hp.h_addr_list[0] + sizeof(struct in_addr);
+			cw_copy_string(hp->hp.h_name, host, sizeof(hp->buf) - (hp->hp.h_name - hp->buf));
+
+			if (inet_pton(AF_INET, host, hp->hp.h_addr_list[0]) <= 0)
+				goto out_fail;
+
+			return &hp->hp;
+		}
+
+#if !GETHOSTBYNAME_DOES_IDN && HAVE_LIBIDN
+		if (idna_to_ascii_8z(host, &idnahost, 0) == IDNA_SUCCESS) {
+#  ifdef SOLARIS
+			result = gethostbyname_r(idnahost, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
+			res = 0;
+#  else
+			res = gethostbyname_r(idnahost, &hp->hp, hp->buf, sizeof(hp->buf), &result, &herrno);
+#  endif
+			free(idnahost);
+		}
+#else
+#  ifdef SOLARIS
+			result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
+			res = 0;
+#  else
+			res = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &result, &herrno);
+#  endif
+#endif
+
+		if (res || !result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
+			goto out_fail;
+
+		return &hp->hp;
+	}
+
+out_fail:
+	return NULL;
 }
 
 

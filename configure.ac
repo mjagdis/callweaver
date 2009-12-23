@@ -710,6 +710,59 @@ fi
 AX_HAVE_EPOLL(
 	AC_DEFINE([HAVE_EPOLL], [1], [This platform supports epoll(7)]),)
 
+AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=[DIR]],
+	[Support IDN (needs GNU Libidn)]),
+	libidn=$withval, libidn=yes)
+if test "$libidn" != "no"; then
+	if test "$libidn" != "yes"; then
+		LDFLAGS="${LDFLAGS} -L$libidn/lib"
+		CPPFLAGS="${CPPFLAGS} -I$libidn/include"
+	fi
+	AC_CHECK_HEADER([idna.h],
+		[
+			if test "$libidn" != "yes"; then
+				AC_CHECK_LIB([idn], [stringprep_check_version],
+					[libidn=yes LIBS="${LIBS} -lidn"],
+					[libidn=no])
+			else
+				AC_SEARCH_LIBS([stringprep_check_version], [idn],
+					[libidn=yes],
+					[libidn=no])
+			fi
+		],
+		[libidn=no])
+fi
+if test "$libidn" != "no" ; then
+	AC_DEFINE([HAVE_LIBIDN], [1], [Define as 1 if libidn is available])
+fi
+
+AC_CACHE_CHECK([if gethostbyname supports IDN],
+	cw_cv_gethostbyname_does_idn,
+	[
+		save_LC_ALL="$LC_ALL"
+		export LC_ALL="en_GB.utf8"
+		save_CFLAGS="$CFLAGS"
+		CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
+		AC_RUN_IFELSE(
+			[AC_LANG_PROGRAM([[#include <netdb.h>]],
+				[[return gethostbyname("bücher.com");]]
+			)],
+			[cw_cv_gethostbyname_does_idn=yes],
+			[cw_cv_gethostbyname_does_idn=no],
+			[cw_cv_gethostbyname_does_idn=no]
+		)
+		CFLAGS="$save_CFLAGS"
+		export LC_ALL="$save_LC_ALL"
+	]
+)
+if test $cw_cv_gethostbyname_does_idn = yes; then
+	AC_DEFINE([GETHOSTBYNAME_DOES_IDN], [1], [Define as 1 if gethostbyname() handles IDN transparently])
+fi
+
+if test $libidn = "no" && test $cw_cv_gethostbyname_does_idn = "no"; then
+	AC_MSG_WARN([Internationalized Domain Name (IDN) support is not available])
+fi
+
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
