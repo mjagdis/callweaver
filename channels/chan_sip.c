@@ -14556,7 +14556,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             {
 	        if (option_debug)
                     cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", req->seqno, p->icseq);
-                transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
+                transmit_response(p, "500 Server Internal Error", req);
                 return -1;
             }
         }
