@@ -13042,6 +13042,14 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         return;
     }
 
+    msg = get_header(req, "User-Agent");
+    if (msg && msg[0])
+    {
+        cw_copy_string(p->useragent, msg, sizeof(p->useragent));
+        if (p->rtp)
+            p->rtp->bug_sonus = (strstr(msg, "Sonus_UAC") != NULL);
+    }
+
     /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
     if (resp == 200 || (resp >= 300 && resp <= 399))
         extract_uri(p, req);
@@ -14501,9 +14509,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 {
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
+    char iabuf[INET_ADDRSTRLEN];
+    char *s;
     int ignore = 0;
     int res = 0;
-    char iabuf[INET_ADDRSTRLEN];
     int debug = sip_debug_test_pvt(p);
     int error = 0;
 
@@ -14574,6 +14583,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         transmit_response(p, "400 Bad request", req);
         sip_destroy(p);
         return -1;
+    }
+
+    if (!ignore)
+    {
+        s = get_header(req, "User-Agent");
+        if (s && s[0])
+        {
+            cw_copy_string(p->useragent, s, sizeof(p->useragent));
+            if (p->rtp)
+                p->rtp->bug_sonus = (strstr(s, "Sonus_UAC") != NULL);
+        }
     }
 
     /* Handle various incoming SIP methods in requests */
@@ -14732,12 +14752,6 @@ static int handle_message(void *data)
 
 			if (dialogue) {
 				memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
-
-				/* Save useragent of the client */
-				useragent = get_header(req, "User-Agent");
-				if (!cw_strlen_zero(useragent))
-					cw_copy_string(dialogue->useragent, useragent, sizeof(dialogue->useragent));
-
 				handle_response(dialogue, req, (dialogue->ocseq && (dialogue->ocseq != req->seqno)));
 			}
 		} else {
@@ -14817,11 +14831,6 @@ static int handle_message(void *data)
 
 		if (dialogue) {
 			memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
-
-			/* Save useragent of the client */
-			useragent = get_header(req, "User-Agent");
-			if (!cw_strlen_zero(useragent))
-				cw_copy_string(dialogue->useragent, useragent, sizeof(dialogue->useragent));
 
 			if (handle_request(dialogue, req, &req->sa, &nounlock) == -1) {
 				/* Request failed */

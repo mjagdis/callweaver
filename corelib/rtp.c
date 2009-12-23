@@ -89,10 +89,9 @@ static int rtpdebug = 0;        /* Are we debugging? */
 static struct sockaddr_in rtpdebugaddr;    /* Debug packets to/from this host */
 static int nochecksums = 0;
 
-#define FLAG_3389_WARNING           (1 << 0)
-#define FLAG_NAT_ACTIVE             (3 << 1)
-#define FLAG_NAT_INACTIVE           (0 << 1)
-#define FLAG_NAT_INACTIVE_NOWARN    (1 << 1)
+#define NAT_STATE_INACTIVE           0
+#define NAT_STATE_INACTIVE_NOWARN    1
+#define NAT_STATE_ACTIVE             2
 
 static struct cw_rtp_protocol *protos = NULL;
 
@@ -372,13 +371,13 @@ static struct cw_frame *process_rfc3389(struct cw_rtp *rtp, unsigned char *data,
     if (rtpdebug)
         cw_log(CW_LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 
-    if (!(cw_test_flag(rtp, FLAG_3389_WARNING)))
+    if (!rtp->warn_3389)
     {
         char iabuf[INET_ADDRSTRLEN];
 
         cw_log(CW_LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
                  cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtp_sock_info)->sin_addr));
-        cw_set_flag(rtp, FLAG_3389_WARNING);
+        rtp->warn_3389 = 1;
     }
 
     /* Must have at least one byte */
@@ -830,13 +829,33 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 		pkt[3] = htonl(rtp->sendevent_payload);
 		rtp->sendevent_payload |= 1 << 22;
 	} else {
+		/* Sonus RTP handling is seriously broken.
+		 * It requires all RTP packets to have different timestamps, no more
+		 * than 100ms between packets, doesn't handle discontinuities in RTP
+		 * streams, is confused by overlapping events and audio...
+		 * So in Sonus bug mode we suppress audio whenever we are sending
+		 * event packets and send the event packets with increasing (i.e.
+		 * broken) timestamps.
+		 */
+		if (!rtp->bug_sonus) {
 #ifdef INCREMENTAL_RFC2833_EVENTS
-		rtp->sendevent_payload = (rtp->sendevent_payload & ~0xffff) | (rtp->lastts - rtp->sendevent_startts + f->samples);
+			rtp->sendevent_payload = (rtp->sendevent_payload & ~0xffff) | (rtp->lastts - rtp->sendevent_startts + f->samples);
 #endif
+		} else {
+#ifdef INCREMENTAL_RFC2833_EVENTS
+			rtp->sendevent_payload = (rtp->sendevent_payload & ~0xffff) | f->samples;
+#else
+			rtp->sendevent_payload = (rtp->sendevent_payload & ~0xffff) | (rtp->sendevent_duration - (rtp->lastts - rtp->sendevent_startts));
+#endif
+			pkt[1] = htonl(rtp->lastts);
+		}
+
 		rtp->sendevent_seqno = rtp->seqno++;
 		if (rtp->lastts - rtp->sendevent_startts + f->samples >= rtp->sendevent_duration) {
 			/* First end packet */
 			rtp->sendevent_payload |= 1 << 23;
+			if (rtp->bug_sonus)
+				rtp->sendevent_startts = rtp->lastts;
 		}
 		pkt[3] = htonl(rtp->sendevent_payload);
 	}
@@ -856,7 +875,7 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 			ntohs(them->sin_port),
 			(rtp->sendevent_rtphdr & !(2 << 30)),
 			rtp->sendevent_seqno,
-			rtp->sendevent_startts,
+			ntohl(pkt[1]),
 			ntohl(pkt[3]),
 			ntohl(pkt[3]) & 0xffff,
 			1000 * (ntohl(pkt[3]) & 0xffff) / f->samplerate);
@@ -953,7 +972,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         {
             /* The other side changed */
             rtp->rxseqno = 0;
-            cw_set_flag(rtp, FLAG_NAT_ACTIVE);
+            rtp->nat_state = NAT_STATE_ACTIVE;
             if (option_debug  ||  rtpdebug)
             {
                 cw_log(CW_LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n",
@@ -1410,9 +1429,8 @@ struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_conte
 {
     struct cw_rtp *rtp;
 
-    if ((rtp = malloc(sizeof(*rtp))) == NULL)
+    if ((rtp = calloc(1, sizeof(*rtp))) == NULL)
         return NULL;
-    memset(rtp, 0, sizeof(struct cw_rtp));
 
     if (sched  &&  rtcpenable)
         rtp->rtp_sock_info = udp_socket_group_create_and_bind(2, nochecksums, &addr, rtpstart, rtpend);
@@ -1610,14 +1628,14 @@ int cw_rtp_sendcng(struct cw_rtp *rtp, int level)
 
 static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
 {
-    unsigned char *rtpheader;
     char iabuf[INET_ADDRSTRLEN];
+    unsigned char *rtpheader;
+    const struct sockaddr_in *them;
     int hdrlen = 12;
     int res;
     int ms;
     int pred;
     int mark = 0;
-    const struct sockaddr_in *them;
 
     them = udp_socket_get_far(rtp->rtp_sock_info);
     ms = calc_txstamp(rtp, &f->delivery);
@@ -1673,47 +1691,63 @@ static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
 
     if (them->sin_port  &&  them->sin_addr.s_addr)
     {
+        int in_event = 0;
+
         /* If we're in the process of sending a DTMF digit let the
-	 * receiver know that the event is on-going and covers
-	 * the audio packet that follows.
-	 */
+         * receiver know that the event is on-going and covers
+         * the audio packet that follows.
+         */
         if (rtp->sendevent_payload || rtp->sendevent)
+        {
+            in_event = !(rtp->sendevent_payload & (1 << 23));
             cw_rtp_senddigit_continue(rtp, them, f);
-
-        /* Get a pointer to the header */
-        rtpheader = (uint8_t *) (f->data - hdrlen);
-
-        put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
-        put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
-        put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
-
-        if ((res = rtp_sendto(rtp, (void *) rtpheader, f->datalen + hdrlen, 0)) < 0)
-        {
-            if (!rtp->nat  ||  (rtp->nat && (cw_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE)))
-            {
-                cw_log(CW_LOG_WARNING, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
-            }
-            else if ((cw_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)
-            {
-                /* Only give this error message once if we are not RTP debugging */
-                if (option_debug  ||  rtpdebug)
-                    cw_log(CW_LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
-                cw_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
-            }
-        }
-                
-        if (rtp_debug_test_addr(them))
-        {
-            cw_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
-                         cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                         ntohs(them->sin_port),
-                         codec,
-                         rtp->seqno,
-                         rtp->lastts,
-                         res - hdrlen);
         }
 
-        rtp->seqno++;
+         /* Sonus RTP handling is seriously broken.
+          * It requires all RTP packets to have different timestamps, no more
+          * than 100ms between packets, doesn't handle discontinuities in RTP
+          * streams, is confused by overlapping events and audio...
+          * So in Sonus bug mode we suppress audio whenever we are sending
+          * event packets and send the event packets with increasing (i.e.
+          * broken) timestamps.
+          */
+        if (!in_event || !rtp->bug_sonus)
+        {
+            /* Get a pointer to the header */
+            rtpheader = (uint8_t *) (f->data - hdrlen);
+
+            put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
+            put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
+            put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc));
+
+            if ((res = rtp_sendto(rtp, (void *) rtpheader, f->datalen + hdrlen, 0)) < 0)
+            {
+                if (!rtp->nat || rtp->nat_state == NAT_STATE_ACTIVE)
+                {
+                    cw_log(CW_LOG_WARNING, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                }
+                else if (rtp->nat_state == NAT_STATE_INACTIVE || rtpdebug)
+                {
+                    /* Only give this error message once if we are not RTP debugging */
+                    if (option_debug  ||  rtpdebug)
+                        cw_log(CW_LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
+                    rtp->nat_state = NAT_STATE_INACTIVE_NOWARN;
+                }
+            }
+
+            if (rtp_debug_test_addr(them))
+            {
+                cw_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
+                             cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+                             ntohs(them->sin_port),
+                             codec,
+                             rtp->seqno,
+                             rtp->lastts,
+                             res - hdrlen);
+            }
+
+            rtp->seqno++;
+        }
     }
     return 0;
 }
@@ -1992,7 +2026,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     }
 
     /* Ok, we should be able to redirect the media. Start with one channel */
-    if (pr0->set_rtp_peer(c0, p1, vp1, codec1, cw_test_flag(p1, FLAG_NAT_ACTIVE)))
+    if (pr0->set_rtp_peer(c0, p1, vp1, codec1, (p1->nat_state != NAT_STATE_INACTIVE)))
     {
         cw_log(CW_LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
     }
@@ -2004,7 +2038,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
             cw_rtp_get_peer(vp1, &vac1);
     }
     /* Then test the other channel */
-    if (pr1->set_rtp_peer(c1, p0, vp0, codec0, cw_test_flag(p0, FLAG_NAT_ACTIVE)))
+    if (pr1->set_rtp_peer(c1, p0, vp0, codec0, (p0->nat_state != NAT_STATE_INACTIVE)))
     {
         cw_log(CW_LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
     }
@@ -2078,7 +2112,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
                 cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
                     c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
             }
-            if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, cw_test_flag(p1, FLAG_NAT_ACTIVE))) 
+            if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, (p1->nat_state != NAT_STATE_INACTIVE)))
                 cw_log(CW_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
             memcpy(&ac1, &t1, sizeof(ac1));
             memcpy(&vac1, &vt1, sizeof(vac1));
@@ -2093,7 +2127,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
                 cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
                     c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
             }
-            if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, cw_test_flag(p0, FLAG_NAT_ACTIVE)))
+            if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, (p0->nat_state != NAT_STATE_INACTIVE)))
                 cw_log(CW_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
             memcpy(&ac0, &t0, sizeof(ac0));
             memcpy(&vac0, &vt0, sizeof(vac0));

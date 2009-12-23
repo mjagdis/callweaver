@@ -103,7 +103,9 @@ struct cw_rtp
 	uint32_t sendevent_duration;
 	uint16_t sendevent_seqno;
 	int nat;
-	unsigned int flags;
+	unsigned int bug_sonus:1;
+	unsigned int warn_3389:1;
+	unsigned int nat_state:3;
 	int framems;
 	int rtplen;
 	struct timeval rxcore;
