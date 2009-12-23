@@ -1657,17 +1657,19 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
     if ((pkt = malloc(sizeof(struct sip_pkt) + len + 1)) == NULL)
         return -1;
 
-    memcpy(pkt->data, data, len);
-    pkt->method = sipmethod;
-    pkt->packetlen = len;
     pkt->next = p->packets;
-    pkt->owner = cw_object_dup(p);
+    pkt->method = sipmethod;
     pkt->seqno = seqno;
+    pkt->flags = 0;
     if (resp)
     	cw_set_flag(pkt, FLAG_RESPONSE);
-    pkt->data[len] = '\0';
     if (fatal)
         cw_set_flag(pkt, FLAG_FATAL);
+    pkt->owner = cw_object_dup(p);
+    pkt->timer_a = 0;
+    pkt->packetlen = len;
+    memcpy(pkt->data, data, len);
+    pkt->data[len] = '\0';
 
     /* Schedule retransmission */
     /* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
