@@ -129,7 +129,7 @@ extern struct modinfo *get_modinfo(void);
 		.description = module_description, \
 		.state = 0, \
 	}; \
-	__attribute__((visibility("protected"))) struct modinfo *get_modinfo(void) \
+	__attribute__((const,visibility("protected"))) struct modinfo *get_modinfo(void) \
 		{ return &__modinfo; }
 
 
