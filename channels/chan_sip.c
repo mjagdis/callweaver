@@ -9027,7 +9027,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 		if (!dialogue->owner || !cw_channel_trylock(dialogue->owner))
 			break;
 
-		cw_unlock_mutex(&dialogue->lock);
+		cw_mutex_unlock(&dialogue->lock);
 		usleep(1);
 	}
 
