@@ -922,8 +922,9 @@ struct sip_user {
 
 /* Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
 struct sip_peer {
-    ASTOBJ_COMPONENTS(struct sip_peer);    /*!< name, refcount, objflags,  object pointers */
-                    /*!< peer->name is the unique name of this object */
+    struct cw_object obj;
+    struct cw_registry_entry *reg_entry_byname, *reg_entry_byaddr;
+    char name[80];        /*!< Name */
     char secret[80];        /*!< Password */
     char md5secret[80];        /*!< Password in MD5 */
     struct sip_auth *auth;        /*!< Realm authentication list */
@@ -1029,10 +1030,6 @@ static struct cw_user_list {
     ASTOBJ_CONTAINER_COMPONENTS(struct sip_user);
 } userl;
 
-/*! \brief  The peer list: Peers and Friends */
-static struct cw_peer_list {
-    ASTOBJ_CONTAINER_COMPONENTS(struct sip_peer);
-} peerl;
 
 /*! \brief  The register list: Other SIP proxys we register with and call */
 static struct cw_register_list {
@@ -1110,6 +1107,61 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
 static char *nat2str(int nat);
 static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p);
 static int sip_poke_peer(void *data);
+
+
+static int peerbyname_qsort_compare_by_name(const void *a, const void *b)
+{
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct sip_peer *peer_a = container_of(*objp_a, struct sip_peer, obj);
+	const struct sip_peer *peer_b = container_of(*objp_b, struct sip_peer, obj);
+
+	return strcasecmp(peer_a->name, peer_b->name);
+}
+
+static int peerbyname_object_match(struct cw_object *obj, const void *pattern)
+{
+	const struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+
+	return !strcmp(peer->name, pattern);
+}
+
+struct cw_registry peerbyname_registry = {
+	.name = "Peer (by name)",
+	.qsort_compare = peerbyname_qsort_compare_by_name,
+	.match = peerbyname_object_match,
+};
+
+
+static int peerbyaddr_qsort_compare_by_addr(const void *a, const void *b)
+{
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct sip_peer *peer_a = container_of(*objp_a, struct sip_peer, obj);
+	const struct sip_peer *peer_b = container_of(*objp_b, struct sip_peer, obj);
+	int ret;
+
+	ret = peer_a->addr.sin_addr.s_addr - peer_b->addr.sin_addr.s_addr;
+	if (!ret)
+		ret = peer_a->addr.sin_port - peer_b->addr.sin_port;
+	return ret;
+}
+
+static int peerbyaddr_object_match(struct cw_object *obj, const void *pattern)
+{
+	const struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	const struct sockaddr_in *sin = pattern;
+
+	return !(!inaddrcmp(&peer->addr, sin)
+		|| (cw_test_flag(peer, SIP_INSECURE_PORT)
+			&& (peer->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
+}
+
+struct cw_registry peerbyaddr_registry = {
+	.name = "Peer (by addr)",
+	.qsort_compare = peerbyaddr_qsort_compare_by_addr,
+	.match = peerbyaddr_object_match,
+};
 
 
 static int dialogue_qsort_compare_by_name(const void *a, const void *b)
@@ -1402,7 +1454,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
     }
     
     if (res != len)
-        cw_log(CW_LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, ntohs(p->sa.sin_port), strerror(errno));
+        cw_log(CW_LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), res, strerror(errno));
     return res;
 }
 
@@ -2537,42 +2589,37 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
     }
 }
 
-/*! \brief  sip_destroy_peer: Destroy peer object from memory */
-static void sip_destroy_peer(struct sip_peer *peer)
+
+static void sip_peer_release(struct cw_object *obj)
 {
-    /* Delete it, it needs to disappear */
-    if (peer->expire > -1)
-        cw_sched_del(sched, peer->expire);
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
 
-    if (peer->pokeexpire > -1)
-        cw_sched_del(sched, peer->pokeexpire);
+	if (peer->dialogue) {
+		cw_mutex_lock(&peer->dialogue->lock);
+		sip_destroy(peer->dialogue);
+		cw_mutex_unlock(&peer->dialogue->lock);
+		cw_object_put(peer->dialogue);
+	}
 
-    if (peer->dialogue) {
-        cw_mutex_lock(&peer->dialogue->lock);
-        sip_destroy(peer->dialogue);
-        cw_mutex_unlock(&peer->dialogue->lock);
-        cw_object_put(peer->dialogue);
-    }
+	register_peer_exten(peer, 0);
 
-    if (peer->chanvars)
-    {
-        cw_variables_destroy(peer->chanvars);
-        peer->chanvars = NULL;
-    }
-    register_peer_exten(peer, 0);
+	if (cw_test_flag(peer, SIP_SELFDESTRUCT))
+		apeerobjs--;
+	else if (cw_test_flag(peer, SIP_REALTIME))
+		rpeerobjs--;
+	else
+		speerobjs--;
 
-    cw_free_ha(peer->ha);
+	if (peer->chanvars) {
+		cw_variables_destroy(peer->chanvars);
+		peer->chanvars = NULL;
+	}
 
-    if (cw_test_flag(peer, SIP_SELFDESTRUCT))
-        apeerobjs--;
-    else if (cw_test_flag(peer, SIP_REALTIME))
-        rpeerobjs--;
-    else
-        speerobjs--;
+	cw_free_ha(peer->ha);
 
-    clear_realm_authentication(peer->auth);
-    peer->auth = (struct sip_auth *) NULL;
-    free(peer);
+	clear_realm_authentication(peer->auth);
+	peer->auth = (struct sip_auth *) NULL;
+	free(peer);
 }
 
 /*! \brief  update_peer: Update peer data in database (if used) */
@@ -2663,7 +2710,6 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
                 cw_sched_del(sched, peer->expire);
             peer->expire = cw_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
         }
-        ASTOBJ_CONTAINER_LINK(&peerl,peer);
     }
     else
     {
@@ -2674,29 +2720,22 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     return peer;
 }
 
-/*! \brief  sip_addrcmp: Support routine for find_peer */
-static int sip_addrcmp(char *name, struct sockaddr_in *sin)
-{
-    /* We know name is the first field, so we can cast */
-    struct sip_peer *p = (struct sip_peer *)name;
-    return     !(!inaddrcmp(&p->addr, sin) || 
-                    (cw_test_flag(p, SIP_INSECURE_PORT) &&
-                    (p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
-}
-
 /*! \brief  find_peer: Locate peer by name or ip address 
  *    This is used on incoming SIP message to find matching peer on ip
     or outgoing message to find matching peer on name */
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime)
 {
+    struct cw_object *obj;
     struct sip_peer *p = NULL;
 
     if (peer)
-        p = ASTOBJ_CONTAINER_FIND(&peerl,peer);
+        obj = cw_registry_find(&peerbyname_registry, 1, cw_hash_string(peer), peer);
     else
-        p = ASTOBJ_CONTAINER_FIND_FULL(&peerl,sin,name,sip_addr_hashfunc,1,sip_addrcmp);
+        obj = cw_registry_find(&peerbyaddr_registry, 1, cw_hash_addr(sin), sin);
 
-    if (!p  &&  realtime)
+    if (obj)
+        p = container_of(obj, struct sip_peer, obj);
+    else if (realtime)
         p = realtime_peer(peer, sin);
 
     return p;
@@ -2917,7 +2956,7 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
     if (p)
     {
         int ret = create_addr_from_peer(dialog, p);
-        ASTOBJ_UNREF(p, sip_destroy_peer);
+        cw_object_put(p);
         return ret;
     }
     else
@@ -3221,7 +3260,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
                 if (u)
                     ASTOBJ_UNREF(u,sip_destroy_user);
                 else
-                    ASTOBJ_UNREF(p,sip_destroy_peer);
+                    cw_object_put(p);
                 return -1; 
             }
         }
@@ -3236,7 +3275,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
     if (u)
         ASTOBJ_UNREF(u,sip_destroy_user);
     else
-        ASTOBJ_UNREF(p,sip_destroy_peer);
+        cw_object_put(p);
     return 0;
 }
 
@@ -7896,8 +7935,11 @@ static int expire_register(void *data)
     cw_device_state_changed("SIP/%s", peer->name);
     if (cw_test_flag(peer, SIP_SELFDESTRUCT) || cw_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR))
     {
-        peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
-        ASTOBJ_UNREF(peer, sip_destroy_peer);
+        if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
+            cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
+            cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+	}
+        cw_object_put(peer);
     }
 
     return 0;
@@ -7955,9 +7997,8 @@ static void reg_source_db(struct sip_peer *peer)
     if (sipsock >= 0)
     {
         /* SIP is already up, so schedule a poke in the near future */
-        if (peer->pokeexpire > -1)
-            cw_sched_del(sched, peer->pokeexpire);
-        peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, peer);
+        if (peer->pokeexpire == -1)
+            peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
     }
 
     if (peer->expire > -1)
@@ -8208,9 +8249,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
     if (inaddrcmp(&p->addr, &oldsin))
     {
-        if (p->pokeexpire > -1)
-            cw_sched_del(sched, p->pokeexpire);
-        p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, p);
+        if (p->pokeexpire == -1)
+            p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
         if (option_verbose > 3)
             cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
         register_peer_exten(p, 1);
@@ -8716,7 +8756,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     if (!(peer && cw_apply_ha(peer->ha, sin)))
     {
         if (peer)
-            ASTOBJ_UNREF(peer,sip_destroy_peer);
+            cw_object_put(peer);
 	peer = NULL;
     }
     if (peer)
@@ -8762,7 +8802,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
         peer = temp_peer(name);
         if (peer)
         {
-            ASTOBJ_CONTAINER_LINK(&peerl, peer);
+            peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
+            peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
             sip_cancel_destroy(p);
             switch (parse_register_contact(p, peer, req))
             {
@@ -8823,7 +8864,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
         }
     }
     if (peer)
-        ASTOBJ_UNREF(peer,sip_destroy_peer);
+        cw_object_put(peer);
 
     return res;
 }
@@ -9628,7 +9669,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
                 if (p->t38peercapability)
                     p->t38jointcapability &= p->t38peercapability;
             }
-            ASTOBJ_UNREF(peer,sip_destroy_peer);
+            cw_object_put(peer);
         }
         else
         { 
@@ -9736,21 +9777,44 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
     return;
 }
 
+
+#define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
+#define FORMAT2 "%-25.25s %15d %15d \n"
+#define FORMAT3 "%-25.25s %15d %-15.15s \n"
+
+struct sip_show_inuse_peer_args {
+	int fd;
+	int showall;
+};
+
+static int sip_show_inuse_peer(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct sip_show_inuse_peer_args *args = data;
+
+	if (peer->call_limit)
+		cw_cli(args->fd, FORMAT2, peer->name, peer->inUse, peer->call_limit);
+	else if (args->showall)
+		cw_cli(args->fd, FORMAT3, peer->name, peer->inUse, "N/A");
+
+	return 0;
+}
+
 /*! \brief  sip_show_inuse: CLI Command to show calls within limits set by 
       call_limit */
 static int sip_show_inuse(int fd, int argc, char *argv[])
 {
-#define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
-#define FORMAT2 "%-25.25s %-15.15s %-15.15s \n"
     char ilimits[40];
-    char iused[40];
-    int showall = 0;
+    struct sip_show_inuse_peer_args args = {
+        .fd = fd,
+	.showall = 0,
+    };
 
     if (argc < 3) 
         return RESULT_SHOWUSAGE;
 
     if (argc == 4 && !strcmp(argv[3],"all")) 
-            showall = 1;
+            args.showall = 1;
     
     cw_cli(fd, FORMAT, "* User name", "In use", "Limit");
     ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
@@ -9759,30 +9823,20 @@ static int sip_show_inuse(int fd, int argc, char *argv[])
             snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
         else 
             cw_copy_string(ilimits, "N/A", sizeof(ilimits));
-        snprintf(iused, sizeof(iused), "%d", iterator->inUse);
-        if (showall || iterator->call_limit)
-            cw_cli(fd, FORMAT2, iterator->name, iused, ilimits);
+        if (args.showall || iterator->call_limit)
+            cw_cli(fd, FORMAT2, iterator->name, iterator->inUse, ilimits);
         ASTOBJ_UNLOCK(iterator);
     } while (0) );
 
     cw_cli(fd, FORMAT, "* Peer name", "In use", "Limit");
 
-    ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-        ASTOBJ_RDLOCK(iterator);
-        if (iterator->call_limit)
-            snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
-        else 
-            cw_copy_string(ilimits, "N/A", sizeof(ilimits));
-        snprintf(iused, sizeof(iused), "%d", iterator->inUse);
-        if (showall || iterator->call_limit)
-            cw_cli(fd, FORMAT2, iterator->name, iused, ilimits);
-        ASTOBJ_UNLOCK(iterator);
-    } while (0) );
+    cw_registry_iterate_ordered(&peerbyname_registry, sip_show_inuse_peer, &args);
 
     return RESULT_SUCCESS;
+}
 #undef FORMAT
 #undef FORMAT2
-}
+#undef FORMAT3
 
 /*! \brief  nat2str: Convert NAT setting to text string */
 static char *nat2str(int nat)
@@ -9927,140 +9981,134 @@ static int sip_show_peers(int fd, int argc, char *argv[])
     return _sip_show_peers(fd, NULL, NULL, NULL, argc, argv);
 }
 
+
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
+
+struct _sip_show_peers_args {
+	int fd;
+	struct mansession *s;
+	regex_t regexbuf;
+	int havepattern;
+	int total_peers;
+	int peers_online;
+	int peers_offline;
+	char idtext[256];
+};
+
+static int _sip_show_peers_one(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct _sip_show_peers_args *args = data;
+	char name[256];
+	char iabuf[INET_ADDRSTRLEN];
+        char status[20] = "";
+        char pstatus;
+
+	if (!args->havepattern || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
+		if (!cw_strlen_zero(peer->username) && !args->s)
+			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
+		else
+			cw_copy_string(name, peer->name, sizeof(name));
+
+		pstatus = peer_status(peer, status, sizeof(status));
+		if (pstatus && peer->addr.sin_addr.s_addr)
+			args->peers_online++;
+		else
+			args->peers_offline++;
+
+		if (!args->s) {
+			/* Normal CLI list */
+			cw_cli(args->fd, FORMAT, name,
+				peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+				cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
+				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
+				peer->ha ? " A " : "   ",       /* permit/deny */
+				ntohs(peer->addr.sin_port),
+				status);
+		} else {    /* Manager format */
+			/* The names here need to be the same as other channels */
+			cw_cli(args->fd,
+				"Event: PeerEntry\r\n%s"
+				"Channeltype: SIP\r\n"
+				"ObjectName: %s\r\n"
+				"ChanObjectType: peer\r\n"    /* "peer" or "user" */
+				"IPaddress: %s\r\n"
+				"IPport: %d\r\n"
+				"Dynamic: %s\r\n"
+				"Natsupport: %s\r\n"
+				"ACL: %s\r\n"
+				"Status: %s\r\n\r\n",
+				args->idtext,
+				peer->name,
+				peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "-none-",
+				ntohs(peer->addr.sin_port),
+				cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no",  /* Dynamic or not? */
+				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",    /* NAT=yes? */
+				peer->ha ? "yes" : "no",       /* permit/deny */
+				status);
+		}
+
+		args->total_peers++;
+	}
+
+	return 0;
+}
+
 /*! \brief  _sip_show_peers: Execute sip show peers command */
 static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[])
 {
-    regex_t regexbuf;
-    int havepattern = 0;
+	struct _sip_show_peers_args args = {
+		.fd = fd,
+		.s = s,
+		.havepattern = 0,
+		.peers_online = 0,
+		.peers_offline = 0,
+		.total_peers = 0,
+		.idtext = "",
+	};
+	char *id;
 
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
+	if (s) {
+		id = astman_get_header(m,"ActionID");
+		if (!cw_strlen_zero(id))
+			snprintf(args.idtext, sizeof(args.idtext) - 1, "ActionID: %s\r\n", id);
+	}
 
-    char name[256];
-    char iabuf[INET_ADDRSTRLEN];
-    int total_peers = 0;
-    int peers_online = 0;
-    int peers_offline = 0;
-    char *id;
-    char idtext[256] = "";
+	switch (argc) {
+		case 5:
+			if (!strcasecmp(argv[3], "like")) {
+				if (regcomp(&args.regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+					return RESULT_SHOWUSAGE;
+				args.havepattern = 1;
+			} else
+				return RESULT_SHOWUSAGE;
+			break;
+		case 3:
+			break;
+		default:
+			return RESULT_SHOWUSAGE;
+	}
 
-    if (s)
-    {
-        /* Manager - get ActionID */
-        id = astman_get_header(m,"ActionID");
-        if (!cw_strlen_zero(id))
-            snprintf(idtext,256,"ActionID: %s\r\n",id);
-    }
+	/* Normal list? */
+	if (!s)
+		cw_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
 
-    switch (argc)
-    {
-    case 5:
-        if (!strcasecmp(argv[3], "like"))
-        {
-            if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
-                return RESULT_SHOWUSAGE;
-            havepattern = 1;
-        }
-        else
-            return RESULT_SHOWUSAGE;
-        break;
-    case 3:
-        break;
-    default:
-        return RESULT_SHOWUSAGE;
-    }
+	cw_registry_iterate_ordered(&peerbyname_registry, _sip_show_peers_one, &args);
 
-    if (!s)
-    {
-        /* Normal list */
-        cw_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
-    } 
-    
-    ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-        char status[20] = "";
-        char srch[2000];
-        char pstatus;
-        
-        ASTOBJ_RDLOCK(iterator);
+	if (!s)
+		cw_cli(fd,"%d sip peers [%d online , %d offline]\n", args.total_peers, args.peers_online, args.peers_offline);
 
-        if (havepattern && regexec(&regexbuf, iterator->name, 0, NULL, 0))
-        {
-            ASTOBJ_UNLOCK(iterator);
-            continue;
-        }
+	if (args.havepattern)
+		regfree(&args.regexbuf);
 
-        if (!cw_strlen_zero(iterator->username) && !s)
-            snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
-        else
-            cw_copy_string(name, iterator->name, sizeof(name));
+	if (total)
+		*total = args.total_peers;
 
-        pstatus = peer_status(iterator, status, sizeof(status));
-        if (pstatus && iterator->addr.sin_addr.s_addr)     
-            peers_online++;
-        else
-            peers_offline++;
-        
-        snprintf(srch, sizeof(srch), FORMAT, name,
-                iterator->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
-		cw_test_flag(&iterator->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
-                (cw_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
-                iterator->ha ? " A " : "   ",     /* permit/deny */
-                ntohs(iterator->addr.sin_port), status);
-        if (!s)
-        {
-            /* Normal CLI list */
-            cw_cli(fd, FORMAT, name, 
-            iterator->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
-	    cw_test_flag(&iterator->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
-            (cw_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
-            iterator->ha ? " A " : "   ",       /* permit/deny */
-            
-            ntohs(iterator->addr.sin_port), status);
-        }
-        else
-        {    /* Manager format */
-            /* The names here need to be the same as other channels */
-            cw_cli(fd, 
-            "Event: PeerEntry\r\n%s"
-            "Channeltype: SIP\r\n"
-            "ObjectName: %s\r\n"
-            "ChanObjectType: peer\r\n"    /* "peer" or "user" */
-            "IPaddress: %s\r\n"
-            "IPport: %d\r\n"
-            "Dynamic: %s\r\n"
-            "Natsupport: %s\r\n"
-            "ACL: %s\r\n"
-            "Status: %s\r\n\r\n", 
-            idtext,
-            iterator->name, 
-            iterator->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "-none-",
-            ntohs(iterator->addr.sin_port), 
-	    cw_test_flag(&iterator->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no",  /* Dynamic or not? */
-            (cw_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",    /* NAT=yes? */
-            iterator->ha ? "yes" : "no",       /* permit/deny */
-            status);
-        }
-
-        ASTOBJ_UNLOCK(iterator);
-
-        total_peers++;
-    } while(0) );
-
-    if (!s)
-    {
-        cw_cli(fd,"%d sip peers [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
-    }
-
-    if (havepattern)
-        regfree(&regexbuf);
-
-    if (total)
-        *total = total_peers;
-
-    return RESULT_SUCCESS;
+	return RESULT_SUCCESS;
+}
 #undef FORMAT
 #undef FORMAT2
-}
 
 
 /*! \brief  print_group: Print call group and pickup group */
@@ -10100,189 +10148,156 @@ static const char *insecure2str(int port, int invite)
         return "no";
 }
 
+
+struct sip_prune_realtime_peer_args {
+	char *name;
+	regex_t regexbuf;
+	int pruned;
+};
+
+static int sip_prune_realtime_peer(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct sip_prune_realtime_peer_args *args = data;
+
+	if (!args->name || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
+		if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS)) {
+			cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
+			cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+			args->pruned++;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
-    struct sip_peer *peer;
-    struct sip_user *user;
-    int pruneuser = 0;
-    int prunepeer = 0;
-    int multi = 0;
-    char *name = NULL;
-    regex_t regexbuf;
+	struct sip_prune_realtime_peer_args args = {
+		.name = NULL,
+	};
+	struct sip_peer *peer;
+	struct sip_user *user;
+	int pruneuser = 0;
+	int prunepeer = 0;
+	int multi = 0;
 
-    switch (argc)
-    {
-    case 4:
-        if (!strcasecmp(argv[3], "user"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "peer"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "like"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "all"))
-        {
-            multi = 1;
-            pruneuser = prunepeer = 1;
-        }
-        else
-        {
-            pruneuser = prunepeer = 1;
-            name = argv[3];
-        }
-        break;
-    case 5:
-        if (!strcasecmp(argv[4], "like"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "all"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "like"))
-        {
-            multi = 1;
-            name = argv[4];
-            pruneuser = prunepeer = 1;
-        }
-        else if (!strcasecmp(argv[3], "user"))
-        {
-            pruneuser = 1;
-            if (!strcasecmp(argv[4], "all"))
-                multi = 1;
-            else
-                name = argv[4];
-        }
-        else if (!strcasecmp(argv[3], "peer"))
-        {
-            prunepeer = 1;
-            if (!strcasecmp(argv[4], "all"))
-                multi = 1;
-            else
-                name = argv[4];
-        }
-        else
-            return RESULT_SHOWUSAGE;
-        break;
-    case 6:
-        if (strcasecmp(argv[4], "like"))
-            return RESULT_SHOWUSAGE;
-        if (!strcasecmp(argv[3], "user"))
-        {
-            pruneuser = 1;
-            name = argv[5];
-        }
-        else if (!strcasecmp(argv[3], "peer"))
-        {
-            prunepeer = 1;
-            name = argv[5];
-        }
-        else
-            return RESULT_SHOWUSAGE;
-        break;
-    default:
-        return RESULT_SHOWUSAGE;
-    }
+	switch (argc) {
+		case 4:
+			if (!strcasecmp(argv[3], "user") || !strcasecmp(argv[3], "peer") || !strcasecmp(argv[3], "like"))
+				return RESULT_SHOWUSAGE;
+			if (!strcasecmp(argv[3], "all"))
+				multi = pruneuser = prunepeer = 1;
+			else {
+				pruneuser = prunepeer = 1;
+				args.name = argv[3];
+			}
+			break;
+		case 5:
+			if (!strcasecmp(argv[4], "like") || !strcasecmp(argv[3], "all"))
+				return RESULT_SHOWUSAGE;
+			if (!strcasecmp(argv[3], "like")) {
+				multi = pruneuser = prunepeer = 1;
+				args.name = argv[4];
+			} else if (!strcasecmp(argv[3], "user")) {
+				pruneuser = 1;
+				if (!strcasecmp(argv[4], "all"))
+					multi = 1;
+				else
+					args.name = argv[4];
+			} else if (!strcasecmp(argv[3], "peer")) {
+				prunepeer = 1;
+				if (!strcasecmp(argv[4], "all"))
+					multi = 1;
+				else
+					args.name = argv[4];
+			} else
+				return RESULT_SHOWUSAGE;
+			break;
+		case 6:
+			if (strcasecmp(argv[4], "like"))
+				return RESULT_SHOWUSAGE;
+			if (!strcasecmp(argv[3], "user")) {
+				pruneuser = 1;
+				args.name = argv[5];
+			} else if (!strcasecmp(argv[3], "peer")) {
+				prunepeer = 1;
+				args.name = argv[5];
+			} else
+				return RESULT_SHOWUSAGE;
+			break;
+		default:
+			return RESULT_SHOWUSAGE;
+	}
 
-    if (multi  &&  name)
-    {
-        if (regcomp(&regexbuf, name, REG_EXTENDED | REG_NOSUB))
-            return RESULT_SHOWUSAGE;
-    }
+	if (multi && args.name) {
+		if (regcomp(&args.regexbuf, args.name, REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+	}
 
-    if (multi)
-    {
-        if (prunepeer)
-        {
-            int pruned = 0;
+	if (multi) {
+		if (prunepeer) {
+			args.pruned = 0;
 
-            ASTOBJ_CONTAINER_WRLOCK(&peerl);
-            ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-                ASTOBJ_RDLOCK(iterator);
-                if (name && regexec(&regexbuf, iterator->name, 0, NULL, 0))
-                {
-                    ASTOBJ_UNLOCK(iterator);
-                    continue;
-                };
-                if (cw_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
-                {
-                    ASTOBJ_MARK(iterator);
-                    pruned++;
-                }
-                ASTOBJ_UNLOCK(iterator);
-            } while (0) );
-            if (pruned)
-            {
-                ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
-                cw_cli(fd, "%d peers pruned.\n", pruned);
-            }
-            else
-                cw_cli(fd, "No peers found to prune.\n");
-            ASTOBJ_CONTAINER_UNLOCK(&peerl);
-        }
-        if (pruneuser)
-        {
-            int pruned = 0;
+			cw_registry_iterate(&peerbyname_registry, sip_prune_realtime_peer, &args);
 
-            ASTOBJ_CONTAINER_WRLOCK(&userl);
-            ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-                ASTOBJ_RDLOCK(iterator);
-                if (name && regexec(&regexbuf, iterator->name, 0, NULL, 0))
-                {
-                    ASTOBJ_UNLOCK(iterator);
-                    continue;
-                };
-                if (cw_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
-                {
-                    ASTOBJ_MARK(iterator);
-                    pruned++;
-                }
-                ASTOBJ_UNLOCK(iterator);
-            } while (0) );
-            if (pruned)
-            {
-                ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, sip_destroy_user);
-                cw_cli(fd, "%d users pruned.\n", pruned);
-            }
-            else
-                cw_cli(fd, "No users found to prune.\n");
-            ASTOBJ_CONTAINER_UNLOCK(&userl);
-        }
-    }
-    else
-    {
-        if (prunepeer)
-        {
-            if ((peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name)))
-            {
-                if (!cw_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
-                {
-                    cw_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
-                    ASTOBJ_CONTAINER_LINK(&peerl, peer);
-                }
-                else
-                    cw_cli(fd, "Peer '%s' pruned.\n", name);
-                ASTOBJ_UNREF(peer, sip_destroy_peer);
-            }
-            else
-                cw_cli(fd, "Peer '%s' not found.\n", name);
-        }
-        if (pruneuser)
-        {
-            if ((user = ASTOBJ_CONTAINER_FIND_UNLINK(&userl, name)))
-            {
-                if (!cw_test_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
-                {
-                    cw_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", name);
-                    ASTOBJ_CONTAINER_LINK(&userl, user);
-                }
-                else
-                    cw_cli(fd, "User '%s' pruned.\n", name);
-                ASTOBJ_UNREF(user, sip_destroy_user);
-            }
-            else
-                cw_cli(fd, "User '%s' not found.\n", name);
-        }
-    }
+			if (args.pruned)
+				cw_cli(fd, "%d peers pruned.\n", args.pruned);
+			else
+				cw_cli(fd, "No peers found to prune.\n");
+		}
+		if (pruneuser) {
+			args.pruned = 0;
 
-    return RESULT_SUCCESS;
+			ASTOBJ_CONTAINER_WRLOCK(&userl);
+			ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
+				ASTOBJ_RDLOCK(iterator);
+				if (args.name && regexec(&args.regexbuf, iterator->name, 0, NULL, 0)) {
+					ASTOBJ_UNLOCK(iterator);
+					continue;
+				};
+				if (cw_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+					ASTOBJ_MARK(iterator);
+					args.pruned++;
+				}
+				ASTOBJ_UNLOCK(iterator);
+			} while (0) );
+			if (args.pruned) {
+				ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, sip_destroy_user);
+				cw_cli(fd, "%d users pruned.\n", args.pruned);
+			} else
+				cw_cli(fd, "No users found to prune.\n");
+			ASTOBJ_CONTAINER_UNLOCK(&userl);
+		}
+	} else {
+		if (prunepeer) {
+			if ((peer = find_peer(args.name, NULL, 0))) {
+				if (!cw_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
+					cw_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", args.name);
+				else {
+					cw_cli(fd, "Peer '%s' pruned.\n", args.name);
+					cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
+					cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+				}
+				cw_object_put(peer);
+			} else
+				cw_cli(fd, "Peer '%s' not found.\n", args.name);
+		}
+		if (pruneuser) {
+			if ((user = ASTOBJ_CONTAINER_FIND_UNLINK(&userl, args.name))) {
+				if (!cw_test_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+					cw_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", args.name);
+					ASTOBJ_CONTAINER_LINK(&userl, user);
+				} else
+					cw_cli(fd, "User '%s' pruned.\n", args.name);
+				ASTOBJ_UNREF(user, sip_destroy_user);
+			} else
+				cw_cli(fd, "User '%s' not found.\n", args.name);
+		}
+	}
+
+	return RESULT_SUCCESS;
 }
 
 /*! \brief  print_codec_to_cli: Print codec list from preference to CLI/manager */
@@ -10498,7 +10513,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
                 cw_cli(fd, "                 %s = %s\n", v->name, v->value);
         }
         cw_cli(fd, "\n");
-        ASTOBJ_UNREF(peer, sip_destroy_peer);
+        cw_object_put(peer);
     }
     else if (peer && type == 1)
     {
@@ -10576,7 +10591,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
             }
         }
 
-        ASTOBJ_UNREF(peer,sip_destroy_peer);
+        cw_object_put(peer);
     }
     else
     {
@@ -10818,9 +10833,9 @@ struct __sip_show_channels_args {
 	int numchans;
 };
 
-#define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-7.7s  %-15.15s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
+#define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s\n"
 
 static int __sip_show_channels_one(struct cw_object *obj, void *data)
 {
@@ -10918,17 +10933,38 @@ static void complete_sipch(int fd, char *argv[], int lastarg, int lastarg_len)
 	cw_registry_iterate(&dialogue_registry, complete_sipch_one, &args);
 }
 
+
+struct complete_sip_peer_args {
+	int fd;
+	char *word;
+	int word_len;
+	int flags2;
+};
+
+static int complete_sip_peer_one(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct complete_sip_peer_args *args = data;
+
+	if (!strncasecmp(args->word, peer->name, args->word_len)) {
+		if (!args->flags2 || cw_test_flag(&peer->flags_page2, args->flags2))
+			cw_cli(args->fd, "%s\n", peer->name);
+	}
+
+	return 0;
+}
+
 /*! \brief  complete_sip_peer: Do completion on peer name */
 static void complete_sip_peer(int fd, char *word, int word_len, int flags2)
 {
-    ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-        /* locking of the object is not required because only the name and flags are being compared */
-        if (!strncasecmp(word, iterator->name, word_len))
-        {
-            if (!flags2 || cw_test_flag((&iterator->flags_page2), flags2))
-                cw_cli(fd, "%s\n", iterator->name);
-        }
-    } while(0) );
+	struct complete_sip_peer_args args = {
+		.fd = fd,
+		.word = word,
+		.word_len = word_len,
+		.flags2 = flags2,
+	};
+
+	cw_registry_iterate(&peerbyname_registry, complete_sip_peer_one, &args);
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
@@ -11390,7 +11426,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
         }
         else
             cw_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
-        ASTOBJ_UNREF(peer,sip_destroy_peer);
+        cw_object_put(peer);
     }
     else
         cw_cli(fd, "No such peer '%s'\n", argv[3]);
@@ -11992,7 +12028,7 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
         }
     }
 
-    ASTOBJ_UNREF(peer, sip_destroy_peer);
+    cw_object_put(peer);
 
     return 0;
 }
@@ -12018,7 +12054,7 @@ static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, c
         }
     }
 
-    ASTOBJ_UNREF(peer, sip_destroy_peer);
+    cw_object_put(peer);
     return 0;
 }
 
@@ -12584,8 +12620,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         if (peer->pokeexpire == -1 || cw_sched_del(sched, peer->pokeexpire))
             return 1;
 
-        peer->pokeexpire = -1;
-
 	cw_object_put(peer->dialogue);
 	peer->dialogue = NULL;
 
@@ -12634,10 +12668,13 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 #endif
         sip_destroy(p);
 
-        /* Try again eventually */
-        peer->pokeexpire = cw_sched_add(sched,
-            ((peer->lastms < 0 || peer->lastms > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
-            sip_poke_peer, peer);
+        if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
+            /* Try again eventually */
+            peer->pokeexpire = cw_sched_add(sched,
+                ((peer->lastms < 0 || peer->lastms > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
+                sip_poke_peer, peer);
+        } else
+            cw_object_put(peer);
     }
     return 1;
 }
@@ -14553,13 +14590,12 @@ retrylock:
 /*! \brief  sip_send_mwi_to_peer: Send message waiting indication */
 static int sip_send_mwi_to_peer(struct sip_peer *peer)
 {
-    /* Called with peerl lock, but releases it */
     struct sip_pvt *p;
     int newmsgs, oldmsgs;
 
     /* Check for messages */
     cw_app_messagecount(peer->mailbox, &newmsgs, &oldmsgs);
-    
+
     time(&peer->lastmsgcheck);
     
     /* Return now if it's the same thing we told them last time */
@@ -14712,6 +14748,7 @@ static void *do_monitor(void *data)
             res = 1;
         cw_io_run(io, res);
 
+#if 0
         /* needs work to send mwi to realtime peers */
         time(&args.t);
         args.fastrestart = 0;
@@ -14739,6 +14776,7 @@ static void *do_monitor(void *data)
             /* Reset where we come from */
             lastpeernum = -1;
         }
+#endif
     }
     /* Never reached */
     return NULL;
@@ -14755,9 +14793,8 @@ static int sip_poke_noanswer(void *data)
      * even if we get a response handle_response_peerpoke will do
      * nothing.
      */
-    peer->pokeexpire = -1;
-    if (peer->dialogue)
-    {
+
+    if (peer->dialogue) {
         cw_mutex_lock(&peer->dialogue->lock);
         sip_destroy(peer->dialogue);
         cw_mutex_unlock(&peer->dialogue->lock);
@@ -14768,8 +14805,7 @@ static int sip_poke_noanswer(void *data)
     if (peer->noanswer < 3)
         peer->noanswer++;
 
-    if (peer->noanswer == 3 && peer->lastms > -1)
-    {
+    if (peer->noanswer == 3 && peer->lastms > -1) {
 	if (option_verbose > 3)
 		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
@@ -14777,10 +14813,15 @@ static int sip_poke_noanswer(void *data)
         cw_device_state_changed("SIP/%s", peer->name);
     }
 
-    /* Try again quickly */
-    peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
+    if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
+        /* Try again quickly */
+        peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
+    } else
+        cw_object_put(peer);
+
     return 0;
 }
+
 
 /*! \brief  sip_poke_peer: Check availability of peer, also keep NAT open */
 /*    This is done with the interval in qualify= option in sip.conf */
@@ -14805,51 +14846,55 @@ static void *sip_poke_peer_thread(void *data)
             peer->addr.sin_port = (port ? port : htons(DEFAULT_SIP_PORT));
     }
 
-    /* If we don't have a qualify timeout we don't need to poke the host, if we don't
-     * have an address we can't poke the host.
-     */
-    if (peer->maxms && peer->addr.sin_addr.s_addr) {
-        if ((p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
-            memcpy(&p->sa, &peer->addr, sizeof(p->sa));
-            memcpy(&p->recv, &peer->addr, sizeof(p->sa));
-            cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
+    /* If we are no longer registered we have nothing to do but shut down */
+    if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
+        /* If we don't have a qualify timeout we don't need to poke the host, if we don't
+         * have an address we can't poke the host.
+         */
+        if (peer->maxms && peer->addr.sin_addr.s_addr) {
+            if ((p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
+                memcpy(&p->sa, &peer->addr, sizeof(p->sa));
+                memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+                cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 
-            /* Send options to peer's fullcontact */
-            if (!cw_strlen_zero(peer->fullcontact))
-                cw_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
+                /* Send options to peer's fullcontact */
+                if (!cw_strlen_zero(peer->fullcontact))
+                    cw_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
 
-            if (!cw_strlen_zero(peer->tohost))
-                cw_copy_string(p->tohost, peer->tohost, sizeof(p->tohost));
-            else
-                cw_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
+                if (!cw_strlen_zero(peer->tohost))
+                    cw_copy_string(p->tohost, peer->tohost, sizeof(p->tohost));
+                else
+                    cw_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
 
-            /* Recalculate our side, and recalculate Call ID */
-            if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
-                memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-            build_via(p, p->via, sizeof(p->via));
-            build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+                /* Recalculate our side, and recalculate Call ID */
+                if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
+                    memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+                build_via(p, p->via, sizeof(p->via));
+                build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 
-	    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+	        p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
 
-	    peer->dialogue = cw_object_dup(p);
-            p->peerpoke = peer;
+	        peer->dialogue = cw_object_dup(p);
+                p->peerpoke = peer;
 
-            cw_set_flag(p, SIP_OUTGOING);
+                cw_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
-            cw_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-            transmit_invite(p, SIP_INVITE, 0, 2);
+                cw_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
+                transmit_invite(p, SIP_INVITE, 0, 2);
 #else
-            transmit_invite(p, SIP_OPTIONS, 0, 2);
+                transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
-            gettimeofday(&peer->ps, NULL);
-            peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
+                gettimeofday(&peer->ps, NULL);
+                peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
+            } else {
+                cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
+                peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_T1, sip_poke_peer, peer);
+	    }
         } else {
-            cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-            peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_T1, sip_poke_peer, peer);
-	}
-    } else {
-        peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
-    }
+            peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
+        }
+    } else
+        cw_object_put(peer);
 
     return 0;
 }
@@ -14859,13 +14904,17 @@ static int sip_poke_peer(void *data)
 	struct sip_peer *peer = data;
 	pthread_t tid;
 
-        peer->pokeexpire = -1;
+	/* Since we are now running we can't be unscheduled therefore
+	 * even if we get a response handle_response_peerpoke will do
+	 * nothing.
+	 */
 
 	/* Dynamic peers don't need to do DNS look ups. Everything else goes async. */
 	if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
 		sip_poke_peer_thread(peer);
 	else
 		cw_pthread_create(&tid, &global_attr_detached, sip_poke_peer_thread, peer);
+
 	return 0;
 }
 
@@ -14931,7 +14980,7 @@ static int sip_devicestate(void *data)
             /* there is no address, it's unavailable */
             res = CW_DEVICE_UNAVAILABLE;
         }
-        ASTOBJ_UNREF(p,sip_destroy_peer);
+        cw_object_put(p);
     }
     else
     {
@@ -15496,7 +15545,9 @@ static struct sip_peer *temp_peer(const char *name)
 
     memset(peer, 0, sizeof(struct sip_peer));
     apeerobjs++;
-    ASTOBJ_INIT(peer);
+
+    cw_object_init(peer, NULL, 1);
+    peer->obj.release = sip_peer_release;
 
     peer->expire = -1;
     peer->pokeexpire = -1;
@@ -15537,7 +15588,7 @@ static void *async_get_ip_handler(void *data)
 		free(args->value);
 	}
 	if (args->peer)
-		ASTOBJ_UNREF(args->peer, sip_destroy_peer);
+		cw_object_put(args->peer);
 	free(args);
 	return NULL;
 }
@@ -15549,7 +15600,7 @@ static int async_get_ip(struct sip_peer *peer, struct sockaddr_in *sin, const ch
 	int ret = -1;
 
 	if ((args = malloc(sizeof(*args)))) {
-		args->peer = (peer ? ASTOBJ_REF(peer) : NULL);
+		args->peer = (peer ? cw_object_dup(peer) : NULL);
 		args->sin = sin;
 		args->value = strdup(value);
 		args->service = service;
@@ -15564,7 +15615,6 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     struct sip_peer *peer = NULL;
     struct cw_ha *oldha = NULL;
     int obproxyfound=0;
-    int found=0;
     int format=0;        /* Ama flags */
     time_t regseconds;
     char *varname = NULL, *varval = NULL;
@@ -15572,53 +15622,30 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     struct cw_flags peerflags = {(0)};
     struct cw_flags mask = {(0)};
 
-
-    if (!realtime)
-        /* Note we do NOT use find_peer here, to avoid realtime recursion */
-        /* We also use a case-sensitive comparison (unlike find_peer) so
-           that case changes made to the peer name will be properly handled
-           during reload
-        */
-        peer = ASTOBJ_CONTAINER_FIND_UNLINK_FULL(&peerl, name, name, 0, 0, strcmp);
-
-    if (peer)
-    {
-        /* Already in the list, remove it and it will be added back (or FREE'd)  */
-        found++;
-    }
-    else
-    {
-        peer = malloc(sizeof(struct sip_peer));
-        if (peer)
-        {
-            memset(peer, 0, sizeof(struct sip_peer));
-            if (realtime)
-                rpeerobjs++;
-            else
-                speerobjs++;
-            ASTOBJ_INIT(peer);
-            peer->expire = -1;
-            peer->pokeexpire = -1;
-	    peer->lastms = -1;
-        }
+    if ((peer = calloc(1, sizeof(struct sip_peer)))) {
+        if (realtime)
+            rpeerobjs++;
         else
-        {
+            speerobjs++;
+
+        cw_object_init(peer, NULL, 1);
+        peer->obj.release = sip_peer_release;
+
+        peer->expire = -1;
+        peer->pokeexpire = -1;
+        peer->lastms = -1;
+    } else {
             cw_log(CW_LOG_WARNING, "Can't allocate SIP peer memory\n");
-        }
+            return NULL;
     }
-    /* Note that our peer HAS had its reference count incrased */
-    if (!peer)
-        return NULL;
 
     peer->lastmsgssent = -1;
-    if (!found)
-    {
-        if (name)
-            cw_copy_string(peer->name, name, sizeof(peer->name));
-        peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-        peer->addr.sin_family = AF_INET;
-        peer->defaddr.sin_family = AF_INET;
-    }
+    if (name)
+        cw_copy_string(peer->name, name, sizeof(peer->name));
+    peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+    peer->addr.sin_family = AF_INET;
+    peer->defaddr.sin_family = AF_INET;
+
     /* If we have channel variables, remove them (reload) */
     if (peer->chanvars)
     {
@@ -15711,17 +15738,12 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
                 {
                     /* They'll register with us */
                     cw_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
-                    if (!found)
+                    memset(&peer->addr.sin_addr, 0, 4);
+                    if (peer->addr.sin_port)
                     {
-                        /* Initialize stuff iff we're not found, otherwise
-                           we keep going with what we had */
-                        memset(&peer->addr.sin_addr, 0, 4);
-                        if (peer->addr.sin_port)
-                        {
-                            /* If we've already got a port, make it the default rather than absolute */
-                            peer->defaddr.sin_port = peer->addr.sin_port;
-                            peer->addr.sin_port = 0;
-                        }
+                        /* If we've already got a port, make it the default rather than absolute */
+                        peer->defaddr.sin_port = peer->addr.sin_port;
+                        peer->addr.sin_port = 0;
                     }
                 }
             }
@@ -15896,10 +15918,13 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         }
     }
     cw_copy_flags(peer, &peerflags, mask.flags);
-    if (!found && cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && !cw_test_flag(peer, SIP_REALTIME))
+    if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && !cw_test_flag(peer, SIP_REALTIME))
         reg_source_db(peer);
-    ASTOBJ_UNMARK(peer);
     cw_free_ha(oldha);
+
+    peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
+    peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
+
     return peer;
 }
 
@@ -16407,12 +16432,8 @@ static int reload_config(void)
                 }
                 if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend"))
                 {
-                    peer = build_peer(cat, cw_variable_browse(cfg, cat), 0);
-                    if (peer)
-                    {
-                        ASTOBJ_CONTAINER_LINK(&peerl,peer);
-                        ASTOBJ_UNREF(peer, sip_destroy_peer);
-                    }
+                    if ((peer = build_peer(cat, cw_variable_browse(cfg, cat), 0)))
+                        cw_object_put(peer);
                 }
                 else if (strcasecmp(utype, "user"))
                 {
@@ -17206,18 +17227,21 @@ static struct cw_tpkt_protocol sip_tpkt =
 };
 #endif
 
-/*! \brief  sip_poke_all_peers: Send a poke to all known peers */
-static void sip_poke_all_peers(void)
+static int sip_poke_peer_one(struct cw_object *obj, void *data)
 {
-    ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-        ASTOBJ_WRLOCK(iterator);
-        if (iterator->pokeexpire > -1)
-            cw_sched_del(sched, iterator->pokeexpire);
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+
 	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
-        iterator->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, iterator);
-        ASTOBJ_UNLOCK(iterator);
-    } while (0)
-    );
+	if (peer->pokeexpire == -1)
+		peer->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(peer));
+
+	return 0;
+}
+
+/*! \brief  sip_poke_new_peers: Send a poke to all new peers */
+static void sip_poke_new_peers(void)
+{
+	cw_registry_iterate(&peerbyname_registry, sip_poke_peer_one, NULL);
 }
 
 /*! \brief  sip_send_all_registers: Send all known registrations */
@@ -17244,6 +17268,26 @@ static void sip_send_all_registers(void)
     );
 }
 
+
+static int flush_peers_one(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+
+	/* Tell qualification to stop */
+	cw_set_flag(peer, SIP_ALREADYGONE);
+
+	cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
+	cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+	peer->reg_entry_byname = NULL;
+	peer->reg_entry_byaddr = NULL;
+
+	if (peer->pokeexpire > -1 && !cw_sched_del(sched, peer->pokeexpire))
+		cw_object_put(peer);
+
+	return 0;
+}
+
+
 /*! \brief  sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
@@ -17267,12 +17311,11 @@ static int sip_do_reload(void)
 
     ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
     ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-    ASTOBJ_CONTAINER_MARKALL(&peerl);
-    reload_config();
-    /* Prune peers who still are supposed to be deleted */
-    ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
 
-    sip_poke_all_peers();
+    cw_registry_iterate(&peerbyname_registry, flush_peers_one, NULL);
+    reload_config();
+
+    sip_poke_new_peers();
     sip_send_all_registers();
 
     return 0;
@@ -17470,9 +17513,10 @@ static struct manager_action manager_actions[] = {
 static int load_module(void)
 {
     cw_registry_init(&dialogue_registry, 1024);
+    cw_registry_init(&peerbyname_registry, 1024);
+    cw_registry_init(&peerbyaddr_registry, 1024);
 
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
-    ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
 
     if ((sched = sched_context_create(1)) == NULL)
@@ -17524,7 +17568,7 @@ static int load_module(void)
     /* Register manager commands */
     cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
-    sip_poke_all_peers();    
+    sip_poke_new_peers();
     sip_send_all_registers();
     
     return 0;
@@ -17574,8 +17618,6 @@ static int release_module(void)
 
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
 	ASTOBJ_CONTAINER_DESTROY(&userl);
-	ASTOBJ_CONTAINER_DESTROYALL(&peerl, sip_destroy_peer);
-	ASTOBJ_CONTAINER_DESTROY(&peerl);
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
 
@@ -17586,6 +17628,8 @@ static int release_module(void)
 	sched_context_destroy(sched);
 
 	cw_registry_destroy(&dialogue_registry);
+	cw_registry_destroy(&peerbyname_registry);
+	cw_registry_destroy(&peerbyaddr_registry);
 
 	return 0;
 }
