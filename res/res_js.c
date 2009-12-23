@@ -133,7 +133,7 @@ static int global_func_option_whitelist = 0;
 
 struct jchan {
 	struct cw_channel *chan;
-	char *name;
+	const char *name;
 	char *context;
 	char *exten;
 	char *cid_num;
