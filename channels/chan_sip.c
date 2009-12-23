@@ -10062,20 +10062,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 #undef FORMAT2
 }
 
-/*! \brief  sip_show_objects: List all allocated SIP Objects */
-static int sip_show_objects(int fd, int argc, char *argv[])
-{
-    char tmp[256];
-    if (argc != 3)
-        return RESULT_SHOWUSAGE;
-    cw_cli(fd, "-= User objects: %d static, %d realtime =-\n\n", suserobjs, ruserobjs);
-    ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &userl);
-    cw_cli(fd, "-= Peer objects: %d static, %d realtime, %d autocreate =-\n\n", speerobjs, rpeerobjs, apeerobjs);
-    ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &peerl);
-    cw_cli(fd, "-= Registry objects: %d =-\n\n", regobjs);
-    ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &regl);
-    return RESULT_SUCCESS;
-}
+
 /*! \brief  print_group: Print call group and pickup group */
 static void  print_group(int fd, unsigned int group, int crlf) 
 {
@@ -11837,10 +11824,6 @@ static const char sip_reload_usage[] =
 static const char show_subscriptions_usage[] =
 "Usage: sip show subscriptions\n" 
 "       Shows active SIP subscriptions for extension states\n";
-
-static const char show_objects_usage[] =
-"Usage: sip show objects\n" 
-"       Shows status of known SIP objects\n";
 
 static const char show_settings_usage[] =
 "Usage: sip show settings\n"
@@ -17322,12 +17305,6 @@ static struct cw_clicmd  my_clis[] = {
 	    .summary = "Send a notify packet to a SIP peer",
 	    .usage = notify_usage,
 	    .generator = complete_sipnotify,
-    },
-    {
-	    .cmda = { "sip", "show", "objects", NULL },
-	    .handler = sip_show_objects,
-	    .summary = "Show all SIP object allocations",
-	    .usage = show_objects_usage,
     },
     {
 	    .cmda = { "sip", "show", "users", NULL },
