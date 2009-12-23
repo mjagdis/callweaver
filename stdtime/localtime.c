@@ -1262,11 +1262,21 @@ increment_overflow(number, delta)
 int *	number;
 int	delta;
 {
-	int	number0;
+	int ret;
 
-	number0 = *number;
+	/* Note that delta is itself an int so we only need to check
+	 * for overflow if the current number is on the wrong side
+	 * of zero and thus delta could potentially push us past
+	 * the limit.
+	 */
+	if (delta >= 0)
+		ret = (*number > 0 && INT_MAX - *number > delta);
+	else
+		ret = (*number < 0 && *number - INT_MIN > -delta);
+
 	*number += delta;
-	return (*number < number0) != (delta < 0);
+
+	return ret;
 }
 
 static int
