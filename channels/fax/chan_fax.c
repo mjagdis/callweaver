@@ -333,7 +333,7 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			if (cfg_vblevel > 1)
 				cw_log(CW_LOG_DEBUG, "%s: flow control %s\n", fm->devlink, (num ? "on" : "off"));
 
-			t31_at_tx_handler(&fm->t31_state.at_state, fm, (num ? "\021" : "\023"), 1);
+			t31_at_tx_handler(&fm->t31_state.at_state, fm, (const uint8_t *)(num ? "\021" : "\023"), 1);
 			break;
 
 		case AT_MODEM_CONTROL_SETID:
@@ -421,7 +421,7 @@ static void faxmodem_mutex_unlock(void *mutex)
  */
 static void *faxmodem_thread(void *obj)
 {
-	uint8_t modembuf[T31_TX_BUF_LEN];
+	char modembuf[T31_TX_BUF_LEN];
 	char buf[256];
 	struct faxmodem *fm = obj;
 	int avail;
@@ -806,7 +806,7 @@ static struct cw_frame *tech_read(struct cw_channel *chan)
 	char buf[256];
 	struct faxmodem *fm = chan->tech_pvt;
 	struct cw_frame *fr = &fm->frame;
-	uint16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
+	int16_t *frame_data = (int16_t *)(fm->fdata + CW_FRIENDLY_OFFSET);
 	int samples;
 
 	cw_mutex_lock(&fm->lock);
