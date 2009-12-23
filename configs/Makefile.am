@@ -177,7 +177,11 @@ install-data-local:
 		configfile=`basename $${samplefile} .sample`; \
 		if test ! -f $(DESTDIR)${cwconfdir}/$${configfile}; \
 		then \
-			$(INSTALL) -m 0640 $${samplefile} $(DESTDIR)${cwconfdir}/$${configfile}; \
+			if test -e $${samplefile}; then \
+				$(INSTALL) -m 0640 $${samplefile} $(DESTDIR)${cwconfdir}/$${configfile}; \
+			else \
+				$(INSTALL) -m 0640 $(srcdir)/$${samplefile} $(DESTDIR)${cwconfdir}/$${configfile}; \
+			fi; \
 			if test -z "$(DESTDIR)"; \
 			then \
 				chown ${cwrunuser}:${cwrungroup} $(DESTDIR)${cwconfdir}/$${configfile}; \
