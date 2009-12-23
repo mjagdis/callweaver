@@ -7246,7 +7246,7 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
-	return cw_pthread_create(&netthreadid, NULL, network_thread, NULL);
+	return cw_pthread_create(&netthreadid, &global_attr_default, network_thread, NULL);
 }
 
 static struct iax2_context *build_context(char *context)
