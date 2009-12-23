@@ -3414,6 +3414,8 @@ static int sip_hangup(struct cw_channel *ast)
     /* Disconnect */
     if (p->vad)
         cw_dsp_free(p->vad);
+    if (p->vadtx)
+        cw_dsp_free(p->vadtx);
     p->owner = NULL;
     ast->tech_pvt = NULL;
 
