@@ -1,5 +1,5 @@
 # ===========================================================================
-#             http://autoconf-archive.cryp.to/ax_have_epoll.html
+#          http://www.nongnu.org/autoconf-archive/ax_have_epoll.html
 # ===========================================================================
 #
 # SYNOPSIS
@@ -23,7 +23,7 @@
 #   the macro verifies that a kernel newer than this is installed. This
 #   check is somewhat unreliable if <linux/version.h> doesn't match the
 #   running kernel, but it is necessary regardless, because glibc comes with
-#   stubs for the epoll_create(), epolL_wait(), etc. that allow programs to
+#   stubs for the epoll_create(), epoll_wait(), etc. that allow programs to
 #   compile and link even if the kernel is too old; the problem would then
 #   be detected only at runtime.
 #
@@ -33,11 +33,7 @@
 #   AX_HAVE_EPOLL would succeed if AX_HAVE_EPOLL_PWAIT has, but not the
 #   other way round.
 #
-# LAST MODIFICATION
-#
-#   2008-05-07
-#
-# COPYLEFT
+# LICENSE
 #
 #   Copyright (c) 2008 Peter Simons <simons@cryp.to>
 #
