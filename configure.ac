@@ -30,6 +30,7 @@ dnl  knows that we use GNU compliant macros etc
 AC_GNU_SOURCE
 AC_LANG_C
 AC_C_CONST
+VL_PROG_CC_WARNINGS
 
 ######
 #
