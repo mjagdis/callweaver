@@ -41,6 +41,10 @@ struct timespec {
 	long tv_nsec;
 };
 
+#ifndef CLOCK_REALTIME
+#  define CLOCK_REALTIME 0
+#endif
+
 #define global_clock_monotonic 0
 
 static inline int cw_clock_gettime(int clk, struct timespec *ts)
