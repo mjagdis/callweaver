@@ -23,20 +23,19 @@
  * \arg See also \ref Config_moh
  * 
  */
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/signal.h>
-#include <netinet/in.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
 #include <dirent.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 
 #include "callweaver.h"
 
@@ -129,9 +128,10 @@ struct mohclass {
 	char dir[256];
 	char args[256];
 	char mode[80];
-	char filearray[MAX_MOHFILES][MAX_MOHFILE_LEN];
+	char **files;
 	unsigned int flags;
 	int total_files;
+	int total_space;
 	int format;
 	int pid;		/* PID of custom command */
 	pthread_t thread;
@@ -157,6 +157,7 @@ CW_MUTEX_DEFINE_STATIC(moh_lock);
 static void cw_moh_free_class(struct mohclass *class) 
 {
 	struct mohdata *members, *mtmp;
+	int i;
 
 	members = class->members;
 	while(members) {
@@ -164,6 +165,10 @@ static void cw_moh_free_class(struct mohclass *class)
 		members = members->next;
 		free(mtmp);
 	}
+
+	for (i = 0; i < class->total_files; i--)
+		free(class->files[i]);
+	free(class->files);
 	free(class);
 }
 
@@ -208,7 +213,7 @@ static int cw_moh_files_next(struct cw_channel *chan)
 			state->pos %= state->class->total_files;
 
 			/* check to see if this file's format can be opened */
-			if (cw_fileexists(state->class->filearray[state->pos], NULL, NULL))
+			if (cw_fileexists(state->class->files[state->pos], NULL, NULL))
 				break;
 
 		}
@@ -221,14 +226,14 @@ static int cw_moh_files_next(struct cw_channel *chan)
 		return -1;
 	}
 */
-	if (!cw_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
-		cw_log(CW_LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
+	if (!cw_openstream_full(chan, state->class->files[state->pos], chan->language, 1)) {
+		cw_log(CW_LOG_WARNING, "Unable to open file '%s': %s\n", state->class->files[state->pos], strerror(errno));
 		state->pos++;
 		return -1;
 	}
 
 	if (option_debug)
-		cw_log(CW_LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
+		cw_log(CW_LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->files[state->pos]);
 
 	if (state->samples)
 		cw_seekstream(chan->stream, state->samples, SEEK_SET);
@@ -313,22 +318,35 @@ static struct cw_generator moh_file_stream =
 	generate: moh_files_generator,
 };
 
+
+static int moh_realloc(char ***ptr, size_t *size, size_t el_size)
+{
+	void *n_ptr;
+	int n_size = *size + 16;
+
+	if ((n_ptr = realloc(*ptr, el_size * n_size))) {
+		*ptr = n_ptr;
+		*size = n_size;
+		return 0;
+	}
+
+	cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	return -1;
+}
+
+
 static int spawn_custom_command(struct mohclass *class)
 {
-	int fds[2];
-	int files = 0;
-	char fns[MAX_MOHFILES][MAX_MOHFILE_LEN];
-	char *argv[MAX_MOHFILES + 50];
-	char xargs[256];
+	char xargs[sizeof(class->args)];
+	char **argv = NULL;
 	char *argptr;
-	int argc = 0;
 	DIR *dir = NULL;
 	struct dirent *de;
+	int fds[2];
+	size_t argv_size = 0;
+	size_t argc = 0;
 
-	
-	if (!strcasecmp(class->dir, "nodir")) {
-		files = 1;
-	} else {
+	if (strcasecmp(class->dir, "nodir")) {
 		dir = opendir(class->dir);
 		if (!dir) {
 			cw_log(CW_LOG_WARNING, "%s is not a valid directory\n", class->dir);
@@ -340,6 +358,9 @@ static int spawn_custom_command(struct mohclass *class)
 	strncpy(xargs, class->args, sizeof(xargs) - 1);
 	argptr = xargs;
 	while (argptr && !cw_strlen_zero(argptr)) {
+		if (argc == argv_size && moh_realloc(&argv, &argv_size, sizeof(argv[0])))
+			break;
+
 		argv[argc++] = argptr;
 		argptr = strchr(argptr, ' ');
 		if (argptr) {
@@ -349,28 +370,33 @@ static int spawn_custom_command(struct mohclass *class)
 	}
 
 	if (dir) {
-		while ((de = readdir(dir)) && (files < MAX_MOHFILES)) {
+		while ((de = readdir(dir))) {
 			if (de->d_name[0] != '.') {
-				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
-				argv[argc++] = fns[files];
-				files++;
+				if (argc == argv_size && moh_realloc(&argv, &argv_size, sizeof(argv[0])))
+					break;
+
+				if ((argv[argc] = strdup(de->d_name)))
+					argc++;
+				else {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					break;
+				}
 			}
 		}
-	}
-	argv[argc] = NULL;
-	if (dir) {
+
 		closedir(dir);
 	}
-	if (!files) {
-		cw_log(CW_LOG_WARNING, "Found no files in '%s'\n", class->dir);
-		return -1;
-	}
+
+	if (argc == argv_size && moh_realloc(&argv, &argv_size, sizeof(argv[0])))
+		argc--;
+	argv[argc] = NULL;
+
 	if (pipe(fds)) {	
 		cw_log(CW_LOG_WARNING, "Pipe failed\n");
 		return -1;
 	}
 #if 0
-	printf("%d files total, %d args total\n", files, argc);
+	printf("%d args total\n", argc);
 	{
 		int x;
 		for (x=0;argv[x];x++)
@@ -735,56 +761,71 @@ static struct cw_generator mohgen =
 	generate: moh_generate,
 };
 
-static int moh_scan_files(struct mohclass *class) {
-
+static int moh_scan_files(struct mohclass *class)
+{
+	struct stat statbuf;
 	DIR *files_DIR;
 	struct dirent *files_dirent;
-	char path[512];
-	char filepath[MAX_MOHFILE_LEN];
 	char *ext;
-	struct stat statbuf;
 	int dirnamelen;
 	int i;
-	
-	files_DIR = opendir(class->dir);
-	if (!files_DIR) {
+
+	if (!(files_DIR = opendir(class->dir))) {
 		cw_log(CW_LOG_WARNING, "Cannot open dir %s or dir does not exist\n", class->dir);
 		return -1;
 	}
 
-	class->total_files = 0;
 	dirnamelen = strlen(class->dir) + 2;
-	getcwd(path, 512);
-	chdir(class->dir);
-	memset(class->filearray, 0, MAX_MOHFILES*MAX_MOHFILE_LEN);
+
 	while ((files_dirent = readdir(files_DIR))) {
-		if ((files_dirent->d_name[0] == '.') || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
+		if ((files_dirent->d_name[0] == '.'))
 			continue;
 
-		snprintf(filepath, MAX_MOHFILE_LEN, "%s/%s", class->dir, files_dirent->d_name);
+		if (class->total_files == class->total_space) {
+			char **n_files;
+			int n_space = class->total_space + 16;
 
-		if (stat(filepath, &statbuf))
-			continue;
+			if (!(n_files = realloc(class->files, sizeof(class->files[0]) * n_space))) {
+				cw_log(CW_LOG_WARNING, "Out of memory for Music On Hold class %s - only %d files scanned\n", class->name, class->total_files);
+				break;
+			}
+
+			class->files = n_files;
+			class->total_space = n_space;
+		}
+
+		if (!(class->files[class->total_files] = malloc(dirnamelen + strlen(files_dirent->d_name)))) {
+			cw_log(CW_LOG_WARNING, "Out of memory for Music On Hold class %s - only %d files scanned\n", class->name, class->total_files);
+			break;
+		}
+
+		sprintf(class->files[class->total_files], "%s/%s", class->dir, files_dirent->d_name);
+
+		if (stat(class->files[class->total_files], &statbuf))
+			goto discard;
 
 		if (!S_ISREG(statbuf.st_mode))
-			continue;
+			goto discard;
 
-		if ((ext = strrchr(filepath, '.'))) {
+		if ((ext = strrchr(class->files[class->total_files] + dirnamelen + 1, '.')))
 			*ext = '\0';
-			ext++;
-		}
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
 		for (i = 0; i < class->total_files; i++)
-			if (!strcmp(filepath, class->filearray[i]))
+			if (!strcmp(class->files[class->total_files], class->files[i]))
 				break;
 
-		if (i == class->total_files)
-			strcpy(class->filearray[class->total_files++], filepath);
+		if (i == class->total_files) {
+			class->total_files++;
+			continue;
+		}
+
+discard:
+		free(class->files[class->total_files]);
 	}
 
 	closedir(files_DIR);
-	chdir(path);
+
 	return class->total_files;
 }
 
@@ -876,14 +917,8 @@ static struct mohclass *moh_class_malloc(void)
 {
 	struct mohclass *class;
 
-	class = malloc(sizeof(struct mohclass));
-
-	if (!class)
-		return NULL;
-
-	memset(class, 0, sizeof(struct mohclass));
-
-	class->format = CW_FORMAT_SLINEAR;
+	if ((class = calloc(1, sizeof(struct mohclass))))
+		class->format = CW_FORMAT_SLINEAR;
 
 	return class;
 }
@@ -1094,7 +1129,7 @@ static int cli_files_show(int fd, int argc, char *argv[])
 
 		cw_cli(fd, "Class: %s\n", class->name);
 		for (i = 0; i < class->total_files; i++)
-			cw_cli(fd, "\tFile: %s\n", class->filearray[i]);
+			cw_cli(fd, "\tFile: %s\n", class->files[i]);
 	}
 	cw_mutex_unlock(&moh_lock);
 
