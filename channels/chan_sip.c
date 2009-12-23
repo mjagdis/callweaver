@@ -894,7 +894,9 @@ struct sip_pkt {
 /*! \brief Structure for SIP user data. User's place calls to us */
 struct sip_user {
     /* Users who can access various contexts */
-    ASTOBJ_COMPONENTS(struct sip_user);
+    struct cw_object obj;
+    struct cw_registry_entry *reg_entry_byname;
+    char name[80];        /*!< Name */
     char secret[80];        /*!< Password */
     char md5secret[80];        /*!< Password in md5 */
     char context[CW_MAX_CONTEXT];    /*!< Default context for incoming calls */
@@ -978,23 +980,23 @@ struct sip_peer {
     int lastmsg;
 };
 
-CW_MUTEX_DEFINE_STATIC(sip_reload_lock);
-static int sip_reloading = 0;
-
 /* States for outbound registrations (with register= lines in sip.conf */
-#define REG_STATE_UNREGISTERED        0
-#define REG_STATE_REGSENT        1
-#define REG_STATE_AUTHSENT        2
-#define REG_STATE_REGISTERED           3
-#define REG_STATE_REJECTED           4
-#define REG_STATE_TIMEOUT           5
-#define REG_STATE_NOAUTH           6
-#define REG_STATE_FAILED        7
+#define REG_STATE_UNREGISTERED 0
+#define REG_STATE_REGSENT      1
+#define REG_STATE_AUTHSENT     2
+#define REG_STATE_REGISTERED   3
+#define REG_STATE_REJECTED     4
+#define REG_STATE_TIMEOUT      5
+#define REG_STATE_NOAUTH       6
+#define REG_STATE_FAILED       7
+#define REG_STATE_SHUTDOWN     8
 
 
 /*! \brief sip_registry: Registrations with other SIP proxies */
 struct sip_registry {
-    ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
+    struct cw_object obj;
+    struct sip_registry *next;
+    char name[80];        /*!< Name */
     int portno;            /*!<  Optional port override */
     char username[80];        /*!<  Who we are registering as */
     char authuser[80];        /*!< Who we *authenticate* as */
@@ -1025,17 +1027,15 @@ struct sip_registry {
     char lastmsg[256];        /*!< Last Message sent/received */
 };
 
-/*! \brief  The user list: Users and friends */
-static struct cw_user_list {
-    ASTOBJ_CONTAINER_COMPONENTS(struct sip_user);
-} userl;
+/* The registry list is only changed by config reload and thus is protected
+ * by the reload lock rather than having a separate lock of its own.
+ */
+static struct sip_registry *regl;
+static struct sip_registry **regl_last = &regl;
 
 
-/*! \brief  The register list: Other SIP proxys we register with and call */
-static struct cw_register_list {
-    ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
-    int recheck;
-} regl;
+CW_MUTEX_DEFINE_STATIC(sip_reload_lock);
+static int sip_reloading = 0;
 
 
 static int sipsock  = -1;
@@ -1161,6 +1161,30 @@ struct cw_registry peerbyaddr_registry = {
 	.name = "Peer (by addr)",
 	.qsort_compare = peerbyaddr_qsort_compare_by_addr,
 	.match = peerbyaddr_object_match,
+};
+
+
+static int userbyname_qsort_compare_by_name(const void *a, const void *b)
+{
+	const struct cw_object * const *objp_a = a;
+	const struct cw_object * const *objp_b = b;
+	const struct sip_user *user_a = container_of(*objp_a, struct sip_user, obj);
+	const struct sip_user *user_b = container_of(*objp_b, struct sip_user, obj);
+
+	return strcasecmp(user_a->name, user_b->name);
+}
+
+static int userbyname_object_match(struct cw_object *obj, const void *pattern)
+{
+	const struct sip_user *user = container_of(obj, struct sip_user, obj);
+
+	return !strcmp(user->name, pattern);
+}
+
+struct cw_registry userbyname_registry = {
+	.name = "User (by name)",
+	.qsort_compare = userbyname_qsort_compare_by_name,
+	.match = userbyname_object_match,
 };
 
 
@@ -2741,21 +2765,27 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
     return p;
 }
 
+
 /*! \brief  sip_destroy_user: Remove user object from in-memory storage */
-static void sip_destroy_user(struct sip_user *user)
+static void sip_user_release(struct cw_object *obj)
 {
-    cw_free_ha(user->ha);
-    if (user->chanvars)
-    {
-        cw_variables_destroy(user->chanvars);
-        user->chanvars = NULL;
-    }
-    if (cw_test_flag(user, SIP_REALTIME))
-        ruserobjs--;
-    else
-        suserobjs--;
-    free(user);
+	struct sip_user *user = container_of(obj, struct sip_user, obj);
+
+	cw_free_ha(user->ha);
+
+	if (user->chanvars) {
+		cw_variables_destroy(user->chanvars);
+		user->chanvars = NULL;
+	}
+
+	if (cw_test_flag(user, SIP_REALTIME))
+		ruserobjs--;
+	else
+		suserobjs--;
+
+	free(user);
 }
+
 
 /*! \brief  realtime_user: Load user from realtime storage
  * Loads user from "sipusers" category in realtime (extconfig.conf)
@@ -2783,8 +2813,6 @@ static struct sip_user *realtime_user(const char *username)
         }
         tmp = tmp->next;
     }
-    
-
 
     user = build_user(username, var, !cw_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
     
@@ -2795,11 +2823,11 @@ static struct sip_user *realtime_user(const char *username)
         return NULL;
     }
 
-    if (cw_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
+    if (cw_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
     {
-        cw_set_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
+        cw_set_flag(&user->flags_page2, SIP_PAGE2_RTCACHEFRIENDS);
         suserobjs++;
-        ASTOBJ_CONTAINER_LINK(&userl,user);
+        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(user->name), &user->obj);
     }
     else
     {
@@ -2812,19 +2840,24 @@ static struct sip_user *realtime_user(const char *username)
     return user;
 }
 
+
 /*! \brief  find_user: Locate user by name 
  * Locates user by name (From: sip uri user name part) first
  * from in-memory list (static configuration) then from 
  * realtime storage (defined in extconfig.conf) */
 static struct sip_user *find_user(const char *name, int realtime)
 {
-    struct sip_user *u = NULL;
+	struct cw_object *obj;
+	struct sip_user *user;
 
-    u = ASTOBJ_CONTAINER_FIND(&userl,name);
-    if (!u  &&  realtime)
-        u = realtime_user(name);
-    return u;
+	if ((obj = cw_registry_find(&userbyname_registry, 1, cw_hash_string(name), name)))
+		user = container_of(obj, struct sip_user, obj);
+	else if (realtime)
+		user = realtime_user(name);
+
+	return user;
 }
+
 
 /*! \brief  create_addr_from_peer: create address structure from peer reference */
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
@@ -3097,29 +3130,17 @@ static int sip_call(struct cw_channel *ast, char *dest)
     return res;
 }
 
-/*! \brief  sip_registry_destroy: Destroy registry object */
+
+/*! \brief  sip_registry_release: Destroy registry object */
 /*    Objects created with the register= statement in static configuration */
-static void sip_registry_destroy(struct sip_registry *reg)
+static void sip_registry_release(struct cw_object *obj)
 {
-    /* Really delete */
-    if (reg->dialogue)
-    {
-        /* Clear registry before destroying to ensure
-           we don't get reentered trying to grab the registry lock */
-        cw_mutex_lock(&reg->dialogue->lock);
-        reg->dialogue->registry = NULL;
-        sip_destroy(reg->dialogue);
-        cw_mutex_unlock(&reg->dialogue->lock);
-        cw_object_put(reg->dialogue);
-    }
-    if (reg->expire > -1)
-        cw_sched_del(sched, reg->expire);
-    if (reg->timeout > -1)
-        cw_sched_del(sched, reg->timeout);
-    regobjs--;
-    free(reg);
-    
+	struct sip_registry *reg = container_of(obj, struct sip_registry, obj);
+
+	regobjs--;
+	free(reg);
 }
+
 
 /*! \brief   sip_destroy: Execute destrucion of call structure, release memory*/
 static void sip_destroy(struct sip_pvt *dialogue)
@@ -3174,7 +3195,7 @@ static void sip_destroy(struct sip_pvt *dialogue)
 			cw_object_put(dialogue->registry->dialogue);
 			dialogue->registry->dialogue = NULL;
 		}
-		ASTOBJ_UNREF(dialogue->registry, sip_registry_destroy);
+		cw_object_put(dialogue->registry);
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -3258,7 +3279,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
             {
                 cw_log(CW_LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
                 if (u)
-                    ASTOBJ_UNREF(u,sip_destroy_user);
+                    cw_object_put(u);
                 else
                     cw_object_put(p);
                 return -1; 
@@ -3273,7 +3294,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
         cw_log(CW_LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
     }
     if (u)
-        ASTOBJ_UNREF(u,sip_destroy_user);
+        cw_object_put(u);
     else
         cw_object_put(p);
     return 0;
@@ -4568,15 +4589,18 @@ static int sip_register(char *value, int lineno)
         cw_log(CW_LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
         return -1;
     }
-    reg = malloc(sizeof(struct sip_registry));
+    reg = calloc(1, sizeof(struct sip_registry));
     if (!reg)
     {
         cw_log(CW_LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
         return -1;
     }
-    memset(reg, 0, sizeof(struct sip_registry));
+
     regobjs++;
-    ASTOBJ_INIT(reg);
+
+    cw_object_init(reg, NULL, 1);
+    reg->obj.release = sip_registry_release;
+
     cw_copy_string(reg->contact, contact, sizeof(reg->contact));
     if (username)
         cw_copy_string(reg->username, username, sizeof(reg->username));
@@ -4592,8 +4616,12 @@ static int sip_register(char *value, int lineno)
     reg->portno = porta ? atoi(porta) : 0;
     reg->callid_valid = 0;
     reg->ocseq = 101;
-    ASTOBJ_CONTAINER_LINK(&regl, reg);
-    ASTOBJ_UNREF(reg,sip_registry_destroy);
+
+    reg->next = NULL;
+    cw_mutex_lock(&sip_reload_lock);
+    *regl_last = reg;
+    regl_last = &reg->next;
+    cw_mutex_unlock(&sip_reload_lock);
     return 0;
 }
 
@@ -7459,11 +7487,11 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 /*! \brief  __sip_do_register: Register with SIP proxy */
 static void *__sip_do_register(void *data)
 {
-    struct sip_registry *r = (struct sip_registry *)data;
+    struct sip_registry *r = data;
     int res;
 
     transmit_register(r, SIP_REGISTER, NULL, NULL);
-    ASTOBJ_UNREF(r, sip_registry_destroy);
+
     return NULL;
 }
 
@@ -7471,15 +7499,10 @@ static void *__sip_do_register(void *data)
 static int sip_reregister(void *data) 
 {
     /* if we are here, we know that we need to reregister. */
-    struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
+    struct sip_registry *r = data;
     pthread_t tid;
 
-    /* if we couldn't get a reference to the registry object, punt */
-    if (!r)
-        return 0;
-
-    if (r->dialogue && recordhistory)
-    {
+    if (r->dialogue && recordhistory) {
         char tmp[80];
     
         snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
@@ -7489,7 +7512,6 @@ static int sip_reregister(void *data)
     if (sipdebug)
         cw_log(CW_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
-    r->expire = -1;
     cw_pthread_create(&tid, &global_attr_detached, __sip_do_register, r);
     return 0;
 }
@@ -7498,7 +7520,7 @@ static int sip_reregister(void *data)
 static int sip_reg_timeout(void *data)
 {
     /* if we are here, our registration timed out, so we'll just do it over */
-    struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
+    struct sip_registry *r = data;
     struct sip_pvt *p;
     int res;
 
@@ -7506,7 +7528,6 @@ static int sip_reg_timeout(void *data)
      * even if we get a response handle_response_register will do
      * nothing.
      */
-    r->timeout = -1;
 
     cw_log(CW_LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
     if (r->dialogue)
@@ -7515,7 +7536,7 @@ static int sip_reg_timeout(void *data)
         p = r->dialogue;
         cw_mutex_lock(&p->lock);
         if (p->registry)
-            ASTOBJ_UNREF(p->registry, sip_registry_destroy);
+            cw_object_put(p->registry);
         r->dialogue = NULL;
         /* Pretend to ACK anything just in case */
         __sip_pretend_ack(p);
@@ -7523,23 +7544,26 @@ static int sip_reg_timeout(void *data)
         cw_mutex_unlock(&p->lock);
         cw_object_put(p);
     }
-    /* If we have a limit, stop registration and give up */
-    if (global_regattempts_max && (r->regattempts > global_regattempts_max))
-    {
-        /* Ok, enough is enough. Don't try any more */
-        /* We could add an external notification here... 
-            steal it from app_voicemail :-) */
-        cw_log(CW_LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
-        r->regstate=REG_STATE_FAILED;
-    }
-    else
-    {
-        r->regstate=REG_STATE_UNREGISTERED;
-        r->timeout = -1;
-        res=transmit_register(r, SIP_REGISTER, NULL, NULL);
-    }
-    manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
-    ASTOBJ_UNREF(r,sip_registry_destroy);
+
+    if (r->regstate != REG_STATE_SHUTDOWN) {
+        /* If we have a limit, stop registration and give up */
+        if (global_regattempts_max && (r->regattempts > global_regattempts_max)) {
+            /* Ok, enough is enough. Don't try any more */
+            cw_log(CW_LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
+            r->regstate = REG_STATE_FAILED;
+        } else
+            r->regstate=REG_STATE_UNREGISTERED;
+
+        manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+
+	if (r->regstate != REG_STATE_FAILED) {
+            r->timeout = -1;
+	    /* transmit_regsiter inherits our reference and sets a new timeout */
+            res = transmit_register(r, SIP_REGISTER, NULL, NULL);
+        }
+    } else
+        cw_object_put(r);
+
     return 0;
 }
 
@@ -7553,6 +7577,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     char via[80];
     char addr[80];
     struct sip_pvt *p;
+    int res;
 
     /* exit if we are already in process with this registrar ?*/
     if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT)))
@@ -7606,18 +7631,19 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             /* we have what we hope is a temporary network error,
              * probably DNS.  We need to reschedule a registration try */
             sip_destroy(p);
+            r->regattempts++;
             if (r->timeout > -1)
             {
-                cw_sched_del(sched, r->timeout);
-                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+                if (!cw_sched_del(sched, r->timeout))
+                    cw_object_put(r);
                 cw_log(CW_LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
+                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
             }
             else
             {
-                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
                 cw_log(CW_LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
+                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
             }
-            r->regattempts++;
             return 0;
         }
         /* Copy back Call-ID in case create_addr changed it */
@@ -7630,7 +7656,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 	    r->portno = ntohs(p->sa.sin_port);
         cw_set_flag(p, SIP_OUTGOING);    /* Registration is outgoing call */
         r->dialogue = cw_object_get(p);            /* Save pointer to SIP packet */
-        p->registry = ASTOBJ_REF(r);    /* Add pointer to registry in packet */
+        p->registry = cw_object_dup(r);    /* Add pointer to registry in packet */
         if (!cw_strlen_zero(r->secret))    /* Secret (password) */
             cw_copy_string(p->peersecret, r->secret, sizeof(p->peersecret));
         if (!cw_strlen_zero(r->md5secret))
@@ -7666,18 +7692,6 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         build_contact(p);
 
         p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
-    }
-
-    /* set up a timeout */
-    if (auth == NULL)
-    {
-        if (r->timeout > -1)
-        {
-            cw_log(CW_LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
-            cw_sched_del(sched, r->timeout);
-        }
-        r->timeout = cw_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
-        cw_log(CW_LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
     }
 
     if (strchr(r->username, '@'))
@@ -7770,7 +7784,20 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     r->regattempts++;    /* Another attempt */
     if (option_debug > 3)
         cw_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
-    return send_request(p, &req, 2, p->ocseq);
+
+    res = send_request(p, &req, 2, p->ocseq);
+
+    /* set up a timeout */
+    if (auth == NULL)
+    {
+        if (r->timeout == -1 || cw_sched_del(sched, r->timeout))
+            cw_object_dup(r);
+        cw_log(CW_LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
+        r->timeout = cw_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
+    } else
+        cw_object_put(r);
+
+    return res;
 }
 
 /*! \brief  transmit_message_with_text: Transmit text with SIP MESSAGE method */
@@ -9548,7 +9575,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
         {
             if (!mailbox && debug)
                 cw_verbose("Found user '%s', but fails host access\n", user->name);
-            ASTOBJ_UNREF(user,sip_destroy_user);
+            cw_object_put(user);
         }
         user = NULL;
     }
@@ -9694,7 +9721,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
     }
 
     if (user)
-        ASTOBJ_UNREF(user,sip_destroy_user);
+        cw_object_put(user);
+
     return res;
 }
 
@@ -9782,15 +9810,28 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 #define FORMAT2 "%-25.25s %15d %15d \n"
 #define FORMAT3 "%-25.25s %15d %-15.15s \n"
 
-struct sip_show_inuse_peer_args {
+struct sip_show_inuse_args {
 	int fd;
 	int showall;
 };
 
+static int sip_show_inuse_user(struct cw_object *obj, void *data)
+{
+	struct sip_user *user = container_of(obj, struct sip_user, obj);
+	struct sip_show_inuse_args *args = data;
+
+        if (user->call_limit)
+            cw_cli(args->fd, FORMAT2, user->name, user->inUse, user->call_limit);
+	else if (args->showall)
+            cw_cli(args->fd, FORMAT3, user->name, user->inUse, "N/A");
+
+	return 0;
+}
+
 static int sip_show_inuse_peer(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
-	struct sip_show_inuse_peer_args *args = data;
+	struct sip_show_inuse_args *args = data;
 
 	if (peer->call_limit)
 		cw_cli(args->fd, FORMAT2, peer->name, peer->inUse, peer->call_limit);
@@ -9804,8 +9845,7 @@ static int sip_show_inuse_peer(struct cw_object *obj, void *data)
       call_limit */
 static int sip_show_inuse(int fd, int argc, char *argv[])
 {
-    char ilimits[40];
-    struct sip_show_inuse_peer_args args = {
+    struct sip_show_inuse_args args = {
         .fd = fd,
 	.showall = 0,
     };
@@ -9817,19 +9857,9 @@ static int sip_show_inuse(int fd, int argc, char *argv[])
             args.showall = 1;
     
     cw_cli(fd, FORMAT, "* User name", "In use", "Limit");
-    ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-        ASTOBJ_RDLOCK(iterator);
-        if (iterator->call_limit)
-            snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
-        else 
-            cw_copy_string(ilimits, "N/A", sizeof(ilimits));
-        if (args.showall || iterator->call_limit)
-            cw_cli(fd, FORMAT2, iterator->name, iterator->inUse, ilimits);
-        ASTOBJ_UNLOCK(iterator);
-    } while (0) );
+    cw_registry_iterate_ordered(&userbyname_registry, sip_show_inuse_user, &args);
 
     cw_cli(fd, FORMAT, "* Peer name", "In use", "Limit");
-
     cw_registry_iterate_ordered(&peerbyname_registry, sip_show_inuse_peer, &args);
 
     return RESULT_SUCCESS;
@@ -9891,54 +9921,61 @@ static int peer_status(struct sip_peer *peer, char *status, int statuslen)
     }
     return res;
 }
-                           
+
+
+struct sip_show_users_args {
+	int fd;
+	int havepattern;
+	regex_t regexbuf;
+};
+
+#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
+
+static int sip_show_users_one(struct cw_object *obj, void *data)
+{
+	struct sip_user *user = container_of(obj, struct sip_user, obj);
+	struct sip_show_users_args *args = data;
+
+	if (!args->havepattern || !regexec(&args->regexbuf, user->name, 0, NULL, 0)) {
+		cw_cli(args->fd, FORMAT, user->name,
+			user->secret,
+			user->accountcode,
+			user->context,
+			(user->ha ? "Yes" : "No"),
+			nat2str(cw_test_flag(user, SIP_NAT)));
+	}
+	return 0;
+}
+
 /*! \brief  sip_show_users: CLI Command 'SIP Show Users' */
 static int sip_show_users(int fd, int argc, char *argv[])
 {
-    regex_t regexbuf;
-    int havepattern = 0;
-#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
+	struct sip_show_users_args args = {
+		.fd = fd,
+		.havepattern = 0,
+	};
 
-    switch (argc)
-    {
-    case 5:
-        if (!strcasecmp(argv[3], "like"))
-        {
-            if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
-                return RESULT_SHOWUSAGE;
-            havepattern = 1;
-        }
-        else
-            return RESULT_SHOWUSAGE;
-        break;
-    case 3:
-        break;
-    default:
-        return RESULT_SHOWUSAGE;
-    }
+	switch (argc) {
+		case 5:
+			if (!strcasecmp(argv[3], "like")) {
+				if (regcomp(&args.regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+					return RESULT_SHOWUSAGE;
+				args.havepattern = 1;
+		} else
+				return RESULT_SHOWUSAGE;
+			break;
+		case 3:
+			break;
+		default:
+			return RESULT_SHOWUSAGE;
+	}
 
-    cw_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
-    ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-        ASTOBJ_RDLOCK(iterator);
+	cw_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
 
-        if (havepattern && regexec(&regexbuf, iterator->name, 0, NULL, 0))
-        {
-            ASTOBJ_UNLOCK(iterator);
-            continue;
-        }
+	cw_registry_iterate_ordered(&userbyname_registry, sip_show_users_one, &args);
 
-        cw_cli(fd, FORMAT, iterator->name, 
-            iterator->secret, 
-            iterator->accountcode,
-            iterator->context,
-            iterator->ha ? "Yes" : "No",
-            nat2str(cw_test_flag(iterator, SIP_NAT)));
-        ASTOBJ_UNLOCK(iterator);
-    } while (0)
-    );
-
-    if (havepattern)
-        regfree(&regexbuf);
+	if (args.havepattern)
+		regfree(&args.regexbuf);
 
     return RESULT_SUCCESS;
 #undef FORMAT
@@ -10149,7 +10186,7 @@ static const char *insecure2str(int port, int invite)
 }
 
 
-struct sip_prune_realtime_peer_args {
+struct sip_prune_realtime_args {
 	char *name;
 	regex_t regexbuf;
 	int pruned;
@@ -10158,7 +10195,7 @@ struct sip_prune_realtime_peer_args {
 static int sip_prune_realtime_peer(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
-	struct sip_prune_realtime_peer_args *args = data;
+	struct sip_prune_realtime_args *args = data;
 
 	if (!args->name || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
 		if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS)) {
@@ -10171,10 +10208,25 @@ static int sip_prune_realtime_peer(struct cw_object *obj, void *data)
 	return 0;
 }
 
+static int sip_prune_realtime_user(struct cw_object *obj, void *data)
+{
+	struct sip_user *user = container_of(obj, struct sip_user, obj);
+	struct sip_prune_realtime_args *args = data;
+
+	if (!args->name || !regexec(&args->regexbuf, user->name, 0, NULL, 0)) {
+		if (cw_test_flag(&user->flags_page2, SIP_PAGE2_RTCACHEFRIENDS)) {
+			cw_registry_del(&userbyname_registry, user->reg_entry_byname);
+			args->pruned++;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
-	struct sip_prune_realtime_peer_args args = {
+	struct sip_prune_realtime_args args = {
 		.name = NULL,
 	};
 	struct sip_peer *peer;
@@ -10250,25 +10302,12 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 		if (pruneuser) {
 			args.pruned = 0;
 
-			ASTOBJ_CONTAINER_WRLOCK(&userl);
-			ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-				ASTOBJ_RDLOCK(iterator);
-				if (args.name && regexec(&args.regexbuf, iterator->name, 0, NULL, 0)) {
-					ASTOBJ_UNLOCK(iterator);
-					continue;
-				};
-				if (cw_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-					ASTOBJ_MARK(iterator);
-					args.pruned++;
-				}
-				ASTOBJ_UNLOCK(iterator);
-			} while (0) );
-			if (args.pruned) {
-				ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, sip_destroy_user);
+			cw_registry_iterate(&userbyname_registry, sip_prune_realtime_user, &args);
+
+			if (args.pruned)
 				cw_cli(fd, "%d users pruned.\n", args.pruned);
-			} else
+			else
 				cw_cli(fd, "No users found to prune.\n");
-			ASTOBJ_CONTAINER_UNLOCK(&userl);
 		}
 	} else {
 		if (prunepeer) {
@@ -10285,13 +10324,14 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 				cw_cli(fd, "Peer '%s' not found.\n", args.name);
 		}
 		if (pruneuser) {
-			if ((user = ASTOBJ_CONTAINER_FIND_UNLINK(&userl, args.name))) {
-				if (!cw_test_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+			if ((user = find_user(args.name, 0))) {
+				if (!cw_test_flag(&user->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
 					cw_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", args.name);
-					ASTOBJ_CONTAINER_LINK(&userl, user);
-				} else
+				else {
 					cw_cli(fd, "User '%s' pruned.\n", args.name);
-				ASTOBJ_UNREF(user, sip_destroy_user);
+					cw_registry_del(&userbyname_registry, user->reg_entry_byname);
+				}
+				cw_object_put(user);
 			} else
 				cw_cli(fd, "User '%s' not found.\n", args.name);
 		}
@@ -10660,7 +10700,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
                 cw_cli(fd, "                 %s = %s\n", v->name, v->value);
         }
         cw_cli(fd,"\n");
-        ASTOBJ_UNREF(user,sip_destroy_user);
+        cw_object_put(user);
     }
     else
     {
@@ -10677,16 +10717,22 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
     char host[80];
+    struct sip_registry *reg;
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;
+
     cw_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
-    ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-        ASTOBJ_RDLOCK(iterator);
-        snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : DEFAULT_SIP_PORT);
-        cw_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate));
-        ASTOBJ_UNLOCK(iterator);
-    } while(0));
+
+    cw_mutex_lock(&sip_reload_lock);
+
+    for (reg = regl; reg; reg = reg->next) {
+        snprintf(host, sizeof(host), "%s:%d", reg->hostname, (reg->portno ? reg->portno : DEFAULT_SIP_PORT));
+        cw_cli(fd, FORMAT, host, reg->username, reg->refresh, regstate2str(reg->regstate));
+    }
+
+    cw_mutex_unlock(&sip_reload_lock);
+
     return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -10974,6 +11020,7 @@ static void complete_sip_show_peer(int fd, char *argv[], int lastarg, int lastar
         complete_sip_peer(fd, argv[3], lastarg_len, 0);
 }
 
+
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
 static void complete_sip_debug_peer(int fd, char *argv[], int lastarg, int lastarg_len)
 {
@@ -10981,18 +11028,40 @@ static void complete_sip_debug_peer(int fd, char *argv[], int lastarg, int lasta
          complete_sip_peer(fd, argv[3], lastarg_len, 0);
 }
 
+
+struct complete_sip_user_args {
+	int fd;
+	char *word;
+	int word_len;
+	int flags2;
+};
+
+static int complete_sip_user_one(struct cw_object *obj, void *data)
+{
+	struct sip_user *user = container_of(obj, struct sip_user, obj);
+	struct complete_sip_user_args *args = data;
+
+	if (!strncasecmp(args->word, user->name, args->word_len)) {
+		if (!args->flags2 || cw_test_flag(&user->flags_page2, args->flags2))
+			cw_cli(args->fd, "%s\n", user->name);
+	}
+
+	return 0;
+}
+
 /*! \brief  complete_sip_user: Do completion on user name */
 static void complete_sip_user(int fd, char *word, int word_len, int flags2)
 {
-    ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-        /* locking of the object is not required because only the name and flags are being compared */
-        if (!strncasecmp(word, iterator->name, word_len))
-        {
-            if (!flags2 || cw_test_flag(&(iterator->flags_page2), flags2))
-                cw_cli(fd, "%s\n", iterator->name);
-        }
-    } while(0) );
+	struct complete_sip_user_args args = {
+		.fd = fd,
+		.word = word,
+		.word_len = word_len,
+		.flags2 = flags2,
+	};
+
+	cw_registry_iterate(&userbyname_registry, complete_sip_user_one, &args);
 }
+
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
 static void complete_sip_show_user(int fd, char *argv[], int lastarg, int lastarg_len)
@@ -11000,6 +11069,7 @@ static void complete_sip_show_user(int fd, char *argv[], int lastarg, int lastar
     if (lastarg == 3)
         complete_sip_user(fd, argv[3], lastarg_len, 0);
 }
+
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
 static void complete_sipnotify(int fd, char *argv[], int lastarg, int lastarg_len)
@@ -12524,18 +12594,12 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
                       regstate2str(r->regstate));
         r->regattempts = 0;
         cw_log(CW_LOG_DEBUG, "Registration successful\n");
-        cw_object_put(r->dialogue);
-        r->dialogue = NULL;
-        p->registry = NULL;
+
         /* Let this one hang around until we have all the responses */
         sip_scheddestroy(p, -1);
 
         /* set us up for re-registering */
         /* figure out how long we got registered for */
-        if (r->expire > -1) {
-            cw_sched_del(sched, r->expire);
-	    r->expire = -1;
-	}
         /* according to section 6.13 of RFC, contact headers override
            expires headers, so check those first */
         expires = 0;
@@ -12584,8 +12648,17 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         r->refresh = (int) expires_ms / 1000;
 
         /* Schedule re-registration before we expire */
-        r->expire=cw_sched_add(sched, expires_ms, sip_reregister, r); 
-        ASTOBJ_UNREF(r, sip_registry_destroy);
+        if (r->expire == -1 || cw_sched_del(sched, r->expire))
+	    cw_object_dup(r);
+
+        r->expire = cw_sched_add(sched, expires_ms, sip_reregister, r);
+
+        cw_object_put(r->dialogue);
+        r->dialogue = NULL;
+
+        cw_object_put(r);
+        p->registry = NULL;
+
         return 1;
     }
 
@@ -15406,14 +15479,14 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
     struct cw_flags mask = {(0)};
 
 
-    user = (struct sip_user *)malloc(sizeof(struct sip_user));
-    if (!user)
-    {
+    if (!(user = calloc(1, sizeof(struct sip_user))))
         return NULL;
-    }
-    memset(user, 0, sizeof(struct sip_user));
+
     suserobjs++;
-    ASTOBJ_INIT(user);
+
+    cw_object_init(user, NULL, 1);
+    user->obj.release = sip_user_release;
+
     cw_copy_string(user->name, name, sizeof(user->name));
     oldha = user->ha;
     user->ha = NULL;
@@ -15529,8 +15602,10 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
          */
         v = v->next;
     }
+
     cw_copy_flags(user, &userflags, mask.flags);
     cw_free_ha(oldha);
+
     return user;
 }
 
@@ -16423,11 +16498,9 @@ static int reload_config(void)
             {
                 if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend"))
                 {
-                    user = build_user(cat, cw_variable_browse(cfg, cat), 0);
-                    if (user)
-                    {
-                        ASTOBJ_CONTAINER_LINK(&userl,user);
-                        ASTOBJ_UNREF(user, sip_destroy_user);
+                    if ((user = build_user(cat, cw_variable_browse(cfg, cat), 0))) {
+                        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(user->name), &user->obj);
+                        cw_object_put(user);
                     }
                 }
                 if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend"))
@@ -17247,25 +17320,32 @@ static void sip_poke_new_peers(void)
 /*! \brief  sip_send_all_registers: Send all known registrations */
 static void sip_send_all_registers(void)
 {
+    struct sip_registry *reg;
     int ms;
     int regspacing;
     int shift = 1 + (int) (100.0 * (cw_random() / (RAND_MAX + 1.0)));
 
     if (!regobjs)
         return;
+
     regspacing = default_expiry * 1000/regobjs;
     if (regspacing > 100)
         regspacing = 100 + shift;
-    ms = regspacing;
-    ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-        ASTOBJ_WRLOCK(iterator);
-        if (iterator->expire > -1)
-            cw_sched_del(sched, iterator->expire);
+
+    ms = 0;
+
+    cw_mutex_lock(&sip_reload_lock);
+
+    for (reg = regl; reg; reg = reg->next) {
+        if (reg->expire == -1 || cw_sched_del(sched, reg->expire))
+		cw_object_dup(reg);
+
+        reg->expire = cw_sched_add(sched, ms, sip_reregister, reg);
+
         ms += regspacing;
-        iterator->expire = cw_sched_add(sched, ms, sip_reregister, iterator);
-        ASTOBJ_UNLOCK(iterator);
-    } while (0)
-    );
+    }
+
+    cw_mutex_unlock(&sip_reload_lock);
 }
 
 
@@ -17288,6 +17368,30 @@ static int flush_peers_one(struct cw_object *obj, void *data)
 }
 
 
+static void sip_destroyall_registry(void)
+{
+	struct sip_registry *reg;
+
+	for (; (reg = regl); regl = regl->next) {
+		reg->regstate = REG_STATE_SHUTDOWN;
+
+		if (reg->dialogue) {
+			if (option_debug > 2)
+				cw_log(CW_LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
+			sip_destroy(reg->dialogue);
+		}
+
+		if (reg->expire > -1 && !cw_sched_del(sched, reg->expire))
+			cw_object_put(reg);
+
+		if (reg->timeout > -1 && !cw_sched_del(sched, reg->timeout))
+			cw_object_put(reg);
+
+		cw_object_put(reg);
+	}
+}
+
+
 /*! \brief  sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
@@ -17295,24 +17399,11 @@ static int sip_do_reload(void)
     clear_sip_domains();
     authl = NULL;
 
-    /* First, destroy all outstanding registry calls */
-    /* This is needed, since otherwise active registry entries will not be destroyed */
-    ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-	ASTOBJ_RDLOCK(iterator);
-	if (iterator->dialogue) {
-		if (option_debug > 2)
-			cw_log(CW_LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
-		/* This will also remove references to the registry */
-		sip_destroy(iterator->dialogue);
-	}
-	ASTOBJ_UNLOCK(iterator);
-
-    } while(0));
-
-    ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
-    ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+    sip_destroyall_registry();
+    regl_last = &regl;
 
     cw_registry_iterate(&peerbyname_registry, flush_peers_one, NULL);
+    cw_registry_flush(&userbyname_registry);
     reload_config();
 
     sip_poke_new_peers();
@@ -17515,9 +17606,7 @@ static int load_module(void)
     cw_registry_init(&dialogue_registry, 1024);
     cw_registry_init(&peerbyname_registry, 1024);
     cw_registry_init(&peerbyaddr_registry, 1024);
-
-    ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
-    ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
+    cw_registry_init(&userbyname_registry, 1024);
 
     if ((sched = sched_context_create(1)) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
@@ -17616,10 +17705,7 @@ static int release_module(void)
 	/* Free memory for local network address mask */
 	cw_free_ha(localaddr);
 
-	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
-	ASTOBJ_CONTAINER_DESTROY(&userl);
-	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&regl);
+	sip_destroyall_registry();
 
 	clear_realm_authentication(authl);
 	clear_sip_domains();
@@ -17630,6 +17716,7 @@ static int release_module(void)
 	cw_registry_destroy(&dialogue_registry);
 	cw_registry_destroy(&peerbyname_registry);
 	cw_registry_destroy(&peerbyaddr_registry);
+	cw_registry_destroy(&userbyname_registry);
 
 	return 0;
 }
