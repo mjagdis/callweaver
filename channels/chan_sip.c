@@ -469,10 +469,6 @@ static int global_mwitime = DEFAULT_MWITIME;    /*!< Time between MWI checks for
 static int usecnt =0;
 CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-/*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
-   when it's doing something critical. */
-CW_MUTEX_DEFINE_STATIC(netlock);
-
 CW_MUTEX_DEFINE_STATIC(monlock);
 
 /*! \brief This is the thread for the monitor which checks for input on the channels
@@ -14529,10 +14525,8 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
         return 1;
     }
 
-    /* Process request, with netlock held */
     lockretry = 100;
 retrylock:
-    cw_mutex_lock(&netlock);
     p = find_call(&req, &sin, &sout, req.method);
     if (p)
     {
@@ -14541,8 +14535,7 @@ retrylock:
         {
             cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
             cw_mutex_unlock(&p->lock);
-            cw_mutex_unlock(&netlock);
-            /* Sleep infintismly short amount of time */
+            /* Sleep infinitesimally short amount of time */
             usleep(1);
 	    if (--lockretry) {
                 cw_object_put(p);
@@ -14574,7 +14567,6 @@ retrylock:
         cw_mutex_unlock(&p->lock);
         cw_object_put(p);
     }
-    cw_mutex_unlock(&netlock);
     return 1;
 }
 
@@ -14734,10 +14726,6 @@ static void *do_monitor(void *data)
         /* Don't let anybody kill us right away.  Nobody should lock the interface list
            and wait for the monitor list, but the other way around is okay. */
         cw_mutex_lock(&monlock);
-        /* Lock the network interface */
-        cw_mutex_lock(&netlock);
-        /* Okay, now that we know what to do, release the network lock */
-        cw_mutex_unlock(&netlock);
         /* And from now on, we're okay to be killed, so release the monitor lock as well */
         cw_mutex_unlock(&monlock);
 
@@ -16500,20 +16488,23 @@ static int reload_config(void)
         }
         cat = cw_category_browse(cfg, cat);
     }
+
     if (cw_find_ourip(&__ourip, bindaddr))
     {
         cw_log(CW_LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
         return 0;
     }
+
     if (!ntohs(bindaddr.sin_port))
         bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
     bindaddr.sin_family = AF_INET;
-    cw_mutex_lock(&netlock);
+
     if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in))))
     {
         close(sipsock);
         sipsock = -1;
     }
+
     if (sipsock < 0)
     {
         sipsock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -16558,7 +16549,6 @@ static int reload_config(void)
             }
         }
     }
-    cw_mutex_unlock(&netlock);
 
     /* Add default domains - host name, IP address and IP:port */
     /* Only do this if user added any sip domain with "localdomains" */
