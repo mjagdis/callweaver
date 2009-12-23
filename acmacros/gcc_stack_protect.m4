@@ -58,7 +58,7 @@ AC_DEFUN([GCC_STACK_PROTECT_CC],[
       ssp_cv_cc,
       [ssp_old_cflags="$CFLAGS"
        CFLAGS="$CFLAGS -fstack-protector -Werror"
-       AC_TRY_COMPILE(,, ssp_cv_cc=yes, ssp_cv_cc=no)
+       AC_TRY_LINK(,, ssp_cv_cc=yes, ssp_cv_cc=no)
        CFLAGS="$ssp_old_cflags"
       ])
     if test $ssp_cv_cc = yes; then
@@ -75,7 +75,7 @@ AC_DEFUN([GCC_STACK_PROTECT_CXX],[
       ssp_cv_cxx,
       [ssp_old_cxxflags="$CXXFLAGS"
        CXXFLAGS="$CXXFLAGS -fstack-protector -Werror"
-       AC_TRY_COMPILE(,, ssp_cv_cxx=yes, ssp_cv_cxx=no)
+       AC_TRY_LINK(,, ssp_cv_cxx=yes, ssp_cv_cxx=no)
        CXXFLAGS="$ssp_old_cxxflags"
       ])
     if test $ssp_cv_cxx = yes; then
