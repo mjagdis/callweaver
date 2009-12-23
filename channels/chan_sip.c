@@ -469,13 +469,10 @@ static int global_mwitime = DEFAULT_MWITIME;    /*!< Time between MWI checks for
 static int usecnt =0;
 CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-CW_MUTEX_DEFINE_STATIC(monlock);
 
 /*! \brief This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
 static pthread_t monitor_thread = CW_PTHREADT_NULL;
-
-static int restart_monitor(void);
 
 /* T.38 channel status */
 typedef enum {
@@ -14723,12 +14720,6 @@ static void *do_monitor(void *data)
         if (!args.fastrestart)
             cw_registry_iterate(&dialogue_registry, do_monitor_dialogue_one, &args);
 
-        /* Don't let anybody kill us right away.  Nobody should lock the interface list
-           and wait for the monitor list, but the other way around is okay. */
-        cw_mutex_lock(&monlock);
-        /* And from now on, we're okay to be killed, so release the monitor lock as well */
-        cw_mutex_unlock(&monlock);
-
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         pthread_testcancel();
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -14737,8 +14728,6 @@ static void *do_monitor(void *data)
         res = (args.fastrestart ? 1 : 1000);
             res = 1;
         cw_io_run(io, res);
-
-        cw_mutex_lock(&monlock);
 
         /* needs work to send mwi to realtime peers */
         time(&args.t);
@@ -14767,48 +14756,12 @@ static void *do_monitor(void *data)
             /* Reset where we come from */
             lastpeernum = -1;
         }
-        cw_mutex_unlock(&monlock);
     }
     /* Never reached */
     return NULL;
     
 }
 
-/*! \brief  restart_monitor: Start the channel monitor thread */
-static int restart_monitor(void)
-{
-    /* If we're supposed to be stopped -- stay stopped */
-    if (pthread_equal(monitor_thread, CW_PTHREADT_STOP))
-        return 0;
-    if (cw_mutex_lock(&monlock))
-    {
-        cw_log(CW_LOG_WARNING, "Unable to lock monitor\n");
-        return -1;
-    }
-    if (pthread_equal(monitor_thread, pthread_self()))
-    {
-        cw_mutex_unlock(&monlock);
-        cw_log(CW_LOG_WARNING, "Cannot kill myself\n");
-        return -1;
-    }
-    if (!pthread_equal(monitor_thread, CW_PTHREADT_NULL))
-    {
-        /* Wake up the thread */
-        pthread_kill(monitor_thread, SIGURG);
-    }
-    else
-    {
-        /* Start a new monitor */
-        if (cw_pthread_create(&monitor_thread, &global_attr_detached, do_monitor, NULL) < 0)
-        {
-            cw_mutex_unlock(&monlock);
-            cw_log(CW_LOG_ERROR, "Unable to start monitor thread.\n");
-            return -1;
-        }
-    }
-    cw_mutex_unlock(&monlock);
-    return 0;
-}
 
 /*! \brief  sip_poke_noanswer: No answer to Qualify poke */
 static int sip_poke_noanswer(void *data)
@@ -15099,7 +15052,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     if (!tmpc)
         sip_destroy(p);
     cw_mutex_unlock(&p->lock);
-    restart_monitor();
+    pthread_kill(monitor_thread, SIGURG);
     return tmpc;
 }
 
@@ -17352,7 +17305,6 @@ static int sip_reload(int fd, int argc, char *argv[])
     else
         sip_reloading = 1;
     cw_mutex_unlock(&sip_reload_lock);
-    restart_monitor();
 
     return 0;
 }
@@ -17573,6 +17525,11 @@ static int load_module(void)
     /* Tell the TPKT subdriver that we're here */
     //cw_tpkt_proto_register(&sip_tpkt);
 
+    if (cw_pthread_create(&monitor_thread, &global_attr_default, do_monitor, NULL) < 0) {
+        cw_log(CW_LOG_ERROR, "Unable to start monitor thread.\n");
+        return -1;
+    }
+
     /* Register dialplan functions */
     dtmfmode_app = cw_register_function(dtmfmode_name, sip_dtmfmode, dtmfmode_synopsis, dtmfmode_syntax, dtmfmode_description);
     sipt38switchover_app = cw_register_function(sipt38switchover_name, sip_t38switchover, sipt38switchover_synopsis, sipt38switchover_syntax, sipt38switchover_description);
@@ -17593,9 +17550,6 @@ static int load_module(void)
     sip_poke_all_peers();    
     sip_send_all_registers();
     
-    /* And start the monitor for the first time */
-    restart_monitor();
-
     return 0;
 }
 
@@ -17632,16 +17586,11 @@ static int unload_module(void)
 
 static int release_module(void)
 {
-	cw_mutex_lock(&monlock);
-
-	if (monitor_thread && !pthread_equal(monitor_thread, CW_PTHREADT_STOP)) {
+	if (!pthread_equal(monitor_thread, CW_PTHREADT_NULL)) {
 		pthread_cancel(monitor_thread);
 		pthread_kill(monitor_thread, SIGURG);
 		pthread_join(monitor_thread, NULL);
 	}
-	monitor_thread = CW_PTHREADT_STOP;
-
-	cw_mutex_unlock(&monlock);
 
 	/* Free memory for local network address mask */
 	cw_free_ha(localaddr);
