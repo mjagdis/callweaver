@@ -12253,7 +12253,7 @@ static void check_pendings(struct sip_pvt *p)
 }
 
 /*! \brief  handle_response_invite: Handle SIP response in dialogue */
-static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno)
 {
     int outgoing = cw_test_flag(p, SIP_OUTGOING);
     
@@ -12514,7 +12514,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 }
 
 /*! \brief  handle_response_register: Handle responses on REGISTER to services */
-static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static int handle_response_register(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno)
 {
     int expires, expires_ms;
     struct sip_registry *r;
@@ -12667,7 +12667,7 @@ destroy:
 }
 
 /*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
+static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
 {
     struct sip_peer *peer;
     int pingtime;
@@ -12747,13 +12747,24 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief  handle_response: Handle SIP response in dialogue */
-static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static void handle_response(struct sip_pvt *p, struct sip_request *req, int ignore, int seqno)
 {
+    char iabuf[INET_ADDRSTRLEN];
     char *msg, *c;
     struct cw_channel *owner;
-    char iabuf[INET_ADDRSTRLEN];
     enum sipmethod sipmethod;
+    int resp;
     int res = 1;
+
+    if (sscanf(req->data + req->rlPart2, " %d", &resp) != 1)
+    {
+        cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->data + req->rlPart2);
+        return;
+    }
+
+    /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
+    if (resp == 200 || (resp >= 300 && resp <= 399))
+        extract_uri(p, req);
 
     c = get_header(req, "Cseq");
     msg = strchr(c, ' ');
@@ -12784,7 +12795,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
            Well, as long as it's not a 100 response...  since we might
            need to hang around for something more "definitive" */
 
-        res = handle_response_peerpoke(p, resp, rest, req, ignore, seqno, sipmethod);
+        res = handle_response_peerpoke(p, resp, req, ignore, seqno, sipmethod);
     }
     else if (cw_test_flag(p, SIP_OUTGOING))
     {
@@ -12799,15 +12810,15 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         {
         case 100:    /* 100 Trying */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             break;
         case 183:    /* 183 Session Progress */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             break;
         case 180:    /* 180 Ringing */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             break;
         case 200:    /* 200 OK */
             p->authtries = 0;    /* Reset authentication counter */
@@ -12834,11 +12845,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, rest, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, seqno);
 	    } else if (sipmethod == SIP_BYE) {
 		/* Ok, we're ready to go */
 		sip_destroy(p);
@@ -12847,11 +12858,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         case 401: /* Not www-authorized on SIP method */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, rest, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, seqno);
             }
             else
             {
@@ -12862,11 +12873,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         case 403: /* Forbidden - we failed authentication */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, rest, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, seqno);
             }
             else
             {
@@ -12876,11 +12887,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         case 404: /* Not found */
             if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, rest, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, seqno);
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (owner)
                 cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
@@ -12888,7 +12899,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         case 407: /* Proxy auth required */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER)
             {
@@ -12904,7 +12915,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, rest, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, seqno);
             }
             else
             {
@@ -12914,17 +12925,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             break;
 	case 487:
 	    if (sipmethod == SIP_INVITE)
-		handle_response_invite(p, resp, rest, req, ignore, seqno);
+		handle_response_invite(p, resp, req, ignore, seqno);
 	    break;
         case 491: /* Pending */
             if (sipmethod == SIP_INVITE)
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             else
                 cw_log(CW_LOG_WARNING, "Host '%s' does not implement '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
         case 501: /* Not Implemented */
             if (sipmethod == SIP_INVITE)
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             else
                 cw_log(CW_LOG_WARNING, "Host '%s' does not implement '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
@@ -12932,7 +12943,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             if ((resp >= 300) && (resp < 700))
             {
                 if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %s\n", req->data + req->rlPart2, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
                 if (p->rtp)
                 {
                     /* Immediately stop RTP */
@@ -13009,7 +13020,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 }
             }
             else
-                cw_log(CW_LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                cw_log(CW_LOG_NOTICE, "Dont know how to handle \"%s\" response from %s\n", req->data + req->rlPart2, p->owner ? p->owner->name : cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         }
     }
     else
@@ -13030,7 +13041,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
         case 200:
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             else if (sipmethod == SIP_CANCEL)
             {
@@ -13067,14 +13078,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             break;
         case 481:    /* Call leg does not exist */
             if (sipmethod == SIP_INVITE)
             {
                 /* Re-invite failed */
-                handle_response_invite(p, resp, rest, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, seqno);
             }
             break;
         default:    /* Errors without handlers */
@@ -13089,7 +13100,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             if ((resp >= 300) && (resp < 700))
             {
                 if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                    cw_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response \"%s\" back from %s\n", req->data + req->rlPart2, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
                 switch (resp)
                 {
                 case 488: /* Not acceptable here - codec error */
@@ -13353,7 +13364,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 }
 
 /*! \brief  handle_request_invite: Handle incoming INVITE request */
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin, int *recount, char *e)
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin, int *recount)
 {
     int res = 1;
     struct cw_channel *c = NULL;
@@ -13385,7 +13396,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         }
     }
     /* save the Request line */
-    cw_copy_string(p->ruri, e, sizeof(p->ruri));
+    cw_copy_string(p->ruri, req->data + req->rlPart2, sizeof(p->ruri));
 
     /* Check if this is a loop */
     /* This happens since we do not properly support SIP domain
@@ -13439,7 +13450,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     if (!p->lastinvite && !ignore && !p->owner)
     {
         /* Handle authentication if this is our first invite */
-        res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
+        res = check_user(p, req, SIP_INVITE, req->data + req->rlPart2, 1, sin, ignore);
 	if (res > 0)
 	    return 0;
         if (res < 0)
@@ -13987,7 +13998,7 @@ static int purge_old_subscription(struct cw_object *obj, void *data)
 }
 
 /*! \brief  handle_request_subscribe: Handle incoming SUBSCRIBE request */
-static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin, int seqno, char *e)
+static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin, int seqno)
 {
     int gotdest;
     int res = 0;
@@ -14048,7 +14059,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
             mailboxsize = sizeof(mailboxbuf);
         }
         /* Handle authentication if this is our first subscribe */
-        res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
+        res = check_user_full(p, req, SIP_SUBSCRIBE, req->data + req->rlPart2, 0, sin, ignore, mailbox, mailboxsize);
 	/* if an authentication challenge was sent, we are done here */
 	if (res > 0)
 	    return 0;
@@ -14237,7 +14248,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 }
 
 /*! \brief  handle_request_register: Handle incoming REGISTER request */
-static int handle_request_register(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin, char *e)
+static int handle_request_register(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin)
 {
     int res = 0;
     char iabuf[INET_ADDRSTRLEN];
@@ -14247,7 +14258,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
         cw_verbose("Using latest REGISTER request as basis request\n");
     copy_request(&p->initreq, req);
     check_via(p, req);
-    if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
+    if ((res = register_verify(p, sin, req, req->data + req->rlPart2, ignore)) < 0) 
         cw_log(CW_LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
     if (res < 1)
     {
@@ -14269,11 +14280,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     char *useragent;
     int seqno;
     int ignore=0;
-    int respid;
     int res = 0;
     char iabuf[INET_ADDRSTRLEN];
     int debug = sip_debug_test_pvt(p);
-    char *e;
     int error = 0;
 
     /* Get Method and Cseq */
@@ -14300,7 +14309,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     /* Get the command XXX */
 
     cmd = req->data + req->rlPart1;
-    e = req->data + req->rlPart2;
 
     /* Save useragent of the client */
     useragent = get_header(req, "User-Agent");
@@ -14330,22 +14338,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
                respond appropriately  */
             ignore=1;
         }
-        else if (e)
-        {
-            int len;
-            e = cw_skip_blanks(e);
-            if (sscanf(e, "%d %n", &respid, &len) != 1)
-            {
-                cw_log(CW_LOG_WARNING, "Invalid response: '%s'\n", e);
-            }
-            else
-            {
-                /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
-                if ((respid == 200)  ||  ((respid >= 300)  &&  (respid <= 399)))
-                    extract_uri(p, req);
-                handle_response(p, respid, e + len, req, ignore, seqno);
-            }
-        }
+        else
+            handle_response(p, req, ignore, seqno);
+
         return 0;
     }
 
@@ -14417,7 +14412,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             return res;
         }
     }
-    if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
+    if (!req->data[req->rlPart2] && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
         transmit_response(p, "400 Bad request", req);
         sip_destroy(p);
         return -1;
@@ -14430,7 +14425,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         res = handle_request_options(p, req, debug);
         break;
     case SIP_INVITE:
-        res = handle_request_invite(p, req, debug, ignore, seqno, sin, recount, e);
+        res = handle_request_invite(p, req, debug, ignore, seqno, sin, recount);
         break;
     case SIP_REFER:
         res = handle_request_refer(p, req, debug, ignore, seqno, nounlock);
@@ -14445,10 +14440,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         res = handle_request_message(p, req, debug, ignore);
         break;
     case SIP_SUBSCRIBE:
-        res = handle_request_subscribe(p, req, debug, ignore, sin, seqno, e);
+        res = handle_request_subscribe(p, req, debug, ignore, sin, seqno);
         break;
     case SIP_REGISTER:
-        res = handle_request_register(p, req, debug, ignore, sin, e);
+        res = handle_request_register(p, req, debug, ignore, sin);
         break;
     case SIP_INFO:
         if (!ignore)
