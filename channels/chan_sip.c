@@ -439,8 +439,13 @@ static const struct cfsip_options {
 };
 
 
-/*! \brief SIP Methods we support */
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
+/*! \brief SIP Methods we support
+ * RFC3261: 20.5:
+ *     All methods, including ACK and CANCEL, understood by the UA MUST be
+ *     included in the list of methods in the Allow header field, when
+ *     present.
+ */
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO, MESSAGE, REGISTER"
 
 /*! \brief SIP Extensions we support */
 #define SUPPORTED_EXTENSIONS "replaces" 
