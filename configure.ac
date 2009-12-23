@@ -60,6 +60,13 @@ AX_SYS_PERLSHARPBANG
 AC_PROG_INSTALL
 AC_FUNC_STRERROR_R
 
+dnl check compiler specifics
+AC_PROG_CC_C99
+AC_C_CONST
+AC_C_INLINE
+AC_C_RESTRICT
+AC_C_TYPEOF
+AC_C_VOLATILE
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -700,11 +707,6 @@ dnl check structures
 AC_STRUCT_TM
 AC_STRUCT_TIMEZONE
 AC_CHECK_MEMBERS([struct stat.st_blksize])  
-
-dnl check compiler specifics
-AC_C_INLINE
-AC_C_CONST
-AC_C_VOLATILE
 
 dnl check types
 AC_TYPE_UID_T
