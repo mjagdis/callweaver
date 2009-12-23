@@ -163,9 +163,11 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_FREQ_OK        60 * 1000    /* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK    10 * 1000    /* How often to check, if the host is down... */
 
-#define RFC_TIMER_T1        500        /* Default RTT estimate in ms (RFC3261 requires 500ms) */
-#define RFC_TIMER_T2       4000        /* Maximum retransmit interval for non-INVITEs in ms (RFC3261 requires 4s) */
-#define DEFAULT_RFC_TIMER_B  64        /* INVITE transaction timeout, in units of T1. Default gives 7 attempts (RFC3261 requires termination after 64*T1 ms) */
+#define DEFAULT_RFC_TIMER_T1  500        /* Default RTT estimate in ms (RFC3261 requires 500ms) */
+static int rfc_timer_t1 = DEFAULT_RFC_TIMER_T1;
+#define DEFAULT_RFC_TIMER_T2 4000        /* Maximum retransmit interval for non-INVITEs in ms (RFC3261 requires 4s) */
+static int rfc_timer_t2 = DEFAULT_RFC_TIMER_T2;
+#define DEFAULT_RFC_TIMER_B    64        /* INVITE transaction timeout, in units of T1. Default gives 7 attempts (RFC3261 requires termination after 64*T1 ms) */
 static int rfc_timer_b = DEFAULT_RFC_TIMER_B;
 #define RFC_TIMER_F          64        /* non-INVITE transaction timeout, in units of T1 (RFC3261 requires termination after 64*T1 ms) */
 
@@ -1893,8 +1895,8 @@ static int retrans_pkt(void *data)
 
         reschedule = msg->timer_a * msg->owner->timer_t1;
         /* For non-invites, a maximum of T2 (normally 4 secs  as per RFC3261) */
-        if (msg->method != SIP_INVITE && reschedule > RFC_TIMER_T2)
-            reschedule = RFC_TIMER_T2;
+        if (msg->method != SIP_INVITE && reschedule > rfc_timer_t2)
+            reschedule = rfc_timer_t2;
 
         if (msg->owner && sip_debug_test_pvt(msg->owner))
         {
@@ -1942,7 +1944,7 @@ static int retrans_pkt(void *data)
         if (msg->owner && msg->method != SIP_OPTIONS)
         {
             if (cw_test_flag(msg, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(msg, FLAG_RESPONSE)) ? "Response" : "Request");
+                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s) SIP Timer T1=%d\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(msg, FLAG_RESPONSE)) ? "Response" : "Request", msg->owner->timer_t1);
         }
         else
         {
@@ -2004,7 +2006,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, struct sip_request **msg_p, in
 	/* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
 	 * and to avoid sending a retransmit at the exact moment we expect the reply to arrive
 	 */
-	msg->retransid = cw_sched_add_variable(sched, (p->timer_t1 != RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : RFC_TIMER_T1), retrans_pkt, msg, 1);
+	msg->retransid = cw_sched_add_variable(sched, (p->timer_t1 != rfc_timer_t1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : rfc_timer_t1), retrans_pkt, msg, 1);
 
 	if (option_debug > 3 && sipdebug)
 		cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", msg->retransid);
@@ -2072,9 +2074,9 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 		 * send so we don't clip against timer T2.
 		 * Oh, and, according to RFC3261 max timer B == timer F.
 		 */
-		ms = (dialogue->timer_t1 > 0 ? dialogue->timer_t1 : RFC_TIMER_T1) * DEFAULT_RFC_TIMER_B;
+		ms = (dialogue->timer_t1 > 0 ? dialogue->timer_t1 : rfc_timer_t1) * DEFAULT_RFC_TIMER_B;
 #else
-		ms = RFC_TIMER_T1 * DEFAULT_RFC_TIMER_B;
+		ms = rfc_timer_t1 * DEFAULT_RFC_TIMER_B;
 #endif
 	}
 
@@ -4528,7 +4530,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     p->stun_resreq_id = 0;
     memset(&p->stun_transid, 0, sizeof(p->stun_transid));
 
-    p->timer_t1 = RFC_TIMER_T1;
+    p->timer_t1 = rfc_timer_t1;
 
 #ifdef OSP_SUPPORT
     p->osphandle = -1;
@@ -15229,7 +15231,7 @@ static void *sip_poke_peer_thread(void *data)
                 peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
             } else {
                 cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-                peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_T1, sip_poke_peer, peer);
+                peer->pokeexpire = cw_sched_add(sched, rfc_timer_t1, sip_poke_peer, peer);
 	    }
         } else {
             peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
@@ -16362,6 +16364,8 @@ static int reload_config(void)
     strcpy(global_vmexten, DEFAULT_VMEXTEN);
     srvlookup = 0;
     autocreatepeer = 0;
+    rfc_timer_t1 = DEFAULT_RFC_TIMER_T1;
+    rfc_timer_t2 = DEFAULT_RFC_TIMER_T2;
     rfc_timer_b = DEFAULT_RFC_TIMER_B;
     regcontext[0] = '\0';
     tos = 0;
@@ -16535,6 +16539,14 @@ static int reload_config(void)
         else if (!strcasecmp(v->name, "autocreatepeer"))
         {
             autocreatepeer = cw_true(v->value);
+        }
+        else if (!strcasecmp(v->name, "timer_t1"))
+        {
+            rfc_timer_t1 = atoi(v->value);
+        }
+        else if (!strcasecmp(v->name, "timer_t2"))
+        {
+            rfc_timer_t2 = atoi(v->value);
         }
         else if (!strcasecmp(v->name, "maxinvitetries"))
         {

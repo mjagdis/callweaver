@@ -116,8 +116,15 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Settable per peer/user also
 ;notifyringing = yes		; Notify subscriptions on RINGING state
 
+;timer_t1 = 500			; Default RTT estimate in ms (RFC3261 requires 500ms)
+;timer_t2 = 4000		; Maximum retransmit interval for non-INVITEs in ms (RFC3261 requires 4s)
+				; You may wish to change these if you need to traverse high latency
+				; networks (such as over satellite links). However you should note
+				; that doing so at your end does not cause the other end to be equally
+				; persistent with its retries.
+
 ;maxinvitetries = 7		; How many INVITEs to send before giving up. Using the default of 7
-				; gives a timeout of 64*T1 (where T1 is RTT if known or 500ms) as
+				; gives a timeout of 64*T1 (where T1 is RTT if known or timer_t1) as
 				; required by RC3261. However if you need to have calls to previously
 				; unknown peers (i.e. unknown RTT) fail quickly you may want to give
 				; up sooner. Note, though, that this would violate the standard.
