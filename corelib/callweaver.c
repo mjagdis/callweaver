@@ -126,6 +126,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/switch.h"
 #include "callweaver/time.h"
+#include "callweaver/features.h"
 
 #include "callweaver/crypto.h"
 
