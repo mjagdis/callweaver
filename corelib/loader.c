@@ -768,17 +768,11 @@ static struct cw_clicmd clicmds[] = {
 
 void cw_loader_init(void)
 {
-	pthread_mutexattr_t attr;
-
 	cw_registry_init(&module_registry, 256);
 
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&modlock, &attr);
+	pthread_mutex_init(&modlock, &global_mutexattr_recursive);
 
 	lt_dlinit();
-
-	pthread_mutexattr_destroy(&attr);
 }
 
 int cw_loader_cli_init(void)
