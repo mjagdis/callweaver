@@ -17501,7 +17501,7 @@ static int unload_module(void)
 
     cw_rtp_proto_unregister(&sip_rtp);
 
-    cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
+    cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
 
     if (!cw_mutex_lock(&iflock))
     {
