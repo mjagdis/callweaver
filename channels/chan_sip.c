@@ -971,7 +971,7 @@ struct sip_peer {
     struct sockaddr_in addr;    /*!<  IP address of peer */
 
     /* Qualification */
-    struct sip_pvt *call;        /*!<  Call pointer */
+    struct sip_pvt *dialogue;        /*!<  Dialogue pointer */
     int pokeexpire;            /*!<  When to expire poke (qualify= checking) */
     int lastms;            /*!<  How long last response took (in ms), or -1 for no response */
     int maxms;            /*!<  Max ms we will accept for the host to be up, 0 to not monitor */
@@ -2552,8 +2552,10 @@ static void sip_destroy_peer(struct sip_peer *peer)
     if (peer->pokeexpire > -1)
         cw_sched_del(sched, peer->pokeexpire);
 
-    if (peer->call)
-        sip_destroy(peer->call);
+    if (peer->dialogue) {
+        sip_destroy(peer->dialogue);
+        cw_object_put(peer->dialogue);
+    }
 
     if (peer->chanvars)
     {
@@ -12605,7 +12607,9 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
             return 1;
 
         peer->pokeexpire = -1;
-	peer->call = NULL;
+
+	cw_object_put(peer->dialogue);
+	peer->dialogue = NULL;
 
         gettimeofday(&tv, NULL);
         pingtime = cw_tvdiff_ms(tv, peer->ps);
@@ -14830,10 +14834,11 @@ static int sip_poke_noanswer(void *data)
      * nothing.
      */
     peer->pokeexpire = -1;
-    if (peer->call)
+    if (peer->dialogue)
     {
-        cw_set_flag(peer->call, SIP_NEEDDESTROY);
-        peer->call = NULL;
+        cw_set_flag(peer->dialogue, SIP_NEEDDESTROY);
+        cw_object_put(peer->dialogue);
+        peer->dialogue = NULL;
     }
 
     if (peer->noanswer < 3)
@@ -14880,8 +14885,9 @@ static void *sip_poke_peer_thread(void *data)
      * have an address we can't poke the host.
      */
     if (peer->maxms && peer->addr.sin_addr.s_addr) {
-        p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
-        if (peer->call) {
+        if ((p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
+	    peer->dialogue = cw_object_get(p);
+
             memcpy(&p->sa, &peer->addr, sizeof(p->sa));
             memcpy(&p->recv, &peer->addr, sizeof(p->sa));
             cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
