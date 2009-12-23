@@ -3580,11 +3580,9 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 	pthread_t threadid;
 	struct cw_channel *chan;
 
-	index = dahdi_get_index(cw, p, 0);
-	if (index < 0) {
-		p->subs[index].f.frametype = CW_FRAME_NULL;
-		return &p->subs[index].f;
-	}
+	if ((index = dahdi_get_index(cw, p, 0)) < 0)
+		return NULL;
+
 	if (p->fake_event) {
 		res = p->fake_event;
 		p->fake_event = 0;
