@@ -17472,72 +17472,66 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-    struct sip_pvt *p, *pl;
-    int res = 0;
+	int res = 0;
 
-	if (strcasecmp(cw_config_CW_ENABLE_UNSAFE_UNLOAD, "yes")) {
-		cw_log(CW_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
-		return -1;
-	}
-    
-    /* First, take us out of the channel type list */
-    cw_channel_unregister(&sip_tech);
+	/* First, take us out of the channel type list */
+	cw_channel_unregister(&sip_tech);
 
-    res |= cw_unregister_function(checksipdomain_function);
-    res |= cw_unregister_function(sipchaninfo_function);
-    res |= cw_unregister_function(sippeer_function);
-    res |= cw_unregister_function(sippeervar_function);
-    res |= cw_unregister_function(sipheader_function);
+	res |= cw_unregister_function(checksipdomain_function);
+	res |= cw_unregister_function(sipchaninfo_function);
+	res |= cw_unregister_function(sippeer_function);
+	res |= cw_unregister_function(sippeervar_function);
+	res |= cw_unregister_function(sipheader_function);
 
-    res |= cw_unregister_function(sipt38switchover_app);
-    cw_uninstall_t38_functions();
-    res |= cw_unregister_function(dtmfmode_app);
-    res |= cw_unregister_function(sipaddheader_app);
-    res |= cw_unregister_function(siposd_app);
+	res |= cw_unregister_function(sipt38switchover_app);
+	cw_uninstall_t38_functions();
+	res |= cw_unregister_function(dtmfmode_app);
+	res |= cw_unregister_function(sipaddheader_app);
+	res |= cw_unregister_function(siposd_app);
 
-    cw_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
+	cw_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
-    cw_udptl_proto_unregister(&sip_udptl);
+	cw_udptl_proto_unregister(&sip_udptl);
 
-    cw_rtp_proto_unregister(&sip_rtp);
+	cw_rtp_proto_unregister(&sip_rtp);
 
-    cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
+	cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
 
-    if (!cw_mutex_lock(&monlock))
-    {
-        if (monitor_thread && !pthread_equal(monitor_thread, CW_PTHREADT_STOP))
-        {
-            pthread_cancel(monitor_thread);
-            pthread_kill(monitor_thread, SIGURG);
-            pthread_join(monitor_thread, NULL);
-        }
-        monitor_thread = CW_PTHREADT_STOP;
-        cw_mutex_unlock(&monlock);
-    }
-    else
-    {
-        cw_log(CW_LOG_WARNING, "Unable to lock the monitor\n");
-        return -1;
-    }
-
-    /* Free memory for local network address mask */
-    cw_free_ha(localaddr);
-
-    ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
-    ASTOBJ_CONTAINER_DESTROY(&userl);
-    ASTOBJ_CONTAINER_DESTROYALL(&peerl, sip_destroy_peer);
-    ASTOBJ_CONTAINER_DESTROY(&peerl);
-    ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-    ASTOBJ_CONTAINER_DESTROY(&regl);
-
-    clear_realm_authentication(authl);
-    clear_sip_domains();
-    close(sipsock);
-    io_context_destroy(io);
-    sched_context_destroy(sched);
-        
-    return res;
+	return res;
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)
+static int release_module(void)
+{
+	cw_mutex_lock(&monlock);
+
+	if (monitor_thread && !pthread_equal(monitor_thread, CW_PTHREADT_STOP)) {
+		pthread_cancel(monitor_thread);
+		pthread_kill(monitor_thread, SIGURG);
+		pthread_join(monitor_thread, NULL);
+	}
+	monitor_thread = CW_PTHREADT_STOP;
+
+	cw_mutex_unlock(&monlock);
+
+	/* Free memory for local network address mask */
+	cw_free_ha(localaddr);
+
+	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
+	ASTOBJ_CONTAINER_DESTROY(&userl);
+	ASTOBJ_CONTAINER_DESTROYALL(&peerl, sip_destroy_peer);
+	ASTOBJ_CONTAINER_DESTROY(&peerl);
+	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+	ASTOBJ_CONTAINER_DESTROY(&regl);
+
+	clear_realm_authentication(authl);
+	clear_sip_domains();
+	close(sipsock);
+	io_context_destroy(io);
+	sched_context_destroy(sched);
+        
+	return 0;
+}
+
+
+MODULE_INFO(load_module, reload_module, unload_module, release_module, desc)
