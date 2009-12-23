@@ -2,7 +2,8 @@
 
 AUTOMAKE_OPTS = gnu foreign
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
 
 SUBDIRS = 
 

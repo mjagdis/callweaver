@@ -1,6 +1,9 @@
-libexecdir = ${cwexecdir}
+AUTOMAKE_OPTS = gnu
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
+
+libexecdir = ${cwexecdir}
 
 SUBDIRS=jitterbuffer
 
@@ -86,13 +89,13 @@ CORE_SRC = \
 
 CORE_NODIST = defaults.h
 
-CORE_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -DCW_API_IMPLEMENTATION
+CORE_CFLAGS 	=  $(AM_CFLAGS) -D_REENTRANT -DCW_API_IMPLEMENTATION
 if !WANT_DEBUG
 CORE_CFLAGS 	+= -fomit-frame-pointer
 #CORE_CFLAGS	+= -DCW_MUTEX_INIT_W_CONSTRUCTORS
 endif
-CORE_CFLAGS	+= -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
+CORE_CFLAGS	+= -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include
+CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include
 
 CORE_LDFLAGS	= @OPENSSL_LDFLAGS@
 

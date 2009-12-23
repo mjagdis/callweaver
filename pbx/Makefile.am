@@ -1,6 +1,7 @@
 AUTOCONF_OPTS 		= gnu
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
 
 BUILT_SOURCES =
 

@@ -26,7 +26,7 @@ SED = @SED@
 M4 = @M4@
 SVN = @SVN@
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
 
 ## LDFLAGS		= --as-needed --enable-new-dtags
 

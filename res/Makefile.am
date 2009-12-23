@@ -1,5 +1,6 @@
 AUTOMAKE_OPTS 			= gnu
 
+
 DEFS += -include $(top_builddir)/include/global.h -DCW_RES_API_IMPLEMENTATION
 
 cwmod_LTLIBRARIES		= res_musiconhold.la \
@@ -94,7 +95,7 @@ endif WANT_OSP
 if WANT_RES_JS
 cwmod_LTLIBRARIES	+= res_js.la
 res_js_la_SOURCES	= res_js.c
-res_js_la_CFLAGS	= $(AM_CLFAGS) @JS_CFLAGS@ @NSPR_CFLAGS@
+res_js_la_CFLAGS	= $(AM_CFLAGS) @JS_CFLAGS@ @NSPR_CFLAGS@
 res_js_la_LIBADD	= @JS_LDFLAGS@ @NSPR_LDFLAGS@
 res_js_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
 endif WANT_RES_JS
@@ -111,7 +112,7 @@ if WANT_RES_SNMP
 cwmod_LTLIBRARIES		+= res_snmp.la
 res_snmp_la_SOURCES	= res_snmp.c snmp/agent.c
 res_snmp_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
-res_snmp_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
+res_snmp_la_CFLAGS	= $(AM_CFLAGS) -Wno-error @ODBC_CFLAGS@
 res_snmp_la_LIBADD	= @ODBC_LIBS@ -lnetsnmp -lnetsnmpagent -lnetsnmphelpers -lnetsnmpmibs @CALLWEAVER_LIB@
 endif WANT_RES_SNMP
 

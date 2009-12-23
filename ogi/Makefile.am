@@ -1,6 +1,7 @@
 AUTOMAKE_OPTS 			= gnu
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
 
 cwogi_PROGRAMS 		= eogi-sphinx-test eogi-test
 cwogi_SCRIPTS 		= ogi-test.ogi fastogi-test

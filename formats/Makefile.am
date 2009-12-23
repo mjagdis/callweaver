@@ -1,6 +1,7 @@
 AUTOMAKE_OPTS 		= gnu
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
 
 cwmod_LTLIBRARIES = format_au.la format_g723_1.la format_g726.la	\
 format_g729.la format_gsm.la format_h263.la format_pcm.la		\

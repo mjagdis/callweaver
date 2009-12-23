@@ -1,6 +1,7 @@
 AUTOMAKE_OPTS			= gnu
 
-DEFS += -include $(top_builddir)/include/global.h
+AM_CFLAGS			= @CW_CFLAGS@
+
 
 cwmod_LTLIBRARIES 		=
 
@@ -11,7 +12,7 @@ chan_misdn_la_SOURCES		= chan_misdn.c chan_misdn_config.h asn1.c \
 				  isdn_lib_intern.h isdn_msg_parser.c misdn_config.c
 
 
-chan_misdn_la_CFLAGS		= $(AM_CFLAGS) @MISDN_CFLAGS@ -D_GNU_SOURCE -DCHAN_MISDN_VERSION=\"0.4.0-rc28\"
+chan_misdn_la_CFLAGS		= $(AM_CFLAGS) -Wno-error @MISDN_CFLAGS@ -D_GNU_SOURCE -DCHAN_MISDN_VERSION=\"0.4.0-rc28\"
 chan_misdn_la_LIBADD		= @MISDN_LDFLAGS@ -lisdnnet -lmISDN @CALLWEAVER_LIB@
 chan_misdn_la_LDFLAGS            = -module -avoid-version @NO_UNDEFINED@
 endif WANT_CHAN_MISDN

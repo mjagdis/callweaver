@@ -68,7 +68,30 @@ AC_C_RESTRICT
 AC_C_TYPEOF
 AC_C_VOLATILE
 
+
+dnl Figure out what flags to use on the build
+
+CW_CFLAGS='-include $(top_builddir)/include/global.h'
+
+AX_CFLAGS_GCC_OPTION([-Werror], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wall], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wstrict-prototypes], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wmissing-prototypes], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wmissing-declarations], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wunused-parameter], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wshadow], [CW_CFLAGS])
+dnl AX_CFLAGS_GCC_OPTION([-Wcast-qual], [CW_CFLAGS])
+AX_CFLAGS_GCC_OPTION([-Wwrite-strings], [CW_CFLAGS])
+
+gl_VISIBILITY
+if test -n "${CFLAG_VISIBILITY}"; then
+	CW_CFLAGS="$CW_CFLAGS ${CFLAG_VISIBILITY}"
+fi
+
+AC_SUBST([CW_CFLAGS])
+
 dnl check for -fstack-protector support
+dnl these ought to go into CW_CFLAGS but they explicitly set CFLAGS
 GCC_STACK_PROTECT_LIB
 GCC_STACK_PROTECT_CC
 
@@ -212,10 +235,6 @@ if test "$have_host_cc" = "no"; then
 fi
 AC_SUBST(HOST_CC)
 
-gl_VISIBILITY
-if test -n "${CFLAG_VISIBILITY}"; then
-	CFLAGS="$CFLAGS ${CFLAG_VISIBILITY}"
-fi
 
 dnl ##########################
 dnl #

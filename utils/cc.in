@@ -1,11 +1,17 @@
 #!/bin/bash
 
-# If we make warnings fatal we can discard any output from the first run
-@REAL_CC@ "$@" # > /dev/null 2>&1
+tmpfile="/tmp/$$"
+trap "rm -f '$tmpfile'" 0
+
+@REAL_CC@ -Wfatal-errors "$@" > "$tmpfile" 2>&1
 
 if [[ $? -ne 0 ]]; then
-	echo '****'
-	echo '**** Errors encountered, rerunning with -DCW_DEBUG_COMPILE'
-	echo '****'
-	@REAL_CC@ -DCW_DEBUG_COMPILE "$@"
+	if grep 'declaration of ‘__cancel_buf’ shadows a previous local' "$tmpfile" > /dev/null 2>&1; then
+		# There's a nested pthread_cleanup_push...pthread_cleanup_pop
+		@REAL_CC@ -Wfatal-errors "$@" -Wno-shadow
+		[[ $? -eq 0 ]] && exit 0
+	fi
+
+	@REAL_CC@ -DCW_DEBUG_COMPILE "$@" $OVERRIDE_CFLAGS
+	exit 1
 fi
