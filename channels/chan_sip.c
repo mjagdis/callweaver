@@ -1013,7 +1013,7 @@ struct sip_registry {
     int regattempts;        /*!< Number of attempts (since the last success) */
     int timeout;             /*!< sched id of sip_reg_timeout */
     int refresh;            /*!< How often to refresh */
-    struct sip_pvt *call;        /*!< create a sip_pvt structure for each outbound "registration call" in progress */
+    struct sip_pvt *dialogue;        /*!< create a sip_pvt structure for each outbound "registration call" in progress */
     int regstate;            /*!< Registration state (see above) */
     int callid_valid;        /*!< 0 means we haven't chosen callid for this registry yet. */
     char callid[80];        /*!< Global CallID for this registry */
@@ -3064,12 +3064,13 @@ static int sip_call(struct cw_channel *ast, char *dest)
 static void sip_registry_destroy(struct sip_registry *reg)
 {
     /* Really delete */
-    if (reg->call)
+    if (reg->dialogue)
     {
         /* Clear registry before destroying to ensure
            we don't get reentered trying to grab the registry lock */
-        reg->call->registry = NULL;
-        sip_destroy(reg->call);
+        reg->dialogue->registry = NULL;
+        sip_destroy(reg->dialogue);
+        cw_object_put(reg->dialogue);
     }
     if (reg->expire > -1)
         cw_sched_del(sched, reg->expire);
@@ -3108,8 +3109,10 @@ cw_log(CW_LOG_NOTICE, "Destroy call %s\n", dialogue->callid);
 			cw_object_put(dialogue);
 
 	if (dialogue->registry) {
-		if (dialogue->registry->call == dialogue)
-			dialogue->registry->call = NULL;
+		if (dialogue->registry->dialogue == dialogue) {
+			cw_object_put(dialogue->registry->dialogue);
+			dialogue->registry->dialogue = NULL;
+		}
 		ASTOBJ_UNREF(dialogue->registry, sip_registry_destroy);
 	}
 
@@ -7438,12 +7441,12 @@ static int sip_reregister(void *data)
     if (!r)
         return 0;
 
-    if (r->call && recordhistory)
+    if (r->dialogue && recordhistory)
     {
         char tmp[80];
     
         snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
-        append_history(r->call, "RegistryRenew", tmp);
+        append_history(r->dialogue, "RegistryRenew", tmp);
     }
 
     if (sipdebug)
@@ -7469,16 +7472,17 @@ static int sip_reg_timeout(void *data)
     r->timeout = -1;
 
     cw_log(CW_LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
-    if (r->call)
+    if (r->dialogue)
     {
-        /* Unlink us, destroy old call. */
-        p = r->call;
+        /* Unlink us, destroy old dialogue. */
+        p = r->dialogue;
         if (p->registry)
             ASTOBJ_UNREF(p->registry, sip_registry_destroy);
-        r->call = NULL;
+        r->dialogue = NULL;
         cw_set_flag(p, SIP_NEEDDESTROY);    
         /* Pretend to ACK anything just in case */
         __sip_pretend_ack(p);
+        cw_object_put(p);
     }
     /* If we have a limit, stop registration and give up */
     if (global_regattempts_max && (r->regattempts > global_regattempts_max))
@@ -7518,7 +7522,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         return 0;
     }
 
-    if (r->call)
+    if (r->dialogue)
     {
         /* We have a registration */
         if (!auth)
@@ -7526,7 +7530,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             cw_log(CW_LOG_WARNING, "Already have a REGISTER going on to %s@%s?? \n", r->username, r->hostname);
             return 0;
         }
-        p = r->call;
+        p = r->dialogue;
 	/* Forget their old tag, so we don't match tags when getting response.
 	 * This is strictly incorrect since the tag should be constant throughout
 	 * a dialogue (in this case register,unauth'd,reg-with-auth,ok-or-fail)
@@ -7586,8 +7590,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 	else 	/* Set registry port to the port set from the peer definition/srv or default */
 	    r->portno = ntohs(p->sa.sin_port);
         cw_set_flag(p, SIP_OUTGOING);    /* Registration is outgoing call */
-        r->call=p;            /* Save pointer to SIP packet */
-        p->registry=ASTOBJ_REF(r);    /* Add pointer to registry in packet */
+        r->dialogue = cw_object_get(p);            /* Save pointer to SIP packet */
+        p->registry = ASTOBJ_REF(r);    /* Add pointer to registry in packet */
         if (!cw_strlen_zero(r->secret))    /* Secret (password) */
             cw_copy_string(p->peersecret, r->secret, sizeof(p->peersecret));
         if (!cw_strlen_zero(r->md5secret))
@@ -12505,7 +12509,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
                       regstate2str(r->regstate));
         r->regattempts = 0;
         cw_log(CW_LOG_DEBUG, "Registration successful\n");
-        r->call = NULL;
+        cw_object_put(r->dialogue);
+        r->dialogue = NULL;
         p->registry = NULL;
         /* Let this one hang around until we have all the responses */
         sip_scheddestroy(p, 32000);
@@ -12570,9 +12575,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         return 1;
     }
 
-    if (cw_test_flag(p, SIP_NEEDDESTROY))
-        r->call = NULL;
-    else
+    if (cw_test_flag(p, SIP_NEEDDESTROY)) {
+        cw_object_put(r->dialogue);
+        r->dialogue = NULL;
+    } else
         r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
     return 1;
 }
@@ -17315,11 +17321,11 @@ static int sip_do_reload(void)
     /* This is needed, since otherwise active registry entries will not be destroyed */
     ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 	ASTOBJ_RDLOCK(iterator);
-	if (iterator->call) {
+	if (iterator->dialogue) {
 		if (option_debug > 2)
 			cw_log(CW_LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 		/* This will also remove references to the registry */
-		sip_destroy(iterator->call);
+		sip_destroy(iterator->dialogue);
 	}
 	ASTOBJ_UNLOCK(iterator);
 
