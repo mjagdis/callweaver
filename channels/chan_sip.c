@@ -1157,20 +1157,6 @@ static void dialogue_release(struct cw_object *obj)
 		free(cp);
 	}
 
-	if (dialogue->rtp)
-		cw_rtp_destroy(dialogue->rtp);
-
-	if (dialogue->vrtp)
-		cw_rtp_destroy(dialogue->vrtp);
-
-	if (dialogue->udptl)
-		cw_udptl_destroy(dialogue->udptl);
-
-#if 0
-	if (dialogue->tpkt)
-		cw_tpkt_destroy(dialogue->tpkt);
-#endif
-
 	if (dialogue->route) {
 		free_old_route(dialogue->route);
 		dialogue->route = NULL;
@@ -3089,6 +3075,28 @@ static void sip_destroy(struct sip_pvt *dialogue)
 
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
+
+	if (dialogue->rtp) {
+		cw_rtp_destroy(dialogue->rtp);
+		dialogue->rtp = NULL;
+	}
+
+	if (dialogue->vrtp) {
+		cw_rtp_destroy(dialogue->vrtp);
+		dialogue->vrtp = NULL;
+	}
+
+	if (dialogue->udptl) {
+		cw_udptl_destroy(dialogue->udptl);
+		dialogue->udptl = NULL;
+	}
+
+#if 0
+	if (dialogue->tpkt) {
+		cw_tpkt_destroy(dialogue->tpkt);
+		dialogue->tpkt = NULL;
+	}
+#endif
 
 	if (dialogue->stateid > -1)
 		cw_extension_state_del(dialogue->stateid, NULL);
