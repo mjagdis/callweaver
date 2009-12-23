@@ -553,6 +553,7 @@ struct sched_param global_sched_param_rr;
 
 pthread_mutexattr_t  global_mutexattr_errorcheck;
 pthread_mutexattr_t  global_mutexattr_recursive;
+pthread_mutexattr_t  global_mutexattr_simple;
 
 pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
@@ -1334,6 +1335,7 @@ int cw_utils_init(void)
 
 	pthread_mutexattr_init(&global_mutexattr_errorcheck);
 	pthread_mutexattr_init(&global_mutexattr_recursive);
+	pthread_mutexattr_init(&global_mutexattr_simple);
 #ifdef PTHREAD_MUTEX_RECURSIVE
 	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_ERRORCHECK);
 	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE);

@@ -69,6 +69,7 @@
 
 extern CW_API_PUBLIC pthread_mutexattr_t  global_mutexattr_errorcheck;
 extern CW_API_PUBLIC pthread_mutexattr_t  global_mutexattr_recursive;
+extern CW_API_PUBLIC pthread_mutexattr_t  global_mutexattr_simple;
 
 
 #ifdef DEBUG_MUTEX
