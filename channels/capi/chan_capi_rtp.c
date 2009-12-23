@@ -176,7 +176,7 @@ int capi_alloc_rtp(struct capi_pvt *i)
 	hp = cw_gethostbyname("localhost", &ahp);
 	memcpy(&addr, hp->h_addr, sizeof(addr));
 
-	if (!(i->rtp = cw_rtp_new_with_bindaddr(NULL, NULL, 0, 0, addr))) {
+	if (!(i->rtp = cw_rtp_new_with_bindaddr(NULL, CW_IO_CONTEXT_NONE, 0, 0, addr))) {
 		cc_log(CW_LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
 		return 1;
 	}
