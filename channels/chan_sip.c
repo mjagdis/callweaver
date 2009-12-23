@@ -257,6 +257,12 @@ static const char checksipdomain_func_desc[] =
         "Returns the domain name if it is locally handled, otherwise an empty string.\n"
         "Check the domain= configuration in sip.conf\n";
 
+static void *sipbuilddial_function;
+static const char sipbuilddial_func_name[] = "SIP_BUILD_DIAL";
+static const char sipbuilddial_func_synopsis[] = "Build SIP Dial String using <regex peer>";
+static const char sipbuilddial_func_syntax[] = "SIP_BUILD_DIAL(<regex peer>)";
+static const char sipbuilddial_func_desc[] = "";
+
 
 #define RTP     1
 #define NO_RTP    0
@@ -12330,6 +12336,60 @@ static const char show_settings_usage[] =
 "       Provides detailed list of the configuration of the SIP channel.\n";
 
 
+struct func_sipbuilddial_args {
+	regex_t preg;
+	size_t len;
+	char *buf;
+	int isfirst:1;
+};
+
+static int func_sipbuilddial_one(struct cw_object *obj, void *data)
+{
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct func_sipbuilddial_args *args = data;
+	int n;
+
+	if (regexec(&args->preg, peer->name, 0, NULL, 0)) {
+		if ((n = snprintf(args->buf, args->len, "%sSIP/%s", (args->isfirst ? "" : "&"), peer->name)) < args->len) {
+			args->buf += n;
+			args->len -= n;
+			args->isfirst= 0;
+		} else {
+			args->buf[0] = '\0';
+			cw_log(CW_LOG_WARNING, "Insufficient buffer space to add SIP/%s - dropped from dial list\n", peer->name);
+		}
+	}
+
+	return 0;
+}
+
+/*! \brief  func_sipbuilddial_read: Read DIAL string based on regex (dialplan function) */
+static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+{
+	struct func_sipbuilddial_args args = {
+		.buf = buf,
+		.len = len,
+		.isfirst = 1,
+	};
+	size_t l;
+	int err;
+
+	if (!(err = regcomp(&args.preg, argv[0], REG_EXTENDED | REG_NOSUB))) {
+		/* People debugging might like the results ordered but that just
+		 * adds extra work to the common case. So tough. Suck it up!
+		 */
+		cw_registry_iterate(&peerbyname_registry, func_sipbuilddial_one, NULL);
+		regfree(&args.preg);
+		return 0;
+	}
+
+	l = regerror(err, &args.preg, NULL, 0);
+	buf = alloca(l);
+	l = regerror(err, &args.preg, buf, l);
+	cw_log(CW_LOG_ERROR, "Error in regex \"%s\": %s\n", argv[0], buf);
+	return -1;
+}
+
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
 static int func_header_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
@@ -17967,6 +18027,7 @@ static int load_module(void)
     sippeervar_function = cw_register_function(sippeervar_func_name, function_sippeervar, sippeervar_func_synopsis, sippeervar_func_syntax, sippeervar_func_desc);
     sipchaninfo_function = cw_register_function(sipchaninfo_func_name, function_sipchaninfo_read, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
     checksipdomain_function = cw_register_function(checksipdomain_func_name, func_check_sipdomain, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
+    sipbuilddial_function = cw_register_function(sipbuilddial_func_name, func_sipbuilddial, sipbuilddial_func_synopsis, sipbuilddial_func_syntax, sipbuilddial_func_desc);
 
     /* These will be removed soon */
     sipaddheader_app = cw_register_function(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
@@ -17988,6 +18049,7 @@ static int unload_module(void)
 	/* First, take us out of the channel type list */
 	cw_channel_unregister(&sip_tech);
 
+	res |= cw_unregister_function(sipbuilddial_function);
 	res |= cw_unregister_function(checksipdomain_function);
 	res |= cw_unregister_function(sipchaninfo_function);
 	res |= cw_unregister_function(sippeer_function);
