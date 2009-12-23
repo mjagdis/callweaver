@@ -118,8 +118,6 @@ extern CW_API_PUBLIC int cw_io_remove(struct io_context *ioc, int *id);
 extern CW_API_PUBLIC int cw_io_wait(struct io_context *ioc, int howlong);
 
 
-extern int cw_get_termcols(int fd);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

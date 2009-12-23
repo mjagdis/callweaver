@@ -292,26 +292,3 @@ int cw_io_wait(struct io_context *ioc, int howlong)
 	}
 	return res;
 }
-
-
-/* Unrelated I/O functions */
-
-int cw_get_termcols(int fd)
-{
-	struct winsize win;
-	int cols = 0;
-
-	if (!isatty(fd))
-		return -1;
-
-	if ( ioctl(fd, TIOCGWINSZ, &win) != -1 ) {
-		if ( !cols && win.ws_col > 0 )
-			cols = (int) win.ws_col;
-	} else {
-		/* assume 80 characters if the ioctl fails for some reason */
-		cols = 80;
-	}
-
-	return cols;
-}
-
