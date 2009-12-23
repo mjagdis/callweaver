@@ -14524,38 +14524,52 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     if (option_debug > 2)
         cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, req->data);
 
-    if (p->icseq && (p->icseq > req->seqno))
-    {
-        if (req->method == SIP_ACK) 
-        {
-            retrans_stop(p, req->seqno, FLAG_RESPONSE, -1, 1); /* Stop retransmissions of whatever's being ACKed */
-            return 0;
-        }
-        else
-        {
-	    if (option_debug)
-                cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", req->seqno, p->icseq);
-    	    transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
-            return -1;
-        }
-    }
-    else if (p->icseq && (p->icseq == req->seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| cw_test_flag(p, SIP_ALREADYGONE)))
-    {
-        /* ignore means "don't do anything with it" but still have to 
-           respond appropriately.  We do this if we receive a repeat of
-           the last sequence number  */
-        ignore = 2;
-        if (option_debug > 2)
-            cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, req->seqno);
-    }
-        
-    if (req->seqno >= p->icseq)
-        /* Next should follow monotonically (but not necessarily 
-           incrementally -- thanks again to the genius authors of SIP --
-           increasing */
+    /* RFC3261: 12.2.2
+     *     If the remote sequence number was not empty, and
+     *     the sequence number of the request is greater than the remote
+     *     sequence number, the request is in order.  It is possible for the
+     *     CSeq sequence number to be higher than the remote sequence number by
+     *     more than one.  This is not an error condition, and a UAS SHOULD be
+     *     prepared to receive and process requests with CSeq values more than
+     *     one higher than the previous received request.  The UAS MUST then set
+     *     the remote sequence number to the value of the sequence number in the
+     *     CSeq header field value in the request.
+     */
+    if (req->seqno > p->icseq)
         p->icseq = req->seqno;
-
-    snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", req->data);
+    else if (p->icseq)
+    {
+        /* RFC3261: 12.2.2:
+         *     If the remote sequence number was not empty, but the sequence number
+         *     of the request is lower than the remote sequence number, the request
+         *     is out of order and MUST be rejected with a 500 (Server Internal
+         *     Error) response.
+         */
+        if (req->seqno < p->icseq)
+        {
+            if (req->method == SIP_ACK)
+            {
+                return 0;
+            }
+            else
+            {
+	        if (option_debug)
+                    cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", req->seqno, p->icseq);
+                transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
+                return -1;
+            }
+        }
+        else if (p->icseq == req->seqno && req->method != SIP_ACK && (p->method != SIP_CANCEL || cw_test_flag(p, SIP_ALREADYGONE)))
+        {
+            /* ignore means "don't do anything with it" but we still have to
+             * respond appropriately.  We do this if we receive a repeat of
+             * the last sequence number
+	     */
+            ignore = 2;
+            if (option_debug > 2)
+                cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, req->seqno);
+        }
+    }
 
     if (pedanticsipchecking)
     {
@@ -14587,6 +14601,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
     if (!ignore)
     {
+        snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", req->data);
+
         s = get_header(req, "User-Agent");
         if (s && s[0])
         {
@@ -14648,7 +14664,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         if (req->seqno == p->pendinginvite)
         {
             p->pendinginvite = 0;
-            retrans_stop(p, req->seqno, FLAG_RESPONSE, -1, 1);
             if (!cw_strlen_zero(get_header(req, "Content-Type")))
             {
                 if (process_sdp(p, req))
