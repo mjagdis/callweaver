@@ -1224,15 +1224,9 @@ struct cw_registry dialogue_registry = {
 static void dialogue_release(struct cw_object *obj)
 {
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
-	struct sip_pkt *cp;
 
 	if (dumphistory)
 		sip_dump_history(dialogue);
-
-	while ((cp = dialogue->packets)) {
-		dialogue->packets = dialogue->packets->next;
-		free(cp);
-	}
 
 	if (dialogue->route) {
 		free_old_route(dialogue->route);
