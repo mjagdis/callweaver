@@ -62,6 +62,8 @@
 #ifndef _CW_HASH_H
 #define _CW_HASH_H
 
+#include <netinet/in.h>
+
 
 #define cw_hash_add(hash, val)	((val) + ((hash) << 6) + ((hash) << 16) - (hash))
 
@@ -71,7 +73,7 @@
  *
  * \param string  the string to hash
  *
- * \return 0 if 'string' is a zero-length string or NULL.
+ * \return hash value
  */
 static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *string)
 {
@@ -82,6 +84,24 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *str
 		while (*string)
 			hash = cw_hash_add(hash, *(string++));
 	}
+
+	return hash;
+}
+
+
+/*! \brief Returns the hash value of a sockaddr_in
+ *
+ * \param string  the sockaddr_in to hash
+ *
+ * \return hash_value
+ */
+static inline __attribute__ ((pure)) unsigned int cw_hash_addr(const struct sockaddr_in *sin)
+{
+	unsigned int hash;
+
+	hash = 0;
+	if (sin)
+		hash = sin->sin_addr.s_addr + (sin->sin_port << 16);
 
 	return hash;
 }
