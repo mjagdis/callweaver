@@ -199,7 +199,7 @@ int manager_str_to_eventmask(char *instr)
 	 * late to risk changing it now.
 	 */
 	if (!instr || !*instr || cw_true(instr) || !strcasecmp(instr, "all") || (instr[0] == '-' && instr[1] == '1'))
-		ret = -1;
+		ret = -1 & (~EVENT_FLAG_LOG_ALL);
 	else if (cw_false(instr))
 		ret = 0;
 	else if (isdigit(*instr))
