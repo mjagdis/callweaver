@@ -1194,7 +1194,11 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         }
         else
         {
-            cw_log(CW_LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+            /* Counter-path Eyebeam/X-Lite seems to send periodic 126s with a 4 byte payload
+             * even though it doesn't negotiate this codec. No one seems to know what it is :-(
+             */
+            if (payloadtype != 126 || res - hdrlen != 4)
+                cw_log(CW_LOG_NOTICE, "Unknown RTP codec %d received, payload length %d\n", payloadtype, res - hdrlen);
             return &cw_null_frame;
         }
     }
