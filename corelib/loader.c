@@ -75,14 +75,7 @@ struct loader_err {
 };
 
 
-static struct modinfo core_modinfo = {
-	.self = NULL,
-};
-
-struct modinfo *get_modinfo(void)
-{
-	return &core_modinfo;
-}
+MODULE_INFO(NULL, NULL, NULL, NULL, "Callweaver core")
 
 
 static int cw_module_qsort_compare_by_name(const void *a, const void *b)
