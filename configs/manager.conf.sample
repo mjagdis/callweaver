@@ -28,10 +28,17 @@ queuesize = 1024
 ;
 ; Note that you should not enable the AMI on a public IP address. If needed,
 ; block the TCP port with iptables (or another FW software) and reach it
-; with IPsec, SSH, or SSL vpn tunnel
+; with IPsec, SSH, or SSL vpn tunnel.
+;
+; If there is quoted text before the address specification this text is
+; used as the banner message for connections instead of the default.
 ;
 ; Listen for IPv4 connections from the localhost only
 listen = 127.0.0.1:5038
+;
+; Listen for IPv4 connections from the localhost only and claim to
+; be some other service.
+;listen = "Some Other Service" 127.0.0.1:5038
 ;
 ; Listen for IPv4 connections from *anywhere* (NOT RECOMMENDED!)
 ;listen = 0.0.0.0:5038

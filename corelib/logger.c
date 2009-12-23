@@ -310,7 +310,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 	logmask = manager_str_to_eventmask(components);
 
-	if (!(chan->sess = manager_session_start(logger_manager_session, -1, family, chan->filename, sizeof(chan->filename) - 1, logmask, 0, logmask))) {
+	if (!(chan->sess = manager_session_start(logger_manager_session, -1, family, chan->filename, sizeof(chan->filename) - 1, NULL, logmask, 0, logmask))) {
 		/* Can't log here, since we're called with a lock */
 		fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
 		free(chan);

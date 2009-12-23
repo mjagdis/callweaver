@@ -99,12 +99,19 @@ struct message {
 };
 
 
+struct manager_listener_pvt {
+	struct cw_object obj;
+	char banner[0];
+};
+
+
 struct manager_listener {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	int sock;
 	pthread_t tid;
 	int (*handler)(struct mansession *, const struct manager_event *);
+	struct manager_listener_pvt *pvt;
 	int readperm, writeperm, send_events;
 	char name[0];
 };
@@ -584,6 +591,9 @@ static void mansession_release(struct cw_object *obj)
 		cw_object_put(sess->q[sess->q_r]);
 		sess->q_r = (sess->q_r + 1) % sess->q_size;
 	}
+
+	if (sess->pvt_obj)
+		cw_object_put_obj(sess->pvt_obj);
 
 	pthread_mutex_destroy(&sess->lock);
 	pthread_cond_destroy(&sess->ack);
@@ -1646,7 +1656,15 @@ static void *manager_session(void *data)
 	struct mansession *sess = data;
 	int res;
 
-	cw_write_all(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
+	if (sess->pvt_obj) {
+		struct manager_listener_pvt *pvt = container_of(sess->pvt_obj, struct manager_listener_pvt, obj);
+
+		cw_write_all(sess->fd, pvt->banner, strlen(pvt->banner));
+		cw_write_all(sess->fd, "\r\n", sizeof("\r\n") - 1);
+		sess->pvt_obj = NULL;
+		cw_object_put(pvt);
+	} else
+		cw_write_all(sess->fd, MANAGER_AMI_HELLO, sizeof(MANAGER_AMI_HELLO) - 1);
 
 	sess->reader_tid = CW_PTHREADT_NULL;
 
@@ -1731,7 +1749,7 @@ static void *manager_session(void *data)
 }
 
 
-struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, int family, void *addr, size_t addr_len, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1768,6 +1786,8 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 		sess->authenticated = 1;
 	sess->send_events = send_events;
 	sess->handler = handler;
+	if (pvt_obj)
+		sess->pvt_obj = cw_object_dup_obj(pvt_obj);
 
 	cw_object_init(sess, NULL, 2);
 	pthread_mutex_init(&sess->lock, NULL);
@@ -1865,8 +1885,14 @@ static void *accept_thread(void *data)
 			strcpy(u.sun.sun_path, listener->name + sizeof("local:") - 1);
 		}
 
-		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen, listener->readperm, listener->writeperm, listener->send_events)))
+		if (listener->pvt)
+			cw_object_dup(listener->pvt);
+
+		if ((sess = manager_session_start(listener->handler, fd, u.sa.sa_family, &u, salen, &listener->pvt->obj, listener->readperm, listener->writeperm, listener->send_events))) {
+			if (listener->pvt)
+				cw_object_put(listener->pvt);
 			cw_object_put(sess);
+		}
 	}
 
 	pthread_cleanup_pop(1);
@@ -2140,7 +2166,17 @@ static void listener_free(struct cw_object *obj)
 {
 	struct manager_listener *it = container_of(obj, struct manager_listener, obj);
 
+	if (it->pvt)
+		cw_object_put(it->pvt);
 	cw_object_destroy(it);
+	free(it);
+}
+
+
+static void listener_pvt_free(struct cw_object *obj)
+{
+	struct manager_listener_pvt *it = container_of(obj, struct manager_listener_pvt, obj);
+
 	free(it);
 }
 
@@ -2153,10 +2189,28 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 		struct sockaddr_un sun;
 	} u;
 	struct manager_listener *listener;
+	const char *banner = NULL;
+	int banner_len = 0;
 	socklen_t salen;
 	int namelen;
 	const int arg = 1;
 	char buf[1];
+
+	if (spec[0] == '"') {
+		int i;
+
+		for (i = 1; spec[i] && spec[i] != '"'; i++) {
+			if (spec[i] == '\\')
+				if (!spec[++i])
+					break;
+		}
+
+		banner_len = i - 1;
+		banner = spec + 1;
+		spec = (spec[i] ? &spec[i + 1] : &spec[i]);
+		while (*spec && isspace(*spec))
+			spec++;
+	}
 
 	if (spec[0] == '/') {
 		salen = sizeof(u.sun);
@@ -2194,6 +2248,19 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return;
 	}
+
+	if (banner) {
+		if (!(listener->pvt = malloc(sizeof(*listener->pvt) + banner_len + 1))) {
+			free(listener);
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			return;
+		}
+		cw_object_init(listener->pvt, NULL, 1);
+		listener->pvt->obj.release = listener_pvt_free;
+		memcpy(listener->pvt->banner, banner, banner_len);
+		listener->pvt->banner[banner_len] = '\0';
+	} else
+		listener->pvt = NULL;
 
 	addr_to_str(u.sa.sa_family, &u, listener->name, namelen);
 
