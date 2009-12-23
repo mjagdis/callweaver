@@ -11,8 +11,8 @@
 ; Customize the display of debug message time stamps.
 ; In addition to the format specifiers defined for strftime(3)
 ; in libc callweaver also supports fractional seconds with
-; %3N (or %L) for milliseconds, %6N for microseconds and %9N
-; (or %N) for nanoseconds.
+; %3N (or %L or %f) for milliseconds, %6N for microseconds and
+; %9N (or %N) for nanoseconds.
 ; This example is the ISO 8601 date format plus fractional
 ; seconds to 3 deicmal places (milliseconds)
 ; i.e. yyyy-mm-dd HH:MM:SS.ms

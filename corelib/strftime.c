@@ -669,6 +669,10 @@ cw_strftime(char *s, size_t maxsize, const char *format, const struct tm *timept
 #endif /* ISO_DATE_EXT */
 
 
+		case 'f':
+			w = 6;
+			goto subsec;
+
 		case 'L':
 			w = 3;
 			goto subsec;
