@@ -64,6 +64,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 const char *rl_basic_word_break_characters = " \t";
 
 
+static char *console_address;
 static int console_sock;
 
 static char remotehostname[MAXHOSTNAMELEN];
@@ -601,7 +602,9 @@ static void console_handler(char *s)
 		console_cleanup(NULL);
 		exit(0);
 	} else {
-		shutdown(console_sock, SHUT_WR);
+		/* Only shutdown if we aren't the built-in console */
+		if (console_address)
+			shutdown(console_sock, SHUT_WR);
 		putc('\n', stdout);
 	}
 }
@@ -653,10 +656,10 @@ void *console(void *data)
 	struct iovec iov[6];
 	struct pollfd pfd[2];
 	sigset_t sigs;
-	char *spec = data;
 	char *p;
 	char c;
 
+	console_address = data;
 	console_sock = -1;
 
 	terminal_init();
@@ -688,10 +691,10 @@ void *console(void *data)
 		const int reconnects_per_second = 20;
 		int tries;
 
-		if (spec)
-			fprintf(stderr, "Connecting to Callweaver at %s...\n", spec);
+		if (console_address)
+			fprintf(stderr, "Connecting to Callweaver at %s...\n", console_address);
 		for (tries = 0; console_sock < 0 && tries < 30 * reconnects_per_second; tries++) {
-			if ((console_sock = console_connect(spec, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS)) < 0) {
+			if ((console_sock = console_connect(console_address, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS)) < 0) {
 				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				pthread_testcancel();
 				usleep(1000000 / reconnects_per_second);
