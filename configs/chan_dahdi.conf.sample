@@ -40,14 +40,11 @@
 ;spanmap = 4,1,4
 
 [channels]
-;
+
 ; Default language
 ;
 ;language=en
-;
-; Default context
-;
-context=default
+
 ;
 ; Switchtype:  Only used for PRI.
 ;
@@ -370,17 +367,26 @@ rxwink=300		; Atlas seems to use long (250ms) winks
 
 ; Incoming Call Dispatch
 ; ----------------------
-;
+
 ;context = <context>
 ;
 ;  The context in the dial plan that the called number will be looked
-;  up in.
+;  up in. This may be overridden on a per-channel basis.
+;  Remember that lines connected to internal phones will want to be
+;  sent to a context that allows dialling out while lines connected
+;  to external providers should be sent to a context that only permits
+;  connection to internal extensions/services and does NOT permit
+;  dialling out externally.
 ;
+;  Default: "default"
+
 ;exten = <exten>
 ;
 ;  The extension (called number) that the call will be sent to in
 ;  the dial plan.  This is primarily useful for FXO channels that
 ;  have no called number signalling.
+;
+;  Default: none
 
 
 ;

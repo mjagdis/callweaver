@@ -24,9 +24,36 @@
 ;
 
 [general]
-context=default			; Default context for incoming calls
-;allowguest=no			; Allow or reject guest calls (default is yes, this can also be set to 'osp'
-				; if callweaver was compiled with OSP support.
+
+; Default context for incoming calls. A non-default context may be
+; specified in individual user/peer/friend definitions below.
+context=default
+
+; Whether to allow guest (non-authenticated) incoming calls.
+;
+; If you are using Callweaver with authenticated SIP phones internally
+; connecting to the outside world via traditional telco lines (T1/E1,
+; ISDN, POTS etc.) or something non-SIP you probably do NOT want to
+; allow guest access via SIP.
+;
+; If you are using Callweaver as a fully fleged VoIP PBX and want to
+; be able to receive calls from arbitrary people on the Internet via
+; SIP then you SHOULD allow guest access.
+;
+; If you _do_ allow guest access then your default context (as specified
+; above) SHOULD only allow calls to local extensions/services and
+; SHOULD NOT allow dial out on external chargeable lines (unless you
+; are running a gateway service and know what you are doing). Dial out
+; on chargeable lines should be limited to a private context which is
+; then specified in the following user/peer/friend sections for only
+; those permitted and authenticated clients.
+;
+; The default IS to allow unauthenticated incoming calls and to dispatch
+; them to your default context.
+;
+; (This can also be set to 'osp' if callweaver was compiled with OSP support)
+;allowguest=no
+
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "callweaver"
 				; Realms MUST be globally unique according to RFC 3261

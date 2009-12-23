@@ -494,8 +494,22 @@ exten => 8500,n,Goto(s,6)
 
 [default]
 ;
-; By default we include the demo.  In a production system, you 
-; probably don't want to have the demo there.
+; The default context is where incoming, non-authenticated calls from
+; external sources usually start (unless you change the name of the
+; default context in the channel config files). Since these calls are
+; coming from external sources you SHOULD NOT put anything in the default
+; context that allows dial out on other external channels (unless that's
+; the business you are running and you know what you are doing).
+; Internal sources should be authenticated and directed, via the appropriate
+; settings in channel config files, to a non-default context that permits
+; dial out to external channels.
+;
+; Once more with feeling: the default context should ONLY permit calls
+; to internal extensions/services unless you are sure you know what you
+; are doing!
+;
+; Here we include the welcome demo. In a production system, you probably
+; don't want to have the demo there.
 ;
 include => demo
 
