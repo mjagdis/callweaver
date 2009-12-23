@@ -1226,6 +1226,7 @@ int callweaver_main(int argc, char *argv[])
 	struct group *gr;
 	struct passwd *pw;
 	char *runuser = NULL, *rungroup = NULL;
+	uid_t uid;
 	pid_t pid;
 	int c;
 
@@ -1357,6 +1358,25 @@ int callweaver_main(int argc, char *argv[])
 		setgid(getgid());
 		setuid(getuid());
 	} else {
+		if (!runuser)
+			runuser = cw_config_CW_RUN_USER;
+		if (!rungroup)
+			rungroup = cw_config_CW_RUN_GROUP;
+
+		if (!(gr = getgrnam(rungroup))) {
+			fprintf(stderr, "No such group '%s'!\n", rungroup);
+			exit(EX_NOUSER);
+		}
+		if (!(pw = getpwnam(runuser))) {
+			fprintf(stderr, "No such user '%s'!\n", runuser);
+			exit(EX_NOUSER);
+		}
+
+		if ((uid = getuid()) && uid != pw->pw_uid) {
+			fprintf(stderr, "The Callweaver server process may only be started by root or %s\n", runuser);
+			exit(EX_NOPERM);
+		}
+
 #if defined(__linux__)
 		cw_cpu0_governor_fd = open_cloexec("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", O_RDWR, 0);
 #endif
@@ -1372,28 +1392,10 @@ int callweaver_main(int argc, char *argv[])
 		 * case of Linux we don't drop capabilities when we change
 		 * uid but we fix them up afterwards ourself.
 		 */
-		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1)
 			fprintf(stderr, "Unable to keep capabilities: %s\n", strerror(errno));
-		}
 #endif
 
-		if (!runuser)
-			runuser = cw_config_CW_RUN_USER;
-		if (!rungroup)
-			rungroup = cw_config_CW_RUN_GROUP;
-
-		gr = getgrnam(rungroup);
-		if (!gr) {
-			fprintf(stderr, "No such group '%s'!\n", rungroup);
-			exit(EX_NOUSER);
-		}
-		pw = getpwnam(runuser);
-		if (!pw) {
-			fprintf(stderr, "No such user '%s'!\n", runuser);
-			exit(EX_NOUSER);
-		}
-		
-		if (gr->gr_gid != getegid() )
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
 			fprintf(stderr, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(EX_OSERR);
@@ -1404,12 +1406,7 @@ int callweaver_main(int argc, char *argv[])
 			exit(EX_OSERR);
 		}
 
-#ifdef __Darwin__
-		if (seteuid(pw->pw_uid))
-#else
-		if (setreuid(pw->pw_uid, pw->pw_uid))
-#endif
-		{
+		if (setuid(pw->pw_uid)) {
 			fprintf(stderr, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(EX_OSERR);
 		}
