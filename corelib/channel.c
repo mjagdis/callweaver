@@ -2206,6 +2206,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	case CW_FRAME_CONTROL:
 		/* XXX Interpret control frames XXX */
 		cw_log(CW_LOG_WARNING, "Don't know how to handle control frames yet\n");
+		res = 1;
 		break;
 	case CW_FRAME_DTMF:
 		cw_clear_flag(chan, CW_FLAG_BLOCKING);
