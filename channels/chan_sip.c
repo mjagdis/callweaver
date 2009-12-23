@@ -582,6 +582,8 @@ struct sip_request {
 	int len;		/*!< Length */
 	enum sipmethod method;		/*!< Method of this request */
 	int seqno;		/*!< Outgoing sequence number */
+	unsigned int cseq;	/*!< Offset of CSeq value in the data */
+	unsigned int cseq_len;	/*!< Length of CSeq value in the data */
 	int headers;		/*!< # of SIP Headers */
 	unsigned int header[SIP_MAX_HEADERS];
 	unsigned int header_val[SIP_MAX_HEADERS];
@@ -2153,10 +2155,9 @@ static int if_callid_exists(char *callid)
 /*! \brief  send_response: Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
-    int res = 0;
-    char iabuf[INET_ADDRSTRLEN];
-    struct sip_request tmp;
     char tmpmsg[80];
+    char iabuf[INET_ADDRSTRLEN];
+    int res = 0;
 
     if (rfc3489_active  &&  p->stun_needed == 1)
     {
@@ -2225,26 +2226,18 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
             cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
     }
 
+    if (recordhistory)
+    {
+        for (res = sizeof("SIP/2.0 ") - 1; req->data[res] != '\r'; res++);
+        snprintf(tmpmsg, sizeof(tmpmsg), "%.*s - %.*s", req->cseq_len, req->data + req->cseq, res, req->data + sizeof("SIP/2.0 ") - 1);
+        append_history(p, (reliable ? "TxRespRel" : "TxResp"), tmpmsg);
+    }
+
     if (reliable)
-    {
-        if (recordhistory)
-        {
-            parse_copy(&tmp, req);
-            snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
-            append_history(p, "TxRespRel", tmpmsg);
-        }
         res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1), req->method);
-    }
     else
-    {
-        if (recordhistory)
-        {
-            parse_copy(&tmp, req);
-            snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
-            append_history(p, "TxResp", tmpmsg);
-        }
         res = __sip_xmit(p, req->data, req->len);
-    }
+
     p->stun_needed = 0;
     sip_dealloc_headsdp_lines(req);
     if (res > 0)
@@ -2255,10 +2248,9 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 /*! \brief  send_request: Send SIP Request to the other part of the dialogue */
 static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable)
 {
-    int res=0;
-    char iabuf[INET_ADDRSTRLEN];
-    struct sip_request tmp;
     char tmpmsg[80];
+    char iabuf[INET_ADDRSTRLEN];
+    int res = 0;
 
     if (rfc3489_active  &&  p->stun_needed == 1)
     {
@@ -2328,17 +2320,13 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
     if (recordhistory)
     {
         snprintf(tmpmsg, sizeof(tmpmsg), "%d %s", req->seqno, sip_methods[req->method].text);
-        if (reliable && !p->peerpoke)
-	{
-            append_history(p, "TxReqRel", tmpmsg);
-            res = __sip_reliable_xmit(p, req->seqno, 0, req->data, req->len, (reliable > 1), req->method);
-	}
-        else
-	{
-            append_history(p, "TxReq", tmpmsg);
-            res = __sip_xmit(p, req->data, req->len);
-	}
+        append_history(p, (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), tmpmsg);
     }
+
+    if (reliable && !p->peerpoke)
+        res = __sip_reliable_xmit(p, req->seqno, 0, req->data, req->len, (reliable > 1), req->method);
+    else
+        res = __sip_xmit(p, req->data, req->len);
 
     p->stun_needed=0;
     sip_dealloc_headsdp_lines(req);
@@ -4688,6 +4676,7 @@ static int parse_request(struct sip_request *req)
 	for (i = 0; req->data[i]; i++) {
 		switch (state) {
 			case 0: /* Start of header line */
+startline:
 				if (req->data[i] == '\r')
 					break;
 				else if (req->data[i] == '\n') {
@@ -4748,8 +4737,15 @@ static int parse_request(struct sip_request *req)
 				state = 3;
 				/* Fall through - we are on the start of the value and it may be blank */
 			case 3: /* In value, looking for end of line */
-				if (req->data[i] == '\n') {
-					if (!strcasecmp(req->data + req->header[req->headers], "Warning")) {
+				if (req->data[i] == '\r' || req->data[i] == '\n') {
+					state = (req->data[i] == '\n' ? 0 : 4);
+					req->data[i] = '\0';
+					if (!strcasecmp(req->data + req->header[req->headers], "CSeq")) {
+						req->cseq = req->header_val[req->headers];
+						req->cseq_len = i - req->header_val[req->headers];
+					} else if (!strcasecmp(req->data + req->header[req->headers], "l") || !strcasecmp(req->data + req->header[req->headers], "Content-Length")) {
+						content_length = atol(req->data + req->header_val[req->headers]);
+					} else if (!strcasecmp(req->data + req->header[req->headers], "Warning")) {
 						if (!strncmp(req->data + req->header_val[req->headers], "392 ", 4)) {
 							/* Sip EXpress router uses 392 to send "noisy feedback"
 							 * giving source address and URI details seen. It is
@@ -4761,14 +4757,15 @@ static int parse_request(struct sip_request *req)
 							 */
 							cw_log(CW_LOG_WARNING, "%s\n", req->data + req->header_val[req->headers]);
 						}
-					} else if (!strcasecmp(req->data + req->header[req->headers], "l") || !strcasecmp(req->data + req->header[req->headers], "Content-Length")) {
-						content_length = atol(req->data + req->header_val[req->headers]);
 					}
 					req->headers++;
-					state = 0;
 				}
-				if (req->data[i] == '\r' || req->data[i] == '\n')
-					req->data[i] = '\0';
+				break;
+			case 4: /* Got '\r' after value, expecting '\n' */
+				state = 0;
+				/* If it isn't the expected '\n' process it as the first char of the next line */
+				if (req->data[i] != '\n')
+					goto startline;
 				break;
 		}
 	}
@@ -5868,7 +5865,9 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
     }
     add_header(resp, "To", ot, SIP_DL_DONTCARE);
     copy_header(resp, req, "Call-ID");
-    copy_header(resp, req, "CSeq");
+    resp->cseq = resp->len + sizeof("CSeq: ") - 1;
+    resp->cseq_len = req->cseq_len;
+    add_header(resp, "CSeq", req->data + req->cseq, SIP_DL_DONTCARE);
     add_header(resp, "User-Agent", default_useragent, SIP_DL_DONTCARE);
     add_header(resp, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
     add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
@@ -6015,9 +6014,9 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
     struct sip_request resp;
     int seqno = 0;
 
-    if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1))
+    if (reliable && (sscanf(req->data + req->cseq, "%d", &seqno) != 1))
     {
-        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
+        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from \"%s\"\n", req->data + req->cseq);
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -6141,9 +6140,9 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
     char tmp[512];
     int seqno = 0;
 
-    if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1))
+    if (reliable && (sscanf(req->data + req->cseq, "%d", &seqno) != 1))
     {
-        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
+        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from \"%s\"\n", req->data + req->cseq);
         return -1;
     }
     /* Stale means that they sent us correct authentication, but 
@@ -6688,9 +6687,9 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
     struct sip_request resp;
     int seqno;
 
-    if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)
+    if (sscanf(req->data + req->cseq, "%d", &seqno) != 1)
     {
-        cw_log(CW_LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
+        cw_log(CW_LOG_WARNING, "Unable to get seqno from \"%s\"\n", req->data + req->cseq);
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -6713,9 +6712,9 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
     struct sip_request resp;
     int seqno;
 
-    if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)
+    if (sscanf(req->data + req->cseq, "%d", &seqno) != 1)
     {
-        cw_log(CW_LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
+        cw_log(CW_LOG_WARNING, "Unable to get seqno from \"%s\"\n", req->data + req->cseq);
         return -1;
     }
     respprep(&resp, p, msg, req);
@@ -12750,7 +12749,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 static void handle_response(struct sip_pvt *p, struct sip_request *req, int ignore, int seqno)
 {
     char iabuf[INET_ADDRSTRLEN];
-    char *msg, *c;
+    char *msg;
     struct cw_channel *owner;
     enum sipmethod sipmethod;
     int resp;
@@ -12766,8 +12765,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     if (resp == 200 || (resp >= 300 && resp <= 399))
         extract_uri(p, req);
 
-    c = get_header(req, "Cseq");
-    msg = strchr(c, ' ');
+    msg = strchr(req->data + req->cseq, ' ');
     if (!msg)
         msg = "";
     else
@@ -14276,7 +14274,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
     char *cmd;
-    char *cseq;
     char *useragent;
     int seqno;
     int ignore=0;
@@ -14286,16 +14283,15 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     int error = 0;
 
     /* Get Method and Cseq */
-    cseq = get_header(req, "Cseq");
     cmd = req->data + req->header[0];
 
     /* Must have Cseq */
-    if (cw_strlen_zero(cmd) || cw_strlen_zero(cseq))
+    if (cw_strlen_zero(cmd) || cw_strlen_zero(req->data + req->cseq))
     {
         cw_log(CW_LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
         error = 1;
     }
-    if (!error && sscanf(cseq, "%d", &seqno) != 1)
+    if (!error && sscanf(req->data + req->cseq, "%d", &seqno) != 1)
     {
         cw_log(CW_LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
         error = 1;
@@ -14627,7 +14623,7 @@ retrylock:
         {
             char tmp[80];
             /* This is a response, note what it was for */
-            snprintf(tmp, sizeof(tmp), "%s - %s", get_header(&req, "CSeq"), req.data + req.rlPart2);
+            snprintf(tmp, sizeof(tmp), "%s - %s", req.data + req.cseq, req.data + req.rlPart2);
             append_history(p, "Rx", tmp);
         }
         nounlock = 0;
