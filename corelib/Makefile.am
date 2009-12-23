@@ -122,14 +122,14 @@ callweaver_SOURCES = main.c console.h console.c terminal.h terminal.c $(CORE_SRC
 nodist_callweaver_SOURCES = $(CORE_NODIST)
 callweaver_CFLAGS = $(CORE_CFLAGS)
 callweaver_LDADD = $(CORE_LIBS) $(LIBLTDL)
-callweaver_LDFLAGS = -export-dynamic
+callweaver_LDFLAGS = -export-dynamic $(CORE_LDFLAGS)
 else
 cwlib_LTLIBRARIES = libcallweaver.la
 libcallweaver_la_SOURCES = $(CORE_SRC)
 nodist_libcallweaver_la_SOURCES = $(CORE_NODIST)
 libcallweaver_la_CFLAGS = $(CORE_CFLAGS)
 libcallweaver_la_LIBADD	= $(CORE_LIBS)
-libcallweaver_la_LDFLAGS   = @NO_UNDEFINED@
+libcallweaver_la_LDFLAGS   = @NO_UNDEFINED@ $(CORE_LDFLAGS)
 
 libexec_PROGRAMS = callweaver
 callweaver_SOURCES = main.c console.h console.c terminal.h terminal.c
