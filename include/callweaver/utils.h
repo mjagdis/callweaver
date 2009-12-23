@@ -333,4 +333,6 @@ extern CW_API_PUBLIC long int cw_random(void);
  */
 extern CW_API_PUBLIC void cw_enable_packet_fragmentation(int sock);
 
+extern CW_API_PUBLIC size_t cw_strftime(char *s, size_t maxsize, const char *format, const struct tm *timeptr, const struct timespec *ts, int gmt);
+
 #endif /* _CALLWEAVER_UTILS_H */

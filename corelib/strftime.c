@@ -47,9 +47,6 @@
  * January 1996
  */
 
-#include "ruby/ruby.h"
-#include "timev.h"
-
 #ifndef GAWK
 #include <stdio.h>
 #include <ctype.h>
@@ -65,6 +62,9 @@
 #endif
 #endif
 #include <math.h>
+
+#include <callweaver/utils.h>
+
 
 /* defaults: season to taste */
 #define SYSV_EXT	1	/* stuff in System V ascftime routine */
@@ -104,13 +104,9 @@
 #define const	/**/
 static int weeknumber();
 adddecl(static int iso8601wknum();)
-static int weeknumber_v();
-adddecl(static int iso8601wknum_v();)
 #else
 static int weeknumber(const struct tm *timeptr, int firstweekday);
 adddecl(static int iso8601wknum(const struct tm *timeptr);)
-static int weeknumber_v(const struct vtm *vtm, int firstweekday);
-adddecl(static int iso8601wknum_v(const struct vtm *vtm);)
 #endif
 
 #ifdef STDC_HEADERS
@@ -124,25 +120,6 @@ extern char *strchr();
 #endif
 
 #define range(low, item, hi)	max(low, min(item, hi))
-
-#if defined __WIN32__ || defined _WIN32
-#define DLL_IMPORT __declspec(dllimport)
-#endif
-#ifndef DLL_IMPORT
-#define DLL_IMPORT
-#endif
-#if !defined(OS2) && defined(HAVE_TZNAME)
-extern DLL_IMPORT char *tzname[2];
-#ifdef HAVE_DAYLIGHT
-extern DLL_IMPORT int daylight;
-#endif
-#ifdef HAVE_VAR_TIMEZONE
-extern DLL_IMPORT TYPEOF_VAR_TIMEZONE timezone;
-#endif
-#ifdef HAVE_VAR_ALTZONE
-extern DLL_IMPORT TYPEOF_VAR_ALTZONE altzone;
-#endif
-#endif
 
 #undef min	/* just in case */
 
@@ -180,31 +157,12 @@ max(int a, int b)
 #error No string literal concatenation
 #endif
 
-#define add(x,y) (rb_funcall((x), '+', 1, (y)))
-#define sub(x,y) (rb_funcall((x), '-', 1, (y)))
-#define mul(x,y) (rb_funcall((x), '*', 1, (y)))
-#define quo(x,y) (rb_funcall((x), rb_intern("quo"), 1, (y)))
-#define div(x,y) (rb_funcall((x), rb_intern("div"), 1, (y)))
-#define mod(x,y) (rb_funcall((x), '%', 1, (y)))
-
 /* strftime --- produce formatted time */
 
 size_t
-rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, VALUE timev, int gmt)
+cw_strftime(char *s, size_t maxsize, const char *format, const struct tm *timeptr, const struct timespec *ts, int gmt)
 {
-	char *endp = s + maxsize;
-	char *start = s;
-	const char *sp, *tp;
 	auto char tbuf[100];
-	long off;
-	int i, w;
-	long y;
-	static short first = 1;
-#ifdef POSIX_SEMANTICS
-	static char *savetz = NULL;
-	static size_t savetzlen = 0;
-	char *tz;
-#endif /* POSIX_SEMANTICS */
 #ifndef HAVE_TM_ZONE
 #ifndef HAVE_TM_NAME
 #if ((defined(MAILHEADER_EXT) && !HAVE_VAR_TIMEZONE && HAVE_GETTIMEOFDAY) || \
@@ -214,6 +172,18 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 #endif
 #endif /* HAVE_TM_NAME */
 #endif /* HAVE_TM_ZONE */
+	char *endp = s + maxsize;
+	char *start = s;
+	const char *sp, *tp;
+#ifdef POSIX_SEMANTICS
+	static char *savetz = NULL;
+	static int savetzlen = 0;
+	char *tz;
+#endif /* POSIX_SEMANTICS */
+	long off;
+	int i, w;
+	long y;
+	static short first = 1;
 	int precision, flags;
 	char padding;
 	enum {LEFT, CHCASE, LOWER, UPPER, LOCALE_O, LOCALE_E};
@@ -231,7 +201,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 	};
 	static const char ampm[][3] = { "AM", "PM", };
 
-	if (s == NULL || format == NULL || vtm == NULL || maxsize == 0)
+	if (s == NULL || format == NULL || timeptr == NULL || maxsize == 0)
 		return 0;
 
 	/* quick check if we even need to bother */
@@ -250,7 +220,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 	tz = getenv("TZ");
 	if (first) {
 		if (tz != NULL) {
-			size_t tzlen = strlen(tz);
+			int tzlen = strlen(tz);
 
 			savetz = (char *) malloc(tzlen + 1);
 			if (savetz != NULL) {
@@ -263,7 +233,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 	}
 	/* if we have a saved TZ, and it is different, recapture and reset */
 	if (tz && savetz && (tz[0] != savetz[0] || strcmp(tz, savetz) != 0)) {
-		size_t i = strlen(tz) + 1;
+		i = strlen(tz) + 1;
 		if (i > savetzlen) {
 			savetz = (char *) realloc(savetz, i);
 			if (savetz) {
@@ -305,7 +275,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 		} while (0)
 #define STRFTIME(fmt) \
 		do { \
-			i = rb_strftime(s, endp - s, fmt, vtm, timev, gmt); \
+			i = cw_strftime(s, endp - s, fmt, timeptr, ts, gmt); \
 			if (!i) return 0; \
 			if (precision > i) {\
 				memmove(s + precision - i, s, i);\
@@ -314,29 +284,6 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 	                }\
 			else s += i; \
 		} while (0)
-#define FMTV(def_pad, def_prec, fmt, val) \
-                do { \
-                        VALUE tmp = (val); \
-                        if (FIXNUM_P(tmp)) { \
-                                FMT((def_pad), (def_prec), "l"fmt, FIX2LONG(tmp)); \
-                        } \
-                        else { \
-                                VALUE args[2], result; \
-                                size_t l; \
-                                if (precision <= 0) precision = (def_prec); \
-                                if (flags & BIT_OF(LEFT)) precision = 1; \
-                                args[0] = INT2FIX(precision); \
-                                args[1] = val; \
-                                if (padding == '0' || (!padding && def_pad == '0')) \
-                                        result = rb_str_format(2, args, rb_str_new2("%0*"fmt)); \
-                                else \
-                                        result = rb_str_format(2, args, rb_str_new2("%*"fmt)); \
-                                l = strlcpy(s, StringValueCStr(result), endp-s); \
-                                if ((size_t)(endp-s) <= l) \
-                                        goto err; \
-                                s += l; \
-                        } \
-                } while (0)
 
 		if (*format != '%') {
 			*s++ = *format;
@@ -363,10 +310,10 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				flags &= ~(BIT_OF(LOWER)|BIT_OF(CHCASE));
 				flags |= BIT_OF(UPPER);
 			}
-			if (vtm->wday < 0 || vtm->wday > 6)
+			if (timeptr->tm_wday < 0 || timeptr->tm_wday > 6)
 				i = 1, tp = "?";
 			else
-				i = 3, tp = days_l[vtm->wday];
+				i = 3, tp = days_l[timeptr->tm_wday];
 			break;
 
 		case 'A':	/* full weekday name */
@@ -374,10 +321,10 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				flags &= ~(BIT_OF(LOWER)|BIT_OF(CHCASE));
 				flags |= BIT_OF(UPPER);
 			}
-			if (vtm->wday < 0 || vtm->wday > 6)
+			if (timeptr->tm_wday < 0 || timeptr->tm_wday > 6)
 				i = 1, tp = "?";
 			else
-				i = strlen(tp = days_l[vtm->wday]);
+				i = strlen(tp = days_l[timeptr->tm_wday]);
 			break;
 
 #ifdef SYSV_EXT
@@ -388,10 +335,10 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				flags &= ~(BIT_OF(LOWER)|BIT_OF(CHCASE));
 				flags |= BIT_OF(UPPER);
 			}
-			if (vtm->mon < 1 || vtm->mon > 12)
+			if (timeptr->tm_mon < 0 || timeptr->tm_mon > 11)
 				i = 1, tp = "?";
 			else
-				i = 3, tp = months_l[vtm->mon-1];
+				i = 3, tp = months_l[timeptr->tm_mon];
 			break;
 
 		case 'B':	/* full month name */
@@ -399,10 +346,10 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				flags &= ~(BIT_OF(LOWER)|BIT_OF(CHCASE));
 				flags |= BIT_OF(UPPER);
 			}
-			if (vtm->mon < 1 || vtm->mon > 12)
+			if (timeptr->tm_mon < 0 || timeptr->tm_mon > 11)
 				i = 1, tp = "?";
 			else
-				i = strlen(tp = months_l[vtm->mon-1]);
+				i = strlen(tp = months_l[timeptr->tm_mon]);
 			break;
 
 		case 'c':	/* appropriate date and time representation */
@@ -410,17 +357,17 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			continue;
 
 		case 'd':	/* day of the month, 01 - 31 */
-			i = range(1, vtm->mday, 31);
+			i = range(1, timeptr->tm_mday, 31);
 			FMT('0', 2, "d", i);
 			continue;
 
 		case 'H':	/* hour, 24-hour clock, 00 - 23 */
-			i = range(0, vtm->hour, 23);
+			i = range(0, timeptr->tm_hour, 23);
 			FMT('0', 2, "d", i);
 			continue;
 
 		case 'I':	/* hour, 12-hour clock, 01 - 12 */
-			i = range(0, vtm->hour, 23);
+			i = range(0, timeptr->tm_hour, 23);
 			if (i == 0)
 				i = 12;
 			else if (i > 12)
@@ -429,16 +376,16 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			continue;
 
 		case 'j':	/* day of the year, 001 - 366 */
-			FMT('0', 3, "d", vtm->yday);
+			FMT('0', 3, "d", timeptr->tm_yday + 1);
 			continue;
 
 		case 'm':	/* month, 01 - 12 */
-			i = range(1, vtm->mon, 12);
-			FMT('0', 2, "d", i);
+			i = range(0, timeptr->tm_mon, 11);
+			FMT('0', 2, "d", i + 1);
 			continue;
 
 		case 'M':	/* minute, 00 - 59 */
-			i = range(0, vtm->min, 59);
+			i = range(0, timeptr->tm_min, 59);
 			FMT('0', 2, "d", i);
 			continue;
 
@@ -449,7 +396,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				flags &= ~(BIT_OF(UPPER)|BIT_OF(CHCASE));
 				flags |= BIT_OF(LOWER);
 			}
-			i = range(0, vtm->hour, 23);
+			i = range(0, timeptr->tm_hour, 23);
 			if (i < 12)
 				tp = ampm[0];
 			else
@@ -458,28 +405,25 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			break;
 
 		case 's':
-                        {
-                                VALUE sec = div(timev, INT2FIX(1));
-                                FMTV('0', 1, "d", sec);
-                                continue;
-                        }
+			FMT('0', 1, "d", (int) ts->tv_sec);
+			continue;
 
 		case 'S':	/* second, 00 - 60 */
-			i = range(0, vtm->sec, 60);
+			i = range(0, timeptr->tm_sec, 60);
 			FMT('0', 2, "d", i);
 			continue;
 
 		case 'U':	/* week of year, Sunday is first day of week */
-			FMT('0', 2, "d", weeknumber_v(vtm, 0));
+			FMT('0', 2, "d", weeknumber(timeptr, 0));
 			continue;
 
 		case 'w':	/* weekday, Sunday == 0, 0 - 6 */
-			i = range(0, vtm->wday, 6);
+			i = range(0, timeptr->tm_wday, 6);
 			FMT('0', 1, "d", i);
 			continue;
 
 		case 'W':	/* week of year, Monday is first day of week */
-			FMT('0', 2, "d", weeknumber_v(vtm, 1));
+			FMT('0', 2, "d", weeknumber(timeptr, 1));
 			continue;
 
 		case 'x':	/* appropriate date representation */
@@ -491,12 +435,12 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			continue;
 
 		case 'y':	/* year without a century, 00 - 99 */
-			i = NUM2INT(mod(vtm->year, INT2FIX(100)));
+			i = timeptr->tm_year % 100;
 			FMT('0', 2, "d", i);
 			continue;
 
 		case 'Y':	/* year with century */
-                        FMTV('0', 1, "d", vtm->year);
+			FMT('0', 1, "ld", 1900L + timeptr->tm_year);
 			continue;
 
 #ifdef MAILHEADER_EXT
@@ -522,8 +466,6 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				off = 0;
 			}
 			else {
-				off = NUM2LONG(rb_funcall(quo(vtm->utc_offset, INT2FIX(60)), rb_intern("round"), 0));
-#if 0
 #ifdef HAVE_TM_NAME
 				/*
 				 * Systems with tm_name probably have tm_tzadj as
@@ -561,7 +503,6 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 #endif /* !HAVE_VAR_TIMEZONE */
 #endif /* !HAVE_TM_ZONE */
 #endif /* !HAVE_TM_NAME */
-#endif /* 0 */
 			}
 			if (off < 0) {
 				off = -off;
@@ -587,7 +528,6 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 				tp = "UTC";
 				break;
 			}
-#if 0
 #ifdef HAVE_TZNAME
 			i = (daylight && timeptr->tm_isdst > 0); /* 0 or 1 */
 			tp = tzname[i];
@@ -609,11 +549,6 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 #endif /* HAVE_TM_NAME */
 #endif /* HAVE_TM_ZONE */
 #endif /* HAVE_TZNAME */
-#endif /* 0 */
-                        if (vtm->zone == NULL)
-                            tp = "";
-                        else
-                            tp = vtm->zone;
 			i = strlen(tp);
 			break;
 
@@ -633,7 +568,7 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			continue;
 
 		case 'e':	/* day of month, blank padded */
-			FMT(' ', 2, "d", range(1, vtm->mday, 31));
+			FMT(' ', 2, "d", range(1, timeptr->tm_mday, 31));
 			continue;
 
 		case 'r':	/* time as %I:%M:%S %p */
@@ -651,12 +586,12 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 
 #ifdef SUNOS_EXT
 		case 'k':	/* hour, 24-hour clock, blank pad */
-			i = range(0, vtm->hour, 23);
+			i = range(0, timeptr->tm_hour, 23);
 			FMT(' ', 2, "d", i);
 			continue;
 
 		case 'l':	/* hour, 12-hour clock, 1 - 12, blank pad */
-			i = range(0, vtm->hour, 23);
+			i = range(0, timeptr->tm_hour, 23);
 			if (i == 0)
 				i = 12;
 			else if (i > 12)
@@ -668,15 +603,24 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 
 #ifdef VMS_EXT
 		case 'v':	/* date as dd-bbb-YYYY */
-			STRFTIME("%e-%^b-%4Y");
+			w = snprintf(s, endp - s, "%2d-%3.3s-%4ld",
+				     range(1, timeptr->tm_mday, 31),
+				     months_l[range(0, timeptr->tm_mon, 11)],
+				     timeptr->tm_year + 1900L);
+			if (w < 0) goto err;
+			for (i = 3; i < 6; i++)
+				if (islower(s[i]))
+					s[i] = toupper(s[i]);
+			s += w;
 			continue;
 #endif
 
 
 #ifdef POSIX2_DATE
 		case 'C':
-                        FMTV('0', 2, "d", div(vtm->year, INT2FIX(100)));
+			FMT('0', 2, "ld", (timeptr->tm_year + 1900L) / 100);
 			continue;
+
 
 		case 'E':
 			/* POSIX locale extensions, ignored for now */
@@ -688,12 +632,12 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			goto again;
 
 		case 'V':	/* week of year according ISO 8601 */
-			FMT('0', 2, "d", iso8601wknum_v(vtm));
+			FMT('0', 2, "d", iso8601wknum(timeptr));
 			continue;
 
 		case 'u':
 		/* ISO 8601: Weekday as a decimal number [1 (Monday) - 7] */
-			FMT('0', 1, "d", vtm->wday == 0 ? 7 : vtm->wday);
+			FMT('0', 1, "d", timeptr->tm_wday == 0 ? 7 : timeptr->tm_wday);
 			continue;
 #endif	/* POSIX2_DATE */
 
@@ -709,25 +653,19 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			 * 53, that week is in last year.
 			 * Otherwise, it's this year.
 			 */
-                        {
-                                VALUE yv = vtm->year;
-                                w = iso8601wknum_v(vtm);
-                                if (vtm->mon == 12 && w == 1)
-                                        yv = add(yv, INT2FIX(1));
-                                else if (vtm->mon == 1 && w >= 52)
-                                        yv = sub(yv, INT2FIX(1));
+			w = iso8601wknum(timeptr);
+			if (timeptr->tm_mon == 11 && w == 1)
+				y = 1900L + timeptr->tm_year + 1;
+			else if (timeptr->tm_mon == 0 && w >= 52)
+				y = 1900L + timeptr->tm_year - 1;
+			else
+				y = 1900L + timeptr->tm_year;
 
-                                if (*format == 'G') {
-                                        FMTV('0', 1, "d", yv);
-                                }
-                                else {
-                                        yv = mod(yv, INT2FIX(100));
-                                        y = FIX2LONG(yv);
-                                        FMT('0', 2, "ld", y);
-                                }
-                                continue;
-                        }
-
+			if (*format == 'G')
+				FMT('0', 1, "ld", y);
+			else
+				FMT('0', 2, "ld", y % 100);
+			continue;
 #endif /* ISO_DATE_EXT */
 
 
@@ -747,46 +685,35 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			w = 9;
 		subsec:
 			{
-                                VALUE subsec = mod(timev, INT2FIX(1));
-                                int ww;
-                                long n;
+				long n = ts->tv_nsec;
 
 				if (precision <= 0) {
 				    precision = w;
 				}
 				NEEDS(precision);
-
-                                ww = precision;
-                                while (9 <= ww) {
-                                        subsec = mul(subsec, INT2FIX(1000000000));
-                                        ww -= 9;
-                                }
-                                n = 1;
-                                for (; 0 < ww; ww--)
-                                        n *= 10;
-                                if (n != 1)
-                                        subsec = mul(subsec, INT2FIX(n));
-                                subsec = div(subsec, INT2FIX(1));
-
-                                if (FIXNUM_P(subsec)) {
-                                        int l;
-                                        l = snprintf(s, endp - s, "%0*ld", precision, FIX2LONG(subsec));
-                                        s += precision;
-                                }
-                                else {
-                                        VALUE args[2], result;
-                                        size_t l;
-                                        args[0] = INT2FIX(precision);
-                                        args[1] = subsec;
-                                        result = rb_str_format(2, args, rb_str_new2("%0*d"));
-                                        l = strlcpy(s, StringValueCStr(result), endp-s);
-                                        s += precision;
-                                }
+				if (precision < w) {
+					snprintf(tbuf, w + 1, "%.*ld", w, n);
+					memcpy(s, tbuf, precision);
+				}
+				else {
+					snprintf(s, endp - s, "%.*ld", w, n);
+					memset(s + w, '0', precision - w);
+				}
+				s += precision;
 			}
 			continue;
 
 		case 'F':	/*  Equivalent to %Y-%m-%d */
-			STRFTIME("%Y-%m-%d");
+			{
+				int mon, mday;
+				mon = range(0, timeptr->tm_mon, 11) + 1;
+				mday = range(1, timeptr->tm_mday, 31);
+				i = snprintf(s, endp - s, "%ld-%02d-%02d",
+					     1900L + timeptr->tm_year, mon, mday);
+				if (i < 0)
+					goto err;
+				s += i;
+			}
 			continue;
 
 		case '-':
@@ -836,12 +763,12 @@ rb_strftime(char *s, size_t maxsize, const char *format, const struct vtm *vtm, 
 			switch (flags & (BIT_OF(UPPER)|BIT_OF(LOWER))) {
 			case BIT_OF(UPPER):
 				do {
-					if (ISLOWER(*s)) *s = TOUPPER(*s);
+					if (islower(*s)) *s = toupper(*s);
 				} while (s++, --i);
 				break;
 			case BIT_OF(LOWER):
 				do {
-					if (ISUPPER(*s)) *s = TOLOWER(*s);
+					if (isupper(*s)) *s = tolower(*s);
 				} while (s++, --i);
 				break;
 			default:
@@ -874,31 +801,6 @@ isleap(long year)
 	return ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0);
 }
 
-
-static void
-vtm2tm_noyear(const struct vtm *vtm, struct tm *result)
-{
-    struct tm tm;
-
-    /* for isleap() in iso8601wknum.  +100 is -1900 (mod 400). */
-    tm.tm_year = FIX2INT(mod(vtm->year, INT2FIX(400))) + 100;
-
-    tm.tm_mon = vtm->mon-1;
-    tm.tm_mday = vtm->mday;
-    tm.tm_hour = vtm->hour;
-    tm.tm_min = vtm->min;
-    tm.tm_sec = vtm->sec;
-    tm.tm_wday = vtm->wday;
-    tm.tm_yday = vtm->yday-1;
-    tm.tm_isdst = vtm->isdst;
-#if defined(HAVE_STRUCT_TM_TM_GMTOFF)
-    tm.tm_gmtoff = NUM2LONG(vtm->utc_offset);
-#endif
-#if defined(HAVE_TM_ZONE)
-    tm.tm_zone = (char *)vtm->zone;
-#endif
-    *result = tm;
-}
 
 #ifdef POSIX2_DATE
 /* iso8601wknum --- compute week number according to ISO 8601 */
@@ -1015,15 +917,6 @@ iso8601wknum(const struct tm *timeptr)
 
 	return weeknum;
 }
-
-static int
-iso8601wknum_v(const struct vtm *vtm)
-{
-        struct tm tm;
-        vtm2tm_noyear(vtm, &tm);
-        return iso8601wknum(&tm);
-}
-
 #endif
 
 /* weeknumber --- figure how many weeks into the year */
@@ -1053,14 +946,6 @@ weeknumber(const struct tm *timeptr, int firstweekday)
 	if (ret < 0)
 		ret = 0;
 	return ret;
-}
-
-static int
-weeknumber_v(const struct vtm *vtm, int firstweekday)
-{
-        struct tm tm;
-        vtm2tm_noyear(vtm, &tm);
-        return weeknumber(&tm, firstweekday);
 }
 
 #if 0

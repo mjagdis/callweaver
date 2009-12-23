@@ -51,6 +51,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/cli.h"
+#include "callweaver/time.h"
 #include "callweaver/utils.h"
 #include "callweaver/manager.h"
 
@@ -623,7 +624,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	char date[256];
 	char *msg;
 	struct tm tm;
-	time_t now;
+	struct timespec now;
 	va_list ap;
 	int msglen;
 
@@ -644,9 +645,9 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
-	time(&now);
-	localtime_r(&now, &tm);
-	if (!strftime(date, sizeof(date), dateformat, &tm))
+	cw_clock_gettime(CLOCK_REALTIME, &now);
+	localtime_r(&now.tv_sec, &tm);
+	if (!(msglen = cw_strftime(date, sizeof(date), dateformat, &tm, &now, 0)))
 		date[0] = '\0';
 
 	va_start(ap, fmt);
@@ -668,7 +669,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(1 << level, "Log", "Timestamp: %ld\r\nDate: %s\r\nLevel: %d %s\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage:\r\n%s\r\n--END MESSAGE--\r\n", now, date, level, levels[level], GETTID(), file, line, function, msg);
+		manager_event(1 << level, "Log", "Timestamp: %lu.%09lu\r\nDate: %s\r\nLevel: %d %s\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage:\r\n%s\r\n--END MESSAGE--\r\n", now.tv_sec, now.tv_nsec, date, level, levels[level], GETTID(), file, line, function, msg);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,

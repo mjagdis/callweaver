@@ -46,6 +46,7 @@ CORE_SRC = \
     callweaver_expr2.c \
 	callweaver_expr2f.c \
     strcompat.c \
+    strftime.c \
     registry.c \
     loader.c \
     callweaver.c \
