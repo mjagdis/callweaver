@@ -2126,61 +2126,60 @@ static int sip_cancel_destroy(struct sip_pvt *dialogue)
 }
 
 
-/*! \brief  __sip_ack: Acknowledges receipt of a packet and stops retransmission */
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
+/*! \brief  retrans_stop: Acknowledges receipt of a packet and stops retransmission */
+static void retrans_stop(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod, int final)
 {
-    struct sip_request *cur, *prev = NULL;
-    int res = -1;
-    int resetinvite = 0;
+    struct sip_request **cur;
 
     cw_mutex_lock(&p->lock);
 
-    cur = p->retrans;
-    while (cur)
+    for (cur = &p->retrans; *cur; cur = &(*cur)->next)
     {
-        if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
-            &&
-            ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             (sipmethod >= 0 && (!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]) && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len)))))
+        if (((*cur)->seqno == seqno)
+        && ((cw_test_flag(*cur, FLAG_RESPONSE)) == resp)
+        && ((cw_test_flag(*cur, FLAG_RESPONSE)) || (sipmethod >= 0 && (!strncasecmp(sip_methods[sipmethod].text, (*cur)->data, sip_methods[sipmethod].len)))))
         {
-            if (!resp  &&  (seqno == p->pendinginvite))
+            cw_log(CW_LOG_DEBUG, "Stopping retransmission on '%s' of %s %d\n", p->callid, (resp ? "Response" : "Request"), seqno);
+
+            if (final && !resp  &&  (seqno == p->pendinginvite))
             {
                 cw_log(CW_LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
                 p->pendinginvite = 0;
-                resetinvite = 1;
             }
+
             /* If we can delete the scheduled retransmit we own the packet
 	     * and can go ahead and free it. Otherwise the scheduled retransmit
 	     * has already fired and is waiting on the lock. In this case we
 	     * just set the method to unknown so retrans_pkt will give up once
 	     * it acquires the lock.
 	     */
-            if (cur->retransid == -1 || !cw_sched_del(sched, cur->retransid))
+            if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid))
             {
                 if (sipdebug && option_debug > 3)
-                    cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
-                cur->retransid = -1;
-                if (prev)
-                    prev->next = cur->next;
-                else
-                    p->retrans = cur->next;
+                    cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s - reply received\n", sip_methods[sipmethod].text);
+                (*cur)->retransid = -1;
 
-		cw_object_put(cur->owner);
-                free(cur);
+                if (final)
+                {
+                    struct sip_request *old = *cur;
+
+                    *cur = (*cur)->next;
+
+                    cw_mutex_unlock(&p->lock);
+
+		    cw_object_put(old->owner);
+                    free(old);
+		    return;
+                }
             }
-	    else
-                cur->method = SIP_UNKNOWN;
-            res = 0;
+	    else if (final)
+                (*cur)->method = SIP_UNKNOWN;
+
             break;
         }
-        prev = cur;
-        cur = cur->next;
     }
 
     cw_mutex_unlock(&p->lock);
-
-    cw_log(CW_LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
-    return res;
 }
 
 /* Pretend to ack all packets */
@@ -2197,7 +2196,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
         }
         cur = p->retrans;
         if (cur->method)
-            __sip_ack(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), cur->method);
+            retrans_stop(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), cur->method, 1);
         else
         {
             /* Unknown packet type */
@@ -2207,40 +2206,10 @@ static int __sip_pretend_ack(struct sip_pvt *p)
             cw_copy_string(method, p->retrans->data, sizeof(method));
             c = cw_skip_blanks(method); /* XXX what ? */
             *c = '\0';
-            __sip_ack(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), find_sip_method(method));
+            retrans_stop(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), find_sip_method(method), 1);
         }
     }
     return 0;
-}
-
-/*! \brief  __sip_semi_ack: Acks receipt of packet, keep it around (used for provisional responses) */
-static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
-{
-    struct sip_request *cur;
-    int res = -1;
-
-    cur = p->retrans;
-    while (cur)
-    {
-        if (cur->seqno == seqno && cw_test_flag(cur, FLAG_RESPONSE) == resp
-        && (cw_test_flag(cur, FLAG_RESPONSE)
-	    || !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len)))
-        {
-            /* this is our baby */
-            if (cur->retransid > -1)
-            {
-                if (option_debug > 3 && sipdebug)
-                    cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
-                cw_sched_del(sched, cur->retransid);
-        	cur->retransid = -1;
-            }
-            res = 0;
-            break;
-        }
-        cur = cur->next;
-    }
-    cw_log(CW_LOG_DEBUG, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
-    return res;
 }
 
 
@@ -4741,7 +4710,7 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 	 */
 	if (dialogue) {
 		if (req->method == SIP_ACK)
-			__sip_ack(dialogue, req->seqno, FLAG_RESPONSE, -1);
+			retrans_stop(dialogue, req->seqno, FLAG_RESPONSE, -1, 1);
 	} else if (!found) {
 		/* Nothing is known about this call so we create it if it makes sense */
 		/* FIXME: If the message contains something purporting to be our tag
@@ -4793,7 +4762,7 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 			if (response)
 				transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, response);
 		}
-	} else if (!dialogue) {
+	} else if (!dialogue && req->method != SIP_ACK) {
 		/* FIXME: If there is a forking proxy in the way the reason we can't match
 		 * this message to a dialogue may be because some other response has already
 		 * matched and set the remote party's tag. In this case should we really
@@ -13194,17 +13163,28 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     int resp;
     int res = 1;
 
+    /* Cease retransmissions of whatever the response is to */
+    retrans_stop(p, req->seqno, 0, req->cseq_method, (*(req->data + req->uriresp) != '1'));
+
+    if (!p->initreq.headers)
+    {
+        cw_log(CW_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %s\n", req->data + req->cseq);
+        if (rfc3489_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
+        sip_destroy(p);
+        return;
+    }
+
+    if (p->ocseq && (p->ocseq < req->seqno))
+    {
+        cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", req->seqno, p->ocseq);
+        return;
+    }
+
     if (sscanf(req->data + req->uriresp, " %d", &resp) != 1)
     {
         cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->data + req->uriresp);
         return;
     }
-
-    /* Cease retransmissions of whatever the response is to */
-    if (*(req->data + req->uriresp) == '1') /* Provisional response */
-        __sip_semi_ack(p, req->seqno, 0, req->cseq_method);
-    else
-        __sip_ack(p, req->seqno, 0, req->cseq_method);
 
     /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
     if (resp == 200 || (resp >= 300 && resp <= 399))
@@ -14670,41 +14650,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 {
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
-    char *useragent;
-    int ignore=0;
+    int ignore = 0;
     int res = 0;
     char iabuf[INET_ADDRSTRLEN];
     int debug = sip_debug_test_pvt(p);
     int error = 0;
-
-    /* Save useragent of the client */
-    useragent = get_header(req, "User-Agent");
-    if (!cw_strlen_zero(useragent))
-        cw_copy_string(p->useragent, useragent, sizeof(p->useragent));
-
-    /* Find out SIP method for incoming request */
-    if (req->method == SIP_RESPONSE)
-    {
-        /* Response to our request */
-        /* Response to our request -- Do some sanity checks */    
-        if (!p->initreq.headers)
-        {
-            cw_log(CW_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %s\n", req->data + req->cseq);
-            if (rfc3489_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
-            sip_destroy(p);
-            return 0;
-        }
-
-        if (p->ocseq && (p->ocseq < req->seqno))
-        {
-            cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", req->seqno, p->ocseq);
-            return -1;
-        }
-
-        handle_response(p, req, (p->ocseq && (p->ocseq != req->seqno)));
-
-        return 0;
-    }
 
     /* New SIP request coming in
        (could be new request in existing SIP dialog as well...)
@@ -14718,7 +14668,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     {
         if (req->method == SIP_ACK) 
         {
-            __sip_ack(p, req->seqno, FLAG_RESPONSE, -1); /* Stop retransmissions of whatever's being ACKed */
+            retrans_stop(p, req->seqno, FLAG_RESPONSE, -1, 1); /* Stop retransmissions of whatever's being ACKed */
             return 0;
         }
         else
@@ -14827,7 +14777,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         if (req->seqno == p->pendinginvite)
         {
             p->pendinginvite = 0;
-            __sip_ack(p, req->seqno, FLAG_RESPONSE, -1);
+            retrans_stop(p, req->seqno, FLAG_RESPONSE, -1, 1);
             if (!cw_strlen_zero(get_header(req, "Content-Type")))
             {
                 if (process_sdp(p, req))
@@ -14927,6 +14877,8 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 			lockretry = 100;
 retrylock:
 			if ((p = find_call(&pstate, &req, &sin, &sout))) {
+				char *useragent;
+
 				/* Go ahead and lock the owner if it has one -- we may need it */
 				if (p->owner && cw_channel_trylock(p->owner)) {
 					cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
@@ -14948,7 +14900,14 @@ retrylock:
 
 				nounlock = 0;
 
-				if (handle_request(p, &req, &sin, &nounlock) == -1) {
+				/* Save useragent of the client */
+				useragent = get_header(&req, "User-Agent");
+				if (!cw_strlen_zero(useragent))
+					cw_copy_string(p->useragent, useragent, sizeof(p->useragent));
+
+				if (req.method == SIP_RESPONSE)
+					handle_response(p, &req, (p->ocseq && (p->ocseq != req.seqno)));
+				else if (handle_request(p, &req, &sin, &nounlock) == -1) {
 					/* Request failed */
 					cw_log(CW_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 				}
