@@ -4379,9 +4379,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     /* Assign default jb conf to the new sip_pvt */
     memcpy(&p->jbconf, &global_jbconf, sizeof(struct cw_jb_conf));
 
-    /* Add to active dialog list */
-    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
-
     if (option_debug)
         cw_log(CW_LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
     return p;
@@ -4464,6 +4461,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
         break;
     }
 
+    p = NULL;
 
     /* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
     if (!sip_methods[intended_method].can_create)
@@ -4487,7 +4485,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
     {
 	p = sip_alloc(callid, sin, 1, intended_method);
 	if (p) {
-	    cw_object_get(p);
+	    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+	    cw_object_dup(p);
 	    cw_mutex_lock(&p->lock);
 	} else {
 	    /* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
@@ -7658,6 +7657,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         if (cw_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
             memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
         build_contact(p);
+
+        p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
     }
 
     /* set up a timeout */
@@ -11517,11 +11518,15 @@ static int sip_notify(int fd, int argc, char *argv[])
             add_header(&req, var->name, var->value, SIP_DL_DONTCARE);
 
         add_blank_header(&req);
+
         /* Recalculate our side, and recalculate Call ID */
         if (cw_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
             memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
         build_via(p, p->via, sizeof(p->via));
         build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+
+        p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+
         cw_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
         transmit_sip_request(p, &req);
         sip_scheddestroy(p, -1);
@@ -14632,11 +14637,15 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
         sip_destroy(p);
         return 0;
     }
+
     /* Recalculate our side, and recalculate Call ID */
     if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
         memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
     build_via(p, p->via, sizeof(p->via));
     build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+
+    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+
     /* Send MWI */
     cw_set_flag(p, SIP_OUTGOING);
     transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
@@ -14905,17 +14914,13 @@ static void *sip_poke_peer_thread(void *data)
      */
     if (peer->maxms && peer->addr.sin_addr.s_addr) {
         if ((p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
-	    peer->dialogue = cw_object_get(p);
-
             memcpy(&p->sa, &peer->addr, sizeof(p->sa));
             memcpy(&p->recv, &peer->addr, sizeof(p->sa));
             cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 
             /* Send options to peer's fullcontact */
             if (!cw_strlen_zero(peer->fullcontact))
-            {
                 cw_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
-            }
 
             if (!cw_strlen_zero(peer->tohost))
                 cw_copy_string(p->tohost, peer->tohost, sizeof(p->tohost));
@@ -14928,7 +14933,11 @@ static void *sip_poke_peer_thread(void *data)
             build_via(p, p->via, sizeof(p->via));
             build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 
+	    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+
+	    peer->dialogue = cw_object_dup(p);
             p->peerpoke = peer;
+
             cw_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
             cw_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
@@ -15109,7 +15118,9 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
         memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
     build_via(p, p->via, sizeof(p->via));
     build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
-    
+
+    p->reg_entry = cw_registry_add(&dialogue_registry, cw_hash_string(p->callid), &p->obj);
+
     /* We have an extension to call, don't use the full contact here */
     /* This to enable dialling registered peers with extension dialling,
        like SIP/peername/extension     
