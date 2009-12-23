@@ -746,6 +746,7 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
     member->skip_voice_detection = 10;
 
     member->quiet_mode = 0;
+    member->beep_only_mode = 0;
     member->is_on_hold = 0;
     member->skip_moh_when_alone = 0;
 
@@ -822,6 +823,9 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
 		    break;
 		case 'q': // Quiet mode
 		    member->quiet_mode = 1;
+		    break;
+		case 'b': // Only beep to announce if a member join/left
+		    member->beep_only_mode = 1;
 		    break;
 
 		default:

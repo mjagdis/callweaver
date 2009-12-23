@@ -53,6 +53,8 @@ struct cw_conf_member
 	// Don't play enter/leave messages
 	int quiet_mode;
 	// on hold with MOH enabled
+	int beep_only_mode;
+	// Dont play calleridnum. Only beep to announce if a member join/left
 	int is_on_hold;
 	// Master said to put me on hold
 	int force_on_hold;

@@ -48,6 +48,7 @@ static const char conference_description[] =
 "        (it's destroyed after 300 seconds of inactivity)\n"
 "	 Note: works only with M option set.\n"
 "   'q': Quiet mode. Don't play enter sounds when entering.\n"
+"   'b': Beep mode. Only beep to announce if a member join/left.\n"
 "   'm': Disable music on hold while the conference has a single caller.\n"
 "\n"
 " If 'pin' is set, then if the member is a Moderator that pin is inherited \n"

@@ -266,8 +266,13 @@ static void add_member( struct cw_conference *conf, struct cw_conf_member *membe
 	else
 		cnum[0] = '\0';
     queue_incoming_silent_frame(member,2);
-    add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
-    add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
+	if(!member->beep_only_mode){
+		add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
+		add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
+	} else {
+		add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "beep" );
+	}
+
 
     cw_log( CW_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
 
@@ -390,8 +395,12 @@ static void conference_exec( struct cw_conference *conf )
 		queue_incoming_silent_frame(member,2);
 	    	remove_member( conf, member ) ;
 	    	member = temp_member ;
-	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
-	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND , 1, "conf-hasleft" );
+			if(member && member->beep_only_mode == 0){
+				add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
+				add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND , 1, "conf-hasleft" );
+			} else if (member && member->beep_only_mode == 1) {
+				add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND  , 1, "beeperr" );
+			}
 	    	continue ;
 	    }
 	    cw_mutex_unlock( &member->lock ) ;
