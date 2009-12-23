@@ -581,6 +581,7 @@ struct sip_request {
 	unsigned int rlPart2; 		/*!< The Request URI or Response Status */
 	int len;		/*!< Length */
 	enum sipmethod method;		/*!< Method of this request */
+	int seqno;		/*!< Outgoing sequence number */
 	int headers;		/*!< # of SIP Headers */
 	unsigned int header[SIP_MAX_HEADERS];
 	unsigned int header_val[SIP_MAX_HEADERS];
@@ -2252,7 +2253,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 }
 
 /*! \brief  send_request: Send SIP Request to the other part of the dialogue */
-static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
+static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable)
 {
     int res=0;
     char iabuf[INET_ADDRSTRLEN];
@@ -2261,7 +2262,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 
     if (rfc3489_active  &&  p->stun_needed == 1)
     {
-        cw_log(CW_LOG_DEBUG,"This call request %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+        cw_log(CW_LOG_DEBUG, "This call request %s seqno %d really needs STUN - sched %d\n", p->callid, req->seqno, p->stun_resreq_id);
 
         struct sip_reqresp *rr;
         
@@ -2269,7 +2270,6 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
         memset(rr, 0, sizeof(struct sip_reqresp));
         rr->type = 2;
         rr->reliable = reliable;
-        rr->seqno = seqno;
         memcpy(&rr->req, req, sizeof(struct sip_request));
         memcpy(&rr->callid, p->callid, sizeof(p->callid));
         rr->p = p;
@@ -2324,26 +2324,22 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
         else
             cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
     }
-    if (reliable && !p->peerpoke)
+
+    if (recordhistory)
     {
-        if (recordhistory)
-        {
-            parse_copy(&tmp, req);
-            snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+        snprintf(tmpmsg, sizeof(tmpmsg), "%d %s", req->seqno, sip_methods[req->method].text);
+        if (reliable && !p->peerpoke)
+	{
             append_history(p, "TxReqRel", tmpmsg);
-        }
-        res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1), req->method);
-    }
-    else
-    {
-        if (recordhistory)
-        {
-            parse_copy(&tmp, req);
-            snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+            res = __sip_reliable_xmit(p, req->seqno, 0, req->data, req->len, (reliable > 1), req->method);
+	}
+        else
+	{
             append_history(p, "TxReq", tmpmsg);
-        }
-        res = __sip_xmit(p, req->data, req->len);
+            res = __sip_xmit(p, req->data, req->len);
+	}
     }
+
     p->stun_needed=0;
     sip_dealloc_headsdp_lines(req);
     return res;
@@ -2467,7 +2463,7 @@ static int sip_resend_reqresp(void *data)
             cw_log(CW_LOG_DEBUG,"** STUN Sending request after acquiring STUN\n");
         /* This is a send_request*/
         rr->p->stun_needed = 2;
-        send_request(rr->p, &rr->req, rr->reliable, rr->seqno);
+        send_request(rr->p, &rr->req, rr->reliable);
     }
     else
     {
@@ -5915,10 +5911,8 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
     snprintf(p->lastmsg, sizeof(p->lastmsg), "Tx: %s", sip_methods[sipmethod].text);
     
     if (!seqno)
-    {
-        p->ocseq++;
-        seqno = p->ocseq;
-    }
+        seqno = ++p->ocseq;
+    req->seqno = seqno;
     
     if (newbranch)
     {
@@ -5963,7 +5957,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
     }    
     init_req(req, sipmethod, c);
 
-    snprintf(tmp, sizeof(tmp), "%d %s", seqno, sip_methods[sipmethod].text);
+    snprintf(tmp, sizeof(tmp), "%u %s", seqno, sip_methods[sipmethod].text);
 
     add_header(req, "Via", p->via, SIP_DL_HEAD_VIA);
     if (p->route)
@@ -6774,7 +6768,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
     }
 
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_reinvite_with_t38_sdp: Transmit reinvite with T38 SDP */
@@ -6803,7 +6797,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
         cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
     p->lastinvite = p->ocseq;
     cw_set_flag(p, SIP_OUTGOING);
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  extract_uri: Check Contact: URI of SIP message */
@@ -7061,7 +7055,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
 
     memset(req, 0, sizeof(struct sip_request));
     init_req(req, sipmethod, p->uri);
-    snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
+    req->seqno = ++p->ocseq;
+    snprintf(tmp, sizeof(tmp), "%u %s", req->seqno, sip_methods[sipmethod].text);
 
     add_header(req, "Via", p->via, SIP_DL_HEAD_VIA);
     /* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
@@ -7193,7 +7188,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
             cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
     }
     p->lastinvite = p->ocseq;
-    return send_request(p, &req, init ? 2 : 1, p->ocseq);
+    return send_request(p, &req, (init ? 2 : 1));
 }
 
 /*! \brief  transmit_state_notify: Used in the SUBSCRIBE notification subsystem -*/
@@ -7369,7 +7364,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
     add_header_contentLength(&req, strlen(tmp));
     add_line(&req, tmp, SIP_DL_DONTCARE);
 
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_notify_with_mwi: Notify user of messages waiting in voicemail */
@@ -7407,7 +7402,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
             cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
     }
 
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_sip_request: Transmit SIP request */
@@ -7422,7 +7417,7 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
             cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
     }
 
-    return send_request(p, req, 0, p->ocseq);
+    return send_request(p, req, 0);
 }
 
 /*! \brief  transmit_notify_with_sipfrag: Notify a transferring party of the status of trasnfer */
@@ -7453,7 +7448,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
             cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
     }
 
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 static char *regstate2str(int regstate)
@@ -7733,7 +7728,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
     /* Add to CSEQ */
     snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, sip_methods[sipmethod].text);
-    p->ocseq = r->ocseq;
+    req.seqno = p->ocseq = r->ocseq;
 
     build_via(p, via, sizeof(via));
     add_header(&req, "Via", via, SIP_DL_HEAD_VIA);
@@ -7784,7 +7779,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     if (option_debug > 3)
         cw_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
 
-    res = send_request(p, &req, 2, p->ocseq);
+    res = send_request(p, &req, 2);
 
     /* set up a timeout */
     if (auth == NULL)
@@ -7805,7 +7800,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
     struct sip_request req;
     reqprep(&req, p, SIP_MESSAGE, 0, 1);
     add_text(&req, text);
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_refer: Transmit SIP REFER message */
@@ -7857,7 +7852,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
     if (!cw_strlen_zero(p->our_contact))
         add_header(&req, "Referred-By", p->our_contact, SIP_DL_DONTCARE);
     add_blank_header(&req);
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_info_with_digit: Send SIP INFO dtmf message, see Cisco documentation on cisco.co
@@ -7867,7 +7862,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int 
     struct sip_request req;
     reqprep(&req, p, SIP_INFO, 0, 1);
     add_digit(&req, digit, duration);
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_info_with_vidupdate: Send SIP INFO with video update request */
@@ -7876,7 +7871,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
     struct sip_request req;
     reqprep(&req, p, SIP_INFO, 0, 1);
     add_vidupdate(&req);
-    return send_request(p, &req, 1, p->ocseq);
+    return send_request(p, &req, 1);
 }
 
 /*! \brief  transmit_request: transmit generic SIP request */
@@ -7886,7 +7881,7 @@ static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int seq
     reqprep(&resp, p, sipmethod, seqno, newbranch);
     add_header_contentLength(&resp, 0);
     add_blank_header(&resp);
-    return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
+    return send_request(p, &resp, reliable);
 }
 
 /*! \brief  transmit_request_with_auth: Transmit SIP request, auth added */
@@ -7924,7 +7919,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmetho
 
     add_header_contentLength(&resp, 0);
     add_blank_header(&resp);
-    return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);    
+    return send_request(p, &resp, reliable);
 }
 
 static void destroy_association(struct sip_peer *peer)
@@ -17052,7 +17047,7 @@ static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *d
 	add_header(&req, "Content-Disposition", disp, SIP_DL_DONTCARE );
 	add_header_contentLength(&req, strlen(text));
 	add_line(&req, text, SIP_DL_DONTCARE);
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, 1);
 }
 
 /*
