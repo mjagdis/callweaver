@@ -246,7 +246,7 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
 	char *separator;
 
 	if (!playtones.is_initialized)
-		cw_object_init(&playtones, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init_obj(&playtones.obj, CW_OBJECT_CURRENT_MODULE, 0);
 
 	if (vol >= 0)
 		d.vol = -13;

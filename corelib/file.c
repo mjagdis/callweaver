@@ -1172,7 +1172,7 @@ struct cw_clicmd show_file = {
 int cw_file_init(void)
 {
 	if (!filestream_generator.is_initialized)
-		cw_object_init(&filestream_generator, CW_OBJECT_CURRENT_MODULE, 0);
+		cw_object_init_obj(&filestream_generator.obj, CW_OBJECT_CURRENT_MODULE, 0);
 
 	cw_cli_register(&show_file);
 	return 0;
