@@ -62,6 +62,7 @@ struct {
 	{ "TOUCH_MONITOR_FORMAT", 0 },
 	{ "DYNAMIC_FEATURES", 0 },
 	{ "SPYGROUP", 0 },
+	{ "PICKUPMARK", 0 },
 
 	// ---------------------------------------------------------------------------
 	// Built-in global variable names used in pbx.c

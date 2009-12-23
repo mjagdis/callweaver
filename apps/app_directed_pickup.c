@@ -37,10 +37,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
+#include "callweaver/keywords.h"
 
 static const char tdesc[] = "Directed Call Pickup Application";
-
-#define PICKUPMARK "PICKUPMARK"
 
 static void *pickup_app;
 static const char pickup_name[] = "Pickup";
@@ -49,28 +48,27 @@ static const char pickup_syntax[] = "Pickup(extension[@context])";
 static const char pickup_descrip[] =
 "Steals any calls to a specified extension that are in a ringing state and bridges them to the current channel. Context is an optional argument.\n";
 
-static struct cw_channel * find_channel_by_mark(char *mark)
+
+struct find_channel_by_mark_args {
+	struct cw_channel *target;
+	const char *mark;
+};
+
+static int find_channel_by_mark_one(struct cw_object *obj, void *data)
 {
-     struct cw_channel * res= NULL;
-     const char *tmp = NULL;
-     struct cw_channel *cur = NULL;
- 
-       while ( (cur = cw_channel_walk_locked(cur)) != NULL) 
-       {
- 	  if (!cur->pbx &&
-              ((cur->_state == CW_STATE_RINGING) ||
-              (cur->_state == CW_STATE_RING))) 
- 	     {
- 		tmp = pbx_builtin_getvar_helper(cur, PICKUPMARK);
- 		if (tmp &&  (!strcasecmp(tmp, mark))) 
- 		    {
- 			res=cur;
-                         break;
- 		    };
-     	    };
-           cw_mutex_unlock(&cur->lock);
-       };
- return res;
+	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+	struct find_channel_by_mark_args *args = data;
+	struct cw_var_t *var;
+
+	if (!chan->pbx && ((chan->_state == CW_STATE_RINGING) || (chan->_state == CW_STATE_RING))) {
+		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_PICKUPMARK, "PICKUPMARK"))) {
+			if (!strcasecmp(var->value, args->mark))
+				args->target = cw_object_dup(chan);
+			cw_object_put(var);
+ 		}
+	}
+
+	return (args->target != NULL);
 }
  
 static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
@@ -95,29 +93,34 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	}
 
 	/* Find a channel to pickup */
-	if (context && (!strcmp(context,PICKUPMARK))) {
-		target=find_channel_by_mark(exten);
+	if (context && (!strcmp(context, "PICKUPMARK"))) {
+		struct find_channel_by_mark_args args = {
+			.target= NULL,
+			.mark = exten,
+		};
+		cw_registry_iterate_ordered(&channel_registry, find_channel_by_mark_one, &args);
+		target = args.target;
 	} else {
 		origin = cw_get_channel_by_exten_locked(exten, context);
 		if (origin) {
 			cw_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
 			       sizeof(workspace), 0);
-		if (tmp) {
-			/* We have a possible channel... now we need to find it! */
-			target = cw_get_channel_by_name_locked(tmp);
+			if (tmp) {
+				/* We have a possible channel... now we need to find it! */
+				target = cw_get_channel_by_name_locked(tmp);
+			} else {
+				cw_log(CW_LOG_DEBUG, "No target channel found.\n");
+				res = -1;
+			}
+			cw_channel_unlock(origin);
+			cw_object_put(origin);
 		} else {
-			cw_log(CW_LOG_DEBUG, "No target channel found.\n");
-			res = -1;
+			cw_log(CW_LOG_DEBUG, "No originating channel found.\n");
 		}
-		cw_channel_unlock(origin);
-		cw_object_put(origin);
-	} else {
-		cw_log(CW_LOG_DEBUG, "No originating channel found.\n");
-	}
 	
-	if (res)
-		goto out;
-}
+		if (res)
+			goto out;
+	}
 	if (target && (!target->pbx) && ((target->_state == CW_STATE_RINGING) || (target->_state == CW_STATE_RING))) {
 		cw_log(CW_LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
 			chan->name);
