@@ -878,14 +878,13 @@ static struct cw_config *config_sqlite(const char *database, const char *table, 
 
 static int sqlite_log(struct cw_cdr *cdr)
 {
-	int res = 0;
-	char *zErr = 0;
+	char startstr[80], answerstr[80], endstr[80];
 	struct tm tm;
 	time_t t;
-	char startstr[80], answerstr[80], endstr[80];
-	int count;
 	sqlite3 *db;
-	char *sql = NULL;
+	char *sql;
+	char *zErr;
+	int res = 0;
 
 	db = open_db(cdr_dbfile);
 	if (!db)
@@ -903,114 +902,64 @@ static int sqlite_log(struct cw_cdr *cdr)
 	localtime_r(&t, &tm);
 	strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
 
-	for(count=0; count<10; count++) {
-		if((sql = sqlite3_mprintf(
-							  "INSERT INTO %q ("
-							  "clid,src,dst,dcontext,"
-							  "channel,dstchannel,lastapp,lastdata, "
-							  "start,answer,end,"
-							  "duration,billsec,disposition,amaflags, "
-							  "accountcode"
+	zErr = NULL;
+	sql = sqlite3_mprintf(
+		"INSERT INTO %q ("
+			"clid,src,dst,dcontext,"
+			"channel,dstchannel,lastapp,lastdata, "
+			"start,answer,end,"
+			"duration,billsec,disposition,amaflags, "
+			"accountcode"
 #ifdef LOG_UNIQUEID
-							  ",uniqueid"
+			",uniqueid"
 #endif
 #ifdef LOG_USERFIELD
-							  ",userfield"
+			",userfield"
 #endif
-							  ") VALUES ("
-							  "'%q', '%q', '%q', '%q', "
-							  "'%q', '%q', '%q', '%q', "
-							  "'%q', '%q', '%q', "
-							  "%d, %d, %d, %d, "
-							  "'%q'"
+		") VALUES ("
+			"'%q', '%q', '%q', '%q', "
+			"'%q', '%q', '%q', '%q', "
+			"'%q', '%q', '%q', "
+			"%d, %d, %d, %d, "
+			"'%q'"
 #ifdef LOG_UNIQUEID
-							  ",'%q'"
+			",'%q'"
 #endif
 #ifdef LOG_USERFIELD
-							  ",'%q'"
+			",'%q'"
 #endif
-							  ")",cdr_table,
-							  cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
-							  cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
-							  startstr, answerstr, endstr,
-							  cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
-							  cdr->accountcode
+		")",
+			cdr_table,
+			cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
+			cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
+			startstr, answerstr, endstr,
+			cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
+			cdr->accountcode
 #ifdef LOG_UNIQUEID
-							  ,cdr->uniqueid
+			,cdr->uniqueid
 #endif
 #ifdef LOG_USERFIELD
-							  ,cdr->userfield
+			,cdr->userfield
 #endif
-							  ))) {
+	);
 
-			res = sqlite3_exec(db,
-							   sql
-							   ,NULL,
-							   NULL,
-							   &zErr
-							   );
-		} else {
-			cw_log(CW_LOG_ERROR, "malloc failed, good luck!\n");
-			break;
+	if (sql) {
+		zErr = NULL;
+		while ((res = sqlite3_exec(db, sql, NULL, NULL, &zErr)) == SQLITE_BUSY || res == SQLITE_LOCKED) {
+			sqlite3_free(zErr);
+			zErr = NULL;
 		}
 
-
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-			break;
-		usleep(200);
-	}
-	if (sql) {
-		sqlite3_free(sql);
-		sql = NULL;
-	}
-	if (zErr) {
-		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-
-		cw_log(CW_LOG_ERROR,
-				"INSERT INTO %s ("
-				"clid,src,dst,dcontext,"
-				"channel,dstchannel,lastapp,lastdata, "
-				"start,answer,end,"
-				"duration,billsec,disposition,amaflags, "
-				"accountcode"
-#ifdef LOG_UNIQUEID
-				",uniqueid"
-#endif
-#ifdef LOG_USERFIELD
-				",userfield"
-#endif
-				") VALUES ("
-				"'%s', '%s', '%s', '%s', "
-				"'%s', '%s', '%s', '%s', "
-				"'%s', '%s', '%s', "
-				"%d, %d, %d, %d, "
-				"'%s'"
-#ifdef LOG_UNIQUEID
-				",'%s'"
-#endif
-#ifdef LOG_USERFIELD
-				",'%s'"
-#endif
-				")\n",cdr_table,
-				cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
-				cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
-				startstr, answerstr, endstr,
-				cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
-				cdr->accountcode
-#				ifdef LOG_UNIQUEID
-				,cdr->uniqueid
-#endif
-#ifdef LOG_USERFIELD
-				,cdr->userfield
-#endif
-				);
-
-		free(zErr);
-	}
+		if (zErr) {
+			cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+			sqlite3_free(zErr);
+		}
+	} else
+		cw_log(CW_LOG_ERROR, "malloc failed, good luck!\n");
 
 	sqlite3_close(db);
-	db=NULL;
-	return res;
+	db = NULL;
+	return 0;
 }
 
 
@@ -1167,7 +1116,7 @@ static struct cw_config_engine sqlite_engine = {
 };
 
 static struct cw_cdrbe sqlite_cdrbe = {
-	.name = "cdr_req_sqlite",
+	.name = "cdr_res_sqlite",
 	.description = "RES SQLite CDR",
 	.handler = sqlite_log,
 };

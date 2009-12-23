@@ -60,12 +60,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char desc[] = "SQLite CDR Backend";
 static const char name[] = "sqlite";
-static struct sqlite3 *db = NULL;
 
-CW_MUTEX_DEFINE_STATIC(sqlite3_lock);
 
 /*! \brief SQL table format */
-static char sql_create_table[] = "CREATE TABLE cdr ("
+static const char sql_create_table[] = "CREATE TABLE cdr ("
 "	AcctId		INTEGER PRIMARY KEY,"
 "	clid		VARCHAR(80),"
 "	src		VARCHAR(80),"
@@ -91,117 +89,98 @@ static char sql_create_table[] = "CREATE TABLE cdr ("
 #endif
 ");";
 
+
+static const char sql_insert[] =
+	"INSERT INTO cdr ("
+		"clid, src, dst, dcontext,"
+		"channel, dstchannel, lastapp, lastdata, "
+		"start, answer, end,"
+		"duration, billsec, disposition, amaflags, "
+		"accountcode"
+#if LOG_UNIQUEID
+		",uniqueid"
+#endif
+#if LOG_USERFIELD
+		",userfield"
+#endif
+	") VALUES ("
+		"?, ?, ?, ?,"
+		"?, ?, ?, ?,"
+		"?, ?, ?,"
+		"?, ?, ?, ?, "
+		"?"
+#if LOG_UNIQUEID
+		",?"
+#endif
+#if LOG_USERFIELD
+		",?"
+#endif
+	");";
+
+
+pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static struct sqlite3 *db = NULL;
+static sqlite3_stmt *sql;
+
+
 static int sqlite_log(struct cw_cdr *cdr)
 {
-	int res = 0;
-	char *zErr = 0;
+	char startstr[80], answerstr[80], endstr[80];
 	struct tm tm;
 	time_t t;
-	char startstr[80], answerstr[80], endstr[80];
-	int count;
-	char fn[PATH_MAX];
-	char *sql;
+	int startlen, answerlen, endlen;
+	int res;
 
-	cw_mutex_lock(&sqlite3_lock);
-
-	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/cdr.db", cw_config_CW_LOG_DIR);
-	sqlite3_open(fn, &db);
-	if (!db) {
-		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-		free(zErr);
-		return -1;
-	}
-
+	if (!db)
+		return;
 
 	t = cdr->start.tv_sec;
 	localtime_r(&t, &tm);
-	strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
+	startlen = strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
 
 	t = cdr->answer.tv_sec;
 	localtime_r(&t, &tm);
-	strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
+	answerlen = strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
 
 	t = cdr->end.tv_sec;
 	localtime_r(&t, &tm);
-	strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+	endlen = strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
 
-	for(count=0; count<5; count++) {
-		sql = sqlite3_mprintf(
-			"INSERT INTO cdr ("
-				"clid,src,dst,dcontext,"
-				"channel,dstchannel,lastapp,lastdata, "
-				"start,answer,end,"
-				"duration,billsec,disposition,amaflags, "
-				"accountcode"
-#				if LOG_UNIQUEID
-				",uniqueid"
-#				endif
-#				if LOG_USERFIELD
-				",userfield"
-#				endif
-			") VALUES ("
-				"'%q', '%q', '%q', '%q', "
-				"'%q', '%q', '%q', '%q', "
-				"'%q', '%q', '%q', "
-				"%d, %d, %d, %d, "
-				"'%q'"
-#				if LOG_UNIQUEID
-				",'%q'"
-#				endif
-#				if LOG_USERFIELD
-				",'%q'"
-#				endif
-			")",
-				cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
-				cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
-				startstr, answerstr, endstr,
-				cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
-				cdr->accountcode
-#				if LOG_UNIQUEID
-				,cdr->uniqueid
-#				endif
-#				if LOG_USERFIELD
-				,cdr->userfield
-#				endif
-			);
-		cw_log(CW_LOG_DEBUG, "CDR SQLITE3 SQL [%s]\n", sql);
-		res = sqlite3_exec(db,
-						   sql,
-						   NULL,
-						   NULL,
-						   &zErr
-						   );
+	pthread_mutex_lock(&sqlite3_lock);
 
-		if (sql) {
-		    sqlite3_free(sql);
-		    sql = NULL;
-		}
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-			break;
-		usleep(200);
-	}
+	sqlite3_reset(sql);
+	sqlite3_bind_text(sql, 1, cdr->clid, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 2, cdr->src, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 3, cdr->dst, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 4, cdr->dcontext, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 5, cdr->channel, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 6, cdr->dstchannel, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 7, cdr->lastapp, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 8, cdr->lastdata, -1, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 9, startstr, startlen, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 10, answerstr, answerlen, SQLITE_STATIC);
+	sqlite3_bind_text(sql, 11, endstr, endlen, SQLITE_STATIC);
+	sqlite3_bind_int(sql, 12, cdr->duration);
+	sqlite3_bind_int(sql, 13, cdr->billsec);
+	sqlite3_bind_int(sql, 14, cdr->disposition);
+	sqlite3_bind_int(sql, 15, cdr->amaflags);
+	sqlite3_bind_text(sql, 16, cdr->accountcode, -1, SQLITE_STATIC);
+#if LOG_UNIQUEID
+	sqlite3_bind_text(sql, 17, cdr->uniqueid, -1, SQLITE_STATIC);
+#endif
+#if LOG_USERFIELD
+	sqlite3_bind_text(sql, 18, cdr->userfield, -1, SQLITE_STATIC);
+#endif
 
-	if (sql) {
-		sqlite3_free(sql);
-		sql = NULL;
-	}
-	
-	if (zErr) {
-		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-		free(zErr);
-	}
+	while ((res = sqlite3_step(sql)) == SQLITE_BUSY || res == SQLITE_LOCKED)
+		usleep(10);
 
-	if (db) sqlite3_close(db);
+	if (res != SQLITE_DONE)
+		cw_log(CW_LOG_ERROR, "sqlite3_step failed with error code %d\n", res);
 
-	cw_mutex_unlock(&sqlite3_lock);
-	return res;
-}
-
-
-static void release(void)
-{
-	if (db) sqlite3_close(db);
+	pthread_mutex_unlock(&sqlite3_lock);
+	return 0;
 }
 
 
@@ -212,50 +191,86 @@ static struct cw_cdrbe cdrbe = {
 };
 
 
+static void release(void)
+{
+	if (sql)
+		sqlite3_finalize(sql);
+
+	if (db)
+		sqlite3_close(db);
+}
+
+
 static int unload_module(void)
 {
 	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-static int load_module(void)
+
+static int reconfig_module(void)
 {
-	char *zErr;
 	char fn[PATH_MAX];
+	char *zErr;
+	const char *tail;
 	int res;
 
-	/* is the database there? */
+	pthread_mutex_lock(&sqlite3_lock);
+
+	if (sql)
+		sqlite3_finalize(sql);
+	if (db)
+		sqlite3_close(db);
+
 	snprintf(fn, sizeof(fn), "%s/cdr.db", cw_config_CW_LOG_DIR);
-	sqlite3_open(fn, &db);
+
+	res = sqlite3_open(fn, &db);
 	if (!db) {
-		cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-		free(zErr);
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return -1;
+	} else if (res != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "%s\n", sqlite3_errmsg(db));
+		goto err;
 	}
 
+	zErr = NULL;
+
 	/* is the table there? */
-	res = sqlite3_exec(db, "SELECT COUNT(AcctId) FROM cdr;", NULL, NULL, NULL);
-	if (res) {
-		res = sqlite3_exec(db, sql_create_table, NULL, NULL, &zErr);
-		if (res) {
+	if (sqlite3_exec(db, "SELECT COUNT(AcctId) FROM cdr;", NULL, NULL, NULL) != SQLITE_OK) {
+		if (sqlite3_exec(db, sql_create_table, NULL, NULL, &zErr) != SQLITE_OK) {
 			cw_log(CW_LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
-			free(zErr);
+			sqlite3_free(zErr);
 			goto err;
 		}
 
 		/* TODO: here we should probably create an index */
 	}
-	
-	if (db) sqlite3_close(db);
 
-	cw_cdrbe_register(&cdrbe);
+	if ((res = sqlite3_prepare_v2(db, sql_insert, sizeof(sql_insert), &sql, &tail)) != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "sqlite3_prepare_v2 failed with error code %d\n", res);
+		goto err;
+	}
 
+	pthread_mutex_unlock(&sqlite3_lock);
 	return 0;
 
 err:
-	if (db) sqlite3_close(db);
+	sqlite3_close(db);
+	db = NULL;
+	pthread_mutex_unlock(&sqlite3_lock);
 	return -1;
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, release, desc)
+static int load_module(void)
+{
+	if (!reconfig_module()) {
+		cw_cdrbe_register(&cdrbe);
+		return 0;
+	}
+
+	return -1;
+}
+
+
+MODULE_INFO(load_module, reconfig_module, unload_module, release, desc)

@@ -150,11 +150,11 @@ static int do_escape(char *to, const char *from)
 
 static int sqlite3_log(struct cw_cdr *cdr)
 {
-	int res = 0;
-	char *zErr = 0;
-	char *sql_cmd;
 	struct cw_channel *chan;
+	char *sql_cmd;
+	char *zErr;
 	int count;
+	int res = 0;
 
 	if ((chan = cw_channel_alloc(0, NULL))) {
 		char *sql_tmp_cmd;
@@ -171,9 +171,15 @@ static int sqlite3_log(struct cw_cdr *cdr)
 	cw_mutex_lock(&lock);
 
 	for (count = 0; count < 5; count++) {
+		zErr = NULL;
 		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
+
 		if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
 			break;
+
+		if (zErr)
+			sqlite3_free(zErr);
+
 		usleep(200);
 	}
 
