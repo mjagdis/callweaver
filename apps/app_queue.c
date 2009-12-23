@@ -107,7 +107,7 @@ static const char queueagentcount_func_desc[] = "";
 
 static struct strategy
 {
-    int strategy;
+    unsigned int strategy;
     const char *name;
 } strategies[] =
 {
@@ -292,15 +292,15 @@ struct queue_ent
 struct member
 {
     char interface[80];		/*!< Technology/Location */
-    int penalty;			/*!< Are we a last resort? */
+    int penalty;		/*!< Are we a last resort? */
     int calls;			/*!< Number of calls serviced by this member */
-    int dynamic;			/*!< Are we dynamically added? */
-    int status;			/*!< Status of queue member */
+    int dynamic;		/*!< Are we dynamically added? */
+    cw_devicestate_t status;	/*!< Status of queue member */
     int paused;			/*!< Are we paused (not accepting calls)? */
     time_t lastcall;		/*!< When last successful call was hungup */
     int dead;			/*!< Used to detect members deleted in realtime */
     time_t added;		/* used to track when member was added */
-    struct member *next;		/*!< Next member */
+    struct member *next;	/*!< Next member */
 };
 
 /* values used in multi-bit flags in cw_call_queue */
@@ -466,7 +466,7 @@ static enum queue_member_status get_member_status(struct cw_call_queue *q)
 
 struct statechange
 {
-    int state;
+    cw_devicestate_t state;
     char dev[0];
 };
 
@@ -529,7 +529,7 @@ static void *changethread(void *data)
     return NULL;
 }
 
-static int statechange_queue(const char *dev, int state, void *ign)
+static int statechange_queue(const char *dev, cw_devicestate_t state, void *ign)
 {
     /* Avoid potential for deadlocks by spawning a new thread to handle the event */
     struct statechange *sc;
@@ -764,12 +764,6 @@ static void queue_set_param(struct cw_call_queue *q, const char *param, const ch
     else if (!strcasecmp(param, "strategy"))
     {
         q->strategy = strat2int(val);
-        if (q->strategy < 0)
-        {
-            cw_log(CW_LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
-                     val, q->name);
-            q->strategy = 0;
-        }
     }
     else if (!strcasecmp(param, "joinempty"))
     {
@@ -1447,7 +1441,7 @@ static void hangupcalls(struct outchan *outgoing, struct cw_channel *exception)
     }
 }
 
-static int update_status(struct cw_call_queue *q, struct member *member, int status)
+static int update_status(struct cw_call_queue *q, struct member *member, cw_devicestate_t status)
 {
     struct member *cur;
 
@@ -1482,16 +1476,17 @@ static int update_status(struct cw_call_queue *q, struct member *member, int sta
     return 0;
 }
 
-static int update_dial_status(struct cw_call_queue *q, struct member *member, int status)
+static int update_dial_status(struct cw_call_queue *q, struct member *member, int cause)
 {
-    if (status == CW_CAUSE_BUSY)
+    cw_devicestate_t status = CW_DEVICE_UNKNOWN;
+
+    if (cause == CW_CAUSE_BUSY)
         status = CW_DEVICE_BUSY;
-    else if (status == CW_CAUSE_UNREGISTERED)
+    else if (cause == CW_CAUSE_UNREGISTERED)
         status = CW_DEVICE_UNAVAILABLE;
-    else if (status == CW_CAUSE_NOSUCHDRIVER)
+    else if (cause == CW_CAUSE_NOSUCHDRIVER)
         status = CW_DEVICE_INVALID;
-    else
-        status = CW_DEVICE_UNKNOWN;
+
     return update_status(q, member, status);
 }
 
@@ -1539,7 +1534,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     const char *location;
     char *p;
     int res;
-    int status;
+    int cause;
 
     if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))
     {
@@ -1579,7 +1574,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         location = "";
 
     /* Request the peer */
-    tmp->chan = cw_request(tech, qe->chan->nativeformats, (void *)location, &status);
+    tmp->chan = cw_request(tech, qe->chan->nativeformats, (void *)location, &cause);
     if (!tmp->chan)
     {           /* If we can't, just go on to the next call */
 #if 0
@@ -1589,7 +1584,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         if (qe->chan->cdr)
             cw_cdr_busy(qe->chan->cdr);
         tmp->stillgoing = 0;
-        update_dial_status(qe->parent, tmp->member, status);
+        update_dial_status(qe->parent, tmp->member, cause);
 
         cw_mutex_lock(&qe->parent->lock);
         qe->parent->rrpos++;
@@ -1598,8 +1593,8 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         (*busies)++;
         return 0;
     }
-    else if (status != tmp->oldstatus)
-        update_dial_status(qe->parent, tmp->member, status);
+    else if (cause != tmp->oldstatus)
+        update_dial_status(qe->parent, tmp->member, cause);
 
     tmp->chan->appl = "AppQueue (Outgoing Line)";
     tmp->chan->whentohangup = 0;
@@ -2336,7 +2331,7 @@ static int calc_metric(struct cw_call_queue *q, struct member *mem, int pos, str
         tmp->metric += mem->penalty * 1000000;
         break;
     default:
-        cw_log(CW_LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
+        cw_log(CW_LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", (int)q->strategy);
         break;
     }
     return 0;
@@ -3081,18 +3076,11 @@ static void reload_queue_members(void)
 static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
-    int priority_jump = 0;
 
-    if (argc < 2 || argc > 3 || !argv[1][0])
+    if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_pqm_syntax);
 
     LOCAL_USER_ADD(u);
-
-    if (argc > 2)
-    {
-        if (strchr(argv[2], 'j'))
-            priority_jump = 1;
-    }
 
     if (set_member_paused(argv[0], argv[1], 1))
     {
@@ -3110,18 +3098,11 @@ static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 static int upqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
-    int priority_jump = 0;
 
-    if (argc < 2 || argc > 3 || !argv[1][0])
+    if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_upqm_syntax);
 
     LOCAL_USER_ADD(u);
-
-    if (argc > 2)
-    {
-        if (strchr(argv[2], 'j'))
-            priority_jump = 1;
-    }
 
     if (set_member_paused(argv[0], argv[1], 0))
     {
@@ -3140,7 +3121,6 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 {
     struct localuser *u;
     time_t added = 0;
-    int priority_jump = 0;
     int res = -1;
 
     if (argc < 1 || argc > 3)
@@ -3148,18 +3128,12 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 
     LOCAL_USER_ADD(u);
 
-    if (argc < 2 || !argv[1][0])
+    if (argc != 2 || !argv[1][0])
     {
         char *p;
         argv[1] = cw_strdupa(chan->name);
         if ((p = strrchr(argv[1], '-')))
             *p = '\0';
-    }
-
-    if (argc > 2)
-    {
-        if (strchr(argv[2], 'j'))
-            priority_jump = 1;
     }
 
     switch (remove_from_queue(argv[0], argv[1], &added))
@@ -3193,10 +3167,9 @@ static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 {
     int res=-1;
     struct localuser *u;
-    int priority_jump = 0;
     int penalty = 0;
 
-    if (argc < 1 || argc > 4)
+    if (argc < 1 || argc > 3)
         return cw_function_syntax(app_aqm_syntax);
 
     LOCAL_USER_ADD(u);
@@ -3211,13 +3184,6 @@ static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 
     penalty = (argc > 2 ? atoi(argv[2]) : 0);
     if (penalty < 0) penalty = 0;
-
-    if (argc > 3)
-    {
-        if (strchr(argv[3], 'j'))
-            priority_jump = 1;
-    }
-
 
     switch (add_to_queue(argv[0], argv[1], penalty, 0, queue_persistent_members))
     {
@@ -3510,7 +3476,7 @@ check_turns:
     }
     else
     {
-        cw_log(CW_LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], reason);
+        cw_log(CW_LOG_WARNING, "Unable to join queue '%s' reason %d\n", argv[0], (int)reason);
         set_queue_result(chan, reason);
         res = 0;
     }
@@ -4112,8 +4078,6 @@ static int handle_add_queue_member(struct cw_dynstr **ds_p, int argc, char *argv
     if ((argc != 6 && argc != 8) || strcmp(argv[4], "to") || (argc == 8 && strcmp(argv[6], "penalty")))
         return RESULT_SHOWUSAGE;
 
-    ret = 0;
-
     queuename = argv[5];
     interface = argv[3];
     if (argc == 8)
@@ -4141,19 +4105,26 @@ static int handle_add_queue_member(struct cw_dynstr **ds_p, int argc, char *argv
     {
     case RES_OKAY:
         cw_dynstr_printf(ds_p, "Added interface '%s' to queue '%s'\n", interface, queuename);
-        return RESULT_SUCCESS;
+        ret = RESULT_SUCCESS;
+        break;
     case RES_EXISTS:
         cw_dynstr_printf(ds_p, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
-        return RESULT_FAILURE;
+        ret = RESULT_FAILURE;
+        break;
     case RES_NOSUCHQUEUE:
         cw_dynstr_printf(ds_p, "Unable to add interface to queue '%s': No such queue\n", queuename);
-        return RESULT_FAILURE;
+        ret = RESULT_FAILURE;
+        break;
     case RES_OUTOFMEMORY:
         cw_dynstr_printf(ds_p, "Out of memory\n");
-        return RESULT_FAILURE;
+        ret = RESULT_FAILURE;
+        break;
     default:
-        return RESULT_FAILURE;
+        ret = RESULT_FAILURE;
+        break;
     }
+
+    return ret;
 }
 
 static void complete_add_queue_member(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)

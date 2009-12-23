@@ -364,4 +364,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "Oki 32kbps ADPCM to/from PCM16 translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Oki 32kbps ADPCM to/from PCM16 translator")

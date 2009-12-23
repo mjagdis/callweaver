@@ -22,7 +22,7 @@
 #include "dtmf.h"
 #include "vad.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* *****************************************************************************
 	MANAGER UTILS
@@ -852,7 +852,7 @@ struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **
     //
 		
     cw_log( CW_CONF_DEBUG, "created member on channel %s, type => %d, readformat => %d, writeformat => %d\n", 	
-		member->chan->name, member->type, chan->readformat, chan->writeformat ) ;
+		member->chan->name, (int)member->type, chan->readformat, chan->writeformat ) ;
 
     if (!membergen.is_initialized)
         cw_object_init_obj(&membergen.obj, CW_OBJECT_CURRENT_MODULE, 0);

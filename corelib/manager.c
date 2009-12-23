@@ -1432,7 +1432,7 @@ static int process_message(struct mansession *sess, const struct message *req)
 		if ((authtype = cw_manager_msg_header(req, "AuthType")) && !strcasecmp(authtype, "MD5")) {
 			if ((msg = cw_manager_response("Success", NULL))) {
 				if (cw_strlen_zero(sess->challenge))
-					snprintf(sess->challenge, sizeof(sess->challenge), "%lu", cw_random());
+					snprintf(sess->challenge, sizeof(sess->challenge), "%lu", (unsigned long)cw_random());
 
 				cw_manager_msg(&msg, 1, cw_msg_tuple("Challenge", "%s", sess->challenge));
 			}

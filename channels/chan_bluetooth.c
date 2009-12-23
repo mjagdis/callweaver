@@ -616,7 +616,7 @@ blt_read(struct cw_channel *chan)
   {
     len = dev->sco_pos_inrcv - dev->sco_pos_in;
   }
-  dev->fr.data = malloc(CW_FRIENDLY_OFFSET+len) + CW_FRIENDLY_OFFSET;
+  dev->fr.data = (char *)malloc(CW_FRIENDLY_OFFSET+len) + CW_FRIENDLY_OFFSET;
 
   get_buffer(dev->fr.data, dev->sco_buf_in, BUFLEN, &(dev->sco_pos_in), len);
   dev->wakeread = 1;
@@ -2186,7 +2186,7 @@ handle_rd_data(blt_dev_t * dev)
           break;
 
         default:
-          cw_log(CW_LOG_ERROR, "Device %s: Unknown device state %d\n", dev->name, dev->state);
+          cw_log(CW_LOG_ERROR, "Device %s: Unknown device state %d\n", dev->name, (int)dev->state);
           return -1;
       }
     }
@@ -2722,8 +2722,7 @@ __unload_module(void)
   return 0;
 }
 
-int
-static load_module(void)
+static int load_module(void)
 {
   sdp_session_t * sess;
   int dd;
@@ -2806,8 +2805,7 @@ static load_module(void)
   return 0;
 }
 
-int
-static unload_module(void)
+static int unload_module(void)
 {
   cw_cli_unregister(&cli_ag_sendcmd);
   cw_cli_unregister(&cli_show_peers);

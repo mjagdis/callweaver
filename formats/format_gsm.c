@@ -156,7 +156,7 @@ static int gsm_write(void *data, struct cw_frame *f)
 
         for (len = 0;  len < f->datalen;  len += 65)
         {
-            repack_gsm0610_wav49_to_voip(pvt->buf, f->data + len);
+            repack_gsm0610_wav49_to_voip(pvt->buf, (const uint8_t *)f->data + len);
             if ((res = fwrite(pvt->buf, 1, 66, pvt->f)) != 66)
             {
                 cw_log(CW_LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));

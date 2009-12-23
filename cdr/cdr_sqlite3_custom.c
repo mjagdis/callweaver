@@ -74,7 +74,6 @@ static char values[1024];
 static int load_config(int reload)
 {
 	struct cw_config *cfg;
-	struct cw_variable *mappingvar;
 	const char *tmp;
 
 	if (!(cfg = cw_config_load(config_file))) {
@@ -91,7 +90,7 @@ static int load_config(int reload)
 	if (!reload)
 		cw_mutex_lock(&lock);
 
-	if (!(mappingvar = cw_variable_browse(cfg, "master"))) {
+	if (!cw_variable_browse(cfg, "master")) {
 		/* nothing configured */
 		cw_config_destroy(cfg);
 		return 0;
@@ -237,7 +236,6 @@ static int load_module(void)
 	res = sqlite3_open(fn, &db);
 	if (!db) {
 		cw_log(CW_LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
-		sqlite3_free(zErr);
 		return -1;
 	}
 

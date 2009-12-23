@@ -132,7 +132,7 @@ int cw_address_print(char *buf, ssize_t buflen, const cw_address_t *addr)
 				p += INET_ADDRSTRLEN - 1;
 				buflen -= INET_ADDRSTRLEN - 1;
 			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), ":%u", ntohs(addr->sin.sin_port)) + 1;
+			p += snprintf(p, (buflen > 0 ? buflen : 0), ":%hu", ntohs(addr->sin.sin_port)) + 1;
 			break;
 		}
 
@@ -149,7 +149,7 @@ int cw_address_print(char *buf, ssize_t buflen, const cw_address_t *addr)
 				p += INET6_ADDRSTRLEN - 1;
 				buflen -= INET6_ADDRSTRLEN - 1;
 			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), "]:%u", ntohs(addr->sin6.sin6_port)) + 1;
+			p += snprintf(p, (buflen > 0 ? buflen : 0), "]:%hu", ntohs(addr->sin6.sin6_port)) + 1;
 			break;
 		}
 

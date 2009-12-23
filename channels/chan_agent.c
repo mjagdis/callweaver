@@ -2377,7 +2377,6 @@ static int agent_devicestate(void *data)
 	char *s;
 	cw_group_t groupmatch;
 	int groupoff;
-	int waitforagent=0;
 	int res = CW_DEVICE_INVALID;
 	
 	s = data;
@@ -2385,7 +2384,6 @@ static int agent_devicestate(void *data)
 		groupmatch = (1 << groupoff);
 	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
 		groupmatch = (1 << groupoff);
-		waitforagent = 1;
 	} else {
 		groupmatch = 0;
 	}

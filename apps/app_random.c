@@ -93,4 +93,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, "Random goto");
+MODULE_INFO(load_module, NULL, unload_module, NULL, "Random goto")

@@ -62,9 +62,9 @@ static inline void cw_dynstr_free(struct cw_dynstr *ds)
 
 
 extern CW_API_PUBLIC int cw_dynstr_vprintf(struct cw_dynstr **ds_p, const char *fmt, va_list ap)
-	__attribute__ ((nonnull (1,2)));
+	__attribute__ ((__nonnull__ (1,2)));
 extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr **ds_p, const char *fmt, ...)
-	__attribute__ ((nonnull (1,2)));
+	__attribute__ ((__nonnull__ (1,2)));
 
 
 /* If you are looking at this trying to fix a weird compile error
@@ -115,14 +115,14 @@ extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr **ds_p, const char *f
  * the compiled code will have references to non-existent functions.
  */
 static __inline__ int cw_dynstr_tprintf(struct cw_dynstr **ds_p, size_t count, ...)
-	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
-static __inline__ int cw_dynstr_tprintf(struct cw_dynstr **ds_p, size_t count, ...)
+	__attribute__ ((__always_inline__, __const__, __unused__, __no_instrument_function__, __nonnull__ (1)));
+static __inline__ int cw_dynstr_tprintf(struct cw_dynstr **ds_p __attribute__((__unused__)), size_t count __attribute__((__unused__)), ...)
 {
 	return 0;
 }
 static __inline__ char *cw_fmtval(const char *fmt, ...)
-	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1), format (printf, 1,2)));
-static __inline__ char *cw_fmtval(const char *fmt, ...)
+	__attribute__ ((__always_inline__, __const__, __unused__, __no_instrument_function__, __nonnull__ (1), __format__ (printf, 1,2)));
+static __inline__ char *cw_fmtval(const char *fmt __attribute__((__unused__)), ...)
 {
 	return NULL;
 }
@@ -147,9 +147,17 @@ static __inline__ char *cw_fmtval(const char *fmt, ...)
 #else
 
 extern int cw_dynstr_tprintf(struct cw_dynstr **ds_p, size_t count, ...)
-	__attribute__ ((nonnull (1)));
+	__attribute__ ((__const__, __nonnull__ (1)));
+
+/* icc is keen on warning about unspecified order of evaluation for function
+ * arguments. Since the cw_fmtval() arguments to cw_dynstr_tprintf() aren't
+ * real we add some brackets to turn the arg list into a single arg consisting
+ * of a series of comma operators - which have defined order of execution.
+ */
+#  define cw_dynstr_tprintf(ds_p, count, ...) cw_dynstr_tprintf((ds_p), (count), (__VA_ARGS__))
+
 extern char *cw_fmtval(const char *fmt, ...)
-	__attribute__ ((nonnull (1), format (printf, 1,2)));
+	__attribute__ ((__const__, __nonnull__ (1), __format__ (printf, 1,2)));
 
 #endif
 

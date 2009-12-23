@@ -156,7 +156,7 @@ int cw_writestream(struct cw_filestream *fs, struct cw_frame *f)
 			fs->trans = NULL;
 		}
 		if (!fs->trans) 
-			fs->trans = cw_translator_build_path(fs->fmt->format, 8000, f->subclass, 8000);
+			fs->trans = cw_translator_build_path(fs->fmt->format, f->subclass);
 		if (!fs->trans)
 			cw_log(CW_LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, cw_getformatname(f->subclass));
 		else {
@@ -433,7 +433,6 @@ struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *fi
 	char filename2[256]="";
 	char filename3[256];
 	char *endpart;
-	int res;
 
 	if (!asis) {
 		/* do this first, otherwise we detect the wrong writeformat */
@@ -473,7 +472,7 @@ struct cw_filestream *cw_openstream_full(struct cw_channel *chan, const char *fi
 	}
 	chan->oldwriteformat = chan->writeformat;
 	/* Set the channel to a format we can work with */
-	res = cw_set_write_format(chan, fmts);
+	cw_set_write_format(chan, fmts);
 	
  	chan->stream = cw_fileopen(chan, filename2, NULL);
 	if (chan->stream)

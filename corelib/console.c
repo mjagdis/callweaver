@@ -66,7 +66,7 @@ static char *console_address;
 static int console_sock;
 
 static char remotehostname[MAXHOSTNAMELEN];
-static int remotepid;
+static unsigned int remotepid;
 static char remoteversion[256];
 
 static char *clr_eol;
@@ -113,7 +113,7 @@ static void smart_page(int page, const struct cw_dynstr *ds, int lines)
 				int ok = (fwrite(ds->data, ds->used, 1, fd) == 1);
 				if (pclose(fd) == 0 && ok)
 					return;
-
+			}
 		}
 	}
 
@@ -412,7 +412,7 @@ static int read_message(int s, int nresp)
 								memcpy(remotehostname, val, lval);
 								val[lval] = '\0';
 							} else if (lkey == sizeof("Pid")-1 && !memcmp(key, "Pid", sizeof("Pid") - 1))
-								remotepid = atol(val);
+								remotepid = strtoul(val, NULL, 10);
 							else if (lkey == sizeof("Version")-1 && !memcmp(key, "Version", sizeof("Version") - 1)) {
 								if (lval > sizeof(remoteversion) - 1)
 									lval = sizeof(remoteversion) - 1;
@@ -537,13 +537,13 @@ is_data:
 }
 
 
-static char *dummy_completer(char *text, int state)
+static char *dummy_completer(void)
 {
 	return NULL;
 }
 
 
-static char **cli_completion(const char *text, int start, int end)
+static char **cli_completion(void)
 {
 	struct iovec iov[3];
 
@@ -577,7 +577,7 @@ static char **cli_completion(const char *text, int start, int end)
 }
 
 
-static void console_cleanup(void *data)
+static void console_cleanup(void *data __attribute__((__unused__)))
 {
 	char filename[80];
 	char *p;
@@ -588,7 +588,7 @@ static void console_cleanup(void *data)
 	set_title("");
 
 	if ((p = getenv("HOME"))) {
-		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
+		snprintf(filename, sizeof(filename), "%s/.callweaver_history", p);
 		write_history(filename);
 	}
 }
@@ -738,7 +738,7 @@ void *console(void *data)
 
 	rl_initialize ();
 	rl_editing_mode = 1;
-	rl_completion_entry_function = (void *)dummy_completer; /* The typedef varies between platforms */
+	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer; /* The typedef varies between platforms */
 	rl_attempted_completion_function = (CPPFunction *)cli_completion;
 
 	/* Setup history with 100 entries */

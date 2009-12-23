@@ -170,7 +170,7 @@ icd_list *create_icd_list(icd_config * data)
 icd_status destroy_icd_list(icd_list ** listp)
 {
     icd_status vetoed;
-    int clear_result;
+    icd_status clear_result;
 
     assert(listp != NULL);
     assert((*listp) != NULL);
@@ -222,7 +222,7 @@ icd_status init_icd_list(icd_list * that, icd_config * data)
         that->name = icd_config__get_strdup(data, "name", "");
         that->size = icd_config__get_int_value(data, "size", 50);
         /* Set the dump function */
-        that->dump_fn = icd_config__get_any_value(data, "dump", icd_list__standard_dump);
+        that->dump_fn = (icd_status (*)(icd_list *, int, struct cw_dynstr **, void *))icd_config__get_any_value(data, "dump", icd_list__standard_dump);
 
         /* Set sort order */
         ins_fn = (icd_list_node * (*)(icd_list * that, void *new_elem, void *extra))
@@ -238,18 +238,19 @@ icd_status init_icd_list(icd_list * that, icd_config * data)
         icd_list__set_node_insert_func(that, ins_fn, extra);
 
         /* Set key function if any */
-        icd_list__set_key_check_func(that, icd_config__get_value(data, "key.function"));
+        icd_list__set_key_check_func(that, (int (*)(const void *, void *))icd_config__get_value(data, "key.function"));
 
         /* Set notify function. This incantation will assign the correct function
            pointer (or a dummy one if not specified) and extra parameter (or NULL
            if not specified) */
-        icd_list__set_add_node_notify_func(that, icd_config__get_any_value(data, "add.notify.function",
+        icd_list__set_add_node_notify_func(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "add.notify.function",
                 icd_list__dummy_notify_hook), icd_config__get_value(data, "add.notify.extra"));
-        icd_list__set_remove_node_notify_func(that, icd_config__get_any_value(data, "remove.notify.function",
+        icd_list__set_remove_node_notify_func(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "remove.notify.function",
                 icd_list__dummy_notify_hook), icd_config__get_value(data, "remove.notify.extra"));
-        icd_list__set_clear_list_notify_func(that, icd_config__get_any_value(data, "clear.notify.function",
+        icd_list__set_clear_list_notify_func(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "clear.notify.function",
                 icd_list__dummy_notify_hook), icd_config__get_value(data, "clear.notify.extra"));
-        icd_list__set_destroy_list_notify_func(that, icd_config__get_any_value(data, "destroy.notify.function",
+        icd_list__set_destroy_list_notify_func(that,
+                (int (*)(icd_event *, void *))icd_config__get_any_value(data, "destroy.notify.function",
                 icd_list__dummy_notify_hook), icd_config__get_value(data, "destroy.notify.extra"));
     } else {
 
@@ -303,7 +304,6 @@ icd_status icd_list__clear(icd_list * that)
     icd_status vetoed;
     int count;
     int x;
-    void *result;
 
     assert(that != NULL);
 
@@ -330,7 +330,7 @@ icd_status icd_list__clear(icd_list * that)
     /* Get rid of each node on the list. */
     count = icd_list__count(that);
     for (x = 0; x < count; x++) {
-        result = icd_list__pop(that);
+        icd_list__pop(that);
     }
     count = icd_list__count(that);
     if (count != 0) {
@@ -1014,8 +1014,8 @@ icd_status icd_list__standard_dump(icd_list * list, int verbosity, struct cw_dyn
         cw_fmtval("      name=%s\n", icd_list__get_name(list)),
         cw_fmtval("     count=%d\n", list->count),
         cw_fmtval("      size=%d\n", list->size),
-        cw_fmtval("     state=%d\n", list->state),
-        cw_fmtval("  category=%d\n", list->category)
+        cw_fmtval("     state=%d\n", (int)list->state),
+        cw_fmtval("  category=%d\n", (int)list->category)
     );
 
     if (verbosity > 2) {

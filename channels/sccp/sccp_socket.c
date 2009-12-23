@@ -220,14 +220,14 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 
 	m = malloc(SCCP_MAX_PACKET);
 	if (!m) {
-		cw_log(CW_LOG_WARNING, "SCCP: unable to allocate %zd bytes for skinny packet\n", SCCP_MAX_PACKET);
+		cw_log(CW_LOG_WARNING, "SCCP: unable to allocate %zu bytes for skinny packet\n", SCCP_MAX_PACKET);
 		return NULL;
 	}
 	
 	memset(m, 0, SCCP_MAX_PACKET);
 	
 	if (packSize > SCCP_MAX_PACKET)
-		cw_log(CW_LOG_WARNING, "SCCP: Oversize packet mid: %d, our packet size: %zd, phone packet size: %d\n", letohl(m->lel_messageId), SCCP_MAX_PACKET, packSize);
+		cw_log(CW_LOG_WARNING, "SCCP: Oversize packet mid: %d, our packet size: %zu, phone packet size: %u\n", letohl(m->lel_messageId), SCCP_MAX_PACKET, packSize);
 
 	memcpy(m, s->buffer, (packSize < SCCP_MAX_PACKET ? packSize : SCCP_MAX_PACKET) );
 
@@ -238,7 +238,7 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 		if (newptr)
 			memcpy(newptr, (s->buffer + packSize), s->buffer_size);
 		else
-			cw_log(CW_LOG_WARNING, "SCCP: unable to allocate %zd bytes for packets buffer\n", SCCP_MAX_PACKET);
+			cw_log(CW_LOG_WARNING, "SCCP: unable to allocate %zu bytes for packets buffer\n", SCCP_MAX_PACKET);
 	}
 
 	if (s->buffer)

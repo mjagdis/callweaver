@@ -621,7 +621,7 @@ struct sip_request {
 	struct sip_request *next;            /*!< Next packet */
 	enum sipmethod method;		/*!< Method of this request */
 	unsigned int uriresp; 		/*!< The Request URI or Response Status */
-	int seqno;			/*!< Sequence number according to CSeq header */
+	unsigned int seqno;		/*!< Sequence number according to CSeq header */
 	enum sipmethod cseq_method;	/*!< Method according to CSeq header */
 	unsigned int cseq;	/*!< Offset of CSeq value in the data */
 	unsigned int cseq_len;	/*!< Length of CSeq value in the data */
@@ -1576,27 +1576,27 @@ static const struct cw_channel_tech sip_tech =
 
 
 
-static void sip_debug_ports(struct sip_pvt *p) {
+static void sip_debug_ports(struct sip_pvt *p)
+{
+    char iabuf[255];
     struct sockaddr_in sin;
     struct sockaddr_in udptlsin;
 
-    char iabuf[255];
+    if (option_debug > 8) {
 
-    if ( option_debug > 8 )
-    {
-
-        if ( p->owner )
+        if (p->owner)
             cw_log(CW_LOG_DEBUG,"DEBUG PORTS CHANNEL %s\n", p->owner->name);
+
         if (p->udptl) {
             cw_udptl_get_us(p->udptl, &udptlsin);
-            cw_log(CW_LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%d...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+            cw_log(CW_LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
         }
+
         if (p->rtp) {
             cw_rtp_get_us(p->rtp, &sin);
-            cw_log(CW_LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%d...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
+            cw_log(CW_LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));
         }
     }
-
 }
 
 /*! \brief  find_sip_method: Find SIP method from header
@@ -1611,11 +1611,11 @@ static enum sipmethod find_sip_method(const char *msg)
         for (i = 1; i < arraysize(sip_methods); i++)
         {
             if (!strcasecmp(sip_methods[i].text, msg)) 
-                return i;
+                return (enum sipmethod)i;
         }
     }
 
-    return 0;
+    return SIP_UNKNOWN;
 }
 
 /*! \brief  parse_sip_options: Parse supported header in incoming packet */
@@ -1666,7 +1666,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
     {
         pvt->sipoptions = profile;
         if (option_debug)
-            cw_log(CW_LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
+            cw_log(CW_LOG_DEBUG, "* SIP extension value: %u for call %s\n", profile, pvt->callid);
     }
     return profile;
 }
@@ -1770,7 +1770,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
     }
     
     if (res != len)
-        cw_log(CW_LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), res, strerror(errno));
+        cw_log(CW_LOG_WARNING, "sip_xmit of %p (len %d) to %s:%hu returned %d: %s\n", data, len, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), res, strerror(errno));
     return res;
 }
 
@@ -1926,9 +1926,9 @@ static int retrans_pkt(void *data)
         if (msg->owner && sip_debug_test_pvt(msg->owner))
         {
             if ( sip_is_nat_needed(msg->owner) )
-                cw_verbose("SIP TIMER: #%d: Retransmitting (NAT) to %s:%d:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->recv.sin_addr), ntohs(msg->owner->recv.sin_port), msg->data);
+                cw_verbose("SIP TIMER: #%d: Retransmitting (NAT) to %s:%hu:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->recv.sin_addr), ntohs(msg->owner->recv.sin_port), msg->data);
             else
-                cw_verbose("SIP TIMER: #%d: Retransmitting (no NAT) to %s:%d:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->sa.sin_addr), ntohs(msg->owner->sa.sin_port), msg->data);
+                cw_verbose("SIP TIMER: #%d: Retransmitting (no NAT) to %s:%hu:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->sa.sin_addr), ntohs(msg->owner->sa.sin_port), msg->data);
         }
         if (sipdebug && option_debug > 3)
             cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", msg->retransid, sip_methods[msg->method].text, reschedule, msg->owner->timer_t1);
@@ -1969,7 +1969,7 @@ static int retrans_pkt(void *data)
         if (msg->owner && msg->method != SIP_OPTIONS)
         {
             if (cw_test_flag(msg, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s) SIP Timer T1=%d\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(msg, FLAG_RESPONSE)) ? "Response" : "Request", msg->owner->timer_t1);
+                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %u (%s %s) SIP Timer T1=%d\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL) ? "Critical" : "Non-critical"), (cw_test_flag(msg, FLAG_RESPONSE) ? "Response" : "Request"), msg->owner->timer_t1);
         }
         else
         {
@@ -2353,10 +2353,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
                 struct sockaddr_in port;
     
                 cw_rtp_get_us(p->rtp,&port);
-                snprintf(buf, SIP_MAX_LINE_LEN, 
-                         "m=audio %d RTP/AVP %s", ntohs(port.sin_port),
-                         ((s = strstr(tmpsdl->content, "RTP/AVP ")) ?  s + 8 : "")
-                    );
+                s = strstr(tmpsdl->content, "RTP/AVP ");
+                snprintf(buf, SIP_MAX_LINE_LEN, "m=audio %hu RTP/AVP %s", ntohs(port.sin_port), (s ? s + 8 : ""));
 #if STUN_DEV_DEBUG
                 if (stundebug)
                 {
@@ -2371,10 +2369,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
                 struct sockaddr_in port;
         
                 cw_rtp_get_us(p->vrtp,&port);
-                snprintf(buf, SIP_MAX_LINE_LEN, 
-                         "m=video %d RTP/AVP %s", ntohs(port.sin_port),
-                         ((s = strstr(tmpsdl->content,"RTP/AVP ")) ? s + 8 : "")
-                        );
+                s = strstr(tmpsdl->content,"RTP/AVP ");
+                snprintf(buf, SIP_MAX_LINE_LEN, "m=video %hu RTP/AVP %s", ntohs(port.sin_port), (s ? s + 8 : ""));
                 strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN-1);
             }
             else if (tmpsdl->type == SIP_DL_SDP_M_T38)
@@ -2384,7 +2380,7 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
                 if (t38udptlsupport)
                 {
                     cw_udptl_get_us(p->udptl, &port);
-                    snprintf(tmpsdl->content, SIP_MAX_LINE_LEN, "m=image %d udptl t38", ntohs(port.sin_port));
+                    snprintf(tmpsdl->content, SIP_MAX_LINE_LEN, "m=image %hu udptl t38", ntohs(port.sin_port));
                 }
             }
         }
@@ -2410,7 +2406,7 @@ static int send_response(struct sip_pvt *p, struct sip_request **req_p, int reli
 	if (rfc3489_active  &&  p->stun_needed == 1) {
 		struct sip_reqresp *rr;
 
-		cw_log(CW_LOG_DEBUG, "This call response %s seqno %d really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
+		cw_log(CW_LOG_DEBUG, "This call response %s seqno %u really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
 
 		if ((rr = malloc(sizeof(struct sip_reqresp)))) {
 			rr->type = 1;
@@ -2438,7 +2434,7 @@ static int send_response(struct sip_pvt *p, struct sip_request **req_p, int reli
 
 			if (rr->streq) {
 				if (stundebug)
-					cw_log(CW_LOG_DEBUG, "** Sent STUN packet for response %d\n", rr->streq->req_head.id.id[0]);
+					cw_log(CW_LOG_DEBUG, "** Sent STUN packet for response %u\n", rr->streq->req_head.id.id[0]);
 
 				if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr)) >= 0) {
 					*req_p = NULL;
@@ -2464,14 +2460,14 @@ static int send_response(struct sip_pvt *p, struct sip_request **req_p, int reli
 
 	if (sip_debug_test_pvt(p)) {
 		if (sip_is_nat_needed(p))
-			cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
+			cw_verbose("%sTransmitting (NAT) to %s:%hu:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
 		else
-			cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
+			cw_verbose("%sTransmitting (no NAT) to %s:%hu:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
 	}
 
 	if (recordhistory) {
 		for (res = sizeof("SIP/2.0 ") - 1; (*req_p)->data[res] != '\r'; res++);
-		append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), (*req_p)->cseq_len, (*req_p)->data + (*req_p)->cseq, (int)(res - (sizeof("SIP/2.0 ") - 1)), (*req_p)->data + sizeof("SIP/2.0 ") - 1);
+		append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), (int)(*req_p)->cseq_len, (*req_p)->data + (*req_p)->cseq, (int)(res - (sizeof("SIP/2.0 ") - 1)), (*req_p)->data + sizeof("SIP/2.0 ") - 1);
 	}
 
 	sip_dealloc_headsdp_lines(*req_p);
@@ -2495,7 +2491,7 @@ static int send_request(struct sip_pvt *p, struct sip_request **req_p, int relia
 	if (rfc3489_active && p->stun_needed == 1) {
 		struct sip_reqresp *rr;
 
-		cw_log(CW_LOG_DEBUG, "This call request %s seqno %d really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
+		cw_log(CW_LOG_DEBUG, "This call request %s seqno %u really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
 
 		if ((rr = malloc(sizeof(struct sip_reqresp)))) {
 			rr->type = 2;
@@ -2523,7 +2519,7 @@ static int send_request(struct sip_pvt *p, struct sip_request **req_p, int relia
 
 			if (rr->streq) {
 				if (stundebug)
-					cw_log(CW_LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
+					cw_log(CW_LOG_DEBUG,"** Sent STUN packet for request %u\n",rr->streq->req_head.id.id[0]);
 				if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr))) {
 					*req_p = NULL;
 					return 0;
@@ -2546,13 +2542,13 @@ static int send_request(struct sip_pvt *p, struct sip_request **req_p, int relia
 
 	if (sip_debug_test_pvt(p)) {
 		if (sip_is_nat_needed(p))
-			cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
+			cw_verbose("%sTransmitting (NAT) to %s:%hu:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
 		else
-			cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
+			cw_verbose("%sTransmitting (no NAT) to %s:%hu:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
 	}
 
 	if (recordhistory)
-		append_history(p, "%-15s %d %s\n", (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), (*req_p)->seqno, sip_methods[(*req_p)->method].text);
+		append_history(p, "%-15s %u %s\n", (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), (*req_p)->seqno, sip_methods[(*req_p)->method].text);
 
 	sip_dealloc_headsdp_lines(*req_p);
 
@@ -2575,7 +2571,7 @@ static int sip_resend_reqresp(void *data)
     int res = 0;
 
     if (stundebug)
-        cw_log(CW_LOG_DEBUG, "** expected stun reqid %d\n", rr->streq->req_head.id.id[0]);
+        cw_log(CW_LOG_DEBUG, "** expected stun reqid %u\n", rr->streq->req_head.id.id[0]);
 
     rr->p->stun_retrans_no++;
     if (rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT) {
@@ -2590,7 +2586,7 @@ static int sip_resend_reqresp(void *data)
 
     if (stundebug)
         cw_log(CW_LOG_DEBUG, "** Trying to resend a packet after stun request. "
-                 "Type %d, seqno %d sched %d, callid %s\n", rr->type, rr->req->seqno, rr->p->stun_resreq_id, rr->callid);
+                 "Type %d, seqno %u sched %d, callid %s\n", rr->type, rr->req->seqno, rr->p->stun_resreq_id, rr->callid);
 
     if (p->rtp && cw_rtp_get_stunstate(p->rtp) == 1)
         cw_rtp_read(p->rtp);                /* RTP Stun search */
@@ -2624,7 +2620,7 @@ static int sip_resend_reqresp(void *data)
         rfc3489_addr_to_sockaddr(&msin, map);
         memcpy(&p->stun_transid, &rr->streq->req_head.id, sizeof(p->stun_transid));
         if (stundebug)
-            cw_log(CW_LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
+            cw_log(CW_LOG_DEBUG,"** STUN: Mapped address is %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
     }
     else
     {
@@ -2768,7 +2764,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
     nowtime += expiry;
     snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);    /* Expiration time */
     cw_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
-    snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+    snprintf(port, sizeof(port), "%hu", ntohs(sin->sin_port));
 
     if (cw_strlen_zero(sysname)) /* No system name, disable this */
 	sysname = NULL;
@@ -3517,38 +3513,52 @@ static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct
 /*! \brief  hangup_sip2cause: Convert SIP hangup causes to CallWeaver hangup causes */
 static int hangup_sip2cause(int cause)
 {
+    int ret;
+
     /* Possible values taken from causes.h */
     switch (cause)
     {
     case 603:	 /* Declined */
     case 403:    /* Not found */
     case 487:	 /* Call cancelled */
-        return CW_CAUSE_CALL_REJECTED;
+        ret = CW_CAUSE_CALL_REJECTED;
+        break;
     case 404:    /* Not found */
-        return CW_CAUSE_UNALLOCATED;
+        ret = CW_CAUSE_UNALLOCATED;
+        break;
     case 408:    /* No reaction */
-        return CW_CAUSE_NO_USER_RESPONSE;
+        ret = CW_CAUSE_NO_USER_RESPONSE;
+        break;
     case 480:    /* No answer */
-        return CW_CAUSE_NO_ANSWER;
+        ret = CW_CAUSE_NO_ANSWER;
+        break;
     case 483:    /* Too many hops */
-        return CW_CAUSE_NO_ANSWER;
+        ret = CW_CAUSE_NO_ANSWER;
+        break;
     case 486:    /* Busy everywhere */
-        return CW_CAUSE_BUSY;
+        ret = CW_CAUSE_BUSY;
+        break;
     case 488:    /* No codecs approved */
-        return CW_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+        ret = CW_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+        break;
     case 500:    /* Server internal failure */
-        return CW_CAUSE_FAILURE;
+        ret = CW_CAUSE_FAILURE;
+        break;
     case 501:    /* Call rejected */
-        return CW_CAUSE_FACILITY_REJECTED;
+        ret = CW_CAUSE_FACILITY_REJECTED;
+        break;
     case 502:    
-        return CW_CAUSE_DESTINATION_OUT_OF_ORDER;
+        ret = CW_CAUSE_DESTINATION_OUT_OF_ORDER;
+        break;
     case 503:    /* Service unavailable */
-        return CW_CAUSE_CONGESTION;
+        ret = CW_CAUSE_CONGESTION;
+        break;
     default:
-        return CW_CAUSE_NORMAL;
+        ret = CW_CAUSE_NORMAL;
+        break;
     }
-    /* Never reached */
-    return 0;
+
+    return ret;
 }
 
 /*! \brief  hangup_cause2sip: Convert CallWeaver hangup causes to SIP codes 
@@ -3585,49 +3595,64 @@ static int hangup_sip2cause(int cause)
 */
 static const char *hangup_cause2sip(int cause)
 {
+    const char *ret;
+
     switch(cause)
     {
         case CW_CAUSE_UNALLOCATED:        /* 1 */
         case CW_CAUSE_NO_ROUTE_DESTINATION:    /* 3 IAX2: Can't find extension in context */
         case CW_CAUSE_NO_ROUTE_TRANSIT_NET:    /* 2 */
-            return "404 Not Found";
+            ret = "404 Not Found";
+            break;
         case CW_CAUSE_CONGESTION:        /* 34 */
         case CW_CAUSE_SWITCH_CONGESTION:    /* 42 */
-            return "503 Service Unavailable";
+            ret = "503 Service Unavailable";
+            break;
         case CW_CAUSE_NO_USER_RESPONSE:    /* 18 */
-            return "408 Request Timeout";
+            ret = "408 Request Timeout";
+            break;
         case CW_CAUSE_NO_ANSWER:        /* 19 */
-            return "480 Temporarily unavailable";
+            ret = "480 Temporarily unavailable";
+            break;
         case CW_CAUSE_CALL_REJECTED:        /* 21 */
-            return "403 Forbidden";
+            ret = "403 Forbidden";
+            break;
         case CW_CAUSE_NUMBER_CHANGED:        /* 22 */
-            return "410 Gone";
+            ret = "410 Gone";
+            break;
         case CW_CAUSE_NORMAL_UNSPECIFIED:    /* 31 */
-            return "480 Temporarily unavailable";
+            ret = "480 Temporarily unavailable";
+            break;
         case CW_CAUSE_INVALID_NUMBER_FORMAT:
-            return "484 Address incomplete";
+            ret = "484 Address incomplete";
+            break;
         case CW_CAUSE_USER_BUSY:
-            return "486 Busy here";
+            ret = "486 Busy here";
+            break;
         case CW_CAUSE_FAILURE:
-                    return "500 Server internal failure";
+             ret = "500 Server internal failure";
+            break;
         case CW_CAUSE_FACILITY_REJECTED:    /* 29 */
-            return "501 Not Implemented";
+            ret = "501 Not Implemented";
+            break;
         case CW_CAUSE_CHAN_NOT_IMPLEMENTED:
-            return "503 Service Unavailable";
+            ret = "503 Service Unavailable";
+            break;
         /* Used in chan_iax2 */
         case CW_CAUSE_DESTINATION_OUT_OF_ORDER:
-            return "502 Bad Gateway";
+            ret = "502 Bad Gateway";
+            break;
         case CW_CAUSE_BEARERCAPABILITY_NOTAVAIL:    /* Can't find codec to connect to host */
-            return "488 Not Acceptable Here";
-            
+            ret = "488 Not Acceptable Here";
+            break;
         case CW_CAUSE_NOTDEFINED:
         default:
             cw_log(CW_LOG_DEBUG, "CW hangup cause %d (no match found in SIP)\n", cause);
-            return NULL;
+            ret = NULL;
+            break;
     }
 
-    /* Never reached */
-    return 0;
+    return ret;
 }
 
 
@@ -4114,7 +4139,7 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
 {
     int res1 = 0;
     int res2 = 0;
-    int bridge_res;
+    enum cw_bridge_result bridge_res;
 
     cw_channel_lock(c0);
     if (c0->tech->bridge == sip_bridge)
@@ -4821,7 +4846,7 @@ static int parse_request(struct parse_request_state *state, struct sip_request *
 					if (!strcasecmp(req->data + req->header[req->headers], "Call-id") || !strcasecmp(req->data + req->header[req->headers], "i")) {
 						req->callid = req->header_val[req->headers];
 					} else if (!strcasecmp(req->data + req->header[req->headers], "CSeq")) {
-						if (sscanf(req->data + req->header_val[req->headers], "%d %n", &req->seqno, &j)) {
+						if (sscanf(req->data + req->header_val[req->headers], "%u %n", &req->seqno, &j)) {
 							req->cseq_method = find_sip_method(req->data + req->header_val[req->headers] + j);
 						} else
 							req->method = SIP_UNKNOWN;
@@ -4996,7 +5021,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     int vportno = -1;
     int peercapability, peernoncodeccapability;
     int vpeercapability=0, vpeernoncodeccapability=0;
-    int codec;
+    unsigned int codec;
     int destiterator = 0;
     int iterator;
     int sendonly = 0;
@@ -5073,13 +5098,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             codecs = m + len;
             while (!cw_strlen_zero(codecs))
             {
-                if (sscanf(codecs, "%d%n", &codec, &len) != 1)
+                if (sscanf(codecs, "%u%n", &codec, &len) != 1)
                 {
                     cw_log(CW_LOG_WARNING, "Error in codec string '%s'\n", codecs);
                     return -1;
                 }
                 if (debug)
-                    cw_verbose("Found RTP audio format %d\n", codec);
+                    cw_verbose("Found RTP audio format %u\n", codec);
                 cw_rtp_set_m_type(p->rtp, codec);
                 codecs = cw_skip_blanks(codecs + len);
             }
@@ -5158,13 +5183,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             codecs = m + len;
             while (!cw_strlen_zero(codecs))
             {
-                if (sscanf(codecs, "%d%n", &codec, &len) != 1)
+                if (sscanf(codecs, "%u%n", &codec, &len) != 1)
                 {
                     cw_log(CW_LOG_WARNING, "Error in codec string '%s'\n", codecs);
                     return -1;
                 }
                 if (debug)
-                    cw_verbose("Found RTP video format %d\n", codec);
+                    cw_verbose("Found RTP video format %u\n", codec);
                 cw_rtp_set_m_type(p->vrtp, codec);
                 codecs = cw_skip_blanks(codecs + len);
             }
@@ -5210,8 +5235,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             cw_rtp_set_peer(p->rtp, &sin);
             if (debug)
             {
-                cw_verbose("Peer audio RTP is at port %s:%d\n", cw_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                cw_log(CW_LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                cw_verbose("Peer audio RTP is at port %s:%hu\n", cw_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                cw_log(CW_LOG_DEBUG,"Peer audio RTP is at port %s:%hu\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -5244,8 +5269,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             cw_rtp_set_peer(p->vrtp, &sin);
             if (debug)
             {
-                cw_verbose("Peer video RTP is at port %s:%d\n", cw_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-                cw_log(CW_LOG_DEBUG,"Peer video RTP is at port %s:%d\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                cw_verbose("Peer video RTP is at port %s:%hu\n", cw_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                cw_log(CW_LOG_DEBUG,"Peer video RTP is at port %s:%hu\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -5259,7 +5284,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             cw_udptl_set_peer(p->udptl, &sin);
             if (debug)
             {
-                cw_log(CW_LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d.\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+                cw_log(CW_LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%hu.\n",cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
             }
         }
     }
@@ -5605,7 +5630,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 
 	len = snprintf(req->data + req->len, sizeof(req->data) - req->len - 1,
 			"%s%s%n%s\r\n",
-			var, (var[0] && value[0] ? ": " : ""), &req->header_val[req->headers], value);
+			var, (var[0] && value[0] ? ": " : ""), (int *)&req->header_val[req->headers], value);
 
 	if (len > sizeof(req->data) - req->len - 1) {
 		cw_log(CW_LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
@@ -5810,7 +5835,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
                     /* Whoo hoo!  Now we can indicate port address translation too!  Just
                           another RFC (RFC3581). I'll leave the original comments in for
                           posterity.  */
-                    snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+                    snprintf(new, sizeof(new), "%s;received=%s;rport=%hu", tmp, cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
                 }
                 else
                 {
@@ -6031,7 +6056,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 }
 
 /*! \brief  reqprep: Initialize a SIP request response packet */
-static int reqprep(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, enum sipmethod sipmethod, int seqno, int newbranch)
+static int reqprep(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, enum sipmethod sipmethod, unsigned int seqno, int newbranch)
 {
     char stripped[80];
     char tmp[80];
@@ -6484,7 +6509,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
     if (debug)
     {
         if (p->udptl) {
-            cw_verbose("T.38 UDPTL is at port %s:%d...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));    
+            cw_verbose("T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
         }
     }
 
@@ -6516,7 +6541,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     add_line(resp, "t=0 0", SIP_DL_DONTCARE);
 
-    snprintf(buf, sizeof(buf), "m=image %d udptl t38", ntohs(udptldest.sin_port));
+    snprintf(buf, sizeof(buf), "m=image %hu udptl t38", ntohs(udptldest.sin_port));
     add_line(resp, buf, SIP_DL_SDP_M_T38);
 
     if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
@@ -6643,9 +6668,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     sip_debug_ports(p);
 
     if (debug){
-        cw_verbose("We're at %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));    
+        cw_verbose("We're at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));
         if (p->vrtp)
-            cw_verbose("Video is at %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));    
+            cw_verbose("Video is at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));
     }
 
     protocol = "AVP";
@@ -6674,8 +6699,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     add_line(resp, "t=0 0", SIP_DL_DONTCARE);
 
-    snprintf(m_audio, sizeof(m_audio), "m=audio %d RTP/%s", ntohs(dest.sin_port), protocol);
-    snprintf(m_video, sizeof(m_video), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+    snprintf(m_audio, sizeof(m_audio), "m=audio %hu RTP/%s", ntohs(dest.sin_port), protocol);
+    snprintf(m_video, sizeof(m_video), "m=video %hu RTP/AVP", ntohs(vdest.sin_port));
 
     /* Prefer the codec we were requested to use, first, no matter what */
     if (capability & p->prefcodec)
@@ -6876,7 +6901,6 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status,
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request *msg;
-	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
 		if (cw_test_flag(p, SIP_REINVITE_UPDATE))
@@ -6907,7 +6931,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 			cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
 		}
 
-		res = send_request(p, &msg, 1);
+		send_request(p, &msg, 1);
 
 		if (msg)
 			free(msg);
@@ -7676,7 +7700,6 @@ static int sip_reg_timeout(void *data)
     /* if we are here, our registration timed out, so we'll just do it over */
     struct sip_registry *r = data;
     struct sip_pvt *p;
-    int res;
 
     /* Since we are now running we can't be unscheduled therefore
      * even if we get a response handle_response_register will do
@@ -7719,7 +7742,7 @@ static int sip_reg_timeout(void *data)
 	if (r->regstate != REG_STATE_FAILED) {
             r->timeout = -1;
 	    /* transmit_regsiter inherits our reference and sets a new timeout */
-            res = transmit_register(r, SIP_REGISTER, NULL, NULL);
+            transmit_register(r, SIP_REGISTER, NULL, NULL);
         }
     } else
         cw_object_put(r);
@@ -8491,7 +8514,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (p->maxms)
         p->timer_t1 = rfc_timer_t1;
 
-    snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
+    snprintf(data, sizeof(data), "%s:%hu:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
     if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
         cw_db_put("SIP/Registry", p->name, data);
     cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
@@ -8504,7 +8527,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         if (p->pokeexpire == -1)
             p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
         if (option_verbose > 3)
-            cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+            cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %hu expires %d\n", p->name, cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
         register_peer_exten(p, 1);
     }
     
@@ -9564,7 +9587,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
         p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 
         if (sip_debug_test_pvt(p))
-            cw_verbose("Sending to %s : %d (%s)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (sip_is_nat_needed(p) ? "NAT" : "non-NAT"));
+            cw_verbose("Sending to %s:%hu (%s)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (sip_is_nat_needed(p) ? "NAT" : "non-NAT"));
     }
     return 0;
 }
@@ -9943,7 +9966,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
         else
         { 
             if (debug)
-                cw_verbose("Found no matching peer or user for '%s:%d'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+                cw_verbose("Found no matching peer or user for '%s:%hu'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 
             /* do we allow guests? */
             if (!global_allowguest) {
@@ -10653,9 +10676,9 @@ static int sip_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
             cw_fmtval("  LastMsg          : %d\n", peer->lastmsg),
             cw_fmtval("  ToHost           : %s\n", peer->tohost),
             cw_fmtval("  Address-IP       : %s\n", (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf1, sizeof(iabuf1), peer->addr.sin_addr) : "")),
-            cw_fmtval("  Address-port     : %d\n", ntohs(peer->addr.sin_port)),
+            cw_fmtval("  Address-port     : %hu\n", ntohs(peer->addr.sin_port)),
             cw_fmtval("  Default-addr-IP  : %s\n", cw_inet_ntoa(iabuf2, sizeof(iabuf2), peer->defaddr.sin_addr)),
-            cw_fmtval("  Default-addr-port: %d\n", ntohs(peer->defaddr.sin_port)),
+            cw_fmtval("  Default-addr-port: %hu\n", ntohs(peer->defaddr.sin_port)),
             cw_fmtval("  Default-Username : %s\n", peer->username),
             cw_fmtval("  Status           : %s\n", peer_status(peer)),
             cw_fmtval("  RTT              : %dms\n", peer->timer_t1),
@@ -11620,7 +11643,7 @@ static int sip_do_debug_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
             debugaddr.sin_family = AF_INET;
             memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
             debugaddr.sin_port = peer->addr.sin_port;
-            cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+            cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
             sipdebug |= SIP_DEBUG_CONSOLE;
         }
         else
@@ -12843,7 +12866,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
 
         expires_ms = expires * 1000;
         if (expires <= EXPIRY_GUARD_LIMIT)
-            expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
+            expires_ms -= MAX((int)(expires_ms * EXPIRY_GUARD_PCT), EXPIRY_GUARD_MIN);
         else
             expires_ms -= EXPIRY_GUARD_SECS * 1000;
         if (sipdebug)
@@ -12966,7 +12989,6 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     struct cw_channel *owner;
     enum sipmethod sipmethod;
     int resp;
-    int res = 1;
 
     /* Cease retransmissions of whatever the response is to */
     retrans_stop(p, req->seqno, 0, req->cseq_method, (*(req->data + req->uriresp) != '1'));
@@ -12981,7 +13003,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
 
     if (p->ocseq && (p->ocseq < req->seqno))
     {
-        cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", req->seqno, p->ocseq);
+        cw_log(CW_LOG_DEBUG, "Ignoring out of order response %u (expecting %u)\n", req->seqno, p->ocseq);
         return;
     }
 
@@ -13020,7 +13042,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
            Well, as long as it's not a 100 response...  since we might
            need to hang around for something more "definitive" */
 
-        res = handle_response_peerpoke(p, resp, req, ignore, req->seqno, sipmethod);
+        handle_response_peerpoke(p, resp, req, ignore, req->seqno, sipmethod);
     }
     else if (cw_test_flag(p, SIP_OUTGOING))
     {
@@ -13074,7 +13096,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, req->seqno);
+                handle_response_register(p, resp, req, ignore, req->seqno);
 	    } else if (sipmethod == SIP_BYE) {
 		/* Ok, we're ready to go */
 		sip_destroy(p);
@@ -13087,7 +13109,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, req->seqno);
+                handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -13102,7 +13124,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, req->seqno);
+                handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -13112,7 +13134,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 404: /* Not found */
             if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, req->seqno);
+                handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else if (sipmethod == SIP_INVITE)
             {
@@ -13129,7 +13151,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER)
             {
                 if (cw_strlen_zero(p->authname))
-                    cw_log(CW_LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
+                    cw_log(CW_LOG_WARNING, "Asked to authenticate %s, to %s:%hu but we have no matching peer!\n",
                             msg, cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
                     sip_destroy(p);
                 if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0))
@@ -13140,7 +13162,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, req->seqno);
+                handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -13352,7 +13374,7 @@ static void *sip_park_thread(void *stuff)
     struct sip_dual *d;
     struct sip_request req;
     int ext;
-    int res;
+
     d = stuff;
     chan1 = d->chan1;
     chan2 = d->chan2;
@@ -13361,7 +13383,7 @@ static void *sip_park_thread(void *stuff)
     cw_channel_lock(chan1);
     cw_do_masquerade(chan1);
     cw_channel_unlock(chan1);
-    res = cw_park_call(chan1, chan2, 0, &ext);
+    cw_park_call(chan1, chan2, 0, &ext);
     /* Then hangup */
     cw_hangup(chan2);
     cw_log(CW_LOG_DEBUG, "Parked on extension '%d'\n", ext);
@@ -14467,7 +14489,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
      */
 
     if (option_debug > 2)
-        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[req->method].text, req->method, req->data);
+        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[req->method].text, (int)req->method, req->data);
 
     /* RFC3261: 12.2.2
      *     If the remote sequence number was not empty, and
@@ -14499,7 +14521,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             else
             {
 	        if (option_debug)
-                    cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", req->seqno, p->icseq);
+                    cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %u (expecting >= %u)\n", req->seqno, p->icseq);
                 transmit_response(p, "500 Server Internal Error", req);
                 return -1;
             }
@@ -14512,7 +14534,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	     */
             ignore = 2;
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[req->method].text, p->icseq, req->seqno);
+                cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %u, ours %u)\n", sip_methods[req->method].text, p->icseq, req->seqno);
         }
     }
 
@@ -14727,7 +14749,7 @@ static int handle_message(void *data)
 		 */
 		if (dialogue) {
 			if (req->method == SIP_ACK)
-				retrans_stop(dialogue, req->seqno, FLAG_RESPONSE, -1, 1);
+				retrans_stop(dialogue, req->seqno, FLAG_RESPONSE, SIP_UNKNOWN, 1);
 		} else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 			/* FIXME: If the message contains something purporting to be our tag
@@ -15009,7 +15031,7 @@ static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  do_monitor: The SIP monitoring thread */
-static void *do_monitor(void *data)
+static __attribute__((__noreturn__)) void *do_monitor(void *data)
 {
     struct do_monitor_dialogue_args args;
     struct cw_io_rec sipsock_read_id;
@@ -15090,9 +15112,6 @@ static void *do_monitor(void *data)
         }
 #endif
     }
-    /* Never reached */
-    return NULL;
-    
 }
 
 
@@ -15255,7 +15274,6 @@ static int sip_devicestate(void *data)
     char *host;
     char *tmp;
 
-    struct hostent *hp;
     struct cw_hostent ahp;
     struct sip_peer *p;
 
@@ -15301,7 +15319,7 @@ static int sip_devicestate(void *data)
     }
     else
     {
-        if ((hp = cw_gethostbyname(host, &ahp)))
+        if (cw_gethostbyname(host, &ahp))
             res = CW_DEVICE_UNKNOWN;
     }
 
@@ -16836,12 +16854,12 @@ static int reload_config(void)
             else
             {
                 if (option_verbose > 1)
-                { 
-                    cw_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
+                {
+                    cw_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%hu\n",
                     cw_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
                     cw_verbose(VERBOSE_PREFIX_2 "Using ToS bits %d\n", tos);
                 }
-                if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
+                if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
                     cw_log(CW_LOG_WARNING, "Unable to set ToS to %d\n", tos);
             }
         }
@@ -17009,7 +17027,7 @@ static int sip_set_udptl_peer(struct cw_channel *chan, cw_udptl_t *udptl)
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             transmit_reinvite_with_t38_sdp(p);
         }
@@ -17018,7 +17036,7 @@ static int sip_set_udptl_peer(struct cw_channel *chan, cw_udptl_t *udptl)
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -17130,7 +17148,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
                 {
                     char iabuf[INET_ADDRSTRLEN];
                     if (flag)
-                        cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                        cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
                         cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
                 }
@@ -17142,7 +17160,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
                 {
                     char iabuf[INET_ADDRSTRLEN];
                     if (flag)
-                        cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                        cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
                         cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
                 }
@@ -17171,7 +17189,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
         {
             char iabuf[INET_ADDRSTRLEN];
             if (flag)
-                cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+                cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
             else
                 cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
         }

@@ -212,12 +212,11 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 	struct valetparkeduser *pu, *cur;
 	struct cw_var_t *var;
 	int x;
+	int ret = -1;
 
 	x = *extout;
 	pu = calloc(1, sizeof(struct valetparkeduser));
 	if (pu) {
-		int res = 0;
-
 		cw_mutex_lock(&valetparking_lock);
 		if(lotname) {
 			strncpy(pu->lotname,lotname,sizeof(pu->lotname));
@@ -290,9 +289,9 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 				while(chan && !cw_check_hangup(chan) && !strcmp(chan->name, lastname)) {
 					time(&now);
 					if (now - then > 2) {
-						if(! (res = cw_streamfile(chan, "vm-extension", chan->language))) {
-							if (! (res = cw_waitstream(chan, ""))) {
-								res = cw_say_digits(chan, pu->valetparkingnum, "", chan->language);
+						if(!cw_streamfile(chan, "vm-extension", chan->language)) {
+							if (!cw_waitstream(chan, "")) {
+								cw_say_digits(chan, pu->valetparkingnum, "", chan->language);
 							}
 						}
 						time(&then);
@@ -317,18 +316,17 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 			  );
 			cw_device_state_changed("Valet/%d@%s", pu->valetparkingnum, lotname);
 
-			return 0;
+			ret = 0;
 		} else {
 			cw_log(CW_LOG_WARNING, "No more valetparking spaces\n");
 			free(pu);
 			cw_mutex_unlock(&valetparking_lock);
-			return -1;
 		}
 	} else {
 		cw_log(CW_LOG_WARNING, "Out of memory\n");
-		return -1;
 	}
-	return 0;
+
+	return ret;
 }
 
 static int cw_masq_valetpark_call(struct cw_channel *rchan,int timeout, int *extout,char *lotname)
@@ -546,7 +544,6 @@ static int valetpark_call(struct cw_channel *chan, int argc, char **argv, char *
 static struct cw_channel *do_valetunpark(struct cw_channel *chan, char *exten, char *lotname)
 {
 	int res=0;
-	struct cw_channel *peer=NULL;
 	struct valetparkeduser *pu, *pl=NULL;
 	int valetpark=-1;
 	struct cw_channel *rchan = NULL;
@@ -599,7 +596,6 @@ static struct cw_channel *do_valetunpark(struct cw_channel *chan, char *exten, c
 	cw_device_state_changed("Valet/%s@%s", exten, lotname);
 	if (pu) {
 		rchan = pu->chan;
-		peer = pu->chan;
 		free(pu);
 	}
 	

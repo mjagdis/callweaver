@@ -193,9 +193,7 @@ static void add_tm(sms_t *h)
 {
     uint8_t tx_msg[256];
     int tx_len;
-    int l;
 
-    l = -1;
     tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_INFO_MT, NULL, 0);
     tx_len += 2;
     tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, (uint8_t *)"CW", 2);
@@ -240,7 +238,7 @@ static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
             {
                 memcpy(body, field_body, field_len);
                 body[field_len] = '\0';
-                cw_log(CW_LOG_DEBUG, "Type %x, len %d, '%s'\n", field_type, field_len, body);
+                cw_log(CW_LOG_DEBUG, "Type %x, len %d, '%s'\n", field_type, field_len, (char *)body);
             }
             else
             {
@@ -1132,7 +1130,7 @@ static void sms_writefile(sms_t *h)
     snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
     mkdir(fn, 0777);            /* ensure it exists */
     cw_copy_string(fn2, fn, sizeof(fn2));
-    snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
+    snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%u", h->queue, isodate (h->scts), seq++);
     snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
     o = fopen(fn, "w");
     if (o)
@@ -1204,7 +1202,7 @@ static void sms_writefile(sms_t *h)
         if (h->dcs != 0xF1)
             fprintf(o, "dcs=%d\n", h->dcs);
         if (h->vp)
-            fprintf(o, "vp=%d\n", h->vp);
+            fprintf(o, "vp=%u\n", h->vp);
         if (h->srr)
             fprintf(o, "srr=1\n");
         if (h->mr >= 0)
@@ -1505,11 +1503,9 @@ static struct cw_frame *sms_generate(struct cw_channel *chan, void *data, int sa
     sms_t *h = (sms_t *) data;
     int i;
     int j;
-    int len;
 
     if (samples > sizeof(h->buf) / sizeof(h->buf[0]))
         samples = sizeof(h->buf) / sizeof(h->buf[0]);
-    len = samples * sizeof(h->buf[0]) + CW_FRIENDLY_OFFSET;
 
     cw_fr_init_ex(&h->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
     h->f.offset = CW_FRIENDLY_OFFSET;

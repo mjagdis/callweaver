@@ -64,9 +64,8 @@ static void *h263_open(FILE *f)
 {
     struct pvt *tmp;
     unsigned int ts;
-    int res;
 
-    if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts))
+    if (fread(&ts, 1, sizeof(ts), f) < sizeof(ts))
     {
         cw_log(CW_LOG_WARNING, "Empty file!\n");
         return NULL;

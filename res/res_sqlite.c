@@ -44,8 +44,8 @@
 #define LOG_UNIQUEID
 #define LOG_USERFIELD
 
-static char *create_dialplan_sql = "CREATE TABLE dialplan(context varchar(255), exten varchar(255), pri int, app varchar(255), data varchar(255));";
-static char *create_cdr_sql = 
+static const char create_dialplan_sql[] = "CREATE TABLE dialplan(context varchar(255), exten varchar(255), pri int, app varchar(255), data varchar(255));";
+static char create_cdr_sql[] =
 "CREATE TABLE cw_cdr (\n"
 "   acctid      INTEGER PRIMARY KEY,\n"
 "   clid        VARCHAR(80),\n"
@@ -69,7 +69,7 @@ static char *create_cdr_sql =
 ");\n";
 
 
-static char *create_config_sql = 
+static char create_config_sql[] =
 "create table cw_config (\n"
 "						 id integer primary key,\n"
 "						 cat_metric int not null default 0,\n"
@@ -157,21 +157,19 @@ static struct cw_registry cache_registry = {
 };
 
 
-static void pick_path(char *dbname,char *buf, size_t size) {
+static void pick_path(const char *dbname, char *buf, size_t size) {
 
-	memset(buf,0,size);
-	if (strchr(dbname,'/')) {
-		strncpy(buf,dbname,size);
-	}
-	else {
-		snprintf(buf,size,"%s/%s.db",cw_config_CW_DB_DIR,dbname);
+	if (strchr(dbname, '/')) {
+		strncpy(buf, dbname, size);
+	} else {
+		snprintf(buf, size, "%s/%s.db", cw_config_CW_DB_DIR, dbname);
 	}
 }
 
-static sqlite3 *open_db(char *filename) {
-	sqlite3 *db;
+static sqlite3 *open_db(const char *filename) {
 	char path[ARRAY_SIZE];
-	
+	sqlite3 *db;
+
 	pick_path(filename,path,ARRAY_SIZE);
 	if (sqlite3_open(path,&db)) {
 		cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n",sqlite3_errmsg(db));
@@ -969,31 +967,20 @@ static int sqlite_log(struct cw_cdr *batch)
 }
 
 
-static void check_table_exists(char *dbfile, char *test_sql, char *create_sql) {
+static void check_table_exists(const char *dbfile, const char *test_sql, const char *create_sql)
+{
 	sqlite3 *db;
 	char *errmsg;
 
-	if((db = open_db(dbfile))) {
-		if(test_sql) {
-			sqlite3_exec(
-						 db,
-						 test_sql,
-						 NULL,
-						 NULL,
-						 &errmsg
-						 );
+	if ((db = open_db(dbfile))) {
+		if (test_sql) {
+			sqlite3_exec(db, test_sql, NULL, NULL, &errmsg);
 
 			if (errmsg) {
-				cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n[%s]\nAuto Repairing!\n",errmsg,test_sql);
+				cw_log(CW_LOG_WARNING, "SQL ERR [%s]\n[%s]\nAuto Repairing!\n", errmsg, test_sql);
 				sqlite3_free(errmsg);
 				errmsg = NULL;
-				sqlite3_exec(
-							 db,
-							 create_sql,
-							 NULL,
-							 NULL,
-							 &errmsg
-							 );
+				sqlite3_exec(db, create_sql, NULL, NULL, &errmsg);
 				if (errmsg) {
 					cw_log(CW_LOG_WARNING,"SQL ERR [%s]\n[%s]\n",errmsg,create_sql);
 					sqlite3_free(errmsg);
@@ -1085,24 +1072,24 @@ static int load_config(int hard) {
 
 
 	if(has_cdr > 0) {
-		if((sql = sqlite3_mprintf("select count(*) from %q limit 1",cdr_table))) {
-			check_table_exists(cdr_dbfile,sql,create_cdr_sql);
+		if((sql = sqlite3_mprintf("select count(*) from %q limit 1", cdr_table))) {
+			check_table_exists(cdr_dbfile, sql, create_cdr_sql);
 			sqlite3_free(sql);
 			sql = NULL;
 		}
 	}
 
 	if(has_config > 0) {
-		if((sql = sqlite3_mprintf("select count(*) from %q limit 1",config_table))) {
-			check_table_exists(config_dbfile,sql,create_config_sql);
+		if((sql = sqlite3_mprintf("select count(*) from %q limit 1", config_table))) {
+			check_table_exists(config_dbfile, sql, create_config_sql);
 			sqlite3_free(sql);
 			sql = NULL;
 		}
 	}
 
 	if(has_switch > 0) {
-		if((sql = sqlite3_mprintf("select count(*) from %q limit 1",switch_table))) {
-			check_table_exists(switch_dbfile,sql,create_dialplan_sql);
+		if((sql = sqlite3_mprintf("select count(*) from %q limit 1", switch_table))) {
+			check_table_exists(switch_dbfile, sql, create_dialplan_sql);
 			sqlite3_free(sql);
 			sql = NULL;
 		}

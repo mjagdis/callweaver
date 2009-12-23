@@ -55,8 +55,6 @@ struct icd_member_list {
     int allocated;
 };
 
-static const int skipconst = 1;
-
 static int icd_member_list__identify_queue(const void *key, void *payload);
 static int icd_member_list__identify_distributor(const void *key, void *payload);
 static int icd_member_list__identify_caller(const void *key, void *payload);
@@ -383,15 +381,13 @@ icd_status icd_member_list__remove_listener(icd_member_list * that, void *listen
 /* Standard member list dump function */
 icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
-    icd_member_list *member_list;
+    //static const int skipconst = 1;
     icd_list_iterator *iter;
     icd_member *member;
     icd_caller *caller;
 
     assert(list != NULL);
     assert(list->dump_fn != NULL);
-
-    member_list = (icd_member_list *) list;
 
     /* temporary hack  
        replacing it means it will produce the same output just the right way

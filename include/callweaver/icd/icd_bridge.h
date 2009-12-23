@@ -30,7 +30,7 @@
 #define ICD_BRIDGE_H
 
 int icd_bridge_wait_ack(icd_caller * that);
-int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee);
+icd_status icd_bridge_call(icd_caller *bridger, icd_caller *bridgee);
 
 struct cw_channel *icd_request_and_dial(char *type, int format, void *data, int timeout, int *outstate,
     char *callerid, icd_caller * caller, icd_caller * peer, icd_caller_state req_state);

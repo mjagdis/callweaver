@@ -126,9 +126,8 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
 
 static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	int res;
-	char tech[80];
 	char txt[256] = "";
+	char tech[80];
 	char dest[80];
 	struct localuser *u;
 
@@ -138,7 +137,7 @@ static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, c
 	if (buf) {
 		LOCAL_USER_ADD(u);
 
-		res = cw_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+		cw_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
 
 		if (!cw_strlen_zero(txt))
 	        	cw_copy_string(buf, txt, len);

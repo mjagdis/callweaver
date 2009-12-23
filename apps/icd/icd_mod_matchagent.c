@@ -38,51 +38,50 @@ extern int icd_verbose;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);
                                            
 static void *icd_distributor__match_agent_run(void *that) 
-{ 
-	    icd_distributor *dist; 
-	    icd_status result; 
- 	 
-	    assert(that != NULL); 
-	    assert(((icd_distributor *)that)->customers != NULL); 
-	    assert(((icd_distributor *)that)->agents != NULL); 
-	 
-	    dist = (icd_distributor *)that; 
-	     
-	    while (dist->thread_state != ICD_THREAD_STATE_FINISHED) { 
-	        if (dist->thread_state == ICD_THREAD_STATE_RUNNING) { 
-	            result = icd_distributor__lock(dist); 
-	            /* Distribute callers if we can, or pause until some are added */ 
+{
+	    icd_distributor *dist;
+
+	    assert(that != NULL);
+	    assert(((icd_distributor *)that)->customers != NULL);
+	    assert(((icd_distributor *)that)->agents != NULL);
+
+	    dist = (icd_distributor *)that;
+
+	    while (dist->thread_state != ICD_THREAD_STATE_FINISHED) {
+	        if (dist->thread_state == ICD_THREAD_STATE_RUNNING) {
+	            icd_distributor__lock(dist);
+	            /* Distribute callers if we can, or pause until some are added */
 		while(icd_distributor__get_added_callers_number(dist) > 0){
 			icd_distributor__reset_added_callers_number(dist);
-			if (icd_distributor__customers_pending(dist) && icd_distributor__agents_pending(dist)) { 
-				result = icd_distributor__unlock(dist); 
-				/* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom 
-				* function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
-				*/ 
-				if (icd_verbose > 4) 
-				cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
-					icd_distributor__get_name(dist), dist->link_fn); 
-				result = dist->link_fn(dist, dist->link_fn_extra);   
-				result = icd_distributor__lock(dist); 
+			if (icd_distributor__customers_pending(dist) && icd_distributor__agents_pending(dist)) {
+				icd_distributor__unlock(dist);
+				/* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom
+				* function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn
+				*/
+				if (icd_verbose > 4)
+				cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",
+					icd_distributor__get_name(dist), dist->link_fn);
+				dist->link_fn(dist, dist->link_fn_extra);
+				icd_distributor__lock(dist);
 			}
-		} 
-		/* All distributor links are now created wait for changes of customer or agent list  */      
-		cw_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
-		result = icd_distributor__unlock(dist); 
-		if (icd_verbose > 4) 
-			cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  icd_distributor__get_name(dist));             
-		} else { 
-	            /* TBD - Make paused thread work better.  
-	             *        - Use pthread_cond_wait() 
-	             *        - Use same or different condition variable?  
-	             */ 
+		}
+		/* All distributor links are now created wait for changes of customer or agent list  */
+		cw_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */
+		icd_distributor__unlock(dist);
+		if (icd_verbose > 4)
+			cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  icd_distributor__get_name(dist));
+		} else {
+	            /* TBD - Make paused thread work better.
+	             *        - Use pthread_cond_wait()
+	             *        - Use same or different condition variable?
+	             */
  	        }
-	        /* Play nice */ 
-	        sched_yield(); 
-	    } 
-	    /* Do any cleanup here */ 
-	    return NULL; 
-} 
+	        /* Play nice */
+	        sched_yield();
+	    }
+	    /* Do any cleanup here */
+	    return NULL;
+}
 
 static icd_status init_icd_distributor_match_agent(icd_distributor * that, char *name, icd_config * data)
 {

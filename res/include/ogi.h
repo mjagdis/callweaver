@@ -35,14 +35,14 @@ typedef struct ogi_state {
 
 typedef struct ogi_command {
 	/* Null terminated list of the words of the command */
-	char *cmda[CW_MAX_CMD_LEN];
+	const char *cmda[CW_MAX_CMD_LEN];
 	/* Handler for the command (channel, OGI state, # of arguments, argument list). 
 	    Returns RESULT_SHOWUSAGE for improper arguments */
 	int (*handler)(struct cw_channel *chan, OGI *ogi, int argc, char *argv[]);
 	/* Summary of the command (< 60 characters) */
-	char *summary;
+	const char *summary;
 	/* Detailed usage information */
-	char *usage;
+	const char *usage;
 	struct ogi_command *next;
 } ogi_command;
 

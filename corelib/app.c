@@ -394,7 +394,6 @@ int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char
 	struct cw_dsp *sildet=NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
-	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;
 
 	if (silencethreshold < 0)
@@ -514,7 +513,6 @@ int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 						cw_fr_free(f);
-						gotsilence = 1;
 						outmsg=2;
 						break;
 					}
@@ -602,22 +600,21 @@ int cw_play_and_record(struct cw_channel *chan, const char *playfile, const char
 
 int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
 {
-	int d = 0;
-	char *fmts;
 	char comment[256];
-	int x, fmtcnt=1, res=-1,outmsg=0;
-	struct cw_frame *f;
+	char prependfile[80];
+	char *sfmt[MAX_OTHER_FORMATS];
 	struct cw_filestream *others[MAX_OTHER_FORMATS];
 	struct cw_filestream *realfiles[MAX_OTHER_FORMATS];
-	char *sfmt[MAX_OTHER_FORMATS];
-	char *stringp=NULL;
 	time_t start, end;
+	struct cw_frame *f;
+	char *fmts;
+	char *stringp=NULL;
 	struct cw_dsp *sildet;   	/* silence detector dsp */
+	int x, fmtcnt=1, res=-1,outmsg=0;
+	int d = 0;
 	int totalsilence = 0;
 	int dspsilence = 0;
-	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;	
-	char prependfile[80];
 	
 	if (silencethreshold < 0)
 		silencethreshold = global_silence_threshold;
@@ -733,7 +730,6 @@ int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfil
 					if (option_verbose > 2) 
 						cw_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 					cw_fr_free(f);
-					gotsilence = 1;
 					outmsg=2;
 					break;
 					}
@@ -791,10 +787,11 @@ int cw_play_and_prepend(struct cw_channel *chan, char *playfile, char *recordfil
 	}
 	*duration = end - start;
 #if 0
-	if (outmsg > 1) {
+	if (outmsg > 1)
 #else
-	if (outmsg) {
+	if (outmsg)
 #endif
+	{
 		struct cw_frame *fr;
 		for (x=0;x<fmtcnt;x++) {
 			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);

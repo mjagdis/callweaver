@@ -90,8 +90,9 @@ static char outdevname[50] = ALSA_OUTDEV;
 static struct timeval lasttime;
 #endif
 
-static int silencesuppression = 0;
+#ifdef ENABLE_SILENCETHRESHOLD
 static int silencethreshold = 1000;
+#endif
 
 CW_MUTEX_DEFINE_STATIC(alsalock);
 
@@ -2437,13 +2438,13 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	direction = 0;
 	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
 	if (rate != DESIRED_RATE) {
-		cw_log(CW_LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
+		cw_log(CW_LOG_WARNING, "Rate not correct, requested %d, got %u\n", DESIRED_RATE, rate);
 	}
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0) {
-		cw_log(CW_LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
+		cw_log(CW_LOG_ERROR, "period_size(%ld frames) is bad: %s\n", (long int)period_size, snd_strerror(err));
 	} else {
 		cw_log(CW_LOG_DEBUG, "Period size is %d\n", err);
 	}
@@ -2451,7 +2452,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	buffer_size = 4096 * 2; /* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0) {
-		cw_log(CW_LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
+		cw_log(CW_LOG_WARNING, "Problem setting buffer size of %ld: %s\n", (long int)buffer_size, snd_strerror(err));
 	} else {
 		cw_log(CW_LOG_DEBUG, "Buffer size is set to %d frames\n", err);
 	}
@@ -2508,7 +2509,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 #endif
 
-#if 0
+#ifdef ENABLE_SILENCETHRESHOLD
 	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, silencethreshold);
 	if (err < 0) {
 		cw_log(CW_LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
@@ -2657,7 +2658,6 @@ static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 	static char sizbuf[8000];
 	static int sizpos = 0;
 	int len = sizpos;
-	int pos;
 	int res = 0;
 	/* size_t frames = 0; */
 	snd_pcm_state_t state;
@@ -2680,7 +2680,6 @@ static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 	} else {
 		memcpy(sizbuf + sizpos, f->data, f->datalen);
 		len += f->datalen;
-		pos = 0;
 #ifdef ALSA_MONITOR
 		alsa_monitor_write(sizbuf, len);
 #endif
@@ -2911,13 +2910,11 @@ static const char autoanswer_usage[] =
 
 static int console_answer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	int res = RESULT_SUCCESS;
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
 		cw_dynstr_printf(ds_p, "No one is calling us\n");
-		res = RESULT_FAILURE;
 	} else {
 		hookstate = 1;
 		cursound = -1;
@@ -3108,11 +3105,13 @@ static int load_module(void)
 		while(v) {
 			if (!strcasecmp(v->name, "autoanswer"))
 				autoanswer = cw_true(v->value);
-			else if (!strcasecmp(v->name, "silencesuppression"))
-				silencesuppression = cw_true(v->value);
-			else if (!strcasecmp(v->name, "silencethreshold"))
+			else if (!strcasecmp(v->name, "silencesuppression")) {
+				/* DEPRECATED - it was never used, should it be? */
+			} else if (!strcasecmp(v->name, "silencethreshold")) {
+#ifdef ENABLE_SILENCETHRESHOLD
 				silencethreshold = atoi(v->value);
-			else if (!strcasecmp(v->name, "context"))
+#endif
+			} else if (!strcasecmp(v->name, "context"))
 				strncpy(context, v->value, sizeof(context)-1);
 			else if (!strcasecmp(v->name, "language"))
 				strncpy(language, v->value, sizeof(language)-1);

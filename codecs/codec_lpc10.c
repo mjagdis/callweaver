@@ -178,7 +178,7 @@ static int lpc10tolin_framein(void *pvt, struct cw_frame *f)
             return -1;
         }
         sd = tmp->buf + tmp->tail;
-        if (lpc10_decode(tmp->lpc10.dec, sd, f->data + len, LPC10_BYTES_IN_COMPRESSED_FRAME) < LPC10_SAMPLES_PER_FRAME)
+        if (lpc10_decode(tmp->lpc10.dec, sd, (const uint8_t *)f->data + len, LPC10_BYTES_IN_COMPRESSED_FRAME) < LPC10_SAMPLES_PER_FRAME)
         {
             cw_log(CW_LOG_WARNING, "Invalid lpc10 data\n");
             return -1;
@@ -329,4 +329,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "LPC10e to/from PCM16 (signed linear) translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "LPC10e to/from PCM16 (signed linear) translator")

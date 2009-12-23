@@ -133,7 +133,7 @@ icd_config *create_icd_config(icd_config_registry * registry, const char *name)
 /* Destroy a configuration set. */
 icd_status destroy_icd_config(icd_config ** configp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(configp != NULL);
     assert((*configp) != NULL);
@@ -441,7 +441,7 @@ icd_config_registry *create_icd_config_registry(const char *name)
 /* Destroy a configuration options registry. */
 icd_status destroy_icd_config_registry(icd_config_registry ** regp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(regp != NULL);
     assert((*regp) != NULL);
@@ -476,7 +476,7 @@ icd_status init_icd_config_registry(icd_config_registry * that, const char *name
 /* Clear a configuration registry. */
 icd_status icd_config_registry__clear(icd_config_registry * that)
 {
-    int result;
+    icd_status result;
 
     assert(that != NULL);
 

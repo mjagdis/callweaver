@@ -46,8 +46,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "say.h"
 
-/* Forward declaration */
-int wait_file(struct cw_channel *chan, const char *ints, const char *file, const char *lang);
 
 int cw_say_character_str_full(struct cw_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {

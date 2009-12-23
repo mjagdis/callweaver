@@ -60,7 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/srv.h"
 
 struct cw_netsock {
-	ASTOBJ_COMPONENTS(struct cw_netsock);
+	ASTOBJ_COMPONENTS(struct cw_netsock)
 	struct sockaddr_in bindaddr;
 	int sockfd;
 	struct cw_io_rec ioref;

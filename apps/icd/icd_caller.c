@@ -313,7 +313,6 @@ icd_status icd_caller_load_module()
     icd_plugable_fn *plugable_fns;
     icd_config *config;
     char buf[80];
-    icd_status result;
 
     plugable_fns = &icd_caller_plugable_fns;
     ICD_MEMSET_ZERO(plugable_fns, sizeof(plugable_fns));
@@ -321,12 +320,12 @@ icd_status icd_caller_load_module()
     config = create_icd_config(app_icd_config_registry, "agent_config");
     snprintf(buf, sizeof(buf), "CallerDefault");
     /*set function pointers in static struc icd_caller_plugable_fns for std icd_caller plugable functions */
-    result = init_icd_plugable_fns(plugable_fns, buf, config);  /* set all func ptrs to icd_call_standard[] */
+    init_icd_plugable_fns(plugable_fns, buf, config);  /* set all func ptrs to icd_call_standard[] */
     plugable_fns->allocated = 1;
 
     /*set function pointers in static strucs for agents/customers */
-    result = icd_agent_load_module(config);
-    result = icd_customer_load_module(config);
+    icd_agent_load_module(config);
+    icd_customer_load_module(config);
     destroy_icd_config(&config);
 
     return ICD_SUCCESS;
@@ -368,7 +367,7 @@ icd_caller *create_icd_caller(icd_config * data)
 icd_status destroy_icd_caller(icd_caller ** callp)
 {
     icd_status vetoed;
-    int clear_result;
+    icd_status clear_result;
 
     assert(callp != NULL);
     assert((*callp) != NULL);
@@ -398,12 +397,11 @@ icd_status destroy_icd_caller(icd_caller ** callp)
 /* Initialize a previously created caller */
 icd_status init_icd_caller(icd_caller * that, icd_config * data)
 {
+    char buf[80];
     pthread_condattr_t condattr;
     void *key;
     char *fieldstr;
     int fieldint;
-    char buf[80];
-    int result;
     icd_status vetoed;
 
     assert(that != NULL);
@@ -506,7 +504,7 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
 
     that->chan_string = icd_config__get_strdup(data, "channel", "");
     that->caller_id = icd_config__get_strdup(data, "caller_id", "");
-    that->get_plugable_fn = icd_config__get_any_value(data, "get.plugable.function", icd_caller_get_plugable_fns);
+    that->get_plugable_fn = (icd_plugable_fn *(*)(icd_caller *))icd_config__get_any_value(data, "get.plugable.function", icd_caller_get_plugable_fns);
 
     snprintf(buf, sizeof(buf), "Plugable functions of Caller %s", icd_caller__get_name(that));
     that->plugable_fns_list = create_icd_plugable_fn_list(buf, data);
@@ -521,7 +519,7 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
      icd_plugable__create_standard_fns(that->plugable_fns_list, data);
      */
 
-    that->dump_fn = icd_config__get_any_value(data, "dump", icd_caller__standard_dump);
+    that->dump_fn = (icd_status (*)(icd_caller *, int, struct cw_dynstr **, const void *))icd_config__get_any_value(data, "dump", icd_caller__standard_dump);
     that->dump_fn_extra = icd_config__get_any_value(data, "dump.extra", NULL);
 
     snprintf(buf, sizeof(buf), "Memberships of Caller %s", icd_caller__get_name(that));
@@ -536,9 +534,9 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
     that->using_caller_thread = 0;
 
     /* Create the condition that wakes up the thread running in __run() */
-    result = pthread_condattr_init(&condattr);
-    result = cw_cond_init(&(that->wakeup), &condattr);
-    result = pthread_condattr_destroy(&condattr);
+    pthread_condattr_init(&condattr);
+    cw_cond_init(&(that->wakeup), &condattr);
+    pthread_condattr_destroy(&condattr);
 
     vetoed = icd_event__generate(ICD_EVENT_INIT, NULL);
     if (vetoed == ICD_EVETO) {
@@ -1802,7 +1800,7 @@ icd_status icd_caller__lock(icd_caller * that)
 
     if (that->state == ICD_CALLER_STATE_CLEARED || that->state == ICD_CALLER_STATE_DESTROYED) {
         cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Lock failed due to state cleared or destroyed (%d)\n",
-            icd_caller__get_id(that), icd_caller__get_name(that), that->state);
+            icd_caller__get_id(that), icd_caller__get_name(that), (int)that->state);
         return ICD_ERESOURCE;
     }
    if (icd_debug)
@@ -1830,7 +1828,7 @@ icd_status icd_caller__unlock(icd_caller * that)
 
     if (that->state == ICD_CALLER_STATE_DESTROYED) {
         cw_log(CW_LOG_WARNING, "Caller id[%d] [%s] Unlock failed due to state destroyed (%d)\n",
-            icd_caller__get_id(that), icd_caller__get_name(that), that->state);
+            icd_caller__get_id(that), icd_caller__get_name(that), (int)that->state);
         return ICD_ERESOURCE;
     }
    if (icd_debug)
@@ -1983,7 +1981,6 @@ int icd_caller__ready_state_on_fail(icd_event * event, void *extra)
 int icd_caller__limited_ready_state_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
-    int *value;
 
     assert(event != NULL);
     //assert(extra != NULL);
@@ -1991,11 +1988,11 @@ int icd_caller__limited_ready_state_on_fail(icd_event * event, void *extra)
     that = icd_event__get_source(event);
     assert(that != NULL);
 
-    if (extra != NULL)
-        value = (int *) extra;
-
     /*
        TBD - Set up cleanup thread and add to list it keeps It will call icd_caller__clear()
+       if (extra != NULL)
+           value = (int *) extra;
+
        (*value)++;
        if ((*value) < 5) {
        icd_caller__set_state(that, ICD_CALLER_STATE_READY);
@@ -2458,7 +2455,6 @@ int icd_caller__standard_state_bridged(icd_event * event, void *extra)
 int icd_caller__standard_state_call_end(icd_event * event, void *extra)
 {
     icd_caller *that = NULL;
-    int ret;
 
     assert(event != NULL);
 
@@ -2471,9 +2467,9 @@ int icd_caller__standard_state_call_end(icd_event * event, void *extra)
  * in the agent / customer
 */
     if (icd_caller__has_role(that, ICD_AGENT_ROLE))
-        ret = icd_agent__standard_state_call_end(event, extra);
+        icd_agent__standard_state_call_end(event, extra);
     else
-        ret = icd_customer__standard_state_call_end(event, extra);
+        icd_customer__standard_state_call_end(event, extra);
 
     return 0;
 }
@@ -2566,7 +2562,6 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
 /*     char res; */
 /*     char *pos = NULL; */
 /*     int cleanup_required = 0; */
-    int ret;
 
     assert(event != NULL);
     that = icd_event__get_source(event);
@@ -2574,7 +2569,7 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
     assert(that->params != NULL);
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE))
-        ret = icd_agent__standard_state_call_end(event, extra);
+        icd_agent__standard_state_call_end(event, extra);
 
 #if 0
     /* OffHook agent with PBX thread hungup */
@@ -2671,17 +2666,15 @@ icd_status icd_caller__standard_prepare_caller(icd_caller * that)
 /* Standard function for cleaning up a caller after a bridge ends or fails */
 icd_status icd_caller__standard_cleanup_caller(icd_caller * that)
 {
-    int ret;
-
     assert(that != NULL);
 /* TC we now going to use icd_[agent/customer]standard_cleanup_caller
  * and see how that work, if all in agreement then we can nuke this
 */
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE))
-        ret = icd_agent__standard_cleanup_caller(that);
+        icd_agent__standard_cleanup_caller(that);
     else
-        ret = icd_customer__standard_cleanup_caller(that);
+        icd_customer__standard_cleanup_caller(that);
 
     return ICD_SUCCESS;
 }
@@ -2697,16 +2690,16 @@ icd_status icd_caller__standard_launch_caller(icd_caller * that)
 /* Standard function for printing out a copy of the caller */
 icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
-    int skip_opening;
+    //int skip_opening;
 
     assert(caller != NULL);
 
-    if (extra == NULL) {
-        skip_opening = 0;
-    } else {
-        skip_opening = *((int *) extra);
-    }
     /* should be assume verbosity = -1 means debug ??
+       if (extra == NULL) {
+           skip_opening = 0;
+       } else {
+           skip_opening = *((int *) extra);
+       }
        if (skip_opening == 0) {
        cw_dynstr_printf(ds_p,"\nDumping icd_caller {\n");
        }
@@ -2964,9 +2957,9 @@ void icd_caller__dump_debug(icd_caller * that)
 void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, const char *indent)
 {
     const char *ptr;
-    const char *action;
+    //const char *action;
     const char *entertain;
-    const char *wakeup;
+    //const char *wakeup;
     const char *wait;
     int waittime;
 
@@ -2989,9 +2982,9 @@ void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, const
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
         /* Agent specfic attributes */
-        action = vh_read(that->params, "suspend.action");
+        //action = vh_read(that->params, "suspend.action");
         entertain = vh_read(that->params, "suspend.entertain");
-        wakeup = vh_read(that->params, "suspend.wakeup");
+        //wakeup = vh_read(that->params, "suspend.wakeup");
         wait = vh_read(that->params, "wrapup");
         waittime = 0;
         if (wait != NULL) {
@@ -3297,7 +3290,7 @@ icd_status icd_caller__remove_from_all_queues(icd_caller * that)
 
 icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate)
 {
-    int result;
+    icd_status result;
     icd_member *member;
     icd_list_iterator *iter;
     icd_queue *queue;
@@ -3430,7 +3423,7 @@ icd_status icd_caller__play_sound_file(icd_caller *caller, const char *file)
     if(ent)
         icd_caller__start_waiting(caller);
     
-    return res;
+    return (res ? ICD_EGENERAL : ICD_SUCCESS);
 }
 
 icd_status icd_caller__standard_stop_waiting(icd_caller * caller)
@@ -3498,7 +3491,6 @@ int icd_caller__get_plugable_fns_count(icd_caller *that) {
 icd_status icd_caller__set_plugable_fn_ptr(icd_caller * that, icd_plugable_fn * (*get_plugable_fn) (icd_caller *))
 {
     assert(that != NULL);
-    //icd_plugable__set_fn(that->get_plugable_fn ,get_plugable_fn);
     that->get_plugable_fn = get_plugable_fn;
     if (icd_debug)
         cw_log(CW_LOG_NOTICE, "\nCaller %d [%s] SET plugable_fn_ptr[%s] ready_fn[%p]\n", icd_caller__get_id(that),
@@ -3609,8 +3601,6 @@ void *icd_caller__standard_run(void *ptr)
     icd_caller *that;
     icd_caller_state state;
     icd_caller_state last_state;
-    icd_status result;
-    icd_status vetoed;
     icd_list *live_associations = NULL;
     icd_plugable_fn *icd_run;
     icd_customer *customer;
@@ -3675,10 +3665,10 @@ void *icd_caller__standard_run(void *ptr)
 
     while (that->thread_state != ICD_THREAD_STATE_FINISHED) {
         if (that->thread_state == ICD_THREAD_STATE_RUNNING) {
-            result = icd_caller__lock(that);
+            icd_caller__lock(that);
             state = icd_caller__get_state(that);
             if (last_state != state) {
-                result = icd_caller__unlock(that);
+                icd_caller__unlock(that);
                 last_state = state;
                 icd_run = that->get_plugable_fn(that);
                 switch (state) {
@@ -3764,8 +3754,7 @@ void *icd_caller__standard_run(void *ptr)
                      cw_log(CW_LOG_NOTICE, "Caller %d [%s] run[%p] in state - BRIDGED \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_bridged_fn);
                      */
-                    vetoed =
-                        icd_event__notify(ICD_EVENT_BRIDGED, live_associations, icd_run->state_bridged_fn,
+                     icd_event__notify(ICD_EVENT_BRIDGED, live_associations, icd_run->state_bridged_fn,
                         icd_run->state_bridged_fn_extra);
                     break;
                 case ICD_CALLER_STATE_CALL_END:
@@ -3840,7 +3829,7 @@ void *icd_caller__standard_run(void *ptr)
                 }
             } else {
                 cw_cond_wait(&(that->wakeup), &(that->lock));      /* wait for signal */
-                result = icd_caller__unlock(that);
+                icd_caller__unlock(that);
             }
         } else {
             /* TBD - Make paused thread work better.

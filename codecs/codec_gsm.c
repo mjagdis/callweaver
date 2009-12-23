@@ -173,7 +173,7 @@ static int gsmtolin_framein(void *pvt, struct cw_frame *f)
             cw_log(CW_LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
-        if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, encoded_chunk) != decoded_chunk)
+        if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, (const uint8_t *)f->data + x, encoded_chunk) != decoded_chunk)
         {
             cw_log(CW_LOG_WARNING, "Invalid GSM data (1)\n");
             return -1;
@@ -320,4 +320,4 @@ static int load_module(void)
     return 0;
 }
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "GSM06.10/PCM16 (signed linear) codec translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "GSM06.10/PCM16 (signed linear) codec translator")

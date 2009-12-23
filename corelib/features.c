@@ -116,7 +116,6 @@ static int featuredigittimeout;
 /* Registrar for operations */
 static const char *registrar = "features";
 
-static void *parkedcall_app;
 static const char parkedcall_name[] = "ParkedCall";
 static const char parkedcall_synopsis[] = "Answer a parked call";
 static const char parkedcall_syntax[] = "ParkedCall(exten)";
@@ -126,7 +125,6 @@ static const char parkedcall_descrip[] =
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static void *parkcall_app;
 static const char parkcall_name[] = "Park";
 static const char parkcall_synopsis[] = "Park yourself";
 static const char parkcall_syntax[] = "Park(exten)";
@@ -858,7 +856,6 @@ out:
 
 static int builtin_autopark(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
 {
-	char newext[256];
 	struct cw_channel *transferer;
 	struct cw_channel *transferee;
 	int res;
@@ -884,8 +881,6 @@ static int builtin_autopark(struct cw_channel *chan, struct cw_channel *peer, st
 		cw_autoservice_stop(transferee);
 		cw_indicate(transferee, CW_CONTROL_UNHOLD);
 		return res;
-	} else if (res > 0) {
-		newext[0] = (char) res;
 	}
 
 	cw_stopstream(transferer); 
@@ -1069,7 +1064,7 @@ static int cw_feature_interpret(struct cw_channel *chan, struct cw_channel *peer
 		cw_copy_flags(&features, &(config->features_caller), CW_FLAGS_ALL);	
 	else
 		cw_copy_flags(&features, &(config->features_callee), CW_FLAGS_ALL);	
-	cw_log(CW_LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+	cw_log(CW_LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%u\n", chan->name, peer->name, sense, features.flags);
 
 	for (x=0; x < FEATURES_COUNT; x++) {
 		if ((cw_test_flag(&features, builtin_features[x].feature_mask)) &&
@@ -1334,7 +1329,6 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 	struct cw_option_header *aoh;
 	struct timeval start = { 0 , 0 };
 	struct cw_bridge_config backup_config;
-	int allowdisconnect_in, allowdisconnect_out, allowredirect_in, allowredirect_out;
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -1381,10 +1375,6 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
 	}
 	
-	allowdisconnect_in = cw_test_flag(&(config->features_callee), CW_FEATURE_DISCONNECT);
-	allowdisconnect_out = cw_test_flag(&(config->features_caller), CW_FEATURE_DISCONNECT);
-	allowredirect_in = cw_test_flag(&(config->features_callee), CW_FEATURE_REDIRECT);
-	allowredirect_out = cw_test_flag(&(config->features_caller), CW_FEATURE_REDIRECT);
 	set_config_flags(chan, peer, config);
 	config->firstpass = 1;
 
@@ -1564,7 +1554,7 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 	return res;
 }
 
-static void *do_parking_thread(void *ignore)
+static __attribute__((__noreturn__)) void *do_parking_thread(void *ignore)
 {
 	int ms, tms, max;
 	struct parkeduser *pu, *pl, *pt = NULL;
@@ -1743,7 +1733,6 @@ std:					for (x=0; x<CW_MAX_FDS; x++) {
 		pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
-	return NULL;	/* Never reached */
 }
 
 static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
@@ -2183,11 +2172,9 @@ int cw_features_reload(void)
 
 			{
 				struct cw_call_feature *feature=find_feature(var->name);
-				int mallocd=0;
-				
+
 				if (!feature) {
 					feature=malloc(sizeof(struct cw_call_feature));
-					mallocd=1;
 				}
 				if (!feature) {
 					cw_log(CW_LOG_NOTICE, "Malloc failed at feature mapping\n");
@@ -2268,37 +2255,10 @@ int init_features(void)
 	cw_cli_register(&showfeatures);
 	cw_pthread_create(&parking_thread, &global_attr_default, do_parking_thread, NULL);
 
-	parkedcall_app = cw_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
-	parkcall_app = cw_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
+	cw_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
+	cw_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
 
 	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
 
 	return res;
 }
-
-
-#if 0
-static int unload_module(void)
-{
-	int res = 0;
-
-	/* We should never be unloaded */
-	cw_object_get(get_modinfo()->self);
-
-	if (!pthread_equal(parking_thread, CW_PTHREADT_NULL)) {
-		pthread_cancel(parking_thread);
-		pthread_kill(parking_thread, SIGURG);
-		pthread_join(parking_thread, NULL);
-		parking_thread = CW_PTHREADT_NULL;
-	}
-	cw_manager_unregister("ParkedCalls");
-	cw_cli_unregister(&showfeatures);
-	cw_cli_unregister(&showparked);
-	res |= cw_unregister_function(parkcall_app);
-	res |= cw_unregister_function(parkedcall_app);
-	return res;
-}
-
-
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "Call Features Resource")
-#endif

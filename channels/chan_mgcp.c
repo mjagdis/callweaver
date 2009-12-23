@@ -1813,7 +1813,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = cw_strdupa(a); /* ensures we have enough space */
-		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
+		if (sscanf(a, "rtpmap: %d %[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
 		cw_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
@@ -1907,9 +1907,9 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, const cha
 	req->header[req->headers] = req->data + req->len;
 	/* SC: check if we need brackets around the gw name */
 	if (p->parent->isnamedottedip)
-		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %d %s@[%s] MGCP 1.0\r\n", verb, oseq, p->name, p->parent->name);
+		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %u %s@[%s] MGCP 1.0\r\n", verb, oseq, p->name, p->parent->name);
 	else
-		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %d %s@%s MGCP 1.0\r\n", verb, oseq, p->name, p->parent->name);
+		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %u %s@%s MGCP 1.0\r\n", verb, oseq, p->name, p->parent->name);
 	req->len += strlen(req->header[req->headers]);
 	if (req->headers < MGCP_MAX_HEADERS)
 		req->headers++;
@@ -2059,12 +2059,8 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct cw_rtp *
 	char local[256];
 	char tmp[80];
 	int x;
-	int capability;
 	struct mgcp_endpoint *p = sub->parent;
 
-	capability = p->capability;
-	if (codecs)
-		capability = codecs;
 	if (cw_strlen_zero(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
 		   wait a bit */
@@ -2385,8 +2381,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 
 	if (!req) {
 		if (option_verbose > 2) {
-			cw_verbose(VERBOSE_PREFIX_3 "No command found on [%s] for transaction %d. Ignoring...\n", 
-				gw->name, ident);
+			cw_verbose(VERBOSE_PREFIX_3 "No command found on [%s] for transaction %u. Ignoring...\n", gw->name, ident);
 		}
 		return;
 	}
@@ -2400,10 +2395,10 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 			p->hookstate = MGCP_ONHOOK;
 			break;
 		case 406:
-			cw_log(CW_LOG_NOTICE, "Transaction %d timed out\n", ident);
+			cw_log(CW_LOG_NOTICE, "Transaction %u timed out\n", ident);
 			break;
 		case 407:
-			cw_log(CW_LOG_NOTICE, "Transaction %d aborted\n", ident);
+			cw_log(CW_LOG_NOTICE, "Transaction %u aborted\n", ident);
 			break;
 		}
 		if (sub) {
@@ -3510,13 +3505,11 @@ static int restart_monitor(void)
 
 static struct cw_channel *mgcp_request(const char *drvtype, int format, void *data, int *cause)
 {
-	int oldformat;
 	struct mgcp_subchannel *sub;
 	struct cw_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
 
-	oldformat = format;
 	format &= gcapability;
 	if (!format) {
 		cw_log(CW_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);

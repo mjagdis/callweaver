@@ -17,7 +17,7 @@
 #include "common.h"
 #include "vad.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define THRESH	200
 

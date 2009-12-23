@@ -64,11 +64,8 @@ static int maxretries = DEFAULT_ADSI_MAX_RETRIES;
 #define ADSI_SPEED_DIAL		10	/* 10-15 are reserved for speed dial */
 
 static char intro[ADSI_MAX_INTRO][20];
-static int aligns[ADSI_MAX_INTRO];
 
 static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
-
-static int alignment = 0;
 
 /* Predeclare all statics to make GCC 4.x happy */
 static int __adsi_transmit_message_full(struct cw_channel *, unsigned char *, int, int, int);
@@ -77,7 +74,7 @@ static int __adsi_data_mode(unsigned char *);
 static int __adsi_voice_mode(unsigned char *, int);
 static int __adsi_download_disconnect(unsigned char *);
 
-static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int len, int *remainder)
+static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int len, int *rem)
 {
 	/* Sends carefully on a full duplex channel by using reading for
 	   timing */
@@ -87,14 +84,14 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 	/* Zero out our outgoing frame */
 	memset(&outf, 0, sizeof(outf));
 
-	if (remainder && *remainder) {
+	if (rem && *rem) {
 		amt = len;
 
 		/* Send remainder if provided */
-		if (amt > *remainder)
-			amt = *remainder;
+		if (amt > *rem)
+			amt = *rem;
 		else
-			*remainder = *remainder - amt;
+			*rem = *rem - amt;
         cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW);
 		outf.data = buf;
 		outf.datalen = amt;
@@ -132,8 +129,8 @@ static int adsi_careful_send(struct cw_channel *chan, unsigned char *buf, int le
 			/* Send no more than they sent us */
 			if (amt > inf->datalen)
 				amt = inf->datalen;
-			else if (remainder)
-				*remainder = inf->datalen - amt;
+			else if (rem)
+				*rem = inf->datalen - amt;
             cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_ULAW);
 			outf.data = buf;
 			outf.datalen = amt;
@@ -160,7 +157,7 @@ static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg
 	/* msglen must be no more than 256 bits, each */
 	uint8_t cas_buf[MAX_CALLERID_SIZE]; /* Actually only need enough for CAS - <250ms */
 	adsi_tx_state_t adsi;
-	void *mem = NULL;
+	uint8_t *mem = NULL;
 	uint8_t *buf = NULL;
 	int16_t *lin = NULL;
 	int pos = 0, res;
@@ -231,15 +228,13 @@ static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg
 		} else
 			cw_log(CW_LOG_DEBUG, "Already in data mode\n");
 
-		if (!mem) {
-			mem = malloc(24000 * 5 * sizeof(uint16_t) + 24000 * 5 * sizeof(int8_t));
-			if (mem) {
-				lin = mem;
-				buf = mem + 24000 * 5 * sizeof(uint16_t);
-			} else {
-				cw_log(CW_LOG_ERROR, "Out of memory\n");
-				return -1;
-			}
+		mem = malloc(24000 * 5 * sizeof(uint16_t) + 24000 * 5 * sizeof(int8_t));
+		if (mem) {
+			lin = (typeof(lin))mem;
+			buf = mem + 24000 * 5 * sizeof(uint16_t);
+		} else {
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
+			return -1;
 		}
 
 		x = 0;
@@ -255,9 +250,9 @@ static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg
 			memcpy(buf+3, msg[x], msglen[x]);
 			adsi_tx_put_message(&adsi, buf, 3 + msglen[x]);
 			if (x + 1 - start != 1)
-                adsi_tx_set_preamble(&adsi, 0, 0, -1, -1);
-            else
-                adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
+				adsi_tx_set_preamble(&adsi, 0, 0, -1, -1);
+			else
+				adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
 			/* We should suppress the trailing marks as well except for
 			 * the last message but this isn't possible. Is it a problem?
 			 */
@@ -910,9 +905,8 @@ static int __adsi_set_line(unsigned char *buf, int page, int line)
 	buf[1] = bytes - 2;
 	return bytes;
 
-};
+}
 
-static int total = 0;
 static int speeds = 0;
 
 static int __adsi_channel_restore(struct cw_channel *chan)
@@ -990,10 +984,10 @@ static int __adsi_load_session(struct cw_channel *chan, unsigned char *app, int 
 			return 0;
 		}
 		if (!strcmp(resp, "B")) {
-			cw_log(CW_LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
+			cw_log(CW_LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", (char *)app, ver);
 			return 1;
 		} else if (!strcmp(resp, "A")) {
-			cw_log(CW_LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
+			cw_log(CW_LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", (char *)app, ver);
 		} else {
 			cw_log(CW_LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
 		}
@@ -1021,33 +1015,17 @@ static int __adsi_unload_session(struct cw_channel *chan)
 	return 0;
 }
 
-static int str2align(char *s)
-{
-	if (!strncasecmp(s, "l", 1))
-		return ADSI_JUST_LEFT;
-	else if (!strncasecmp(s, "r", 1))
-		return ADSI_JUST_RIGHT;
-	else if (!strncasecmp(s, "i", 1))
-		return ADSI_JUST_IND;
-	else
-		return ADSI_JUST_CENT;
-}
-
 static void init_state(void)
 {
 	int x;
 
-	for (x=0;x<ADSI_MAX_INTRO;x++)
-		aligns[x] = ADSI_JUST_CENT;
 	strncpy(intro[0], "Welcome to the", sizeof(intro[0]) - 1);
 	strncpy(intro[1], "CallWeaver", sizeof(intro[1]) - 1);
 	strncpy(intro[2], "Open Source PBX", sizeof(intro[2]) - 1);
-	total = 3;
 	speeds = 0;
 	for (x=3;x<ADSI_MAX_INTRO;x++)
 		intro[x][0] = '\0';
 	memset(speeddial, 0, sizeof(speeddial));
-	alignment = ADSI_JUST_CENT;
 }
 
 static void adsi_load(void)
@@ -1062,11 +1040,10 @@ static void adsi_load(void)
 		x=0;
 		v = cw_variable_browse(conf, "intro");
 		while(v) {
-			if (!strcasecmp(v->name, "alignment"))
-				alignment = str2align(v->value);
-			else if (!strcasecmp(v->name, "greeting")) {
+			if (!strcasecmp(v->name, "alignment")) {
+				/* DEPRECATED - it was never used, should it be? */
+			} else if (!strcasecmp(v->name, "greeting")) {
 				if (x < ADSI_MAX_INTRO) {
-					aligns[x] = alignment;
 					strncpy(intro[x], v->value, sizeof(intro[x]) - 1);
 					intro[x][sizeof(intro[x]) - 1] = '\0';
 					x++;
@@ -1078,8 +1055,6 @@ static void adsi_load(void)
 			v = v->next;
 		}
 		v = cw_variable_browse(conf, "speeddial");
-		if (x)
-			total = x;
 		x = 0;
 		while(v) {
 			char *stringp=NULL;

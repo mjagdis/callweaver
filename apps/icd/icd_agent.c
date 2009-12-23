@@ -65,9 +65,8 @@ struct icd_agent {
 /* called from icd_caller_load_module */
 icd_status icd_agent_load_module(icd_config * data)
 {
-    icd_plugable_fn *plugable_fns;
     char buf[80];
-    icd_status result;
+    icd_plugable_fn *plugable_fns;
 
     plugable_fns = &icd_agent_plugable_fns;
     ICD_MEMSET_ZERO(plugable_fns, sizeof(plugable_fns));
@@ -77,10 +76,10 @@ icd_status icd_agent_load_module(icd_config * data)
      * by default install just suspend, call_end, and cleanup_caller since they are role specfic
      */
     snprintf(buf, sizeof(buf), "AgentDefault");
-    result = init_icd_plugable_fns(plugable_fns, buf, data);    /* set all func ptrs to icd_caller_standard[] */
-    result = icd_plugable__set_state_call_end_fn(plugable_fns, icd_agent__standard_state_call_end, NULL);
-    result = icd_plugable__set_state_suspend_fn(plugable_fns, icd_agent__standard_state_suspend, NULL);
-    result = icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_agent__standard_cleanup_caller);
+    init_icd_plugable_fns(plugable_fns, buf, data);    /* set all func ptrs to icd_caller_standard[] */
+    icd_plugable__set_state_call_end_fn(plugable_fns, icd_agent__standard_state_call_end, NULL);
+    icd_plugable__set_state_suspend_fn(plugable_fns, icd_agent__standard_state_suspend, NULL);
+    icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_agent__standard_cleanup_caller);
 
     plugable_fns->allocated = 1;
 
@@ -115,7 +114,7 @@ icd_agent *create_icd_agent(icd_config * data)
 /* Destroy an agent, freeing its memory and cleaning up after it. */
 icd_status destroy_icd_agent(icd_agent ** agentp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(agentp != NULL);
     assert((*agentp) != NULL);
@@ -344,13 +343,13 @@ icd_plugable_fn *icd_agent_get_plugable_fns(icd_caller * that)
 
 int icd_agent__standard_state_ready(icd_event * event, void *extra)
 {
-    icd_caller *that;
+    //icd_caller *that;
 
     //icd_member *member;
     //icd_list_iterator *iter;
 
     assert(event != NULL);
-    that = (icd_caller *) icd_event__get_source(event);
+    //that = (icd_caller *) icd_event__get_source(event);
 
     return 0;
 
@@ -362,7 +361,6 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
     icd_caller *that;
     icd_plugable_fn *icd_run;
     icd_caller *associate;
-    icd_status result;
     icd_caller_state state;
 
     /* char *action; */
@@ -392,11 +390,11 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
              icd_caller_list__remove_caller_by_element(associate->associations, that);
 	     state = icd_caller__get_state(associate);
 	     if((state == ICD_CALLER_STATE_CONFERENCED) || (state == ICD_CALLER_STATE_BRIDGED)){ 
-           		result = icd_caller__set_state(associate, ICD_CALLER_STATE_CALL_END);
+            icd_caller__set_state(associate, ICD_CALLER_STATE_CALL_END);
 	     }   
 	     if(state == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE){ 
-         		result = icd_caller__set_state(associate, ICD_CALLER_STATE_ASSOCIATE_FAILED);
-             }    
+            icd_caller__set_state(associate, ICD_CALLER_STATE_ASSOCIATE_FAILED);
+        }
     	associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
       	}
     }  
@@ -456,14 +454,14 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
 {
     cw_channel *chan;
     icd_caller *that;
-    const char *action;
-    const char *entertain;
-    const char *wakeup;
-    const char *wait;
-    const char *pos = NULL;
-    int waittime;
-    int cleanup_required = 0;
-    char res;
+    //const char *action;
+    //const char *entertain;
+    //const char *wakeup;
+    //const char *wait;
+    //const char *pos = NULL;
+    //int waittime;
+    //int cleanup_required = 0;
+    //char res;
     
     assert(event != NULL);
     that = icd_event__get_source(event);
@@ -494,7 +492,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
 */
     return 0; //pf
     
-    
+#if 0
     action = vh_read(that->params, "suspend.action");
     entertain = vh_read(that->params, "suspend.entertain");
     wait = vh_read(that->params, "wrapup");
@@ -550,6 +548,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
         icd_caller__stop_waiting(that);
     }
     return 0;
+#endif
 }
 
 /* Standard function for cleaning up an agent caller after a bridge ends or fails */
@@ -646,7 +645,7 @@ icd_agent *icd_agent__generate_queued_call(char *id, char *queuename, char *dial
     destroy_icd_config(&config);
     if (agent) {
         if (plug)
-            icd_caller__set_plugable_fn_ptr((icd_caller *) agent, plug);
+            icd_caller__set_plugable_fn_ptr((icd_caller *) agent, (icd_plugable_fn *(*)(icd_caller *))plug);
 
         icd_caller__add_flag((icd_caller *) agent, ICD_ORPHAN_FLAG);
         sprintf(agentname, "generated_%s:%d", queuename, icd_caller__get_id((icd_caller *) agent));

@@ -82,12 +82,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define TIMING_INTERVAL 10000000
 
 
-#ifdef __linux__
-/* Opened by callweaver.c before privs are dropped */
-extern int cw_cpu0_governor_fd;
-#endif
-
-
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
@@ -416,7 +410,7 @@ struct cw_frame *cw_translate_linear_sample(int *i)
 	f.datalen = 160 * sizeof(data[0]);
 	/* Assume 8000 Hz */
 	f.samples = 160;
-	f.data = &data[*i];
+	f.data = (uint8_t *)&data[*i];
 	*i += 160;
 	if (*i >= arraysize(data) - 160)
 		*i = 0;
@@ -442,7 +436,7 @@ void cw_translator_free_path(struct cw_trans_pvt *p)
 }
 
 /* Build a set of translators based upon the given source and destination formats */
-struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate)
+struct cw_trans_pvt *cw_translator_build_path(int dest, int source)
 {
 	struct trans_state *tr;
 	struct cw_trans_pvt *tmpr = NULL;

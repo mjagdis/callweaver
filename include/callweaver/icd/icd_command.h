@@ -35,7 +35,6 @@
 void create_command_hash(void);
 void destroy_command_hash(void);
 int icd_command_register(const char *name, int (*func) (struct cw_dynstr **, int, char **), const char *short_help, const char *syntax_help, const char *long_help);
-void *icd_command_pointer(const char *name);
 int icd_command_cli(struct cw_dynstr **ds_p, int argc, char **argv);
 
 /* all our commands */

@@ -766,7 +766,7 @@ struct cw_cdr *cw_cdr_append(struct cw_cdr *cdr, struct cw_cdr *newcdr)
 }
 
 
-static void *cw_cdr_submit(void *data)
+static __attribute__((__noreturn__)) void *cw_cdr_submit(void *data)
 {
 	struct cw_cdr *oldbatchitems;
 
@@ -790,8 +790,6 @@ static void *cw_cdr_submit(void *data)
 		if (oldbatchitems)
 			post_cdr(oldbatchitems);
 	}
-
-	return NULL;
 }
 
 

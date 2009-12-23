@@ -124,7 +124,7 @@ icd_distributor *create_icd_distributor(char *name, icd_config *data) {
 /* Destroy a distributor. */
 icd_status destroy_icd_distributor(icd_distributor **distp) {
     icd_status vetoed;
-    int clear_result;
+    icd_status clear_result;
 
     assert(distp != NULL);
     assert((*distp) != NULL);
@@ -421,7 +421,6 @@ icd_status icd_distributor__dump(icd_distributor *that, int verbosity, struct cw
     assert(that->dump_fn != NULL);
 
     return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
-    return ICD_SUCCESS;
 }
 
 /* Start the distributor thread. */
@@ -430,7 +429,7 @@ icd_status icd_distributor__start_distributing(icd_distributor *that) {
 
     that->thread_state = ICD_THREAD_STATE_RUNNING;
     cw_verbose(VERBOSE_PREFIX_1 "Started [%s] State[%d] \n", 
-            icd_distributor__get_name(that), that->thread_state);
+            icd_distributor__get_name(that), (int)that->thread_state);
     return ICD_SUCCESS;
 }
 
@@ -1063,12 +1062,12 @@ icd_status icd_distributor__correct_list_config(icd_config *data) {
 /* Pulls parameters out of config and sets them in distributor */
 icd_status icd_distributor__set_config_params(icd_distributor *that, icd_config *data) {
 
-    icd_distributor__set_link_callers_fn(that, 
-            icd_config__get_any_value(data, "link",  icd_distributor__link_callers_via_pop), 
-            icd_config__get_any_value(data, "link.extra", NULL));
-    icd_distributor__set_dump_func(that, 
-            icd_config__get_any_value(data, "dump",  icd_distributor__standard_dump), 
-            icd_config__get_any_value(data, "dump.extra", NULL));
+    icd_distributor__set_link_callers_fn(that,
+            (icd_status (*)(icd_distributor *, void *))icd_config__get_any_value(data, "link",  icd_distributor__link_callers_via_pop),
+            (icd_status (*)(icd_distributor *, void *))icd_config__get_any_value(data, "link.extra", NULL));
+    icd_distributor__set_dump_func(that,
+            (icd_status (*)(icd_distributor *, int, struct cw_dynstr **, void *))icd_config__get_any_value(data, "dump",  icd_distributor__standard_dump),
+            (icd_status (*)(icd_distributor *, int, struct cw_dynstr **, void *))icd_config__get_any_value(data, "dump.extra", NULL));
     return ICD_SUCCESS;
 }
 
@@ -1083,7 +1082,6 @@ when the dist has no work to do we invoke cw_cond_wait see icd_distributor__run
 */
 
     pthread_condattr_t condattr;
-    int result;
 
     assert(that != NULL);
 
@@ -1091,15 +1089,15 @@ when the dist has no work to do we invoke cw_cond_wait see icd_distributor__run
     cw_mutex_init(&(that->lock));
 
     /* Create the condition that wakes up the dist thread */
-    result = pthread_condattr_init(&condattr);
-    result = cw_cond_init(&(that->wakeup), &condattr);
-    result = pthread_condattr_destroy(&condattr);
+    pthread_condattr_init(&condattr);
+    cw_cond_init(&(that->wakeup), &condattr);
+    pthread_condattr_destroy(&condattr);
 
     /* Create the thread */
     /* Adjust distributor state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = cw_pthread_create(&(that->thread), &global_attr_rr_detached, icd_distributor__run, that);
+    cw_pthread_create(&(that->thread), &global_attr_rr_detached, icd_distributor__run, that);
     cw_verbose(VERBOSE_PREFIX_2 "Spawn Distributor [%s] run thread \n", 
                         icd_distributor__get_name(that));
     return ICD_SUCCESS;
@@ -1138,7 +1136,6 @@ void *icd_distributor__run(void *that) {
 /* The run method for the distributor thread. */
 void *icd_distributor__standard_run(void *that) {
     icd_distributor *dist;
-    icd_status result;
 
     assert(that != NULL);
     assert(((icd_distributor *)that)->customers != NULL);
@@ -1150,33 +1147,33 @@ void *icd_distributor__standard_run(void *that) {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
     dist = (icd_distributor *)that;
-    
+
     while (dist->thread_state != ICD_THREAD_STATE_FINISHED) {
         if (dist->thread_state == ICD_THREAD_STATE_RUNNING) {
-            result = icd_distributor__lock(dist);
+            icd_distributor__lock(dist);
             /* Distribute callers if we can, or pause until some are added */
-            if (icd_distributor__customers_pending(dist) && 
+            if (icd_distributor__customers_pending(dist) &&
                     icd_distributor__agents_pending(dist)) {
                 icd_distributor__reset_added_callers_number(dist);
-                result = icd_distributor__unlock(dist);
+                icd_distributor__unlock(dist);
                 /* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom
                  * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn
                 */
                 if (icd_verbose > 4)
-                    cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n", 
+                    cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",
                         icd_distributor__get_name(dist), dist->link_fn);
-                result = dist->link_fn(dist, dist->link_fn_extra);  
+                dist->link_fn(dist, dist->link_fn_extra);
             } else {
                 cw_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */
-                result = icd_distributor__unlock(dist);
+                icd_distributor__unlock(dist);
                 if (icd_verbose > 4)
-                    cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n", 
+                    cw_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",
                         icd_distributor__get_name(dist));
             }
         } else {
-            /* TBD - Make paused thread work better. 
+            /* TBD - Make paused thread work better.
              *        - Use cw_cond_wait()
-             *        - Use same or different condition variable? 
+             *        - Use same or different condition variable?
              */
         }
         /* Play nice */

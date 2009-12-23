@@ -209,7 +209,7 @@ static int spy_queue_ready(struct cw_channel_spy *spy)
 
 static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sample)
 {
-
+    int16_t buf0[1280], buf1[1280];
     struct chanspy_translation_helper *csth = data;
     struct cw_frame *f0, *f1;
     int len0 = 0;
@@ -220,8 +220,6 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
     int x;
     int vf;
     int minsamp;
-    int maxsamp;
-    int16_t buf0[1280], buf1[1280];
 
     if (csth->spy.status == CHANSPY_DONE)
     {
@@ -266,7 +264,6 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
         buf1[x] = saturate((buf1[x]*vf) >> 11);
 
     minsamp = (samp0 < samp1)  ?  samp0  :  samp1;
-    maxsamp = (samp0 > samp1)  ?  samp0  :  samp1;
 
     /* Mixing 2 way remote audio */
     if (samp0  &&  samp1)

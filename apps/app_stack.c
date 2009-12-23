@@ -102,7 +102,6 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	}
 
 	cw_separate_app_args(label, ',', 100, argv);
-	argc = atoi(argv[3]);
 
 	memcpy(buf, "ARG", 3);
 	for (i = atoi(argv[3]); i; i--) {

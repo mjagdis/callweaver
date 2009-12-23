@@ -83,7 +83,7 @@ extern CW_API_PUBLIC int cw_translator_best_choice(int *dsts, int *srcs);
  * Build a path (possibly NULL) from source to dest 
  * Returns cw_trans_pvt on success, NULL on failure
  * */
-extern CW_API_PUBLIC struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int source, int source_rate);
+extern CW_API_PUBLIC struct cw_trans_pvt *cw_translator_build_path(int dest, int source);
 
 /*! Frees a translator path */
 /*!

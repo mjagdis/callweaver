@@ -40,7 +40,6 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
 {
     icd_loadable_object *module;
     int errcnt = 0;
-    int res = 0;
 
     assert(filename != NULL);
 
@@ -66,13 +65,13 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
         return -1;
     }
 
-    module->load_fn = dlsym(module->lib, "icd_module_load");
+    module->load_fn = (int (*)(icd_config_registry *))dlsym(module->lib, "icd_module_load");
     if (module->load_fn == NULL) {
         errcnt++;
         cw_log(CW_LOG_WARNING, "No 'icd_module_load' function found in module [%s]\n", filename);
     }
 
-    module->unload_fn = dlsym(module->lib, "icd_module_unload");
+    module->unload_fn = (int (*)(void))dlsym(module->lib, "icd_module_unload");
     if (module->unload_fn == NULL) {
         errcnt++;
         cw_log(CW_LOG_WARNING, "No 'icd_module_unload' function found in module [%s]\n", filename);
@@ -88,7 +87,7 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
     vh_write(loaded_modules, filename, module);
     cw_mutex_unlock(&modlock);
 
-    if ((res = module->load_fn(registry))) {
+    if (module->load_fn(registry)) {
         cw_log(CW_LOG_WARNING, "Error loading module %s\n", filename);
         cw_mutex_lock(&modlock);
         vh_delete(loaded_modules, filename);
@@ -116,7 +115,7 @@ icd_status icd_module_load_dynamic_module(icd_config_registry * registry)
     dir = opendir(mydir);
     if (!dir) {
         cw_log(CW_LOG_WARNING, "Can't open directory: %s\n", mydir);
-        return -1;
+        return ICD_ENOTFOUND;
     }
     while ((de = readdir(dir))) {
         ptr = de->d_name;
@@ -138,7 +137,6 @@ icd_status icd_module_unload_dynamic_modules()
 {
     icd_loadable_object *module;
     vh_keylist *keys = vh_keys(loaded_modules), *key;
-    icd_status result;
 
     cw_mutex_lock(&modlock);
 
@@ -152,7 +150,6 @@ icd_status icd_module_unload_dynamic_modules()
                 /*cw_log(CW_LOG_WARNING, "No 'icd_module_unload' function found in Module:[%s] File:[%s]\n",
                    key->name,module->filename);
                  */
-                result = ICD_SUCCESS;
             }
 
             vh_delete(loaded_modules, module->filename);

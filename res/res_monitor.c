@@ -152,9 +152,9 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 			cw_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
 		} else {
 			cw_mutex_lock(&monitorlock);
-			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
+			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%lu",
 						cw_config_CW_MONITOR_DIR, seq);
-			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%ld",
+			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%lu",
 						cw_config_CW_MONITOR_DIR, seq);
 			seq++;
 			cw_mutex_unlock(&monitorlock);
@@ -267,10 +267,10 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 		if (chan->monitor->joinfiles && !cw_strlen_zero(chan->monitor->filename_base)) {
 			char tmp[1024];
 			char tmp2[1024];
-			char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
+			const char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
-			char *dir = directory ? "" : cw_config_CW_MONITOR_DIR;
+			const char *dir = (directory ? "" : cw_config_CW_MONITOR_DIR);
 			struct cw_var_t *execute;
 			struct cw_var_t *execute_args;
 

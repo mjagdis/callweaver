@@ -33,6 +33,11 @@ extern "C" {
 #define CW_CACHE_DIR_LEN 512
 #define CW_FILENAME_MAX	80
 
+#ifdef __linux__
+/* Opened by callweaver.c before privs are dropped */
+extern int cw_cpu0_governor_fd;
+#endif
+
 extern CW_API_PUBLIC char hostname[MAXHOSTNAMELEN];
 extern CW_API_PUBLIC int option_verbose;
 extern CW_API_PUBLIC int option_debug;

@@ -698,7 +698,7 @@ main (int argc, const char *argv[])
       if (rp)
          fprintf (f, "rp=1\n");
       if (udh)
-         fprintf (f, "udh#%s\n", udh);
+         fprintf (f, "udh#%s\n", (char *)udh);
       if (vp > 0)
          fprintf (f, "vp=%d\n", vp);
       if (udl)

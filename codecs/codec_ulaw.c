@@ -358,4 +358,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "Mu-law to/from PCM16 translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Mu-law to/from PCM16 translator")

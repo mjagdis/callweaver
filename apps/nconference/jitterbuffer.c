@@ -672,7 +672,8 @@ static void put_history(jitterbuffer *jb, long ts, long now, long ms, int codec)
 static void calculate_info(jitterbuffer *jb, long ts, long now, int codec) 
 {
   long diff, size, max_index, d, d1, d2, n;
-  float p, p1, p2, A, B;
+  float p1, p2, A, B;
+
   //size = how many items there in the history
   size = (jb->hist_pointer < JB_HISTORY_SIZE) ? jb->hist_pointer : JB_HISTORY_SIZE;
   max_index = size-1;
@@ -719,7 +720,7 @@ static void calculate_info(jitterbuffer *jb, long ts, long now, int codec)
   //the higest delay..
   d = d1= d2 = jb->hist_sorted_delay[max_index]- jb->min; 
   A=B=LONG_MIN;
-  p = p2 =0;
+  p2 =0;
   n=0;
   p1 = 5; //always look at the top 5%
   if (jb->info.iqr >200) { //with more jitter look at more delays
@@ -737,7 +738,6 @@ static void calculate_info(jitterbuffer *jb, long ts, long now, int codec)
     // estimate MOS-value
     B = jb_guess_mos(p2,d2,codec);
     if (B > A) {
-      p = p2;
       d = d2;
       A = B;
     }

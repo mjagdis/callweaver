@@ -518,7 +518,7 @@ static int wav_write(void *data, struct cw_frame *f)
         if (already_wav49)
         {
             pvt->secondhalf = 0;
-            if ((res = fwrite(f->data + len, 1, 65, pvt->f)) != 65)
+            if ((res = fwrite((const uint8_t *)f->data + len, 1, 65, pvt->f)) != 65)
             {
                 cw_log(CW_LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
                 return -1;
@@ -530,7 +530,7 @@ static int wav_write(void *data, struct cw_frame *f)
         {
             if (pvt->secondhalf)
             {
-                memcpy(pvt->buf + 33, f->data + len, 33);
+                memcpy(pvt->buf + 33, (const uint8_t *)f->data + len, 33);
                 /* Convert from two VoIP format GSM frames to WAV49 format */
                 repack_gsm0610_voip_to_wav49(wav49_data, pvt->buf);
                 if ((res = fwrite(wav49_data, 1, 65, pvt->f)) != 65)
@@ -543,7 +543,7 @@ static int wav_write(void *data, struct cw_frame *f)
             else
             {
                 /* Copy the data and do nothing */
-                memcpy(pvt->buf, f->data + len, 33);
+                memcpy(pvt->buf, (const uint8_t *)f->data + len, 33);
             }
             pvt->secondhalf = !pvt->secondhalf;
             len += 33;

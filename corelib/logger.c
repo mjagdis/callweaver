@@ -157,8 +157,10 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 		} else {
 			if (sess->addr.sa.sa_family == AF_PATHNAME) {
 				/* Strip off the numeric level prefix */
-				while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
-					iov[1].iov_base++, iov[1].iov_len--;
+				p = iov[1].iov_base;
+				while (iov[1].iov_len && isdigit(*p))
+					p++, iov[1].iov_len--;
+				iov[1].iov_base = p;
 			} else {
 				level = atol(iov[1].iov_base);
 			}
@@ -207,7 +209,7 @@ out_error:
 }
 
 
-static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
+static struct logchannel *make_logchannel(char *channel, char *components)
 {
 	cw_address_t addr;
 	struct logchannel *chan;
@@ -374,7 +376,7 @@ static void init_logger_chain(void)
 	var = cw_variable_browse(cfg, "logfiles");
 	while (var) {
 		if (strcasecmp(var->name, "console")) {
-			chan = make_logchannel(var->name, var->value, var->lineno);
+			chan = make_logchannel(var->name, var->value);
 			if (chan) {
 				chan->next = logchannels;
 				logchannels = chan;
@@ -481,7 +483,7 @@ int reload_logger(int rotate)
 	return -1;
 }
 
-static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_reload(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 	if(reload_logger(0)) {
 		cw_dynstr_printf(ds_p, "Failed to reload the logger\n");
@@ -490,7 +492,7 @@ static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 	cw_log(CW_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
@@ -502,7 +504,7 @@ static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
-static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 #define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;
@@ -664,9 +666,9 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	if (logchannels) {
 		cw_manager_event(1 << level, "Log",
 			8,
-			cw_msg_tuple("Timestamp", "%lu.%09lu", now.tv_sec, now.tv_nsec),
+			cw_msg_tuple("Timestamp", "%lu.%09lu", (unsigned long)now.tv_sec, (unsigned long)now.tv_nsec),
 			cw_msg_tuple("Date",      "%s",      date),
-			cw_msg_tuple("Level",     "%d %s",   level, levels[level]),
+			cw_msg_tuple("Level",     "%u %s",   (unsigned int)level, levels[level]),
 			cw_msg_tuple("Thread ID", TIDFMT,    GETTID()),
 			cw_msg_tuple("File",      "%s",      file),
 			cw_msg_tuple("Line",      "%d",      line),

@@ -231,8 +231,6 @@ static struct sched_context *sched;
 
 static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
-static int iax2_dropcount = DEFAULT_DROP;
-
 static int iaxdebug = 0;
 
 static int iaxtrunkdebug = 0;
@@ -1178,7 +1176,7 @@ static int send_packet(struct iax_frame *f)
 	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
 	if (option_debug > 2 && iaxdebug)
-		cw_log(CW_LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
+		cw_log(CW_LOG_DEBUG, "Sending %u on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
 	if (!f->callno) {
 		cw_log(CW_LOG_WARNING, "Call number = %d\n", f->callno);
@@ -1410,7 +1408,7 @@ static int attempt_transmit(void *data)
 							iax2_destroy_nolock(f->callno);
 					} else {
 						if (iaxs[f->callno]->owner)
-							cw_log(CW_LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
+							cw_log(CW_LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%u, seqno=%d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
 						iaxs[f->callno]->error = ETIMEDOUT;
 						if (iaxs[f->callno]->owner) {
 							struct cw_frame fr;
@@ -2492,7 +2490,7 @@ static enum cw_bridge_result iax2_bridge(struct cw_channel *c0, struct cw_channe
 	struct cw_channel *cs[3];
 	struct cw_channel *who;
 	int to = -1;
-	int res = -1;
+	enum cw_bridge_result  res = CW_BRIDGE_FAILED;
 	int transferstarted=0;
 	struct cw_frame *f;
 	unsigned short callno0 = PTR_TO_CALLNO(c0->tech_pvt);
@@ -2911,7 +2909,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* frame size too) */
 
 				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
-					cw_log(CW_LOG_DEBUG, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
+					cw_log(CW_LOG_DEBUG, "predicted timestamp skew (%d) > max (%d), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= 8) /* check to make sure we dont core dump */
@@ -3050,7 +3048,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 {
 	struct cw_frame *f;
 	struct iax2_trunk_peer *tpeer;
-	void *tmp, *ptr;
+	unsigned char *tmp, *ptr;
 	struct cw_iax2_meta_trunk_entry *met;
 	struct cw_iax2_meta_trunk_mini *mtm;
 	char iabuf[INET_ADDRSTRLEN];
@@ -3065,7 +3063,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 				if (tmp) {
 					tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
 					tpeer->trunkdata = tmp;
-					cw_log(CW_LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", cw_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
+					cw_log(CW_LOG_DEBUG, "Expanded trunk '%s:%d' to %u bytes\n", cw_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
 				} else {
 					cw_log(CW_LOG_WARNING, "Insufficient memory to expand trunk data to %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 					cw_mutex_unlock(&tpeer->lock);
@@ -3252,14 +3250,13 @@ static int decrypt_frame(int callno, struct cw_iax2_full_hdr *fh, struct cw_fram
     {
 		/* Search for possible keys, given secrets */
 		unsigned char md_value[CW_MAX_BINARY_MD_SIZE];
-		int md_len;
 		char *tmppw, *stringp;
 		
 		tmppw = cw_strdupa(iaxs[callno]->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";")))
         {
-			md_len = cw_md5_hash_two_bin(md_value,
+			cw_md5_hash_two_bin(md_value,
 						       (uint8_t *) iaxs[callno]->challenge,
                                strlen(iaxs[callno]->challenge),
 						       (uint8_t *) tmppw,
@@ -3353,7 +3350,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 		else
 			fr->oseqno = pvt->oseqno++;
 		fr->iseqno = pvt->iseqno;
-		fh = (struct cw_iax2_full_hdr *)(fr->af.data - sizeof(struct cw_iax2_full_hdr));
+		fh = (struct cw_iax2_full_hdr *)((uint8_t *)fr->af.data - sizeof(struct cw_iax2_full_hdr));
 		fh->scallno = htons(fr->callno | IAX_FLAG_FULL);
 		fh->ts = htonl(fr->ts);
 		fh->oseqno = fr->oseqno;
@@ -3424,7 +3421,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 			/* Video frame have no sequence number */
 			fr->oseqno = -1;
 			fr->iseqno = -1;
-			vh = (struct cw_iax2_video_hdr *)(fr->af.data - sizeof(struct cw_iax2_video_hdr));
+			vh = (struct cw_iax2_video_hdr *)((uint8_t *)fr->af.data - sizeof(struct cw_iax2_video_hdr));
 			vh->zeros = 0;
 			vh->callno = htons(0x8000 | fr->callno);
 			vh->ts = htons((fr->ts & 0x7FFF) | (fr->af.subclass & 0x1 ? 0x8000 : 0));
@@ -3439,7 +3436,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 			fr->oseqno = -1;
 			fr->iseqno = -1;
 			/* Mini frame will do */
-			mh = (struct cw_iax2_mini_hdr *)(fr->af.data - sizeof(struct cw_iax2_mini_hdr));
+			mh = (struct cw_iax2_mini_hdr *)((uint8_t *)fr->af.data - sizeof(struct cw_iax2_mini_hdr));
 			mh->callno = htons(fr->callno);
 			mh->ts = htons(fr->ts & 0xFFFF);
 			fr->datalen = fr->af.datalen + sizeof(struct cw_iax2_mini_hdr);
@@ -5133,7 +5130,6 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 				return send_command(iaxs[callno], CW_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 			} else
 				return -1;
-			cw_log(CW_LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
 	} else	
 		cw_log(CW_LOG_NOTICE, "Can't reregister without a reg\n");
 	return -1;
@@ -5337,7 +5333,7 @@ static int timing_read(void *user_data)
 		} else {
 			res = send_trunk(tpeer, &now);
 			if (iaxtrunkdebug)
-				cw_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", cw_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
+				cw_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %u bytes backloged and has hit a high water mark of %u bytes\n", cw_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
 		}		
 		totalcalls += res;	
 		res = 0;
@@ -5445,7 +5441,7 @@ static void *iax_park_thread(void *stuff)
 	struct iax_dual *d;
 	struct cw_frame *f;
 	int ext;
-	int res;
+
 	d = stuff;
 	chan1 = d->chan1;
 	chan2 = d->chan2;
@@ -5453,7 +5449,7 @@ static void *iax_park_thread(void *stuff)
 	f = cw_read(chan1);
 	if (f)
 		cw_fr_free(f);
-	res = cw_park_call(chan1, chan2, 0, &ext);
+	cw_park_call(chan1, chan2, 0, &ext);
 	cw_hangup(chan2);
 	cw_log(CW_LOG_NOTICE, "Parked on extension '%d'\n", ext);
 	return NULL;
@@ -5553,7 +5549,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 	int updatehistory=1;
 	int new = NEW_PREVENT;
 	unsigned char buf[4096]; 
-	void *ptr;
+	unsigned char *ptr;
 	socklen_t len = sizeof(sin);
 	int dcallno = 0;
 	struct cw_iax2_full_hdr *fh = (struct cw_iax2_full_hdr *)buf;
@@ -5571,7 +5567,6 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 	struct iax_frame *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	struct cw_frame f;
-	struct cw_channel *c;
 	struct iax2_dpcache *dp;
 	struct iax2_peer *peer;
 	struct iax2_trunk_peer *tpeer;
@@ -5632,7 +5627,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
 			if (res < (sizeof(*meta) + sizeof(*mth))) {
-				cw_log(CW_LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", res,
+				cw_log(CW_LOG_WARNING, "midget meta trunk packet received (%d of %zu min)\n", res,
 					sizeof(*meta) + sizeof(*mth));
 				return 1;
 			}
@@ -5731,7 +5726,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 										iaxs[frb.fr.callno]->last = frb.fr.ts;
 #if 1
 										if (option_debug)
-											cw_log(CW_LOG_DEBUG, "For call=%d, set last=%d\n", frb.fr.callno, frb.fr.ts);
+											cw_log(CW_LOG_DEBUG, "For call=%d, set last=%u\n", frb.fr.callno, frb.fr.ts);
 #endif
 									}
 								}
@@ -5899,7 +5894,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 		}
 		/* A full frame */
 		if (res < sizeof(*fh)) {
-			cw_log(CW_LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*fh));
+			cw_log(CW_LOG_WARNING, "midget packet received (%d of %zu min)\n", res, sizeof(*fh));
 			cw_mutex_unlock(&iaxsl[frb.fr.callno]);
 			return 1;
 		}
@@ -6038,7 +6033,7 @@ retryowner:
                             f.subclass != IAX_COMMAND_LAGRP) {
 				iaxs[frb.fr.callno]->last = frb.fr.ts;
 				if (option_debug && iaxdebug)
-					cw_log(CW_LOG_DEBUG, "For call=%d, set last=%d\n", frb.fr.callno, frb.fr.ts);
+					cw_log(CW_LOG_DEBUG, "For call=%d, set last=%u\n", frb.fr.callno, frb.fr.ts);
 			}
 
 			switch(f.subclass) {
@@ -6244,7 +6239,7 @@ retryowner:
 												VERBOSE_PREFIX_4,
 												using_prefs);
 								
-								if(!(c = cw_iax2_new(frb.fr.callno, CW_STATE_RING, format)))
+								if(!cw_iax2_new(frb.fr.callno, CW_STATE_RING, format))
 									iax2_destroy_nolock(frb.fr.callno);
 							} else {
 								iaxs[frb.fr.callno]->state |= IAX_STATE_TBD;
@@ -6444,23 +6439,23 @@ retryowner2:
 				if ((peer = iaxs[frb.fr.callno]->peerpoke) && !cw_sched_del(sched, peer->pokeexpire)) {
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[frb.fr.callno]->pingtime <= peer->maxms) {
-							cw_log(CW_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[frb.fr.callno]->pingtime);
+							cw_log(CW_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %u\n", peer->name, iaxs[frb.fr.callno]->pingtime);
 							cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 								3,
 								cw_msg_tuple("Peer",       "IAX2/%s", peer->name),
 								cw_msg_tuple("PeerStatus", "%s",      "Reachable"),
-								cw_msg_tuple("Time",       "%d",      iaxs[frb.fr.callno]->pingtime)
+								cw_msg_tuple("Time",       "%u",      iaxs[frb.fr.callno]->pingtime)
 							);
 							cw_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[frb.fr.callno]->pingtime > peer->maxms) {
-							cw_log(CW_LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[frb.fr.callno]->pingtime);
+							cw_log(CW_LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%u ms)!\n", peer->name, iaxs[frb.fr.callno]->pingtime);
 							cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 								3,
 								cw_msg_tuple("Peer",       "IAX2/%s", peer->name),
 								cw_msg_tuple("PeerStatus", "%s",      "Lagged"),
-								cw_msg_tuple("Time",       "%d",      iaxs[frb.fr.callno]->pingtime)
+								cw_msg_tuple("Time",       "%u",      iaxs[frb.fr.callno]->pingtime)
 							);
 							cw_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
@@ -6669,7 +6664,7 @@ retryowner2:
 											using_prefs);
 
 							iaxs[frb.fr.callno]->state |= IAX_STATE_STARTED;
-							if(!(c = cw_iax2_new(frb.fr.callno, CW_STATE_RING, format)))
+							if(!cw_iax2_new(frb.fr.callno, CW_STATE_RING, format))
 								iax2_destroy_nolock(frb.fr.callno);
 						} else {
 							iaxs[frb.fr.callno]->state |= IAX_STATE_TBD;
@@ -6697,7 +6692,7 @@ retryowner2:
 							cw_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[frb.fr.callno]->peerformat);
 						iaxs[frb.fr.callno]->state |= IAX_STATE_STARTED;
 						send_command(iaxs[frb.fr.callno], CW_FRAME_CONTROL, CW_CONTROL_PROGRESS, 0, NULL, 0, -1);
-						if(!(c = cw_iax2_new(frb.fr.callno, CW_STATE_RING, iaxs[frb.fr.callno]->peerformat)))
+						if(!cw_iax2_new(frb.fr.callno, CW_STATE_RING, iaxs[frb.fr.callno]->peerformat))
 							iax2_destroy_nolock(frb.fr.callno);
 					}
 				}
@@ -6768,13 +6763,13 @@ retryowner2:
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
-				iaxs[frb.fr.callno]->transferring = 0;
+				iaxs[frb.fr.callno]->transferring = TRANSFER_NONE;
 				if (option_verbose > 2) 
 					cw_verbose(VERBOSE_PREFIX_3 "Channel '%s' unable to transfer\n", iaxs[frb.fr.callno]->owner ? iaxs[frb.fr.callno]->owner->name : "<Unknown>");
 				memset(&iaxs[frb.fr.callno]->transfer, 0, sizeof(iaxs[frb.fr.callno]->transfer));
 				if (iaxs[frb.fr.callno]->bridgecallno) {
 					if (iaxs[iaxs[frb.fr.callno]->bridgecallno]->transferring) {
-						iaxs[iaxs[frb.fr.callno]->bridgecallno]->transferring = 0;
+						iaxs[iaxs[frb.fr.callno]->bridgecallno]->transferring = TRANSFER_NONE;
 						send_command(iaxs[iaxs[frb.fr.callno]->bridgecallno], CW_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
 					}
 				}
@@ -6930,7 +6925,7 @@ retryowner2:
 		frb.fr.outoforder = 0;
 	} else {
 		if (option_debug && iaxdebug)
-			cw_log(CW_LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, frb.fr.ts, iaxs[frb.fr.callno]->last);
+			cw_log(CW_LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %u, last = %u)\n", f.frametype, f.subclass, frb.fr.ts, iaxs[frb.fr.callno]->last);
 		frb.fr.outoforder = -1;
 	}
 #ifdef BRIDGE_OPTIMIZATION
@@ -6957,7 +6952,7 @@ retryowner2:
 		iaxs[frb.fr.callno]->last = frb.fr.ts;
 #if 1
 		if (option_debug && iaxdebug)
-			cw_log(CW_LOG_DEBUG, "For call=%d, set last=%d\n", frb.fr.callno, frb.fr.ts);
+			cw_log(CW_LOG_DEBUG, "For call=%d, set last=%u\n", frb.fr.callno, frb.fr.ts);
 #endif
 	}
 
@@ -7195,7 +7190,7 @@ static struct cw_channel *iax2_request(const char *type, int format, void *data,
 	return c;
 }
 
-static void *network_thread(void *ignore)
+static __attribute__((__noreturn__)) void *network_thread(void *ignore)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
@@ -7251,7 +7246,6 @@ static void *network_thread(void *ignore)
 		/* Now do the IO */
 		cw_io_run(io, 1000);
 	}
-	return NULL;
 }
 
 static int start_network_thread(void)
@@ -7944,7 +7938,7 @@ static int set_config(const char *config_file, int reload)
 		else if (!strcasecmp(v->name, "lagrqtime")) 
 			lagrq_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "dropcount")) 
-			iax2_dropcount = atoi(v->value);
+			cw_log(CW_LOG_NOTICE, "dropcount in iax2.conf is deprecated and should be removed. It never did anything.\n");
 		else if (!strcasecmp(v->name, "maxregexpire")) 
 			max_reg_expire = atoi(v->value);
 		else if (!strcasecmp(v->name, "minregexpire")) 
@@ -8322,8 +8316,8 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 					cw_fr_free(f);
 				else {
 					/* Got hung up on, abort! */
-					break;
 					hungup = 1;
+					break;
 				}
 			}
 		}
@@ -8554,7 +8548,7 @@ static int iax2_devicestate(void *data)
 	char *dest = (char *) data;
 	struct iax2_peer *p;
 	int found = 0;
-	char *ext, *host;
+	char *host;
 	char tmp[256];
 	int res = CW_DEVICE_INVALID;
 
@@ -8563,10 +8557,8 @@ static int iax2_devicestate(void *data)
 	if (host) {
 		*host = '\0';
 		host++;
-		ext = tmp;
 	} else {
 		host = tmp;
-		ext = NULL;
 	}
 
 	if (option_debug > 2)
@@ -8578,8 +8570,8 @@ static int iax2_devicestate(void *data)
 		found++;
 		res = CW_DEVICE_UNAVAILABLE;
 		if (option_debug > 2) 
-			cw_log(CW_LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
-				host, dest, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
+			cw_log(CW_LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=0x%08x, defaddr=0x%08x maxms=%d, lastms=%d\n",
+				host, dest, (unsigned int)p->addr.sin_addr.s_addr, (unsigned int)p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 		    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {

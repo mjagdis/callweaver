@@ -54,11 +54,11 @@ int ok_exit(icd_caller * caller, char digit);
 int no_agent(icd_caller * caller, icd_queue * queue);    
 static int say_position(icd_caller *that, int override, int waiting);
 
-int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
+icd_status icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
 {
     struct cw_channel *chan,*peer;
     struct cw_bridge_config bridge_config;
-    int res = 0;
+    int res;
 
     cw_log(CW_LOG_WARNING, "icd_bridge_call in progress...\n");
     chan = (cw_channel *) icd_caller__get_channel(bridger);
@@ -68,7 +68,7 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
         cw_log(CW_LOG_WARNING, "Bridge failed not enough channels\n");
         icd_caller__set_state(bridger, ICD_CALLER_STATE_CHANNEL_FAILED);
         icd_caller__set_state(bridgee, ICD_CALLER_STATE_CHANNEL_FAILED);
-        return -1;
+        return ICD_EGENERAL;
     }
     /* assume the bridge other wise we need to use 2 threads/call (control & pbx) threads for each caller */
     icd_caller__set_state(bridger, ICD_CALLER_STATE_BRIDGED);
@@ -103,7 +103,7 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
     if (bridger && icd_caller__get_state(bridger) == ICD_CALLER_STATE_BRIDGED)
         icd_caller__set_state(bridger, ICD_CALLER_STATE_CALL_END);
 
-    return res;
+    return (res ? ICD_EGENERAL : ICD_SUCCESS);
 }
 
 int icd_bridge__wait_call_agent(icd_caller * that)
@@ -177,7 +177,6 @@ int icd_bridge__wait_call_customer(icd_caller * that)
     const char *chimefile;
     int result = 0;
     time_t now, start;
-    int avgholdmins;
     static int waitms = 100;
     int noagent_wait_timeout = 20;       /* number of sec to wait when no agents in the q */
     const char *noagent_time; 
@@ -248,9 +247,6 @@ int icd_bridge__wait_call_customer(icd_caller * that)
                     break;
                 }
             }
-            /* Round hold time to nearest minute */
-
-            avgholdmins = icd_queue__get_holdannounce_holdtime(queue);
 
             /* Make a position announcement, if enabled */
             if (icd_queue__get_holdannounce_cycle(queue) && icd_caller__get_entertained(that) == ICD_ENTERTAIN_MOH) {
@@ -513,7 +509,7 @@ int icd_bridge_dial_callweaver_channel(icd_caller * that, const char *chanstring
 //    int assoc;
     icd_caller_state caller_state;
 
-    int module_id = ICD_CALLER; /* keep event macro happy and icd_bridge is not realy a module */
+    icd_module module_id = ICD_CALLER; /* keep event macro happy and icd_bridge is not realy a module */
 
     assert(that != NULL);
 
@@ -719,7 +715,6 @@ void icd_bridge__parse_ubf(icd_caller * caller, icd_unbridge_flag ubf)
 
 void icd_bridge__unbridge_caller(icd_caller * caller, icd_unbridge_flag ubf)
 {
-    struct cw_channel *chan;
     icd_caller *associate;
     icd_caller_list *associations;
     icd_list_iterator *iter;
@@ -727,7 +722,6 @@ void icd_bridge__unbridge_caller(icd_caller * caller, icd_unbridge_flag ubf)
     if (!icd_caller__has_role(caller, ICD_BRIDGER_ROLE))
         return;
 
-    chan = icd_caller__get_channel(caller);
     associations = icd_caller__get_associations(caller);
 
     iter = icd_list__get_iterator((icd_list *) associations);

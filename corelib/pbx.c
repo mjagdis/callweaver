@@ -90,7 +90,7 @@ struct cw_exten
     unsigned int apphash;         /* Hash of application to execute */
     char *app;                    /* Name of application to execute */
     void *data;                   /* Data to use (arguments) */
-    void (*datad)(void *);        /* Data destructor */
+    void (*datafree)(void *);     /* Data destructor */
     struct cw_exten *peer;      /* Next higher priority with our extension */
     const char *registrar;        /* Registrar */
     struct cw_exten *next;      /* Extension with a greater ID */
@@ -154,13 +154,12 @@ struct cw_state_cb
 /* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
 struct cw_hint
 {
-    struct cw_exten *exten;    /* Extension */
-    int laststate;                /* Last known state */
-    struct cw_state_cb *callbacks;    /* Callback list for this extension */
-    struct cw_hint *next;        /* Pointer to next hint in list */
+    struct cw_exten *exten;             /* Extension */
+    enum cw_extension_states laststate; /* Last known state */
+    struct cw_state_cb *callbacks;      /* Callback list for this extension */
+    struct cw_hint *next;               /* Pointer to next hint in list */
 };
 
-int cw_pbx_outgoing_cdr_failed(void);
 
 static int autofallthrough = 0;
 
@@ -219,7 +218,7 @@ static int switch_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_switches(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_switches(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 	cw_dynstr_printf(ds_p, "\n    -= Registered CallWeaver Alternative Switches =-\n");
 	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, ds_p);
@@ -242,7 +241,7 @@ static int handle_show_globals_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_globals(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_globals(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 	struct handle_show_globals_args args = {
 		.ds_p = ds_p,
@@ -354,15 +353,11 @@ int cw_extension_pattern_match(const char *destination, const char *pattern)
                 return EXTENSION_MATCH_FAILURE;
             return EXTENSION_MATCH_INCOMPLETE;
         }
-        else
-        {
-            if (memcmp(pattern, destination, pattern_len))
-                return EXTENSION_MATCH_FAILURE;
-            if (pattern_len == destination_len)
-                return EXTENSION_MATCH_EXACT;
-            return EXTENSION_MATCH_OVERLENGTH;
-        }
-        return EXTENSION_MATCH_INCOMPLETE;
+        if (memcmp(pattern, destination, pattern_len))
+            return EXTENSION_MATCH_FAILURE;
+        if (pattern_len == destination_len)
+            return EXTENSION_MATCH_EXACT;
+        return EXTENSION_MATCH_OVERLENGTH;
     }
 
     d = destination;
@@ -716,6 +711,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
     int offset, offset2;
     int no_match_yet;
     unsigned int hash;
+    int n;
 
     // warnings for (potentially) unsafe pre-conditions
     // TODO: these cases really ought to be safeguarded against
@@ -771,13 +767,16 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
             offset2 = abs(offset);
         }
 
-        if (abs(offset) > strlen(*ret))
+        n = strlen(*ret);
+        if (offset >= 0)
         {
-            /* Offset beyond string */
-            if (offset >= 0) 
-                offset = strlen(*ret);
-            else 
-                offset =- strlen(*ret);
+            if (offset > n)
+                offset = n;
+        }
+        else
+        {
+            if (-offset > n)
+                offset =- n;
         }
 
         if ((offset < 0  &&  offset2 > -offset)  ||  (offset >= 0  &&  offset + offset2 > strlen(*ret)))
@@ -995,7 +994,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
             // ------------------------------------
             if (hash == CW_KEYWORD_EPOCH && !strcmp(varname, "EPOCH"))
             {
-                snprintf(workspace, workspacelen, "%u",(int)time(NULL));
+                snprintf(workspace, workspacelen, "%u", (unsigned int)time(NULL));
                 *ret = workspace;
             }
             else if (hash == CW_KEYWORD_DATETIME && !strcmp(varname, "DATETIME"))
@@ -1048,7 +1047,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
 int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count)
 {
     char *cp4 = 0;
-    const char *tmp, *whereweare;
+    const char *whereweare;
     int length;
     char *ltmp = NULL, *var = NULL;
     char *nextvar, *nextexp, *nextthing;
@@ -1061,7 +1060,7 @@ int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, 
     /* Save the last byte for a terminating '\0' */
     count--;
 
-    whereweare = tmp = cp1;
+    whereweare = cp1;
     while (*whereweare) {
         /* Assume we're copying the whole remaining string */
         pos = strlen(whereweare);
@@ -1399,7 +1398,7 @@ static struct cw_exten *cw_hint_extension(struct cw_channel *c, const char *cont
 }
 
 /*! \brief  cw_extensions_state2: Check state of extension by using hints */
-static int cw_extension_state2(struct cw_exten *e)
+static enum cw_extension_states cw_extension_state2(struct cw_exten *e)
 {
     char hint[CW_MAX_EXTENSION] = "";    
     char *cur, *rest;
@@ -1408,7 +1407,7 @@ static int cw_extension_state2(struct cw_exten *e)
     int busy = 0, inuse = 0, ring = 0;
 
     if (!e)
-        return -1;
+        return CW_EXTENSION_DEACTIVATED;
 
     cw_copy_string(hint, cw_get_extension_app(e), sizeof(hint));
 
@@ -1461,7 +1460,7 @@ static int cw_extension_state2(struct cw_exten *e)
     if (!inuse && ring)
         return CW_EXTENSION_RINGING;
     if (inuse && ring)
-        return (CW_EXTENSION_INUSE | CW_EXTENSION_RINGING);
+        return (CW_EXTENSION_INUSE_AND_RINGING);
     if (inuse)
         return CW_EXTENSION_INUSE;
     if (allfree)
@@ -1479,14 +1478,24 @@ static int cw_extension_state2(struct cw_exten *e)
 /*! \brief  cw_extension_state2str: Return extension_state as string */
 const char *cw_extension_state2str(int extension_state)
 {
-    int i;
+	static const struct {
+		int extension_state;
+		const char * const text;
+	} extension_states[] = {
+		{ CW_EXTENSION_NOT_INUSE,                     "Idle" },
+		{ CW_EXTENSION_INUSE,                         "InUse" },
+		{ CW_EXTENSION_BUSY,                          "Busy" },
+		{ CW_EXTENSION_UNAVAILABLE,                   "Unavailable" },
+		{ CW_EXTENSION_RINGING,                       "Ringing" },
+		{ CW_EXTENSION_INUSE | CW_EXTENSION_RINGING, "InUse&Ringing" }
+	};
+	int i;
 
-    for (i = 0;  (i < (sizeof(extension_states)/sizeof(extension_states[0])));  i++)
-    {
-        if (extension_states[i].extension_state == extension_state)
-            return extension_states[i].text;
-    }
-    return "Unknown";    
+	for (i = 0;  (i < (sizeof(extension_states)/sizeof(extension_states[0])));  i++) {
+		if (extension_states[i].extension_state == extension_state)
+			return extension_states[i].text;
+	}
+	return "Unknown";
 }
 
 /*! \brief  cw_extension_state: Check extension state for an extension by using hint */
@@ -1508,7 +1517,7 @@ void cw_hint_state_changed(const char *device)
     char buf[CW_MAX_EXTENSION];
     char *parse;
     char *cur;
-    int state;
+    enum cw_extension_states state;
 
     cw_mutex_lock(&hintlock);
 
@@ -1523,20 +1532,20 @@ void cw_hint_state_changed(const char *device)
 
             /* Get device state for this hint */
             state = cw_extension_state2(hint->exten);
-            
-            if ((state == -1) || (state == hint->laststate))
+
+            if (state == CW_EXTENSION_DEACTIVATED || state == hint->laststate)
                 continue;
 
             /* Device state changed since last check - notify the watchers */
-            
+
             /* For general callbacks */
             for (cblist = statecbs; cblist; cblist = cblist->next)
                 cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
-            
+
             /* For extension callbacks */
             for (cblist = hint->callbacks; cblist; cblist = cblist->next)
                 cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
-            
+
             hint->laststate = state;
             break;
         }
@@ -1544,7 +1553,7 @@ void cw_hint_state_changed(const char *device)
 
     cw_mutex_unlock(&hintlock);
 }
-            
+
 /*! \brief  cw_extension_state_add: Add watcher for extension states */
 int cw_extension_state_add(const char *context, const char *exten, 
                 cw_state_cb_type callback, void *data)
@@ -1867,7 +1876,7 @@ int cw_exec_extension(struct cw_channel *c, const char *context, const char *ext
     return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXEC);
 }
 
-static int __cw_pbx_run(struct cw_channel *c)
+static enum cw_pbx_result __cw_pbx_run(struct cw_channel *c)
 {
     int firstpass = 1;
     int digit;
@@ -1883,7 +1892,7 @@ static int __cw_pbx_run(struct cw_channel *c)
     if ((c->pbx = malloc(sizeof(struct cw_pbx))) == NULL)
     {
         cw_log(CW_LOG_ERROR, "Out of memory\n");
-        return -1;
+        return CW_PBX_FAILED;
     }
     if (c->amaflags)
     {
@@ -1892,7 +1901,7 @@ static int __cw_pbx_run(struct cw_channel *c)
             if (cw_cdr_alloc(c))
             {
                 free(c->pbx);
-                return -1;
+                return CW_PBX_FAILED;
             }
         }
     }
@@ -1938,7 +1947,8 @@ static int __cw_pbx_run(struct cw_channel *c)
                     cw_log(CW_LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
                     memset(exten, 0, sizeof(exten));
                     pos = 0;
-                    exten[pos++] = digit = res;
+                    digit = res;
+                    exten[pos++] = (char)res;
                     break;
                 }
                 switch (res)
@@ -2040,7 +2050,7 @@ static int __cw_pbx_run(struct cw_channel *c)
                         if (digit < 0)
                             /* Error, maybe a  hangup */
                             goto out;
-                        exten[pos++] = digit;
+                        exten[pos++] = (char)digit;
                         waittime = c->pbx->dtimeout;
                     }
                 }
@@ -2123,9 +2133,11 @@ static int __cw_pbx_run(struct cw_channel *c)
             }
         }
     }
-    if (firstpass) 
-        cw_log(CW_LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
+
 out:
+    if (firstpass)
+        cw_log(CW_LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
+
     if ((res != CW_PBX_KEEPALIVE) && cw_exists_extension(c, c->context, "h", 1, c->cid.cid_num))
     {
 		if (c->cdr && cw_end_cdr_before_h_exten)
@@ -2154,7 +2166,7 @@ out:
     c->pbx = NULL;
     if (res != CW_PBX_KEEPALIVE)
         cw_hangup(c);
-    return 0;
+    return CW_PBX_SUCCESS;
 }
 
 /* Returns 0 on success, non-zero if call limit was reached */
@@ -2172,7 +2184,7 @@ static int increase_call_count(const struct cw_channel *c)
             failed = -1;
         }
     }
-    if (option_maxload)
+    if (option_maxload > 0.0L)
     {
         getloadavg(&curloadavg, 1);
         if (curloadavg >= option_maxload)
@@ -2480,7 +2492,8 @@ int cw_context_remove_extension2(struct cw_context *con, const char *extension, 
                     if (!peer->priority == PRIORITY_HINT) 
                         cw_remove_hint(peer);
 
-                    peer->datad(peer->data);
+                    if (peer->datafree)
+			    peer->datafree(peer->data);
                     free(peer);
 
                     peer = exten;
@@ -2541,7 +2554,8 @@ int cw_context_remove_extension2(struct cw_context *con, const char *extension, 
                         /* now, free whole priority extension */
                         if (peer->priority==PRIORITY_HINT)
                             cw_remove_hint(peer);
-                        peer->datad(peer->data);
+                        if (peer->datafree)
+				peer->datafree(peer->data);
                         free(peer);
 
                         cw_mutex_unlock(&con->lock);
@@ -2597,7 +2611,7 @@ static const char set_global_help[] =
  */
 
 /*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
-static int handle_show_hints(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_hints(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
     struct cw_hint *hint;
     int num = 0;
@@ -3064,126 +3078,18 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
     return tmp;
 }
 
-void __cw_context_destroy(struct cw_context *con, const char *registrar);
-
 struct store_hint
 {
     char *context;
     char *exten;
     struct cw_state_cb *callbacks;
-    int laststate;
+    enum cw_extension_states laststate;
     CW_LIST_ENTRY(store_hint) list;
     char data[1];
 };
 
 CW_LIST_HEAD(store_hints, store_hint);
 
-void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *registrar)
-{
-    struct cw_context *tmp, *lasttmp = NULL;
-    struct store_hints store;
-    struct store_hint *this;
-    struct cw_hint *hint;
-    struct cw_exten *exten;
-    int length;
-    struct cw_state_cb *thiscb, *prevcb;
-
-    /* preserve all watchers for hints associated with this registrar */
-    CW_LIST_HEAD_INIT(&store);
-    cw_mutex_lock(&hintlock);
-    for (hint = hints;  hint;  hint = hint->next)
-    {
-        if (hint->callbacks  &&  !strcmp(registrar, hint->exten->parent->registrar))
-        {
-            length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
-            if ((this = calloc(1, length)) == NULL)
-            {
-                cw_log(CW_LOG_WARNING, "Could not allocate memory to preserve hint\n");
-                continue;
-            }
-            this->callbacks = hint->callbacks;
-            hint->callbacks = NULL;
-            this->laststate = hint->laststate;
-            this->context = this->data;
-            strcpy(this->data, hint->exten->parent->name);
-            this->exten = this->data + strlen(this->context) + 1;
-            strcpy(this->exten, hint->exten->exten);
-            CW_LIST_INSERT_HEAD(&store, this, list);
-        }
-    }
-    cw_mutex_unlock(&hintlock);
-
-    tmp = *extcontexts;
-    cw_mutex_lock(&conlock);
-    if (registrar)
-    {
-        __cw_context_destroy(NULL,registrar);
-        while (tmp)
-        {
-            lasttmp = tmp;
-            tmp = tmp->next;
-        }
-    }
-    else
-    {
-        while (tmp)
-        {
-            __cw_context_destroy(tmp,tmp->registrar);
-            lasttmp = tmp;
-            tmp = tmp->next;
-        }
-    }
-    if (lasttmp)
-    {
-        lasttmp->next = contexts;
-        contexts = *extcontexts;
-        *extcontexts = NULL;
-    }
-    else 
-    {
-        cw_log(CW_LOG_WARNING, "Requested contexts could not be merged\n");
-    }
-    cw_mutex_unlock(&conlock);
-
-    /* restore the watchers for hints that can be found; notify those that
-       cannot be restored
-    */
-    while ((this = CW_LIST_REMOVE_HEAD(&store, list)))
-    {
-        exten = cw_hint_extension(NULL, this->context, this->exten);
-        /* Find the hint in the list of hints */
-        cw_mutex_lock(&hintlock);
-        for (hint = hints;  hint;  hint = hint->next)
-        {
-            if (hint->exten == exten)
-                break;
-        }
-        if (!exten  ||  !hint)
-        {
-            /* this hint has been removed, notify the watchers */
-            prevcb = NULL;
-            thiscb = this->callbacks;
-            while (thiscb)
-            {
-                prevcb = thiscb;        
-                thiscb = thiscb->next;
-                prevcb->callback(this->context, this->exten, CW_EXTENSION_REMOVED, prevcb->data);
-                free(prevcb);
-            }
-        }
-        else
-        {
-            thiscb = this->callbacks;
-            while (thiscb->next)
-                thiscb = thiscb->next;
-            thiscb->next = hint->callbacks;
-            hint->callbacks = this->callbacks;
-            hint->laststate = this->laststate;
-        }
-        cw_mutex_unlock(&hintlock);
-        free(this);
-    }
-}
 
 /*
  * errno values
@@ -3966,7 +3872,7 @@ int cw_ignore_pattern(const char *context, const char *pattern)
  *
  */
 int cw_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
-    const char *application, void *data, void (*datad)(void *), const char *registrar)
+    const char *application, void *data, void (*datafree)(void *), const char *registrar)
 {
     struct cw_context *c;
     unsigned int hash = cw_hash_string(context);
@@ -3984,7 +3890,7 @@ int cw_add_extension(const char *context, int replace, const char *extension, in
         if (hash == c->hash && !strcmp(context, c->name))
         {
             ret = cw_add_extension2(c, replace, extension, priority, label, callerid,
-                application, data, datad, registrar);
+                application, data, datafree, registrar);
 	    break;
         }
     }
@@ -4159,9 +4065,6 @@ static int ext_strncpy(char *dst, const char *src, int len)
     return count;
 }
 
-static void null_datad(void *foo)
-{
-}
 
 /*
  * EBUSY - can't lock
@@ -4170,7 +4073,7 @@ static void null_datad(void *foo)
  */
 int cw_add_extension2(struct cw_context *con,
                         int replace, const char *extension, int priority, const char *label, const char *callerid,
-                        const char *application, void *data, void (*datad)(void *),
+                        const char *application, void *data, void (*datafree)(void *),
                         const char *registrar)
 {
 
@@ -4211,8 +4114,6 @@ int cw_add_extension2(struct cw_context *con,
         length ++;
 
     /* Be optimistic:  Build the extension structure first */
-    if (datad == NULL)
-        datad = null_datad;
     if ((tmp = malloc(length)))
     {
         memset(tmp, 0, length);
@@ -4244,7 +4145,7 @@ int cw_add_extension2(struct cw_context *con,
 	tmp->apphash = cw_hash_string(application);
         tmp->parent = con;
         tmp->data = data;
-        tmp->datad = datad;
+        tmp->datafree = datafree;
         tmp->registrar = registrar;
         tmp->peer = NULL;
         tmp->next =  NULL;
@@ -4259,7 +4160,8 @@ int cw_add_extension2(struct cw_context *con,
     {
         free(tmp);
         /* And properly destroy the data */
-        datad(data);
+        if (datafree)
+		datafree(data);
         cw_log(CW_LOG_WARNING, "Failed to lock context '%s' (%#x)\n", con->name, con->hash);
         errno = EBUSY;
         return -1;
@@ -4320,7 +4222,8 @@ int cw_add_extension2(struct cw_context *con,
                         if (tmp->priority == PRIORITY_HINT)
                             cw_change_hint(e,tmp);
                         /* Destroy the old one */
-                        e->datad(e->data);
+                        if (e->datafree)
+				e->datafree(e->data);
                         free(e);
                         cw_mutex_unlock(&con->lock);
                         if (tmp->priority == PRIORITY_HINT)
@@ -4333,7 +4236,8 @@ int cw_add_extension2(struct cw_context *con,
                     {
                         cw_log(CW_LOG_WARNING, "Unable to register extension '%s', priority %d in '%s' (%#x), already in use\n",
                                  tmp->exten, tmp->priority, con->name, con->hash);
-                        tmp->datad(tmp->data);
+                        if (tmp->datafree)
+				tmp->datafree(tmp->data);
                         free(tmp);
                         cw_mutex_unlock(&con->lock);
                         errno = EEXIST;
@@ -4510,7 +4414,7 @@ static void *async_wait(void *data)
  *
  * \param chan the channel for the failed call.
  */
-int cw_pbx_outgoing_cdr_failed(void)
+static int cw_pbx_outgoing_cdr_failed(void)
 {
     struct cw_channel *chan;
     int ret = -1;
@@ -4872,12 +4776,12 @@ static void destroy_exten(struct cw_exten *e)
     if (e->priority == PRIORITY_HINT)
         cw_remove_hint(e);
 
-    if (e->datad)
-        e->datad(e->data);
+    if (e->datafree)
+        e->datafree(e->data);
     free(e);
 }
 
-void __cw_context_destroy(struct cw_context *con, const char *registrar)
+void cw_context_destroy(struct cw_context *con, const char *registrar)
 {
     struct cw_context *tmp, *tmpl=NULL;
     struct cw_include *tmpi, *tmpil= NULL;
@@ -4960,9 +4864,112 @@ void __cw_context_destroy(struct cw_context *con, const char *registrar)
     cw_mutex_unlock(&conlock);
 }
 
-void cw_context_destroy(struct cw_context *con, const char *registrar)
+
+void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *registrar)
 {
-    __cw_context_destroy(con,registrar);
+    struct cw_context *tmp, *lasttmp = NULL;
+    struct store_hints store;
+    struct store_hint *this;
+    struct cw_hint *hint;
+    struct cw_exten *exten;
+    int length;
+    struct cw_state_cb *thiscb, *prevcb;
+
+    /* preserve all watchers for hints associated with this registrar */
+    CW_LIST_HEAD_INIT(&store);
+    cw_mutex_lock(&hintlock);
+    for (hint = hints;  hint;  hint = hint->next)
+    {
+        if (hint->callbacks  &&  !strcmp(registrar, hint->exten->parent->registrar))
+        {
+            length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
+            if ((this = calloc(1, length)) == NULL)
+            {
+                cw_log(CW_LOG_WARNING, "Could not allocate memory to preserve hint\n");
+                continue;
+            }
+            this->callbacks = hint->callbacks;
+            hint->callbacks = NULL;
+            this->laststate = hint->laststate;
+            this->context = this->data;
+            strcpy(this->data, hint->exten->parent->name);
+            this->exten = this->data + strlen(this->context) + 1;
+            strcpy(this->exten, hint->exten->exten);
+            CW_LIST_INSERT_HEAD(&store, this, list);
+        }
+    }
+    cw_mutex_unlock(&hintlock);
+
+    tmp = *extcontexts;
+    cw_mutex_lock(&conlock);
+    if (registrar)
+    {
+        cw_context_destroy(NULL,registrar);
+        while (tmp)
+        {
+            lasttmp = tmp;
+            tmp = tmp->next;
+        }
+    }
+    else
+    {
+        while (tmp)
+        {
+            cw_context_destroy(tmp,tmp->registrar);
+            lasttmp = tmp;
+            tmp = tmp->next;
+        }
+    }
+    if (lasttmp)
+    {
+        lasttmp->next = contexts;
+        contexts = *extcontexts;
+        *extcontexts = NULL;
+    }
+    else
+    {
+        cw_log(CW_LOG_WARNING, "Requested contexts could not be merged\n");
+    }
+    cw_mutex_unlock(&conlock);
+
+    /* restore the watchers for hints that can be found; notify those that
+       cannot be restored
+    */
+    while ((this = CW_LIST_REMOVE_HEAD(&store, list)))
+    {
+        exten = cw_hint_extension(NULL, this->context, this->exten);
+        /* Find the hint in the list of hints */
+        cw_mutex_lock(&hintlock);
+        for (hint = hints;  hint;  hint = hint->next)
+        {
+            if (hint->exten == exten)
+                break;
+        }
+        if (!exten  ||  !hint)
+        {
+            /* this hint has been removed, notify the watchers */
+            prevcb = NULL;
+            thiscb = this->callbacks;
+            while (thiscb)
+            {
+                prevcb = thiscb;
+                thiscb = thiscb->next;
+                prevcb->callback(this->context, this->exten, CW_EXTENSION_REMOVED, prevcb->data);
+                free(prevcb);
+            }
+        }
+        else
+        {
+            thiscb = this->callbacks;
+            while (thiscb->next)
+                thiscb = thiscb->next;
+            thiscb->next = hint->callbacks;
+            hint->callbacks = this->callbacks;
+            hint->laststate = this->laststate;
+        }
+        cw_mutex_unlock(&hintlock);
+        free(this);
+    }
 }
 
 

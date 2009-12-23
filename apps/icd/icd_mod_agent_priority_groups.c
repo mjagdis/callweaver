@@ -127,7 +127,6 @@ int icd_module_unload(void)
 
 static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * that, char *name, icd_config * data)
 {
-    icd_status result;
     icd_plugable_fn *plugable_fns;
     char buf[ICD_STRING_LEN];
 
@@ -146,34 +145,34 @@ static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * t
 
     ICD_MEMSET_ZERO(&icd_module_plugable_fns, sizeof(icd_module_plugable_fns));
     snprintf(buf, sizeof(buf), "PriorityGroupsDefault");
-    result = init_icd_plugable_fns(&icd_module_plugable_fns, buf, data);
+    init_icd_plugable_fns(&icd_module_plugable_fns, buf, data);
 
     ICD_MEMSET_ZERO(&icd_module_agent_plugable_fns, sizeof(icd_module_agent_plugable_fns));
     snprintf(buf, sizeof(buf), "PriorityGroupsAgentDefault");
-    result = init_icd_plugable_fns(&icd_module_agent_plugable_fns, buf, data);
+    init_icd_plugable_fns(&icd_module_agent_plugable_fns, buf, data);
 
     ICD_MEMSET_ZERO(&icd_module_customer_plugable_fns, sizeof(icd_module_customer_plugable_fns));
     snprintf(buf, sizeof(buf), "PriorityGroupsCustomerDefault");
-    result = init_icd_plugable_fns(&icd_module_customer_plugable_fns, buf, data);
+    init_icd_plugable_fns(&icd_module_customer_plugable_fns, buf, data);
 
     /* Now customize plugable interface points for each of the above function ptr strucs */
     plugable_fns = &icd_module_agent_plugable_fns;
-    result = icd_plugable__set_state_call_end_fn(plugable_fns, icd_agent__standard_state_call_end, NULL);
-    result = icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_agent__standard_cleanup_caller);
-    result = icd_plugable__set_state_bridged_fn(plugable_fns, icd_module__agent_state_bridged, NULL);
+    icd_plugable__set_state_call_end_fn(plugable_fns, icd_agent__standard_state_call_end, NULL);
+    icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_agent__standard_cleanup_caller);
+    icd_plugable__set_state_bridged_fn(plugable_fns, icd_module__agent_state_bridged, NULL);
 
 /*
-    result = icd_plugable__set_state_call_end_fn(plugable_fns, icd_module__standard_state_call_end, NULL);
-    result = icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_module__standard_cleanup_caller);
+    icd_plugable__set_state_call_end_fn(plugable_fns, icd_module__standard_state_call_end, NULL);
+    icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_module__standard_cleanup_caller);
 */
     plugable_fns = &icd_module_customer_plugable_fns;
-    result = icd_plugable__set_state_call_end_fn(plugable_fns, icd_customer__standard_state_call_end, NULL);
-    result = icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_customer__standard_cleanup_caller);
-    result = icd_plugable__set_state_bridged_fn(plugable_fns, icd_module__customer_state_bridged, NULL);
+    icd_plugable__set_state_call_end_fn(plugable_fns, icd_customer__standard_state_call_end, NULL);
+    icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_customer__standard_cleanup_caller);
+    icd_plugable__set_state_bridged_fn(plugable_fns, icd_module__customer_state_bridged, NULL);
 
-    result = icd_plugable__set_state_associate_failed_fn(plugable_fns, icd_module__state_associate_failed, NULL);
-    result = icd_plugable__set_state_channel_failed_fn(plugable_fns, icd_module__state_channel_failed, NULL);
-    result = icd_plugable__set_state_bridge_failed_fn(plugable_fns, icd_module__state_bridge_failed, NULL);
+    icd_plugable__set_state_associate_failed_fn(plugable_fns, icd_module__state_associate_failed, NULL);
+    icd_plugable__set_state_channel_failed_fn(plugable_fns, icd_module__state_channel_failed, NULL);
+    icd_plugable__set_state_bridge_failed_fn(plugable_fns, icd_module__state_bridge_failed, NULL);
 
     icd_distributor__create_thread(that);
     cw_verbose(VERBOSE_PREFIX_3 "ICD Distributor[%s] Initialized !\n", name);
@@ -432,8 +431,6 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
     struct cw_channel *chan;
     struct cw_channel *chan_associate;
     struct cw_channel *bchan;
-    icd_status result;
-    icd_status final_result;
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -459,9 +456,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
                 if (chan && chan_associate) {
                     if ((bchan = cw_bridged_channel(chan_associate))) {
                         if (chan->name != bchan->name) {
-                            result = icd_caller__unlink_from_caller(that, associate);
-                            if (result != ICD_SUCCESS)
-                                final_result = result;
+                            icd_caller__unlink_from_caller(that, associate);
                         }
                         cw_object_put(bchan);
                     }
@@ -469,9 +464,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
                 break;
             case ICD_BRIDGE_CONFERENCE:
                 if (icd_caller__get_conference(that) != icd_caller__get_conference(associate)) {
-                    result = icd_caller__unlink_from_caller(that, associate);
-                    if (result != ICD_SUCCESS)
-                        final_result = result;
+                    icd_caller__unlink_from_caller(that, associate);
                 }
                 break;
             }                   /*switch on bridge_tech */
@@ -503,7 +496,6 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
     struct cw_channel *bchan;
     int link_count = 0;
     icd_status result;
-    icd_status final_result;
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -535,9 +527,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
                     if ((bchan = cw_bridged_channel(chan_associate))) {
                         if (chan->name != bchan->name) {
                             result = icd_caller__unlink_from_caller(that, associate);
-                            if (result != ICD_SUCCESS)
-                                final_result = result;
-                            else
+                            if (result == ICD_SUCCESS)
                                 link_count--;
                         }
                         cw_object_put(bchan);
@@ -559,9 +549,6 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
             case ICD_BRIDGE_CONFERENCE:
                 if (icd_caller__get_conference(that) != icd_caller__get_conference(associate)) {
                     result = icd_caller__unlink_from_caller(that, associate);
-                    if (result != ICD_SUCCESS) {
-                        final_result = result;
-                    }
                 }
                 break;
             }                   /*switch on bridge_tech */
@@ -617,7 +604,7 @@ static int icd_module__state_associate_failed(icd_event * event, void *extra)
 static int icd_module__pushback_and_ready_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
-    int *value = 0;
+    //int *value = 0;
 
     assert(event != NULL);
 
@@ -625,8 +612,7 @@ static int icd_module__pushback_and_ready_on_fail(icd_event * event, void *extra
     assert(that != NULL);
 
     /* increment the count of the number of failures */
-    value = (int *) extra;
-
+    //value = (int *) extra;
     //(*value)++;
 
     icd_caller__set_pushback(that);
@@ -639,7 +625,7 @@ static int icd_module__pushback_and_ready_on_fail(icd_event * event, void *extra
 static int icd_module__limited_ready_state_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
-    int *value;
+    //int *value;
 
     assert(event != NULL);
     assert(extra != NULL);
@@ -647,10 +633,9 @@ static int icd_module__limited_ready_state_on_fail(icd_event * event, void *extr
     that = icd_event__get_source(event);
     assert(that != NULL);
 
-    value = (int *) extra;
-
     /*
        TBD - Set up cleanup thread and add to list it keeps It will call icd_caller__clear()
+       value = (int *) extra;
        (*value)++;
        if ((*value) < 5) {
        icd_caller__set_state(that, ICD_CALLER_STATE_READY);

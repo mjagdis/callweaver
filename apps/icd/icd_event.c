@@ -116,8 +116,8 @@ struct icd_event {
     icd_event_factory *factory;
     void *src;
     const char *src_name;
-    int mod_id;
-    int event_id;
+    icd_module mod_id;
+    icd_event_type event_id;
     char msg[1024];
     icd_listeners *target_listeners;
     void *extra;
@@ -185,7 +185,7 @@ icd_event_factory *create_icd_event_factory(char *name)
 /* Destroy an event factory, freeing its memory and cleaning up after it. */
 icd_status destroy_icd_event_factory(icd_event_factory ** factoryp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(factoryp != NULL);
     assert(*factoryp != NULL);
@@ -261,7 +261,7 @@ int icd_event_factory__add_event(const char *name)
 }
 
 /* Create a new event from this factory. */
-icd_event *icd_event_factory__make(icd_event_factory * that, void *src, const char *src_name, int mod_id, int event_id,
+icd_event *icd_event_factory__make(icd_event_factory * that, void *src, const char *src_name, icd_module mod_id, icd_event_type event_id,
     char *msg, icd_listeners * targets, void *extra)
 {
     icd_event *event;
@@ -284,8 +284,8 @@ icd_event *icd_event_factory__make(icd_event_factory * that, void *src, const ch
 
 /* Creates an event, fires it, and destroys it. This is the standard behaviour,
    but you can create your own with the other functions here. */
-icd_status icd_event_factory__generate(icd_event_factory * that, void *src, const char *src_name, int mod_id,
-    int event_id, char *msg, icd_listeners * targets, void *extra)
+icd_status icd_event_factory__generate(icd_event_factory * that, void *src, const char *src_name, icd_module mod_id,
+    icd_event_type event_id, char *msg, icd_listeners * targets, void *extra)
 {
     icd_event *event;
     icd_status result;
@@ -304,7 +304,7 @@ icd_status icd_event_factory__generate(icd_event_factory * that, void *src, cons
 /* Creates an event, notifies hook function, fires event, and destroys it.
    Note that extra is provided by the module firing the event, but the
    hook_extra is provided by the module that registeres the function. */
-icd_status icd_event_factory__notify(icd_event_factory * that, void *src, char *src_name, int mod_id, int event_id,
+icd_status icd_event_factory__notify(icd_event_factory * that, void *src, char *src_name, icd_module mod_id, icd_event_type event_id,
     char *msg, icd_listeners * targets, void *extra, int (*hook_fn) (icd_event * event, void *extra),
     void *hook_extra)
 {
@@ -381,7 +381,7 @@ icd_status icd_event_factory__remove_listener(icd_event_factory * that, void *li
 /* Destructor for an event. */
 icd_status destroy_icd_event(icd_event ** eventp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(eventp != NULL);
     assert(*eventp != NULL);
@@ -397,8 +397,8 @@ icd_status destroy_icd_event(icd_event ** eventp)
 }
 
 /* Initialize previously created event */
-icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, const char *src_name, int mod_id,
-    int event_id, char *msg, icd_listeners * targets, void *extra)
+icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, const char *src_name, icd_module mod_id,
+    icd_event_type event_id, char *msg, icd_listeners * targets, void *extra)
 {
     char buf[200];
 
@@ -430,8 +430,8 @@ icd_status icd_event__clear(icd_event * that)
 
     that->factory = NULL;
     that->src = NULL;
-    that->mod_id = -1;
-    that->event_id = -1;
+    that->mod_id = ICD_MODULE_NONE;
+    that->event_id = ICD_EVENT_NONE;
     that->target_listeners = NULL;
     that->extra = NULL;
 
@@ -545,7 +545,7 @@ const char *icd_event__get_name(icd_event * that)
 }
 
 /* Sets the mod_id of the event */
-icd_status icd_event__set_module_id(icd_event * that, int mod_id)
+icd_status icd_event__set_module_id(icd_event * that, icd_module mod_id)
 {
     assert(that != NULL);
 
@@ -562,7 +562,7 @@ int icd_event__get_module_id(icd_event * that)
 }
 
 /* Sets the event_id of the event */
-icd_status icd_event__set_event_id(icd_event * that, int event_id)
+icd_status icd_event__set_event_id(icd_event * that, icd_event_type event_id)
 {
     assert(that != NULL);
 

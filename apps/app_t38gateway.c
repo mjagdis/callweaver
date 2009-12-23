@@ -73,7 +73,7 @@ static int cw_check_hangup_locked(struct cw_channel *chan)
 
 static void span_message(int level, const char *msg)
 {
-    int cw_level;
+    cw_log_level cw_level;
     
     if (level == SPAN_LOG_ERROR)
         cw_level = __CW_LOG_ERROR;
@@ -268,7 +268,6 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int verbose)
 {
     struct cw_channel *active = NULL;
-    struct cw_channel *inactive = NULL;
     struct cw_channel *channels[2];
     struct cw_frame *f;
     struct cw_frame outf;
@@ -277,7 +276,6 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     int running = RUNNING;
     int original_read_fmt;
     int original_write_fmt;
-    int res;
     int samples;
     int len;
     char text[128];
@@ -304,7 +302,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     {
         if (original_read_fmt != CW_FORMAT_SLINEAR)
         {
-            if ((res = cw_set_read_format(channels[1], CW_FORMAT_SLINEAR)) < 0)
+            if (cw_set_read_format(channels[1], CW_FORMAT_SLINEAR) < 0)
             {
                 cw_log(CW_LOG_WARNING, "Unable to set to linear read mode, giving up\n");
                 return -1;
@@ -312,10 +310,10 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
         }
         if (original_write_fmt != CW_FORMAT_SLINEAR)
         {
-            if ((res = cw_set_write_format(channels[1], CW_FORMAT_SLINEAR)) < 0)
+            if (cw_set_write_format(channels[1], CW_FORMAT_SLINEAR) < 0)
             {
                 cw_log(CW_LOG_WARNING, "Unable to set to linear write mode, giving up\n");
-                if ((res = cw_set_read_format(channels[1], original_read_fmt)))
+                if (cw_set_read_format(channels[1], original_read_fmt))
                     cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
                 return -1;
             }
@@ -415,7 +413,6 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
                 {
                     running = DONE;
                 }
-                inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             }
         }
     }
@@ -426,12 +423,12 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
     if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = cw_set_read_format(channels[1], original_read_fmt)))
+        if (cw_set_read_format(channels[1], original_read_fmt))
             cw_log(CW_LOG_WARNING, "Unable to restore read format on '%s'\n", channels[1]->name);
     }
     if (original_write_fmt != CW_FORMAT_SLINEAR)
     {
-        if ((res = cw_set_write_format(channels[1], original_write_fmt)))
+        if (cw_set_write_format(channels[1], original_write_fmt))
             cw_log(CW_LOG_WARNING, "Unable to restore write format on '%s'\n", channels[1]->name);
     }
     return running;

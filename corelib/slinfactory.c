@@ -79,7 +79,7 @@ int cw_slinfactory_feed(struct cw_slinfactory *sf, struct cw_frame *f)
         }
         if (sf->trans == NULL)
         {
-            if ((sf->trans = cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, f->subclass, 8000)) == NULL)
+            if ((sf->trans = cw_translator_build_path(CW_FORMAT_SLINEAR, f->subclass)) == NULL)
             {
                 cw_log(CW_LOG_WARNING, "Cannot build a path from %s to slin\n", cw_getformatname(f->subclass));
                 cw_mutex_unlock(&(sf->lock));

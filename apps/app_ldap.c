@@ -382,7 +382,6 @@ static int strconvert(const char *incharset,
     iconv_t cd;
     size_t incount;
     size_t outcount;
-    size_t result;
 
     incount = outcount = strlen(in) * 2;
     if ((cd = iconv_open(outcharset, incharset)) == (iconv_t) -1)
@@ -391,7 +390,7 @@ static int strconvert(const char *incharset,
         *out = L'\0';
         return -1;
     }
-    result = iconv(cd, &in, &incount, &out, &outcount);
+    iconv(cd, &in, &incount, &out, &outcount);
     iconv_close(cd);
     out[strlen(out)] = '\0';
     return 1;

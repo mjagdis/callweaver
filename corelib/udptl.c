@@ -208,13 +208,12 @@ static int udptlread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 
 struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 {
-    int res;
-    int actions;
+    char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in original_dest;
     struct sockaddr_in sin;
     socklen_t len;
-    char iabuf[INET_ADDRSTRLEN];
-    uint16_t *udptlheader;
+    int res;
+    int actions;
 
     len = sizeof(sin);
 
@@ -228,7 +227,6 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
                               (struct sockaddr *) &sin,
                               &len,
                               &actions);
-    udptlheader = (uint16_t *)(udptl->rawdata + CW_FRIENDLY_OFFSET);
     if (res < 0)
     {
         if (errno != EAGAIN)
@@ -246,16 +244,16 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
-            cw_log(CW_LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
+            cw_log(CW_LOG_DEBUG, "UDPTL NAT: Using address %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
     }
 
     if (udptl_debug_test_addr(&sin))
     {
-        cw_verbose("Got UDPTL packet from %s:%d (len %d)\n",
+        cw_verbose("Got UDPTL packet from %s:%hu (len %d)\n",
             cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
     }
 #if 0
-    printf("Got UDPTL packet from %s:%d (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
+    printf("Got UDPTL packet from %s:%hu (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 #endif
     /* If its not a valid UDPTL packet, restore the original port */
     if (cw_udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
@@ -454,13 +452,12 @@ void cw_udptl_destroy(cw_udptl_t *udptl)
 
 int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
 {
-    int len;
-    int res;
-    int copies;
-    int i;
     uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
     char iabuf[INET_ADDRSTRLEN];
     const struct sockaddr_in *them;
+    int len;
+    int copies;
+    int i;
 
     them = udp_socket_get_far(s->udptl_sock_info);
 
@@ -483,20 +480,18 @@ int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
     if (len > 0  &&  them->sin_port  &&  them->sin_addr.s_addr)
     {
 #if 0
-        printf("Sending %d copies of %d bytes of UDPTL data to %s:%d\n", f->state.tx_copies, len, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+        printf("Sending %d copies of %d bytes of UDPTL data to %s:%hu\n", f->state.tx_copies, len, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
         copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
         for (i = 0;  i < copies;  i++)
         {
-            if ((res = udp_socket_send(s->udptl_sock_info, buf, len, 0)) < 0)
-                cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+            if (udp_socket_send(s->udptl_sock_info, buf, len, 0) < 0)
+                cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %s:%hu: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
         }
-#if 0
-        printf("Sent %d bytes of UDPTL data to %s:%d\n", res, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
-#endif
+
         if (udptl_debug_test_addr(them))
         {
-            cw_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
+            cw_verbose("Sent UDPTL packet to %s:%hu (seq %d, len %d)\n",
                          cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
                          ntohs(them->sin_port),
                          (s->state.tx_seq_no - 1) & 0xFFFF,
@@ -647,17 +642,17 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
         cw_udptl_get_peer(p0, &t0);
         if (inaddrcmp(&t1, &ac1))
         {
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu\n",
                 c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu\n",
                 c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
             memcpy(&ac1, &t1, sizeof(ac1));
         }
         if (inaddrcmp(&t0, &ac0))
         {
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu\n",
                 c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu\n",
                 c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
             memcpy(&ac0, &t0, sizeof(ac0));
         }

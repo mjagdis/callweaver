@@ -244,13 +244,12 @@ static struct cw_frame *lintodviadpcm_frameout(void *pvt)
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
     int i_max;
-    int enc_len;
-  
+
     if (tmp->tail < 2)
         return NULL;
 
     i_max = tmp->tail & ~1; /* atomic size is 2 samples */
-    enc_len = ima_adpcm_encode(&tmp->dvi_state, tmp->outbuf, tmp->inbuf, i_max);
+    ima_adpcm_encode(&tmp->dvi_state, tmp->outbuf, tmp->inbuf, i_max);
     cw_fr_init_ex(&tmp->f, CW_FRAME_VOICE, CW_FORMAT_DVI_ADPCM);
     tmp->f.samples = i_max;
     tmp->f.offset = CW_FRIENDLY_OFFSET;
@@ -358,4 +357,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator")

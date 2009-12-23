@@ -61,7 +61,7 @@ struct asent {
 static struct asent *aslist = NULL;
 static pthread_t asthread = CW_PTHREADT_NULL;
 
-static void *autoservice_run(void *ign)
+static __attribute__((__noreturn__)) void *autoservice_run(void *ign)
 {
 	struct cw_channel *mons[MAX_AUTOMONS];
 	int x;
@@ -69,7 +69,8 @@ static void *autoservice_run(void *ign)
 	struct cw_channel *chan;
 	struct asent *as;
 	struct cw_frame *f;
-	for(;;) {
+
+	for (;;) {
 		x = 0;
 		cw_mutex_lock(&autolock);
 		as = aslist;
@@ -95,8 +96,6 @@ static void *autoservice_run(void *ign)
 				cw_fr_free(f);
 		}
 	}
-	asthread = CW_PTHREADT_NULL;
-	return NULL;
 }
 
 int cw_autoservice_start(struct cw_channel *chan)

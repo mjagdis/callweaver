@@ -66,6 +66,7 @@ enum cw_extension_states
 	CW_EXTENSION_UNAVAILABLE = 1 << 2,
 	/*! All devices RINGING */
 	CW_EXTENSION_RINGING = 1 << 3,
+	CW_EXTENSION_INUSE_AND_RINGING = (1 << 0) | (1 << 3),
 };
 
 enum cw_extension_match_conditions
@@ -84,18 +85,6 @@ enum cw_extension_match_conditions
     EXTENSION_MATCH_POSSIBLE = 5
 };
 
-static const struct cfextension_states
-{
-	int extension_state;
-	const char * const text;
-} extension_states[] = {
-	{ CW_EXTENSION_NOT_INUSE,                     "Idle" },
-	{ CW_EXTENSION_INUSE,                         "InUse" },
-	{ CW_EXTENSION_BUSY,                          "Busy" },
-	{ CW_EXTENSION_UNAVAILABLE,                   "Unavailable" },
-	{ CW_EXTENSION_RINGING,                       "Ringing" },
-	{ CW_EXTENSION_INUSE | CW_EXTENSION_RINGING, "InUse&Ringing" }
-};
 
 struct cw_context;
 struct cw_exten;     

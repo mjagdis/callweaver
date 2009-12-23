@@ -34,6 +34,7 @@
 #include "callweaver/frame.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/config.h"
+#include "callweaver/devicestate.h"
 
 #include "callweaver/generic_jb.h"
 
@@ -106,7 +107,7 @@ struct cw_channel_tech {
 
 	struct cw_channel *(* const requester)(const char *type, int format, void *data, int *cause);
 
-	int (* const devicestate)(void *data);
+	cw_devicestate_t (* const devicestate)(void *data);
 
 	/*! Send a literal DTMF digit */
 	int (* const send_digit)(struct cw_channel *chan, char digit);

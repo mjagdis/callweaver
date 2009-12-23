@@ -838,7 +838,6 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     int origfd;
     int musiconhold = 0;
     int firstpass = 0;
-    int origquiet;
     int lastmarked = 0;
     int currentmarked = 0;
     int ret = -1;
@@ -932,7 +931,6 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
     user->adminflags = 0;
     user->talking = -1;
     cw_mutex_unlock(&conflock);
-    origquiet = confflags & CONFFLAG_QUIET;
     if (confflags & CONFFLAG_EXIT_CONTEXT)
     {
         if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_EXIT_CONTEXT, "MEETME_EXIT_CONTEXT"))) {

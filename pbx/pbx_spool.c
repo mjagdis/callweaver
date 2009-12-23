@@ -338,7 +338,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 	return -1;
 }
 
-static void *scan_thread(void *unused)
+static __attribute__((__noreturn__)) void *scan_thread(void *data)
 {
 	char fn[256];
 	struct stat st;
@@ -421,7 +421,6 @@ static void *scan_thread(void *unused)
 
 		pthread_cleanup_pop(1);
 	}
-	return NULL;
 }
 
 

@@ -143,7 +143,7 @@ db_reconnect:
 				mysql_init(&mysql);
 				/* Add option to quickly timeout the connection */
 				if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
-					cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+					cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%u) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 				}
 				if (mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {
 					connected = 1;
@@ -165,7 +165,7 @@ db_reconnect:
 							cw_log(CW_LOG_ERROR, "cdr_mysql: Server has gone away. Attempting to reconnect.\n");
 							break;
 						default:
-							cw_log(CW_LOG_ERROR, "cdr_mysql: Unknown connection error: (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+							cw_log(CW_LOG_ERROR, "cdr_mysql: Unknown connection error: (%u) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 					}
 					retries--;
 					if (retries)
@@ -223,7 +223,7 @@ db_reconnect:
 	
 			if (connected) {
 				if (mysql_real_query(&mysql, sqlcmd, strlen(sqlcmd))) {
-					cw_log(CW_LOG_ERROR, "mysql_cdr: Failed to insert into database: (%d) %s", mysql_errno(&mysql), mysql_error(&mysql));
+					cw_log(CW_LOG_ERROR, "mysql_cdr: Failed to insert into database: (%u) %s", mysql_errno(&mysql), mysql_error(&mysql));
 					mysql_close(&mysql);
 					connected = 0;
 				} else {
@@ -361,7 +361,7 @@ static int load_module(void)
 	}
 
 	if ((tmp = cw_variable_retrieve(cfg, "global", "timeout"))) {
-		if (sscanf(tmp, "%d", &timeout) < 1) {
+		if (sscanf(tmp, "%u", &timeout) < 1) {
 			cw_log(CW_LOG_WARNING, "Invalid MySQL timeout number.  Using default\n");
 			timeout = 0;
 		}
@@ -378,7 +378,7 @@ static int load_module(void)
 
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got hostname of %s\n", dbserver);
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got port of %d\n", dbport);
-	cw_log(CW_LOG_DEBUG, "cdr_mysql: got a timeout of %d\n", timeout);
+	cw_log(CW_LOG_DEBUG, "cdr_mysql: got a timeout of %u\n", timeout);
 	if (dbsock)
 		cw_log(CW_LOG_DEBUG, "cdr_mysql: got sock file of %s\n", dbsock);
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got user of %s\n", dbuser);
@@ -388,7 +388,7 @@ static int load_module(void)
 	mysql_init(&mysql);
 
 	if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
-		cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+		cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%u) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 	}
 
 	if (!mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {

@@ -27,6 +27,7 @@
  */
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <arpa/nameser.h>
 #if defined(__APPLE_CC__) && __APPLE_CC__ >= 1495
 #include <arpa/nameser_compat.h>
@@ -77,7 +78,7 @@ static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len
 	}
 	if (res && strcmp(repl, ".")) {
 		if (option_verbose > 3)
-			cw_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
+			cw_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %hu\n", repl, ntohs(srv->portnum));
 		if (host) {
 			cw_copy_string(host, repl, hostlen);
 			host[hostlen-1] = '\0';

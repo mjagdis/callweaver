@@ -213,8 +213,8 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 				unsigned char *q;
 
 				for (q = p + 2, togo -= 2; togo && *q >= ' ' && *q <= 127; q++, togo--);
-				cw_log(CW_LOG_DEBUG, "%s -> %.*s\n", fm->devlink, (int)(q - p), p);
-				n = snprintf(msg, sizeof(msg), "-> %.*s\n", (int)(q - p), p);
+				cw_log(CW_LOG_DEBUG, "%s -> %.*s\n", fm->devlink, (int)(q - p), (char *)p);
+				n = snprintf(msg, sizeof(msg), "-> %.*s\n", (int)(q - p), (char *)p);
 				if (fm->debug_dte >= 0)
 					write(fm->debug_dte, msg, n);
 				p = q;

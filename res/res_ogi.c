@@ -110,7 +110,7 @@ static int ogidebug = 0;
 
 #define OGI_PORT 4573
 
-static void ogi_debug_cli(int fd, char *fmt, ...)
+static void ogi_debug_cli(int fd, const char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
@@ -138,8 +138,8 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 	struct pollfd pfds[1];
 	char *host;
 	char *c; int port = OGI_PORT;
-	char *script="";
-	struct sockaddr_in sin;
+	const char *script = "";
+	struct sockaddr_in sain;
 	struct hostent *hp;
 	struct cw_hostent ahp;
 
@@ -181,11 +181,11 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 		close(s);
 		return -1;
 	}
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
-	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) && (errno != EINPROGRESS)) {
+	memset(&sain, 0, sizeof(sain));
+	sain.sin_family = AF_INET;
+	sain.sin_port = htons(port);
+	memcpy(&sain.sin_addr, hp->h_addr, sizeof(sain.sin_addr));
+	if (connect(s, (struct sockaddr *)&sain, sizeof(sain)) && (errno != EINPROGRESS)) {
 		cw_log(CW_LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
 		close(s);
 		return -1;
@@ -484,41 +484,41 @@ static int handle_sendimage(struct cw_channel *chan, OGI *ogi, int argc, char *a
 
 static int handle_controlstreamfile(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])
 {
+	const char *strfwd;
+	const char *strrev;
+	const char *strpause;
+	const char *strstop;
 	int res = 0;
 	int skipms = 3000;
-	char *fwd = NULL;
-	char *rev = NULL;
-	char *pause = NULL;
-	char *stop = NULL;
 
 	if (argc < 5 || argc > 9)
 		return RESULT_SHOWUSAGE;
 
 	if (!cw_strlen_zero(argv[4]))
-		stop = argv[4];
+		strstop = argv[4];
 	else
-		stop = NULL;
-	
+		strstop = NULL;
+
 	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1))
 		return RESULT_SHOWUSAGE;
 
 	if (argc > 6 && !cw_strlen_zero(argv[8]))
-		fwd = argv[6];
+		strfwd = argv[6];
 	else
-		fwd = "#";
+		strfwd = "#";
 
 	if (argc > 7 && !cw_strlen_zero(argv[8]))
-		rev = argv[7];
+		strrev = argv[7];
 	else
-		rev = "*";
-	
+		strrev = "*";
+
 	if (argc > 8 && !cw_strlen_zero(argv[8]))
-		pause = argv[8];
+		strpause = argv[8];
 	else
-		pause = NULL;
-	
-	res = cw_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms);
-	
+		strpause = NULL;
+
+	res = cw_control_streamfile(chan, argv[3], strfwd, strrev, strstop, strpause, NULL, skipms);
+
 	fdprintf(ogi->fd, "200 result=%d\n", res);
 
 	if (res >= 0)
@@ -740,9 +740,9 @@ static int handle_saytime(struct cw_channel *chan, OGI *ogi, int argc, char *arg
 
 static int handle_saydatetime(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])
 {
-	int res=0;
+	const char *format, *zone = NULL;
 	long unixtime;
-	char *format, *zone=NULL;
+	int res = 0;
 	
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
@@ -1085,19 +1085,15 @@ static int handle_exec(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 
 static int handle_setcallerid(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	char tmp[256]="";
-	char *l = NULL, *n = NULL;
+	char tmp[256];
+	char *l, *n;
 
 	if (argv[2]) {
 		cw_copy_string(tmp, argv[2], sizeof(tmp));
 		cw_callerid_parse(tmp, &n, &l);
 		if (l)
 			cw_shrink_phone_number(l);
-		else
-			l = "";
-		if (!n)
-			n = "";
-		cw_set_callerid(chan, l, n, NULL);
+		cw_set_callerid(chan, (l ? l : ""), (n ? n : ""), NULL);
 	}
 
 	fdprintf(ogi->fd, "200 result=1\n");
@@ -1192,8 +1188,8 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 
 static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
+	const char *prefix;
 	int level = 0;
-	char *prefix;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -1636,7 +1632,7 @@ static ogi_command commands[MAX_COMMANDS] = {
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 };
 
-static void join(char *s, size_t len, char *w[])
+static void join(char *s, size_t len, const char **w)
 {
 	int x;
 
@@ -1652,15 +1648,17 @@ static void join(char *s, size_t len, char *w[])
 	}
 }
 
-static int help_workhorse(struct cw_dynstr **ds_p, char *match[])
+static int help_workhorse(struct cw_dynstr **ds_p, const char **match)
 {
 	char fullcmd[80];
 	char matchstr[80];
-	int x;
 	struct ogi_command *e;
+	int x;
+
 	if (match)
 		join(matchstr, sizeof(matchstr), match);
-	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+
+	for (x=0; x < sizeof(commands)/sizeof(commands[0]); x++) {
 		if (!commands[x].cmda[0]) break;
 		e = &commands[x]; 
 		if (e)
@@ -1931,9 +1929,9 @@ static int handle_showogi(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 			cw_dynstr_printf(ds_p, e->usage);
 		else {
 			if (find_command(argv + 2, -1)) {
-				return help_workhorse(ds_p, argv + 1);
+				return help_workhorse(ds_p, (const char **)(argv + 1));
 			} else {
-				join(fullcmd, sizeof(fullcmd), argv+1);
+				join(fullcmd, sizeof(fullcmd), (const char **)(argv + 1));
 				cw_dynstr_printf(ds_p, "No such command '%s'.\n", fullcmd);
 			}
 		}
@@ -1943,12 +1941,13 @@ static int handle_showogi(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpogihtml(struct cw_dynstr **ds_p, int argc, char *argv[]) {
-	struct ogi_command *e;
+static int handle_dumpogihtml(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
 	char fullcmd[80];
+	struct ogi_command *e;
 	char *tempstr;
-	int x;
 	FILE *htmlfile;
+	int x;
 
 	if ((argc < 3))
 		return RESULT_SHOWUSAGE;
@@ -1958,38 +1957,44 @@ static int handle_dumpogihtml(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 		return RESULT_SHOWUSAGE;
 	}
 
-	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>OGI Commands</TITLE>\n</HEAD>\n");
-	fprintf(htmlfile, "<BODY>\n<CENTER><B><H1>OGI Commands</H1></B></CENTER>\n\n");
+	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>OGI Commands</TITLE>\n</HEAD>\n"
+		"<BODY>\n<CENTER><B><H1>OGI Commands</H1></B></CENTER>\n\n"
+		"<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
 
+	for (x = 0; x < sizeof(commands)/sizeof(commands[0]); x++) {
+		char *stringp, *p;
 
-	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
+		if (!commands[x].cmda[0])
+			break;
 
-	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
-		char *stringp=NULL;
-		if (!commands[x].cmda[0]) break;
-		e = &commands[x]; 
+		e = &commands[x];
 		if (e)
 			join(fullcmd, sizeof(fullcmd), e->cmda);
+
 		/* Hide commands that start with '_' */
 		if (fullcmd[0] == '_')
 			continue;
 
-		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
-		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TD></TR>\n", fullcmd,e->summary);
+		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n"
+			"<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TD></TR>\n",
+			fullcmd,e->summary);
 
+		if ((p = stringp = strdup(e->usage))) {
+			tempstr = strsep(&p, "\n");
 
-		stringp=e->usage;
-		tempstr = strsep(&stringp, "\n");
+			fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">%s</TD></TR>\n"
+				"<TR><TD ALIGN=\"CENTER\">\n",
+				tempstr);
 
-		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">%s</TD></TR>\n", tempstr);
-		
-		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">\n");
-		while ((tempstr = strsep(&stringp, "\n")) != NULL) {
-		fprintf(htmlfile, "%s<BR>\n",tempstr);
+			while ((tempstr = strsep(&p, "\n")) != NULL) {
+				fprintf(htmlfile, "%s<BR>\n",tempstr);
+			}
 
+			free(stringp);
+
+			fprintf(htmlfile, "</TD></TR>\n"
+				"</TABLE></TD></TR>\n\n");
 		}
-		fprintf(htmlfile, "</TD></TR>\n");
-		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
 
 	}
 

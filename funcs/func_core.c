@@ -303,7 +303,7 @@ static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv,
         cw_moh_start(chan, mohclass);
 
     /* Wait for "n" seconds */
-    if (argc < 1 || !(ms = (atof(argv[0]) * 1000.0))) 
+    if (argc < 1 || !(ms = (int)(atof(argv[0]) * 1000.0)))
         ms = (chan->pbx ? chan->pbx->rtimeout * 1000 : 10000);
 
     res = cw_waitfordigit(chan, ms);

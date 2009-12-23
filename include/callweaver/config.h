@@ -58,7 +58,7 @@ typedef int realtime_update(const char *database, const char *table, const char 
 struct cw_config_engine {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
-	char *name;
+	const char *name;
 	config_load_func *load_func;
 	realtime_var_get *realtime_func;
 	realtime_multi_get *realtime_multi_func;

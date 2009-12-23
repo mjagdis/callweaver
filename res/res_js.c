@@ -12,6 +12,7 @@
  */
 
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -123,7 +124,7 @@ enum jchan_flags {
 
 #define MAX_LIST 256
 
-static char *global_config_file = "js.conf";
+static const char global_config_file[] = "js.conf";
 static char global_app_list[MAX_LIST][MAX_LIST];
 static char global_var_list[MAX_LIST][MAX_LIST];
 static char global_func_list[MAX_LIST][MAX_LIST];
@@ -454,21 +455,21 @@ static JSBool
 chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	char *app = NULL, *data = NULL;
+	char *appname = NULL, *data = NULL;
 	int x = 0;
 	int deny = 0;
 
 	if (argc > 0)
-		app = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
+		appname = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
 	if (argc > 1)
 		data = JS_GetStringBytes(JS_ValueToString(cx, argv[1]));
 	
-	if (app) {
+	if (appname) {
 		if (jc_test_flag(jc, JC_SECURE_FLAG)) {
 			if (global_app_option_whitelist)
 				deny = 1;
 			for (x=0; x < MAX_LIST; x++) {
-				if (!strcasecmp(global_app_list[x], app)) {
+				if (!strcasecmp(global_app_list[x], appname)) {
 					deny = !deny;
 					break;
 				}
@@ -476,7 +477,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 			if (deny) {
 				if (option_verbose > 2)
-					cw_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", app);
+					cw_verbose(VERBOSE_PREFIX_3"Execution of [%s] Blocked by security measures.\n", appname);
 				if (jc_test_flag(jc, JC_BREACH_FATAL)) {
 					cw_log(CW_LOG_WARNING, "Execution Halted by security measures.\n");
 					cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
@@ -488,7 +489,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		}
 
 		data = strdup(data ? data : "");
-		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(app), app, data, NULL, 0) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(appname), appname, data, NULL, 0) ? JS_FALSE : JS_TRUE );
 		if (data)
 			free(data);
 
@@ -579,7 +580,7 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 	char path_info[256] = "";
 	struct cw_var_t *var;
 	char *filename = NULL;
-	char *silence = "", *maxduration = "", *options = "";
+	const char *silence = "", *maxduration = "", *options = "";
 	
 	if (argc > 0)
 		filename = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
@@ -681,7 +682,7 @@ chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-        char *family, *key, *name;
+        char *family, *key, *value;
         JSString *str = NULL;
         int res;
 
@@ -693,11 +694,11 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         if ( !(( str = JS_ValueToString(cx, argv[1])) && ( key = JS_GetStringBytes(str)))) {
                 return JS_FALSE;
         }
-        if ( !(( str = JS_ValueToString(cx, argv[2])) && ( name = JS_GetStringBytes(str)))) {
+        if ( !(( str = JS_ValueToString(cx, argv[2])) && ( value = JS_GetStringBytes(str)))) {
                 return JS_FALSE;
         }
 
-        res = cw_db_put(family, key, name);
+        res = cw_db_put(family, key, value);
 
         if (!res) {
 		*rval = BOOLEAN_TO_JSVAL ( JSVAL_TRUE);		
@@ -781,17 +782,14 @@ static JSBool
 chan_getProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	int param = 0;
+	char *propname = JS_GetStringBytes(JS_ValueToString(cx, id));
 	JSBool res = JS_TRUE;
 
-	char *name = JS_GetStringBytes(JS_ValueToString(cx, id));
 	/* numbers are our props anything else is a method */
-	if (name[0] >= 48 && name[0] <= 57)
-		param = atoi(name);
-	else 
+	if (!isdigit(propname[0]))
 		return JS_TRUE;
-	
-	switch(param) {
+
+	switch (atoi(propname)) {
 	case CHAN_NAME:
 		if (!jc->name) {
 			jc->name = jc->chan->name;
@@ -948,7 +946,7 @@ js_fetchurl(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 #endif
 
 
-static int write_buf(int fd, char *buf) {
+static int write_buf(int fd, const char *buf) {
 
 	size_t len = strlen(buf);
 	if (fd && write(fd, buf, len) != len) {
@@ -998,7 +996,7 @@ js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	unsigned char in[B64BUFFLEN];
 	unsigned char out[B64BUFFLEN+512];
 	char *to = NULL, *from = NULL, *headers, *body = NULL, *file = NULL;
-	char *bound = "XXXX_boundary_XXXX";
+	const char *bound = "XXXX_boundary_XXXX";
 	char *path = NULL;
 	struct cw_var_t *var;
 	struct cw_channel *chan = JS_GetPrivate(cx, obj);
@@ -1156,10 +1154,10 @@ js_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 js_verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	JSBool ok;
-	int32 level = 0;
 	JSString *str;
-	char *prefix = "";
+	const char *prefix = "";
+	int32 level = 0;
+	JSBool ok;
 
 	if ((ok = JS_ValueToInt32(cx, argv[0], &level))) {
 		if ((str = JS_ValueToString(cx, argv[1]))) {

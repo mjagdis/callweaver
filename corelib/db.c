@@ -439,7 +439,6 @@ struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree)
 {
 	char *sql;
 	char *zErr = 0;
-	int res = 0;
 	struct cw_db_entry *tree = NULL;
 	sqlite3 *db;
 	int retry=0;
@@ -468,7 +467,7 @@ retry_3:
 			cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
 			cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		res = sqlite3_exec(db,
+		sqlite3_exec(db,
 						   sql,
 						   tree_callback,
 						   &tree,
@@ -484,13 +483,9 @@ retry_3:
 				usleep(SQL_RETRY_USEC);
 				goto retry_3;
 			}
-			res = -1;
-		} else {
-			res = 0;
 		}
 	} else {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		res = -1;   /* Return an error */
 	}
 
 	if (sql) {
@@ -529,7 +524,6 @@ static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 	char *prefix, *family;
 	char *sql;
 	char *zErr = 0;
-	int res = 0;
 	sqlite3 *db;
 
 	sanity_check();
@@ -562,7 +556,7 @@ static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 	if (sql) {
 		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		res = sqlite3_exec(db,
+		sqlite3_exec(db,
 						   sql,
 						   show_callback,
 						   ds_p,
@@ -571,14 +565,10 @@ static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 		
 		if (zErr) {
 			cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
-			res = -1;
 			sqlite3_free(zErr);
-		} else {
-			res = 0;
 		}
 	} else {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		res = -1;   /* Return an error */
 	}
 
 	if (sql) {

@@ -1577,7 +1577,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	cw_log(CW_LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, cw_test_flag((&globalflags), VM_ATTACH));
+	cw_log(CW_LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %u\n", attach, format, attach_user_voicemail, cw_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	pfd = mkstemp(tmp);
@@ -1658,11 +1658,11 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		else
 			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum + 1, mailbox);
-		fprintf(p, "Message-ID: <CallWeaver-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)cw_random(), mailbox, getpid(), host);
+		fprintf(p, "Message-ID: <CallWeaver-%d-%u-%s-%u@%s>\n", msgnum, (unsigned int)cw_random(), mailbox, (unsigned int)getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
 			/* Something unique. */
-			snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)cw_random());
+			snprintf(bound, sizeof(bound), "voicemail_%d%s%u%u", msgnum, mailbox, (unsigned int)getpid(), (unsigned int)cw_random());
 
 			fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 
@@ -2098,7 +2098,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	struct dirent *de;
 	char *mb, *cur;
 	const char *context;
-	int ret;
 
 	if (!folder)
 		folder = "INBOX";
@@ -2108,7 +2107,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	if (strchr(mailbox, ',')) {
 		cw_copy_string(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
-		ret = 0;
 		while((cur = strsep(&mb, ","))) {
 			if (!cw_strlen_zero(cur)) {
 				if (has_voicemail(cur, folder))
@@ -2146,7 +2144,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	struct dirent *de;
 	char *mb, *cur;
 	const char *context;
-	int ret;
 
 	if (newmsgs)
 		*newmsgs = 0;
@@ -2159,7 +2156,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		int tmpnew, tmpold;
 		cw_copy_string(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
-		ret = 0;
 		while((cur = strsep(&mb, ", "))) {
 			if (!cw_strlen_zero(cur)) {
 				if (messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
@@ -6268,22 +6264,20 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 	}
 
 	if (!(origtime = cw_variable_retrieve(msg_cfg, "message", "origtime")))
-		return 0;
+		goto out;
 
 	cid = cw_variable_retrieve(msg_cfg, "message", "callerid");
-
 	context = cw_variable_retrieve(msg_cfg, "message", "context");
+
 	if (!strncasecmp("proc", context, 5)) /* Proc names in contexts are useless for our needs */
 		context = cw_variable_retrieve(msg_cfg, "message", "proccontext");
 
 	if (option == 3) {
-
 		if (!res)
 			res = play_message_datetime(chan, vmu, origtime, filename);
 		if (!res)
 			res = play_message_callerid(chan, vms, cid, context, 0);
 	} else if (option == 2) { /* Call back */
-
 		if (!cw_strlen_zero(cid)) {
 			cw_callerid_parse(cid, &cidname, &cidnum);
 			while ((res > -1) && (res != 't')) {
@@ -6292,8 +6286,10 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 						if (cidnum) {
 							/* Dial the CID number */
 							res = dialout(chan, vmu, cidnum, vmu->callback);
-							if (res)
-								return 9;
+							if (res) {
+								res = 9;
+								goto out;
+							}
 						} else {
 							res = '2';
 						}
@@ -6303,13 +6299,16 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 						/* Want to enter a different number, can only do this if there's a dialout context for this user */
 						if (!cw_strlen_zero(vmu->dialout)) {
 							res = dialout(chan, vmu, NULL, vmu->dialout);
-							if (res)
-								return 9;
+							if (res) {
+								res = 9;
+								goto out;
+							}
 						} else {
 							cw_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
 							res = cw_play_and_wait(chan, "vm-sorry");
 						}
-						return res;
+						goto out;
+
 					case '*':
 						res = 't';
 						break;
@@ -6372,7 +6371,7 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 				cw_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
 				if (!res)
 					res = cw_play_and_wait(chan, "vm-nonumber");
-				return res;
+				goto out;
 			} else {
 				if (find_user(NULL, vmu->context, cidnum)) {
 					struct leave_vm_options leave_options;
@@ -6384,26 +6383,26 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 					res = leave_voicemail(chan, cidnum, &leave_options);
 					if (!res)
 						res = 't';
-					return res;
+					goto out;
 				} else {
 					/* Sender has no mailbox, can't reply */
 					cw_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", cidnum, vmu->context);
 					cw_play_and_wait(chan, "vm-nobox");
 					res = 't';
-					return res;
+					goto out;
 				}
-			} 
-			res = 0;
+			}
 		}
 	}
-
-	cw_config_destroy(msg_cfg);
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 		vms->heard[msg] = 1;
 		res = wait_file(chan, vms, vms->fn);
 	}
+
+out:
+	cw_config_destroy(msg_cfg);
 	return res;
 }
  

@@ -96,7 +96,7 @@ static struct cw_variable *realtime_mysql(const char *database, const char *tabl
 	char buf[511]; /* Keep this size uneven as it is 2n+1. */
 	char *stringp;
 	char *chunk;
-	char *op;
+	const char *op;
 	const char *newparam, *newval;
 	struct cw_variable *var=NULL, *prev=NULL;
 
@@ -185,20 +185,20 @@ static struct cw_variable *realtime_mysql(const char *database, const char *tabl
 
 static struct cw_config *realtime_multi_mysql(const char *database, const char *table, va_list ap)
 {
+	char sql[512];
+	char buf[511]; /* Keep this size uneven as it is 2n+1. */
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 	MYSQL_FIELD *fields;
-	int numFields, i, valsz;
-	char sql[512];
-	char buf[511]; /* Keep this size uneven as it is 2n+1. */
-	const char *initfield = NULL;
+	char *initfield;
 	char *stringp;
 	char *chunk;
-	char *op;
+	const char *op;
 	const char *newparam, *newval;
 	struct cw_variable *var=NULL;
 	struct cw_config *cfg = NULL;
 	struct cw_category *cat = NULL;
+	int numFields, i, valsz;
 
 	if(!table) {
 		cw_log(CW_LOG_WARNING, "MySQL RealTime: No table specified.\n");
@@ -222,8 +222,8 @@ static struct cw_config *realtime_multi_mysql(const char *database, const char *
 	}
 
 	initfield = cw_strdupa(newparam);
-	if ((op = strchr(initfield, ' '))) {
-		*op = '\0';
+	if ((stringp = strchr(initfield, ' '))) {
+		*stringp = '\0';
 	}
 
 	/* Must connect to the server before anything else, as the escape function requires the mysql handle. */
@@ -373,12 +373,10 @@ static int update_mysql(const char *database, const char *table, const char *key
 	 * An integer greater than zero indicates the number of rows affected
 	 * Zero indicates that no records were updated
 	 * -1 indicates that the query returned an error (although, if the query failed, it should have been caught above.)
-	*/
-
-	if(numrows >= 0)
-		return (int)numrows;
-
-	return -1;
+	 * Note that my_ulonglong is unsigned and that the error return is actually ~0 which becomes -1 after
+	 * conversion to a signed value.
+	 */
+	return (int)numrows;
 }
 
 static struct cw_config *config_mysql(const char *database, const char *table, const char *file, struct cw_config *cfg)
@@ -632,8 +630,8 @@ reconnect_tryagain:
 			connect_time = time(NULL);
 			return 1;
 		} else {
-			cw_log(CW_LOG_ERROR, "MySQL RealTime: Failed to connect database server %s on %s (err %d). Check debug for more info.\n", dbname, dbhost, mysql_errno(&mysql));
-			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Cannot Connect (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			cw_log(CW_LOG_ERROR, "MySQL RealTime: Failed to connect database server %s on %s (err %u). Check debug for more info.\n", dbname, dbhost, mysql_errno(&mysql));
+			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Cannot Connect (%u): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			connected = 0;
 			return 0;
 		}
@@ -642,16 +640,16 @@ reconnect_tryagain:
 		 * So the postman pings twice. */
 		if (mysql_ping(&mysql) != 0 && mysql_ping(&mysql) != 0) {
 			connected = 0;
-			cw_log(CW_LOG_ERROR, "MySQL RealTime: Ping failed (%d).  Trying an explicit reconnect.\n", mysql_errno(&mysql));
-			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Server Error (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			cw_log(CW_LOG_ERROR, "MySQL RealTime: Ping failed (%u).  Trying an explicit reconnect.\n", mysql_errno(&mysql));
+			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Server Error (%u): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			goto reconnect_tryagain;
 		}
 
 		connected = 1;
 
 		if(mysql_select_db(&mysql, my_database) != 0) {
-			cw_log(CW_LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%d).\n", my_database, mysql_errno(&mysql));
-			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Database Select Failed (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			cw_log(CW_LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%u).\n", my_database, mysql_errno(&mysql));
+			cw_log(CW_LOG_DEBUG, "MySQL RealTime: Database Select Failed (%u): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			return 0;
 		}
 
@@ -663,7 +661,7 @@ reconnect_tryagain:
 static int realtime_mysql_status(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	char status[256], status2[100] = "";
-	int ctime = time(NULL) - connect_time;
+	int conntime = time(NULL) - connect_time;
 
 	if(mysql_reconnect(NULL)) {
 		if(dbhost[0]) {
@@ -678,16 +676,16 @@ static int realtime_mysql_status(struct cw_dynstr **ds_p, int argc, char **argv)
 			snprintf(status2, 99, " with username %s", dbuser);
 		}
 
-		if (ctime > 31536000) {
-			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 86400) {
-			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 3600) {
-			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 60) {
-			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
+		if (conntime > 31536000) {
+			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, conntime / 31536000, (conntime % 31536000) / 86400, (conntime % 86400) / 3600, (conntime % 3600) / 60, conntime % 60);
+		} else if (conntime > 86400) {
+			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, conntime / 86400, (conntime % 86400) / 3600, (conntime % 3600) / 60, conntime % 60);
+		} else if (conntime > 3600) {
+			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, conntime / 3600, (conntime % 3600) / 60, conntime % 60);
+		} else if (conntime > 60) {
+			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, conntime / 60, conntime % 60);
 		} else {
-			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, ctime);
+			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, conntime);
 		}
 
 		return RESULT_SUCCESS;

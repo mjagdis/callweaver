@@ -130,7 +130,6 @@ static int in_abstract_context;
 static int count_labels; /* true, put matcher in label counting mode */
 static int label_count;  /* labels are only meant to be counted in a context or exten */
 static int return_on_context_match;
-static struct pval *last_matched_label;
 struct pval *match_pval(struct pval *item);
 static void check_timerange(struct pval *p);
 static void check_dow(struct pval *DOW);
@@ -1394,7 +1393,6 @@ static struct pval *match_pval_item(struct pval *item)
 		if (count_labels) {
 			if (!strcmp(match_label, item->u1.str)) {
 				label_count++;
-				last_matched_label = item;
 			}
 			
 		} else {

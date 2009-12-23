@@ -163,7 +163,7 @@ rfc3489_addr_t *cw_stun_find_request(rfc3489_trans_id_t *st)
     req_queue=stun_req_queue;
 
     if (stundebug)
-        cw_verbose("** Trying to lookup stun response for this sip packet %d\n", st->id[0]);
+        cw_verbose("** Trying to lookup stun response for this sip packet %u\n", st->id[0]);
     while (req_queue != NULL)
     {
         //cw_verbose("** STUN FIND REQUEST compare trans_id %d\n",req_queue->req_head.id.id[0]);
@@ -203,7 +203,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
     req_queue_prev = NULL;
 
     if (stundebug)
-        cw_verbose("** Trying to lookup for removal stun queue %d\n", st->id[0]);
+        cw_verbose("** Trying to lookup for removal stun queue %u\n", st->id[0]);
     while (req_queue != NULL)
     {
         if (req_queue->got_response
@@ -213,7 +213,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
             found = 1;
             delqueue = req_queue;
             if (stundebug)
-                cw_verbose("** Found: request in removal stun queue %d\n", st->id[0]);
+                cw_verbose("** Found: request in removal stun queue %u\n", st->id[0]);
             if (req_queue_prev != NULL)
             {
                 req_queue_prev->next = req_queue->next;
@@ -231,7 +231,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
             req_queue = req_queue->next;
     }
     if (!found)
-        cw_verbose("** Not Found: request in removal stun queue %d\n", st->id[0]);
+        cw_verbose("** Not Found: request in removal stun queue %u\n", st->id[0]);
 
     /* Removing old requests, caused by "sip reload" whose requests are not linked to any transmission */
     req_queue = stun_req_queue;
@@ -241,7 +241,7 @@ int stun_remove_request(rfc3489_trans_id_t *st)
         if (req_queue->whendone + 300 < now)
         {
             if (stundebug)
-                cw_verbose("** DROP: request in removal stun queue %d (too old)\n",req_queue->req_head.id.id[0]);
+                cw_verbose("** DROP: request in removal stun queue %u (too old)\n",req_queue->req_head.id.id[0]);
             delqueue = req_queue;
             if (req_queue_prev != NULL)
             {
@@ -299,7 +299,7 @@ rfc3489_request_t *cw_udp_stun_bindrequest(int fdus,
         if (stun_send(fdus, suggestion, reqh) != -1)
         {
             if (stundebug) 
-                cw_verbose("** STUN Packet SENT %d %d\n", reqh->id.id[0], myreq->req_head.id.id[0]);
+                cw_verbose("** STUN Packet SENT %u %u\n", reqh->id.id[0], myreq->req_head.id.id[0]);
             time(&myreq->whendone);
             myreq->next = stun_req_queue;
             stun_req_queue = myreq;
@@ -329,7 +329,6 @@ int stun_handle_packet(int s,
     int resplen;
     int respleft;
     rfc3489_request_t *req_queue;
-    rfc3489_request_t *req_queue_prev;
 
     memset(st, 0, sizeof(st));
     memcpy(&st->id, &hdr->id, sizeof(st->id));
@@ -337,7 +336,7 @@ int stun_handle_packet(int s,
     if (len < sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(rfc3489_header_t));
+            cw_log(CW_LOG_DEBUG, "Runt STUN packet (only %zu, wanting at least %zu)\n", len, sizeof(rfc3489_header_t));
         return -1;
     }
     if (stundebug)
@@ -346,7 +345,7 @@ int stun_handle_packet(int s,
     if (ntohs(hdr->msglen) > len - sizeof(rfc3489_header_t))
     {
         if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(rfc3489_header_t));
+            cw_log(CW_LOG_DEBUG, "Scrambled STUN packet length (got %hu, expecting %zu)\n", ntohs(hdr->msglen), len - sizeof(rfc3489_header_t));
     }
     else
         len = ntohs(hdr->msglen);
@@ -357,14 +356,14 @@ int stun_handle_packet(int s,
         if (len < sizeof(rfc3489_attr_t))
         {
             if (option_debug)
-                cw_log(CW_LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(rfc3489_attr_t));
+                cw_log(CW_LOG_DEBUG, "Runt Attribute (got %zu, expecting %zu)\n", len, sizeof(rfc3489_attr_t));
             break;
         }
         attr = (rfc3489_attr_t *) data;
         if (ntohs(attr->len) > len)
         {
             if (option_debug)
-                cw_log(CW_LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+                cw_log(CW_LOG_DEBUG, "Inconsistent Attribute (length %hu exceeds remaining msg len %zu)\n", ntohs(attr->len), len);
             break;
         }
 
@@ -412,7 +411,6 @@ int stun_handle_packet(int s,
             if (stundebug)
                 cw_verbose("** STUN Bind Response\n");
             req_queue = stun_req_queue;
-            req_queue_prev = NULL;
             while (req_queue != NULL)
             {
                 if (!req_queue->got_response
@@ -420,17 +418,16 @@ int stun_handle_packet(int s,
                     memcmp(&req_queue->req_head.id, (void *) &st->id, sizeof(req_queue->req_head.id)) == 0)
                 {
                     if (stundebug)
-                        cw_verbose("** Found response in request queue. ID: %d done at: %ld gotresponse: %d\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
+                        cw_verbose("** Found response in request queue. ID: %u done at: %ld gotresponse: %d\n", req_queue->req_head.id.id[0], (long int)req_queue->whendone, req_queue->got_response);
                     req_queue->got_response = 1;
                     memcpy(&req_queue->mapped_addr, st->mapped_addr, sizeof(rfc3489_addr_t));
                 }
                 else
                 {
                     if (stundebug)
-                        cw_verbose("** STUN request not matching. ID: %d done at: %ld gotresponse %d:\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
+                        cw_verbose("** STUN request not matching. ID: %u done at: %ld gotresponse %d:\n", req_queue->req_head.id.id[0], (long int)req_queue->whendone, req_queue->got_response);
                 }
 
-                req_queue_prev = req_queue;
                 req_queue = req_queue->next;
             }
             ret = RFC3489_ACCEPT;

@@ -133,7 +133,6 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct cw_key *key = (struct cw_key *)userdata;
 	char prompt[256];
-	int res;
 	int tmp;
 	if (key->infd > -1) {
 		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
@@ -142,7 +141,7 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 		memset(buf, 0, sizeof(buf));
 		tmp = noecho(key->infd);
 		memset(buf, 0, size);
-		res = read(key->infd, buf, size);
+		read(key->infd, buf, size);
 		if (tmp != -1)
 			restore_tty(key->infd, tmp);
 		if (buf[strlen(buf) -1] == '\n')

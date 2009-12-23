@@ -144,7 +144,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 
 int odbc_sanity_check(odbc_obj *obj) 
 {
-	char *test_sql = "select 1";
+	const char *test_sql = "select 1";
 	SQLHSTMT stmt;
 	int res = 0;
 
@@ -178,12 +178,12 @@ int odbc_sanity_check(odbc_obj *obj)
 
 static int load_odbc_config(void)
 {
-	static char *cfg = "res_odbc.conf";
+	static const char *cfg = "res_odbc.conf";
 	struct cw_config *config;
 	struct cw_variable *v;
 	char *cat, *dsn, *username, *password;
 	int enabled;
-	int connect = 0;
+	int preconnect = 0;
 	char *env_var;
 
 	odbc_obj *obj;
@@ -207,12 +207,12 @@ static int load_odbc_config(void)
 
 			dsn = username = password = NULL;
 			enabled = 1;
-			connect = 0;
+			preconnect = 0;
 			for (v = cw_variable_browse(config, cat); v; v = v->next) {
 				if (!strcmp(v->name, "enabled"))
 					enabled = cw_true(v->value);
 				if (!strcmp(v->name, "pre-connect"))
-					connect = cw_true(v->value);
+					preconnect = cw_true(v->value);
 				if (!strcmp(v->name, "dsn"))
 					dsn = v->value;
 				if (!strcmp(v->name, "username"))
@@ -226,7 +226,7 @@ static int load_odbc_config(void)
 				if (obj) {
 					register_odbc_obj(cat, obj);
 					cw_log(CW_LOG_NOTICE, "registered database handle '%s' dsn->[%s]\n", cat, obj->dsn);
-					if (connect) {
+					if (preconnect) {
 						odbc_obj_connect(obj);
 					}
 				} else {
@@ -450,10 +450,10 @@ odbc_status odbc_obj_disconnect(odbc_obj *obj)
 
 odbc_status odbc_obj_connect(odbc_obj *obj)
 {
-	int res;
+	char msg[200], st[10];
 	SQLINTEGER err;
+	int res;
 	short int mlen;
-	char msg[200], stat[10];
 
 	cw_mutex_lock(&obj->lock);
 
@@ -503,7 +503,7 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 		   (SQLCHAR *) obj->password, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, (unsigned char *) stat, &err, (unsigned char *) msg, 100, &mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, (unsigned char *) st, &err, (unsigned char *) msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
 		cw_mutex_unlock(&obj->lock);
 		cw_log(CW_LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);

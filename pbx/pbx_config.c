@@ -377,7 +377,7 @@ static void complete_context_remove_extension(struct cw_dynstr **ds_p, char *arg
 							char buffer[10];
 					
 							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
-								snprintf(buffer, 10, "%u", cw_get_extension_priority(priority));
+								snprintf(buffer, 10, "%d", cw_get_extension_priority(priority));
 								if (!strncmp(argv[3], buffer, lastarg_len))
 									cw_dynstr_printf(ds_p, "%s\n", buffer);
 							}

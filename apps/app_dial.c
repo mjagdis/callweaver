@@ -695,13 +695,12 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	memset(&config,0,sizeof(struct cw_bridge_config));
 
 	if (options) {
-
 		/* Extract call duration limit */
 		if ((cdl = strstr(options, "S("))) {
 			calldurationlimit=atoi(cdl+2);
 			if (option_verbose > 2)
-				cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);			
-		} 
+				cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
+		}
 
 		/* Extract DTMF strings to send upon successfull connect */
 		if ((sdtmfptr = strstr(options, "D("))) {
@@ -808,7 +807,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
 				cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
 				if (option_verbose > 2)
-					cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
+					cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
 			} else if (option_verbose > 2) {
 				cw_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
 				cw_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
@@ -1458,7 +1457,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 						cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 						res=0;
 						goto out;
-						break;
 					} /* if not privacy, then 5 is the same as "default" case */
 				default:
 					/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */

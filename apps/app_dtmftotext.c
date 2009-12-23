@@ -629,9 +629,8 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
         "_~9"
     };
     int res;
-    int fest_res;
+    //int fest_res;
     int mode;
-    int len;
     int hits;
     int i;
     int done;
@@ -654,12 +653,10 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
 	dtmf_rx_state_t dtmf_state;
     int original_read_fmt;
 
-    len = 0;
     t = entered_text;
     done = 0;
     mode = TEXT_ENTRY_MODE_NUMERIC;
     res = -1;
-    fest_res = -1;
     timer = PRE_DIGIT_TIMEOUT;
     total_timer = 8000*max_time;
     digits = 0;

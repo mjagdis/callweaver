@@ -351,7 +351,7 @@ static inline void cw_fr_free(struct cw_frame *frame)
 		 * a cw_fr_dup so the data is contiguous with the header.
 		 */
 		if (unlikely(frame->data && (frame->mallocd & CW_MALLOCD_DATA)))
-			free(frame->data - frame->offset);
+			free((char *)frame->data - frame->offset);
 
 		if (likely((frame->mallocd & CW_MALLOCD_HDR)))
 			free(frame);
@@ -410,7 +410,7 @@ extern CW_API_PUBLIC void cw_swapcopy_samples(void *dst, const void *src, int sa
  * \param format id of format
  * \return A static string containing the name of the format or "UNKN" if unknown.
  */
-extern CW_API_PUBLIC const char *cw_getformatname(int format);
+extern CW_API_PUBLIC const char *cw_getformatname(int format) __attribute__((__pure__));
 
 /*! Get the names of a set of formats */
 /*!
@@ -428,7 +428,7 @@ extern CW_API_PUBLIC char *cw_getformatname_multiple(char *buf, size_t size, int
  * Gets a format from a name.
  * This returns the form of the format in binary on success, 0 on error.
  */
-extern CW_API_PUBLIC int cw_getformatbyname(const char *name);
+extern CW_API_PUBLIC int cw_getformatbyname(const char *name) __attribute__((__pure__));
 
 /*! Get a name from a format */
 /*!
@@ -436,7 +436,7 @@ extern CW_API_PUBLIC int cw_getformatbyname(const char *name);
  * Gets a name from a format
  * This returns a static string identifying the format on success, 0 on error.
  */
-extern CW_API_PUBLIC const char *cw_codec2str(int codec);
+extern CW_API_PUBLIC const char *cw_codec2str(int codec) __attribute__((__pure__));
 
 struct cw_smoother;
 
@@ -449,7 +449,7 @@ extern CW_API_PUBLIC void cw_smoother_reset(struct cw_smoother *s, int bytes);
 extern CW_API_PUBLIC int __cw_smoother_feed(struct cw_smoother *s, struct cw_frame *f, int swap);
 extern CW_API_PUBLIC struct cw_frame *cw_smoother_read(struct cw_smoother *s);
 
-extern CW_API_PUBLIC int cw_codec_sample_rate(struct cw_frame *f);
+extern CW_API_PUBLIC int cw_codec_sample_rate(struct cw_frame *f) __attribute__((__pure__));
 
 #define cw_smoother_feed(s,f) __cw_smoother_feed(s, f, 0)
 #if __BYTE_ORDER == __LITTLE_ENDIAN

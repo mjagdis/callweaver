@@ -176,18 +176,17 @@ static void dump_hint(char *output, int maxlen, void *value, int len)
 {
 	char tmp[512];
 	char tmp2[256];
-	unsigned short flags;
+	uint16_t flags;
 
 	if (len < 2) {
 		strncpy(output, "<invalid contents>", maxlen);
 		return;
 	}
 	memcpy(&flags, value, sizeof(flags));
-	flags = ntohs(flags);
 	memset(tmp, 0, sizeof(tmp));
-	dundi_hint2str(tmp2, sizeof(tmp2), flags);
+	dundi_hint2str(tmp2, sizeof(tmp2), ntohs(flags));
 	snprintf(tmp, sizeof(tmp), "[%s] ", tmp2);
-	memcpy(tmp + strlen(tmp), value + 2, len - 2);
+	memcpy(tmp + strlen(tmp), (char *)value + 2, len - 2);
 	strncpy(output, tmp, maxlen - 1);
 }
 
@@ -213,7 +212,7 @@ static void dump_cause(char *output, int maxlen, void *value, int len)
 	mlen = len - 1;
 	if (mlen > 255)
 		mlen = 255;
-	memcpy(tmp2, value + 1, mlen);
+	memcpy(tmp2, (char *)value + 1, mlen);
 	if (cause < sizeof(causes) / sizeof(causes[0])) {
 		if (len > 1)
 			snprintf(tmp, sizeof(tmp), "%s: %s", causes[cause], tmp2);
@@ -241,7 +240,7 @@ static void dump_int(char *output, int maxlen, void *value, int len)
 static void dump_short(char *output, int maxlen, void *value, int len)
 {
 	if (len == (int)sizeof(unsigned short))
-		snprintf(output, maxlen, "%d", ntohs(*((unsigned short *)value)));
+		snprintf(output, maxlen, "%hu", ntohs(*((unsigned short *)value)));
 	else
 		snprintf(output, maxlen, "Invalid SHORT");
 }
@@ -326,11 +325,11 @@ static void dump_answer(char *output, int maxlen, void *value, int len)
 		answer = (struct dundi_answer *)(value);
 		memcpy(tmp, answer->data, (len >= 500) ? 500 : len - 10);
 		dundi_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
-		snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]", 
-			dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)), 
+		snprintf(output, maxlen, "[%s] %hu <%s/%s> from [%s]",
+			dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)),
 			ntohs(answer->weight),
-			proto2str(answer->protocol, proto, sizeof(proto)), 
-				tmp, eid_str);
+			proto2str(answer->protocol, proto, sizeof(proto)),
+			tmp, eid_str);
 	} else
 		strncpy(output, "Invalid Answer", maxlen - 1);
 }

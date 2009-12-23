@@ -59,13 +59,13 @@ static const char synopsis[] = "res_jabber";
 static const char syntax[] = "";
 static const char desc[] = "";
 
-static char *configfile = "res_jabber.conf";
+static const char configfile[] = "res_jabber.conf";
 
 
 #define CHANSTATE_NEW "NEW"
 #define CHANSTATE_ANSWER "ANSWER"
 #define CHANSTATE_BUSY "BUSY"
-typedef char * CHANSTATE;
+typedef const char *CHANSTATE;
 
 
 typedef enum {
@@ -177,14 +177,14 @@ static struct cw_frame *jabber_profile_shift_frame(struct jabber_profile *profil
 static int jabber_message_node_push(struct jabber_profile *profile, struct jabber_message_node *node,  QT qt);
 static struct jabber_message_node *jabber_message_node_shift(struct jabber_profile *profile, QT qt);
 static struct jabber_message_node *jabber_message_node_unshift(struct jabber_profile *profile, struct jabber_message_node *node, QT qt);
-static struct jabber_message_node *jabber_message_node_new(char *jabber_id, char *subject, char *fmt, ...);
+static struct jabber_message_node *jabber_message_node_new(const char *jabber_id, const char *subject, const char *fmt, ...);
 static void free_jabber_message_node(struct jabber_message_node **node);
 static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection *connection, LmMessage *m, gpointer user_data);
 static void jabber_disconnect(struct jabber_profile *profile);
 static int jabber_connect(struct jabber_profile *profile);
 static int check_outbound_message_queue(struct jabber_profile *profile);
 static int jabber_message_parse(struct jabber_message_node *node, struct jabber_message *jmsg); 
-static char *jabber_message_header(struct jabber_message *jmsg, char *key);
+static const char *jabber_message_header(const struct jabber_message *jmsg, const char *key);
 static void *jabber_thread(void *obj);
 static void *media_receive_thread(void *obj);
 static int parse_jabber_command_profile(struct jabber_profile *profile, struct jabber_message *jmsg);
@@ -195,7 +195,7 @@ static struct jabber_profile *jabber_profile_new(void);
 #endif
 static void jabber_profile_init(struct jabber_profile *profile, const char *resource, const char *identifier, struct cw_channel *chan, unsigned int flags);
 static void jabber_profile_destroy(struct jabber_profile *profile);
-static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client);
+static int create_udp_socket(const char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
 static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 static void init_globals(int do_free); 
@@ -207,7 +207,7 @@ static void launch_cli_thread(char *cli_command);
 #define jabber_message_node_printf(id, sub, fmt, ...) jabber_message_node_new(id, sub, fmt "Epoch: %ld\n\n", ##__VA_ARGS__, time(NULL))
 
 
-int jabber_manager_session(struct mansession *sess, const struct cw_manager_message *event)
+static int jabber_manager_session(struct mansession *sess, const struct cw_manager_message *event)
 {
 	struct jabber_message_node *node;
 
@@ -244,11 +244,11 @@ static int next_media_port(void)
 	return port;
 }
 
-static void media_close(int *socket)
+static void media_close(int *sock)
 {
-	if(*socket > -1) {
-		close(*socket);
-		*socket = -1;
+	if(*sock > -1) {
+		close(*sock);
+		*sock = -1;
 	}
 }
 
@@ -425,19 +425,18 @@ static struct jabber_message_node *jabber_message_node_unshift(struct jabber_pro
 	return ret;
 }
 
-static struct jabber_message_node *jabber_message_node_new(char *jabber_id, char *subject, char *fmt, ...)
+static struct jabber_message_node *jabber_message_node_new(const char *jabber_id, const char *subject, const char *fmt, ...)
 {
 	struct jabber_message_node *node = NULL;
 	char *data;
 	va_list ap;
-    va_start(ap, fmt);
-	int result;
 
+	va_start(ap, fmt);
 #ifdef SOLARIS
 	data = (char *)malloc(10240);
 	vsnprintf(data, 10240, fmt, ap);
 #else
-    result = vasprintf(&data, fmt, ap);
+	vasprintf(&data, fmt, ap);
 #endif	
 	va_end(ap);
 
@@ -514,7 +513,6 @@ static void jabber_disconnect(struct jabber_profile *profile)
 static int jabber_connect(struct jabber_profile *profile)
 {
 	LmMessageHandler *handler;
-	gboolean result;
 	int res = -1;
 
 	profile->connection = lm_connection_new(profile->server);
@@ -522,7 +520,7 @@ static int jabber_connect(struct jabber_profile *profile)
 	lm_connection_register_message_handler (profile->connection, handler, LM_MESSAGE_TYPE_MESSAGE, LM_HANDLER_PRIORITY_NORMAL);
 	lm_message_handler_unref (handler);	
 
-	if ((result = lm_connection_open (profile->connection, (LmResultFunction) connection_open_cb, profile, NULL, NULL))) {
+	if (lm_connection_open (profile->connection, (LmResultFunction) connection_open_cb, profile, NULL, NULL)) {
 		cw_set_flag((profile), JFLAG_RUNNING);
 		cw_clear_flag((profile), JFLAG_ERROR);
 		res = 0;
@@ -537,14 +535,13 @@ static int check_outbound_message_queue(struct jabber_profile *profile)
 	LmMessage *message;
 	struct jabber_message_node *node;
 	int ret = 0;
-	gboolean result;
 	GError *error = NULL;
 
 	while ((node=jabber_message_node_shift(profile, Q_OUTBOUND))) {
 		message = lm_message_new(node->jabber_id, LM_MESSAGE_TYPE_MESSAGE);		
 		lm_message_node_add_child (message->node, "body", node->body);
 		lm_message_node_add_child (message->node, "subject", node->subject);
-		if (!(result = lm_connection_send(profile->connection, message, &error))) {
+		if (!lm_connection_send(profile->connection, message, &error)) {
 			cw_log(CW_LOG_ERROR, "Cannot Send Message! DOH!\n");
 			jabber_message_node_unshift(profile, node, Q_OUTBOUND);
 			lm_message_unref (message);
@@ -606,9 +603,9 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 			}
 			strncpy(jmsg->command, cur, JABBER_STRLEN);
 		} else {
-			char *name, *val;
-			name = cur;
-			if ((val = strchr(name, ':'))) {
+			char *key, *val;
+			key = cur;
+			if ((val = strchr(key, ':'))) {
 				*val = '\0';
 				val++;
 				while (*val == ' ') {
@@ -617,7 +614,7 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 				}
 				strncpy(jmsg->values[jmsg->last-1], val, JABBER_STRLEN);
 			}
-			strncpy(jmsg->names[jmsg->last-1], name, JABBER_STRLEN);
+			strncpy(jmsg->names[jmsg->last-1], key, JABBER_STRLEN);
 		}
 		jmsg->last++;
 
@@ -632,19 +629,19 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 
 }
 
-static char *jabber_message_header(struct jabber_message *jmsg, char *key)
+static const char *jabber_message_header(const struct jabber_message *jmsg, const char *key)
 {
-    int x = 0;
-    char *value = NULL;
+	const char *value = NULL;
+	int x;
 
-    for (x = 0 ; x < jmsg->last ; x++) {
-        if (!strcasecmp(jmsg->names[x], key)) {
-            value = jmsg->values[x];
-            break;
-        }
-    }
+	for (x = 0 ; x < jmsg->last ; x++) {
+		if (!strcasecmp(jmsg->names[x], key)) {
+			value = jmsg->values[x];
+			break;
+		}
+	}
 
-    return value;
+	return value;
 }
 
 
@@ -685,7 +682,6 @@ static void *jabber_thread(void *obj)
 	struct jabber_profile *profile = obj;
 	struct jabber_message_node *node;
 	struct jabber_message jmsg;
-	int res = 0;
 
 	//jabber_context_open(profile);
 
@@ -713,7 +709,7 @@ static void *jabber_thread(void *obj)
 			if ((node = jabber_message_node_shift(profile, Q_INBOUND))) {
 				if (jabber_message_parse(node, &jmsg)) {
 					cw_log(CW_LOG_DEBUG, "Message From %s\n", node->jabber_id);
-					res = parse_jabber_command_main(&jmsg);
+					parse_jabber_command_main(&jmsg);
 				}
 				free_jabber_message_node(&node);
 			}
@@ -758,25 +754,23 @@ static int waitfor_socket(int fd, int timeout)
 
 static void *media_receive_thread(void *obj)
 {
-	int res = 0;
+	char buf[1024];
+	struct cw_frame write_frame = {CW_FRAME_VOICE, CW_FORMAT_SLINEAR};
 	struct jabber_profile *profile = obj;
 	g_main_context_ref(profile->context);
-
 	struct cw_channel *chan = profile->chan;
-	struct cw_frame write_frame = {CW_FRAME_VOICE, CW_FORMAT_SLINEAR};
-	char buf[1024];
-	int err = 0;
-	unsigned int fromlen;
-	int socket = profile->media_socket;
-	char *name = cw_strdupa(chan->name);
 	struct cw_frame *frx;
+	unsigned int fromlen;
+	int sock = profile->media_socket;
+	int res = 0;
+	int err = 0;
 
 	cw_set_flag(profile, JFLAG_RECEIVEMEDIA);
-	cw_log(CW_LOG_DEBUG, "MEDIA UP %s\n", name);
-	while (cw_test_flag(profile, JFLAG_RUNNING) && cw_test_flag(profile, JFLAG_RECEIVEMEDIA) && socket > -1) {
+	cw_log(CW_LOG_DEBUG, "MEDIA UP %s\n", chan->name);
+	while (cw_test_flag(profile, JFLAG_RUNNING) && cw_test_flag(profile, JFLAG_RECEIVEMEDIA) && sock > -1) {
 		fromlen = sizeof(struct sockaddr_in);
 		
-		if((res = waitfor_socket(socket, 100)) < 0) {
+		if((res = waitfor_socket(sock, 100)) < 0) {
 			err++;
 			break;
 		} else if (res == 0) {
@@ -787,7 +781,7 @@ static void *media_receive_thread(void *obj)
 			break;
 		}
 
-		if ((res = recvfrom(socket, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1)
+		if ((res = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1)
         {
 			//cw_verbose("PACKET\n");
 			if (res == 6 && !strncmp(buf, "HANGUP", 6)) {
@@ -812,8 +806,8 @@ static void *media_receive_thread(void *obj)
 	}
 
 	cw_clear_flag(profile, JFLAG_RECEIVEMEDIA);
-	media_close(&socket);
-	cw_log(CW_LOG_DEBUG, "MEDIA DOWN %s\n", name);
+	media_close(&sock);
+	cw_log(CW_LOG_DEBUG, "MEDIA DOWN %s\n", chan->name);
 	g_main_context_unref(profile->context);
 	return NULL;
 }
@@ -839,23 +833,23 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 	if (!strcasecmp(jmsg->command, "call")) {
 		parse_jabber_command_main(jmsg);
 	} else if (!strcasecmp(jmsg->command, "exec")) {
-		char *app;
+		char *appname;
 		char *data;
 
 		if (arg) {
-			app = arg;
+			appname = arg;
 		} else {
 			cw_log(CW_LOG_WARNING, "this command requires an argument\n");
 			return 0;
 		}
 
-		if ((data = strchr(app, ' '))) {
+		if ((data = strchr(appname, ' '))) {
 			*data++ = '\0';
 		} else {
-			data = "";
+			data = (char *)"";
 		}
 		
-		res = cw_function_exec_str(chan, cw_hash_string(app), app, data, NULL, 0);
+		res = cw_function_exec_str(chan, cw_hash_string(appname), appname, data, NULL, 0);
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
 											   "EVENT ENDAPP\n"
@@ -870,7 +864,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 											   profile->resource,
 											   profile->identifier,
 											   profile->callid,
-											   app,
+											   appname,
 											   data
 											   ))) {
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
@@ -922,11 +916,11 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
 	} else if (!strcasecmp(jmsg->command, "forwardmedia")) {
-		char *ip = jabber_message_header(jmsg, "ip");
-		char *porta = jabber_message_header(jmsg, "port");
-		int port;
-		struct hostent *hp;
 		struct cw_hostent ahp;
+		struct hostent *hp;
+		const char *ip = jabber_message_header(jmsg, "ip");
+		const char *porta = jabber_message_header(jmsg, "port");
+		int port;
 
 		if (!ip) {
 			ip = "127.0.0.1";
@@ -961,12 +955,12 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			}
 		}
 	} else if (!strcasecmp(jmsg->command, "receivemedia")) {
-		char *ip = jabber_message_header(jmsg, "ip");
-		char *porta = jabber_message_header(jmsg, "port");
-		char *forwardip = jabber_message_header(jmsg, "forwardip");
-		char *forwardporta = jabber_message_header(jmsg, "forwardport");
-		char *bridgeto = jabber_message_header(jmsg, "bridgeto");
-		char *bridgetome = jabber_message_header(jmsg, "bridgetome");
+		const char *ip = jabber_message_header(jmsg, "ip");
+		const char *porta = jabber_message_header(jmsg, "port");
+		const char *forwardip = jabber_message_header(jmsg, "forwardip");
+		const char *forwardporta = jabber_message_header(jmsg, "forwardport");
+		const char *bridgeto = jabber_message_header(jmsg, "bridgeto");
+		const char *bridgetome = jabber_message_header(jmsg, "bridgetome");
 		int port, forwardport = 0, tries = 0;
 		
 		if (!ip) {
@@ -991,7 +985,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		}
 
 		media_close(&profile->media_socket);
-		
+
 		while ((profile->media_socket = create_udp_socket(ip, port, &profile->media_recv_addr, 1)) < 0) {
 			if (porta) {
 				break;
@@ -1445,13 +1439,13 @@ static void *jabber_pbx_session(void *obj)
 			if (profile->media_socket > -1) {
 
 				if (cw_test_flag(profile, JFLAG_RECEIVEMEDIA)) {
-					struct cw_frame *f;
+					struct cw_frame *f2;
 
-					while ((f=jabber_profile_shift_frame(profile))) {
+					while ((f2 = jabber_profile_shift_frame(profile))) {
 						if (!chan->stream) { /* for now we'll ignore voice while a file plays */
-							cw_write(chan, &f);
+							cw_write(chan, &f2);
 						}
-						cw_fr_free(f);
+						cw_fr_free(f2);
 					}
 				}
 
@@ -1634,19 +1628,16 @@ static void jabber_profile_destroy(struct jabber_profile *profile)
 
 
 
-static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client)
+static int create_udp_socket(const char *ip, int port, struct sockaddr_in *sockaddr, int client)
 {
-	int sock;
+	int sock = -1;
 
-	if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		return -1;
-	}
-	memset(sockaddr, 0, sizeof(*sockaddr));
-	sockaddr->sin_family=AF_INET;
-	sockaddr->sin_addr.s_addr=INADDR_ANY;
-	sockaddr->sin_port=htons(port);
-	if (bind(sock, (struct sockaddr *) sockaddr, sizeof(*sockaddr)) < 0) {
-		media_close(&sock);
+	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+		sockaddr->sin_family = AF_INET;
+		sockaddr->sin_addr.s_addr = INADDR_ANY;
+		sockaddr->sin_port = htons(port);
+		if (bind(sock, (struct sockaddr *)sockaddr, sizeof(*sockaddr)) < 0)
+			media_close(&sock);
 	}
 
 	return sock;
@@ -1747,22 +1738,16 @@ static void launch_cli_thread(char *cli_command)
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)
 {
-	int res = 0;
-	char *arg = NULL;
 	struct jabber_message_node *node;
+	int res = 0;
 
 	if(!cw_test_flag(jmsg, MFLAG_EXISTS)) {
 		return 0;
 	}
 
-
-    if(!cw_strlen_zero(jmsg->command_args)) {
-        arg = cw_strdupa(jmsg->command_args);
-    }
-
     if (!strcasecmp(jmsg->command, "call")) {
 		const char *type = jabber_message_header(jmsg, "type");
-		char *data = jabber_message_header(jmsg, "data");
+		const char *data = jabber_message_header(jmsg, "data");
 		const char *toa = jabber_message_header(jmsg, "timeout");
 		const char *cid_name = jabber_message_header(jmsg, "callingpartyname");
 		const char *cid_num = jabber_message_header(jmsg, "callingpartynumber");
@@ -1770,7 +1755,6 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 		const char *pname = jabber_message_header(jmsg, "resource");
 		const char *identifier = jabber_message_header(jmsg, "identifier");
 		const char *bridgeto = jabber_message_header(jmsg, "bridgeto");
-
 		int timeout = 0;
 		int format = 0;
 		int reason = 0;
@@ -1779,11 +1763,12 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 		format = formata ? cw_getformatbyname(formata) : CW_FORMAT_SLINEAR;
 
 		if(type && data) {
+			char callida[80];
 			struct cw_channel *chan;
 			struct jabber_profile *profile;
-			char callida[80];
+			char *wdata = cw_strdupa(data);
 
-			if((chan = cw_request(type, format, data, &reason))) {
+			if((chan = cw_request(type, format, wdata, &reason))) {
 				cw_set_callerid(chan, cid_num, cid_name, cid_num);
 				if (!cw_call(chan, data)) {
 
@@ -1873,7 +1858,7 @@ static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char 
 	struct localuser *u;
 	struct jabber_message_node *node;
 	struct jabber_profile profile;
-	char *name, *master;
+	char *master;
 
 	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR)) {
 		cw_log(CW_LOG_ERROR, "Error Setting Read Format.\n");
@@ -1886,9 +1871,7 @@ static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char 
 
 	LOCAL_USER_ADD(u);
 
-	name = chan->uniqueid;
-
-	jabber_profile_init(&profile, name, name, chan, JFLAG_SUB);
+	jabber_profile_init(&profile, chan->uniqueid, chan->uniqueid, chan, JFLAG_SUB);
 	master = (argc > 1 && argv[0][0] ? argv[0] : profile.master);
 
 	if ((node = jabber_message_node_printf(master, 

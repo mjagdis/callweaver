@@ -355,4 +355,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, reload_module, unload_module, NULL, "ITU G.722 to/from PCM16 translator");
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "ITU G.722 to/from PCM16 translator")

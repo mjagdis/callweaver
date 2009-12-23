@@ -488,7 +488,7 @@ static void complete_exten_at_context(struct cw_dynstr **ds_p, char *argv[], int
 							char buffer[10];
 
 							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
-								snprintf(buffer, sizeof(buffer), "%u", cw_get_extension_priority(priority));
+								snprintf(buffer, sizeof(buffer), "%d", cw_get_extension_priority(priority));
 								if (!strncmp(argv[3], buffer, lastarg_len))
 									cw_dynstr_printf(ds_p, "%s\n", buffer);
 							}

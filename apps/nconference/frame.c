@@ -22,7 +22,7 @@
 #include "member.h"
 #include "frame.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 int vdebug = 0;
 
@@ -197,7 +197,7 @@ static void copy_frame_content( struct member_cbuffer *cbuf, struct cw_frame *sf
     int i_src = 0;
     int i_dst = 0;
 
-    src = sfr->data+sfr->offset;
+    src = (int16_t *)((char *)sfr->data + sfr->offset);
     src = sfr->data;
     dst = cbuf->buffer8k;
     

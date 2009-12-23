@@ -3161,11 +3161,11 @@ static enum cw_bridge_result dahdi_bridge(struct cw_channel *c0, struct cw_chann
 				inconf = 1;
 			} else {
 				cw_log(CW_LOG_WARNING, "Huh?  Both calls are callwaits or 3-ways?  That's clever...?\n");
-				cw_log(CW_LOG_WARNING, "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n",
+				cw_log(CW_LOG_WARNING, "p0: chan %d/%d/CW%d/3W%x, p1: chan %d/%d/CW%d/3W%x\n",
 					p0->channel,
-					oi0, (p0->subs[SUB_CALLWAIT].dfd > -1) ? 1 : 0,
+					oi0, (p0->subs[SUB_CALLWAIT].dfd > -1 ? 1 : 0),
 					p0->subs[SUB_REAL].inthreeway, p0->channel,
-					oi0, (p1->subs[SUB_CALLWAIT].dfd > -1) ? 1 : 0,
+					oi0, (p1->subs[SUB_CALLWAIT].dfd > -1 ? 1 : 0),
 					p1->subs[SUB_REAL].inthreeway);
 			}
 			nothingok = 0;
@@ -3730,7 +3730,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 							return NULL;
 						}
 						mssinceflash = cw_tvdiff_ms(cw_tvnow(), p->flashtime);
-						cw_log(CW_LOG_DEBUG, "Last flash was %d ms ago\n", mssinceflash);
+						cw_log(CW_LOG_DEBUG, "Last flash was %u ms ago\n", mssinceflash);
 						if (mssinceflash < MIN_MS_SINCE_FLASH) {
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
 							   hanging up.  Hangup both channels now */
@@ -4260,7 +4260,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 			       (p->polarity == POLARITY_REV) &&
 				((cw->_state == CW_STATE_UP) || (cw->_state == CW_STATE_RING)) ) {
                                 /* Added log_debug information below to provide a better indication of what is going on */
-				cw_log(CW_LOG_DEBUG, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, cw->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, cw_tvdiff_ms(cw_tvnow(), p->polaritydelaytv) );
+				cw_log(CW_LOG_DEBUG, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %x, honp= %x, pdelay= %d, tv= %d\n", p->channel, cw->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, cw_tvdiff_ms(cw_tvnow(), p->polaritydelaytv) );
 			
 				if(cw_tvdiff_ms(cw_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
 					cw_log(CW_LOG_DEBUG, "Polarity Reversal detected and now Hanging up on channel %d\n", p->channel);
@@ -4274,7 +4274,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 				cw_log(CW_LOG_DEBUG, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, cw->_state);
 			}
                      	/* Added more log_debug information below to provide a better indication of what is going on */
-			cw_log(CW_LOG_DEBUG, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, cw->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, cw_tvdiff_ms(cw_tvnow(), p->polaritydelaytv) );
+			cw_log(CW_LOG_DEBUG, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %x, honp= %x, pdelay= %d, tv= %d\n", p->channel, cw->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, cw_tvdiff_ms(cw_tvnow(), p->polaritydelaytv) );
 			break;
 		default:
 			cw_log(CW_LOG_DEBUG, "Dunno what to do with event %d on channel %d\n", res, p->channel);
@@ -6638,7 +6638,7 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct dahdi_pri *pri, int reloading)
 {
 	/* Make a dahdi_pvt structure for this interface (or CRV if "pri" is specified) */
-	struct dahdi_pvt *tmp = NULL, *tmp2,  *prev = NULL;
+	struct dahdi_pvt *tmp = NULL, *tmp2;
 	char fn[80];
 #if 1
 	struct dahdi_bufferinfo bi;
@@ -6663,7 +6663,6 @@ static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct d
 #endif
 
 	tmp2 = *wlist;
-	prev = NULL;
 
 	while (tmp2) {
 		if (!tmp2->destroy) {
@@ -6676,7 +6675,6 @@ static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct d
 				break;
 			}
 		}
-		prev = tmp2;
 		tmp2 = tmp2->next;
 	}
 
@@ -9388,8 +9386,8 @@ static int dahdi_show_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 				cw_fmtval("Caller ID: %s\n", tmp->cid_num),
 				cw_fmtval("Calling TON: %d\n", tmp->cid_ton),
 				cw_fmtval("Caller ID name: %s\n", tmp->cid_name),
-				cw_fmtval("Destroy: %d\n", tmp->destroy),
-				cw_fmtval("InAlarm: %d\n", tmp->inalarm),
+				cw_fmtval("Destroy: %x\n", tmp->destroy),
+				cw_fmtval("InAlarm: %x\n", tmp->inalarm),
 				cw_fmtval("Signalling Type: %s\n", sig2str(tmp->sig)),
 				cw_fmtval("Radio: %d\n", tmp->radio),
 				cw_fmtval("Owner: %s\n", (tmp->owner ? tmp->owner->name : "<None>")),
@@ -9403,13 +9401,14 @@ static int dahdi_show_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 					(tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "")),
 				cw_fmtval("Threeway: %s%s%s\n",
 					(tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>"),
-					(tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : ""), (tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "")),
+					(tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : ""),
+					(tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "")),
 				cw_fmtval("Confno: %d\n", tmp->confno),
 				cw_fmtval("Propagated Conference: %d\n", tmp->propconfno),
 				cw_fmtval("Real in conference: %d\n", tmp->inconference),
 				cw_fmtval("DSP: %s\n", (tmp->dsp ? "yes" : "no")),
 				cw_fmtval("Relax DTMF: %s\n", (tmp->dtmfrelax ? "yes" : "no")),
-				cw_fmtval("Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas),
+				cw_fmtval("Dialing/CallwaitCAS: %x/%d\n", tmp->dialing, tmp->callwaitcas),
 				cw_fmtval("Default law: %s\n", (tmp->law == DAHDI_LAW_MULAW ? "ulaw" : (tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown"))),
 				cw_fmtval("Fax Handled: %s\n", (tmp->faxhandled ? "yes" : "no")),
 				cw_fmtval("Pulse phone: %s\n", (tmp->pulsedial ? "yes" : "no")),

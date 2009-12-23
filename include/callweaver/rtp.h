@@ -195,7 +195,7 @@ extern CW_API_PUBLIC char *cw_rtp_lookup_mime_multiple(char *buf, int size, cons
 
 extern CW_API_PUBLIC void cw_rtp_setnat(struct cw_rtp *rtp, int nat);
 
-extern CW_API_PUBLIC int cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
+extern CW_API_PUBLIC enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 
 extern CW_API_PUBLIC int cw_rtp_proto_register(struct cw_rtp_protocol *proto);
 

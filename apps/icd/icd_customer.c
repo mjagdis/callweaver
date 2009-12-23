@@ -60,9 +60,8 @@ struct icd_customer {
 /* called from icd_caller_load_module */
 icd_status icd_customer_load_module(icd_config * data)
 {
-    icd_plugable_fn *plugable_fns;
     char buf[80];
-    icd_status result;
+    icd_plugable_fn *plugable_fns;
 
     plugable_fns = &icd_customer_plugable_fns;
     ICD_MEMSET_ZERO(plugable_fns, sizeof(plugable_fns));
@@ -72,9 +71,9 @@ icd_status icd_customer_load_module(icd_config * data)
      * by default install just call_end and cleanup_caller since they are role specfic
      */
     snprintf(buf, sizeof(buf), "DefaultCustomer");
-    result = init_icd_plugable_fns(plugable_fns, buf, data);    /* set all func ptrs to icd_call_standard[] */
-    result = icd_plugable__set_state_call_end_fn(plugable_fns, icd_customer__standard_state_call_end, NULL);
-    result = icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_customer__standard_cleanup_caller);
+    init_icd_plugable_fns(plugable_fns, buf, data);    /* set all func ptrs to icd_call_standard[] */
+    icd_plugable__set_state_call_end_fn(plugable_fns, icd_customer__standard_state_call_end, NULL);
+    icd_plugable__set_cleanup_caller_fn(plugable_fns, icd_customer__standard_cleanup_caller);
     plugable_fns->allocated = 1;
 
     return ICD_SUCCESS;
@@ -108,7 +107,7 @@ icd_customer *create_icd_customer(icd_config * data)
 /* Destroy an customer, freeing its memory and cleaning up after it. */
 icd_status destroy_icd_customer(icd_customer ** customerp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(customerp != NULL);
     assert((*customerp) != NULL);
@@ -291,13 +290,13 @@ icd_plugable_fn *icd_customer_get_plugable_fns(icd_caller * that)
 
 int icd_customer__standard_state_ready(icd_event * event, void *extra)
 {
-    icd_caller *that;
+    //icd_caller *that;
 
     //icd_member *member;
     //icd_list_iterator *iter;
 
     assert(event != NULL);
-    that = (icd_caller *) icd_event__get_source(event);
+    //that = (icd_caller *) icd_event__get_source(event);
 
     return 0;
 }
@@ -362,8 +361,7 @@ icd_status icd_customer__standard_cleanup_caller(icd_caller * that)
     return ICD_SUCCESS;
 }
 
-icd_customer *icd_customer__generate_queued_call(char *id, char *queuename, char *dialstr, char *vars, char delim,
-    void *plug)
+icd_customer *icd_customer__generate_queued_call(char *id, char *queuename, char *dialstr, char *vars, char delim, icd_plugable_fn *(*plug)(icd_caller *))
 {
     icd_customer *customer = NULL;
     icd_config *config;

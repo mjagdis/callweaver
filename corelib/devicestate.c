@@ -80,7 +80,7 @@ const char *devstate2str(int devstate)
 static cw_devicestate_t cw_parse_device_state(const char *device)
 {
 	struct cw_channel *chan;
-	int res;
+	cw_devicestate_t res;
 
 	res = CW_DEVICE_UNKNOWN;
 	if ((chan = cw_get_device_by_name_locked(device))) {
@@ -98,13 +98,11 @@ cw_devicestate_t cw_device_state(const char *device)
 	char *tech;
 	char *number;
 	const struct cw_channel_tech *chan_tech;
+	cw_devicestate_t res = CW_DEVICE_UNKNOWN;
 
-	int res = CW_DEVICE_UNKNOWN;
-	
 	buf = cw_strdupa(device);
 	tech = strsep(&buf, "/");
 	number = buf;
-
 
 	chan_tech = cw_get_channel_tech(tech);
 	if (!chan_tech)
@@ -236,12 +234,12 @@ int cw_device_state_changed(const char *fmt, ...)
 }
 
 /*--- do_devstate_changes: Go through the dev state change queue and update changes in the dev state thread */
-static void *do_devstate_changes(void *data)
+static __attribute__((__noreturn__)) void *do_devstate_changes(void *data)
 {
 	struct state_change *sc = NULL;
 
 	CW_LIST_LOCK(&state_changes);
-	for(;;) {
+	for (;;) {
 		/* the list lock will _always_ be held at this point in the loop */
 		sc = CW_LIST_REMOVE_HEAD(&state_changes, list);
 		if (sc) {
@@ -256,8 +254,6 @@ static void *do_devstate_changes(void *data)
 			cw_cond_wait(&change_pending, &state_changes.lock);
 		}
 	}
-
-	return NULL;
 }
 
 /*--- cw_device_state_engine_init: Initialize the device state engine in separate thread */

@@ -118,7 +118,7 @@ struct modinfo {
 	int localusecnt;
 };
 
-extern struct modinfo *get_modinfo(void);
+extern struct modinfo *get_modinfo(void) __attribute__((__const__));
 
 #define MODULE_INFO(module_init, module_reconfig, module_deregister, module_release, module_description) \
 	static __attribute__((unused)) struct modinfo __modinfo = { \
@@ -129,7 +129,7 @@ extern struct modinfo *get_modinfo(void);
 		.description = module_description, \
 		.state = 0, \
 	}; \
-	__attribute__((const,visibility("protected"))) struct modinfo *get_modinfo(void) \
+	__attribute__((visibility("protected"))) struct modinfo *get_modinfo(void) \
 		{ return &__modinfo; }
 
 

@@ -73,7 +73,7 @@ int cw_writev_all(int fd, struct iovec *iov, int count)
 			iov++;
 		}
 		if (x) {
-			iov[0].iov_base += x;
+			iov[0].iov_base = (char *)iov[0].iov_base + x;
 			iov[0].iov_len -= x;
 		}
 	}
@@ -223,7 +223,7 @@ struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp)
 {
 	const char *s;
 	struct hostent *result = NULL;
-#if !GETHOSTBYNAME_DOES_IDN && HAVE_LIBIDN
+#if !defined(GETHOSTBYNAME_DOES_IDN) && HAVE_LIBIDN
 	char *idnahost;
 #endif
 	int res;
@@ -263,7 +263,7 @@ struct hostent *cw_gethostbyname(const char *host, struct cw_hostent *hp)
 			return &hp->hp;
 		}
 
-#if !GETHOSTBYNAME_DOES_IDN && HAVE_LIBIDN
+#if !defined(GETHOSTBYNAME_DOES_IDN) && HAVE_LIBIDN
 		if (idna_to_ascii_8z(host, &idnahost, 0) == IDNA_SUCCESS) {
 #  ifdef SOLARIS
 			result = gethostbyname_r(idnahost, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
@@ -1110,7 +1110,7 @@ static char *upper(const char *orig, char *buf, int bufsize)
 	int i = 0;
 
 	while (i < (bufsize - 1) && orig[i]) {
-		buf[i] = toupper(orig[i]);
+		buf[i] = (char)toupper(orig[i]);
 		i++;
 	}
 

@@ -127,7 +127,7 @@ icd_queue *create_icd_queue(char *name, icd_config * config)
 icd_status destroy_icd_queue(icd_queue ** queuep)
 {
     icd_status vetoed;
-    int clear_result;
+    icd_status clear_result;
 
     assert(queuep != NULL);
     assert((*queuep) != NULL);
@@ -238,7 +238,8 @@ icd_status init_icd_queue(icd_queue * that, char *name, icd_config * config)
     }
     that->listeners = create_icd_listeners();
 
-    icd_queue__set_dump_func(that, icd_config__get_any_value(config, "dump", icd_queue__standard_dump),
+    icd_queue__set_dump_func(that,
+        (icd_status (*)(icd_queue *, int, struct cw_dynstr **, void *))icd_config__get_any_value(config, "dump", icd_queue__standard_dump),
         icd_config__get_any_value(config, "dump.extra", NULL));
 
     that->state = ICD_QUEUE_STATE_INITIALIZED;
@@ -424,10 +425,9 @@ icd_status icd_queue__customer_quit(icd_queue * that, icd_member * member)
 /* Tells the queue to add customer to distributor. Removes if already present. */
 icd_status icd_queue__customer_distribute(icd_queue * that, icd_member * member)
 {
-    icd_status vetoed;
-    icd_caller *caller;
-    struct cw_channel *chan = NULL;
     char msg[120];
+    icd_caller *caller;
+    icd_status vetoed;
 
     assert(that != NULL);
     assert(that->distributor != NULL);
@@ -437,7 +437,7 @@ icd_status icd_queue__customer_distribute(icd_queue * that, icd_member * member)
        vetoed = icd_event__generate(ICD_EVENT_DISTRIBUTE, member);
      */
     caller = icd_member__get_caller(member);
-    chan = icd_caller__get_channel(caller);
+    icd_caller__get_channel(caller);
     snprintf(msg, sizeof(msg)-1, "Customer id[%d] name[%s] callerID[%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
         icd_caller__get_name(caller), icd_caller__get_caller_id(caller), that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
             "dist"));
@@ -599,10 +599,9 @@ icd_status icd_queue__customer_dist_quit(icd_queue * that, icd_member * member)
 /* Tells the queue to add agent to distributor. Removes if already present. */
 icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
 {
-    icd_status vetoed;
-    icd_caller *caller;
-    struct cw_channel *chan = NULL;
     char msg[120];
+    icd_caller *caller;
+    icd_status vetoed;
 
     assert(that != NULL);
     assert(member != NULL);
@@ -611,7 +610,6 @@ icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
        vetoed = icd_event__generate(ICD_EVENT_DISTRIBUTE, member);
      */
     caller = icd_member__get_caller(member);
-    chan = icd_caller__get_channel(caller);
     snprintf(msg, sizeof(msg)-1, "Agent id[%d] name[%s] callerID[%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
         icd_caller__get_name(caller), icd_caller__get_caller_id(caller), that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
             "dist"));
@@ -647,7 +645,6 @@ icd_status icd_queue__dump(icd_queue * that, int verbosity, struct cw_dynstr **d
     assert(that->dump_fn != NULL);
 
     return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
-    return ICD_SUCCESS;
 }
 
 /* Standard dump function for distributor */
@@ -1067,7 +1064,7 @@ icd_queue_holdannounce *create_icd_queue_holdannounce(icd_config * config)
     announce->allocated = 1;
 
     return announce;
-};
+}
 
 icd_status init_icd_queue_holdannounce(icd_queue_holdannounce * that, icd_config * config)
 {

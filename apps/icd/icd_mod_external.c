@@ -93,7 +93,6 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
 
     //char *smsg;
     icd_queue *queue = NULL;
-    icd_distributor *distributor = NULL;
     icd_caller *caller = NULL;
     struct cw_channel *chan = NULL;
     icd_event *event = icd_event__get_extra(factory_event);
@@ -144,7 +143,6 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
 
             break;
         case ICD_DISTRIBUTOR_LIST:
-            distributor = (icd_distributor *) icd_event__get_source(event);
             /*
                cw_manager_event(EVENT_FLAG_USER, "icd_addtodistributor",
                    5,

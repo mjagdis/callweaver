@@ -99,6 +99,7 @@ typedef enum {
 
 /* ICD Modules */
 typedef enum {
+    ICD_MODULE_NONE = -1,
     APP_ICD, ICD_QUEUE, ICD_DISTRIBUTOR, ICD_DISTRIBUTOR_LIST, ICD_CALLER,
     ICD_CALLER_LIST, ICD_AGENT, ICD_CUSTOMER, ICD_MEMBER, ICD_MEMBER_LIST,
     ICD_BRIDGE, ICD_CONFERENCE, ICD_LISTENERS, ICD_EVENT, ICD_FIELDSET,
@@ -113,6 +114,7 @@ extern const char *icd_module_strings[];      /* see icd_event.c DONT forget to 
 
 /* Event types. are generic and used by icd objects and by icd states*/
 typedef enum {
+    ICD_EVENT_NONE = -1,
     ICD_EVENT_TEST, ICD_EVENT_CREATE, ICD_EVENT_INIT, ICD_EVENT_CLEAR,
     ICD_EVENT_DESTROY, ICD_EVENT_PUSH, ICD_EVENT_POP, ICD_EVENT_FIRE,
     ICD_EVENT_PUSHBACK, ICD_EVENT_STATECHANGE, ICD_EVENT_ADD,

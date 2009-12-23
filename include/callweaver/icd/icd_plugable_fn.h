@@ -133,8 +133,6 @@ extern "C" {
     icd_plugable_fn icd_plugable_get_fns(icd_caller * that);
 
 /***** Callback Setters Predefined Pluggable Actions ****/
-/* set get_plugable_fn in the caller, distributor or the mebership struc's */
-    icd_status icd_plugable__set_fn(void *that, icd_plugable_fn * (*get_plugable_fn) (icd_caller *));
 
     icd_status icd_plugable__set_authenticate_fn(icd_plugable_fn * that, int (*auth_fn) (icd_caller *, void *));
 

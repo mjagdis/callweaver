@@ -123,7 +123,7 @@ icd_member *create_icd_member(icd_queue * queue, icd_caller * caller, icd_config
 icd_status destroy_icd_member(icd_member ** memberp)
 {
     icd_status vetoed;
-    int clear_result;
+    icd_status clear_result;
 
     assert(memberp != NULL);
     assert((*memberp) != NULL);
@@ -167,7 +167,7 @@ icd_status init_icd_member(icd_member * that, icd_queue * queue, icd_caller * ca
     that->caller = caller;
     that->distributor = icd_queue__get_distributor(queue);
     //if (icd_distributor__get_plugable_fn_ptr(that->distributor) !=NULL)
-    that->get_plugable_fn = icd_distributor__get_plugable_fn_ptr(that->distributor);
+    that->get_plugable_fn = (icd_plugable_fn *(*)(icd_caller *))icd_distributor__get_plugable_fn_ptr(that->distributor);
 
     snprintf(that->name, sizeof(that->name), "Queue %s Member %s", icd_queue__get_name(that->queue),
         icd_caller__get_name(that->caller));

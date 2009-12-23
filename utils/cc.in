@@ -3,15 +3,55 @@
 tmpfile="/tmp/$$"
 trap "rm -f '$tmpfile'" 0
 
-@REAL_CC@ -Wfatal-errors "$@" > "$tmpfile" 2>&1
+@REAL_CC@ "$@" > "$tmpfile" 2>&1
+status=$?
 
-if [[ $? -ne 0 ]]; then
-	if grep 'declaration of ‘__cancel_buf’ shadows a previous local' "$tmpfile" > /dev/null 2>&1; then
-		# There's a nested pthread_cleanup_push...pthread_cleanup_pop
-		@REAL_CC@ -Wfatal-errors "$@" -Wno-shadow
-		[[ $? -eq 0 ]] && exit 0
+if [[ $status -ne 0 ]]; then
+	CC="@REAL_CC@"
+	CC="${CC%% *}"
+	CC="${CC##*/}"
+
+	# Try eliminating known issues
+	OVERRIDE_CFLAGS=()
+	if [[ "$CC" = 'gcc' ]]; then
+		if grep 'declaration of ‘__cancel_buf’ shadows a previous local' "$tmpfile" > /dev/null 2>&1; then
+			# There's a nested pthread_cleanup_push...pthread_cleanup_pop
+			echo "*** Ignoring pthread cleanup nesting"
+			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-Wno-shadow'
+		fi
+	elif [[ "$CC" = 'icc' ]]; then
+		if grep 'error #1599: declaration hides variable "__cancel_buf"' "$tmpfile" > /dev/null 2>&1; then
+			# There's a nested pthread_cleanup_push...pthread_cleanup_pop
+			echo "*** Ignoring pthread cleanup nesting"
+			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd1599'
+		fi
+
+		if grep 'error #1419: external declaration in primary source file' "$tmpfile" > /dev/null 2>&1; then
+			# Unavoidable with YACC/Bison output and _sometimes_ convenient
+			echo "*** Ignoring external declarations in primary source file"
+			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd1419'
+		fi
+
+		if grep 'error #2215: definition at end of file not followed by a semicolon or a declarator' "$tmpfile" > /dev/null 2>&1; then
+			# YACC/Bison generates not-quite-valid code for %union
+			echo "*** Ignoring missing semicolon at end of file (YACC/Bison generated code?)"
+			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd2215'
+		fi
 	fi
 
-	@REAL_CC@ -DCW_DEBUG_COMPILE "$@" $OVERRIDE_CFLAGS
-	exit 1
+	if [[ ${#OVERRIDE_CFLAGS[@]} -ne 0 ]]; then
+		echo "*** Retrying using: ${OVERRIDE_CFLAGS[@]}"
+		@REAL_CC@ "$@" "${OVERRIDE_CFLAGS[@]}" > "$tmpfile" 2>&1
+		status=$?
+	fi
+
+	# If it still fails try eliminating preprocessor compile time optimizations
+	if [[ $status -ne 0 ]]; then
+		echo "*** Retry without preprocessor compile time optimizations"
+		@REAL_CC@ -DCW_DEBUG_COMPILE "$@" "${OVERRIDE_CFLAGS[@]}" > "$tmpfile" 2>&1
+		status=$?
+	fi
 fi
+
+cat "$tmpfile"
+exit $status

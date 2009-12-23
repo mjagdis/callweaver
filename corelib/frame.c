@@ -71,7 +71,7 @@ struct cw_smoother
     struct cw_frame f;
     struct timeval delivery;
     char data[SMOOTHER_SIZE];
-    char framedata[SMOOTHER_SIZE + CW_FRIENDLY_OFFSET];
+    uint8_t framedata[SMOOTHER_SIZE + CW_FRIENDLY_OFFSET];
     struct cw_frame *opt;
     int len;
 };
@@ -247,7 +247,7 @@ void cw_smoother_free(struct cw_smoother *s)
 struct cw_frame *cw_frisolate(struct cw_frame *frame)
 {
     struct cw_frame *out;
-    char *tmp;
+    uint8_t *tmp;
 
     if (!(frame->mallocd & CW_MALLOCD_HDR))
     {
@@ -603,7 +603,7 @@ void cw_frame_dump(const char *name, const struct cw_frame *f, const char *prefi
     {
     case CW_FRAME_DTMF:
         ftype = "DTMF";
-        buf[0] = f->subclass;
+        buf[0] = (char)f->subclass;
         buf[1] = '\0';
 	subclass = buf;
         break;
@@ -770,11 +770,10 @@ int init_framer(void)
 
 void cw_codec_pref_convert(struct cw_codec_pref *pref, char *buf, size_t size, int right)
 {
-    int x = 0;
-    int differential = (int) 'A';
-    int mem = 0;
     char *from = NULL;
     char *to = NULL;
+    int x = 0;
+    int mem = 0;
 
     if (right)
     {
@@ -794,7 +793,7 @@ void cw_codec_pref_convert(struct cw_codec_pref *pref, char *buf, size_t size, i
     {
         if (!from[x])
             break;
-        to[x] = right ? (from[x] + differential) : (from[x] - differential);
+        to[x] = (char)(right ? from[x] + 'A' : from[x] - 'A');
     }
 }
 
@@ -853,10 +852,10 @@ int cw_codec_pref_index(struct cw_codec_pref *pref, int i)
 void cw_codec_pref_remove(struct cw_codec_pref *pref, int format)
 {
     struct cw_codec_pref oldorder;
+    size_t size = 0;
     int x = 0;
     int y = 0;
-    size_t size = 0;
-    int slot = 0;
+    char slot = 0;
 
     if (!pref->order[0])
         return;
@@ -881,7 +880,7 @@ int cw_codec_pref_append(struct cw_codec_pref *pref, int format)
 {
     size_t size = 0;
     int x = 0;
-    int newindex = -1;
+    char newindex = -1;
 
     cw_codec_pref_remove(pref, format);
     size = sizeof(cw_format_list)/sizeof(struct cw_format_list_s);
@@ -890,7 +889,7 @@ int cw_codec_pref_append(struct cw_codec_pref *pref, int format)
     {
         if (cw_format_list[x].bits == format)
         {
-            newindex = x + 1;
+            newindex = (char)(x + 1);
             break;
         }
     }
@@ -1021,7 +1020,7 @@ static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
 {
     int byte = bit/8;       /* byte containing first bit */
     int rem = 8 - (bit%8);  /* remaining bits in first byte */
-    unsigned char ret = 0;
+    unsigned int ret = 0;
 
     if (n <= 0  ||  n > 8)
         return 0;
@@ -1036,7 +1035,7 @@ static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
         ret = (data[byte] >> (rem - n));
     }
 
-    return (ret & (0xff >> (8 - n)));
+    return (unsigned char)(ret & (0xff >> (8 - n)));
 }
 
 static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
@@ -1229,8 +1228,8 @@ int cw_codec_get_len(int format, int samples)
 int cw_frame_adjust_volume(struct cw_frame *f, int adjustment)
 {
     int count;
-    int16_t *fdata = f->data;
-    int16_t adjust_value;
+    int16_t *fdata = (int16_t *)f->data;
+    int adjust_value;
 
     if ((f->frametype != CW_FRAME_VOICE)  ||  (f->subclass != CW_FORMAT_SLINEAR))
         return -1;
@@ -1244,7 +1243,7 @@ int cw_frame_adjust_volume(struct cw_frame *f, int adjustment)
         adjust_value = (1 << 11)/(-adjustment);
     
     for (count = 0;  count < f->samples;  count++)
-        fdata[count] = saturate(((int32_t) fdata[count]*(int32_t) adjust_value) >> 11);
+        fdata[count] = saturate(((int32_t)fdata[count] * adjust_value) >> 11);
 
     return 0;
 }

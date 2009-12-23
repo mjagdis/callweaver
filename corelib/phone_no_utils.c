@@ -163,9 +163,10 @@ int cw_callerid_split(const char *buf, char *name, int namelen, char *num, int n
 
 int cw_callerid_parse(char *instr, char **name, char **location)
 {
+	char tmp[256];
 	char *ns, *ne;
 	char *ls, *le;
-	char tmp[256];
+
 	/* Try for "name" <location> format or 
 	   name <location> format */
 	if ((ls = strchr(instr, '<')) && (le = strchr(ls, '>'))) {
@@ -178,13 +179,11 @@ int cw_callerid_parse(char *instr, char **name, char **location)
 			*ns = '\0';
 			*ne = '\0';
 			*name = ns + 1;
-			return 0;
 		} else {
 			/* Just trim off any trailing spaces */
 			cw_trim_blanks(instr);
 			/* And leading spaces */
 			*name = cw_skip_blanks(instr);
-			return 0;
 		}
 	} else {
 		cw_copy_string(tmp, instr, sizeof(tmp));
@@ -201,7 +200,7 @@ int cw_callerid_parse(char *instr, char **name, char **location)
 			while((ne > *name) && (!*ne || isspace(*ne) || (*ne == '\"'))) { *ne = '\0'; ne--; }
 			*location = NULL;
 		}
-		return 0;
 	}
-	return -1;
+
+	return 0;
 }

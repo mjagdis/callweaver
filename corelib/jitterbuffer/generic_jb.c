@@ -838,7 +838,7 @@ static void jb_destroy_scx(void *jb)
 }
 
 
-static int jb_put_first_scx(void *jb, struct cw_frame *fin, long now, int codec)
+static int jb_put_first_scx(void *jb, struct cw_frame *fin, long now, int codec __attribute__((__unused__)))
 {
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
@@ -849,7 +849,7 @@ static int jb_put_first_scx(void *jb, struct cw_frame *fin, long now, int codec)
 }
 
 
-static int jb_put_scx(void *jb, struct cw_frame *fin, long now, int codec)
+static int jb_put_scx(void *jb, struct cw_frame *fin, long now, int codec __attribute__((__unused__)))
 {
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
@@ -901,7 +901,7 @@ static void jb_force_resynch_scx(void *jb)
 	scx_jb_set_force_resynch(scxjb);
 }
 
-static void jb_info_scx(void *jb, cw_jb_info *info)
+static void jb_info_scx(void *jb __attribute__((__unused__)), cw_jb_info *info)
 {
 	/* Not yet implemented */
 	memset(info, 0, sizeof(cw_jb_info));
@@ -933,7 +933,7 @@ static void stevek_warning_output(const char *fmt, ...)
 	cw_log(CW_LOG_WARNING, buf);
 }
 
-static void * jb_create_stevek(struct cw_jb_conf *general_config, long resynch_threshold)
+static void * jb_create_stevek(struct cw_jb_conf *general_config, long resynch_threshold __attribute__((__unused__)))
 {
 	jb_conf jbconf;
 	jitterbuf *stevekjb;
@@ -971,7 +971,7 @@ static int jb_put_first_stevek(void *jb, struct cw_frame *fin, long now, int cod
 }
 
 
-static int jb_put_stevek(void *jb, struct cw_frame *fin, long now, int codec)
+static int jb_put_stevek(void *jb, struct cw_frame *fin, long now, int codec __attribute__((__unused__)))
 {
 	jitterbuf *stevekjb = (jitterbuf *) jb;
 	int res;
@@ -1029,7 +1029,7 @@ static void jb_info_stevek(void *jb, cw_jb_info *info)
 }
 
 
-static void * jb_create_speakup(struct cw_jb_conf *general_config, long resynch_threshold)
+static void * jb_create_speakup(struct cw_jb_conf *general_config, long resynch_threshold __attribute__((__unused__)))
 {
 	jb_speakup_settings jbconf;
 	speakup_jitterbuffer *speakupjb;
@@ -1109,7 +1109,7 @@ static int jb_remove_speakup(void *jb, struct cw_frame **fout)
 }
 
 
-static void jb_force_resynch_speakup(void *jb)
+static void jb_force_resynch_speakup(void *jb __attribute__((__unused__)))
 {
 }
 

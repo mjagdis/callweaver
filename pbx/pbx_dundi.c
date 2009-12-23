@@ -130,7 +130,6 @@ static pthread_t netthreadid = CW_PTHREADT_NULL;
 static pthread_t precachethreadid = CW_PTHREADT_NULL;
 static int tos = 0;
 static int dundidebug = 0;
-static int authdebug = 0;
 static int dundi_ttl = DUNDI_DEFAULT_TTL;
 static int dundi_key_ttl = DUNDI_DEFAULT_KEY_EXPIRE;
 static int dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
@@ -323,9 +322,9 @@ static const char *tech2str(int tech)
 	}
 }
 
-static const int str2tech(char *str)
+static int str2tech(const char *str)
 {
-	if (!strcasecmp(str, "IAX") || !strcasecmp(str, "IAX2")) 
+	if (!strcasecmp(str, "IAX") || !strcasecmp(str, "IAX2"))
 		return DUNDI_PROTO_IAX;
 	else if (!strcasecmp(str, "SIP"))
 		return DUNDI_PROTO_SIP;
@@ -666,7 +665,6 @@ static void *dundi_precache_thread(void *data)
 {
 	struct dundi_query_state *st = data;
 	struct dundi_ie_data ied;
-	struct dundi_hint_metadata hmd;
 	char eid_str[20];
 
 	cw_log(CW_LOG_DEBUG, "Whee, precaching '%s@%s' for '%s'\n", st->called_number, st->called_context, 
@@ -677,9 +675,6 @@ static void *dundi_precache_thread(void *data)
 	dundi_precache_internal(st->called_context, st->called_number, st->ttl, st->eids);
 
 	cw_mutex_lock(&peerlock);
-	/* Truncate if "don't ask" isn't present */
-	if (!cw_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
-		hmd.exten[0] = '\0';
 	if (cw_test_flag(st->trans, FLAG_DEAD)) {
 		cw_log(CW_LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
@@ -749,7 +744,7 @@ static void *dundi_query_thread(void *data)
 	return NULL;	
 }
 
-static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies *ies, const char *ccontext)
+static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies *ies)
 {
 	struct dundi_query_state *st;
 	int totallen;
@@ -827,8 +822,8 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 
 	dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), eidpeer);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
-	snprintf(key1, sizeof(key1), "hint/%s/%s/%s/e%08lx", eidpeer_str, hint->data, req->dcontext, unaffected ? 0 : req->crc32);
-	snprintf(key2, sizeof(key2), "hint/%s/%s/%s/r%s", eidpeer_str, hint->data, req->dcontext, eidroot_str);
+	snprintf(key1, sizeof(key1), "hint/%s/%s/%s/e%08lx", eidpeer_str, (char *)hint->data, req->dcontext, unaffected ? 0 : req->crc32);
+	snprintf(key2, sizeof(key2), "hint/%s/%s/%s/r%s", eidpeer_str, (char *)hint->data, req->dcontext, eidroot_str);
 
 	time(&timeout);
 	timeout += expiration;
@@ -873,8 +868,8 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 		/* Skip anything with an illegal comma in it */
 		if (strchr(req->dr[x].dest, ','))
 			continue;
-		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%d/%d/%d/%s/%s,", 
-			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest, 
+		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%u/%d/%d/%s/%s,",
+			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest,
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
 	cw_db_put("dundi/cache", key1, data);
@@ -1143,7 +1138,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 			if (expiration > 0) {
 				cw_log(CW_LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
 				ptr += length;
-				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%u/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, ',');
 					if (term) {
@@ -1391,9 +1386,10 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	struct dundi_ie_data ied;
 	struct dundi_peer *peer;
 	unsigned char iv[16];
+
 	len = pack->datalen + pack->datalen / 100 + 42;
 	compress_space = alloca(len);
-	memset(compress_space, 0, len);
+
 	/* We care about everthing save the first 6 bytes of header */
 	bytes = len;
 	res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
@@ -1401,7 +1397,9 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 		cw_log(CW_LOG_DEBUG, "Ouch, compression failed!\n");
 		return -1;
 	}
+
 	memset(&ied, 0, sizeof(ied));
+
 	/* Say who we are */
 	if (!pack->h->iseqno && !pack->h->oseqno) {
 		/* Need the key in the first copy */
@@ -1444,7 +1442,6 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	memcpy(pack->h->ies, ied.buf, ied.pos);
 	pack->datalen += ied.pos;
 	return 0;
-	return -1;
 }
 
 static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned char *newsig, unsigned long keycrc32)
@@ -1555,14 +1552,14 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				if (!ies.called_context)
 					ies.called_context = "e164";
 				if (cmd == DUNDI_COMMAND_EIDQUERY) {
-					res = dundi_answer_entity(trans, &ies, ies.called_context);
+					res = dundi_answer_entity(trans, &ies);
 				} else {
 					if (!ies.called_number || cw_strlen_zero(ies.called_number)) {
 						/* They're not permitted to access that context */
 						dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Invalid or missing number/entity");
 						dundi_send(trans, resp, 0, 1, &ied);
-					} else if ((cmd == DUNDI_COMMAND_DPDISCOVER) && 
-					           (peer->model & DUNDI_MODEL_INBOUND) && 
+					} else if ((cmd == DUNDI_COMMAND_DPDISCOVER) &&
+					           (peer->model & DUNDI_MODEL_INBOUND) &&
 							   has_permission(peer->permit, ies.called_context)) {
 						res = dundi_answer_query(trans, &ies, ies.called_context);
 						if (res < 0) {
@@ -1570,8 +1567,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unsupported DUNDI Context");
 							dundi_send(trans, resp, 0, 1, &ied);
 						}
-					} else if ((cmd = DUNDI_COMMAND_PRECACHERQ) && 
-					           (peer->pcmodel & DUNDI_MODEL_INBOUND) && 
+					} else if ((cmd == DUNDI_COMMAND_PRECACHERQ) &&
+					           (peer->pcmodel & DUNDI_MODEL_INBOUND) &&
 							   has_permission(peer->include, ies.called_context)) {
 						res = dundi_prop_precache(trans, &ies, ies.called_context);
 						if (res < 0) {
@@ -2091,7 +2088,7 @@ static void network_thread_cleanup(void *data)
 	}
 }
 
-static void *network_thread(void *ignore)
+static void *network_thread(void *data)
 {
 	struct sockaddr_in sain;
 
@@ -2130,7 +2127,8 @@ static void *network_thread(void *ignore)
 		check_password();
 	}
 
-	pthread_cleanup_pop(1);
+	/* NOT REACHED */
+	pthread_cleanup_pop(0);
 	return NULL;
 }
 
@@ -2139,7 +2137,7 @@ static void dundi_mutex_unlock(void *mutex)
 	cw_mutex_unlock(mutex);
 }
 
-static void *process_precache(void *ign)
+static __attribute__((__noreturn__)) void *process_precache(void *data)
 {
 	struct dundi_precache_queue *qe;
 	time_t now;
@@ -2180,7 +2178,6 @@ static void *process_precache(void *ign)
 		} else
 			sleep(1);
 	}
-	return NULL;
 }
 
 static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
@@ -2410,15 +2407,15 @@ static int dundi_do_query(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct dundi_peer *peer;
-	struct permission *p;
-	const char *order;
 	char iabuf[INET_ADDRSTRLEN];
 	char eid_str[20];
+	struct dundi_peer *peer;
+	struct permission *p;
 	int x, cnt;
-	
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&peerlock);
 	peer = peers;
 	while(peer) {
@@ -2427,22 +2424,6 @@ static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 		peer = peer->next;
 	}
 	if (peer) {
-		switch(peer->order) {
-		case 0:
-			order = "Primary";
-			break;
-		case 1:
-			order = "Secondary";
-			break;
-		case 2:
-			order = "Tertiary";
-			break;
-		case 3:
-			order = "Quartiary";
-			break;
-		default:
-			order = "Unknown";
-		}
 		cw_dynstr_tprintf(ds_p, 8,
 			cw_fmtval("Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid)),
 			cw_fmtval("Model:   %s\n", model2str(peer->model)),
@@ -4639,7 +4620,7 @@ static int set_config(const char *config_file, struct sockaddr_in* sain)
 			} else
 				cw_log(CW_LOG_WARNING, "Invalid host/IP '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "authdebug")) {
-			authdebug = cw_true(v->value);
+			cw_log(CW_LOG_WARNING, "\"authdebug\" is deprecated and should be removed. It never did anything anyway.\n");
 		} else if (!strcasecmp(v->name, "ttl")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
 				dundi_ttl = x;
@@ -4801,7 +4782,7 @@ static int reload_module(void)
 	}
 
 	if (option_verbose > 1)
-		cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port));
+		cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port));
 
 
 	return 0;

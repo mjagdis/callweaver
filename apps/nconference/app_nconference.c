@@ -20,7 +20,7 @@
 #include "member.h"
 #include "cli.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 /************************************************************

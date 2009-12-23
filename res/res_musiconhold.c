@@ -584,7 +584,7 @@ static int moh2_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 
 static int moh3_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
+	const char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
 
 	if (cw_moh_start(chan, class))
 		cw_log(CW_LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);

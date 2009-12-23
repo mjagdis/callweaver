@@ -240,7 +240,7 @@ struct cw_variable *cw_channeltype_list(void)
 #endif
 }
 
-static int show_channeltypes(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int show_channeltypes(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
@@ -302,7 +302,7 @@ int cw_check_hangup(struct cw_channel *chan)
 
 
 /*--- cw_begin_shutdown: Initiate system shutdown */
-static int channel_hangup_one(struct cw_object *obj, void *data)
+static int channel_hangup_one(struct cw_object *obj, void *data __attribute__((__unused__)))
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 
@@ -1708,10 +1708,9 @@ struct cw_channel *cw_waitfor_n(struct cw_channel **c, int n, int *ms)
 
 int cw_waitfor(struct cw_channel *c, int ms)
 {
-	struct cw_channel *chan;
 	int oldms = ms;
 
-	chan = cw_waitfor_n(&c, 1, &ms);
+	cw_waitfor_n(&c, 1, &ms);
 	if (ms < 0)
 	{
 		if (oldms < 0)
@@ -1922,7 +1921,7 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 			cw_cdr_end(chan->cdr);
 	} else if (cw_test_flag(chan, CW_FLAG_DEFER_DTMF) && f->frametype == CW_FRAME_DTMF) {
 		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
-			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
+			chan->dtmfq[strlen(chan->dtmfq)] = (char)f->subclass;
 		else
 			cw_log(CW_LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &cw_null_frame;
@@ -2120,7 +2119,7 @@ int cw_prod(struct cw_channel *chan)
 {
 	struct cw_frame a = { CW_FRAME_VOICE };
 	struct cw_frame *f;
-	char nothing[128];
+	uint8_t nothing[128];
 
 	/* Send an empty audio frame to get things moving */
 	if (chan->_state != CW_STATE_UP) {
@@ -2206,7 +2205,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	case CW_FRAME_DTMF:
 		cw_clear_flag(chan, CW_FLAG_BLOCKING);
 		cw_channel_unlock(chan);
-		res = do_senddigit(chan,fr->subclass);
+		res = do_senddigit(chan, (char)fr->subclass);
 		cw_channel_lock(chan);
 		CHECK_BLOCKING(chan);
 		break;
@@ -2350,10 +2349,10 @@ static int set_format(
 	/* Build a translation path from the raw format to the desired format */
 	if (!direction)
 		/* reading */
-		*trans = cw_translator_build_path(*format, 8000, *rawformat, 8000);
+		*trans = cw_translator_build_path(*format, *rawformat);
 	else
 		/* writing */
-		*trans = cw_translator_build_path(*rawformat, 8000, *format, 8000);
+		*trans = cw_translator_build_path(*rawformat, *format);
 
 	cw_channel_unlock(chan);
 
@@ -2583,39 +2582,40 @@ int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int ftime
 	int pos = 0;
 	int to = ftimeout;
 	int d;
+	int ret = -1;
 
 	/* XXX Merge with full version? XXX */
 	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(c, CW_FLAG_ZOMBIE)  ||  cw_check_hangup(c)) 
-		return -1;
-	if (!len)
-		return -1;
-	for (;;) {
-		if (c->stream) {
-			d = cw_waitstream(c, CW_DIGIT_ANY);
-			cw_stopstream(c);
-			usleep(1000);
-			if (!d)
+	if (len && !cw_test_flag(c, CW_FLAG_ZOMBIE) && !cw_check_hangup(c)) {
+		for (;;) {
+			if (c->stream) {
+				d = cw_waitstream(c, CW_DIGIT_ANY);
+				cw_stopstream(c);
+				usleep(1000);
+				if (!d)
+					d = cw_waitfordigit(c, to);
+			} else {
 				d = cw_waitfordigit(c, to);
-		} else {
-			d = cw_waitfordigit(c, to);
+			}
+			if (d < 0)
+				break;
+			if (d == 0) {
+				s[pos]='\0';
+				ret = 1;
+				break;
+			}
+			if (!strchr(enders, d))
+				s[pos++] = (char)d;
+			if (strchr(enders, d)  ||  (pos >= len)) {
+				s[pos]='\0';
+				ret = 0;
+				break;
+			}
+			to = timeout;
 		}
-		if (d < 0)
-			return -1;
-		if (d == 0) {
-			s[pos]='\0';
-			return 1;
-		}
-		if (!strchr(enders, d))
-			s[pos++] = d;
-		if (strchr(enders, d)  ||  (pos >= len)) {
-			s[pos]='\0';
-			return 0;
-		}
-		to = timeout;
 	}
-	/* Never reached */
-	return 0;
+
+	return ret;
 }
 
 int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int ftimeout, const char *enders, int audiofd, int ctrlfd)
@@ -2623,42 +2623,44 @@ int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int 
 	int pos = 0;
 	int to = ftimeout;
 	int d;
+	int ret = -1;
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(c, CW_FLAG_ZOMBIE)  ||  cw_check_hangup(c)) 
-		return -1;
-	if (!len)
-		return -1;
-	for (;;) {
-		if (c->stream) {
-			d = cw_waitstream_full(c, CW_DIGIT_ANY, audiofd, ctrlfd);
-			cw_stopstream(c);
-			usleep(1000);
-			if (!d)
+	if (!len && !cw_test_flag(c, CW_FLAG_ZOMBIE) && !cw_check_hangup(c)) {
+		for (;;) {
+			if (c->stream) {
+				d = cw_waitstream_full(c, CW_DIGIT_ANY, audiofd, ctrlfd);
+				cw_stopstream(c);
+				usleep(1000);
+				if (!d)
+					d = cw_waitfordigit_full(c, to, audiofd, ctrlfd);
+			} else {
 				d = cw_waitfordigit_full(c, to, audiofd, ctrlfd);
-		} else {
-			d = cw_waitfordigit_full(c, to, audiofd, ctrlfd);
+			}
+			if (d < 0)
+				break;
+			if (d == 0) {
+				s[pos]='\0';
+				ret = 1;
+				break;
+			}
+			if (d == 1) {
+				s[pos]='\0';
+				ret = 2;
+				break;
+			}
+			if (!strchr(enders, d))
+				s[pos++] = (char)d;
+			if (strchr(enders, d)  ||  (pos >= len)) {
+				s[pos]='\0';
+				ret = 0;
+				break;
+			}
+			to = timeout;
 		}
-		if (d < 0)
-			return -1;
-		if (d == 0) {
-			s[pos]='\0';
-			return 1;
-		}
-		if (d == 1) {
-			s[pos]='\0';
-			return 2;
-		}
-		if (!strchr(enders, d))
-			s[pos++] = d;
-		if (strchr(enders, d)  ||  (pos >= len)) {
-			s[pos]='\0';
-			return 0;
-		}
-		to = timeout;
 	}
-	/* Never reached */
-	return 0;
+
+	return ret;
 }
 
 int cw_channel_supports_html(struct cw_channel *chan)
@@ -3137,10 +3139,10 @@ struct cw_channel *cw_bridged_channel(struct cw_channel *chan)
 
 static void bridge_playfile(struct cw_channel *chan, struct cw_channel *peer, char *sound, int remain) 
 {
-	int res=0, min=0, sec=0,check=0;
+	int min = 0, sec = 0, check = 0;
 
 	check = cw_autoservice_start(peer);
-	if(check) 
+	if (check)
 		return;
 
 	if (remain > 0) {
@@ -3154,21 +3156,21 @@ static void bridge_playfile(struct cw_channel *chan, struct cw_channel *peer, ch
 
 	if (!strcmp(sound, "timeleft")) {
 		/* Queue support */
-		res = cw_streamfile(chan, "vm-youhave", chan->language);
-		res = cw_waitstream(chan, "");
+		cw_streamfile(chan, "vm-youhave", chan->language);
+		cw_waitstream(chan, "");
 		if (min) {
-			res = cw_say_number(chan, min, CW_DIGIT_ANY, chan->language, (char *) NULL);
-			res = cw_streamfile(chan, "queue-minutes", chan->language);
-			res = cw_waitstream(chan, "");
+			cw_say_number(chan, min, CW_DIGIT_ANY, chan->language, (char *) NULL);
+			cw_streamfile(chan, "queue-minutes", chan->language);
+			cw_waitstream(chan, "");
 		}
 		if (sec) {
-			res = cw_say_number(chan, sec, CW_DIGIT_ANY, chan->language, (char *) NULL);
-			res = cw_streamfile(chan, "queue-seconds", chan->language);
-			res = cw_waitstream(chan, "");
+			cw_say_number(chan, sec, CW_DIGIT_ANY, chan->language, (char *) NULL);
+			cw_streamfile(chan, "queue-seconds", chan->language);
+			cw_waitstream(chan, "");
 		}
 	} else {
-		res = cw_streamfile(chan, sound, chan->language);
-		res = cw_waitstream(chan, "");
+		cw_streamfile(chan, sound, chan->language);
+		cw_waitstream(chan, "");
 	}
 
 	check = cw_autoservice_stop(peer);
@@ -3369,8 +3371,8 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	int o1nativeformats;
 	long time_left_ms=0;
 	struct timeval nexteventts = { 0, };
-	char caller_warning = 0;
-	char callee_warning = 0;
+	int caller_warning = 0;
+	int callee_warning = 0;
 	int to;
 	int x;
 
@@ -3381,32 +3383,32 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	 * to count these.
 	 */
 
-	x = -1;
+	res = CW_BRIDGE_FAILED;
 	cw_channel_lock(c0);
 	if (c0->_bridge)
 		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", c0->name, c0->_bridge->name);
 	else if (!cw_test_flag(c0, CW_FLAG_ZOMBIE) && !cw_check_hangup(c0)) {
-		x = 0;
+		res = CW_BRIDGE_COMPLETE;
 		c0->_bridge = c1;
 	}
 	cw_channel_unlock(c0);
-	if (x)
-		return x;
+	if (res != CW_BRIDGE_COMPLETE)
+		return res;
 
-	x = -1;
+	res = CW_BRIDGE_FAILED;
 	cw_channel_lock(c1);
 	if (c1->_bridge)
 		cw_log(CW_LOG_WARNING, "%s is already in a bridge with %s\n", c1->name, c1->_bridge->name);
 	else if (!cw_test_flag(c1, CW_FLAG_ZOMBIE) && !cw_check_hangup(c1)) {
-		x = 0;
+		res = CW_BRIDGE_COMPLETE;
 		c1->_bridge = c0;
 	}
 	cw_channel_unlock(c1);
-	if (x) {
+	if (res != CW_BRIDGE_COMPLETE) {
 		cw_channel_lock(c0);
 		c0->_bridge = NULL;
 		cw_channel_unlock(c0);
-		return x;
+		return res;
 	}
 
 	*fo = NULL;
@@ -3466,7 +3468,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 				*fo = NULL;
 				if (who) 
 					*rc = who;
-				res = 0;
+				res = CW_BRIDGE_COMPLETE;
 				break;
 			}
 			
@@ -3504,7 +3506,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 			*fo = NULL;
 			if (who)
 				*rc = who;
-			res = 0;
+			res = CW_BRIDGE_COMPLETE;
 			break;
 		}
 
@@ -3626,7 +3628,7 @@ static void *tonepair_alloc(struct cw_channel *chan, void *params)
 	return ts;
 }
 
-static struct cw_frame *tonepair_generate(struct cw_channel *chan, void *data, int samples)
+static struct cw_frame *tonepair_generate(struct cw_channel *chan __attribute__((__unused__)), void *data, int samples)
 {
 	struct tonepair_state *ts = data;
 
@@ -3638,8 +3640,8 @@ static struct cw_frame *tonepair_generate(struct cw_channel *chan, void *data, i
 
 	ts->f.samples = ts->f.datalen / sizeof(ts->data[0]);
 	ts->f.offset = CW_FRIENDLY_OFFSET;
-	ts->f.data = &ts->data[CW_FRIENDLY_OFFSET / sizeof(ts->data[0])];
-	tone_gen(&ts->tone_state, ts->f.data, ts->f.samples);
+	ts->f.data = (uint8_t *)&ts->data[CW_FRIENDLY_OFFSET / sizeof(ts->data[0])];
+	tone_gen(&ts->tone_state, &ts->data[CW_FRIENDLY_OFFSET / sizeof(ts->data[0])], ts->f.datalen / sizeof(ts->data[0]));
 	return &ts->f;
 }
 

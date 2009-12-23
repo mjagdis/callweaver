@@ -74,8 +74,7 @@ static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, c
   return 0;
 }
 
-int
-static unload_module (void)
+static int unload_module (void)
 {
   int res = 0;
 
@@ -83,8 +82,7 @@ static unload_module (void)
   return res;
 }
 
-int
-static load_module (void)
+static int load_module (void)
 {
   app = cw_register_function(name, lookupcidname_exec, synopsis, syntax, descrip);
   return 0;

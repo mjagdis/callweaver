@@ -64,88 +64,91 @@ icd_status init_icd_plugable_fns(icd_plugable_fn * that, const char *name, icd_c
        that->dump_fn_extra = icd_config__get_any_value(data, "dump.extra", NULL)    
      */
 
+#define GET_AND_SET(func_p, value)  (func_p) = (typeof(func_p))(value)
     /* If we jack this one all the rest are a lot less useful don't try this at home folks -tony */
-    that->run_fn = icd_config__get_any_value(data, "run.function", icd_caller__standard_run);
+    GET_AND_SET(that->run_fn, icd_config__get_any_value(data, "run.function", icd_caller__standard_run));
 
-    that->addq_fn = icd_config__get_any_value(data, "add.queue.notify", icd_caller__dummy_notify_hook);
-    that->delq_fn = icd_config__get_any_value(data, "remove.queue.notify", icd_caller__delq_notify_hook);
-    that->adddist_fn = icd_config__get_any_value(data, "add.dist.notify", icd_caller__dummy_notify_hook);
-    that->deldist_fn = icd_config__get_any_value(data, "remove.dist.notify", icd_caller__deldist_notify_hook);
-    that->state_fn = icd_config__get_any_value(data, "change.state.notify", icd_caller__dummy_notify_hook);
-    that->chan_fn = icd_config__get_any_value(data, "assign.channel.notify", icd_caller__dummy_notify_hook);
-    that->link_fn = icd_config__get_any_value(data, "link.caller.notify", icd_caller__dummy_notify_hook);
-    that->bridge_fn = icd_config__get_any_value(data, "bridge.caller.notify", icd_caller__dummy_notify_hook);
-    that->authn_fn = icd_config__get_any_value(data, "authenticate.notify", icd_caller__dummy_notify_hook);
+    GET_AND_SET(that->addq_fn, icd_config__get_any_value(data, "add.queue.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->delq_fn, icd_config__get_any_value(data, "remove.queue.notify", icd_caller__delq_notify_hook));
+    GET_AND_SET(that->adddist_fn, icd_config__get_any_value(data, "add.dist.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->deldist_fn, icd_config__get_any_value(data, "remove.dist.notify", icd_caller__deldist_notify_hook));
+    GET_AND_SET(that->state_fn, icd_config__get_any_value(data, "change.state.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->chan_fn, icd_config__get_any_value(data, "assign.channel.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->link_fn, icd_config__get_any_value(data, "link.caller.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->bridge_fn, icd_config__get_any_value(data, "bridge.caller.notify", icd_caller__dummy_notify_hook));
+    GET_AND_SET(that->authn_fn, icd_config__get_any_value(data, "authenticate.notify", icd_caller__dummy_notify_hook));
 
-    that->auth_fn =
-        icd_config__get_any_value(data, "authenticate.function", icd_caller__authenticate_always_succeeds);
+    GET_AND_SET(that->auth_fn,
+        icd_config__get_any_value(data, "authenticate.function", icd_caller__authenticate_always_succeeds));
 
-    that->addq_fn_extra = icd_config__get_any_value(data, "add.queue.extra", NULL);
-    that->delq_fn_extra = icd_config__get_any_value(data, "remove.queue.extra", NULL);
-    that->adddist_fn_extra = icd_config__get_any_value(data, "add.dist.extra", NULL);
-    that->deldist_fn_extra = icd_config__get_any_value(data, "remove.dist.extra", NULL);
-    that->state_fn_extra = icd_config__get_any_value(data, "change.state.extra", NULL);
-    that->chan_fn_extra = icd_config__get_any_value(data, "assign.channel.extra", NULL);
-    that->link_fn_extra = icd_config__get_any_value(data, "link.caller.extra", NULL);
-    that->bridge_fn_extra = icd_config__get_any_value(data, "bridge.caller.extra", NULL);
-    that->authn_fn_extra = icd_config__get_any_value(data, "authenticate.notify.extra", NULL);
+    GET_AND_SET(that->addq_fn_extra, icd_config__get_any_value(data, "add.queue.extra", NULL));
+    GET_AND_SET(that->delq_fn_extra, icd_config__get_any_value(data, "remove.queue.extra", NULL));
+    GET_AND_SET(that->adddist_fn_extra, icd_config__get_any_value(data, "add.dist.extra", NULL));
+    GET_AND_SET(that->deldist_fn_extra, icd_config__get_any_value(data, "remove.dist.extra", NULL));
+    GET_AND_SET(that->state_fn_extra, icd_config__get_any_value(data, "change.state.extra", NULL));
+    GET_AND_SET(that->chan_fn_extra, icd_config__get_any_value(data, "assign.channel.extra", NULL));
+    GET_AND_SET(that->link_fn_extra, icd_config__get_any_value(data, "link.caller.extra", NULL));
+    GET_AND_SET(that->bridge_fn_extra, icd_config__get_any_value(data, "bridge.caller.extra", NULL));
+    GET_AND_SET(that->authn_fn_extra, icd_config__get_any_value(data, "authenticate.notify.extra", NULL));
 
     /* Setting the state functions to appropriate functions. */
-    that->state_ready_fn =
-        icd_config__get_any_value(data, "state.ready.function", icd_caller__standard_state_ready);
-    that->state_ready_fn_extra = icd_config__get_any_value(data, "state.ready.extra", NULL);
+    GET_AND_SET(that->state_ready_fn,
+        icd_config__get_any_value(data, "state.ready.function", icd_caller__standard_state_ready));
+    GET_AND_SET(that->state_ready_fn_extra, icd_config__get_any_value(data, "state.ready.extra", NULL));
 
-    that->start_waiting_fn =
-        icd_config__get_any_value(data, "start.waiting.function", icd_caller__standard_start_waiting);
-    that->stop_waiting_fn =
-        icd_config__get_any_value(data, "stop.waiting.function", icd_caller__standard_stop_waiting);
+    GET_AND_SET(that->start_waiting_fn,
+        icd_config__get_any_value(data, "start.waiting.function", icd_caller__standard_start_waiting));
+    GET_AND_SET(that->stop_waiting_fn,
+        icd_config__get_any_value(data, "stop.waiting.function", icd_caller__standard_stop_waiting));
 
-    that->state_distribute_fn =
-        icd_config__get_any_value(data, "state.distribute.function", icd_caller__standard_state_distribute);
-    that->state_distribute_fn_extra = icd_config__get_any_value(data, "state.distribute.extra", NULL);
+    GET_AND_SET(that->state_distribute_fn,
+        icd_config__get_any_value(data, "state.distribute.function", icd_caller__standard_state_distribute));
+    GET_AND_SET(that->state_distribute_fn_extra, icd_config__get_any_value(data, "state.distribute.extra", NULL));
 
-    that->state_get_channels_fn =
-        icd_config__get_any_value(data, "state.get.channels.function", icd_caller__standard_state_get_channels);
-    that->state_get_channels_fn_extra = icd_config__get_any_value(data, "state.get.channels.extra", NULL);
+    GET_AND_SET(that->state_get_channels_fn,
+        icd_config__get_any_value(data, "state.get.channels.function", icd_caller__standard_state_get_channels));
+    GET_AND_SET(that->state_get_channels_fn_extra, icd_config__get_any_value(data, "state.get.channels.extra", NULL));
 
-    that->state_bridged_fn =
-        icd_config__get_any_value(data, "state.bridged.function", icd_caller__standard_state_bridged);
-    that->state_bridged_fn_extra = icd_config__get_any_value(data, "state.bridged.extra", NULL);
+    GET_AND_SET(that->state_bridged_fn,
+        icd_config__get_any_value(data, "state.bridged.function", icd_caller__standard_state_bridged));
+    GET_AND_SET(that->state_bridged_fn_extra, icd_config__get_any_value(data, "state.bridged.extra", NULL));
 
     /*#_Start role & strategy specific icd by default sets this in the agent or customer */
-    that->state_channel_failed_fn =
-        icd_config__get_any_value(data, "state.channel.failed.function", icd_caller__standard_state_channel_failed);
-    that->state_channel_failed_fn_extra = icd_config__get_any_value(data, "state.channel.failed.extra", 0);
+    GET_AND_SET(that->state_channel_failed_fn,
+        icd_config__get_any_value(data, "state.channel.failed.function", icd_caller__standard_state_channel_failed));
+    GET_AND_SET(that->state_channel_failed_fn_extra, icd_config__get_any_value(data, "state.channel.failed.extra", 0));
 
-    that->state_bridge_failed_fn =
-        icd_config__get_any_value(data, "state.bridge.failed.function", icd_caller__standard_state_bridge_failed);
-    that->state_bridge_failed_fn_extra = icd_config__get_any_value(data, "state.bridge.failed.extra", 0);
+    GET_AND_SET(that->state_bridge_failed_fn,
+        icd_config__get_any_value(data, "state.bridge.failed.function", icd_caller__standard_state_bridge_failed));
+    GET_AND_SET(that->state_bridge_failed_fn_extra, icd_config__get_any_value(data, "state.bridge.failed.extra", 0));
 
-    that->state_associate_failed_fn =
+    GET_AND_SET(that->state_associate_failed_fn,
         icd_config__get_any_value(data, "state.associate.failed.function",
-        icd_caller__standard_state_associate_failed);
-    that->state_associate_failed_fn_extra = icd_config__get_any_value(data, "state.associate.failed.extra", 0);
+        icd_caller__standard_state_associate_failed));
+    GET_AND_SET(that->state_associate_failed_fn_extra, icd_config__get_any_value(data, "state.associate.failed.extra", 0));
 
-    that->state_call_end_fn =
-        icd_config__get_any_value(data, "state.call.end.function", icd_caller__standard_state_call_end);
-    that->state_call_end_fn_extra = icd_config__get_any_value(data, "state.call.end.extra", NULL);
+    GET_AND_SET(that->state_call_end_fn,
+        icd_config__get_any_value(data, "state.call.end.function", icd_caller__standard_state_call_end));
+    GET_AND_SET(that->state_call_end_fn_extra, icd_config__get_any_value(data, "state.call.end.extra", NULL));
 
-    that->state_suspend_fn =
-        icd_config__get_any_value(data, "state.suspend.function", icd_caller__standard_state_suspend);
-    that->state_suspend_fn_extra = icd_config__get_any_value(data, "state.suspend.extra", NULL);
+    GET_AND_SET(that->state_suspend_fn,
+        icd_config__get_any_value(data, "state.suspend.function", icd_caller__standard_state_suspend));
+    GET_AND_SET(that->state_suspend_fn_extra, icd_config__get_any_value(data, "state.suspend.extra", NULL));
 
-    that->cleanup_caller_fn =
-        icd_config__get_any_value(data, "cleanup.caller.function", icd_caller__standard_cleanup_caller);
+    GET_AND_SET(that->cleanup_caller_fn,
+        icd_config__get_any_value(data, "cleanup.caller.function", icd_caller__standard_cleanup_caller));
 
     /*#_End Role/Strategy specfic func set by icd in agent or customer */
 
-    that->state_conference_fn =
-        icd_config__get_any_value(data, "state.conference.function", icd_caller__standard_state_conference);
+    GET_AND_SET(that->state_conference_fn,
+        icd_config__get_any_value(data, "state.conference.function", icd_caller__standard_state_conference));
 
-    that->prepare_caller_fn =
-        icd_config__get_any_value(data, "prepare.caller.function", icd_caller__standard_prepare_caller);
-    that->launch_caller_fn =
-        icd_config__get_any_value(data, "launch.caller.function", icd_caller__standard_launch_caller);
+    GET_AND_SET(that->prepare_caller_fn,
+        icd_config__get_any_value(data, "prepare.caller.function", icd_caller__standard_prepare_caller));
+    GET_AND_SET(that->launch_caller_fn,
+        icd_config__get_any_value(data, "launch.caller.function", icd_caller__standard_launch_caller));
+
+#undef GET_AND_SET
 
     return ICD_SUCCESS;
 }
@@ -224,7 +227,7 @@ icd_plugable_fn *create_icd_plugable_fns(icd_config * data, const char *name)
 
 icd_status destroy_icd_plugable_fn(icd_plugable_fn ** plugable_fnsp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(plugable_fnsp != NULL);
     assert((*plugable_fnsp) != NULL);
@@ -240,14 +243,6 @@ icd_status destroy_icd_plugable_fn(icd_plugable_fn ** plugable_fnsp)
         *plugable_fnsp = NULL;
     }
     return ICD_SUCCESS;
-}
-
-icd_status icd_plugable__set_fn(void *that, icd_plugable_fn * (*get_plugable_fn) (icd_caller *))
-{
-
-    that = get_plugable_fn;
-    return ICD_SUCCESS;
-
 }
 
 /* Get the name string being used to identify this caller. */

@@ -115,15 +115,15 @@ static int pgsql_reconnect(const char *database)
 
 static struct cw_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
-	PGresult *res;
-	long int row, rowcount = 0;
-	int col, colcount = 0;
 	char sql[1024];
+	PGresult *res;
 	char *stringp;
 	char *chunk;
-	char *op;	
+	const char *op;
 	const char *newparam, *newval;
 	struct cw_variable *var=NULL, *prev=NULL;
+	long int row, rowcount = 0;
+	int col, colcount = 0;
 
 	if (!table) {
 		cw_log(CW_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
@@ -205,18 +205,18 @@ static struct cw_variable *realtime_pgsql(const char *database, const char *tabl
 
 static struct cw_config *realtime_multi_pgsql(const char *database, const char *table, va_list ap)
 {
-	PGresult *res;
-	long int row, rowcount = 0;
-	int col, colcount = 0;
 	char sql[1024];
+	PGresult *res;
 	const char *initfield = NULL;
 	char *stringp;
 	char *chunk;
-	char *op;
+	const char *op;
 	const char *newparam, *newval;
 	struct cw_variable *var=NULL;
 	struct cw_config *cfg = NULL;
 	struct cw_category *cat = NULL;
+	long int row, rowcount = 0;
+	int col, colcount = 0;
 
 	if(!table) {
 		cw_log(CW_LOG_WARNING, "PgSQL RealTime: No table specified.\n");
@@ -239,8 +239,8 @@ static struct cw_config *realtime_multi_pgsql(const char *database, const char *
 	}
 
 	initfield = cw_strdupa(newparam);
-	if ((op = strchr(initfield, ' ')))
-		*op = '\0';
+	if ((stringp = strchr(initfield, ' ')))
+		*stringp = '\0';
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
@@ -372,7 +372,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	PQclear(res);
 	cw_mutex_unlock(&pgsql_lock);
 
-	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Updated %lu rows on table: %s\n", rowcount, table);
+	cw_log(CW_LOG_DEBUG, "PgSQL RealTime: Updated %ld rows on table: %s\n", rowcount, table);
 
 	if (rowcount >= 0)
 		return (int)rowcount;
@@ -382,13 +382,12 @@ static int update_pgsql(const char *database, const char *table, const char *key
 
 static struct cw_config *config_pgsql(const char *database, const char *table, const char *file, struct cw_config *cfg)
 {
-	PGresult *res;
-	long int row, rowcount = 0;
-	int colcount = 0;
 	char sql[1024];
 	char last[128] = "";
 	struct cw_category *cur_cat = NULL;
 	struct cw_variable *new_v;
+	PGresult *res;
+	long int row, rowcount = 0;
 	int last_cat_metric = 0;
 
 	if (!file || !strcmp(file, RES_CONFIG_PGSQL_CONF)) {
@@ -420,8 +419,7 @@ static struct cw_config *config_pgsql(const char *database, const char *table, c
 	rowcount = PQntuples(res);
 	if (rowcount > 0) {
 
-		cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Found %lu rows.\n", rowcount);
-		colcount = PQnfields(res);
+		cw_log(CW_LOG_NOTICE, "PgSQL RealTime: Found %ld rows.\n", rowcount);
 		for (row = 0; row < rowcount; row++) {
 			if (!strcmp(PQgetvalue(res, row, 1), "#include")) {
 				if (!cw_config_internal_load(PQgetvalue(res, row, 2), cfg)) {

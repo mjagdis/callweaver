@@ -288,4 +288,4 @@ static int load_module(void)
 }
 
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, "A-law to/from Mu-law translator");
+MODULE_INFO(load_module, NULL, unload_module, NULL, "A-law to/from Mu-law translator")

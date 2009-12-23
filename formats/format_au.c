@@ -115,19 +115,19 @@ static int check_header(FILE *f)
     encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
     if (encoding != AU_ENC_8BIT_ULAW)
     {
-        cw_log(CW_LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
+        cw_log(CW_LOG_WARNING, "Unexpected format: %u. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
         return -1;
     }
     sample_rate = ltohl(header[AU_HDR_SAMPLE_RATE_OFF]);
     if (sample_rate != 8000)
     {
-        cw_log(CW_LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
+        cw_log(CW_LOG_WARNING, "Sample rate can only be 8000 not %u\n", sample_rate);
         return -1;
     }
     channels = ltohl(header[AU_HDR_CHANNELS_OFF]);
     if (channels != 1)
     {
-        cw_log(CW_LOG_WARNING, "Not in mono: channels=%d\n", channels);
+        cw_log(CW_LOG_WARNING, "Not in mono: channels=%u\n", channels);
         return -1;
     }
     /* Skip to data */
@@ -135,7 +135,7 @@ static int check_header(FILE *f)
     data_size = ftell(f) - hdr_size;
     if (fseek(f, hdr_size, SEEK_SET) == -1)
     {
-        cw_log(CW_LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
+        cw_log(CW_LOG_WARNING, "Failed to skip to data: %u\n", hdr_size);
         return -1;
     }
     return data_size;

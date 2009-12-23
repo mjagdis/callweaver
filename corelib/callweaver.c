@@ -408,7 +408,7 @@ static int lockfile_rewrite(char *lockfile, pid_t pid)
 	int d, len;
 	int err = 0;
 
-	len = sprintf(buf, "%u\n", pid);
+	len = sprintf(buf, "%u\n", (unsigned int)pid);
 
 	if ((d = open(lockfile, O_WRONLY, 0)) < 0)
 		err = errno;
@@ -465,7 +465,7 @@ static int lockfile_claim(char *lockfile)
 	 * Remember: some filesystems (NFS in particular)
 	 * may return short writes or errors on close.
 	 */
-	len = sprintf(buf, "%u\n", getpid());
+	len = sprintf(buf, "%u\n", (unsigned int)getpid());
 	err = fstat(d, &st1);
 	if (!err) {
 		err = write(d, buf, len);
@@ -1396,17 +1396,17 @@ int callweaver_main(int argc, char *argv[])
 #endif
 
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
-			fprintf(stderr, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
+			fprintf(stderr, "Unable to initgroups '%s' (%u)\n", pw->pw_name, (unsigned int)gr->gr_gid);
 			exit(EX_OSERR);
 		}
 
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-			fprintf(stderr, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
+			fprintf(stderr, "Unable to setgid to '%s' (%u)\n", gr->gr_name, (unsigned int)gr->gr_gid);
 			exit(EX_OSERR);
 		}
 
 		if (setuid(pw->pw_uid)) {
-			fprintf(stderr, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
+			fprintf(stderr, "Unable to setuid to '%s' (%u)\n", pw->pw_name, (unsigned int)pw->pw_uid);
 			exit(EX_OSERR);
 		}
 
@@ -1474,22 +1474,22 @@ int callweaver_main(int argc, char *argv[])
 		int i;
 
 		if ((pw2 = getpwuid(geteuid())))
-			fprintf(stderr, "Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
+			fprintf(stderr, "Now running as user '%s' (%u)\n", pw2->pw_name, (unsigned int)pw2->pw_uid);
 		else
-			fprintf(stderr, "Now running as user '' (%d)\n", getegid());
+			fprintf(stderr, "Now running as user '' (%u)\n", (unsigned int)getegid());
 
 		if ((gr2 = getgrgid(getegid())))
-			fprintf(stderr, "Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+			fprintf(stderr, "Now running as group '%s' (%u)\n", gr2->gr_name, (unsigned int)gr2->gr_gid);
 		else
-			fprintf(stderr, "Now running as group '' (%d)\n", getegid());
+			fprintf(stderr, "Now running as group '' (%u)\n", (unsigned int)getegid());
 
 		fprintf(stderr, "Supplementary groups:\n");
 		ngroups = getgroups(NGROUPS_MAX, gid_list);
 		for (i = 0; i < ngroups; i++) {
 			if ((gr2 = getgrgid(gid_list[i])))
-				fprintf(stderr, "   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+				fprintf(stderr, "   '%s' (%u)\n", gr2->gr_name, (unsigned int)gr2->gr_gid);
 			else
-				fprintf(stderr, "   '' (%d)\n", gid_list[i]);
+				fprintf(stderr, "   '' (%u)\n", (unsigned int)gid_list[i]);
 		}
 	}
 
@@ -1629,5 +1629,6 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 
+	/* NOT REACHED */
 	return 0;
 }

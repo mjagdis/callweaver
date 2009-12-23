@@ -34,6 +34,7 @@
  *
  * Don't mess with these unless you're really sure you know what you're doing.
  */
+#include <string.h>
 #include <stdlib.h>
 
 #ifndef _THREAD_SAFE
@@ -51,11 +52,6 @@
 #include "callweaver/lock.h"
 #include "callweaver/localtime.h"
 
-#ifndef lint
-#ifndef NOID
-static const char	elsieid[] = "@(#)localtime.c	7.57";
-#endif /* !defined NOID */
-#endif /* !defined lint */
 
 /*
 ** Leap second handling from Bradley White (bww@k.gp.cs.cmu.edu).
@@ -168,37 +164,27 @@ struct rule {
 ** Prototypes for static functions.
 */
 
-static long		detzcode P((const char * codep));
-static const char *	getnum P((const char * strp, int * nump, int min,
-				int max));
-static const char *	getsecs P((const char * strp, long * secsp));
-static const char *	getoffset P((const char * strp, long * offsetp));
-static const char *	getrule P((const char * strp, struct rule * rulep));
-static void		gmtload P((struct state * sp));
-static void		gmtsub P((const time_t * timep, long offset,
-				struct tm * tmp, const char * zone));
-static void		localsub P((const time_t * timep, long offset,
-				struct tm * tmp, const char * zone));
-static int		increment_overflow P((int * number, int delta));
-static int		normalize_overflow P((int * tensptr, int * unitsptr,
-				int base));
-static time_t		time1 P((struct tm * tmp,
-				void(*funcp) P((const time_t *,
-				long, struct tm *, const char*)),
-				long offset, const char * zone));
-static time_t		time2 P((struct tm *tmp,
-				void(*funcp) P((const time_t *,
-				long, struct tm*, const char*)),
-				long offset, int * okayp, const char * zone));
-static void		timesub P((const time_t * timep, long offset,
-				const struct state * sp, struct tm * tmp));
-static int		tmcomp P((const struct tm * atmp,
-				const struct tm * btmp));
-static time_t		transtime P((time_t janfirst, int year,
-				const struct rule * rulep, long offset));
-static int		tzload P((const char * name, struct state * sp));
-static int		tzparse P((const char * name, struct state * sp,
-				int lastditch));
+static long		detzcode(const char * codep);
+static const char *	getnum(const char * strp, int * nump, int min, int max);
+static const char *	getsecs(const char * strp, long * secsp);
+static const char *	getoffset(const char * strp, long * offsetp);
+static const char *	getrule(const char * strp, struct rule * rulep);
+static void		gmtload(struct state * sp);
+static void		gmtsub(const time_t * timep, long offset, struct tm * tmp);
+static void		localsub(const time_t * timep, long offset, struct tm * tmp, const char * zone);
+static int		increment_overflow(int * number, int delta);
+static int		normalize_overflow(int * tensptr, int * unitsptr, int base);
+static time_t		time1(struct tm * tmp,
+				void(*funcp)(const time_t *, long, struct tm *, const char*),
+				long offset, const char * zone);
+static time_t		time2(struct tm *tmp,
+				void(*funcp)(const time_t *, long, struct tm*, const char*),
+				long offset, int * okayp, const char * zone);
+static void		timesub(const time_t * timep, long offset, const struct state * sp, struct tm * tmp);
+static int		tmcomp(const struct tm * atmp, const struct tm * btmp);
+static time_t		transtime(time_t janfirst, int year, const struct rule * rulep, long offset);
+static int		tzload(const char * name, struct state * sp);
+static int		tzparse(const char * name, struct state * sp);
 
 static struct state *	lclptr      = NULL;
 static struct state *	last_lclptr = NULL;
@@ -224,9 +210,7 @@ CW_MUTEX_DEFINE_STATIC(gmt_mutex);
 ** Thanks to Paul Eggert (eggert@twinsun.com) for noting this.
 */
 
-static long
-detzcode(codep)
-const char * const	codep;
+static long detzcode(const char * const	codep)
 {
 	register long	result;
 	register int	i;
@@ -237,10 +221,7 @@ const char * const	codep;
 	return result;
 }
 
-static int
-tzload(name, sp)
-register const char *		name;
-register struct state * const	sp;
+static int tzload(const char *name, struct state * const sp)
 {
 	register const char *	p;
 	register int		i;
@@ -409,12 +390,7 @@ static const int	year_lengths[2] = {
 ** Otherwise, return a pointer to the first character not part of the number.
 */
 
-static const char *
-getnum(strp, nump, min, max)
-register const char *	strp;
-int * const		nump;
-const int		min;
-const int		max;
+static const char *getnum(const char *	strp, int * const nump, const int min, const int max)
 {
 	register char	c;
 	register int	num;
@@ -442,10 +418,7 @@ const int		max;
 ** of seconds.
 */
 
-static const char *
-getsecs(strp, secsp)
-register const char *	strp;
-long * const		secsp;
+static const char *getsecs(const char *	strp, long * const secsp)
 {
 	int	num;
 
@@ -484,10 +457,7 @@ long * const		secsp;
 ** Otherwise, return a pointer to the first character not part of the time.
 */
 
-static const char *
-getoffset(strp, offsetp)
-register const char *	strp;
-long * const		offsetp;
+static const char *getoffset(const char *strp, long * const offsetp)
 {
 	register int	neg = 0;
 
@@ -511,10 +481,7 @@ long * const		offsetp;
 ** Otherwise, return a pointer to the first character not part of the rule.
 */
 
-static const char *
-getrule(strp, rulep)
-const char *			strp;
-register struct rule * const	rulep;
+static const char *getrule(const char *strp, struct rule * const rulep)
 {
 	if (*strp == 'J') {
 		/*
@@ -565,12 +532,7 @@ register struct rule * const	rulep;
 ** calculate the Epoch-relative time that rule takes effect.
 */
 
-static time_t
-transtime(janfirst, year, rulep, offset)
-const time_t				janfirst;
-const int				year;
-register const struct rule * const	rulep;
-const long				offset;
+static time_t transtime(const time_t janfirst, const int year, const struct rule * const rulep, const long offset)
 {
 	register int	leapyear;
 	register time_t	value = 0;
@@ -659,11 +621,7 @@ const long				offset;
 ** appropriate.
 */
 
-static int
-tzparse(name, sp, lastditch)
-const char *			name;
-register struct state * const	sp;
-const int			lastditch;
+static int tzparse(const char *name, struct state * const sp)
 {
 	const char *			stdname;
 	const char *			dstname = NULL;
@@ -851,25 +809,20 @@ const int			lastditch;
 	return 0;
 }
 
-static void
-gmtload(sp)
-struct state * const	sp;
+static void gmtload(struct state * const sp)
 {
 	if (tzload(gmt, sp) != 0)
-		(void) tzparse(gmt, sp, TRUE);
+		(void) tzparse(gmt, sp);
 }
 
 /*
 ** A non-static declaration of cw_tzsetwall in a system header file
 ** may cause a warning about this upcoming static declaration...
 */
-static
 #ifdef	_THREAD_SAFE
-int
-cw_tzsetwall_basic P((void))
+static int cw_tzsetwall_basic(void)
 #else
-int
-cw_tzsetwall P((void))
+static int cw_tzsetwall(void)
 #endif
 {
 	struct state *cur_state = lclptr;
@@ -907,7 +860,7 @@ cw_tzsetwall P((void))
 
 #ifdef	_THREAD_SAFE
 int
-cw_tzsetwall P((void))
+cw_tzsetwall(void)
 {
 	cw_mutex_lock(&tzsetwall_mutex);
 	cw_tzsetwall_basic();
@@ -917,11 +870,9 @@ cw_tzsetwall P((void))
 #endif
 
 #ifdef	_THREAD_SAFE
-static int
-cw_tzset_basic P((const char *name))
+static int cw_tzset_basic (const char *name)
 #else
-int
-cw_tzset P((const char *name))
+int cw_tzset(const char *name)
 #endif
 {
 	struct state *cur_state = lclptr;
@@ -959,7 +910,7 @@ cw_tzset P((const char *name))
 	} else if (tzload(name, cur_state) != 0) {
 		if (name[0] == ':') {
 			(void) gmtload(cur_state);
-		} else if (tzparse(name, cur_state, FALSE) != 0) {
+		} else if (tzparse(name, cur_state) != 0) {
 			/* If not found, load localtime */
 			if (tzload("/etc/localtime", cur_state) != 0)
 				/* Last ditch, get GMT */
@@ -976,8 +927,7 @@ cw_tzset P((const char *name))
 }
 
 #ifdef	_THREAD_SAFE
-void
-cw_tzset P((const char *name))
+void cw_tzset(const char *name)
 {
 	cw_mutex_lock(&tzset_mutex);
 	cw_tzset_basic(name);
@@ -995,12 +945,7 @@ cw_tzset P((const char *name))
 */
 
 /*ARGSUSED*/
-static void
-localsub(timep, offset, tmp, zone)
-const time_t * const	timep;
-const long		offset;
-struct tm * const	tmp;
-const char * const	zone;
+static void localsub(const time_t * const timep, const long offset, struct tm * const tmp, const char * const zone)
 {
 	register struct state *		sp;
 	register const struct ttinfo *	ttisp;
@@ -1031,7 +976,7 @@ const char * const	zone;
 
 	/* Last ditch effort, use GMT */
 	if (sp == NULL) {
-		gmtsub(timep, offset, tmp, zone);
+		gmtsub(timep, offset, tmp);
 		return;
 	}
 	if (sp->timecnt == 0 || t < sp->ats[0]) {
@@ -1062,11 +1007,7 @@ const char * const	zone;
 #endif /* defined TM_ZONE */
 }
 
-struct tm *
-cw_localtime(timep, p_tm, zone)
-const time_t * const	timep;
-struct tm *p_tm;
-const char * const	zone;
+struct tm *cw_localtime(const time_t * const timep, struct tm *p_tm, const char * const	zone)
 {
 #ifdef _THREAD_SAFE
 	cw_mutex_lock(&lcl_mutex);
@@ -1083,12 +1024,7 @@ const char * const	zone;
 ** gmtsub is to gmtime as localsub is to localtime.
 */
 
-static void
-gmtsub(timep, offset, tmp, zone)
-const time_t * const	timep;
-const long		offset;
-struct tm * const	tmp;
-const char * const	zone;
+static void gmtsub(const time_t * const	timep, const long offset, struct tm * const tmp)
 {
 #ifdef	_THREAD_SAFE
 	cw_mutex_lock(&gmt_mutex);
@@ -1117,12 +1053,7 @@ const char * const	zone;
 #endif /* defined TM_ZONE */
 }
 
-static void
-timesub(timep, offset, sp, tmp)
-const time_t * const			timep;
-const long				offset;
-register const struct state * const	sp;
-register struct tm * const		tmp;
+static void timesub(const time_t * const timep, const long offset, const struct state * const sp, struct tm * const tmp)
 {
 	register const struct lsinfo *	lp;
 	register long			days;
@@ -1213,9 +1144,7 @@ register struct tm * const		tmp;
 #endif /* defined TM_GMTOFF */
 }
 
-char *
-cw_ctime(timep)
-const time_t * const	timep;
+char *cw_ctime(const time_t * const timep)
 {
 /*
 ** Section 4.12.3.2 of X3.159-1989 requires that
@@ -1226,10 +1155,7 @@ const time_t * const	timep;
 	return asctime(localtime(timep));
 }
 
-char *
-cw_ctime_r(timep, buf)
-const time_t * const	timep;
-char *buf;
+char *cw_ctime_r(const time_t * const timep, char *buf)
 {
         struct tm tm;
 #ifdef ASCTIME_R_WITH_THREE_ARGS
@@ -1257,10 +1183,7 @@ char *buf;
 ** Simplified normalize logic courtesy Paul Eggert (eggert@twinsun.com).
 */
 
-static int
-increment_overflow(number, delta)
-int *	number;
-int	delta;
+static int increment_overflow(int *number, int	delta)
 {
 	int ret;
 
@@ -1279,11 +1202,7 @@ int	delta;
 	return ret;
 }
 
-static int
-normalize_overflow(tensptr, unitsptr, base)
-int * const	tensptr;
-int * const	unitsptr;
-const int	base;
+static int normalize_overflow(int * const tensptr, int * const unitsptr, const int base)
 {
 	register int	tensdelta;
 
@@ -1294,10 +1213,7 @@ const int	base;
 	return increment_overflow(tensptr, tensdelta);
 }
 
-static int
-tmcomp(atmp, btmp)
-register const struct tm * const atmp;
-register const struct tm * const btmp;
+static int tmcomp(const struct tm * const atmp, const struct tm * const btmp)
 {
 	register int	result;
 
@@ -1310,13 +1226,7 @@ register const struct tm * const btmp;
 	return result;
 }
 
-static time_t
-time2(tmp, funcp, offset, okayp, zone)
-struct tm * const	tmp;
-void (* const		funcp) P((const time_t*, long, struct tm*, const char*));
-const long		offset;
-int * const		okayp;
-const char * const	zone;
+static time_t time2(struct tm * const tmp, void (* const funcp)(const time_t*, long, struct tm*, const char*), const long offset, int * const okayp, const char * const	zone)
 {
 	register const struct state *	sp;
 	register int			dir;
@@ -1455,12 +1365,7 @@ label:
 	return t;
 }
 
-static time_t
-time1(tmp, funcp, offset, zone)
-struct tm * const	tmp;
-void (* const		funcp) P((const time_t *, long, struct tm *, const char*));
-const long		offset;
-const char * const	zone;
+static time_t time1(struct tm * const tmp, void (* const funcp)(const time_t *, long, struct tm *, const char*), const long offset, const char * const	zone)
 {
 	register time_t			t;
 	register const struct state *	sp;
@@ -1516,10 +1421,7 @@ const char * const	zone;
 	return WRONG;
 }
 
-time_t
-cw_mktime(tmp,zone)
-struct tm * const	tmp;
-const char * const	zone;
+time_t cw_mktime(struct tm * const tmp, const char * const zone)
 {
 	time_t mktime_return_value;
 #ifdef	_THREAD_SAFE

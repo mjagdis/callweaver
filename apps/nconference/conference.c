@@ -20,7 +20,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 // mutex for synchronizing access to conflist
 CW_MUTEX_DEFINE_EXPORTED(conflist_lock);
@@ -568,7 +568,7 @@ static struct cw_conference* create_conf( char* name, struct cw_conf_member* mem
     // acquire conference mutexes
     cw_mutex_lock( &conf->lock ) ;
 	
-    if ( cw_pthread_create( &conf->conference_thread, &global_attr_default, (void*)conference_exec, conf ) == 0 ) 
+    if ( cw_pthread_create( &conf->conference_thread, &global_attr_default, (void *(*)(void *))conference_exec, conf ) == 0 )
     {
 	// detach the thread so it doesn't leak
 	pthread_detach( conf->conference_thread ) ;
@@ -754,8 +754,7 @@ struct fast_originate_helper {
 
 static void *fast_originate(void *data)
 {
-    int res = 0,
-	reason;
+    int reason;
     struct fast_originate_helper *in = data;
     struct cw_channel *chan = NULL;
 
@@ -763,7 +762,7 @@ static void *fast_originate(void *data)
 
 
     if (1) {
-		res = cw_pbx_outgoing_app(
+		cw_pbx_outgoing_app(
 			in->tech, CW_FORMAT_SLINEAR, 
 			in->data, in->timeout, 
 			in->app, in->appdata, 
@@ -772,7 +771,7 @@ static void *fast_originate(void *data)
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			NULL, &chan );
     } else {
-		res = cw_pbx_outgoing_exten(
+		cw_pbx_outgoing_exten(
 			in->tech, CW_FORMAT_SLINEAR, 
 			in->data, in->timeout, 
 			in->context, in->exten, in->priority, 
@@ -903,7 +902,6 @@ static int conference_set_pin(struct cw_conf_member *member, char *pin) {
 int conference_parse_admin_command(struct cw_conf_member *member) {
     char action;
     char *parameters;
-    int res = 0;
 
     action=member->dtmf_buffer[0];
     parameters=member->dtmf_buffer+1;
@@ -911,7 +909,7 @@ int conference_parse_admin_command(struct cw_conf_member *member) {
     switch (action) {
 	case '1':
 	    queue_incoming_silent_frame( member, 2 );
-	    res = conf_do_originate(member,parameters);
+	    conf_do_originate(member,parameters);
 	    break;
 	case '4':
 	    if      ( parameters[0] == '0' )
@@ -951,7 +949,7 @@ int conference_parse_admin_command(struct cw_conf_member *member) {
 	    }
 	    break;
 	case '9':
-	    res = conference_set_pin(member,parameters);
+	    conference_set_pin(member,parameters);
 	    conference_queue_sound( member, "beep" );
 	    break;
 	case '0':

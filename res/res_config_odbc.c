@@ -49,30 +49,29 @@ static const char tdesc[] = "ODBC Configuration";
 
 static struct cw_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
-	odbc_obj *obj;
-	SQLHSTMT stmt;
+	char rowdata[2048];
 	char sql[1024];
 	char coltitle[256];
-	char rowdata[2048];
-	char *op;
+	va_list aq;
+	odbc_obj *obj;
+	SQLHSTMT stmt;
+	const char *op;
 	const char *newparam, *newval;
 	char *stringp;
 	char *chunk;
-	SQLSMALLINT collen;
+	struct cw_variable *var=NULL, *prev=NULL;
 	int res;
 	int x;
-	struct cw_variable *var=NULL, *prev=NULL;
 	SQLULEN colsize;
+	SQLSMALLINT collen;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
 	SQLINTEGER indicator;
-	va_list aq;
-	
+
 	va_copy(aq, ap);
-	
-	
+
 	if (!table)
 		return NULL;
 
@@ -185,33 +184,32 @@ static struct cw_variable *realtime_odbc(const char *database, const char *table
 
 static struct cw_config *realtime_multi_odbc(const char *database, const char *table, va_list ap)
 {
-	odbc_obj *obj;
-	SQLHSTMT stmt;
+	char rowdata[2048];
 	char sql[1024];
 	char coltitle[256];
-	char rowdata[2048];
+	odbc_obj *obj;
+	SQLHSTMT stmt;
+	va_list aq;
 	const char *initfield=NULL;
-	char *op;
+	const char *op;
 	const char *newparam, *newval;
 	char *stringp;
 	char *chunk;
-	SQLSMALLINT collen;
-	int res;
-	int x;
 	struct cw_variable *var=NULL;
 	struct cw_config *cfg=NULL;
 	struct cw_category *cat=NULL;
+	int res;
+	int x;
 	SQLULEN colsize;
+	SQLINTEGER indicator;
+	SQLSMALLINT collen;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
-	SQLINTEGER indicator;
 
-	va_list aq;
 	va_copy(aq, ap);
-	
-	
+
 	if (!table)
 		return NULL;
 
@@ -231,8 +229,8 @@ static struct cw_config *realtime_multi_odbc(const char *database, const char *t
 		return NULL;
 	}
 	initfield = cw_strdupa(newparam);
-	if ((op = strchr(initfield, ' '))) 
-		*op = '\0';
+	if ((stringp = strchr(initfield, ' ')))
+		*stringp = '\0';
 	newval = va_arg(aq, const char *);
 	if (!strchr(newparam, ' ')) op = " ="; else op = "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);

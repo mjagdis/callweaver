@@ -188,7 +188,7 @@ int icd_command_register(const char *name, int (*func) (struct cw_dynstr **, int
     return ICD_EGENERAL;
 }
 
-void *icd_command_pointer(const char *name)
+static int (*icd_command_pointer(const char *name))(struct cw_dynstr **, int, char **)
 {
     icd_command_node *fetch = NULL;
 
@@ -701,7 +701,7 @@ static icd_status icd_command_dump_queue(struct cw_dynstr **ds_p, int argc, char
     icd_fieldset_iterator *iter;
     char *curr_key;
     icd_queue *queue;
-    icd_distributor *dist;
+    //icd_distributor *dist;
 
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
@@ -714,8 +714,8 @@ static icd_status icd_command_dump_queue(struct cw_dynstr **ds_p, int argc, char
             cw_dynstr_printf(ds_p, "\nFound %s\n", curr_key);
             queue = (icd_queue *) icd_fieldset__get_value(queues, curr_key);
             icd_queue__dump(queue, verbosity, ds_p);
-            dist = (icd_distributor *) icd_queue__get_distributor(queue);
             /*
+               dist = (icd_distributor *) icd_queue__get_distributor(queue);
                if (dist)
                icd_distributor__dump(dist, verbosity, fd);
              */
@@ -766,7 +766,7 @@ static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, c
 
     fs_iter = icd_fieldset__get_key_iterator(queues);
     if (fs_iter == NULL) {
-        return 0;
+        return ICD_SUCCESS;
     }
     while (icd_fieldset_iterator__has_more(fs_iter)) {
         curr_key = icd_fieldset_iterator__next(fs_iter);
@@ -1290,7 +1290,6 @@ int icd_command_logout (struct cw_dynstr **ds_p, int argc, char **argv)
         );
         return ICD_SUCCESS;
 	}
-    return ICD_EGENERAL;
 }
 
 int icd_command_hangup_channel (struct cw_dynstr **ds_p, int argc, char **argv)

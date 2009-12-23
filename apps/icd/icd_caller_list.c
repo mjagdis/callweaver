@@ -68,8 +68,6 @@ struct icd_caller_list {
 
 };
 
-static const int skipconst = 1;
-
 static int icd_caller_list__identify_name(const void *key, void *payload);
 
 /***** Init - Destroyer *****/
@@ -168,20 +166,20 @@ icd_status init_icd_caller_list(icd_caller_list * that, const char *name, icd_co
         }
         retval = icd_list__set_node_insert_func((icd_list *) that, ins_fn, extra);
         retval =
-            icd_caller_list__set_state_change_notify_fn(that, icd_config__get_any_value(data,
+            icd_caller_list__set_state_change_notify_fn(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data,
                 "statechange.function", icd_caller_list__dummy_notify), icd_config__get_any_value(data,
                 "statechange.extra", NULL));
         retval =
-            icd_caller_list__set_channel_attached_notify_fn(that, icd_config__get_any_value(data, "attach.function",
+            icd_caller_list__set_channel_attached_notify_fn(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "attach.function",
                 icd_caller_list__dummy_notify), icd_config__get_any_value(data, "attach.extra", NULL));
         retval =
-            icd_caller_list__set_linked_notify_fn(that, icd_config__get_any_value(data, "linked.function",
+            icd_caller_list__set_linked_notify_fn(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "linked.function",
                 icd_caller_list__dummy_notify), icd_config__get_any_value(data, "linked.extra", NULL));
         retval =
-            icd_caller_list__set_bridged_notify_fn(that, icd_config__get_any_value(data, "bridged.function",
+            icd_caller_list__set_bridged_notify_fn(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data, "bridged.function",
                 icd_caller_list__dummy_notify), icd_config__get_any_value(data, "bridged.extra", NULL));
         retval =
-            icd_caller_list__set_authenticate_notify_fn(that, icd_config__get_any_value(data,
+            icd_caller_list__set_authenticate_notify_fn(that, (int (*)(icd_event *, void *))icd_config__get_any_value(data,
                 "authenticate.function", icd_caller_list__dummy_notify), icd_config__get_any_value(data,
                 "authenticate.extra", NULL));
     } else {
@@ -260,7 +258,6 @@ icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, struct c
     assert(((icd_list *) that)->dump_fn != NULL);
 
     return ((icd_list *) that)->dump_fn((icd_list *) that, verbosity, ds_p, ((icd_list *) that)->dump_fn_extra);
-    return ICD_SUCCESS;
 }
 
 /* Retrieves a caller from the list when given an id. */
@@ -415,16 +412,16 @@ int icd_caller_list__dummy_notify(icd_event * event, void *extra)
 /* Standard caller list dump function */
 icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
-    icd_caller_list *call_list;
+    //static const int skipconst = 1;
+    //icd_caller_list *call_list;
     icd_list_iterator *iter;
     icd_caller *caller;
 
     assert(list != NULL);
     assert(list->dump_fn != NULL);
 
-    call_list = (icd_caller_list *) list;
-
     //cw_dynstr_printf(ds_p,"\nDumping icd_caller list {\n");
+    //call_list = (icd_caller_list *) list;
     //icd_list__standard_dump(list, verbosity, fd, ((void *)&skipconst));
     //cw_dynstr_printf(ds_p,"       moh=%s\n", icd_caller_list__get_moh(call_list));
     //cw_dynstr_printf(ds_p,"   context=%s\n", icd_caller_list__get_context(call_list));

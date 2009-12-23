@@ -229,9 +229,6 @@ static int handle_core(int sig)
 /* CallWeaver.org calls this when it loads a module. All of our initialization is here. */
 static int load_module(void)
 {
-    
-    icd_status result;
-
     ICD_INIT;
 
 #ifdef ICD_TRAP_CORE
@@ -264,7 +261,7 @@ static int load_module(void)
 
     
     /* init caller agent, customer plugable strucs b4 loading caller, agent, customer */
-    result = icd_caller_load_module();
+    icd_caller_load_module();
 
     /* lock and load the queue and agents configurations (is locking necessary?) */
     cw_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading Module[%s].\n", icd_module__to_string(APP_ICD));
@@ -858,8 +855,6 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
     char *prioritystring = NULL;
     char *context = NULL;
     int res = 0;
-    int tries = 0;
-    int authenticated = 0;
     int priority =0;
     int pos = 0, oldrformat = 0, oldwformat = 0;
 
@@ -910,10 +905,6 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
     }
 
     cw_log(CW_LOG_WARNING, "SET Context for EXTEN to current context %s\n", context);
-    /* Three tries at logging in and authenticating */
-    tries = 0;
-    authenticated = 0;
-    tries = 0;
 
     priority = 1;
     if (prioritystring != NULL && strlen(prioritystring) > 0) {
@@ -1043,7 +1034,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     icd_config *config;
     const char *agentname;
     const char *dynamicstring;
-    const char *loginstring;
+    //const char *loginstring;
     const char *queuename;
     char *queuelist;
     char *queuesleft;
@@ -1053,7 +1044,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     const char *identifier;
     const char *passwd;
     int res = 0;
-    int dynamic = 0, oldrformat = 0, oldwformat = 0;
+    int oldrformat = 0, oldwformat = 0;
 
     void_hash_table *arghash = vh_init("args");
 
@@ -1122,7 +1113,6 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     }
     /* 2. If "dynamic" is true. Should we print a warning if agentname is in registry here? */
     if (agent == NULL && dynamicstring != NULL && cw_true(dynamicstring)) {
-        dynamic = 1;
         config = create_icd_config(app_icd_config_registry, "dynamic_agent_config");
         /* Install arghash into caller who destroys it in destroy_icd_caller.
            TBD - (Note that this breaks our malloc rules. It needs fixing) */
@@ -1155,10 +1145,10 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     /* 3. Allow login with DTMF if agent not specifically identified. */
 
     if (agent == NULL && agentname == NULL) {
-        loginstring = vh_read(arghash, "identify");
-        /* icd_agent() == icd_agent(identify=1) */
 #if 0
 /* TODO: fudged to compile */
+        loginstring = vh_read(arghash, "identify");
+        /* icd_agent() == icd_agent(identify=1) */
         if ((loginstring != NULL && cw_true(loginstring)) || (data == NULL || !strlen(data))) {
             agent = app_icd__dtmf_login(chan, NULL, NULL, 3);
         }
@@ -1944,7 +1934,6 @@ icd_status app_icd__read_queue_config(icd_fieldset * queuereg, const char *queue
     icd_config *general_config;
     void_hash_table *params;
     char *fieldval;
-    icd_status result;
 
     icd_config_iterator *iter;
     char *curr_key;
@@ -2019,7 +2008,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queuereg, const char *queue
             /* Check for "agents=" and fill outstanding_members with them */
             fieldval = icd_config__get_value(config, "agents");
             if (fieldval != NULL) {
-                result = app_icd__store_agent_list(fieldval, entry, outstanding_members);
+                app_icd__store_agent_list(fieldval, entry, outstanding_members);
             }
 
             icd_config__set_raw(config, "params", params);
@@ -2076,7 +2065,6 @@ icd_status app_icd__read_agents_config(icd_fieldset * agentreg, const char *agen
     char *queuesleft;
     char *currqueue;
     icd_queue *queue;
-    icd_status result;
     icd_config_iterator *iter;
     char *curr_key;
     int is_new_agent = 0;
@@ -2148,7 +2136,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agentreg, const char *agen
             /* Check for "queues=" and put in outstanding_members map */
             fieldval = icd_config__get_value(config, "queues");
             if (fieldval != NULL) {
-                result = app_icd__store_queue_list(fieldval, entry, outstanding_members);
+                app_icd__store_queue_list(fieldval, entry, outstanding_members);
             }
 
             fieldval = icd_config__get_value(config, "agent_id");

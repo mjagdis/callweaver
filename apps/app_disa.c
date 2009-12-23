@@ -125,7 +125,6 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int i;
 	int j;
 	int k;
-	int x;
 	int did_ignore;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
@@ -164,7 +163,7 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		/* answer */
 		cw_answer(chan);
 	}
-	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
+	i = k = 0; /* k is 0 for pswd entry, 1 for ext entry */
 	did_ignore = 0;
 	exten[0] = 0;
 	acctcode[0] = 0;

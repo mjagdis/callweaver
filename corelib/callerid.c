@@ -198,7 +198,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *
 
 	if (adsi->standard == ADSI_STANDARD_CLIP_DTMF) {
 		if (option_debug)
-			cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, msg);
+			cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: ALL \"%.*s\"\n", chan->name, len, (const char *)msg);
 
 		/* Spandsp only handles the Dutch/Danish system.
 		 * For Finland/Denmark/Iceland/Netherlands/India/Belgium/Sweden/Brazil/Saudi Arabia/Uruguay/?
@@ -237,7 +237,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *
 			}
 
 			if (option_debug)
-				cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, field_body);
+				cw_log(CW_LOG_DEBUG, "%s: CID-IN: DTMF: '%c' \"%.*s\"\n", chan->name, field_type, field_len, (char *)field_body);
 			switch (field_type) {
 				case 'D':
 					if (field_len == 1) {
@@ -275,7 +275,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *
 				message_type = field_type;
 			} else {
 				if (option_debug)
-					cw_log(CW_LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, field_body);
+					cw_log(CW_LOG_DEBUG, "%s: CID-IN: %s: Field: 0x%02x \"%.*s\"\n", chan->name, adsi_standard_to_str(adsi->standard), field_type, field_len, (char *)field_body);
 				/* CLASS, CLIP, and ACLIP use identical message codes.
 				 * JCLIP is different but MDMF CALLERID and ABSENCE match the rest
 				 * and there is nothing that conflicts with the standard DIALLED_NUMBER.
@@ -318,7 +318,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *
 										break;
 									}
 								}
-								cw_log(CW_LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
+								cw_log(CW_LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, (char *)field_body);
 								name = (uint8_t *) "Unknown";
 								break;
 							case MCLASS_CALLER_NAME:
@@ -367,7 +367,7 @@ int callerid_get(adsi_rx_state_t *adsi, struct cw_channel *chan, const uint8_t *
 		/* The last argument should be ANI. If we have ANI (unlikely but technically
 		 * possible) we should use it, no?
 		 */
-		cw_log(CW_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
+		cw_log(CW_LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, (char *)number, (char *)name);
 		cw_set_callerid(chan, (char *) number, (char *) name, (char *) number);
 
 		return 0;

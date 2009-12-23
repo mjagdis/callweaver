@@ -21,7 +21,7 @@
 #include "frame.h"
 #include "dtmf.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 int parse_dtmf_option( struct cw_conf_member *member, int subclass ) {
 

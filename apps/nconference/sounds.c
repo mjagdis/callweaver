@@ -20,7 +20,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int conf_play_soundfile( struct cw_conf_member *member, char * file ) 
 {

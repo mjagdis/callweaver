@@ -145,7 +145,7 @@ icd_status icd_customer__standard_prepare_caller(icd_caller *caller);
 icd_status icd_customer__standard_launch_caller(icd_caller *caller);
 */
     icd_customer *icd_customer__generate_queued_call(char *id, char *queuename, char *dialstr, char *vars,
-        char delim, void *plug);
+        char delim, icd_plugable_fn *(*plug)(icd_caller *));
 
 #ifdef __cplusplus
 }

@@ -272,7 +272,7 @@ icd_status icd_conference__clear(icd_caller * that)
             conf = NULL;
         }
     } else
-        return ICD_STDERR;
+        return ICD_ENOTFOUND;
 
     that->conference = NULL;
 
@@ -298,13 +298,12 @@ icd_status icd_conference__associate(icd_caller * that, icd_conference * conf, i
     }
     that->conference = conf;
 
-    return (that->conference == NULL) ? ICD_STDERR : ICD_SUCCESS;
+    return (that->conference == NULL ? ICD_ENOTFOUND : ICD_SUCCESS);
 }
 
 icd_status icd_conference__join(icd_caller * that)
 {
-
-    int fd = 0, nfds = 0, outfd = 0, ms = 0, origfd, ret = 0, flags = 0, confno = 0, res = 0;
+    int fd = 0, nfds = 0, outfd = 0, ms = 0, flags = 0, confno = 0, res = 0;
     struct cw_frame *read_frame;
     struct cw_channel *active_channel;
     struct cw_channel *chan = NULL;
@@ -331,7 +330,7 @@ icd_status icd_conference__join(icd_caller * that)
 	else {
 	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 	}
-        return ICD_STDERR;
+        return ICD_EGENERAL;
     }
     
     cw_indicate(chan, -1);
@@ -346,7 +345,7 @@ icd_status icd_conference__join(icd_caller * that)
 	else {
 	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 	}
-        return ICD_STDERR;
+        return ICD_EGENERAL;
     }
 
     /* Set it into linear mode (read) */
@@ -359,12 +358,10 @@ icd_status icd_conference__join(icd_caller * that)
 	}
         cw_log(CW_LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
-        return ICD_STDERR;
+        return ICD_EGENERAL;
     }
 
     cw_log(CW_LOG_NOTICE, "Joining conference....%d\n", conf->ztc.confno);
-
-    origfd = chan->fds[0];
 
     if (that->conf_fd && (fcntl(that->conf_fd, F_GETFL) > -1)) {
         fd = that->conf_fd;
@@ -380,7 +377,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-                return ICD_STDERR;
+                return ICD_EGENERAL;
             }
             x = 1;
             pseudo_fd=1;
@@ -395,7 +392,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-                return ICD_STDERR;
+                return ICD_EGENERAL;
             }
             if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
                 cw_log(CW_LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
@@ -406,7 +403,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-                return ICD_STDERR;
+                return ICD_EGENERAL;
             }
             /* Setup buffering information */
             memset(&bi, 0, sizeof(bi));
@@ -423,7 +420,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-                return ICD_STDERR;
+                return ICD_EGENERAL;
             }
 
             if (ioctl(fd, DAHDI_SETLINEAR, &x)) {
@@ -435,7 +432,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-                return ICD_STDERR;
+                return ICD_EGENERAL;
             }
             nfds = 1;
         } else {
@@ -474,7 +471,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-        return ICD_STDERR;
+        return ICD_EGENERAL;
     }
 
     /* Set it into linear mode (read) */
@@ -488,7 +485,7 @@ icd_status icd_conference__join(icd_caller * that)
 		else {
 	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
 		}
-        return ICD_STDERR;
+        return ICD_EGENERAL;
     }
 	
     for (;;) {
@@ -525,7 +522,6 @@ icd_status icd_conference__join(icd_caller * that)
              }	
          }  
 	    if ((read_frame->frametype == CW_FRAME_DTMF) && (read_frame->subclass == '*')) {   /* '*'=end conference */
-                ret = 0;
                 break;
             } else if ((read_frame->frametype == CW_FRAME_DTMF) && (read_frame->subclass == '#')) {    /* '#'=toggle mute */
                 flags = (flags == CONF_MODE_MUTE) ? CONF_MODE_REGULAR : CONF_MODE_MUTE;

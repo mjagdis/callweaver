@@ -310,9 +310,9 @@ static int module_load(const char *filename)
 		goto out_put_newmod;
 	}
 
-	modinfo = lt_dlsym(mod->lib, "get_modinfo");
+	modinfo = (struct modinfo *(*)(void))lt_dlsym(mod->lib, "get_modinfo");
 	if (modinfo == NULL)
-		modinfo = lt_dlsym(mod->lib, "_get_modinfo");
+		modinfo = (struct modinfo *(*)(void))lt_dlsym(mod->lib, "_get_modinfo");
 	if (modinfo == NULL) {
 		cw_log(CW_LOG_ERROR, "No get_modinfo in module %s\n", mod->name);
 		goto out_put_newmod;

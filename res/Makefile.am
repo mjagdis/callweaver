@@ -1,7 +1,6 @@
 AUTOMAKE_OPTS 			= gnu
 
-
-DEFS += -include $(top_builddir)/include/global.h -DCW_RES_API_IMPLEMENTATION
+AM_CFLAGS			= @CW_CFLAGS@ -DCW_RES_API_IMPLEMENTATION
 
 cwmod_LTLIBRARIES		= res_musiconhold.la \
 				  res_indications.la res_ogi.la  res_monitor.la \

@@ -265,7 +265,7 @@ static int aPGSQL_query(struct cw_channel *chan, void *data) {
 	char *querystring;
 	char *var;
 	int l;
-	int res,nres;
+	int res;
 	PGconn *karoto;
 	PGresult *PGSQLres;
 	int id,id1;
@@ -303,7 +303,7 @@ static int aPGSQL_query(struct cw_channel *chan, void *data) {
 		    	res=-1;
 		    	break;
 		}
-		nres=PQnfields(PGSQLres); 
+		PQnfields(PGSQLres);
 		id1=add_identifier(CW_PGSQL_ID_RESID,PGSQLres);
 		snprintf(s, sizeof(s), "%d", id1);
 		pbx_builtin_setvar_helper(chan,var,s);
@@ -322,7 +322,6 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	char s[100];
 	char *s1,*s2,*fetchid_var,*s4,*s5,*s6;
 	const char *s7;
-	char *var;
 	int l;
 	int res;
 	PGresult *PGSQLres;
@@ -344,7 +343,6 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	strsep(&stringp," "); /* eat the first token, we already know it :P  */
 	fetchid_var=strsep(&stringp," ");
 	while (1) {	/* ugly trick to make branches with break; */
-		var = fetchid_var; /* fetchid */
 		if ((obj = cw_registry_find(&chan->vars, 0, 0, fetchid_var))) {
 			variable = container_of(obj, struct cw_var_t, obj);
 			s7 = variable->value;

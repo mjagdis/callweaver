@@ -69,7 +69,7 @@ static const char txfax_descrip[] =
 
 static void span_message(int level, const char *msg)
 {
-    int cw_level;
+    cw_log_level cw_level;
     
     if (level == SPAN_LOG_ERROR)
         cw_level = __CW_LOG_ERROR;
@@ -294,8 +294,7 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
 
 static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const char *source_file, int calling_party,int verbose) {
     struct cw_frame 	*inf = NULL;
-    int 		ready = 1,
-			res = 0;
+    int 		ready = 1;
     uint64_t now;
     uint64_t passage;
     int old_policy;
@@ -337,7 +336,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const c
 	if (chan->t38_status != T38_NEGOTIATED)
 	    break;
 
-        if ((res = cw_waitfor(chan, 20)) < 0) {
+        if (cw_waitfor(chan, 20) < 0) {
 	    ready = 0;
             break;
 	}
@@ -373,7 +372,6 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *so
     struct cw_frame 	outf, *fout;
     int 		ready = 1,
 			samples = 0,
-			res = 0,
 			len = 0,
 			generator_mode = 0;
     uint64_t		begin = 0,
@@ -441,7 +439,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *so
 	if (chan->t38_status == T38_NEGOTIATED)
 	    break;
 
-        if ((res = cw_waitfor(chan, 20)) < 0) {
+        if (cw_waitfor(chan, 20) < 0) {
 	    ready = 0;
             break;
 	}
@@ -547,7 +545,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *so
 	    if (chan->t38_status == T38_NEGOTIATED)
 		break;
 
-	    if ((res = cw_waitfor(chan, 20)) < 0) {
+	    if (cw_waitfor(chan, 20) < 0) {
 	        ready = 0;
         	break;
 	    }

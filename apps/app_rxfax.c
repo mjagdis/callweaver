@@ -70,8 +70,8 @@ static const char rxfax_descrip[] =
 
 static void span_message(int level, const char *msg)
 {
-    int cw_level;
-    
+    cw_log_level cw_level;
+
     if (level == SPAN_LOG_ERROR)
         cw_level = __CW_LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
@@ -227,10 +227,8 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 
 static int phase_d_handler(t30_state_t *s, void *user_data, int result)
 {
-    struct cw_channel *chan;
     t30_stats_t t;
     
-    chan = (struct cw_channel *) user_data;
     if (result)
     {
         t30_get_transfer_statistics(s, &t);
@@ -334,8 +332,7 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
 
 static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const char *file, int calling_party,int verbose) {
     struct cw_frame 	*inf = NULL;
-    int 		ready = 1,
-			res = 0;
+    int 		ready = 1;
     uint64_t 		now;
     uint64_t 		passage;
     t30_state_t *t30;
@@ -371,7 +368,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const c
 	if (chan->t38_status != T38_NEGOTIATED)
 	    break;
 
-        if ((res = cw_waitfor(chan, 20)) < 0) {
+        if (cw_waitfor(chan, 20) < 0) {
 	    ready = 0;
             break;
 	}
@@ -410,7 +407,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *fi
 #endif
     t30_state_t *t30;
     uint64_t begin = 0, received_frames = 0, voice_frames;
-    int ready = 1, samples = 0, res = 0, len = 0, generator_mode = 0;
+    int ready = 1, samples = 0, len = 0, generator_mode = 0;
 
     memset(fax, 0, sizeof(*fax));
 
@@ -456,7 +453,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *fi
 	if (chan->t38_status == T38_NEGOTIATED)
 	    break;
 
-        if ((res = cw_waitfor(chan, 20)) < 0) {
+        if (cw_waitfor(chan, 20) < 0) {
 	    ready = 0;
             break;
 	}
@@ -565,7 +562,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *fi
 	    if (chan->t38_status == T38_NEGOTIATED)
 		break;
 
-	    if ((res = cw_waitfor(chan, 20)) < 0) {
+	    if (cw_waitfor(chan, 20) < 0) {
 	        ready = 0;
         	break;
 	    }

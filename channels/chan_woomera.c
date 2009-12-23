@@ -124,7 +124,7 @@ struct woomera_event_queue {
 };
 
 struct woomera_profile {
-	ASTOBJ_COMPONENTS(struct woomera_profile);
+	ASTOBJ_COMPONENTS(struct woomera_profile)
 	cw_mutex_t iolock;
 	char woomera_host[WOOMERA_STRLEN];
 	int woomera_port;
@@ -138,7 +138,7 @@ struct woomera_profile {
 
 
 struct private_object {
-	ASTOBJ_COMPONENTS(struct private_object);
+	ASTOBJ_COMPONENTS(struct private_object)
 	cw_mutex_t iolock;
 	struct cw_channel *owner;
 	struct sockaddr_in udpread;
@@ -1119,13 +1119,14 @@ static void *woomera_thread_run(void *obj)
 										  )))) {
 			if (res < 0) {
 				cw_log(CW_LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", profile->name);
+#if 1
 				if (woomera_socket) {
 					woomera_close_socket(&woomera_socket);
 				}
 				global_set_flag(TFLAG_ABORT);
 				globals.panic = 1;
 				continue;
-
+#else
 				if (woomera_socket) {
 					if (cw_test_flag(profile, PFLAG_INBOUND)) {
 						woomera_printf(profile, woomera_socket, "LISTEN%s", WOOMERA_RECORD_SEPERATOR);
@@ -1145,6 +1146,7 @@ static void *woomera_thread_run(void *obj)
 					}
 				}
 				continue;
+#endif
 			}
 
 			if (!strcasecmp(wmsg.command, "INCOMING")) {
@@ -1239,7 +1241,6 @@ static int config_woomera(void)
 					
 				}
 			} else {
-				int new = 0;
 				count++;
 				if (!strcmp(entry, "default")) {
 					profile = &global_default_profile;
@@ -1247,11 +1248,8 @@ static int config_woomera(void)
 					if((profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, entry))) {
 						clone_woomera_profile(profile, &global_default_profile);
 					} else {
-						if((profile = create_woomera_profile(&global_default_profile))) {
-							new = 1;
-						} else {
+						if(!(profile = create_woomera_profile(&global_default_profile)))
 							cw_log(CW_LOG_ERROR, "Out of memory\n");
-						}
 					}
 				}
 				strncpy(profile->name, entry, sizeof(profile->name) - 1);
@@ -1531,9 +1529,8 @@ static int tech_call(struct cw_channel *self, const char *dest)
 {
 	private_object *tech_pvt = self->tech_pvt;
 	char *workspace;
-	char *addr, *profile_name, *proto;
+	char *addr, *profile_name;
 	woomera_profile *profile;
-	int isprofile = 0;
 
 	if (globals.panic) {
 		return -1;
@@ -1551,18 +1548,15 @@ static int tech_call(struct cw_channel *self, const char *dest)
 	workspace = cw_strdupa(dest);
 
 	if ((addr = strchr(workspace, ':'))) {
-		proto = workspace;
 		*addr = '\0';
 		addr++;
 	} else {
-		proto = (char *)"H323";
 		addr = workspace;
 	}
 	
 	if ((profile_name = strchr(addr, '*'))) {
 		*profile_name = '\0';
 		profile_name++;
-		isprofile = 1;
 	} else {
 		profile_name = (char *)"default";
 	}
@@ -1706,20 +1700,20 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 /*--- tech_write_video: Write a video frame to my channel ---*/
 static int tech_write_video(struct cw_channel *self, struct cw_frame *frame)
 {
-	private_object *tech_pvt;
+//	private_object *tech_pvt;
 	int res = 0;
 
-	tech_pvt = self->tech_pvt;
+//	tech_pvt = self->tech_pvt;
 	return res;
 }
 
 /*--- tech_exception: Read an exception audio frame from my channel ---*/
 static struct cw_frame *tech_exception(struct cw_channel *self)
 {
-	private_object *tech_pvt;
+//	private_object *tech_pvt;
 	struct cw_frame *new_frame = NULL;
 
-	tech_pvt = self->tech_pvt;	
+//	tech_pvt = self->tech_pvt;
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++EXCEPT %s\n",self->name);
 	}
@@ -1729,10 +1723,10 @@ static struct cw_frame *tech_exception(struct cw_channel *self)
 /*--- tech_indicate: Indicaate a condition to my channel ---*/
 static int tech_indicate(struct cw_channel *self, int condition)
 {
-	private_object *tech_pvt;
+	//private_object *tech_pvt;
 	int res = 0;
 
-	tech_pvt = self->tech_pvt;
+	//tech_pvt = self->tech_pvt;
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++INDICATE %s %d\n",self->name, condition);
 	}
@@ -1760,12 +1754,10 @@ static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 /*--- tech_send_html: Send html data on my channel ---*/
 static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen)
 {
-	private_object *tech_pvt;
+//	private_object *tech_pvt;
 	int res = 0;
 
-	tech_pvt = self->tech_pvt;
-
-
+//	tech_pvt = self->tech_pvt;
 	return res;
 }
 
@@ -1835,7 +1827,7 @@ static int tech_transfer(struct cw_channel *self, const char *newdest)
 /*--- tech_bridge:  Technology-specific code executed to natively bridge 2 of our channels ---*/
 static enum cw_bridge_result tech_bridge(struct cw_channel *chan_a, struct cw_channel *chan_b, int flags, struct cw_frame **outframe, struct cw_channel **recent_chan, int timeoutms)
 {
-	int res = -1;
+	enum cw_bridge_result res = CW_BRIDGE_FAILED;
 
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++BRIDGE %s\n",chan_a->name);

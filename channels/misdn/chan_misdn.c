@@ -1802,7 +1802,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		if (ch->dsp)
 			cw_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-			ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, CW_FORMAT_ALAW, 8000);
+			ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, CW_FORMAT_ALAW);
 	}
 
 	return 0;
@@ -4880,7 +4880,7 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 		if (ch->dsp)
             cw_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-            ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, 8000, CW_FORMAT_ALAW, 8000);
+            ch->trans=cw_translator_build_path(CW_FORMAT_SLINEAR, CW_FORMAT_ALAW);
 	}
 
 	if (ch->cw_dsp) {

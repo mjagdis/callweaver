@@ -3,7 +3,7 @@
 #endif
 
 
-#if HAVE_OLD_SETAFFINITY
+#ifdef HAVE_OLD_SETAFFINITY
 #  define HAVE_SETAFFINITY
 #  define sched_getaffinity(pid, cpusetsize, mask) sched_getaffinity(pid, mask)
 #  define sched_setaffinity(pid, cpusetsize, mask) sched_setaffinity(pid, mask)

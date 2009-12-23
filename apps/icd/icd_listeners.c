@@ -99,7 +99,7 @@ icd_listeners *create_icd_listeners(void)
 /* Remove the listener and clear its pointer. */
 icd_status destroy_icd_listeners(icd_listeners ** listenersp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(listenersp != NULL);
     assert(*listenersp != NULL);

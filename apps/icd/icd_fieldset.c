@@ -113,7 +113,7 @@ icd_fieldset *create_icd_fieldset(const char *name)
 /* Destroy a field set. */
 icd_status destroy_icd_fieldset(icd_fieldset ** fieldsetp)
 {
-    int clear_result;
+    icd_status clear_result;
 
     assert(fieldsetp != NULL);
     assert((*fieldsetp) != NULL);

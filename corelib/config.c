@@ -548,7 +548,7 @@ static int process_text_line(struct cw_config *cfg, struct cw_category **cat, ch
 	return 0;
 }
 
-static struct cw_config *config_text_file_load(const char *database, const char *table, const char *filename, struct cw_config *cfg)
+static struct cw_config *config_text_file_load(const char *filename, struct cw_config *cfg)
 {
 	char fn[256];
 	char buf[8192];
@@ -871,7 +871,7 @@ struct cw_config *cw_config_internal_load(const char *filename, struct cw_config
 		result = eng->load_func(db, table, filename, cfg);
 		cw_object_put(eng);
 	} else
-		result = config_text_file_load(db, table, filename, cfg);
+		result = config_text_file_load(filename, cfg);
 
 	if (result)
 		result->include_level--;
@@ -986,7 +986,7 @@ static int config_engine_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int config_command(struct cw_dynstr **ds_p, int argc, char **argv)
+static int config_command(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char **argv __attribute__((__unused__)))
 {
 	cw_registry_iterate_ordered(&config_engine_registry, config_engine_print, ds_p);
 	return 0;
