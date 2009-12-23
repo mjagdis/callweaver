@@ -17520,25 +17520,6 @@ static int unload_module(void)
         return -1;
     }
 
-    if (!cw_mutex_lock(&iflock))
-    {
-        /* Destroy all the interfaces and free their memory */
-        p = iflist;
-        while (p)
-        {
-            pl = p;
-            p = p->next;
-	    __sip_destroy(pl, 1);
-        }
-        iflist = NULL;
-        cw_mutex_unlock(&iflock);
-    }
-    else
-    {
-        cw_log(CW_LOG_WARNING, "Unable to lock the interface list\n");
-        return -1;
-    }
-
     /* Free memory for local network address mask */
     cw_free_ha(localaddr);
 
