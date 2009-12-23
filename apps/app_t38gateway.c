@@ -333,6 +333,14 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     } else
         t38_gateway_set_supported_modems(&t38_state, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
 
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
+        cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
+        t38_gateway_set_ecm_capability(&t38_state, FALSE);
+        cw_object_put(var);
+    } else {
+        t38_gateway_set_ecm_capability(&t38_state, TRUE);
+    }
+
     span_log_set_message_handler(&t38_state.logging, span_message);
     span_log_set_message_handler(&t38_core->logging, span_message);
     if (verbose)

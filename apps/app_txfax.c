@@ -297,6 +297,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
         cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
+        t30_set_ecm_capability(t30, FALSE);
         t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
         cw_object_put(var);
     } else {
@@ -411,6 +412,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
         cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
+        t30_set_ecm_capability(t30, FALSE);
         t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
         cw_object_put(var);
     } else {
