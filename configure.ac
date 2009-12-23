@@ -1008,7 +1008,19 @@ AC_SUBST([ODBC_LIBS])
 
 dnl ###########################################################################
 
-LIBCURL_CHECK_CONFIG([yes], , ,)
+LIBCURL_CHECK_CONFIG([yes], , [have_libcurl="yes"], [have_libcurl="no"])
+
+AC_ARG_ENABLE([curl],
+	[AC_HELP_STRING([--enable-curl],[Enable support for CURL (default=yes if libcurl installed)])],,
+	[if test "${have_libcurl}" = "yes"; then enable_curl="yes"; else enable_curl="no"; fi])
+
+AM_CONDITIONAL([HAVE_LIBCURL], [test "${enable_curl}" = "yes"])
+
+AC_ARG_WITH([func_curl],
+	[AC_HELP_STRING([--with-func_curl],[Build and install func_curl (default=yes if libcurl installed)])],,
+	[if test "${enable_curl}" = "yes"; then with_func_curl="yes"; else with_func_curl="no"; fi])
+
+AM_CONDITIONAL([WANT_FUNC_CURL],[test "${with_func_curl}" = "yes"])
 
 dnl ###########################################################################
 

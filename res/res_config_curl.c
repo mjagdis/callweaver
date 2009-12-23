@@ -20,8 +20,6 @@
 #include <unistd.h>
 #include <stdio.h> 
 
-#include <curl/curl.h>
-
 #include "callweaver.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -31,6 +29,7 @@
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 #include "callweaver/options.h"
+#include "callweaver/curl.h"
 #include "callweaver/utils.h"
 
 static const char tdesc[] = "CURL URL Based Configuration";
@@ -105,7 +104,6 @@ static size_t realtime_callback(void *ptr, size_t size, size_t nmemb, void *data
 }
 
 static void curl_process(struct config_data *config_data) {
-	CURL *curl_handle = NULL;
 	const char *param = NULL, *val = NULL;
 	int x = 0, offset=0;
 	struct cw_config *cfg; 
@@ -179,18 +177,7 @@ static void curl_process(struct config_data *config_data) {
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "CURL config engine fetching [%s]\n", config_data->url);
 
-		curl_global_init(CURL_GLOBAL_ALL);
-		curl_handle = curl_easy_init();
-		if (!strncasecmp(config_data->url, "https", 5)) {
-			curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0);
-			curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0);
-		}
-		curl_easy_setopt(curl_handle, CURLOPT_URL, config_data->url);
-		curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, realtime_callback);
-		curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)config_data);
-		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "callweaver/1.2");
-		curl_easy_perform(curl_handle);
-		curl_easy_cleanup(curl_handle);
+		cw_curl_do(config_data->url, NULL, realtime_callback, config_data);
 	}
 	if (!cw_strlen_zero(config_data->cachefile) && !strncmp(config_data->action, "realtime", 8) &&
 		(cfg = cw_config_load(config_data->cachefile))) {

@@ -39,6 +39,14 @@ func_config_la_CFLAGS		= $(AM_CFLAGS)
 func_config_la_LIBADD		= @CALLWEAVER_LIB@
 endif WANT_FUNC_CONFIG
 
+if WANT_FUNC_CURL
+cwmod_LTLIBRARIES		+= func_curl.la
+func_curl_la_SOURCES		= func_curl.c
+func_curl_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
+func_curl_la_CFLAGS		= $(AM_CFLAGS) $(LIBCURL_CPPFLAGS)
+func_curl_la_LIBADD		= @LIBCURL@ @CALLWEAVER_LIB@
+endif WANT_FUNC_CURL
+
 if WANT_FUNC_DB
 cwmod_LTLIBRARIES		+= func_db.la
 func_db_la_SOURCES		= func_db.c

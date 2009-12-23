@@ -128,6 +128,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/switch.h"
 #include "callweaver/time.h"
 #include "callweaver/features.h"
+#include "callweaver/curl.h"
 
 #include "callweaver/crypto.h"
 
@@ -1564,6 +1565,10 @@ int callweaver_main(int argc, char *argv[])
 	sa.sa_handler = child_handler;
 	sa.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sa, NULL);
+
+#ifdef HAVE_LIBCURL
+	cw_curl_init();
+#endif
 
 	cw_clock_init();
 

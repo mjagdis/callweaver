@@ -18,6 +18,7 @@ cwinclude_HEADERS = acl.h \
                       cli.h \
                       config.h \
                       crypto.h \
+                      curl.h \
                       devicestate.h \
                       dns.h \
                       dsp.h \
