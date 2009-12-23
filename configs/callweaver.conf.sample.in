@@ -1,7 +1,7 @@
 [general]
 ;user to run callweaver (this can not be root/UID 0)
 cwrunuser = @cwrunuser@
-;group to run callweaver (this can not be root wheel or GID 0)
+;group to run callweaver (this can not be root, wheel or GID 0)
 cwrungroup = @cwrunuser@
 
 [directories]
@@ -21,9 +21,24 @@ systemname = mycallweaverbox
 enableunsafeunload = no
 
 ; Changing the following lines may compromise your security.
-;[files]
-;cwctlpermissions = 0660
-;cwctlowner = root
-;cwctlgroup = apache
+[files]
+; cwctl is the name of the local control socket. It is created
+; in cwrundir and Callweaver listens for manager and remote
+; console connections on it.
+; IMPORTANT: connections on this socket are preauthenticated
+; and do not require login as do other manager connections.
+; See below for options to secure it.
 ;cwctl = callweaver.ctl
+;
+; cwctlgroup sets the group for the local control socket.
+; This may be any group of which cwrunuser is a member
+; and defaults to cwrungroup.
+;cwctlgroup = apache
+;
+; cwctlpermissions sets the permissions for the local
+; control socket using octal notation.
+; i.e. 6 = rw, 4 = r, 2 = w, 0 = none
+;      so 660 is user=rw, group=rw, others=none
+;cwctlpermissions = 660
+;
 ;cwdb = @cwdbfile@

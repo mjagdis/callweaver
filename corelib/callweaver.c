@@ -207,15 +207,14 @@ char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
 char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
 char cw_config_CW_RUN_USER[CW_CONFIG_MAX_PATH];
 char cw_config_CW_RUN_GROUP[CW_CONFIG_MAX_PATH];
-char cw_config_CW_CTL_PERMISSIONS[CW_CONFIG_MAX_PATH];
-char cw_config_CW_CTL_OWNER[CW_CONFIG_MAX_PATH] = "\0";
-char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH] = "\0";
+char cw_config_CW_CTL_PERMISSIONS[6] = "660";
+char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH];
 char cw_config_CW_CTL[CW_CONFIG_MAX_PATH] = "callweaver.ctl";
-char cw_config_CW_SYSTEM_NAME[20] = "";
+char cw_config_CW_SYSTEM_NAME[20];
 char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20] = "";
+char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
 
-static char *_argv[256];
+static char **_argv;
 static int restart = 0;
 static pthread_t consolethread = CW_PTHREADT_NULL;
 
@@ -589,8 +588,18 @@ static void quit_handler(void *data)
 		pthread_join(tid, NULL);
 	}
 
-	if (local_restart)
-		exit(EX_TEMPFAIL);
+	lockfile_release(cw_config_CW_PID);
+
+	if (local_restart) {
+		int x;
+
+		/* Mark all FD's for closing on exec */
+		for (x = getdtablesize() - 1; x >= 3; x--)
+			fcntl(x, F_SETFD, FD_CLOEXEC);
+		execvp(_argv[0], _argv);
+		perror("exec");
+		_exit(EX_OSERR);
+	}
 
 	exit(EX_OK);
 }
@@ -1092,7 +1101,7 @@ static void cw_readconfig(void) {
 		if (!strcasecmp(v->name, "cwctlpermissions")) {
 			cw_copy_string(cw_config_CW_CTL_PERMISSIONS, v->value, sizeof(cw_config_CW_CTL_PERMISSIONS));
 		} else if (!strcasecmp(v->name, "cwctlowner")) {
-			cw_copy_string(cw_config_CW_CTL_OWNER, v->value, sizeof(cw_config_CW_CTL_OWNER));
+			cw_log(CW_LOG_WARNING, "cwctlowner in callweaver.conf is deprecated - only the group can be changed\n");
 		} else if (!strcasecmp(v->name, "cwctlgroup")) {
 			cw_copy_string(cw_config_CW_CTL_GROUP, v->value, sizeof(cw_config_CW_CTL_GROUP));
 		} else if (!strcasecmp(v->name, "cwctl")) {
@@ -1208,27 +1217,27 @@ static void cw_readconfig(void) {
 
 int callweaver_main(int argc, char *argv[])
 {
-	int c;
 	struct sigaction sa;
-	char * xarg = NULL;
-	int x;
 	sigset_t sigs;
-	int is_child_of_nonroot=0;
-	static char *runuser = NULL, *rungroup = NULL;  
+#if defined(__linux__)
+	cap_t caps;
+#endif
+	char *xarg = NULL;
+	struct group *gr;
+	struct passwd *pw;
+	char *runuser = NULL, *rungroup = NULL;
 	pid_t pid;
-
+	int c;
 
 	/* init with default */
 	cw_copy_string(cw_config_CW_CONFIG_FILE, cwconffile_default, sizeof(cw_config_CW_CONFIG_FILE));
 	
 	/* Remember original args for restart */
-	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
-		fprintf(stderr, "Truncating argument size to %d\n", (int)(sizeof(_argv) / sizeof(_argv[0])) - 1);
-		argc = sizeof(_argv) / sizeof(_argv[0]) - 1;
+	if (!(_argv = malloc((argc + 1) * sizeof(_argv[0])))) {
+		fprintf(stderr, "Out of memory!\n");
+		exit(EX_OSERR);
 	}
-	for (x=0;x<argc;x++)
-		_argv[x] = argv[x];
-	_argv[x] = NULL;
+	memcpy(_argv, argv, (argc + 1) * sizeof(_argv[0]));
 
 	/* if the progname is rcallweaver consider it a remote console */
 	if (argv[0] && (strstr(argv[0], "rcallweaver")) != NULL) {
@@ -1242,12 +1251,6 @@ int callweaver_main(int argc, char *argv[])
 	cw_ulaw_init();
 	cw_alaw_init();
 	cw_utils_init();
-
-	/* When CallWeaver restarts after it has dropped the root privileges,
-	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
-	 * */
-	if (getenv("CALLWEAVER_ALREADY_NONROOT"))
-		is_child_of_nonroot = 1;
 
 	/* Check for options */
 	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:L:M:")) != -1) {
@@ -1299,6 +1302,7 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 'x':
 			option_exec++;
+			option_nofork++;
 			xarg = optarg;
 			break;
 		case 'C':
@@ -1336,21 +1340,157 @@ int callweaver_main(int argc, char *argv[])
 		cw_verbose("[ Reading Master Configuration ]");
 	cw_readconfig();
 
+	if (option_dumpcore) {
+		struct rlimit l;
+		memset(&l, 0, sizeof(l));
+		l.rlim_cur = RLIM_INFINITY;
+		l.rlim_max = RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE, &l)) {
+			cw_log(CW_LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+		}
+	}
+
 	if (option_remote || option_exec) {
-		/* For remote connections, change the name of the remote connection.
+		/* Just discard our setuid privs. Anything we do on behalf
+		 * of a user is done as that user.
+		 */
+		setgid(getgid());
+		setuid(getuid());
+	} else {
+#if defined(__linux__)
+		cw_cpu0_governor_fd = open_cloexec("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", O_RDWR, 0);
+#endif
+
+		if (option_highpriority) {
+			if (setpriority(PRIO_PROCESS, 0, -10) == -1)
+				fprintf(stderr, "Unable to set high priority\n");
+		}
+
+#if defined(__linux__)
+		/* There are no standard capabilities we want but there
+		 * are Linux specific capabilities we want. So, in the
+		 * case of Linux we don't drop capabilities when we change
+		 * uid but we fix them up afterwards ourself.
+		 */
+		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+			fprintf(stderr, "Unable to keep capabilities: %s\n", strerror(errno));
+		}
+#endif
+
+		if (!runuser)
+			runuser = cw_config_CW_RUN_USER;
+		if (!rungroup)
+			rungroup = cw_config_CW_RUN_GROUP;
+
+		gr = getgrnam(rungroup);
+		if (!gr) {
+			fprintf(stderr, "No such group '%s'!\n", rungroup);
+			exit(EX_NOUSER);
+		}
+		pw = getpwnam(runuser);
+		if (!pw) {
+			fprintf(stderr, "No such user '%s'!\n", runuser);
+			exit(EX_NOUSER);
+		}
+		
+		if (gr->gr_gid != getegid() )
+		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
+			fprintf(stderr, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
+			exit(EX_OSERR);
+		}
+
+		if (setregid(gr->gr_gid, gr->gr_gid)) {
+			fprintf(stderr, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
+			exit(EX_OSERR);
+		}
+
+#ifdef __Darwin__
+		if (seteuid(pw->pw_uid))
+#else
+		if (setreuid(pw->pw_uid, pw->pw_uid))
+#endif
+		{
+			fprintf(stderr, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
+			exit(EX_OSERR);
+		}
+	}
+
+#if defined(__linux__)
+	/* After set*id() the dumpable flag is deleted, so we set it again to
+	 * get core dumps
+	 */
+	if (option_dumpcore) {
+		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) == -1) {
+			cw_log(CW_LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
+		}
+	}
+#endif
+
+	if (option_remote || option_exec) {
+		char *p;
+
+		/* For remote connections, change the program name.
 		 * We do this for the benefit of init scripts (which need to know if/when
 		 * the main callweaver process has died yet).
+		 * Some may argue we should have done this sooner. A better argument
+		 * is that we shouldn't do this at all. We can never do it soon enough
+		 * to avoid all problems so the real solution would be to fix the broken
+		 * scripts that make incorrect assumptions.
 		 */
-		strcpy(argv[0], "rcallweaver");
-		for (x = 1; x < argc; x++) {
-			argv[x] = argv[0] + 10;
-		}
+		if ((p = strrchr(argv[0], '/')))
+			p[1] = '$';
+		else
+			argv[0][0] = '$';
 
 		if (option_exec)
 			exit(console_oneshot(cw_config_CW_SOCKET, xarg));
 
 		console(cw_config_CW_SOCKET);
 		exit(EX_OK);
+	}
+
+	/* Check if we're root */
+	if (!geteuid())
+		fprintf(stderr, "Running as root is EXTREMELY dangerous. See the documentation!\n");
+
+#if defined(__linux__)
+	/* Linux specific capabilities:
+	 *     cap_net_admin    allow TOS setting
+	 *     cap_sys_nice     allow use of FIFO and round-robin scheduling
+	 *     cap_ipc_lock	allow memory locking with mlock*()
+	 */
+	if ((caps = cap_from_text("= cap_net_admin,cap_sys_nice,cap_ipc_lock=ep"))) {
+		if (cap_set_proc(caps))
+			fprintf(stderr, "Failed to set caps\n");
+		cap_free(caps);
+	}
+#endif
+
+	if (option_debug) {
+		gid_t gid_list[NGROUPS_MAX];
+		struct passwd *pw2;
+		struct group *gr2;
+		int ngroups;
+		int i;
+
+		if ((pw2 = getpwuid(geteuid())))
+			fprintf(stderr, "Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
+		else
+			fprintf(stderr, "Now running as user '' (%d)\n", getegid());
+
+		if ((gr2 = getgrgid(getegid())))
+			fprintf(stderr, "Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+		else
+			fprintf(stderr, "Now running as group '' (%d)\n", getegid());
+
+		fprintf(stderr, "Supplementary groups:\n");
+		ngroups = getgroups(NGROUPS_MAX, gid_list);
+		for (i = 0; i < ngroups; i++) {
+			if ((gr2 = getgrgid(gid_list[i])))
+				fprintf(stderr, "   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+			else
+				fprintf(stderr, "   '' (%d)\n", gid_list[i]);
+		}
 	}
 
 	switch (lockfile_claim(cw_config_CW_PID)) {
@@ -1380,169 +1520,6 @@ int callweaver_main(int argc, char *argv[])
 		freopen("/dev/null", "w", stderr);
 		setsid();
 	}
-
-	do {
-		int status;
-
-		switch ((pid = fork())) {
-			case -1:
-				perror("fork");
-				sleep(1);
-				break;
-
-			case 0:
-				break;
-
-			default:
-				while (!waitpid(pid, &status, 0) && (!WIFEXITED(status) || !WIFSIGNALED(status)));
-
-				if (WIFEXITED(status) && WEXITSTATUS(status) == EX_TEMPFAIL) {
-					/* Mark all FD's for closing on exec */
-					for (x = getdtablesize() - 1; x >= (option_console || option_nofork ? 3 : 0); x--)
-						fcntl(x, F_SETFD, FD_CLOEXEC);
-					execvp(_argv[0], _argv);
-					perror("exec");
-					_exit(EX_OSERR);
-				}
-
-				lockfile_release(cw_config_CW_PID);
-				exit(status);
-				break;
-		}
-	} while (pid != 0);
-
-	if (option_dumpcore) {
-		struct rlimit l;
-		memset(&l, 0, sizeof(l));
-		l.rlim_cur = RLIM_INFINITY;
-		l.rlim_max = RLIM_INFINITY;
-		if (setrlimit(RLIMIT_CORE, &l)) {
-			cw_log(CW_LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
-		}
-	}
-
-
-	if (!is_child_of_nonroot && option_highpriority) {
-		if (setpriority(PRIO_PROCESS, 0, -10) == -1)
-			cw_log(CW_LOG_WARNING, "Unable to set high priority\n");
-	}
-
-#ifdef __linux__
-	cw_cpu0_governor_fd = open_cloexec("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", O_RDWR, 0);
-#endif
-
-	if (!runuser)
-		runuser = cw_config_CW_RUN_USER;
-	if (!rungroup)
-		rungroup = cw_config_CW_RUN_GROUP;
-	if (!is_child_of_nonroot) {
-		struct group *gr;
-		struct passwd *pw;
-
-#if defined(__linux__)
-		cap_t caps;
-
-		/* There are no standard capabilities we want but there
-		 * are Linux specific capabilities we want. So, in the
-		 * case of Linux we don't drop capabilities when we change
-		 * uid but we fix them up afterwards ourself.
-		 */
-		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
-			cw_log(CW_LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
-		}
-#endif
-
-		gr = getgrnam(rungroup);
-		if (!gr) {
-			cw_log(CW_LOG_ERROR, "No such group '%s'!\n", rungroup);
-			exit(EX_NOUSER);
-		}
-		pw = getpwnam(runuser);
-		if (!pw) {
-			cw_log(CW_LOG_ERROR, "No such user '%s'!\n", runuser);
-			exit(EX_NOUSER);
-		}
-		
-		if (gr->gr_gid != getegid() )
-		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
-			cw_log(CW_LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
-			exit(EX_OSERR);
-		}
-
-		if (setregid(gr->gr_gid, gr->gr_gid)) {
-			cw_log(CW_LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
-			exit(EX_OSERR);
-		}
-		if (option_verbose) {
-			int ngroups;
-			gid_t gid_list[NGROUPS_MAX];
-			int i;
-			struct group *gr2;
-
-			gr2 = getgrgid(getegid());
-			if (gr2) {
-				cw_verbose("Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
-			} else {
-				cw_verbose("Now running as group '' (%d)\n", getegid());
-			}
-
-			cw_verbose("Supplementary groups:\n");
-			ngroups = getgroups(NGROUPS_MAX, gid_list);
-			for (i = 0; i < ngroups; i++) {
-				gr2 = getgrgid(gid_list[i]);
-				if (gr2) {
-					cw_verbose("   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
-				} else {
-					cw_verbose("   '' (%d)\n", gid_list[i]);
-				}
-			}
-		}
-#ifdef __Darwin__
-		if (seteuid(pw->pw_uid)) {
-#else
-		if (setreuid(pw->pw_uid, pw->pw_uid)) {
-#endif
-			cw_log(CW_LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
-			exit(EX_OSERR);
-		}
-		setenv("CALLWEAVER_ALREADY_NONROOT","yes",1);
-		if (option_verbose) {
-			struct passwd *pw2;
-			pw2 = getpwuid(geteuid());
-			if (pw2) {
-				cw_verbose("Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
-			} else {
-				cw_verbose("Now running as user '' (%d)\n", getegid());
-			}
-		}
-
-#if defined(__linux__)
-		/* Linux specific capabilities:
-		 *     cap_net_admin    allow TOS setting
-		 *     cap_sys_nice     allow use of FIFO and round-robin scheduling
-		 *     cap_ipc_lock	allow memory locking with mlock*()
-		 */
-		if ((caps = cap_from_text("= cap_net_admin,cap_sys_nice,cap_ipc_lock=ep"))) {
-			if (cap_set_proc(caps))
-				fprintf(stderr, "Failed to set caps\n");
-			cap_free(caps);
-		}
-#endif
-	}
-
-	/* Check if we're root */
-	if (!geteuid())
-		cw_log(CW_LOG_ERROR, "Running as root is EXTREMELY dangerous. See the documentation!\n");
-
-#if defined(__linux__)
-	/* after set*id() the dumpable flag is deleted,
-	   so we set it again to get core dumps */
-	if (option_dumpcore) {
-		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) == -1) {
-			cw_log(CW_LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
-		}
-	}
-#endif
 
 	cw_mainpid = getpid();
 
@@ -1618,8 +1595,8 @@ int callweaver_main(int argc, char *argv[])
 	}
 
 	/* If we're using the internal console the first console connection
-	 * (which may not be the internal console) will send a SIGHUP to
-	 * tell the main process below to start the boot.
+	 * (which should be the internal console) will send a SIGHUP to tell
+	 * the main process below to start the boot.
 	 */
 	if (!option_console)
 		boot();

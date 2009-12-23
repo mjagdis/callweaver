@@ -2141,8 +2141,6 @@ int manager_reload(void)
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *bindaddr, *portno;
-	uid_t uid = -1;
-	gid_t gid = -1;
 
 	/* Shut down any existing listeners */
 	cw_registry_iterate(&cw_connection_registry, listener_close, NULL);
@@ -2203,24 +2201,13 @@ int manager_reload(void)
 			cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
 	}
 
-	if (!cw_strlen_zero(cw_config_CW_CTL_OWNER)) {
-		struct passwd *pw;
-		if ((pw = getpwnam(cw_config_CW_CTL_OWNER)) == NULL)
-			cw_log(CW_LOG_WARNING, "Unable to find uid of user %s\n", cw_config_CW_CTL_OWNER);
-		else
-			uid = pw->pw_uid;
-	}
-
 	if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
 		struct group *grp;
 		if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
 			cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
-		else
-			gid = grp->gr_gid;
+		else if (chown(cw_config_CW_SOCKET, -1, grp->gr_gid) < 0)
+			cw_log(CW_LOG_WARNING, "Unable to change group of %s to %s: %s\n", cw_config_CW_SOCKET, cw_config_CW_CTL_GROUP, strerror(errno));
 	}
-
-	if (chown(cw_config_CW_SOCKET, uid, gid) < 0)
-		cw_log(CW_LOG_WARNING, "Unable to change ownership of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
 
 	/* DEPRECATED */
 	if (bindaddr && portno) {

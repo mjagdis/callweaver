@@ -62,7 +62,6 @@ static int function_config_rw(struct cw_channel *chan, int argc, char **argv, ch
 		{ "cwmoddir", cw_config_CW_MOD_DIR },
 #endif
 		{ "cwctlpermissions", cw_config_CW_CTL_PERMISSIONS },
-		{ "cwctlowner", cw_config_CW_CTL_OWNER },
 		{ "cwctlgroup", cw_config_CW_CTL_GROUP },
 		{ "cwctl", cw_config_CW_CTL },
 		{ "cwdb", cw_config_CW_DB },

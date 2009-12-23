@@ -144,6 +144,17 @@ CLEANFILES = defaults.h defaults.h.tmp version.sh version.c version.c.tmp
 
 @substitute@
 
+install-exec-hook:
+	@echo **************************************************************
+	@echo Callweaver must be setuid root if it is to re-acquire realtime
+	@echo scheduling abilities after a restart.
+	@echo Neither the callweaver server nor a remote console will
+	@echo actually run as root. They give up their root privileges
+	@echo as soon as possible.
+	@echo **************************************************************
+	chown root $(libexecdir)/callweaver
+	chmod u+s $(libexecdir)/callweaver
+
 callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
 	$(YACC) -d --name-prefix=cw_yy -o callweaver_expr2.c callweaver_expr2.y
 
