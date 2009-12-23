@@ -14636,7 +14636,7 @@ retrylock:
         {
             char tmp[80];
             /* This is a response, note what it was for */
-            snprintf(tmp, sizeof(tmp), "%s / %s", req.data, get_header(&req, "CSeq"));
+            snprintf(tmp, sizeof(tmp), "%s - %s", get_header(&req, "CSeq"), req.data + req.rlPart2);
             append_history(p, "Rx", tmp);
         }
         nounlock = 0;
