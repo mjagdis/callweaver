@@ -142,6 +142,8 @@ echo "running libtoolize ..."
 libtoolize --copy --force --ltdl
 #NetBSD seems to need this file writable
 chmod u+w libltdl/configure
+# libtoolize 2.2.6 on SuSE/Linux doesn't create libltdl/acinclude.m4
+touch libltdl/acinclude.m4
 
 echo "running aclocal ..."
 $ACLOCAL -I acmacros
