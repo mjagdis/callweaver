@@ -785,15 +785,17 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
     } else {
         if(icd_list__size((icd_list *)icd_queue__get_customers(queue)) <= icd_list__count((icd_list *)icd_queue__get_customers(queue))){
            cw_log(CW_LOG_ERROR, "No room in a queue [%s]\n", icd_queue__get_name(queue));
-	   manager_event(EVENT_FLAG_USER, "icd_event","CustomerCall: NoRoomInAQueue\r\n"
-	   "ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nQueue: %s\r\nCustomersInQueue: %d\r\nChannelUniqueID: %s\r\nChannelName: %s\r\n",
-	   icd_caller__get_id((icd_caller *)customer),
-	   icd_caller__get_caller_id((icd_caller *)customer), 
-	   icd_caller__get_name((icd_caller *)customer),
-	   icd_queue__get_name(queue),
-	   icd_list__count((icd_list *)icd_queue__get_customers(queue)),
-           chan ? chan->uniqueid : "nochan", 
-           chan ? chan->name : "nochan");
+	   cw_manager_event(EVENT_FLAG_USER, "icd_event",
+           8,
+           cw_me_field("CustomerCall", "%s", "NoRoomInAQueue"),
+	       cw_me_field("ID", "%d", icd_caller__get_id((icd_caller *)customer)),
+           cw_me_field("CallerID", "%s", icd_caller__get_caller_id((icd_caller *)customer)),
+           cw_me_field("CallerName", "%s", icd_caller__get_name((icd_caller *)customer)),
+           cw_me_field("Queue", "%s", icd_queue__get_name(queue)),
+           cw_me_field("CustomersInQueue", "%d", icd_list__count((icd_list *)icd_queue__get_customers(queue))),
+           cw_me_field("ChannelUniqueID", "%s", (chan ? chan->uniqueid : "nochan")),
+           cw_me_field("ChannelName", "%s", (chan ? chan->name : "nochan"))
+       );
 	   return 1;
 	}
 	else{
@@ -817,9 +819,10 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
     cw_mutex_unlock(&customers_lock);
 	icd_caller__set_caller_id((icd_caller *)customer, cust_uniq_name);
 	if(queue){
-		manager_event(EVENT_FLAG_USER, "icd_event",
-    	"Event: Approx. wait time for customer[%s] UniqueID[%s] in queue[%s] position [%d] is [%d] minutes", 
-    	custname, cust_uniq_name?cust_uniq_name:"nochan", icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
+		cw_manager_event(EVENT_FLAG_USER, "icd_event",
+            1,
+            cw_me_field("Event", "Approx. wait time for customer[%s] UniqueID[%s] in queue[%s] position [%d] is [%d] minutes",
+                custname, (cust_uniq_name ? cust_uniq_name : "nochan"), icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue)));
 	}    
     icd_caller__loop((icd_caller *) customer, 0);
     
@@ -1241,13 +1244,15 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     }
     icd_caller__set_param_string((icd_caller *) agent, "identifier", identifier);
     ((icd_caller *)agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
-	manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin: OK\r\n"
-	"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\n",
-	icd_caller__get_id((icd_caller *)agent),
-	icd_caller__get_caller_id((icd_caller *)agent), 
-	icd_caller__get_name((icd_caller *)agent),
-    chan ? chan->uniqueid : "nochan", 
-    chan ? chan->name : "nochan");
+	cw_manager_event(EVENT_FLAG_USER, "icd_event",
+        6,
+        cw_me_field("AgentLogin", "%s", "OK"),
+	    cw_me_field("ID", "%d", icd_caller__get_id((icd_caller *)agent)),
+        cw_me_field("CallerID", "%s", icd_caller__get_caller_id((icd_caller *)agent)),
+        cw_me_field("CallerName", "%s", icd_caller__get_name((icd_caller *)agent)),
+        cw_me_field("ChannelUniqueID", "%s", (chan ? chan->uniqueid : "nochan")),
+        cw_me_field("ChannelName", "%s", (chan ? chan->name : "nochan"))
+    );
     if (icd_caller__get_onhook((icd_caller *) agent)) {
         /* On hook - Tell caller to start thread */
         cw_log(CW_LOG_NOTICE, "Exec Agent: Agent %s starting independent caller thread\n", agentname);
@@ -1265,11 +1270,13 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
         /* This becomes the thread to manage agent state and incoming stream */
         icd_caller__loop((icd_caller *) agent, 0);
         /* Once we hit here, the call is finished */
-		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin: END\r\n"
-		"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\n",
-		icd_caller__get_id((icd_caller *)agent),
-		icd_caller__get_caller_id((icd_caller *)agent), 
-		icd_caller__get_name((icd_caller *)agent));
+		cw_manager_event(EVENT_FLAG_USER, "icd_event",
+            4,
+            cw_me_field("AgentLogin", "%s", "END"),
+		    cw_me_field("ID", "%d", icd_caller__get_id((icd_caller *)agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id((icd_caller *)agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name((icd_caller *)agent))
+        );
     }
     if (icd_caller__get_dynamic((icd_caller *) agent)) {
         destroy_icd_agent(&agent);

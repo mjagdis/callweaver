@@ -78,7 +78,7 @@ struct fast_originate_helper {
 	char cid_num[256];
 	char context[256];
 	char exten[256];
-	char idtext[256];
+	char actionid[256];
 	int priority;
 	struct cw_registry vars;
 };
@@ -136,25 +136,50 @@ static struct {
 #define MANAGER_AMI_HELLO	"CallWeaver Call Manager/1.0\r\n"
 
 
-static int authority_to_str(int fd, int authority)
+static int snprintf_authority(char *buf, size_t buflen, int authority)
 {
-	int i, n, sep = 0;
+	int i, used, sep = 0;
 
-	n = 0;
+	used = 0;
+	for (i = 0; i < arraysize(perms); i++) {
+		if ((authority & (1 << i)) && perms[i].label) {
+			if (used < buflen)
+				snprintf(buf + used, buflen - used, (sep ? ", %s" : "%s"), perms[i].label);
+			used += perms[i].len + sep;
+			sep = 2;
+		}
+	}
+
+	if (!sep) {
+		snprintf(buf, buflen, "<none>");
+		used = sizeof("<none>") - 1;
+	}
+
+	buf[used < buflen ? used : buflen - 1] = '\0';
+
+	return used;
+}
+
+
+static int printf_authority(int fd, int authority)
+{
+	int i, used, sep = 0;
+
+	used = 0;
 	for (i = 0; i < arraysize(perms); i++) {
 		if ((authority & (1 << i)) && perms[i].label) {
 			cw_cli(fd, (sep ? ", %s" : "%s"), perms[i].label);
-			n += perms[i].len + sep;
+			used += perms[i].len + sep;
 			sep = 2;
 		}
 	}
 
 	if (!sep) {
 		cw_cli(fd, "<none>");
-		n = sizeof("<none>") - 1;
+		used = sizeof("<none>") - 1;
 	}
 
-	return n;
+	return used;
 }
 
 
@@ -347,7 +372,7 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 
 	/* FIXME: Tidy up this output and make it more like function output */
 	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: ", act->action, act->synopsis);
-	authority_to_str(fd, act->authority);
+	printf_authority(fd, act->authority);
 	cw_cli(fd, "\n%s\n", (act->description ? act->description : ""));
 
 	cw_object_put(act);
@@ -407,7 +432,7 @@ static int manacts_print(struct cw_object *obj, void *data)
 	if (printapp) {
 		args->matches++;
 		cw_cli(args->fd, MANACTS_FORMAT_A, it->action);
-		n = authority_to_str(args->fd, it->authority);
+		n = printf_authority(args->fd, it->authority);
 		if (n < 15)
 			cw_cli(args->fd, "%.*s", 15 - n, "               ");
 		cw_cli(args->fd, MANACTS_FORMAT_C, it->synopsis);
@@ -755,7 +780,7 @@ static int listcommands_print(struct cw_object *obj, void *data)
 	struct listcommands_print_args *args = data;
 
 	cw_cli(args->s->fd, "%s: %s (Priv: ", it->action, it->synopsis);
-	authority_to_str(args->s->fd, it->authority);
+	printf_authority(args->s->fd, it->authority);
 	cw_cli(args->s->fd, ")\r\n");
 
 	return 0;
@@ -1163,27 +1188,17 @@ static void *fast_originate(void *data)
 			!cw_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			&in->vars, &chan);
 	}
-	if (!res) {
-		manager_event(EVENT_FLAG_CALL,
-			"OriginateSuccess",
-			"%s"
-			"Channel: %s/%s\r\n"
-			"Context: %s\r\n"
-			"Exten: %s\r\n"
-			"Reason: %d\r\n"
-			"Uniqueid: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
-	} else {
-		manager_event(EVENT_FLAG_CALL,
-			"OriginateFailure",
-			"%s"
-			"Channel: %s/%s\r\n"
-			"Context: %s\r\n"
-			"Exten: %s\r\n"
-			"Reason: %d\r\n"
-			"Uniqueid: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
-	}
+
+	cw_manager_event(EVENT_FLAG_CALL, (res ? "OriginateFailure" : "OriginateSuccess"),
+		6,
+		cw_me_field("ActionID", "%s",    in->actionid),
+		cw_me_field("Channel",  "%s/%s", in->tech, in->data),
+		cw_me_field("Context",  "%s",    in->context),
+		cw_me_field("Exten",    "%s",    in->exten),
+		cw_me_field("Reason",   "%d",    reason),
+		cw_me_field("Uniqueid", "%s",    (chan ? chan->uniqueid : "<null>"))
+	);
+
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
 	if (chan)
 		cw_channel_unlock(chan);
@@ -1275,7 +1290,7 @@ static int action_originate(struct mansession *s, struct message *m)
 		if (cw_true(async)) {
 			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (!cw_strlen_zero(m->actionid))
-				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", m->actionid);
+				cw_copy_string(fast->actionid, m->actionid, sizeof(fast->actionid));
 			cw_copy_string(fast->tech, tech, sizeof(fast->tech));
    			cw_copy_string(fast->data, data, sizeof(fast->data));
 			cw_copy_string(fast->app, app, sizeof(fast->app));
@@ -1596,15 +1611,7 @@ static void *manager_session_ami_read(void *data)
 
 int manager_session_ami(struct mansession *sess, const struct manager_event *event)
 {
-	/* "Event: ..." is necessary, "Privilege: ..." is not.
-	 * The privilege header is sent solely because it was sent
-	 * in the past and there might be AMI clients out there that
-	 * depend on it being there.
-	 */
-	cw_cli(sess->fd, "Event: %s\r\nPrivilege: ", event->event);
-	authority_to_str(sess->fd, event->category);
-	cw_cli(sess->fd, "\r\n");
-	return cw_write_all(sess->fd, event->data, event->len);
+	return cw_write_all(sess->fd, event->prefix, event->len);
 }
 
 
@@ -1870,8 +1877,10 @@ static void *accept_thread(void *data)
 struct manager_event_args {
 	int ret;
 	int category;
+	size_t count;
 	struct manager_event *me;
 	const char *event;
+	int *map;
 	const char *fmt;
 	va_list ap;
 };
@@ -1888,32 +1897,64 @@ static int make_event(struct manager_event_args *args)
 {
 	struct manager_event *event;
 	va_list aq;
+	char *s;
 	int alloc = 256;
 	int used, n;
 
-	if ((args->me = malloc(sizeof(struct manager_event) + alloc))) {
+	if ((args->me = malloc(sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1) + alloc))) {
 again:
-		used = 0;
-		va_copy(aq, args->ap);
-		n = vsnprintf(args->me->data + used, alloc, args->fmt, aq);
-		va_end(aq);
-		if (n >= 0)
-			used += n;
+		args->me->prefix = (typeof (args->me->prefix))&args->me->map[(args->count << 1) + 1];
+
+		/* FIXME: only ancient libcs have *printf functions that return -1 if the
+		 * buffer isn't big enough. If we can even compile with such a beast at
+		 * all we should have a compile time check for this.
+		 */
+
+		used = snprintf(args->me->prefix, alloc, "Event: %s\r\nPrivilege: ", args->event);
+		if (used < 0)
+			used = alloc + 255;
+		used += snprintf_authority(args->me->prefix + used, (used < alloc ? alloc - used : 0), args->category);
 		if (alloc - used > 2)
-			strcpy(args->me->data + used, "\r\n");
+			memcpy(args->me->prefix + used, "\r\n", sizeof("\r\n") - 1);
 		used += 2;
 
+		args->me->data = args->me->prefix + used;
+
+		va_copy(aq, args->ap);
+		n = vsnprintf(args->me->prefix + used, (used < alloc ? alloc - used : 0), args->fmt, aq);
+		va_end(aq);
+		if (n < 0)
+			used = alloc + 255;
+		else
+			used +=n;
+
+		if (args->map[((args->count - 1) << 1) + 1] - args->map[((args->count - 1) << 1) + 0] - 2 == sizeof("Message") - 1
+		&& !memcmp(args->me->data + args->map[(args->count - 1) << 1], "Message", sizeof("Message") - 1)) {
+			s = "--END MESSAGE--\r\n\r\n";
+			n = sizeof("--END MESSAGE--\r\n\r\n");
+		} else {
+			s = "\r\n";
+			n = sizeof("\r\n");
+		}
+
+		if (used + n <= alloc)
+			memcpy(args->me->prefix + used, s, n);
+		used += n - 1;
+
 		if (used < alloc) {
+			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
 			args->me->event = args->event;
 			args->me->category = args->category;
+			args->me->count = args->count;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
 			cw_object_init(args->me, NULL, 1);
 			return 0;
+
 		}
 
 		alloc = used + 1;
-		if ((event = realloc(args->me, sizeof(struct manager_event) + alloc))) {
+		if ((event = realloc(args->me, sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1) + alloc))) {
 			args->me = event;
 			goto again;
 		}
@@ -1938,13 +1979,15 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	return args->ret;
 }
 
-int manager_event(int category, const char *event, const char *fmt, ...)
+void cw_manager_event_func(int category, const char *event, size_t count, int map[], const char *fmt, ...)
 {
 	struct manager_event_args args = {
 		.ret = 0,
+		.count = count,
 		.me = NULL,
 		.category = category,
 		.event = event,
+		.map = map,
 		.fmt = fmt,
 	};
 
@@ -1956,14 +1999,17 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 
 	if (args.me)
 		cw_object_put(args.me);
-
-	return 0;
 }
 
 static int manager_state_cb(char *context, char *exten, int state, void *data)
 {
 	/* Notify managers of change */
-	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nStatus: %d\r\n", exten, context, state);
+	cw_manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
+		3,
+		cw_me_field("Exten",   "%s", exten),
+		cw_me_field("Context", "%s", context),
+		cw_me_field("Status",  "%d", state)
+	);
 	return 0;
 }
 

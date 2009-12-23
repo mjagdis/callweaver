@@ -306,18 +306,15 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 				cw_verbose(VERBOSE_PREFIX_2 "Valet Parked %s on slot %d\n", pu->chan->name, pu->valetparkingnum);
 
 			pbx_builtin_setvar_helper(pu->chan,"Parker","Yes");
-			manager_event(EVENT_FLAG_CALL, "VirtualValetparkedCall",
-						  "Exten: %d\r\n"
-						  "Channel: %s\r\n"
-						  "LotName: %s\r\n"
-						  "Timeout: %ld\r\n"
-						  "CallerID: %s\r\n"
-						  "CallerIDName: %s\r\n\r\n"
-						  ,pu->valetparkingnum, pu->chan->name, lotname
-						  ,(long)pu->start.tv_sec + (long)(pu->valetparkingtime/1000) - (long)time(NULL)
-						  ,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "")
-						  ,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "")
-						  );
+			cw_manager_event(EVENT_FLAG_CALL, "VirtualValetparkedCall",
+				6,
+				cw_me_field("Exten",        "%d",  pu->valetparkingnum),
+				cw_me_field("Channel",      "%s",  pu->chan->name),
+				cw_me_field("LotName",      "%s",  lotname),
+				cw_me_field("Timeout",      "%ld", (long)pu->start.tv_sec + (long)(pu->valetparkingtime/1000) - (long)time(NULL)),
+				cw_me_field("CallerID",     "%s",  (pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "")),
+				cw_me_field("CallerIDName", "%s",  (pu->chan->cid.cid_name ? pu->chan->cid.cid_name : ""))
+			  );
 			cw_device_state_changed("Valet/%d@%s", pu->valetparkingnum, lotname);
 
 			return 0;

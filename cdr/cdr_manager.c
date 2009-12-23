@@ -115,29 +115,27 @@ static int manager_log(struct cw_cdr *batch)
 			localtime_r(&t, &timeresult);
 			strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
-			manager_event(EVENT_FLAG_CALL, "Cdr",
-			    "AccountCode: %s\r\n"
-			    "Source: %s\r\n"
-			    "Destination: %s\r\n"
-			    "DestinationContext: %s\r\n"
-			    "CallerID: %s\r\n"
-			    "Channel: %s\r\n"
-			    "DestinationChannel: %s\r\n"
-			    "LastApplication: %s\r\n"
-			    "LastData: %s\r\n"
-			    "StartTime: %s\r\n"
-			    "AnswerTime: %s\r\n"
-			    "EndTime: %s\r\n"
-			    "Duration: %d\r\n"
-			    "BillableSeconds: %d\r\n"
-			    "Disposition: %s\r\n"
-			    "AMAFlags: %s\r\n"
-			    "UniqueID: %s\r\n"
-			    "UserField: %s\r\n",
-			    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
-			    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
-			    cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition),
-			    cw_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
+			cw_manager_event(EVENT_FLAG_CALL, "Cdr",
+			    18,
+			    cw_me_field("AccountCode",        "%s", cdr->accountcode),
+			    cw_me_field("Source",             "%s", cdr->src),
+			    cw_me_field("Destination",        "%s", cdr->dst),
+			    cw_me_field("DestinationContext", "%s", cdr->dcontext),
+			    cw_me_field("CallerID",           "%s", cdr->clid),
+			    cw_me_field("Channel",            "%s", cdr->channel),
+			    cw_me_field("DestinationChannel", "%s", cdr->dstchannel),
+			    cw_me_field("LastApplication",    "%s", cdr->lastapp),
+			    cw_me_field("LastData",           "%s", cdr->lastdata),
+			    cw_me_field("StartTime",          "%s", strStartTime),
+			    cw_me_field("AnswerTime",         "%s", strAnswerTime),
+			    cw_me_field("EndTime",            "%s", strEndTime),
+			    cw_me_field("Duration",           "%d", cdr->duration),
+			    cw_me_field("BillableSeconds",    "%d", cdr->billsec),
+			    cw_me_field("Disposition",        "%s", cw_cdr_disp2str(cdr->disposition)),
+			    cw_me_field("AMAFlags",           "%s", cw_cdr_flags2str(cdr->amaflags)),
+			    cw_me_field("UniqueID",           "%s", cdr->uniqueid),
+			    cw_me_field("UserField",          "%s", cdr->userfield)
+			);
 		}
 	}
 

@@ -4773,7 +4773,12 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 		snprintf(ourip, sizeof(ourip), "%s:%d", cw_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
 		cw_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+			3,
+			cw_me_field("Channel", "%s", "IAX2"),
+			cw_me_field("Domain",  "%s", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr)),
+			cw_me_field("Status",  "%s", "Registered")
+		);
 	}
 	reg->regstate = REG_STATE_REGISTERED;
 
@@ -4874,7 +4879,11 @@ static int expire_registry(void *data)
 	p->expiry = min_reg_expire;
 	if (!cw_test_flag(p, IAX_TEMPONLY)) {
 		cw_db_del("IAX/Registry", p->name);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: RegistrationExpired\r\n", p->name);
+		cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+			2,
+			cw_me_field("Peer",       "IAX2/%s", p->name),
+			cw_me_field("PeerStatus", "%s", "RegistrationExpired")
+		);
 	}
 	register_peer_exten(p, 0);
 	cw_device_state_changed("IAX2/%s", p->name); /* Activate notification */
@@ -4970,14 +4979,22 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			if  (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
+			cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+				2,
+				cw_me_field("Peer",       "IAX2/%s", p->name),
+				cw_me_field("PeerStatus", "%s", "Registered")
+			);
 			register_peer_exten(p, 1);
 			cw_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!cw_test_flag(p, IAX_TEMPONLY)) {
 			if  (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+			cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+				2,
+				cw_me_field("Peer",       "IAX2/%s", p->name),
+				cw_me_field("PeerStatus", "%s", "Unregistered")
+			);
 			register_peer_exten(p, 0);
 			cw_db_del("IAX/Registry", p->name);
 			cw_device_state_changed("IAX2/%s", p->name); /* Activate notification */
@@ -6024,11 +6041,11 @@ retryowner:
 				if (iaxs[frb.fr.callno]->state & IAX_STATE_STARTED) {
 				        /* Generate Manager Hold event, if necessary*/
 					if (iaxs[frb.fr.callno]->owner) {
-						manager_event(EVENT_FLAG_CALL, "Hold",
-							"Channel: %s\r\n"
-							"Uniqueid: %s\r\n",
-							iaxs[frb.fr.callno]->owner->name, 
-							iaxs[frb.fr.callno]->owner->uniqueid);
+						cw_manager_event(EVENT_FLAG_CALL, "Hold",
+							2,
+							cw_me_field("Channel",  "%s", iaxs[frb.fr.callno]->owner->name),
+							cw_me_field("Uniqueid", "%s", iaxs[frb.fr.callno]->owner->uniqueid)
+						);
 					}
 
 					cw_set_flag(iaxs[frb.fr.callno], IAX_QUELCH);
@@ -6044,11 +6061,11 @@ retryowner:
 				if (iaxs[frb.fr.callno]->state & IAX_STATE_STARTED) {
 				        /* Generate Manager Unhold event, if necessary*/
 					if (iaxs[frb.fr.callno]->owner && cw_test_flag(iaxs[frb.fr.callno], IAX_QUELCH)) {
-						manager_event(EVENT_FLAG_CALL, "Unhold",
-							"Channel: %s\r\n"
-							"Uniqueid: %s\r\n",
-							iaxs[frb.fr.callno]->owner->name, 
-							iaxs[frb.fr.callno]->owner->uniqueid);
+						cw_manager_event(EVENT_FLAG_CALL, "Unhold",
+							2,
+							cw_me_field("Channel",  "%s", iaxs[frb.fr.callno]->owner->name),
+							cw_me_field("Uniqueid", "%s", iaxs[frb.fr.callno]->owner->uniqueid)
+						);
 					}
 
 					cw_clear_flag(iaxs[frb.fr.callno], IAX_QUELCH);
@@ -6420,13 +6437,23 @@ retryowner2:
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[frb.fr.callno]->pingtime <= peer->maxms) {
 							cw_log(CW_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[frb.fr.callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[frb.fr.callno]->pingtime); 
+							cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+								3,
+								cw_me_field("Peer",       "IAX2/%s", peer->name),
+								cw_me_field("PeerStatus", "%s",      "Reachable"),
+								cw_me_field("Time",       "%d",      iaxs[frb.fr.callno]->pingtime)
+							);
 							cw_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[frb.fr.callno]->pingtime > peer->maxms) {
 							cw_log(CW_LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[frb.fr.callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[frb.fr.callno]->pingtime); 
+							cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+								3,
+								cw_me_field("Peer",       "IAX2/%s", peer->name),
+								cw_me_field("PeerStatus", "%s",      "Lagged"),
+								cw_me_field("Time",       "%d",      iaxs[frb.fr.callno]->pingtime)
+							);
 							cw_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
@@ -6709,7 +6736,13 @@ retryowner2:
 				if (iaxs[frb.fr.callno]->reg) {
 					if (authdebug) {
 						cw_log(CW_LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[frb.fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
-						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[frb.fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
+						cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+							4,
+							cw_me_field("Channel",  "%s", "IAX2"),
+							cw_me_field("Username", "%s", iaxs[frb.fr.callno]->reg->username),
+							cw_me_field("Status",   "%s", "Rejected"),
+							cw_me_field("Cause",    "%s", (ies.cause ? ies.cause : "<unknown>"))
+						);
 					}
 					iaxs[frb.fr.callno]->reg->regstate = REG_STATE_REJECTED;
 				}
@@ -6986,7 +7019,12 @@ static int iax2_poke_noanswer(void *data)
 
 	if (peer->lastms > -1) {
 		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
+		cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+			3,
+			cw_me_field("Peer",       "IAX2/%s", peer->name),
+			cw_me_field("PeerStatus", "%s",      "Unreachable"),
+			cw_me_field("Time",       "%d",      peer->lastms)
+		);
 		cw_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
 	peer->lastms = -1;

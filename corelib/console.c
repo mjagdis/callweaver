@@ -493,7 +493,7 @@ is_data:
 
 		if (pos == sizeof(buf)) {
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			cw_log(CW_LOG_ERROR, "Console got an overlong line (> %d bytes!)\n", sizeof(buf));
+			cw_log(CW_LOG_ERROR, "Console got an overlong line (> %lu bytes!)\n", sizeof(buf));
 			break;
 		}
 	} while (nresp);

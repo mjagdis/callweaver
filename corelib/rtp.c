@@ -720,43 +720,30 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
         switch (PT)
         {
             case 200: /* Sender Report */
-                manager_event(EVENT_FLAG_CALL, "RTCP-SR", 
-                    "Channel: %s\r\n"
-                    "Uniqueid: %s\r\n"
-                    "NTP: %u.%u\r\n"
-                    "RTP: %u\r\n"
-                    "Packets: %u\r\n"
-                    "Data: %u\r\n",
-                    chan->name,
-                    chan->uniqueid, 
-                    ntohl(rtcpdata[i]),
-                    ntohl(rtcpdata[i+1]),
-                    ntohl(rtcpdata[i+2]),
-                    ntohl(rtcpdata[i+3]),
-                    ntohl(rtcpdata[i+4])
+                cw_manager_event(EVENT_FLAG_CALL, "RTCP-SR",
+                    6,
+                    cw_me_field("Channel",  "%s",    chan->name),
+                    cw_me_field("Uniqueid", "%s",    chan->uniqueid),
+                    cw_me_field("NTP",      "%u.%u", ntohl(rtcpdata[i]), ntohl(rtcpdata[i+1])),
+                    cw_me_field("RTP",      "%u",    ntohl(rtcpdata[i+2])),
+                    cw_me_field("Packets",  "%u",    ntohl(rtcpdata[i+3])),
+                    cw_me_field("Data",     "%u",    ntohl(rtcpdata[i+4]))
                 );
                 i += 5;
                 /* Fall through */
             case 201: /* Reception Report(s) */
                 while (RC--)
                 {
-                    manager_event(EVENT_FLAG_CALL, "RTCP-RR", 
-                        "Channel: %s\r\n"
-                        "Uniqueid: %s\r\n"
-                        "Loss rate: %u/256\r\n"
-                        "Loss count: %u\r\n"
-                        "Extseq: 0x%x\r\n"
-                        "Jitter: %u\r\n"
-                        "LSR: %u\r\n"
-                        "DLSR: %u\r\n",
-                        chan->name,
-                        chan->uniqueid, 
-                        ntohl(rtcpdata[i+1]) >> 24,
-                        ntohl(rtcpdata[i+1]) & 0x00ffffff,
-                        ntohl(rtcpdata[i+2]),
-                        ntohl(rtcpdata[i+3]),
-                        ntohl(rtcpdata[i+4]),
-                        ntohl(rtcpdata[i+5])
+                    cw_manager_event(EVENT_FLAG_CALL, "RTCP-RR",
+                        8,
+                        cw_me_field("Channel",    "%s",     chan->name),
+                        cw_me_field("Uniqueid",   "%s",     chan->uniqueid),
+                        cw_me_field("Loss rate",  "%u/256", ntohl(rtcpdata[i+1]) >> 24),
+                        cw_me_field("Loss count", "%u",     ntohl(rtcpdata[i+1]) & 0x00ffffff),
+                        cw_me_field("Extseq",     "0x%x",   ntohl(rtcpdata[i+2])),
+                        cw_me_field("Jitter",     "%u",     ntohl(rtcpdata[i+3])),
+                        cw_me_field("LSR",        "%u",     ntohl(rtcpdata[i+4])),
+                        cw_me_field("DLSR",       "%u",     ntohl(rtcpdata[i+5]))
                     );
                     i += 6;
                 }

@@ -781,13 +781,14 @@ static int agent_hangup(struct cw_channel *ast)
 				long logintime = time(NULL) - p->loginstart;
 				p->loginstart = 0;
 				cw_log(CW_LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
-				manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
-					      "Agent: %s\r\n"
-					      "Loginchan: %s\r\n"
-					      "Logintime: %ld\r\n"
-					      "Reason: Autologoff\r\n"
-					      "Uniqueid: %s\r\n",
-					      p->agent, p->loginchan, logintime, ast->uniqueid);
+				cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+					5,
+					cw_me_field("Agent",     "%s",  p->agent),
+					cw_me_field("Loginchan", "%s",  p->loginchan),
+					cw_me_field("Logintime", "%ld", logintime),
+					cw_me_field("Reason",    "%s",  "Autologoff"),
+					cw_me_field("Uniqueid",  "%s",  ast->uniqueid)
+				);
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				cw_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				set_agentbycallerid(p->logincallerid, NULL);
@@ -1494,11 +1495,12 @@ static int agent_logoff(char *agent, int soft)
 			logintime = time(NULL) - p->loginstart;
 			p->loginstart = 0;
 			
-			manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
-				      "Agent: %s\r\n"
-				      "Loginchan: %s\r\n"
-				      "Logintime: %ld\r\n",
-				      p->agent, p->loginchan, logintime);
+			cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+				3,
+				cw_me_field("Agent",     "%s", p->agent),
+				cw_me_field("Loginchan", "%s", p->loginchan),
+				cw_me_field("Logintime", "%ld", logintime)
+			);
 			cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			set_agentbycallerid(p->logincallerid, NULL);
 			p->loginchan[0] = '\0';
@@ -1924,11 +1926,12 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 						if (!cw_strlen_zero(p->loginchan)) {
 							if (p->loginstart == 0)
 								time(&p->loginstart);
-							manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
-								      "Agent: %s\r\n"
-								      "Loginchan: %s\r\n"
-								      "Uniqueid: %s\r\n",
-								      p->agent, p->loginchan, chan->uniqueid);
+							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+								3,
+								cw_me_field("Agent",     "%s", p->agent),
+								cw_me_field("Loginchan", "%s", p->loginchan),
+								cw_me_field("Uniqueid",  "%s", chan->uniqueid)
+							);
 							cw_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 							if (option_verbose > 1)
 								cw_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
@@ -1936,12 +1939,13 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 						} else {
 							logintime = time(NULL) - p->loginstart;
 							p->loginstart = 0;
-							manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
-								      "Agent: %s\r\n"
-								      "Loginchan: %s\r\n"
-								      "Logintime: %ld\r\n"
-								      "Uniqueid: %s\r\n",
-								      p->agent, last_loginchan, logintime, chan->uniqueid);
+							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+								4,
+								cw_me_field("Agent",     "%s",  p->agent),
+								cw_me_field("Loginchan", "%s",  last_loginchan),
+								cw_me_field("Logintime", "%ld", logintime),
+								cw_me_field("Uniqueid",  "%s",  chan->uniqueid)
+							);
 							cw_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
 							if (option_verbose > 1)
 								cw_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged out\n", p->agent);
@@ -1962,11 +1966,12 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 						cw_moh_start(chan, p->moh);
 						if (p->loginstart == 0)
 							time(&p->loginstart);
-						manager_event(EVENT_FLAG_AGENT, "Agentlogin",
-							      "Agent: %s\r\n"
-							      "Channel: %s\r\n"
-							      "Uniqueid: %s\r\n",
-							      p->agent, chan->name, chan->uniqueid);
+						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogin",
+							3,
+							cw_me_field("Agent",    "%s", p->agent),
+							cw_me_field("Channel",  "%s", chan->name),
+							cw_me_field("Uniqueid", "%s", chan->uniqueid)
+						);
 						if (update_cdr && chan->cdr)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 						cw_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
@@ -2039,11 +2044,12 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 						logintime = time(NULL) - p->loginstart;
 						p->loginstart = 0;
 						cw_mutex_unlock(&p->lock);
-						manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
-							      "Agent: %s\r\n"
-							      "Logintime: %ld\r\n"
-							      "Uniqueid: %s\r\n",
-							      p->agent, logintime, chan->uniqueid);
+						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
+							3,
+							cw_me_field("Agent",     "%s",  p->agent),
+							cw_me_field("Logintime", "%ld", logintime),
+							cw_me_field("Uniqueid",  "%s",  chan->uniqueid)
+						);
 						cw_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, logintime);
 						if (option_verbose > 1)
 							cw_verbose(VERBOSE_PREFIX_2 "Agent '%s' logged out\n", p->agent);
@@ -2209,10 +2215,11 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 
 		if (p->loginstart == 0)
 			time(&p->loginstart);
-		manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
-			      "Agent: %s\r\n"
-			      "Loginchan: %s\r\n",
-			      p->agent, p->loginchan);
+		cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+			2,
+			cw_me_field("Agent",     "%s", p->agent),
+			cw_me_field("Loginchan", "%s", p->loginchan)
+		);
 		cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 		if (option_verbose > 1)
 			cw_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);

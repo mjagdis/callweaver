@@ -204,17 +204,18 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
         cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_rx);
         cw_log(CW_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
         cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
-        manager_event(EVENT_FLAG_CALL,
-                      "FaxSent", "Channel: %s\nExten: %s\nCallerID: %s\nRemoteStationID: %s\nLocalStationID: %s\nPagesTransferred: %i\nResolution: %i\nTransferRate: %i\nFileName: %s\n",
-                      chan->name,
-                      chan->exten,
-                      (chan->cid.cid_num)  ?  chan->cid.cid_num  :  "",
-                      rx_ident,
-                      tx_ident,
-                      t.pages_rx,
-                      t.y_resolution,
-                      t.bit_rate,
-                      s->rx_file);
+        cw_manager_event(EVENT_FLAG_CALL, "FaxSent",
+		9,
+		cw_me_field("Channel",          "%s", chan->name),
+		cw_me_field("Exten",            "%s", chan->exten),
+		cw_me_field("CallerID",         "%s", (chan->cid.cid_num ? chan->cid.cid_num : "")),
+		cw_me_field("RemoteStationID",  "%s", rx_ident),
+		cw_me_field("LocalStationID",   "%s", tx_ident),
+		cw_me_field("PagesTransferred", "%i", t.pages_rx),
+		cw_me_field("Resolution",       "%i", t.y_resolution),
+		cw_me_field("TransferRate",     "%i", t.bit_rate),
+		cw_me_field("FileName",         "%s", s->rx_file)
+	);
     }
     else
     {

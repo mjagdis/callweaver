@@ -329,22 +329,16 @@ static void *originate(void *arg) {
 	struct cw_channel *chan = NULL;
 
 	res = cw_pbx_outgoing_exten(in->tech, CW_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, !cw_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
-	manager_event(EVENT_FLAG_CALL, "Originate", 
-			"ChannelRequested: %s/%s\r\n"
-			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"Result: %d\r\n"
-			"Reason: %d\r\n"
-			"Reason-txt: %s\r\n",
-			in->tech,
-			in->data,
-			in->context, 
-			in->exten, 
-			in->priority, 
-			res,
-			reason,
-			cw_control2str(reason)
+
+	cw_manager_event(EVENT_FLAG_CALL, "Originate",
+			7,
+			cw_me_field("ChannelRequested", "%s/%s", in->tech, in->data),
+			cw_me_field("Context",          "%s", in->context),
+			cw_me_field("Extension",        "%s", in->exten),
+			cw_me_field("Priority",         "%d", in->priority),
+			cw_me_field("Result",           "%d", res),
+			cw_me_field("Reason",           "%d", reason),
+			cw_me_field("Reason-txt",       "%s", cw_control2str(reason))
 	);
 
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */

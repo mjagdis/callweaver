@@ -36,6 +36,7 @@
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
+#include "callweaver/preprocessor.h"
 
 
 /*!
@@ -63,8 +64,15 @@ struct manager_event {
 	struct cw_object obj;
 	const char *event;
 	int category;
-	int len;
-	char data[0];
+	char *prefix;			/*!< The AMI prefix consisting of Event and Privilege lines.
+					 *   This is immediately followed by (with no null terminator) by the formatted data
+					 */
+	char *data;			/*!< The AMI formatted event data */
+	int len;			/*!< The total length of the formatted message *including* the prefix */
+	size_t count;			/*!< The number of key/value pairs in this event */
+	int map[0];			/*!< Offset to the start of key and value strings relative to data
+					 *   (the prefix key/value pairs are not included in the map)
+					 */
 };
 
 
@@ -152,14 +160,6 @@ extern CW_API_PUBLIC struct cw_registry manager_action_registry;
 
 extern CW_API_PUBLIC int manager_str_to_eventmask(char *events);
 
-/*! External routines may send callweaver manager events this way */
-/*! 	\param category	Event category, matches manager authorization
-	\param event	Event name
-	\param contents	Contents of event
-*/ 
-extern CW_API_PUBLIC int manager_event(int category, const char *event, const char *fmt, ...)
-	__attribute__ ((format (printf, 3,4)));
-
 /*! Get header from mananger transaction */
 extern CW_API_PUBLIC char *astman_get_header(struct message *m, char *var);
 
@@ -182,5 +182,96 @@ extern int manager_reload(void);
 
 /*! Called by CallWeaver initialization */
 extern int init_manager(void);
+
+
+/* If you are looking at this trying to fix a weird compile error
+ * check the count is a constant integer corresponding to the
+ * number of cw_me_field() arguments, that there are _only_
+ * cw_me_field() arguments after the count (there can be no
+ * expressions wrapping cw_me_fields to select one or the other
+ * for instance) and that you are not missing a comma after a
+ * cw_me_field().
+ * In particular note:
+ *
+ *    this is legal
+ *        if (...)
+ *            cw_manager_event(...,
+ *                cw_me_field(...),
+ *                ...
+ *            );
+ *        else
+ *            cw_manager_event(...,
+ *                cw_me_field(...),
+ *                ...
+ *            );
+ *
+ *    but this is not
+ *        cw_manager_event(...,
+ *            (... ? cw_me_field(...) : cw_me_field(...)),
+ *            ...
+ *        );
+ *
+ *    although this is
+ *        cw_manager_event(...,
+ *            cw_me_field(..., (... ? a : b)),
+ *            ...
+ *        );
+ */
+
+/* These are deliberately empty. They only exist to allow compile time
+ * syntax checking of _almost_ the actual code rather than the preprocessor
+ * expansion. They will be optimized out.
+ * Note that we only get _almost_ there. Specifically there is no way to
+ * stop the preprocessor eating line breaks so you way get told arg 3
+ * doesn't match the format string, but not which cw_me_field in the
+ * manager_event is talking about. If you can't spot it try compiling
+ * with CW_DEBUG_MAN_EVENT defined. This breaks expansion completely
+ * so you get accurate line numbers for errors and warnings but then
+ * the compiled code will not generate events (they will be optimized
+ * out).
+ */
+static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
+	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (2)));
+static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
+{
+}
+static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
+	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1,2), format (printf, 2,3)));
+static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
+{
+	return NULL;
+}
+
+#ifndef CW_DEBUG_MAN_EVENT
+#  define CW_ME_DEBRACKET_cw_me_field(key, fmt, ...)	key, fmt, ## __VA_ARGS__
+#  define CW_ME_DO(op, ...)				op(__VA_ARGS__)
+#  define CW_ME_FMT(n, a)				CW_ME_DO(CW_ME_FMT_I, n, CW_CPP_CAT(CW_ME_DEBRACKET_, a))
+#  define CW_ME_FMT_I(n, key, fmt, ...)			"%s: %n" fmt "\r\n%n"
+#  define CW_ME_ARGS(n, a)				CW_ME_DO(CW_ME_ARGS_I, n, CW_CPP_CAT(CW_ME_DEBRACKET_, a))
+#  define CW_ME_ARGS_I(n, key, fmt, ...)		key, &map[(n << 1) + 1], ## __VA_ARGS__, &map[(n << 1) + 2],
+
+#  define cw_manager_event(category, event, count, ...) ({ \
+	cw_manager_event(category, event, count, \
+		__VA_ARGS__ \
+	); \
+	int map[(count << 1) + 1] = { 0 }; \
+	cw_manager_event_func(category, event, count, map, \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_FMT, __VA_ARGS__) "%s", \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_ARGS, __VA_ARGS__) \
+		"" \
+	); \
+   })
+
+   /*! \brief send a callweaver manager event
+    *      \param category	Event category, matches manager authorization
+    *      \param event	Event name
+    *      \param contents	Contents of event
+    */
+   extern CW_API_PUBLIC void cw_manager_event_func(int category, const char *event, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 5,6)));
+#else
+#  define cw_manager_event	compiled_with_CW_DEBUG_MAN_EVENT_therefore_unlinkable
+#endif
+
 
 #endif /* _CALLWEAVER_MANAGER_H */

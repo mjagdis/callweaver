@@ -209,7 +209,7 @@ int icd_listeners__notify(icd_listeners * that, icd_event * event)
 
     assert(that != NULL);
 
-    /* Call manager_event here ??? */
+    /* Call cw_manager_event here ??? */
 
     curr = that->first;
     while (curr != NULL) {

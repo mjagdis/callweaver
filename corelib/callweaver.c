@@ -561,7 +561,11 @@ static void quit_handler(void *data)
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "CallWeaver ending.\n");
 
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", (cw_active_channels() ? "Uncleanly" : "Cleanly"), (local_restart ? "True" : "False"));
+	cw_manager_event(EVENT_FLAG_SYSTEM, "Shutdown",
+		2,
+		cw_me_field("Shutdown", "%s", (cw_active_channels() ? "Uncleanly" : "Cleanly")),
+		cw_me_field("Restart", "%s", (local_restart ? "True" : "False"))
+	);
 
 	if (!pthread_equal(lthread, CW_PTHREADT_NULL)) {
 		pthread_cancel(lthread);

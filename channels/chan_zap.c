@@ -3699,10 +3699,11 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 			p->inalarm = 1;
 			res = get_alarms(p);
 			cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
-			manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-								"Alarm: %s\r\n"
-								"Channel: %d\r\n",
-								alarm2str(res), p->channel);
+			cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+				2,
+				cw_me_field("Alarm",   "%s", alarm2str(res)),
+				cw_me_field("Channel", "%d", p->channel)
+			);
 			/* fall through intentionally */
 		case DAHDI_EVENT_ONHOOK:
 			if (p->radio)
@@ -4015,8 +4016,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 				p->bearer->inalarm = 0;
 #endif				
 			cw_log(CW_LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-								"Channel: %d\r\n", p->channel);
+			cw_manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+				1,
+				cw_me_field("Channel", "%d", p->channel)
+			);
 			break;
 		case DAHDI_EVENT_WINKFLASH:
 			if (p->inalarm) break;
@@ -5726,9 +5729,11 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2) {
 					cw_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
-					manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-								"Channel: DAHDI/%d\r\n"
-								"Status: enabled\r\n", p->channel);
+					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+						2,
+						cw_me_field("Channel", "DAHDI/%d", p->channel),
+						cw_me_field("Status",  "%s",       "enabled")
+					);
 				}
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 1;
@@ -5739,9 +5744,11 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2) {
 					cw_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
-					manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-								"Channel: DAHDI/%d\r\n"
-								"Status: disabled\r\n", p->channel);
+					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+						2,
+						cw_me_field("Channel", "DAHDI/%d", p->channel),
+						cw_me_field("Status",  "%s",       "disabled")
+					);
 				}
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 0;
@@ -6196,10 +6203,11 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		i->inalarm = 1;
 		res = get_alarms(i);
 		cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
-		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-		              "Alarm: %s\r\n"
-		              "Channel: %d\r\n",
-		              alarm2str(res), i->channel);
+		cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+			2,
+			cw_me_field("Alarm",   "%s", alarm2str(res)),
+			cw_me_field("Channel", "%d", i->channel)
+		);
 		/* fall thru intentionally */
 	case DAHDI_EVENT_ONHOOK:
 		if (i->radio) break;

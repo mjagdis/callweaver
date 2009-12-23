@@ -5557,12 +5557,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
         if (callevents && cw_test_flag(p, SIP_CALL_ONHOLD))
         {
-            manager_event(EVENT_FLAG_CALL, "Unhold",
-                "Channel: %s\r\n"
-                "Uniqueid: %s\r\n",
-                p->owner->name, 
-                p->owner->uniqueid);
-
+            cw_manager_event(EVENT_FLAG_CALL, "Unhold",
+                2,
+                cw_me_field("Channel",  "%s", p->owner->name),
+                cw_me_field("Uniqueid", "%s", p->owner->uniqueid)
+            );
         }
         cw_clear_flag(p, SIP_CALL_ONHOLD);
     }
@@ -5573,11 +5572,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
         if (callevents && !cw_test_flag(p, SIP_CALL_ONHOLD))
         {
-            manager_event(EVENT_FLAG_CALL, "Hold",
-                          "Channel: %s\r\n"
-                          "Uniqueid: %s\r\n",
-                          p->owner->name, 
-                          p->owner->uniqueid);
+            cw_manager_event(EVENT_FLAG_CALL, "Hold",
+                2,
+                cw_me_field("Channel",  "%s", p->owner->name),
+                cw_me_field("Uniqueid", "%s", p->owner->uniqueid)
+            );
         }
         cw_set_flag(p, SIP_CALL_ONHOLD);
     }
@@ -7711,7 +7710,13 @@ static int sip_reg_timeout(void *data)
         } else
             r->regstate=REG_STATE_UNREGISTERED;
 
-        manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+        cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+		4,
+		cw_me_field("Channel",  "%s", "SIP"),
+		cw_me_field("Username", "%s", r->username),
+		cw_me_field("Domain",   "%s", r->hostname),
+		cw_me_field("Status",   "%s", regstate2str(r->regstate))
+	);
 
 	if (r->regstate != REG_STATE_FAILED) {
             r->timeout = -1;
@@ -8158,7 +8163,12 @@ static int expire_register(void *data)
 
     destroy_association(peer);
     
-    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+    cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+	3,
+	cw_me_field("Peer",       "SIP/%s", peer->name),
+	cw_me_field("PeerStatus", "%s",     "Unregistered"),
+	cw_me_field("Cause",      "%s",     "Expired")
+    );
     register_peer_exten(peer, 0);
     peer->expire = -1;
     cw_device_state_changed("SIP/%s", peer->name);
@@ -8397,7 +8407,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
         if (option_verbose > 3)
             cw_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
-            manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+            cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+                2,
+                cw_me_field("Peer",       "SIP/%s", p->name),
+                cw_me_field("PeerStatus", "%s",     "Unregistered")
+            );
         return PARSE_REGISTER_UPDATE;
     }
     cw_copy_string(p->fullcontact, c, sizeof(p->fullcontact));
@@ -8482,7 +8496,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
     if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
         cw_db_put("SIP/Registry", p->name, data);
-    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
+    cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+        2,
+        cw_me_field("Peer",       "SIP/%s", p->name),
+        cw_me_field("PeerStatus", "%s",     "Registered")
+    );
     if (inaddrcmp(&p->addr, &oldsin))
     {
         if (p->pokeexpire == -1)
@@ -9056,7 +9074,11 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
             case PARSE_REGISTER_UPDATE:
                 /* Say OK and ask subsystem to retransmit msg counter */
                 transmit_response_with_date(p, "200 OK", req);
-                manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+                cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+                        2,
+                        cw_me_field("Peer",       "SIP/%s", peer->name),
+                        cw_me_field("PeerStatus", "%s",     "Registered")
+                );
                 peer->lastmsgssent = -1;
                 res = 0;
                 break;
@@ -12845,11 +12867,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         }
 
         r->regstate = REG_STATE_REGISTERED;
-        manager_event(EVENT_FLAG_SYSTEM,
-                      "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n",
-                      r->username,
-                      r->hostname,
-                      regstate2str(r->regstate));
+        cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+              4,
+              cw_me_field("Channel",  "%s", "SIP"),
+              cw_me_field("Username", "%s", r->username),
+              cw_me_field("Domain",   "%s", r->hostname),
+              cw_me_field("Status",   "%s", regstate2str(r->regstate))
+        );
         r->regattempts = 0;
         cw_log(CW_LOG_DEBUG, "Registration successful\n");
 
@@ -12986,10 +13010,12 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
         {
             cw_device_state_changed("SIP/%s", peer->name);
             if (option_verbose > 3) {
-                if (newstate == 2)
-                    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-                else
-                    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+                cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+                    3,
+                    cw_me_field("Peer",       "SIP/%s", peer->name),
+                    cw_me_field("PeerStatus", "%s",     (newstate == 2 ? "Lagged" : "Reachable")),
+                    cw_me_field("Time",       "%d",     pingtime)
+                );
 	    }
         }
 
@@ -15179,7 +15205,12 @@ static int sip_poke_noanswer(void *data)
     if (peer->noanswer == 3 && peer->timer_t1 > -1) {
 	if (option_verbose > 3)
 		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->timer_t1);
-        manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+        cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+                3,
+                cw_me_field("Peer",       "SIP/%s", peer->name),
+                cw_me_field("PeerStatus", "%s",     "Unreachable"),
+                cw_me_field("Time",       "%d",     -1)
+        );
         peer->timer_t1 = -1;
         cw_device_state_changed("SIP/%s", peer->name);
     }

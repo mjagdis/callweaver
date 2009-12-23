@@ -265,16 +265,15 @@ static char *get_cid_name(char *name, int namelen, struct cw_channel *chan)
 
 static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 {
-	manager_event(EVENT_FLAG_CALL, "Dial", 
-			   "Source: %s\r\n"
-			   "Destination: %s\r\n"
-			   "CallerID: %s\r\n"
-			   "CallerIDName: %s\r\n"
-			   "SrcUniqueID: %s\r\n"
-			   "DestUniqueID: %s\r\n",
-			   src->name, dst->name, src->cid.cid_num ? src->cid.cid_num : "<unknown>",
-			   src->cid.cid_name ? src->cid.cid_name : "<unknown>", src->uniqueid,
-			   dst->uniqueid);
+	cw_manager_event(EVENT_FLAG_CALL, "Dial",
+		6,
+		cw_me_field("Source",       "%s", src->name),
+		cw_me_field("Destination",  "%s", dst->name),
+		cw_me_field("CallerID",     "%s", (src->cid.cid_num ? src->cid.cid_num : "<unknown>")),
+		cw_me_field("CallerIDName", "%s", (src->cid.cid_name ? src->cid.cid_name : "<unknown>")),
+		cw_me_field("SrcUniqueID",  "%s", src->uniqueid),
+		cw_me_field("DestUniqueID", "%s", dst->uniqueid)
+	);
 }
 
 static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan *outgoing, int *to, struct cw_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)

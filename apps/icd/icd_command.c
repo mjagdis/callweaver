@@ -962,32 +962,50 @@ int icd_command_ack (int fd, int argc, char **argv)
 
   if(argc != 2) {
      	cw_cli(fd, "icd ack: Bad number of parameters\n");
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Ack\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+            cw_me_field("Command", "%s", "Ack"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
      	return -1;
   }
   agent_id = argv[1];   	   
   agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
   if (!agent) {
         cw_cli(fd, "icd ack failed. Agent [%s] could not be found.\n", agent_id);        
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Ack\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "Ack"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Agent not found"),
+            cw_me_field("CallerID", "%s", agent_id)
+        );
 		return -1;
   }		    
   if(icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_READY ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_DISTRIBUTING ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
      	icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
-   	 manager_event(EVENT_FLAG_USER, "icd_command",
-       "Command: Ack\r\nResult: OK\r\nCallerID: %s\r\nState: %s\r\n", 
-       agent_id, icd_caller__get_state_string((icd_caller *)agent));
+     cw_manager_event(EVENT_FLAG_USER, "icd_command",
+         4,
+         cw_me_field("Command", "%s", "Ack"),
+         cw_me_field("Result", "%s", "OK"),
+         cw_me_field("CallerID", "%s", agent_id),
+         cw_me_field("State", "%s", icd_caller__get_state_string((icd_caller *)agent))
+     );
      cw_cli(fd, "icd ack for agent[%s] - OK\n", agent_id);
      return 0;
   }
   cw_log(CW_LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
-  manager_event(EVENT_FLAG_USER, "icd_command",
-       "Command: Ack\r\nResult: Fail\r\nCause: Not correct state\r\nCallerID: %s\r\nState: %s\r\n", 
-       agent_id, icd_caller__get_state_string((icd_caller *)agent));
+  cw_manager_event(EVENT_FLAG_USER, "icd_command",
+      5,
+      cw_me_field("Command", "%s", "Ack"),
+      cw_me_field("Result", "%s", "Fail"),
+      cw_me_field("Cause", "%s", "Not correct state"),
+      cw_me_field("CallerID", "%s", agent_id),
+      cw_me_field("State", "%s", icd_caller__get_state_string((icd_caller *)agent))
+  );
   return -1;
 }
 
@@ -998,38 +1016,60 @@ int icd_command_hang_up (int fd, int argc, char **argv)
     
     if (argc != 2) {
         cw_cli(fd, "Function Hang up failed- bad number of parameters [%d]\n", argc);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Hangup\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+            cw_me_field("Command", "%s", "Hangup"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
         return -1;
     }
     agent_id = argv[1];   
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);
     if (!agent) {
         cw_cli(fd, "Function Hang up failed. Agent '%s' could not be found.\n", agent_id);        
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Hangup\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "Hangup"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Agent not found"),
+            cw_me_field("CallerID", "%s", agent_id)
+        );
 		return -1;
     }		    
     if(icd_caller__get_state(agent) != ICD_CALLER_STATE_BRIDGED &&
        icd_caller__get_state(agent) != ICD_CALLER_STATE_CONFERENCED){
        cw_cli(fd, "Function Hang up failed. Agent '%s' in state [%s].\n", agent_id,
 		    icd_caller__get_state_string(agent));        
-        manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: Hangup\r\nResult: Fail\r\nCause: Not correct state\r\nCallerID: %s\r\nState: %s\r\n", 
-            agent_id, icd_caller__get_state_string(agent));
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            5,
+            cw_me_field("Command", "%s", "Hangup"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Not correct state"),
+            cw_me_field("CallerID", "%s", agent_id),
+            cw_me_field("State", "%s", icd_caller__get_state_string(agent))
+        );
 		return -1;
     }    
     if(icd_caller__set_state(agent, ICD_CALLER_STATE_CALL_END)!=ICD_SUCCESS){    	     
        cw_cli(fd, "Function Hang up failed. Agent [%s] can not change state to CALL_END\n", agent_id);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: Hangup\r\nResult: Fail\r\nCause: State change to CALL_END failed\r\nCallerID: %s\r\nState: %s\r\n", 
-            agent_id, icd_caller__get_state_string(agent));
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+           5,
+           cw_me_field("Command", "%s", "Hangup"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "State change to CALL_END failed"),
+           cw_me_field("CallerID", "%s", agent_id),
+           cw_me_field("State", "%s", icd_caller__get_state_string(agent))
+        );
     	return -1;
     }
     cw_log(CW_LOG_NOTICE, "Function Hang up for agent [%s] executed OK.\n", agent_id);
-    manager_event(EVENT_FLAG_USER, "icd_command",
-        "Command: Hangup\r\nResult: OK\r\nCallerID: %s\r\n", 
-         agent_id);
+    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        3,
+        cw_me_field("Command", "%s", "Hangup"),
+        cw_me_field("Result", "%s", "OK"),
+        cw_me_field("CallerID", "%s", agent_id)
+    );
     return 0;
 }
 
@@ -1049,10 +1089,16 @@ static void *icd_command_login_thread(void *arg) {
     icd_caller__set_channel(agent, NULL);
     if (res != CW_CONTROL_ANSWER){
         cw_log(CW_LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: No channel answer\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelString: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                channelstring);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Login"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "No channel answer"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("ChannelString", "%s", channelstring)
+        );
 /* More detailed check why there is no answer probably needed in the future. */	 
         cw_hangup(chan);
         icd_caller__del_param(agent, "LogInProgress");
@@ -1089,8 +1135,12 @@ int icd_command_login (int fd, int argc, char **argv)
     int logFlag=1;
 
     if ((argc != 3) && (argc !=4)){
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+           3,
+           cw_me_field("Command", "%s", "Login"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
 		return ICD_EGENERAL;
     }	 
     channelstring = argv[1];
@@ -1102,25 +1152,42 @@ int icd_command_login (int fd, int argc, char **argv)
         cw_log(CW_LOG_WARNING,
                     "AGENT LOGIN Fail!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agent_id);        
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "Login"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Agent not found"),
+            cw_me_field("CallerID", "%s", agent_id)
+        );
 	    return ICD_EGENERAL;
     }       
     if (icd_caller__get_state(agent) != ICD_CALLER_STATE_SUSPEND &&
       icd_caller__get_state(agent) != ICD_CALLER_STATE_INITIALIZED) {
         cw_log(CW_LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: Already logged\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
-         	    return ICD_EGENERAL;
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Login"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Already logged"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("CallerState", "%s", icd_caller__get_state_string(agent))
+        );
+        return ICD_EGENERAL;
     }
 	if(icd_caller__get_param(agent, "LogInProgress")){ 
 	    cw_log(CW_LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: Previouv login try not finished\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Login"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Previous login try not finished"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("CallerState", "%s", icd_caller__get_state_string(agent))
+        );
 	    return ICD_EGENERAL;
 	} 
     icd_caller__set_param(agent, "LogInProgress", &logFlag);
@@ -1128,10 +1195,16 @@ int icd_command_login (int fd, int argc, char **argv)
     icd_caller__set_param_string(agent, "channel", channelstring);
     if(!icd_caller__create_channel(agent) ) {
         cw_log(CW_LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Login\r\nResult: Fail\r\nCause: Channel not avaliable\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Login"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Channel not avaliable"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("CallerState", "%s", icd_caller__get_state_string(agent))
+        );
         icd_caller__del_param(agent, "LogInProgress");
 	    return ICD_EGENERAL;
     }
@@ -1155,8 +1228,12 @@ int icd_command_logout (int fd, int argc, char **argv)
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */
     if (argc != 3) {
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Logout\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+            cw_me_field("Command", "%s", "Logout"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
          return ICD_EGENERAL;
     }	 
     agent_id = argv[1];
@@ -1165,8 +1242,13 @@ int icd_command_logout (int fd, int argc, char **argv)
     if (agent == NULL) {
         cw_log(CW_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agent_id);
-          manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Logout\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
+          cw_manager_event(EVENT_FLAG_USER, "icd_command",
+              4,
+              cw_me_field("Command", "%s", "Logout"),
+              cw_me_field("Result", "%s", "Fail"),
+              cw_me_field("Cause", "%s", "Agent not found"),
+              cw_me_field("CallerID", "%s", agent_id)
+          );
 		    
 	        return ICD_EGENERAL;
     }
@@ -1175,10 +1257,16 @@ int icd_command_logout (int fd, int argc, char **argv)
           if(strcmp(passwd, passwd_to_check)){
           cw_log(CW_LOG_WARNING,
                  "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agent_id);
-          manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Logout\r\nResult: Fail\r\nCause: Wrong password\r\nID: %d\r\nCallerID: %s\r\nAgentName: %s\r\nAgentState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
+          cw_manager_event(EVENT_FLAG_USER, "icd_command",
+              7,
+              cw_me_field("Command", "%s", "Logout"),
+              cw_me_field("Result", "%s", "Fail"),
+              cw_me_field("Cause", "%s", "Wrong password"),
+              cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+              cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+              cw_me_field("AgentName", "%s", icd_caller__get_name(agent)),
+              cw_me_field("AgentState", "%s", icd_caller__get_state_string(agent))
+          );
           return ICD_EGENERAL;
     }     
     
@@ -1191,19 +1279,29 @@ int icd_command_logout (int fd, int argc, char **argv)
      if (icd_caller__set_state(agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
         cw_log(CW_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string(agent));
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Logout\r\nResult: Fail\r\nCause: Unable to change state\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Logout"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Unable to change state"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("CallerState", "%s", icd_caller__get_state_string(agent))
+        );
 	    return ICD_EGENERAL;
 	} 
 	else {	    
         cw_log(CW_LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Logout\r\nResult: OK\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
-                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
-                icd_caller__get_state_string(agent));
-        
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            6,
+            cw_me_field("Command", "%s", "Logout"),
+            cw_me_field("Result", "%s", "OK"),
+            cw_me_field("ID", "%d", icd_caller__get_id(agent)),
+            cw_me_field("CallerID", "%s", icd_caller__get_caller_id(agent)),
+            cw_me_field("CallerName", "%s", icd_caller__get_name(agent)),
+            cw_me_field("CallerState", "%s", icd_caller__get_state_string(agent))
+        );
         return ICD_SUCCESS;
 	}
     return ICD_EGENERAL;
@@ -1215,8 +1313,12 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
 
    if (argc != 2) {
        cw_cli(fd, "Function Hang up channel failed - bad number of parameters [%d]\n", argc);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: HangupChannel\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+           3,
+           cw_me_field("Command", "%s", "HangupChannel"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
 	   return -1;
    }
 
@@ -1224,15 +1326,24 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
        cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
        cw_channel_unlock(chan);
        cw_cli(fd, "Function Hang Up succeed - channel[%s]\n", argv[1]);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-          "Command: HangupChannel\r\nResult: OK\r\nChannel : %s\r\n", argv[1]);
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+          3,
+          cw_me_field("Command", "%s", "HangupChannel"),
+          cw_me_field("Result", "%s", "OK"),
+          cw_me_field("Channel", "%s", argv[1])
+       );
        cw_object_put(chan);
        return 0;
    }
 
    cw_cli(fd, "Function Hang up channel failed - channel not found [%s]\n", argv[1]);
-   manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: HangupChannel\r\nResult: Fail\r\nCause: Channel not found\r\nChannel : %s\r\n", argv[1]);
+   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       4,
+       cw_me_field("Command", "%s", "HangupChannel"),
+       cw_me_field("Result", "%s", "Fail"),
+       cw_me_field("Cause", "%s", "Channel not found"),
+       cw_me_field("Channel", "%s", argv[1])
+    );
    return -1;
 }
 
@@ -1251,8 +1362,12 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
 
    if (argc != 3){
        cw_cli(fd, "Function Playback_chan (play_dtmf) failed - bad number of parameters [%d]\n", argc);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+           cw_me_field("Command", "%s", "PlaybackChannel"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
        return -1;
     }
 
@@ -1264,8 +1379,13 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
 
    if (agent == NULL) {
        cw_cli(fd, "Function Playback_chan (play_dtmf) failed - agent not found [%s]\n", agent_id);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Channel not found\r\nChannel : %s\r\n", agent_id);
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+           cw_me_field("Command", "%s", "PlaybackChannel"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Channel not found"),
+           cw_me_field("Channel", "%s", agent_id)
+        );
        return -1;
    }
    
@@ -1328,8 +1448,13 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
 
         if (!conf) {
             cw_cli(fd, "Function Playback_chan (play_dtmf) failed - agent conference not found [%s]\n", agent_id);
-            manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Agent conference not found\r\nAgent : %s\r\n", agent_id);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "PlaybackChannel"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Agent conference not found"),
+                cw_me_field("Agent", "%s", agent_id)
+            );
             return -1;
         }
 
@@ -1346,8 +1471,12 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
         }
 
     cw_cli(fd, "Function Playback succeed - agent[%s]\n", agent_id);
-    manager_event(EVENT_FLAG_USER, "icd_command",
-      "Command: PlaybackChannel (play_dtmf)\r\nResult: OK\r\nAgent : %s\r\n", agent_id);
+    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        3,
+        cw_me_field("Command", "%s", "PlaybackChannel (play_dtmf)"),
+        cw_me_field("Result", "%s", "OK"),
+        cw_me_field("Agent", "%s", agent_id)
+    );
     return 0;
 }
 
@@ -1381,8 +1510,12 @@ int icd_command_record(int fd, int argc, char **argv)
 
   if (argc != 3  && argc != 4 ) {
        cw_cli(fd, "Function record bad no of parameters [%d]\n", argc);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+           cw_me_field("Command", "%s", "Record"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
        return 1;
    }    
    
@@ -1392,8 +1525,12 @@ int icd_command_record(int fd, int argc, char **argv)
         record_start = 0;
    if (record_start == -1) {
        cw_cli(fd, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nResult: Fail\r\nCause: Wrong parameters\r\n");
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+           cw_me_field("Command", "%s", "Record"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters")
+        );
        return 1;
    }    
 	
@@ -1410,44 +1547,67 @@ int icd_command_record(int fd, int argc, char **argv)
 
    if (customer == NULL) {
             cw_cli(fd, "Record FAILURE! Customer [%s] not found\n", customer_source);
-       		manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nResult: Fail\r\nCause: Wrong customer ID\r\nCallerID: %s\r\n", 
-                customer_source);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Record"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Wrong customer ID"),
+                cw_me_field("CallerID", "%s", customer_source)
+            );
 	        return 1;
    }
    chan = icd_caller__get_channel(customer);
    if (chan == NULL) {
             cw_cli(fd, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
-       		manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nResult: Fail\r\nCause: No customer channel\r\nCallerID: %s\r\n", 
-                customer_source);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Record"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "No customer channel"),
+                cw_me_field("CallerID", "%s", customer_source)
+            );
 	        return 1;
    }
    if (chan->name == NULL) {
             cw_cli(fd,  "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
-       		manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nResult: Fail\r\nCause: No customer channel name\r\nCallerID: %s\r\n", 
-                customer_source);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Record"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "No customer channel name"),
+                cw_me_field("CallerID", "%s", customer_source)
+            );
 	        return 1;
    }
    strncpy(buf + strlen(buf), chan->name, sizeof(buf) - strlen(buf));
    if (!record_start){
    		cw_log(CW_LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
-    	manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nSubCommand: Stop\r\nResult: OK\r\nCallerID: %s\r\n", 
-                customer_source);
-    	manager_event(EVENT_FLAG_USER, "icd_event",
-                "Event: RecordStop\r\nCallerID: %s\r\n", 
-                customer_source);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "Record"),
+            cw_me_field("SubCommand", "%s", "Stop"),
+            cw_me_field("Result", "%s", "OK"),
+            cw_me_field("CallerID", "%s", customer_source)
+        );
+        cw_manager_event(EVENT_FLAG_USER, "icd_event",
+            2,
+            cw_me_field("Event", "%s", "RecordStop"),
+            cw_me_field("CallerID", "%s", customer_source)
+        );
         fd = fileno(stderr);
         cw_cli_command(fd, buf);
         return 0;
    }
    if(chan->spies != NULL){
    	cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nSubCommand: Start\r\nResult: Fail\r\nCause: Already recording\r\nCallerID: %s\r\n", 
-                customer_source);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            5,
+            cw_me_field("Command", "%s", "Record"),
+            cw_me_field("SubCommand", "%s", "Start"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Already recording"),
+            cw_me_field("CallerID", "%s", customer_source)
+        );
 	return 1;
    }
    strcpy(buf + strlen(buf), " ");
@@ -1476,12 +1636,20 @@ int icd_command_record(int fd, int argc, char **argv)
    fd = fileno(stderr);
    cw_cli_command(fd, buf);
    cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
-   manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Record\r\nSubCommand: Start\r\nResult: OK\r\nCallerID: %s\r\nFileName: %s\r\n", 
-                customer_source, RecFile);
-   manager_event(EVENT_FLAG_USER, "icd_event",
-                "Command: RecordStart\r\nCallerID: %s\r\nFileName: %s\r\n", 
-                customer_source, RecFile);
+   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        5,
+       cw_me_field("Command", "%s", "Record"),
+       cw_me_field("SubCommand", "%s", "Start"),
+       cw_me_field("Result", "%s", "OK"),
+       cw_me_field("CallerID", "%s", customer_source),
+       cw_me_field("FileName", "%s", RecFile)
+   );
+   cw_manager_event(EVENT_FLAG_USER, "icd_event",
+       3,
+       cw_me_field("Command", "%s", "RecordStart"),
+       cw_me_field("CallerID", "%s", customer_source),
+       cw_me_field("FileName", "%s", RecFile)
+   );
 
    return 0;
 }
@@ -1502,20 +1670,28 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    icd_queue *queue; 
 	    icd_member *member; 
 	 
-	     
 	    if ((argc != 3) && (argc !=4)) { 
        		cw_cli(fd, "icd queue FAILURE! bad parameters\n");
-       		manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Queue\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
-  	         return 1;
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                3,
+                cw_me_field("Command", "%s", "Queue"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Wrong parameters number")
+            );
+            return 1;
 	    }     
 	    agent_id = argv[1]; 
 	    queuename = argv[2]; 
 	    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
 	    if (agent == NULL) { 
             cw_cli(fd, "icd queue FAILURE! Agent [%s] not found\n", agent_id);
-            manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Queue\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Queue"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Agent not found"),
+                cw_me_field("CallerID", "%s", agent_id)
+            );
 	        return 1;
 	    } 
 	    if (argc==4) 
@@ -1527,8 +1703,14 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename); 
 	      if (queue == NULL) { 
             	cw_cli(fd,"icd queue FAILURE! Queue not found[%s], Agent [%s]\n", queuename, agent_id);
-            	manager_event(EVENT_FLAG_USER, "icd_command",
-                	"Command: Queue\r\nResult: Fail\r\nCause: Queue not found\r\nCallerID: %s\r\nQueue: %s\r\n", agent_id, queuename);
+                cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                    5,
+                    cw_me_field("Command", "%s", "Queue"),
+                    cw_me_field("Result", "%s", "Fail"),
+                    cw_me_field("Cause", "%s", "Queue not found"),
+                    cw_me_field("CallerID", "%s", agent_id),
+                    cw_me_field("Queue", "%s", queuename)
+                );
 	        	return 1;
 	      } 
 	    }  	 
@@ -1543,9 +1725,14 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	           	}
 		   }		   		 
                   cw_cli(fd,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
-                   manager_event(EVENT_FLAG_USER, "icd_command",
-               	    "Command: Queue\r\nSubCommand: Add\r\nResult: OK\r\nCallerID: %s\r\nQueue: %s\r\n", 
-                  agent_id, queuename);
+                   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                       5,
+                       cw_me_field("Command", "%s", "Queue"),
+                       cw_me_field("SubCommand", "%s", "Add"),
+                       cw_me_field("Result", "%s", "OK"),
+                       cw_me_field("CallerID", "%s", agent_id),
+                       cw_me_field("Queue", "%s", queuename)
+                    );
 		  }
                 icd_list__unlock((icd_list *) (agent->memberships));
 	    }
@@ -1559,18 +1746,27 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	                }   
 	           icd_caller__remove_from_queue(agent, queue); 
             	   cw_cli(fd,"icd queue OK! Agent[%s] removed from queue[%s]\n", agent_id, queuename);
-            	   manager_event(EVENT_FLAG_USER, "icd_command",
-                   "Command: Queue\r\nSubCommand: Remove\r\nResult: OK\r\nCallerID: %s\r\nQueue: %s\r\n", 
-                  agent_id, queuename);
+                       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                       5,
+                       cw_me_field("Command", "%s", "Queue"),
+                       cw_me_field("SubCommand", "%s", "Remove"),
+                       cw_me_field("Result", "%s", "OK"),
+                       cw_me_field("CallerID", "%s", agent_id),
+                       cw_me_field("Queue", "%s", queuename)
+                    );
 	         }    
  	      } 
 	      else {
                icd_caller__set_active_member (agent, NULL); 
 	       icd_caller__remove_from_all_queues(agent); 
       	       cw_cli(fd,"icd queue OK! Agent[%s] removed from all queues\n", agent_id);
-                manager_event(EVENT_FLAG_USER, "icd_command",
-              	  "Command: Queue\r\nSubCommand: RemoveAll\r\nResult: OK\r\nCallerID: %s\r\n", 
-               	  agent_id);
+                cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                    4,
+                    cw_me_field("Command", "%s", "Queue"),
+                    cw_me_field("SubCommand", "%s", "RemoveAll"),
+                    cw_me_field("Result", "%s", "OK"),
+                    cw_me_field("CallerID", "%s", agent_id)
+                );
 	    }
             icd_list__unlock((icd_list *) (agent->memberships));
 	}        
@@ -1592,8 +1788,12 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
 
     if (argc < 3){
         cw_cli(fd, "Function control_playback failed - bad number of parameters [%d]\n", argc);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: control_playback\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+            cw_me_field("Command", "%s", "control_playback"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
         return -1;
     }
 
@@ -1611,8 +1811,13 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
 
     if (agent == NULL) {
         cw_cli(fd, "Function control_playback failed - agent not found [%s]\n", agent_id);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: control_playback\r\nResult: Fail\r\nCause: Agent not found\r\nAgent : %s\r\n", agent_id);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "control_playback"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Agent not found"),
+            cw_me_field("Agent", "%s", agent_id)
+        );
         return -1;
     }
 
@@ -1620,8 +1825,13 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
 
     if (!conf) {
         cw_cli(fd, "Function control_playback failed - agent conference not found [%s]\n", agent_id);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-            "Command: control_playback\r\nResult: Fail\r\nCause: Agent conference not found\r\nAgent : %s\r\n", agent_id);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "control_playback"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Agent conference not found"),
+            cw_me_field("Agent", "%s", agent_id)
+        );
         return -1;
     }
 
@@ -1650,8 +1860,12 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     }
 
     cw_cli(fd, "Function control_playback succeed - agent[%s]\n", agent_id);
-    manager_event(EVENT_FLAG_USER, "icd_command",
-        "Command: control_playback\r\nResult: OK\r\nAgent : %s\r\n", agent_id);
+    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        3,
+        cw_me_field("Command", "%s", "control_playback"),
+        cw_me_field("Result", "%s", "OK"),
+        cw_me_field("Agent", "%s", agent_id)
+    );
     return 0;
 
 }
@@ -1666,8 +1880,12 @@ int icd_command_transfer (int fd, int argc, char **argv)
 
   if (argc != 3) {
        cw_cli(fd, "Transfer FAILURE! bad parameters\n");
-       manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Transfer\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            3,
+           cw_me_field("Command", "%s", "Transfer"),
+           cw_me_field("Result", "%s", "Fail"),
+           cw_me_field("Cause", "%s", "Wrong parameters number")
+        );
        return 1;
    }    
    customer_source = argv[1];
@@ -1676,8 +1894,13 @@ int icd_command_transfer (int fd, int argc, char **argv)
    cw_mutex_unlock(&customers_lock);
    if (customer == NULL) {
             cw_cli(fd,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
-            manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Transfer\r\nResult: Fail\r\nCause: Customer not found\r\nCallerID: %s\r\n", customer_source);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Transfer"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Customer not found"),
+                cw_me_field("CallerID", "%s", customer_source)
+            );
 	        return 1;
    }
    	exten = cw_strdupa(argv[2]);
@@ -1686,8 +1909,13 @@ int icd_command_transfer (int fd, int argc, char **argv)
 		context++;
 		if(!(context && exten)) {
 			cw_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
-            manager_event(EVENT_FLAG_USER, "icd_command",
-                "Command: Transfer\r\nResult: Fail\r\nCause: Wrong extension@context\r\nCallerID: %s\r\n", customer_source);
+            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                4,
+                cw_me_field("Command", "%s", "Transfer"),
+                cw_me_field("Result", "%s", "Fail"),
+                cw_me_field("Cause", "%s", "Wrong extension@context"),
+                cw_me_field("CallerID", "%s", customer_source)
+            );
 			return 1;
 		}
 		if((pria = strchr(context,':'))) {
@@ -1698,41 +1926,81 @@ int icd_command_transfer (int fd, int argc, char **argv)
 	}
 	else {		
 		cw_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
-        manager_event(EVENT_FLAG_USER, "icd_command",
-        	"Command: Transfer\r\nResult: Fail\r\nCause: Wrong extension@context\r\nCallerID: %s\r\n", customer_source);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            4,
+            cw_me_field("Command", "%s", "Transfer"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Wrong extension@context"),
+            cw_me_field("CallerID", "%s", customer_source)
+        );
 		return 1;
 	}
 	chan = icd_caller__get_channel(customer);
     if(!chan){
 		cw_cli(fd,"Transfer failure, customer[%s] : no channel\n", customer_source);
-    	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: No channel\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
-        customer_source, context, exten, pria);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Transfer"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "No channel"),
+            cw_me_field("CallerID", "%s", customer_source),
+            cw_me_field("Context", "%s", context),
+            cw_me_field("Extension", "%s", exten),
+            cw_me_field("Priority", "%s", pria)
+        );
     }	 	
     if(!cw_findlabel_extension(chan, context, exten, pria, NULL)){
 		cw_cli(fd,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
-    	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Destination not exist\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
-        customer_source, context, exten, pria);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Transfer"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Destination does not exist"),
+            cw_me_field("CallerID", "%s", customer_source),
+            cw_me_field("Context", "%s", context),
+            cw_me_field("Extension", "%s", exten),
+            cw_me_field("Priority", "%s", pria)
+        );
         return 1;
     }	 	
 	if(cw_goto_if_exists(chan, context, exten, pria)){
 		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
-    	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Unknown\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
-        customer_source, context, exten, pria);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            7,
+            cw_me_field("Command", "%s", "Transfer"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Unknown"),
+            cw_me_field("CallerID", "%s", customer_source),
+            cw_me_field("Context", "%s", context),
+            cw_me_field("Extension", "%s", exten),
+            cw_me_field("Priority", "%s", pria)
+        );
 	    return 1;	   
 	};
  	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
 		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
-    	manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: Fail\r\nCause: Unable to change state to CALL_END\r\nCallerID: %s\r\nState: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
-        customer_source, icd_caller__get_state_string(customer), context, exten, pria);
+        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            8,
+            cw_me_field("Command", "%s", "Transfer"),
+            cw_me_field("Result", "%s", "Fail"),
+            cw_me_field("Cause", "%s", "Unable to change state to CALL_END"),
+            cw_me_field("CallerID", "%s", customer_source),
+            cw_me_field("State", "%s", icd_caller__get_state_string(customer)),
+            cw_me_field("Context", "%s", context),
+            cw_me_field("Extension", "%s", exten),
+            cw_me_field("Priority", "%s", pria)
+        );
 		return 1;
  	}; 
-    manager_event(EVENT_FLAG_USER, "icd_command",
-    	"Command: Transfer\r\nResult: OK\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %s\r\n", 
-        customer_source, context, exten, pria);
+    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        6,
+        cw_me_field("Command", "%s", "Transfer"),
+        cw_me_field("Result", "%s", "OK"),
+        cw_me_field("CallerID", "%s", customer_source),
+        cw_me_field("Context", "%s", context),
+        cw_me_field("Extension", "%s", exten),
+        cw_me_field("Priority", "%s", pria)
+    );
     return 0;
 }
 
@@ -1744,8 +2012,10 @@ void icd_manager_send_message( char *format, ...)
    va_start(args, format);
    vsnprintf(message, sizeof(message)-1, format, args);
    va_end(args);	
-   manager_event(EVENT_FLAG_USER, "icd_message",
-                "Message: %s\r\n", message);
+   cw_manager_event(EVENT_FLAG_USER, "icd_message",
+       1,
+       cw_me_field("Message", "%s", message)
+   );
    
 }
 

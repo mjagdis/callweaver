@@ -109,109 +109,102 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 		[CW_EVENT_NUM_DTMF]	= LOG_INFO,
 		[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
 	};
-	enum { F_LEVEL = 0, F_DATE, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
-	static struct {
+	static const struct {
+		int i_iov;
 		int l;
 		const char *s;
 	} keys[] = {
 #define LENSTR(x)	sizeof(x) - 1, x
-		[F_LEVEL]    = { LENSTR("Level") },
-		[F_DATE]     = { LENSTR("Date") },
-		[F_THREADID] = { LENSTR("Thread ID") },
-		[F_FILE]     = { LENSTR("File") },
-		[F_LINE]     = { LENSTR("Line") },
-		[F_FUNCTION] = { LENSTR("Function") },
-		[F_MESSAGE]  = { LENSTR("Message") },
+		{ 1, LENSTR("Level") },
+		{ 0, LENSTR("Date") },
+		{ 3, LENSTR("Thread ID") },
+		{ 5, LENSTR("File") },
+		{ 7, LENSTR("Line") },
+		{ 9, LENSTR("Function") },
 #undef LENSTR
 	};
-	struct {
-		int l;
-		const char *s;
-	} vals[arraysize(keys)];
-	const char *key, *ekey;
-	const char *val, *eval;
-	int lkey, lval;
-	int level, i;
+	struct iovec iov[] = {
+		/*  0: Date      */ { .iov_base = "",    .iov_len = 0 },
+		/*  1: Level     */ { .iov_base = "",    .iov_len = 0 },
+		/*  2: [         */ { .iov_base = "[",   .iov_len = sizeof("]") - 1 },
+		/*  3: Thread ID */ { .iov_base = "",    .iov_len = 0 },
+		/*  4: ]:        */ { .iov_base = "]: ", .iov_len = sizeof("]: ") - 1 },
+		/*  5: File      */ { .iov_base = "",    .iov_len = 0 },
+		/*  6: :         */ { .iov_base = ":",   .iov_len = sizeof(":") - 1 },
+		/*  7: Line      */ { .iov_base = "",    .iov_len = 0 },
+		/*  8:           */ { .iov_base = " ",   .iov_len = sizeof(" ") - 1 },
+		/*  9: Function  */ { .iov_base = "",    .iov_len = 0 },
+		/* 10: :         */ { .iov_base = ": ",  .iov_len = sizeof(": ") - 1 },
+		/* 11: Message   */ { .iov_base = "",    .iov_len = 0 },
+		/* 12: \n        */ { .iov_base = "\n",  .iov_len = sizeof("\n") - 1 }
+	};
+	char *p;
+	int i, j, n, level = 0;
 	int res = 0;
 
-	memset(vals, 0, sizeof(vals));
-
-	key = eval = event->data;
-	while (!res && *key) {
-		if (!vals[F_MESSAGE].s) {
-			for (ekey = key; *ekey && *ekey != ':' && *ekey != '\r' && *ekey != '\n'; ekey++);
-			if (!*ekey)
-				break;
-
-			for (val = ekey + 1; *val && *val == ' '; val++);
-			for (eval = val; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-			lkey = ekey - key;
-			lval = eval - val;
-
-			for (i = 0; i < arraysize(keys); i++) {
-				if (lkey == keys[i].l && !strncmp(key, keys[i].s, lkey)) {
-					vals[i].l = lval;
-					vals[i].s = val;
+	for (i = 0; i < event->count; i++) {
+		if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 != sizeof("Message") - 1
+		|| strncmp(event->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
+			for (j = 0; j < arraysize(keys); j++) {
+				if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 == keys[j].l
+				&& !strncmp(event->data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
+					iov[keys[j].i_iov].iov_base = event->data + event->map[(i << 1) + 1];
+					iov[keys[j].i_iov].iov_len = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2;
 					break;
 				}
 			}
 		} else {
-			for (eval = key; *eval && *eval != '\r' && *eval != '\n'; eval++);
-
-			lkey = eval - key;
-
-			if (lkey == sizeof("--END MESSAGE--") - 1 && !memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
-				break;
-
 			if (sess->u.sa.sa_family == AF_PATHNAME) {
-				struct iovec iov[] = {
-					{ .iov_base = (char *)vals[F_DATE].s,     .iov_len = vals[F_DATE].l },
-					{ .iov_base = (char *)vals[F_LEVEL].s,    .iov_len = vals[F_LEVEL].l },
-					{ .iov_base = "[",                        .iov_len = sizeof("]") - 1 },
-					{ .iov_base = (char *)vals[F_THREADID].s, .iov_len = vals[F_THREADID].l },
-					{ .iov_base = "]: ",                      .iov_len = sizeof("]: ") - 1 },
-					{ .iov_base = (char *)vals[F_FILE].s,     .iov_len = vals[F_FILE].l },
-					{ .iov_base = ":",                        .iov_len = sizeof(":") - 1 },
-					{ .iov_base = (char *)vals[F_LINE].s,     .iov_len = vals[F_LINE].l },
-					{ .iov_base = " ",                        .iov_len = sizeof(" ") - 1 },
-					{ .iov_base = (char *)vals[F_FUNCTION].s, .iov_len = vals[F_FUNCTION].l },
-					{ .iov_base = ": ",                       .iov_len = sizeof(": ") - 1 },
-					{ .iov_base = (char *)key,                .iov_len = lkey },
-					{ .iov_base = "\n",                       .iov_len = sizeof("\n") - 1 },
-				};
+				/* Strip off the numeric level prefix */
+				while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
+					iov[1].iov_base++, iov[1].iov_len--;
+			} else {
+				level = atol(iov[1].iov_base);
+			}
 
-				if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
-					while (iov[1].iov_len && isdigit(*(char *)iov[1].iov_base))
-						iov[1].iov_base++, iov[1].iov_len--;
+			p = event->data + event->map[(i << 1) + 1] + 2;
+			j = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2;
+			while (j > 0) {
+				n = strcspn(p, "\r\n");
 
-					if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
-						cw_log(CW_LOG_ERROR, "Write to '%s' failed: %s", sess->name + sizeof("file:") - 1, strerror(errno));
+				if (n == sizeof("--END MESSAGE--") - 1 && !memcmp(p, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
+					break;
+
+				if (sess->u.sa.sa_family == AF_PATHNAME) {
+					if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
+						iov[11].iov_base = p;
+						iov[11].iov_len = n;
+
+						if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
+							cw_log(CW_LOG_ERROR, "Write to '%s' failed: %s", sess->name + sizeof("file:") - 1, strerror(errno));
+							res = -1;
+							goto out_error;
+						}
+					} else {
+						cw_log(CW_LOG_ERROR, "Can't write to '%s': %s", sess->name + sizeof("file:") - 1, strerror(errno));
 						res = -1;
+						goto out_error;
 					}
 				} else {
-					cw_log(CW_LOG_ERROR, "Can't write to '%s': %s", sess->name + sizeof("file:") - 1, strerror(errno));
-					res = -1;
-					break;
+					syslog(priorities[level], "[%.*s]: %.*s:%.*s %.*s: %.*s",
+						(int)iov[3].iov_len, (char *)iov[3].iov_base,
+						(int)iov[5].iov_len, (char *)iov[5].iov_base,
+						(int)iov[7].iov_len, (char *)iov[7].iov_base,
+						(int)iov[9].iov_len, (char *)iov[9].iov_base,
+						n, p);
 				}
-			} else {
-				level = (vals[F_LEVEL].s ? atol(vals[F_LEVEL].s) : 0);
-				syslog(priorities[level], "[%.*s]: %.*s:%.*s %.*s: %.*s",
-					vals[F_THREADID].l, vals[F_THREADID].s,
-					vals[F_FILE].l, vals[F_FILE].s,
-					vals[F_LINE].l, vals[F_LINE].s,
-					vals[F_FUNCTION].l, vals[F_FUNCTION].s,
-					lkey, key);
+
+				p += n;
+				j -= n;
+				if (*p == '\r')
+					p++,j--;
+				if (*p == '\n')
+					p++,j--;
 			}
 		}
-
-		key = eval;
-		if (*key == '\r')
-			key++;
-		if (*key == '\n')
-			key++;
 	}
 
+out_error:
 	return res;
 }
 
@@ -669,7 +662,17 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	}
 
 	if (logchannels) {
-		manager_event(1 << level, "Log", "Timestamp: %lu.%09lu\r\nDate: %s\r\nLevel: %d %s\r\nThread ID: " TIDFMT "\r\nFile: %s\r\nLine: %d\r\nFunction: %s\r\nMessage:\r\n%s\r\n--END MESSAGE--\r\n", now.tv_sec, now.tv_nsec, date, level, levels[level], GETTID(), file, line, function, msg);
+		cw_manager_event(1 << level, "Log",
+			8,
+			cw_me_field("Timestamp", "%lu.%09lu", now.tv_sec, now.tv_nsec),
+			cw_me_field("Date",      "%s",      date),
+			cw_me_field("Level",     "%d %s",   level, levels[level]),
+			cw_me_field("Thread ID", TIDFMT,    GETTID()),
+			cw_me_field("File",      "%s",      file),
+			cw_me_field("Line",      "%d",      line),
+			cw_me_field("Function",  "%s",      function),
+			cw_me_field("Message",   "\r\n%s",  msg)
+		);
 	} else {
 		/* 
 		 * we don't have the logger chain configured yet,

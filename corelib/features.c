@@ -349,18 +349,15 @@ int cw_park_call(struct cw_channel *chan, struct cw_channel *peer, int timeout, 
 	if (option_verbose > 1) 
 		cw_verbose(VERBOSE_PREFIX_2 "Parked %s on %d. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
-	manager_event(EVENT_FLAG_CALL, "ParkedCall",
-		"Exten: %d\r\n"
-		"Channel: %s\r\n"
-		"From: %s\r\n"
-		"Timeout: %ld\r\n"
-		"CallerID: %s\r\n"
-		"CallerIDName: %s\r\n\r\n"
-		,pu->parkingnum, pu->chan->name, peer->name
-		,(long) pu->start.tv_sec + (long) (pu->parkingtime/1000) - (long) time(NULL)
-		,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-		,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
-		);
+	cw_manager_event(EVENT_FLAG_CALL, "ParkedCall",
+		6,
+		cw_me_field("Exten",        "%d",  pu->parkingnum),
+		cw_me_field("Channel",      "%s",  pu->chan->name),
+		cw_me_field("From",         "%s",  peer->name),
+		cw_me_field("Timeout",      "%ld", (long) pu->start.tv_sec + (long) (pu->parkingtime/1000) - (long) time(NULL)),
+		cw_me_field("CallerID",     "%s",  (pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")),
+		cw_me_field("CallerIDName", "%s",  (pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>"))
+	);
 
 	if (peer) {
 		if (adsipark && adsi_available(peer)) {
@@ -1635,15 +1632,13 @@ static void *do_parking_thread(void *ignore)
 					pu->chan->priority = pu->priority;
 				}
 
-				manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
-					"Exten: %d\r\n"
-					"Channel: %s\r\n"
-					"CallerID: %s\r\n"
-					"CallerIDName: %s\r\n\r\n"
-					,pu->parkingnum, pu->chan->name
-					,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-					,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
-					);
+				cw_manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
+					4,
+					cw_me_field("Exten",        "%d", pu->parkingnum),
+					cw_me_field("Channel",      "%s", pu->chan->name),
+					cw_me_field("CallerID",     "%s", (pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")),
+					cw_me_field("CallerIDName", "%s", (pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>"))
+				);
 
 				if (option_verbose > 1) 
 					cw_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
@@ -1679,15 +1674,13 @@ static void *do_parking_thread(void *ignore)
 						f = cw_read(pu->chan);
 						if (!f || ((f->frametype == CW_FRAME_CONTROL) && (f->subclass ==  CW_CONTROL_HANGUP))) {
 
-							manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
-								"Exten: %d\r\n"
-								"Channel: %s\r\n"
-								"CallerID: %s\r\n"
-								"CallerIDName: %s\r\n\r\n"
-								,pu->parkingnum, pu->chan->name
-								,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-								,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
-								);
+							cw_manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
+								4,
+								cw_me_field("Exten",        "%d", pu->parkingnum),
+								cw_me_field("Channel",      "%s", pu->chan->name),
+								cw_me_field("CallerID",     "%s", (pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")),
+								cw_me_field("CallerIDName", "%s", (pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>"))
+							);
 
 							/* There's a problem, hang them up*/
 							if (option_verbose > 1) 
@@ -1821,16 +1814,14 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		} else
 			cw_log(CW_LOG_WARNING, "Whoa, no parking context?\n");
 
-		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
-			"Exten: %d\r\n"
-			"Channel: %s\r\n"
-			"From: %s\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n\r\n"
-			,pu->parkingnum, pu->chan->name, chan->name
-			,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-			,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
-			);
+		cw_manager_event(EVENT_FLAG_CALL, "UnParkedCall",
+			5,
+			cw_me_field("Exten",        "%d", pu->parkingnum),
+			cw_me_field("Channel",      "%s", pu->chan->name),
+			cw_me_field("From",         "%s", chan->name),
+			cw_me_field("CallerID",     "%s", (pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")),
+			cw_me_field("CallerIDName", "%s", (pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>"))
+		);
 
 		free(pu);
 	}

@@ -506,17 +506,17 @@ static void *changethread(void *data)
                     cur->status = sc->state;
                     if (!q->maskmemberstatus)
                     {
-                        manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-                                      "Queue: %s\r\n"
-                                      "Location: %s\r\n"
-                                      "Membership: %s\r\n"
-                                      "Penalty: %d\r\n"
-                                      "CallsTaken: %d\r\n"
-                                      "LastCall: %ld\r\n"
-                                      "Status: %d\r\n"
-                                      "Paused: %d\r\n",
-                                      q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-                                      cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+                        cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+                            8,
+                            cw_me_field("Queue",      "%s",  q->name),
+                            cw_me_field("Location",   "%s",  cur->interface),
+                            cw_me_field("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
+                            cw_me_field("Penalty",    "%d",  cur->penalty),
+                            cw_me_field("CallsTaken", "%d",  cur->calls),
+                            cw_me_field("LastCall",   "%ld", cur->lastcall),
+                            cw_me_field("Status",     "%d",  cur->status),
+                            cw_me_field("Paused",     "%d",  cur->paused)
+                        );
                     }
                 }
             }
@@ -1110,12 +1110,15 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
         cw_copy_string(qe->context, q->context, sizeof(qe->context));
         q->count++;
         res = 0;
-        manager_event(EVENT_FLAG_CALL, "Join",
-                      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-                      qe->chan->name,
-                      qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-                      qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-                      q->name, qe->pos, q->count );
+        cw_manager_event(EVENT_FLAG_CALL, "Join",
+            6,
+            cw_me_field("Channel",      "%s", qe->chan->name),
+            cw_me_field("CallerID",     "%s", (qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown")),
+            cw_me_field("CallerIDName", "%s", (qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown")),
+            cw_me_field("Queue",        "%s", q->name),
+            cw_me_field("Position",     "%d", qe->pos),
+            cw_me_field("Count",        "%d", q->count)
+        );
 #if 0
         cw_log(CW_LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -1397,9 +1400,12 @@ static void leave_queue(struct queue_ent *qe)
             q->count--;
 
             /* Take us out of the queue */
-            manager_event(EVENT_FLAG_CALL, "Leave",
-                          "Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
-                          qe->chan->name, q->name,  q->count);
+            cw_manager_event(EVENT_FLAG_CALL, "Leave",
+                3,
+                cw_me_field("Channel", "%s", qe->chan->name),
+                cw_me_field("Queue",   "%s", q->name),
+                cw_me_field("Count",   "%d", q->count)
+            );
 #if 0
             cw_log(CW_LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 #endif
@@ -1456,17 +1462,17 @@ static int update_status(struct cw_call_queue *q, struct member *member, int sta
             cur->status = status;
             if (!q->maskmemberstatus)
             {
-                manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-                              "Queue: %s\r\n"
-                              "Location: %s\r\n"
-                              "Membership: %s\r\n"
-                              "Penalty: %d\r\n"
-                              "CallsTaken: %d\r\n"
-                              "LastCall: %ld\r\n"
-                              "Status: %d\r\n"
-                              "Paused: %d\r\n",
-                              q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-                              cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+                    8,
+                    cw_me_field("Queue",      "%s",  q->name),
+                    cw_me_field("Location",   "%s",  cur->interface),
+                    cw_me_field("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
+                    cw_me_field("Penalty",    "%d",  cur->penalty),
+                    cw_me_field("CallsTaken", "%d",  cur->calls),
+                    cw_me_field("LastCall",   "%ld", cur->lastcall),
+                    cw_me_field("Status",     "%d",  cur->status),
+                    cw_me_field("Paused",     "%d",  cur->paused)
+		);
             }
             break;
         }
@@ -1635,18 +1641,16 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     {
         if (qe->parent->eventwhencalled)
         {
-            manager_event(EVENT_FLAG_AGENT, "AgentCalled",
-                          "AgentCalled: %s\r\n"
-                          "ChannelCalling: %s\r\n"
-                          "CallerID: %s\r\n"
-                          "CallerIDName: %s\r\n"
-                          "Context: %s\r\n"
-                          "Extension: %s\r\n"
-                          "Priority: %d\r\n",
-                          tmp->interface, qe->chan->name,
-                          tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
-                          tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
-                          qe->chan->context, qe->chan->exten, qe->chan->priority);
+            cw_manager_event(EVENT_FLAG_AGENT, "AgentCalled",
+                7,
+                cw_me_field("AgentCalled",    "%s", tmp->interface),
+                cw_me_field("ChannelCalling", "%s", qe->chan->name),
+                cw_me_field("CallerID",       "%s", (tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown")),
+                cw_me_field("CallerIDName",   "%s", (tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown")),
+                cw_me_field("Context",        "%s", qe->chan->context),
+                cw_me_field("Extension",      "%s", qe->chan->exten),
+                cw_me_field("Priority",       "%d", qe->chan->priority)
+            );
         }
         if (option_verbose > 2)
             cw_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
@@ -2554,12 +2558,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                 record_abandoned(qe);
                 if (qe->parent->eventwhencalled)
                 {
-                    manager_event(EVENT_FLAG_AGENT, "AgentDump",
-                                  "Queue: %s\r\n"
-                                  "Uniqueid: %s\r\n"
-                                  "Channel: %s\r\n"
-                                  "Member: %s\r\n",
-                                  queuename, qe->chan->uniqueid, peer->name, member->interface);
+                    cw_manager_event(EVENT_FLAG_AGENT, "AgentDump",
+                        4,
+                        cw_me_field("Queue",    "%s", queuename),
+                        cw_me_field("Uniqueid", "%s", qe->chan->uniqueid),
+                        cw_me_field("Channel",  "%s", peer->name),
+                        cw_me_field("Member",   "%s", member->interface)
+                    );
                 }
                 cw_hangup(peer);
                 goto out;
@@ -2633,14 +2638,14 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         }
         cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
         if (qe->parent->eventwhencalled)
-            manager_event(EVENT_FLAG_AGENT, "AgentConnect",
-                          "Queue: %s\r\n"
-                          "Uniqueid: %s\r\n"
-                          "Channel: %s\r\n"
-                          "Member: %s\r\n"
-                          "Holdtime: %ld\r\n",
-                          queuename, qe->chan->uniqueid, peer->name, member->interface,
-                          (long)time(NULL) - qe->start);
+            cw_manager_event(EVENT_FLAG_AGENT, "AgentConnect",
+                5,
+                cw_me_field("Queue",    "%s", queuename),
+                cw_me_field("Uniqueid", "%s", qe->chan->uniqueid),
+                cw_me_field("Channel",  "%s", peer->name),
+                cw_me_field("Member",   "%s", member->interface),
+                cw_me_field("Holdtime", "%ld", (long)time(NULL) - qe->start)
+            );
         cw_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
         cw_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
         time(&callstart);
@@ -2657,16 +2662,16 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                            (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
-                manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-                              "Queue: %s\r\n"
-                              "Uniqueid: %s\r\n"
-                              "Channel: %s\r\n"
-                              "Member: %s\r\n"
-                              "HoldTime: %ld\r\n"
-                              "TalkTime: %ld\r\n"
-                              "Reason: caller\r\n",
-                              queuename, qe->chan->uniqueid, peer->name, member->interface,
-                              (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+                cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+                    7,
+                    cw_me_field("Queue",    "%s",  queuename),
+                    cw_me_field("Uniqueid", "%s",  qe->chan->uniqueid),
+                    cw_me_field("Channel",  "%s",  peer->name),
+                    cw_me_field("Member",   "%s",  member->interface),
+                    cw_me_field("HoldTime", "%ld", (long)(callstart - qe->start)),
+                    cw_me_field("TalkTime", "%ld", (long)(time(NULL) - callstart)),
+                    cw_me_field("Reason",   "%s",  "caller")
+                );
             }
         }
         else
@@ -2674,15 +2679,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
-                manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-                              "Queue: %s\r\n"
-                              "Uniqueid: %s\r\n"
-                              "Channel: %s\r\n"
-                              "HoldTime: %ld\r\n"
-                              "TalkTime: %ld\r\n"
-                              "Reason: agent\r\n",
-                              queuename, qe->chan->uniqueid, peer->name, (long)(callstart - qe->start),
-                              (long)(time(NULL) - callstart));
+                cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+                    6,
+                    cw_me_field("Queue",    "%s",  queuename),
+                    cw_me_field("Uniqueid", "%s",  qe->chan->uniqueid),
+                    cw_me_field("Channel",  "%s",  peer->name),
+                    cw_me_field("HoldTime", "%ld", (long)(callstart - qe->start)),
+                    cw_me_field("TalkTime", "%ld", (long)(time(NULL) - callstart)),
+                    cw_me_field("Reason",   "%s",  "agent")
+                );
             }
         }
 
@@ -2798,10 +2803,11 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
                         look = look->next;
                     }
                 }
-                manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
-                              "Queue: %s\r\n"
-                              "Location: %s\r\n",
-                              q->name, last_member->interface);
+                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
+                    2,
+                    cw_me_field("Queue",    "%s", q->name),
+                    cw_me_field("Location", "%s", last_member->interface)
+                );
                 if (added != NULL)
                     *added = last_member->added;
                 free(last_member);
@@ -2837,17 +2843,17 @@ static int update_queue_member(char *queuename, char *interface, int penalty, in
 			if ((last_member = interface_exists(q, interface)) != NULL) {
 				last_member->penalty = penalty;
 				last_member->paused = paused;
-				manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
-					"Queue: %s\r\n"
-					"Location: %s\r\n"
-					"Membership: %s\r\n"
-					"Penalty: %d\r\n"
-					"CallsTaken: %d\r\n"
-					"LastCall: %ld\r\n"
-					"Status: %d\r\n"
-					"Paused: %d\r\n",
-				    q->name, last_member->interface, last_member->dynamic ? "dynamic" : "static",
-				    last_member->penalty, last_member->calls, last_member->lastcall, last_member->status, last_member->paused);
+				cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
+					8,
+					cw_me_field("Queue",      "%s",  q->name),
+					cw_me_field("Location",   "%s",  last_member->interface),
+					cw_me_field("Membership", "%s",  (last_member->dynamic ? "dynamic" : "static")),
+					cw_me_field("Penalty",    "%d",  last_member->penalty),
+					cw_me_field("CallsTaken", "%d",  last_member->calls),
+					cw_me_field("LastCall",   "%ld", last_member->lastcall),
+					cw_me_field("Status",     "%d",  last_member->status),
+					cw_me_field("Paused",     "%d",  last_member->paused)
+				);
 
 				if (dump)
 					dump_queue_members(q);
@@ -2886,17 +2892,17 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
                     new_member->dynamic = 1;
                     new_member->next = q->members;
                     q->members = new_member;
-                    manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
-                                  "Queue: %s\r\n"
-                                  "Location: %s\r\n"
-                                  "Membership: %s\r\n"
-                                  "Penalty: %d\r\n"
-                                  "CallsTaken: %d\r\n"
-                                  "LastCall: %ld\r\n"
-                                  "Status: %d\r\n"
-                                  "Paused: %d\r\n",
-                                  q->name, new_member->interface, new_member->dynamic ? "dynamic" : "static",
-                                  new_member->penalty, new_member->calls, new_member->lastcall, new_member->status, new_member->paused);
+                    cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
+                        8,
+                        cw_me_field("Queue",      "%s",  q->name),
+                        cw_me_field("Location",   "%s", new_member->interface),
+                        cw_me_field("Membership", "%s", (new_member->dynamic ? "dynamic" : "static")),
+                        cw_me_field("Penalty",    "%d", new_member->penalty),
+                        cw_me_field("CallsTaken", "%d", new_member->calls),
+                        cw_me_field("LastCall",   "%ld", new_member->lastcall),
+                        cw_me_field("Status",     "%d", new_member->status),
+                        cw_me_field("Paused",     "%d", new_member->paused)
+                    );
 
                     if (dump)
                         dump_queue_members(q);
@@ -2950,11 +2956,12 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 
                 cw_queue_log(q->name, "NONE", interface, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
 
-                manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-                              "Queue: %s\r\n"
-                              "Location: %s\r\n"
-                              "Paused: %d\r\n",
-                              q->name, mem->interface, paused);
+                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+                    3,
+                    cw_me_field("Queue",    "%s", q->name),
+                    cw_me_field("Location", "%s", mem->interface),
+                    cw_me_field("Paused",   "%d", paused)
+                );
             }
         }
         cw_mutex_unlock(&q->lock);

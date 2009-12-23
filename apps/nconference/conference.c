@@ -276,12 +276,10 @@ static void add_member( struct cw_conference *conf, struct cw_conf_member *membe
 
     cw_log( CW_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
 
-	manager_event(
-				  EVENT_FLAG_CALL, 
-				  APP_CONFERENCE_MANID"Join", 
-				  "Channel: %s\r\n",
-				  member->channel_name
-				 ) ;
+	cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Join",
+		1,
+		cw_me_field("Channel", "%s", member->channel_name)
+	);
 
     return ;
 }
@@ -326,12 +324,10 @@ static int remove_member(struct cw_conference* conf, struct cw_conf_member* memb
 	    else 
 		member_temp->next = member->next ;
 
-	    manager_event(
-		EVENT_FLAG_CALL, 
-		APP_CONFERENCE_MANID"Leave", 
-		"Channel: %s\r\n",
-		member->channel_name
-	    ) ;
+	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Leave",
+		1,
+		cw_me_field("Channel", "%s", member->channel_name)
+	    );
 
 	    // delete the member
 	    delete_member( member ) ;
@@ -579,14 +575,11 @@ static struct cw_conference* create_conf( char* name, struct cw_conf_member* mem
 	// release conference mutexes
 	cw_mutex_unlock( &conf->lock ) ;
 	cw_log( CW_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
-	manager_event(
-	    EVENT_FLAG_CALL, 
-	    APP_CONFERENCE_MANID"ConfCreate", 
-	    "Channel: %s\r\n"
-	    "ConfNo: %s\r\n",
-	    member->channel_name,
-	    name
-	) ;
+	cw_manager_event( EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfCreate",
+	    2,
+	    cw_me_field("Channel", "%s", member->channel_name),
+	    cw_me_field("ConfNo", "%s", name)
+	);
     }
     else
     {
@@ -648,12 +641,10 @@ void remove_conf( struct cw_conference *conf )
 
 	    // calculate time in conference
 	    cw_log( CW_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
-	    manager_event(
-		EVENT_FLAG_CALL, 
-		APP_CONFERENCE_MANID"ConfRemove",
-		"ConfNo: %s\r\n",
-		conf_current->name
-	    ) ;
+	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfRemove",
+		1,
+		cw_me_field("ConfNo", "%s", conf_current->name)
+	    );
 	    cw_mutex_unlock( &conf_current->lock ) ;
 
 	    //Free all the command queue
@@ -896,14 +887,11 @@ static int conference_set_pin(struct cw_conf_member *member, char *pin) {
     cw_log( CW_CONF_DEBUG, "Conference %s: PIN Set to %s\n",member->conf->name, member->conf->pin ) ;
     conference_queue_number( member, member->conf->pin );
 
-    manager_event(
-	EVENT_FLAG_CALL, 
-	APP_CONFERENCE_MANID"SetPIN",
-	"Channel: %s\r\n"
-	"PIN: %s\r\n",
-	member->channel_name, 
-	member->conf->pin
-    ) ;
+    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"SetPIN",
+	2,
+	cw_me_field("Channel", "%s", member->channel_name),
+	cw_me_field("PIN", "%s", member->conf->pin)
+    );
 
     return 1;
 }

@@ -1422,15 +1422,12 @@ int cw_hangup(struct cw_channel *chan)
 
 	cw_channel_unlock(chan);
 
-	manager_event(EVENT_FLAG_CALL, "Hangup",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Cause: %d\r\n"
-		"Cause-txt: %s\r\n",
-		chan->name,
-		chan->uniqueid,
-		chan->hangupcause,
-		cw_cause2str(chan->hangupcause)
+	cw_manager_event(EVENT_FLAG_CALL, "Hangup",
+		4,
+		cw_me_field("Channel",   "%s", chan->name),
+		cw_me_field("Uniqueid",  "%s", chan->uniqueid),
+		cw_me_field("Cause",     "%d", chan->hangupcause),
+		cw_me_field("Cause-txt", "%s", cw_cause2str(chan->hangupcause))
 	);
 
 	cw_channel_free(chan);
@@ -2527,15 +2524,16 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 				c = chan->tech->requester(type, capabilities, data, cause);
 			if (c) {
 				if (c->_state == CW_STATE_DOWN) {
-					manager_event(EVENT_FLAG_CALL, "Newchannel",
-					"Channel: %s\r\n"
-					"State: %s\r\n"
-					"CallerID: %s\r\n"
-					"CallerIDName: %s\r\n"
-					"Uniqueid: %s\r\n"
-					"Type: %s\r\n"
-					"Dialstring: %s\r\n",					
-					c->name, cw_state2str(c->_state), c->cid.cid_num ? c->cid.cid_num : "<unknown>", c->cid.cid_name ? c->cid.cid_name : "<unknown>",c->uniqueid,type,(char *)data);
+					cw_manager_event(EVENT_FLAG_CALL, "Newchannel",
+						7,
+						cw_me_field("Channel",      "%s", c->name),
+						cw_me_field("State",        "%s", cw_state2str(c->_state)),
+						cw_me_field("CallerID",     "%s", (c->cid.cid_num ? c->cid.cid_num : "<unknown>")),
+						cw_me_field("CallerIDName", "%s", (c->cid.cid_name ? c->cid.cid_name : "<unknown>")),
+						cw_me_field("Uniqueid",     "%s", c->uniqueid),
+						cw_me_field("Type",         "%s", type),
+						cw_me_field("Dialstring",   "%s", (char *)data)
+					);
 				}
 			}
 			return c;
@@ -2801,7 +2799,12 @@ void cw_change_name(struct cw_channel *chan, const char *fmt, ...)
 
 	cw_channel_unlock(chan);
 
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", oldname, chan->name, chan->uniqueid);
+	cw_manager_event(EVENT_FLAG_CALL, "Rename",
+		3,
+		cw_me_field("Oldname",  "%s", oldname),
+		cw_me_field("Newname",  "%s", chan->name),
+		cw_me_field("Uniqueid", "%s", chan->uniqueid)
+	);
 }
 
 
@@ -3041,16 +3044,13 @@ int cw_do_masquerade(struct cw_channel *original)
 		cw_log(CW_LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
 		cw_channel_unlock(clone);
 		cw_channel_free(clone);
-		manager_event(EVENT_FLAG_CALL, "Hangup", 
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Cause: %d\r\n"
-			"Cause-txt: %s\r\n",
-			clone->name, 
-			clone->uniqueid, 
-			clone->hangupcause,
-			cw_cause2str(clone->hangupcause)
-			);
+		cw_manager_event(EVENT_FLAG_CALL, "Hangup",
+			4,
+			cw_me_field("Channel",   "%s", clone->name),
+			cw_me_field("Uniqueid",  "%s", clone->uniqueid),
+			cw_me_field("Cause",     "%d", clone->hangupcause),
+			cw_me_field("Cause-txt", "%s", cw_cause2str(clone->hangupcause))
+		);
 	} else {
 		struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
 		cw_log(CW_LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
@@ -3094,20 +3094,14 @@ void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *
 	}
 	if (chan->cdr)
 		cw_cdr_setcid(chan->cdr, chan);
-	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
-				"Channel: %s\r\n"
-				"CallerID: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Uniqueid: %s\r\n"
-				"CID-CallingPres: %d (%s)\r\n",
-				chan->name, chan->cid.cid_num ? 
-				chan->cid.cid_num : "<Unknown>",
-				chan->cid.cid_name ? 
-				chan->cid.cid_name : "<Unknown>",
-				chan->uniqueid,
-				chan->cid.cid_pres,
-				cw_describe_caller_presentation(chan->cid.cid_pres)
-				);
+	cw_manager_event(EVENT_FLAG_CALL, "Newcallerid",
+		5,
+		cw_me_field("Channel",         "%s",      chan->name),
+		cw_me_field("CallerID",        "%s",      (chan->cid.cid_num ? chan->cid.cid_num : "<Unknown>")),
+		cw_me_field("CallerIDName",    "%s",      (chan->cid.cid_name ? chan->cid.cid_name : "<Unknown>")),
+		cw_me_field("Uniqueid",        "%s",      chan->uniqueid),
+		cw_me_field("CID-CallingPres", "%d (%s)", chan->cid.cid_pres, cw_describe_caller_presentation(chan->cid.cid_pres))
+	);
 }
 
 int cw_setstate(struct cw_channel *chan, int state)
@@ -3119,17 +3113,14 @@ int cw_setstate(struct cw_channel *chan, int state)
 
 	chan->_state = state;
 	cw_device_state_changed_literal(chan->name);
-	manager_event(EVENT_FLAG_CALL,
-			  (oldstate == CW_STATE_DOWN) ? "Newchannel" : "Newstate",
-			  "Channel: %s\r\n"
-			  "State: %s\r\n"
-			  "CallerID: %s\r\n"
-			  "CallerIDName: %s\r\n"
-			  "Uniqueid: %s\r\n",
-			  chan->name, cw_state2str(chan->_state), 
-			  chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
-			  chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
-			  chan->uniqueid);
+	cw_manager_event(EVENT_FLAG_CALL, (oldstate == CW_STATE_DOWN ? "Newchannel" : "Newstate"),
+		5,
+		cw_me_field("Channel",      "%s", chan->name),
+		cw_me_field("State",        "%s", cw_state2str(chan->_state)),
+		cw_me_field("CallerID",     "%s", (chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")),
+		cw_me_field("CallerIDName", "%s", (chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")),
+		cw_me_field("Uniqueid",     "%s", chan->uniqueid)
+	);
 
 	return 0;
 }
@@ -3446,14 +3437,15 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 			bridge_playfile(c1, c0, config->start_sound, time_left_ms / 1000);
 	}
 
-	manager_event(EVENT_FLAG_CALL, "Link", 
-		"Channel1: %s\r\n"
-		"Channel2: %s\r\n"
-		"Uniqueid1: %s\r\n"
-		"Uniqueid2: %s\r\n"
-		"CallerID1: %s\r\n"
-		"CallerID2: %s\r\n",
-		c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+	cw_manager_event(EVENT_FLAG_CALL, "Link",
+		6,
+		cw_me_field("Channel1",  "%s", c0->name),
+		cw_me_field("Channel2",  "%s", c1->name),
+		cw_me_field("Uniqueid1", "%s", c0->uniqueid),
+		cw_me_field("Uniqueid2", "%s", c1->uniqueid),
+		cw_me_field("CallerID1", "%s", c0->cid.cid_num),
+		cw_me_field("CallerID2", "%s", c1->cid.cid_num)
+	);
 
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
@@ -3570,14 +3562,15 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	c1->_bridge = NULL;
 	cw_channel_unlock(c1);
 
-	manager_event(EVENT_FLAG_CALL, "Unlink",
-			  "Channel1: %s\r\n"
-			  "Channel2: %s\r\n"
-			  "Uniqueid1: %s\r\n"
-			  "Uniqueid2: %s\r\n"
-			  "CallerID1: %s\r\n"
-			  "CallerID2: %s\r\n",
-			  c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+	cw_manager_event(EVENT_FLAG_CALL, "Unlink",
+		6,
+		cw_me_field("Channel1",  "%s", c0->name),
+		cw_me_field("Channel2",  "%s", c1->name),
+		cw_me_field("Uniqueid1", "%s", c0->uniqueid),
+		cw_me_field("Uniqueid2", "%s", c1->uniqueid),
+		cw_me_field("CallerID1", "%s", c0->cid.cid_num),
+		cw_me_field("CallerID2", "%s", c1->cid.cid_num)
+	);
 	cw_log(CW_LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	return res;

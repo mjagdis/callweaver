@@ -100,38 +100,28 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
   	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
 	           confnr = conf->ztc.confno;            
-            manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
-                "Module: %s\r\n"
-                "ICD_ID: %d\r\n"
-                "ICD_CallerID: %s\r\n"
-                "ICD_CallerName: %s\r\n"
-                "CallerID: %s\r\n"
-                "CallerIDName: %s\r\n"
-                "UniqueID: %s\r\n"
-                "ChannelName: %s\r\n"
-                "ConferenceNumber: %d\r\n"
-                "Message: %s\r\n",
-                icd_module_strings[icd_event__get_module_id(event)], 
-                icd_caller__get_id(caller),
-                icd_caller__get_caller_id(caller), 
-                icd_caller__get_name(caller),
-                chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" :"nochan",
-                chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",                
-                chan ? chan->uniqueid : "nochan", 
-                chan ? chan->name : "nochan", 
-                confnr,  
-                smsg);
-
+            cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
+                10,
+                cw_me_field("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
+                cw_me_field("ICD_ID", "%d", icd_caller__get_id(caller)),
+                cw_me_field("ICD_CallerID", "%s", icd_caller__get_caller_id(caller)),
+                cw_me_field("ICD_CallerName", "%s", icd_caller__get_name(caller)),
+                cw_me_field("CallerID", "%s", (chan ? (chan->cid.cid_num ? chan->cid.cid_num : "unknown") : "nochan")),
+                cw_me_field("CallerIDName", "%s", (chan ? (chan->cid.cid_name ? chan->cid.cid_name : "unknown") : "nochan")),
+                cw_me_field("UniqueID", "%s", (chan ? chan->uniqueid : "nochan")),
+                cw_me_field("ChannelName", "%s", (chan ? chan->name : "nochan")),
+                cw_me_field("ConferenceNumber", "%d", confnr),
+                cw_me_field("Message", "%s", smsg)
+            );
             break;
         default:
             if (smsg)
-                manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)], 
-                "Module: %s\r\n"
-                "Source: %s\r\n"
-                "Message: %s\r\n",
-                icd_module_strings[icd_event__get_module_id(event)],
-                icd_event__get_name(event)?icd_event__get_name(event):"unknown",
-                smsg);
+                cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
+                    3,
+                    cw_me_field("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
+                    cw_me_field("Source", "%s", (icd_event__get_name(event) ? icd_event__get_name(event) : "unknown")),
+                    cw_me_field("Message", "%s", smsg)
+                );
             break;
         }
     }
