@@ -1,9 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 2009, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com>
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -17,105 +17,242 @@
  */
 
 /*! \file
- * \brief I/O Management (derived from Cheops-NG)
+ * \brief I/O Event Management
  */
 
 #ifndef _CALLWEAVER_IO_H
 #define _CALLWEAVER_IO_H
-
-#include <sys/poll.h>		/* For POLL* constants */
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-/*! Input ready */
-#define CW_IO_IN 	POLLIN
-/*! Output ready */
-#define CW_IO_OUT 	POLLOUT
-/*! Priority input ready */
-#define CW_IO_PRI	POLLPRI
+
+#ifdef HAVE_EPOLL
+
+#include <sys/epoll.h>
+
+
+#define CW_IO_IN 	EPOLLIN		/*! Input ready */
+#define CW_IO_OUT 	EPOLLOUT	/*! Output ready */
+#define CW_IO_PRI	EPOLLPRI	/*! Priority input ready */
 
 /* Implicitly polled for */
-/*! Error condition (errno or getsockopt) */
-#define CW_IO_ERR	POLLERR
-/*! Hangup */
-#define CW_IO_HUP	POLLHUP
-/*! Invalid fd */
-#define CW_IO_NVAL	POLLNVAL
+#define CW_IO_ERR	EPOLLERR	/*! Error condition (errno or getsockopt) */
+#define CW_IO_HUP	EPOLLHUP	/*! Hangup */
+
+
+typedef int cw_io_context_t;
+
+#define CW_IO_CONTEXT_NONE	(-1)
+
+struct cw_io_rec;
+
+
+/*
+ * A CallWeaver IO callback takes its io_rec, a file descriptor, list of events, and
+ * callback data as arguments and returns 0 if it should not be
+ * run again, or non-zero if it should be run again.
+ */
+typedef int (*cw_io_cb)(struct cw_io_rec *ior, int fd, short events, void *cbdata);
+
+
+struct cw_io_rec {
+	cw_io_cb callback;		/* What is to be called */
+	void *data; 			/* Data to be passed */
+	int fd;
+};
+
+
+static inline void cw_io_init(struct cw_io_rec *ior, cw_io_cb callback, void *data)
+{
+	ior->callback = callback;
+	ior->data = data;
+	ior->fd = -1;
+}
+
+
+#define cw_io_isactive(ior)	((ior)->fd != -1)
+
+
+/*! Creates a context
+ *
+ * Create a context for I/O operations
+ *
+ * \param slots	number of slots (file descriptors) to allocate initially (the number grows as necessary)
+ *
+ * \return the created I/O context
+ */
+#define cw_io_context_create(slots)	epoll_create(slots)
+
+
+/*! Destroys a context
+ *
+ * \param ioc	context to destroy
+ *
+ * Destroy an I/O context and release any associated memory
+ */
+#define cw_io_context_destroy(ioc)	close(ioc)
+
+
+/*! Adds an IO context
+ *
+ * \param ioc		context to use
+ * \param fd		fd to monitor
+ * \param events	events to wait for
+ *
+ * \return 0 on success or -1 on failure
+ */
+#define cw_io_add(ioc, ior, filedesc, mask) ({ \
+	const typeof(ior) __ior = (ior); \
+	const typeof(filedesc) __filedesc = (filedesc); \
+	struct epoll_event ev = { \
+		.events = (mask), \
+		.data = { .ptr = __ior }, \
+	}; \
+	int ret; \
+ \
+	if (!(ret = epoll_ctl((ioc), EPOLL_CTL_ADD, __filedesc, &ev))) \
+		__ior->fd = __filedesc; \
+	ret; \
+})
+
+
+/*! Removes an IO context
+ *
+ * \param ioc	io_context to remove it from
+ * \param ior	io_rec to remove
+ *
+ * \return 0 on success or -1 on failure.
+ */
+#define cw_io_remove(ioc, ior) ({ \
+	struct epoll_event ev; \
+	const typeof(ior) __ior = (ior); \
+	int ret; \
+ \
+	/* N.B. the event struct is ignored but prior to Linux 2.6.9 NULL was not allowed */ \
+	if (!(ret = epoll_ctl((ioc), EPOLL_CTL_DEL, __ior->fd, &ev))) \
+		__ior->fd = -1; \
+	ret; \
+})
+
+
+/*! Waits for IO
+ *
+ * \param ioc		context to act upon
+ * \param howlong	how many milliseconds to wait
+ *
+ * Wait for I/O to happen, returning after
+ * howlong milliseconds, and after processing
+ * any necessary I/O.  Returns the number of
+ * I/O events which took place.
+ */
+extern CW_API_PUBLIC int cw_io_run(cw_io_context_t ioc, int howlong);
+
+
+#else /* HAVE_EPOLL */
+
+
+#include <sys/poll.h>
+#include <limits.h>
+
+
+#define CW_IO_IN 	POLLIN		/*! Input ready */
+#define CW_IO_OUT 	POLLOUT		/*! Output ready */
+#define CW_IO_PRI	POLLPRI		/*! Priority input ready */
+
+/* Implicitly polled for */
+#define CW_IO_ERR	POLLERR		/*! Error condition (errno or getsockopt) */
+#define CW_IO_HUP	POLLHUP		/*! Hangup */
+
+typedef struct io_context *cw_io_context_t;
+
+#define CW_IO_CONTEXT_NONE	NULL
+
+struct cw_io_rec;
+
 
 /*
  * An CallWeaver IO callback takes its id, a file descriptor, list of events, and
  * callback data as arguments and returns 0 if it should not be
  * run again, or non-zero if it should be run again.
  */
+typedef int (*cw_io_cb)(struct cw_io_rec *ior, int fd, short events, void *cbdata);
 
-struct io_context;
 
-/*! Creates a context */
-/*!
+struct cw_io_rec {
+	cw_io_cb callback;		/* What is to be called */
+	void *data; 			/* Data to be passed */
+	unsigned int id; 		/* ID number */
+};
+
+
+static inline void cw_io_init(struct cw_io_rec *ior, cw_io_cb callback, void *data)
+{
+	ior->callback = callback;
+	ior->data = data;
+	ior->id = UINT_MAX;
+}
+
+
+#define cw_io_isactive(ior)	((ior)->id != UINT_MAX)
+
+
+/*! Creates a context
+ *
  * Create a context for I/O operations
- * Basically mallocs an IO structure and sets up some default values.
- * Returns an allocated io_context structure
+ *
+ * \param slots	number of slots (file descriptors) to allocate initially (the number grows as necessary)
+ *
+ * \return the created I/O context
  */
-extern CW_API_PUBLIC struct io_context *io_context_create(void);
+extern CW_API_PUBLIC cw_io_context_t cw_io_context_create(int slots);
 
-/*! Destroys a context */
-/*
- * \param ioc structure to destroy
- * Destroy a context for I/O operations
- * Frees all memory associated with the given io_context structure along with the structure itself
+/*! Destroys a context
+ *
+ * \param ioc	context to destroy
+ *
+ * Destroy an I/O context and release any associated memory
  */
-extern CW_API_PUBLIC void io_context_destroy(struct io_context *ioc);
+extern CW_API_PUBLIC void cw_io_context_destroy(cw_io_context_t ioc);
 
-typedef int (*cw_io_cb)(int *id, int fd, short events, void *cbdata);
-#define CW_IO_CB(a) ((cw_io_cb)(a))
 
-/*! Adds an IO context */
-/*! 
- * \param ioc which context to use
- * \param fd which fd to monitor
- * \param callback callback function to run
- * \param events event mask of events to wait for
- * \param data data to pass to the callback
- * Watch for any of revents activites on fd, calling callback with data as 
- * callback data.  Returns a pointer to ID of the IO event, or NULL on failure.
+/*! Adds an IO context
+ *
+ * \param ioc		which context to use
+ * \param fd		which fd to monitor
+ * \param events	events to wait for
+ *
+ * \return 0 on success or -1 on failure
  */
-extern CW_API_PUBLIC int *cw_io_add(struct io_context *ioc, int fd, cw_io_cb callback, short events, void *data);
+extern CW_API_PUBLIC int cw_io_add(cw_io_context_t ioc, struct cw_io_rec *ior, int fd, short events);
 
-/*! Changes an IO handler */
-/*!
- * \param ioc which context to use
- * \param id
- * \param fd the fd you wish it to contain now
- * \param callback new callback function
- * \param events event mask to wait for
- * \param data data to pass to the callback function
- * Change an i/o handler, updating fd if > -1, callback if non-null, and revents
- * if >-1, and data if non-null.  Returns a pointero to the ID of the IO event,
- * or NULL on failure.
+
+/*! Removes an IO context
+ *
+ * \param ioc	io_context to remove it from
+ * \param ior	io_rec to remove
+ *
+ * \return 0 on success or -1 on failure.
  */
-extern CW_API_PUBLIC int *cw_io_change(struct io_context *ioc, int *id, int fd, cw_io_cb callback, short events, void *data);
+extern CW_API_PUBLIC void cw_io_remove(cw_io_context_t ioc, struct cw_io_rec *ior);
 
-/*! Removes an IO context */
-/*! 
- * \param ioc which io_context to remove it from
- * \param id which ID to remove
- * Remove an I/O id from consideration  Returns 0 on success or -1 on failure.
- */
-extern CW_API_PUBLIC int cw_io_remove(struct io_context *ioc, int *id);
 
-/*! Waits for IO */
-/*!
- * \param ioc which context to act upon
- * \param howlong how many milliseconds to wait
+/*! Waits for IO
+ *
+ * \param ioc		context to act upon
+ * \param howlong	how many milliseconds to wait
+ *
  * Wait for I/O to happen, returning after
  * howlong milliseconds, and after processing
  * any necessary I/O.  Returns the number of
  * I/O events which took place.
  */
-extern CW_API_PUBLIC int cw_io_wait(struct io_context *ioc, int howlong);
+extern CW_API_PUBLIC int cw_io_run(cw_io_context_t ioc, int howlong);
+
+
+#endif /* HAVE_EPOLL */
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -666,6 +666,9 @@ AC_CACHE_VAL(ac_cv_sched_setaffinity,
 	fi
 	CFLAGS="$save_CFLAGS")
 
+AX_HAVE_EPOLL(
+	AC_DEFINE(HAVE_EPOLL,[],[This platform support epoll(7)]),)
+
 
 dnl Checks for header files.
 AC_HEADER_DIRENT

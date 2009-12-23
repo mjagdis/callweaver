@@ -275,7 +275,7 @@ static int ourport;
 static int mgcpdebug = 0;
 
 static struct sched_context *sched;
-static struct io_context *io;
+static cw_io_context_t io;
 /* The private structures of the  mgcp channels are linked for
    selecting outgoing channels */
    
@@ -3314,7 +3314,7 @@ static int find_and_retrans(struct mgcp_subchannel *sub, struct mgcp_request *re
 	return 0;
 }
 
-static int mgcpsock_read(int *id, int fd, short events, void *ignore)
+static int mgcpsock_read(struct cw_io_rec *ior, int fd, short events, void *ignore)
 {
 	struct mgcp_request req;
 	struct sockaddr_in sin;
@@ -3403,11 +3403,10 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
-static int *mgcpsock_read_id = NULL;
+static struct cw_io_rec mgcpsock_read_id;
 
 static void *do_monitor(void *data)
 {
-	int res;
 	int reloading;
 	/*struct mgcp_gateway *g;*/
 	/*struct mgcp_endpoint *e;*/
@@ -3415,7 +3414,7 @@ static void *do_monitor(void *data)
 
 	/* Add an I/O event to our UDP socket */
 	if (mgcpsock > -1) 
-		mgcpsock_read_id = cw_io_add(io, mgcpsock, mgcpsock_read, CW_IO_IN, NULL);
+		cw_io_add(io, &mgcpsock_read_id, mgcpsock, CW_IO_IN);
 	
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -3432,7 +3431,7 @@ static void *do_monitor(void *data)
 			mgcp_do_reload();
 			/* Add an I/O event to our UDP socket */
 			if (mgcpsock > -1) 
-				mgcpsock_read_id = cw_io_add(io, mgcpsock, mgcpsock_read, CW_IO_IN, NULL);
+				cw_io_add(io, &mgcpsock_read_id, mgcpsock, CW_IO_IN);
 		}
 
 		/* Check for interfaces needing to be killed */
@@ -3481,7 +3480,7 @@ static void *do_monitor(void *data)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		/* Wait for IO */
-		res = cw_io_wait(io, 10000);
+		cw_io_run(io, 10000);
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
@@ -4227,7 +4226,8 @@ static int reload_config(void)
 
 			/* FS: process queue and IO */
 			if (pthread_equal(monitor_thread, pthread_self())) {
-				if (io) cw_io_wait(io, 10);
+				if (io)
+					cw_io_run(io, 10);
 			}
 		}
 		cat = cw_category_browse(cfg, cat);
@@ -4254,9 +4254,8 @@ static int reload_config(void)
 	if (mgcpsock > -1)
 		close(mgcpsock);
 
-	if (mgcpsock_read_id != NULL)
-		cw_io_remove(io, mgcpsock_read_id);
-	mgcpsock_read_id = NULL;
+	if (cw_io_isactive(&mgcpsock_read_id))
+		cw_io_remove(io, &mgcpsock_read_id);
 
 	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (mgcpsock < 0) {
@@ -4306,11 +4305,11 @@ static int load_module(void)
 		cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
 		return -1;
 	}
-	io = io_context_create();
-	if (!io) {
+	if ((io = cw_io_context_create(64)) == CW_IO_CONTEXT_NONE) {
 		cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");
 		return -1;
 	}
+	cw_io_init(&mgcpsock_read_id, mgcpsock_read, NULL);
 
 	if (!(res = reload_config())) {
 		/* Make sure we can register our mgcp channel type */

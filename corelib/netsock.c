@@ -63,19 +63,19 @@ struct cw_netsock {
 	ASTOBJ_COMPONENTS(struct cw_netsock);
 	struct sockaddr_in bindaddr;
 	int sockfd;
-	int *ioref;
-	struct io_context *ioc;
+	struct cw_io_rec ioref;
+	cw_io_context_t ioc;
 	void *data;
 };
 
 struct cw_netsock_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct cw_netsock);
-	struct io_context *ioc;
+	cw_io_context_t ioc;
 };
 
 static void cw_netsock_destroy(struct cw_netsock *netsock)
 {
-	cw_io_remove(netsock->ioc, netsock->ioref);
+	cw_io_remove(netsock->ioc, &netsock->ioref);
 	close(netsock->sockfd);
 	free(netsock);
 }
@@ -120,10 +120,9 @@ struct cw_netsock *cw_netsock_find(struct cw_netsock_list *list,
 	return sock;
 }
 
-struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, cw_io_cb callback, void *data)
+struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, cw_io_context_t ioc, struct sockaddr_in *bindaddr, int tos, cw_io_cb callback, void *data)
 {
 	int netsocket = -1;
-	int *ioref;
 	char iabuf[INET_ADDRSTRLEN];
 	
 	struct cw_netsock *ns;
@@ -148,32 +147,28 @@ struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_c
 
 	cw_enable_packet_fragmentation(netsocket);
 
-	ns = malloc(sizeof(struct cw_netsock));
-	if (ns) {
+	if ((ns = malloc(sizeof(struct cw_netsock)))) {
 		/* Establish I/O callback for socket read */
-		ioref = cw_io_add(ioc, netsocket, callback, CW_IO_IN, ns);
-		if (!ioref) {
-			cw_log(CW_LOG_WARNING, "Out of memory\n");
-			close(netsocket);
-			free(ns);
-			return NULL;
-		}	
-		ASTOBJ_INIT(ns);
-		ns->ioref = ioref;
-		ns->ioc = ioc;
-		ns->sockfd = netsocket;
-		ns->data = data;
-		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
-		ASTOBJ_CONTAINER_LINK(list, ns);
-	} else {
-		cw_log(CW_LOG_WARNING, "Out of memory\n");
-		close(netsocket);
+		cw_io_init(&ns->ioref, callback, ns);
+		if (!cw_io_add(ioc, &ns->ioref, netsocket, CW_IO_IN)) {
+			ASTOBJ_INIT(ns);
+			ns->ioc = ioc;
+			ns->sockfd = netsocket;
+			ns->data = data;
+			memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
+			ASTOBJ_CONTAINER_LINK(list, ns);
+			return ns;
+		}
+
+		free(ns);
 	}
 
-	return ns;
+	cw_log(CW_LOG_ERROR, "Out of memory\n");
+	close(netsocket);
+	return NULL;
 }
 
-struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, cw_io_cb callback, void *data)
+struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, cw_io_context_t ioc, const char *bindinfo, int defaultport, int tos, cw_io_cb callback, void *data)
 {
 	struct sockaddr_in sin;
 	char *tmp;

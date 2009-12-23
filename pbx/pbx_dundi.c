@@ -122,11 +122,11 @@ static const char dundifunc_desc[] =
 #define KEY_OUT			0
 #define KEY_IN			1
 
-static struct io_context *io;
+static cw_io_context_t io;
 static struct sched_context *sched;
 static struct sockaddr_in sin;
 static int netsocket = -1;
-static int *netsocket_io_id = NULL;
+static struct cw_io_rec netsocket_io_id;
 static pthread_t netthreadid = CW_PTHREADT_NULL;
 static pthread_t precachethreadid = CW_PTHREADT_NULL;
 static int tos = 0;
@@ -1969,7 +1969,7 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datale
 	return 0;
 }
 
-static int socket_read(int *id, int fd, short events, void *cbdata)
+static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
 	int res;
@@ -2083,10 +2083,8 @@ static void check_password(void)
 
 static void network_thread_cleanup(void *data)
 {
-	if (netsocket_io_id) {
-		cw_io_remove(io, netsocket_io_id);
-		netsocket_io_id = NULL;
-	}
+	if (cw_io_isactive(&netsocket_io_id))
+		cw_io_remove(io, &netsocket_io_id);
 
 	if (netsocket >= 0) {
 		close(netsocket);
@@ -2120,14 +2118,14 @@ static void *network_thread(void *ignore)
 		cw_log(CW_LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
 	/* Establish I/O callback for socket read */
-	netsocket_io_id = cw_io_add(io, netsocket, socket_read, CW_IO_IN, NULL);
+	cw_io_add(io, &netsocket_io_id, netsocket, CW_IO_IN);
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		/* 10s select timeout */
-		cw_io_wait(io, 10000);
+		cw_io_run(io, 10000);
 		check_password();
 	}
 
@@ -4803,13 +4801,15 @@ static int load_module(void)
 	dundi_set_error(dundi_error_output);
 
 	/* Make a UDP socket */
-	io = io_context_create();
+	io = cw_io_context_create(32);
 	sched = sched_context_create(1);
-	
-	if (!io || !sched) {
+
+	if (io == CW_IO_CONTEXT_NONE || !sched) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
+
+	cw_io_init(&netsocket_io_id, socket_read, NULL);
 
 	res |= reload_module();
 

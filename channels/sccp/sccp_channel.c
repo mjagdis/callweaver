@@ -32,7 +32,7 @@
 
 static uint32_t callCount = 1;
 extern struct sched_context *sched;
-extern struct io_context *io;
+extern cw_io_context_t io;
 
 CW_MUTEX_DEFINE_STATIC(callCountLock);
 

@@ -552,8 +552,7 @@ static char regcontext[CW_MAX_CONTEXT] = "";        /*!< Context for auto-extens
 static int expiry = DEFAULT_EXPIRY;
 
 static struct sched_context *sched;
-static struct io_context *io;
-static int *sipsock_read_id;
+static cw_io_context_t io;
 
 #define SIP_MAX_HEADERS        64            /*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES         64            /*!< Max amount of lines in SIP attachment (like SDP) */
@@ -14448,7 +14447,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 /*! \brief  sipsock_read: Read data from SIP socket */
 /*    Successful messages is connected to SIP call and forwarded to handle_request() */
-static int sipsock_read(int *id, int fd, short events, void *ignore)
+static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignore)
 {
     struct sip_request req;
     struct sip_request req_bak;
@@ -14708,16 +14707,19 @@ out:
 static void *do_monitor(void *data)
 {
     struct do_monitor_dialogue_args args;
-    int res;
+    struct cw_io_rec sipsock_read_id;
     struct sip_pvt *sip;
     struct sip_peer *peer = NULL;
     int lastpeernum = -1;
     int curpeernum;
     int reloading;
+    int res;
+
+    cw_io_init(&sipsock_read_id, sipsock_read, NULL);
 
     /* Add an I/O event to our UDP socket */
     if (sipsock > -1) 
-        sipsock_read_id = cw_io_add(io, sipsock, sipsock_read, CW_IO_IN, NULL);
+        cw_io_add(io, &sipsock_read_id, sipsock, CW_IO_IN);
 
     args.fastrestart = 0;
 
@@ -14735,11 +14737,13 @@ static void *do_monitor(void *data)
         {
             if (option_verbose > 0)
                 cw_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
+
+            cw_io_remove(io, &sipsock_read_id);
+
             sip_do_reload();
 
-            /* Change the I/O fd of our UDP socket */
             if (sipsock > -1)
-                sipsock_read_id = cw_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
+                cw_io_add(io, &sipsock_read_id, sipsock, CW_IO_IN);
         }
         /* Check for interfaces needing to be killed */
         time(&args.t);
@@ -14763,9 +14767,7 @@ static void *do_monitor(void *data)
         /* If we might need to send more mailboxes, don't wait long at all.*/
         res = (args.fastrestart ? 1 : 1000);
             res = 1;
-        res = cw_io_wait(io, res);
-        if (res > 20)
-            cw_log(CW_LOG_DEBUG, "chan_sip: cw_io_wait ran %d all at once\n", res);
+        cw_io_run(io, res);
 
         cw_mutex_lock(&monlock);
 
@@ -17574,7 +17576,7 @@ static int load_module(void)
     if ((sched = sched_context_create(1)) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
 
-    if ((io = io_context_create()) == NULL)
+    if ((io = cw_io_context_create(256)) == CW_IO_CONTEXT_NONE)
         cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");
 
     reload_config();    /* Load the configuration from sip.conf */
@@ -17681,7 +17683,7 @@ static int release_module(void)
 	clear_realm_authentication(authl);
 	clear_sip_domains();
 	close(sipsock);
-	io_context_destroy(io);
+	cw_io_context_destroy(io);
 	sched_context_destroy(sched);
 
 	cw_registry_destroy(&dialogue_registry);

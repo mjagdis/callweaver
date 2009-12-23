@@ -229,8 +229,8 @@ int (*iax2_regfunk)(char *username, int onoff) = NULL;
 #define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
-static	struct io_context *io;
-static	struct sched_context *sched;
+static cw_io_context_t io;
+static struct sched_context *sched;
 
 static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
@@ -5520,7 +5520,7 @@ static void save_rr(struct iax_frame *fr, struct iax_ies *ies)
 	iaxs[fr->callno]->remote_rr.ooo = ies->rr_ooo;
 }
 
-static int socket_read(int *id, int fd, short events, void *cbdata)
+static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
 	int res;
@@ -7203,11 +7203,7 @@ static void *network_thread(void *ignore)
 			cw_log(CW_LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
 		/* Now do the IO */
-		res = cw_io_wait(io, 1000);
-		if (res >= 0) {
-			if (res >= 20)
-				cw_log(CW_LOG_WARNING, "chan_iax2: cw_io_wait ran %d I/Os all at once\n", res);
-		}
+		cw_io_run(io, 1000);
 	}
 	return NULL;
 }
@@ -8797,7 +8793,7 @@ static int unload_module(void)
 	}
 
 	sched_context_destroy(sched);
-	io_context_destroy(io);
+	cw_io_context_destroy(io);
 
 	cw_mutex_destroy(&iaxq.lock);
 	cw_mutex_destroy(&userl.lock);
@@ -8829,7 +8825,7 @@ static int load_module(void)
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		cw_mutex_init(&iaxsl[x]);
 	
-	io = io_context_create();
+	io = cw_io_context_create(64);
 	sched = sched_context_create(1);
 	
 	if (!io || !sched) {

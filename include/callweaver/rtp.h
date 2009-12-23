@@ -109,11 +109,11 @@ struct cw_rtp
 	struct timeval txcore;
 	struct timeval dtmfmute;
 	struct cw_smoother *smoother;
-	int *ioid;
+	struct cw_io_rec ioid;
 	uint16_t seqno;
 	uint16_t rxseqno;
 	struct sched_context *sched;
-	struct io_context *io;
+	cw_io_context_t io;
 	void *data;
 	cw_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
@@ -128,7 +128,7 @@ struct cw_rtp
 };
 
 
-extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
+extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr in);
 
 extern CW_API_PUBLIC void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
 

@@ -52,7 +52,7 @@ struct cw_udptl_protocol
 typedef int (*cw_udptl_callback)(cw_udptl_t *udptl, struct cw_frame *f, void *data);
 
 extern CW_API_PUBLIC cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
-                                            struct io_context *io,
+                                            cw_io_context_t io,
                                             int callbackmode,
                                             udp_state_t *sock_info);
 

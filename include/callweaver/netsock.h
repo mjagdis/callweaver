@@ -40,10 +40,10 @@ extern CW_API_PUBLIC struct cw_netsock_list *cw_netsock_list_alloc(void);
 
 extern CW_API_PUBLIC int cw_netsock_init(struct cw_netsock_list *list);
 
-extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, struct io_context *ioc,
+extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bind(struct cw_netsock_list *list, cw_io_context_t ioc,
 				     const char *bindinfo, int defaultport, int tos, cw_io_cb callback, void *data);
 
-extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, struct io_context *ioc,
+extern CW_API_PUBLIC struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, cw_io_context_t ioc,
 					 struct sockaddr_in *bindaddr, int tos, cw_io_cb callback, void *data);
 
 extern CW_API_PUBLIC int cw_netsock_free(struct cw_netsock_list *list, struct cw_netsock *netsock);

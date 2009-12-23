@@ -90,9 +90,9 @@ struct cw_udptl_s
     uint32_t lasteventseqn;
     int nat;
     int flags;
-    int *ioid;
+    struct cw_io_rec ioid;
     struct sched_context *sched;
-    struct io_context *io;
+    cw_io_context_t io;
     void *data;
     cw_udptl_callback callback;
     int udptl_offered_from_local;
@@ -191,7 +191,7 @@ void cw_udptl_setnat(cw_udptl_t *udptl, int nat)
     udp_socket_set_nat(udptl->udptl_sock_info, nat);
 }
 
-static int udptlread(int *id, int fd, short events, void *cbdata)
+static int udptlread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
     cw_udptl_t *udptl = cbdata;
     struct cw_frame *f;
@@ -353,7 +353,7 @@ void cw_udptl_set_far_max_datagram(cw_udptl_t *udptl, int max_datagram)
 }
 
 cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
-                                            struct io_context *io,
+                                            cw_io_context_t io,
                                             int callbackmode,
                                             udp_state_t *sock_info)
 {
@@ -379,12 +379,13 @@ cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
 
     /* This sock_info should already be bound to an address */
     udptl->udptl_sock_info = sock_info;
+
+    cw_io_init(&udptl->ioid, udptlread, udptl);
     if (io  &&  sched  &&  callbackmode)
     {
         /* Operate this one in a callback mode */
         udptl->sched = sched;
         udptl->io = io;
-        udptl->ioid = NULL;
     }
     udptl->created_sock_info = FALSE;
     return udptl;
@@ -396,16 +397,13 @@ int cw_udptl_set_active(cw_udptl_t *udptl, int active)
     {
         if (active)
         {
-            if (udptl->ioid == NULL)
-                udptl->ioid = cw_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, CW_IO_IN, udptl);
+            if (!cw_io_isactive(&udptl->ioid))
+                cw_io_add(udptl->io, &udptl->ioid, udp_socket_fd(udptl->udptl_sock_info), CW_IO_IN);
         }
         else
         {
-            if (udptl->ioid)
-            {
-                cw_io_remove(udptl->io, udptl->ioid);
-                udptl->ioid = NULL;
-            }
+            if (cw_io_isactive(&udptl->ioid))
+                cw_io_remove(udptl->io, &udptl->ioid);
         }
     }
     return 0;
@@ -445,8 +443,8 @@ void cw_udptl_stop(cw_udptl_t *udptl)
 
 void cw_udptl_destroy(cw_udptl_t *udptl)
 {
-    if (udptl->ioid)
-        cw_io_remove(udptl->io, udptl->ioid);
+    if (cw_io_isactive(&udptl->ioid))
+        cw_io_remove(udptl->io, &udptl->ioid);
     //if (udptl->created_sock_info)
     //    udp_socket_destroy_group(udptl->udptl_sock_info);
     free(udptl);

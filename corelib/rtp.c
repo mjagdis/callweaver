@@ -60,6 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/unaligned.h"
 #include "callweaver/utils.h"
+#include "callweaver/io.h"
 
 
 #undef INCREMENTAL_RFC2833_EVENTS     /* If defined we increase the duration of the event each time
@@ -758,7 +759,7 @@ static int rtp_sendto(struct cw_rtp *rtp, void *buf, size_t size, int flags)
     return udp_socket_send(rtp->rtp_sock_info, buf, len, flags);
 }
 
-static int rtpread(int *id, int fd, short events, void *cbdata)
+static int rtpread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
     struct cw_rtp *rtp = cbdata;
     struct cw_frame *f;
@@ -1525,7 +1526,7 @@ char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, con
     return buf;
 }
 
-struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
+struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
     struct cw_rtp *rtp;
 
@@ -1552,13 +1553,16 @@ struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, struct io_c
         rtp->sched = sched;
         rtp->rtcp_sock_info = udp_socket_find_group_element(rtp->rtp_sock_info, 1);
     }
+
+    cw_io_init(&rtp->ioid, rtpread, rtp);
     if (io  &&  sched  &&  callbackmode)
     {
         /* Operate this one in a callback mode */
         rtp->sched = sched;
         rtp->io = io;
-        rtp->ioid = cw_io_add(rtp->io, udp_socket_fd(rtp->rtp_sock_info), rtpread, CW_IO_IN, rtp);
+        cw_io_add(rtp->io, &rtp->ioid, udp_socket_fd(rtp->rtp_sock_info), CW_IO_IN);
     }
+
     cw_rtp_pt_default(rtp);
     return rtp;
 }
@@ -1572,16 +1576,13 @@ int cw_rtp_set_active(struct cw_rtp *rtp, int active)
     {
         if (active)
         {
-            if (rtp->ioid == NULL)
-                rtp->ioid = cw_io_add(rtp->io, udp_socket_fd(rtp->rtp_sock_info), rtpread, CW_IO_IN, rtp);
+            if (!cw_io_isactive(&rtp->ioid))
+                cw_io_add(rtp->io, &rtp->ioid, udp_socket_fd(rtp->rtp_sock_info), CW_IO_IN);
         }
         else
         {
-            if (rtp->ioid)
-            {
-                cw_io_remove(rtp->io, rtp->ioid);
-                rtp->ioid = NULL;
-            }
+            if (cw_io_isactive(&rtp->ioid))
+                cw_io_remove(rtp->io, &rtp->ioid);
         }
     }
     return 0;
@@ -1650,8 +1651,8 @@ void cw_rtp_destroy(struct cw_rtp *rtp)
 {
     if (rtp->smoother)
         cw_smoother_free(rtp->smoother);
-    if (rtp->ioid)
-        cw_io_remove(rtp->io, rtp->ioid);
+    if (cw_io_isactive(&rtp->ioid))
+        cw_io_remove(rtp->io, &rtp->ioid);
     udp_socket_destroy_group(rtp->rtp_sock_info);
 #ifdef ENABLE_SRTP
     if (rtp->srtp)

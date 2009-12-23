@@ -40,7 +40,7 @@
 
 static pthread_t socket_thread;
 struct sched_context *sched;
-struct io_context *io;
+cw_io_context_t io;
 
 /* ---------------------------------------------------- */
 
@@ -1270,7 +1270,7 @@ static int load_module(void) {
 
        if ((sched = sched_context_create(1)) == NULL)
                cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
-       if ((io = io_context_create()) == NULL)
+       if ((io = cw_io_context_create(64)) == CW_IO_CONTEXT_NONE)
                cw_log(CW_LOG_WARNING, "Unable to create I/O context\n");
 
 	/* make globals */
