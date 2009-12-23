@@ -14268,7 +14268,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     char *cseq;
     char *useragent;
     int seqno;
-    int len;
     int ignore=0;
     int respid;
     int res = 0;
@@ -14287,7 +14286,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         cw_log(CW_LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
         error = 1;
     }
-    if (!error && sscanf(cseq, "%d%n", &seqno, &len) != 1)
+    if (!error && sscanf(cseq, "%d", &seqno) != 1)
     {
         cw_log(CW_LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
         error = 1;
@@ -14333,6 +14332,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         }
         else if (e)
         {
+            int len;
             e = cw_skip_blanks(e);
             if (sscanf(e, "%d %n", &respid, &len) != 1)
             {
