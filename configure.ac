@@ -657,35 +657,44 @@ AC_CHECK_FUNCS([daemon])
 
 # Check if asctime_r() takes three arguments.
 AC_MSG_CHECKING([if asctime_r() takes three arguments])
-AC_TRY_COMPILE([
-#include <stdio.h>
-#include <time.h>
-], [
-	struct tm tm;
-	char buf [r256];
-	
-	asctime_r (&tm, buf, sizeof (buf));
-], [
-	AC_DEFINE(ASCTIME_R_WITH_THREE_ARGS)
-        AC_DEFINE([ASCTIME_R_WITH_THREE_ARGS],[],[asctime_r needs 3 arguments])
-	AC_MSG_RESULT(yes)
-], [
-	AC_MSG_RESULT(no)
-])
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[
+			#include <stdio.h>
+			#include <time.h>
+		]], [[
+			struct tm tm;
+			char buf [r256];
+
+			asctime_r (&tm, buf, sizeof (buf));
+		]]
+	)],
+	[
+		AC_DEFINE(ASCTIME_R_WITH_THREE_ARGS)
+        	AC_DEFINE([ASCTIME_R_WITH_THREE_ARGS],[],[asctime_r needs 3 arguments])
+		AC_MSG_RESULT(yes)
+	], [
+		AC_MSG_RESULT(no)
+	])
 
 AC_MSG_CHECKING([for sched_setaffinity])
 AC_CACHE_VAL(ac_cv_sched_setaffinity,
 	save_CFLAGS="$CFLAGS"
 	CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
-	[AC_TRY_COMPILE([#include <sched.h>],
-		[cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);],
+	[AC_COMPILE_IFELSE(
+	 	[AC_LANG_PROGRAM([[#include <sched.h>]],
+			[[cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);]]
+		)],
 		[ac_cv_sched_setaffinity=new],
-		[ac_cv_sched_setaffinity=bad])]
+		[ac_cv_sched_setaffinity=bad]
+	)]
 	if test $ac_cv_sched_setaffinity = bad ; then
-		[AC_TRY_COMPILE([#include <sched.h>],
-			[cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);],
+		[AC_COMPILE_IFELSE(
+		 	[AC_LANG_PROGRAM([[#include <sched.h>]],
+				[[cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);]]
+			)],
 			[ac_cv_sched_setaffinity=old],
-			[ac_cv_sched_setaffinity=no])]
+			[ac_cv_sched_setaffinity=no]
+		)]
 	fi
 	if test $ac_cv_sched_setaffinity = old ; then
 		AC_MSG_RESULT(old)
