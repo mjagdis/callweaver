@@ -4654,11 +4654,15 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                 chan = cw_channel_alloc(0, "OutgoingSpoolFailed");
                 if (chan)
                 {
+                    char buf[4];
+
                     if (!cw_strlen_zero(context))
                         cw_copy_string(chan->context, context, sizeof(chan->context));
                     cw_copy_string(chan->exten, "failed", sizeof(chan->exten));
                     chan->priority = 1;
                     cw_var_copy(&chan->vars, vars);
+                    if (snprintf(buf, sizeof(buf), "%d", *reason) < sizeof(buf))
+                        pbx_builtin_setvar_helper(chan, "REASON", buf);
                     cw_pbx_run(chan);    
                 }
                 else
