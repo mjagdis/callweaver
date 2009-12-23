@@ -759,7 +759,7 @@ struct sip_pvt {
     int authtries;                /*!< Times we've tried to authenticate */
     int expiry;                /*!< How long we take to expire */
     int branch;                /*!< One random number */
-    char tag[11];                /*!< Another random number */
+    char tag[sizeof("01234567")]; /*!< Our tag */
     int tag_len;
     int sessionid;                /*!< SDP Session ID */
     int sessionversion;            /*!< SDP Session Version */
@@ -4235,7 +4235,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 
 static void make_our_tag(struct sip_pvt *p)
 {
-    p->tag_len = snprintf(p->tag, sizeof(p->tag), "as%08x", cw_random());
+    p->tag_len = snprintf(p->tag, sizeof(p->tag), "%08x", cw_random());
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
