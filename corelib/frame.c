@@ -583,7 +583,7 @@ static const char frame_show_codec_n_usage[] =
     "Usage: show codec <number>\n"
     "       Displays codec mapping\n";
 
-void cw_frame_dump(char *name, struct cw_frame *f, char *prefix)
+void cw_frame_dump(const char *name, const struct cw_frame *f, const char *prefix)
 {
     char *ftype = "Unknown Frametype";
     char *subclass = "Unknown Subclass";

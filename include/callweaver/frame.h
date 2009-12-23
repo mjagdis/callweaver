@@ -460,7 +460,7 @@ extern CW_API_PUBLIC int cw_codec_sample_rate(struct cw_frame *f);
 #define cw_smoother_feed_le(s,f) __cw_smoother_feed(s, f, 1)
 #endif
 
-extern CW_API_PUBLIC void cw_frame_dump(char *name, struct cw_frame *f, char *prefix);
+extern CW_API_PUBLIC void cw_frame_dump(const char *name, const struct cw_frame *f, const char *prefix);
 
 /* Initialize a codec preference to "no preference" */
 extern CW_API_PUBLIC void cw_codec_pref_init(struct cw_codec_pref *pref);
