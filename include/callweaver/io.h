@@ -117,11 +117,6 @@ extern CW_API_PUBLIC int cw_io_remove(struct io_context *ioc, int *id);
  */
 extern CW_API_PUBLIC int cw_io_wait(struct io_context *ioc, int howlong);
 
-/*! Dumps the IO array */
-/*
- * Debugging: Dump everything in the I/O array
- */
-extern void cw_io_dump(struct io_context *ioc);
 
 /*! Set fd into non-echoing mode (if fd is a tty) */
 

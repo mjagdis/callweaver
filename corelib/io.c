@@ -294,27 +294,6 @@ int cw_io_wait(struct io_context *ioc, int howlong)
 	return res;
 }
 
-void cw_io_dump(struct io_context *ioc)
-{
-	/*
-	 * Print some debugging information via
-	 * the logger interface
-	 */
-	int x;
-	cw_log(CW_LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
-	cw_log(CW_LOG_DEBUG, "================================================\n");
-	cw_log(CW_LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
-	cw_log(CW_LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
-	for (x = 0; x < ioc->fdcnt; x++) {
-		cw_log(CW_LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
-				*ioc->ior[x].id,
-				ioc->fds[x].fd,
-				ioc->ior[x].callback,
-				ioc->ior[x].data,
-				ioc->fds[x].events);
-	}
-	cw_log(CW_LOG_DEBUG, "================================================\n");
-}
 
 /* Unrelated I/O functions */
 
