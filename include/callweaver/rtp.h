@@ -96,7 +96,6 @@ struct cw_rtp
 	char lastevent_code;
 	int lasttxformat;
 	int lastrxformat;
-	int dtmfcount;
 	int sendevent;
 	uint32_t sendevent_startts;
 	uint32_t sendevent_rtphdr;
