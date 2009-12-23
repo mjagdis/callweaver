@@ -106,7 +106,7 @@ struct trans_state {
 	struct cw_translator_dir matrix[MAX_FORMAT][MAX_FORMAT];
 };
 
-pthread_spinlock_t state_lock;
+static pthread_mutex_t state_lock;
 static struct trans_state *trans_state;
 
 
@@ -452,9 +452,9 @@ struct cw_trans_pvt *cw_translator_build_path(int dest, int dest_rate, int sourc
 	source = bottom_bit(source);
 	dest = bottom_bit(dest);
     
-	pthread_spin_lock(&state_lock);
+	pthread_mutex_lock(&state_lock);
 	tr = cw_object_dup(trans_state);
-	pthread_spin_unlock(&state_lock);
+	pthread_mutex_unlock(&state_lock);
 	if (!tr)
 		goto out;
 
@@ -874,10 +874,10 @@ static void rebuild_matrix(void)
 		}
 	} while (changed);
 
-	pthread_spin_lock(&state_lock);
+	pthread_mutex_lock(&state_lock);
 	old_tr = cw_object_dup(trans_state);
 	trans_state = new_tr;
-	pthread_spin_unlock(&state_lock);
+	pthread_mutex_unlock(&state_lock);
 
 	if (old_tr) {
 		for (x = 0; x < MAX_FORMAT; x++) {
@@ -921,9 +921,9 @@ static int show_translation(struct cw_dynstr **ds_p, int argc, char *argv[])
 		rebuild_matrix();
 	}
 
-	pthread_spin_lock(&state_lock);
+	pthread_mutex_lock(&state_lock);
 	tr = cw_object_dup(trans_state);
-	pthread_spin_unlock(&state_lock);
+	pthread_mutex_unlock(&state_lock);
 
 	if (argv[2]) {
 		if (!strcmp(argv[2], "rel")) {
@@ -1044,9 +1044,9 @@ int cw_translator_best_choice(int *dst, int *srcs)
     else
     {
         /* We will need to translate */
-        pthread_spin_lock(&state_lock);
+        pthread_mutex_lock(&state_lock);
         tr = cw_object_dup(trans_state);
-        pthread_spin_unlock(&state_lock);
+        pthread_mutex_unlock(&state_lock);
 
         for (y = 0;  y < MAX_FORMAT;  y++)
         {
@@ -1107,7 +1107,7 @@ struct cw_registry translator_registry = {
 
 int cw_translator_init(void)
 {
-	pthread_spin_init(&state_lock, PTHREAD_PROCESS_PRIVATE);
+	pthread_mutex_init(&state_lock, &global_mutexattr_simple);
 	rebuild_matrix();
 	cw_cli_register(&show_trans);
 	return 0;

@@ -152,55 +152,55 @@ static inline int atomic_cmpxchg(atomic_t *v, int old_n, int new_n)
 /* Atomic implementation using pthread mutexes */
 
 typedef struct {
-	pthread_spinlock_t lock;
+	pthread_mutex_t lock;
 	int counter;
 } atomic_t;
 
 
 static inline void atomic_set(atomic_t *v, int i)
 {
-	pthread_spin_init(&v->lock, PTHREAD_PROCESS_SHARED);
+	pthread_mutex_init(&v->lock, &global_mutexattr_simple);
 	v->counter = i;
 }
 
 static inline void atomic_destroy(atomic_t *v)
 {
-	pthread_spin_destroy(&v->lock);
+	pthread_mutex_destroy(&v->lock);
 }
 
 #define atomic_read(v)		((v)->counter)
 
 static inline void atomic_inc(atomic_t *v)
 {
-	pthread_spin_lock(&v->lock);
+	pthread_mutex_lock(&v->lock);
 	v->counter++;
-	pthread_spin_unlock(&v->lock);
+	pthread_mutex_unlock(&v->lock);
 }
 
 static inline int atomic_inc_and_test(atomic_t *v)
 {
 	int ret;
-	pthread_spin_lock(&v->lock);
+	pthread_mutex_lock(&v->lock);
 	v->counter++;
 	ret = (v->counter == 0);
-	pthread_spin_unlock(&v->lock);
+	pthread_mutex_unlock(&v->lock);
 	return ret;
 }
 
 static inline void atomic_dec(atomic_t *v)
 {
-	pthread_spin_lock(&v->lock);
+	pthread_mutex_lock(&v->lock);
 	v->counter--;
-	pthread_spin_unlock(&v->lock);
+	pthread_mutex_unlock(&v->lock);
 }
 
 static inline int atomic_dec_and_test(atomic_t *v)
 {
 	int ret;
-	pthread_spin_lock(&v->lock);
+	pthread_mutex_lock(&v->lock);
 	v->counter--;
 	ret = (v->counter == 0);
-	pthread_spin_unlock(&v->lock);
+	pthread_mutex_unlock(&v->lock);
 	return ret;
 }
 
@@ -211,12 +211,12 @@ static inline int atomic_dec_and_test(atomic_t *v)
  * indicated by comparing returned value with old.
  * Access to *ptr is serialized via the given mutex.
  */
-static inline unsigned long __cmpxchg(pthread_spinlock_t *mutex,
+static inline unsigned long __cmpxchg(pthread_mutex_t *mutex,
 	volatile void *ptr, unsigned long old_n, unsigned long new_n, int size)
 {
 	int prev;
 
-	pthread_spin_lock(mutex);
+	pthread_mutex_lock(mutex);
 	switch (size) {
 	case 1:
 		prev = *(uint8_t *)ptr;
@@ -244,7 +244,7 @@ static inline unsigned long __cmpxchg(pthread_spinlock_t *mutex,
 		prev = old_n;
 		break;
 	}
-	pthread_spin_unlock(mutex);
+	pthread_mutex_unlock(mutex);
 	return prev;
 }
 

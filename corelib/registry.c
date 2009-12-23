@@ -52,12 +52,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static void registry_purge(struct cw_registry *registry, struct cw_list *list)
 {
-	pthread_spin_lock(&registry->lock);
+	pthread_mutex_lock(&registry->lock);
 	if ((registry->del == list))
 		registry->del = NULL;
 	else
 		list = NULL;
-	pthread_spin_unlock(&registry->lock);
+	pthread_mutex_unlock(&registry->lock);
 
 	while (list) {
 		struct cw_registry_entry *entry = container_of(list, struct cw_registry_entry, list);
@@ -76,10 +76,10 @@ struct cw_registry_entry *cw_registry_add(struct cw_registry *registry, unsigned
 		entry->obj = cw_object_get_obj(obj);
 		entry->hash = hash;
 
-		pthread_spin_lock(&registry->lock);
+		pthread_mutex_lock(&registry->lock);
 		cw_list_add(&registry->list[hash % registry->size], &entry->list);
 		registry->entries++;
-		pthread_spin_unlock(&registry->lock);
+		pthread_mutex_unlock(&registry->lock);
 
 		if (registry->onchange)
 			registry->onchange();
@@ -95,10 +95,10 @@ int cw_registry_del(struct cw_registry *registry, struct cw_registry_entry *entr
 {
 	registry_begin(registry);
 
-	pthread_spin_lock(&registry->lock);
+	pthread_mutex_lock(&registry->lock);
 	cw_list_del(&registry->del, &entry->list);
 	registry->entries--;
-	pthread_spin_unlock(&registry->lock);
+	pthread_mutex_unlock(&registry->lock);
 
 	if (registry->onchange)
 		registry->onchange();
@@ -263,7 +263,7 @@ int cw_registry_init(struct cw_registry *registry, size_t estsize)
 		registry->size = estsize;
 		registry->del = NULL;
 		registry->entries = 0;
-		pthread_spin_init(&registry->lock, PTHREAD_PROCESS_PRIVATE);
+		pthread_mutex_init(&registry->lock, &global_mutexattr_simple);
 		atomic_set(&registry->inuse, 0);
 		for (i = 0; i < estsize; i++)
 			cw_list_init(&registry->list[i]);
@@ -295,6 +295,6 @@ void cw_registry_flush(struct cw_registry *registry)
 void cw_registry_destroy(struct cw_registry *registry)
 {
 	cw_registry_flush(registry);
-	pthread_spin_destroy(&registry->lock);
+	pthread_mutex_destroy(&registry->lock);
 	free(registry->list);
 }
