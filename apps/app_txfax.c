@@ -180,7 +180,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     if (rx_ident == NULL)
         rx_ident = "";
     pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", rx_ident);
-    snprintf(buf, sizeof(buf), "%d", t.pages_transferred);
+    snprintf(buf, sizeof(buf), "%d", t.pages_tx);
     pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
     snprintf(buf, sizeof(buf), "%d", t.y_resolution);
     pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", buf);
@@ -198,7 +198,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
         cw_log(CW_LOG_DEBUG, "Fax successfully sent (%s).\n", mode);
         cw_log(CW_LOG_DEBUG, "Remote station id: %s\n", rx_ident);
         cw_log(CW_LOG_DEBUG, "Local station id:  %s\n", tx_ident);
-        cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
+        cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_tx);
         cw_log(CW_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
         cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
         manager_event(EVENT_FLAG_CALL,
@@ -208,7 +208,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
                       (chan->cid.cid_num)  ?  chan->cid.cid_num  :  "",
                       rx_ident,
                       tx_ident,
-                      t.pages_transferred,
+                      t.pages_tx,
                       t.y_resolution,
                       t.bit_rate,
                       s->rx_file);
