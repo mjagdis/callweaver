@@ -94,6 +94,33 @@ static void smart_write(const char *buf, int len)
 }
 
 
+static void smart_page(int page, const struct cw_dynstr *ds, int lines)
+{
+	if (page) {
+		int rows, cols;
+
+		rl_get_screen_size(&rows, &cols);
+		if (lines > rows) {
+			const char *pager;
+			FILE *fd;
+
+			if (!(pager = getenv("PAGER")))
+				pager = "more";
+
+			smart_write("", 0);
+
+			if ((fd = popen(pager, "w"))) {
+				int ok = (fwrite(ds->data, ds->used, 1, fd) == 1);
+				if (pclose(fd) == 0 && ok)
+					return;
+
+		}
+	}
+
+	smart_write(ds->data, ds->used);
+}
+
+
 /*! Set an X-term or screen title */
 static void set_title(const char *text)
 {
@@ -277,6 +304,8 @@ static int read_message(int s, int nresp)
 	static char *key, *val;
 	static int lkey, lval = -1;
 	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
+	struct cw_dynstr *ds = NULL;
+	int ds_lines = 0;
 	int level, res, i;
 
 	level = 0;
@@ -453,7 +482,8 @@ is_data:
 						if (lval != sizeof("--END COMMAND--") - 1 || memcmp(key, "--END COMMAND--", sizeof("--END COMMAND--") - 1)) {
 							if (msgtype == MSG_FOLLOWS) {
 								key[lval++] = '\n';
-								smart_write(key, lval);
+								cw_dynstr_printf(&ds, "%.*s", lval, key);
+								ds_lines++;
 							} else if (msgtype == MSG_COMPLETION) {
 								key[lval] = '\0';
 								if (matches_count == matches_space) {
@@ -474,6 +504,14 @@ is_data:
 								}
 							}
 						} else {
+							if (msgtype == MSG_FOLLOWS) {
+								if (ds) {
+									smart_page((nresp >= 0), ds, ds_lines);
+									cw_dynstr_free(ds);
+									ds = NULL;
+									ds_lines = 0;
+								}
+							}
 							state = 0;
 							msgtype = MSG_UNKNOWN;
 							if (nresp > 0)
