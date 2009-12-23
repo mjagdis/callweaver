@@ -606,11 +606,12 @@ static void console_handler(char *s)
 }
 
 
-static int console_connect(char *spec, int events)
+static int console_connect(char *spec, int events, time_t timelimit)
 {
 	cw_address_t addr;
 	socklen_t salen;
 	int s = -1;
+	int e;
 
 	if (!spec) {
 		int sv[2];
@@ -625,19 +626,49 @@ static int console_connect(char *spec, int events)
 			cw_object_put(sess);
 		}
 	} else if (strlen(spec) > sizeof(addr.sun.sun_path) - 1) {
+		fprintf(stderr, "Path too long: \"%s\"\n", spec);
 		errno = EINVAL;
 	} else {
+		const int reconnects_per_second = 20;
+		time_t start;
+		int last = 0;
+
 		addr.sa.sa_family = AF_LOCAL;
 		cw_copy_string(addr.sun.sun_path, spec, sizeof(addr.sun.sun_path));
 		salen = sizeof(addr.sun);
 
-		if ((s = socket(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
-			fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
-		} else if (connect(s, &addr.sa, salen)) {
-			close(s);
-			s = -1;
-		} else {
-			fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
+		time(&start);
+
+		while (s < 0 && !last) {
+			last = (timelimit == 0 || time(NULL) - start > timelimit);
+
+			if ((s = socket(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+				e = errno;
+				if (last)
+					fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
+				errno = e;
+			} else if (connect(s, &addr.sa, salen)) {
+				e = errno;
+				close(s);
+				s = -1;
+				if (last)
+					fprintf(stderr, "Unable to connect to \"%s\": %s\n", spec, strerror(e));
+				errno = e;
+			} else {
+				fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
+			}
+
+			if (!last) {
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				pthread_testcancel();
+				usleep(1000000 / reconnects_per_second);
+				pthread_testcancel();
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			}
+		}
+
+		if (s < 0 && timelimit) {
+			fprintf(stderr, "Failed to connect in %ld seconds. Quitting.\n", (long int)timelimit);
 		}
 	}
 
@@ -652,6 +683,7 @@ void *console(void *data)
 	struct pollfd pfd[2];
 	sigset_t sigs;
 	char *p;
+	int reconnect_time = 0;
 	char c;
 
 	console_address = data;
@@ -683,24 +715,13 @@ void *console(void *data)
 	}
 
 	do {
-		const int reconnects_per_second = 20;
-		int tries;
-
 		if (console_address)
 			fprintf(stderr, "Connecting to Callweaver at %s...\n", console_address);
-		for (tries = 0; console_sock < 0 && tries < 30 * reconnects_per_second; tries++) {
-			if ((console_sock = console_connect(console_address, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS)) < 0) {
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				pthread_testcancel();
-				usleep(1000000 / reconnects_per_second);
-				pthread_testcancel();
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			}
-		}
-		if (console_sock < 0) {
-			fprintf(stderr, "Failed to connect in 30 seconds. Quitting.\n");
+
+		if ((console_sock = console_connect(console_address, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, reconnect_time)) < 0)
 			break;
-		}
+
+		reconnect_time = 30;
 
 		/* Dump the connection banner. We don't need it here */
 		while (read(console_sock, &c, 1) == 1 && c != '\n');
@@ -784,9 +805,9 @@ int console_oneshot(char *spec, char *cmd)
 {
 	struct iovec iov[3];
 	char c;
-	int s, n;
+	int s, n = 1;
 
-	if ((s = console_connect(spec, 0)) >= 0) {
+	if ((s = console_connect(spec, 0, 0)) >= 0) {
 		/* Dump the connection banner. We don't need it here */
 		while (read(s, &c, 1) == 1 && c != '\n');
 
@@ -803,9 +824,6 @@ int console_oneshot(char *spec, char *cmd)
 		while (!read_message(s, -1));
 		close(s);
 		n = 0;
-	} else {
-		fprintf(stderr, "Unable to connect to Callweaver at %s\n", spec);
-		n = 1;
 	}
 
 	return n;
