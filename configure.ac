@@ -68,6 +68,10 @@ AC_C_RESTRICT
 AC_C_TYPEOF
 AC_C_VOLATILE
 
+dnl check for -fstack-protector support
+GCC_STACK_PROTECT_LIB
+GCC_STACK_PROTECT_CC
+
 dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
