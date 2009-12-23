@@ -803,8 +803,11 @@ int cw_mutex_destroy_debug(cw_mutex_t *t, int canlog, const char *filename, int 
 			break;
 	}
 
-	if ((res = pthread_mutex_destroy(&t->mutex)))
+	if ((res = pthread_mutex_destroy(&t->mutex))) {
 		debug_mutex_log("%s:%d %s: Error destroying mutex '%s': %s\n", filename, lineno, func, mutex_name, strerror(res));
+		show_locks(canlog, t);
+		CRASH;
+	}
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 	else
 		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
