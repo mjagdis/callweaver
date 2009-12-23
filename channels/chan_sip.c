@@ -4185,6 +4185,12 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
                 cw_set_read_format(p->owner, p->owner->readformat);
                 cw_set_write_format(p->owner, p->owner->writeformat);
             }
+            if (f && (cw_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad)
+            {
+                f = cw_dsp_process(p->owner, p->vad, f);
+                if (f && f->frametype == CW_FRAME_DTMF)
+                    cw_log(CW_LOG_DEBUG, "Detected inband DTMF '%c'\n", f->subclass);
+            }
         }
     }
     return f;
