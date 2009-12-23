@@ -80,7 +80,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/utils.h"
 #include "callweaver/file.h"
-#include "callweaver/astobj.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/linkedlists.h"
 #include "callweaver/localtime.h"
