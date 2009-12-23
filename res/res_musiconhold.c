@@ -681,7 +681,6 @@ static void moh_release(struct cw_channel *chan, void *data)
 
 	cw_mutex_unlock(&moh_lock);
 
-	cw_log(CW_LOG_NOTICE, "Attempting to close pipe FDs %d and %d\n", moh->pipe[0], moh->pipe[1]);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	free(moh);
