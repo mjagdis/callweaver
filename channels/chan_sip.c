@@ -656,7 +656,7 @@ struct sip_auth {
 };
 
 #define SIP_ALREADYGONE        (1 << 0)    /*!< Whether or not we've already been destroyed by our peer */
-#define SIP_NEEDDESTROY        (1 << 1)    /*!< if we need to be destroyed */
+/*                         (1 << 1)    unused */
 #define SIP_NOVIDEO        (1 << 2)    /*!< Didn't get video in invite, don't offer */
 #define SIP_RINGING        (1 << 3)    /*!< Have sent 180 ringing */
 #define SIP_PROGRESS_SENT    (1 << 4)    /*!< Have sent 183 message progress */
@@ -1652,7 +1652,7 @@ static int retrans_pkt(void *data)
                 /* If no channel owner, destroy now */
 	        /* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
 	        if (pkt->method != SIP_OPTIONS)
-        	    cw_set_flag(pkt->owner, SIP_NEEDDESTROY);    
+                    sip_destroy(pkt->owner);
             }
         }
     }
@@ -3428,8 +3428,6 @@ static int sip_hangup(struct cw_channel *ast)
                        only if the channel is not auto-congested */
                     update_call_counter(p, INC_CALL_LIMIT);
                 }
-                //cw_clear_flag(&locflags, SIP_NEEDDESTROY);
-                //sip_scheddestroy(p, 15000);
             }
             else
             {
@@ -3459,9 +3457,9 @@ static int sip_hangup(struct cw_channel *ast)
             }
         }
     }
-    if (needdestroy)
-	cw_set_flag(p, SIP_NEEDDESTROY);
     cw_mutex_unlock(&p->lock);
+    if (needdestroy)
+	sip_destroy(p);
     return 0;
 }
 
@@ -7481,9 +7479,9 @@ static int sip_reg_timeout(void *data)
         if (p->registry)
             ASTOBJ_UNREF(p->registry, sip_registry_destroy);
         r->dialogue = NULL;
-        cw_set_flag(p, SIP_NEEDDESTROY);    
         /* Pretend to ACK anything just in case */
         __sip_pretend_ack(p);
+        sip_destroy(p);
         cw_object_put(p);
     }
     /* If we have a limit, stop registration and give up */
@@ -9706,7 +9704,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
     {
         /* No text/plain attachment */
         transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
-        cw_set_flag(p, SIP_NEEDDESTROY);
+        sip_destroy(p);
         return;
     }
 
@@ -9714,7 +9712,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
     {
         cw_log(CW_LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
         transmit_response(p, "202 Accepted", req);
-        cw_set_flag(p, SIP_NEEDDESTROY);
+        sip_destroy(p);
         return;
     }
 
@@ -9736,7 +9734,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
         cw_log(CW_LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req,"To"), get_header(req,"From"), content_type, buf);
         transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
     }
-    cw_set_flag(p, SIP_NEEDDESTROY);
+    sip_destroy(p);
     return;
 }
 
@@ -10837,7 +10835,7 @@ struct __sip_show_channels_args {
 
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-7.7s  %-15.15s\n"
 
 static int __sip_show_channels_one(struct cw_object *obj, void *data)
 {
@@ -10857,7 +10855,6 @@ static int __sip_show_channels_one(struct cw_object *obj, void *data)
 				? "T38"
 				: (cw_getformatname(dialogue->owner ? dialogue->owner->nativeformats : 0))),
 			(cw_test_flag(dialogue, SIP_CALL_ONHOLD) ? "Yes" : "No"),
-			(cw_test_flag(dialogue, SIP_NEEDDESTROY) ? "(d)" : ""),
 			dialogue->lastmsg);
 		args->numchans++;
 	}
@@ -11084,7 +11081,6 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 			cw_cli(args->fd, "  Caller-ID:              %s\n", dialogue->cid_num);
 
 		cw_cli(args->fd,
-			"  Need Destroy:           %d\n"
 			"  Last Message:           %s\n"
 			"  Promiscuous Redir:      %s\n"
 			"  Route:                  %s\n"
@@ -11092,7 +11088,6 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 			"  DTMF Mode:              %s\n"
 			"  On HOLD:                %s\n"
 			"  SIP Options:            ",
-			cw_test_flag(dialogue, SIP_NEEDDESTROY),
 			dialogue->lastmsg,
 			(cw_test_flag(dialogue, SIP_PROMISCREDIR) ? "Yes" : "No"),
 			dialogue->route ? dialogue->route->hop : "N/A",
@@ -11262,7 +11257,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         {
             /* not a PBX call */
             transmit_response(p, "481 Call leg/transaction does not exist", req);
-            cw_set_flag(p, SIP_NEEDDESTROY);
+            sip_destroy(p);
             return;
         }
 
@@ -12162,9 +12157,6 @@ static void check_pendings(struct sip_pvt *p)
 	    transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
 	cw_clear_flag(p, SIP_PENDINGBYE);	
 	sip_scheddestroy(p, 32000);
-        //transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
-        //cw_set_flag(p, SIP_NEEDDESTROY);    
-        //cw_clear_flag(p, SIP_NEEDREINVITE);    
     }
     else if (cw_test_flag(p, SIP_NEEDREINVITE))
     {
@@ -12296,7 +12288,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                                 /* This is case of RTP re-invite after T38 session */
                                 cw_log(CW_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                                 /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-                                cw_set_flag(p, SIP_NEEDDESTROY);
+                                sip_destroy(p);
                             }
                         }
                         else
@@ -12386,10 +12378,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1))
             {
                 cw_log(CW_LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-                cw_set_flag(p, SIP_NEEDDESTROY);    
-                cw_set_flag(p, SIP_ALREADYGONE);    
                 if (p->owner)
                     cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
+                cw_set_flag(p, SIP_ALREADYGONE);
+                sip_destroy(p);
             }
         }
         break;
@@ -12399,8 +12391,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         cw_log(CW_LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
         if (!ignore && p->owner)
             cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
-        cw_set_flag(p, SIP_NEEDDESTROY);    
-        cw_set_flag(p, SIP_ALREADYGONE);    
+        cw_set_flag(p, SIP_ALREADYGONE);
+        sip_destroy(p);
         break;
     case 404: /* Not found */
         transmit_request(p, SIP_ACK, seqno, 0, 0);
@@ -12462,7 +12454,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "WWW-Authenticate", "Authorization"))
         {
             cw_log(CW_LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            goto destroy;
         }
         break;
     case 403:
@@ -12470,21 +12462,21 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         cw_log(CW_LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
-        cw_set_flag(p, SIP_NEEDDESTROY);    
+        goto destroy;
         break;
     case 404:
         /* Not found */
         cw_log(CW_LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
-        cw_set_flag(p, SIP_NEEDDESTROY);    
+        goto destroy;
         break;
     case 407:
         /* Proxy auth */
         if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization"))
         {
             cw_log(CW_LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            goto destroy;
         }
         break;
     case 479:
@@ -12492,14 +12484,14 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         cw_log(CW_LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
         if (global_regattempts_max)
             p->registry->regattempts = global_regattempts_max+1;
-        cw_set_flag(p, SIP_NEEDDESTROY);    
+        goto destroy;
         break;
     case 200:
         /* 200 OK */
         if (!r)
         {
             cw_log(CW_LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
             return 0;
         }
 
@@ -12516,7 +12508,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         p->registry = NULL;
         /* Let this one hang around until we have all the responses */
         sip_scheddestroy(p, 32000);
-        /* cw_set_flag(p, SIP_NEEDDESTROY);    */
 
         /* set us up for re-registering */
         /* figure out how long we got registered for */
@@ -12569,7 +12560,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         if (sipdebug)
             cw_log(CW_LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d s)\n", r->hostname, expires, expires_ms/1000); 
 
-        r->refresh= (int) expires_ms / 1000;
+        r->refresh = (int) expires_ms / 1000;
 
         /* Schedule re-registration before we expire */
         r->expire=cw_sched_add(sched, expires_ms, sip_reregister, r); 
@@ -12577,11 +12568,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         return 1;
     }
 
-    if (cw_test_flag(p, SIP_NEEDDESTROY)) {
-        cw_object_put(r->dialogue);
-        r->dialogue = NULL;
-    } else
-        r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+    r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+    return 1;
+
+destroy:
+    sip_destroy(p);
+    cw_object_put(r->dialogue);
+    r->dialogue = NULL;
     return 1;
 }
 
@@ -12654,7 +12647,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         if (sipmethod == SIP_INVITE)
             transmit_request(p, SIP_ACK, seqno, 0, 0);
 #endif
-        cw_set_flag(p, SIP_NEEDDESTROY);
+        sip_destroy(p);
 
         /* Try again eventually */
         peer->pokeexpire = cw_sched_add(sched,
@@ -12732,7 +12725,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             if (sipmethod == SIP_MESSAGE)
             {
                 /* We successfully transmitted a message */
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             }
             else if (sipmethod == SIP_NOTIFY)
             {
@@ -12746,7 +12739,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 {
                     if (p->subscribed == NONE)
                     {
-                        cw_set_flag(p, SIP_NEEDDESTROY); 
+                        sip_destroy(p);
                     }
                 }
             }
@@ -12759,7 +12752,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 res = handle_response_register(p, resp, rest, req, ignore, seqno);
 	    } else if (sipmethod == SIP_BYE) {
 		/* Ok, we're ready to go */
-		cw_set_flag(p, SIP_NEEDDESTROY);	
+		sip_destroy(p);
 	    } 
             break;
         case 401: /* Not www-authorized on SIP method */
@@ -12774,7 +12767,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             else
             {
                 cw_log(CW_LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             }
             break;
         case 403: /* Forbidden - we failed authentication */
@@ -12813,11 +12806,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 if (cw_strlen_zero(p->authname))
                     cw_log(CW_LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
                             msg, cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
+                    sip_destroy(p);
                 if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0))
                 {
                     cw_log(CW_LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
+                    sip_destroy(p);
                 }
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
@@ -12827,7 +12820,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             else
             {
                 /* We can't handle this, giving up in a bad way */
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             }
             break;
 	case 487:
@@ -12910,7 +12903,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                     transmit_request(p, SIP_ACK, seqno, 0, 0);
                 cw_set_flag(p, SIP_ALREADYGONE);    
                 if (!p->owner)
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
+                    sip_destroy(p);
             }
             else if ((resp >= 100) && (resp < 200))
             {
@@ -12956,10 +12949,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
             }
             else if (sipmethod == SIP_MESSAGE)
                 /* We successfully transmitted a message */
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             else if (sipmethod == SIP_BYE)
                 /* ok done */
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             break;
         case 401:    /* www-auth */
         case 407:
@@ -12980,7 +12973,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                 if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, auth, auth2, sipmethod, 0))
                 {
                     cw_log(CW_LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
+                    sip_destroy(p);
                 }
             }
             else if (sipmethod == SIP_INVITE)
@@ -13265,7 +13258,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
     /* Destroy if this OPTIONS was the opening request, but not if
        it's in the middle of a normal call flow. */
     if (!p->lastinvite)
-        cw_set_flag(p, SIP_NEEDDESTROY);    
+        sip_destroy(p);
 
     return res;
 }
@@ -13298,7 +13291,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             /* At this point we support no extensions, so fail */
             transmit_response_with_unsupported(p, "420 Bad extension", req, required);
             if (!p->lastinvite)
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             return -1;
         }
     }
@@ -13338,7 +13331,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 {
                     transmit_response(p, "488 Not acceptable here", req);
                     if (!p->lastinvite)
-                        cw_set_flag(p, SIP_NEEDDESTROY);    
+                        sip_destroy(p);
                     return -1;
                 }
             }
@@ -13369,7 +13362,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 		transmit_response_reliable(p, "403 Forbidden", req, 1);
 	    }
-	    cw_set_flag(p, SIP_NEEDDESTROY);	
+	    sip_destroy(p);
 	    p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
 	    return 0;
         }
@@ -13379,7 +13372,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             if (process_sdp(p, req))
             {
                 transmit_response(p, "488 Not acceptable here", req);
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
                 return -1;
             }
         }
@@ -13403,7 +13396,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             {
                 cw_log(CW_LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
                 transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
             }
             return 0;
         }
@@ -13425,7 +13418,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 transmit_response_reliable(p, "484 Address Incomplete", req, 1);
             }
             update_call_counter(p, DEC_CALL_LIMIT);
-	    cw_set_flag(p, SIP_NEEDDESTROY);		
+	    sip_destroy(p);
 	    return 0;
         }
         else
@@ -13573,7 +13566,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                                         transmit_response(p, "415 Unsupported Media Type", req);
                                     else
                                         transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
-                                    cw_set_flag(p, SIP_NEEDDESTROY);
+                                    sip_destroy(p);
                                 } 
                             }
                         }
@@ -13591,7 +13584,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                                 transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
                         p->t38state = SIP_T38_STATUS_UNKNOWN;
                         cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                        cw_set_flag(p, SIP_NEEDDESTROY);        
+                        sip_destroy(p);
                     }    
                     cw_object_put(bridgepeer);
                 }
@@ -13628,7 +13621,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                                 transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
                             else
                                 transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req, 1);
-                            cw_set_flag(p, SIP_NEEDDESTROY);
+                            sip_destroy(p);
                         }
                         else
                         {
@@ -13649,7 +13642,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     }
     else
     {
-        if (p && !cw_test_flag(p, SIP_NEEDDESTROY) && !ignore)
+        if (p && !ignore)
         {
             if (!p->jointcapability)
             {
@@ -13660,7 +13653,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 cw_log(CW_LOG_NOTICE, "Unable to create/find channel\n");
                 transmit_response_reliable(p, "503 Unavailable", req, 1);
             }
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
         }
     }
     return res;
@@ -13759,7 +13752,8 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 /*! \brief  handle_request_cancel: Handle incoming CANCEL request */
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int debug, int ignore)
 {
-        
+    int ret;
+
     check_via(p, req);
     cw_set_flag(p, SIP_ALREADYGONE);    
     if (p->rtp)
@@ -13777,22 +13771,25 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
         /* Immediately stop T.38 UDPTL */
         cw_udptl_stop(p->udptl);
     }
-    if (p->owner)
-        cw_queue_hangup(p->owner);
-    else
-        cw_set_flag(p, SIP_NEEDDESTROY);    
     if (p->initreq.len > 0)
     {
         if (!ignore)
             transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
         transmit_response(p, "200 OK", req);
-        return 1;
+        ret = 1;
     }
     else
     {
         transmit_response(p, "481 Call Leg Does Not Exist", req);
-        return 0;
+        ret = 0;
     }
+
+    if (p->owner)
+        cw_queue_hangup(p->owner);
+    else
+        sip_destroy(p);
+
+    return ret;
 }
 
 /*! \brief  handle_request_bye: Handle incoming BYE request */
@@ -13856,7 +13853,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
     else if (p->owner)
         cw_queue_hangup(p->owner);
     else
-        cw_set_flag(p, SIP_NEEDDESTROY);    
+        sip_destroy(p);
     transmit_response(p, "200 OK", req);
 
     return 1;
@@ -13889,7 +13886,7 @@ static int purge_old_subscription(struct cw_object *obj, void *data)
 
 		if (!strcmp(dialogue->username, new_dialogue->username)
 		 && !strcmp(dialogue->exten, new_dialogue->exten) && !strcmp(dialogue->context, new_dialogue->context)) {
-			cw_set_flag(dialogue, SIP_NEEDDESTROY);
+			sip_destroy(dialogue);
 			cw_mutex_unlock(&dialogue->lock);
 			return 1;
 		}
@@ -13978,7 +13975,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			else
 				transmit_response_reliable(p, "403 Forbidden", req, 1);
 		}
-		cw_set_flag(p, SIP_NEEDDESTROY);	
+		sip_destroy(p);
 		return 0;
         }
         gotdest = get_destination(p, NULL);
@@ -14000,7 +13997,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 transmit_response(p, "404 Not Found", req);
             else
                 transmit_response(p, "484 Address Incomplete", req);    /* Overlap dialing on SUBSCRIBE?? */
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
         }
         else
         {
@@ -14042,7 +14039,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "489 Bad Event", req);
 			cw_log(CW_LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s'\n",
 					p->stateid, p->laststate, p->dialogver, p->subscribecontext);
-			cw_set_flag(p, SIP_NEEDDESTROY);
+			sip_destroy(p);
 			return 0;
 		    }
 		    /* if p->subscribed is non-zero, then accept is not obligatory; according to rfc 3265 section 3.1.3, at least.
@@ -14054,7 +14051,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		    char mybuf[200];
 		    snprintf(mybuf,sizeof(mybuf),"489 Bad Event (format %s)", accept);
 		    transmit_response(p, mybuf, req);
-		    cw_set_flag(p, SIP_NEEDDESTROY);
+		    sip_destroy(p);
                     return 0;
                 }
 		if (option_debug > 2) {
@@ -14086,15 +14083,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 }
 
                 if (found)
-                {
                     transmit_response(p, "200 OK", req);
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
-                }
                 else
-                {
                     transmit_response(p, "404 Not found", req);
-                    cw_set_flag(p, SIP_NEEDDESTROY);    
-                }
+                sip_destroy(p);
                 return 0;
             }
             else
@@ -14103,7 +14095,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 transmit_response(p, "489 Bad Event", req);
                 if (option_debug > 1)
                     cw_log(CW_LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
-                cw_set_flag(p, SIP_NEEDDESTROY);    
+                sip_destroy(p);
                 return 0;
             }
             if (p->subscribed != NONE)
@@ -14113,7 +14105,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
     if (!ignore && p)
         p->lastinvite = seqno;
-    if (p  &&  !cw_test_flag(p, SIP_NEEDDESTROY))
+    if (p)
     {
         p->expiry = atoi(get_header(req, "Expires"));
         /* The next 4 lines can be removed if the SNOM Expires bug is fixed */
@@ -14132,7 +14124,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         {
             cw_log(CW_LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
             transmit_response(p, "404 Not found", req);
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
             return 0;
         }
         else
@@ -14150,7 +14142,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	    cw_registry_iterate(&dialogue_registry, purge_old_subscription, p);
         }
         if (!p->expiry)
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
     }
     return 1;
 }
@@ -14218,7 +14210,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     if (error)
     {
         if (!p->initreq.header)    /* New call */
-            cw_set_flag(p, SIP_NEEDDESTROY);    /* Make sure we destroy this dialog */
+            sip_destroy(p);
         return -1;
     }
     /* Get the command XXX */
@@ -14240,7 +14232,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         {
             cw_log(CW_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
             if (rfc3489_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
             return 0;
         }
         else if (p->ocseq && (p->ocseq < seqno))
@@ -14335,14 +14327,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	    else if (req->method != SIP_ACK)
             {
                 transmit_response(p, "481 Call/Transaction Does Not Exist", req);
-                cw_set_flag(p, SIP_NEEDDESTROY);
+                sip_destroy(p);
             }
             return res;
         }
     }
     if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
         transmit_response(p, "400 Bad request", req);
-        cw_set_flag(p, SIP_NEEDDESTROY);
+        sip_destroy(p);
         return -1;
     }
 
@@ -14391,7 +14383,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             look into this someday XXX */
         transmit_response(p, "200 OK", req);
         if (!p->lastinvite) 
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
         break;
     case SIP_ACK:
         /* Make sure we don't ignore this */
@@ -14407,7 +14399,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             check_pendings(p);
         }
         if (!p->lastinvite && cw_strlen_zero(p->randdata))
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
         break;
     default:
         transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
@@ -14415,7 +14407,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
                  cmd, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         /* If this is some new method, and we don't have a call, destroy it now */
         if (!p->initreq.headers)
-            cw_set_flag(p, SIP_NEEDDESTROY);    
+            sip_destroy(p);
         break;
     }
     return res;
@@ -14671,16 +14663,6 @@ static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
 			}
 		}
 
-		if (cw_test_flag(dialogue, SIP_NEEDDESTROY) && !dialogue->owner) {
-			if (dialogue->stun_needed == 0 || dialogue->stun_needed == 3
-			|| (dialogue->stun_needed == 1 && cw_stun_find_request(&dialogue->stun_transid) == NULL)) {
-				cw_mutex_unlock(&dialogue->lock);
-				sip_destroy(dialogue);
-				goto out;
-			} else
-				cw_log(CW_LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", dialogue->callid,dialogue->stun_needed);
-		}
-
 		cw_mutex_unlock(&dialogue->lock);
 	} else
 		args->fastrestart = 1;
@@ -14836,7 +14818,7 @@ static int sip_poke_noanswer(void *data)
     peer->pokeexpire = -1;
     if (peer->dialogue)
     {
-        cw_set_flag(peer->dialogue, SIP_NEEDDESTROY);
+        sip_destroy(peer->dialogue);
         cw_object_put(peer->dialogue);
         peer->dialogue = NULL;
     }
