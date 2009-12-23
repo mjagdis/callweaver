@@ -118,26 +118,37 @@ static const char sql_insert[] =
 	");";
 
 
-pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct sqlite3 *db = NULL;
-static sqlite3_stmt *sql;
+static sqlite3_stmt *sql, *sql_begin, *sql_commit, *sql_rollback;
 
 
-static int sqlite_log(struct cw_cdr *batch)
+static int sqlite_log(struct cw_cdr *submission)
 {
 	char startstr[80], answerstr[80], endstr[80];
 	struct tm tm;
 	time_t t;
-	struct cw_cdr *cdrset, *cdr;
+	struct cw_cdr *batch, *cdrset, *cdr;
 	int startlen, answerlen, endlen;
-	int res;
-
-	if (!db)
-		return;
+	int res, res2;
 
 	pthread_mutex_lock(&sqlite3_lock);
 
+	if (!db)
+		goto done;
+
+restart:
+	sqlite3_reset(sql_begin);
+	if ((res = sqlite3_step(sql_begin)) == SQLITE_BUSY || res == SQLITE_LOCKED) {
+		usleep(10);
+		goto restart;
+	}
+
+	if (res != SQLITE_DONE)
+		cw_log(CW_LOG_ERROR, "begin transaction failed with error code %d\n", res);
+
+	batch = submission;
 	while ((cdrset = batch)) {
 		batch = batch->batch_next;
 
@@ -180,14 +191,44 @@ static int sqlite_log(struct cw_cdr *batch)
 			sqlite3_bind_text(sql, 18, cdr->userfield, -1, SQLITE_STATIC);
 #endif
 
-			while ((res = sqlite3_step(sql)) == SQLITE_BUSY || res == SQLITE_LOCKED)
-				usleep(10);
+			if ((res = sqlite3_step(sql)) == SQLITE_DONE)
+				continue;
 
-			if (res != SQLITE_DONE)
-				cw_log(CW_LOG_ERROR, "sqlite3_step failed with error code %d\n", res);
+			sqlite3_reset(sql_rollback);
+			while (sqlite3_step(sql_rollback) == SQLITE_BUSY) {
+				usleep(10);
+				sqlite3_reset(sql_rollback);
+			}
+
+			if (res != SQLITE_LOCKED) {
+				cw_log(CW_LOG_ERROR, "insert failed with error code %d\n", res);
+				goto done;
+			}
+
+			usleep(10);
+			goto restart;
 		}
 	}
 
+	sqlite3_reset(sql_commit);
+	while ((res = sqlite3_step(sql_commit)) == SQLITE_BUSY) {
+		usleep(10);
+		sqlite3_reset(sql_commit);
+	}
+
+	if (res != SQLITE_DONE) {
+		sqlite3_reset(sql_rollback);
+		while (sqlite3_step(sql_rollback) == SQLITE_BUSY) {
+			usleep(10);
+			sqlite3_reset(sql_rollback);
+		}
+		goto restart;
+	}
+
+	if (res != SQLITE_DONE)
+		cw_log(CW_LOG_ERROR, "commit transaction failed with error code %d\n", res);
+
+done:
 	pthread_mutex_unlock(&sqlite3_lock);
 	return 0;
 }
@@ -204,6 +245,12 @@ static void release(void)
 {
 	if (sql)
 		sqlite3_finalize(sql);
+	if (sql_begin)
+		sqlite3_finalize(sql_begin);
+	if (sql_commit)
+		sqlite3_finalize(sql_commit);
+	if (sql_rollback)
+		sqlite3_finalize(sql_rollback);
 
 	if (db)
 		sqlite3_close(db);
@@ -228,6 +275,13 @@ static int reconfig_module(void)
 
 	if (sql)
 		sqlite3_finalize(sql);
+	if (sql_begin)
+		sqlite3_finalize(sql_begin);
+	if (sql_commit)
+		sqlite3_finalize(sql_commit);
+	if (sql_rollback)
+		sqlite3_finalize(sql_rollback);
+
 	if (db)
 		sqlite3_close(db);
 
@@ -256,6 +310,21 @@ static int reconfig_module(void)
 	}
 
 	if ((res = sqlite3_prepare_v2(db, sql_insert, sizeof(sql_insert), &sql, &tail)) != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "sqlite3_prepare_v2 failed with error code %d\n", res);
+		goto err;
+	}
+
+	if ((res = sqlite3_prepare_v2(db, "begin transaction;", sizeof("begin transaction;"), &sql_begin, &tail)) != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "sqlite3_prepare_v2 failed with error code %d\n", res);
+		goto err;
+	}
+
+	if ((res = sqlite3_prepare_v2(db, "commit transaction;", sizeof("commit transaction;"), &sql_commit, &tail)) != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "sqlite3_prepare_v2 failed with error code %d\n", res);
+		goto err;
+	}
+
+	if ((res = sqlite3_prepare_v2(db, "rollback transaction;", sizeof("rollback transaction;"), &sql_rollback, &tail)) != SQLITE_OK) {
 		cw_log(CW_LOG_ERROR, "sqlite3_prepare_v2 failed with error code %d\n", res);
 		goto err;
 	}
