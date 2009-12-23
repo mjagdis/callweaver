@@ -199,23 +199,31 @@ static const char sippeer_func_name[] = "SIPPEER";
 static const char sippeer_func_synopsis[] = "Gets SIP peer information";
 static const char sippeer_func_syntax[] = "SIPPEER(peername[, item])";
 static const char sippeer_func_desc[] =
+	"Returns information concerning the given SIP peer.\n"
+	"\n"
 	"Valid items are:\n"
-	"- ip (default)          The IP address.\n"
-	"- mailbox               The configured mailbox.\n"
-	"- context               The configured context.\n"
-	"- expire                The epoch time of the next expire.\n"
-	"- dynamic               Is it dynamic? (yes/no).\n"
-	"- callerid_name         The configured Caller ID name.\n"
-	"- callerid_num          The configured Caller ID number.\n"
-	"- codecs                The configured codecs.\n"
-	"- status                Status (if qualify=yes).\n"
-	"- regexten              Registration extension\n"
-	"- limit                 Call limit (call-limit)\n"
-	"- curcalls              Current amount of calls \n"
-	"                        Only available if call-limit is set\n"
-	"- language              Default language for peer\n"
-	"- useragent             Current user agent id for peer\n"
-	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n"
+	"    callerid_name         The configured Caller ID name.\n"
+	"    callerid_num          The configured Caller ID number.\n"
+	"    codecs                The configured codecs.\n"
+	"    codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"    context               The configured context.\n"
+	"    curcalls              Current amount of calls \n"
+	"                          (only available if call-limit is set)\n"
+	"    dynamic               Is it dynamic? (yes/no).\n"
+	"    expire                The epoch time of the next expire.\n"
+	"    ip                    The IP address.\n"
+	"    language              Default language for peer\n"
+	"    limit                 Call limit (call-limit)\n"
+	"    mailbox               The configured mailbox.\n"
+	"    reachability          Whether the peer is currently reachable\n"
+	"                          (Unregistered, Unmonitored, OK, LAGGED or UNREACHABLE)\n"
+	"    regexten              Registration extension\n"
+	"    rtt                   Current RTT estimate in milliseconds\n"
+	"    status                Status (deprecated - use reachability and/or rtt instead).\n"
+	"    useragent             Current user agent id for peer\n"
+	"\n"
+	"If no item is specified SIPPEER returns the IP address\n"
 	"\n";
 
 static void *sippeervar_function;
@@ -10318,7 +10326,9 @@ static const char *peer_status(struct sip_peer *peer)
 {
 	const char *status = "Unmonitored";
 
-	if (peer->maxms) {
+	if (!peer->addr.sin_addr.s_addr)
+		status = "Unregistered";
+	else if (peer->maxms) {
 		if (peer->timer_t1 < 0)
 			status = "UNREACHABLE";
 		else if (peer->timer_t1 > peer->maxms)
@@ -12413,10 +12423,24 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
     }
     else  if (!strcasecmp(argv[1], "status"))
     {
+        static int deprecated = 0;
+        if (!deprecated)
+        {
+            cw_log(CW_LOG_WARNING, "SIPPEER(peername, status) is deprecated. Use SIPPEER(peername, reachability) and/or SIPPEER(peername, rtt) instead\n");
+            deprecated= 1;
+        }
         if (peer->maxms && peer->timer_t1 >= 0)
-	    snprintf(buf, len, "%s (%d ms)", peer_status(peer), peer->timer_t1);
+            snprintf(buf, len, "%s (%d ms)", peer_status(peer), peer->timer_t1);
         else
-	    snprintf(buf, len, "%s", peer_status(peer));
+            snprintf(buf, len, "%s", peer_status(peer));
+    }
+    else  if (!strcasecmp(argv[1], "reachability"))
+    {
+        snprintf(buf, len, "%s", peer_status(peer));
+    }
+    else  if (!strcasecmp(argv[1], "rtt"))
+    {
+        snprintf(buf, len, "%d", peer->timer_t1);
     }
     else  if (!strcasecmp(argv[1], "language"))
     {
