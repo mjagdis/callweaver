@@ -67,6 +67,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static pthread_mutex_t modlock = PTHREAD_MUTEX_INITIALIZER;
 
 
+CW_MUTEX_DEFINE_STATIC(loader_mutex);
+static pthread_key_t loader_err_key;
+
+struct loader_err {
+	char err[251];
+};
+
+
 static struct modinfo core_modinfo = {
 	.self = NULL,
 };
@@ -311,7 +319,8 @@ static int module_load(const char *filename)
 	mod->reg_entry = NULL;
 
 	if (!(mod->lib = lt_dlopenext(filename))) {
-		cw_log(CW_LOG_ERROR, "Module '%s', error '%s'\n", mod->name, lt_dlerror());
+		struct loader_err *local = pthread_getspecific(loader_err_key);
+		cw_log(CW_LOG_ERROR, "Module '%s', error '%s'\n", mod->name, local->err);
 		goto out_put_newmod;
 	}
 
@@ -397,7 +406,7 @@ struct load_module_args {
 	const char *prefix;
 	int prefix_len;
 	int reload_ok;
-	int loaded;
+	int found;
 };
 
 static int load_module(const char *filename, lt_ptr data)
@@ -413,27 +422,27 @@ static int load_module(const char *filename, lt_ptr data)
 	&& (!args->prefix
 		|| (args->prefix_len && !strncmp(basename, args->prefix, args->prefix_len))
 		|| (!args->prefix_len && !strcmp(basename, args->prefix)))
-	&& (args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(basename), basename)))) {
-		int baselen = strlen(basename);
-		struct cw_variable *v;
+	) {
+		args->found++;
 
-		/* If we were given a config check that this module is not barred from loading.
-		 * N.B. The extension part of a module name in the config is ignored. Really we
-		 * should generate a deprecated message.
-		 */
-		v = NULL;
-		if (args->cfg) {
-			for (v = cw_variable_browse(args->cfg, "modules");
-				v && (strcasecmp(v->name, "noload") || strncasecmp(v->value, basename, baselen) || (v->value[baselen] && v->value[baselen] != '.'));
-				v = v->next);
-			if (option_verbose && v)
-				cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
-		}
-		if (v == NULL) {
-			if (!module_load(filename))
-				args->loaded++;
-			else
-				cw_log(CW_LOG_WARNING, "Unable to load module %s\n", basename);
+		if ((args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(basename), basename)))) {
+			int baselen = strlen(basename);
+			struct cw_variable *v;
+
+			/* If we were given a config check that this module is not barred from loading.
+			 * N.B. The extension part of a module name in the config is ignored. Really we
+			 * should generate a deprecated message.
+			 */
+			v = NULL;
+			if (args->cfg) {
+				for (v = cw_variable_browse(args->cfg, "modules");
+					v && (strcasecmp(v->name, "noload") || strncasecmp(v->value, basename, baselen) || (v->value[baselen] && v->value[baselen] != '.'));
+					v = v->next);
+				if (option_verbose && v)
+					cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
+			}
+			if (v == NULL)
+				module_load(filename);
 		}
 	}
 
@@ -451,10 +460,14 @@ int load_modules(const int preload_only)
 		"pbx_",
 		NULL,
 	};
+	struct loader_err loader_err;
 	struct load_module_args args;
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	int i;
+
+	loader_err.err[0] = '\0';
+	pthread_setspecific(loader_err_key, &loader_err);
 
 	if (option_verbose) {
 		if (preload_only)
@@ -464,7 +477,7 @@ int load_modules(const int preload_only)
 	}
 
 	args.reload_ok = 0;
-	args.loaded = 0;
+	args.found = 0;
 
 	cfg = cw_config_load(CW_MODULE_CONFIG);
 	if (cfg) {
@@ -490,20 +503,21 @@ int load_modules(const int preload_only)
 		}
 	}
 
-	if (preload_only) {
-		cw_config_destroy(cfg);
-		return 0;
+	if (!preload_only) {
+		if (!cfg || cw_true(cw_variable_retrieve(cfg, "modules", "autoload"))) {
+			args.cfg = cfg;
+			for (i = 0; i < arraysize(loadorder); i++) {
+				if ((args.prefix = loadorder[i]))
+					args.prefix_len = strlen(loadorder[i]);
+				lt_dlforeachfile(lt_dlgetsearchpath(), load_module, &args);
+			}
+		}
 	}
 
-	if (!cfg || cw_true(cw_variable_retrieve(cfg, "modules", "autoload"))) {
-		args.cfg = cfg;
-		for (i = 0; i < arraysize(loadorder); i++) {
-			if ((args.prefix = loadorder[i]))
-				args.prefix_len = strlen(loadorder[i]);
-			lt_dlforeachfile(lt_dlgetsearchpath(), load_module, &args);
-		}
-	} 
 	cw_config_destroy(cfg);
+
+	pthread_setspecific(loader_err_key, NULL);
+
 	return 0;
 }
 
@@ -555,21 +569,27 @@ static int handle_modlist(int fd, int argc, char *argv[])
 
 static int handle_load(int fd, int argc, char *argv[])
 {
+	struct loader_err loader_err;
 	struct load_module_args args;
 	const char *path;
 
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 
+	loader_err.err[0] = '\0';
+	pthread_setspecific(loader_err_key, &loader_err);
+
 	args.cfg = NULL;
 	args.prefix = argv[1];
 	args.prefix_len = 0;
 	args.reload_ok = 1;
-	args.loaded = 0;
+	args.found = 0;
 	lt_dlforeachfile((path = lt_dlgetsearchpath()), load_module, &args);
 
-	if (!args.loaded)
+	if (!args.found)
 		cw_log(CW_LOG_NOTICE, "Module %s not found in %s\n", argv[1], path);
+
+	pthread_setspecific(loader_err_key, NULL);
 
 	return RESULT_SUCCESS;
 }
@@ -766,13 +786,6 @@ static struct cw_clicmd clicmds[] = {
 };
 
 
-CW_MUTEX_DEFINE_STATIC(loader_mutex);
-static pthread_key_t loader_err_key;
-struct loader_err {
-	int have_err;
-	char err[251];
-};
-
 static void loader_lock(void)
 {
 	cw_mutex_lock(&loader_mutex);
@@ -786,11 +799,13 @@ static void loader_unlock(void)
 static void loader_seterr(const char *err)
 {
 	struct loader_err *local = pthread_getspecific(loader_err_key);
+
 	if (local) {
-		if ((local->have_err = (err ? 1 : 0))) {
+		if (err) {
 			strncpy(local->err, err, sizeof(local->err) - 1);
 			local->err[sizeof(local->err) - 1] = '\0';
-		}
+		} else
+			local->err[0] = '\0';
 	}
 }
 
@@ -798,9 +813,8 @@ static const char *loader_geterr(void)
 {
 	struct loader_err *local = pthread_getspecific(loader_err_key);
 
-	if (!local || !local->have_err)
+	if (!local)
 		return NULL;
-	local->have_err = 0;
 	return local->err;
 }
 
@@ -810,7 +824,6 @@ void cw_loader_init(void)
 		perror("pthread_key_create");
 		exit(1);
 	}
-	pthread_setspecific(loader_err_key, calloc(1, sizeof(struct loader_err)));
 
 	cw_registry_init(&module_registry, 256);
 	lt_dlinit();
