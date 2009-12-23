@@ -5163,13 +5163,13 @@ static int find_sdp(struct sip_request *req)
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
     char host[258];
-    char s[256];
     char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in sin;
     struct cw_hostent ahp;
     char *m;
     char *c;
     char *a;
+    char *s;
     char *codecs;
     struct hostent *hp;
     struct cw_channel *bridgepeer = NULL;
@@ -5497,12 +5497,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 break;
             old = iterator;
             
-            if ((sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1))
+            if (sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1)
             {
                 found = 1;
                 cw_log(CW_LOG_DEBUG,"MaxBufferSize:%d\n",x);
             }
-            else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1))
+            else if (sscanf(a, "T38MaxBitRate:%d", &x) == 1)
             {
                 found = 1;
                 cw_log(CW_LOG_DEBUG,"T38MaxBitRate: %d\n",x);
@@ -5531,7 +5531,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                     break;
                 }
             }
-            else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1))
+            else if (sscanf(a, "T38FaxVersion:%d", &x) == 1)
             {
                 found = 1;
                 cw_log(CW_LOG_DEBUG,"FaxVersion: %d\n",x);
@@ -5540,46 +5540,63 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 else if (x == 1)
                     peert38capability |= T38FAX_VERSION_1;
             }
-            else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1))
+            else if (sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1)
             {
                 found = 1;
                 cw_log(CW_LOG_DEBUG,"FaxMaxDatagram: %d\n",x);
                 cw_udptl_set_far_max_datagram(p->udptl, x);
                 cw_udptl_set_local_max_datagram(p->udptl, x);
             }
-            else if ((sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1))
+            else if (!strncmp(a, "T38FaxFillBitRemoval", sizeof("T38FaxFillBitRemoval") - 1))
             {
                 found = 1;
-                cw_log(CW_LOG_DEBUG,"FillBitRemoval: %d\n",x);
-                if (x == 1)
+                x = 0;
+                if (a[sizeof("T38FaxFillBitRemoval") - 1] == '\0'
+                || !strcmp(a + sizeof("T38FaxFillBitRemoval") - 1, ":1"))
+                {
+                    x = 1;
                     peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+                }
+                cw_log(CW_LOG_DEBUG, "FillBitRemoval: %d\n", x);
             }
-            else if ((sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1))
+            else if (!strncmp(a, "T38FaxTranscodingMMR", sizeof("T38FaxTranscodingMMR") - 1))
             {
                 found = 1;
-                cw_log(CW_LOG_DEBUG,"Transcoding MMR: %d\n",x);
-                if (x == 1)
+                x = 0;
+                if (a[sizeof("T38FaxTranscodingMMR") - 1] == '\0'
+                || !strcmp(a + sizeof("T38FaxTranscodingMMR") - 1, ":1"))
+                {
+                    x = 1;
                     peert38capability |= T38FAX_TRANSCODING_MMR;
+                }
+                cw_log(CW_LOG_DEBUG, "Transcoding MMR: %d\n", x);
             }
-            else if ((sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1))
+            else if (!strncmp(a, "T38FaxTranscodingJBIG", sizeof("T38FaxTranscodingJBIG") - 1))
             {
                 found = 1;
-                cw_log(CW_LOG_DEBUG,"Transcoding JBIG: %d\n",x);
-                if (x == 1)
+                x = 0;
+                if (a[sizeof("T38FaxTranscodingJBIG") - 1] == '\0'
+                || !strcmp(a + sizeof("T38FaxTranscodingJBIG") - 1, ":1"))
+                {
+                    x = 1;
                     peert38capability |= T38FAX_TRANSCODING_JBIG;
+                }
+                cw_log(CW_LOG_DEBUG, "Transcoding JBIG: %d\n", x);
             }
-            else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1))
+            else if (!strncmp(a, "T38FaxRateManagement:", sizeof("T38FaxRateManagement:") - 1))
             {
                 found = 1;
+                s = a + sizeof("T38FaxRateManagement:") - 1;
                 cw_log(CW_LOG_DEBUG,"RateMangement: %s\n", s);
                 if (!strcasecmp(s, "localTCF"))
                     peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
                 else if (!strcasecmp(s, "transferredTCF"))
                     peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
             }
-            else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1))
+            else if (!strncmp(a, "T38FaxUdpEC:", sizeof("T38FaxUdpEC:") - 1))
             {
                 found = 1;
+                s = a + sizeof("T38FaxUdpEC:") - 1;
                 cw_log(CW_LOG_DEBUG,"UDP EC: %s\n", s);
                 if (strcasecmp(s, "t38UDPFEC") == 0)
                 {
@@ -5596,7 +5613,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                     ec_found = UDPTL_ERROR_CORRECTION_NONE;
                 }
             }
-            else if ((sscanf(a, "T38VendorInfo:%255s", s) == 1))
+            else if ((sscanf(a, "T38VendorInfo:%d %d %d", &x, &x, &x) == 3))
             {
                 found = 1;
             }
@@ -6608,27 +6625,20 @@ static int t38_get_rate(int t38cap)
 /*! \brief  add_t38_sdp: Add T.38 Session Description Protocol message */
 static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
-    int len = 0;
-    int x = 0;
-    struct sockaddr_in udptlsin;
-    char v[256] = "";
-    char s[256] = "";
-    char o[256] = "";
-    char c[256] = "";
-    char t[256] = "";
-    char m_modem[256];
-    char a_modem[1024];
+    char buf[1024];
     char iabuf[INET_ADDRSTRLEN];
+    struct sockaddr_in udptlsin;
     struct sockaddr_in udptldest = { 0, };
+    int x = 0;
     int debug;
 
-    debug = sip_debug_test_pvt(p);
-    len = 0;
     if (!p->udptl)
     {
         cw_log(CW_LOG_WARNING, "No way to add SDP without an UDPTL structure\n");
         return -1;
     }
+
+    debug = sip_debug_test_pvt(p);
 
     if (!p->sessionid)
     {
@@ -6676,61 +6686,68 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
             p->t38jointcapability);    
     }
 
-    add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
-    add_header_contentLength(resp, len);
+    cw_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr);
 
-    snprintf(v, sizeof(v), "v=0");
-    add_line(resp, v, SIP_DL_DONTCARE);
-    snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, cw_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
-    add_line(resp, o, SIP_DL_SDP_O);
-    snprintf(s, sizeof(s), "s=session");
-    add_line(resp, s, SIP_DL_DONTCARE);
-    snprintf(c, sizeof(c), "c=IN IP4 %s", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
-    add_line(resp, c, SIP_DL_SDP_C);
-    snprintf(t, sizeof(t), "t=0 0");
-    add_line(resp, t, SIP_DL_DONTCARE);
-    snprintf(m_modem, sizeof(m_modem), "m=image %d udptl t38", ntohs(udptldest.sin_port));
-    add_line(resp, m_modem, SIP_DL_SDP_M_T38);
+    add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
+    add_header_contentLength(resp, 0);
+
+    add_line(resp, "v=0", SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, iabuf);
+    add_line(resp, buf, SIP_DL_SDP_O);
+
+    add_line(resp, "s=session", SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "c=IN IP4 %s", iabuf);
+    add_line(resp, buf, SIP_DL_SDP_C);
+
+    add_line(resp, "t=0 0", SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "m=image %d udptl t38", ntohs(udptldest.sin_port));
+    add_line(resp, buf, SIP_DL_SDP_M_T38);
 
     if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
-    {
-        snprintf(a_modem, sizeof(a_modem), "a=T38FaxVersion:0");
-        add_line(resp, a_modem, SIP_DL_DONTCARE);
-    }
+        add_line(resp, "a=T38FaxVersion:0", SIP_DL_DONTCARE);
+
     if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1)
-    {
-        snprintf(a_modem, sizeof(a_modem), "a=T38FaxVersion:1");
-        add_line(resp, a_modem, SIP_DL_DONTCARE);
-    }
+        add_line(resp, "a=T38FaxVersion:1", SIP_DL_DONTCARE);
+
     if ((x = t38_get_rate(p->t38jointcapability)))
     {
-        snprintf(a_modem, sizeof(a_modem), "a=T38MaxBitRate:%d",x);
-        add_line(resp, a_modem, SIP_DL_DONTCARE);
+        snprintf(buf, sizeof(buf), "a=T38MaxBitRate:%d", x);
+        add_line(resp, buf, SIP_DL_DONTCARE);
     }
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxFillBitRemoval:%d", (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxTranscodingMMR:%d", (p->t38jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxTranscodingJBIG:%d", (p->t38jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxRateManagement:%s", (p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
+
+    if (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL)
+        add_line(resp, "a=T38FaxFillBitRemoval", SIP_DL_DONTCARE);
+
+    if (p->t38jointcapability & T38FAX_TRANSCODING_MMR)
+        add_line(resp, "a=T38FaxTranscodingMMR", SIP_DL_DONTCARE);
+
+    if (p->t38jointcapability & T38FAX_TRANSCODING_JBIG)
+        add_line(resp, "a=T38FaxTranscodingJBIG", SIP_DL_DONTCARE);
+
+    add_line(resp,
+        ((p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF)
+            ? "a=T38FaxRateManagement:localTCF"
+            : "a=T38FaxRateManagement:transferredTCF"),
+        SIP_DL_DONTCARE);
 
     x = cw_udptl_get_local_max_datagram(p->udptl);
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxBuffer:%d",x);
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
-    snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
+    snprintf(buf, sizeof(buf), "a=T38FaxMaxBuffer:%d", x);
+    add_line(resp, buf, SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "a=T38FaxMaxDatagram:%d", x);
+    add_line(resp, buf, SIP_DL_DONTCARE);
+
     /* Tell them what we would like for the EC data from them. */
     if ((p->t38capability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
-    {
-        snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38capability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
-        add_line(resp, a_modem, SIP_DL_DONTCARE);
-    }
+        add_line(resp, ((p->t38capability & T38FAX_UDP_EC_FEC) ? "a=T38FaxUdpEC:t38UDPFEC" : "a=T38FaxUdpEC:t38UDPRedundancy" ), SIP_DL_DONTCARE);
+
 #if 0
-    snprintf(a_modem, sizeof(a_modem), "a=T38VendorInfo:spandsp");
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
+    add_line(resp, "a=T38VendorInfo:0 0 0", SIP_DL_DONTCARE);
 #endif
+
     /* Update lastrtprx when we send our SDP */
     time(&p->lastrtprx);
     time(&p->lastrtptx);
@@ -6741,38 +6758,27 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 /*! \brief  add_sdp: Add Session Description Protocol message */
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
-    int len = 0;
-    int pref_codec;
-    int alreadysent = 0;
-    struct sockaddr_in sin;
-    struct sockaddr_in vsin;
-    char v[256];
-    char s[256];
-    char o[256];
-    char c[256];
-    char t[256];
-    char tmpstr[256];
     char m_audio[256];
     char m_video[256];
-    //char a_audio[1024];
-    char a_video[1024];
+    char buf[256];
+    char iabuf[INET_ADDRSTRLEN];
+    struct sockaddr_in sin;
+    struct sockaddr_in vsin;
+    struct sockaddr_in dest;
+    struct sockaddr_in vdest = { 0, };
 #ifdef ENABLE_SRTP
-    char crypto_buf[128];
-    const char *a_crypto = NULL;
     struct sip_srtp *srtp = p->srtp;
 #endif
-    char iabuf[INET_ADDRSTRLEN];
     const char *protocol = NULL;
+    int pref_codec;
+    int alreadysent = 0;
     int x;
     int rtp_code;
     int capability;
-    struct sockaddr_in dest;
-    struct sockaddr_in vdest = { 0, };
     int debug;
 
     debug = sip_debug_test_pvt(p);
 
-    len = 0;
     if (!p->rtp)
     {
         cw_log(CW_LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -6831,36 +6837,29 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     protocol = "AVP";
 #ifdef ENABLE_SRTP
-    if (srtp) {
-        if (srtp->a_crypto) {
-            a_crypto = srtp->a_crypto;
-        } else {
-            const char *crypto_suite = "AES_CM_128_HMAC_SHA1_80";
-            snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 %s inline:%s", crypto_suite, srtp->local_key64);
-            a_crypto = crypto_buf;
-        }
-    }
-
-    if (a_crypto)
+    if (srtp)
         protocol = "SAVP";
 #endif
 
     /* We break with the "recommendation" and send our IP, in order that our
        peer doesn't have to cw_gethostbyname() us */
 
-    add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
-    add_header_contentLength(resp, len);
+    cw_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr);
 
-    snprintf(v, sizeof(v), "v=0");
-    add_line(resp, v, SIP_DL_DONTCARE);
-    snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, cw_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
-    add_line(resp, o, SIP_DL_SDP_O);
-    snprintf(s, sizeof(s), "s=session");
-    add_line(resp, s, SIP_DL_DONTCARE);
-    snprintf(c, sizeof(c), "c=IN IP4 %s", cw_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
-    add_line(resp, c, SIP_DL_SDP_C);
-    snprintf(t, sizeof(t), "t=0 0");
-    add_line(resp, t, SIP_DL_DONTCARE);
+    add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
+    add_header_contentLength(resp, 0);
+
+    add_line(resp, "v=0", SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, iabuf);
+    add_line(resp, buf, SIP_DL_SDP_O);
+
+    add_line(resp, "s=session", SIP_DL_DONTCARE);
+
+    snprintf(buf, sizeof(buf), "c=IN IP4 %s", iabuf);
+    add_line(resp, buf, SIP_DL_SDP_C);
+
+    add_line(resp, "t=0 0", SIP_DL_DONTCARE);
 
     snprintf(m_audio, sizeof(m_audio), "m=audio %d RTP/%s", ntohs(dest.sin_port), protocol);
     snprintf(m_video, sizeof(m_video), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
@@ -6870,11 +6869,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     {
         if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, p->prefcodec)) != -1)
         {
-            sprintf(tmpstr," %d",rtp_code);
-            if (p->prefcodec <= CW_FORMAT_MAX_AUDIO)
-                strcat(m_audio,tmpstr);
-            else
-                strcat(m_video,tmpstr);
+            sprintf(buf," %d", rtp_code);
+            strcat((p->prefcodec <= CW_FORMAT_MAX_AUDIO ? m_audio : m_video), buf);
         }
         alreadysent |= p->prefcodec;
     }
@@ -6883,42 +6879,32 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     for (x = 0;  x < 32;  x++)
     {
         if (!(pref_codec = cw_codec_pref_index(&p->prefs, x)))
-            break; 
-        if (!(capability & pref_codec))
-            continue;
-        if (alreadysent & pref_codec)
-            continue;
-        if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, pref_codec)) != -1)
+            break;
+
+        if ((capability & pref_codec) && !(alreadysent & pref_codec))
         {
-            sprintf(tmpstr," %d",rtp_code);
-            if (pref_codec <= CW_FORMAT_MAX_AUDIO)
-            strcat(m_audio,tmpstr);
-            else
-            strcat(m_video,tmpstr);
+            if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, pref_codec)) != -1)
+            {
+                sprintf(buf, " %d", rtp_code);
+                strcat((pref_codec <= CW_FORMAT_MAX_AUDIO ? m_audio : m_video), buf);
+            }
+            alreadysent |= pref_codec;
         }
-        alreadysent |= pref_codec;
     }
 
     if (t38rtpsupport)
-    {
-        sprintf(tmpstr," %d",122);
-        strcat(m_audio,tmpstr);
-    }
+        strcat(m_audio, " 122");
 
     /* Now send any other common codecs, and non-codec formats: */
     for (x = 1; x <= ((videosupport && p->vrtp) ? CW_FORMAT_MAX_VIDEO : CW_FORMAT_MAX_AUDIO); x <<= 1)
     {
-        if (!(capability & x))
-            continue;
-        if (alreadysent & x)
-            continue;
-        if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, x)) != -1)
+        if ((capability & x) && !(alreadysent & x))
         {
-            sprintf(tmpstr," %d",rtp_code);
-            if (x <= CW_FORMAT_MAX_AUDIO)
-            strcat(m_audio,tmpstr);
-            else
-            strcat(m_video,tmpstr);
+            if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, x)) != -1)
+            {
+                sprintf(buf, " %d", rtp_code);
+                strcat((x <= CW_FORMAT_MAX_AUDIO ? m_audio : m_video), buf);
+            }
         }
     }
 
@@ -6928,29 +6914,30 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
             continue;
         if ((rtp_code = cw_rtp_lookup_code(p->rtp, 0, x)) != -1)
         {
-            sprintf(tmpstr," %d",rtp_code);
-                strcat(m_audio,tmpstr);
+            sprintf(buf, " %d", rtp_code);
+            strcat(m_audio, buf);
         }
     }
 
     add_line(resp, m_audio, SIP_DL_SDP_M_AUDIO);
-    alreadysent=0;
+    alreadysent = 0;
 
 #ifdef ENABLE_SRTP
-    if (a_crypto)
-        add_line(resp, a_crypto, SIP_DL_DONTCARE);
+    if (srtp) {
+        if (srtp->a_crypto) {
+            add_line(resp, srtp->a_crypto, SIP_DL_DONTCARE);
+        } else {
+            snprintf(buf, sizeof(buf), "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:%s", srtp->local_key64);
+            add_line(resp, buf, SIP_DL_DONTCARE);
+        }
+    }
 #endif
 
     /* **************************************************************************** */
     /* Prefer the codec we were requested to use, first, no matter what */
     if (capability & p->prefcodec)
     {
-        if (p->prefcodec <= CW_FORMAT_MAX_AUDIO)
-            add_codec_to_sdp(p, resp, p->prefcodec, 8000,
-                     debug);
-        else
-            add_codec_to_sdp(p, resp, p->prefcodec, 90000,
-                     debug);
+        add_codec_to_sdp(p, resp, p->prefcodec, ((p->prefcodec <= CW_FORMAT_MAX_AUDIO) ? 8000 : 90000), debug);
         alreadysent |= p->prefcodec;
     }
 
@@ -6960,58 +6947,38 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
         if (!(pref_codec = cw_codec_pref_index(&p->prefs, x)))
             break; 
 
-        if (!(capability & pref_codec))
-            continue;
-
-        if (alreadysent & pref_codec)
-            continue;
-
-        if (pref_codec <= CW_FORMAT_MAX_AUDIO)
-            add_codec_to_sdp(p, resp, pref_codec, 8000,
-                     debug);
-        else
-            add_codec_to_sdp(p, resp, pref_codec, 90000,
-                     debug);
-        alreadysent |= pref_codec;
+        if ((capability & pref_codec) && !(alreadysent & pref_codec))
+        {
+            add_codec_to_sdp(p, resp, pref_codec, ((pref_codec <= CW_FORMAT_MAX_AUDIO) ? 8000 : 90000), debug);
+            alreadysent |= pref_codec;
+        }
     }
 
     if (t38rtpsupport)
     {
-        /* TODO: Improve this */
-        sprintf(tmpstr, "a=rtpmap:%d %s/8000", 122, "t38");
-        add_line(resp, tmpstr, SIP_DL_DONTCARE);
+        /* TODO: Improve this? */
+        add_line(resp, "a=rtpmap:122 t38/8000", SIP_DL_DONTCARE);
     }
 
     /* Now send any other common codecs, and non-codec formats: */
     for (x = 1;  x <= ((videosupport && p->vrtp)  ?  CW_FORMAT_MAX_VIDEO  :  CW_FORMAT_MAX_AUDIO);  x <<= 1)
     {
-        if (!(capability & x))
-            continue;
-        if (alreadysent & x)
-            continue;
-        if (x <= CW_FORMAT_MAX_AUDIO)
-            add_codec_to_sdp(p, resp, x, 8000, debug);
-        else
-            add_codec_to_sdp(p, resp, x, 90000, debug);
+        if ((capability & x) && !(alreadysent & x))
+            add_codec_to_sdp(p, resp, x, ((x <= CW_FORMAT_MAX_AUDIO) ? 8000 : 90000), debug);
     }
 
     for (x = 1;  x <= CW_RTP_MAX;  x <<= 1)
     {
-        if (!(p->noncodeccapability & x))
-            continue;
-
-        add_noncodec_to_sdp(p, resp, x, 8000,
-                    debug);
+        if ((p->noncodeccapability & x))
+            add_noncodec_to_sdp(p, resp, x, 8000, debug);
     }
 
-    sprintf(tmpstr, "a=silenceSupp:off - - - -");
-    add_line(resp, tmpstr, SIP_DL_DONTCARE);
+    add_line(resp, "a=silenceSupp:off - - - -", SIP_DL_DONTCARE);
 
     if ((p->vrtp) && (!cw_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK))
     {
         /* only if video response is appropriate */
         add_line(resp, m_video, SIP_DL_SDP_M_VIDEO);
-        add_line(resp, a_video, SIP_DL_DONTCARE);
     }
 
     /* Update lastrtprx when we send our SDP */
