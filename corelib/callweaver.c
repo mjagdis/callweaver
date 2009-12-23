@@ -979,8 +979,7 @@ static void boot(void)
 	srand((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 	srandom((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
-	if (cw_crypto_init()
-	|| cw_loader_cli_init()
+	if (cw_loader_cli_init()
 	|| load_modules(1)
 	|| cw_channels_init()
 	|| cw_cdr_engine_init()
@@ -1581,6 +1580,11 @@ int callweaver_main(int argc, char *argv[])
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
 		cw_verbose("Warning! CallWeaver is not thread safe.\n");
+
+	/* We must load cryptographic keys before starting the console or
+	 * backgrounding because we may need to prompt for passphrases.
+	 */
+	cw_crypto_init();
 
 	/* Console start up needs core CLI commands in place because
 	 * the console will request debug and verbose settings
