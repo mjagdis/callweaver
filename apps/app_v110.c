@@ -261,6 +261,7 @@ static int login_v110(struct cw_channel *chan, int argc, char **argv, char *resu
 		return -1;
 	}
 
+	f = NULL;
 	while(cw_waitfor(chan, -1) > -1) {
 		f = cw_read(chan);
 		if (!f)
