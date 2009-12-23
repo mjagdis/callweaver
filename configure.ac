@@ -656,59 +656,59 @@ AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname 
 AC_CHECK_FUNCS([daemon])
 
 # Check if asctime_r() takes three arguments.
-AC_MSG_CHECKING([if asctime_r() takes three arguments])
-AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([[
-			#include <stdio.h>
-			#include <time.h>
-		]], [[
-			struct tm tm;
-			char buf [r256];
-
-			asctime_r (&tm, buf, sizeof (buf));
-		]]
-	)],
-	[
-		AC_DEFINE(ASCTIME_R_WITH_THREE_ARGS)
-        	AC_DEFINE([ASCTIME_R_WITH_THREE_ARGS],[],[asctime_r needs 3 arguments])
-		AC_MSG_RESULT(yes)
-	], [
-		AC_MSG_RESULT(no)
-	])
-
-AC_MSG_CHECKING([for sched_setaffinity])
-AC_CACHE_VAL(ac_cv_sched_setaffinity,
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
+AC_CACHE_CHECK([if asctime_r() takes three arguments],
+	cw_cv_asctime_r_with_three_args,
 	[AC_COMPILE_IFELSE(
-	 	[AC_LANG_PROGRAM([[#include <sched.h>]],
-			[[cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);]]
+		[AC_LANG_PROGRAM([[
+				#include <stdio.h>
+				#include <time.h>
+			]], [[
+				struct tm tm;
+				char buf [r256];
+
+				asctime_r (&tm, buf, sizeof (buf));
+			]]
 		)],
-		[ac_cv_sched_setaffinity=new],
-		[ac_cv_sched_setaffinity=bad]
+		[cw_cv_asctime_r_with_three_args=yes],
+		[cw_cv_asctime_r_with_three_args=no]
 	)]
-	if test $ac_cv_sched_setaffinity = bad ; then
-		[AC_COMPILE_IFELSE(
-		 	[AC_LANG_PROGRAM([[#include <sched.h>]],
-				[[cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);]]
+)
+if test $cw_cv_asctime_r_with_three_args = yes; then
+	AC_DEFINE([ASCTIME_R_WITH_THREE_ARGS], [1], [Define as 1 if asctime_r needs 3 arguments])
+fi
+
+AC_CACHE_CHECK([for sched_setaffinity],
+	cw_cv_sched_setaffinity,
+	[
+		save_CFLAGS="$CFLAGS"
+		CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
+		AC_COMPILE_IFELSE(
+			[AC_LANG_PROGRAM([[#include <sched.h>]],
+				[[cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);]]
 			)],
-			[ac_cv_sched_setaffinity=old],
-			[ac_cv_sched_setaffinity=no]
-		)]
-	fi
-	if test $ac_cv_sched_setaffinity = old ; then
-		AC_MSG_RESULT(old)
-		AC_DEFINE(HAVE_OLD_SETAFFINITY,1,[config])
-	elif test $ac_cv_sched_setaffinity = new ; then
-		AC_MSG_RESULT(ok)
-		AC_DEFINE(HAVE_SETAFFINITY,1,[config])
-	else
-		AC_MSG_RESULT(no)
-	fi
-	CFLAGS="$save_CFLAGS")
+			[cw_cv_sched_setaffinity=new],
+			[cw_cv_sched_setaffinity=bad]
+		)
+		if test $cw_cv_sched_setaffinity = bad ; then
+			AC_COMPILE_IFELSE(
+				[AC_LANG_PROGRAM([[#include <sched.h>]],
+					[[cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);]]
+				)],
+				[cw_cv_sched_setaffinity=old],
+				[cw_cv_sched_setaffinity=no]
+			)
+		fi
+		CFLAGS="$save_CFLAGS"
+	]
+)
+if test $cw_cv_sched_setaffinity = old ; then
+	AC_DEFINE([HAVE_OLD_SETAFFINITY], [1], [Defines as 1 if sched_setaffinity() exists and takes 2 args])
+elif test $cw_cv_sched_setaffinity = new ; then
+	AC_DEFINE([HAVE_SETAFFINITY], [1], [Defines as 1 if sched_setaffinity() exists and takes 3 args])
+fi
 
 AX_HAVE_EPOLL(
-	AC_DEFINE(HAVE_EPOLL,[],[This platform support epoll(7)]),)
+	AC_DEFINE([HAVE_EPOLL], [1], [This platform supports epoll(7)]),)
 
 
 dnl Checks for header files.
