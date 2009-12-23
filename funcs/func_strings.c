@@ -203,7 +203,7 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (buf)
-		snprintf(buf, len, "%d", (argv[0] ? strlen(argv[0]) : 0));
+		snprintf(buf, len, "%lu", (unsigned long)(argv[0] ? strlen(argv[0]) : 0));
 
 	return 0;
 }
@@ -229,7 +229,7 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, char *bu
 	cw_localtime(&epochi, &time, timezone);
 
 	if (!strftime(buf, len, format, &time)) {
-		cw_log(CW_LOG_DEBUG, "C function strftime() output nothing or needed more than %d bytes\n", len);
+		cw_log(CW_LOG_DEBUG, "C function strftime() output nothing or needed more than %lu bytes\n", (unsigned long)len);
 		*buf = '\0';
 	}
 	buf[len - 1] = '\0';

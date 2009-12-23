@@ -5599,8 +5599,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
  
 	}
 	if (res < sizeof(*mh)) {
-		cw_log(CW_LOG_WARNING, "midget packet received (%d of %zd min)\n", 
-		    res, (int)sizeof(*mh));
+		cw_log(CW_LOG_WARNING, "midget packet received (%d of %lu min)\n", res, (unsigned long)sizeof(*mh));
 		return 1;
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {

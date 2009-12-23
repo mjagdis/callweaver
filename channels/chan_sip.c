@@ -2475,7 +2475,7 @@ static int send_response(struct sip_pvt *p, struct sip_request **req_p, int reli
 
 	if (recordhistory) {
 		for (res = sizeof("SIP/2.0 ") - 1; (*req_p)->data[res] != '\r'; res++);
-		append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), (*req_p)->cseq_len, (*req_p)->data + (*req_p)->cseq, res - (sizeof("SIP/2.0 ") - 1), (*req_p)->data + sizeof("SIP/2.0 ") - 1);
+		append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), (*req_p)->cseq_len, (*req_p)->data + (*req_p)->cseq, (int)(res - (sizeof("SIP/2.0 ") - 1)), (*req_p)->data + sizeof("SIP/2.0 ") - 1);
 	}
 
 	sip_dealloc_headsdp_lines(*req_p);
@@ -14780,7 +14780,7 @@ static int handle_message(void *data)
 						memcpy(dialogue->theirtag, req->data + req->tag, (dialogue->theirtag_len = req->taglen));
 						dialogue->theirtag[req->taglen] = '\0';
 					} else {
-						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
+						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %lu, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, (unsigned long)sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
 						transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
 						sip_scheddestroy(dialogue, -1);
 						cw_mutex_unlock(&dialogue->lock);
@@ -14832,7 +14832,7 @@ static int handle_message(void *data)
 						transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
 					}
 				} else {
-					cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
+					cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %lu, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, (unsigned long)sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
 					transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
 				}
 			} else {

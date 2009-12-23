@@ -1451,7 +1451,7 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
         if (agent == NULL) {
             buf[0] = '\0';
             res = cw_app_getdata(chan, agentinputfile, buf, sizeof(buf) - 1, 0);
-            cw_log(CW_LOG_DEBUG, "Agent callback user id dialed in is [%s], res=%d, len=%d\n", buf, res, strlen(buf));
+            cw_log(CW_LOG_DEBUG, "Agent callback user id dialed in is [%s], res=%d, len=%lu\n", buf, res, (unsigned long)strlen(buf));
             if (strlen(buf) > 0) {
                 agent = (icd_agent *) icd_fieldset__get_value(agents, buf);
                 if (agent != NULL) {
