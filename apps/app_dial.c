@@ -1123,7 +1123,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		tmp->chan = cw_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			cw_log(CW_LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, cw_cause2str(cause));
+			cw_log(CW_LOG_NOTICE, "Unable to create channel of type '%s/%s' (cause %d - %s)\n", tech, numsubst, cause, cw_cause2str(cause));
 			free(tmp);
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
