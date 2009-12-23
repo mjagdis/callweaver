@@ -1410,6 +1410,8 @@ int callweaver_main(int argc, char *argv[])
 			fprintf(stderr, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(EX_OSERR);
 		}
+
+		setenv("HOME", pw->pw_dir, 1);
 	}
 
 #if defined(__linux__)
