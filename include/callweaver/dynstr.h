@@ -101,6 +101,8 @@ extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr **ds_p, const char *f
  *        );
  */
 
+#ifndef CW_DEBUG_COMPILE
+
 /* These are deliberately empty. They only exist to allow compile time
  * syntax checking of _almost_ the actual code rather than the preprocessor
  * expansion. They will be optimized out.
@@ -110,8 +112,7 @@ extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr **ds_p, const char *f
  * list it is talking about. If you can't spot it try compiling
  * with CW_DEBUG_COMPILE defined. This breaks expansion completely
  * so you get accurate line numbers for errors and warnings but then
- * the compiled code will not generate events (they will be optimized
- * out).
+ * the compiled code will have references to non-existent functions.
  */
 static __inline__ int cw_dynstr_tprintf(struct cw_dynstr **ds_p, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
@@ -126,7 +127,6 @@ static __inline__ char *cw_fmtval(const char *fmt, ...)
 	return NULL;
 }
 
-#ifndef CW_DEBUG_COMPILE
 #  define CW_TPRINTF_DEBRACKET_cw_fmtval(fmt, ...)	fmt, ## __VA_ARGS__
 #  define CW_TPRINTF_DO(op, ...)			op(__VA_ARGS__)
 #  define CW_TPRINTF_FMT(n, a)				CW_TPRINTF_DO(CW_TPRINTF_FMT_I, n, CW_CPP_CAT(CW_TPRINTF_DEBRACKET_, a))
@@ -143,6 +143,13 @@ static __inline__ char *cw_fmtval(const char *fmt, ...)
 		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_TPRINTF_ARGS, __VA_ARGS__) \
 	); \
    })
+
+#else
+
+extern int cw_dynstr_tprintf(struct cw_dynstr **ds_p, size_t count, ...)
+	__attribute__ ((nonnull (1)));
+extern char *cw_fmtval(const char *fmt, ...)
+	__attribute__ ((nonnull (1), format (printf, 1,2)));
 
 #endif
 

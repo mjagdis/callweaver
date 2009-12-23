@@ -224,6 +224,29 @@ extern int init_manager(void);
  *        );
  */
 
+/*! \brief create a callweaver manager message
+ *      \note The actual parameters passed are hidden by the wrapping macro below
+ *      \param msg_p		An indirect reference to the msg to be created or extended
+ *      \param count		Number of key-value tuples
+ *      \param map		Map of offsets for keys and values
+ *      \param fmt		printf style format string
+ */
+extern CW_API_PUBLIC int cw_manager_msg_func(struct cw_manager_message **msg_p, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 4,5)));
+
+/*! \brief send a callweaver manager event
+ *      \note The actual parameters passed are hidden by the wrapping macro
+ *      \param category	Event category, matches manager authorization
+ *      \param count		Number of key-value tuples
+ *      \param map		Map of offsets for keys and values
+ *      \param fmt		printf style format string
+ */
+extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 4,5)));
+
+
+#ifndef CW_DEBUG_COMPILE
+
 /* These are deliberately empty. They only exist to allow compile time
  * syntax checking of _almost_ the actual code rather than the preprocessor
  * expansion. They will be optimized out.
@@ -231,10 +254,9 @@ extern int init_manager(void);
  * stop the preprocessor eating line breaks so you way get told arg 3
  * doesn't match the format string, but not which cw_msg_tuple in the
  * manager_event is talking about. If you can't spot it try compiling
- * with CW_DEBUG_MAN_EVENT defined. This breaks expansion completely
+ * with CW_DEBUG_COMPILE defined. This breaks expansion completely
  * so you get accurate line numbers for errors and warnings but then
- * the compiled code will not generate events (they will be optimized
- * out).
+ * the compiled code will have references to non-existent functions.
  */
 static __inline__ int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
@@ -260,27 +282,6 @@ static __inline__ char *cw_msg_vtuple(const char *key, const char *fmt, ...)
 	return NULL;
 }
 
-/*! \brief create a callweaver manager message
- *      \note The actual parameters passed are hidden by the wrapping macro below
- *      \param msg_p		An indirect reference to the msg to be created or extended
- *      \param count		Number of key-value tuples
- *      \param map		Map of offsets for keys and values
- *      \param fmt		printf style format string
- */
-extern CW_API_PUBLIC int cw_manager_msg_func(struct cw_manager_message **msg_p, size_t count, int map[], const char *fmt, ...)
-	__attribute__ ((format (printf, 4,5)));
-
-/*! \brief send a callweaver manager event
- *      \note The actual parameters passed are hidden by the wrapping macro
- *      \param category	Event category, matches manager authorization
- *      \param count		Number of key-value tuples
- *      \param map		Map of offsets for keys and values
- *      \param fmt		printf style format string
- */
-extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
-	__attribute__ ((format (printf, 4,5)));
-
-#ifndef CW_DEBUG_MAN_EVENT
 #  define CW_ME_DEBRACKET_cw_msg_tuple(key, fmt, ...)	key, fmt, ## __VA_ARGS__
 #  define CW_ME_DEBRACKET_cw_msg_vtuple(key, fmt, ...)	key, fmt, ## __VA_ARGS__
 #  define CW_ME_DO(op, ...)				op(__VA_ARGS__)
@@ -302,7 +303,7 @@ extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int 
    })
 
 #  define cw_manager_event(category, event, count, ...) ({ \
-	cw_manager_event(category, event, count, \
+	(void)cw_manager_event(category, event, count, \
 		__VA_ARGS__ \
 	); \
 	int map[((count + 1) << 1) + 1] = { 0 }; \
@@ -314,6 +315,20 @@ extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int 
 		"\r\n" \
 	); \
    })
+
+#else
+
+/* N.B. Under CW_DEBUG_COMPILE we aren't expected to actually link
+ * (or even generate a .o for that matter) so these don't exist anywhere.
+ */
+extern int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
+	__attribute__ ((nonnull (1)));
+extern void cw_manager_event(int category, const char *event, size_t count, ...)
+	__attribute__ ((nonnull (2)));
+extern char *cw_msg_tuple(const char *key, const char *fmt, ...)
+	__attribute__ ((nonnull (1,2), format (printf, 2,3)));
+extern char *cw_msg_vtuple(const char *key, const char *fmt, ...)
+	__attribute__ ((nonnull (1,2), format (printf, 2,3)));
 
 #endif
 

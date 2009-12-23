@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# If we make warnings fatal we can discard any output from the first run
+@REAL_CC@ "$@" # > /dev/null 2>&1
+
+if [[ $? -ne 0 ]]; then
+	echo '****'
+	echo '**** Errors encountered, rerunning with -DCW_DEBUG_COMPILE'
+	echo '****'
+	@REAL_CC@ -DCW_DEBUG_COMPILE "$@"
+fi

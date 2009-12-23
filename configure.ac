@@ -2507,6 +2507,11 @@ AM_CONFIG_HEADER(include/confdefs.h)
 ######
 AC_CONFIG_SUBDIRS(libltdl)
 
+REAL_CC="$CC"
+AC_SUBST([REAL_CC])
+CC='${top_builddir}/utils/cc'
+AC_CONFIG_FILES([utils/cc], [chmod +x utils/cc])
+
 AC_OUTPUT([Makefile
 		 include/Makefile
 		 include/callweaver/Makefile
