@@ -4597,57 +4597,6 @@ static int sip_register(char *value, int lineno)
     return 0;
 }
 
-/*! \brief  lws2sws: Parse multiline SIP headers into one header */
-/* This is enabled if pedanticsipchecking is enabled */
-static int lws2sws(char *msgbuf, int len) 
-{ 
-    int h = 0, t = 0; 
-    int lws = 0; 
-
-    for (   ;  h < len;  )
-    { 
-        /* Eliminate all CRs */ 
-        if (msgbuf[h] == '\r')
-        { 
-            h++; 
-            continue; 
-        } 
-        /* Check for end-of-line */ 
-        if (msgbuf[h] == '\n')
-        { 
-            /* Check for end-of-message */ 
-            if (h + 1 == len) 
-                break; 
-            /* Check for a continuation line */ 
-            if (msgbuf[h + 1] == ' ' || msgbuf[h + 1] == '\t')
-            { 
-                /* Merge continuation line */ 
-                h++; 
-                continue; 
-            } 
-            /* Propagate LF and start new line */ 
-            msgbuf[t++] = msgbuf[h++]; 
-            lws = 0;
-            continue; 
-        } 
-        if (msgbuf[h] == ' ' || msgbuf[h] == '\t')
-        { 
-            if (lws)
-            { 
-                h++; 
-                continue; 
-            } 
-            msgbuf[t++] = msgbuf[h++]; 
-            lws = 1; 
-            continue; 
-        } 
-        msgbuf[t++] = msgbuf[h++]; 
-        if (lws) 
-            lws = 0; 
-    } 
-    msgbuf[t] = '\0'; 
-    return t; 
-}
 
 /*! \brief  parse_request: Parse a SIP message */
 static int parse_request(struct sip_request *req)
@@ -14482,152 +14431,122 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 /*    Successful messages is connected to SIP call and forwarded to handle_request() */
 static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignore)
 {
-    struct sip_request req;
-    struct sip_request req_bak;
-    struct sockaddr_in sin = { 0, }, sout = { 0, };
-    struct sip_pvt *p;
-    int res;
-    socklen_t len, leno;
-    int nounlock;
-    int recount = 0;
-    char iabuf[INET_ADDRSTRLEN];
-    unsigned int lockretry;
+	struct sip_request req;
+	char iabuf[INET_ADDRSTRLEN];
+	struct sockaddr_in sin, sout;
+	struct sip_pvt *p;
+	socklen_t len, leno;
+	int res;
+	int nounlock;
+	int recount = 0;
+	unsigned int lockretry;
 
-    len = sizeof(sin);
-    leno = sizeof(sout);
-    memset(&req, 0, sizeof(req));
-    res = cw_recvfromto(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len, (struct sockaddr *)&sout, &leno);
-    if (res < 0)
-    {
+	len = sizeof(sin);
+	leno = sizeof(sout);
+	memset(&req, 0, sizeof(req));
+
+	req.len = cw_recvfromto(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len, (struct sockaddr *)&sout, &leno);
+	if (req.len == -1) {
 #if !defined(__FreeBSD__)
-        if (errno == EAGAIN)
-            cw_log(CW_LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
-        else 
+		if (errno == EAGAIN)
+			cw_log(CW_LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
+		else
 #endif
-        if (errno != ECONNREFUSED)
-            cw_log(CW_LOG_WARNING, "Recv error: %s\n", strerror(errno));
-        return 1;
-    }
+		if (errno != ECONNREFUSED)
+			cw_log(CW_LOG_WARNING, "Recv error: %s\n", strerror(errno));
 
-    if (res == sizeof(req.data))
-    {
-        cw_log(CW_LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
-	req.data[sizeof(req.data) - 1] = '\0';
-    }
-    else
-	req.data[res] = '\0';
-    req.len = res;
+		return 1;
+	}
 
-    if (sip_debug_test_addr(&sin))
-        cw_set_flag(&req, SIP_PKT_DEBUG);
+	if (req.len == sizeof(req.data)) {
+		cw_log(CW_LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
+		req.data[sizeof(req.data) - 1] = '\0';
+	} else
+		req.data[req.len] = '\0';
 
+	/* If either of the first two bytes are less than 32 this must be a stun packet */
+	if (req.data[0] < ' ' || req.data[1] < ' ') {
+		rfc3489_state_t stun_me;
 
-    if (pedanticsipchecking) {
-        // Save our packet...
-        memcpy (&req_bak, &req, sizeof(struct sip_request) );
-        req.len = lws2sws(req.data, req.len);    /* Fix multiline headers */
-    }
-    if (cw_test_flag(&req, SIP_PKT_DEBUG))
-    {
-        cw_verbose("\n<-- SIP read from %s:%d: \n%s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
-    }
-    parse_request(&req);
-    req.method = find_sip_method(req.data + req.rlPart1);
+		memset(&stun_me, 0, sizeof(rfc3489_state_t));
 
-    /* ANALYZE Packet payload to discover stun responses */
-    if (req.method == SIP_UNKNOWN)
-    {
-        static rfc3489_state_t stun_me;
+		if (stun_handle_packet(sipsock, &sin, (unsigned char *)req.data, req.len, &stun_me) == RFC3489_ACCEPT
+		&& stun_me.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE) {
+			struct sockaddr_in msin;
 
-        memset(&stun_me, 0, sizeof(rfc3489_state_t));
-        if (pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req_bak.data,res, &stun_me) == RFC3489_ACCEPT)
-            ;
-        else if (!pedanticsipchecking  &&  stun_handle_packet(sipsock, &sin,(unsigned char *) req.data,res, &stun_me) == RFC3489_ACCEPT)
-            ;
-        if (stun_me.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE)
-        {
-            struct in_addr empty;
-            struct sockaddr_in msin;
+			if (stundebug)
+				cw_log(CW_LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
 
-            if (stundebug) 
-                cw_log(CW_LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
-            rfc3489_addr_to_sockaddr(&msin, stun_me.mapped_addr);
+			rfc3489_addr_to_sockaddr(&msin, stun_me.mapped_addr);
 
-            memset(&empty, 0, sizeof(empty));
-            if (!memcmp(&externip.sin_addr, &empty, sizeof(externip.sin_addr)))
-            {
-                cw_log(CW_LOG_NOTICE, "STUN: externip not set. Setting it to stun mapped address %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
-                externip = msin;
-            }
-            else if (memcmp(&externip.sin_addr,&msin.sin_addr,sizeof(externip.sin_addr)))
-            {
-                cw_log(CW_LOG_NOTICE, "STUN: externip changed. Setting it to stun mapped address %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
-                externip = msin;
-            }
-            return 1;
-        }
-    }
+			if (externip.sin_addr.s_addr == 0 || memcmp(&externip.sin_addr, &msin.sin_addr, sizeof(externip.sin_addr))) {
+				cw_log(CW_LOG_NOTICE, "STUN: externip changed or not set. Setting it to stun mapped address %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
+				externip = msin;
+			}
+		}
+	} else {
+		if (sip_debug_test_addr(&sin)) {
+			cw_set_flag(&req, SIP_PKT_DEBUG);
+			cw_verbose("\n<-- SIP read from %s:%d: \n%s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
+		}
 
-    if (cw_test_flag(&req, SIP_PKT_DEBUG))
-    {
-        /*
-        cw_verbose("--- (%d headers %d lines)", req.headers, req.lines);
-        if (req.headers + req.lines == 0) 
-            cw_verbose(" Nat keepalive ");
-        cw_verbose("---\n");
-        */
-        cw_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
-    }
+		if (!parse_request(&req)) {
+			req.method = find_sip_method(req.data + req.rlPart1);
 
-    if (req.headers < 2)
-    {
-        /* Must have at least two headers */
-        return 1;
-    }
+			if (cw_test_flag(&req, SIP_PKT_DEBUG))
+				cw_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 
-    lockretry = 100;
+			if (req.headers < 2) {
+				/* Must have at least two headers */
+				return 1;
+			}
+
+			lockretry = 100;
 retrylock:
-    p = find_call(&req, &sin, &sout, req.method);
-    if (p)
-    {
-        /* Go ahead and lock the owner if it has one -- we may need it */
-        if (p->owner && cw_channel_trylock(p->owner))
-        {
-            cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
-            cw_mutex_unlock(&p->lock);
-            /* Sleep infinitesimally short amount of time */
-            usleep(1);
-	    if (--lockretry) {
-                cw_object_put(p);
-		goto retrylock;
-            } else {
-	        cw_log(CW_LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
-	        cw_log(CW_LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
-                cw_object_put(p);
-	        return 1;
-	    }
-        }
-        memcpy(&p->recv, &sin, sizeof(p->recv));
-        if (recordhistory)
-        {
-            char tmp[80];
-            /* This is a response, note what it was for */
-            snprintf(tmp, sizeof(tmp), "%s - %s", req.data + req.cseq, req.data + req.rlPart2);
-            append_history(p, "Rx", tmp);
-        }
-        nounlock = 0;
-        if (handle_request(p, &req, &sin, &recount, &nounlock) == -1)
-        {
-            /* Request failed */
-            cw_log(CW_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
-        }
-        
-        if (p->owner && !nounlock)
-            cw_channel_unlock(p->owner);
-        cw_mutex_unlock(&p->lock);
-        cw_object_put(p);
-    }
-    return 1;
+			if ((p = find_call(&req, &sin, &sout, req.method))) {
+				/* Go ahead and lock the owner if it has one -- we may need it */
+				if (p->owner && cw_channel_trylock(p->owner)) {
+					cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
+					cw_mutex_unlock(&p->lock);
+					/* Sleep infinitesimally short amount of time */
+					usleep(1);
+					if (--lockretry) {
+						cw_object_put(p);
+						goto retrylock;
+					} else {
+						cw_log(CW_LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
+						cw_log(CW_LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
+						cw_object_put(p);
+						return 1;
+					}
+				}
+
+				memcpy(&p->recv, &sin, sizeof(p->recv));
+
+				if (recordhistory) {
+					char tmp[80];
+					/* This is a response, note what it was for */
+					snprintf(tmp, sizeof(tmp), "%s - %s", req.data + req.cseq, req.data + req.rlPart2);
+					append_history(p, "Rx", tmp);
+				}
+
+				nounlock = 0;
+
+				if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
+					/* Request failed */
+					cw_log(CW_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+				}
+
+				if (p->owner && !nounlock)
+					cw_channel_unlock(p->owner);
+
+				cw_mutex_unlock(&p->lock);
+				cw_object_put(p);
+			}
+		}
+	}
+
+	return 1;
 }
 
 /*! \brief  sip_send_mwi_to_peer: Send message waiting indication */
