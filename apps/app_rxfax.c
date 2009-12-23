@@ -269,6 +269,12 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 
 static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char *file, int calling_party, int verbose) {
     struct cw_var_t	*var;
+    int max_pages;
+
+    if (!verbose && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DEBUG, "FAX_DEBUG"))) {
+        verbose = 1;
+        cw_object_put(var);
+    }
 
     span_log_set_message_handler(&t30->logging, span_message);
 
@@ -287,7 +293,13 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
         t30_set_tx_page_header_info(t30, var->value);
         cw_object_put(var);
     }
-    t30_set_rx_file(t30, file, -1);
+
+    max_pages = -1;
+    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_MAX_RX_PAGES, "FAX_MAX_RX_PAGES"))) {
+        max_pages = atoi(var->value);
+        cw_object_put(var);
+    }
+    t30_set_rx_file(t30, file, max_pages);
 
     //t30_set_phase_b_handler(t30, phase_b_handler, chan);
     t30_set_phase_d_handler(t30, phase_d_handler, chan);
@@ -314,6 +326,8 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
                                      | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
     t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                      | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+
+    return verbose;
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -336,7 +350,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
     t30 = t38_terminal_get_t30_state(t38);
     t38_core = t38_terminal_get_t38_core_state(t38);
 
-    fax_set_common(chan, t30, file, calling_party, verbose);
+    verbose = fax_set_common(chan, t30, file, calling_party, verbose);
 
     span_log_set_message_handler(&t38->logging, span_message);
     span_log_set_message_handler(&t38_core->logging, span_message);
@@ -384,7 +398,7 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, int calling_party,int verbose) {
+static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, int calling_party, int verbose) {
     struct cw_frame 	*inf = NULL,
 			*dspf = NULL;
     struct cw_frame 	outf, *fout;
@@ -412,7 +426,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 
     t30 = fax_get_t30_state(fax);
 
-    fax_set_common(chan, t30, file, calling_party, verbose);
+    verbose = fax_set_common(chan, t30, file, calling_party, verbose);
 
     fax_set_transmit_on_idle(fax, TRUE);
     span_log_set_message_handler(&fax->logging, span_message);

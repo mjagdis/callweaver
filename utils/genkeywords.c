@@ -186,6 +186,8 @@ struct {
 	{ "LOCALHEADERINFO", 0 },
 	{ "FAX_DISABLE_V17", 0 },
 	{ "FAX_DISABLE_ECM", 0 },
+	{ "FAX_MAX_RX_PAGES", 0 },
+	{ "FAX_DEBUG", 0 },
 
 	// ---------------------------------------------------------------------------
 	// Values for the DIALSTATUS channel variable

@@ -241,6 +241,11 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char *source_file, int calling_party, int verbose) {
     struct cw_var_t 	*var;
 
+    if (!verbose && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DEBUG, "FAX_DEBUG"))) {
+        verbose = 1;
+        cw_object_put(var);
+    }
+
     span_log_set_message_handler(&t30->logging, span_message);
 
     if (verbose)
@@ -312,7 +317,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
     t30 = t38_terminal_get_t30_state(t38);
     t38_core = t38_terminal_get_t38_core_state(t38);
 
-    fax_set_common(chan, t30, source_file, calling_party, verbose);
+    verbose = fax_set_common(chan, t30, source_file, calling_party, verbose);
 
     span_log_set_message_handler(&t38->logging, span_message);
     span_log_set_message_handler(&t38_core->logging, span_message);
@@ -394,7 +399,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
     fax_set_transmit_on_idle(fax, TRUE);
     t30 = fax_get_t30_state(fax);
 
-    fax_set_common(chan, t30, source_file, calling_party, verbose);
+    verbose = fax_set_common(chan, t30, source_file, calling_party, verbose);
 
     span_log_set_message_handler(&fax->logging, span_message);
 
@@ -596,14 +601,6 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
         else if (strcmp("debug", argv[0]) == 0)
         {
             verbose = TRUE;
-        }
-        else if (strcmp("start", argv[0]) == 0)
-        {
-            /* TODO: handle this */
-        }
-        else if (strcmp("end", argv[0]) == 0)
-        {
-            /* TODO: handle this */
         }
     }
     /* Done parsing */
