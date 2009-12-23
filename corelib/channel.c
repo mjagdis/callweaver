@@ -625,6 +625,9 @@ static void cw_channel_release(struct cw_object *obj)
 	cw_mutex_destroy(&chan->lock);
 	cw_registry_destroy(&chan->vars);
 
+	/* Drop out of the group counting radar */
+	cw_app_group_discard(chan);
+
 	/* Destroy the jitterbuffer */
 	cw_jb_destroy(chan);
 
@@ -2812,13 +2815,7 @@ static int clone_variables_one(struct cw_object *obj, void *data)
 	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cw_registry *reg = data;
 
-	/* we need to remove all app_groupcount related variables from the original
-	   channel before merging in the clone's variables; any groups assigned to the
-	   original channel should be released, only those assigned to the clone
-	   should remain
-	*/
-	if (strncmp(cw_var_name(var), GROUP_CATEGORY_PREFIX, sizeof(GROUP_CATEGORY_PREFIX) - 1))
-		cw_registry_add(reg, var->hash, &var->obj);
+	cw_registry_add(reg, var->hash, &var->obj);
 
 	return 0;
 }
@@ -2978,6 +2975,9 @@ int cw_do_masquerade(struct cw_channel *original)
 	/* Copy the FD's */
 	for (x = 0;  x < CW_MAX_FDS;  x++)
 		original->fds[x] = clone->fds[x];
+
+	/* Drop group from original */
+	cw_app_group_discard(original);
 
 	clone_variables(original, clone);
 

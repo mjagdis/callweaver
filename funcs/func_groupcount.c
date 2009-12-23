@@ -67,24 +67,16 @@ static const char group_list_func_desc[] = "Gets a list of the groups set on a c
 
 static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char group[80] = "";
-	char category[80] = "";
-	struct cw_var_t *var;
-	int count;
+	char group[80] = "", category[80] = "";
+	int count= -1;
 
 	if (buf) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
-		if (cw_strlen_zero(group)) {
-			if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(category), category))) {
-				cw_copy_string(group, var->value, sizeof(group));
-				cw_object_put(var);
-			} else
-				cw_log(CW_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
-		}
-
-		count = cw_app_group_get_count(group, category);
-		snprintf(buf, len, "%d", count);
+		if ((count = cw_app_group_get_count(group, category)) == -1)
+			cw_log(CW_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
+		else
+			snprintf(buf, len, "%d", count);
 	}
 
 	return 0;
@@ -110,8 +102,6 @@ static int group_match_count_function_read(struct cw_channel *chan, int argc, ch
 
 static int group_function_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct cw_var_t *var;
-
 	if (argc > 0) {
 		char tmp[256];
 
@@ -128,63 +118,59 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cha
 	}
 
 	if (buf) {
-		if (argc > 0 && argv[0][0]) {
-			snprintf(buf, len, "%s_%s", GROUP_CATEGORY_PREFIX, argv[0]);
-		} else {
-			cw_copy_string(buf, GROUP_CATEGORY_PREFIX, len);
+		struct cw_group_info *gi;
+
+		cw_app_group_list_lock();
+
+		gi = cw_app_group_list_head();
+		while (gi) {
+			if (gi->chan != chan)
+				continue;
+			if (argc <= 0 || !argv[0][0])
+				break;
+			if (!cw_strlen_zero(gi->category) && !strcasecmp(gi->category, argv[0]))
+				break;
+			gi = CW_LIST_NEXT(gi, list);
 		}
 
-		if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(buf), buf))) {
-			cw_copy_string(buf, var->value, len);
-			cw_object_put(var);
-		} else
-			*buf = '\0';
+		if (gi)
+			cw_copy_string(buf, gi->group, len);
+
+		cw_app_group_list_unlock();
 	}
 
 	return 0;
 }
 
-
-struct group_list_function_read_args {
-	char tmp1[1024];
-	char tmp2[1024];
-};
-
-static int group_list_function_read_one(struct cw_object *obj, void *data)
-{
-	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-	struct group_list_function_read_args *args = data;
-
-	if (!strncmp(cw_var_name(var), GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX "_"))) {
-		if (!cw_strlen_zero(args->tmp1)) {
-			cw_copy_string(args->tmp2, args->tmp1, sizeof(args->tmp2));
-			snprintf(args->tmp1, sizeof(args->tmp1), "%s %s@%s", args->tmp2, var->value, cw_var_name(var) + sizeof(GROUP_CATEGORY_PREFIX));
-		} else {
-			snprintf(args->tmp1, sizeof(args->tmp1), "%s@%s", var->value, cw_var_name(var) + sizeof(GROUP_CATEGORY_PREFIX));
-		}
-	} else if (!strcmp(cw_var_name(var), GROUP_CATEGORY_PREFIX)) {
-		if (!cw_strlen_zero(args->tmp1)) {
-			cw_copy_string(args->tmp2, args->tmp1, sizeof(args->tmp2));
-			snprintf(args->tmp1, sizeof(args->tmp1), "%s %s", args->tmp2, var->value);
-		} else {
-			snprintf(args->tmp1, sizeof(args->tmp1), "%s", var->value);
-		}
-	}
-
-	return 0;
-}
 
 static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct group_list_function_read_args args = {
-		.tmp1 = "",
-		.tmp2 = "",
-	};
+	char tmp1[1024] = "";
+	char tmp2[1024] = "";
+	struct cw_group_info *gi = NULL;
 
-	if (buf) {
-		cw_registry_iterate_ordered(&chan->vars, group_list_function_read_one, &args);
-		cw_copy_string(buf, args.tmp1, len);
+	cw_app_group_list_lock();
+
+	for (gi = cw_app_group_list_head(); gi; gi = CW_LIST_NEXT(gi, list)) {
+		if (gi->chan != chan)
+			continue;
+		if (!cw_strlen_zero(tmp1)) {
+			cw_copy_string(tmp2, tmp1, sizeof(tmp2));
+			if (!cw_strlen_zero(gi->category))
+				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, gi->group, gi->category);
+			else
+				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, gi->group);
+		} else {
+			if (!cw_strlen_zero(gi->category))
+				snprintf(tmp1, sizeof(tmp1), "%s@%s", gi->group, gi->category);
+			else
+				snprintf(tmp1, sizeof(tmp1), "%s", gi->group);
+		}
 	}
+
+	cw_app_group_list_unlock();
+
+	cw_copy_string(buf, tmp1, len);
 
 	return 0;
 }

@@ -232,77 +232,44 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 }
 
 
-struct group_show_chanvar_args {
-	struct cw_channel *chan;
-	struct cw_var_t *var;
-	int havepattern;
-	int fd;
-	int numchans;
-	regex_t regexbuf;
-};
-
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
-
-static int group_show_chanvar_one(struct cw_object *obj, void *data)
-{
-	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-	struct group_show_chanvar_args *args = data;
-	const char *name = cw_var_name(var);
-
-	if (!strncmp(name, GROUP_CATEGORY_PREFIX "_", sizeof(GROUP_CATEGORY_PREFIX) - 1 + 1)) {
-		if (!args->havepattern || !regexec(&args->regexbuf, var->value, 0, NULL, 0)) {
-			cw_cli(args->fd, FORMAT_STRING, args->chan->name, var->value,
-				(name + sizeof(GROUP_CATEGORY_PREFIX) - 1 + 1));
-			args->numchans++;
-		}
-	} else if (!strcmp(name, GROUP_CATEGORY_PREFIX)) {
-		if (!args->havepattern || !regexec(&args->regexbuf, var->value, 0, NULL, 0)) {
-			cw_cli(args->fd, FORMAT_STRING, args->chan->name, var->value, "(default)");
-			args->numchans++;
-		}
-	}
-
-	return 0;
-}
-
-static int group_show_channels_one(struct cw_object *obj, void *data)
-{
-	struct group_show_chanvar_args *args = data;
-
-	/* Strictly speaking we should lock the channel to guarantee that
-	 * the channel name doesn't change under us. We don't bother though.
-	 * There's a risk of garbage output...
-	 */
-	args->chan = container_of(obj, struct cw_channel, obj);
-	cw_registry_iterate(&args->chan->vars, group_show_chanvar_one, &args);
-}
 
 static int group_show_channels(int fd, int argc, char *argv[])
 {
-	struct group_show_chanvar_args args = {
-		.havepattern = 0,
-		.fd = fd,
-		.numchans = 0,
-	};
+	regex_t regexbuf;
 	struct cw_channel *chan = NULL;
+	struct cw_group_info *gi = NULL;
+	int numchans;
+	int havepattern;
 
 	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
 
+	havepattern = 0;
 	if (argc == 4) {
-		if (regcomp(&args.regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
 			return RESULT_SHOWUSAGE;
-		args.havepattern = 1;
+		havepattern = 1;
 	}
 
 	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
 
-	cw_registry_iterate_ordered(&channel_registry, group_show_channels_one, &args);
+	cw_app_group_list_lock();
 
-	if (args.havepattern)
-		regfree(&args.regexbuf);
+	gi = cw_app_group_list_head();
+	while (gi) {
+		if (!havepattern || !regexec(&regexbuf, gi->group, 0, NULL, 0)) {
+			cw_cli(fd, FORMAT_STRING, gi->chan->name, gi->group, (cw_strlen_zero(gi->category) ? "(default)" : gi->category));
+			numchans++;
+		}
+		gi = CW_LIST_NEXT(gi, list);
+	}
+	cw_app_group_list_unlock();
 
-	cw_cli(fd, "%d active channel%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
+	if (havepattern)
+		regfree(&regexbuf);
+
+	cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 }
 #undef FORMAT_STRING

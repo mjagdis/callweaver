@@ -48,8 +48,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 #include "callweaver/indications.h"
+#include "callweaver/linkedlists.h"
 
 #define MAX_OTHER_FORMATS 10
+
+static CW_LIST_HEAD_STATIC(groups, cw_group_info);
 
 
 /* 
@@ -854,111 +857,130 @@ int cw_app_group_split_group(const char *data, char *group, int group_max, char 
 	else
 		res = -1;
 
-	if (cat)
-		snprintf(category, category_max, "%s_%s", GROUP_CATEGORY_PREFIX, cat);
-	else
-		cw_copy_string(category, GROUP_CATEGORY_PREFIX, category_max);
+	if (!cw_strlen_zero(cat))
+		cw_copy_string(category, cat, category_max);
 
 	return res;
 }
 
 int cw_app_group_set_channel(struct cw_channel *chan, const char *data)
 {
-	int res=0;
-	char group[80] = "";
-	char category[80] = "";
+	char group[80] = "", category[80] = "";
+	struct cw_group_info *gi;
+	size_t len = 0;
+	int res = 0;
 
-	if (!cw_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
-		pbx_builtin_setvar_helper(chan, category, group);
-	} else
+	if (!cw_app_group_split_group(data, group, sizeof(group), category, sizeof(category)))
+		return -1;
+
+	/* Calculate memory we will need if this is new */
+	len = sizeof(*gi) + strlen(group) + 1;
+	if (!cw_strlen_zero(category))
+		len += strlen(category) + 1;
+
+	CW_LIST_LOCK(&groups);
+	CW_LIST_TRAVERSE(&groups, gi, list) {
+		if (gi->chan == chan && !strcasecmp(gi->group, group) && (cw_strlen_zero(category) || (!cw_strlen_zero(gi->category) && !strcasecmp(gi->category, category))))
+			break;
+	}
+
+	if (!gi && (gi = calloc(1, len))) {
+		gi->chan = chan;
+		gi->group = (char *)gi + sizeof(*gi);
+		strcpy(gi->group, group);
+		if (!cw_strlen_zero(category)) {
+			gi->category = (char *)gi + sizeof(*gi) + strlen(group) + 1;
+			strcpy(gi->category, category);
+		}
+		CW_LIST_INSERT_TAIL(&groups, gi, list);
+	} else {
 		res = -1;
+	}
+
+	CW_LIST_UNLOCK(&groups);
 
 	return res;
 }
 
 
-struct app_group_get_count_args {
-	const char *group;
-	const char *category;
-	unsigned int hash;
-	int count;
-};
-
-static int app_group_get_count_one(struct cw_object *obj, void *data)
-{
-	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	struct app_group_get_count_args *args = data;
-	struct cw_var_t *var;
-
-	if ((var = pbx_builtin_getvar_helper(chan, args->hash, args->category))) {
-		if (!strcasecmp(var->value, args->group))
-			args->count++;
-		cw_object_put(var);
-	}
-
-	return 0;
-}
-
 int cw_app_group_get_count(const char *group, const char *category)
 {
-	struct app_group_get_count_args args;
+	struct cw_group_info *gi = NULL;
+	int count = 0;
 
 	if (cw_strlen_zero(group))
 		return 0;
 
-	args.group = group;
-	args.category = (cw_strlen_zero(category) ? GROUP_CATEGORY_PREFIX : category);
-	args.hash = cw_hash_var_name(args.category);
-	args.count = 0;
-
-	cw_registry_iterate(&channel_registry, app_group_get_count_one, &args);
-
-	return args.count;
-}
-
-
-struct app_group_match_get_count_args {
-	regex_t regexbuf;
-	const char *category;
-	unsigned int hash;
-	int count;
-};
-
-static int app_group_match_get_count_one(struct cw_object *obj, void *data)
-{
-	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	struct app_group_match_get_count_args *args = data;
-	struct cw_var_t *var;
-
-	if ((var = pbx_builtin_getvar_helper(chan, args->hash, args->category))) {
-		if (!regexec(&args->regexbuf, var->value, 0, NULL, 0))
-			args->count++;
-		cw_object_put(var);
+	CW_LIST_LOCK(&groups);
+	CW_LIST_TRAVERSE(&groups, gi, list) {
+		if (!strcasecmp(gi->group, group) && (cw_strlen_zero(category) || !strcasecmp(gi->category, category)))
+			count++;
 	}
+	CW_LIST_UNLOCK(&groups);
 
-	return 0;
+	return count;
 }
+
 
 int cw_app_group_match_get_count(const char *groupmatch, const char *category)
 {
-	struct app_group_match_get_count_args args;
+	regex_t regexbuf;
+	struct cw_group_info *gi = NULL;
+	int count = 0;
 
 	if (cw_strlen_zero(groupmatch))
 		return 0;
 
 	/* if regex compilation fails, return zero matches */
-	if (regcomp(&args.regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
+	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	args.category = (cw_strlen_zero(category) ? GROUP_CATEGORY_PREFIX : category);
-	args.hash = cw_hash_var_name(args.category);
-	args.count = 0;
+	CW_LIST_LOCK(&groups);
+	CW_LIST_TRAVERSE(&groups, gi, list) {
+		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (cw_strlen_zero(category) || !strcasecmp(gi->category, category)))
+			count++;
+	}
+	CW_LIST_UNLOCK(&groups);
 
-	cw_registry_iterate(&channel_registry, app_group_match_get_count_one, &args);
+	regfree(&regexbuf);
 
-	regfree(&args.regexbuf);
+	return count;
+}
 
-	return args.count;
+
+int cw_app_group_discard(struct cw_channel *chan)
+{
+	struct cw_group_info *gi = NULL;
+
+	CW_LIST_LOCK(&groups);
+	CW_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+		if (gi->chan == chan) {
+			CW_LIST_REMOVE_CURRENT(&groups, list);
+			free(gi);
+		}
+	}
+	CW_LIST_TRAVERSE_SAFE_END
+	CW_LIST_UNLOCK(&groups);
+
+	return 0;
+}
+
+
+int cw_app_group_list_lock(void)
+{
+	return CW_LIST_LOCK(&groups);
+}
+
+
+struct cw_group_info *cw_app_group_list_head(void)
+{
+	return CW_LIST_FIRST(&groups);
+}
+
+
+int cw_app_group_list_unlock(void)
+{
+	return CW_LIST_UNLOCK(&groups);
 }
 
 

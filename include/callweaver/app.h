@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#include "callweaver/linkedlists.h"
 #include "callweaver/channel.h"
 
 /* IVR stuff */
@@ -165,7 +166,12 @@ extern CW_API_PUBLIC enum CW_LOCK_RESULT cw_lock_path(const char *path);
 /* Unlock a path */
 extern CW_API_PUBLIC int cw_unlock_path(const char *path);
 
-#define GROUP_CATEGORY_PREFIX "GROUP"
+struct cw_group_info {
+	struct cw_channel *chan;
+	char *category;
+	char *group;
+	CW_LIST_ENTRY(cw_group_info) list;
+};
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
 extern CW_API_PUBLIC int cw_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
@@ -178,6 +184,18 @@ extern CW_API_PUBLIC int cw_app_group_get_count(const char *group, const char *c
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
 extern CW_API_PUBLIC int cw_app_group_match_get_count(const char *groupmatch, const char *category);
+
+/*! Discard all group counting for a channel */
+extern CW_API_PUBLIC int cw_app_group_discard(struct cw_channel *chan);
+
+/*! Lock the group count list */
+extern CW_API_PUBLIC int cw_app_group_list_lock(void);
+
+/*! Get the head of the group count list */
+extern CW_API_PUBLIC struct cw_group_info *cw_app_group_list_head(void);
+
+/*! Unlock the group count list */
+extern CW_API_PUBLIC int cw_app_group_list_unlock(void);
 
 
 /*!
