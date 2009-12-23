@@ -1751,7 +1751,6 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
-cw_log(CW_LOG_NOTICE, "Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
 
 	if (recordhistory) {
 		snprintf(tmp, sizeof(tmp), "%d ms", ms);
@@ -3492,6 +3491,7 @@ static int sip_hangup(struct cw_channel *ast)
 	sip_destroy(p);
 
     cw_mutex_unlock(&p->lock);
+    cw_object_put(p);
     return 0;
 }
 
@@ -3960,7 +3960,7 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
     tmp->rawwriteformat = fmt;
     tmp->readformat = fmt;
     tmp->rawreadformat = fmt;
-    tmp->tech_pvt = i;
+    tmp->tech_pvt = cw_object_dup(i);
 
     tmp->callgroup = i->callgroup;
     tmp->pickupgroup = i->pickupgroup;
