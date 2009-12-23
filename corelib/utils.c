@@ -1334,12 +1334,15 @@ int cw_utils_init(void)
 	global_sched_param_rr.sched_priority = 50;
 
 	pthread_mutexattr_init(&global_mutexattr_simple);
+	pthread_mutexattr_setprotocol(&global_mutexattr_simple, PTHREAD_PRIO_INHERIT);
 
 	pthread_mutexattr_init(&global_mutexattr_errorcheck);
 	pthread_mutexattr_settype(&global_mutexattr_errorcheck, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutexattr_setprotocol(&global_mutexattr_errorcheck, PTHREAD_PRIO_INHERIT);
 
 	pthread_mutexattr_init(&global_mutexattr_recursive);
 	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutexattr_setprotocol(&global_mutexattr_recursive, PTHREAD_PRIO_INHERIT);
 
 	pthread_attr_init(&global_attr_default);
 	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);
