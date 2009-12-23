@@ -128,9 +128,6 @@ static struct cw_clicmd *find_cli(char *cmds[], int exact)
 }
 
 
-extern unsigned long global_fin, global_fout;
-
-
 static const char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
@@ -526,7 +523,6 @@ static int handle_debuglevel(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-#define DEBUGCHAN_FLAG  0x80000000
 static int debugchan_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
@@ -534,11 +530,9 @@ static int debugchan_one(struct cw_object *obj, void *data)
 
 	cw_channel_lock(chan);
 
-        if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
-            chan->fin |= DEBUGCHAN_FLAG;
-            chan->fout |= DEBUGCHAN_FLAG;
-            cw_dynstr_printf(ds_p, "Debugging enabled on channel %s\n", chan->name);
-        }
+	cw_set_flag(chan, CW_FLAG_DEBUG_IN);
+	cw_set_flag(chan, CW_FLAG_DEBUG_OUT);
+	cw_dynstr_printf(ds_p, "Debugging enabled on channel %s\n", chan->name);
 
 	cw_channel_unlock(chan);
 	return 0;
@@ -551,11 +545,9 @@ static int nodebugchan_one(struct cw_object *obj, void *data)
 
 	cw_channel_lock(chan);
 
-        if ((chan->fin & DEBUGCHAN_FLAG) || (chan->fout & DEBUGCHAN_FLAG)) {
-            chan->fin &= ~DEBUGCHAN_FLAG;
-            chan->fout &= ~DEBUGCHAN_FLAG;
-            cw_dynstr_printf(ds_p, "Debugging disabled on channel %s\n", chan->name);
-        }
+	cw_clear_flag(chan, CW_FLAG_DEBUG_IN);
+	cw_clear_flag(chan, CW_FLAG_DEBUG_OUT);
+	cw_dynstr_printf(ds_p, "Debugging disabled on channel %s\n", chan->name);
 
 	cw_channel_unlock(chan);
 	return 0;
@@ -572,17 +564,16 @@ static int handle_debugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 	if (strcasecmp("all", argv[2])) {
 		if ((chan = cw_get_channel_by_name_locked(argv[2]))) {
 			debugchan_one(&chan->obj, ds_p);
+			cw_channel_unlock(chan);
 			cw_object_put(chan);
 		} else
 			cw_dynstr_printf(ds_p, "No such channel %s\n", argv[2]);
 		return RESULT_SUCCESS;
 	}
 
-	global_fin |= DEBUGCHAN_FLAG;
-	global_fout |= DEBUGCHAN_FLAG;
-	cw_dynstr_printf(ds_p, "Debugging on new channels is enabled\n");
-
+	cw_debugchan_flags = (CW_FLAG_DEBUG_IN | CW_FLAG_DEBUG_OUT);
 	cw_registry_iterate_ordered(&channel_registry, debugchan_one, ds_p);
+	cw_dynstr_printf(ds_p, "Debugging on new channels is enabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -596,18 +587,17 @@ static int handle_nodebugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 	if (strcasecmp("all", argv[3])) {
 		if ((chan = cw_get_channel_by_name_locked(argv[3]))) {
-			debugchan_one(&chan->obj, ds_p);
+			nodebugchan_one(&chan->obj, ds_p);
+			cw_channel_unlock(chan);
 			cw_object_put(chan);
 		} else
 			cw_dynstr_printf(ds_p, "No such channel %s\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
 
-	global_fin &= ~DEBUGCHAN_FLAG;
-	global_fout &= ~DEBUGCHAN_FLAG;
-	cw_dynstr_printf(ds_p, "Debugging on new channels is disabled\n");
-
+	cw_debugchan_flags = 0;
 	cw_registry_iterate_ordered(&channel_registry, nodebugchan_one, ds_p);
+	cw_dynstr_printf(ds_p, "Debugging on new channels is disabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -678,8 +668,10 @@ static int handle_showchan(struct cw_dynstr **ds_p, int argc, char *argv[])
         (chan->cid.cid_num ? chan->cid.cid_num : "(N/A)"),
         (chan->cid.cid_name ? chan->cid.cid_name : "(N/A)"),
         (chan->cid.cid_dnid ? chan->cid.cid_dnid : "(N/A)" ), cw_state2str(chan->_state), chan->_state, chan->rings, chan->nativeformats, chan->writeformat, chan->readformat,
-        chan->fds[0], chan->fin & 0x7fffffff, (chan->fin & 0x80000000) ? " (DEBUGGED)" : "",
-        chan->fout & 0x7fffffff, (chan->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)chan->whentohangup,
+        chan->fds[0],
+        chan->fin, (cw_test_flag(chan, CW_FLAG_DEBUG_IN) ? " (DEBUGGED)" : ""),
+        chan->fout, (cw_test_flag(chan, CW_FLAG_DEBUG_OUT) ? " (DEBUGGED)" : ""),
+        (long)chan->whentohangup,
         cdrtime, (chan->_bridge ? chan->_bridge->name : "<none>"), (bchan ? bchan->name : "<none>"),
         chan->jb.conf.impl,
         chan->jb.conf.flags,

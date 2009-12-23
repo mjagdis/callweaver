@@ -391,6 +391,8 @@ extern CW_API_PUBLIC void cw_spy_detach_all(struct cw_channel *chan);
 						   so when ->priority is set, it will get incremented before
 						   finding the next priority to run
 						*/
+#define CW_FLAG_DEBUG_IN	(1 << 10)	/* debug received frames */
+#define CW_FLAG_DEBUG_OUT	(1 << 11)	/* debug sent frames */
 
 #define CW_FEATURE_PLAY_WARNING	(1 << 0)
 #define CW_FEATURE_REDIRECT		(1 << 1)
@@ -473,6 +475,9 @@ struct outgoing_helper {
 /* Bits 16-32 of state are reserved for flags */
 /*! Do not transmit voice data */
 #define CW_STATE_MUTE		(1 << 16)	
+
+
+extern unsigned int cw_debugchan_flags;
 
 /*! Create a channel structure */
 /*! Returns NULL on failure to allocate. New channels are 

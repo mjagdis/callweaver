@@ -74,7 +74,7 @@ static int shutting_down = 0;
 
 static int uniqueint = 0;
 
-unsigned long global_fin = 0, global_fout = 0;
+unsigned int cw_debugchan_flags;
 
 /* XXX Lock appropriately in more functions XXX */
 
@@ -669,8 +669,7 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 			/* Initial state */
 			chan->_state = CW_STATE_DOWN;
 			chan->appl = NULL;
-			chan->fin = global_fin;
-			chan->fout = global_fout;
+			chan->flags = cw_debugchan_flags;
 			chan->generator.tid = CW_PTHREADT_NULL;
 			chan->t38_status = T38_STATUS_UNKNOWN;
 
@@ -1937,13 +1936,10 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 		cw_cdr_answer(chan->cdr);
 	}
 
-	/* High bit prints debugging */
-	if (chan->fin & 0x80000000)
+	if (cw_test_flag(chan, CW_FLAG_DEBUG_IN))
 		cw_frame_dump(chan->name, f, "<<");
-	if ((chan->fin & 0x7fffffff) == 0x7fffffff)
-		chan->fin &= 0x80000000;
-	else
-		chan->fin++;
+
+	chan->fin++;
 		
 	cw_channel_unlock(chan);
 
@@ -2193,8 +2189,7 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 
 	fr = *fr_p;
 
-	/* High bit prints debugging */
-	if (chan->fout & 0x80000000)
+	if (cw_test_flag(chan, CW_FLAG_DEBUG_OUT))
 		cw_frame_dump(chan->name, fr, ">>");
 #if 0
 	/* CMANTUNES: Do we really need this CHECK_BLOCKING thing in here?
@@ -2297,16 +2292,15 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 
 	if (f && (f != fr))
 		cw_fr_free(f);
+
 	cw_clear_flag(chan, CW_FLAG_BLOCKING);
+
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
 		chan->_softhangup |= CW_SOFTHANGUP_DEV;
-	else {
-		if ((chan->fout & 0x7fffffff) == 0x7fffffff)
-			chan->fout &= 0x80000000;
-		else
-			chan->fout++;
-	}
+	else
+		chan->fout++;
+
 	cw_channel_unlock(chan);
 	return res;
 }
